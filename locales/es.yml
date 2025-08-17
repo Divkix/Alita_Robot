@@ -36,6 +36,7 @@ admin_errors_err_set_title:
   Error al establecer título de administrador personalizado; El título puede no ser
   correcto o puede contener emojis.
 admin_errors_title_empty: Necesitas darme un título de administrador para establecerlo.
+admin_errors_admin_cache_failed: "Tengo problemas para acceder a la lista de administradores. Por favor, inténtalo de nuevo más tarde."
 admin_help_msg:
   "¡Facilita promover y degradar usuarios con el módulo de administración!
 

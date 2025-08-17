@@ -33,6 +33,7 @@ admin_errors_err_set_title:
   Failed to set custom admin title; The Title may not be
   correct or may contain emojis.
 admin_errors_title_empty: You need to give me an admin title to set it.
+admin_errors_admin_cache_failed: "I'm having trouble accessing the admin list. Please try again later."
 admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
 

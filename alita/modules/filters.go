@@ -42,6 +42,11 @@ Only admin can add new filters in the chat
 // addFilter creates a new filter with a keyword trigger and response content.
 // Only admins can add filters. Supports text, media, and buttons with a limit of 150 filters per chat.
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("[Filters][addFilter] Recovered from panic: %v", r)
+		}
+	}()
 	msg := ctx.EffectiveMessage
 	// connection status
 	connectedChat := helpers.IsUserConnected(b, ctx, true, false)

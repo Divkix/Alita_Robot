@@ -62,10 +62,23 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Validate greeting function exists before calling
 			greetFunc, exists := helpers.GreetingsEnumFuncMap[welcPrefs.WelcomeSettings.WelcomeType]
 			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for welcome preview: %d", welcPrefs.WelcomeSettings.WelcomeType)
-				return fmt.Errorf("invalid greeting type: %d", welcPrefs.WelcomeSettings.WelcomeType)
+				log.Errorf("Invalid or missing greeting type for welcome preview: %d, falling back to text message", welcPrefs.WelcomeSettings.WelcomeType)
+				// Fallback to sending a plain text message
+				_, err := msg.Reply(bot, wlcmText, &gotgbot.SendMessageOpts{
+					ParseMode:   helpers.HTML,
+					ReplyMarkup: &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
+				})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+			} else {
+				_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
 			}
-			_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
 			if err != nil {
 				log.Error(err)
 				return err
@@ -77,10 +90,23 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Validate greeting function exists before calling
 			greetFunc, exists := helpers.GreetingsEnumFuncMap[welcPrefs.WelcomeSettings.WelcomeType]
 			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for welcome preview: %d", welcPrefs.WelcomeSettings.WelcomeType)
-				return fmt.Errorf("invalid greeting type: %d", welcPrefs.WelcomeSettings.WelcomeType)
+				log.Errorf("Invalid or missing greeting type for welcome preview: %d, falling back to text message", welcPrefs.WelcomeSettings.WelcomeType)
+				// Fallback to sending a plain text message
+				_, err := msg.Reply(bot, wlcmText, &gotgbot.SendMessageOpts{
+					ParseMode:   helpers.HTML,
+					ReplyMarkup: &keyboard,
+				})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+			} else {
+				_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &keyboard)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
 			}
-			_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &keyboard)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -221,10 +247,23 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Validate greeting function exists before calling
 			greetFunc, exists := helpers.GreetingsEnumFuncMap[gdbyePrefs.GoodbyeSettings.GoodbyeType]
 			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for goodbye preview: %d", gdbyePrefs.GoodbyeSettings.GoodbyeType)
-				return fmt.Errorf("invalid greeting type: %d", gdbyePrefs.GoodbyeSettings.GoodbyeType)
+				log.Errorf("Invalid or missing greeting type for goodbye preview: %d, falling back to text message", gdbyePrefs.GoodbyeSettings.GoodbyeType)
+				// Fallback to sending a plain text message
+				_, err := msg.Reply(bot, gdbyeText, &gotgbot.SendMessageOpts{
+					ParseMode:   helpers.HTML,
+					ReplyMarkup: &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
+				})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+			} else {
+				_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
 			}
-			_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
 			if err != nil {
 				log.Error(err)
 				return err
@@ -236,10 +275,23 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Validate greeting function exists before calling
 			greetFunc, exists := helpers.GreetingsEnumFuncMap[gdbyePrefs.GoodbyeSettings.GoodbyeType]
 			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for goodbye preview: %d", gdbyePrefs.GoodbyeSettings.GoodbyeType)
-				return fmt.Errorf("invalid greeting type: %d", gdbyePrefs.GoodbyeSettings.GoodbyeType)
+				log.Errorf("Invalid or missing greeting type for goodbye preview: %d, falling back to text message", gdbyePrefs.GoodbyeSettings.GoodbyeType)
+				// Fallback to sending a plain text message
+				_, err := msg.Reply(bot, gdbyeText, &gotgbot.SendMessageOpts{
+					ParseMode:   helpers.HTML,
+					ReplyMarkup: &keyboard,
+				})
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+			} else {
+				_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &keyboard)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
 			}
-			_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &keyboard)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -526,6 +578,11 @@ func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 // SendWelcomeMessage sends the configured welcome message for a user in a chat.
 // This is extracted as a separate function to be reusable after captcha verification.
 func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstName string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("[Greetings][SendWelcomeMessage] Recovered from panic: %v", r)
+		}
+	}()
 	chat := ctx.EffectiveChat
 	greetPrefs := db.GetGreetingSettings(chat.Id)
 
@@ -547,8 +604,21 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		// Validate greeting function exists before calling
 		greetFunc, exists := helpers.GreetingsEnumFuncMap[greetPrefs.WelcomeSettings.WelcomeType]
 		if !exists || greetFunc == nil {
-			log.Errorf("Invalid or missing greeting type: %d", greetPrefs.WelcomeSettings.WelcomeType)
-			return fmt.Errorf("invalid greeting type: %d", greetPrefs.WelcomeSettings.WelcomeType)
+			log.Errorf("Invalid or missing greeting type: %d, using fallback text message", greetPrefs.WelcomeSettings.WelcomeType)
+			// Fallback to sending a plain text message
+			_, err := bot.SendMessage(chat.Id, res, &gotgbot.SendMessageOpts{
+				ParseMode:   helpers.HTML,
+				ReplyMarkup: keyboard,
+			})
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			if greetPrefs.WelcomeSettings.CleanWelcome {
+				_, _ = bot.DeleteMessage(chat.Id, greetPrefs.WelcomeSettings.LastMsgId, nil)
+				db.SetCleanWelcomeMsgId(chat.Id, 0) // No message ID available for cleanup
+			}
+			return nil
 		}
 
 		sent, err := greetFunc(bot, ctx, res, greetPrefs.WelcomeSettings.FileID, keyboard)
@@ -674,8 +744,21 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		// Validate greeting function exists before calling
 		greetFunc, exists := helpers.GreetingsEnumFuncMap[greetPrefs.GoodbyeSettings.GoodbyeType]
 		if !exists || greetFunc == nil {
-			log.Errorf("Invalid or missing greeting type for goodbye message: %d", greetPrefs.GoodbyeSettings.GoodbyeType)
-			return fmt.Errorf("invalid greeting type: %d", greetPrefs.GoodbyeSettings.GoodbyeType)
+			log.Errorf("Invalid or missing greeting type for goodbye message: %d, using fallback text message", greetPrefs.GoodbyeSettings.GoodbyeType)
+			// Fallback to sending a plain text message
+			_, err := bot.SendMessage(chat.Id, res, &gotgbot.SendMessageOpts{
+				ParseMode:   helpers.HTML,
+				ReplyMarkup: keyboard,
+			})
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			if greetPrefs.GoodbyeSettings.CleanGoodbye {
+				_, _ = bot.DeleteMessage(chat.Id, greetPrefs.GoodbyeSettings.LastMsgId, nil)
+				db.SetCleanGoodbyeMsgId(chat.Id, 0) // No message ID available for cleanup
+			}
+			return ext.EndGroups
 		}
 		sent, err := greetFunc(bot, ctx, res, greetPrefs.GoodbyeSettings.FileID, keyboard)
 		if err != nil {
