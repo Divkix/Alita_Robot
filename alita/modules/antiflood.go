@@ -288,7 +288,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	switch flood.Mode {
+	switch flood.Action {
 	case "mute":
 		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
@@ -487,7 +487,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
 		var mode string
-		switch flood.Mode {
+		switch flood.Action {
 		case "mute":
 			mode = "muted"
 		case "ban":
