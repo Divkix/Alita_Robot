@@ -33,3 +33,4 @@ local.docker-compose.yml
 scripts/migrate/migrate
 .mcp.json
 alita_test
+.gocache/
