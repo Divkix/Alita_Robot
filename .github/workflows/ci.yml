@@ -29,7 +29,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -46,7 +46,7 @@ jobs:
           args: -no-fail -fmt sarif -out gosec.sarif ./...
 
       - name: Upload Gosec SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v3.29.9
         with:
           sarif_file: gosec.sarif
           category: gosec
@@ -63,7 +63,7 @@ jobs:
         go-version: ["oldstable", "stable"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
@@ -90,7 +90,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -124,11 +124,105 @@ jobs:
           path: alita_robot
           retention-days: 14
 
+  # Publish Docker images for main branch pushes
+  docker-publish:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    needs: [security, lint, build-verification]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tags: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract short commit SHA
+        id: short-sha
+        run: echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      # Generate metadata and tags
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/divkix/alita_robot
+          tags: |
+            type=raw,value=dev
+            type=raw,value=dev-${{ steps.short-sha.outputs.short_sha }}
+            type=raw,value=${{ steps.short-sha.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=Alita Robot Development Build
+            org.opencontainers.image.description=Development build from main branch
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+
+      # Build and push multi-arch Docker image
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/alpine
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=gha,scope=main
+            type=registry,ref=ghcr.io/divkix/alita_robot:buildcache
+          cache-to: type=gha,mode=max,scope=main
+          provenance: false
+          sbom: false
+          build-args: |
+            COMMIT_SHA=${{ github.sha }}
+            BUILDKIT_INLINE_CACHE=1
+
+      # Add build info to job summary
+      - name: Add build info to job summary
+        run: |
+          echo "## 🐳 Docker Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Main Branch Build**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest Dev:** \`ghcr.io/divkix/alita_robot:dev\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit Build:** \`ghcr.io/divkix/alita_robot:${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dev + Commit:** \`ghcr.io/divkix/alita_robot:dev-${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Test" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Test the latest dev build" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm ghcr.io/divkix/alita_robot:dev --version" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Test specific commit" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm ghcr.io/divkix/alita_robot:${{ steps.short-sha.outputs.short_sha }} --version" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
   # Summary job that aggregates all check results
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [security, lint, build-verification]
+    needs: [security, lint, build-verification, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
@@ -139,4 +233,14 @@ jobs:
             echo "One or more CI jobs failed!"
             exit 1
           fi
-          echo "All CI checks passed successfully!"
+
+          # Check docker-publish only if it was supposed to run
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ github.event_name }}" == "push" ]; then
+            if [ "${{ needs.docker-publish.result }}" != "success" ]; then
+              echo "Docker publish job failed!"
+              exit 1
+            fi
+            echo "All CI checks and Docker publishing completed successfully!"
+          else
+            echo "All CI checks passed successfully!"
+          fi
