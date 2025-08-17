@@ -54,7 +54,7 @@ jobs:
       # Verify build works before release
       - name: Test release build
         run: |
-          go build -o alita_robot ./cmd/alita_robot
+          go build -o alita_robot .
           if [ ! -f alita_robot ]; then
             echo "Build failed, exiting"
             exit 1
