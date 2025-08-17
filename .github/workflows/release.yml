@@ -177,7 +177,7 @@ jobs:
       - name: Scan Docker images
         run: |
           # Scan the published Docker images for vulnerabilities
-          docker pull ghcr.io/divideprojects/alita_robot:latest
+          docker pull ghcr.io/divkix/alita_robot:latest
 
           # You can add additional vulnerability scanning tools here
           echo "Docker image scan completed"
@@ -187,5 +187,5 @@ jobs:
         run: |
           echo "🎉 Release completed successfully!"
           echo "📦 Artifacts published to GitHub Releases"
-          echo "🐳 Docker images available at ghcr.io/divideprojects/alita_robot"
+          echo "🐳 Docker images available at ghcr.io/divkix/alita_robot"
           echo "🔒 SLSA provenance and attestations generated for supply chain security"

@@ -11,10 +11,10 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/utils/chat_status"
-	"github.com/divideprojects/Alita_Robot/alita/utils/constants"
-	"github.com/divideprojects/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 var (

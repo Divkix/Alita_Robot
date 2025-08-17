@@ -6,8 +6,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 // sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.

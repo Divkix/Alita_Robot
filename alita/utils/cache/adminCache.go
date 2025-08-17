@@ -10,7 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/eko/gocache/lib/v4/store"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/constants"
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
 // LoadAdminCache retrieves and caches the list of administrators for a given chat.

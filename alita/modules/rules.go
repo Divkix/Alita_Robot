@@ -11,13 +11,13 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/i18n"
-	"github.com/divideprojects/Alita_Robot/alita/utils/chat_status"
-	"github.com/divideprojects/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/decorators/cmdDecorator"
-	"github.com/divideprojects/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/decorators/cmdDecorator"
+	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 )
 
 var rulesModule = moduleStruct{

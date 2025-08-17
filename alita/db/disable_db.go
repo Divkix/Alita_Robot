@@ -3,8 +3,8 @@ package db
 import (
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/cache"
-	"github.com/divideprojects/Alita_Robot/alita/utils/string_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // DisableCMD disables a command in a specific chat.

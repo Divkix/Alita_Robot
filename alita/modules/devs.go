@@ -11,13 +11,13 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/divideprojects/Alita_Robot/alita/config"
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/i18n"
-	"github.com/divideprojects/Alita_Robot/alita/utils/extraction"
-	"github.com/divideprojects/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/string_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var devsModule = moduleStruct{moduleName: "Dev"}

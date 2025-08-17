@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 // MigrationRunner handles automatic database migrations

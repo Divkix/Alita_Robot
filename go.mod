@@ -1,4 +1,4 @@
-module github.com/divideprojects/Alita_Robot
+module github.com/divkix/Alita_Robot
 
 go 1.23.0
 

@@ -12,11 +12,11 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/i18n"
-	"github.com/divideprojects/Alita_Robot/alita/utils/cache"
-	"github.com/divideprojects/Alita_Robot/alita/utils/error_handling"
-	"github.com/divideprojects/Alita_Robot/alita/utils/string_handling"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // 1087968824 - Group Anonymous Bot (For anonymous users)

@@ -11,23 +11,23 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
-	"github.com/divideprojects/Alita_Robot/alita/db"
-	"github.com/divideprojects/Alita_Robot/alita/health"
-	"github.com/divideprojects/Alita_Robot/alita/i18n"
-	"github.com/divideprojects/Alita_Robot/alita/metrics"
-	"github.com/divideprojects/Alita_Robot/alita/utils/async"
-	"github.com/divideprojects/Alita_Robot/alita/utils/error_handling"
-	"github.com/divideprojects/Alita_Robot/alita/utils/errors"
-	"github.com/divideprojects/Alita_Robot/alita/utils/helpers"
-	"github.com/divideprojects/Alita_Robot/alita/utils/monitoring"
-	"github.com/divideprojects/Alita_Robot/alita/utils/shutdown"
-	"github.com/divideprojects/Alita_Robot/alita/utils/webhook"
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/health"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/metrics"
+	"github.com/divkix/Alita_Robot/alita/utils/async"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
+	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/webhook"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divideprojects/Alita_Robot/alita"
+	"github.com/divkix/Alita_Robot/alita"
 )
 
 //go:embed locales

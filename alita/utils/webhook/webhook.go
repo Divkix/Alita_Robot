@@ -15,7 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 // WebhookServer manages the webhook HTTP server

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/divideprojects/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	log "github.com/sirupsen/logrus"
 )
 

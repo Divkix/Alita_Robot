@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/divideprojects/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	redis_store "github.com/eko/gocache/store/redis/v4"

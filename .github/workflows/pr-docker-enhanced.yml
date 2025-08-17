@@ -92,7 +92,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/divideprojects/alita_robot
+          images: ghcr.io/divkix/alita_robot
           tags: |
             type=raw,value=pr-${{ github.event.pull_request.number }}-${{ steps.short-sha.outputs.short_sha }}
             type=raw,value=pr-${{ github.event.pull_request.number }}
@@ -119,7 +119,7 @@ jobs:
           cache-from: |
             type=gha,scope=pr-${{ github.event.pull_request.number }}
             type=gha,scope=main
-            type=registry,ref=ghcr.io/divideprojects/alita_robot:buildcache
+            type=registry,ref=ghcr.io/divkix/alita_robot:buildcache
           cache-to: type=gha,mode=max,scope=pr-${{ github.event.pull_request.number }}
           provenance: false
           sbom: false
@@ -134,7 +134,7 @@ jobs:
           echo "## 🐳 Docker Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**PR #${{ github.event.pull_request.number }}**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`ghcr.io/divideprojects/alita_robot:pr-${{ github.event.pull_request.number }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`ghcr.io/divkix/alita_robot:pr-${{ github.event.pull_request.number }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
@@ -142,10 +142,10 @@ jobs:
           echo "### Quick Test" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "# Test the latest PR build" >> $GITHUB_STEP_SUMMARY
-          echo "docker run --rm ghcr.io/divideprojects/alita_robot:pr-${{ github.event.pull_request.number }} --version" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm ghcr.io/divkix/alita_robot:pr-${{ github.event.pull_request.number }} --version" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Test specific commit" >> $GITHUB_STEP_SUMMARY
-          echo "docker run --rm ghcr.io/divideprojects/alita_robot:pr-${{ github.event.pull_request.number }}-${{ steps.short-sha.outputs.short_sha }} --version" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm ghcr.io/divkix/alita_robot:pr-${{ github.event.pull_request.number }}-${{ steps.short-sha.outputs.short_sha }} --version" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "_Images are automatically cleaned up when the PR is closed._" >> $GITHUB_STEP_SUMMARY

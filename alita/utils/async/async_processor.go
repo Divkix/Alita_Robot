@@ -6,7 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 // AsyncProcessor handles asynchronous processing of non-critical operations

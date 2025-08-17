@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
-	"github.com/divideprojects/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
 	log "github.com/sirupsen/logrus"
 )
 

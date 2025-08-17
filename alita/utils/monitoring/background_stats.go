@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/divideprojects/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db"
 	log "github.com/sirupsen/logrus"
 )
 

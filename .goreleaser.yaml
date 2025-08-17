@@ -11,7 +11,7 @@ release:
 
   footer: |
     Docker 🐳 images are available at:
-    `docker pull ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}`
+    `docker pull ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}`
 
 gomod:
   env:
@@ -78,7 +78,7 @@ dockers:
     dockerfile: docker/goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-amd64"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--pull"
@@ -92,7 +92,7 @@ dockers:
     dockerfile: docker/goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--pull"
@@ -104,11 +104,11 @@ dockers:
       - supabase
 
 docker_manifests:
-  - name_template: "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Version }}"
+  - name_template: "ghcr.io/divkix/{{ .ProjectName }}:{{ .Version }}"
     image_templates:
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-amd64"
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
-  - name_template: "ghcr.io/divideprojects/{{ .ProjectName }}:latest"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
+  - name_template: "ghcr.io/divkix/{{ .ProjectName }}:latest"
     image_templates:
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-amd64"
-      - "ghcr.io/divideprojects/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
+      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"

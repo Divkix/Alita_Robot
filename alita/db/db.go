@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/divideprojects/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 // Message type constants - maintain compatibility with existing code

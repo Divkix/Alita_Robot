@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/divideprojects/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/spf13/viper"
 )
 

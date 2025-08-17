@@ -271,7 +271,7 @@ have traditional unit tests. Instead:
 The project uses GoReleaser for multi-platform builds:
 
 - Binaries for Darwin, Linux, Windows (amd64, arm64)
-- Docker images published to ghcr.io/divideprojects/alita_robot
+- Docker images published to ghcr.io/divkix/alita_robot
 - GitHub Actions automates releases on version tags
 - Supply chain security via attestation
 
