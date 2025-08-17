@@ -374,7 +374,7 @@ func generateTextCaptcha() (string, []byte, []string, error) {
 	// Create a string driver for text captcha
 	driver := base64Captcha.NewDriverString(
 		80,                                 // height
-		240,                                // width
+		160,                                // width
 		0,                                  // noiseCount
 		2,                                  // showLineOptions
 		4,                                  // length
@@ -436,7 +436,7 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 	// Dimensions/noise tuned for readability similar to text captcha
 	mathDriver := base64Captcha.NewDriverMath(
 		80,  // height
-		240, // width
+		160, // width
 		0,   // noiseCount
 		2,   // showLineOptions
 		nil, // bgColor
