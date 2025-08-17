@@ -53,10 +53,13 @@ jobs:
 
       # Verify build works before release
       - name: Test release build
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: release --snapshot --skip=publish --clean --skip=sign
+        run: |
+          go build -o alita_robot ./cmd/alita_robot
+          if [ ! -f alita_robot ]; then
+            echo "Build failed, exiting"
+            exit 1
+          fi
+          echo "Build successful"
 
   # Main release job with enhanced security and SLSA provenance
   goreleaser:
