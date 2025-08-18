@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Quick lint check
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --fast --timeout=3m
