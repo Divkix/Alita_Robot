@@ -652,7 +652,10 @@ misc_help_msg:
 
   × /removebotkeyboard: Removes the stuck bot keyboard from your chat.
 
-  × /stat: Gets the count of the total number of messages in the chat."
+  × /stat: Gets the count of the total number of messages in the chat.
+
+  × /paste: Paste texts at the HypernovaBin. Add !pass flag to make the paste password-protected and readonly."
+
 mutes_help_msg:
   "Sometimes users can be annoying and you might want to restrict them
   from sending a message to chat, this module is here to help, you can use this module
