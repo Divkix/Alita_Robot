@@ -3,7 +3,6 @@ package i18n
 import (
 	"bytes"
 	"fmt"
-	"path"
 	"path/filepath"
 	"strings"
 
