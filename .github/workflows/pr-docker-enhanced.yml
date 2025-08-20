@@ -43,12 +43,13 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - name: Quick lint check
-        uses: golangci/golangci-lint-action@v6
+     # Install golangci-lint
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
-          args: --fast --timeout=3m
-          skip-cache: false
+          skip-cache: true # We're already caching
+          install-mode: binary
 
       - name: Verify build
         run: |
