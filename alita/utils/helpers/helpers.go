@@ -1,9 +1,13 @@
 package helpers
 
 import (
+	"bytes"
 	"fmt"
 	"html"
+	"io"
 	"math/rand"
+	"mime/multipart"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+
 	// "github.com/divkix/Alita_Robot/alita/utils/extraction" // TODO: Fix circular dependency
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
@@ -1397,4 +1402,105 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 			*rawText = replyMsg.OriginalMDV2()
 		}
 	}
+}
+
+func PasteToHypernovaBin(text string, readonly bool, password string) (pasted bool, key string) {
+	if len(text) > 100000 {
+		text = text[:100000] // 100KB limit
+	}
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	err := writer.WriteField("content", text)
+	if err != nil {
+		log.Error("PasteToHypernovaBin: failed to write content field:", err)
+		return false, ""
+	}
+
+	err = writer.WriteField("expiration", "24hour")
+	if err != nil {
+		log.Error("PasteToHypernovaBin: failed to write expiration field:", err)
+		return false, ""
+	}
+
+	// Set readonly and editable fields based on the readonly parameter
+	// Default: editable=true, readonly=false (no password required)
+	// With !pass flag: readonly=true with password (password protected)
+
+	if readonly && password != "" {
+		// - privacy="readonly" for read-only pastes with password
+		// - plain_key=password for the actual password value
+		err = writer.WriteField("privacy", "readonly")
+		if err != nil {
+			log.Error("PasteToHypernovaBin: failed to write privacy field:", err)
+			return false, ""
+		}
+
+		err = writer.WriteField("plain_key", password)
+		if err != nil {
+			log.Error("PasteToHypernovaBin: failed to write plain_key field:", err)
+			return false, ""
+		}
+	} else {
+		// Default: public editable paste (no password)
+		err = writer.WriteField("privacy", "public")
+		if err != nil {
+			log.Error("PasteToHypernovaBin: failed to write privacy field:", err)
+			return false, ""
+		}
+	}
+
+	writer.Close()
+
+	// Send POST request to your HypernovaBin instance
+	resp, err := http.Post("https://paste.a7e28.org/upload",
+		writer.FormDataContentType(), &buf)
+	if err != nil {
+		log.Error("PasteToHypernovaBin: HTTP request failed:", err)
+		return false, ""
+	}
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Error("PasteToHypernovaBin: failed to close response body:", err)
+		}
+	}(resp.Body)
+
+	// HypernovaBin may return 200 OK or redirect depending on configuration
+	if resp.StatusCode == 200 || resp.StatusCode == 302 {
+		var pasteURL string
+
+		// First check for Location header (redirect case)
+		location := resp.Header.Get("Location")
+		if location != "" {
+			if strings.HasPrefix(location, "/") {
+				pasteURL = "https://paste.a7e28.org" + location
+			} else {
+				pasteURL = location
+			}
+		} else if resp.Request != nil && resp.Request.URL != nil {
+			// Get final URL after any redirects
+			finalURL := resp.Request.URL.String()
+			if finalURL != "https://paste.a7e28.org/upload" {
+				pasteURL = finalURL
+			}
+		}
+
+		// Clean up the URL - remove any unwanted suffixes
+		if pasteURL != "" {
+			// Ensure we have a clean paste URL
+			if strings.Contains(pasteURL, "paste.a7e28.org") {
+				return true, pasteURL
+			}
+		}
+
+		// If we couldn't determine the specific URL but got a successful response,
+		// the paste was likely created successfully
+		log.Info("PasteToHypernovaBin: Paste created successfully")
+		return true, "https://paste.a7e28.org" // Generic success
+	}
+
+	log.Error("PasteToHypernovaBin: unexpected response status:", resp.StatusCode)
+	return false, ""
 }
