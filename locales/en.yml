@@ -1328,6 +1328,12 @@ captcha_timeout_failure_kicked: "❌ %s failed to complete captcha verification 
 captcha_timeout_failure_banned: "❌ %s failed to complete captcha verification and has been banned."
 captcha_timeout_failure_muted: "❌ %s failed to complete captcha verification and has been muted."
 captcha_timeout_with_messages: "❌ %s failed to complete captcha verification and has been %s.\n\n📝 %d message(s) were attempted but deleted due to incomplete verification."
+captcha_stored_messages_summary: "📝 %s tried to send %d message(s) (%s) before verification"
+captcha_pending_usage: "Usage: <code>/captchapending @user</code> or <code>/captchapending user_id</code>"
+captcha_no_pending_messages: "No pending messages found for this user."
+captcha_clear_usage: "Usage: <code>/captchaclear @user</code> or <code>/captchaclear user_id</code>"
+captcha_clear_failed: "Failed to clear stored messages. Please try again."
+captcha_clear_success: "✅ Cleared all stored messages for user %d"
 captcha_refresh_time_remaining: |
   👋 Welcome %s!
 

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"html"
 	"math/big"
 	"slices"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/eko/gocache/lib/v4/store"
 	"github.com/mojocn/base64Captcha"
@@ -28,6 +30,40 @@ import (
 )
 
 var captchaModule = moduleStruct{moduleName: "Captcha"}
+
+// contains checks if a string exists in a slice
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// messageTypeToString converts message type constants to human-readable strings
+func messageTypeToString(messageType int) string {
+	switch messageType {
+	case db.TEXT:
+		return "text"
+	case db.STICKER:
+		return "sticker"
+	case db.DOCUMENT:
+		return "document"
+	case db.PHOTO:
+		return "photo"
+	case db.AUDIO:
+		return "audio"
+	case db.VOICE:
+		return "voice"
+	case db.VIDEO:
+		return "video"
+	case db.VideoNote:
+		return "video note"
+	default:
+		return "unknown"
+	}
+}
 
 // Refresh controls
 const (
@@ -57,6 +93,113 @@ func secureShuffleStrings(values []string) {
 		j := secureIntn(i + 1)
 		values[i], values[j] = values[j], values[i]
 	}
+}
+
+// viewPendingMessages handles the /captchapending command to view stored messages for a user.
+// Admins can use this to see what messages a user tried to send before verification.
+func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	chat := ctx.EffectiveChat
+	user := ctx.EffectiveSender.User
+
+	// Check admin permissions
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+		return ext.EndGroups
+	}
+
+	// Parse target user from command
+	args := ctx.Args()[1:]
+	if len(args) < 1 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_pending_usage")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	// Get user ID from mention or ID
+	targetUserID := extraction.ExtractUser(bot, ctx)
+	if targetUserID == 0 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_invalid_user")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	// Get stored messages for user
+	messages, err := db.GetStoredMessagesForUser(targetUserID, chat.Id)
+	if err != nil || len(messages) == 0 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_no_pending_messages")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	// Build response
+	var response strings.Builder
+	response.WriteString(fmt.Sprintf("📋 <b>Pending messages from user %d:</b>\n\n", targetUserID))
+
+	for i, msg := range messages {
+		response.WriteString(fmt.Sprintf("%d. Type: %s\n", i+1, messageTypeToString(msg.MessageType)))
+		if msg.Caption != "" {
+			response.WriteString(fmt.Sprintf("   Caption: %s\n", html.EscapeString(msg.Caption)))
+		}
+		if msg.Content != "" && msg.MessageType == db.TEXT {
+			preview := msg.Content
+			if len(preview) > 100 {
+				preview = preview[:100] + "..."
+			}
+			response.WriteString(fmt.Sprintf("   Content: %s\n", html.EscapeString(preview)))
+		}
+		response.WriteString(fmt.Sprintf("   Time: %s\n\n", msg.CreatedAt.Format("15:04:05")))
+	}
+
+	_, err = msg.Reply(bot, response.String(), helpers.Shtml())
+	return err
+}
+
+// clearPendingMessages handles the /captchaclear command to clear stored messages for a user.
+// Admins can use this to manually clear pending messages if needed.
+func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	chat := ctx.EffectiveChat
+	user := ctx.EffectiveSender.User
+
+	// Check admin permissions
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+		return ext.EndGroups
+	}
+
+	// Parse target user
+	args := ctx.Args()[1:]
+	if len(args) < 1 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_clear_usage")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	targetUserID := extraction.ExtractUser(bot, ctx)
+	if targetUserID == 0 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_invalid_user")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	// Delete messages
+	err := db.DeleteStoredMessagesForUser(targetUserID, chat.Id)
+	if err != nil {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_clear_failed")
+		_, err := msg.Reply(bot, text, helpers.Shtml())
+		return err
+	}
+
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	text, _ := tr.GetString("captcha_clear_success",
+		i18n.TranslationParams{"user_id": targetUserID})
+	_, err = msg.Reply(bot, text, helpers.Shtml())
+	return err
 }
 
 // captchaCommand handles the /captcha command to enable/disable captcha verification.
@@ -876,6 +1019,40 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			return err
 		}
 
+		// Retrieve and display stored messages before deletion
+		storedMessages, err := db.GetStoredMessagesForAttempt(attempt.ID)
+		if err == nil && len(storedMessages) > 0 {
+			// Create a summary of what the user tried to send
+			var messageTypes []string
+			for _, msg := range storedMessages {
+				msgTypeStr := messageTypeToString(msg.MessageType)
+				if !contains(messageTypes, msgTypeStr) {
+					messageTypes = append(messageTypes, msgTypeStr)
+				}
+			}
+
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
+				i18n.TranslationParams{
+					"user":  helpers.MentionHtml(targetUserID, user.FirstName),
+					"count": len(storedMessages),
+					"types": strings.Join(messageTypes, ", "),
+				})
+
+			// Send summary message that auto-deletes after 30 seconds
+			summaryMsg, _ := bot.SendMessage(chat.Id, summaryText, &gotgbot.SendMessageOpts{
+				ParseMode: helpers.HTML,
+			})
+
+			// Auto-delete the summary after 30 seconds
+			if summaryMsg != nil {
+				go func(chatID, msgID int64) {
+					time.Sleep(30 * time.Second)
+					_, _ = bot.DeleteMessage(chatID, msgID, nil)
+				}(chat.Id, summaryMsg.MessageId)
+			}
+		}
+
 		// Clean up stored messages
 		_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
 
@@ -1221,6 +1398,10 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("captchamode", captchaModule.captchaModeCommand))
 	dispatcher.AddHandler(handlers.NewCommand("captchatime", captchaModule.captchaTimeCommand))
 	dispatcher.AddHandler(handlers.NewCommand("captchaaction", captchaModule.captchaActionCommand))
+
+	// Admin commands for managing stored messages
+	dispatcher.AddHandler(handlers.NewCommand("captchapending", captchaModule.viewPendingMessages))
+	dispatcher.AddHandler(handlers.NewCommand("captchaclear", captchaModule.clearPendingMessages))
 
 	// Callbacks
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify."), captchaModule.captchaVerifyCallback))

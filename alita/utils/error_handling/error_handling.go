@@ -1,7 +1,6 @@
 package error_handling
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,30 +17,4 @@ func RecoverFromPanic(funcName, modName string) {
 	if r := recover(); r != nil {
 		log.Errorf("[%s][%s] Recovered from panic: %v", modName, funcName, r)
 	}
-}
-
-// RecoverFromPanicWithCallback recovers from a panic and executes a callback function.
-// This allows for custom cleanup or fallback behavior on panic.
-func RecoverFromPanicWithCallback(funcName, modName string, callback func()) {
-	if r := recover(); r != nil {
-		log.Errorf("[%s][%s] Recovered from panic: %v", modName, funcName, r)
-		if callback != nil {
-			callback()
-		}
-	}
-}
-
-// SafeExecute wraps a function with panic recovery.
-// Returns the error from the function, or a panic error if it panicked.
-func SafeExecute(funcName, modName string, fn func() error) error {
-	var err error
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[%s][%s] Recovered from panic: %v", modName, funcName, r)
-			err = fmt.Errorf("panic in %s: %v", funcName, r)
-		}
-	}()
-
-	err = fn()
-	return err
 }

@@ -1324,6 +1324,12 @@ captcha_timeout_failure_kicked: "❌ %s no completó la verificación captcha y 
 captcha_timeout_failure_banned: "❌ %s no completó la verificación captcha y ha sido baneado."
 captcha_timeout_failure_muted: "❌ %s no completó la verificación captcha y ha sido silenciado."
 captcha_timeout_with_messages: "❌ %s no completó la verificación captcha y ha sido %s.\n\n📝 %d mensaje(s) fueron intentados pero eliminados debido a verificación incompleta."
+captcha_stored_messages_summary: "📝 %s intentó enviar %d mensaje(s) (%s) antes de la verificación"
+captcha_pending_usage: "Uso: <code>/captchapending @usuario</code> o <code>/captchapending user_id</code>"
+captcha_no_pending_messages: "No se encontraron mensajes pendientes para este usuario."
+captcha_clear_usage: "Uso: <code>/captchaclear @usuario</code> o <code>/captchaclear user_id</code>"
+captcha_clear_failed: "Error al eliminar mensajes almacenados. Inténtalo de nuevo."
+captcha_clear_success: "✅ Se eliminaron todos los mensajes almacenados para el usuario %d"
 captcha_refresh_time_remaining: |
   👋 ¡Bienvenido %s!
 
