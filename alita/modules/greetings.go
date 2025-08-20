@@ -79,10 +79,6 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 					return err
 				}
 			}
-			if err != nil {
-				log.Error(err)
-				return err
-			}
 		} else {
 			wlcmText, buttons = helpers.FormattingReplacer(bot, chat, user, wlcmText, buttons)
 			keyb := helpers.BuildKeyboard(buttons)
@@ -106,10 +102,6 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 					log.Error(err)
 					return err
 				}
-			}
-			if err != nil {
-				log.Error(err)
-				return err
 			}
 		}
 
@@ -264,10 +256,6 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 					return err
 				}
 			}
-			if err != nil {
-				log.Error(err)
-				return err
-			}
 		} else {
 			gdbyeText, buttons = helpers.FormattingReplacer(bot, chat, user, gdbyeText, buttons)
 			keyb := helpers.BuildKeyboard(buttons)
@@ -291,10 +279,6 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 					log.Error(err)
 					return err
 				}
-			}
-			if err != nil {
-				log.Error(err)
-				return err
 			}
 		}
 	} else if len(args) >= 1 {
