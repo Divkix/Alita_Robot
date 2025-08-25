@@ -25,7 +25,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -74,7 +74,7 @@ jobs:
     # Note: GoReleaser doesn't provide direct outputs, artifacts are uploaded separately
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0 # Full history needed for GoReleaser
 
