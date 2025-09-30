@@ -140,11 +140,10 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
-		"<b>⚠️ Report:</b>"+
-			"\n<b> • Report by:</b> %s"+
-			"\n<b> • Reported user:</b> %s"+
-			"\n<b>Status:</b> <i>Pending...</i>",
+		reportTemplate,
 		helpers.MentionHtml(user.Id, user.FirstName),
 		helpers.MentionHtml(reportedUser.Id, reportedUser.FirstName),
 	)

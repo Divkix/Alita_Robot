@@ -120,10 +120,7 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// If we still can't get admin list, inform user and abort
 	if len(admins.UserInfo) == 0 {
-		text, translationErr := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
-		if translationErr != nil || text == "" {
-			text = "I'm having trouble accessing the admin list. Please try again later."
-		}
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -271,10 +268,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// If we still can't get admin list, inform user and abort
 	if len(admins.UserInfo) == 0 {
-		text, translationErr := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
-		if translationErr != nil || text == "" {
-			text = "I'm having trouble accessing the admin list. Please try again later."
-		}
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)

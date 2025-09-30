@@ -198,7 +198,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	latency := time.Since(userSentTime)
 
 	// Simple response with latency
-	text := fmt.Sprintf("🏓 Pong! <b>%dms</b>", latency.Milliseconds())
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	pingTemplate, _ := tr.GetString("misc_ping_response")
+	text := fmt.Sprintf(pingTemplate, latency.Milliseconds())
 
 	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{
 		ParseMode: helpers.HTML,

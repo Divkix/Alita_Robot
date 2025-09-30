@@ -1156,6 +1156,7 @@ misc_owner_tag: "¡Él es mi dueño!"
 misc_dev_user_tag: "¡Él es uno de mis usuarios desarrolladores!"
 misc_pinging: "<code>Haciendo ping</code>"
 misc_pinged_in: Ping en %d ms
+misc_ping_response: "🏓 ¡Pong! <b>%dms</b>"
 misc_thread_id: "Id del Hilo: <code>%d</code>"
 misc_chat_id: "<b>ID del Chat:</b> <code>%d</code>"
 misc_user_id: "<b>ID de %s:</b> <code>%d</code>"
@@ -1667,6 +1668,7 @@ reports_success_delete: "✅ Eliminado correctamente"
 reports_resolved_success: "✅ Reporte resuelto"
 reports_action_by: "Acción realizada por %s"
 reports_resolved_by: "<b>Resuelto por:</b> %s"
+reports_message_template: "<b>⚠️ Reporte:</b>\n<b> • Reportado por:</b> %s\n<b> • Usuario reportado:</b> %s\n<b>Estado:</b> <i>Pendiente...</i>"
 
 # Captcha module strings
 captcha_mode_math_desc: "problemas matemáticos"
@@ -1674,6 +1676,22 @@ captcha_mode_text_desc: "reconocimiento de texto desde imágenes"
 captcha_mode_set_formatted: "✅ Modo de captcha establecido a <b>%s</b> (%s)"
 captcha_welcome_text_detailed: "👋 ¡Bienvenido %s!\n\nPor favor selecciona el texto mostrado en la imagen para verificar que eres humano:\n\n⏱ Tienes <b>%d minutos</b> para responder."
 captcha_welcome_math_detailed: "👋 ¡Bienvenido %s!\n\nPor favor resuelve el problema mostrado en la imagen y selecciona la respuesta correcta:\n\n⏱ Tienes <b>%d minutos</b> para responder."
+captcha_pending_messages_header: "📋 <b>Mensajes pendientes del usuario %d:</b>\n\n"
+captcha_pending_message_type: "%d. Tipo: %s\n"
+captcha_pending_message_caption: "   Leyenda: %s\n"
+captcha_pending_message_content: "   Contenido: %s\n"
+captcha_pending_message_time: "   Hora: %s\n\n"
+
+# Message type strings (shared across modules)
+message_type_text: "texto"
+message_type_sticker: "sticker"
+message_type_document: "documento"
+message_type_photo: "foto"
+message_type_audio: "audio"
+message_type_voice: "voz"
+message_type_video: "video"
+message_type_video_note: "nota de video"
+message_type_unknown: "desconocido"
 
 # Connections module strings
 connections_invalid_option: "Por favor dame una opción válida de <yes/on/no/off>"
