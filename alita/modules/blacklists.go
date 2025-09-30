@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -234,7 +235,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	msg := ctx.EffectiveMessage
 	// if command is disabled, return
-	if chat_status.CheckDisabledCmd(b, msg, "adminlist") {
+	if chat_status.CheckDisabledCmd(b, msg, "blacklists") {
 		return ext.EndGroups
 	}
 	// connection status
@@ -559,23 +560,37 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		// Use non-blocking delayed unban for blacklist kick action
-		go func(userId int64) {
+		go func(userId int64, chatId int64) {
 			defer func() {
 				if r := recover(); r != nil {
 					log.WithField("panic", r).Error("Panic in blacklist delayed unban goroutine")
 				}
 			}()
 
-			time.Sleep(3 * time.Second)
-			_, unbanErr := chat.UnbanMember(b, userId, nil)
-			if unbanErr != nil {
+			// Create context with timeout
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			timer := time.NewTimer(3 * time.Second)
+			defer timer.Stop()
+
+			select {
+			case <-timer.C:
+				_, unbanErr := chat.UnbanMember(b, userId, nil)
+				if unbanErr != nil {
+					log.WithFields(log.Fields{
+						"chatId": chatId,
+						"userId": userId,
+						"error":  unbanErr,
+					}).Error("Failed to unban user after blacklist kick")
+				}
+			case <-timeoutCtx.Done():
 				log.WithFields(log.Fields{
-					"chatId": chat.Id,
+					"chatId": chatId,
 					"userId": userId,
-					"error":  unbanErr,
-				}).Error("Failed to unban user after blacklist kick")
+				}).Warn("Blacklist unban operation timed out")
 			}
-		}(user.Id())
+		}(user.Id(), chat.Id)
 	case "warn":
 		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {

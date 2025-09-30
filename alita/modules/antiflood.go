@@ -51,27 +51,34 @@ var antifloodModule = antifloodStruct{
 
 // init starts cleanup goroutine for antiflood cache
 func init() {
-	go antifloodModule.cleanupLoop()
+	go antifloodModule.cleanupLoop(context.Background())
 }
 
 // cleanupLoop periodically cleans up old entries from the flood cache
 // cleanupLoop periodically removes old flood control entries from memory.
 // Runs every 5 minutes to clean entries older than 10 minutes.
-func (a *antifloodStruct) cleanupLoop() {
+// Accepts a context for graceful shutdown.
+func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		currentTime := time.Now().Unix()
-		a.syncHelperMap.Range(func(key, value any) bool {
-			if floodData, ok := value.(floodControl); ok {
-				// Remove entries older than 10 minutes
-				if currentTime-floodData.lastActivity > 600 {
-					a.syncHelperMap.Delete(key)
+	for {
+		select {
+		case <-ticker.C:
+			currentTime := time.Now().Unix()
+			a.syncHelperMap.Range(func(key, value any) bool {
+				if floodData, ok := value.(floodControl); ok {
+					// Remove entries older than 10 minutes
+					if currentTime-floodData.lastActivity > 600 {
+						a.syncHelperMap.Delete(key)
+					}
 				}
-			}
-			return true
-		})
+				return true
+			})
+		case <-ctx.Done():
+			log.Info("Antiflood cleanup goroutine shutting down gracefully")
+			return
+		}
 	}
 }
 

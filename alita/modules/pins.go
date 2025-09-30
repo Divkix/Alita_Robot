@@ -41,14 +41,6 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if pinprefs.CleanLinked {
 		_, err := b.DeleteMessage(chat.Id, msg.MessageId, nil)
-		// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-		// 	log.WithFields(
-		// 		log.Fields{
-		// 			"chat": chat.Id,
-		// 		},
-		// 	).Error("error deleting message")
-		// 	return ext.EndGroups
-		// } else
 		if err != nil {
 			log.Error(err)
 			return err
@@ -122,13 +114,8 @@ func (moduleStruct) unpin(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString("pins_unpinned_last")
 		_, err := b.UnpinChatMessage(chat.Id, nil)
 		if err != nil {
-			// if err.Error() == "unable to unpinChatMessage: Bad Request: message to unpin not found" {
-			// 	replyText = "No pinned message found."
-			// } else
-			// if err != nil {
 			log.Error(err)
 			return err
-			// }
 		}
 	}
 
@@ -200,21 +187,15 @@ func (moduleStruct) unpinAll(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("pins_unpin_all_confirm")
+	yesText, _ := tr.GetString("pins_yes_button")
+	noText, _ := tr.GetString("pins_no_button")
 	_, err := b.SendMessage(ctx.EffectiveChat.Id, text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: func() string {
-							tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-							text, _ := tr.GetString("pins_yes_button")
-							return text
-						}(), CallbackData: "unpinallbtn(yes)"},
-						{Text: func() string {
-							tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-							text, _ := tr.GetString("pins_no_button")
-							return text
-						}(), CallbackData: "unpinallbtn(no)"},
+						{Text: yesText, CallbackData: "unpinallbtn(yes)"},
+						{Text: noText, CallbackData: "unpinallbtn(no)"},
 					},
 				},
 			},
@@ -580,6 +561,7 @@ func (moduleStruct) pinned(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	temp, _ := tr.GetString("pins_here_is_pinned")
 	text := fmt.Sprintf(temp, pinLink)
+	buttonText, _ := tr.GetString("pins_pinned_message_button")
 	_, err = msg.Reply(b, text,
 		&gotgbot.SendMessageOpts{
 			ParseMode: helpers.HTML,
@@ -593,11 +575,7 @@ func (moduleStruct) pinned(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: func() string {
-							tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-							text, _ := tr.GetString("pins_pinned_message_button")
-							return text
-						}(), Url: pinLink},
+						{Text: buttonText, Url: pinLink},
 					},
 				},
 			},

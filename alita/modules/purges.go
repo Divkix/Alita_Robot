@@ -23,7 +23,7 @@ import (
 
 var (
 	purgesModule = moduleStruct{moduleName: "Purges"}
-	delMsgs      = map[int64]int64{}
+	delMsgs      = sync.Map{} // Changed to sync.Map for concurrent access
 )
 
 // PurgeWorker manages concurrent message deletion with rate limiting
@@ -186,7 +186,9 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 				log.Error(err)
 			}
 
-			time.Sleep(3 * time.Second)
+			// Use timer instead of sleep for better resource management
+			timer := time.NewTimer(3 * time.Second)
+			<-timer.C
 			_, err = pMsg.Delete(bot, nil)
 			if err != nil {
 				log.Error(err)
@@ -243,27 +245,6 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		msgId := msg.ReplyToMessage.MessageId
 		_, _ = bot.DeleteMessage(chat.Id, msgId, nil)
-		/* if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-		// 	log.WithFields(
-		// 		log.Fields{
-		// 			"chat": chat.Id,
-		// 		},
-		// 	).Error("error deleting message")
-		} else {
-		if err != nil {
-			log.Error(err)
-		}
-		_, err = msg.Delete(bot, nil)
-		// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-		// 	log.WithFields(
-		// 		log.Fields{
-		// 			"chat": chat.Id,
-		// 		},
-		// 	).Error("error deleting message")
-		// } else
-		if err != nil {
-			log.Error(err)
-		} */
 		_, _ = msg.Delete(bot, nil)
 	}
 
@@ -338,7 +319,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if msg.ReplyToMessage != nil {
 		TodelId := msg.ReplyToMessage.MessageId
-		if delMsgs[chat.Id] == TodelId {
+		if existingId, ok := delMsgs.Load(chat.Id); ok && existingId == TodelId {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_message_marked")
 			_, _ = msg.Reply(bot, text, nil)
@@ -363,10 +344,12 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		delMsgs[chat.Id] = TodelId
-		time.Sleep(30 * time.Second)
-		if delMsgs[chat.Id] == TodelId {
-			delete(delMsgs, chat.Id)
+		delMsgs.Store(chat.Id, TodelId)
+		// Use timer with timeout for cleanup
+		timer := time.NewTimer(30 * time.Second)
+		<-timer.C
+		if existingId, ok := delMsgs.Load(chat.Id); ok && existingId == TodelId {
+			delMsgs.Delete(chat.Id)
 		}
 		_, err = pMsg.Delete(bot, nil)
 		if err != nil {
@@ -412,7 +395,11 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()[1:]
 
 	if msg.ReplyToMessage != nil {
-		msgId := delMsgs[chat.Id]
+		msgIdInterface, ok := delMsgs.Load(chat.Id)
+		msgId := int64(0)
+		if ok {
+			msgId = msgIdInterface.(int64)
+		}
 		if msgId == 0 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_need_purgefrom")
@@ -459,7 +446,9 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				log.Error(err)
 			}
-			time.Sleep(3 * time.Second)
+			// Use timer instead of sleep for better resource management
+			timer := time.NewTimer(3 * time.Second)
+			<-timer.C
 			_, err = pMsg.Delete(bot, nil)
 			if err != nil {
 				log.Error(err)
