@@ -32,27 +32,30 @@ import (
 var captchaModule = moduleStruct{moduleName: "Captcha"}
 
 // messageTypeToString converts message type constants to human-readable strings
-func messageTypeToString(messageType int) string {
+func messageTypeToString(tr *i18n.Translator, messageType int) string {
+	var key string
 	switch messageType {
 	case db.TEXT:
-		return "text"
+		key = "message_type_text"
 	case db.STICKER:
-		return "sticker"
+		key = "message_type_sticker"
 	case db.DOCUMENT:
-		return "document"
+		key = "message_type_document"
 	case db.PHOTO:
-		return "photo"
+		key = "message_type_photo"
 	case db.AUDIO:
-		return "audio"
+		key = "message_type_audio"
 	case db.VOICE:
-		return "voice"
+		key = "message_type_voice"
 	case db.VIDEO:
-		return "video"
+		key = "message_type_video"
 	case db.VideoNote:
-		return "video note"
+		key = "message_type_video_note"
 	default:
-		return "unknown"
+		key = "message_type_unknown"
 	}
+	text, _ := tr.GetString(key)
+	return text
 }
 
 // Refresh controls
@@ -125,22 +128,28 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	// Build response
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var response strings.Builder
-	response.WriteString(fmt.Sprintf("📋 <b>Pending messages from user %d:</b>\n\n", targetUserID))
+	headerText, _ := tr.GetString("captcha_pending_messages_header")
+	response.WriteString(fmt.Sprintf(headerText, targetUserID))
 
 	for i, msg := range messages {
-		response.WriteString(fmt.Sprintf("%d. Type: %s\n", i+1, messageTypeToString(msg.MessageType)))
+		typeText, _ := tr.GetString("captcha_pending_message_type")
+		response.WriteString(fmt.Sprintf(typeText, i+1, messageTypeToString(tr, msg.MessageType)))
 		if msg.Caption != "" {
-			response.WriteString(fmt.Sprintf("   Caption: %s\n", html.EscapeString(msg.Caption)))
+			captionText, _ := tr.GetString("captcha_pending_message_caption")
+			response.WriteString(fmt.Sprintf(captionText, html.EscapeString(msg.Caption)))
 		}
 		if msg.Content != "" && msg.MessageType == db.TEXT {
 			preview := msg.Content
 			if len(preview) > 100 {
 				preview = preview[:100] + "..."
 			}
-			response.WriteString(fmt.Sprintf("   Content: %s\n", html.EscapeString(preview)))
+			contentText, _ := tr.GetString("captcha_pending_message_content")
+			response.WriteString(fmt.Sprintf(contentText, html.EscapeString(preview)))
 		}
-		response.WriteString(fmt.Sprintf("   Time: %s\n\n", msg.CreatedAt.Format("15:04:05")))
+		timeText, _ := tr.GetString("captcha_pending_message_time")
+		response.WriteString(fmt.Sprintf(timeText, msg.CreatedAt.Format("15:04:05")))
 	}
 
 	_, err = msg.Reply(bot, response.String(), helpers.Shtml())
@@ -1022,16 +1031,15 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		// Retrieve and display stored messages before deletion
 		storedMessages, err := db.GetStoredMessagesForAttempt(attempt.ID)
 		if err == nil && len(storedMessages) > 0 {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			// Create a summary of what the user tried to send
 			var messageTypes []string
 			for _, msg := range storedMessages {
-				msgTypeStr := messageTypeToString(msg.MessageType)
+				msgTypeStr := messageTypeToString(tr, msg.MessageType)
 				if !slices.Contains(messageTypes, msgTypeStr) {
 					messageTypes = append(messageTypes, msgTypeStr)
 				}
 			}
-
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
 				i18n.TranslationParams{
 					"user":  helpers.MentionHtml(targetUserID, user.FirstName),

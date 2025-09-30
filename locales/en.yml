@@ -1160,6 +1160,7 @@ misc_owner_tag: "He is my owner!"
 misc_dev_user_tag: "He is one of my dev users!"
 misc_pinging: "<code>Pinging</code>"
 misc_pinged_in: Pinged in %d ms
+misc_ping_response: "🏓 Pong! <b>%dms</b>"
 misc_thread_id: "Thread Id: <code>%d</code>"
 misc_chat_id: "<b>Chat ID:</b> <code>%d</code>"
 misc_user_id: "<b>%s's ID:</b> <code>%d</code>"
@@ -1670,6 +1671,7 @@ reports_success_delete: "✅ Successfully deleted"
 reports_resolved_success: "✅ Resolved report"
 reports_action_by: "Action taken by %s"
 reports_resolved_by: "<b>Resolved by:</b> %s"
+reports_message_template: "<b>⚠️ Report:</b>\n<b> • Report by:</b> %s\n<b> • Reported user:</b> %s\n<b>Status:</b> <i>Pending...</i>"
 
 # Captcha module strings
 captcha_mode_math_desc: "mathematical problems"
@@ -1677,6 +1679,22 @@ captcha_mode_text_desc: "text recognition from images"
 captcha_mode_set_formatted: "✅ Captcha mode set to <b>%s</b> (%s)"
 captcha_welcome_text_detailed: "👋 Welcome %s!\n\nPlease select the text shown in the image to verify you're human:\n\n⏱ You have <b>%d minutes</b> to answer."
 captcha_welcome_math_detailed: "👋 Welcome %s!\n\nPlease solve the problem shown in the image and select the correct answer:\n\n⏱ You have <b>%d minutes</b> to answer."
+captcha_pending_messages_header: "📋 <b>Pending messages from user %d:</b>\n\n"
+captcha_pending_message_type: "%d. Type: %s\n"
+captcha_pending_message_caption: "   Caption: %s\n"
+captcha_pending_message_content: "   Content: %s\n"
+captcha_pending_message_time: "   Time: %s\n\n"
+
+# Message type strings (shared across modules)
+message_type_text: "text"
+message_type_sticker: "sticker"
+message_type_document: "document"
+message_type_photo: "photo"
+message_type_audio: "audio"
+message_type_voice: "voice"
+message_type_video: "video"
+message_type_video_note: "video note"
+message_type_unknown: "unknown"
 
 # Connections module strings
 connections_invalid_option: "Please give me a valid option from <yes/on/no/off>"

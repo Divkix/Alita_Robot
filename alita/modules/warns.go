@@ -809,14 +809,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		temp, _ := tr.GetString("warns_removed_success")
 		replyText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	} else {
-		// Prefer existing key; fallback to alternative if needed
-		replyText, _ = tr.GetString("warns_no_warns_existing")
-		if replyText == "" {
-			replyText, _ = tr.GetString("warns_no_warns_to_remove")
-			if replyText == "" {
-				replyText = "User already has no warns!"
-			}
-		}
+		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}
 
 	_, err := msg.Reply(b, replyText, helpers.Shtml())

@@ -1333,16 +1333,10 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 	if *dataType == db.TEXT && len(*text) > 4096 {
 		*dataType = -1
 		template, _ := tr.GetString("helpers_text_too_long")
-		if template == "" {
-			template = "Your message text is %d characters long. The maximum length for text is 4096; please trim it to a smaller size. Note that markdown characters may take more space than expected." // fallback
-		}
 		*errorMsg = fmt.Sprintf(template, len(*text))
 	} else if *dataType != db.TEXT && len(*text) > 1024 {
 		*dataType = -1
 		template, _ := tr.GetString("helpers_caption_too_long")
-		if template == "" {
-			template = "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected." // fallback
-		}
 		*errorMsg = fmt.Sprintf(template, len(*text))
 	} else {
 		for i, button := range buttons {
