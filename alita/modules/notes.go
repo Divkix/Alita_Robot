@@ -427,6 +427,9 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	switch noteWordMapKey {
 	case "cancel":
+		// Clean up the pending overwrite entry when user cancels
+		// This prevents memory leaks from cancelled overwrites
+		delete(m.overwriteNotesMap, noteWordMapKey)
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	default:
 		dataSplit := strings.Split(noteWordMapKey, "_")
@@ -755,8 +758,22 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 	// show the buttons back as text
 	noteData.NoteContent += helpers.RevertButtons(noteData.Buttons)
 
+	// Validate that enum function exists before calling to prevent panic from invalid msgType
+	// This protects against database corruption or invalid note types
+	noteFunc, exists := helpers.NotesEnumFuncMap[noteData.MsgType]
+	if !exists || noteFunc == nil {
+		log.Errorf("Invalid or missing note type: %d, cannot send noformat note", noteData.MsgType)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("notes_parsing_error")
+		_, err := ctx.EffectiveMessage.Reply(b, text, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+		}
+		return err
+	}
+
 	// raw note does not need webpreview
-	_, err := helpers.NotesEnumFuncMap[noteData.MsgType](
+	_, err := noteFunc(
 		b,
 		ctx,
 		noteData,

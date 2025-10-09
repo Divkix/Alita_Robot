@@ -273,8 +273,8 @@ func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}()
 
-		// Create context with timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// Create context with timeout to prevent goroutine from hanging indefinitely
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		timer := time.NewTimer(2 * time.Second)
@@ -290,7 +290,7 @@ func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 					"error":  unbanErr,
 				}).Error("Failed to unban user after kick")
 			}
-		case <-ctx.Done():
+		case <-timeoutCtx.Done():
 			log.WithFields(log.Fields{
 				"chatId": chat.Id,
 				"userId": userId,
@@ -1039,8 +1039,8 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 				}
 			}()
 
-			// Create context with timeout
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			// Create context with timeout to prevent goroutine from hanging indefinitely
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
 			timer := time.NewTimer(3 * time.Second)
@@ -1056,7 +1056,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 						"error":  unbanErr,
 					}).Error("Failed to unban user after restrict kick")
 				}
-			case <-ctx.Done():
+			case <-timeoutCtx.Done():
 				log.WithFields(log.Fields{
 					"chatId": chat.Id,
 					"userId": userId,

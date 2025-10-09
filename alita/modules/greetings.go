@@ -22,6 +22,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
+// Concurrency limit for processing multiple new members
+const (
+	maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
+)
+
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
 
 // welcome manages welcome message settings and displays current welcome configuration.
@@ -858,7 +863,7 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 			// Use goroutines for multiple members
 			var wg sync.WaitGroup
 			// Limit concurrent processing to prevent overwhelming the API
-			sem := make(chan struct{}, 5)
+			sem := make(chan struct{}, maxConcurrentMemberProcessing)
 
 			for _, newMember := range msg.NewChatMembers {
 				if newMember.Id == bot.Id {

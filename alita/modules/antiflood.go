@@ -24,6 +24,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
+// Concurrency limits for flood protection operations
+const (
+	maxConcurrentAdminChecks  = 50 // Maximum concurrent admin permission checks
+	maxConcurrentMsgDeletions = 5  // Maximum concurrent message deletions during flood cleanup
+)
+
 type antifloodStruct struct {
 	moduleStruct  // inheritance
 	syncHelperMap sync.Map
@@ -46,7 +52,7 @@ var _normalAntifloodModule = moduleStruct{
 var antifloodModule = antifloodStruct{
 	moduleStruct:        _normalAntifloodModule,
 	syncHelperMap:       sync.Map{},
-	adminCheckSemaphore: make(chan struct{}, 50), // Limit to 50 concurrent admin checks
+	adminCheckSemaphore: make(chan struct{}, maxConcurrentAdminChecks),
 }
 
 // init starts cleanup goroutine for antiflood cache
@@ -256,7 +262,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			// For larger numbers, delete concurrently with rate limiting
-			sem := make(chan struct{}, 5) // Max 5 concurrent deletions
+			sem := make(chan struct{}, maxConcurrentMsgDeletions)
 			var wg sync.WaitGroup
 			var deleteError error
 			var errorMu sync.Mutex

@@ -264,8 +264,18 @@ func (m moduleStruct) permaPin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	keyb := helpers.BuildKeyboard(helpers.ConvertButtonV2ToDbButton(buttons))
 
-	// enum func works here
-	ppmsg, err := PinsEnumFuncMap[pinT.DataType](b, ctx, pinT, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}, 0)
+	// Validate that enum function exists before calling to prevent panic from invalid dataType
+	// This protects against database corruption or invalid message types
+	pinFunc, exists := PinsEnumFuncMap[pinT.DataType]
+	if !exists || pinFunc == nil {
+		log.Errorf("Invalid or missing pin type: %d, cannot send permapin", pinT.DataType)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("pins_permapin_unsupported")
+		_, err := msg.Reply(b, text, helpers.Shtml())
+		return err
+	}
+
+	ppmsg, err := pinFunc(b, ctx, pinT, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}, 0)
 	if err != nil {
 		log.Error(err)
 		return err
