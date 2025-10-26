@@ -41,3 +41,10 @@ func (t typeConvertor) Bool() bool {
 	lower := strings.ToLower(strings.TrimSpace(t.str))
 	return lower == "yes" || lower == "true" || lower == "1"
 }
+
+// Float64 converts the string value to a 64-bit float. If the conversion fails,
+// it returns 0.0. This method ignores conversion errors for simplicity.
+func (t typeConvertor) Float64() float64 {
+	val, _ := strconv.ParseFloat(t.str, 64)
+	return val
+}

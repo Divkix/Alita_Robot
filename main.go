@@ -11,6 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/getsentry/sentry-go"
+	sentrylogrus "github.com/getsentry/sentry-go/logrus"
+
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/health"
@@ -58,6 +61,54 @@ func main() {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
+
+	// Initialize Sentry if enabled
+	if config.EnableSentry && config.SentryDSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              config.SentryDSN,
+			Environment:      config.SentryEnvironment,
+			Release:          fmt.Sprintf("alita@%s", config.BotVersion),
+			SampleRate:       config.SentrySampleRate,
+			TracesSampleRate: 0.1, // 10% performance monitoring (optional)
+
+			// Filter sensitive data
+			BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+				// Remove bot token if accidentally logged
+				if event.Message != "" && strings.Contains(event.Message, config.BotToken) {
+					event.Message = strings.ReplaceAll(event.Message, config.BotToken, "[REDACTED]")
+				}
+				// Filter common/expected errors to reduce noise
+				if strings.Contains(event.Message, "user blocked bot") ||
+					strings.Contains(event.Message, "bot was blocked by the user") {
+					return nil // Don't send to Sentry
+				}
+				return event
+			},
+
+			// Attach server name
+			ServerName: func() string {
+				if hostname, err := os.Hostname(); err == nil {
+					return hostname
+				}
+				return "unknown"
+			}(),
+		}); err != nil {
+			log.Warnf("[Sentry] Failed to initialize: %v", err)
+		} else {
+			log.Infof("[Sentry] Initialized successfully (Environment: %s, SampleRate: %.2f)", config.SentryEnvironment, config.SentrySampleRate)
+
+			// Add Sentry hook to logrus for Error/Fatal/Panic levels
+			sentryHook := sentrylogrus.NewEventHookFromClient([]log.Level{
+				log.PanicLevel,
+				log.FatalLevel,
+				log.ErrorLevel,
+			}, sentry.CurrentHub().Client())
+			log.AddHook(sentryHook)
+			log.Info("[Sentry] Logrus integration enabled for Error/Fatal/Panic levels")
+		}
+	} else if config.EnableSentry && config.SentryDSN == "" {
+		log.Warn("[Sentry] ENABLE_SENTRY is true but SENTRY_DSN is not configured")
+	}
 
 	// Create optimized HTTP transport with connection pooling for better performance
 	// IMPORTANT: We create a transport pointer that will be shared across all requests
@@ -190,6 +241,20 @@ func main() {
 
 	// Setup graceful shutdown
 	shutdownManager := shutdown.NewManager()
+
+	// Register Sentry flush in shutdown handlers (first priority)
+	if config.EnableSentry {
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Flushing Sentry events...")
+			if sentry.Flush(5 * time.Second) {
+				log.Info("[Shutdown] Sentry events flushed successfully")
+			} else {
+				log.Warn("[Shutdown] Sentry flush timeout")
+			}
+			return nil
+		})
+	}
+
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")
 		if activityMonitor != nil {
@@ -243,6 +308,47 @@ func main() {
 
 			// Log the error with context information
 			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
+
+			// Send to Sentry with context
+			if config.EnableSentry && sentry.CurrentHub().Client() != nil {
+				sentry.WithScope(func(scope *sentry.Scope) {
+					// Add update context
+					if ctx != nil {
+						scope.SetTag("update_id", fmt.Sprintf("%d", ctx.UpdateId))
+
+						// Add user context
+						if ctx.EffectiveUser != nil {
+							scope.SetUser(sentry.User{
+								ID:       fmt.Sprintf("%d", ctx.EffectiveUser.Id),
+								Username: ctx.EffectiveUser.Username,
+							})
+						}
+
+						// Add chat context
+						if ctx.EffectiveChat != nil {
+							scope.SetTag("chat_id", fmt.Sprintf("%d", ctx.EffectiveChat.Id))
+							scope.SetTag("chat_type", ctx.EffectiveChat.Type)
+						}
+
+						// Add message context
+						if ctx.EffectiveMessage != nil {
+							scope.SetContext("message", map[string]interface{}{
+								"message_id": ctx.EffectiveMessage.MessageId,
+								"text":       ctx.EffectiveMessage.Text,
+							})
+						}
+					}
+
+					// Add wrapped error context
+					if wrappedErr, ok := err.(*errors.WrappedError); ok {
+						scope.SetTag("source_file", wrappedErr.File)
+						scope.SetTag("source_line", fmt.Sprintf("%d", wrappedErr.Line))
+						scope.SetTag("source_function", wrappedErr.Function)
+					}
+
+					sentry.CaptureException(err)
+				})
+			}
 
 			// Continue processing other updates
 			return ext.DispatcherActionNoop

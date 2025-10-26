@@ -93,6 +93,12 @@ type Config struct {
 	ResourceMaxGoroutines int `validate:"min=100,max=10000"` // Maximum goroutines before triggering cleanup
 	ResourceMaxMemoryMB   int `validate:"min=100,max=10000"` // Maximum memory usage in MB
 	ResourceGCThresholdMB int `validate:"min=100,max=5000"`  // Memory threshold for triggering GC
+
+	// Sentry configuration
+	SentryDSN         string  // Sentry Data Source Name (DSN)
+	SentryEnvironment string  // Environment name (production, staging, development)
+	SentrySampleRate  float64 `validate:"min=0,max=1"` // Sample rate for error events (0.0-1.0)
+	EnableSentry      bool    // Whether to enable Sentry error tracking
 }
 
 // Global configuration instance
@@ -168,6 +174,12 @@ var (
 	ResourceMaxGoroutines int
 	ResourceMaxMemoryMB   int
 	ResourceGCThresholdMB int
+
+	// Sentry configuration
+	SentryDSN         string
+	SentryEnvironment string
+	SentrySampleRate  float64
+	EnableSentry      bool
 
 	// Global config instance
 	AppConfig *Config
@@ -335,6 +347,12 @@ func LoadConfig() (*Config, error) {
 		ResourceMaxGoroutines: typeConvertor{str: os.Getenv("RESOURCE_MAX_GOROUTINES")}.Int(),
 		ResourceMaxMemoryMB:   typeConvertor{str: os.Getenv("RESOURCE_MAX_MEMORY_MB")}.Int(),
 		ResourceGCThresholdMB: typeConvertor{str: os.Getenv("RESOURCE_GC_THRESHOLD_MB")}.Int(),
+
+		// Sentry configuration
+		SentryDSN:         os.Getenv("SENTRY_DSN"),
+		SentryEnvironment: os.Getenv("SENTRY_ENVIRONMENT"),
+		SentrySampleRate:  typeConvertor{str: os.Getenv("SENTRY_SAMPLE_RATE")}.Float64(),
+		EnableSentry:      typeConvertor{str: os.Getenv("ENABLE_SENTRY")}.Bool(),
 	}
 
 	// Set defaults
@@ -522,6 +540,19 @@ func (cfg *Config) setDefaults() {
 	if cfg.ResourceGCThresholdMB == 0 {
 		cfg.ResourceGCThresholdMB = 400
 	}
+
+	// Set Sentry defaults
+	if cfg.SentryEnvironment == "" {
+		if cfg.Debug {
+			cfg.SentryEnvironment = "development"
+		} else {
+			cfg.SentryEnvironment = "production"
+		}
+	}
+	if cfg.SentrySampleRate == 0 {
+		cfg.SentrySampleRate = 1.0 // 100% sampling by default
+	}
+	// EnableSentry defaults to false - must be explicitly enabled
 }
 
 // init initializes the logging configuration, loads the global configuration
@@ -602,6 +633,10 @@ func init() {
 	ResourceMaxGoroutines = cfg.ResourceMaxGoroutines
 	ResourceMaxMemoryMB = cfg.ResourceMaxMemoryMB
 	ResourceGCThresholdMB = cfg.ResourceGCThresholdMB
+	SentryDSN = cfg.SentryDSN
+	SentryEnvironment = cfg.SentryEnvironment
+	SentrySampleRate = cfg.SentrySampleRate
+	EnableSentry = cfg.EnableSentry
 	AllowedUpdates = cfg.AllowedUpdates
 	ValidLangCodes = cfg.ValidLangCodes
 
