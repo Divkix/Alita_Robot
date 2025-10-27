@@ -385,11 +385,7 @@ func main() {
 		alita.LoadModules(dispatcher)
 
 		// list modules from modules dir
-		log.Infof(
-			fmt.Sprintf(
-				"[Modules] Loaded modules: %s", alita.ListModules(),
-			),
-		)
+		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
 
 		// Set Commands of Bot
 		log.Info("Setting Custom Commands for PM...!")
@@ -460,11 +456,7 @@ func main() {
 		alita.LoadModules(dispatcher)
 
 		// list modules from modules dir
-		log.Infof(
-			fmt.Sprintf(
-				"[Modules] Loaded modules: %s", alita.ListModules(),
-			),
-		)
+		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
 
 		// Set Commands of Bot
 		log.Info("Setting Custom Commands for PM...!")
