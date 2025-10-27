@@ -595,7 +595,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		if !exists || greetFunc == nil {
 			log.Errorf("Invalid or missing greeting type: %d, using fallback text message", greetPrefs.WelcomeSettings.WelcomeType)
 			// Fallback to sending a plain text message
-			_, err := bot.SendMessage(chat.Id, res, &gotgbot.SendMessageOpts{
+			_, err := helpers.SendMessageWithErrorHandling(bot, chat.Id, res, &gotgbot.SendMessageOpts{
 				ParseMode:   helpers.HTML,
 				ReplyMarkup: keyboard,
 			})
@@ -734,7 +734,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if !exists || greetFunc == nil {
 			log.Errorf("Invalid or missing greeting type for goodbye message: %d, using fallback text message", greetPrefs.GoodbyeSettings.GoodbyeType)
 			// Fallback to sending a plain text message
-			_, err := bot.SendMessage(chat.Id, res, &gotgbot.SendMessageOpts{
+			_, err := helpers.SendMessageWithErrorHandling(bot, chat.Id, res, &gotgbot.SendMessageOpts{
 				ParseMode:   helpers.HTML,
 				ReplyMarkup: keyboard,
 			})
@@ -922,7 +922,8 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 		userInfoTemplate, _ := tr.GetString("format_user_info")
 		userIdTemplate, _ := tr.GetString("format_user_id")
 
-		_, err := bot.SendMessage(
+		_, err := helpers.SendMessageWithErrorHandling(
+			bot,
 			chat.Id,
 			fmt.Sprint(
 				newUserText,

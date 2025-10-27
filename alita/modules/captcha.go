@@ -776,7 +776,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		})
 	} else {
 		// Send text message for math captcha
-		sent, err = bot.SendMessage(chat.Id, msgText, &gotgbot.SendMessageOpts{
+		sent, err = helpers.SendMessageWithErrorHandling(bot, chat.Id, msgText, &gotgbot.SendMessageOpts{
 			ParseMode:   helpers.HTML,
 			ReplyMarkup: keyboard,
 		})
@@ -888,7 +888,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, messageID int6
 	}
 
 	// Send the failure message
-	sent, err := bot.SendMessage(chatID, failureMsg, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
+	sent, err := helpers.SendMessageWithErrorHandling(bot, chatID, failureMsg, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
 		log.Errorf("Failed to send captcha failure message: %v", err)
 	}
@@ -1048,7 +1048,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 				})
 
 			// Send summary message that auto-deletes after 30 seconds
-			summaryMsg, _ := bot.SendMessage(chat.Id, summaryText, &gotgbot.SendMessageOpts{
+			summaryMsg, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, summaryText, &gotgbot.SendMessageOpts{
 				ParseMode: helpers.HTML,
 			})
 
@@ -1086,7 +1086,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		msgTemplate, _ := tr.GetString("greetings_captcha_verified_success")
 		successMsg := fmt.Sprintf(msgTemplate, helpers.MentionHtml(targetUserID, user.FirstName))
-		sent, _ := bot.SendMessage(chat.Id, successMsg, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
+		sent, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, successMsg, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 
 		// Delete success message after 5 seconds with timeout
 		if sent != nil {
