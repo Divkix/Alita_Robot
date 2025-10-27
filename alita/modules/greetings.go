@@ -604,7 +604,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 				return err
 			}
 			if greetPrefs.WelcomeSettings.CleanWelcome {
-				_, _ = bot.DeleteMessage(chat.Id, greetPrefs.WelcomeSettings.LastMsgId, nil)
+				_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.WelcomeSettings.LastMsgId)
 				db.SetCleanWelcomeMsgId(chat.Id, 0) // No message ID available for cleanup
 			}
 			return nil
@@ -616,7 +616,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 			return err
 		}
 		if greetPrefs.WelcomeSettings.CleanWelcome {
-			_, _ = bot.DeleteMessage(chat.Id, greetPrefs.WelcomeSettings.LastMsgId, nil)
+			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.WelcomeSettings.LastMsgId)
 			db.SetCleanWelcomeMsgId(chat.Id, sent.MessageId)
 		}
 	}
@@ -715,8 +715,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	} else if captchaAttempt != nil {
 		// Delete the captcha message if it exists
 		if captchaAttempt.MessageID > 0 {
-			_, delErr := bot.DeleteMessage(chat.Id, captchaAttempt.MessageID, nil)
-			if delErr != nil {
+			if delErr := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, captchaAttempt.MessageID); delErr != nil {
 				log.Debugf("Failed to delete captcha message for leaving user %d: %v", leftMember.Id, delErr)
 			}
 		}
@@ -744,7 +743,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 			if greetPrefs.GoodbyeSettings.CleanGoodbye {
-				_, _ = bot.DeleteMessage(chat.Id, greetPrefs.GoodbyeSettings.LastMsgId, nil)
+				_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.GoodbyeSettings.LastMsgId)
 				db.SetCleanGoodbyeMsgId(chat.Id, 0) // No message ID available for cleanup
 			}
 			return ext.EndGroups
@@ -756,7 +755,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if greetPrefs.GoodbyeSettings.CleanGoodbye {
-			_, _ = bot.DeleteMessage(chat.Id, greetPrefs.GoodbyeSettings.LastMsgId, nil)
+			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.GoodbyeSettings.LastMsgId)
 			db.SetCleanGoodbyeMsgId(chat.Id, sent.MessageId)
 			// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
 			// 	log.WithFields(

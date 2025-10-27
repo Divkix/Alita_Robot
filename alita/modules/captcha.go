@@ -794,7 +794,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	if err != nil {
 		log.Errorf("Failed to set captcha attempt message ID: %v", err)
 		// Delete the message if we can't track it
-		_, _ = bot.DeleteMessage(chat.Id, sent.MessageId, nil)
+		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, sent.MessageId)
 		return err
 	}
 
@@ -837,7 +837,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, messageID int6
 	}
 
 	// Delete the captcha message
-	_, _ = bot.DeleteMessage(chatID, messageID, nil)
+	_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, messageID)
 
 	// Get user info for the failure message
 	member, err := bot.GetChatMember(chatID, userID, nil)
@@ -904,7 +904,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, messageID int6
 
 			select {
 			case <-timer.C:
-				_, _ = bot.DeleteMessage(cID, msgID, nil)
+				_ = helpers.DeleteMessageWithErrorHandling(bot, cID, msgID)
 			case <-ctx.Done():
 				// Context cancelled, clean up and exit
 				return
@@ -1064,7 +1064,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 					select {
 					case <-timer.C:
-						_, _ = bot.DeleteMessage(chatID, msgID, nil)
+						_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, msgID)
 					case <-ctx.Done():
 						log.Debugf("Summary message deletion cancelled for message %d", msgID)
 						return
@@ -1077,7 +1077,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
 
 		// Delete the captcha message
-		_, _ = bot.DeleteMessage(chat.Id, attempt.MessageID, nil)
+		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 
 		// Delete the attempt from database
 		_ = db.DeleteCaptchaAttempt(targetUserID, chat.Id)
@@ -1100,7 +1100,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 				select {
 				case <-timer.C:
-					_, _ = bot.DeleteMessage(cID, msgID, nil)
+					_ = helpers.DeleteMessageWithErrorHandling(bot, cID, msgID)
 				case <-ctx.Done():
 					log.Debugf("Success message deletion cancelled for message %d", msgID)
 					return
@@ -1270,7 +1270,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
 
 	// Try to edit in place by deleting and resending a new photo to get a new message ID, then update attempt atomically
-	_, _ = bot.DeleteMessage(chat.Id, attempt.MessageID, nil)
+	_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 
 	remainingMinutes := int(time.Until(attempt.ExpiresAt).Minutes())
 	if remainingMinutes < 0 {
@@ -1306,7 +1306,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	// Update DB attempt (answer, message_id, refresh_count++) by attempt ID
 	if _, err := db.UpdateCaptchaAttemptOnRefreshByID(attempt.ID, newAnswer, sent.MessageId); err != nil {
 		log.Errorf("Failed to update captcha attempt on refresh: %v", err)
-		_, _ = bot.DeleteMessage(chat.Id, sent.MessageId, nil)
+		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, sent.MessageId)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_internal_update_error")
 		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -1400,7 +1400,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 	}
 
 	// Delete the message to prevent spam
-	_, _ = bot.DeleteMessage(chat.Id, msg.MessageId, nil)
+	_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId)
 
 	// End processing - don't let this message continue through other handlers
 	return ext.EndGroups

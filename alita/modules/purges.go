@@ -72,7 +72,7 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 	// For small ranges, use sequential deletion
 	if totalMessages <= 10 {
 		for mId := deleteTo + 1; mId > msgId-1; mId-- {
-			_, _ = bot.DeleteMessage(chat.Id, mId, nil)
+			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, mId)
 		}
 		return true
 	}
@@ -94,8 +94,8 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 			defer wg.Done()
 			defer func() { <-worker.sem }() // Release semaphore
 
-			_, err := bot.DeleteMessage(chat.Id, messageId, nil)
-			if err != nil && !strings.Contains(err.Error(), "message to delete not found") {
+			err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, messageId)
+			if err != nil {
 				worker.mu.Lock()
 				worker.errorCount++
 				// Only log first 5 errors to avoid spam
@@ -159,17 +159,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		deleteTo := msg.MessageId - 1
 		totalMsgs := deleteTo - msgId + 1 // adding 1 because we want to delete the message we are replying to
 		purge := m.purgeMsgs(bot, chat, false, msgId, deleteTo)
-		_, err := bot.DeleteMessage(chat.Id, msg.MessageId, nil)
-		// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-		// 	log.WithFields(
-		// 		log.Fields{
-		// 			"chat": chat.Id,
-		// 		},
-		// 	).Error("error deleting message")
-		// } else
-		if err != nil {
-			log.Error(err)
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId)
 
 		if purge {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -244,7 +234,7 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	} else {
 		msgId := msg.ReplyToMessage.MessageId
-		_, _ = bot.DeleteMessage(chat.Id, msgId, nil)
+		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msgId)
 		_, _ = msg.Delete(bot, nil)
 	}
 
@@ -269,21 +259,9 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	args := strings.Split(query.Data, ".")
 	msgId, _ := strconv.Atoi(args[1])
 
-	_, err := b.DeleteMessage(chat.Id, int64(msgId), nil)
-	// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-	// 	log.WithFields(
-	// 		log.Fields{
-	// 			"chat": chat.Id,
-	// 		},
-	// 	).Error("error deleting message")
-	// 	return ext.EndGroups
-	// } else
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, int64(msgId))
 
-	_, err = query.Answer(b, nil)
+	_, err := query.Answer(b, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -325,8 +303,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(bot, text, nil)
 			return ext.EndGroups
 		}
-		_, err := bot.DeleteMessage(chat.Id, msg.MessageId, nil)
-		if err != nil {
+		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			_, _ = msg.Reply(bot, err.Error(), nil)
 			return ext.EndGroups
 		}
@@ -428,8 +405,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			totalMsgs = msgId - deleteTo + 1
 		}
 		purge := m.purgeMsgs(bot, chat, true, msgId, deleteTo)
-		_, err := bot.DeleteMessage(chat.Id, msg.MessageId, nil)
-		if err != nil {
+		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			log.Error(err)
 		}
 		if purge {

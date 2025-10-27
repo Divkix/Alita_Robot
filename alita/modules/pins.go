@@ -40,8 +40,7 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 	pinprefs := db.GetPinData(chat.Id)
 
 	if pinprefs.CleanLinked {
-		_, err := b.DeleteMessage(chat.Id, msg.MessageId, nil)
-		if err != nil {
+		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId); err != nil {
 			log.Error(err)
 			return err
 		}

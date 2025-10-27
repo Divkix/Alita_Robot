@@ -254,8 +254,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		// For small numbers of messages, delete sequentially
 		if len(floodCrc.messageIDs) <= 3 {
 			for _, i := range floodCrc.messageIDs {
-				_, err := b.DeleteMessage(chat.Id, i, nil)
-				if err != nil && !strings.Contains(err.Error(), "message to delete not found") {
+				if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, i); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -275,8 +274,8 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 					defer wg.Done()
 					defer func() { <-sem }() // Release semaphore
 
-					_, err := b.DeleteMessage(chat.Id, messageId, nil)
-					if err != nil && !strings.Contains(err.Error(), "message to delete not found") {
+					err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, messageId)
+					if err != nil {
 						errorMu.Lock()
 						if deleteError == nil {
 							deleteError = err

@@ -420,10 +420,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		deletedText, _ := tr.GetString("reports_message_deleted")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
-		err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId)
-		if err != nil {
-			return err
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId)
 	default:
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
