@@ -620,6 +620,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.STICKER: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for STICKER type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendSticker(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -634,6 +651,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.DOCUMENT: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for DOCUMENT type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendDocument(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -650,6 +684,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.PHOTO: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent "there is no photo in the request" errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for PHOTO type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendPhoto(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -666,6 +717,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.AUDIO: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for AUDIO type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendAudio(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -682,6 +750,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.VOICE: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for VOICE type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVoice(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -698,6 +783,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.VIDEO: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for VIDEO type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideo(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),
@@ -714,6 +816,23 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 		)
 	},
 	db.VideoNote: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if pinT.FileID == "" {
+			log.Warnf("Empty FileID for VideoNote type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
+			return b.SendMessage(
+				ctx.EffectiveChat.Id,
+				pinT.MsgText,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:       helpers.HTML,
+					ReplyMarkup:     keyb,
+					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideoNote(
 			ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(pinT.FileID),

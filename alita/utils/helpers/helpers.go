@@ -920,6 +920,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		)
 	},
 	db.STICKER: func(b *gotgbot.Bot, ctx *ext.Context, noteData *db.Notes, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64, _, isProtected bool, _, noNotif bool) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for STICKER note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           HTML,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendSticker(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
 			&gotgbot.SendStickerOpts{
@@ -938,6 +956,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		formatMode := HTML
 		if noFormat {
 			formatMode = None
+		}
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for DOCUMENT note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
 		}
 		return b.SendDocument(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
@@ -960,6 +996,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent "there is no photo in the request" errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for PHOTO note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendPhoto(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
 			&gotgbot.SendPhotoOpts{
@@ -980,6 +1034,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		formatMode := HTML
 		if noFormat {
 			formatMode = None
+		}
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for AUDIO note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
 		}
 		return b.SendAudio(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
@@ -1002,6 +1074,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for VOICE note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVoice(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
 			&gotgbot.SendVoiceOpts{
@@ -1023,6 +1113,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for VIDEO note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideo(ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
 			&gotgbot.SendVideoOpts{
@@ -1040,6 +1148,24 @@ var NotesEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, noteData *
 		)
 	},
 	db.VideoNote: func(b *gotgbot.Bot, ctx *ext.Context, noteData *db.Notes, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64, _, isProtected bool, _, noNotif bool) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if noteData.FileID == "" {
+			log.Warnf("Empty FileID for VideoNote note '%s' in chat %d, falling back to text message", noteData.NoteName, ctx.Message.Chat.Id)
+			return b.SendMessage(ctx.Message.Chat.Id,
+				noteData.NoteContent,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                replyMsgId,
+						AllowSendingWithoutReply: true,
+					},
+					ParseMode:           HTML,
+					ReplyMarkup:         keyb,
+					ProtectContent:      isProtected,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideoNote(ctx.EffectiveChat.Id,
 			gotgbot.InputFileByID(noteData.FileID),
 			&gotgbot.SendVideoNoteOpts{
@@ -1195,6 +1321,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		)
 	},
 	db.STICKER: func(b *gotgbot.Bot, ctx *ext.Context, filterData db.ChatFilters, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64, _, noNotif bool) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for STICKER filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           HTML,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendSticker(
 			ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(filterData.FileID),
@@ -1212,6 +1355,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		formatMode := HTML
 		if noFormat {
 			formatMode = None
+		}
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for DOCUMENT filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
 		}
 		return b.SendDocument(
 			ctx.Message.Chat.Id,
@@ -1233,6 +1393,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent "there is no photo in the request" errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for PHOTO filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendPhoto(
 			ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(filterData.FileID),
@@ -1252,6 +1429,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		formatMode := HTML
 		if noFormat {
 			formatMode = None
+		}
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for AUDIO filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
 		}
 		return b.SendAudio(
 			ctx.Message.Chat.Id,
@@ -1273,6 +1467,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for VOICE filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVoice(
 			ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(filterData.FileID),
@@ -1293,6 +1504,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		if noFormat {
 			formatMode = None
 		}
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for VIDEO filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           formatMode,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideo(
 			ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(filterData.FileID),
@@ -1309,6 +1537,23 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 		)
 	},
 	db.VideoNote: func(b *gotgbot.Bot, ctx *ext.Context, filterData db.ChatFilters, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64, _, noNotif bool) (*gotgbot.Message, error) {
+		// Validate FileID is not empty to prevent API errors
+		if filterData.FileID == "" {
+			log.Warnf("Empty FileID for VideoNote filter '%s' in chat %d, falling back to text message", filterData.KeyWord, ctx.Message.Chat.Id)
+			return b.SendMessage(
+				ctx.Message.Chat.Id,
+				filterData.FilterReply,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId: replyMsgId,
+					},
+					ParseMode:           HTML,
+					ReplyMarkup:         keyb,
+					DisableNotification: noNotif,
+					MessageThreadId:     ctx.Message.MessageThreadId,
+				},
+			)
+		}
 		return b.SendVideoNote(
 			ctx.Message.Chat.Id,
 			gotgbot.InputFileByID(filterData.FileID),
