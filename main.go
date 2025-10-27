@@ -306,6 +306,12 @@ func main() {
 				logFields["function"] = wrappedErr.Function
 			}
 
+			// Check if this is an expected error that should be suppressed from Sentry
+			if helpers.ShouldSuppressFromSentry(err) {
+				log.WithFields(logFields).Warnf("Expected Telegram API error (suppressed from Sentry): %v", err)
+				return ext.DispatcherActionNoop
+			}
+
 			// Log the error with context information
 			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
 

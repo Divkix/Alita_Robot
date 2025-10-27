@@ -37,6 +37,7 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 		if strings.Contains(errStr, "not enough rights to send text messages") ||
 			strings.Contains(errStr, "have no rights to send a message") ||
 			strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
+			strings.Contains(errStr, "CHAT_RESTRICTED") ||
 			strings.Contains(errStr, "need administrator rights in the channel chat") {
 			log.WithFields(log.Fields{
 				"chat_id": chatId,
@@ -47,4 +48,41 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
 	}
 	return msg, nil
+}
+
+// ShouldSuppressFromSentry checks if an error should be suppressed from Sentry reporting.
+// Returns true for expected Telegram API errors that occur during normal bot operations.
+func ShouldSuppressFromSentry(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Check for expected Telegram API errors
+	expectedErrors := []string{
+		// Bot access errors (kicked, banned, or restricted)
+		"CHAT_RESTRICTED",
+		"bot was kicked from the",
+		"bot was blocked by the user",
+		"Forbidden: bot was kicked",
+		"Forbidden: bot is not a member",
+
+		// Thread/topic errors
+		"message thread not found",
+		"thread not found",
+
+		// Chat state errors
+		"group chat was deactivated",
+		"chat not found",
+		"group chat was upgraded to a supergroup",
+	}
+
+	for _, expectedErr := range expectedErrors {
+		if strings.Contains(errStr, expectedErr) {
+			return true
+		}
+	}
+
+	return false
 }
