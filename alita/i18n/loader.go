@@ -3,6 +3,7 @@ package i18n
 import (
 	"bytes"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -39,7 +40,7 @@ func (lm *LocaleManager) loadLocaleFiles() error {
 			continue
 		}
 
-		filePath := filepath.Join(lm.localePath, fileName)
+		filePath := path.Join(lm.localePath, fileName)
 		langCode := extractLangCode(fileName)
 
 		if err := lm.loadSingleLocaleFile(filePath, langCode); err != nil {
