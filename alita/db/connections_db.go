@@ -21,6 +21,12 @@ func GetChatConnectionSetting(chatID int64) (connectionSrc *ConnectionChatSettin
 	connectionSrc = &ConnectionChatSettings{}
 	err := GetRecord(connectionSrc, ConnectionChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
+		if err := EnsureChatInDb(chatID, ""); err != nil {
+			log.Errorf("[Database] GetChatConnectionSetting: Failed to ensure chat exists for %d: %v", chatID, err)
+			return &ConnectionChatSettings{ChatId: chatID, Enabled: false}
+		}
+
 		// Create default settings
 		connectionSrc = &ConnectionChatSettings{ChatId: chatID, Enabled: false}
 		err := CreateRecord(connectionSrc)

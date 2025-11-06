@@ -13,6 +13,12 @@ func GetChatReportSettings(chatID int64) (reportsrc *ReportChatSettings) {
 	reportsrc = &ReportChatSettings{}
 	err := GetRecord(reportsrc, ReportChatSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
+		if err := EnsureChatInDb(chatID, ""); err != nil {
+			log.Errorf("[Database] GetChatReportSettings: Failed to ensure chat exists for %d: %v", chatID, err)
+			return &ReportChatSettings{ChatId: chatID, Enabled: true}
+		}
+
 		// Create default settings
 		reportsrc = &ReportChatSettings{ChatId: chatID, Enabled: true}
 		err := CreateRecord(reportsrc)

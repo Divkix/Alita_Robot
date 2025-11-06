@@ -76,6 +76,16 @@ func ShouldSuppressFromSentry(err error) bool {
 		"group chat was deactivated",
 		"chat not found",
 		"group chat was upgraded to a supergroup",
+
+		// Network and timeout errors (expected during Telegram API slowness)
+		"timeout awaiting response headers",
+		"http2: timeout",
+		"context deadline exceeded",
+
+		// Permission errors (expected when bot lacks required permissions)
+		"not enough rights to restrict/unrestrict chat member",
+		"not enough rights to send text messages",
+		"not enough rights to",
 	}
 
 	for _, expectedErr := range expectedErrors {

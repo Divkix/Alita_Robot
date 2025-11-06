@@ -407,7 +407,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	}
-	if _, err := b.SendMessage(chat.Id,
+	if _, err := helpers.SendMessageWithErrorHandling(b, chat.Id,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
 			return fmt.Sprintf(temp, helpers.MentionHtml(userId, user.Name()), fmode)

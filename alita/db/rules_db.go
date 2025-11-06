@@ -14,6 +14,12 @@ func checkRulesSetting(chatID int64) (rulesrc *RulesSettings) {
 	rulesrc = &RulesSettings{}
 	err := GetRecord(rulesrc, RulesSettings{ChatId: chatID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Ensure chat exists in database before creating rules to satisfy foreign key constraint
+		if err := EnsureChatInDb(chatID, ""); err != nil {
+			log.Errorf("[Database] checkRulesSetting: Failed to ensure chat exists for %d: %v", chatID, err)
+			return &RulesSettings{ChatId: chatID, Rules: ""}
+		}
+
 		// Create default settings
 		rulesrc = &RulesSettings{ChatId: chatID, Rules: ""}
 		err := CreateRecord(rulesrc)
