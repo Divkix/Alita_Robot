@@ -41,7 +41,7 @@ jobs:
 
       # Security vulnerability scanning with gosec (generate SARIF)
       - name: Run Gosec Security Scanner (SARIF)
-        uses: securego/gosec@v2.22.8
+        uses: securego/gosec@v2.22.10
         with:
           args: -no-fail -fmt sarif -out gosec.sarif ./...
 
