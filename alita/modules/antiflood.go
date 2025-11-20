@@ -30,6 +30,13 @@ const (
 	maxConcurrentMsgDeletions = 5  // Maximum concurrent message deletions during flood cleanup
 )
 
+// floodKey is a type-safe composite key for flood tracking
+// Uses struct instead of string concatenation to avoid collisions
+type floodKey struct {
+	chatId int64
+	userId int64
+}
+
 type antifloodStruct struct {
 	moduleStruct  // inheritance
 	syncHelperMap sync.Map
@@ -89,15 +96,17 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 }
 
 // updateFlood tracks message counts per user and determines if flood limit exceeded.
-// Returns true if user has exceeded flood limit and should be restricted.
-func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (returnVar bool, floodCrc floodControl) {
-	floodSrc := db.GetFlood(chatId)
+// Returns true if user has exceeded flood limit and should be restricted,
+// along with the flood control data and flood settings from the database.
+// This eliminates redundant database calls by fetching settings once.
+func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
+	floodSettings = db.GetFlood(chatId)
 
-	if floodSrc.Limit != 0 {
+	if floodSettings.Limit != 0 {
 		currentTime := time.Now().Unix()
 
-		// Key by composite (chatId, userId)
-		key := fmt.Sprintf("%d:%d", chatId, userId)
+		// Use type-safe struct key instead of string concatenation
+		key := floodKey{chatId: chatId, userId: userId}
 		tmpInterface, valExists := antifloodModule.syncHelperMap.Load(key)
 		if valExists && tmpInterface != nil {
 			floodCrc = tmpInterface.(floodControl)
@@ -112,30 +121,25 @@ func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (returnVar bool, f
 		if floodCrc.userId == 0 {
 			floodCrc.userId = userId
 			floodCrc.messageCount = 0
-			floodCrc.messageIDs = make([]int64, 0, floodSrc.Limit+5) // Pre-allocate with capacity
+			floodCrc.messageIDs = make([]int64, 0, floodSettings.Limit+5) // Pre-allocate with capacity
 		}
 
 		floodCrc.messageCount++
 		floodCrc.lastActivity = currentTime
 
-		// Use efficient prepend with pre-allocated slice
-		if len(floodCrc.messageIDs) >= cap(floodCrc.messageIDs) {
-			// Resize if needed, keep only recent messages
-			newIDs := make([]int64, 1, floodSrc.Limit+5)
-			newIDs[0] = msgId
-			if len(floodCrc.messageIDs) > 0 {
-				copyCount := floodSrc.Limit
-				if copyCount > len(floodCrc.messageIDs) {
-					copyCount = len(floodCrc.messageIDs)
-				}
-				newIDs = append(newIDs, floodCrc.messageIDs[:copyCount]...)
-			}
-			floodCrc.messageIDs = newIDs
-		} else {
-			floodCrc.messageIDs = append([]int64{msgId}, floodCrc.messageIDs...)
+		// PERFORMANCE FIX: Append to end instead of prepending
+		// This avoids slice reallocation and copying on every message (O(1) amortized vs O(n))
+		floodCrc.messageIDs = append(floodCrc.messageIDs, msgId)
+
+		// Trim old messages if we exceed the limit
+		// Keep only the most recent messages within the flood window
+		if len(floodCrc.messageIDs) > floodSettings.Limit+5 {
+			// Slice from the end to keep recent messages
+			// This is O(1) operation since it just adjusts the slice header
+			floodCrc.messageIDs = floodCrc.messageIDs[len(floodCrc.messageIDs)-(floodSettings.Limit+5):]
 		}
 
-		if floodCrc.messageCount > floodSrc.Limit {
+		if floodCrc.messageCount > floodSettings.Limit {
 			antifloodModule.syncHelperMap.Store(key,
 				floodControl{
 					userId:       0,
@@ -144,7 +148,7 @@ func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (returnVar bool, f
 					lastActivity: currentTime,
 				},
 			)
-			returnVar = true
+			shouldPunish = true
 		} else {
 			antifloodModule.syncHelperMap.Store(key, floodCrc)
 		}
@@ -173,6 +177,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		keyboard [][]gotgbot.InlineKeyboardButton
 	)
 	userId := user.Id()
+	chatId := chat.Id
 
 	// Use semaphore to limit concurrent admin checks and add timeout
 	select {
@@ -193,7 +198,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				close(done) // Signal completion to prevent goroutine leak
 				if r := recover(); r != nil {
 					log.WithFields(log.Fields{
-						"chatId": chat.Id,
+						"chatId": chatId,
 						"userId": userId,
 						"panic":  r,
 					}).Error("Panic in admin check goroutine")
@@ -201,7 +206,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}()
 
 			select {
-			case isAdmin <- chat_status.IsUserAdmin(b, chat.Id, userId):
+			case isAdmin <- chat_status.IsUserAdmin(b, chatId, userId):
 				// Successfully sent result
 			case <-ctx_timeout.Done():
 				// Context cancelled, exit goroutine early
@@ -212,13 +217,13 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		select {
 		case admin := <-isAdmin:
 			if admin {
-				m.updateFlood(chat.Id, 0, 0) // empty message queue when admin sends a message
+				m.updateFlood(chatId, 0, 0) // empty message queue when admin sends a message
 				return ext.ContinueGroups
 			}
 		case <-ctx_timeout.Done():
 			// Admin check timed out, treat as non-admin for safety
 			log.WithFields(log.Fields{
-				"chatId": chat.Id,
+				"chatId": chatId,
 				"userId": userId,
 			}).Warn("Admin check timed out, treating user as non-admin")
 		}
@@ -230,31 +235,34 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		case <-time.After(1 * time.Second):
 			// Log if goroutine takes too long to cleanup
 			log.WithFields(log.Fields{
-				"chatId": chat.Id,
+				"chatId": chatId,
 				"userId": userId,
 			}).Warn("Admin check goroutine cleanup timeout")
 		}
 	default:
-		// Semaphore full, skip admin check for performance (treat as non-admin)
+		// CRITICAL FIX: Semaphore full - fail open to prevent false positives
+		// It's better to occasionally miss a flood from an admin than to ban actual admins under load
 		log.WithFields(log.Fields{
-			"chatId": chat.Id,
+			"chatId": chatId,
 			"userId": userId,
-		}).Debug("Admin check semaphore full, skipping admin check")
+		}).Warn("Admin check semaphore full - assuming admin to prevent false positives")
+		return ext.ContinueGroups
 	}
 
-	// update flood for user
-	flooded, floodCrc := m.updateFlood(chat.Id, userId, msg.MessageId)
+	// PERFORMANCE FIX: Update flood and get settings in one call to eliminate redundant DB query
+	// Previously this was calling db.GetFlood again after updateFlood, doubling the DB load
+	flooded, floodCrc, flood := m.updateFlood(chatId, userId, msg.MessageId)
 	if !flooded {
 		return ext.ContinueGroups
 	}
 
-	flood := db.GetFlood(chat.Id)
+	// No need to call db.GetFlood again - we already have the settings from updateFlood
 
 	if flood.DeleteAntifloodMessage {
 		// For small numbers of messages, delete sequentially
 		if len(floodCrc.messageIDs) <= 3 {
 			for _, i := range floodCrc.messageIDs {
-				if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, i); err != nil {
+				if err := helpers.DeleteMessageWithErrorHandling(b, chatId, i); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -274,7 +282,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 					defer wg.Done()
 					defer func() { <-sem }() // Release semaphore
 
-					err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, messageId)
+					err := helpers.DeleteMessageWithErrorHandling(b, chatId, messageId)
 					if err != nil {
 						errorMu.Lock()
 						if deleteError == nil {
@@ -336,7 +344,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			nil,
 		)
 		if err != nil {
-			log.Errorf(" checkFlood: %d (%d) - %v", chat.Id, user.Id(), err)
+			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 			return err
 		}
 	case "kick":
@@ -348,7 +356,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		keyboard = nil
 		_, err := chat.BanMember(b, userId, nil)
 		if err != nil {
-			log.Errorf(" checkFlood: %d (%d) - %v", chat.Id, user.Id(), err)
+			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 			return err
 		}
 		// Use non-blocking delayed unban for kick action with timeout
@@ -371,14 +379,14 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				_, unbanErr := chat.UnbanMember(b, userId, nil)
 				if unbanErr != nil {
 					log.WithFields(log.Fields{
-						"chatId": chat.Id,
+						"chatId": chatId,
 						"userId": userId,
 						"error":  unbanErr,
 					}).Error("Failed to unban user after antiflood kick")
 				}
 			case <-timeoutCtx.Done():
 				log.WithFields(log.Fields{
-					"chatId": chat.Id,
+					"chatId": chatId,
 					"userId": userId,
 				}).Warn("Antiflood unban operation timed out")
 			}
@@ -388,7 +396,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsAnonymousChannel() {
 			_, err := chat.BanMember(b, userId, nil)
 			if err != nil {
-				log.Errorf(" checkFlood: %d (%d) - %v", chat.Id, user.Id(), err)
+				log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 				return err
 			}
 		} else {
@@ -402,12 +410,12 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			_, err := chat.BanSenderChat(b, userId, nil)
 			if err != nil {
-				log.Errorf(" checkFlood: %d (%d) - %v", chat.Id, user.Id(), err)
+				log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 				return err
 			}
 		}
 	}
-	if _, err := helpers.SendMessageWithErrorHandling(b, chat.Id,
+	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
 			return fmt.Sprintf(temp, helpers.MentionHtml(userId, user.Name()), fmode)

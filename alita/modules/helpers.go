@@ -23,17 +23,16 @@ import (
 
 // module struct for all modules
 type moduleStruct struct {
-	moduleName          string
-	handlerGroup        int
-	permHandlerGroup    int
-	restrHandlerGroup   int
-	defaultRulesBtn     string
-	overwriteFiltersMap map[string]overwriteFilter
-	overwriteNotesMap   map[string]overwriteNote
-	antiSpam            map[int64]*antiSpamInfo
-	AbleMap             moduleEnabled
-	AltHelpOptions      map[string][]string
-	helpableKb          map[string][][]gotgbot.InlineKeyboardButton
+	moduleName        string
+	handlerGroup      int
+	permHandlerGroup  int
+	restrHandlerGroup int
+	defaultRulesBtn   string
+	overwriteNotesMap map[string]overwriteNote
+	antiSpam          map[int64]*antiSpamInfo
+	AbleMap           moduleEnabled
+	AltHelpOptions    map[string][]string
+	helpableKb        map[string][][]gotgbot.InlineKeyboardButton
 }
 
 // struct for filters module

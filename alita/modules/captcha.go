@@ -693,9 +693,32 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}
 
-	// Create the attempt first to embed attempt ID in callbacks
-	// Ensure user and chat exist in database (required for foreign key constraints)
-	if err := db.EnsureUserInDb(userID, userName, userName); err != nil {
+	// Validate user and chat exist in Telegram before creating DB records
+	// This prevents FK constraint violations for non-existent entities
+
+	// Validate user exists via Telegram API
+	userMember, err := bot.GetChatMember(chat.Id, userID, nil)
+	if err != nil {
+		log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
+		return fmt.Errorf("user %d does not exist or is not accessible: %w", userID, err)
+	}
+
+	// Extract validated user info from API response
+	validatedUser := userMember.GetUser()
+	validatedUserName := userName
+	if validatedUser.FirstName != "" {
+		validatedUserName = validatedUser.FirstName
+	}
+	validatedUsername := validatedUser.Username
+
+	// Validate chat exists (already have chat object from context, but verify it's valid)
+	if chat.Id == 0 || chat.Title == "" {
+		log.Errorf("Invalid chat data: ID=%d, Title=%s", chat.Id, chat.Title)
+		return fmt.Errorf("invalid chat data")
+	}
+
+	// Now that we've validated via Telegram API, ensure records exist in database
+	if err := db.EnsureUserInDb(userID, validatedUsername, validatedUserName); err != nil {
 		log.Errorf("Failed to ensure user in database: %v", err)
 		return err
 	}
@@ -765,7 +788,6 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 
 	// Send the captcha message
 	var sent *gotgbot.Message
-	var err error
 
 	if isImage && imageBytes != nil {
 		// Send photo with text captcha
