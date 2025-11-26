@@ -36,7 +36,7 @@ jobs:
 
       # Run security scanning before release
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.22.8
+        uses: securego/gosec@v2.22.10
         with:
           args: -fmt sarif -out gosec.sarif ./...
 
