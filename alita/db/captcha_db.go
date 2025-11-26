@@ -386,3 +386,41 @@ func CountStoredMessagesForAttempt(attemptID uint) (int64, error) {
 	}
 	return count, nil
 }
+
+// GetExpiredCaptchaAttempts returns all expired captcha attempts with valid message IDs.
+// Used for cleanup to delete Telegram messages before DB cleanup.
+func GetExpiredCaptchaAttempts() ([]*CaptchaAttempts, error) {
+	var attempts []*CaptchaAttempts
+	err := DB.Where("expires_at < ? AND message_id > 0", time.Now()).Find(&attempts).Error
+	if err != nil {
+		log.Errorf("[Database][GetExpiredCaptchaAttempts]: %v", err)
+		return nil, err
+	}
+	return attempts, nil
+}
+
+// GetAllPendingCaptchaAttempts returns ALL captcha attempts (both expired and valid).
+// Used for startup recovery after bot restart.
+func GetAllPendingCaptchaAttempts() ([]*CaptchaAttempts, error) {
+	var attempts []*CaptchaAttempts
+	err := DB.Find(&attempts).Error
+	if err != nil {
+		log.Errorf("[Database][GetAllPendingCaptchaAttempts]: %v", err)
+		return nil, err
+	}
+	return attempts, nil
+}
+
+// DeleteCaptchaAttemptsByIDs deletes multiple captcha attempts by their IDs.
+// Returns the number of deleted rows.
+func DeleteCaptchaAttemptsByIDs(ids []uint) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	result := DB.Where("id IN ?", ids).Delete(&CaptchaAttempts{})
+	if result.Error != nil {
+		log.Errorf("[Database][DeleteCaptchaAttemptsByIDs]: %v", result.Error)
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
