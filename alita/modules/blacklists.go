@@ -89,7 +89,18 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 				if string_handling.FindInStringSlice(allBlWords, blWord) {
 					alreadyBlacklisted = append(alreadyBlacklisted, blWord)
 				} else {
-					go db.AddBlacklist(chat.Id, blWord)
+					go func(chatId int64, word string) {
+						defer func() {
+							if r := recover(); r != nil {
+								log.WithFields(log.Fields{
+									"panic":  r,
+									"chatId": chatId,
+									"word":   word,
+								}).Error("Panic in AddBlacklist goroutine")
+							}
+						}()
+						db.AddBlacklist(chatId, word)
+					}(chat.Id, blWord)
 					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", blWord))
 				}
 			}
@@ -106,7 +117,17 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			for _, blWord := range args {
 				wg.Add(1)
 				go func(word string) {
-					defer wg.Done()
+					defer func() {
+						if r := recover(); r != nil {
+							log.WithFields(log.Fields{
+								"panic":  r,
+								"chatId": chat.Id,
+								"word":   word,
+							}).Error("Panic in AddBlacklist concurrent goroutine")
+						}
+						wg.Done()
+					}()
+
 					isListed := string_handling.FindInStringSlice(allBlWords, word)
 					resultChan <- result{word: word, isAlreadyListed: isListed}
 
@@ -201,7 +222,18 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		for _, blWord := range args {
 			if string_handling.FindInStringSlice(allBlWords, blWord) {
 				removedBlacklists = append(removedBlacklists, blWord)
-				go db.RemoveBlacklist(chat.Id, blWord)
+				go func(chatId int64, word string) {
+					defer func() {
+						if r := recover(); r != nil {
+							log.WithFields(log.Fields{
+								"panic":  r,
+								"chatId": chatId,
+								"word":   word,
+							}).Error("Panic in RemoveBlacklist goroutine")
+						}
+					}()
+					db.RemoveBlacklist(chatId, word)
+				}(chat.Id, blWord)
 			}
 		}
 		if len(removedBlacklists) <= 0 {
@@ -331,7 +363,18 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 		if string_handling.FindInStringSlice([]string{"mute", "kick", "warn", "ban", "none"}, action) {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode")
 			rMsg = fmt.Sprintf(temp, action)
-			go db.SetBlacklistAction(chat.Id, action)
+			go func(chatId int64, actionType string) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.WithFields(log.Fields{
+							"panic":  r,
+							"chatId": chatId,
+							"action": actionType,
+						}).Error("Panic in SetBlacklistAction goroutine")
+					}
+				}()
+				db.SetBlacklistAction(chatId, actionType)
+			}(chat.Id, action)
 		} else {
 			rMsg, _ = tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
 		}
@@ -409,7 +452,17 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch creatorAction {
 	case "yes":
-		go db.RemoveAllBlacklist(query.Message.GetChat().Id)
+		go func(chatId int64) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithFields(log.Fields{
+						"panic":  r,
+						"chatId": chatId,
+					}).Error("Panic in RemoveAllBlacklist goroutine")
+				}
+			}()
+			db.RemoveAllBlacklist(chatId)
+		}(query.Message.GetChat().Id)
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
 	case "no":
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_no")

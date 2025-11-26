@@ -1406,6 +1406,7 @@ filters_clear_all_success: "Removed all Filters from this Chat ✅"
 filters_clear_all_cancelled: "Cancelled removing all Filters from this Chat ❌"
 filters_overwrite_success: "Filter has been overwritten successfully ✅"
 filters_overwrite_cancelled: "Cancelled overwriting of filter ❌"
+filters_overwrite_expired: "⏰ Confirmation expired! Please try again."
 
 # Helpers module strings
 helpers_back_button: "« Back"

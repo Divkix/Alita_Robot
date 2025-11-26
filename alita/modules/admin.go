@@ -9,7 +9,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/debug_bot"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -193,6 +192,7 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 	bb, err := chat.PromoteMember(b,
 		userId,
 		&gotgbot.PromoteChatMemberOpts{
+			CanPostMessages:     false,
 			CanDeleteMessages:   false,
 			CanRestrictMembers:  false,
 			CanChangeInfo:       false,
@@ -660,7 +660,6 @@ func (moduleStruct) adminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	var err error
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	debug_bot.PrettyPrintStruct(tr)
 
 	// permission checks
 	userMember, _ := chat.GetMember(b, user.Id, nil)
@@ -683,7 +682,6 @@ func (moduleStruct) adminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	cache.LoadAdminCache(b, chat.Id)
 
 	k, _ := tr.GetString("commonstrings_admin_cache_cache_reloaded")
-	debug_bot.PrettyPrintStruct(k)
 	_, err = msg.Reply(b, k, helpers.Shtml())
 	if err != nil {
 		log.Error(err)

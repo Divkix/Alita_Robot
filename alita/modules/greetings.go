@@ -48,6 +48,20 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 || strings.ToLower(args[0]) == "noformat" {
 		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
 		welcPrefs := db.GetGreetingSettings(chat.Id)
+
+		// Nil check for WelcomeSettings
+		if welcPrefs.WelcomeSettings == nil {
+			log.Warnf("[Greetings][welcome] WelcomeSettings is nil for chat %d, using defaults", chat.Id)
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("greetings_welcome_not_configured")
+			_, err := msg.Reply(bot, text, helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
+
 		wlcmText = welcPrefs.WelcomeSettings.WelcomeText
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("greetings_welcome_status")
@@ -225,6 +239,20 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 || strings.ToLower(args[0]) == "noformat" {
 		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
 		gdbyePrefs := db.GetGreetingSettings(chat.Id)
+
+		// Nil check for GoodbyeSettings
+		if gdbyePrefs.GoodbyeSettings == nil {
+			log.Warnf("[Greetings][goodbye] GoodbyeSettings is nil for chat %d, using defaults", chat.Id)
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("greetings_goodbye_not_configured")
+			_, err := msg.Reply(bot, text, helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
+
 		gdbyeText = gdbyePrefs.GoodbyeSettings.GoodbyeText
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("greetings_goodbye_status")
@@ -403,7 +431,22 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 0 {
 		var err error
-		cleanPref := db.GetGreetingSettings(chat.Id).WelcomeSettings.CleanWelcome
+		greetSettings := db.GetGreetingSettings(chat.Id)
+
+		// Nil check for WelcomeSettings
+		if greetSettings.WelcomeSettings == nil {
+			log.Warnf("[Greetings][cleanWelcome] WelcomeSettings is nil for chat %d, using default (false)", chat.Id)
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("greetings_clean_welcome_should")
+			_, err = msg.Reply(bot, text, helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
+
+		cleanPref := greetSettings.WelcomeSettings.CleanWelcome
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		if !cleanPref {
 			text, _ := tr.GetString("greetings_clean_welcome_should")
@@ -464,7 +507,22 @@ func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 0 {
 		var err error
-		cleanPref := db.GetGreetingSettings(chat.Id).GoodbyeSettings.CleanGoodbye
+		greetSettings := db.GetGreetingSettings(chat.Id)
+
+		// Nil check for GoodbyeSettings
+		if greetSettings.GoodbyeSettings == nil {
+			log.Warnf("[Greetings][cleanGoodbye] GoodbyeSettings is nil for chat %d, using default (false)", chat.Id)
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("greetings_clean_goodbye_should")
+			_, err = msg.Reply(bot, text, helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
+
+		cleanPref := greetSettings.GoodbyeSettings.CleanGoodbye
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		if !cleanPref {
 			text, _ := tr.GetString("greetings_clean_goodbye_should")
@@ -575,7 +633,13 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 	chat := ctx.EffectiveChat
 	greetPrefs := db.GetGreetingSettings(chat.Id)
 
-	if greetPrefs.WelcomeSettings != nil && greetPrefs.WelcomeSettings.ShouldWelcome {
+	// Nil check for WelcomeSettings
+	if greetPrefs.WelcomeSettings == nil {
+		log.Warnf("[Greetings][SendWelcomeMessage] WelcomeSettings is nil for chat %d, skipping welcome message", chat.Id)
+		return nil
+	}
+
+	if greetPrefs.WelcomeSettings.ShouldWelcome {
 		// Create a user object for formatting
 		user := &gotgbot.User{
 			Id:        userID,
@@ -725,7 +789,13 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	if greetPrefs.GoodbyeSettings != nil && greetPrefs.GoodbyeSettings.ShouldGoodbye {
+	// Nil check for GoodbyeSettings
+	if greetPrefs.GoodbyeSettings == nil {
+		log.Warnf("[Greetings][leftMember] GoodbyeSettings is nil for chat %d, skipping goodbye message", chat.Id)
+		return ext.EndGroups
+	}
+
+	if greetPrefs.GoodbyeSettings.ShouldGoodbye {
 		buttons := db.GetGoodbyeButtons(chat.Id)
 		res, buttons := helpers.FormattingReplacer(bot, chat, &leftMember, greetPrefs.GoodbyeSettings.GoodbyeText, buttons)
 		keyboard := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: helpers.BuildKeyboard(buttons)}

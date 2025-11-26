@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"html"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
+	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 
@@ -27,9 +30,57 @@ import (
 )
 
 var filtersModule = moduleStruct{
-	moduleName:          "Filters",
-	overwriteFiltersMap: make(map[string]overwriteFilter),
-	handlerGroup:        9,
+	moduleName:   "Filters",
+	handlerGroup: 9,
+}
+
+const (
+	// Cache TTL for filter overwrite confirmations (5 minutes)
+	filterOverwriteCacheTTL = 5 * time.Minute
+)
+
+// filterOverwriteCacheKey generates a cache key for filter overwrite confirmations.
+func filterOverwriteCacheKey(filterWord string, chatID int64) string {
+	return fmt.Sprintf("alita:filter_overwrite:%s:%d", filterWord, chatID)
+}
+
+// setFilterOverwriteCache stores filter overwrite data in cache with TTL.
+func setFilterOverwriteCache(filterWord string, chatID int64, data overwriteFilter) error {
+	if cache.Marshal == nil {
+		return fmt.Errorf("cache not initialized")
+	}
+
+	key := filterOverwriteCacheKey(filterWord, chatID)
+	return cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(filterOverwriteCacheTTL))
+}
+
+// getFilterOverwriteCache retrieves filter overwrite data from cache.
+func getFilterOverwriteCache(filterWord string, chatID int64) (*overwriteFilter, error) {
+	if cache.Marshal == nil {
+		return nil, fmt.Errorf("cache not initialized")
+	}
+
+	key := filterOverwriteCacheKey(filterWord, chatID)
+	var data overwriteFilter
+	_, err := cache.Marshal.Get(cache.Context, key, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+// deleteFilterOverwriteCache removes filter overwrite data from cache.
+func deleteFilterOverwriteCache(filterWord string, chatID int64) {
+	if cache.Marshal == nil {
+		return
+	}
+
+	key := filterOverwriteCacheKey(filterWord, chatID)
+	err := cache.Marshal.Delete(cache.Context, key)
+	if err != nil {
+		log.Debugf("[Filters] Failed to delete cache for key %s: %v", key, err)
+	}
 }
 
 /*
@@ -109,18 +160,24 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	filterWord = strings.ToLower(filterWord) // convert string to it's lower form
 
 	if db.DoesFilterExists(chat.Id, filterWord) {
-		m.overwriteFiltersMap[fmt.Sprint(filterWord, "_", chat.Id)] = overwriteFilter{
+		// Store in cache instead of in-memory map
+		err := setFilterOverwriteCache(filterWord, chat.Id, overwriteFilter{
 			filterWord: filterWord,
 			text:       text,
 			fileid:     fileid,
 			buttons:    buttons,
 			dataType:   dataType,
+		})
+		if err != nil {
+			log.Errorf("[Filters] Failed to cache overwrite data: %v", err)
+			// Fallback: allow the operation to continue
 		}
+
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		confirmText, _ := tr.GetString("filters_overwrite_confirm")
 		yesText, _ := tr.GetString("common_yes")
 		noText, _ := tr.GetString("common_no")
-		_, err := msg.Reply(b,
+		_, err = msg.Reply(b,
 			confirmText,
 			&gotgbot.SendMessageOpts{
 				ParseMode: helpers.HTML,
@@ -397,20 +454,35 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	args := strings.Split(query.Data, ".")
 	filterWord := args[1]
-	filterWordKey := fmt.Sprint(filterWord, "_", chat.Id)
 	var helpText string
-	filterData := m.overwriteFiltersMap[filterWordKey]
+
+	// Retrieve from cache instead of in-memory map
+	filterData, err := getFilterOverwriteCache(filterWord, chat.Id)
+	if err != nil {
+		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
+		helpText, _ = tr.GetString("filters_overwrite_expired")
+		_, _, editErr := query.Message.EditText(b, helpText, nil)
+		if editErr != nil {
+			log.Error(editErr)
+		}
+		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		if answerErr != nil {
+			log.Error(answerErr)
+		}
+		return ext.EndGroups
+	}
 
 	if db.DoesFilterExists(chat.Id, filterWord) {
 		db.RemoveFilter(chat.Id, filterWord)
 		db.AddFilter(chat.Id, filterData.filterWord, filterData.text, filterData.fileid, filterData.buttons, filterData.dataType)
-		delete(m.overwriteFiltersMap, filterWordKey) // delete the key to make map clear
+		deleteFilterOverwriteCache(filterWord, chat.Id) // Clean up cache
 		helpText, _ = tr.GetString("filters_overwrite_success")
 	} else {
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
+		deleteFilterOverwriteCache(filterWord, chat.Id) // Clean up cache
 	}
 
-	_, _, err := query.Message.EditText(b,
+	_, _, err = query.Message.EditText(b,
 		helpText,
 		nil,
 	)

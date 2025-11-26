@@ -32,6 +32,22 @@ var (
 	anonChatMapExpirartion = 20 * time.Second
 )
 
+// IsValidUserId checks if an ID represents a valid Telegram user.
+// User IDs are always positive (> 0).
+// Channel IDs are negative with format -100XXXXXXXXXX (< -1000000000000).
+// Regular chat/group IDs are negative but in a different range.
+func IsValidUserId(id int64) bool {
+	// Valid user IDs are always positive
+	return id > 0
+}
+
+// IsChannelId checks if an ID represents a Telegram channel.
+// Channel IDs have the format -100XXXXXXXXXX (13 digits starting with -100).
+func IsChannelId(id int64) bool {
+	// Channel IDs are < -1000000000000 (-100 followed by 10+ digits)
+	return id < -1000000000000
+}
+
 // GetChat retrieves chat information by chat ID or username.
 // Makes a direct API request to support username-based chat retrieval.
 func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
@@ -84,11 +100,19 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	// Validate user ID - channel IDs and other invalid IDs should not be checked
 	// User IDs in Telegram are always positive, negative IDs are chat/channel IDs
-	if userId <= 0 {
-		log.WithFields(log.Fields{
-			"chatID": chatID,
-			"userID": userId,
-		}).Warning("IsUserAdmin: Invalid user ID (negative/zero) - likely a channel/chat ID, not a user ID")
+	if !IsValidUserId(userId) {
+		// Provide more specific error messages based on ID type
+		if IsChannelId(userId) {
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Warning("IsUserAdmin: Channel ID provided instead of user ID - channels cannot be admins")
+		} else if userId <= 0 {
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Warning("IsUserAdmin: Invalid user ID (negative/zero) - likely a chat/group ID, not a user ID")
+		}
 		return false
 	}
 

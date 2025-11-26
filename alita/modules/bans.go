@@ -355,12 +355,45 @@ func (m moduleStruct) kickme(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// kick the member
-	_, err := chat.UnbanMember(b, user.Id, nil)
+	// kick the member using ban+unban sequence
+	_, err := chat.BanMember(b, user.Id, nil)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+
+	// Use non-blocking approach with goroutine for delayed unban with timeout
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.WithField("panic", r).Error("Panic in delayed kickme unban goroutine")
+			}
+		}()
+
+		// Create context with timeout to prevent goroutine from hanging indefinitely
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+
+		select {
+		case <-timer.C:
+			_, unbanErr := chat.UnbanMember(b, user.Id, nil)
+			if unbanErr != nil {
+				log.WithFields(log.Fields{
+					"chatId": chat.Id,
+					"userId": user.Id,
+					"error":  unbanErr,
+				}).Error("Failed to unban user after kickme")
+			}
+		case <-timeoutCtx.Done():
+			log.WithFields(log.Fields{
+				"chatId": chat.Id,
+				"userId": user.Id,
+			}).Warn("Kickme unban operation timed out")
+		}
+	}()
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kickme_ok_out")
 	_, err = msg.Reply(b, text, helpers.Shtml())

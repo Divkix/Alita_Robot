@@ -65,12 +65,14 @@ func ListModules() string {
 // initializes the cache system, and starts resource monitoring.
 // Returns an error if cache initialization fails.
 func InitialChecks(b *gotgbot.Bot) error {
-	// Create bot in db if not already created
-	go func() {
-		if err := db.EnsureBotInDb(b); err != nil {
-			log.Errorf("[InitialChecks] Failed to ensure bot in database: %v", err)
-		}
-	}()
+	// Ensure bot exists in database (blocking - required for FK constraints)
+	// This must complete before LoadModules to prevent race conditions with
+	// foreign key constraints that reference the bot entry
+	if err := db.EnsureBotInDb(b); err != nil {
+		log.WithError(err).Error("Failed to ensure bot in database")
+		// Continue anyway - non-fatal for basic operations
+	}
+
 	checkDuplicateAliases()
 
 	// Initialize cache with proper error handling

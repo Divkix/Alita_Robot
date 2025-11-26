@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -14,17 +15,24 @@ var antispamModule = moduleStruct{
 	antiSpam:   map[int64]*antiSpamInfo{},
 }
 
+// antiSpamMutex protects concurrent access to the antiSpam map
+var antiSpamMutex sync.RWMutex
+
 // checkSpammed evaluates if a chat has exceeded spam detection levels.
 // Returns true if any configured spam threshold has been violated.
 func (moduleStruct) checkSpammed(chatId int64, levels []antiSpamLevel) bool {
+	antiSpamMutex.Lock()
 	_asInfo, ok := antispamModule.antiSpam[chatId]
 	if !ok {
 		// Assign a new AntiSpamInfo to the chatId because not found
 		antispamModule.antiSpam[chatId] = &antiSpamInfo{
 			Levels: levels,
 		}
+		antiSpamMutex.Unlock()
 		return false
 	}
+	antiSpamMutex.Unlock()
+
 	newLevels := make([]antiSpamLevel, len(_asInfo.Levels))
 	var spammed bool
 	for n, level := range _asInfo.Levels {
@@ -36,7 +44,7 @@ func (moduleStruct) checkSpammed(chatId int64, levels []antiSpamLevel) bool {
 			level.Spammed = false
 		}
 		level.Count += 1
-		if (level.Count + 1) > level.Limit {
+		if level.Count >= level.Limit {
 			// fmt.Println("level", n, "has been spammed with count", level.Count, "while the limit was", level.Limit)
 			level.Spammed = true
 		}
@@ -46,7 +54,11 @@ func (moduleStruct) checkSpammed(chatId int64, levels []antiSpamLevel) bool {
 		}
 	}
 	_asInfo.Levels = newLevels
+
+	antiSpamMutex.Lock()
 	antispamModule.antiSpam[chatId] = _asInfo
+	antiSpamMutex.Unlock()
+
 	return spammed
 }
 

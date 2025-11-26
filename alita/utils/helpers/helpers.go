@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -74,26 +75,58 @@ func Smarkdown() *gotgbot.SendMessageOpts {
 
 // SplitMessage splits a message into multiple messages if it exceeds MaxMessageLength.
 // It splits on newlines to preserve message structure when possible.
+// Uses utf8.RuneCountInString to correctly count UTF-8 characters instead of bytes.
 func SplitMessage(msg string) []string {
-	if len(msg) <= MaxMessageLength {
+	// Count UTF-8 characters (runes), not bytes
+	if utf8.RuneCountInString(msg) <= MaxMessageLength {
 		tmp := make([]string, 1)
 		tmp[0] = msg
 		return tmp
-	} else {
-		lines := strings.Split(msg, "\n")
-		smallMsg := ""
-		result := make([]string, 0)
-		for _, line := range lines {
-			if len(smallMsg)+len(line) < MaxMessageLength {
-				smallMsg += line + "\n"
+	}
+
+	lines := strings.Split(msg, "\n")
+	smallMsg := ""
+	result := make([]string, 0)
+
+	for _, line := range lines {
+		// Check if adding this line would exceed the limit (in runes, not bytes)
+		potentialMsg := smallMsg + line + "\n"
+		if utf8.RuneCountInString(potentialMsg) <= MaxMessageLength {
+			smallMsg = potentialMsg
+		} else {
+			// If current line itself is too long, we need to split it
+			if utf8.RuneCountInString(line) > MaxMessageLength {
+				// Split the long line into chunks
+				if smallMsg != "" {
+					result = append(result, smallMsg)
+					smallMsg = ""
+				}
+				// Split line by runes, not bytes
+				runes := []rune(line)
+				for len(runes) > 0 {
+					chunkSize := MaxMessageLength
+					if len(runes) < chunkSize {
+						chunkSize = len(runes)
+					}
+					result = append(result, string(runes[:chunkSize]))
+					runes = runes[chunkSize:]
+				}
 			} else {
-				result = append(result, smallMsg)
+				// Current accumulated message is full, save it and start new
+				if smallMsg != "" {
+					result = append(result, smallMsg)
+				}
 				smallMsg = line + "\n"
 			}
 		}
-		result = append(result, smallMsg)
-		return result
 	}
+
+	// Don't forget the last accumulated message
+	if smallMsg != "" {
+		result = append(result, smallMsg)
+	}
+
+	return result
 }
 
 // MentionHtml creates an HTML mention link for a user using their Telegram user ID.
@@ -1580,19 +1613,22 @@ var FiltersEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, filterDa
 }
 
 // preFixes validates and preprocesses message content before database storage.
-// Checks message length limits, validates button URLs, sets default button names,
-// and filters invalid content. Modifies parameters by reference.
+// Checks message length limits using UTF-8 character count (not bytes), validates button URLs,
+// sets default button names, and filters invalid content. Modifies parameters by reference.
 func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *string, dataType *int, fileid string, dbButtons *[]db.Button, errorMsg *string, language string) {
 	tr := i18n.MustNewTranslator(language)
 
-	if *dataType == db.TEXT && len(*text) > 4096 {
+	// Use utf8.RuneCountInString to count UTF-8 characters instead of len() for bytes
+	textRuneCount := utf8.RuneCountInString(*text)
+
+	if *dataType == db.TEXT && textRuneCount > 4096 {
 		*dataType = -1
 		template, _ := tr.GetString("helpers_text_too_long")
-		*errorMsg = fmt.Sprintf(template, len(*text))
-	} else if *dataType != db.TEXT && len(*text) > 1024 {
+		*errorMsg = fmt.Sprintf(template, textRuneCount)
+	} else if *dataType != db.TEXT && textRuneCount > 1024 {
 		*dataType = -1
 		template, _ := tr.GetString("helpers_caption_too_long")
-		*errorMsg = fmt.Sprintf(template, len(*text))
+		*errorMsg = fmt.Sprintf(template, textRuneCount)
 	} else {
 		for i, button := range buttons {
 			if button.Name == "" {
