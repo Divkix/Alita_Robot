@@ -118,7 +118,7 @@ jobs:
 
       # Upload build artifact
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifact-${{ github.sha }}
           path: alita_robot
