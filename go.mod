@@ -9,13 +9,13 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/eko/gocache/lib/v4 v4.2.2
 	github.com/eko/gocache/store/redis/v4 v4.2.5
-	github.com/getsentry/sentry-go v0.39.0
-	github.com/getsentry/sentry-go/logrus v0.39.0
+	github.com/getsentry/sentry-go v0.40.0
+	github.com/getsentry/sentry-go/logrus v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mojocn/base64Captcha v1.3.8
 	github.com/prometheus/client_golang v1.23.2
-	github.com/redis/go-redis/v9 v9.17.0
+	github.com/redis/go-redis/v9 v9.17.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.21.0
 	go.mongodb.org/mongo-driver v1.17.6
