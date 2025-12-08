@@ -301,14 +301,19 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				replyText, _ = tr.GetString("reports_group_only")
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
-					bUser := reply.From
-					go func() {
-						defer error_handling.RecoverFromPanic("BlockReportUser", "reports")
-						db.BlockReportUser(chat.Id, bUser.Id)
-					}()
-					replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
-						"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
-					})
+					// Check if From is nil (channel posts, deleted users, etc.)
+					if reply.From == nil {
+						replyText, _ = tr.GetString("reports_cannot_report_channel")
+					} else {
+						bUser := reply.From
+						go func() {
+							defer error_handling.RecoverFromPanic("BlockReportUser", "reports")
+							db.BlockReportUser(chat.Id, bUser.Id)
+						}()
+						replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
+							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+						})
+					}
 				} else {
 					replyText, _ = tr.GetString("reports_reply_to_block")
 				}
@@ -319,14 +324,19 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				replyText, _ = tr.GetString("reports_group_only")
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
-					bUser := reply.From
-					go func() {
-						defer error_handling.RecoverFromPanic("UnblockReportUser", "reports")
-						db.UnblockReportUser(chat.Id, bUser.Id)
-					}()
-					replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
-						"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
-					})
+					// Check if From is nil (channel posts, deleted users, etc.)
+					if reply.From == nil {
+						replyText, _ = tr.GetString("reports_cannot_report_channel")
+					} else {
+						bUser := reply.From
+						go func() {
+							defer error_handling.RecoverFromPanic("UnblockReportUser", "reports")
+							db.UnblockReportUser(chat.Id, bUser.Id)
+						}()
+						replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
+							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+						})
+					}
 				} else {
 					replyText, _ = tr.GetString("reports_reply_to_unblock")
 				}

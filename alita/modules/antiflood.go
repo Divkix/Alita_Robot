@@ -65,7 +65,10 @@ var antifloodModule = antifloodStruct{
 
 // init starts cleanup goroutine for antiflood cache
 func init() {
-	go antifloodModule.cleanupLoop(context.Background())
+	go func() {
+		defer error_handling.RecoverFromPanic("cleanupLoop", "antiflood")
+		antifloodModule.cleanupLoop(context.Background())
+	}()
 }
 
 // cleanupLoop periodically cleans up old entries from the flood cache
@@ -197,14 +200,8 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		go func() {
 			defer func() {
 				close(done) // Signal completion to prevent goroutine leak
-				if r := recover(); r != nil {
-					log.WithFields(log.Fields{
-						"chatId": chatId,
-						"userId": userId,
-						"panic":  r,
-					}).Error("Panic in admin check goroutine")
-				}
 			}()
+			defer error_handling.RecoverFromPanic("adminCheck", "antiflood")
 
 			select {
 			case isAdmin <- chat_status.IsUserAdmin(b, chatId, userId):
@@ -362,11 +359,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		// Use non-blocking delayed unban for kick action with timeout
 		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("panic", r).Error("Panic in antiflood delayed unban goroutine")
-				}
-			}()
+			defer error_handling.RecoverFromPanic("delayedUnban", "antiflood")
 
 			// Create context with timeout
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
