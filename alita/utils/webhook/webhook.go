@@ -16,7 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
+
+// maxRequestBodySize defines the maximum allowed request body size (10MB)
+// This prevents DoS attacks where attackers send gigabytes of data to cause OOM
+const maxRequestBodySize = 10 * 1024 * 1024
 
 // WebhookServer manages the webhook HTTP server
 type WebhookServer struct {
@@ -64,8 +69,8 @@ func (ws *WebhookServer) webhookHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Read the request body
-	body, err := io.ReadAll(r.Body)
+	// Read the request body with size limit to prevent DoS attacks
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
 		log.Error("[Webhook] Failed to read request body: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -93,6 +98,7 @@ func (ws *WebhookServer) webhookHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Process the update through the dispatcher
 	go func() {
+		defer error_handling.RecoverFromPanic("ProcessUpdate", "webhook")
 		if err := ws.dispatcher.ProcessUpdate(ws.bot, &update, nil); err != nil {
 			log.Error("[Webhook] Failed to process update: ", err)
 		}
@@ -153,8 +159,9 @@ func (ws *WebhookServer) Start() error {
 
 	// Start the server in a goroutine
 	go func() {
+		defer error_handling.RecoverFromPanic("WebhookServer", "webhook")
 		if err := ws.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[Webhook] Server failed to start: %v", err)
+			log.Errorf("[Webhook] Server failed to start: %v", err)
 		}
 	}()
 

@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
@@ -207,10 +208,16 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		switch param {
 		case "on", "true", "yes":
-			go db.ToggleDel(chat.Id, true)
+			go func() {
+				defer error_handling.RecoverFromPanic("ToggleDel", "disabling")
+				db.ToggleDel(chat.Id, true)
+			}()
 			text, _ = tr.GetString("disabling_delete_enabled")
 		case "off", "false", "no":
-			go db.ToggleDel(chat.Id, false)
+			go func() {
+				defer error_handling.RecoverFromPanic("ToggleDel", "disabling")
+				db.ToggleDel(chat.Id, false)
+			}()
 			text, _ = tr.GetString("disabling_delete_disabled")
 		default:
 			text, _ = tr.GetString("disabling_invalid_option")

@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -208,7 +209,12 @@ func (moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	go db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
+	// Capture variable for goroutine closure
+	chatId := chat.Id
+	go func() {
+		defer error_handling.RecoverFromPanic("SetWelcomeText", "greetings")
+		db.SetWelcomeText(chatId, db.DefaultWelcome, "", nil, db.TEXT)
+	}()
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	successText, _ := tr.GetString("greetings_welcome_reset_success")
 	_, err := msg.Reply(bot, successText, helpers.Shtml())
@@ -399,7 +405,12 @@ func (moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if chat == nil {
 		return ext.EndGroups
 	}
-	go db.SetGoodbyeText(chat.Id, db.DefaultGoodbye, "", nil, db.TEXT)
+	// Capture variable for goroutine closure
+	chatId := chat.Id
+	go func() {
+		defer error_handling.RecoverFromPanic("SetGoodbyeText", "greetings")
+		db.SetGoodbyeText(chatId, db.DefaultGoodbye, "", nil, db.TEXT)
+	}()
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	successText, _ := tr.GetString("greetings_goodbye_reset")
 	_, err := msg.Reply(bot, successText, helpers.Shtml())

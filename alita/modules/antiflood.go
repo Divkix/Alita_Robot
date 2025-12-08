@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -64,7 +65,10 @@ var antifloodModule = antifloodStruct{
 
 // init starts cleanup goroutine for antiflood cache
 func init() {
-	go antifloodModule.cleanupLoop(context.Background())
+	go func() {
+		defer error_handling.RecoverFromPanic("cleanupLoop", "antiflood")
+		antifloodModule.cleanupLoop(context.Background())
+	}()
 }
 
 // cleanupLoop periodically cleans up old entries from the flood cache
@@ -196,14 +200,8 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		go func() {
 			defer func() {
 				close(done) // Signal completion to prevent goroutine leak
-				if r := recover(); r != nil {
-					log.WithFields(log.Fields{
-						"chatId": chatId,
-						"userId": userId,
-						"panic":  r,
-					}).Error("Panic in admin check goroutine")
-				}
 			}()
+			defer error_handling.RecoverFromPanic("adminCheck", "antiflood")
 
 			select {
 			case isAdmin <- chat_status.IsUserAdmin(b, chatId, userId):
@@ -361,11 +359,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		// Use non-blocking delayed unban for kick action with timeout
 		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("panic", r).Error("Panic in antiflood delayed unban goroutine")
-				}
-			}()
+			defer error_handling.RecoverFromPanic("delayedUnban", "antiflood")
 
 			// Create context with timeout
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -456,7 +450,10 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		if string_handling.FindInStringSlice([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
 			replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_setflood_disabled")
-			go db.SetFlood(chat.Id, 0)
+			go func() {
+				defer error_handling.RecoverFromPanic("SetFlood", "antiflood")
+				db.SetFlood(chat.Id, 0)
+			}()
 		} else {
 			num, err := strconv.Atoi(args[0])
 			if err != nil {
@@ -465,7 +462,10 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				if num < 3 || num > 100 {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					go db.SetFlood(chat.Id, num)
+					go func() {
+						defer error_handling.RecoverFromPanic("SetFlood", "antiflood")
+						db.SetFlood(chat.Id, num)
+					}()
 					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setflood_success")
 					replyText = fmt.Sprintf(temp, num)
 				}
@@ -547,7 +547,10 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				log.Error(err)
 			}
-			go db.SetFloodMode(chat.Id, selectedMode)
+			go func() {
+				defer error_handling.RecoverFromPanic("SetFloodMode", "antiflood")
+				db.SetFloodMode(chat.Id, selectedMode)
+			}()
 			return ext.EndGroups
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_unknown_type")
@@ -585,10 +588,16 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			go db.SetFloodMsgDel(chat.Id, true)
+			go func() {
+				defer error_handling.RecoverFromPanic("SetFloodMsgDel", "antiflood")
+				db.SetFloodMsgDel(chat.Id, true)
+			}()
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			go db.SetFloodMsgDel(chat.Id, false)
+			go func() {
+				defer error_handling.RecoverFromPanic("SetFloodMsgDel", "antiflood")
+				db.SetFloodMsgDel(chat.Id, false)
+			}()
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_disabled")
 		default:
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
