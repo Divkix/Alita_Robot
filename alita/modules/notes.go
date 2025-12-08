@@ -436,7 +436,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		strChatId, noteWord := dataSplit[0], dataSplit[1]
 		chatId, _ := strconv.ParseInt(strChatId, 10, 64)
 		noteData := m.overwriteNotesMap[noteWordMapKey]
-		fmt.Println(strChatId, noteWord, chatId, noteData)
 		if db.DoesNoteExists(chatId, noteWord) {
 			db.RemoveNote(chatId, noteWord)
 			db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif)

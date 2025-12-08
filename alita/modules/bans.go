@@ -64,6 +64,13 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	// Check if From is nil (channel posts, deleted users, etc.)
+	if msg.ReplyToMessage.From == nil {
+		text, _ := tr.GetString("bans_cannot_identify_user")
+		_, _ = msg.Reply(b, text, nil)
+		return ext.EndGroups
+	}
+
 	_, reason := extraction.ExtractUserAndText(b, ctx)
 	userId := msg.ReplyToMessage.From.Id
 	if userId == -1 {
