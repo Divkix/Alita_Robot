@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
@@ -42,6 +43,14 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_reply_to_report")
+		_, _ = msg.Reply(b, text, nil)
+		return ext.EndGroups
+	}
+
+	// Check if From is nil (channel posts, deleted users)
+	if msg.ReplyToMessage.From == nil {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("reports_cannot_report_channel")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -260,19 +269,31 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
 				replyText, _ = tr.GetString("reports_turned_on_personal")
-				go db.SetUserReportSettings(user.Id, true)
+				go func() {
+					defer error_handling.RecoverFromPanic("SetUserReportSettings", "reports")
+					db.SetUserReportSettings(user.Id, true)
+				}()
 			} else {
 				replyText, _ = tr.GetString("reports_turned_on_group")
-				go db.SetChatReportStatus(chat.Id, true)
+				go func() {
+					defer error_handling.RecoverFromPanic("SetChatReportStatus", "reports")
+					db.SetChatReportStatus(chat.Id, true)
+				}()
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
 				replyText, _ = tr.GetString("reports_turned_off_personal")
-				go db.SetUserReportSettings(user.Id, false)
+				go func() {
+					defer error_handling.RecoverFromPanic("SetUserReportSettings", "reports")
+					db.SetUserReportSettings(user.Id, false)
+				}()
 			} else {
 				replyText, _ = tr.GetString("reports_turned_off_group")
-				go db.SetChatReportStatus(chat.Id, false)
+				go func() {
+					defer error_handling.RecoverFromPanic("SetChatReportStatus", "reports")
+					db.SetChatReportStatus(chat.Id, false)
+				}()
 			}
 		case "block":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -281,7 +302,10 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
 					bUser := reply.From
-					go db.BlockReportUser(chat.Id, bUser.Id)
+					go func() {
+						defer error_handling.RecoverFromPanic("BlockReportUser", "reports")
+						db.BlockReportUser(chat.Id, bUser.Id)
+					}()
 					replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
 						"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
 					})
@@ -296,7 +320,10 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
 					bUser := reply.From
-					go db.UnblockReportUser(chat.Id, bUser.Id)
+					go func() {
+						defer error_handling.RecoverFromPanic("UnblockReportUser", "reports")
+						db.UnblockReportUser(chat.Id, bUser.Id)
+					}()
 					replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
 						"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
 					})
