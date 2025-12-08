@@ -73,9 +73,9 @@ const (
 
 // Module-level bot reference for cleanup operations
 var (
-	captchaBotRef     *gotgbot.Bot
-	captchaBotRefOnce sync.Once
-	captchaRecovered  bool
+	captchaBotRef       *gotgbot.Bot
+	captchaBotRefOnce   sync.Once
+	captchaRecoveryOnce sync.Once
 )
 
 // setBotRef captures the bot reference on first handler call and triggers recovery
@@ -115,89 +115,86 @@ func isPermanentTelegramError(err error) bool {
 // For expired attempts: delete message and DB record.
 // For still-valid attempts: delete message (user must rejoin to get new captcha).
 func recoverOrphanedCaptchas(bot *gotgbot.Bot) {
-	if captchaRecovered {
-		return
-	}
-	captchaRecovered = true
+	captchaRecoveryOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("[CaptchaRecovery] Recovery panic: %v", r)
+			}
+		}()
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[CaptchaRecovery] Recovery panic: %v", r)
+		log.Info("[CaptchaRecovery] Starting orphaned captcha recovery...")
+
+		// Get ALL pending attempts (both expired and valid)
+		attempts, err := db.GetAllPendingCaptchaAttempts()
+		if err != nil {
+			log.Errorf("[CaptchaRecovery] Failed to get pending attempts: %v", err)
+			return
 		}
-	}()
 
-	log.Info("[CaptchaRecovery] Starting orphaned captcha recovery...")
+		if len(attempts) == 0 {
+			log.Info("[CaptchaRecovery] No orphaned captchas found")
+			return
+		}
 
-	// Get ALL pending attempts (both expired and valid)
-	attempts, err := db.GetAllPendingCaptchaAttempts()
-	if err != nil {
-		log.Errorf("[CaptchaRecovery] Failed to get pending attempts: %v", err)
-		return
-	}
+		log.Infof("[CaptchaRecovery] Found %d orphaned captcha attempts to process", len(attempts))
 
-	if len(attempts) == 0 {
-		log.Info("[CaptchaRecovery] No orphaned captchas found")
-		return
-	}
+		var (
+			expiredCount int
+			cleanedCount int
+			failedCount  int
+		)
 
-	log.Infof("[CaptchaRecovery] Found %d orphaned captcha attempts to process", len(attempts))
-
-	var (
-		expiredCount int
-		cleanedCount int
-		failedCount  int
-	)
-
-	for _, attempt := range attempts {
-		// Delete the Telegram message (best effort)
-		if attempt.MessageID > 0 {
-			if err := helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID); err != nil {
-				if !isPermanentTelegramError(err) {
-					log.Warnf("[CaptchaRecovery] Failed to delete message %d in chat %d: %v",
-						attempt.MessageID, attempt.ChatID, err)
-					failedCount++
+		for _, attempt := range attempts {
+			// Delete the Telegram message (best effort)
+			if attempt.MessageID > 0 {
+				if err := helpers.DeleteMessageWithErrorHandling(bot, attempt.ChatID, attempt.MessageID); err != nil {
+					if !isPermanentTelegramError(err) {
+						log.Warnf("[CaptchaRecovery] Failed to delete message %d in chat %d: %v",
+							attempt.MessageID, attempt.ChatID, err)
+						failedCount++
+					}
 				}
 			}
-		}
 
-		// Delete stored messages
-		_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
+			// Delete stored messages
+			_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
 
-		// Get settings to apply failure action for expired attempts
-		if time.Now().After(attempt.ExpiresAt) {
-			// Expired - apply failure action
-			settings, _ := db.GetCaptchaSettings(attempt.ChatID)
-			if settings == nil {
-				settings = &db.CaptchaSettings{FailureAction: "kick"}
-			}
-
-			// Apply failure action
-			switch settings.FailureAction {
-			case "kick":
-				_, err := bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
-				if err == nil {
-					_, _ = bot.UnbanChatMember(attempt.ChatID, attempt.UserID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+			// Get settings to apply failure action for expired attempts
+			if time.Now().After(attempt.ExpiresAt) {
+				// Expired - apply failure action
+				settings, _ := db.GetCaptchaSettings(attempt.ChatID)
+				if settings == nil {
+					settings = &db.CaptchaSettings{FailureAction: "kick"}
 				}
-			case "ban":
-				_, _ = bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
-			case "mute":
-				// User remains muted
+
+				// Apply failure action
+				switch settings.FailureAction {
+				case "kick":
+					_, err := bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
+					if err == nil {
+						_, _ = bot.UnbanChatMember(attempt.ChatID, attempt.UserID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+					}
+				case "ban":
+					_, _ = bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
+				case "mute":
+					// User remains muted
+				}
+				expiredCount++
+			} else {
+				// Still valid but orphaned - clean up, user must rejoin
+				cleanedCount++
 			}
-			expiredCount++
-		} else {
-			// Still valid but orphaned - clean up, user must rejoin
-			cleanedCount++
+
+			// Delete attempt from DB
+			_ = db.DeleteCaptchaAttempt(attempt.UserID, attempt.ChatID)
+
+			// Small delay to avoid rate limiting
+			time.Sleep(50 * time.Millisecond)
 		}
 
-		// Delete attempt from DB
-		_ = db.DeleteCaptchaAttempt(attempt.UserID, attempt.ChatID)
-
-		// Small delay to avoid rate limiting
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	log.Infof("[CaptchaRecovery] Completed: %d expired (action applied), %d cleaned, %d failed",
-		expiredCount, cleanedCount, failedCount)
+		log.Infof("[CaptchaRecovery] Completed: %d expired (action applied), %d cleaned, %d failed",
+			expiredCount, cleanedCount, failedCount)
+	})
 }
 
 // secureIntn returns a cryptographically secure random integer in [0, max).

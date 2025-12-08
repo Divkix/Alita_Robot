@@ -5,6 +5,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 // Cache manages keyword matchers for different chats
@@ -110,6 +112,7 @@ func GetGlobalCache() *Cache {
 		globalCache = NewCache(30 * time.Minute) // 30 minute TTL
 		// Start cleanup routine
 		go func() {
+			defer error_handling.RecoverFromPanic("GetGlobalCache.cleanupRoutine", "keyword_matcher")
 			ticker := time.NewTicker(10 * time.Minute)
 			defer ticker.Stop()
 			for range ticker.C {

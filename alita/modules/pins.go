@@ -320,7 +320,7 @@ func (moduleStruct) pin(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	isSilent := true
-	args := ctx.Args
+	args := ctx.Args()
 
 	// permission checks
 	if !chat_status.RequireGroup(b, ctx, nil, false) {
@@ -354,8 +354,8 @@ func (moduleStruct) pin(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	pinMsg, _ := tr.GetString("pins_pinned_message")
 
-	if len(args()) > 0 {
-		isSilent = !string_handling.FindInStringSlice([]string{"notify", "violent", "loud"}, args()[0])
+	if len(args) > 1 {
+		isSilent = !string_handling.FindInStringSlice([]string{"notify", "violent", "loud"}, args[1])
 		if !isSilent {
 			pinMsg, _ = tr.GetString("pins_pinned_message_loud")
 		}

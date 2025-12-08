@@ -10,6 +10,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -623,7 +624,12 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, chat.Title)
 			} else {
-				go db.SetAnonAdminMode(chat.Id, true)
+				// Capture variable for goroutine closure
+				chatId := chat.Id
+				go func() {
+					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
+					db.SetAnonAdminMode(chatId, true)
+				}()
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled_now")
 				text = fmt.Sprintf(temp, chat.Title)
 			}
@@ -632,7 +638,12 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, chat.Title)
 			} else {
-				go db.SetAnonAdminMode(chat.Id, false)
+				// Capture variable for goroutine closure
+				chatId := chat.Id
+				go func() {
+					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
+					db.SetAnonAdminMode(chatId, false)
+				}()
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled_now")
 				text = fmt.Sprintf(temp, chat.Title)
 			}

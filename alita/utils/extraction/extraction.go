@@ -17,7 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -124,7 +123,9 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("extraction_user_not_found")
 			_, err := msg.Reply(b, text, nil)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[Extraction] Failed to reply with user not found: %v", err)
+			}
 			return -1, ""
 		} else {
 			res := strings.SplitN(msg.Text, " ", 3)
@@ -169,7 +170,9 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_get_chat_member_failed")
 		_, err := msg.Reply(b, text, nil)
-		error_handling.HandleErr(err)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with chat member error: %v", err)
+		}
 		return -1, ""
 	}
 
@@ -306,7 +309,9 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 				text, _ := tr.GetString("extraction_invalid_time_amount")
 				_, err := msg.Reply(b, text, nil)
-				error_handling.HandleErr(err)
+				if err != nil {
+					log.Errorf("[Extraction] Failed to reply with invalid time amount: %v", err)
+				}
 				return -1, "", ""
 			}
 
@@ -331,7 +336,9 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 				text, _ := tr.GetString("extraction_time_limit_exceeded")
 				_, err := msg.Reply(b, text, nil)
-				error_handling.HandleErr(err)
+				if err != nil {
+					log.Errorf("[Extraction] Failed to reply with time limit exceeded: %v", err)
+				}
 				return -1, "", ""
 			}
 
@@ -340,14 +347,18 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
 			_, err := msg.Reply(b, text, nil)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[Extraction] Failed to reply with invalid time type: %v", err)
+			}
 			return -1, "", ""
 		}
 	} else {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_invalid_time_format")
 		_, err := msg.Reply(b, text, nil)
-		error_handling.HandleErr(err)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with invalid time format: %v", err)
+		}
 		return -1, "", ""
 	}
 }

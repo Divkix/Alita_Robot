@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
@@ -94,6 +95,7 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 	resultChan := make(chan sfResult, 1)
 
 	go func() {
+		defer error_handling.RecoverFromPanic("getFromCacheOrLoad", "cache_helpers")
 		v, err, _ := cacheGroup.Do(key, func() (any, error) {
 			// Load from database
 			data, loadErr := loader()
