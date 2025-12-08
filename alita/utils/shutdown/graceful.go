@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,6 +35,8 @@ func (m *Manager) RegisterHandler(handler func() error) {
 
 // WaitForShutdown waits for shutdown signals and executes handlers
 func (m *Manager) WaitForShutdown() {
+	defer error_handling.RecoverFromPanic("WaitForShutdown", "shutdown")
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
@@ -44,9 +47,23 @@ func (m *Manager) WaitForShutdown() {
 	m.shutdown()
 }
 
+// executeHandler safely executes a single shutdown handler with panic recovery.
+// Returns the error from the handler, or nil if the handler panicked (panic is logged separately).
+func (m *Manager) executeHandler(handler func() error, index int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("[Shutdown] Handler %d panicked: %v", index, r)
+			error_handling.RecoverFromPanic("executeHandler", "shutdown")
+		}
+	}()
+	return handler()
+}
+
 // shutdown performs graceful shutdown
 func (m *Manager) shutdown() {
 	m.once.Do(func() {
+		defer error_handling.RecoverFromPanic("shutdown", "shutdown")
+
 		log.Info("[Shutdown] Starting graceful shutdown...")
 
 		// Create context with timeout for shutdown
@@ -66,7 +83,7 @@ func (m *Manager) shutdown() {
 				log.Warn("[Shutdown] Timeout reached, forcing exit")
 				os.Exit(1)
 			default:
-				if err := handlers[i](); err != nil {
+				if err := m.executeHandler(handlers[i], i); err != nil {
 					log.Errorf("[Shutdown] Handler error: %v", err)
 				}
 			}
