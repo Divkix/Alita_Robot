@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -204,7 +205,12 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	go db.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType)
+	// Capture variables for goroutine closure
+	chatId := chat.Id
+	go func() {
+		defer error_handling.RecoverFromPanic("AddFilter", "filters")
+		db.AddFilter(chatId, filterWord, text, fileid, buttons, dataType)
+	}()
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	successText, _ := tr.GetString("filters_added_success")
@@ -264,7 +270,13 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		} else {
-			go db.RemoveFilter(chat.Id, strings.ToLower(filterWord))
+			// Capture variables for goroutine closure
+			chatId := chat.Id
+			lowerFilterWord := strings.ToLower(filterWord)
+			go func() {
+				defer error_handling.RecoverFromPanic("RemoveFilter", "filters")
+				db.RemoveFilter(chatId, lowerFilterWord)
+			}()
 			successText, _ := tr.GetString("filters_removed_success")
 			_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), helpers.Shtml())
 			if err != nil {
