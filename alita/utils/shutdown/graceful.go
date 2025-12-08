@@ -35,8 +35,6 @@ func (m *Manager) RegisterHandler(handler func() error) {
 
 // WaitForShutdown waits for shutdown signals and executes handlers
 func (m *Manager) WaitForShutdown() {
-	defer error_handling.RecoverFromPanic("WaitForShutdown", "shutdown")
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
@@ -53,7 +51,6 @@ func (m *Manager) executeHandler(handler func() error, index int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("[Shutdown] Handler %d panicked: %v", index, r)
-			error_handling.RecoverFromPanic("executeHandler", "shutdown")
 		}
 	}()
 	return handler()
