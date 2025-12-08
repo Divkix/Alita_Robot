@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
@@ -237,7 +236,10 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	}
 
 	mem, err := chat.GetMember(b, b.Id, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[IsBotAdmin] GetMember failed for chat %d: %v", chat.Id, err)
+		return false
+	}
 
 	return mem.MergeChatMember().Status == "administrator"
 }
@@ -276,8 +278,11 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userId, nil)
+		if err != nil {
+			log.Errorf("[CanUserChangeInfo] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 
 	if !userMember.CanChangeInfo && userMember.Status != "creator" {
@@ -305,7 +310,9 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanUserChangeInfo] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -346,8 +353,11 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userId, nil)
+		if err != nil {
+			log.Errorf("[CanUserRestrict] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 	if !userMember.CanRestrictMembers && userMember.Status != "creator" {
 		query := ctx.CallbackQuery
@@ -374,7 +384,9 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanUserRestrict] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -395,7 +407,10 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 	}
 
 	botMember, err := chat.GetMember(b, b.Id, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[CanBotRestrict] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		return false
+	}
 	if !botMember.MergeChatMember().CanRestrictMembers {
 		query := ctx.CallbackQuery
 		if query != nil {
@@ -421,7 +436,9 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanBotRestrict] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -462,8 +479,11 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userId, nil)
+		if err != nil {
+			log.Errorf("[CanUserPromote] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 	if !userMember.CanPromoteMembers && userMember.Status != "creator" {
 		query := ctx.CallbackQuery
@@ -490,7 +510,9 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanUserPromote] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -511,7 +533,10 @@ func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChe
 	}
 
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[CanBotPromote] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		return false
+	}
 	if !botChatMember.MergeChatMember().CanPromoteMembers {
 		if !justCheck {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -524,7 +549,9 @@ func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChe
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanBotPromote] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -565,8 +592,11 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userId, nil)
+		if err != nil {
+			log.Errorf("[CanUserPin] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 	if !userMember.CanPinMessages && userMember.Status != "creator" {
 		if !justCheck {
@@ -579,7 +609,9 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 				},
 			},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanUserPin] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -600,7 +632,10 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck b
 	}
 
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[CanBotPin] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		return false
+	}
 	if !botChatMember.MergeChatMember().CanPinMessages {
 		if !justCheck {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -613,7 +648,9 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck b
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[CanBotPin] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -636,7 +673,10 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 		return true
 	}
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[Caninvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		return false
+	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
 		if !justCheck {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -649,7 +689,9 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[Caninvite] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -672,8 +714,11 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userid)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userid, nil)
+		if err != nil {
+			log.Errorf("[Caninvite] GetMember failed for user %d in chat %d: %v", userid, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
 		if !justCheck {
@@ -687,7 +732,9 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[Caninvite] SendMessage failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -728,8 +775,11 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if !found {
 		tmpUserMember, err := chat.GetMember(b, userId, nil)
+		if err != nil {
+			log.Errorf("[CanUserDelete] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+			return false
+		}
 		userMember = tmpUserMember.MergeChatMember()
-		error_handling.HandleErr(err)
 	}
 
 	if !userMember.CanDeleteMessages && userMember.Status != "creator" {
@@ -814,7 +864,9 @@ func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justC
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("chat_status_bot_not_admin")
 			_, err := msg.Reply(b, text, nil)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[RequireBotAdmin] Reply failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -829,7 +881,10 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 		return false
 	}
 	member, err := chat.GetMember(b, userId, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[IsUserInChat] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+		return false
+	}
 	userStatus := member.MergeChatMember().Status
 	return !string_handling.FindInStringSlice([]string{"left", "kicked"}, userStatus)
 }
@@ -932,7 +987,10 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 
 	msg := ctx.EffectiveMessage
 	mem, err := chat.GetMember(b, userId, nil)
-	error_handling.HandleErr(err)
+	if err != nil {
+		log.Errorf("[RequireUserOwner] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
+		return false
+	}
 	if mem == nil {
 		return false
 	}
@@ -955,7 +1013,9 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("chat_status_owner_cmd_error")
 			_, err := msg.Reply(b, text, nil)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[RequireUserOwner] Reply failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -992,7 +1052,9 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[RequirePrivate] Reply failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
@@ -1028,7 +1090,9 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 					},
 				},
 			)
-			error_handling.HandleErr(err)
+			if err != nil {
+				log.Errorf("[RequireGroup] Reply failed for chat %d: %v", chat.Id, err)
+			}
 		}
 		return false
 	}
