@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -51,13 +52,22 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		switch strings.ToLower(args[0]) {
 		case "ban":
-			go db.SetWarnMode(chat.Id, "ban")
+			go func() {
+				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
+				db.SetWarnMode(chat.Id, "ban")
+			}()
 			replyText, _ = tr.GetString("warns_mode_updated_ban")
 		case "kick":
-			go db.SetWarnMode(chat.Id, "kick")
+			go func() {
+				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
+				db.SetWarnMode(chat.Id, "kick")
+			}()
 			replyText, _ = tr.GetString("warns_mode_updated_kick")
 		case "mute":
-			go db.SetWarnMode(chat.Id, "mute")
+			go func() {
+				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
+				db.SetWarnMode(chat.Id, "mute")
+			}()
 			replyText, _ = tr.GetString("warns_mode_updated_mute")
 		default:
 			temp, _ := tr.GetString("warns_mode_unknown")
@@ -101,10 +111,11 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 	switch warnType {
 	case "dwarn":
-		_, err := msg.ReplyToMessage.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
+		if msg.ReplyToMessage != nil {
+			_, err := msg.ReplyToMessage.Delete(b, nil)
+			if err != nil {
+				log.Errorf("[Warns] Failed to delete message: %v", err)
+			}
 		}
 	case "swarn":
 		_, err := msg.Delete(b, nil)
@@ -284,7 +295,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	var warnusr int64
-	if msg.ReplyToMessage != nil {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
 		warnusr = msg.ReplyToMessage.From.Id
 	} else {
 		warnusr = userId
@@ -343,7 +354,7 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	var warnusr int64
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From.Id == userId {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.Id == userId {
 		warnusr = msg.ReplyToMessage.From.Id
 	} else {
 		warnusr = userId
@@ -402,7 +413,7 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	var warnusr int64
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From.Id == userId {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.Id == userId {
 		warnusr = msg.ReplyToMessage.From.Id
 	} else {
 		warnusr = userId
@@ -600,7 +611,10 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			if num < 1 || num > 100 {
 				replyText, _ = tr.GetString("warns_limit_range")
 			} else {
-				go db.SetWarnLimit(chat.Id, num)
+				go func() {
+					defer error_handling.RecoverFromPanic("SetWarnLimit", "warns")
+					db.SetWarnLimit(chat.Id, num)
+				}()
 				temp, _ := tr.GetString("warns_limit_set_success")
 				replyText = fmt.Sprintf(temp, num)
 			}
@@ -734,7 +748,10 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch response {
 	case "yes":
-		go db.ResetAllChatWarns(query.Message.GetChat().Id)
+		go func() {
+			defer error_handling.RecoverFromPanic("ResetAllChatWarns", "warns")
+			db.ResetAllChatWarns(query.Message.GetChat().Id)
+		}()
 		helpText, _ = tr.GetString("warns_reset_all_done")
 	case "no":
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")

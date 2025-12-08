@@ -362,7 +362,8 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 		}
 	}(req.Body)
-	all, err := io.ReadAll(req.Body)
+	// Limit response size to 1MB to prevent memory exhaustion from malicious responses
+	all, err := io.ReadAll(io.LimitReader(req.Body, 1*1024*1024))
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("misc_translate_read_error")

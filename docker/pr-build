@@ -1,5 +1,8 @@
 # Multi-stage build for PR Docker images
-FROM golang:alpine AS builder
+# Uses cross-compilation to avoid QEMU emulation issues with Alpine on ARM64
+
+# Stage 1: Build using native platform, cross-compile for target
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 
 # Build arguments
 ARG PR_NUMBER=unknown
@@ -8,7 +11,7 @@ ARG BUILDKIT_INLINE_CACHE=1
 ARG TARGETOS
 ARG TARGETARCH
 
-# Install build dependencies
+# Install build dependencies (runs on BUILD platform, not TARGET - avoids QEMU issues)
 RUN apk add --no-cache git ca-certificates tzdata
 
 # Set working directory
@@ -25,10 +28,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Copy source code
 COPY . .
 
-# Build the binary with PR-specific version info
+# Cross-compile the binary for target platform (no QEMU needed - Go handles this natively)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -trimpath \
     -ldflags="-s -w -X main.version=pr-${PR_NUMBER} -X main.commit=${COMMIT_SHA} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -o alita_robot \

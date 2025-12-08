@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -47,7 +48,10 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	chat, err := b.GetChat(chatId, nil)
 	if err != nil {
-		go db.DisconnectId(user.Id)
+		go func() {
+			defer error_handling.RecoverFromPanic("DisconnectId", "connections")
+			db.DisconnectId(user.Id)
+		}()
 		log.Error(err)
 		return err
 	}
@@ -97,10 +101,16 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch toogleOption {
 		case "on", "true", "yes":
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
-			go db.ToggleAllowConnect(chat.Id, true)
+			go func() {
+				defer error_handling.RecoverFromPanic("ToggleAllowConnect", "connections")
+				db.ToggleAllowConnect(chat.Id, true)
+			}()
 		case "off", "false", "no":
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
-			go db.ToggleAllowConnect(chat.Id, false)
+			go func() {
+				defer error_handling.RecoverFromPanic("ToggleAllowConnect", "connections")
+				db.ToggleAllowConnect(chat.Id, false)
+			}()
 		default:
 			text, _ = tr.GetString("connections_invalid_option")
 		}
@@ -148,7 +158,10 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !db.GetChatConnectionSetting(chat.Id).AllowConnect && !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_connection_disabled")
 		} else {
-			go db.ConnectId(user.Id, chat.Id)
+			go func() {
+				defer error_handling.RecoverFromPanic("ConnectId", "connections")
+				db.ConnectId(user.Id, chat.Id)
+			}()
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
 			text = fmt.Sprintf(temp, chat.Title)
 			replyMarkup = helpers.InitButtons(b, chat.Id, user.Id)
@@ -286,7 +299,10 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		go db.DisconnectId(user.Id)
+		go func() {
+			defer error_handling.RecoverFromPanic("DisconnectId", "connections")
+			db.DisconnectId(user.Id)
+		}()
 
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
 	} else {
