@@ -111,10 +111,11 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 	switch warnType {
 	case "dwarn":
-		_, err := msg.ReplyToMessage.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
+		if msg.ReplyToMessage != nil {
+			_, err := msg.ReplyToMessage.Delete(b, nil)
+			if err != nil {
+				log.Errorf("[Warns] Failed to delete message: %v", err)
+			}
 		}
 	case "swarn":
 		_, err := msg.Delete(b, nil)
