@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Captcha validation errors
@@ -205,24 +206,29 @@ func GetCaptchaAttempt(userID, chatID int64) (*CaptchaAttempts, error) {
 
 // IncrementCaptchaAttempts increments the attempt counter for a captcha.
 // Returns the updated attempt record.
+// Uses SELECT FOR UPDATE to prevent race conditions on concurrent requests.
 func IncrementCaptchaAttempts(userID, chatID int64) (*CaptchaAttempts, error) {
-	attempt, err := GetCaptchaAttempt(userID, chatID)
+	var attempt CaptchaAttempts
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		// Use SELECT FOR UPDATE to lock the row and prevent concurrent modifications
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND chat_id = ? AND expires_at > ?", userID, chatID, time.Now()).
+			First(&attempt).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNoActiveCaptcha
+			}
+			return err
+		}
+		attempt.Attempts++
+		return tx.Save(&attempt).Error
+	})
 	if err != nil {
+		if !errors.Is(err, ErrNoActiveCaptcha) {
+			log.Errorf("[Database][IncrementCaptchaAttempts]: %v", err)
+		}
 		return nil, err
 	}
-
-	if attempt == nil {
-		return nil, ErrNoActiveCaptcha
-	}
-
-	attempt.Attempts++
-	err = DB.Save(attempt).Error
-	if err != nil {
-		log.Errorf("[Database][IncrementCaptchaAttempts]: %v", err)
-		return nil, err
-	}
-
-	return attempt, nil
+	return &attempt, nil
 }
 
 // DeleteCaptchaAttempt removes a captcha attempt record.
