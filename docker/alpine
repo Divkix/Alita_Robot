@@ -14,9 +14,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download dependencies - runs on native platform, cached unless go.mod/go.sum change
+# GOTOOLCHAIN=local prevents Go from trying to download unavailable toolchains (e.g., go1.25)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go mod download && go mod verify
+    GOTOOLCHAIN=local go mod download && go mod verify
 
 # Copy source code
 COPY . .
@@ -24,7 +25,7 @@ COPY . .
 # Cross-compile the binary for target platform (no QEMU needed - Go handles this natively)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -trimpath \
     -ldflags="-s -w" \
     -o alita_robot .
