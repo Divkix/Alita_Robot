@@ -9,6 +9,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,7 +43,7 @@ func checkRedis() bool {
 
 	// Try to set and get a test key
 	testKey := "health_check_test"
-	err := cache.Manager.Set(ctx, testKey, "ok", nil)
+	err := cache.Manager.Set(ctx, testKey, "ok", store.WithExpiration(5*time.Second))
 	if err != nil {
 		return false
 	}
