@@ -7,20 +7,15 @@ FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 # Build arguments
 ARG PR_NUMBER=unknown
 ARG COMMIT_SHA=unknown
-ARG BUILDKIT_INLINE_CACHE=1
 ARG TARGETOS
 ARG TARGETARCH
 
-# Install build dependencies (runs on BUILD platform, not TARGET - avoids QEMU issues)
-RUN apk add --no-cache git ca-certificates tzdata
-
-# Set working directory
 WORKDIR /app
 
 # Copy go mod and sum files first for better caching
 COPY go.mod go.sum ./
 
-# Download dependencies - this layer is cached unless go.mod/go.sum change
+# Download dependencies - runs on native platform, cached
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go mod download && go mod verify
@@ -33,31 +28,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -trimpath \
-    -ldflags="-s -w -X main.version=pr-${PR_NUMBER} -X main.commit=${COMMIT_SHA} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    -o alita_robot \
-    ./main.go
+    -ldflags="-s -w -X main.version=pr-${PR_NUMBER} -X main.commit=${COMMIT_SHA}" \
+    -o alita_robot .
 
-# Final stage - use distroless for smaller image
+# Stage 2: Minimal runtime image
 FROM gcr.io/distroless/static-debian12:nonroot
-
-# Set working directory
 WORKDIR /app
-
-# Copy binary from builder stage
 COPY --from=builder /app/alita_robot .
-
-# Copy supabase directory for migrations to work
 COPY supabase /app/supabase
-
-# User is already nonroot in distroless
 USER nonroot
-
-# Expose port (if needed)
-EXPOSE 8080
-
-# Health check - removed as distroless doesn't have pgrep
-
-# Run the binary
 ENTRYPOINT ["./alita_robot"]
 
 # Metadata

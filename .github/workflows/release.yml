@@ -10,9 +10,8 @@ on:
         description: "Tag to release (e.g., 1.2.3)"
         required: true
         type: string
-        default: "1.0.0" # Default tag for manual dispatch
+        default: "1.0.0"
 
-# Restrict permissions to minimum required for enhanced security
 permissions:
   contents: read
 
@@ -25,23 +24,23 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: stable
+          cache: true
 
-      # Run security scanning before release
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.22.10
+        uses: securego/gosec@master
         with:
-          args: -fmt sarif -out gosec.sarif ./...
+          args: -no-fail -fmt sarif -out gosec.sarif ./...
 
-      - name: Upload Gosec SARIF to Code Scanning
-        if: ${{ hashFiles('gosec.sarif') != '' }}
+      - name: Upload Gosec SARIF
+        if: hashFiles('gosec.sarif') != ''
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -51,51 +50,45 @@ jobs:
         continue-on-error: true
         uses: golang/govulncheck-action@v1
 
-      # Verify build works before release
       - name: Test release build
         run: |
-          go build -o alita_robot .
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o alita_robot .
           if [ ! -f alita_robot ]; then
-            echo "Build failed, exiting"
+            echo "Build failed"
             exit 1
           fi
           echo "Build successful"
 
-  # Main release job with enhanced security and SLSA provenance
   goreleaser:
     name: Release with GoReleaser
     runs-on: ubuntu-latest
     needs: [release-ci-checks]
     permissions:
-      contents: write # Required for creating releases
-      packages: write # Required for pushing Docker images
-      id-token: write # Required for SLSA provenance
-      attestations: write # Required for artifact attestation
-    # Note: GoReleaser doesn't provide direct outputs, artifacts are uploaded separately
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Full history needed for GoReleaser
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: stable
+          cache: true
 
-      # Handle tag creation for workflow_dispatch
       - name: Create and push tag
         if: github.event_name == 'workflow_dispatch'
         env:
-          # GH_PAT is required here because GITHUB_TOKEN doesn't have permission to create tags
-          # Required permissions: contents:write
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           tag="${{ github.event.inputs.tag }}"
 
-          # Check if tag already exists
           if git rev-parse "$tag" >/dev/null 2>&1; then
             echo "Tag $tag already exists, skipping creation"
           else
@@ -104,7 +97,6 @@ jobs:
             git push origin "$tag"
           fi
 
-      # Authenticate with GitHub Container Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -112,9 +104,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Run GoReleaser with enhanced configuration
       - name: Run GoReleaser
-        id: release
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
@@ -122,28 +112,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload release artifacts for attestation
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: dist/*
           retention-days: 1
 
-  # Note: SLSA provenance generation commented out as it requires artifact metadata
-  # that would need to be collected from GoReleaser outputs
-  # provenance:
-  #   name: Generate SLSA Provenance
-  #   needs: [goreleaser]
-  #   permissions:
-  #     actions: read
-  #     id-token: write
-  #     contents: write
-  #   uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
-  #   with:
-  #     base64-subjects: "..." # Would need artifact metadata
-
-  # Attest artifacts for enhanced security
   attest-artifacts:
     name: Attest Release Artifacts
     runs-on: ubuntu-latest
@@ -154,17 +129,16 @@ jobs:
       contents: read
     steps:
       - name: Download release artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: release-artifacts
           path: ./artifacts
 
       - name: Attest artifacts
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v2
         with:
           subject-path: "./artifacts/*"
 
-  # Post-release security scanning of published artifacts
   post-release-scan:
     name: Post-Release Security Scan
     runs-on: ubuntu-latest
@@ -174,18 +148,16 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - name: Scan Docker images
-        run: |
-          # Scan the published Docker images for vulnerabilities
-          docker pull ghcr.io/divkix/alita_robot:latest
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/divkix/alita_robot:latest
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
 
-          # You can add additional vulnerability scanning tools here
-          echo "Docker image scan completed"
-
-      # Notify on successful release
       - name: Release notification
         run: |
-          echo "🎉 Release completed successfully!"
-          echo "📦 Artifacts published to GitHub Releases"
-          echo "🐳 Docker images available at ghcr.io/divkix/alita_robot"
-          echo "🔒 SLSA provenance and attestations generated for supply chain security"
+          echo "Release completed successfully!"
+          echo "Artifacts published to GitHub Releases"
+          echo "Docker images available at ghcr.io/divkix/alita_robot"

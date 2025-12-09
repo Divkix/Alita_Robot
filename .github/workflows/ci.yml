@@ -9,18 +9,16 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Restrict permissions to minimum required for enhanced security
 permissions:
   contents: read
   security-events: write
 
-# Cancel in-progress runs for the same ref/PR to avoid duplicates
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Security and code quality checks that run in parallel
+  # Security scanning
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -29,106 +27,98 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: stable
+          cache: true
 
-      - name: Download dependencies
-        run: go mod download
-
-      # Security vulnerability scanning with gosec (generate SARIF)
-      - name: Run Gosec Security Scanner (SARIF)
-        uses: securego/gosec@v2.22.10
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
         with:
           args: -no-fail -fmt sarif -out gosec.sarif ./...
 
-      - name: Upload Gosec SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@v3.29.9
+      - name: Upload Gosec SARIF
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gosec.sarif
           category: gosec
-      # Check for known vulnerabilities in Go modules
+
       - name: Run govulncheck
         continue-on-error: true
         uses: golang/govulncheck-action@v1
 
+  # Code quality - run on stable only (lint results don't vary by Go version)
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ["oldstable", "stable"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          install-mode: binary
+
+  # Build verification - run in parallel with other checks
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [oldstable, stable]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: true
 
-      - name: Download dependencies
-        run: go mod download
-
-      # Install golangci-lint
-      - name: Run linting
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: latest
-          skip-cache: true # We're already caching
-          install-mode: binary
-
-  # Simple build verification with go build and docker build
-  build-verification:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    needs: [security, lint]
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "stable"
-
-      - name: Download dependencies
-        run: go mod download
-
-      # Verify Go binary can be built
       - name: Build Go binary
         run: |
-          echo "Building Go binary..."
-          go build -o alita_robot .
-          echo "✓ Go build successful"
-          ls -lh alita_robot
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o alita_robot .
+          ./alita_robot --version || true
 
-      # Verify Docker image can be built
-      - name: Build Docker image
-        run: |
-          echo "Building Docker image..."
-          docker build -f docker/alpine -t test-build:latest .
-          echo "✓ Docker build successful"
-          docker images | grep test-build
-
-      # Upload build artifact
       - name: Upload build artifact
-        uses: actions/upload-artifact@v5
+        if: matrix.go-version == 'stable'
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifact-${{ github.sha }}
           path: alita_robot
-          retention-days: 14
+          retention-days: 7
+
+  # Docker build verification (single arch, fast)
+  docker-verify:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image (amd64 only)
+        run: |
+          docker build -f docker/alpine -t test-build:latest .
+          docker images | grep test-build
 
   # Publish Docker images for main branch pushes
   docker-publish:
     name: Publish Docker Images
     runs-on: ubuntu-latest
-    needs: [security, lint, build-verification]
+    needs: [security, lint, build, docker-verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
@@ -138,15 +128,15 @@ jobs:
       image-digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          platforms: linux/amd64,linux/arm64
-          driver-opts: |
-            image=moby/buildkit:latest
-            network=host
+          version: latest
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -159,7 +149,6 @@ jobs:
         id: short-sha
         run: echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
 
-      # Generate metadata and tags
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -176,7 +165,6 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.ref.name=${{ github.ref_name }}
 
-      # Build and push multi-arch Docker image
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
@@ -187,17 +175,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=gha,scope=main
-            type=registry,ref=ghcr.io/divkix/alita_robot:buildcache
+          cache-from: type=gha,scope=main
           cache-to: type=gha,mode=max,scope=main
           provenance: false
           sbom: false
-          build-args: |
-            COMMIT_SHA=${{ github.sha }}
-            BUILDKIT_INLINE_CACHE=1
 
-      # Add build info to job summary
       - name: Add build info to job summary
         run: |
           echo "## 🐳 Docker Build Complete" >> $GITHUB_STEP_SUMMARY
@@ -205,31 +187,23 @@ jobs:
           echo "**Main Branch Build**" >> $GITHUB_STEP_SUMMARY
           echo "- **Latest Dev:** \`ghcr.io/divkix/alita_robot:dev\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit Build:** \`ghcr.io/divkix/alita_robot:${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dev + Commit:** \`ghcr.io/divkix/alita_robot:dev-${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Quick Test" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# Test the latest dev build" >> $GITHUB_STEP_SUMMARY
-          echo "docker run --rm ghcr.io/divkix/alita_robot:dev --version" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Test specific commit" >> $GITHUB_STEP_SUMMARY
-          echo "docker run --rm ghcr.io/divkix/alita_robot:${{ steps.short-sha.outputs.short_sha }} --version" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-  # Summary job that aggregates all check results
+  # CI success gate
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [security, lint, build-verification, docker-publish]
+    needs: [security, lint, build, docker-verify, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
         run: |
+          # Check required jobs
           if [ "${{ needs.security.result }}" != "success" ] || \
              [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.build-verification.result }}" != "success" ]; then
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.docker-verify.result }}" != "success" ]; then
             echo "One or more CI jobs failed!"
             exit 1
           fi
@@ -240,7 +214,6 @@ jobs:
               echo "Docker publish job failed!"
               exit 1
             fi
-            echo "All CI checks and Docker publishing completed successfully!"
-          else
-            echo "All CI checks passed successfully!"
           fi
+
+          echo "All CI checks passed!"

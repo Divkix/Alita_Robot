@@ -1,25 +1,39 @@
-# Build Stage: Build bot using the alpine image
-FROM golang:alpine AS builder
-RUN apk add --no-cache git
+# Multi-stage build for production Docker images
+# Uses cross-compilation to avoid QEMU emulation issues with Alpine on ARM64
+
+# Stage 1: Build using native platform, cross-compile for target
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+
+# Build arguments for cross-compilation
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /app
 
 # Copy go mod files first for better layer caching
 COPY go.mod go.sum ./
 
-# Download dependencies - this layer is cached unless go.mod/go.sum change
-RUN go mod download && go mod verify
+# Download dependencies - runs on native platform, cached unless go.mod/go.sum change
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download && go mod verify
 
 # Copy source code
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=`go env GOHOSTOS` GOARCH=`go env GOHOSTARCH` go build -o out/alita_robot -ldflags="-w -s" .
+# Cross-compile the binary for target platform (no QEMU needed - Go handles this natively)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o alita_robot .
 
-# Run Stage: Run bot using the bot binary copied from build stage
+# Stage 2: Minimal runtime image
 FROM gcr.io/distroless/static-debian12
 USER 65532:65532
 WORKDIR /app
-COPY --from=builder /app/out/alita_robot /app/alita_robot
+COPY --from=builder /app/alita_robot /app/alita_robot
 COPY supabase /app/supabase
 ENTRYPOINT ["/app/alita_robot"]
 
