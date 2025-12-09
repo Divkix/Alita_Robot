@@ -40,6 +40,19 @@ var Locales embed.FS
 // It sets up monitoring, database connections, webhook/polling mode,
 // loads all modules, and handles graceful shutdown.
 func main() {
+	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
+	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
+		resp, err := http.Get("http://localhost:8080/health")
+		if err != nil {
+			os.Exit(1)
+		}
+		_ = resp.Body.Close() // Ignore close error since we're exiting immediately
+		if resp.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	// Setup panic recovery for main goroutine
 	defer func() {
 		if r := recover(); r != nil {
