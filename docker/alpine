@@ -1,6 +1,6 @@
 # Build Stage: Build bot using the alpine image
 FROM golang:alpine AS builder
-RUN apk add --no-cache curl wget gnupg git
+RUN apk add --no-cache git
 WORKDIR /app
 
 # Copy go mod files first for better layer caching
