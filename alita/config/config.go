@@ -409,7 +409,7 @@ func (cfg *Config) setDefaults() {
 		cfg.RedisDB = 1
 	}
 	if cfg.WebhookPort == 0 {
-		cfg.WebhookPort = 8080
+		cfg.WebhookPort = 8081 // Default to 8081 so health check can use 8080
 	}
 
 	// Set default values for worker pool configurations

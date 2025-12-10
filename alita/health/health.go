@@ -87,11 +87,8 @@ func RegisterHealthEndpoint() {
 	mux.HandleFunc("/health", HealthHandler)
 
 	go func() {
+		// Health check always on port 8080 for consistency across modes
 		port := "8080"
-		if config.WebhookPort != 0 && config.UseWebhooks {
-			// If webhook is enabled, use a different port for health
-			port = "8081"
-		}
 
 		server := &http.Server{
 			Addr:         ":" + port,
