@@ -1,32 +1,34 @@
-# This is to run the alita-robot in production mode with PostgreSQL
+# Production Docker Compose for Alita Robot
+# Uses pre-built images from GHCR, optimized for Dokploy deployment
+#
+# Environment variables to set in Dokploy UI:
+#   BOT_TOKEN, OWNER_ID, MESSAGE_DUMP, WEBHOOK_DOMAIN, WEBHOOK_SECRET
+
 services:
   alita:
-    build:
-      context: .
-      dockerfile: docker/alpine
+    image: ghcr.io/divkix/alita_robot:latest
     container_name: alita-robot
     restart: always
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-alita_robot}?sslmode=disable
+      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
       REDIS_ADDRESS: redis:6379
-      # Enable automatic SQL migrations at startup
-      AUTO_MIGRATE: "true"
+      REDIS_PASSWORD: redis
+      AUTO_MIGRATE: "false"
+      USE_WEBHOOKS: "true"
+      WEBHOOK_PORT: "8081"
+      DROP_PENDING_UPDATES: "true"
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
-    # Optional port mappings:
-    # - Expose webhook port only when using webhooks
-    # - Expose metrics/health if you want host access
-    # Uncomment as needed.
-    # ports:
-    #   - "${WEBHOOK_PORT:-8080}:${WEBHOOK_PORT:-8080}"
-    #   - "9090:9090"   # Prometheus metrics
-    #   - "8080:8080"   # Health (polling mode)
-    # Resource limits to prevent crashes
+    healthcheck:
+      test: ["CMD", "/alita_robot", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -40,20 +42,18 @@ services:
     image: postgres:15-alpine
     container_name: alita-postgres
     restart: always
-    env_file:
-      - .env
     environment:
+      POSTGRES_USER: alita
+      POSTGRES_PASSWORD: alita
+      POSTGRES_DB: alita
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # Resource limits for PostgreSQL
     deploy:
       resources:
         limits:
@@ -62,66 +62,14 @@ services:
 
   redis:
     image: redis:latest
+    container_name: alita-redis
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redisPassword}
-    # Resource limits for Redis
+    command: redis-server --requirepass redis
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: "0.25"
-
-  # Cloudflare Tunnel service (only needed when USE_WEBHOOKS=true)
-  # Uncomment this service and set CLOUDFLARE_TUNNEL_TOKEN in .env when using webhooks
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: alita-cloudflared
-  #   restart: unless-stopped
-  #   command: tunnel --no-autoupdate run
-  #   environment:
-  #     TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-  #   depends_on:
-  #     - alita
-  #   # Resource limits for cloudflared
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 128M
-  #         cpus: "0.1"
-
-  telegram-bot-api:
-    profiles: ["local-bot-api"]
-    image: aiogram/telegram-bot-api:latest
-    restart: unless-stopped
-    environment:
-      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
-      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
-      TELEGRAM_STAT: "" # Disable stats endpoint for performance
-    volumes:
-      - telegram-bot-api-data:/var/lib/telegram-bot-api
-    expose:
-      - "8081" # Expose port for container-to-container communication
-    command:
-      - "--api-id=${TELEGRAM_API_ID}"
-      - "--api-hash=${TELEGRAM_API_HASH}"
-      - "--local" # Enable local mode for faster file operations
-      - "--verbosity=1" # Reduce logging overhead
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/bot${BOT_TOKEN}/getMe"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    # Resource allocation for telegram-bot-api
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-        reservations:
           memory: 256M
           cpus: "0.25"
 
 volumes:
   postgres_data:
-  telegram-bot-api-data:
