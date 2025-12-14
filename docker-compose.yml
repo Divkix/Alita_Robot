@@ -17,6 +17,11 @@ services:
       USE_WEBHOOKS: "true"
       WEBHOOK_PORT: "8081"
       DROP_PENDING_UPDATES: "true"
+      BOT_TOKEN: ${BOT_TOKEN}
+      OWNER_ID: ${OWNER_ID}
+      MESSAGE_DUMP: ${MESSAGE_DUMP}
+      WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
     ports:
       - "8081:8081"
     depends_on:
