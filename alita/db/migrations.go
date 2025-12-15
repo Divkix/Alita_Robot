@@ -408,6 +408,71 @@ func (m *MigrationRunner) cleanSupabaseSQL(sql string) string {
 	// Clean the SQL
 	cleaned := sql
 
+	// === IDEMPOTENCY TRANSFORMATIONS ===
+	// Make DDL statements idempotent to handle re-running migrations on existing databases
+
+	// Make CREATE TABLE idempotent (handles optional schema prefix)
+	// Matches: CREATE TABLE [IF NOT EXISTS] ["schema".]"table" or CREATE TABLE [IF NOT EXISTS] schema.table
+	createTablePattern := regexp.MustCompile(`(?i)create\s+table\s+(?:if\s+not\s+exists\s+)?`)
+	cleaned = createTablePattern.ReplaceAllString(cleaned, "CREATE TABLE IF NOT EXISTS ")
+
+	// Make CREATE INDEX idempotent
+	// Handles: CREATE INDEX, CREATE UNIQUE INDEX, CREATE INDEX CONCURRENTLY
+	createIndexPattern := regexp.MustCompile(`(?i)create\s+(unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?`)
+	cleaned = createIndexPattern.ReplaceAllStringFunc(cleaned, func(match string) string {
+		hasUnique := regexp.MustCompile(`(?i)unique`).MatchString(match)
+		hasConcurrently := regexp.MustCompile(`(?i)concurrently`).MatchString(match)
+		result := "CREATE "
+		if hasUnique {
+			result += "UNIQUE "
+		}
+		result += "INDEX "
+		if hasConcurrently {
+			result += "CONCURRENTLY "
+		}
+		result += "IF NOT EXISTS "
+		return result
+	})
+
+	// Make CREATE TYPE idempotent (for ENUMs) using DO block pattern
+	// PostgreSQL doesn't support CREATE TYPE IF NOT EXISTS directly
+	createTypePattern := regexp.MustCompile(`(?i)create\s+type\s+(["']?[^"'\s(]+["']?)\s+as\s+enum\s*\(([^)]+)\)\s*;?`)
+	cleaned = createTypePattern.ReplaceAllStringFunc(cleaned, func(match string) string {
+		matches := createTypePattern.FindStringSubmatch(match)
+		if len(matches) < 3 {
+			return match
+		}
+		typeName := matches[1]
+		enumValues := matches[2]
+		return fmt.Sprintf(`DO $$ BEGIN
+    CREATE TYPE %s AS ENUM (%s);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$`, typeName, enumValues)
+	})
+
+	// Make ALTER TABLE ADD CONSTRAINT idempotent
+	// Wrap in DO block with exception handling for duplicate_object
+	addConstraintPattern := regexp.MustCompile(`(?i)alter\s+table\s+(?:only\s+)?(["']?[^"'\s]+["']?)\s+add\s+constraint\s+(["']?[^"'\s]+["']?)\s+(.+?);`)
+	cleaned = addConstraintPattern.ReplaceAllStringFunc(cleaned, func(match string) string {
+		matches := addConstraintPattern.FindStringSubmatch(match)
+		if len(matches) < 4 {
+			return match
+		}
+		tableName := matches[1]
+		constraintName := matches[2]
+		constraintDef := strings.TrimSuffix(matches[3], ";")
+		return fmt.Sprintf(`DO $$ BEGIN
+    ALTER TABLE %s ADD CONSTRAINT %s %s;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$`, tableName, constraintName, constraintDef)
+	})
+
+	log.Debugf("[Migrations] SQL cleaning: Applied idempotency transformations")
+
+	// === SUPABASE-SPECIFIC CLEANUP ===
+
 	// Remove GRANT statements (handles both quoted and unquoted role names)
 	cleaned = grantPattern.ReplaceAllString(cleaned, "")
 
