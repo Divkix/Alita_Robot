@@ -2,6 +2,7 @@ FROM gcr.io/distroless/static-debian12
 WORKDIR /app
 COPY alita_robot /app/
 COPY migrations /app/migrations
+EXPOSE 8080 8081
 ENTRYPOINT ["/app/alita_robot"]
 
 # Metadata
