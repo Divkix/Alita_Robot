@@ -16,16 +16,14 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/health"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/metrics"
 	"github.com/divkix/Alita_Robot/alita/utils/async"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
-	"github.com/divkix/Alita_Robot/alita/utils/webhook"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -42,7 +40,7 @@ var Locales embed.FS
 func main() {
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
-		resp, err := http.Get("http://localhost:8080/health")
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.HTTPPort))
 		if err != nil {
 			os.Exit(1)
 		}
@@ -222,13 +220,86 @@ func main() {
 		defer async.StopAsyncProcessor()
 	}
 
-	// Start health check endpoint
-	health.RegisterHealthEndpoint()
-	log.Info("[Health] Health check endpoint available at :8080/health (or :8081 if webhook enabled)")
+	// Create dispatcher with limited max routines and proper error recovery
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
+		// Enhanced error handler with recovery and structured logging
+		Error: func(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
+			// Recover from any panics in error handler
+			defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
 
-	// Start metrics server
-	metrics.StartMetricsServer("9090")
-	log.Info("[Metrics] Prometheus metrics available at :9090/metrics")
+			// Extract stack trace if it's a wrapped error
+			logFields := log.Fields{
+				"update_id": func() int64 {
+					if ctx != nil && ctx.UpdateId != 0 {
+						return ctx.UpdateId
+					}
+					return -1
+				}(),
+				"error_type": fmt.Sprintf("%T", err),
+			}
+
+			// Check if it's our wrapped error with stack info
+			if wrappedErr, ok := err.(*errors.WrappedError); ok {
+				logFields["file"] = wrappedErr.File
+				logFields["line"] = wrappedErr.Line
+				logFields["function"] = wrappedErr.Function
+			}
+
+			// Check if this is an expected error that should be suppressed from Sentry
+			if helpers.ShouldSuppressFromSentry(err) {
+				log.WithFields(logFields).Warnf("Expected Telegram API error (suppressed from Sentry): %v", err)
+				return ext.DispatcherActionNoop
+			}
+
+			// Log the error with context information
+			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
+
+			// Send to Sentry if available
+			if config.EnableSentry && sentry.CurrentHub().Client() != nil {
+				sentry.WithScope(func(scope *sentry.Scope) {
+					// Add update context
+					if ctx != nil {
+						scope.SetTag("update_id", fmt.Sprintf("%d", ctx.UpdateId))
+
+						// Add user context
+						if ctx.EffectiveUser != nil {
+							scope.SetUser(sentry.User{
+								ID:       fmt.Sprintf("%d", ctx.EffectiveUser.Id),
+								Username: ctx.EffectiveUser.Username,
+							})
+						}
+
+						// Add chat context
+						if ctx.EffectiveChat != nil {
+							scope.SetTag("chat_id", fmt.Sprintf("%d", ctx.EffectiveChat.Id))
+							scope.SetTag("chat_type", ctx.EffectiveChat.Type)
+						}
+
+						// Add message context
+						if ctx.EffectiveMessage != nil {
+							scope.SetContext("message", map[string]interface{}{
+								"message_id": ctx.EffectiveMessage.MessageId,
+								"text":       ctx.EffectiveMessage.Text,
+							})
+						}
+					}
+
+					// Add wrapped error context
+					if wrappedErr, ok := err.(*errors.WrappedError); ok {
+						scope.SetTag("source_file", wrappedErr.File)
+						scope.SetTag("source_line", fmt.Sprintf("%d", wrappedErr.Line))
+						scope.SetTag("source_function", wrappedErr.Function)
+					}
+
+					sentry.CaptureException(err)
+				})
+			}
+
+			// Continue processing other updates
+			return ext.DispatcherActionNoop
+		},
+		MaxRoutines: config.DispatcherMaxRoutines, // Configurable max concurrent goroutines
+	})
 
 	// Initialize monitoring systems
 	var statsCollector *monitoring.BackgroundStatsCollector
@@ -289,91 +360,10 @@ func main() {
 	// Start shutdown handler in background
 	go shutdownManager.WaitForShutdown()
 
-	// Create dispatcher with limited max routines and proper error recovery
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
-		// Enhanced error handler with recovery and structured logging
-		Error: func(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
-			// Recover from any panics in error handler
-			defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
-
-			// Record error in monitoring system
-			if statsCollector != nil {
-				statsCollector.RecordError()
-			}
-
-			// Extract stack trace if it's a wrapped error
-			logFields := log.Fields{
-				"update_id": func() int64 {
-					if ctx != nil && ctx.UpdateId != 0 {
-						return ctx.UpdateId
-					}
-					return -1
-				}(),
-				"error_type": fmt.Sprintf("%T", err),
-			}
-
-			// Check if it's our wrapped error with stack info
-			if wrappedErr, ok := err.(*errors.WrappedError); ok {
-				logFields["file"] = wrappedErr.File
-				logFields["line"] = wrappedErr.Line
-				logFields["function"] = wrappedErr.Function
-			}
-
-			// Check if this is an expected error that should be suppressed from Sentry
-			if helpers.ShouldSuppressFromSentry(err) {
-				log.WithFields(logFields).Warnf("Expected Telegram API error (suppressed from Sentry): %v", err)
-				return ext.DispatcherActionNoop
-			}
-
-			// Log the error with context information
-			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
-
-			// Send to Sentry with context
-			if config.EnableSentry && sentry.CurrentHub().Client() != nil {
-				sentry.WithScope(func(scope *sentry.Scope) {
-					// Add update context
-					if ctx != nil {
-						scope.SetTag("update_id", fmt.Sprintf("%d", ctx.UpdateId))
-
-						// Add user context
-						if ctx.EffectiveUser != nil {
-							scope.SetUser(sentry.User{
-								ID:       fmt.Sprintf("%d", ctx.EffectiveUser.Id),
-								Username: ctx.EffectiveUser.Username,
-							})
-						}
-
-						// Add chat context
-						if ctx.EffectiveChat != nil {
-							scope.SetTag("chat_id", fmt.Sprintf("%d", ctx.EffectiveChat.Id))
-							scope.SetTag("chat_type", ctx.EffectiveChat.Type)
-						}
-
-						// Add message context
-						if ctx.EffectiveMessage != nil {
-							scope.SetContext("message", map[string]interface{}{
-								"message_id": ctx.EffectiveMessage.MessageId,
-								"text":       ctx.EffectiveMessage.Text,
-							})
-						}
-					}
-
-					// Add wrapped error context
-					if wrappedErr, ok := err.(*errors.WrappedError); ok {
-						scope.SetTag("source_file", wrappedErr.File)
-						scope.SetTag("source_line", fmt.Sprintf("%d", wrappedErr.Line))
-						scope.SetTag("source_function", wrappedErr.Function)
-					}
-
-					sentry.CaptureException(err)
-				})
-			}
-
-			// Continue processing other updates
-			return ext.DispatcherActionNoop
-		},
-		MaxRoutines: config.DispatcherMaxRoutines, // Configurable max concurrent goroutines
-	})
+	// Create unified HTTP server for health, metrics, and webhook endpoints
+	httpServer := httpserver.New(config.HTTPPort)
+	httpServer.RegisterHealth()
+	httpServer.RegisterMetrics()
 
 	// Check if we should use webhooks or polling
 	if config.UseWebhooks {
@@ -385,14 +375,24 @@ func main() {
 			log.Warn("[Webhook] WEBHOOK_SECRET is not set, webhook validation will be skipped")
 		}
 
-		// Create and start webhook server
-		webhookServer := webhook.NewWebhookServer(b, dispatcher)
-		if err := webhookServer.Start(); err != nil {
-			log.Fatalf("[Webhook] Failed to start webhook server: %v", err)
+		// Register webhook endpoint on the unified HTTP server
+		if err := httpServer.RegisterWebhook(b, dispatcher, config.WebhookSecret, config.WebhookDomain); err != nil {
+			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
-		log.Info("[Webhook] Webhook server started successfully")
+		// Start the unified HTTP server
+		if err := httpServer.Start(); err != nil {
+			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
+		}
+
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.HTTPPort)
 		config.WorkingMode = "webhook"
+
+		// Register HTTP server shutdown handler
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping HTTP server...")
+			return httpServer.Stop()
+		})
 
 		// Load modules
 		alita.LoadModules(dispatcher)
@@ -439,10 +439,24 @@ func main() {
 			log.Infof("[Bot] %s has been started in webhook mode...", botUsername)
 		}
 
-		// Wait for shutdown signal
-		webhookServer.WaitForShutdown()
+		// Wait for shutdown signal (blocking)
+		select {}
 	} else {
 		// Use polling mode (default)
+
+		// Start the unified HTTP server (health and metrics only in polling mode)
+		if err := httpServer.Start(); err != nil {
+			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
+		}
+
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.HTTPPort)
+
+		// Register HTTP server shutdown handler
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping HTTP server...")
+			return httpServer.Stop()
+		})
+
 		updater := ext.NewUpdater(dispatcher, nil) // create updater with dispatcher
 
 		if _, err = b.DeleteWebhook(nil); err != nil {

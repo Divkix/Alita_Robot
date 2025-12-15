@@ -15,7 +15,7 @@ services:
       REDIS_PASSWORD: redis
       AUTO_MIGRATE: "false"
       USE_WEBHOOKS: "true"
-      WEBHOOK_PORT: "8081"
+      HTTP_PORT: "8080"
       DROP_PENDING_UPDATES: "true"
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_ID: ${OWNER_ID}
@@ -23,7 +23,7 @@ services:
       WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
     ports:
-      - "8081:8081"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy

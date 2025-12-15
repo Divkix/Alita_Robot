@@ -192,11 +192,16 @@ REDIS_ADDRESS      # Redis server address
 MESSAGE_DUMP       # Log channel ID (must start with -100)
 OWNER_ID           # Your Telegram user ID
 
+# HTTP Server (unified health, metrics, webhook on single port)
+HTTP_PORT          # HTTP server port (default: 8080)
+
 # Webhook Mode (optional)
 USE_WEBHOOKS       # Set to 'true' for webhook mode
 WEBHOOK_DOMAIN     # Your webhook domain
 WEBHOOK_SECRET     # Random secret for validation
 CLOUDFLARE_TUNNEL_TOKEN # For Cloudflare tunnel integration
+
+# Note: WEBHOOK_PORT is deprecated, use HTTP_PORT instead
 
 # Performance Tuning (optional)
 WORKER_POOL_SIZE   # Concurrent worker pool size (default: 10)
@@ -258,12 +263,21 @@ have traditional unit tests. Instead:
 - Simple setup, no external configuration needed
 - Suitable for development and low-traffic bots
 - Higher latency (1-3 second delay)
+- HTTP server runs on HTTP_PORT (default 8080) for /health and /metrics
 
 ### Webhook Mode
 
 - Real-time updates, better for production
 - Requires HTTPS endpoint (use Cloudflare Tunnel)
 - Lower resource usage, instant response
+- Single HTTP server on HTTP_PORT serves /health, /metrics, and /webhook
+
+### HTTP Endpoints (Unified Server)
+
+All endpoints run on a single port (HTTP_PORT, default 8080):
+- `GET /health` - Health check with database/redis status
+- `GET /metrics` - Prometheus metrics
+- `POST /webhook/{secret}` - Telegram webhook (webhook mode only)
 
 ## Build and Release
 

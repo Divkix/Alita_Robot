@@ -41,11 +41,14 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
+	// HTTP Server configuration (unified server for health, metrics, webhook)
+	HTTPPort int `validate:"min=1,max=65535"`
+
 	// Webhook configuration
 	UseWebhooks   bool
 	WebhookDomain string
 	WebhookSecret string
-	WebhookPort   int `validate:"min=1,max=65535"`
+	WebhookPort   int `validate:"min=1,max=65535"` // Deprecated: use HTTPPort instead
 
 	// Worker pool configuration for concurrent processing
 	ChatValidationWorkers  int `validate:"min=1,max=100"`
@@ -124,11 +127,15 @@ var (
 	RedisAddress       string
 	RedisPassword      string
 	RedisDB            int
+
+	// HTTP Server configuration (unified server)
+	HTTPPort int
+
 	// Webhook configuration
 	UseWebhooks   bool
 	WebhookDomain string
 	WebhookSecret string
-	WebhookPort   int
+	WebhookPort   int // Deprecated: use HTTPPort instead
 
 	// Worker pool configuration for concurrent processing
 	ChatValidationWorkers  int
@@ -209,9 +216,11 @@ func ValidateConfig(cfg *Config) error {
 		if cfg.WebhookDomain == "" {
 			return fmt.Errorf("WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
 		}
-		if cfg.WebhookPort <= 0 || cfg.WebhookPort > 65535 {
-			return fmt.Errorf("WEBHOOK_PORT must be between 1 and 65535")
-		}
+	}
+
+	// Validate HTTP port
+	if cfg.HTTPPort <= 0 || cfg.HTTPPort > 65535 {
+		return fmt.Errorf("HTTP_PORT must be between 1 and 65535")
 	}
 
 	// Validate worker configurations
@@ -296,6 +305,9 @@ func LoadConfig() (*Config, error) {
 		RedisAddress:  os.Getenv("REDIS_ADDRESS"),
 		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
+
+		// HTTP Server configuration
+		HTTPPort: typeConvertor{str: os.Getenv("HTTP_PORT")}.Int(),
 
 		// Webhook configuration
 		UseWebhooks:   typeConvertor{str: os.Getenv("USE_WEBHOOKS")}.Bool(),
@@ -408,8 +420,22 @@ func (cfg *Config) setDefaults() {
 	if cfg.RedisDB == 0 {
 		cfg.RedisDB = 1
 	}
+
+	// Handle HTTPPort with backward compatibility for WebhookPort
+	if cfg.HTTPPort == 0 {
+		if cfg.WebhookPort != 0 {
+			// Use deprecated WebhookPort for backward compatibility
+			cfg.HTTPPort = cfg.WebhookPort
+			log.Warn("[Config] WEBHOOK_PORT is deprecated, please use HTTP_PORT instead")
+		} else {
+			// Default to 8080
+			cfg.HTTPPort = 8080
+		}
+	}
+
+	// Keep WebhookPort for backward compatibility (default to 8081 if not set)
 	if cfg.WebhookPort == 0 {
-		cfg.WebhookPort = 8081 // Default to 8081 so health check can use 8080
+		cfg.WebhookPort = 8081 // Legacy default
 	}
 
 	// Set default values for worker pool configurations
@@ -598,6 +624,7 @@ func init() {
 	RedisAddress = cfg.RedisAddress
 	RedisPassword = cfg.RedisPassword
 	RedisDB = cfg.RedisDB
+	HTTPPort = cfg.HTTPPort
 	UseWebhooks = cfg.UseWebhooks
 	WebhookDomain = cfg.WebhookDomain
 	WebhookSecret = cfg.WebhookSecret

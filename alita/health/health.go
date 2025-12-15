@@ -80,28 +80,3 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("[Health] Failed to encode health status: %v", err)
 	}
 }
-
-// RegisterHealthEndpoint registers the health check endpoint
-func RegisterHealthEndpoint() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", HealthHandler)
-
-	go func() {
-		// Health check always on port 8080 for consistency across modes
-		port := "8080"
-
-		server := &http.Server{
-			Addr:         ":" + port,
-			Handler:      mux,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-			IdleTimeout:  60 * time.Second,
-		}
-
-		log.Infof("[Health] Starting health check endpoint on port %s", port)
-		if err := server.ListenAndServe(); err != nil {
-			// Log but don't fail - health endpoint is optional
-			log.Warnf("[Health] Health endpoint failed to start: %v", err)
-		}
-	}()
-}

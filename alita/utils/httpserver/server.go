@@ -1,0 +1,281 @@
+package httpserver
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/eko/gocache/lib/v4/store"
+)
+
+// maxRequestBodySize defines the maximum allowed request body size (10MB)
+// This prevents DoS attacks where attackers send gigabytes of data to cause OOM
+const maxRequestBodySize = 10 * 1024 * 1024
+
+// Server represents a unified HTTP server that consolidates health, webhook, and metrics endpoints
+type Server struct {
+	mux            *http.ServeMux
+	server         *http.Server
+	port           int
+	bot            *gotgbot.Bot
+	dispatcher     *ext.Dispatcher
+	secret         string
+	webhookEnabled bool
+	startTime      time.Time
+}
+
+// New creates a new unified HTTP server on the specified port
+func New(port int) *Server {
+	return &Server{
+		mux:       http.NewServeMux(),
+		port:      port,
+		startTime: time.Now(),
+	}
+}
+
+// HealthStatus represents the health status of the application
+type HealthStatus struct {
+	Status  string          `json:"status"`
+	Checks  map[string]bool `json:"checks"`
+	Version string          `json:"version"`
+	Uptime  string          `json:"uptime"`
+}
+
+// checkDatabase checks if the database connection is healthy
+func checkDatabase() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sqlDB, err := db.DB.DB()
+	if err != nil {
+		return false
+	}
+
+	return sqlDB.PingContext(ctx) == nil
+}
+
+// checkRedis checks if the Redis connection is healthy
+func checkRedis() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Try to set and get a test key
+	testKey := "health_check_test"
+	err := cache.Manager.Set(ctx, testKey, "ok", store.WithExpiration(5*time.Second))
+	if err != nil {
+		return false
+	}
+
+	_, err = cache.Manager.Get(ctx, testKey)
+	// Delete the test key
+	_ = cache.Manager.Delete(ctx, testKey)
+
+	return err == nil
+}
+
+// RegisterHealth registers the /health endpoint
+func (s *Server) RegisterHealth() {
+	s.mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		dbHealthy := checkDatabase()
+		redisHealthy := checkRedis()
+
+		status := HealthStatus{
+			Status: "healthy",
+			Checks: map[string]bool{
+				"database": dbHealthy,
+				"redis":    redisHealthy,
+			},
+			Version: config.BotVersion,
+			Uptime:  time.Since(s.startTime).String(),
+		}
+
+		if !dbHealthy || !redisHealthy {
+			status.Status = "unhealthy"
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(status); err != nil {
+			log.Errorf("[HTTPServer] Failed to encode health status: %v", err)
+		}
+	})
+
+	log.Info("[HTTPServer] Registered /health endpoint")
+}
+
+// RegisterMetrics registers the /metrics endpoint for Prometheus
+func (s *Server) RegisterMetrics() {
+	s.mux.Handle("/metrics", promhttp.Handler())
+	log.Info("[HTTPServer] Registered /metrics endpoint")
+}
+
+// RegisterWebhook registers the webhook endpoint and configures the Telegram webhook
+func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, secret, domain string) error {
+	s.bot = bot
+	s.dispatcher = dispatcher
+	s.secret = secret
+	s.webhookEnabled = true
+
+	// Register the webhook handler at /webhook/{secret}
+	webhookPath := fmt.Sprintf("/webhook/%s", secret)
+	s.mux.HandleFunc(webhookPath, s.webhookHandler)
+
+	// Set the webhook URL on Telegram
+	webhookURL := fmt.Sprintf("%s%s", domain, webhookPath)
+	log.Infof("[HTTPServer] Setting webhook URL: %s", webhookURL)
+
+	// Configure webhook options
+	webhookOpts := &gotgbot.SetWebhookOpts{
+		AllowedUpdates:     config.AllowedUpdates,
+		DropPendingUpdates: config.DropPendingUpdates,
+	}
+
+	// Set secret token if configured
+	if secret != "" {
+		webhookOpts.SecretToken = secret
+	}
+
+	// Set the webhook with Telegram
+	if _, err := bot.SetWebhook(webhookURL, webhookOpts); err != nil {
+		return fmt.Errorf("failed to set webhook: %w", err)
+	}
+
+	log.Infof("[HTTPServer] Registered webhook endpoint at %s", webhookPath)
+	return nil
+}
+
+// webhookHandler handles incoming webhook requests from Telegram
+func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		log.Error("[HTTPServer] Invalid request method: ", r.Method)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Read the request body with size limit to prevent DoS attacks
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
+	if err != nil {
+		log.Error("[HTTPServer] Failed to read request body: ", err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	defer func() {
+		if closeErr := r.Body.Close(); closeErr != nil {
+			log.Errorf("[HTTPServer] Failed to close request body: %v", closeErr)
+		}
+	}()
+
+	// Validate the webhook secret
+	if !s.validateWebhook(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse the update
+	var update gotgbot.Update
+	if err := json.Unmarshal(body, &update); err != nil {
+		log.Error("[HTTPServer] Failed to parse update: ", err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Process the update through the dispatcher
+	go func() {
+		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
+		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
+			log.Error("[HTTPServer] Failed to process update: ", err)
+		}
+	}()
+
+	// Send OK response to Telegram
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte("OK")); err != nil {
+		log.Errorf("[HTTPServer] Failed to write response: %v", err)
+	}
+}
+
+// validateWebhook validates the incoming webhook request using the secret token
+func (s *Server) validateWebhook(r *http.Request) bool {
+	if s.secret == "" {
+		log.Warn("[HTTPServer] No webhook secret configured, skipping validation")
+		return true
+	}
+
+	// Get the X-Telegram-Bot-Api-Secret-Token header
+	secretToken := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+	if secretToken != s.secret {
+		log.Error("[HTTPServer] Invalid secret token")
+		return false
+	}
+
+	return true
+}
+
+// Start starts the unified HTTP server
+func (s *Server) Start() error {
+	s.server = &http.Server{
+		Addr:         fmt.Sprintf(":%d", s.port),
+		Handler:      s.mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Log the registered endpoints
+	endpoints := []string{"/health", "/metrics"}
+	if s.webhookEnabled {
+		endpoints = append(endpoints, "/webhook/{secret}")
+	}
+	log.Infof("[HTTPServer] Starting unified HTTP server on port %d with endpoints: %v", s.port, endpoints)
+
+	// Start the server in a goroutine
+	go func() {
+		defer error_handling.RecoverFromPanic("HTTPServer", "main")
+		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Errorf("[HTTPServer] Server failed: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+// Stop gracefully stops the HTTP server
+func (s *Server) Stop() error {
+	log.Info("[HTTPServer] Shutting down server...")
+
+	// Create a context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown the server
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("HTTP server shutdown failed: %w", err)
+	}
+
+	// Delete the webhook if it was enabled
+	if s.webhookEnabled && s.bot != nil {
+		if _, err := s.bot.DeleteWebhook(nil); err != nil {
+			log.Errorf("[HTTPServer] Failed to delete webhook: %v", err)
+		}
+	}
+
+	log.Info("[HTTPServer] Server stopped gracefully")
+	return nil
+}
+
+// Addr returns the server address for logging purposes
+func (s *Server) Addr() string {
+	return fmt.Sprintf(":%d", s.port)
+}
