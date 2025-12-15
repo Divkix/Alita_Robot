@@ -79,9 +79,7 @@ func Smarkdown() *gotgbot.SendMessageOpts {
 func SplitMessage(msg string) []string {
 	// Count UTF-8 characters (runes), not bytes
 	if utf8.RuneCountInString(msg) <= MaxMessageLength {
-		tmp := make([]string, 1)
-		tmp[0] = msg
-		return tmp
+		return []string{msg}
 	}
 
 	lines := strings.Split(msg, "\n")
