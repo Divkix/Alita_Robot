@@ -990,6 +990,31 @@ common_anonymous_ban_error: Este comando no se puede usar en usuario anónimo, e
 common_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
 common_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
 
+# Common action verbs (for dynamic error messages)
+common_action_ban: "banear"
+common_action_kick: "expulsar"
+common_action_mute: "silenciar"
+common_action_warn: "advertir"
+common_action_promote: "promover"
+common_action_demote: "degradar"
+common_action_restrict: "restringir"
+
+# Time units for duration formatting
+common_time_minute: "minuto"
+common_time_minutes: "minutos"
+common_time_hour: "hora"
+common_time_hours: "horas"
+common_time_day: "día"
+common_time_days: "días"
+common_time_week: "semana"
+common_time_weeks: "semanas"
+
+# Status indicators (for replacing %t boolean formatters)
+common_status_enabled: "Habilitado"
+common_status_disabled: "Deshabilitado"
+common_status_on: "Activado"
+common_status_off: "Desactivado"
+
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nNota: Estos valores están en caché y pueden no estar actualizados"
 admin_adminlist_note_fresh: "\n\nNota: Estos son valores actualizados"
@@ -1093,8 +1118,6 @@ pins_cleanlinked_current_disabled: La eliminación de publicaciones del canal vi
 pins_no_pinned_message: ¡No se ha anclado ningún mensaje en el chat actual!
 pins_here_is_pinned: <a href='%s'>Aquí</a> está el mensaje anclado.
 pins_pinned_message_button: Mensaje Anclado
-pins_yes_button: Sí
-pins_no_button: No
 pins_input_not_recognized: "Tu entrada no fue reconocida como una de: yes/no/on/off"
 
 # Purges module strings
@@ -1167,9 +1190,6 @@ misc_sticker_id: "<b>ID del Sticker:</b> <code>%s</code>"
 misc_user_id_is: "El ID de %s es <code>%d</code>"
 misc_your_id_private: "Tu ID es <code>%d</code>"
 misc_your_id_group: "Tu ID es <code>%d</code>\nEl ID de este grupo es <code>%d</code>"
-misc_need_text_and_lang: Necesito algo de texto y un código de idioma para traducir.
-misc_no_text_to_translate: El mensaje respondido no contiene texto para traducir.
-misc_provide_text_translate: Por favor proporciona algo de texto para traducir.
 misc_detected_translation: "<b>Idioma Detectado:</b> <code>%s</code>\n<b>Traducción:</b> <code>%s</code>"
 misc_removing_keyboard: Eliminando el teclado del bot atascado...
 misc_total_messages: "Total de Mensajes en %s son: %d"
@@ -1188,8 +1208,6 @@ misc_translate_result: "<b>Idioma Detectado:</b> <code>%s</code>\n\n<b>Traducci�
 
 # Devs module strings
 devs_chat_info: "<b>Nombre:</b> %s\n<b>ID del Chat</b>: %d\n<b>Conteo de Usuarios:</b> %d\n<b>Enlace:</b> %s"
-devs_getting_chatlist: Obteniendo lista de chats en los que estoy...
-devs_chatlist_caption: ¡Aquí está la lista de chats en mi Base de Datos!
 devs_left_chat: ¡Ok, dejé el chat!
 devs_user_already_sudo: ¡El usuario ya es Sudo!
 devs_added_to_sudo: ¡Añadido %s a la Lista Sudo!
@@ -1199,10 +1217,8 @@ devs_user_not_sudo: ¡El usuario no es Sudo!
 devs_removed_from_sudo: ¡Eliminado %s de la Lista Sudo!
 devs_user_not_dev: ¡El usuario no es Dev!
 devs_removed_from_dev: ¡Eliminado %s de la Lista Dev!
-devs_no_team_members: ¡No hay usuarios añadidos en el Equipo!
 devs_dev_users_header: "<b>Usuarios Dev:</b>"
 devs_sudo_users_header: "<b>Usuarios Sudo:</b>"
-devs_no_users_in_category: "Sin Usuarios"
 devs_fetching_stats: "<code>Obteniendo estadísticas del bot...</code>"
 devs_getting_chat_list: Obteniendo lista de chats en los que estoy...
 devs_chat_list_caption: ¡Aquí está la lista de chats en mi Base de Datos!
@@ -1210,58 +1226,13 @@ devs_no_team_users: ¡No hay usuarios añadidos en el Equipo!
 devs_no_users: "Sin Usuarios"
 
 # Additional hardcoded strings from modules
-admin_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
-admin_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
-
 bans_anonymous_ban_only_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
-bans_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
-bans_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
-bans_dkick_reply_error: ¡Responde al mensaje de un usuario para eliminarlo y expulsarlo!
-bans_anonymous_ban_message: "Usuario baneado: %s"
-bans_anonymous_ban_reply_required: Solo puedes banear a un usuario anónimo respondiendo a su mensaje.
-bans_anonymous_unban_message: "Usuario desbaneado: %s"
-bans_anonymous_unban_reply_required: Solo puedes desbanear a un usuario anónimo respondiendo a su mensaje.
-bans_restrict_action_kick: "¡El administrador %s expulsó a %s de este chat!"
-bans_restrict_action_mute: "¡El administrador %s silenció a %s en el chat!"
-bans_restrict_action_ban: "¡El administrador %s baneó a %s de este chat!"
-bans_unrestrict_action_unmute: "¡Desilenciado por %s!"
-bans_unrestrict_action_unban: "¡Desbaneado por %s!"
-
-mutes_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
-mutes_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
-mutes_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
-mutes_tmute_success: "Shh...\nSilenciado {user} por {time}"
-mutes_tmute_reason: "\n<b>Razón: </b>{reason}"
-mutes_mute_success: "Shh...\nSilenciado {user}."
-mutes_mute_reason: "\n<b>Razón: </b>{reason}"
-mutes_unmute_success: "¡Bien!\nPermitiré a {user} hablar de nuevo."
-
-warns_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
-warns_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
-warns_limit_reached_kick: "¡Esas son {current}/{limit} advertencias; Así que {user} ha sido expulsado!"
-warns_limit_reached_mute: "¡Esas son {current}/{limit} advertencias; Así que {user} ha sido Silenciado!"
-warns_limit_reached_ban: "¡Esas son {current}/{limit} advertencias; Así que {user} ha sido baneado!"
-warns_current_count: "¡El usuario {user} tiene {current}/{limit} advertencias; ten cuidado!"
-warns_reason_display: "\n<b>Razón</b>:\n{reason}"
-warns_settings_current: "El grupo tiene la siguiente configuración:\n<b>Límite de Advertencias:</b> <code>{limit}</code>\n<b>Modo de Advertencia:</b> <code>{mode}</code>"
-warns_user_has_warnings: "Este usuario tiene {current}/{limit} advertencias, por las siguientes razones:"
-warns_user_no_reasons: "El usuario tiene {current}/{limit} advertencias, pero sin razones para ninguna de ellas."
-warns_user_clean: "¡Este usuario no tiene advertencias!"
-warns_removed_success: "Advertencia eliminada por {admin}."
-warns_no_warns_existing: "¡El usuario ya no tiene advertencias!"
-warns_limit_help: "Por favor especifica cuántas advertencias debe permitirse recibir a un usuario antes de tomar acción. Ej. `/setwarnlimit 5`"
-warns_limit_range: "El límite de advertencias debe establecerse entre 1 y 100."
-warns_limit_set_success: "La configuración del límite de advertencias para este chat se ha actualizado a {limit}."
-warns_reset_individual_success: "¡Las advertencias han sido restablecidas!"
-warns_no_warned_users: "¡No hay usuarios advertidos en este chat!"
-warns_reset_all_confirmation: "¿Estás seguro de que quieres eliminar todas las advertencias de todos los usuarios en este chat?"
-warns_reset_all_done: "¡Eliminadas todas las advertencias de todos los usuarios en este chat!"
 
 # Greetings module strings
 greetings_welcome_status: |
-  Actualmente estoy dando la bienvenida a usuarios: <code>%t</code>
-  Actualmente estoy eliminando bienvenidas antiguas: <code>%t</code>
-  Actualmente estoy eliminando mensajes de servicio: <code>%t</code>
+  Actualmente estoy dando la bienvenida a usuarios: <code>%s</code>
+  Actualmente estoy eliminando bienvenidas antiguas: <code>%s</code>
+  Actualmente estoy eliminando mensajes de servicio: <code>%s</code>
   El mensaje de bienvenida sin llenar el {} es:
 greetings_welcome_enabled: "Daré la bienvenida a los usuarios de ahora en adelante."
 greetings_welcome_disabled: "No daré la bienvenida a los usuarios de ahora en adelante."
@@ -1269,9 +1240,9 @@ greetings_welcome_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
 greetings_welcome_set_success: "¡Mensaje de bienvenida personalizado establecido exitosamente!"
 greetings_welcome_reset_success: "¡Mensaje de bienvenida personalizado restablecido exitosamente al predeterminado!"
 greetings_goodbye_status: |
-  Actualmente estoy despidiendo usuarios: <code>%t</code>
-  Actualmente estoy eliminando despedidas antiguas: <code>%t</code>
-  Actualmente estoy eliminando mensajes de servicio: <code>%t</code>
+  Actualmente estoy despidiendo usuarios: <code>%s</code>
+  Actualmente estoy eliminando despedidas antiguas: <code>%s</code>
+  Actualmente estoy eliminando mensajes de servicio: <code>%s</code>
   El mensaje de despedida sin llenar el {} es:
 greetings_goodbye_enabled: "Me despediré de los usuarios de ahora en adelante."
 greetings_goodbye_disabled: "No me despediré de los usuarios de ahora en adelante."
@@ -1295,9 +1266,9 @@ greetings_clean_service_enable: "¡Intentaré eliminar mensajes de unirse!"
 greetings_clean_service_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
 greetings_captcha_verified_success: "✅ ¡%s ha sido verificado y ahora puede chatear!"
 greetings_join_request_new: "¡Un nuevo usuario ha solicitado unirse al chat!"
-greetings_join_request_approve_btn: "✅ Aprobar"
-greetings_join_request_decline_btn: "❌ Rechazar"
-greetings_join_request_ban_btn: "✅ Banear"
+greetings_join_request_approve_button: "✅ Aprobar"
+greetings_join_request_decline_button: "❌ Rechazar"
+greetings_join_request_ban_button: "✅ Banear"
 greetings_join_request_accepted: "Aceptado %s en el Chat ✅"
 greetings_join_request_declined: "Rechazado %s para unirse al chat ❌"
 greetings_join_request_banned: "✅ ¡Baneado exitosamente! %s"
@@ -1348,8 +1319,6 @@ captcha_math_time_remaining: |
 notes_save_success: "¡Nota <b>%s</b> guardada!\nObtenla con <code>#%s</code> o <code>/get %s</code>."
 notes_keyword_required: "¡Por favor proporciona una palabra clave para responder!"
 notes_overwrite_confirm: "¡La nota ya existe!\n¿Quieres sobrescribirla?"
-notes_overwrite_yes: "Sí"
-notes_overwrite_no: "No"
 notes_remove_keyword_required: "¡Por favor proporciona una palabra clave para eliminar!"
 notes_not_exists: "¡La nota no existe!"
 notes_removed_success: "Eliminada nota <b>%s</b>."
@@ -1365,8 +1334,6 @@ notes_click_me_btn: "¡Haz clic en mí!"
 notes_current_in_chat: "Estas son las notas actuales en este Chat:\n"
 notes_get_instruction: "\nPuedes obtener una nota con <code>#nombredenota</code> o <code>/get nombredenota</code>"
 notes_clear_all_confirm: "¿Estás seguro de que quieres eliminar todas las Notas de este chat?"
-notes_clear_all_yes: "Sí"
-notes_clear_all_no: "No"
 notes_creator_only: "Solo el Creador del Chat puede usar este comando."
 notes_overwrite_cancelled: "Cancelada la sobrescritura de la nota ❌"
 notes_overwrite_success: "La nota ha sido sobrescrita exitosamente ✅"
@@ -1387,8 +1354,6 @@ filters_limit_exceeded: |
   Esta limitación se debe a que el bot funciona gratis sin donaciones de usuarios.
 filters_keyword_required: "¡Por favor proporciona una palabra clave para responder!"
 filters_overwrite_confirm: "¡El filtro ya existe!\n¿Quieres sobrescribirlo?"
-filters_overwrite_yes: "Sí"
-filters_overwrite_no: "No"
 filters_added_success: "Añadida respuesta para palabra de filtro <code>%s</code>"
 filters_remove_keyword_required: "¡Por favor proporciona una palabra de filtro para eliminar!"
 filters_not_exists: "¡El filtro no existe!"
@@ -1396,8 +1361,6 @@ filters_removed_success: "¡Ok!\nYa no responderé a <code>%s</code>"
 filters_none_in_chat: "¡No hay filtros en este chat!"
 filters_current_in_chat: "Estos son los filtros actuales en este Chat:"
 filters_clear_all_confirm: "¿Estás seguro de que quieres eliminar todos los Filtros de este chat?"
-filters_clear_all_yes: "Sí"
-filters_clear_all_no: "No"
 filters_clear_all_success: "Eliminados todos los Filtros de este Chat ✅"
 filters_clear_all_cancelled: "Cancelada la eliminación de todos los Filtros de este Chat ❌"
 filters_overwrite_success: "El filtro ha sido sobrescrito exitosamente ✅"
@@ -1706,13 +1669,6 @@ antiflood_button_unban_admins: "Desbanear (Solo Administradores)"
 
 # Helpers module strings
 helpers_notes_current_header: "Estas son las notas actuales en este Chat:\n"
-
-# Validation errors
-validation_filter_no_content: "¡Necesitas darle al filtro algo de contenido!"
-validation_note_no_content: "¡Necesitas darle a la nota algo de contenido!"
-validation_greeting_no_content: "¡Necesitas darme algo de contenido para %s usuarios!"
-validation_text_too_long: "Tu texto de mensaje tiene %d caracteres de largo. La longitud máxima para texto es 4096; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
-validation_caption_too_long: "Tu pie de foto del mensaje tiene %d caracteres de largo. La longitud máxima del pie de foto es 1024; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 
 # Configuration errors
 config_bot_token_required: "BOT_TOKEN es requerido"
