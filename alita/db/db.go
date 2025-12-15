@@ -629,6 +629,22 @@ func (StoredMessages) TableName() string {
 	return "stored_messages"
 }
 
+// CaptchaMutedUsers tracks users who failed captcha with mute action
+// They will be automatically unmuted after UnmuteAt time
+type CaptchaMutedUsers struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
+	UserID    int64     `gorm:"column:user_id;not null;index:idx_captcha_muted_user_chat" json:"user_id,omitempty"`
+	ChatID    int64     `gorm:"column:chat_id;not null;index:idx_captcha_muted_user_chat" json:"chat_id,omitempty"`
+	UnmuteAt  time.Time `gorm:"column:unmute_at;not null;index:idx_captcha_unmute_at" json:"unmute_at,omitempty"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at,omitempty"`
+}
+
+// TableName returns the database table name for the CaptchaMutedUsers model.
+// This method overrides GORM's default table naming convention.
+func (CaptchaMutedUsers) TableName() string {
+	return "captcha_muted_users"
+}
+
 // Database instance
 var DB *gorm.DB
 

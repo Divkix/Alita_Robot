@@ -256,6 +256,8 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Set action for failed verification (default:
   kick)
 
+  × /captchaattempts `<1-10>`: Set maximum verification attempts (default: 3)
+
 
   When enabled, new members are automatically muted until they complete the captcha.
 
@@ -583,6 +585,7 @@ help_configuration_step-2: "Ok, well done!
 
   ▫️ Confirm"
 help_configuration_step-3: "Excellent!
+
 
   Now the Bot is ready to use!
 
@@ -946,6 +949,14 @@ captcha_invalid_attempt: Invalid attempt ID
 captcha_invalid_user: Invalid user ID
 captcha_error_processing: Error processing answer
 captcha_invalid_refresh: Invalid refresh data
+
+# Captcha max attempts
+captcha_max_attempts_current: "Current maximum verification attempts: <b>%d</b>"
+captcha_max_attempts_invalid: "Invalid value. Please specify a number between 1 and 10."
+captcha_max_attempts_set: "Maximum verification attempts set to <b>%d</b>"
+
+# Captcha auto-unmute
+captcha_user_auto_unmute: "User %s will be automatically unmuted in 24 hours."
 
 # Help module strings
 help_pm_questions: "Hey :) PM me if you have any questions on how to use me!"

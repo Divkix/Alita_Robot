@@ -116,6 +116,22 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 	return nil
 }
 
+// SetCaptchaMaxAttempts sets the maximum number of captcha attempts allowed.
+// Creates settings record if it doesn't exist.
+func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
+	if maxAttempts < 1 || maxAttempts > 10 {
+		return ErrInvalidMaxAttempts
+	}
+
+	cacheKey := fmt.Sprintf("captcha_settings:%d", chatID)
+	deleteCache(cacheKey)
+
+	return DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{"max_attempts": maxAttempts}),
+	}).Create(&CaptchaSettings{ChatID: chatID, MaxAttempts: maxAttempts}).Error
+}
+
 // SetCaptchaFailureAction sets the action to take when captcha verification fails.
 // Valid actions are: kick, ban, mute
 func SetCaptchaFailureAction(chatID int64, action string) error {
@@ -240,6 +256,18 @@ func DeleteCaptchaAttempt(userID, chatID int64) error {
 		return result.Error
 	}
 	return nil
+}
+
+// DeleteCaptchaAttemptAtomic deletes an attempt and returns whether it was deleted.
+// This is used to prevent race conditions between timeout and success handlers.
+// Returns true if a row was deleted, false if no row existed.
+func DeleteCaptchaAttemptAtomic(userID, chatID int64) (bool, error) {
+	result := DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&CaptchaAttempts{})
+	if result.Error != nil {
+		log.Errorf("[Database][DeleteCaptchaAttemptAtomic]: %v", result.Error)
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
 }
 
 // CleanupExpiredCaptchaAttempts removes all expired captcha attempts from the database.
@@ -393,11 +421,11 @@ func CountStoredMessagesForAttempt(attemptID uint) (int64, error) {
 	return count, nil
 }
 
-// GetExpiredCaptchaAttempts returns all expired captcha attempts with valid message IDs.
+// GetExpiredCaptchaAttempts returns all expired captcha attempts.
 // Used for cleanup to delete Telegram messages before DB cleanup.
 func GetExpiredCaptchaAttempts() ([]*CaptchaAttempts, error) {
 	var attempts []*CaptchaAttempts
-	err := DB.Where("expires_at < ? AND message_id > 0", time.Now()).Find(&attempts).Error
+	err := DB.Where("expires_at < ?", time.Now()).Find(&attempts).Error
 	if err != nil {
 		log.Errorf("[Database][GetExpiredCaptchaAttempts]: %v", err)
 		return nil, err
@@ -429,4 +457,31 @@ func DeleteCaptchaAttemptsByIDs(ids []uint) (int64, error) {
 		return 0, result.Error
 	}
 	return result.RowsAffected, nil
+}
+
+// CreateMutedUser stores a user who failed captcha and should be unmuted later
+func CreateMutedUser(userID, chatID int64, unmuteAt time.Time) error {
+	return DB.Create(&CaptchaMutedUsers{
+		UserID:   userID,
+		ChatID:   chatID,
+		UnmuteAt: unmuteAt,
+	}).Error
+}
+
+// GetUsersToUnmute returns users whose unmute time has passed
+func GetUsersToUnmute() ([]*CaptchaMutedUsers, error) {
+	var users []*CaptchaMutedUsers
+	err := DB.Where("unmute_at < ?", time.Now()).Find(&users).Error
+	return users, err
+}
+
+// DeleteMutedUser removes a user from the muted users table
+func DeleteMutedUser(id uint) error {
+	return DB.Delete(&CaptchaMutedUsers{}, id).Error
+}
+
+// DeleteMutedUsersByIDs removes multiple users by their IDs
+func DeleteMutedUsersByIDs(ids []uint) (int64, error) {
+	result := DB.Delete(&CaptchaMutedUsers{}, ids)
+	return result.RowsAffected, result.Error
 }
