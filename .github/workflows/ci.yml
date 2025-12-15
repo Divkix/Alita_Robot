@@ -77,7 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [oldstable, stable]
+        go-version: [stable]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
