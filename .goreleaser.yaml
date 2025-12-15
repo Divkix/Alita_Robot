@@ -73,42 +73,25 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
-dockers:
-  - goarch: amd64
-    dockerfile: docker/goreleaser
-    use: buildx
-    image_templates:
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
+dockers_v2:
+  - dockerfile: docker/goreleaser
+    images:
+      - "ghcr.io/divkix/{{ .ProjectName }}"
+    tags:
+      - "{{ .Tag }}"
+      - "{{ .Version }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "https://github.com/divkix/Alita_Robot"
+      "org.opencontainers.image.description": "Official Alita Go Robot Docker Image"
+      "org.opencontainers.image.vendor": "Divkix"
+      "org.opencontainers.image.authors": "Divanshu Chauhan <divkix@divkix.me>"
     extra_files:
       - migrations
-  - goarch: arm64
-    dockerfile: docker/goreleaser
-    use: buildx
-    image_templates:
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    extra_files:
-      - migrations
-
-docker_manifests:
-  - name_template: "ghcr.io/divkix/{{ .ProjectName }}:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"
-  - name_template: "ghcr.io/divkix/{{ .ProjectName }}:latest"
-    image_templates:
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-amd64"
-      - "ghcr.io/divkix/{{ .ProjectName }}:{{ .Tag }}-arm64v8"

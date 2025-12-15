@@ -1,14 +1,7 @@
 FROM gcr.io/distroless/static-debian12
+ARG TARGETPLATFORM
 WORKDIR /app
-COPY alita_robot /app/
+COPY $TARGETPLATFORM/alita_robot /app/
 COPY migrations /app/migrations
 EXPOSE 8080
 ENTRYPOINT ["/app/alita_robot"]
-
-# Metadata
-LABEL org.opencontainers.image.authors="Divanshu Chauhan <divkix@divkix.me>"
-LABEL org.opencontainers.image.url="https://divkix.me"
-LABEL org.opencontainers.image.source="https://github.com/divkix/Alita_Robot"
-LABEL org.opencontainers.image.title="Alita Go Robot"
-LABEL org.opencontainers.image.description="Official Alita Go Robot Docker Image"
-LABEL org.opencontainers.image.vendor="Divkix"
