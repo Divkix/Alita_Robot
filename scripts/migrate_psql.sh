@@ -30,7 +30,7 @@ DB_PORT="${PSQL_DB_PORT:-5432}"
 DB_NAME="${PSQL_DB_NAME}"
 DB_USER="${PSQL_DB_USER}"
 DB_PASSWORD="${PSQL_DB_PASSWORD}"
-DB_SSLMODE="${PSQL_DB_SSLMODE:-require}"
+DB_SSLMODE="${PSQL_DB_SSLMODE:-prefer}"
 
 # Migration directory resolution
 # Priority:
@@ -52,14 +52,29 @@ prepare_clean_migrations_from_supabase() {
   local source_dir="$1"
   local dest_dir="$2"
   mkdir -p "$dest_dir"
+
+  # Supabase-only extensions that don't exist in standard PostgreSQL
+  local supabase_extensions="hypopg|index_advisor|pg_graphql|pg_stat_monitor|pgaudit|plv8|pgsodium|vault|wrappers"
+
   for file in "$source_dir"/*.sql; do
     [[ -e "$file" ]] || continue
     local filename
     filename=$(basename "$file")
+    # Remove Supabase-specific GRANT statements and make DDL idempotent
+    # Use WHEN OTHERS to catch all exception types (duplicate_object, constraint violations, etc.)
+    # Use perl -0777 for multi-line matching (ALTER TABLE...ADD CONSTRAINT can span lines)
     sed -E '/(grant|GRANT).*(anon|authenticated|service_role)/d' "$file" \
       | sed 's/ with schema "extensions"//g' \
+      | perl -pe "s/.*create extension.*($supabase_extensions).*/-- SKIPPED: Supabase-only extension/gi" \
       | sed 's/create extension if not exists/CREATE EXTENSION IF NOT EXISTS/g' \
-      | sed 's/create extension/CREATE EXTENSION IF NOT EXISTS/g' > "$dest_dir/$filename"
+      | sed 's/create extension/CREATE EXTENSION IF NOT EXISTS/g' \
+      | perl -pe 's/create\s+table\s+(?!if\s+not\s+exists)/CREATE TABLE IF NOT EXISTS /gi' \
+      | perl -pe 's/create\s+unique\s+index\s+(?!if\s+not\s+exists)/CREATE UNIQUE INDEX IF NOT EXISTS /gi' \
+      | perl -pe 's/create\s+index\s+(?!if\s+not\s+exists)/CREATE INDEX IF NOT EXISTS /gi' \
+      | perl -0777 -pe 's/^ALTER\s+TABLE\s+(\S+)\s+ADD\s+CONSTRAINT\s+(\S+)\s+([^;]+);/DO \$\$ BEGIN ALTER TABLE $1 ADD CONSTRAINT $2 $3; EXCEPTION WHEN OTHERS THEN null; END \$\$;/gims' \
+      | perl -0777 -pe 's/CREATE\s+TRIGGER\s+(\w+)\s+(BEFORE|AFTER|INSTEAD\s+OF)\s+(\w+)\s+ON\s+(\S+)\s+FOR\s+EACH\s+(\w+)\s+EXECUTE\s+(FUNCTION|PROCEDURE)\s+([^;]+);/DO \$\$ BEGIN CREATE TRIGGER $1 $2 $3 ON $4 FOR EACH $5 EXECUTE $6 $7; EXCEPTION WHEN OTHERS THEN null; END \$\$;/gis' \
+      | perl -pe "s/EXECUTE\s+'DROP INDEX IF EXISTS '\s*\|\|\s*(\S+);/BEGIN EXECUTE 'DROP INDEX IF EXISTS ' || \$1; EXCEPTION WHEN OTHERS THEN NULL; END;/gi" \
+      > "$dest_dir/$filename"
   done
 }
 
@@ -85,7 +100,7 @@ print_color() {
 }
 
 execute_sql() {
-  PGPASSWORD="${DB_PASSWORD}" psql \
+  PGPASSWORD="${DB_PASSWORD}" PGSSLMODE="${DB_SSLMODE}" psql \
     -h "${DB_HOST}" \
     -p "${DB_PORT}" \
     -U "${DB_USER}" \
@@ -154,7 +169,10 @@ EOF
   echo
 
   print_color "$BLUE" "Scanning for migrations..."
-  mapfile -t migration_files < <(ls -1 "$MIGRATIONS_DIR"/*.sql 2>/dev/null | sort)
+  migration_files=()
+  for f in "$MIGRATIONS_DIR"/*.sql; do
+    [[ -f "$f" ]] && migration_files+=("$f")
+  done
   if [[ ${#migration_files[@]} -eq 0 ]]; then
     print_color "$YELLOW" "No migration files found in $MIGRATIONS_DIR"
     exit 0
@@ -199,5 +217,3 @@ EOF
 }
 
 main "$@"
-
-

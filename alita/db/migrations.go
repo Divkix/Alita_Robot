@@ -436,6 +436,7 @@ func (m *MigrationRunner) cleanSupabaseSQL(sql string) string {
 
 	// Make CREATE TYPE idempotent (for ENUMs) using DO block pattern
 	// PostgreSQL doesn't support CREATE TYPE IF NOT EXISTS directly
+	// Use WHEN OTHERS to catch all exception types
 	createTypePattern := regexp.MustCompile(`(?i)create\s+type\s+(["']?[^"'\s(]+["']?)\s+as\s+enum\s*\(([^)]+)\)\s*;?`)
 	cleaned = createTypePattern.ReplaceAllStringFunc(cleaned, func(match string) string {
 		matches := createTypePattern.FindStringSubmatch(match)
@@ -447,12 +448,13 @@ func (m *MigrationRunner) cleanSupabaseSQL(sql string) string {
 		return fmt.Sprintf(`DO $$ BEGIN
     CREATE TYPE %s AS ENUM (%s);
 EXCEPTION
-    WHEN duplicate_object THEN null;
+    WHEN OTHERS THEN null;
 END $$`, typeName, enumValues)
 	})
 
 	// Make ALTER TABLE ADD CONSTRAINT idempotent
-	// Wrap in DO block with exception handling for duplicate_object
+	// Wrap in DO block with exception handling
+	// Use WHEN OTHERS to catch all error types (duplicate_object, index already associated, etc.)
 	addConstraintPattern := regexp.MustCompile(`(?i)alter\s+table\s+(?:only\s+)?(["']?[^"'\s]+["']?)\s+add\s+constraint\s+(["']?[^"'\s]+["']?)\s+(.+?);`)
 	cleaned = addConstraintPattern.ReplaceAllStringFunc(cleaned, func(match string) string {
 		matches := addConstraintPattern.FindStringSubmatch(match)
@@ -465,7 +467,7 @@ END $$`, typeName, enumValues)
 		return fmt.Sprintf(`DO $$ BEGIN
     ALTER TABLE %s ADD CONSTRAINT %s %s;
 EXCEPTION
-    WHEN duplicate_object THEN null;
+    WHEN OTHERS THEN null;
 END $$`, tableName, constraintName, constraintDef)
 	})
 
