@@ -1005,6 +1005,31 @@ common_anonymous_ban_error: This command cannot be used on anonymous user, these
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
 common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 
+# Common action verbs (for dynamic error messages)
+common_action_ban: "ban"
+common_action_kick: "kick"
+common_action_mute: "mute"
+common_action_warn: "warn"
+common_action_promote: "promote"
+common_action_demote: "demote"
+common_action_restrict: "restrict"
+
+# Time units for duration formatting
+common_time_minute: "minute"
+common_time_minutes: "minutes"
+common_time_hour: "hour"
+common_time_hours: "hours"
+common_time_day: "day"
+common_time_days: "days"
+common_time_week: "week"
+common_time_weeks: "weeks"
+
+# Status indicators (for replacing %t boolean formatters)
+common_status_enabled: "Enabled"
+common_status_disabled: "Disabled"
+common_status_on: "On"
+common_status_off: "Off"
+
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nNote: These values are cached and may not be up-to-date"
 admin_adminlist_note_fresh: "\n\nNote: These are up-to-date values"
@@ -1108,8 +1133,6 @@ pins_cleanlinked_current_disabled: Linked channel post deletion is currently <b>
 pins_no_pinned_message: No message has been pinned in the current chat!
 pins_here_is_pinned: <a href='%s'>Here</a> is the pinned message.
 pins_pinned_message_button: Pinned Message
-pins_yes_button: Yes
-pins_no_button: No
 pins_input_not_recognized: "Your input was not recognised as one of: yes/no/on/off"
 
 # Purges module strings
@@ -1188,16 +1211,12 @@ misc_provide_text_translate: Please provide some text to translate.
 misc_detected_translation: "<b>Detected Language:</b> <code>%s</code>\n<b>Translation:</b> <code>%s</code>"
 misc_removing_keyboard: Removing the stuck bot keyboard...
 misc_total_messages: "Total Messages in %s are: %d"
-misc_user_not_found: Could not find the any information about this user.
 misc_channel_info_header: "<b>Channel Info:</b>\n\nID: <code>%d</code>\n\nChannel Name: %s"
 misc_username: "Username: @%s"
 misc_channel_link: "Channel link: @%s"
 misc_user_info_header: "<b>User Info:</b>\n\nID: <code>%d</code>\n\nName: %s"
 misc_owner_info: He is my owner!
 misc_dev_info: He is one of my dev users!
-misc_translate_need_text: I need some text and a language code to translate.
-misc_translate_no_text: The replied message does not contain any text to translate.
-misc_translate_provide_text: Please provide some text to translate.
 misc_translate_read_error: Reading Error
 misc_translate_result: "<b>Detected Language:</b> <code>%s</code>\n\n<b>Translation:</b> <code>%s</code>"
 
@@ -1219,64 +1238,16 @@ devs_dev_users_header: "<b>Dev Users:</b>"
 devs_sudo_users_header: "<b>Sudo Users:</b>"
 devs_no_users_in_category: "No Users"
 devs_fetching_stats: "<code>Fetching bot stats...</code>"
-devs_getting_chat_list: Getting list of chats I'm in...
-devs_chat_list_caption: Here is the list of chats in my Database!
-devs_no_team_users: No users are added in Team!
-devs_no_users: "No Users"
 
 # Additional hardcoded strings from modules
-admin_anonymous_user_error: This command cannot be used on anonymous user.
-admin_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
-
 bans_anonymous_ban_only_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
-bans_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
-bans_user_not_in_chat: This user is not in this chat, how can I restrict them?
-bans_dkick_reply_error: Reply to a user's message to delete and kick him!
-bans_anonymous_ban_message: "Banned user: %s"
-bans_anonymous_ban_reply_required: You can only ban an anonymous user by replying to their message.
-bans_anonymous_unban_message: "Unbanned user: %s"
-bans_anonymous_unban_reply_required: You can only unban an anonymous user by replying to their message.
-bans_restrict_action_kick: "Admin %s kicked %s from this chat!"
-bans_restrict_action_mute: "Admin %s muted %s in chat!"
-bans_restrict_action_ban: "Admin %s banned %s from this chat!"
-bans_unrestrict_action_unmute: "Unmuted by %s!"
-bans_unrestrict_action_unban: "Unbanned by %s !"
 
-mutes_anonymous_user_error: This command cannot be used on anonymous user.
-mutes_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
-mutes_user_not_in_chat: This user is not in this chat, how can I restrict them?
-mutes_tmute_success: "Shh...\nMuted {user} for {time}"
-mutes_tmute_reason: "\n<b>Reason: </b>{reason}"
-mutes_mute_success: "Shh...\nMuted {user}."
-mutes_mute_reason: "\n<b>Reason: </b>{reason}"
-mutes_unmute_success: "Alright!\nI'll allow {user} to speak again."
-
-warns_anonymous_user_error: This command cannot be used on anonymous user.
-warns_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
-warns_limit_reached_kick: "That's {current}/{limit} warnings; So {user} has been kicked!"
-warns_limit_reached_mute: "That's {current}/{limit} warnings; So {user} has been Muted!"
-warns_limit_reached_ban: "That's {current}/{limit} warnings; So {user} has been banned!"
-warns_current_count: "User {user} has {current}/{limit} warnings; be careful!"
-warns_reason_display: "\n<b>Reason</b>:\n{reason}"
-warns_settings_current: "The group has the following settings:\n<b>Warn Limit:</b> <code>{limit}</code>\n<b>Warn Mode:</b> <code>{mode}</code>"
-warns_user_has_warnings: "This user has {current}/{limit} warnings, for the following reasons:"
-warns_user_no_reasons: "User has {current}/{limit} warnings, but no reasons for any of them."
-warns_user_clean: "This user hasn't got any warnings!"
-warns_removed_success: "Warn removed by {admin}."
-warns_no_warns_existing: "User already has no warns!"
-warns_limit_help: "Please specify how many warns a user should be allowed to receive before being acted upon. Eg. `/setwarnlimit 5`"
-warns_limit_range: "The warn limit has to be set between 1 and 100."
-warns_limit_set_success: "Warn limit settings for this chat have been updated to {limit}."
-warns_reset_individual_success: "Warnings have been reset!"
-warns_no_warned_users: "No users are warned in this chat!"
-warns_reset_all_confirmation: "Are you sure you want to remove all the warns of all the users in this chat?"
-warns_reset_all_done: "Removed all warns of all the users in this chat !"
 
 # Greetings module strings
 greetings_welcome_status: |
-  I am currently welcoming users: <code>%t</code>
-  I am currently deleting old welcomes: <code>%t</code>
-  I am currently deleting service messages: <code>%t</code>
+  I am currently welcoming users: <code>%s</code>
+  I am currently deleting old welcomes: <code>%s</code>
+  I am currently deleting service messages: <code>%s</code>
   The welcome message not filling the {} is:
 greetings_welcome_enabled: "I'll welcome users from now on."
 greetings_welcome_disabled: "I'll not welcome users from now on."
@@ -1284,9 +1255,9 @@ greetings_welcome_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 greetings_welcome_set_success: "Successfully set custom welcome message!"
 greetings_welcome_reset_success: "Successfully reset custom welcome message to default!"
 greetings_goodbye_status: |
-  I am currently goodbying users: <code>%t</code>
-  I am currently deleting old goodbyes: <code>%t</code>
-  I am currently deleting service messages: <code>%t</code>
+  I am currently goodbying users: <code>%s</code>
+  I am currently deleting old goodbyes: <code>%s</code>
+  I am currently deleting service messages: <code>%s</code>
   The goodbye message not filling the {} is:
 greetings_goodbye_enabled: "I'll goodbye users from now on."
 greetings_goodbye_disabled: "I'll not goodbye users from now on."
@@ -1310,9 +1281,9 @@ greetings_clean_service_enable: "I'll try to delete joined messages!"
 greetings_clean_service_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 greetings_captcha_verified_success: "✅ %s has been verified and can now chat!"
 greetings_join_request_new: "A new user has requested to join chat!"
-greetings_join_request_approve_btn: "✅ Approve"
-greetings_join_request_decline_btn: "❌ Decline"
-greetings_join_request_ban_btn: "✅ Ban"
+greetings_join_request_approve_button: "✅ Approve"
+greetings_join_request_decline_button: "❌ Decline"
+greetings_join_request_ban_button: "✅ Ban"
 greetings_join_request_accepted: "Accepted %s in Chat ✅"
 greetings_join_request_declined: "Declined %s to join chat ❌"
 greetings_join_request_banned: "✅ Successfully Banned! %s"
@@ -1363,8 +1334,6 @@ captcha_math_time_remaining: |
 notes_save_success: "Saved Note <b>%s</b>!\nGet it with <code>#%s</code> or <code>/get %s</code>."
 notes_keyword_required: "Please give a keyword to reply to!"
 notes_overwrite_confirm: "Note already exists!\nDo you want to overwrite it?"
-notes_overwrite_yes: "Yes"
-notes_overwrite_no: "No"
 notes_remove_keyword_required: "Please give a keyword to remove!"
 notes_not_exists: "Note does not exists!"
 notes_removed_success: "Removed note <b>%s</b>."
@@ -1380,8 +1349,6 @@ notes_click_me_btn: "Click Me!"
 notes_current_in_chat: "These are the current notes in this Chat:\n"
 notes_get_instruction: "\nYou can get a note by <code>#notename</code> or <code>/get notename</code>"
 notes_clear_all_confirm: "Are you sure you want to remove all Notes from this chat?"
-notes_clear_all_yes: "Yes"
-notes_clear_all_no: "No"
 notes_creator_only: "Only Chat Creator can use this command."
 notes_overwrite_cancelled: "Cancelled overwriting of note ❌"
 notes_overwrite_success: "Note has been overwritten successfully ✅"
@@ -1402,8 +1369,6 @@ filters_limit_exceeded: |
   This limitation is due to bot running free without any donations by users.
 filters_keyword_required: "Please give a keyword to reply to!"
 filters_overwrite_confirm: "Filter already exists!\nDo you want to overwrite it?"
-filters_overwrite_yes: "Yes"
-filters_overwrite_no: "No"
 filters_added_success: "Added reply for filter word <code>%s</code>"
 filters_remove_keyword_required: "Please give a filter word to remove!"
 filters_not_exists: "Filter does not exist!"
@@ -1411,8 +1376,6 @@ filters_removed_success: "Ok!\nI will no longer reply to <code>%s</code>"
 filters_none_in_chat: "There are no filters in this chat!"
 filters_current_in_chat: "These are the current filters in this Chat:"
 filters_clear_all_confirm: "Are you sure you want to remove all Filters from this chat?"
-filters_clear_all_yes: "Yes"
-filters_clear_all_no: "No"
 filters_clear_all_success: "Removed all Filters from this Chat ✅"
 filters_clear_all_cancelled: "Cancelled removing all Filters from this Chat ❌"
 filters_overwrite_success: "Filter has been overwritten successfully ✅"
@@ -1723,11 +1686,6 @@ antiflood_button_unban_admins: "Unban (Admins Only)"
 helpers_notes_current_header: "These are the current notes in this Chat:\n"
 
 # Validation errors
-validation_filter_no_content: "You need to give the filter some content!"
-validation_note_no_content: "You need to give the note some content!"
-validation_greeting_no_content: "You need to give me some content to %s users!"
-validation_text_too_long: "Your message text is %d characters long. The maximum length for text is 4096; please trim it to a smaller size. Note that markdown characters may take more space than expected."
-validation_caption_too_long: "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 
 # Configuration errors
 config_bot_token_required: "BOT_TOKEN is required"
