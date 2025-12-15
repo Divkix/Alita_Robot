@@ -87,7 +87,7 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     extra_files:
-      - supabase
+      - migrations
   - goarch: arm64
     dockerfile: docker/goreleaser
     use: buildx
@@ -101,7 +101,7 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     extra_files:
-      - supabase
+      - migrations
 
 docker_manifests:
   - name_template: "ghcr.io/divkix/{{ .ProjectName }}:{{ .Version }}"

@@ -7,7 +7,7 @@ GOLANGCI_LINT_CMD = golangci-lint
 # PostgreSQL Migration Variables
 PSQL_SCRIPT = scripts/migrate_psql.sh
 PSQL_MIGRATIONS_DIR ?= tmp/migrations_cleaned
-SUPABASE_MIGRATIONS_DIR ?= supabase/migrations
+MIGRATIONS_DIR ?= migrations
 
 run:
 	$(GO_CMD) run main.go
@@ -31,9 +31,9 @@ check-translations:
 
 # PostgreSQL Migration Targets
 psql-prepare:
-	@echo "🔧 Preparing PostgreSQL migrations (cleaning Supabase SQL)..."
+	@echo "🔧 Preparing PostgreSQL migrations (cleaning SQL)..."
 	@mkdir -p $(PSQL_MIGRATIONS_DIR)
-	@for file in $(SUPABASE_MIGRATIONS_DIR)/*.sql; do \
+	@for file in $(MIGRATIONS_DIR)/*.sql; do \
 		filename=$$(basename "$$file"); \
 		echo "  Processing $$filename..."; \
 		sed -E '/(grant|GRANT).*(anon|authenticated|service_role)/d' "$$file" | \
@@ -91,4 +91,4 @@ psql-verify:
 	@TMP=$$(mktemp -d); \
 	echo "Using temp dir: $$TMP"; \
 	$(MAKE) --no-print-directory psql-prepare PSQL_MIGRATIONS_DIR="$$TMP"; \
-	git diff --no-index --exit-code $(PSQL_MIGRATIONS_DIR) "$$TMP" || (echo "❌ Drift detected between supabase/migrations and $(PSQL_MIGRATIONS_DIR)" && exit 1)
+	git diff --no-index --exit-code $(PSQL_MIGRATIONS_DIR) "$$TMP" || (echo "❌ Drift detected between migrations and $(PSQL_MIGRATIONS_DIR)" && exit 1)

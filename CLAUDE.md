@@ -24,7 +24,7 @@ make tidy         # Clean up and download go.mod dependencies
 ### PostgreSQL Migration Commands
 
 ```bash
-make psql-migrate  # Apply all pending PostgreSQL migrations (auto-cleans Supabase SQL)
+make psql-migrate  # Apply all pending PostgreSQL migrations
 make psql-status   # Check current migration status
 make psql-reset    # Reset database - DANGEROUS: drops and recreates all tables
 ```
@@ -32,13 +32,13 @@ make psql-reset    # Reset database - DANGEROUS: drops and recreates all tables
 ### Automatic Database Migrations
 
 The bot now supports automatic database migrations on startup. This feature
-eliminates the need to manually run `make psql-migrate` or `supabase up`.
+eliminates the need to manually run `make psql-migrate`.
 
 #### How It Works
 
-1. **Migration Files**: SQL migrations are stored in `supabase/migrations/`
+1. **Migration Files**: SQL migrations are stored in `migrations/`
 2. **Auto-Cleaning**: Supabase-specific SQL (GRANT statements, RLS policies) is
-   automatically removed
+   automatically removed if present
 3. **Version Tracking**: Applied migrations are tracked in `schema_migrations`
    table
 4. **Idempotent**: Migrations are only applied once, safe to run multiple times
@@ -55,26 +55,25 @@ AUTO_MIGRATE=true
 # Optional: Continue running even if migrations fail (not recommended for production)
 AUTO_MIGRATE_SILENT_FAIL=false
 
-# Optional: Custom migration directory (defaults to supabase/migrations)
-MIGRATIONS_PATH=supabase/migrations
+# Optional: Custom migration directory (defaults to migrations)
+MIGRATIONS_PATH=migrations
 ```
 
 #### Migration Process
 
 When `AUTO_MIGRATE=true`, the bot will:
 
-1. Check for pending migrations in `supabase/migrations/`
-2. Clean Supabase-specific SQL commands automatically
+1. Check for pending migrations in `migrations/`
+2. Clean Supabase-specific SQL commands automatically if present
 3. Apply migrations in alphabetical order
 4. Track applied migrations in `schema_migrations` table
 5. Log migration status and any errors
 
-#### Manual Migration (Previous Method)
+#### Manual Migration
 
 If you prefer manual control, keep `AUTO_MIGRATE=false` (default) and use:
 
 - `make psql-migrate` - For any PostgreSQL instance
-- `supabase up` - For Supabase instances
 
 ## High-Level Architecture
 
@@ -238,9 +237,9 @@ ENABLE_AUTO_CLEANUP        # Auto-mark inactive chats (default: true)
 
 ### 5. Migration System
 
-- Supabase migrations are source of truth
-- Auto-cleaning removes Supabase-specific SQL at runtime
-- Applied to any PostgreSQL instance via `make psql-migrate`
+- SQL migrations in `migrations/` are the source of truth
+- Auto-cleaning removes Supabase-specific SQL at runtime if present
+- Applied to any PostgreSQL instance via `make psql-migrate` or `AUTO_MIGRATE=true`
 
 ## Testing Approach
 

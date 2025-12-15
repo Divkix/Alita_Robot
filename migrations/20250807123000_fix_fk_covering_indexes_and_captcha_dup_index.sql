@@ -56,9 +56,7 @@ COMMIT;
 -- SELECT indexname FROM pg_indexes WHERE tablename = 'captcha_settings';
 --
 -- 2) Confirm covering indexes exist
--- SELECT tablename, indexname FROM pg_indexes 
---  WHERE schemaname = 'public' 
+-- SELECT tablename, indexname FROM pg_indexes
+--  WHERE schemaname = 'public'
 --    AND indexname IN ('idx_channels_channel_id','idx_chat_users_user_id','idx_connection_chat_id')
 --  ORDER BY tablename, indexname;
-
-

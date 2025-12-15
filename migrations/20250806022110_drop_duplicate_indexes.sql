@@ -55,128 +55,128 @@ DROP INDEX IF EXISTS idx_users_user_id;
 -- STEP 4: Recreate Foreign Keys using uk_chats_chat_id
 -- =====================================================
 
-ALTER TABLE admin 
-ADD CONSTRAINT fk_admin_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE admin
+ADD CONSTRAINT fk_admin_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE antiflood_settings 
-ADD CONSTRAINT fk_antiflood_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE antiflood_settings
+ADD CONSTRAINT fk_antiflood_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE blacklists 
-ADD CONSTRAINT fk_blacklists_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE blacklists
+ADD CONSTRAINT fk_blacklists_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE channels 
-ADD CONSTRAINT fk_channels_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE channels
+ADD CONSTRAINT fk_channels_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE channels 
-ADD CONSTRAINT fk_channels_channel 
-FOREIGN KEY (channel_id) REFERENCES chats(chat_id) 
+ALTER TABLE channels
+ADD CONSTRAINT fk_channels_channel
+FOREIGN KEY (channel_id) REFERENCES chats(chat_id)
 ON DELETE SET NULL ON UPDATE CASCADE;
 
-ALTER TABLE connection_settings 
-ADD CONSTRAINT fk_connection_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE connection_settings
+ADD CONSTRAINT fk_connection_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE disable 
-ADD CONSTRAINT fk_disable_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE disable
+ADD CONSTRAINT fk_disable_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE filters 
-ADD CONSTRAINT fk_filters_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE filters
+ADD CONSTRAINT fk_filters_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE greetings 
-ADD CONSTRAINT fk_greetings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE greetings
+ADD CONSTRAINT fk_greetings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE locks 
-ADD CONSTRAINT fk_locks_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE locks
+ADD CONSTRAINT fk_locks_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE notes 
-ADD CONSTRAINT fk_notes_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE notes
+ADD CONSTRAINT fk_notes_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE notes_settings 
-ADD CONSTRAINT fk_notes_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE notes_settings
+ADD CONSTRAINT fk_notes_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE pins 
-ADD CONSTRAINT fk_pins_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE pins
+ADD CONSTRAINT fk_pins_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE report_chat_settings 
-ADD CONSTRAINT fk_report_chat_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE report_chat_settings
+ADD CONSTRAINT fk_report_chat_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE rules 
-ADD CONSTRAINT fk_rules_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE rules
+ADD CONSTRAINT fk_rules_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE warns_settings 
-ADD CONSTRAINT fk_warns_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE warns_settings
+ADD CONSTRAINT fk_warns_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE chat_users 
-ADD CONSTRAINT fk_chat_users_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE chat_users
+ADD CONSTRAINT fk_chat_users_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE connection 
-ADD CONSTRAINT fk_connection_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE connection
+ADD CONSTRAINT fk_connection_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE warns_users 
-ADD CONSTRAINT fk_warns_users_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE warns_users
+ADD CONSTRAINT fk_warns_users_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- =====================================================
 -- STEP 5: Recreate Foreign Keys using uk_users_user_id
 -- =====================================================
 
-ALTER TABLE devs 
-ADD CONSTRAINT fk_devs_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE devs
+ADD CONSTRAINT fk_devs_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE report_user_settings 
-ADD CONSTRAINT fk_report_user_settings_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE report_user_settings
+ADD CONSTRAINT fk_report_user_settings_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE chat_users 
-ADD CONSTRAINT fk_chat_users_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE chat_users
+ADD CONSTRAINT fk_chat_users_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE connection 
-ADD CONSTRAINT fk_connection_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE connection
+ADD CONSTRAINT fk_connection_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE warns_users 
-ADD CONSTRAINT fk_warns_users_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE warns_users
+ADD CONSTRAINT fk_warns_users_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- =====================================================
@@ -236,7 +236,7 @@ COMMIT;
 -- =====================================================
 -- After running this migration, you can verify the indexes with:
 /*
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
@@ -247,12 +247,12 @@ WHERE tablename IN ('chats', 'users')
 ORDER BY tablename, indexname;
 
 -- Verify foreign keys are using the correct constraints:
-SELECT 
+SELECT
     conname AS constraint_name,
     conrelid::regclass AS table_name,
     confrelid::regclass AS referenced_table
 FROM pg_constraint
-WHERE contype = 'f' 
+WHERE contype = 'f'
     AND (confrelid = 'chats'::regclass OR confrelid = 'users'::regclass)
 ORDER BY conrelid::regclass::text, conname;
 */

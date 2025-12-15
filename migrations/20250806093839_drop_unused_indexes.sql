@@ -124,7 +124,7 @@ COMMIT;
 /*
 -- Verify indexes have been dropped
 SELECT COUNT(*) as dropped_index_count
-FROM pg_indexes 
+FROM pg_indexes
 WHERE indexname IN (
     'idx_blacklist_chat_word',
     'idx_connection_user_chat',
@@ -141,18 +141,18 @@ WHERE indexname IN (
 -- Should return 0
 
 -- Check remaining indexes on affected tables
-SELECT 
+SELECT
     tablename,
     indexname,
     indexdef
 FROM pg_indexes
-WHERE tablename IN ('blacklists', 'connection', 'disable', 'filters', 
+WHERE tablename IN ('blacklists', 'connection', 'disable', 'filters',
                     'locks', 'notes', 'warns_users', 'chat_users')
   AND schemaname = 'public'
 ORDER BY tablename, indexname;
 
 -- Monitor index usage after migration (run after a few days)
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,

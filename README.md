@@ -559,9 +559,9 @@ Alita_Robot/
 
 5. **Run Database Migrations**
 
-   Supabase is the source of truth for schema files (`supabase/migrations`).
-   Migrations are applied to any PostgreSQL by auto-cleaning Supabase-specific
-   statements at runtime.
+   SQL files in `migrations/` are the source of truth for schema.
+   Migrations are applied to any PostgreSQL instance, with Supabase-specific
+   statements auto-cleaned at runtime if present.
 
    - Required environment variables for migrations:
      - `PSQL_DB_HOST`, `PSQL_DB_NAME`, `PSQL_DB_USER`, `PSQL_DB_PASSWORD`

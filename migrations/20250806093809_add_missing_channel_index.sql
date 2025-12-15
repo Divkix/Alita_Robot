@@ -50,11 +50,11 @@ DROP INDEX IF EXISTS idx_channels_channel_id;
 -- =====================================================
 -- After running this migration, verify with:
 /*
-SELECT 
-    indexname, 
+SELECT
+    indexname,
     indexdef,
     tablename
-FROM pg_indexes 
-WHERE tablename = 'channels' 
+FROM pg_indexes
+WHERE tablename = 'channels'
   AND indexname = 'idx_channels_channel_id';
 */

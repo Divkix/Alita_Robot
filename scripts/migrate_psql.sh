@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # PostgreSQL Migration Script for Alita Robot (vendor-agnostic)
-# Uses supabase/migrations as source-of-truth and auto-cleans for plain PostgreSQL
+# Uses migrations/ as source-of-truth and auto-cleans for plain PostgreSQL
 
 set -e
 
@@ -36,10 +36,10 @@ DB_SSLMODE="${PSQL_DB_SSLMODE:-prefer}"
 # Priority:
 # 1) Respect MIGRATIONS_DIR if provided
 # 2) Use local migrations directory relative to this script (rare)
-# 3) Auto-clean from supabase/migrations into a temp dir
+# 3) Auto-clean from migrations/ into a temp dir
 
 DEFAULT_MIGRATIONS_DIR="$SCRIPT_DIR/migrations"
-SUPABASE_MIGRATIONS_DIR="$SCRIPT_DIR/../supabase/migrations"
+SRC_MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
 AUTO_TEMP_DIR=""
 
 cleanup_temp_dir() {
@@ -82,15 +82,15 @@ if [[ -n "$MIGRATIONS_DIR" ]]; then
   :
 elif [[ -d "$DEFAULT_MIGRATIONS_DIR" ]]; then
   MIGRATIONS_DIR="$DEFAULT_MIGRATIONS_DIR"
-elif [[ -d "$SUPABASE_MIGRATIONS_DIR" ]]; then
+elif [[ -d "$SRC_MIGRATIONS_DIR" ]]; then
   AUTO_TEMP_DIR=$(mktemp -d "$SCRIPT_DIR/migrations_tmp_XXXXXX")
   trap cleanup_temp_dir EXIT
-  echo -e "${BLUE}No local migrations found. Auto-preparing from supabase/migrations...${NC}"
-  prepare_clean_migrations_from_supabase "$SUPABASE_MIGRATIONS_DIR" "$AUTO_TEMP_DIR"
+  echo -e "${BLUE}No local migrations found. Auto-preparing from migrations/...${NC}"
+  prepare_clean_migrations_from_supabase "$SRC_MIGRATIONS_DIR" "$AUTO_TEMP_DIR"
   MIGRATIONS_DIR="$AUTO_TEMP_DIR"
 else
   echo -e "${RED}Error: Could not locate migrations.${NC}"
-  echo -e "${YELLOW}Ensure supabase/migrations exists, or set MIGRATIONS_DIR to a directory with .sql files.${NC}"
+  echo -e "${YELLOW}Ensure migrations/ exists, or set MIGRATIONS_DIR to a directory with .sql files.${NC}"
   exit 1
 fi
 
@@ -145,7 +145,7 @@ main() {
 
   if [[ ! -d "$MIGRATIONS_DIR" ]]; then
     print_color "$RED" "Error: Migrations directory not found: $MIGRATIONS_DIR"
-    print_color "$YELLOW" "Ensure supabase/migrations exists, or set MIGRATIONS_DIR to a directory with .sql files"
+    print_color "$YELLOW" "Ensure migrations/ exists, or set MIGRATIONS_DIR to a directory with .sql files"
     exit 1
   fi
 

@@ -1,7 +1,7 @@
 FROM gcr.io/distroless/static-debian12
 WORKDIR /app
 COPY alita_robot /app/
-COPY supabase /app/supabase
+COPY migrations /app/migrations
 ENTRYPOINT ["/app/alita_robot"]
 
 # Metadata

@@ -27,22 +27,22 @@ BEGIN;
 
 -- chat_users table: Index on user_id for fk_chat_users_user
 -- Required when deleting/updating users to efficiently find related chat_users
-CREATE INDEX IF NOT EXISTS idx_chat_users_user_id 
+CREATE INDEX IF NOT EXISTS idx_chat_users_user_id
 ON public.chat_users(user_id);
 
--- connection table: Index on chat_id for fk_connection_chat  
+-- connection table: Index on chat_id for fk_connection_chat
 -- Required when deleting/updating chats to efficiently find related connections
-CREATE INDEX IF NOT EXISTS idx_connection_chat_id 
+CREATE INDEX IF NOT EXISTS idx_connection_chat_id
 ON public.connection(chat_id);
 
 -- =====================================================
 -- STEP 2: Add Comments for Documentation
 -- =====================================================
 
-COMMENT ON INDEX idx_chat_users_user_id IS 
+COMMENT ON INDEX idx_chat_users_user_id IS
 'Critical index for fk_chat_users_user foreign key - enables efficient CASCADE operations when deleting/updating users';
 
-COMMENT ON INDEX idx_connection_chat_id IS 
+COMMENT ON INDEX idx_connection_chat_id IS
 'Critical index for fk_connection_chat foreign key - enables efficient CASCADE operations when deleting/updating chats';
 
 -- =====================================================
@@ -73,7 +73,7 @@ COMMIT;
 -- =====================================================
 /*
 -- Verify indexes have been created
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
@@ -84,16 +84,16 @@ WHERE schemaname = 'public'
 ORDER BY tablename, indexname;
 
 -- Check that foreign keys now have covering indexes
-SELECT 
+SELECT
     conname AS constraint_name,
     conrelid::regclass AS table_name,
     a.attname AS column_name,
     confrelid::regclass AS foreign_table_name,
     af.attname AS foreign_column_name,
     EXISTS (
-        SELECT 1 
-        FROM pg_index i 
-        WHERE i.indrelid = c.conrelid 
+        SELECT 1
+        FROM pg_index i
+        WHERE i.indrelid = c.conrelid
         AND conkey[1] = ANY(i.indkey)
     ) AS has_index
 FROM pg_constraint c

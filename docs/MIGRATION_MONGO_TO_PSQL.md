@@ -21,8 +21,8 @@ First, ensure your PostgreSQL database has the correct schema:
 
 ```bash
 # Apply the initial migration
-psql -d your_database < supabase/migrations/20250805200527_initial_migration.sql
-psql -d your_database < supabase/migrations/20250805204145_add_foreign_key_relations.sql
+psql -d your_database < migrations/20250805200527_initial_migration.sql
+psql -d your_database < migrations/20250805204145_add_foreign_key_relations.sql
 ```
 
 ### 2. Build the Migration Tool

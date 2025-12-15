@@ -81,11 +81,11 @@ DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) OR user
 -- =====================================================
 
 -- Add unique constraint on chats.chat_id
-ALTER TABLE chats 
+ALTER TABLE chats
 ADD CONSTRAINT uk_chats_chat_id UNIQUE (chat_id);
 
 -- Add unique constraint on users.user_id
-ALTER TABLE users 
+ALTER TABLE users
 ADD CONSTRAINT uk_users_user_id UNIQUE (user_id);
 
 -- =====================================================
@@ -97,99 +97,99 @@ ADD CONSTRAINT uk_users_user_id UNIQUE (user_id);
 -- -----------------------------------------------------
 
 -- Admin to Chats
-ALTER TABLE admin 
-ADD CONSTRAINT fk_admin_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE admin
+ADD CONSTRAINT fk_admin_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Antiflood Settings to Chats
-ALTER TABLE antiflood_settings 
-ADD CONSTRAINT fk_antiflood_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE antiflood_settings
+ADD CONSTRAINT fk_antiflood_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Blacklists to Chats
-ALTER TABLE blacklists 
-ADD CONSTRAINT fk_blacklists_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE blacklists
+ADD CONSTRAINT fk_blacklists_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Channels to Chats (main chat reference)
-ALTER TABLE channels 
-ADD CONSTRAINT fk_channels_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE channels
+ADD CONSTRAINT fk_channels_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Channels to Chats (linked channel reference - optional)
-ALTER TABLE channels 
-ADD CONSTRAINT fk_channels_channel 
-FOREIGN KEY (channel_id) REFERENCES chats(chat_id) 
+ALTER TABLE channels
+ADD CONSTRAINT fk_channels_channel
+FOREIGN KEY (channel_id) REFERENCES chats(chat_id)
 ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Connection Settings to Chats
-ALTER TABLE connection_settings 
-ADD CONSTRAINT fk_connection_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE connection_settings
+ADD CONSTRAINT fk_connection_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Disable to Chats
-ALTER TABLE disable 
-ADD CONSTRAINT fk_disable_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE disable
+ADD CONSTRAINT fk_disable_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Filters to Chats
-ALTER TABLE filters 
-ADD CONSTRAINT fk_filters_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE filters
+ADD CONSTRAINT fk_filters_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Greetings to Chats
-ALTER TABLE greetings 
-ADD CONSTRAINT fk_greetings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE greetings
+ADD CONSTRAINT fk_greetings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Locks to Chats
-ALTER TABLE locks 
-ADD CONSTRAINT fk_locks_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE locks
+ADD CONSTRAINT fk_locks_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Notes to Chats
-ALTER TABLE notes 
-ADD CONSTRAINT fk_notes_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE notes
+ADD CONSTRAINT fk_notes_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Notes Settings to Chats
-ALTER TABLE notes_settings 
-ADD CONSTRAINT fk_notes_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE notes_settings
+ADD CONSTRAINT fk_notes_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Pins to Chats
-ALTER TABLE pins 
-ADD CONSTRAINT fk_pins_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE pins
+ADD CONSTRAINT fk_pins_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Report Chat Settings to Chats
-ALTER TABLE report_chat_settings 
-ADD CONSTRAINT fk_report_chat_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE report_chat_settings
+ADD CONSTRAINT fk_report_chat_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Rules to Chats
-ALTER TABLE rules 
-ADD CONSTRAINT fk_rules_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE rules
+ADD CONSTRAINT fk_rules_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Warns Settings to Chats
-ALTER TABLE warns_settings 
-ADD CONSTRAINT fk_warns_settings_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE warns_settings
+ADD CONSTRAINT fk_warns_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- -----------------------------------------------------
@@ -197,15 +197,15 @@ ON DELETE CASCADE ON UPDATE CASCADE;
 -- -----------------------------------------------------
 
 -- Devs to Users
-ALTER TABLE devs 
-ADD CONSTRAINT fk_devs_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE devs
+ADD CONSTRAINT fk_devs_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Report User Settings to Users
-ALTER TABLE report_user_settings 
-ADD CONSTRAINT fk_report_user_settings_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE report_user_settings
+ADD CONSTRAINT fk_report_user_settings_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- -----------------------------------------------------
@@ -213,36 +213,36 @@ ON DELETE CASCADE ON UPDATE CASCADE;
 -- -----------------------------------------------------
 
 -- Chat Users Junction Table
-ALTER TABLE chat_users 
-ADD CONSTRAINT fk_chat_users_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE chat_users
+ADD CONSTRAINT fk_chat_users_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE chat_users 
-ADD CONSTRAINT fk_chat_users_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE chat_users
+ADD CONSTRAINT fk_chat_users_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Connection Table
-ALTER TABLE connection 
-ADD CONSTRAINT fk_connection_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE connection
+ADD CONSTRAINT fk_connection_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE connection 
-ADD CONSTRAINT fk_connection_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE connection
+ADD CONSTRAINT fk_connection_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Warns Users
-ALTER TABLE warns_users 
-ADD CONSTRAINT fk_warns_users_user 
-FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ALTER TABLE warns_users
+ADD CONSTRAINT fk_warns_users_user
+FOREIGN KEY (user_id) REFERENCES users(user_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE warns_users 
-ADD CONSTRAINT fk_warns_users_chat 
-FOREIGN KEY (chat_id) REFERENCES chats(chat_id) 
+ALTER TABLE warns_users
+ADD CONSTRAINT fk_warns_users_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- =====================================================
@@ -250,25 +250,25 @@ ON DELETE CASCADE ON UPDATE CASCADE;
 -- =====================================================
 
 -- Ensure unique combinations
-ALTER TABLE connection 
+ALTER TABLE connection
 ADD CONSTRAINT uk_connection_user_chat UNIQUE (user_id, chat_id);
 
-ALTER TABLE warns_users 
+ALTER TABLE warns_users
 ADD CONSTRAINT uk_warns_users_user_chat UNIQUE (user_id, chat_id);
 
-ALTER TABLE blacklists 
+ALTER TABLE blacklists
 ADD CONSTRAINT uk_blacklists_chat_word UNIQUE (chat_id, word);
 
-ALTER TABLE disable 
+ALTER TABLE disable
 ADD CONSTRAINT uk_disable_chat_command UNIQUE (chat_id, command);
 
-ALTER TABLE filters 
+ALTER TABLE filters
 ADD CONSTRAINT uk_filters_chat_keyword UNIQUE (chat_id, keyword);
 
-ALTER TABLE locks 
+ALTER TABLE locks
 ADD CONSTRAINT uk_locks_chat_type UNIQUE (chat_id, lock_type);
 
-ALTER TABLE notes 
+ALTER TABLE notes
 ADD CONSTRAINT uk_notes_chat_name UNIQUE (chat_id, note_name);
 
 -- =====================================================
@@ -276,30 +276,30 @@ ADD CONSTRAINT uk_notes_chat_name UNIQUE (chat_id, note_name);
 -- =====================================================
 
 -- Ensure positive numbers
-ALTER TABLE warns_settings 
+ALTER TABLE warns_settings
 ADD CONSTRAINT chk_warns_settings_limit CHECK (warn_limit > 0);
 
-ALTER TABLE antiflood_settings 
+ALTER TABLE antiflood_settings
 ADD CONSTRAINT chk_antiflood_limit CHECK (flood_limit > 0);
 
-ALTER TABLE warns_users 
+ALTER TABLE warns_users
 ADD CONSTRAINT chk_warns_users_num CHECK (num_warns >= 0);
 
 -- Ensure valid enum values
-ALTER TABLE antiflood_settings 
-ADD CONSTRAINT chk_antiflood_action 
+ALTER TABLE antiflood_settings
+ADD CONSTRAINT chk_antiflood_action
 CHECK (action IN ('mute', 'ban', 'kick', 'warn', 'tban', 'tmute'));
 
-ALTER TABLE antiflood_settings 
-ADD CONSTRAINT chk_antiflood_mode 
+ALTER TABLE antiflood_settings
+ADD CONSTRAINT chk_antiflood_mode
 CHECK (mode IN ('mute', 'ban', 'kick', 'warn', 'tban', 'tmute'));
 
-ALTER TABLE blacklists 
-ADD CONSTRAINT chk_blacklists_action 
+ALTER TABLE blacklists
+ADD CONSTRAINT chk_blacklists_action
 CHECK (action IN ('warn', 'mute', 'ban', 'kick', 'tban', 'tmute', 'delete'));
 
-ALTER TABLE warns_settings 
-ADD CONSTRAINT chk_warns_mode 
+ALTER TABLE warns_settings
+ADD CONSTRAINT chk_warns_mode
 CHECK (warn_mode IS NULL OR warn_mode IN ('ban', 'kick', 'mute', 'tban', 'tmute'));
 
 -- =====================================================

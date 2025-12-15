@@ -708,7 +708,7 @@ func init() {
 			log.Info("[Database][AutoMigrate] All migrations applied successfully")
 		}
 	} else {
-		// Note: GORM AutoMigrate is disabled because we use SQL migrations in supabase/migrations/
+		// Note: GORM AutoMigrate is disabled because we use SQL migrations in migrations/
 		// This prevents constraint naming conflicts between GORM's naming convention (uni_*)
 		// and our SQL migrations (uk_*). Database schema is managed via SQL migration files.
 		log.Info("Database schema managed via SQL migrations - skipping auto-migration (set AUTO_MIGRATE=true to enable)")

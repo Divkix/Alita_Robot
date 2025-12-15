@@ -87,7 +87,7 @@ type Config struct {
 	// Database migration settings
 	AutoMigrate           bool   // Enable automatic database migrations on startup
 	AutoMigrateSilentFail bool   // Continue running even if migrations fail
-	MigrationsPath        string // Path to migration files (defaults to supabase/migrations)
+	MigrationsPath        string // Path to migration files (defaults to migrations)
 
 	// Resource monitoring limits
 	ResourceMaxGoroutines int `validate:"min=100,max=10000"` // Maximum goroutines before triggering cleanup
@@ -525,7 +525,7 @@ func (cfg *Config) setDefaults() {
 
 	// Set database migration defaults
 	if cfg.MigrationsPath == "" {
-		cfg.MigrationsPath = "supabase/migrations"
+		cfg.MigrationsPath = "migrations"
 	}
 	// AutoMigrate defaults to false for backward compatibility
 	// AutoMigrateSilentFail defaults to false

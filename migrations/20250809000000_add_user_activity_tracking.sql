@@ -1,9 +1,9 @@
 -- Add last_activity column to track when users were last active
-ALTER TABLE users 
+ALTER TABLE users
 ADD COLUMN IF NOT EXISTS last_activity timestamp with time zone DEFAULT CURRENT_TIMESTAMP;
 
 -- Update existing records to set last_activity based on updated_at
-UPDATE users 
+UPDATE users
 SET last_activity = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP)
 WHERE last_activity IS NULL;
 

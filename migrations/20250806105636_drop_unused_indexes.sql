@@ -75,7 +75,7 @@ DROP INDEX IF EXISTS idx_chat_users_user_id;
 -- INDEXES BEING KEPT (for reference)
 -- =====================================================
 -- The following indexes ARE being used and should be kept:
--- 
+--
 -- HEAVILY USED:
 -- - uk_users_user_id: 309,275 scans (primary user lookups)
 -- - uk_chats_chat_id: 132,292 scans (primary chat lookups)
