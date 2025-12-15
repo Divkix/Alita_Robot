@@ -1050,8 +1050,8 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	args := strings.Split(query.Data, ".")
 	var helpText string
 
-	action := args[0]
-	userId, _ := strconv.Atoi(args[1])
+	action := args[1]
+	userId, _ := strconv.Atoi(args[2])
 
 	actionUser, err := b.GetChat(int64(userId), nil)
 	if err != nil {
@@ -1271,8 +1271,8 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	args := strings.Split(query.Data, ".")
 	var helpText string
 
-	action := args[0]
-	userId, _ := strconv.Atoi(args[1])
+	action := args[1]
+	userId, _ := strconv.Atoi(args[2])
 
 	switch action {
 	case "unmute":
