@@ -59,7 +59,7 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if msg.ReplyToMessage == nil {
-		text, _ := tr.GetString("bans_dkick_reply_error")
+		text, _ := tr.GetString("bans_dkick_no_reply")
 		_, _ = msg.Reply(b, text, nil)
 		return ext.EndGroups
 	}
@@ -84,7 +84,7 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -227,7 +227,7 @@ func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -453,7 +453,7 @@ func (m moduleStruct) tBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -561,7 +561,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -598,10 +598,10 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 				log.Error(err)
 				return err
 			}
-			temp, _ := tr.GetString("bans_anonymous_ban_message")
+			temp, _ := tr.GetString("bans_anonymous_ban_user")
 			text = fmt.Sprintf(temp, helpers.MentionHtml(userId, msg.ReplyToMessage.GetSender().Name()))
 		} else {
-			text, _ = tr.GetString("bans_anonymous_ban_reply_required")
+			text, _ = tr.GetString("bans_anonymous_ban_reply_only")
 		}
 		sendMsgOptns = helpers.Shtml()
 	} else {
@@ -691,7 +691,7 @@ func (m moduleStruct) sBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -774,7 +774,7 @@ func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -886,7 +886,7 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -913,10 +913,10 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 				log.Error(err)
 				return err
 			}
-			temp, _ := tr.GetString("bans_anonymous_unban_message")
+			temp, _ := tr.GetString("bans_anonymous_unban_user")
 			text = fmt.Sprintf(temp, helpers.MentionHtml(userId, msg.ReplyToMessage.GetSender().Name()))
 		} else {
-			text, _ = tr.GetString("bans_anonymous_unban_reply_required")
+			text, _ = tr.GetString("bans_anonymous_unban_reply_only")
 		}
 	} else {
 		_, err := chat.UnbanMember(b, userId, nil)
@@ -971,7 +971,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -982,7 +982,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("bans_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -1066,7 +1066,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
-		temp, _ := tr.GetString("bans_restrict_action_kick")
+		temp, _ := tr.GetString("bans_restrict_kicked")
 		helpText = fmt.Sprintf(temp,
 			helpers.MentionHtml(user.Id, user.FirstName),
 			helpers.MentionHtml(int64(userId), actionUser.FirstName),
@@ -1127,7 +1127,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
-		temp, _ := tr.GetString("bans_restrict_action_mute")
+		temp, _ := tr.GetString("bans_restrict_muted")
 		helpText = fmt.Sprintf(temp,
 			helpers.MentionHtml(user.Id, user.FirstName),
 			helpers.MentionHtml(int64(userId), actionUser.FirstName),
@@ -1138,7 +1138,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			log.Error(err)
 			return err
 		}
-		temp, _ := tr.GetString("bans_restrict_action_ban")
+		temp, _ := tr.GetString("bans_restrict_banned")
 		helpText = fmt.Sprintf(temp,
 			helpers.MentionHtml(user.Id, user.FirstName),
 			helpers.MentionHtml(int64(userId), actionUser.FirstName),
@@ -1190,7 +1190,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		text, _ := tr.GetString("bans_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -1201,7 +1201,7 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("bans_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -1292,7 +1292,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			return err
 		}
 
-		temp, _ := tr.GetString("bans_unrestrict_action_unmute")
+		temp, _ := tr.GetString("bans_unrestrict_unmuted")
 		helpText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	case "unban":
 		_, err := chat.Unban(b,
@@ -1306,7 +1306,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			return err
 		}
 
-		temp, _ := tr.GetString("bans_unrestrict_action_unban")
+		temp, _ := tr.GetString("bans_unrestrict_unbanned")
 		helpText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	}
 

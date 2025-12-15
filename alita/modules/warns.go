@@ -140,7 +140,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		switch warnrc.WarnMode {
 		case "kick":
 			_, err = chat.BanMember(b, userId, nil)
-			temp, _ := tr.GetString("warns_limit_reached_kick")
+			temp, _ := tr.GetString("warns_limit_kicked")
 			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, helpers.MentionHtml(u.Id, u.FirstName))
 			if err != nil {
 				log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
@@ -166,7 +166,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				},
 				nil,
 			)
-			temp, _ := tr.GetString("warns_limit_reached_mute")
+			temp, _ := tr.GetString("warns_limit_muted")
 			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, helpers.MentionHtml(u.Id, u.FirstName))
 			if err != nil {
 				log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
@@ -174,7 +174,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 		case "ban":
 			_, err = chat.BanMember(b, userId, nil)
-			temp, _ := tr.GetString("warns_limit_reached_ban")
+			temp, _ := tr.GetString("warns_limit_banned")
 			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, helpers.MentionHtml(u.Id, u.FirstName))
 			if err != nil {
 				log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
@@ -216,11 +216,11 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 		}
 
-		temp, _ := tr.GetString("warns_current_count")
+		temp, _ := tr.GetString("warns_user_warning")
 		reply = fmt.Sprintf(temp, helpers.MentionHtml(u.Id, u.FirstName), numWarns, warnrc.WarnLimit)
 
 		if reason != "" {
-			temp, _ := tr.GetString("warns_reason_display")
+			temp, _ := tr.GetString("warns_warning_reason")
 			reply += fmt.Sprintf(temp, html.EscapeString(reason))
 		}
 	}
@@ -274,7 +274,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -282,7 +282,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -333,7 +333,7 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -341,7 +341,7 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -392,7 +392,7 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -400,7 +400,7 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -442,7 +442,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	warnrc := db.GetWarnSetting(chat.Id)
-	temp, _ := tr.GetString("warns_settings_current")
+	temp, _ := tr.GetString("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnrc.WarnMode)
 	_, err := msg.Reply(b, text, helpers.Shtml())
 	if err != nil {
@@ -468,7 +468,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		userId = ctx.EffectiveUser.Id
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -476,7 +476,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -491,7 +491,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if numWarns != 0 {
 		warnrc := db.GetWarnSetting(chat.Id)
 		if len(reasons) > 0 {
-			temp, _ := tr.GetString("warns_user_has_warnings")
+			temp, _ := tr.GetString("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
 			var sb strings.Builder
 			for _, reason := range reasons {
@@ -507,7 +507,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 				}
 			}
 		} else {
-			temp, _ := tr.GetString("warns_user_no_reasons")
+			temp, _ := tr.GetString("warns_user_warnings_no_reasons")
 			_, err := msg.Reply(b, fmt.Sprintf(temp, numWarns, warnrc.WarnLimit), nil)
 			if err != nil {
 				log.Error(err)
@@ -515,7 +515,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	} else {
-		text, _ := tr.GetString("warns_user_clean")
+		text, _ := tr.GetString("warns_user_no_warnings")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -548,10 +548,10 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	res := db.RemoveWarn(int64(userId), chat.Id)
 	if res {
-		temp, _ := tr.GetString("warns_removed_success")
+		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	} else {
-		replyText, _ = tr.GetString("warns_no_warns_existing")
+		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}
 
 	_, _, err := query.Message.EditText(
@@ -601,7 +601,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyText string
 
 	if len(args) == 0 {
-		replyText, _ = tr.GetString("warns_limit_help")
+		replyText, _ = tr.GetString("warns_limit_set_help")
 	} else {
 		num, err := strconv.Atoi(args[0])
 		if err != nil {
@@ -609,13 +609,13 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyText = fmt.Sprintf(temp, args[0])
 		} else {
 			if num < 1 || num > 100 {
-				replyText, _ = tr.GetString("warns_limit_range")
+				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
 				go func() {
 					defer error_handling.RecoverFromPanic("SetWarnLimit", "warns")
 					db.SetWarnLimit(chat.Id, num)
 				}()
-				temp, _ := tr.GetString("warns_limit_set_success")
+				temp, _ := tr.GetString("warns_limit_updated")
 				replyText = fmt.Sprintf(temp, num)
 			}
 		}
@@ -653,7 +653,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -661,7 +661,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -671,7 +671,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	db.ResetUserWarns(userId, chat.Id)
-	text, _ := tr.GetString("warns_reset_individual_success")
+	text, _ := tr.GetString("warns_reset_success")
 	_, err := msg.Reply(b, text, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
@@ -703,13 +703,13 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	warnrc := db.GetAllChatWarns(chat.Id)
 	if warnrc == 0 {
-		text, _ := tr.GetString("warns_no_warned_users")
+		text, _ := tr.GetString("warns_no_users_warned")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		return err
 	}
 
 	if chat_status.RequireUserOwner(b, ctx, chat, user.Id, false) {
-		text, _ := tr.GetString("warns_reset_all_confirmation")
+		text, _ := tr.GetString("warns_reset_all_confirm")
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -804,7 +804,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("warns_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -812,7 +812,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("warns_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -823,7 +823,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var replyText string
 	if db.RemoveWarn(userId, chat.Id) {
-		temp, _ := tr.GetString("warns_removed_success")
+		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	} else {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")

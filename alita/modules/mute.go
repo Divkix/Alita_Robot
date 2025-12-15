@@ -46,7 +46,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("mutes_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -54,7 +54,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("mutes_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -65,7 +65,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("mutes_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -130,10 +130,10 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	temp, _ := tr.GetString("mutes_tmute_success")
+	temp, _ := tr.GetString("mutes_tmute_message")
 	baseStr := fmt.Sprintf(temp, helpers.MentionHtml(muteUser.Id, muteUser.FirstName), timeVal)
 	if reason != "" {
-		temp, _ := tr.GetString("mutes_tmute_reason")
+		temp, _ := tr.GetString("mutes_reason_suffix")
 		baseStr += fmt.Sprintf(temp, reason)
 	}
 
@@ -178,7 +178,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("mutes_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -186,7 +186,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("mutes_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -197,7 +197,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("mutes_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -252,10 +252,10 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	temp, _ := tr.GetString("mutes_mute_success")
+	temp, _ := tr.GetString("mutes_mute_message")
 	baseStr := temp
 	if reason != "" {
-		temp, _ := tr.GetString("mutes_tmute_reason")
+		temp, _ := tr.GetString("mutes_reason_suffix")
 		baseStr += fmt.Sprintf(temp, reason)
 	}
 
@@ -315,7 +315,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("mutes_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -323,7 +323,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("mutes_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -334,7 +334,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("mutes_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -415,7 +415,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("mutes_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -423,7 +423,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("mutes_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -434,7 +434,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("mutes_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -496,10 +496,10 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	temp, _ := tr.GetString("mutes_mute_success")
+	temp, _ := tr.GetString("mutes_mute_message")
 	baseStr := temp
 	if reason != "" {
-		temp, _ := tr.GetString("mutes_tmute_reason")
+		temp, _ := tr.GetString("mutes_reason_suffix")
 		baseStr += fmt.Sprintf(temp, reason)
 	}
 
@@ -556,7 +556,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("mutes_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -564,7 +564,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("mutes_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -575,7 +575,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// User should be in chat for getting restricted
 	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("mutes_user_not_in_chat")
+		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -618,7 +618,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	temp, _ := tr.GetString("mutes_unmute_success")
+	temp, _ := tr.GetString("mutes_unmute_message")
 	_, err = msg.Reply(b,
 		fmt.Sprintf(temp, helpers.MentionHtml(muteUser.Id, muteUser.FirstName)),
 		helpers.Shtml(),

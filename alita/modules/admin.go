@@ -142,7 +142,7 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("admin_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -150,7 +150,7 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("admin_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -291,7 +291,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("admin_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -299,7 +299,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("admin_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -488,7 +488,7 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 	if userId == -1 {
 		return ext.EndGroups
 	} else if helpers.IsChannelID(userId) {
-		text, _ := tr.GetString("admin_anonymous_user_error")
+		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
 			log.Error(err)
@@ -496,7 +496,7 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("admin_no_user_specified")
+		text, _ := tr.GetString("common_no_user_specified")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
