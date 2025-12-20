@@ -47,6 +47,59 @@ func IsChannelId(id int64) bool {
 	return id < -1000000000000
 }
 
+// checkAnonAdmin handles anonymous admin checks.
+// Returns true if user should be treated as admin (anon bypass enabled),
+// false if anon keyboard was sent, and a bool indicating if caller should return immediately.
+func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
+	if !sender.IsAnonymousAdmin() {
+		return false, false
+	}
+	if db.GetAdminSettings(chat.Id).AnonAdmin {
+		return true, true
+	}
+	setAnonAdminCache(chat.Id, msg)
+	_, err := sendAnonAdminKeyboard(b, msg, chat)
+	if err != nil {
+		log.Error(err)
+	}
+	return false, true
+}
+
+// extractChatFromContext extracts the chat from the context.
+// It handles callback queries, regular messages, and MyChatMember updates.
+// If chat parameter is already provided (non-nil), it returns it directly.
+func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat {
+	if chat != nil {
+		return chat
+	}
+	if ctx.CallbackQuery != nil {
+		chatValue := ctx.CallbackQuery.Message.GetChat()
+		return &chatValue
+	}
+	if ctx.Message != nil {
+		return &ctx.Message.Chat
+	}
+	if ctx.MyChatMember != nil {
+		return &ctx.MyChatMember.Chat
+	}
+	return nil
+}
+
+// getUserMemberWithCache retrieves a chat member, using cache if available.
+// Returns the merged chat member and a boolean indicating if the lookup was successful.
+func getUserMemberWithCache(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, funcName string) (gotgbot.MergedChatMember, bool) {
+	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
+	if found {
+		return userMember, true
+	}
+	tmpUserMember, err := chat.GetMember(b, userId, nil)
+	if err != nil {
+		log.Errorf("[%s] GetMember failed for user %d in chat %d: %v", funcName, userId, chat.Id, err)
+		return gotgbot.MergedChatMember{}, false
+	}
+	return tmpUserMember.MergeChatMember(), true
+}
+
 // GetChat retrieves chat information by chat ID or username.
 // Makes a direct API request to support username-based chat retrieval.
 func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
@@ -217,18 +270,10 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 // Returns true for private chats (bot is always "admin" in private).
 // For groups, verifies the bot's actual admin status.
 func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else if ctx.Message != nil {
-			chat = &ctx.Message.Chat
-		} else if ctx.MyChatMember != nil {
-			chat = &ctx.MyChatMember.Chat
-		} else {
-			log.Error("IsBotAdmin: No chat information available in context")
-			return false
-		}
+		log.Error("IsBotAdmin: No chat information available in context")
+		return false
 	}
 
 	if chat.Type == "private" {
@@ -248,41 +293,22 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 // Handles anonymous admins and validates the CanChangeInfo permission.
 // If justCheck is false, sends error messages to user.
 func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanUserChangeInfo: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	var userMember gotgbot.MergedChatMember
 
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
 	}
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	userMember, ok := getUserMemberWithCache(b, chat, userId, "CanUserChangeInfo")
+	if !ok {
 		return false
-	}
-
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userId, nil)
-		if err != nil {
-			log.Errorf("[CanUserChangeInfo] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
 	}
 
 	if !userMember.CanChangeInfo && userMember.Status != "creator" {
@@ -323,42 +349,24 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 // Handles anonymous admins and validates the CanRestrictMembers permission.
 // If justCheck is false, sends error messages to user.
 func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanUserRestrict: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	var userMember gotgbot.MergedChatMember
 
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
 	}
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	userMember, ok := getUserMemberWithCache(b, chat, userId, "CanUserRestrict")
+	if !ok {
 		return false
 	}
 
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userId, nil)
-		if err != nil {
-			log.Errorf("[CanUserRestrict] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
-	}
 	if !userMember.CanRestrictMembers && userMember.Status != "creator" {
 		query := ctx.CallbackQuery
 		if query != nil {
@@ -397,13 +405,10 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 // Validates the bot's CanRestrictMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
 func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanBotRestrict: No chat information available in context")
+		return false
 	}
 
 	botMember, err := chat.GetMember(b, b.Id, nil)
@@ -449,42 +454,24 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 // Handles anonymous admins and validates the CanPromoteMembers permission.
 // If justCheck is false, sends error messages to user.
 func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanUserPromote: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	var userMember gotgbot.MergedChatMember
 
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
 	}
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	userMember, ok := getUserMemberWithCache(b, chat, userId, "CanUserPromote")
+	if !ok {
 		return false
 	}
 
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userId, nil)
-		if err != nil {
-			log.Errorf("[CanUserPromote] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
-	}
 	if !userMember.CanPromoteMembers && userMember.Status != "creator" {
 		query := ctx.CallbackQuery
 		if query != nil {
@@ -523,13 +510,10 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 // Validates the bot's CanPromoteMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
 func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanBotPromote: No chat information available in context")
+		return false
 	}
 
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
@@ -562,42 +546,24 @@ func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChe
 // Handles anonymous admins and validates the CanPinMessages permission.
 // If justCheck is false, sends error messages to user.
 func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanUserPin: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	var userMember gotgbot.MergedChatMember
 
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
 	}
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	userMember, ok := getUserMemberWithCache(b, chat, userId, "CanUserPin")
+	if !ok {
 		return false
 	}
 
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userId, nil)
-		if err != nil {
-			log.Errorf("[CanUserPin] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
-	}
 	if !userMember.CanPinMessages && userMember.Status != "creator" {
 		if !justCheck {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -622,13 +588,10 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 // Validates the bot's CanPinMessages permission.
 // If justCheck is false, sends error messages explaining the missing permission.
 func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanBotPin: No chat information available in context")
+		return false
 	}
 
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
@@ -661,13 +624,10 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck b
 // Returns true immediately if the chat has a public username.
 // Validates both bot and user permissions for invite link generation.
 func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("Caninvite: No chat information available in context")
+		return false
 	}
 	if chat.Username != "" {
 		return true
@@ -696,30 +656,17 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 		return false
 	}
 	sender := ctx.EffectiveSender
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
-	}
-	var userMember gotgbot.MergedChatMember
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
+	}
+
+	userid := msg.From.Id
+	userMember, ok := getUserMemberWithCache(b, chat, userid, "Caninvite")
+	if !ok {
 		return false
 	}
-	userid := msg.From.Id
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userid)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userid, nil)
-		if err != nil {
-			log.Errorf("[Caninvite] GetMember failed for user %d in chat %d: %v", userid, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
-	}
+
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
 		if !justCheck {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -745,41 +692,22 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 // Handles anonymous admins and validates the CanDeleteMessages permission.
 // If justCheck is false, sends error messages to user.
 func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanUserDelete: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
-	var userMember gotgbot.MergedChatMember
 
-	if db.GetAdminSettings(chat.Id).AnonAdmin && sender.IsAnonymousAdmin() {
-		return true
+	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
+		return isAdmin
 	}
 
-	// group anonymous bot
-	if sender.IsAnonymousAdmin() {
-		setAnonAdminCache(chat.Id, msg)
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	userMember, ok := getUserMemberWithCache(b, chat, userId, "CanUserDelete")
+	if !ok {
 		return false
-	}
-
-	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
-	if !found {
-		tmpUserMember, err := chat.GetMember(b, userId, nil)
-		if err != nil {
-			log.Errorf("[CanUserDelete] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
-			return false
-		}
-		userMember = tmpUserMember.MergeChatMember()
 	}
 
 	if !userMember.CanDeleteMessages && userMember.Status != "creator" {
@@ -814,13 +742,10 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 // Validates the bot's CanDeleteMessages permission.
 // If justCheck is false, sends error messages explaining the missing permission.
 func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("CanBotDelete: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
@@ -849,13 +774,10 @@ func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 // Uses IsBotAdmin internally to perform the check.
 // If justCheck is false, sends error messages when bot is not admin.
 func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("RequireBotAdmin: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
@@ -893,13 +815,10 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 // Returns true for private chats, admins, and special Telegram accounts.
 // Used to prevent banning of administrators and system accounts.
 func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("IsUserBanProtected: No chat information available in context")
+		return false
 	}
 
 	if chat.Type == "private" {
@@ -913,13 +832,10 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 // Uses IsUserAdmin internally to perform the check.
 // If justCheck is false, sends error messages when user is not admin.
 func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("RequireUserAdmin: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
@@ -976,13 +892,10 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 // Checks for "creator" status specifically, not just administrator.
 // If justCheck is false, sends error messages when user is not the creator.
 func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else {
-			chat = &ctx.Message.Chat
-		}
+		log.Error("RequireUserOwner: No chat information available in context")
+		return false
 	}
 
 	msg := ctx.EffectiveMessage
@@ -1027,18 +940,10 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 // Returns false for group chats and supergroups.
 // If justCheck is false, sends error messages explaining the command is for private use only.
 func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else if ctx.Message != nil {
-			chat = &ctx.Message.Chat
-		} else if ctx.MyChatMember != nil {
-			chat = &ctx.MyChatMember.Chat
-		} else {
-			log.Error("RequirePrivate: No chat information available in context")
-			return false
-		}
+		log.Error("RequirePrivate: No chat information available in context")
+		return false
 	}
 	msg := ctx.EffectiveMessage
 	if chat.Type != "private" {
@@ -1065,18 +970,10 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 // Returns false for private chats.
 // If justCheck is false, sends error messages explaining the command is for group use only.
 func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
+	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		if ctx.CallbackQuery != nil {
-			_chatValue := ctx.CallbackQuery.Message.GetChat()
-			chat = &_chatValue
-		} else if ctx.Message != nil {
-			chat = &ctx.Message.Chat
-		} else if ctx.MyChatMember != nil {
-			chat = &ctx.MyChatMember.Chat
-		} else {
-			log.Error("RequireGroup: No chat information available in context")
-			return false
-		}
+		log.Error("RequireGroup: No chat information available in context")
+		return false
 	}
 	msg := ctx.EffectiveMessage
 	if chat.Type == "private" {
