@@ -31,9 +31,46 @@ const (
 
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
 
-// welcome manages welcome message settings and displays current welcome configuration.
-// Admins can toggle welcome messages on/off or view current settings with 'noformat' option.
-func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+type greetingType int
+
+const (
+	greetingWelcome greetingType = iota
+	greetingGoodbye
+)
+
+type greetingConfig struct {
+	gType            greetingType
+	logContext       string
+	notConfiguredKey string
+	statusKey        string
+	enabledKey       string
+	disabledKey      string
+	invalidKey       string
+}
+
+var welcomeConfig = greetingConfig{
+	gType:            greetingWelcome,
+	logContext:       "welcome",
+	notConfiguredKey: "greetings_welcome_not_configured",
+	statusKey:        "greetings_welcome_status",
+	enabledKey:       "greetings_welcome_enabled",
+	disabledKey:      "greetings_welcome_disabled",
+	invalidKey:       "greetings_welcome_invalid_option",
+}
+
+var goodbyeConfig = greetingConfig{
+	gType:            greetingGoodbye,
+	logContext:       "goodbye",
+	notConfiguredKey: "greetings_goodbye_not_configured",
+	statusKey:        "greetings_goodbye_status",
+	enabledKey:       "greetings_goodbye_enable",
+	disabledKey:      "greetings_goodbye_disable",
+	invalidKey:       "greetings_goodbye_invalid",
+}
+
+// displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
+// It consolidates common logic between welcome() and goodbye() commands.
+func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
 	msg := ctx.EffectiveMessage
 	// connection status
 	connectedChat := helpers.IsUserConnected(bot, ctx, true, false)
@@ -45,51 +82,80 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender.User
 	args := ctx.Args()[1:]
 
-	var wlcmText string
+	var greetingText string
 
 	if len(args) == 0 || strings.ToLower(args[0]) == "noformat" {
 		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
-		welcPrefs := db.GetGreetingSettings(chat.Id)
+		greetPrefs := db.GetGreetingSettings(chat.Id)
 
-		// Nil check for WelcomeSettings
-		if welcPrefs.WelcomeSettings == nil {
-			log.Warnf("[Greetings][welcome] WelcomeSettings is nil for chat %d, using defaults", chat.Id)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_welcome_not_configured")
-			_, err := msg.Reply(bot, text, helpers.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
+		// Get the appropriate settings based on greeting type
+		var buttons []db.Button
+		var fileID string
+		var greetingDataType int
+		var shouldGreet bool
+		var cleanGreet bool
+
+		if config.gType == greetingWelcome {
+			if greetPrefs.WelcomeSettings == nil {
+				log.Warnf("[Greetings][%s] WelcomeSettings is nil for chat %d, using defaults", config.logContext, chat.Id)
+				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				text, _ := tr.GetString(config.notConfiguredKey)
+				_, err := msg.Reply(bot, text, helpers.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return ext.EndGroups
 			}
-			return ext.EndGroups
+			greetingText = greetPrefs.WelcomeSettings.WelcomeText
+			buttons = db.GetWelcomeButtons(chat.Id)
+			fileID = greetPrefs.WelcomeSettings.FileID
+			greetingDataType = greetPrefs.WelcomeSettings.WelcomeType
+			shouldGreet = greetPrefs.WelcomeSettings.ShouldWelcome
+			cleanGreet = greetPrefs.WelcomeSettings.CleanWelcome
+		} else {
+			if greetPrefs.GoodbyeSettings == nil {
+				log.Warnf("[Greetings][%s] GoodbyeSettings is nil for chat %d, using defaults", config.logContext, chat.Id)
+				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				text, _ := tr.GetString(config.notConfiguredKey)
+				_, err := msg.Reply(bot, text, helpers.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return ext.EndGroups
+			}
+			greetingText = greetPrefs.GoodbyeSettings.GoodbyeText
+			buttons = db.GetGoodbyeButtons(chat.Id)
+			fileID = greetPrefs.GoodbyeSettings.FileID
+			greetingDataType = greetPrefs.GoodbyeSettings.GoodbyeType
+			shouldGreet = greetPrefs.GoodbyeSettings.ShouldGoodbye
+			cleanGreet = greetPrefs.GoodbyeSettings.CleanGoodbye
 		}
 
-		wlcmText = welcPrefs.WelcomeSettings.WelcomeText
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_welcome_status")
+		text, _ := tr.GetString(config.statusKey)
 		_, err := msg.Reply(bot, fmt.Sprintf(text,
-			welcPrefs.WelcomeSettings.ShouldWelcome,
-			welcPrefs.WelcomeSettings.CleanWelcome,
-			welcPrefs.ShouldCleanService), helpers.Shtml())
+			shouldGreet,
+			cleanGreet,
+			greetPrefs.ShouldCleanService), helpers.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		buttons := db.GetWelcomeButtons(chat.Id)
-
 		if noformat {
-			wlcmText += helpers.RevertButtons(buttons)
-			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, wlcmText, welcPrefs.WelcomeSettings.FileID, welcPrefs.WelcomeSettings.WelcomeType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
+			greetingText += helpers.RevertButtons(buttons)
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, greetingText, fileID, greetingDataType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
 			if err != nil {
 				log.Error(err)
 				return err
 			}
 		} else {
-			wlcmText, buttons = helpers.FormattingReplacer(bot, chat, user, wlcmText, buttons)
+			greetingText, buttons = helpers.FormattingReplacer(bot, chat, user, greetingText, buttons)
 			keyb := helpers.BuildKeyboard(buttons)
 			keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, wlcmText, welcPrefs.WelcomeSettings.FileID, welcPrefs.WelcomeSettings.WelcomeType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, greetingText, fileID, greetingDataType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -100,18 +166,26 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		var err error
 		switch strings.ToLower(args[0]) {
 		case "on", "yes":
-			db.SetWelcomeToggle(chat.Id, true)
+			if config.gType == greetingWelcome {
+				db.SetWelcomeToggle(chat.Id, true)
+			} else {
+				db.SetGoodbyeToggle(chat.Id, true)
+			}
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_welcome_enabled")
+			text, _ := tr.GetString(config.enabledKey)
 			_, err = msg.Reply(bot, text, helpers.Shtml())
 		case "off", "no":
-			db.SetWelcomeToggle(chat.Id, false)
+			if config.gType == greetingWelcome {
+				db.SetWelcomeToggle(chat.Id, false)
+			} else {
+				db.SetGoodbyeToggle(chat.Id, false)
+			}
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_welcome_disabled")
+			text, _ := tr.GetString(config.disabledKey)
 			_, err = msg.Reply(bot, text, helpers.Shtml())
 		default:
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_welcome_invalid_option")
+			text, _ := tr.GetString(config.invalidKey)
 			_, err = msg.Reply(bot, text, helpers.Shtml())
 		}
 
@@ -121,6 +195,12 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
+}
+
+// welcome manages welcome message settings and displays current welcome configuration.
+// Admins can toggle welcome messages on/off or view current settings with 'noformat' option.
+func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.displayGreeting(bot, ctx, welcomeConfig)
 }
 
 // setWelcome allows admins to set a custom welcome message for new chat members.
@@ -163,9 +243,9 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetWelcome resets the welcome message back to the default bot welcome message.
-// Only admins can use this command to restore the original welcome text.
-func (moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+// resetGreeting is a shared helper for resetting welcome or goodbye messages to defaults.
+// It consolidates the common logic between resetWelcome and resetGoodbye.
+func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome bool) error {
 	msg := ctx.EffectiveMessage
 	// connection status
 	connectedChat := helpers.IsUserConnected(bot, ctx, true, false)
@@ -183,11 +263,28 @@ func (moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	// Capture variable for goroutine closure
 	chatId := chat.Id
 	go func() {
-		defer error_handling.RecoverFromPanic("SetWelcomeText", "greetings")
-		db.SetWelcomeText(chatId, db.DefaultWelcome, "", nil, db.TEXT)
+		defer error_handling.RecoverFromPanic(
+			func() string {
+				if isWelcome {
+					return "SetWelcomeText"
+				}
+				return "SetGoodbyeText"
+			}(),
+			"greetings",
+		)
+		if isWelcome {
+			db.SetWelcomeText(chatId, db.DefaultWelcome, "", nil, db.TEXT)
+		} else {
+			db.SetGoodbyeText(chatId, db.DefaultGoodbye, "", nil, db.TEXT)
+		}
 	}()
+
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	successText, _ := tr.GetString("greetings_welcome_reset_success")
+	translationKey := "greetings_welcome_reset_success"
+	if !isWelcome {
+		translationKey = "greetings_goodbye_reset"
+	}
+	successText, _ := tr.GetString(translationKey)
 	_, err := msg.Reply(bot, successText, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
@@ -197,94 +294,16 @@ func (moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// resetWelcome resets the welcome message back to the default bot welcome message.
+// Only admins can use this command to restore the original welcome text.
+func (m moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.resetGreeting(bot, ctx, true)
+}
+
 // goodbye manages goodbye message settings and displays current goodbye configuration.
 // Admins can toggle goodbye messages on/off or view current settings with 'noformat' option.
-func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
-	args := ctx.Args()[1:]
-
-	var gdbyeText string
-
-	if len(args) == 0 || strings.ToLower(args[0]) == "noformat" {
-		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
-		gdbyePrefs := db.GetGreetingSettings(chat.Id)
-
-		// Nil check for GoodbyeSettings
-		if gdbyePrefs.GoodbyeSettings == nil {
-			log.Warnf("[Greetings][goodbye] GoodbyeSettings is nil for chat %d, using defaults", chat.Id)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_goodbye_not_configured")
-			_, err := msg.Reply(bot, text, helpers.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			return ext.EndGroups
-		}
-
-		gdbyeText = gdbyePrefs.GoodbyeSettings.GoodbyeText
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_goodbye_status")
-		_, err := msg.Reply(bot, fmt.Sprintf(text,
-			gdbyePrefs.GoodbyeSettings.ShouldGoodbye,
-			gdbyePrefs.GoodbyeSettings.CleanGoodbye,
-			gdbyePrefs.ShouldCleanService), helpers.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		buttons := db.GetGoodbyeButtons(chat.Id)
-
-		if noformat {
-			gdbyeText += helpers.RevertButtons(buttons)
-			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, gdbyePrefs.GoodbyeSettings.GoodbyeType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		} else {
-			gdbyeText, buttons = helpers.FormattingReplacer(bot, chat, user, gdbyeText, buttons)
-			keyb := helpers.BuildKeyboard(buttons)
-			keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, gdbyePrefs.GoodbyeSettings.GoodbyeType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-		}
-	} else if len(args) >= 1 {
-		var err error
-		switch strings.ToLower(args[0]) {
-		case "on", "yes":
-			db.SetGoodbyeToggle(chat.Id, true)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_goodbye_enable")
-			_, err = msg.Reply(bot, text, helpers.Shtml())
-		case "off", "no":
-			db.SetGoodbyeToggle(chat.Id, false)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_goodbye_disable")
-			_, err = msg.Reply(bot, text, helpers.Shtml())
-		default:
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_goodbye_invalid")
-			_, err = msg.Reply(bot, text, helpers.Shtml())
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
-	return ext.EndGroups
+func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.displayGreeting(bot, ctx, goodbyeConfig)
 }
 
 // setGoodbye allows admins to set a custom goodbye message for members leaving the chat.
@@ -327,39 +346,8 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // resetGoodbye resets the goodbye message back to the default bot goodbye message.
 // Only admins can use this command to restore the original goodbye text.
-func (moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
-
-	// check permission
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
-		return ext.EndGroups
-	}
-
-	if chat == nil {
-		return ext.EndGroups
-	}
-	// Capture variable for goroutine closure
-	chatId := chat.Id
-	go func() {
-		defer error_handling.RecoverFromPanic("SetGoodbyeText", "greetings")
-		db.SetGoodbyeText(chatId, db.DefaultGoodbye, "", nil, db.TEXT)
-	}()
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	successText, _ := tr.GetString("greetings_goodbye_reset")
-	_, err := msg.Reply(bot, successText, helpers.Shtml())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.EndGroups
+func (m moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.resetGreeting(bot, ctx, false)
 }
 
 // cleanWelcome toggles automatic deletion of old welcome messages.
