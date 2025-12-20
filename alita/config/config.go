@@ -104,93 +104,9 @@ type Config struct {
 	EnableSentry      bool    // Whether to enable Sentry error tracking
 }
 
-// Global configuration instance
-var (
-	AllowedUpdates []string
-	ValidLangCodes []string
-	BotToken       string
-	DatabaseURL    string // Single PostgreSQL connection string
-
-	// Database connection pool configuration
-	DBMaxIdleConns       int
-	DBMaxOpenConns       int
-	DBConnMaxLifetimeMin int
-	DBConnMaxIdleTimeMin int
-
-	BotVersion         string = "2.1.3"
-	ApiServer          string
-	WorkingMode        = "worker"
-	Debug              = false
-	DropPendingUpdates = true
-	OwnerId            int64
-	MessageDump        int64
-	RedisAddress       string
-	RedisPassword      string
-	RedisDB            int
-
-	// HTTP Server configuration (unified server)
-	HTTPPort int
-
-	// Webhook configuration
-	UseWebhooks   bool
-	WebhookDomain string
-	WebhookSecret string
-	WebhookPort   int // Deprecated: use HTTPPort instead
-
-	// Worker pool configuration for concurrent processing
-	ChatValidationWorkers  int
-	DatabaseWorkers        int
-	MessagePipelineWorkers int
-	BulkOperationWorkers   int
-	CacheWorkers           int
-	StatsCollectionWorkers int
-
-	// Safety and performance limits
-	MaxConcurrentOperations     int
-	OperationTimeoutSeconds     int
-	EnablePerformanceMonitoring bool
-	EnableBackgroundStats       bool
-	DispatcherMaxRoutines       int
-
-	// Cache configuration - Redis only (no local cache configuration needed)
-	ClearCacheOnStartup bool
-
-	// Activity monitoring configuration
-	InactivityThresholdDays int
-	ActivityCheckInterval   int
-	EnableAutoCleanup       *bool
-
-	// Performance optimization settings
-	EnableQueryPrefetching      bool
-	EnableCachePrewarming       bool
-	EnableAsyncProcessing       bool
-	EnableResponseCaching       bool
-	ResponseCacheTTL            int
-	EnableBatchRequests         bool
-	BatchRequestTimeoutMS       int
-	EnableHTTPConnectionPooling bool
-	HTTPMaxIdleConns            int
-	HTTPMaxIdleConnsPerHost     int
-
-	// Database migration settings
-	AutoMigrate           bool
-	AutoMigrateSilentFail bool
-	MigrationsPath        string
-
-	// Resource monitoring limits
-	ResourceMaxGoroutines int
-	ResourceMaxMemoryMB   int
-	ResourceGCThresholdMB int
-
-	// Sentry configuration
-	SentryDSN         string
-	SentryEnvironment string
-	SentrySampleRate  float64
-	EnableSentry      bool
-
-	// Global config instance
-	AppConfig *Config
-)
+// AppConfig is the global configuration instance - the single source of truth.
+// All code should access configuration via config.AppConfig.FieldName
+var AppConfig *Config
 
 // ValidateConfig validates the configuration struct and returns an error if any required
 // fields are missing or values are outside acceptable ranges.
@@ -606,66 +522,6 @@ func init() {
 
 	// Set global configuration instance
 	AppConfig = cfg
-
-	// Set global variables for backward compatibility
-	BotToken = cfg.BotToken
-	DatabaseURL = cfg.DatabaseURL
-	DBMaxIdleConns = cfg.DBMaxIdleConns
-	DBMaxOpenConns = cfg.DBMaxOpenConns
-	DBConnMaxLifetimeMin = cfg.DBConnMaxLifetimeMin
-	DBConnMaxIdleTimeMin = cfg.DBConnMaxIdleTimeMin
-	BotVersion = cfg.BotVersion
-	ApiServer = cfg.ApiServer
-	WorkingMode = cfg.WorkingMode
-	Debug = cfg.Debug
-	DropPendingUpdates = cfg.DropPendingUpdates
-	OwnerId = cfg.OwnerId
-	MessageDump = cfg.MessageDump
-	RedisAddress = cfg.RedisAddress
-	RedisPassword = cfg.RedisPassword
-	RedisDB = cfg.RedisDB
-	HTTPPort = cfg.HTTPPort
-	UseWebhooks = cfg.UseWebhooks
-	WebhookDomain = cfg.WebhookDomain
-	WebhookSecret = cfg.WebhookSecret
-	WebhookPort = cfg.WebhookPort
-	ChatValidationWorkers = cfg.ChatValidationWorkers
-	DatabaseWorkers = cfg.DatabaseWorkers
-	MessagePipelineWorkers = cfg.MessagePipelineWorkers
-	BulkOperationWorkers = cfg.BulkOperationWorkers
-	CacheWorkers = cfg.CacheWorkers
-	StatsCollectionWorkers = cfg.StatsCollectionWorkers
-	MaxConcurrentOperations = cfg.MaxConcurrentOperations
-	OperationTimeoutSeconds = cfg.OperationTimeoutSeconds
-	EnablePerformanceMonitoring = cfg.EnablePerformanceMonitoring
-	EnableBackgroundStats = cfg.EnableBackgroundStats
-	DispatcherMaxRoutines = cfg.DispatcherMaxRoutines
-	ClearCacheOnStartup = cfg.ClearCacheOnStartup
-	InactivityThresholdDays = cfg.InactivityThresholdDays
-	ActivityCheckInterval = cfg.ActivityCheckInterval
-	EnableAutoCleanup = &cfg.EnableAutoCleanup
-	EnableQueryPrefetching = cfg.EnableQueryPrefetching
-	EnableCachePrewarming = cfg.EnableCachePrewarming
-	EnableAsyncProcessing = cfg.EnableAsyncProcessing
-	EnableResponseCaching = cfg.EnableResponseCaching
-	ResponseCacheTTL = cfg.ResponseCacheTTL
-	EnableBatchRequests = cfg.EnableBatchRequests
-	BatchRequestTimeoutMS = cfg.BatchRequestTimeoutMS
-	EnableHTTPConnectionPooling = cfg.EnableHTTPConnectionPooling
-	HTTPMaxIdleConns = cfg.HTTPMaxIdleConns
-	HTTPMaxIdleConnsPerHost = cfg.HTTPMaxIdleConnsPerHost
-	AutoMigrate = cfg.AutoMigrate
-	AutoMigrateSilentFail = cfg.AutoMigrateSilentFail
-	MigrationsPath = cfg.MigrationsPath
-	ResourceMaxGoroutines = cfg.ResourceMaxGoroutines
-	ResourceMaxMemoryMB = cfg.ResourceMaxMemoryMB
-	ResourceGCThresholdMB = cfg.ResourceGCThresholdMB
-	SentryDSN = cfg.SentryDSN
-	SentryEnvironment = cfg.SentryEnvironment
-	SentrySampleRate = cfg.SentrySampleRate
-	EnableSentry = cfg.EnableSentry
-	AllowedUpdates = cfg.AllowedUpdates
-	ValidLangCodes = cfg.ValidLangCodes
 
 	// Configure logger based on debug mode
 	if cfg.Debug {

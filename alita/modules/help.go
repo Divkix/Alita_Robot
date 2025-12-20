@@ -207,7 +207,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			currKb = getAboutKb(tr)
 		case "me":
 			temp, _ := tr.GetString("help_about")
-			currText = fmt.Sprintf(temp, b.Username, config.BotVersion)
+			currText = fmt.Sprintf(temp, b.Username, config.AppConfig.BotVersion)
 			backText, _ := tr.GetString("common_back")
 			currKb = gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{

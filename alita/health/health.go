@@ -66,7 +66,7 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 			"database": dbHealthy,
 			"redis":    redisHealthy,
 		},
-		Version: config.BotVersion,
+		Version: config.AppConfig.BotVersion,
 		Uptime:  time.Since(startTime).String(),
 	}
 

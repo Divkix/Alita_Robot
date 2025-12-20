@@ -31,9 +31,9 @@ type AdminCache struct {
 func InitCache() error {
 	// Initialize Redis client
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddress,
-		Password: config.RedisPassword, // no password set
-		DB:       config.RedisDB,       // use default DB
+		Addr:     config.AppConfig.RedisAddress,
+		Password: config.AppConfig.RedisPassword, // no password set
+		DB:       config.AppConfig.RedisDB,       // use default DB
 	})
 
 	// Test Redis connection
@@ -42,7 +42,7 @@ func InitCache() error {
 	}
 
 	// Clear all caches on startup if configured to do so
-	if config.ClearCacheOnStartup {
+	if config.AppConfig.ClearCacheOnStartup {
 		if err := ClearAllCaches(); err != nil {
 			log.Warnf("[Cache] Failed to clear caches on startup: %v", err)
 		}

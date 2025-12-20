@@ -26,7 +26,7 @@ var GlobalAsyncProcessor *AsyncProcessor
 func InitializeAsyncProcessor() {
 	ctx, cancel := context.WithCancel(context.Background())
 	GlobalAsyncProcessor = &AsyncProcessor{
-		enabled: config.EnableAsyncProcessing,
+		enabled: config.AppConfig.EnableAsyncProcessing,
 		ctx:     ctx,
 		cancel:  cancel,
 	}

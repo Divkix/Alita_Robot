@@ -664,7 +664,7 @@ func init() {
 	)
 
 	// Open PostgreSQL connection using DATABASE_URL
-	DB, err = gorm.Open(postgres.Open(config.DatabaseURL), &gorm.Config{
+	DB, err = gorm.Open(postgres.Open(config.AppConfig.DatabaseURL), &gorm.Config{
 		Logger:      gormLogger,
 		PrepareStmt: true, // Enable prepared statement caching for better performance
 		NowFunc: func() time.Time {
@@ -682,10 +682,10 @@ func init() {
 	}
 
 	// Configure connection pool with configurable values
-	sqlDB.SetMaxIdleConns(config.DBMaxIdleConns)
-	sqlDB.SetMaxOpenConns(config.DBMaxOpenConns)
-	sqlDB.SetConnMaxLifetime(time.Duration(config.DBConnMaxLifetimeMin) * time.Minute)
-	sqlDB.SetConnMaxIdleTime(time.Duration(config.DBConnMaxIdleTimeMin) * time.Minute)
+	sqlDB.SetMaxIdleConns(config.AppConfig.DBMaxIdleConns)
+	sqlDB.SetMaxOpenConns(config.AppConfig.DBMaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(config.AppConfig.DBConnMaxLifetimeMin) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(config.AppConfig.DBConnMaxIdleTimeMin) * time.Minute)
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
@@ -695,11 +695,11 @@ func init() {
 	log.Info("Connected to PostgreSQL database successfully!")
 
 	// Check if auto-migration is enabled
-	if config.AutoMigrate {
+	if config.AppConfig.AutoMigrate {
 		log.Info("[Database] AUTO_MIGRATE is enabled, running database migrations...")
 		runner := NewMigrationRunner(DB)
 		if err := runner.RunMigrations(); err != nil {
-			if config.AutoMigrateSilentFail {
+			if config.AppConfig.AutoMigrateSilentFail {
 				log.Errorf("[Database][AutoMigrate] Migration failed but continuing (AUTO_MIGRATE_SILENT_FAIL=true): %v", err)
 			} else {
 				log.Fatalf("[Database][AutoMigrate] Migration failed: %v", err)

@@ -32,7 +32,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
 		return ext.ContinueGroups
 	}
 
@@ -77,7 +77,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
 		return ext.ContinueGroups
 	}
 
@@ -159,7 +159,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
 		return ext.ContinueGroups
 	}
 
@@ -193,7 +193,7 @@ Can only be used by OWNER
 // Only accessible by bot owner. Grants elevated permissions to the specified user.
 func (moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender.User
-	if user.Id != config.OwnerId {
+	if user.Id != config.AppConfig.OwnerId {
 		return ext.ContinueGroups
 	}
 
@@ -237,7 +237,7 @@ Can only be used by OWNER
 // Only accessible by bot owner. Grants developer-level permissions to the specified user.
 func (moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender.User
-	if user.Id != config.OwnerId {
+	if user.Id != config.AppConfig.OwnerId {
 		return ext.ContinueGroups
 	}
 
@@ -281,7 +281,7 @@ Can only be used by OWNER
 // Only accessible by bot owner. Revokes elevated permissions from the specified user.
 func (moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender.User
-	if user.Id != config.OwnerId {
+	if user.Id != config.AppConfig.OwnerId {
 		return ext.ContinueGroups
 	}
 
@@ -325,7 +325,7 @@ Can only be used by OWNER
 // Only accessible by bot owner. Revokes developer-level permissions from the specified user.
 func (moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender.User
-	if user.Id != config.OwnerId {
+	if user.Id != config.AppConfig.OwnerId {
 		return ext.ContinueGroups
 	}
 
@@ -375,7 +375,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	for k := range teamUsers {
 		teamint64Slice = append(teamint64Slice, k)
 	}
-	teamint64Slice = append(teamint64Slice, config.OwnerId)
+	teamint64Slice = append(teamint64Slice, config.AppConfig.OwnerId)
 
 	if !string_handling.FindInInt64Slice(teamint64Slice, user.Id) {
 		return ext.EndGroups
@@ -446,7 +446,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
 		return ext.ContinueGroups
 	}
 

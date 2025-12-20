@@ -50,18 +50,18 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 	manager := &AutoRemediationManager{
 		ctx:            ctx,
 		cancel:         cancel,
-		enabled:        config.EnablePerformanceMonitoring,
+		enabled:        config.AppConfig.EnablePerformanceMonitoring,
 		lastActionTime: make(map[string]time.Time),
 		actionCooldown: 5 * time.Minute, // Minimum time between same actions
 		collector:      collector,
 		thresholds: RemediationThresholds{
-			MaxGoroutines:      config.ResourceMaxGoroutines,
-			MaxMemoryMB:        float64(config.ResourceMaxMemoryMB),
+			MaxGoroutines:      config.AppConfig.ResourceMaxGoroutines,
+			MaxMemoryMB:        float64(config.AppConfig.ResourceMaxMemoryMB),
 			MaxGCPauseMs:       100,
 			MaxResponseTimeMs:  5000,
 			MaxErrorRate:       0.1,
-			CriticalMemoryMB:   float64(config.ResourceMaxMemoryMB * 2),
-			CriticalGoroutines: config.ResourceMaxGoroutines * 2,
+			CriticalMemoryMB:   float64(config.AppConfig.ResourceMaxMemoryMB * 2),
+			CriticalGoroutines: config.AppConfig.ResourceMaxGoroutines * 2,
 		},
 	}
 
@@ -222,7 +222,7 @@ func (a *GCAction) Severity() int { return 1 }
 // CanExecute determines if the GC action should be executed based on current metrics
 func (a *GCAction) CanExecute(metrics SystemMetrics) bool {
 	// Trigger GC when memory is above 60% of max threshold
-	gcThreshold := float64(config.ResourceMaxMemoryMB) * 0.6
+	gcThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.6
 	return metrics.MemoryAllocMB > gcThreshold || metrics.GCPauseMs > 50
 }
 
@@ -245,7 +245,7 @@ func (a *MemoryCleanupAction) Severity() int { return 2 }
 // CanExecute determines if the memory cleanup action should be executed based on current metrics
 func (a *MemoryCleanupAction) CanExecute(metrics SystemMetrics) bool {
 	// Trigger cleanup when memory is above GC threshold (80% of max)
-	return metrics.MemoryAllocMB > float64(config.ResourceGCThresholdMB)
+	return metrics.MemoryAllocMB > float64(config.AppConfig.ResourceGCThresholdMB)
 }
 
 // Execute performs the memory cleanup action
@@ -275,8 +275,8 @@ func (a *LogWarningAction) Severity() int { return 0 }
 // CanExecute determines if the log warning action should be executed based on current metrics
 func (a *LogWarningAction) CanExecute(metrics SystemMetrics) bool {
 	// Log warning when resources are above 80% of max thresholds
-	goroutineThreshold := int(float64(config.ResourceMaxGoroutines) * 0.8)
-	memoryThreshold := float64(config.ResourceMaxMemoryMB) * 0.5
+	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 0.8)
+	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.5
 	return metrics.GoroutineCount > goroutineThreshold || metrics.MemoryAllocMB > memoryThreshold
 }
 
@@ -305,8 +305,8 @@ func (a *RestartRecommendationAction) Severity() int { return 10 }
 // CanExecute determines if the restart recommendation action should be executed based on current metrics
 func (a *RestartRecommendationAction) CanExecute(metrics SystemMetrics) bool {
 	// Recommend restart when resources are above 150% of max thresholds
-	goroutineThreshold := int(float64(config.ResourceMaxGoroutines) * 1.5)
-	memoryThreshold := float64(config.ResourceMaxMemoryMB) * 1.6
+	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 1.5)
+	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 1.6
 	return metrics.GoroutineCount > goroutineThreshold || metrics.MemoryAllocMB > memoryThreshold
 }
 

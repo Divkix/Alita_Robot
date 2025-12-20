@@ -44,18 +44,15 @@ func NewActivityMonitor() *ActivityMonitor {
 	// Default values, can be overridden by environment variables
 	checkInterval := 1 * time.Hour
 	inactivityThreshold := 30 * 24 * time.Hour // 30 days
-	enableAutoCleanup := true
 
 	// Check for environment variable overrides
-	if config.ActivityCheckInterval > 0 {
-		checkInterval = time.Duration(config.ActivityCheckInterval) * time.Hour
+	if config.AppConfig.ActivityCheckInterval > 0 {
+		checkInterval = time.Duration(config.AppConfig.ActivityCheckInterval) * time.Hour
 	}
-	if config.InactivityThresholdDays > 0 {
-		inactivityThreshold = time.Duration(config.InactivityThresholdDays) * 24 * time.Hour
+	if config.AppConfig.InactivityThresholdDays > 0 {
+		inactivityThreshold = time.Duration(config.AppConfig.InactivityThresholdDays) * 24 * time.Hour
 	}
-	if config.EnableAutoCleanup != nil {
-		enableAutoCleanup = *config.EnableAutoCleanup
-	}
+	enableAutoCleanup := config.AppConfig.EnableAutoCleanup
 
 	return &ActivityMonitor{
 		ctx:                 ctx,

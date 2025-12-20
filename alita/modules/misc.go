@@ -274,7 +274,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			linkTemplate, _ := tr.GetString("misc_user_link")
 			text += fmt.Sprintf("\n"+linkTemplate, helpers.MentionHtml(user.Id, "link"))
-			if user.Id == config.OwnerId {
+			if user.Id == config.AppConfig.OwnerId {
 				ownerText, _ := tr.GetString("misc_owner_info")
 				text += "\n" + ownerText
 			}

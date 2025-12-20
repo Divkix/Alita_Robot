@@ -97,7 +97,7 @@ func (s *Server) RegisterHealth() {
 				"database": dbHealthy,
 				"redis":    redisHealthy,
 			},
-			Version: config.BotVersion,
+			Version: config.AppConfig.BotVersion,
 			Uptime:  time.Since(s.startTime).String(),
 		}
 
@@ -138,8 +138,8 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 
 	// Configure webhook options
 	webhookOpts := &gotgbot.SetWebhookOpts{
-		AllowedUpdates:     config.AllowedUpdates,
-		DropPendingUpdates: config.DropPendingUpdates,
+		AllowedUpdates:     config.AppConfig.AllowedUpdates,
+		DropPendingUpdates: config.AppConfig.DropPendingUpdates,
 	}
 
 	// Set secret token if configured

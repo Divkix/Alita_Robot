@@ -96,10 +96,10 @@ func LoadAllStats() string {
 
 	// Get webhook status information
 	var deploymentMode, webhookInfo string
-	if config.UseWebhooks {
+	if config.AppConfig.UseWebhooks {
 		deploymentMode = "🌐 Webhook"
-		if config.WebhookDomain != "" {
-			webhookInfo = fmt.Sprintf("\n    <b>Webhook URL:</b> %s/webhook/***", config.WebhookDomain)
+		if config.AppConfig.WebhookDomain != "" {
+			webhookInfo = fmt.Sprintf("\n    <b>Webhook URL:</b> %s/webhook/***", config.AppConfig.WebhookDomain)
 		} else {
 			webhookInfo = "\n    <b>Webhook URL:</b> Not configured"
 		}

@@ -394,7 +394,7 @@ func ChunkKeyboardSlices(slice []gotgbot.InlineKeyboardButton, chunkSize int) (c
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 	var kb []gotgbot.InlineKeyboardButton
 
-	for _, langCode := range config.ValidLangCodes {
+	for _, langCode := range config.AppConfig.ValidLangCodes {
 		properLang := GetLangFormat(langCode)
 		if properLang == "" || properLang == " " {
 			continue

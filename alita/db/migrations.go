@@ -38,7 +38,7 @@ func (SchemaMigration) TableName() string {
 func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 	return &MigrationRunner{
 		db:             db,
-		migrationsPath: config.MigrationsPath,
+		migrationsPath: config.AppConfig.MigrationsPath,
 		cleanSQL:       true, // Always clean Supabase-specific SQL
 	}
 }

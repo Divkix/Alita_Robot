@@ -40,7 +40,7 @@ var Locales embed.FS
 func main() {
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
-		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.HTTPPort))
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
 		if err != nil {
 			os.Exit(1)
 		}
@@ -60,7 +60,7 @@ func main() {
 	}()
 
 	// logs if bot is running in debug mode or not
-	if config.Debug {
+	if config.AppConfig.Debug {
 		log.Info("Running in DEBUG Mode...")
 	} else {
 		log.Info("Running in RELEASE Mode...")
@@ -74,19 +74,19 @@ func main() {
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
 
 	// Initialize Sentry if enabled
-	if config.EnableSentry && config.SentryDSN != "" {
+	if config.AppConfig.EnableSentry && config.AppConfig.SentryDSN != "" {
 		if err := sentry.Init(sentry.ClientOptions{
-			Dsn:              config.SentryDSN,
-			Environment:      config.SentryEnvironment,
-			Release:          fmt.Sprintf("alita@%s", config.BotVersion),
-			SampleRate:       config.SentrySampleRate,
+			Dsn:              config.AppConfig.SentryDSN,
+			Environment:      config.AppConfig.SentryEnvironment,
+			Release:          fmt.Sprintf("alita@%s", config.AppConfig.BotVersion),
+			SampleRate:       config.AppConfig.SentrySampleRate,
 			TracesSampleRate: 0.1, // 10% performance monitoring (optional)
 
 			// Filter sensitive data
 			BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
 				// Remove bot token if accidentally logged
-				if event.Message != "" && strings.Contains(event.Message, config.BotToken) {
-					event.Message = strings.ReplaceAll(event.Message, config.BotToken, "[REDACTED]")
+				if event.Message != "" && strings.Contains(event.Message, config.AppConfig.BotToken) {
+					event.Message = strings.ReplaceAll(event.Message, config.AppConfig.BotToken, "[REDACTED]")
 				}
 				// Filter common/expected errors to reduce noise
 				if strings.Contains(event.Message, "user blocked bot") ||
@@ -106,7 +106,7 @@ func main() {
 		}); err != nil {
 			log.Warnf("[Sentry] Failed to initialize: %v", err)
 		} else {
-			log.Infof("[Sentry] Initialized successfully (Environment: %s, SampleRate: %.2f)", config.SentryEnvironment, config.SentrySampleRate)
+			log.Infof("[Sentry] Initialized successfully (Environment: %s, SampleRate: %.2f)", config.AppConfig.SentryEnvironment, config.AppConfig.SentrySampleRate)
 
 			// Add Sentry hook to logrus for Error/Fatal/Panic levels
 			sentryHook := sentrylogrus.NewEventHookFromClient([]log.Level{
@@ -117,7 +117,7 @@ func main() {
 			log.AddHook(sentryHook)
 			log.Info("[Sentry] Logrus integration enabled for Error/Fatal/Panic levels")
 		}
-	} else if config.EnableSentry && config.SentryDSN == "" {
+	} else if config.AppConfig.EnableSentry && config.AppConfig.SentryDSN == "" {
 		log.Warn("[Sentry] ENABLE_SENTRY is true but SENTRY_DSN is not configured")
 	}
 
@@ -125,8 +125,8 @@ func main() {
 	// IMPORTANT: We create a transport pointer that will be shared across all requests
 	// This ensures connection pooling works correctly (the http.Client struct is copied by value in BaseBotClient)
 	// Use configurable values for optimal performance
-	maxIdleConns := config.HTTPMaxIdleConns
-	maxIdleConnsPerHost := config.HTTPMaxIdleConnsPerHost
+	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
+	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
 
 	httpTransport := &http.Transport{
 		MaxIdleConns:          maxIdleConns,             // Configurable maximum idle connections across all hosts
@@ -146,18 +146,18 @@ func main() {
 	// If a custom API server is configured (e.g., local Bot API server),
 	// wrap the transport to rewrite requests from api.telegram.org to the configured server.
 	var transport http.RoundTripper = httpTransport
-	if config.ApiServer != "" && config.ApiServer != "https://api.telegram.org" {
-		if parsed, err := url.Parse(config.ApiServer); err == nil && parsed.Host != "" {
+	if config.AppConfig.ApiServer != "" && config.AppConfig.ApiServer != "https://api.telegram.org" {
+		if parsed, err := url.Parse(config.AppConfig.ApiServer); err == nil && parsed.Host != "" {
 			transport = &apiServerRewriteTransport{base: httpTransport, target: parsed}
 			log.Infof("[Main] Using custom Bot API server: %s", parsed.String())
 		} else {
-			log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", config.ApiServer)
+			log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", config.AppConfig.ApiServer)
 		}
 	}
 
 	// Create bot with optimized HTTP client using BaseBotClient
 	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
-	b, err := gotgbot.NewBot(config.BotToken, &gotgbot.BotOpts{
+	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
 			Client: http.Client{
 				Transport: transport, // Use the shared (possibly rewritten) transport
@@ -215,7 +215,7 @@ func main() {
 	}
 
 	// Initialize async processing system
-	if config.EnableAsyncProcessing {
+	if config.AppConfig.EnableAsyncProcessing {
 		async.InitializeAsyncProcessor()
 		defer async.StopAsyncProcessor()
 	}
@@ -255,7 +255,7 @@ func main() {
 			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
 
 			// Send to Sentry if available
-			if config.EnableSentry && sentry.CurrentHub().Client() != nil {
+			if config.AppConfig.EnableSentry && sentry.CurrentHub().Client() != nil {
 				sentry.WithScope(func(scope *sentry.Scope) {
 					// Add update context
 					if ctx != nil {
@@ -298,7 +298,7 @@ func main() {
 			// Continue processing other updates
 			return ext.DispatcherActionNoop
 		},
-		MaxRoutines: config.DispatcherMaxRoutines, // Configurable max concurrent goroutines
+		MaxRoutines: config.AppConfig.DispatcherMaxRoutines, // Configurable max concurrent goroutines
 	})
 
 	// Initialize monitoring systems
@@ -306,13 +306,13 @@ func main() {
 	var autoRemediation *monitoring.AutoRemediationManager
 	var activityMonitor *monitoring.ActivityMonitor
 
-	if config.EnableBackgroundStats {
+	if config.AppConfig.EnableBackgroundStats {
 		statsCollector = monitoring.NewBackgroundStatsCollector()
 		statsCollector.Start()
 		defer statsCollector.Stop()
 	}
 
-	if config.EnablePerformanceMonitoring {
+	if config.AppConfig.EnablePerformanceMonitoring {
 		autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
 		autoRemediation.Start()
 		defer autoRemediation.Stop()
@@ -327,7 +327,7 @@ func main() {
 	shutdownManager := shutdown.NewManager()
 
 	// Register Sentry flush in shutdown handlers (first priority)
-	if config.EnableSentry {
+	if config.AppConfig.EnableSentry {
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Flushing Sentry events...")
 			if sentry.Flush(5 * time.Second) {
@@ -361,22 +361,22 @@ func main() {
 	go shutdownManager.WaitForShutdown()
 
 	// Create unified HTTP server for health, metrics, and webhook endpoints
-	httpServer := httpserver.New(config.HTTPPort)
+	httpServer := httpserver.New(config.AppConfig.HTTPPort)
 	httpServer.RegisterHealth()
 	httpServer.RegisterMetrics()
 
 	// Check if we should use webhooks or polling
-	if config.UseWebhooks {
+	if config.AppConfig.UseWebhooks {
 		// Validate webhook configuration
-		if config.WebhookDomain == "" {
+		if config.AppConfig.WebhookDomain == "" {
 			log.Fatal("[Webhook] WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
 		}
-		if config.WebhookSecret == "" {
+		if config.AppConfig.WebhookSecret == "" {
 			log.Warn("[Webhook] WEBHOOK_SECRET is not set, webhook validation will be skipped")
 		}
 
 		// Register webhook endpoint on the unified HTTP server
-		if err := httpServer.RegisterWebhook(b, dispatcher, config.WebhookSecret, config.WebhookDomain); err != nil {
+		if err := httpServer.RegisterWebhook(b, dispatcher, config.AppConfig.WebhookSecret, config.AppConfig.WebhookDomain); err != nil {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
@@ -385,8 +385,8 @@ func main() {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
 
-		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.HTTPPort)
-		config.WorkingMode = "webhook"
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.AppConfig.HTTPPort)
+		config.AppConfig.WorkingMode = "webhook"
 
 		// Register HTTP server shutdown handler
 		shutdownManager.RegisterHandler(func() error {
@@ -421,8 +421,8 @@ func main() {
 		}
 
 		// send message to log group
-		_, err = b.SendMessage(config.MessageDump,
-			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.WorkingMode, alita.ListModules()),
+		_, err = b.SendMessage(config.AppConfig.MessageDump,
+			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.AppConfig.WorkingMode, alita.ListModules()),
 			&gotgbot.SendMessageOpts{
 				ParseMode: helpers.HTML,
 			},
@@ -449,7 +449,7 @@ func main() {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
 
-		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.HTTPPort)
+		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.AppConfig.HTTPPort)
 
 		// Register HTTP server shutdown handler
 		shutdownManager.RegisterHandler(func() error {
@@ -467,9 +467,9 @@ func main() {
 		// start the bot in polling mode
 		err = updater.StartPolling(b,
 			&ext.PollingOpts{
-				DropPendingUpdates: config.DropPendingUpdates,
+				DropPendingUpdates: config.AppConfig.DropPendingUpdates,
 				GetUpdatesOpts: &gotgbot.GetUpdatesOpts{
-					AllowedUpdates: config.AllowedUpdates,
+					AllowedUpdates: config.AppConfig.AllowedUpdates,
 				},
 			},
 		)
@@ -477,7 +477,7 @@ func main() {
 			log.Fatalf("[Polling] Failed to start polling: %v", err)
 		}
 		log.Info("[Polling] Started Polling...!")
-		config.WorkingMode = "polling"
+		config.AppConfig.WorkingMode = "polling"
 
 		// Load modules
 		alita.LoadModules(dispatcher)
@@ -506,8 +506,8 @@ func main() {
 		}
 
 		// send message to log group
-		_, err = b.SendMessage(config.MessageDump,
-			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.WorkingMode, alita.ListModules()),
+		_, err = b.SendMessage(config.AppConfig.MessageDump,
+			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.AppConfig.WorkingMode, alita.ListModules()),
 			&gotgbot.SendMessageOpts{
 				ParseMode: helpers.HTML,
 			},
