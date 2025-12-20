@@ -3,10 +3,13 @@
 package media
 
 import (
+	"strings"
+
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
 // Type constants matching db package for convenience
@@ -89,9 +92,9 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	}
 }
 
-// sendText sends a text message.
+// sendText sends a text message with error handling for expected permission errors.
 func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
-	return b.SendMessage(opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
+	msg, err := b.SendMessage(opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
 		ParseMode: parseMode,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 			IsDisabled: !opts.WebPreview,
@@ -102,6 +105,23 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
+	if err != nil {
+		errStr := err.Error()
+		// Check for expected permission-related errors
+		if strings.Contains(errStr, "not enough rights to send text messages") ||
+			strings.Contains(errStr, "have no rights to send a message") ||
+			strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
+			strings.Contains(errStr, "CHAT_RESTRICTED") ||
+			strings.Contains(errStr, "need administrator rights in the channel chat") {
+			log.WithFields(log.Fields{
+				"chat_id": opts.ChatID,
+				"error":   errStr,
+			}).Warning("Bot lacks permission to send messages in this chat")
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "failed to send message to chat %d", opts.ChatID)
+	}
+	return msg, nil
 }
 
 // sendSticker sends a sticker or falls back to text if FileID is empty.
