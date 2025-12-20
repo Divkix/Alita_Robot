@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
 // Concurrency limit for processing multiple new members
@@ -79,49 +80,19 @@ func (moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		if noformat {
 			wlcmText += helpers.RevertButtons(buttons)
-			// Validate greeting function exists before calling
-			greetFunc, exists := helpers.GreetingsEnumFuncMap[welcPrefs.WelcomeSettings.WelcomeType]
-			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for welcome preview: %d, falling back to text message", welcPrefs.WelcomeSettings.WelcomeType)
-				// Fallback to sending a plain text message
-				_, err := msg.Reply(bot, wlcmText, &gotgbot.SendMessageOpts{
-					ParseMode:   helpers.HTML,
-					ReplyMarkup: &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
-				})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-			} else {
-				_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, wlcmText, welcPrefs.WelcomeSettings.FileID, welcPrefs.WelcomeSettings.WelcomeType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
 		} else {
 			wlcmText, buttons = helpers.FormattingReplacer(bot, chat, user, wlcmText, buttons)
 			keyb := helpers.BuildKeyboard(buttons)
 			keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-			// Validate greeting function exists before calling
-			greetFunc, exists := helpers.GreetingsEnumFuncMap[welcPrefs.WelcomeSettings.WelcomeType]
-			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for welcome preview: %d, falling back to text message", welcPrefs.WelcomeSettings.WelcomeType)
-				// Fallback to sending a plain text message
-				_, err := msg.Reply(bot, wlcmText, &gotgbot.SendMessageOpts{
-					ParseMode:   helpers.HTML,
-					ReplyMarkup: &keyboard,
-				})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-			} else {
-				_, err := greetFunc(bot, ctx, wlcmText, welcPrefs.WelcomeSettings.FileID, &keyboard)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, wlcmText, welcPrefs.WelcomeSettings.FileID, welcPrefs.WelcomeSettings.WelcomeType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
 		}
 
@@ -275,49 +246,19 @@ func (moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		if noformat {
 			gdbyeText += helpers.RevertButtons(buttons)
-			// Validate greeting function exists before calling
-			greetFunc, exists := helpers.GreetingsEnumFuncMap[gdbyePrefs.GoodbyeSettings.GoodbyeType]
-			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for goodbye preview: %d, falling back to text message", gdbyePrefs.GoodbyeSettings.GoodbyeType)
-				// Fallback to sending a plain text message
-				_, err := msg.Reply(bot, gdbyeText, &gotgbot.SendMessageOpts{
-					ParseMode:   helpers.HTML,
-					ReplyMarkup: &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
-				})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-			} else {
-				_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, gdbyePrefs.GoodbyeSettings.GoodbyeType, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil}, ctx.EffectiveMessage.MessageThreadId)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
 		} else {
 			gdbyeText, buttons = helpers.FormattingReplacer(bot, chat, user, gdbyeText, buttons)
 			keyb := helpers.BuildKeyboard(buttons)
 			keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
-			// Validate greeting function exists before calling
-			greetFunc, exists := helpers.GreetingsEnumFuncMap[gdbyePrefs.GoodbyeSettings.GoodbyeType]
-			if !exists || greetFunc == nil {
-				log.Errorf("Invalid or missing greeting type for goodbye preview: %d, falling back to text message", gdbyePrefs.GoodbyeSettings.GoodbyeType)
-				// Fallback to sending a plain text message
-				_, err := msg.Reply(bot, gdbyeText, &gotgbot.SendMessageOpts{
-					ParseMode:   helpers.HTML,
-					ReplyMarkup: &keyboard,
-				})
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-			} else {
-				_, err := greetFunc(bot, ctx, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, &keyboard)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
+			_, err := media.SendGreeting(bot, ctx.EffectiveChat.Id, gdbyeText, gdbyePrefs.GoodbyeSettings.FileID, gdbyePrefs.GoodbyeSettings.GoodbyeType, &keyboard, ctx.EffectiveMessage.MessageThreadId)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
 		}
 	} else if len(args) >= 1 {
@@ -665,27 +606,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		)
 		keyboard := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: helpers.BuildKeyboard(buttons)}
 
-		// Validate greeting function exists before calling
-		greetFunc, exists := helpers.GreetingsEnumFuncMap[greetPrefs.WelcomeSettings.WelcomeType]
-		if !exists || greetFunc == nil {
-			log.Errorf("Invalid or missing greeting type: %d, using fallback text message", greetPrefs.WelcomeSettings.WelcomeType)
-			// Fallback to sending a plain text message
-			_, err := helpers.SendMessageWithErrorHandling(bot, chat.Id, res, &gotgbot.SendMessageOpts{
-				ParseMode:   helpers.HTML,
-				ReplyMarkup: keyboard,
-			})
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if greetPrefs.WelcomeSettings.CleanWelcome {
-				_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.WelcomeSettings.LastMsgId)
-				db.SetCleanWelcomeMsgId(chat.Id, 0) // No message ID available for cleanup
-			}
-			return nil
-		}
-
-		sent, err := greetFunc(bot, ctx, res, greetPrefs.WelcomeSettings.FileID, keyboard)
+		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, keyboard, ctx.EffectiveMessage.MessageThreadId)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -810,26 +731,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		buttons := db.GetGoodbyeButtons(chat.Id)
 		res, buttons := helpers.FormattingReplacer(bot, chat, &leftMember, greetPrefs.GoodbyeSettings.GoodbyeText, buttons)
 		keyboard := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: helpers.BuildKeyboard(buttons)}
-		// Validate greeting function exists before calling
-		greetFunc, exists := helpers.GreetingsEnumFuncMap[greetPrefs.GoodbyeSettings.GoodbyeType]
-		if !exists || greetFunc == nil {
-			log.Errorf("Invalid or missing greeting type for goodbye message: %d, using fallback text message", greetPrefs.GoodbyeSettings.GoodbyeType)
-			// Fallback to sending a plain text message
-			_, err := helpers.SendMessageWithErrorHandling(bot, chat.Id, res, &gotgbot.SendMessageOpts{
-				ParseMode:   helpers.HTML,
-				ReplyMarkup: keyboard,
-			})
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if greetPrefs.GoodbyeSettings.CleanGoodbye {
-				_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.GoodbyeSettings.LastMsgId)
-				db.SetCleanGoodbyeMsgId(chat.Id, 0) // No message ID available for cleanup
-			}
-			return ext.EndGroups
-		}
-		sent, err := greetFunc(bot, ctx, res, greetPrefs.GoodbyeSettings.FileID, keyboard)
+		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, keyboard, ctx.EffectiveMessage.MessageThreadId)
 		if err != nil {
 			log.Error(err)
 			return err

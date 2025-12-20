@@ -25,6 +25,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
@@ -591,15 +592,20 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		// using true as last argument to prevent the message from being formatted
 		var err error
-		_, err = helpers.FiltersEnumFuncMap[filtData.MsgType](
-			b,
-			ctx,
-			*filtData,
-			&gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
-			msg.MessageId,
-			true,
-			filtData.NoNotif,
-		)
+		_, err = media.Send(b, media.Content{
+			Text:    filtData.FilterReply,
+			FileID:  filtData.FileID,
+			MsgType: filtData.MsgType,
+			Name:    filtData.KeyWord,
+		}, media.Options{
+			ChatID:            ctx.Message.Chat.Id,
+			ReplyMsgID:        msg.MessageId,
+			ThreadID:          ctx.Message.MessageThreadId,
+			Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
+			NoFormat:          true,
+			NoNotif:           filtData.NoNotif,
+			AllowWithoutReply: true,
+		})
 		if err != nil {
 			log.Error(err)
 			return err
