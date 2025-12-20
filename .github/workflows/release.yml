@@ -19,6 +19,7 @@ jobs:
   release-ci-checks:
     name: Release CI Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -35,7 +36,7 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.22.11
         with:
           args: -no-fail -fmt sarif -out gosec.sarif ./...
 
@@ -62,6 +63,7 @@ jobs:
   goreleaser:
     name: Release with GoReleaser
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [release-ci-checks]
     permissions:
       contents: write
@@ -83,7 +85,7 @@ jobs:
       - name: Create and push tag
         if: github.event_name == 'workflow_dispatch'
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -113,7 +115,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
+          version: v2.13.0
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,11 +125,12 @@ jobs:
         with:
           name: release-artifacts
           path: dist/*
-          retention-days: 1
+          retention-days: 7
 
   attest-artifacts:
     name: Attest Release Artifacts
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [goreleaser]
     permissions:
       id-token: write
@@ -148,6 +151,7 @@ jobs:
   post-release-scan:
     name: Post-Release Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [goreleaser]
     if: always() && needs.goreleaser.result == 'success'
     permissions:
@@ -155,7 +159,7 @@ jobs:
       security-events: write
     steps:
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: ghcr.io/divkix/alita_robot:latest
           format: table
