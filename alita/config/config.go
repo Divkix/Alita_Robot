@@ -132,6 +132,9 @@ func ValidateConfig(cfg *Config) error {
 		if cfg.WebhookDomain == "" {
 			return fmt.Errorf("WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
 		}
+		if cfg.WebhookSecret == "" {
+			return fmt.Errorf("WEBHOOK_SECRET is required when USE_WEBHOOKS is enabled for security")
+		}
 	}
 
 	// Validate HTTP port

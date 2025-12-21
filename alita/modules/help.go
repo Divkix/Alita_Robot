@@ -385,7 +385,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		} else {
-			log.Info("sed")
+			log.WithField("args", args).Debug("Unexpected number of args in /start deep link")
 		}
 	} else {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))

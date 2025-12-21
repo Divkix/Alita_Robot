@@ -27,8 +27,8 @@ import (
 )
 
 var notesModule = moduleStruct{
-	moduleName:        "Notes",
-	overwriteNotesMap: make(map[string]overwriteNote),
+	moduleName: "Notes",
+	// overwriteNotesMap is a sync.Map, initialized to zero value (no make needed)
 }
 
 // addNote handles the /save command to create new notes
@@ -96,7 +96,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	// check if note already exists or not
 	if db.DoesNoteExists(chat.Id, noteWord) {
 		noteWordMapKey := fmt.Sprintf("%d_%s", chat.Id, noteWord)
-		m.overwriteNotesMap[noteWordMapKey] = overwriteNote{
+		notesOverwriteMap.Store(noteWordMapKey, overwriteNote{
 			noteWord:    noteWord,
 			text:        text,
 			fileId:      fileid,
@@ -108,7 +108,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			webPrev:     webPrev,
 			isProtected: isProtected,
 			noNotif:     noNotif,
-		}
+		})
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		overwriteText, _ := tr.GetString("notes_overwrite_confirm")
 		yesText, _ := tr.GetString("button_yes")
@@ -176,8 +176,12 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteWord := strings.SplitN(msg.Text, " ", 2)[1] // don't include '/clear' command
-	noteWord = strings.TrimLeft(noteWord, "#")
+	// Extract note word safely to prevent panic
+	parts := strings.SplitN(msg.Text, " ", 2)
+	if len(parts) < 2 {
+		return ext.EndGroups // should not happen due to len(args) check above
+	}
+	noteWord := strings.TrimLeft(parts[1], "#")
 
 	// check permission
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
@@ -430,17 +434,22 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	case "cancel":
 		// Clean up the pending overwrite entry when user cancels
 		// This prevents memory leaks from cancelled overwrites
-		delete(m.overwriteNotesMap, noteWordMapKey)
+		notesOverwriteMap.Delete(noteWordMapKey)
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	default:
 		dataSplit := strings.Split(noteWordMapKey, "_")
 		strChatId, noteWord := dataSplit[0], dataSplit[1]
 		chatId, _ := strconv.ParseInt(strChatId, 10, 64)
-		noteData := m.overwriteNotesMap[noteWordMapKey]
+		noteDataRaw, ok := notesOverwriteMap.Load(noteWordMapKey)
+		if !ok {
+			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			break
+		}
+		noteData := noteDataRaw.(overwriteNote)
 		if db.DoesNoteExists(chatId, noteWord) {
 			db.RemoveNote(chatId, noteWord)
 			db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif)
-			delete(m.overwriteNotesMap, noteWordMapKey) // delete the key to make map clear
+			notesOverwriteMap.Delete(noteWordMapKey) // delete the key to make map clear
 			helpText, _ = tr.GetString("notes_overwrite_success")
 		}
 	}

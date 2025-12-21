@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -28,12 +29,15 @@ type moduleStruct struct {
 	permHandlerGroup  int
 	restrHandlerGroup int
 	defaultRulesBtn   string
-	overwriteNotesMap map[string]overwriteNote
 	antiSpam          map[int64]*antiSpamInfo
 	AbleMap           moduleEnabled
 	AltHelpOptions    map[string][]string
 	helpableKb        map[string][][]gotgbot.InlineKeyboardButton
 }
+
+// notesOverwriteMap is a package-level concurrent-safe map for note overwrites.
+// This is separate from moduleStruct to avoid copylocks issues with value receivers.
+var notesOverwriteMap sync.Map
 
 // struct for filters module
 type overwriteFilter struct {
@@ -189,22 +193,48 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 	chat := ctx.EffectiveChat
 
 	if strings.HasPrefix(arg, "help_") {
-		helpModule := strings.Split(arg, "_")[1]
+		parts := strings.Split(arg, "_")
+		if len(parts) < 2 {
+			return ext.EndGroups
+		}
+		helpModule := parts[1]
 		_, err := sendHelpkb(b, ctx, helpModule)
 		if err != nil {
 			log.Errorf("[Start]: %v", err)
 			return err
 		}
 	} else if strings.HasPrefix(arg, "connect_") {
-		chatID, _ := strconv.Atoi(strings.Split(arg, "_")[1])
-		cochat, _ := b.GetChat(int64(chatID), nil)
+		parts := strings.Split(arg, "_")
+		if len(parts) < 2 {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		chatID, err := strconv.Atoi(parts[1])
+		if err != nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		cochat, err := b.GetChat(int64(chatID), nil)
+		if err != nil || cochat == nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_chat_not_found")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
 		go db.ConnectId(user.Id, cochat.Id)
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
 		connKeyboard := helpers.InitButtons(b, cochat.Id, user.Id)
 
-		_, err := ctx.EffectiveMessage.Reply(b, Text,
+		_, err = ctx.EffectiveMessage.Reply(b, Text,
 			&gotgbot.SendMessageOpts{
 				ReplyMarkup: connKeyboard,
 			},
@@ -214,8 +244,30 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			return err
 		}
 	} else if strings.HasPrefix(arg, "rules_") {
-		chatID, _ := strconv.Atoi(strings.Split(arg, "_")[1])
-		chatinfo, _ := b.GetChat(int64(chatID), nil)
+		parts := strings.Split(arg, "_")
+		if len(parts) < 2 {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		chatID, err := strconv.Atoi(parts[1])
+		if err != nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		chatinfo, err := b.GetChat(int64(chatID), nil)
+		if err != nil || chatinfo == nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_chat_not_found")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
 		rulesrc := db.GetChatRulesInfo(int64(chatID))
 
 		if rulesrc.Rules == "" {
@@ -234,15 +286,37 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			"first":  chatinfo.Title,
 			"second": rulesrc.Rules,
 		})
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err = msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
 	} else if strings.HasPrefix(arg, "note") {
 		nArgs := strings.SplitN(arg, "_", 3)
-		chatID, _ := strconv.Atoi(nArgs[1])
-		chatinfo, _ := b.GetChat(int64(chatID), nil)
+
+		// Validate deep link has at least chat ID
+		if len(nArgs) < 2 {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		chatID, err := strconv.Atoi(nArgs[1])
+		if err != nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
+		chatinfo, err := b.GetChat(int64(chatID), nil)
+		if err != nil || chatinfo == nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_chat_not_found")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
 
 		if strings.HasPrefix(arg, "notes_") {
 			// check if feth admin notes or not
@@ -265,6 +339,14 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 				return err
 			}
 		} else if strings.HasPrefix(arg, "note_") {
+			// Validate deep link has note name
+			if len(nArgs) < 3 {
+				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				text, _ := tr.GetString("helpers_invalid_deep_link")
+				_, _ = msg.Reply(b, text, helpers.Shtml())
+				return ext.EndGroups
+			}
+
 			noteName := strings.ToLower(nArgs[2])
 			noteData := db.GetNote(chatinfo.Id, noteName)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))

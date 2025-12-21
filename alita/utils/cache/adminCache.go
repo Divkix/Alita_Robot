@@ -168,7 +168,8 @@ func GetAdminCacheList(chatId int64) (bool, AdminCache) {
 // Returns true and the MergedChatMember if the user is found as an admin,
 // false and empty MergedChatMember if not found or cache miss.
 func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
-	adminList, err := Marshal.Get(Context, AdminCache{ChatId: chatId}, new(AdminCache))
+	// Use consistent string key format matching LoadAdminCache
+	adminList, err := Marshal.Get(Context, fmt.Sprintf("alita:adminCache:%d", chatId), new(AdminCache))
 	if err != nil || adminList == nil {
 		return false, gotgbot.MergedChatMember{}
 	}

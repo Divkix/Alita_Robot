@@ -218,49 +218,71 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	}
 
 	// Fallback: If admin cache is empty but we know this is a group/supergroup,
-	// try a direct GetChatMember call as backup
+	// try a direct GetChatMember call as backup with timeout
 	if len(adminList.UserInfo) == 0 {
 		log.WithFields(log.Fields{
 			"chatID": chatID,
 			"userID": userId,
 		}).Debug("IsUserAdmin: Admin cache empty, trying direct GetChatMember fallback")
 
-		member, err := b.GetChatMember(chatID, userId, nil)
-		if err != nil {
-			// Check for specific permission errors to avoid spam
-			errStr := err.Error()
-			if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {
-				log.WithFields(log.Fields{
-					"chatID": chatID,
-					"userID": userId,
-				}).Debug("IsUserAdmin: Bot lacks admin rights for GetChatMember fallback")
-			} else if strings.Contains(errStr, "invalid user_id specified") {
-				log.WithFields(log.Fields{
-					"chatID": chatID,
-					"userID": userId,
-				}).Warning("IsUserAdmin: Invalid user ID provided to GetChatMember")
-			} else {
-				log.WithFields(log.Fields{
-					"chatID":    chatID,
-					"userID":    userId,
-					"error":     err,
-					"errorType": fmt.Sprintf("%T", err),
-				}).Warning("IsUserAdmin: Direct GetChatMember failed with unexpected error")
+		// Use channel with timeout to prevent hanging on slow API responses
+		type memberResult struct {
+			member gotgbot.ChatMember
+			err    error
+		}
+		resultChan := make(chan memberResult, 1)
+
+		go func() {
+			member, err := b.GetChatMember(chatID, userId, nil)
+			resultChan <- memberResult{member: member, err: err}
+		}()
+
+		// Wait for result with 5 second timeout
+		select {
+		case result := <-resultChan:
+			if result.err != nil {
+				// Check for specific permission errors to avoid spam
+				errStr := result.err.Error()
+				if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {
+					log.WithFields(log.Fields{
+						"chatID": chatID,
+						"userID": userId,
+					}).Debug("IsUserAdmin: Bot lacks admin rights for GetChatMember fallback")
+				} else if strings.Contains(errStr, "invalid user_id specified") {
+					log.WithFields(log.Fields{
+						"chatID": chatID,
+						"userID": userId,
+					}).Warning("IsUserAdmin: Invalid user ID provided to GetChatMember")
+				} else {
+					log.WithFields(log.Fields{
+						"chatID":    chatID,
+						"userID":    userId,
+						"error":     result.err,
+						"errorType": fmt.Sprintf("%T", result.err),
+					}).Warning("IsUserAdmin: Direct GetChatMember failed with unexpected error")
+				}
+				return false
 			}
+
+			status := result.member.GetStatus()
+			isAdmin := status == "administrator" || status == "creator"
+
+			log.WithFields(log.Fields{
+				"chatID":  chatID,
+				"userID":  userId,
+				"status":  status,
+				"isAdmin": isAdmin,
+			}).Debug("IsUserAdmin: Used fallback GetChatMember")
+
+			return isAdmin
+
+		case <-time.After(5 * time.Second):
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Warn("IsUserAdmin: GetChatMember fallback timed out, assuming non-admin")
 			return false
 		}
-
-		status := member.GetStatus()
-		isAdmin := status == "administrator" || status == "creator"
-
-		log.WithFields(log.Fields{
-			"chatID":  chatID,
-			"userID":  userId,
-			"status":  status,
-			"isAdmin": isAdmin,
-		}).Debug("IsUserAdmin: Used fallback GetChatMember")
-
-		return isAdmin
 	}
 
 	return false

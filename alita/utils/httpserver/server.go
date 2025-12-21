@@ -191,11 +191,24 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Process the update through the dispatcher
+	// Process the update through the dispatcher with timeout
 	go func() {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
-		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
-			log.Error("[HTTPServer] Failed to process update: ", err)
+
+		// Add timeout to prevent runaway goroutines
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
+				log.Error("[HTTPServer] Failed to process update: ", err)
+			}
+		}()
+
+		select {
+		case <-done:
+			// Completed normally
+		case <-time.After(60 * time.Second):
+			log.Warn("[HTTPServer] Update processing timed out after 60 seconds")
 		}
 	}()
 
@@ -209,8 +222,8 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 // validateWebhook validates the incoming webhook request using the secret token
 func (s *Server) validateWebhook(r *http.Request) bool {
 	if s.secret == "" {
-		log.Warn("[HTTPServer] No webhook secret configured, skipping validation")
-		return true
+		log.Error("[HTTPServer] Webhook secret is required but not configured - rejecting request")
+		return false
 	}
 
 	// Get the X-Telegram-Bot-Api-Secret-Token header

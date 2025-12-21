@@ -83,6 +83,28 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if len(args) >= 1 {
 		allBlWords := db.GetBlacklistSettings(chat.Id).Triggers()
 
+		// Validate word lengths - reject words over 100 characters
+		var tooLong []string
+		validArgs := make([]string, 0, len(args))
+		for _, word := range args {
+			if len(word) > 100 {
+				tooLong = append(tooLong, word[:20]+"...") // Show truncated preview
+			} else {
+				validArgs = append(validArgs, word)
+			}
+		}
+		if len(tooLong) > 0 {
+			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_word_too_long")
+			_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(tooLong, ", ")), helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+			}
+		}
+		if len(validArgs) == 0 {
+			return ext.EndGroups
+		}
+		args = validArgs
+
 		// For small lists, process sequentially
 		if len(args) <= 3 {
 			for _, blWord := range args {
@@ -509,6 +531,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	// skip admins and creator + approved users and anonymous channel
 	// Only check admin status for actual users, not anonymous channels
 	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
+		return ext.ContinueGroups
+	}
+
+	// Check if bot has admin permissions to take action
+	// This prevents wasted API calls when bot can't delete/restrict
+	if !chat_status.IsBotAdmin(b, ctx, chat) {
 		return ext.ContinueGroups
 	}
 
