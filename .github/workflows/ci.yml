@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload build artifact
         if: matrix.go-version == 'stable'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifact-${{ github.sha }}
           path: alita_robot
