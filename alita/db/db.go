@@ -663,16 +663,32 @@ func init() {
 		},
 	)
 
-	// Open PostgreSQL connection using DATABASE_URL
-	DB, err = gorm.Open(postgres.Open(config.AppConfig.DatabaseURL), &gorm.Config{
-		Logger:      gormLogger,
-		PrepareStmt: true, // Enable prepared statement caching for better performance
-		NowFunc: func() time.Time {
-			return time.Now().UTC()
-		},
-	})
+	// Open PostgreSQL connection using DATABASE_URL with retry logic
+	maxRetries := 5
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		DB, err = gorm.Open(postgres.Open(config.AppConfig.DatabaseURL), &gorm.Config{
+			Logger:      gormLogger,
+			PrepareStmt: true, // Enable prepared statement caching for better performance
+			NowFunc: func() time.Time {
+				return time.Now().UTC()
+			},
+		})
+		if err == nil {
+			break
+		}
+
+		log.WithFields(log.Fields{
+			"attempt": attempt + 1,
+			"error":   err,
+		}).Warning("[Database][Connection] Failed to connect, retrying...")
+
+		if attempt < maxRetries-1 {
+			// Exponential backoff: 1s, 2s, 4s, 8s
+			time.Sleep(time.Duration(1<<attempt) * time.Second)
+		}
+	}
 	if err != nil {
-		log.Fatalf("[Database][Connection]: %v", err)
+		log.Fatalf("[Database][Connection] Failed after %d attempts: %v", maxRetries, err)
 	}
 
 	// Get underlying sql.DB to configure connection pool

@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -36,9 +37,27 @@ func InitCache() error {
 		DB:       config.AppConfig.RedisDB,       // use default DB
 	})
 
-	// Test Redis connection
-	if err := redisClient.Ping(Context).Err(); err != nil {
-		return fmt.Errorf("failed to connect to Redis: %w", err)
+	// Test Redis connection with retry logic
+	maxRetries := 5
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = redisClient.Ping(Context).Err()
+		if pingErr == nil {
+			break
+		}
+
+		log.WithFields(log.Fields{
+			"attempt": attempt + 1,
+			"error":   pingErr,
+		}).Warning("[Cache] Failed to connect to Redis, retrying...")
+
+		if attempt < maxRetries-1 {
+			// Exponential backoff: 1s, 2s, 4s, 8s
+			time.Sleep(time.Duration(1<<attempt) * time.Second)
+		}
+	}
+	if pingErr != nil {
+		return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, pingErr)
 	}
 
 	// Clear all caches on startup if configured to do so

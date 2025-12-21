@@ -97,7 +97,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// if command is disabled, return
-	if chat_status.CheckDisabledCmd(bot, msg, "adminlist") {
+	if chat_status.CheckDisabledCmd(bot, msg, "rules") {
 		return ext.EndGroups
 	}
 	// connection status
@@ -189,7 +189,21 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if msg.ReplyToMessage != nil {
 			text = msg.ReplyToMessage.OriginalMDV2()
 		} else {
-			text = strings.SplitN(msg.OriginalMDV2(), " ", 2)[1]
+			// Extract text safely to prevent panic and avoid setting empty rules
+			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
+			if len(parts) >= 2 {
+				text = parts[1]
+			} else {
+				// No text provided after command - show error
+				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				text, _ = tr.GetString("rules_need_text")
+				_, err := msg.Reply(bot, text, helpers.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return ext.EndGroups
+			}
 		}
 		go db.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text))
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))

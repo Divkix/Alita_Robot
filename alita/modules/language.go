@@ -105,7 +105,13 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, _, err := query.Message.EditText(
+	// Answer the callback query to stop the loading spinner
+	_, err := query.Answer(b, nil)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, _, err = query.Message.EditText(
 		b,
 		replyString,
 		&gotgbot.EditMessageTextOpts{

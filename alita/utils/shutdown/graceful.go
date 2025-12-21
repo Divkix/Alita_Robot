@@ -64,7 +64,8 @@ func (m *Manager) shutdown() {
 		log.Info("[Shutdown] Starting graceful shutdown...")
 
 		// Create context with timeout for shutdown
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		// Use 60 seconds to allow time for database connections and large cleanup tasks
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		// Execute shutdown handlers in reverse order

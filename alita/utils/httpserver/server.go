@@ -192,6 +192,9 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the update through the dispatcher
+	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
+	// will complete even if the HTTP response has already been sent. This is by design
+	// as Telegram expects a quick 200 OK response while processing happens async.
 	go func() {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
 		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
@@ -209,8 +212,8 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 // validateWebhook validates the incoming webhook request using the secret token
 func (s *Server) validateWebhook(r *http.Request) bool {
 	if s.secret == "" {
-		log.Warn("[HTTPServer] No webhook secret configured, skipping validation")
-		return true
+		log.Error("[HTTPServer] Webhook secret is required but not configured - rejecting request")
+		return false
 	}
 
 	// Get the X-Telegram-Bot-Api-Secret-Token header

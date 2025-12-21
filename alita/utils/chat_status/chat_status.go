@@ -218,15 +218,24 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	}
 
 	// Fallback: If admin cache is empty but we know this is a group/supergroup,
-	// try a direct GetChatMember call as backup
+	// try a direct GetChatMember call as backup using the existing context timeout
 	if len(adminList.UserInfo) == 0 {
 		log.WithFields(log.Fields{
 			"chatID": chatID,
 			"userID": userId,
 		}).Debug("IsUserAdmin: Admin cache empty, trying direct GetChatMember fallback")
 
-		member, err := b.GetChatMember(chatID, userId, nil)
+		// Use context-aware API call to ensure proper cancellation on timeout
+		member, err := b.GetChatMemberWithContext(ctx, chatID, userId, nil)
 		if err != nil {
+			// Check for context timeout
+			if ctx.Err() != nil {
+				log.WithFields(log.Fields{
+					"chatID": chatID,
+					"userID": userId,
+				}).Warn("IsUserAdmin: GetChatMember fallback timed out, assuming non-admin")
+				return false
+			}
 			// Check for specific permission errors to avoid spam
 			errStr := err.Error()
 			if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {

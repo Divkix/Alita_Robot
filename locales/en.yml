@@ -183,6 +183,7 @@ blacklists_bl_watcher_muted_user: Muted %s due to %s
 blacklists_blacklist_added_bl: "Added these words as blacklists:"
 blacklists_blacklist_already_blacklisted: "These words are already blacklisted:"
 blacklists_blacklist_give_bl_word: Please give me a word to add to the blacklist!
+blacklists_blacklist_word_too_long: "These words are too long (max 100 characters): %s"
 blacklists_help_msg: "*User Commands:*
 
   × /blacklists: Check all the blacklists in chat.
@@ -333,6 +334,7 @@ connections_is_user_connected_need_group:
   chats, not in PM!
 connections_is_user_connected_user_not_admin: You need to be an admin to do this.
 connections_not_connected: You aren't connected to any chats.
+connections_stale_connection: "Your connection is stale - I can no longer access this chat. Please use /connect to reconnect to a valid chat."
 connections_reconnect_need_pm: You need to be in a PM with me to reconnect to a chat!
 connections_reconnect_no_last_chat: You have no last chat to reconnect!
 connections_reconnect_reconnected: You are now reconnected to <b>%s</b>!!
@@ -1147,6 +1149,7 @@ purges_reply_to_purgefrom: Reply to a message to select where to start purging f
 purges_need_purgefrom: You can only use this command after having used the /purgefrom command!
 purges_use_del_single: Use /del command to delete one message!
 purges_reply_to_purgeto: Reply to a message to show me till where to purge.
+purges_limit_exceeded: "Cannot purge more than %d messages at once! Please select a smaller range."
 
 # Rules module strings
 rules_cleared_successfully: Successfully cleared rules!
@@ -1368,6 +1371,7 @@ filters_limit_exceeded: |
   Filters limit exceeded, a group can only have maximum 150 filters!
   This limitation is due to bot running free without any donations by users.
 filters_keyword_required: "Please give a keyword to reply to!"
+filters_keyword_too_long: "Filter keyword is too long! Maximum 100 characters allowed."
 filters_overwrite_confirm: "Filter already exists!\nDo you want to overwrite it?"
 filters_added_success: "Added reply for filter word <code>%s</code>"
 filters_remove_keyword_required: "Please give a filter word to remove!"
@@ -1508,6 +1512,8 @@ helpers_need_content: "You need to give me some content to %s users!"
 helpers_text_too_long: "Your message text is %d characters long. The maximum length for text is 4096; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 helpers_caption_too_long: "Your message caption is %d characters long. The maximum caption length is 1024; please trim it to a smaller size. Note that markdown characters may take more space than expected."
 helpers_module_help_header: "Here is the help for the *%s* module:\n\n"
+helpers_invalid_deep_link: "Invalid or malformed deep link. Please check the URL and try again."
+helpers_chat_not_found: "Could not find the chat associated with this link. The chat may no longer exist or I may not have access to it."
 
 # Repository validation errors
 repo_user_nil_error: "user cannot be nil"

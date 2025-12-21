@@ -234,7 +234,14 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 		if conn.Connected && conn.ChatId != 0 {
 			chatFullInfo, err := b.GetChat(conn.ChatId, nil)
 			if err != nil {
-				log.Error(err)
+				log.WithFields(log.Fields{
+					"userId": user.Id,
+					"chatId": conn.ChatId,
+					"error":  err,
+				}).Warn("Stale connection detected - chat no longer accessible")
+				// Provide user feedback about stale connection
+				text, _ := tr.GetString("connections_stale_connection")
+				_, _ = msg.Reply(b, text, nil)
 				return nil
 			}
 			_chat := chatFullInfo.ToChat() // need to convert to Chat type
@@ -968,15 +975,24 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		if msg.Text == "" && msg.Caption != "" {
-			*rawText = strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)[1] // using [1] to remove the command
+			parts := strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
+			if len(parts) >= 2 {
+				*rawText = parts[1] // remove the command
+			}
 		} else if msg.Text != "" && msg.Caption == "" {
-			*rawText = strings.SplitN(msg.OriginalMDV2(), " ", 2)[1] // using [1] to remove the command
+			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
+			if len(parts) >= 2 {
+				*rawText = parts[1] // remove the command
+			}
 		}
 	} else {
 		if replyMsg.Text == "" && replyMsg.Caption != "" {
 			*rawText = replyMsg.OriginalCaptionMDV2()
 		} else if replyMsg.Caption == "" && len(args) >= 2 {
-			*rawText = strings.SplitN(msg.OriginalMDV2(), " ", 3)[2] // using [1] to remove the command
+			parts := strings.SplitN(msg.OriginalMDV2(), " ", 3)
+			if len(parts) >= 3 {
+				*rawText = parts[2] // remove the command and first arg
+			}
 		} else {
 			*rawText = replyMsg.OriginalMDV2()
 		}

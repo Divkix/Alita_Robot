@@ -219,23 +219,27 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.ContinueGroups
 			}
 		case <-ctx_timeout.Done():
-			// Admin check timed out, treat as non-admin for safety
+			// Admin check timed out, fail open to prevent false positives
+			// It's better to occasionally miss a flood from an admin than to ban actual admins on timeout
 			log.WithFields(log.Fields{
 				"chatId": chatId,
 				"userId": userId,
-			}).Warn("Admin check timed out, treating user as non-admin")
-		}
+			}).Warn("Admin check timed out, skipping flood check to prevent false positives")
 
-		// Wait for goroutine cleanup with timeout to prevent indefinite blocking
-		select {
-		case <-done:
-			// Goroutine completed cleanly
-		case <-time.After(1 * time.Second):
-			// Log if goroutine takes too long to cleanup
-			log.WithFields(log.Fields{
-				"chatId": chatId,
-				"userId": userId,
-			}).Warn("Admin check goroutine cleanup timeout")
+			// Wait for goroutine cleanup with timeout to prevent indefinite blocking
+			select {
+			case <-done:
+				// Goroutine completed cleanly
+			case <-time.After(1 * time.Second):
+				// Log if goroutine takes too long to cleanup
+				log.WithFields(log.Fields{
+					"chatId": chatId,
+					"userId": userId,
+				}).Warn("Admin check goroutine cleanup timeout")
+			}
+
+			// Skip flood check on timeout - fail open like semaphore full case
+			return ext.ContinueGroups
 		}
 	default:
 		// CRITICAL FIX: Semaphore full - fail open to prevent false positives

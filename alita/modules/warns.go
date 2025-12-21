@@ -74,7 +74,6 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyText = fmt.Sprintf(temp, args[0])
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		replyText, _ = tr.GetString("warns_specify_action")
 	}
 

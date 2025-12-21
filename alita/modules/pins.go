@@ -864,11 +864,17 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 			rawText = reply.OriginalMDV2()
 		}
 	} else {
+		// Extract text safely to prevent panic on malformed input
+		var parts []string
 		if msg.Text == "" {
-			rawText = strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)[1]
+			parts = strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
 		} else {
-			rawText = strings.SplitN(msg.OriginalMDV2(), " ", 2)[1]
+			parts = strings.SplitN(msg.OriginalMDV2(), " ", 2)
 		}
+		if len(parts) >= 2 {
+			rawText = parts[1]
+		}
+		// If len(parts) < 2, rawText stays empty - handled by later validation
 	}
 
 	// get text and buttons

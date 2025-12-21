@@ -161,6 +161,18 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	filterWord = strings.ToLower(filterWord) // convert string to it's lower form
 
+	// Validate keyword length - max 100 characters
+	if len(filterWord) > 100 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("filters_keyword_too_long")
+		_, err := msg.Reply(b, text, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
 	if db.DoesFilterExists(chat.Id, filterWord) {
 		// Store in cache instead of in-memory map
 		err := setFilterOverwriteCache(filterWord, chat.Id, overwriteFilter{
