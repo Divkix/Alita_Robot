@@ -88,7 +88,13 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		validArgs := make([]string, 0, len(args))
 		for _, word := range args {
 			if len(word) > 100 {
-				tooLong = append(tooLong, word[:20]+"...") // Show truncated preview
+				// Use rune-based truncation to avoid splitting multi-byte UTF-8 characters
+				runes := []rune(word)
+				preview := word
+				if len(runes) > 20 {
+					preview = string(runes[:20]) + "..."
+				}
+				tooLong = append(tooLong, preview)
 			} else {
 				validArgs = append(validArgs, word)
 			}

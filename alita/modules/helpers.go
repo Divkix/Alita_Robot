@@ -195,6 +195,9 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 	if strings.HasPrefix(arg, "help_") {
 		parts := strings.Split(arg, "_")
 		if len(parts) < 2 {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("helpers_invalid_deep_link")
+			_, _ = msg.Reply(b, text, helpers.Shtml())
 			return ext.EndGroups
 		}
 		helpModule := parts[1]

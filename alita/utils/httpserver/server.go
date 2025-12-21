@@ -191,24 +191,14 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Process the update through the dispatcher with timeout
+	// Process the update through the dispatcher
+	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
+	// will complete even if the HTTP response has already been sent. This is by design
+	// as Telegram expects a quick 200 OK response while processing happens async.
 	go func() {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
-
-		// Add timeout to prevent runaway goroutines
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
-				log.Error("[HTTPServer] Failed to process update: ", err)
-			}
-		}()
-
-		select {
-		case <-done:
-			// Completed normally
-		case <-time.After(60 * time.Second):
-			log.Warn("[HTTPServer] Update processing timed out after 60 seconds")
+		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
+			log.Error("[HTTPServer] Failed to process update: ", err)
 		}
 	}()
 

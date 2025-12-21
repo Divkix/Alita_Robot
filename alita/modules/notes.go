@@ -122,11 +122,11 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: fmt.Sprintf("notes.overwrite.%s", noteWordMapKey),
+								CallbackData: fmt.Sprintf("notes.overwrite.yes.%s", noteWordMapKey),
 							},
 							{
 								Text:         noText,
-								CallbackData: "notes.overwrite.cancel",
+								CallbackData: fmt.Sprintf("notes.overwrite.no.%s", noteWordMapKey),
 							},
 						},
 					},
@@ -416,6 +416,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // noteOverWriteHandler processes callback queries for note overwrite
 // confirmations when adding notes that already exist.
+// Callback format: notes.overwrite.{action}.{chatId}_{noteWord}
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	user := query.From
@@ -427,17 +428,28 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 
 	var helpText string
 	args := strings.Split(query.Data, ".")
-	noteWordMapKey := args[2]
+
+	// Validate callback data format: notes.overwrite.{action}.{key}
+	if len(args) < 4 {
+		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
+		return ext.EndGroups
+	}
+
+	action := args[2]         // "yes" or "no"
+	noteWordMapKey := args[3] // "{chatId}_{noteWord}"
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	switch noteWordMapKey {
-	case "cancel":
+	switch action {
+	case "no":
 		// Clean up the pending overwrite entry when user cancels
-		// This prevents memory leaks from cancelled overwrites
 		notesOverwriteMap.Delete(noteWordMapKey)
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
-	default:
+	case "yes":
 		dataSplit := strings.Split(noteWordMapKey, "_")
+		if len(dataSplit) < 2 {
+			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			break
+		}
 		strChatId, noteWord := dataSplit[0], dataSplit[1]
 		chatId, _ := strconv.ParseInt(strChatId, 10, 64)
 		noteDataRaw, ok := notesOverwriteMap.Load(noteWordMapKey)
@@ -449,9 +461,12 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		if db.DoesNoteExists(chatId, noteWord) {
 			db.RemoveNote(chatId, noteWord)
 			db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif)
-			notesOverwriteMap.Delete(noteWordMapKey) // delete the key to make map clear
+			notesOverwriteMap.Delete(noteWordMapKey)
 			helpText, _ = tr.GetString("notes_overwrite_success")
 		}
+	default:
+		log.WithField("action", action).Warn("Unknown note overwrite action")
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(

@@ -417,6 +417,19 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			totalMsgs = msgId - deleteTo + 1
 		}
+
+		// Enforce same limit as /purge command to prevent abuse
+		const maxPurgeMessages = 1000
+		if totalMsgs > maxPurgeMessages {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("purges_limit_exceeded")
+			_, err := msg.Reply(bot, fmt.Sprintf(text, maxPurgeMessages), helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+			}
+			return ext.EndGroups
+		}
+
 		purge := m.purgeMsgs(bot, chat, true, msgId, deleteTo)
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			log.Error(err)
