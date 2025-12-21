@@ -50,8 +50,8 @@ updates:
       prefix: "deps(actions)"
     labels:
       - "dependencies"
-      - "github-actions"
-      - "security-review"
+      - "github_actions"
+      - "security"
     open-pull-requests-limit: 2
     reviewers:
       - "divkix"

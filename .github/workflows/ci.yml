@@ -158,7 +158,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/divkix/alita_robot
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=dev
             type=raw,value=dev-${{ steps.short-sha.outputs.short_sha }}
@@ -190,8 +190,8 @@ jobs:
           echo "## 🐳 Docker Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Main Branch Build**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Latest Dev:** \`ghcr.io/divkix/alita_robot:dev\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit Build:** \`ghcr.io/divkix/alita_robot:${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest Dev:** \`ghcr.io/${{ github.repository }}:dev\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit Build:** \`ghcr.io/${{ github.repository }}:${{ steps.short-sha.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms:** \`linux/amd64\`, \`linux/arm64\`" >> $GITHUB_STEP_SUMMARY
 

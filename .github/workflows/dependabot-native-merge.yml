@@ -37,12 +37,12 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
         run: |
           comment_body="🔄 **Major version update detected!**
-          
+
           **Update type:** \`${{ steps.metadata.outputs.update-type }}\`
           **Dependency:** \`${{ steps.metadata.outputs.dependency-names }}\`
-          
+
           This PR requires manual review for potential breaking changes.
-          
-          @divkix please review this update carefully."
-          
+
+          @${{ github.repository_owner }} please review this update carefully."
+
           gh pr comment $PR_NUMBER --body "$comment_body" --repo ${{ github.repository }}
