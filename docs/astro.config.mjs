@@ -1,12 +1,15 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLlmsTxt from 'starlight-llms-txt';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://alita-robot-docs.divkix.workers.dev',
 	integrations: [
 		starlight({
 			title: 'Alita Robot',
+			plugins: [starlightLlmsTxt()],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/divkix/Alita_Robot' }],
 			sidebar: [
 				{
