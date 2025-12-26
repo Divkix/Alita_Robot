@@ -1,0 +1,7 @@
+{
+	"name": "alita-robot-docs",
+	"compatibility_date": "2025-12-26",
+	"assets": {
+		"directory": "./dist"
+	}
+}
