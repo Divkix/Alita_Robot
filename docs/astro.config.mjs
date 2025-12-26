@@ -27,6 +27,11 @@ export default defineConfig({
 					autogenerate: { directory: 'self-hosting' },
 				},
 				{
+					label: 'Architecture',
+					collapsed: true,
+					autogenerate: { directory: 'architecture' },
+				},
+				{
 					label: 'API Reference',
 					collapsed: true,
 					autogenerate: { directory: 'api-reference' },
