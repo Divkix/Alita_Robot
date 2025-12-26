@@ -161,7 +161,11 @@ func parseConfigStruct(configPath string) ([]EnvVar, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Warnf("Failed to close config file: %v", closeErr)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 
@@ -316,9 +320,10 @@ func parseMigrations(migrationsPath string) ([]DBTable, error) {
 			depth := 1
 			endIdx := startIdx + 1
 			for endIdx < len(content) && depth > 0 {
-				if content[endIdx] == '(' {
+				switch content[endIdx] {
+				case '(':
 					depth++
-				} else if content[endIdx] == ')' {
+				case ')':
 					depth--
 				}
 				endIdx++

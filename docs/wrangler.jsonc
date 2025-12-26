@@ -3,5 +3,11 @@
 	"compatibility_date": "2025-12-26",
 	"assets": {
 		"directory": "./dist"
-	}
+	},
+	"routes": [
+		{
+			"pattern": "alita-docs.divkix.me/*",
+			"custom_domain": true
+		}
+	]
 }
