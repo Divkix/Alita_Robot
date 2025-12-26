@@ -876,3 +876,255 @@ func truncateString(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
+
+// generateCallbacksReference generates the callbacks API reference documentation
+func generateCallbacksReference(callbacks []Callback, outputPath string) error {
+	filePath := filepath.Join(outputPath, "api-reference", "callbacks.md")
+
+	log.Debug("Generating callbacks reference")
+
+	var content strings.Builder
+
+	// Frontmatter
+	content.WriteString("---\n")
+	content.WriteString("title: Callback Queries\n")
+	content.WriteString("description: Complete reference of inline button callback handlers\n")
+	content.WriteString("---\n\n")
+
+	// Overview
+	content.WriteString("# 🔔 Callback Queries\n\n")
+	content.WriteString("This page documents all inline button callback handlers in Alita Robot.\n\n")
+	content.WriteString("## Overview\n\n")
+	content.WriteString(fmt.Sprintf("- **Total Callbacks**: %d\n", len(callbacks)))
+
+	// Count modules
+	modules := make(map[string]bool)
+	for _, cb := range callbacks {
+		modules[cb.Module] = true
+	}
+	content.WriteString(fmt.Sprintf("- **Modules with Callbacks**: %d\n\n", len(modules)))
+
+	// Callback data format section
+	content.WriteString("## Callback Data Format\n\n")
+	content.WriteString("Callbacks use a prefix-based routing system:\n\n")
+	content.WriteString("```\n{prefix}{data}\n```\n\n")
+	content.WriteString("For example: `restrict.ban.123456789` routes to the `restrict.` handler with data `ban.123456789`.\n\n")
+
+	// Summary table
+	content.WriteString("## All Callbacks\n\n")
+	content.WriteString("| Module | Prefix | Handler |\n")
+	content.WriteString("|--------|--------|----------|\n")
+	for _, cb := range callbacks {
+		content.WriteString(fmt.Sprintf("| %s | `%s` | %s |\n", cb.Module, cb.Prefix, cb.Handler))
+	}
+	content.WriteString("\n")
+
+	// Group by module
+	content.WriteString("## Callbacks by Module\n\n")
+
+	currentModule := ""
+	for _, cb := range callbacks {
+		if cb.Module != currentModule {
+			currentModule = cb.Module
+			content.WriteString(fmt.Sprintf("### %s\n\n", toTitleCase(currentModule)))
+		}
+		content.WriteString(fmt.Sprintf("#### `%s`\n\n", cb.Prefix))
+		content.WriteString(fmt.Sprintf("- **Handler**: `%s`\n", cb.Handler))
+		content.WriteString(fmt.Sprintf("- **Source**: `%s`\n\n", cb.SourceFile))
+	}
+
+	// Registration example
+	content.WriteString("## Registering Callbacks\n\n")
+	content.WriteString("```go\n")
+	content.WriteString("dispatcher.AddHandler(handlers.NewCallback(\n")
+	content.WriteString("    callbackquery.Prefix(\"myprefix.\"),\n")
+	content.WriteString("    myModule.myCallbackHandler,\n")
+	content.WriteString("))\n")
+	content.WriteString("```\n\n")
+
+	// Handler example
+	content.WriteString("## Handling Callbacks\n\n")
+	content.WriteString("```go\n")
+	content.WriteString("func (m moduleStruct) myCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {\n")
+	content.WriteString("    query := ctx.CallbackQuery\n")
+	content.WriteString("    \n")
+	content.WriteString("    // Parse callback data\n")
+	content.WriteString("    data := strings.TrimPrefix(query.Data, \"myprefix.\")\n")
+	content.WriteString("    \n")
+	content.WriteString("    // Process and answer\n")
+	content.WriteString("    query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{\n")
+	content.WriteString("        Text: \"Action completed\",\n")
+	content.WriteString("    })\n")
+	content.WriteString("    \n")
+	content.WriteString("    return ext.EndGroups\n")
+	content.WriteString("}\n")
+	content.WriteString("```\n\n")
+
+	// Write file
+	if config.DryRun {
+		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
+	} else {
+		refDir := filepath.Join(outputPath, "api-reference")
+		if err := os.MkdirAll(refDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
+		}
+
+		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+			return fmt.Errorf("failed to write callbacks reference: %w", err)
+		}
+
+		log.Info("Generated: api-reference/callbacks.md")
+	}
+
+	return nil
+}
+
+// generatePermissionsReference generates the permissions API reference documentation
+func generatePermissionsReference(permissions []PermissionFunc, outputPath string) error {
+	filePath := filepath.Join(outputPath, "api-reference", "permissions.md")
+
+	log.Debug("Generating permissions reference")
+
+	var content strings.Builder
+
+	// Frontmatter
+	content.WriteString("---\n")
+	content.WriteString("title: Permission System\n")
+	content.WriteString("description: Complete reference of permission checking functions\n")
+	content.WriteString("---\n\n")
+
+	// Overview
+	content.WriteString("# 🔐 Permission System\n\n")
+	content.WriteString("This page documents all permission checking functions in Alita Robot.\n\n")
+	content.WriteString("## Overview\n\n")
+	content.WriteString(fmt.Sprintf("- **Total Functions**: %d\n", len(permissions)))
+	content.WriteString("- **Location**: `alita/utils/chat_status/chat_status.go`\n\n")
+
+	// Summary table
+	content.WriteString("## Function Summary\n\n")
+	content.WriteString("| Function | Returns | Description |\n")
+	content.WriteString("|----------|---------|-------------|\n")
+	for _, perm := range permissions {
+		desc := perm.Description
+		if len(desc) > 60 {
+			desc = desc[:57] + "..."
+		}
+		if desc == "" {
+			desc = "—"
+		}
+		content.WriteString(fmt.Sprintf("| `%s` | `%s` | %s |\n", perm.Name, perm.ReturnType, desc))
+	}
+	content.WriteString("\n")
+
+	// Group by category
+	content.WriteString("## Functions by Category\n\n")
+
+	currentCategory := ""
+	for _, perm := range permissions {
+		if perm.Category != currentCategory {
+			currentCategory = perm.Category
+			emoji := getPermissionCategoryEmoji(currentCategory)
+			content.WriteString(fmt.Sprintf("### %s %s\n\n", emoji, currentCategory))
+		}
+
+		content.WriteString(fmt.Sprintf("#### `%s`\n\n", perm.Name))
+		content.WriteString("```go\n")
+		content.WriteString(perm.Signature + "\n")
+		content.WriteString("```\n\n")
+
+		if perm.Description != "" {
+			content.WriteString(fmt.Sprintf("%s\n\n", perm.Description))
+		}
+
+		if len(perm.Parameters) > 0 {
+			content.WriteString("**Parameters:**\n")
+			for _, param := range perm.Parameters {
+				content.WriteString(fmt.Sprintf("- `%s`\n", param))
+			}
+			content.WriteString("\n")
+		}
+	}
+
+	// Special IDs section
+	content.WriteString("## Special Telegram IDs\n\n")
+	content.WriteString("| ID | Description |\n")
+	content.WriteString("|----|-------------|\n")
+	content.WriteString("| `1087968824` | Anonymous Admin Bot (GroupAnonymousBot) |\n")
+	content.WriteString("| `777000` | Telegram System Account |\n")
+	content.WriteString("| `136817688` | Channel Bot (deprecated) |\n\n")
+
+	// Usage example
+	content.WriteString("## Usage Example\n\n")
+	content.WriteString("```go\n")
+	content.WriteString("func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {\n")
+	content.WriteString("    chat := ctx.EffectiveChat\n")
+	content.WriteString("    user := ctx.EffectiveSender.User\n")
+	content.WriteString("    \n")
+	content.WriteString("    // Check if user is admin\n")
+	content.WriteString("    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {\n")
+	content.WriteString("        return ext.EndGroups\n")
+	content.WriteString("    }\n")
+	content.WriteString("    \n")
+	content.WriteString("    // Check if bot can restrict\n")
+	content.WriteString("    if !chat_status.CanBotRestrict(b, ctx, chat, false) {\n")
+	content.WriteString("        return ext.EndGroups\n")
+	content.WriteString("    }\n")
+	content.WriteString("    \n")
+	content.WriteString("    // Proceed with action...\n")
+	content.WriteString("    return ext.EndGroups\n")
+	content.WriteString("}\n")
+	content.WriteString("```\n\n")
+
+	// Write file
+	if config.DryRun {
+		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
+	} else {
+		refDir := filepath.Join(outputPath, "api-reference")
+		if err := os.MkdirAll(refDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
+		}
+
+		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+			return fmt.Errorf("failed to write permissions reference: %w", err)
+		}
+
+		log.Info("Generated: api-reference/permissions.md")
+	}
+
+	return nil
+}
+
+// getPermissionCategoryEmoji returns an emoji for a permission category
+func getPermissionCategoryEmoji(category string) string {
+	switch category {
+	case "ID Validation":
+		return "🔢"
+	case "User Status Checks":
+		return "👤"
+	case "Bot Permission Checks":
+		return "🤖"
+	case "User Permission Checks":
+		return "👮"
+	case "Requirement Checks":
+		return "✅"
+	case "Utility Functions":
+		return "🔧"
+	default:
+		return "📋"
+	}
+}
+
+// toTitleCase converts a string to title case
+func toTitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	// Simple title case: capitalize first letter of each word
+	words := strings.Fields(s)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+		}
+	}
+	return strings.Join(words, " ")
+}

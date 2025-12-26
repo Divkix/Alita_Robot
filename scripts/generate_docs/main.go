@@ -23,6 +23,7 @@ type Config struct {
 	ConfigPath     string
 	MigrationsPath string
 	SampleEnvPath  string
+	ChatStatusPath string // Path to chat_status.go for permission parsing
 
 	// Output path
 	DocsOutputPath string
@@ -80,6 +81,24 @@ type DBColumn struct {
 	Unique     bool
 }
 
+// Callback represents a callback query handler registration
+type Callback struct {
+	Prefix     string // e.g., "restrict."
+	Handler    string // e.g., "restrictButtonHandler"
+	Module     string // e.g., "bans"
+	SourceFile string // e.g., "bans.go"
+}
+
+// PermissionFunc represents a permission checking function
+type PermissionFunc struct {
+	Name        string   // e.g., "CanUserRestrict"
+	Signature   string   // Full function signature
+	Parameters  []string // Parameter list
+	ReturnType  string   // e.g., "bool"
+	Category    string   // e.g., "User Permission Checks"
+	Description string   // From comment above function
+}
+
 var config Config
 
 func main() {
@@ -89,6 +108,7 @@ func main() {
 	flag.StringVar(&config.ConfigPath, "config", "alita/config/config.go", "Path to config.go")
 	flag.StringVar(&config.MigrationsPath, "migrations", "migrations", "Path to migrations directory")
 	flag.StringVar(&config.SampleEnvPath, "sample-env", "sample.env", "Path to sample.env")
+	flag.StringVar(&config.ChatStatusPath, "chat-status", "alita/utils/chat_status/chat_status.go", "Path to chat_status.go")
 	flag.StringVar(&config.DocsOutputPath, "output", "docs/src/content/docs", "Output path for generated docs")
 	flag.BoolVar(&config.Verbose, "verbose", false, "Enable verbose logging")
 	flag.BoolVar(&config.DryRun, "dry-run", false, "Print what would be generated without writing files")
@@ -138,6 +158,22 @@ func main() {
 	}
 	log.Infof("   Found %d database tables", len(tables))
 
+	// Parse callbacks
+	log.Info("🔔 Parsing callbacks from modules...")
+	callbacks, err := parseCallbacks(filepath.Join(projectRoot, config.ModulesPath))
+	if err != nil {
+		log.Fatalf("Failed to parse callbacks: %v", err)
+	}
+	log.Infof("   Found %d callback handlers", len(callbacks))
+
+	// Parse permissions
+	log.Info("🔐 Parsing permission functions...")
+	permissions, err := parsePermissions(filepath.Join(projectRoot, config.ChatStatusPath))
+	if err != nil {
+		log.Fatalf("Failed to parse permissions: %v", err)
+	}
+	log.Infof("   Found %d permission functions", len(permissions))
+
 	// Build modules with their commands
 	modules := buildModules(translations, commands, moduleAliases)
 	log.Infof("📦 Built %d modules with commands", len(modules))
@@ -166,6 +202,18 @@ func main() {
 	if err := generateCommandsOverview(modules, outputPath); err != nil {
 		log.Fatalf("Failed to generate commands overview: %v", err)
 	}
+
+	// Generate callbacks reference
+	if err := generateCallbacksReference(callbacks, outputPath); err != nil {
+		log.Fatalf("Failed to generate callbacks reference: %v", err)
+	}
+	log.Info("Generated: api-reference/callbacks.md")
+
+	// Generate permissions reference
+	if err := generatePermissionsReference(permissions, outputPath); err != nil {
+		log.Fatalf("Failed to generate permissions reference: %v", err)
+	}
+	log.Info("Generated: api-reference/permissions.md")
 
 	log.Info("✅ Documentation generation complete!")
 	log.Infof("   Output: %s", outputPath)

@@ -480,3 +480,187 @@ func goTypeToSimple(goType string) string {
 		return goType
 	}
 }
+
+// parseCallbacks parses Go source files to extract callback handler registrations
+func parseCallbacks(modulesPath string) ([]Callback, error) {
+	var callbacks []Callback
+
+	// Regex pattern for callback extraction
+	// Matches: handlers.NewCallback(callbackquery.Prefix("prefix"), module.handler)
+	callbackPattern := regexp.MustCompile(`handlers\.NewCallback\s*\(\s*callbackquery\.Prefix\s*\(\s*"([^"]+)"\s*\)\s*,\s*(\w+)\.(\w+)\s*\)`)
+
+	// Module name pattern
+	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
+
+	files, err := filepath.Glob(filepath.Join(modulesPath, "*.go"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			log.Warnf("Could not read %s: %v", file, err)
+			continue
+		}
+
+		content := string(data)
+		fileName := filepath.Base(file)
+		moduleName := strings.TrimSuffix(fileName, ".go")
+
+		// Find module name from struct declaration
+		moduleMatches := moduleNamePattern.FindAllStringSubmatch(content, -1)
+		moduleNames := make(map[string]string)
+		for _, match := range moduleMatches {
+			if len(match) >= 3 {
+				moduleNames[match[1]+"Module"] = match[2]
+			}
+		}
+
+		// Find callback registrations
+		cbMatches := callbackPattern.FindAllStringSubmatch(content, -1)
+		for _, match := range cbMatches {
+			if len(match) >= 4 {
+				prefix := match[1]
+				moduleVar := match[2]
+				handler := match[3]
+
+				// Try to get module name from struct declaration
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = name
+				}
+
+				callbacks = append(callbacks, Callback{
+					Prefix:     prefix,
+					Handler:    handler,
+					Module:     modName,
+					SourceFile: fileName,
+				})
+			}
+		}
+	}
+
+	// Sort callbacks by module then prefix
+	sort.Slice(callbacks, func(i, j int) bool {
+		if callbacks[i].Module != callbacks[j].Module {
+			return callbacks[i].Module < callbacks[j].Module
+		}
+		return callbacks[i].Prefix < callbacks[j].Prefix
+	})
+
+	return callbacks, nil
+}
+
+// parsePermissions parses chat_status.go to extract permission checking functions
+func parsePermissions(chatStatusPath string) ([]PermissionFunc, error) {
+	var permissions []PermissionFunc
+
+	data, err := os.ReadFile(chatStatusPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", chatStatusPath, err)
+	}
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+
+	// Pattern to match exported function declarations
+	funcPattern := regexp.MustCompile(`^func\s+([A-Z]\w*)\s*\(([^)]*)\)\s*(\w+)?\s*\{`)
+
+	var pendingComment string
+
+	for i, line := range lines {
+		// Collect comments
+		if strings.HasPrefix(strings.TrimSpace(line), "//") {
+			comment := strings.TrimPrefix(strings.TrimSpace(line), "//")
+			comment = strings.TrimSpace(comment)
+			if pendingComment != "" {
+				pendingComment += " "
+			}
+			pendingComment += comment
+			continue
+		}
+
+		// Match function declaration
+		if match := funcPattern.FindStringSubmatch(line); match != nil {
+			funcName := match[1]
+			params := match[2]
+			returnType := match[3]
+			if returnType == "" {
+				returnType = "void"
+			}
+
+			// Parse parameters
+			paramList := parseParameterList(params)
+
+			// Build full signature
+			signature := fmt.Sprintf("func %s(%s) %s", funcName, params, returnType)
+
+			// Categorize function
+			category := categorizePermissionFunc(funcName)
+
+			permissions = append(permissions, PermissionFunc{
+				Name:        funcName,
+				Signature:   signature,
+				Parameters:  paramList,
+				ReturnType:  returnType,
+				Category:    category,
+				Description: pendingComment,
+			})
+
+			pendingComment = ""
+		} else if strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "//") {
+			pendingComment = ""
+		}
+		_ = i // unused
+	}
+
+	// Sort by category then name
+	sort.Slice(permissions, func(i, j int) bool {
+		if permissions[i].Category != permissions[j].Category {
+			return permissions[i].Category < permissions[j].Category
+		}
+		return permissions[i].Name < permissions[j].Name
+	})
+
+	return permissions, nil
+}
+
+// parseParameterList extracts parameter names from a function signature
+func parseParameterList(params string) []string {
+	var result []string
+	if params == "" {
+		return result
+	}
+
+	parts := strings.Split(params, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		// Get just the parameter name (first word)
+		fields := strings.Fields(part)
+		if len(fields) > 0 {
+			result = append(result, fields[0])
+		}
+	}
+	return result
+}
+
+// categorizePermissionFunc categorizes a permission function based on its name
+func categorizePermissionFunc(name string) string {
+	switch {
+	case strings.HasPrefix(name, "IsValid") || strings.HasPrefix(name, "IsChannel"):
+		return "ID Validation"
+	case strings.HasPrefix(name, "IsUser"):
+		return "User Status Checks"
+	case strings.HasPrefix(name, "IsBotAdmin") || strings.HasPrefix(name, "CanBot"):
+		return "Bot Permission Checks"
+	case strings.HasPrefix(name, "CanUser") || name == "Caninvite":
+		return "User Permission Checks"
+	case strings.HasPrefix(name, "Require"):
+		return "Requirement Checks"
+	case strings.HasPrefix(name, "Get") || strings.HasPrefix(name, "Check") || strings.HasPrefix(name, "Load"):
+		return "Utility Functions"
+	default:
+		return "Other"
+	}
+}
