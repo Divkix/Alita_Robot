@@ -5,7 +5,7 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://alita-robot-docs.divkix.workers.dev',
+	site: 'https://alita-docs.divkix.me',
 	integrations: [
 		starlight({
 			title: 'Alita Robot',
