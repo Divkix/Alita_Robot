@@ -1,40 +1,67 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Alita Robot Documentation
+description: The complete guide to Alita Robot - a modern Telegram group management bot.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: A powerful, feature-rich Telegram group management bot built with Go.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get Started
+      link: /getting-started/introduction/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    - text: Commands
+      link: /commands/
+      icon: document
+      variant: minimal
+    - text: Self-Host
+      link: /self-hosting/
+      icon: setting
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Features
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="Moderation" icon="warning">
+    Ban, mute, kick, and warn users. Set up anti-flood protection and word blacklists.
+  </Card>
+  <Card title="Automation" icon="rocket">
+    Welcome messages, CAPTCHA verification, auto-approve join requests, and keyword filters.
+  </Card>
+  <Card title="Content" icon="document">
+    Save notes, set rules, create filters, and manage pinned messages with ease.
+  </Card>
+  <Card title="Multi-Language" icon="translate">
+    Built-in support for English and Spanish, with easy extensibility for more languages.
+  </Card>
+  <Card title="High Performance" icon="seti:go">
+    Built in Go with concurrent processing, Redis caching, and PostgreSQL storage.
+  </Card>
+  <Card title="Self-Hostable" icon="setting">
+    Deploy your own instance with Docker, binaries, or build from source.
+  </Card>
 </CardGrid>
+
+## Quick Links
+
+<CardGrid>
+  <Card title="Quick Start" icon="rocket">
+    Add Alita to your group in [under 2 minutes](/getting-started/quick-start/).
+  </Card>
+  <Card title="Command Reference" icon="list-format">
+    Browse all [100+ commands](/commands/) organized by category.
+  </Card>
+  <Card title="Self-Hosting" icon="setting">
+    Host your own instance with our [deployment guide](/self-hosting/).
+  </Card>
+  <Card title="API Reference" icon="open-book">
+    Technical documentation for [environment variables](/api-reference/environment/) and [database schema](/api-reference/database-schema/).
+  </Card>
+</CardGrid>
+
+## Support
+
+- **Support Group**: [t.me/DivideSupport](https://t.me/DivideSupport)
+- **Updates Channel**: [t.me/DivideProjects](https://t.me/DivideProjects)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/divkix/Alita_Robot/issues)

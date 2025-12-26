@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build lint check-translations psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify
+.PHONY: run tidy vendor build lint check-translations psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs docs-dev
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
@@ -92,3 +92,13 @@ psql-verify:
 	echo "Using temp dir: $$TMP"; \
 	$(MAKE) --no-print-directory psql-prepare PSQL_MIGRATIONS_DIR="$$TMP"; \
 	git diff --no-index --exit-code $(PSQL_MIGRATIONS_DIR) "$$TMP" || (echo "❌ Drift detected between migrations and $(PSQL_MIGRATIONS_DIR)" && exit 1)
+
+# Documentation Targets
+generate-docs:
+	@echo "📚 Generating documentation..."
+	@cd scripts/generate_docs && $(GO_CMD) run .
+	@echo "✅ Documentation generated in docs/src/content/docs/"
+
+docs-dev:
+	@echo "🚀 Starting Astro dev server..."
+	@cd docs && bun run dev
