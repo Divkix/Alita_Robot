@@ -9,7 +9,7 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 
 ## Quick Stats
 
-- **Total Modules**: 20
+- **Total Modules**: 21
 - **Total Commands**: 120
 
 ## Module Categories
@@ -29,6 +29,12 @@ Make it easy to promote and demote users with the admin module!.
 You know how sometimes, people join, send 100 messages, and ruin your chat? With antiflood, that happens no more!.
 
 **Commands**: 4 | **Aliases**: flood
+
+#### [🛡️ Antispam](./antispam/)
+
+Automatic background spam protection that rate-limits users to prevent message flooding.
+
+**Commands**: 0 (automatic) | **Features**: Per-user rate limiting
 
 #### [🔨 Bans](./bans/)
 

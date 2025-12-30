@@ -29,7 +29,6 @@ type moduleStruct struct {
 	permHandlerGroup  int
 	restrHandlerGroup int
 	defaultRulesBtn   string
-	antiSpam          map[int64]*antiSpamInfo
 	AbleMap           moduleEnabled
 	AltHelpOptions    map[string][]string
 	helpableKb        map[string][][]gotgbot.InlineKeyboardButton
@@ -63,6 +62,12 @@ type overwriteNote struct {
 	noNotif     bool
 }
 
+// spamKey is a composite key for rate limiting per user per chat
+type spamKey struct {
+	chatId int64
+	userId int64
+}
+
 // struct for antiSpam module - antiSpamInfo
 type antiSpamInfo struct {
 	Levels []antiSpamLevel
@@ -72,7 +77,7 @@ type antiSpamInfo struct {
 type antiSpamLevel struct {
 	Count    int
 	Limit    int
-	CurrTime time.Duration
+	CurrTime time.Time
 	Expiry   time.Duration
 	Spammed  bool
 }

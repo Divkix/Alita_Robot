@@ -8,72 +8,95 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
+	log "github.com/sirupsen/logrus"
 )
 
-var antispamModule = moduleStruct{
-	moduleName: "antispam",
-	antiSpam:   map[int64]*antiSpamInfo{},
+var (
+	antiSpamMutex sync.Mutex
+	antiSpamMap   = make(map[spamKey]*antiSpamInfo)
+)
+
+func init() {
+	go antiSpamCleanupLoop()
 }
 
-// antiSpamMutex protects concurrent access to the antiSpam map
-var antiSpamMutex sync.RWMutex
+// antiSpamCleanupLoop periodically removes expired entries to prevent memory leaks.
+func antiSpamCleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 
-// checkSpammed evaluates if a chat has exceeded spam detection levels.
-// Returns true if any configured spam threshold has been violated.
-func (moduleStruct) checkSpammed(chatId int64, levels []antiSpamLevel) bool {
-	antiSpamMutex.Lock()
-	_asInfo, ok := antispamModule.antiSpam[chatId]
-	if !ok {
-		// Assign a new AntiSpamInfo to the chatId because not found
-		antispamModule.antiSpam[chatId] = &antiSpamInfo{
-			Levels: levels,
+	for range ticker.C {
+		antiSpamMutex.Lock()
+		now := time.Now()
+		for key, info := range antiSpamMap {
+			allExpired := true
+			for _, level := range info.Levels {
+				if now.Sub(level.CurrTime) < level.Expiry*2 {
+					allExpired = false
+					break
+				}
+			}
+			if allExpired {
+				delete(antiSpamMap, key)
+			}
 		}
 		antiSpamMutex.Unlock()
+	}
+}
+
+// checkSpammed evaluates if a user in a chat has exceeded spam detection levels.
+// Returns true if any configured spam threshold has been violated.
+func checkSpammed(key spamKey, levels []antiSpamLevel) bool {
+	antiSpamMutex.Lock()
+	defer antiSpamMutex.Unlock()
+
+	info, ok := antiSpamMap[key]
+	if !ok {
+		// Initialize with current time and count=1 (first message counts)
+		info = &antiSpamInfo{
+			Levels: make([]antiSpamLevel, len(levels)),
+		}
+		for i, lvl := range levels {
+			info.Levels[i] = antiSpamLevel{
+				Count:    1,
+				Limit:    lvl.Limit,
+				CurrTime: time.Now(),
+				Expiry:   lvl.Expiry,
+				Spammed:  false,
+			}
+		}
+		antiSpamMap[key] = info
 		return false
 	}
-	antiSpamMutex.Unlock()
 
-	newLevels := make([]antiSpamLevel, len(_asInfo.Levels))
 	var spammed bool
-	for n, level := range _asInfo.Levels {
-		// Expire the _asInfo if current time becomes greater than expiration time
-		if level.CurrTime+level.Expiry <= time.Duration(time.Now().UnixNano()) {
-			// Allocate a new 'current time' with count reset to 0 if expired
-			level.CurrTime = time.Duration(time.Now().UnixNano())
+	for i := range info.Levels {
+		level := &info.Levels[i]
+
+		// Reset if window expired
+		if time.Since(level.CurrTime) >= level.Expiry {
+			level.CurrTime = time.Now()
 			level.Count = 0
 			level.Spammed = false
 		}
-		level.Count += 1
+
+		level.Count++
 		if level.Count >= level.Limit {
-			// fmt.Println("level", n, "has been spammed with count", level.Count, "while the limit was", level.Limit)
 			level.Spammed = true
-		}
-		newLevels[n] = level
-		if !spammed && level.Spammed {
 			spammed = true
 		}
 	}
-	_asInfo.Levels = newLevels
-
-	antiSpamMutex.Lock()
-	antispamModule.antiSpam[chatId] = _asInfo
-	antiSpamMutex.Unlock()
 
 	return spammed
 }
 
-// spamCheck performs spam detection for a specific chat.
+// spamCheck performs spam detection for a specific user in a chat.
 // Checks against a default threshold of 18 messages per second.
-func (moduleStruct) spamCheck(chatId int64) bool {
-	// if sql.IsUserSudo(chatId) {
-	//	return false
-	// }
-	curr := time.Duration(time.Now().UnixNano())
-	return antispamModule.checkSpammed(chatId, []antiSpamLevel{
+func spamCheck(key spamKey) bool {
+	return checkSpammed(key, []antiSpamLevel{
 		{
-			CurrTime: curr,
-			Limit:    18,
-			Expiry:   time.Second,
+			Limit:  18,
+			Expiry: time.Second,
 		},
 	})
 }
@@ -85,7 +108,19 @@ func LoadAntispam(dispatcher *ext.Dispatcher) {
 		handlers.NewMessage(
 			message.All,
 			func(bot *gotgbot.Bot, ctx *ext.Context) error {
-				if antispamModule.spamCheck(ctx.EffectiveChat.Id) {
+				// Skip if no user (channel posts, etc.)
+				if ctx.EffectiveUser == nil {
+					return ext.ContinueGroups
+				}
+
+				key := spamKey{
+					chatId: ctx.EffectiveChat.Id,
+					userId: ctx.EffectiveUser.Id,
+				}
+
+				if spamCheck(key) {
+					log.Debugf("[Antispam] Rate limited user=%d chat=%d",
+						ctx.EffectiveUser.Id, ctx.EffectiveChat.Id)
 					return ext.EndGroups
 				}
 				return ext.ContinueGroups
