@@ -56,6 +56,10 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 ### `antiflood_settings`
 
+:::note[Application Default]
+While the database schema shows a default of `5` for `flood_limit`, the application returns `0` (disabled) when no record exists for a chat. This means antiflood is **disabled by default** until explicitly configured.
+:::
+
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |

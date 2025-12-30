@@ -9,6 +9,10 @@ You know how sometimes, people join, send 100 messages, and ruin your chat? With
 
 Antiflood allows you to take action on users that send more than x messages in a row. Actions are: ban/kick/mute
 
+:::note[Default Behavior]
+Antiflood is **disabled by default**. You must explicitly enable it using `/setflood <number>` to activate flood protection for your group.
+:::
+
 *Admin commands*:
 × /flood: Get the current antiflood settings.
 × /setflood `<number/off/no>`: Set the number of messages after which to take action on a user. Set to '0', 'off', or 'no' to disable.

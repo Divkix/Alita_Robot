@@ -171,7 +171,7 @@ func (o *OptimizedAntifloodQueries) GetAntifloodSettings(chatID int64) (*Antiflo
 	if o.db == nil {
 		return &AntifloodSettings{
 			ChatId: chatID,
-			Limit:  5,
+			Limit:  0, // Changed from 5 - disabled by default
 			Action: "mute",
 		}, errors.New("database not initialized")
 	}
@@ -183,10 +183,10 @@ func (o *OptimizedAntifloodQueries) GetAntifloodSettings(chatID int64) (*Antiflo
 		First(&settings).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Return default settings
+		// Return default settings - disabled by default
 		return &AntifloodSettings{
 			ChatId: chatID,
-			Limit:  5,
+			Limit:  0, // Changed from 5 - disabled by default
 			Action: "mute",
 		}, nil
 	}

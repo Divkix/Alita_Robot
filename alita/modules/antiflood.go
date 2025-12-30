@@ -103,7 +103,7 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 // Returns true if user has exceeded flood limit and should be restricted,
 // along with the flood control data and flood settings from the database.
 // This eliminates redundant database calls by fetching settings once.
-func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
+func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
 	floodSettings = db.GetFlood(chatId)
 
 	if floodSettings.Limit != 0 {
@@ -111,7 +111,7 @@ func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool
 
 		// Use type-safe struct key instead of string concatenation
 		key := floodKey{chatId: chatId, userId: userId}
-		tmpInterface, valExists := antifloodModule.syncHelperMap.Load(key)
+		tmpInterface, valExists := a.syncHelperMap.Load(key)
 		if valExists && tmpInterface != nil {
 			floodCrc = tmpInterface.(floodControl)
 
@@ -144,7 +144,7 @@ func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool
 		}
 
 		if floodCrc.messageCount > floodSettings.Limit {
-			antifloodModule.syncHelperMap.Store(key,
+			a.syncHelperMap.Store(key,
 				floodControl{
 					userId:       0,
 					messageCount: 0,
@@ -154,7 +154,7 @@ func (*moduleStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool
 			)
 			shouldPunish = true
 		} else {
-			antifloodModule.syncHelperMap.Store(key, floodCrc)
+			a.syncHelperMap.Store(key, floodCrc)
 		}
 	}
 
@@ -215,7 +215,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		select {
 		case admin := <-isAdmin:
 			if admin {
-				m.updateFlood(chatId, 0, 0) // empty message queue when admin sends a message
+				// Admins are exempt from flood tracking
 				return ext.ContinueGroups
 			}
 		case <-ctx_timeout.Done():
@@ -253,7 +253,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// PERFORMANCE FIX: Update flood and get settings in one call to eliminate redundant DB query
 	// Previously this was calling db.GetFlood again after updateFlood, doubling the DB load
-	flooded, floodCrc, flood := m.updateFlood(chatId, userId, msg.MessageId)
+	flooded, floodCrc, flood := antifloodModule.updateFlood(chatId, userId, msg.MessageId)
 	if !flooded {
 		return ext.ContinueGroups
 	}
@@ -261,46 +261,49 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	// No need to call db.GetFlood again - we already have the settings from updateFlood
 
 	if flood.DeleteAntifloodMessage {
-		// For small numbers of messages, delete sequentially
-		if len(floodCrc.messageIDs) <= 3 {
-			for _, i := range floodCrc.messageIDs {
-				if err := helpers.DeleteMessageWithErrorHandling(b, chatId, i); err != nil {
-					log.Error(err)
-					return err
+		var firstError error
+		var errorMu sync.Mutex
+
+		recordError := func(err error, msgId int64) {
+			if err != nil {
+				log.Errorf("Failed to delete flood message %d: %v", msgId, err)
+				errorMu.Lock()
+				if firstError == nil {
+					firstError = err
 				}
+				errorMu.Unlock()
+			}
+		}
+
+		if len(floodCrc.messageIDs) <= 3 {
+			// Sequential deletion - continue on error
+			for _, i := range floodCrc.messageIDs {
+				err := helpers.DeleteMessageWithErrorHandling(b, chatId, i)
+				recordError(err, i)
 			}
 		} else {
-			// For larger numbers, delete concurrently with rate limiting
+			// Concurrent deletion with rate limiting
 			sem := make(chan struct{}, maxConcurrentMsgDeletions)
 			var wg sync.WaitGroup
-			var deleteError error
-			var errorMu sync.Mutex
 
 			for _, msgId := range floodCrc.messageIDs {
 				wg.Add(1)
-				sem <- struct{}{} // Acquire semaphore
+				sem <- struct{}{}
 
 				go func(messageId int64) {
 					defer wg.Done()
-					defer func() { <-sem }() // Release semaphore
+					defer func() { <-sem }()
 
 					err := helpers.DeleteMessageWithErrorHandling(b, chatId, messageId)
-					if err != nil {
-						errorMu.Lock()
-						if deleteError == nil {
-							deleteError = err
-						}
-						errorMu.Unlock()
-						log.Errorf("Failed to delete flood message %d: %v", messageId, err)
-					}
+					recordError(err, messageId)
 				}(msgId)
 			}
 
 			wg.Wait()
+		}
 
-			if deleteError != nil {
-				return deleteError
-			}
+		if firstError != nil {
+			return firstError
 		}
 	} else {
 		_, err := msg.Delete(b, nil)
@@ -361,32 +364,19 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 			return err
 		}
-		// Use non-blocking delayed unban for kick action with timeout
+		// Use non-blocking delayed unban for kick action
 		go func() {
 			defer error_handling.RecoverFromPanic("delayedUnban", "antiflood")
 
-			// Create context with timeout
-			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+			time.Sleep(3 * time.Second)
 
-			timer := time.NewTimer(3 * time.Second)
-			defer timer.Stop()
-
-			select {
-			case <-timer.C:
-				_, unbanErr := chat.UnbanMember(b, userId, nil)
-				if unbanErr != nil {
-					log.WithFields(log.Fields{
-						"chatId": chatId,
-						"userId": userId,
-						"error":  unbanErr,
-					}).Error("Failed to unban user after antiflood kick")
-				}
-			case <-timeoutCtx.Done():
+			_, unbanErr := chat.UnbanMember(b, userId, nil)
+			if unbanErr != nil {
 				log.WithFields(log.Fields{
 					"chatId": chatId,
 					"userId": userId,
-				}).Warn("Antiflood unban operation timed out")
+					"error":  unbanErr,
+				}).Error("Failed to unban user after antiflood kick")
 			}
 		}()
 	case "ban":
@@ -453,11 +443,8 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
 		if string_handling.FindInStringSlice([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
+			db.SetFlood(chat.Id, 0)
 			replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_setflood_disabled")
-			go func() {
-				defer error_handling.RecoverFromPanic("SetFlood", "antiflood")
-				db.SetFlood(chat.Id, 0)
-			}()
 		} else {
 			num, err := strconv.Atoi(args[0])
 			if err != nil {
@@ -466,10 +453,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				if num < 3 || num > 100 {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					go func() {
-						defer error_handling.RecoverFromPanic("SetFlood", "antiflood")
-						db.SetFlood(chat.Id, num)
-					}()
+					db.SetFlood(chat.Id, num)
 					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setflood_success")
 					replyText = fmt.Sprintf(temp, num)
 				}
@@ -546,15 +530,12 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
 		if string_handling.FindInStringSlice([]string{"ban", "kick", "mute"}, selectedMode) {
+			db.SetFloodMode(chat.Id, selectedMode)
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_success")
 			_, err := msg.Reply(b, fmt.Sprintf(temp, selectedMode), helpers.Shtml())
 			if err != nil {
 				log.Error(err)
 			}
-			go func() {
-				defer error_handling.RecoverFromPanic("SetFloodMode", "antiflood")
-				db.SetFloodMode(chat.Id, selectedMode)
-			}()
 			return ext.EndGroups
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_unknown_type")
@@ -592,16 +573,10 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			go func() {
-				defer error_handling.RecoverFromPanic("SetFloodMsgDel", "antiflood")
-				db.SetFloodMsgDel(chat.Id, true)
-			}()
+			db.SetFloodMsgDel(chat.Id, true)
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			go func() {
-				defer error_handling.RecoverFromPanic("SetFloodMsgDel", "antiflood")
-				db.SetFloodMsgDel(chat.Id, false)
-			}()
+			db.SetFloodMsgDel(chat.Id, false)
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_disabled")
 		default:
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
