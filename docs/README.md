@@ -1,49 +1,56 @@
-# Starlight Starter Kit: Basics
+# Alita Robot Documentation
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+This is the documentation website for [Alita Robot](https://github.com/divkix/Alita_Robot), a modern Telegram group management bot built with Go.
 
-```
-bun create astro@latest -- --template starlight
-```
+Built with [Starlight](https://starlight.astro.build/) on [Astro](https://astro.build/).
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+## Project Structure
 
 ```
-.
-├── public/
+docs/
+├── public/           # Static assets (favicons, images)
 ├── src/
-│   ├── assets/
+│   ├── assets/       # Optimized images for docs
 │   ├── content/
-│   │   └── docs/
+│   │   └── docs/     # Documentation pages (.md/.mdx)
 │   └── content.config.ts
-├── astro.config.mjs
+├── astro.config.mjs  # Astro configuration
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+└── wrangler.jsonc    # Cloudflare Pages deployment config
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+Documentation pages live in `src/content/docs/`. Each file becomes a route based on its filename.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## Development
 
-Static assets, like favicons, can be placed in the `public/` directory.
+All commands run from the `docs/` directory:
 
-## 🧞 Commands
+| Command         | Action                                       |
+| :-------------- | :------------------------------------------- |
+| `bun install`   | Install dependencies                         |
+| `bun dev`       | Start dev server at `localhost:4321`         |
+| `bun build`     | Build production site to `./dist/`           |
+| `bun preview`   | Preview production build locally             |
+| `bun astro ...` | Run Astro CLI commands (`add`, `check`, etc) |
 
-All commands are run from the root of the project, from a terminal:
+## Deployment
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
+The documentation is deployed to Cloudflare Pages. Configuration is in `wrangler.jsonc`.
 
-## 👀 Want to learn more?
+## Contributing
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+Documentation improvements are welcome. Follow the same contribution guidelines as the main project:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a Pull Request
+
+See the main [README](../README.md) for full contribution guidelines.
+
+## Links
+
+- [Alita Robot Repository](https://github.com/divkix/Alita_Robot)
+- [Live Documentation](https://alita.divkix.me)
+- [Support Group](https://t.me/DivideSupport)
