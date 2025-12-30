@@ -287,6 +287,16 @@ telegram: Bad Request: can't restrict chat owner
 - Muted
 - Warned
 
+### Admin Commands Fail for Unfamiliar Users
+
+**Symptoms:**
+- `/promote @username` fails even though the user exists
+- Commands work when replying but not when using usernames
+
+**Resolved in v1.x:** Previously, admin commands required users to exist in the bot's local database. The bot now queries Telegram's API as a fallback when username lookup fails locally, allowing admin commands to work on any valid Telegram user.
+
+If you're running an older version, upgrade to get this fix.
+
 ## Performance Issues
 
 ### High Memory Usage

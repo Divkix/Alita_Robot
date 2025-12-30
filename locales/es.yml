@@ -20,7 +20,7 @@ admin_anon_admin_enabled_now:
   De ahora en adelante, pediré a los administradores que verifiquen permisos de administradores anónimos."
 admin_anon_admin_invalid_arg: Argumento inválido, solo entiendo <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
-admin_demote_is_admin:
+admin_demote_not_admin:
   Esta persona no es administrador, ¿cómo se supone que debo
   degradarla?
 admin_demote_is_bot_itself: No voy a degradarme a mí mismo.

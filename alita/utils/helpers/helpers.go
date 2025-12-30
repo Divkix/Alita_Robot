@@ -102,10 +102,7 @@ func SplitMessage(msg string) []string {
 				// Split line by runes, not bytes
 				runes := []rune(line)
 				for len(runes) > 0 {
-					chunkSize := MaxMessageLength
-					if len(runes) < chunkSize {
-						chunkSize = len(runes)
-					}
+					chunkSize := min(MaxMessageLength, len(runes))
 					result = append(result, string(runes[:chunkSize]))
 					runes = runes[chunkSize:]
 				}
@@ -136,6 +133,15 @@ func MentionHtml(userId int64, name string) string {
 // The name is HTML-escaped for safety.
 func MentionUrl(url, name string) string {
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", url, html.EscapeString(name))
+}
+
+// HtmlEscape escapes special HTML characters in a string to prevent injection.
+// Used when inserting untrusted content into HTML-formatted messages.
+func HtmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
 }
 
 // GetFullName combines first name and last name into a full name.
@@ -443,7 +449,7 @@ func ReverseHTML2MD(text string) string {
 		"a":    "[%s](%s)",
 	}
 
-	for _, i := range strings.Split(text, " ") {
+	for i := range strings.SplitSeq(text, " ") {
 		for htmlTag, keyValue := range Html2MdMap {
 			k := ""
 			// using this because <a> uses <href> tag

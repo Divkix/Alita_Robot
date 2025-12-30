@@ -451,6 +451,48 @@ func LoadCounter(dispatcher *ext.Dispatcher) {
 }
 ```
 
+## Security Considerations
+
+### HTML Escaping
+
+When displaying user-controlled data in HTML-formatted messages, always escape it:
+
+```go
+import "github.com/divkix/Alita_Robot/alita/utils/helpers"
+
+// Escape chat titles, usernames, and user-supplied text
+text := fmt.Sprintf("Settings for %s", helpers.HtmlEscape(chat.Title))
+```
+
+The `helpers.MentionHtml()` function already handles escaping for user names.
+
+### Async Database Operations
+
+When running DB operations in goroutines, follow this pattern:
+
+```go
+// 1. Capture loop/closure variables
+chatId := chat.Id
+
+go func() {
+    // 2. Add panic recovery
+    defer error_handling.RecoverFromPanic("FunctionName", "module")
+
+    // 3. Handle errors explicitly
+    if err := db.SomeOperation(chatId); err != nil {
+        log.Errorf("[Module] Operation failed for chat %d: %v", chatId, err)
+    }
+}()
+```
+
+### User Extraction
+
+Use `extraction.ExtractUserAndText()` for consistent user identification. It handles:
+- Reply messages
+- Text mentions
+- Username lookups (with Telegram API fallback)
+- Numeric user IDs
+
 ## Checklist for New Modules
 
 - [ ] Create module struct with `moduleName`
@@ -458,6 +500,8 @@ func LoadCounter(dispatcher *ext.Dispatcher) {
 - [ ] Add appropriate permission checks
 - [ ] Use `i18n.MustNewTranslator(db.GetLanguage(ctx))` for translations
 - [ ] Handle errors properly (log and return)
+- [ ] **Escape user-controlled input with `helpers.HtmlEscape()`**
+- [ ] **Add panic recovery to goroutines**
 - [ ] Create database models if needed
 - [ ] Create migration file if needed
 - [ ] Add cache helpers if needed

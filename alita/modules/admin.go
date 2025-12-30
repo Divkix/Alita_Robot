@@ -51,7 +51,7 @@ func (m moduleStruct) adminlist(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_adminlist")
-	text := fmt.Sprintf(temp, chat.Title)
+	text := fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 
 	adminsAvail, admins := cache.GetAdminCacheList(chat.Id)
 	if !adminsAvail {
@@ -68,7 +68,7 @@ func (m moduleStruct) adminlist(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 		if user.Username != "" {
-			sb.WriteString(fmt.Sprintf("\n- @%s", user.Username))
+			sb.WriteString(fmt.Sprintf("\n- @%s", helpers.HtmlEscape(user.Username)))
 		} else {
 			sb.WriteString(fmt.Sprintf("\n- %s", helpers.MentionHtml(user.Id, user.FirstName)))
 		}
@@ -179,8 +179,10 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		return ext.EndGroups
 	}
+	// Using IsUserAdmin (not RequireUserAdmin) because we need a custom error message
+	// specific to the demote context rather than the generic permission error
 	if !chat_status.IsUserAdmin(b, chat.Id, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_admin")
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_not_admin")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -442,7 +444,7 @@ func (moduleStruct) getinvitelink(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if chat.Username != "" {
 		linkText, _ := tr.GetString("admin_invitelink_public")
-		_, _ = msg.Reply(b, fmt.Sprintf(linkText, chat.Username), nil)
+		_, _ = msg.Reply(b, fmt.Sprintf(linkText, helpers.HtmlEscape(chat.Username)), nil)
 	} else {
 		nchat, err := b.GetChat(chat.Id, nil)
 		if err != nil {
@@ -608,10 +610,10 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 1 {
 		if adminSettings.AnonAdmin {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled")
-			text = fmt.Sprintf(temp, chat.Title)
+			text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled")
-			text = fmt.Sprintf(temp, chat.Title)
+			text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 		}
 	} else {
 		// only need owner if you want to change value
@@ -622,30 +624,34 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "true", "yes":
 			if adminSettings.AnonAdmin {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
-				text = fmt.Sprintf(temp, chat.Title)
+				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			} else {
 				// Capture variable for goroutine closure
 				chatId := chat.Id
 				go func() {
 					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
-					db.SetAnonAdminMode(chatId, true)
+					if err := db.SetAnonAdminMode(chatId, true); err != nil {
+						log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chatId, err)
+					}
 				}()
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled_now")
-				text = fmt.Sprintf(temp, chat.Title)
+				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			}
 		case "off", "no", "false":
 			if !adminSettings.AnonAdmin {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
-				text = fmt.Sprintf(temp, chat.Title)
+				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			} else {
 				// Capture variable for goroutine closure
 				chatId := chat.Id
 				go func() {
 					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
-					db.SetAnonAdminMode(chatId, false)
+					if err := db.SetAnonAdminMode(chatId, false); err != nil {
+						log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chatId, err)
+					}
 				}()
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled_now")
-				text = fmt.Sprintf(temp, chat.Title)
+				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			}
 		default:
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_invalid_arg")

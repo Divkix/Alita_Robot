@@ -76,7 +76,8 @@ func ExtractUser(b *gotgbot.Bot, ctx *ext.Context) int64 {
 
 // ExtractUserAndText extracts both user ID and accompanying text from various message formats.
 // Handles text mentions, usernames, numeric IDs, and reply messages.
-// Returns user ID and associated text, with validation through the user database.
+// Returns user ID and associated text. Validation of user existence is delegated to the calling
+// command, which can verify membership when needed via Telegram API.
 func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
@@ -118,7 +119,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		text = msg.Text[ent.Offset+ent.Length:]
 	} else if len(args) >= 1 && args[1][0] == '@' {
 		user := args[1]
-		userId = GetUserId(user)
+		userId = GetUserId(b, user)
 		if userId == 0 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("extraction_user_not_found")
@@ -165,15 +166,11 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		}
 	}
 
-	_, _, found := GetUserInfo(userId)
-	if !found {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_get_chat_member_failed")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Errorf("[Extraction] Failed to reply with chat member error: %v", err)
-		}
-		return -1, ""
+	// Only validate DB existence for username lookups, not for numeric IDs or text mentions.
+	// Numeric IDs from replies, text_mention entities, or direct input are trusted.
+	// The actual command will verify membership via Telegram API when executing the action.
+	if userId == 0 {
+		return 0, ""
 	}
 
 	return userId, trimTextNewline(text)
@@ -181,15 +178,18 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 
 // GetUserId retrieves a user ID from a username string.
 // Searches both user and channel databases for the username.
-// Returns 0 if username is too short or not found.
-func GetUserId(username string) int64 {
-	if len(username) <= 5 {
+// If not found in DB, queries Telegram API as fallback.
+// Returns 0 if username is invalid or not found.
+func GetUserId(b *gotgbot.Bot, username string) int64 {
+	// Remove '@' prefix first
+	username = strings.TrimPrefix(username, "@")
+
+	// Telegram usernames must be at least 5 characters
+	if len(username) < 5 {
 		return 0
 	}
 
-	// remove '@' from the username
-	username = strings.ReplaceAll(username, "@", "")
-
+	// Try local database first for performance
 	user := db.GetUserIdByUserName(username)
 	if user != 0 {
 		return user
@@ -200,7 +200,22 @@ func GetUserId(username string) int64 {
 		return channel
 	}
 
-	return 0
+	// Fallback to Telegram API if not in local database
+	chat, err := chat_status.GetChat(b, "@"+username)
+	if err != nil {
+		log.Debugf("[Extraction] Failed to get user @%s from Telegram API: %v", username, err)
+		return 0
+	}
+
+	// Successfully found user via Telegram API
+	userId := chat.Id
+
+	// Optionally cache the user for future lookups
+	// Note: The bot's message handlers should already be caching users
+	// when they interact with the bot, but this provides a fallback
+	log.Debugf("[Extraction] Found user @%s (ID: %d) via Telegram API", username, userId)
+
+	return userId
 }
 
 // GetUserInfo retrieves user information (username and name) from a user ID.

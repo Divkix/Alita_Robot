@@ -17,7 +17,7 @@ admin_anon_admin_enabled_now: "AnonAdmin mode is now <b>enabled</b> for %s.
 admin_anon_admin_invalid_arg:
   Invalid argument, I only understand <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
-admin_demote_is_admin:
+admin_demote_not_admin:
   This person is not an admin, and how am I supposed to demote
   them?
 admin_demote_is_bot_itself: I am not going to demote myself.

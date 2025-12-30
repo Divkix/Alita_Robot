@@ -48,6 +48,30 @@ This module can be accessed using the following aliases:
 
 For detailed command usage, refer to the commands table above.
 
+## Anonymous Admin Support
+
+The `/anonadmin` command allows group owners to toggle anonymous admin recognition:
+
+```
+/anonadmin on    # Enable anonymous admin checks
+/anonadmin off   # Disable anonymous admin checks
+```
+
+When enabled, the bot will request verification for admin actions from anonymous accounts.
+
+## User Lookup Behavior
+
+Admin commands accept multiple input formats to identify target users:
+
+| Input Type | Example | Resolution Method |
+|------------|---------|-------------------|
+| Reply | Reply to message | Direct from message |
+| User ID | `/promote 123456789` | Trusted numeric ID |
+| Username | `/promote @username` | DB lookup → Telegram API fallback |
+| Text Mention | Click on inline mention | Direct from entity |
+
+**Telegram API Fallback**: When a username isn't found in the local database, the bot queries Telegram's API directly. This ensures admin commands work on any valid user, not just those the bot has previously seen.
+
 ## Required Permissions
 
 Most commands in this module require **admin permissions** in the group.
@@ -58,3 +82,8 @@ Most commands in this module require **admin permissions** in the group.
 - Ban users
 - Restrict users
 - Pin messages (if applicable)
+
+## Security Notes
+
+- All user-controlled input (chat titles, usernames) is HTML-escaped before rendering in messages to prevent injection attacks
+- Admin permission changes run in background goroutines with proper error handling and panic recovery

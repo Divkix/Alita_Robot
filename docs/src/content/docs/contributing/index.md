@@ -98,6 +98,56 @@ func init() {
 - Add proper error handling with panic recovery
 - Use decorators for common middleware (permissions, error handling)
 
+## Security Best Practices
+
+### HTML Escaping
+
+Always escape user-controlled input before rendering in HTML-formatted messages:
+
+```go
+import "github.com/divkix/Alita_Robot/alita/utils/helpers"
+
+// Wrong - vulnerable to HTML injection
+text := fmt.Sprintf("Welcome to %s!", chat.Title)
+
+// Correct - escaped
+text := fmt.Sprintf("Welcome to %s!", helpers.HtmlEscape(chat.Title))
+```
+
+**When to escape:**
+- Chat titles and descriptions
+- Usernames (when displaying as text, not as @mentions)
+- Any user-supplied text in HTML-formatted messages
+
+**Safe alternatives:**
+- `helpers.MentionHtml(userId, name)` - Already escapes the name
+- `helpers.MentionUrl(url, name)` - Already escapes the name
+
+### Goroutine Error Handling
+
+When running database operations in goroutines, always:
+
+1. Capture variables for closure safety
+2. Add panic recovery
+3. Handle and log errors
+
+```go
+// Correct pattern
+chatId := chat.Id  // Capture variable
+go func() {
+    defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
+    if err := db.SetAnonAdminMode(chatId, true); err != nil {
+        log.Errorf("[Admin] Failed to set anon admin mode: %v", err)
+    }
+}()
+```
+
+### User Input Validation
+
+- Never trust usernames from user input for security-critical operations
+- Validate user IDs against Telegram API when necessary
+- Use `extraction.ExtractUserAndText()` for consistent user resolution
+
 ## Translation Guidelines
 
 Add help messages to `locales/en.yml`:
