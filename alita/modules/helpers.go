@@ -392,7 +392,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		_, err := b.SendMessage(chat.Id,
 			aboutText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: "Markdown",
+				ParseMode: helpers.HTML,
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
@@ -411,7 +411,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		// This sends the normal help block
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		startHelpText := getStartHelp(tr)
-		startMarkupKb := getStartMarkup(tr)
+		startMarkupKb := getStartMarkup(tr, b.Username)
 		_, err := b.SendMessage(chat.Id,
 			startHelpText,
 			&gotgbot.SendMessageOpts{

@@ -101,12 +101,15 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 	}
 }
 
-func getStartMarkup(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
+func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
 	aboutText, _ := tr.GetString("help_button_about")
 	addToChatText, _ := tr.GetString("help_button_add_to_chat")
 	supportGroupText, _ := tr.GetString("help_button_support_group")
 	commandsHelpText, _ := tr.GetString("help_button_commands_help")
 	languageText, _ := tr.GetString("help_button_language")
+
+	// Build the add to chat URL dynamically using the bot's username
+	addToChatUrl := fmt.Sprintf("https://t.me/%s?startgroup=botstart", botUsername)
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -119,7 +122,7 @@ func getStartMarkup(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			{
 				{
 					Text: addToChatText,
-					Url:  "https://t.me/Alita_Robot?startgroup=botstart",
+					Url:  addToChatUrl,
 				},
 				{
 					Text: supportGroupText,
@@ -199,6 +202,11 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if query := ctx.CallbackQuery; query != nil {
 		args := strings.Split(query.Data, ".")
+		if len(args) < 2 {
+			log.Warn("[About] Invalid callback data format - missing response part")
+			_, _ = query.Answer(b, nil)
+			return ext.EndGroups
+		}
 		response := args[1]
 
 		switch response {
@@ -298,6 +306,11 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warn("[HelpButtonHandler] Invalid callback data format - missing module part")
+		_, _ = query.Answer(b, nil)
+		return ext.EndGroups
+	}
 	module := args[1]
 
 	var (
@@ -317,7 +330,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "BackStart":
 			// This shows the modules menu
 			helpText = getStartHelp(tr)
-			replyKb = getStartMarkup(tr)
+			replyKb = getStartMarkup(tr, getBotUsername(b))
 		}
 	} else {
 		// For all remaining modules
@@ -363,7 +376,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(args) == 1 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			startHelpText := getStartHelp(tr)
-			startMarkupKb := getStartMarkup(tr)
+			startMarkupKb := getStartMarkup(tr, getBotUsername(b))
 			_, err := msg.Reply(b,
 				startHelpText,
 				&gotgbot.SendMessageOpts{
@@ -447,6 +460,11 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warn("[BotConfig] Invalid callback data format - missing response part")
+		_, _ = query.Answer(b, nil)
+		return ext.EndGroups
+	}
 	response := args[1]
 
 	var (
