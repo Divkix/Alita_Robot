@@ -575,11 +575,8 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Process first matched trigger
 	i := matches[0].Pattern
 
-	_, err := msg.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+	var err error
 	switch blSettings.Action() {
 	case "mute":
 		// don't work on anonymous channels

@@ -388,11 +388,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	_, err = msg.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 
 	return ext.EndGroups
 }

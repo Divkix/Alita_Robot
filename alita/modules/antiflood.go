@@ -306,11 +306,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return firstError
 		}
 	} else {
-		_, err := msg.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
 	}
 
 	switch flood.Action {

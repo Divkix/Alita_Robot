@@ -107,11 +107,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 		}
 	case "swarn":
-		_, err := msg.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 	}
 
 	chatMember, err := chat.GetMember(b, userId, nil)

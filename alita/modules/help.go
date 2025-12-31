@@ -171,7 +171,6 @@ func (m *moduleEnabled) Store(module string, enabled bool) {
 // Load retrieves the enabled status for a specific module.
 // Returns the module name and whether it's currently enabled and accessible.
 func (m *moduleEnabled) Load(module string) (string, bool) {
-	log.Info(fmt.Sprintf("[Module] Loading %s module", module))
 	return module, m.modules[module]
 }
 

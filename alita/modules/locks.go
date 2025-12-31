@@ -396,11 +396,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 
-		_, err := msg.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 		// Message deleted, no need to check other restrictions
 		break
 	}
@@ -438,11 +434,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		_, err := msg.Delete(b, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 		// Message deleted, no need to check other locks
 		break
 	}

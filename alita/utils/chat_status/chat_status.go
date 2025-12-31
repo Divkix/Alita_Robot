@@ -162,7 +162,7 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 			log.WithFields(log.Fields{
 				"chatID": chatID,
 				"userID": userId,
-			}).Warning("IsUserAdmin: Channel ID provided instead of user ID - channels cannot be admins")
+			}).Debug("IsUserAdmin: Channel ID provided instead of user ID - channels cannot be admins")
 		} else if userId <= 0 {
 			log.WithFields(log.Fields{
 				"chatID": chatID,

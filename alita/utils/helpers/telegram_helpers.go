@@ -86,6 +86,10 @@ func ShouldSuppressFromSentry(err error) bool {
 		"not enough rights to restrict/unrestrict chat member",
 		"not enough rights to send text messages",
 		"not enough rights to",
+
+		// Message deletion errors (expected for old messages or already deleted)
+		"message can't be deleted",
+		"message to delete not found",
 	}
 
 	for _, expectedErr := range expectedErrors {
