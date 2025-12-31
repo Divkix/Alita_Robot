@@ -105,69 +105,82 @@ While the database schema shows a default of `5` for `flood_limit`, the applicat
 
 ### `captcha_attempts`
 
+Tracks active captcha verification attempts for users joining groups.
+
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | ✅ | — | PRIMARY KEY |
-| `user_id` | `BIGINT` | ❌ | — | — |
-| `chat_id` | `BIGINT` | ❌ | — | — |
+| `id` | `SERIAL` | ❌ | — | PRIMARY KEY |
+| `user_id` | `BIGINT` | ❌ | — | FK → users(user_id) |
+| `chat_id` | `BIGINT` | ❌ | — | FK → chats(chat_id) |
 | `answer` | `VARCHAR(255)` | ❌ | — | — |
 | `attempts` | `INTEGER` | ✅ | `0` | — |
 | `message_id` | `BIGINT` | ✅ | — | — |
+| `refresh_count` | `INTEGER` | ✅ | `0` | — |
 | `expires_at` | `TIMESTAMP` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
-- idx_captcha_user_chat
-- idx_captcha_expires_at
+- idx_captcha_user_chat (user_id, chat_id)
+- idx_captcha_expires_at (expires_at)
 
 #### Foreign Keys
 
-- attempt_id -> captcha_attempts(id)
+- user_id → users(user_id) ON DELETE CASCADE
+- chat_id → chats(chat_id) ON DELETE CASCADE
 
 ### `captcha_muted_users`
+
+Tracks users who failed captcha with "mute" action and need to be automatically unmuted after a period.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `BIGSERIAL` | ✅ | — | PRIMARY KEY |
-| `user_id` | `BIGINT` | ❌ | — | — |
-| `chat_id` | `BIGINT` | ❌ | — | — |
+| `id` | `BIGSERIAL` | ❌ | — | PRIMARY KEY |
+| `user_id` | `BIGINT` | ❌ | — | FK → users(user_id) |
+| `chat_id` | `BIGINT` | ❌ | — | FK → chats(chat_id) |
 | `unmute_at` | `TIMESTAMP` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `NOW()` | — |
 
 #### Indexes
 
-- idx_captcha_muted_user_chat
-- idx_captcha_unmute_at
+- idx_captcha_muted_user_chat (user_id, chat_id)
+- idx_captcha_unmute_at (unmute_at)
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
+- user_id → users(user_id) ON DELETE CASCADE
+- chat_id → chats(chat_id) ON DELETE CASCADE
 
 ### `captcha_settings`
+
+Stores per-chat captcha configuration settings.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | ✅ | — | PRIMARY KEY |
-| `chat_id` | `BIGINT` | ❌ | — | UNIQUE |
+| `id` | `SERIAL` | ❌ | — | PRIMARY KEY |
+| `chat_id` | `BIGINT` | ❌ | — | UNIQUE, FK → chats(chat_id) |
 | `enabled` | `BOOLEAN` | ✅ | `FALSE` | — |
-| `captcha_mode` | `VARCHAR(10)` | ✅ | `'math'` | — |
-| `timeout` | `INTEGER` | ✅ | `2` | — |
-| `failure_action` | `VARCHAR(10)` | ✅ | `'kick'` | — |
-| `max_attempts` | `INTEGER` | ✅ | `3` | — |
+| `captcha_mode` | `VARCHAR(10)` | ✅ | `'math'` | CHECK (math, text) |
+| `timeout` | `INTEGER` | ✅ | `2` | CHECK (1-10 minutes) |
+| `failure_action` | `VARCHAR(10)` | ✅ | `'kick'` | CHECK (kick, ban, mute) |
+| `max_attempts` | `INTEGER` | ✅ | `3` | CHECK (1-10 attempts) |
 | `created_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
-- uk_captcha_settings_chat_id
+- uk_captcha_settings_chat_id (chat_id) UNIQUE
+
+#### Foreign Keys
+
+- chat_id → chats(chat_id) ON DELETE CASCADE
 
 ### `channels`
 
@@ -532,24 +545,30 @@ While the database schema shows a default of `5` for `flood_limit`, the applicat
 
 ### `stored_messages`
 
+Stores messages sent by users before completing captcha verification. These messages are deleted from the chat but stored for admin review.
+
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `BIGSERIAL` | ✅ | — | PRIMARY KEY |
+| `id` | `BIGSERIAL` | ❌ | — | PRIMARY KEY |
 | `user_id` | `BIGINT` | ❌ | — | — |
 | `chat_id` | `BIGINT` | ❌ | — | — |
-| `message_type` | `INTEGER` | ❌ | `1` | — |
-| `content` | `TEXT` | ✅ | — | — |
-| `file_id` | `TEXT` | ✅ | — | — |
-| `caption` | `TEXT` | ✅ | — | — |
-| `attempt_id` | `BIGINT` | ❌ | — | — |
+| `message_type` | `INTEGER` | ❌ | `1` | 1=TEXT, 2=STICKER, etc. |
+| `content` | `TEXT` | ✅ | — | Text content of message |
+| `file_id` | `TEXT` | ✅ | — | Telegram file ID for media |
+| `caption` | `TEXT` | ✅ | — | Media caption if any |
+| `attempt_id` | `BIGINT` | ❌ | — | FK → captcha_attempts(id) |
 | `created_at` | `TIMESTAMP` | ✅ | `NOW()` | — |
 
 #### Indexes
 
-- idx_stored_user_chat
-- idx_stored_attempt
+- idx_stored_user_chat (user_id, chat_id)
+- idx_stored_attempt (attempt_id)
+
+#### Foreign Keys
+
+- attempt_id → captcha_attempts(id) ON DELETE CASCADE
 
 ### `users`
 
