@@ -449,6 +449,50 @@ docker network inspect alita_robot_default
 DATABASE_URL=postgresql://alita:alita@postgres:5432/alita  # Use service name, not localhost
 ```
 
+## Internationalization (i18n) Issues
+
+### Empty Bot Responses
+
+**Symptoms:**
+- Bot sends empty messages
+- Commands execute but no text is displayed
+- Works in some languages but not others
+
+**Cause:** Translation key mismatch between code and locale files.
+
+**Solutions:**
+
+1. **Check translation key exists in all locale files:**
+   ```bash
+   # Search for a key in all locale files
+   grep -r "misc_user_not_found" locales/
+   ```
+
+2. **Verify key names match exactly:**
+   - Code uses: `tr.GetString("misc_translate_need_text")`
+   - Locale file must have: `misc_translate_need_text: "..."`
+   - Common issue: Similar but different key names (e.g., `misc_need_text_and_lang` vs `misc_translate_need_text`)
+
+3. **Add missing keys:** If a key exists in one locale but not another, add it to all supported locales.
+
+4. **Check YAML syntax:**
+   ```yaml
+   # Correct - double quotes for escape sequences
+   misc_result: "Line 1\nLine 2"
+
+   # Wrong - single quotes preserve \n literally
+   misc_result: 'Line 1\nLine 2'
+   ```
+
+### Translation Errors Logged
+
+**Error:**
+```
+[i18n] Translation key not found: misc_example_key
+```
+
+**Solution:** Add the missing key to all locale files in `locales/`.
+
 ## Getting Help
 
 If you cannot resolve an issue:

@@ -18,9 +18,9 @@ func GetTeamMemInfo(userID int64) (devrc *DevSettings) {
 	devrc = &DevSettings{}
 	err := GetRecord(devrc, DevSettings{UserId: userID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Dev: false, Sudo: false}
 	} else if err != nil {
-		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Dev: false, Sudo: false}
 		log.Errorf("[Database] GetTeamMemInfo: %v - %d", err, userID)
 	}
 	log.Infof("[Database] GetTeamMemInfo: %d", userID)

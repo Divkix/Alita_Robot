@@ -487,3 +487,33 @@ The project uses GoReleaser for multi-platform builds:
   }
   chat := ctx.EffectiveChat // Already set correctly
   ```
+
+### Translation Key Mismatches
+- **Issue**: Code uses translation keys that don't exist in locale files, causing empty bot responses
+- **Symptom**: Bot replies with empty messages or no response at all
+- **Root Cause**: Key names in code don't match key names in YAML locale files
+- **Example**: Code uses `misc_translate_need_text` but locale has `misc_need_text_and_lang`
+- **Fix**: Always verify translation keys exist in ALL locale files before using them:
+  ```bash
+  # Search for key across all locales
+  grep -r "misc_example_key" locales/
+  ```
+- **Prevention**:
+  1. Add translation keys to ALL supported locales simultaneously
+  2. Use consistent naming conventions (module_action_context)
+  3. Check both en.yml and es.yml when adding new keys
+  4. Test the feature in multiple languages
+- **Best Practice**: When adding a new command/feature, add all its translation keys to a checklist and verify each exists
+
+### Struct Field Consistency
+- **Issue**: Related struct fields (e.g., `Dev` and `IsDev`) not consistently set in all code paths
+- **Example**: `GetTeamMemInfo` fallback sets `IsDev: false` but not `Dev: false`
+- **Fix**: When a struct has related/alias fields, set both consistently:
+  ```go
+  // Correct - sets both related fields
+  devrc = &DevSettings{UserId: userID, IsDev: false, Dev: false, Sudo: false}
+
+  // Wrong - only sets one field, leaving alias inconsistent
+  devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
+  ```
+- **Pattern**: Audit all places where structs with alias fields are created or modified

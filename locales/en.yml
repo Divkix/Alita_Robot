@@ -1189,6 +1189,7 @@ disabling_invalid_option: "I only understand an option from: `yes`/`no`/`on`/`of
 misc_reply_to_someone: Reply to someone.
 misc_provide_content: Provide some content to reply!
 misc_could_not_find_user: Could not find the any information about this user.
+misc_user_not_found: Could not find any information about this user.
 misc_channel_info: "<b>Channel Info:</b>\nID: <code>%d</code>\nChannel Name: %s"
 misc_channel_username: "Username: @%s"
 misc_user_info: "<b>User Info:</b>\nID: <code>%d</code>\nName: %s"

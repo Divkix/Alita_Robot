@@ -278,7 +278,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 				ownerText, _ := tr.GetString("misc_owner_info")
 				text += "\n" + ownerText
 			}
-			if db.GetTeamMemInfo(user.Id).Dev {
+			if db.GetTeamMemInfo(user.Id).IsDev {
 				devText, _ := tr.GetString("misc_dev_info")
 				text += "\n" + devText
 			}
@@ -312,7 +312,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 0 && msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("misc_translate_need_text")
+		text, _ := tr.GetString("misc_need_text_and_lang")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -328,7 +328,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			origText = reply.Caption
 		} else {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("misc_translate_no_text")
+			text, _ := tr.GetString("misc_no_text_to_translate")
 			_, _ = msg.Reply(b, text, helpers.Shtml())
 			return ext.EndGroups
 		}
@@ -341,7 +341,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		// args[1:] leaves the language code and takes rest of the text
 		if len(args[1:]) < 1 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("misc_translate_provide_text")
+			text, _ := tr.GetString("misc_provide_text_translate")
 			_, _ = msg.Reply(b, text, helpers.Shtml())
 			return ext.EndGroups
 		}
