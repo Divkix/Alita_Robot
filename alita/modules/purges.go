@@ -259,11 +259,14 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender.User
 
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+
 	// Validate callback data format before processing
 	args := strings.Split(query.Data, ".")
 	if len(args) < 2 {
 		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid button data."})
+		errText, _ := tr.GetString("purges_invalid_button_data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 		return ext.EndGroups
 	}
 
@@ -271,7 +274,8 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	msgId, err := strconv.Atoi(args[1])
 	if err != nil {
 		log.Warnf("[Purges] Invalid message ID in callback: %s", args[1])
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid message ID."})
+		errText, _ := tr.GetString("purges_invalid_message_id")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 		return ext.EndGroups
 	}
 

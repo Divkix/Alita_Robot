@@ -22,11 +22,13 @@ var languagesModule = moduleStruct{moduleName: "Languages"}
 // Creates inline buttons for all available languages plus a translation contribution link.
 func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 	keyboard := helpers.MakeLanguageKeyboard()
+	tr := i18n.MustNewTranslator("en")
+	helpTranslateText, _ := tr.GetString("language_help_translate")
 	keyboard = append(
 		keyboard,
 		[]gotgbot.InlineKeyboardButton{
 			{
-				Text: "Help Us Translate 🌎", // This can stay hardcoded as it's a universal call to action
+				Text: helpTranslateText,
 				Url:  "https://crowdin.com/project/alita_robot",
 			},
 		},
@@ -86,8 +88,10 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	parts := strings.Split(query.Data, ".")
 	if len(parts) < 2 {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		errText, _ := tr.GetString("language_invalid_selection")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text: "Invalid language selection.",
+			Text: errText,
 		})
 		return ext.EndGroups
 	}

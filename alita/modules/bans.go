@@ -1048,8 +1048,9 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	args := strings.Split(query.Data, ".")
 	if len(args) < 3 {
 		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
+		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text:      "Invalid callback data",
+			Text:      errText,
 			ShowAlert: true,
 		})
 		return ext.EndGroups
@@ -1062,8 +1063,9 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			"callbackData": query.Data,
 			"error":        err,
 		}).Error("Failed to parse userId from restrict callback")
+		errText, _ := tr.GetString("bans_invalid_user_id")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text:      "Invalid user ID",
+			Text:      errText,
 			ShowAlert: true,
 		})
 		return ext.EndGroups
@@ -1289,8 +1291,9 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	args := strings.Split(query.Data, ".")
 	if len(args) < 3 {
 		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")
+		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text:      "Invalid callback data",
+			Text:      errText,
 			ShowAlert: true,
 		})
 		return ext.EndGroups
@@ -1303,8 +1306,9 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			"callbackData": query.Data,
 			"error":        err,
 		}).Error("Failed to parse userId from unrestrict callback")
+		errText, _ := tr.GetString("bans_invalid_user_id")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-			Text:      "Invalid user ID",
+			Text:      errText,
 			ShowAlert: true,
 		})
 		return ext.EndGroups

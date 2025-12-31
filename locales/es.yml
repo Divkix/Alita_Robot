@@ -1040,6 +1040,8 @@ bans_unrestrict_admin_error: ¿Por qué expulsaría a un administrador? Eso suen
 bans_unrestrict_self_error: No tú
 bans_unrestrict_unmuted: "¡Desilenciado por %s!"
 bans_unrestrict_unbanned: "¡Desbaneado por %s!"
+bans_invalid_callback_data: "Datos de callback inválidos."
+bans_invalid_user_id: "ID de usuario inválido."
 
 # Mute module missing strings
 mutes_tmute_message: "Shh...\nSilenciado %s por %s"
@@ -1136,6 +1138,8 @@ purges_need_purgefrom: ¡Solo puedes usar este comando después de haber usado e
 purges_use_del_single: ¡Usa el comando /del para eliminar un mensaje!
 purges_reply_to_purgeto: Responde a un mensaje para mostrarme hasta dónde purgar.
 purges_limit_exceeded: "¡No se pueden purgar más de %d mensajes a la vez! Por favor selecciona un rango más pequeño."
+purges_invalid_button_data: "Datos del botón inválidos."
+purges_invalid_message_id: "ID de mensaje inválido."
 
 # Rules module strings
 rules_cleared_successfully: ¡Reglas eliminadas exitosamente!
@@ -1563,6 +1567,7 @@ language_changed_user: "Tu idioma ha sido cambiado a %s"
 language_changed_group: "El idioma de este grupo ha sido cambiado a %s"
 language_admin_required: "Necesitas ser administrador para cambiar el idioma del grupo."
 language_help_translate: "Ayúdanos a Traducir 🌎"
+language_invalid_selection: "Selección de idioma inválida."
 
 # Bot updates module additional strings
 bot_updates_need_supergroup: "Lo siento, pero para usar todas mis funciones, necesitas convertir este grupo en supergrupo."
@@ -1638,6 +1643,7 @@ reports_resolved_success: "✅ Reporte resuelto"
 reports_action_by: "Acción realizada por %s"
 reports_resolved_by: "<b>Resuelto por:</b> %s"
 reports_message_template: "<b>⚠️ Reporte:</b>\n<b> • Reportado por:</b> %s\n<b> • Usuario reportado:</b> %s\n<b>Estado:</b> <i>Pendiente...</i>"
+reports_invalid_action: "Acción inválida."
 
 # Captcha module strings
 captcha_mode_math_desc: "problemas matemáticos"

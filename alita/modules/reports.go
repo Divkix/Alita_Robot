@@ -402,33 +402,34 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	invalidActionText, _ := tr.GetString("reports_invalid_action")
+
 	parts := strings.Split(query.Data, ".")
 	if len(parts) < 2 {
 		log.Warnf("[Reports] Invalid callback data format: %s", query.Data)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
 	args := strings.Split(parts[1], "=")
 	if len(args) < 3 {
 		log.Warnf("[Reports] Invalid callback args format: %s", query.Data)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
 	action := args[0]
 	userId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		log.Warnf("[Reports] Invalid user ID in callback: %s", args[1])
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
 	msgId, err := strconv.ParseInt(args[2], 10, 64)
 	if err != nil {
 		log.Warnf("[Reports] Invalid message ID in callback: %s", args[2])
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	switch action {
 	case "kick":
 		replyQuery, _ = tr.GetString("reports_success_kick")

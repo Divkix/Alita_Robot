@@ -651,7 +651,11 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	HelpModule.helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
-				Text:         "Formatting", // This will be dynamically translated in the help system
+				Text: func() string {
+					tr := i18n.MustNewTranslator("en")
+					t, _ := tr.GetString("common_formatting_button")
+					return t
+				}(),
 				CallbackData: fmt.Sprintf("helpq.%s", "Formatting"),
 			},
 		},

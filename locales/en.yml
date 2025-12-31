@@ -1056,6 +1056,8 @@ bans_unrestrict_admin_error: Why would I kick an admin? That sounds like a prett
 bans_unrestrict_self_error: No u
 bans_unrestrict_unmuted: "Unmuted by %s!"
 bans_unrestrict_unbanned: "Unbanned by %s !"
+bans_invalid_callback_data: "Invalid callback data."
+bans_invalid_user_id: "Invalid user ID."
 
 # Mute module missing strings
 mutes_tmute_message: "Shh...\nMuted %s for %s"
@@ -1152,6 +1154,8 @@ purges_need_purgefrom: You can only use this command after having used the /purg
 purges_use_del_single: Use /del command to delete one message!
 purges_reply_to_purgeto: Reply to a message to show me till where to purge.
 purges_limit_exceeded: "Cannot purge more than %d messages at once! Please select a smaller range."
+purges_invalid_button_data: "Invalid button data."
+purges_invalid_message_id: "Invalid message ID."
 
 # Rules module strings
 rules_cleared_successfully: Successfully cleared rules!
@@ -1584,6 +1588,7 @@ language_changed_user: "Your language has been changed to %s"
 language_changed_group: "This group's language has been changed to %s"
 language_admin_required: "You need to be an admin to change the group language."
 language_help_translate: "Help Us Translate 🌎"
+language_invalid_selection: "Invalid language selection."
 
 # Bot updates module additional strings
 bot_updates_need_supergroup: "Sorry, but to use my all my features, you need to convert this group to supergroup."
@@ -1658,6 +1663,7 @@ reports_resolved_success: "✅ Resolved report"
 reports_action_by: "Action taken by %s"
 reports_resolved_by: "<b>Resolved by:</b> %s"
 reports_message_template: "<b>⚠️ Report:</b>\n<b> • Report by:</b> %s\n<b> • Reported user:</b> %s\n<b>Status:</b> <i>Pending...</i>"
+reports_invalid_action: "Invalid action."
 
 # Captcha module strings
 captcha_mode_math_desc: "mathematical problems"
