@@ -1105,6 +1105,8 @@ locks_locked_successfully: "Locked the following in this group:
   - %s"
 locks_unlocked_successfully: "Un-Locked the following in this group:
   - %s"
+locks_lock_failed: "Failed to lock: %s. Please try again later."
+locks_unlock_failed: "Failed to unlock: %s. Please try again later."
 locks_what_to_unlock: What do you want to unlock? Check /locktypes for available options.
 locks_current_locks_header: "These are the locks in this chat:"
 locks_bot_lock_no_permission: I see a bot, and I've been told to stop them joining... but I'm not admin!

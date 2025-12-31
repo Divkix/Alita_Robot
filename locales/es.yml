@@ -1089,6 +1089,8 @@ locks_locked_successfully: "Bloqueado lo siguiente en este grupo:
   - %s"
 locks_unlocked_successfully: "Desbloqueado lo siguiente en este grupo:
   - %s"
+locks_lock_failed: "Error al bloquear: %s. Por favor, inténtalo de nuevo más tarde."
+locks_unlock_failed: "Error al desbloquear: %s. Por favor, inténtalo de nuevo más tarde."
 locks_what_to_unlock: ¿Qué quieres desbloquear? Revisa /locktypes para opciones disponibles.
 locks_current_locks_header: "Estos son los bloqueos en este chat:"
 locks_bot_lock_no_permission: ¡Veo un bot, y me han dicho que evite que se unan... pero no soy administrador!

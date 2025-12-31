@@ -2,7 +2,9 @@ package db
 
 import (
 	"errors"
+	"fmt"
 
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -23,7 +25,9 @@ func GetChatLocks(chatID int64) map[string]bool {
 
 // UpdateLock modifies the value of a specific lock setting and updates it in the database.
 // Creates a new lock record if one doesn't exist for the given chat and permission type.
-func UpdateLock(chatID int64, perm string, val bool) {
+// Invalidates the cache after successful update to ensure immediate enforcement.
+// Returns an error if the database operation fails.
+func UpdateLock(chatID int64, perm string, val bool) error {
 	lockSetting := &LockSettings{
 		ChatId:   chatID,
 		LockType: perm,
@@ -39,6 +43,25 @@ func UpdateLock(chatID int64, perm string, val bool) {
 
 	if err != nil {
 		log.Errorf("[Database] UpdateLock: %v", err)
+		return err
+	}
+
+	// Invalidate cache to ensure immediate enforcement
+	InvalidateLockCache(chatID, perm)
+	return nil
+}
+
+// InvalidateLockCache removes the cached lock status for a specific chat and lock type.
+// Should be called after updating a lock to ensure immediate enforcement.
+func InvalidateLockCache(chatID int64, lockType string) {
+	if cache.Marshal == nil {
+		return
+	}
+
+	cacheKey := fmt.Sprintf("alita:lock:%d:%s", chatID, lockType)
+	err := cache.Marshal.Delete(cache.Context, cacheKey)
+	if err != nil {
+		log.Debugf("[Cache] Failed to invalidate lock cache for key %s: %v", cacheKey, err)
 	}
 }
 

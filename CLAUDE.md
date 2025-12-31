@@ -425,3 +425,65 @@ The project uses GoReleaser for multi-platform builds:
   4. Create expensive resources (translators, etc.) only after validation passes
 - **Double Answer Bug**: `RequireUserAdmin` with `justCheck=false` already answers the callback with error - don't answer again in calling code
 - **Best Practice**: Match the early-return pattern used in command handlers (like `changeLanguage`) for consistency
+
+### Message Handler Sender Safety
+- **Issue**: `ctx.EffectiveSender.User` can be nil when message is from a channel, not a user
+- **Fix**: Use `ctx.EffectiveSender` with nil check, then `sender.Id()` which works for both users and channels:
+  ```go
+  sender := ctx.EffectiveSender
+  if sender == nil {
+      return ext.ContinueGroups
+  }
+  senderID := sender.Id()
+  // IsUserAdmin handles channel IDs safely (returns false for channels)
+  if chat_status.IsUserAdmin(b, chat.Id, senderID) {
+      return ext.ContinueGroups
+  }
+  ```
+- **Pattern**: Always check for nil sender in message handlers before accessing user properties
+- **Note**: `IsUserAdmin` returns false for channel IDs (negative numbers < -1000000000000)
+
+### Cache Invalidation on Updates
+- **Issue**: Cached data not invalidated after DB updates causes stale reads (e.g., locks not enforced immediately)
+- **Fix**: Add cache invalidation after successful database writes:
+  ```go
+  func UpdateLock(chatID int64, perm string, val bool) error {
+      // ... DB update ...
+      InvalidateLockCache(chatID, perm) // Delete cached value
+      return nil
+  }
+  ```
+- **Pattern**: When adding caching, always consider the write path - cache must be invalidated on updates
+- **Cache Key Format**: Use consistent prefixes like `alita:lock:{chatID}:{lockType}`
+
+### Boolean Logic in Filter Functions
+- **Issue**: Complex boolean conditions with `||` can accidentally match most messages
+- **Example**: `IsAnonymousChannel() || !IsLinkedChannel()` matches almost everything (NOT linked = most messages)
+- **Fix**: Carefully review boolean logic in filter functions:
+  ```go
+  // Wrong - matches almost all messages
+  return sender.IsAnonymousChannel() || !sender.IsLinkedChannel()
+  // Correct - matches only channel messages
+  return sender.IsAnonymousChannel() || sender.IsLinkedChannel()
+  ```
+- **Best Practice**: Test filter functions with different message types to verify correct matching
+
+### Message Entity Completeness
+- **Issue**: Checking only `msg.Entities` misses entities in captions of media messages
+- **Fix**: Also check `msg.CaptionEntities` for completeness:
+  ```go
+  for _, e := range msg.Entities { /* check */ }
+  for _, e := range msg.CaptionEntities { /* check */ }
+  ```
+- **Applies to**: URL detection, mention detection, any entity-based filtering
+
+### Redundant Context Mutations
+- **Issue**: `helpers.IsUserConnected()` already sets `ctx.EffectiveChat` before returning
+- **Pattern**: After calling `IsUserConnected()`, use `ctx.EffectiveChat` directly - no need to reassign:
+  ```go
+  // IsUserConnected sets ctx.EffectiveChat internally
+  if helpers.IsUserConnected(b, ctx, true, true) == nil {
+      return ext.EndGroups
+  }
+  chat := ctx.EffectiveChat // Already set correctly
+  ```
