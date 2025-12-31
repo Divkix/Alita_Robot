@@ -1069,16 +1069,26 @@ func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 // loadPendingJoins checks if a join request notification has already been sent for a user.
 // Prevents duplicate join request messages by checking cache for recent requests.
 func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
-	alreadyAsked, _ := cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), new(bool))
-	if alreadyAsked == nil || !alreadyAsked.(bool) {
+	if cache.Marshal == nil {
 		return false
 	}
-	return true
+	alreadyAsked, err := cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), new(bool))
+	if err != nil || alreadyAsked == nil {
+		return false
+	}
+	// Safe type assertion
+	if boolVal, ok := alreadyAsked.(*bool); ok && boolVal != nil {
+		return *boolVal
+	}
+	return false
 }
 
 // setPendingJoins marks a join request as processed in cache with expiration.
 // Stores request info for 5 minutes to prevent duplicate approval notifications.
 func (moduleStruct) setPendingJoins(chatId, userId int64) {
+	if cache.Marshal == nil {
+		return
+	}
 	_ = cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), true, store.WithExpiration(5*time.Minute))
 }
 

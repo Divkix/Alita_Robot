@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -218,12 +217,8 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Capture variables for goroutine closure
-	chatId := chat.Id
-	go func() {
-		defer error_handling.RecoverFromPanic("AddFilter", "filters")
-		db.AddFilter(chatId, filterWord, text, fileid, buttons, dataType)
-	}()
+	// Perform DB operation synchronously to ensure completion before confirmation
+	db.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType)
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	successText, _ := tr.GetString("filters_added_success")
@@ -283,13 +278,8 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		} else {
-			// Capture variables for goroutine closure
-			chatId := chat.Id
-			lowerFilterWord := strings.ToLower(filterWord)
-			go func() {
-				defer error_handling.RecoverFromPanic("RemoveFilter", "filters")
-				db.RemoveFilter(chatId, lowerFilterWord)
-			}()
+			// Perform DB operation synchronously to ensure completion before confirmation
+			db.RemoveFilter(chat.Id, strings.ToLower(filterWord))
 			successText, _ := tr.GetString("filters_removed_success")
 			_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), helpers.Shtml())
 			if err != nil {
@@ -478,8 +468,26 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Error("[Filters] Invalid callback data format")
+		return ext.EndGroups
+	}
 	filterWord := args[1]
 	var helpText string
+
+	// Handle cancel case first - no cache lookup needed
+	if filterWord == "cancel" {
+		helpText, _ = tr.GetString("filters_overwrite_cancelled")
+		_, _, editErr := query.Message.EditText(b, helpText, nil)
+		if editErr != nil {
+			log.Error(editErr)
+		}
+		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		if answerErr != nil {
+			log.Error(answerErr)
+		}
+		return ext.EndGroups
+	}
 
 	// Retrieve from cache instead of in-memory map
 	filterData, err := getFilterOverwriteCache(filterWord, chat.Id)

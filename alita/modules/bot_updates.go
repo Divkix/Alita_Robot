@@ -238,6 +238,9 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 // getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
 func getAnonAdminCache(chatId, msgId int64) (any, error) {
+	if cache.Marshal == nil {
+		return nil, fmt.Errorf("cache not initialized")
+	}
 	return cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
 }
 

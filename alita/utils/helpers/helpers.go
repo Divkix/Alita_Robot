@@ -816,6 +816,9 @@ func GetWelcomeType(msg *gotgbot.Message, greetingType string, language string) 
 // Handles random message selection, formatting replacement, and keyboard building.
 // Returns the sent message or an error.
 func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filterData *db.ChatFilters, replyMsgId int64) (*gotgbot.Message, error) {
+	if filterData == nil {
+		return nil, fmt.Errorf("filter data is nil")
+	}
 	chat := ctx.EffectiveChat
 
 	var (

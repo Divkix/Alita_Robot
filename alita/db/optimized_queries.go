@@ -215,6 +215,7 @@ func NewOptimizedFilterQueries() *OptimizedFilterQueries {
 
 // GetChatFiltersOptimized retrieves filters with minimal column selection.
 // Optimized for high-frequency calls (34K+ calls) by selecting only essential filter fields.
+// Includes all fields needed by filtersWatcher: keyword, filter_reply, msgtype, fileid, filter_buttons, nonotif.
 func (o *OptimizedFilterQueries) GetChatFiltersOptimized(chatID int64) ([]*ChatFilters, error) {
 	if o.db == nil {
 		return nil, errors.New("database not initialized")
@@ -222,7 +223,7 @@ func (o *OptimizedFilterQueries) GetChatFiltersOptimized(chatID int64) ([]*ChatF
 
 	var filters []*ChatFilters
 	err := o.db.Model(&ChatFilters{}).
-		Select("id, keyword, filter_reply, msgtype").
+		Select("id, chat_id, keyword, filter_reply, msgtype, fileid, filter_buttons, nonotif").
 		Where("chat_id = ?", chatID).
 		Find(&filters).Error
 	if err != nil {
