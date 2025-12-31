@@ -9,6 +9,10 @@ import (
 // Returns the user's language preference for private chats, or the group's language for group chats.
 // Defaults to "en" (English) if no preference is found.
 func GetLanguage(ctx *ext.Context) string {
+	if ctx == nil {
+		return "en"
+	}
+
 	chat := ctx.EffectiveChat
 	if chat == nil {
 		// Fallback to default language if we can't determine chat context
@@ -17,6 +21,11 @@ func GetLanguage(ctx *ext.Context) string {
 	}
 
 	if chat.Type == "private" {
+		// Guard against nil EffectiveSender
+		if ctx.EffectiveSender == nil {
+			log.Debug("[GetLanguage] No sender in private chat context, using default language")
+			return "en"
+		}
 		user := ctx.EffectiveSender.User
 		if user == nil {
 			return "en"

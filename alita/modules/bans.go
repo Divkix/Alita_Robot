@@ -73,9 +73,7 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, reason := extraction.ExtractUserAndText(b, ctx)
 	userId := msg.ReplyToMessage.From.Id
-	if userId == -1 {
-		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	if helpers.IsChannelID(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -592,7 +590,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if helpers.IsChannelID(userId) {
 		if msg.ReplyToMessage != nil {
-			userId := msg.ReplyToMessage.GetSender().Id()
+			userId = msg.ReplyToMessage.GetSender().Id()
 			_, err := b.BanChatSenderChat(chat.Id, userId, nil)
 			if err != nil {
 				log.Error(err)
@@ -907,7 +905,7 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if helpers.IsChannelID(userId) {
 		if msg.ReplyToMessage != nil {
-			userId := msg.ReplyToMessage.GetSender().Id()
+			userId = msg.ReplyToMessage.GetSender().Id()
 			_, err := b.UnbanChatSenderChat(chat.Id, userId, nil)
 			if err != nil {
 				log.Error(err)
@@ -1048,10 +1046,30 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	args := strings.Split(query.Data, ".")
-	var helpText string
+	if len(args) < 3 {
+		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "Invalid callback data",
+			ShowAlert: true,
+		})
+		return ext.EndGroups
+	}
 
 	action := args[1]
-	userId, _ := strconv.Atoi(args[2])
+	userId, err := strconv.Atoi(args[2])
+	if err != nil {
+		log.WithFields(log.Fields{
+			"callbackData": query.Data,
+			"error":        err,
+		}).Error("Failed to parse userId from restrict callback")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "Invalid user ID",
+			ShowAlert: true,
+		})
+		return ext.EndGroups
+	}
+
+	var helpText string
 
 	actionUser, err := b.GetChat(int64(userId), nil)
 	if err != nil {
@@ -1269,10 +1287,30 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	}
 
 	args := strings.Split(query.Data, ".")
-	var helpText string
+	if len(args) < 3 {
+		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "Invalid callback data",
+			ShowAlert: true,
+		})
+		return ext.EndGroups
+	}
 
 	action := args[1]
-	userId, _ := strconv.Atoi(args[2])
+	userId, err := strconv.Atoi(args[2])
+	if err != nil {
+		log.WithFields(log.Fields{
+			"callbackData": query.Data,
+			"error":        err,
+		}).Error("Failed to parse userId from unrestrict callback")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text:      "Invalid user ID",
+			ShowAlert: true,
+		})
+		return ext.EndGroups
+	}
+
+	var helpText string
 
 	switch action {
 	case "unmute":
@@ -1318,7 +1356,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		_updatedMsg.Text = fmt.Sprint("<s>", _updatedMsg.Text, "</s>", "\n\n")
 	}
 
-	_, _, err := msg.EditText(
+	_, _, err = msg.EditText(
 		b,
 		fmt.Sprint(_updatedMsg.Text, helpText),
 		&gotgbot.EditMessageTextOpts{

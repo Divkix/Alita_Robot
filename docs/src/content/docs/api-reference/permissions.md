@@ -9,7 +9,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 22
+- **Total Functions**: 24
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -38,6 +38,8 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
 | `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
+| `GetEffectiveUser` | `*gotgbot.User` | Safely extracts the user from context, returns nil for ch... |
+| `RequireUser` | `*gotgbot.User` | Ensures a valid user exists in context with optional erro... |
 
 ## Functions by Category
 
@@ -343,6 +345,51 @@ IsUserInChat checks if a user is currently a member of the specified chat. Retur
 - `b`
 - `chat`
 - `userId`
+
+### 👤 Safe User Extraction
+
+#### `GetEffectiveUser`
+
+```go
+func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
+```
+
+GetEffectiveUser safely extracts the user from context. Returns nil for channel posts and cases where user is unavailable. Use this when you need to check if a user exists without sending error messages.
+
+**Parameters:**
+- `ctx` - The extension context
+
+**Returns:** `*gotgbot.User` or `nil`
+
+#### `RequireUser`
+
+```go
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
+```
+
+RequireUser ensures a valid user exists in context. If justCheck is false and user is unavailable, sends a localized error message. This is the recommended way to safely get a user in command handlers.
+
+**Parameters:**
+- `b` - The bot instance
+- `ctx` - The extension context
+- `justCheck` - If true, won't send error messages when user is unavailable
+
+**Returns:** `*gotgbot.User` or `nil`
+
+**Usage Example:**
+
+```go
+func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
+    // Safe user extraction - handles channel posts gracefully
+    user := chat_status.RequireUser(b, ctx, false)
+    if user == nil {
+        return ext.EndGroups
+    }
+
+    // Now safe to use user.Id, user.FirstName, etc.
+    // ...
+}
+```
 
 ### 🔧 Utility Functions
 

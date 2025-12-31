@@ -1015,3 +1015,28 @@ func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
 	}
 }
+
+// GetEffectiveUser safely extracts the user from context.
+// Returns nil for channel posts and cases where user is unavailable.
+func GetEffectiveUser(ctx *ext.Context) *gotgbot.User {
+	if ctx == nil || ctx.EffectiveSender == nil {
+		return nil
+	}
+	return ctx.EffectiveSender.User
+}
+
+// RequireUser ensures a valid user exists in context.
+// If justCheck is false and user is unavailable, sends error message.
+// Returns the user or nil.
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User {
+	user := GetEffectiveUser(ctx)
+	if user == nil {
+		if !justCheck && ctx != nil && ctx.EffectiveMessage != nil {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("common_cannot_identify_user")
+			_, _ = ctx.EffectiveMessage.Reply(b, text, nil)
+		}
+		return nil
+	}
+	return user
+}

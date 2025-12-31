@@ -987,6 +987,7 @@ devs_specify_user: Debes especificar un usuario para obtener información
 # Common error messages used across modules
 common_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
 common_anonymous_ban_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
+common_cannot_identify_user: No se puede identificar al usuario. Este comando no puede ser usado por canales.
 common_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
 common_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
 
@@ -1445,6 +1446,7 @@ extraction_user_not_found: "No pude encontrar un usuario con este nombre; ¿est�
 extraction_get_chat_member_failed: "Error al obtener usuario: no se puede getChatMember: Solicitud incorrecta: chat no encontrado"
 extraction_invalid_time_amount: "Cantidad de tiempo especificada inválida."
 extraction_time_limit_exceeded: "¡No se puede establecer tiempo a más de 1 año!"
+extraction_no_time_specified: "Por favor especifica una duración de tiempo (ej., 1m, 1h, 1d, 1w)."
 extraction_invalid_time_type: "Tipo de tiempo especificado inválido. Esperaba m, h, d o w obtuvo: %s"
 extraction_invalid_time_format: "Formato de tiempo especificado inválido."
 

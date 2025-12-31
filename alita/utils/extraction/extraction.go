@@ -309,6 +309,18 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 	yearTime := timeNow + int64(365*24*60*60)
 
 	args := strings.Fields(inputVal)
+
+	// Guard against empty input
+	if len(args) == 0 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("extraction_no_time_specified")
+		_, err := msg.Reply(b, text, nil)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with no time specified: %v", err)
+		}
+		return -1, "", ""
+	}
+
 	timeVal := args[0] // first word will be the time specification
 	if len(args) >= 2 {
 		reason = strings.Join(args[1:], " ")

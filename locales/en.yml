@@ -1004,6 +1004,7 @@ devs_specify_user: You must specify a user to get info on
 # Common error messages used across modules
 common_anonymous_user_error: This command cannot be used on anonymous user.
 common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
+common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
 common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 
@@ -1465,6 +1466,7 @@ extraction_user_not_found: "Could not find a user by this name; are you sure I'v
 extraction_get_chat_member_failed: "Failed to get user: unable to getChatMember: Bad Request: chat not found"
 extraction_invalid_time_amount: "Invalid time amount specified."
 extraction_time_limit_exceeded: "Cannot set time to more than 1 year!"
+extraction_no_time_specified: "Please specify a time duration (e.g., 1m, 1h, 1d, 1w)."
 extraction_invalid_time_type: "Invalid time type specified. Expected m, h, d or w got: %s"
 extraction_invalid_time_format: "Invalid time format specified."
 

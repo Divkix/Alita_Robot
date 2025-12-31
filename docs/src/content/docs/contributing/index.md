@@ -179,6 +179,101 @@ The project uses `golangci-lint` for code quality. Manual testing is done with a
 6. Push to your fork
 7. Open a Pull Request
 
+## Common Pitfalls
+
+These are common bugs to avoid when developing modules:
+
+### Nil Pointer on User Extraction
+
+**Problem:** `ctx.EffectiveSender.User` can be nil for channel posts.
+
+```go
+// Wrong - will panic on channel posts
+user := ctx.EffectiveSender.User
+userId := user.Id
+
+// Correct - use the safe helper
+user := chat_status.RequireUser(b, ctx, false)
+if user == nil {
+    return ext.EndGroups
+}
+```
+
+### Shadow Variables in Conditionals
+
+**Problem:** Using `:=` inside conditionals creates a new variable that shadows the outer one.
+
+```go
+// Wrong - shadows outer userId
+if condition {
+    userId := someValue  // New variable!
+}
+// userId here is still the original value
+
+// Correct - reassigns the outer variable
+if condition {
+    userId = someValue  // Reassigns existing variable
+}
+```
+
+### Empty Slice Access
+
+**Problem:** Accessing slice elements without bounds checking.
+
+```go
+// Wrong - panics if args is empty
+args := strings.Fields(input)
+firstArg := args[0]
+
+// Correct - check length first
+args := strings.Fields(input)
+if len(args) == 0 {
+    // Handle empty case
+    return
+}
+firstArg := args[0]
+```
+
+### Callback Data Validation
+
+**Problem:** Not validating callback query data before parsing.
+
+```go
+// Wrong - panics on malformed data
+args := strings.Split(query.Data, ".")
+action := args[1]
+userId, _ := strconv.Atoi(args[2])
+
+// Correct - validate first
+args := strings.Split(query.Data, ".")
+if len(args) < 3 {
+    log.Error("Malformed callback data")
+    return ext.EndGroups
+}
+action := args[1]
+userId, err := strconv.Atoi(args[2])
+if err != nil {
+    log.Error("Invalid userId in callback")
+    return ext.EndGroups
+}
+```
+
+### Goroutine Variable Capture
+
+**Problem:** Goroutines capturing loop variables or mutable state.
+
+```go
+// Risky - captures variables by reference
+go func() {
+    doSomething(userId)  // userId might change
+}()
+
+// Safer - pass as parameters
+go func(uid int64) {
+    doSomething(uid)
+}(userId)
+```
+
 ## Getting Help
 
 - **Support Group**: [t.me/DivideSupport](https://t.me/DivideSupport)
