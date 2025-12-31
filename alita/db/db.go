@@ -314,12 +314,12 @@ func (bss BlacklistSettingsSlice) Action() string {
 }
 
 // Reason returns the reason for the first blacklist setting in the slice.
-// If no settings exist, returns an empty string.
+// If no settings exist or reason is empty, returns a default format string with placeholder for trigger word.
 func (bss BlacklistSettingsSlice) Reason() string {
-	if len(bss) > 0 {
+	if len(bss) > 0 && bss[0].Reason != "" {
 		return bss[0].Reason
 	}
-	return ""
+	return "Blacklisted word: '%s'" // default format string with placeholder for trigger word
 }
 
 // TableName returns the database table name for the BlacklistSettings model.

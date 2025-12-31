@@ -186,6 +186,7 @@ blacklists_bl_watcher_muted_user: Silenciado %s debido a %s
 blacklists_blacklist_added_bl: "Añadidas estas palabras como listas negras:"
 blacklists_blacklist_already_blacklisted: "Estas palabras ya están en la lista negra:"
 blacklists_blacklist_give_bl_word: ¡Por favor dame una palabra para añadir a la lista negra!
+blacklists_blacklist_word_too_long: "Estas palabras son demasiado largas (máximo 100 caracteres): %s"
 blacklists_help_msg: "*Comandos de Usuario:*
 
   × /blacklists: Verificar todas las listas negras en el chat.

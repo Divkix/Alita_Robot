@@ -13,7 +13,8 @@ func AddBlacklist(chatId int64, trigger string) {
 	blacklist := &BlacklistSettings{
 		ChatId: chatId,
 		Word:   strings.ToLower(trigger),
-		Action: "warn", // default action
+		Action: "warn",                   // default action (intentionally 'warn' for safety)
+		Reason: "Blacklisted word: '%s'", // default format string with placeholder for trigger word
 	}
 
 	err := CreateRecord(blacklist)

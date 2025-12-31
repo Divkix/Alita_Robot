@@ -3,6 +3,7 @@ package modules
 import (
 	"context"
 	"fmt"
+	"html"
 	"slices"
 	"strings"
 	"sync"
@@ -47,8 +48,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	user := ctx.EffectiveSender.User
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -111,12 +111,14 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		args = validArgs
 
-		// For small lists, process sequentially
+		// For small lists, process sequentially with WaitGroup
 		if len(args) <= 3 {
+			var wg sync.WaitGroup
 			for _, blWord := range args {
 				if string_handling.FindInStringSlice(allBlWords, blWord) {
 					alreadyBlacklisted = append(alreadyBlacklisted, blWord)
 				} else {
+					wg.Add(1)
 					go func(chatId int64, word string) {
 						defer func() {
 							if r := recover(); r != nil {
@@ -126,12 +128,15 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 									"word":   word,
 								}).Error("Panic in AddBlacklist goroutine")
 							}
+							wg.Done()
 						}()
 						db.AddBlacklist(chatId, word)
 					}(chat.Id, blWord)
-					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", blWord))
+					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
 				}
 			}
+			// Wait for all goroutines to complete
+			wg.Wait()
 		} else {
 			// For larger lists, process concurrently
 			type result struct {
@@ -176,7 +181,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 				if res.isAlreadyListed {
 					alreadyBlacklisted = append(alreadyBlacklisted, res.word)
 				} else {
-					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", res.word))
+					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(res.word)))
 				}
 			}
 		}
@@ -215,8 +220,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	user := ctx.EffectiveSender.User
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -303,8 +307,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 
 	var (
 		replyMsgId     int64
@@ -321,7 +324,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	slices.Sort(blSrc.Triggers())
 	var sb strings.Builder
 	for _, i := range blSrc.Triggers() {
-		sb.WriteString(fmt.Sprintf("\n - <code>%s</code>", i))
+		sb.WriteString(fmt.Sprintf("\n - <code>%s</code>", html.EscapeString(i)))
 	}
 	blacklistsText += sb.String()
 
@@ -366,8 +369,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	user := ctx.EffectiveSender.User
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -591,7 +593,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 
-		_, err = msg.Reply(b,
+		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_muted_user")
 				return fmt.Sprintf(temp, helpers.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
@@ -613,7 +615,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 
-		_, err = msg.Reply(b,
+		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_banned_user")
 				return fmt.Sprintf(temp, helpers.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
@@ -635,7 +637,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 
-		_, err = msg.Reply(b,
+		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
 				return fmt.Sprintf(temp, helpers.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
@@ -689,6 +691,9 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+	case "none":
+		// Message already deleted, no further action needed
+		return ext.ContinueGroups
 	}
 
 	return ext.ContinueGroups
