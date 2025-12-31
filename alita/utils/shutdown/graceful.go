@@ -42,6 +42,10 @@ func (m *Manager) WaitForShutdown() {
 	sig := <-sigChan
 	log.Infof("[Shutdown] Received signal: %v", sig)
 
+	// Stop receiving signals - prevents duplicate shutdown calls
+	signal.Stop(sigChan)
+	close(sigChan)
+
 	m.shutdown()
 }
 

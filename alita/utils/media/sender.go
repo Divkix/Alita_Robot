@@ -3,6 +3,7 @@
 package media
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -13,6 +14,9 @@ import (
 )
 
 // Type constants matching db package for convenience
+// Sentinel errors
+var ErrNoPermission = fmt.Errorf("bot lacks permission to send messages")
+
 const (
 	TypeText      = db.TEXT
 	TypeSticker   = db.STICKER
@@ -117,7 +121,7 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 				"chat_id": opts.ChatID,
 				"error":   errStr,
 			}).Warning("Bot lacks permission to send messages in this chat")
-			return nil, nil
+			return nil, ErrNoPermission
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", opts.ChatID)
 	}

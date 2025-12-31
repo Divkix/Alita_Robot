@@ -117,7 +117,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		ent = &entities[0]
 		userId = ent.User.Id
 		text = msg.Text[ent.Offset+ent.Length:]
-	} else if len(args) >= 1 && args[1][0] == '@' {
+	} else if len(args) >= 2 && args[1][0] == '@' {
 		user := args[1]
 		userId = GetUserId(b, user)
 		if userId == 0 {
@@ -134,7 +134,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 				text = res[2]
 			}
 		}
-	} else if len(args) >= 1 {
+	} else if len(args) >= 2 {
 		isId = true
 		if chatId, err := strconv.ParseInt(args[1], 10, 64); err != nil || !helpers.IsChannelID(chatId) {
 			for _, arg := range args[1] {
@@ -153,13 +153,13 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 			}
 		}
 	}
-	if !isId && prevMessage != nil {
+	if !isId && prevMessage != nil && len(args) >= 2 {
 		_, parseErr := uuid.Parse(args[1])
 		userId, text = IdFromReply(msg)
 		if parseErr == nil {
 			return userId, trimTextNewline(text)
 		}
-	} else if !isId {
+	} else if !isId && len(args) >= 2 {
 		_, parseErr := uuid.Parse(args[1])
 		if parseErr == nil {
 			return userId, trimTextNewline(text)

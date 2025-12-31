@@ -27,7 +27,7 @@ func RecoverFromPanic(funcName, modName string) {
 			modName, funcName, r, stackTrace)
 
 		// Send to Sentry if available
-		if hub := sentry.CurrentHub(); hub.Client() != nil {
+		if hub := sentry.CurrentHub().Clone(); hub.Client() != nil {
 			hub.WithScope(func(scope *sentry.Scope) {
 				scope.SetTag("module", modName)
 				scope.SetTag("function", funcName)
@@ -52,7 +52,7 @@ func CaptureError(err error, tags map[string]string) {
 
 	HandleErr(err) // Still log locally
 
-	if hub := sentry.CurrentHub(); hub.Client() != nil {
+	if hub := sentry.CurrentHub().Clone(); hub.Client() != nil {
 		hub.WithScope(func(scope *sentry.Scope) {
 			for key, value := range tags {
 				scope.SetTag(key, value)
@@ -65,7 +65,7 @@ func CaptureError(err error, tags map[string]string) {
 // CaptureMessage sends a message to Sentry with optional tags.
 // This is useful for tracking events that aren't errors but are worth monitoring.
 func CaptureMessage(message string, tags map[string]string) {
-	if hub := sentry.CurrentHub(); hub.Client() != nil {
+	if hub := sentry.CurrentHub().Clone(); hub.Client() != nil {
 		hub.WithScope(func(scope *sentry.Scope) {
 			for key, value := range tags {
 				scope.SetTag(key, value)

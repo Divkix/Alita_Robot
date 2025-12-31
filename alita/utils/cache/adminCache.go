@@ -188,3 +188,14 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 	}
 	return false, gotgbot.MergedChatMember{}
 }
+
+// InvalidateAdminCache removes the cached admin list for a chat.
+// Should be called when admins are promoted/demoted to ensure fresh data.
+func InvalidateAdminCache(chatId int64) {
+	cacheKey := fmt.Sprintf("alita:adminCache:%d", chatId)
+	if err := Marshal.Delete(Context, cacheKey); err != nil {
+		log.Debugf("[AdminCache] Failed to invalidate cache for chat %d: %v", chatId, err)
+	} else {
+		log.Debugf("[AdminCache] Invalidated admin cache for chat %d", chatId)
+	}
+}

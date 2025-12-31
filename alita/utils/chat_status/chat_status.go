@@ -72,7 +72,7 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	if chat != nil {
 		return chat
 	}
-	if ctx.CallbackQuery != nil {
+	if ctx.CallbackQuery != nil && ctx.CallbackQuery.Message != nil {
 		chatValue := ctx.CallbackQuery.Message.GetChat()
 		return &chatValue
 	}
@@ -124,6 +124,11 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 
 	// Check if command is disabled in this chat
 	if !db.IsCommandDisabled(msg.Chat.Id, cmd) {
+		return false
+	}
+
+	// msg.From can be nil for channel posts
+	if msg.From == nil {
 		return false
 	}
 
@@ -667,6 +672,11 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
 		return isAdmin
+	}
+
+	// msg.From can be nil for channel posts
+	if msg.From == nil {
+		return false
 	}
 
 	userid := msg.From.Id

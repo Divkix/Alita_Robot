@@ -235,7 +235,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	user := ctx.EffectiveUser
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-	if ctx.Message.Chat.Type == "private" {
+	if msg.Chat.Type == "private" {
 		conn := db.Connection(user.Id)
 		if conn.Connected && conn.ChatId != 0 {
 			chatFullInfo, err := b.GetChat(conn.ChatId, nil)
@@ -956,13 +956,14 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 		buttonUrlFixer := func(_buttons *[]tgmd2html.ButtonV2) {
 			// regex taken from https://regexr.com/39nr7
 			buttonUrlPattern, _ := regexp.Compile(`[(htps)?:/w.a-zA-Z\d@%_+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z\d@:%_+.~#?&/=]*)`)
-			buttons = *_buttons
-			for i, btn := range *_buttons {
-				if !buttonUrlPattern.MatchString(btn.Content) {
-					buttons = append(buttons[:i], buttons[i+1:]...)
+			// Build a new slice instead of modifying during iteration
+			validButtons := make([]tgmd2html.ButtonV2, 0, len(*_buttons))
+			for _, btn := range *_buttons {
+				if buttonUrlPattern.MatchString(btn.Content) {
+					validButtons = append(validButtons, btn)
 				}
 			}
-			*_buttons = buttons
+			*_buttons = validButtons
 		}
 
 		buttonUrlFixer(&buttons)

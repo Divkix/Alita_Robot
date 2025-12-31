@@ -19,11 +19,17 @@ type AsyncProcessor struct {
 }
 
 // GlobalAsyncProcessor is the singleton instance
-var GlobalAsyncProcessor *AsyncProcessor
+var (
+	GlobalAsyncProcessor *AsyncProcessor
+	asyncProcessorMu     sync.RWMutex
+)
 
 // InitializeAsyncProcessor creates and starts the global async processor
 // This is a minimal implementation to satisfy main.go requirements
 func InitializeAsyncProcessor() {
+	asyncProcessorMu.Lock()
+	defer asyncProcessorMu.Unlock()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	GlobalAsyncProcessor = &AsyncProcessor{
 		enabled: config.AppConfig.EnableAsyncProcessing,
@@ -39,6 +45,9 @@ func InitializeAsyncProcessor() {
 // StopAsyncProcessor stops the global async processor
 // This is a minimal implementation to satisfy main.go requirements
 func StopAsyncProcessor() {
+	asyncProcessorMu.Lock()
+	defer asyncProcessorMu.Unlock()
+
 	if GlobalAsyncProcessor != nil {
 		if GlobalAsyncProcessor.cancel != nil {
 			GlobalAsyncProcessor.cancel()

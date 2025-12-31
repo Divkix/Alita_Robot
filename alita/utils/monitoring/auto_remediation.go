@@ -117,6 +117,10 @@ func (m *AutoRemediationManager) monitorAndRemediate() {
 
 // checkAndRemediate checks current metrics and applies appropriate remediation
 func (m *AutoRemediationManager) checkAndRemediate() {
+	if m.collector == nil {
+		return
+	}
+
 	metrics := m.collector.GetCurrentMetrics()
 
 	// Get applicable actions sorted by severity (least severe first)

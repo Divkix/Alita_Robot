@@ -364,6 +364,17 @@ func (collector *BackgroundStatsCollector) RecordError() {
 	atomic.AddInt64(&collector.errorCounter, 1)
 }
 
+// RecordMessage increments the processed message counter
+func (collector *BackgroundStatsCollector) RecordMessage() {
+	atomic.AddInt64(&collector.messageCounter, 1)
+}
+
+// RecordResponseTime records a response time measurement
+func (collector *BackgroundStatsCollector) RecordResponseTime(duration time.Duration) {
+	atomic.AddInt64(&collector.responseTimeSum, int64(duration))
+	atomic.AddInt64(&collector.responseTimeCount, 1)
+}
+
 // GetCurrentMetrics returns the current metrics (thread-safe)
 func (collector *BackgroundStatsCollector) GetCurrentMetrics() SystemMetrics {
 	collector.metricsLock.RLock()

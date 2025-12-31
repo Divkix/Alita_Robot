@@ -243,20 +243,36 @@ func (s *Server) Start() error {
 	}
 	log.Infof("[HTTPServer] Starting unified HTTP server on port %d with endpoints: %v", s.port, endpoints)
 
+	// Use a channel to communicate startup errors
+	errChan := make(chan error, 1)
+
 	// Start the server in a goroutine
 	go func() {
 		defer error_handling.RecoverFromPanic("HTTPServer", "main")
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- err
 			log.Errorf("[HTTPServer] Server failed: %v", err)
 		}
 	}()
 
-	return nil
+	// Wait briefly to catch immediate startup errors (e.g., port conflicts)
+	select {
+	case err := <-errChan:
+		return fmt.Errorf("failed to start HTTP server: %w", err)
+	case <-time.After(100 * time.Millisecond):
+		return nil
+	}
 }
 
 // Stop gracefully stops the HTTP server
 func (s *Server) Stop() error {
 	log.Info("[HTTPServer] Shutting down server...")
+
+	// Check if server was never started
+	if s.server == nil {
+		log.Warn("[HTTPServer] Server was never started, nothing to stop")
+		return nil
+	}
 
 	// Create a context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
