@@ -10,7 +10,8 @@ import (
 // DisableCMD disables a command in a specific chat.
 // Creates a new disable setting record with disabled status set to true.
 // Invalidates cache to ensure consistency.
-func DisableCMD(chatID int64, cmd string) {
+// Returns an error if the database operation fails.
+func DisableCMD(chatID int64, cmd string) error {
 	// Create a new disable setting
 	disableSetting := &DisableSettings{
 		ChatId:   chatID,
@@ -21,25 +22,28 @@ func DisableCMD(chatID int64, cmd string) {
 	err := CreateRecord(disableSetting)
 	if err != nil {
 		log.Errorf("[Database][DisableCMD]: %v", err)
-		return
+		return err
 	}
 
 	// Invalidate cache to ensure fresh data
 	invalidateDisabledCommandsCache(chatID)
+	return nil
 }
 
 // EnableCMD enables a command in a specific chat.
 // Removes the disable setting record for the command.
 // Invalidates cache to ensure consistency.
-func EnableCMD(chatID int64, cmd string) {
+// Returns an error if the database operation fails.
+func EnableCMD(chatID int64, cmd string) error {
 	err := DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&DisableSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database][EnableCMD]: %v", err)
-		return
+		return err
 	}
 
 	// Invalidate cache to ensure fresh data
 	invalidateDisabledCommandsCache(chatID)
+	return nil
 }
 
 // GetChatDisabledCMDs retrieves all disabled commands for a chat.
@@ -90,11 +94,14 @@ func invalidateDisabledCommandsCache(chatID int64) {
 
 // ToggleDel toggles the automatic deletion of disabled commands in a chat.
 // Updates the DeleteCommands setting for the chat.
-func ToggleDel(chatId int64, pref bool) {
+// Returns an error if the database operation fails.
+func ToggleDel(chatId int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&DisableChatSettings{}, DisableChatSettings{ChatId: chatId}, DisableChatSettings{DeleteCommands: pref})
 	if err != nil {
 		log.Errorf("[Database] ToggleDel: %v", err)
+		return err
 	}
+	return nil
 }
 
 // ShouldDel checks if automatic command deletion is enabled for a chat.

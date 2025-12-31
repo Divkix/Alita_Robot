@@ -115,34 +115,33 @@ func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
 // CheckDisabledCmd checks if a command is disabled in the chat and handles deletion if configured.
 // Returns true if the command should be blocked, false if it should proceed.
 // Skips checks for private chats and admin users.
+// If command is disabled for non-admin users, optionally deletes the message based on chat settings.
 func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
-	// Placing this first would not make additional queries if check is success!
-	// if chat is private, return false
+	// Private chats don't have disabled commands
 	if msg.Chat.Type == "private" {
 		return false
 	}
 
-	// check if command is disabled
+	// Check if command is disabled in this chat
 	if !db.IsCommandDisabled(msg.Chat.Id, cmd) {
 		return false
 	}
 
-	// check if user is admin or creator, can bypass disabled commands
+	// Admins and creators can bypass disabled commands
 	if IsUserAdmin(bot, msg.Chat.Id, msg.From.Id) {
 		return false
 	}
 
-	// check if ShouldDel is enabled, if not, just return true
-	if !db.ShouldDel(msg.Chat.Id) {
-		return false
+	// Command is disabled and user is not admin - block the command
+	// Optionally delete the message if chat has deletion enabled
+	if db.ShouldDel(msg.Chat.Id) {
+		_, err := msg.Delete(bot, nil)
+		if err != nil {
+			log.Errorf("[CheckDisabledCmd] Failed to delete message for disabled command '%s' in chat %d: %v", cmd, msg.Chat.Id, err)
+		}
 	}
 
-	// delete the message and return false
-	_, err := msg.Delete(bot, nil)
-	if err != nil {
-		log.Error(err)
-	}
-
+	// Return true to indicate command is blocked (regardless of whether deletion succeeded)
 	return true
 }
 
