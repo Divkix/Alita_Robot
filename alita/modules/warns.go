@@ -14,7 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -52,22 +51,13 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		switch strings.ToLower(args[0]) {
 		case "ban":
-			go func() {
-				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
-				db.SetWarnMode(chat.Id, "ban")
-			}()
+			db.SetWarnMode(chat.Id, "ban")
 			replyText, _ = tr.GetString("warns_mode_updated_ban")
 		case "kick":
-			go func() {
-				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
-				db.SetWarnMode(chat.Id, "kick")
-			}()
+			db.SetWarnMode(chat.Id, "kick")
 			replyText, _ = tr.GetString("warns_mode_updated_kick")
 		case "mute":
-			go func() {
-				defer error_handling.RecoverFromPanic("SetWarnMode", "warns")
-				db.SetWarnMode(chat.Id, "mute")
-			}()
+			db.SetWarnMode(chat.Id, "mute")
 			replyText, _ = tr.GetString("warns_mode_updated_mute")
 		default:
 			temp, _ := tr.GetString("warns_mode_unknown")
@@ -610,10 +600,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			if num < 1 || num > 100 {
 				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
-				go func() {
-					defer error_handling.RecoverFromPanic("SetWarnLimit", "warns")
-					db.SetWarnLimit(chat.Id, num)
-				}()
+				db.SetWarnLimit(chat.Id, num)
 				temp, _ := tr.GetString("warns_limit_updated")
 				replyText = fmt.Sprintf(temp, num)
 			}
@@ -745,21 +732,21 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	response := args[1]
 	var helpText string
 
+	var replyText string
+
 	switch response {
 	case "yes":
-		go func() {
-			defer error_handling.RecoverFromPanic("ResetAllChatWarns", "warns")
-			db.ResetAllChatWarns(query.Message.GetChat().Id)
-		}()
-		helpText, _ = tr.GetString("warns_reset_all_done")
+		db.ResetAllChatWarns(query.Message.GetChat().Id)
+		helpText, _ = tr.GetString("warns_reset_all_success")
+		replyText, _ = tr.GetString("warns_reset_all_final")
 	case "no":
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")
+		replyText = helpText
 	}
 
-	temp, _ := tr.GetString("warns_reset_all_final")
 	_, _, err := query.Message.EditText(
 		b,
-		temp,
+		replyText,
 		nil,
 	)
 	if err != nil {

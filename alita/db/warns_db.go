@@ -215,7 +215,10 @@ func SetWarnLimit(chatId int64, warnLimit int) {
 	err := DB.Save(warnrc).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnLimit: %v", err)
+		return
 	}
+	// Invalidate cache after successful update
+	deleteCache(warnSettingsCacheKey(chatId))
 }
 
 // SetWarnMode updates the action to take when users reach the warning limit.
@@ -226,7 +229,10 @@ func SetWarnMode(chatId int64, warnMode string) {
 	err := DB.Save(warnrc).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
+		return
 	}
+	// Invalidate cache after successful update
+	deleteCache(warnSettingsCacheKey(chatId))
 }
 
 // GetWarnSetting returns the warning settings for the specified chat.
