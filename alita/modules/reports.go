@@ -18,7 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
@@ -32,7 +31,11 @@ var reportsModule = moduleStruct{
 // administrators about problematic messages with action buttons.
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	sender := ctx.EffectiveSender
+	if sender == nil || sender.User == nil {
+		return ext.EndGroups
+	}
+	user := sender.User
 	msg := ctx.EffectiveMessage
 
 	// if command is disabled, return
@@ -165,7 +168,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	reported += sb.String()
 
-	callbackData := "report." + "%s=" + fmt.Sprint(user.Id) + "=" + fmt.Sprint(reportedMsgId)
+	callbackData := "report." + "%s=" + fmt.Sprint(reportedUser.Id) + "=" + fmt.Sprint(reportedMsgId)
 	_, err = msg.Reply(b,
 		reported,
 		&gotgbot.SendMessageOpts{
@@ -246,7 +249,11 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	sender := ctx.EffectiveSender
+	if sender == nil || sender.User == nil {
+		return ext.EndGroups
+	}
+	user := sender.User
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 
@@ -268,32 +275,20 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
+				db.SetUserReportSettings(user.Id, true)
 				replyText, _ = tr.GetString("reports_turned_on_personal")
-				go func() {
-					defer error_handling.RecoverFromPanic("SetUserReportSettings", "reports")
-					db.SetUserReportSettings(user.Id, true)
-				}()
 			} else {
+				db.SetChatReportStatus(chat.Id, true)
 				replyText, _ = tr.GetString("reports_turned_on_group")
-				go func() {
-					defer error_handling.RecoverFromPanic("SetChatReportStatus", "reports")
-					db.SetChatReportStatus(chat.Id, true)
-				}()
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
+				db.SetUserReportSettings(user.Id, false)
 				replyText, _ = tr.GetString("reports_turned_off_personal")
-				go func() {
-					defer error_handling.RecoverFromPanic("SetUserReportSettings", "reports")
-					db.SetUserReportSettings(user.Id, false)
-				}()
 			} else {
+				db.SetChatReportStatus(chat.Id, false)
 				replyText, _ = tr.GetString("reports_turned_off_group")
-				go func() {
-					defer error_handling.RecoverFromPanic("SetChatReportStatus", "reports")
-					db.SetChatReportStatus(chat.Id, false)
-				}()
 			}
 		case "block":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -306,10 +301,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
 						bUser := reply.From
-						go func() {
-							defer error_handling.RecoverFromPanic("BlockReportUser", "reports")
-							db.BlockReportUser(chat.Id, bUser.Id)
-						}()
+						db.BlockReportUser(chat.Id, bUser.Id)
 						replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
 							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
 						})
@@ -329,10 +321,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
 						bUser := reply.From
-						go func() {
-							defer error_handling.RecoverFromPanic("UnblockReportUser", "reports")
-							db.UnblockReportUser(chat.Id, bUser.Id)
-						}()
+						db.UnblockReportUser(chat.Id, bUser.Id)
 						replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
 							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
 						})
@@ -413,13 +402,31 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 
-	args := strings.Split(strings.Split(query.Data, ".")[1], "=")
+	parts := strings.Split(query.Data, ".")
+	if len(parts) < 2 {
+		log.Warnf("[Reports] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		return ext.EndGroups
+	}
+	args := strings.Split(parts[1], "=")
+	if len(args) < 3 {
+		log.Warnf("[Reports] Invalid callback args format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		return ext.EndGroups
+	}
 	action := args[0]
-	_userId, _ := strconv.Atoi(args[1])
-	_msgId, _ := strconv.Atoi(args[2])
-
-	userId := int64(_userId)
-	msgId := int64(_msgId)
+	userId, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		log.Warnf("[Reports] Invalid user ID in callback: %s", args[1])
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		return ext.EndGroups
+	}
+	msgId, err := strconv.ParseInt(args[2], 10, 64)
+	if err != nil {
+		log.Warnf("[Reports] Invalid message ID in callback: %s", args[2])
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid action."})
+		return ext.EndGroups
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	switch action {
@@ -463,7 +470,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
 
 	}
-	_, _, err := msg.EditText(
+	_, _, err = msg.EditText(
 		b,
 		replyText,
 		&gotgbot.EditMessageTextOpts{
