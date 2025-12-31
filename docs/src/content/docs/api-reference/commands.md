@@ -9,8 +9,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 20
-- **Total Commands**: 120
+- **Total Modules**: 21
+- **Total Commands**: 129
 
 ## Commands by Module
 
@@ -25,6 +25,28 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/invitelink` | `getinvitelink` | ❌ | — |
 | `/promote` | `promote` | ❌ | — |
 | `/title` | `setTitle` | ❌ | — |
+
+### 🛠️ Dev (Owner Only)
+
+These commands are restricted to the bot owner and authorized developers. They are used for bot management and administration.
+
+| Command | Handler | Disableable | Aliases |
+|---------|---------|-------------|----------|
+| `/adddev` | `addDev` | ❌ | — |
+| `/addsudo` | `addSudo` | ❌ | — |
+| `/chatinfo` | `chatInfo` | ❌ | — |
+| `/chatlist` | `chatList` | ❌ | — |
+| `/leavechat` | `leaveChat` | ❌ | — |
+| `/remdev` | `remDev` | ❌ | — |
+| `/remsudo` | `remSudo` | ❌ | — |
+| `/stats` | `getStats` | ❌ | — |
+| `/teamusers` | `listTeam` | ❌ | — |
+
+:::note[Access Restriction]
+- Owner-only: `/addsudo`, `/adddev`, `/remsudo`, `/remdev`
+- Owner + Dev: `/stats`, `/chatinfo`, `/chatlist`, `/leavechat`
+- Team members: `/teamusers`
+:::
 
 ### 🌊 Antiflood
 
@@ -234,8 +256,10 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Module | Handler |
 |---------|--------|----------|
 | `/addblacklist` | Blacklists | `addBlacklist` |
+| `/adddev` | Dev | `addDev` |
 | `/addfilter` | Filters | `addFilter` |
 | `/addnote` | Notes | `addNote` |
+| `/addsudo` | Dev | `addSudo` |
 | `/admincache` | Admin | `adminCache` |
 | `/adminlist` | Admin | `adminlist` |
 | `/allowconnect` | Connections | `allowConnect` |
@@ -254,6 +278,8 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/captchamode` | Captcha | `captchaModeCommand` |
 | `/captchapending` | Captcha | `viewPendingMessages` |
 | `/captchatime` | Captcha | `captchaTimeCommand` |
+| `/chatinfo` | Dev | `chatInfo` |
+| `/chatlist` | Dev | `chatList` |
 | `/cleangoodbye` | Greetings | `cleanGoodbye` |
 | `/cleanlinked` | Pins | `cleanlinked` |
 | `/cleanservice` | Greetings | `delJoined` |
@@ -288,6 +314,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/kick` | Bans | `kick` |
 | `/kickme` | Bans | `kickme` |
 | `/lang` | Languages | `changeLanguage` |
+| `/leavechat` | Dev | `leaveChat` |
 | `/lock` | Locks | `lockPerm` |
 | `/locks` | Locks | `locks` |
 | `/locktypes` | Locks | `locktypes` |
@@ -303,6 +330,8 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/purgefrom` | Purges | `purgeFrom` |
 | `/purgeto` | Purges | `purgeTo` |
 | `/reconnect` | Connections | `reconnect` |
+| `/remdev` | Dev | `remDev` |
+| `/remsudo` | Dev | `remSudo` |
 | `/removebotkeyboard` | Misc | `removeBotKeyboard` |
 | `/removefilter` | Filters | `rmFilter` |
 | `/report` | Reports | `report` |
@@ -334,10 +363,12 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/setwelcome` | Greetings | `setWelcome` |
 | `/smute` | Mutes | `sMute` |
 | `/stat` | Misc | `stat` |
+| `/stats` | Dev | `getStats` |
 | `/stop` | Filters | `rmFilter` |
 | `/stopall` | Filters | `rmAllFilters` |
 | `/swarn` | Warns | `sWarnUser` |
 | `/tban` | Bans | `tBan` |
+| `/teamusers` | Dev | `listTeam` |
 | `/tell` | Misc | `echomsg` |
 | `/title` | Admin | `setTitle` |
 | `/tmute` | Mutes | `tMute` |

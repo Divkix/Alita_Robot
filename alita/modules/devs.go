@@ -22,9 +22,6 @@ import (
 
 var devsModule = moduleStruct{moduleName: "Dev"}
 
-// for general purposes for strings in functions below
-var txt string
-
 // chatInfo retrieves and displays detailed information about a specific chat.
 // Only accessible by bot owner and dev users. Returns chat name, ID, member count, and invite link.
 func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -41,7 +38,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	args := ctx.Args()
 
-	if len(args) == 0 {
+	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		replyText, _ = tr.GetString("devs_specify_user")
 	} else {
@@ -165,6 +162,18 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
+
+	if len(args) < 2 {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		replyText, _ := tr.GetString("devs_specify_user")
+		_, err := msg.Reply(b, replyText, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.ContinueGroups
+	}
+
 	chatId, _ := strconv.ParseInt(args[1], 10, 64)
 
 	_, err := b.LeaveChat(chatId, nil)
@@ -213,12 +222,13 @@ func (moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(userId)
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var txt string
 	if memStatus.Sudo {
 		txt, _ = tr.GetString("devs_user_already_sudo")
 	} else {
 		textTemplate, _ := tr.GetString("devs_added_to_sudo")
 		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.AddDev(userId)
+		go db.AddSudo(userId)
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
@@ -257,6 +267,7 @@ func (moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(userId)
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var txt string
 	if memStatus.Dev {
 		txt, _ = tr.GetString("devs_user_already_dev")
 	} else {
@@ -301,12 +312,13 @@ func (moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(userId)
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var txt string
 	if !memStatus.Sudo {
 		txt, _ = tr.GetString("devs_user_not_sudo")
 	} else {
 		textTemplate, _ := tr.GetString("devs_removed_from_sudo")
 		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.RemDev(userId)
+		go db.RemSudo(userId)
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
@@ -345,6 +357,7 @@ func (moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(userId)
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var txt string
 	if !memStatus.Dev {
 		txt, _ = tr.GetString("devs_user_not_dev")
 	} else {

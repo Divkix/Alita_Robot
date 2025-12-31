@@ -18,9 +18,9 @@ func GetTeamMemInfo(userID int64) (devrc *DevSettings) {
 	devrc = &DevSettings{}
 	err := GetRecord(devrc, DevSettings{UserId: userID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		devrc = &DevSettings{UserId: userID, IsDev: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
 	} else if err != nil {
-		devrc = &DevSettings{UserId: userID, IsDev: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
 		log.Errorf("[Database] GetTeamMemInfo: %v - %d", err, userID)
 	}
 	log.Infof("[Database] GetTeamMemInfo: %d", userID)
@@ -28,18 +28,36 @@ func GetTeamMemInfo(userID int64) (devrc *DevSettings) {
 }
 
 // GetTeamMembers returns a map of all team members with their roles.
-// Currently only supports 'dev' role and returns nil on error.
+// Queries for both dev and sudo users, combining results.
+// A user can have both roles, in which case "dev" takes precedence.
 func GetTeamMembers() map[int64]string {
-	var teamArray []*DevSettings
+	var devArray []*DevSettings
+	var sudoArray []*DevSettings
 	array := make(map[int64]string)
 
-	err := GetRecords(&teamArray, DevSettings{IsDev: true})
+	// Get all dev users
+	err := GetRecords(&devArray, DevSettings{IsDev: true})
 	if err != nil {
 		log.Error(err)
 		return nil
 	}
 
-	for _, result := range teamArray {
+	// Get all sudo users
+	err = GetRecords(&sudoArray, DevSettings{Sudo: true})
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	// First, add sudo users
+	for _, result := range sudoArray {
+		if result.Sudo {
+			array[result.UserId] = "sudo"
+		}
+	}
+
+	// Then add/override with dev users (dev takes precedence)
+	for _, result := range devArray {
 		if result.IsDev {
 			array[result.UserId] = "dev"
 		}
@@ -50,11 +68,12 @@ func GetTeamMembers() map[int64]string {
 
 // AddDev adds a user as a developer or updates existing record to dev status.
 // Creates a new record if the user doesn't exist in DevSettings.
+// Sets both IsDev and Dev fields for consistency.
 func AddDev(userID int64) {
-	devSettings := &DevSettings{UserId: userID, IsDev: true}
+	devSettings := &DevSettings{UserId: userID, IsDev: true, Dev: true}
 
 	// Try to update existing record first
-	err := UpdateRecord(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: true})
+	err := UpdateRecord(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: true, Dev: true})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Create new record if not exists
 		err = CreateRecord(devSettings)
@@ -67,12 +86,45 @@ func AddDev(userID int64) {
 	log.Infof("[Database] AddDev: %d", userID)
 }
 
-// RemDev removes a user from the developers list by deleting their DevSettings record.
+// RemDev removes developer status from a user by setting IsDev and Dev to false.
+// Does not delete the record as the user might still have Sudo privileges.
 func RemDev(userID int64) {
-	err := DB.Where("user_id = ?", userID).Delete(&DevSettings{}).Error
+	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: false, Dev: false})
 	if err != nil {
 		log.Errorf("[Database] RemDev: %v - %d", err, userID)
+		return
 	}
+	log.Infof("[Database] RemDev: %d", userID)
+}
+
+// AddSudo adds a user as a sudo user or updates existing record to sudo status.
+// Creates a new record if the user doesn't exist in DevSettings.
+func AddSudo(userID int64) {
+	sudoSettings := &DevSettings{UserId: userID, Sudo: true}
+
+	// Try to update existing record first
+	err := UpdateRecord(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{Sudo: true})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Create new record if not exists
+		err = CreateRecord(sudoSettings)
+	}
+
+	if err != nil {
+		log.Errorf("[Database] AddSudo: %v - %d", err, userID)
+		return
+	}
+	log.Infof("[Database] AddSudo: %d", userID)
+}
+
+// RemSudo removes sudo status from a user by setting Sudo to false.
+// Does not delete the record as the user might still be a Dev.
+func RemSudo(userID int64) {
+	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{Sudo: false})
+	if err != nil {
+		log.Errorf("[Database] RemSudo: %v - %d", err, userID)
+		return
+	}
+	log.Infof("[Database] RemSudo: %d", userID)
 }
 
 // LoadAllStats generates a comprehensive statistics report for the bot.
