@@ -29,12 +29,17 @@ var rulesModule = moduleStruct{
 // from the chat, requiring admin permissions.
 func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
+	// connection status
+	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	if connectedChat == nil {
+		return ext.EndGroups
+	}
+	chat := connectedChat
 
-	go db.SetChatRules(chat.Id, "")
+	db.SetChatRules(chat.Id, "")
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_cleared_successfully")
-	_, err := msg.Reply(bot, text, nil)
+	_, err := msg.Reply(bot, text, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -52,29 +57,25 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	args := ctx.Args()
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var text string
 
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			go db.SetPrivateRules(chat.Id, true)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			db.SetPrivateRules(chat.Id, true)
 			text, _ = tr.GetString("rules_private_pm_usage")
 		case "off", "no", "false":
-			go db.SetPrivateRules(chat.Id, false)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			db.SetPrivateRules(chat.Id, false)
 			temp, _ := tr.GetString("rules_private_group_usage")
 			text = fmt.Sprintf(temp, chat.Title)
 		default:
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ = tr.GetString("pins_input_not_recognized")
 		}
 	} else {
 		rulesprefs := db.GetChatRulesInfo(chat.Id)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		if rulesprefs.Private {
 			text, _ = tr.GetString("rules_private_current_pm")
 		} else {
@@ -83,7 +84,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(bot, text, nil)
+	_, err := msg.Reply(bot, text, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -105,8 +106,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	var (
 		replyMsgId int64
 		Text       = ""
@@ -128,7 +128,6 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	if rules.Rules != "" {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		temp, _ := tr.GetString("rules_for_chat_header")
 		Text += fmt.Sprintf(temp, chat.Title) + "\n\n"
 		Text += rules.Rules
@@ -177,13 +176,12 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	args := ctx.Args()
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var text string
 
 	if len(args) == 1 && msg.ReplyToMessage == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ = tr.GetString("rules_need_text")
 	} else {
 		if msg.ReplyToMessage != nil {
@@ -195,7 +193,6 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 				text = parts[1]
 			} else {
 				// No text provided after command - show error
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 				text, _ = tr.GetString("rules_need_text")
 				_, err := msg.Reply(bot, text, helpers.Shtml())
 				if err != nil {
@@ -205,8 +202,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.EndGroups
 			}
 		}
-		go db.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text))
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		db.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text))
 		text, _ = tr.GetString("rules_set_successfully")
 	}
 
@@ -228,8 +224,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 	user := ctx.EffectiveSender.User
 	args := ctx.Args()
 	var err error
@@ -245,9 +240,9 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if len(rulesBtnCustomText) > 30 {
 			text, _ = tr.GetString("rules_button_too_long")
 		} else {
+			db.SetChatRulesButton(chat.Id, rulesBtnCustomText)
 			temp3, _ := tr.GetString("rules_button_set_successfully")
 			text = fmt.Sprintf(temp3, rulesBtnCustomText)
-			go db.SetChatRulesButton(chat.Id, rulesBtnCustomText)
 		}
 	} else {
 		customRulesBtn := db.GetChatRulesInfo(chat.Id).RulesBtn
@@ -278,13 +273,12 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
+	chat := connectedChat
 
-	go db.SetChatRulesButton(chat.Id, "")
+	db.SetChatRulesButton(chat.Id, "")
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_button_cleared")
-	_, err := msg.Reply(bot, text, nil)
+	_, err := msg.Reply(bot, text, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err

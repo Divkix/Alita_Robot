@@ -10,7 +10,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 21
-- **Total Commands**: 129
+- **Total Commands**: 131
 
 ## Commands by Module
 
@@ -224,9 +224,11 @@ These commands are restricted to the bot owner and authorized developers. They a
 
 | Command | Handler | Disableable | Aliases |
 |---------|---------|-------------|----------|
+| `/clearrules` | `clearRules` | ❌ | `/resetrules` |
 | `/clearrulesbtn` | `resetRulesBtn` | ❌ | — |
 | `/clearrulesbutton` | `resetRulesBtn` | ❌ | — |
 | `/privaterules` | `privaterules` | ❌ | — |
+| `/resetrules` | `clearRules` | ❌ | `/clearrules` |
 | `/resetrulesbtn` | `resetRulesBtn` | ❌ | — |
 | `/resetrulesbutton` | `resetRulesBtn` | ❌ | — |
 | `/rules` | `sendRules` | ✅ | — |
@@ -286,6 +288,7 @@ These commands are restricted to the bot owner and authorized developers. They a
 | `/cleanwelcome` | Greetings | `cleanWelcome` |
 | `/clear` | Notes | `rmNote` |
 | `/clearall` | Notes | `rmAllNotes` |
+| `/clearrules` | Rules | `clearRules` |
 | `/clearrulesbtn` | Rules | `resetRulesBtn` |
 | `/clearrulesbutton` | Rules | `resetRulesBtn` |
 | `/connect` | Connections | `connect` |
@@ -338,6 +341,7 @@ These commands are restricted to the bot owner and authorized developers. They a
 | `/reports` | Reports | `reports` |
 | `/resetallwarns` | Warns | `resetAllWarns` |
 | `/resetgoodbye` | Greetings | `resetGoodbye` |
+| `/resetrules` | Rules | `clearRules` |
 | `/resetrulesbtn` | Rules | `resetRulesBtn` |
 | `/resetrulesbutton` | Rules | `resetRulesBtn` |
 | `/resetwarn` | Warns | `resetWarns` |
