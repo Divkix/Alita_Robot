@@ -39,13 +39,40 @@ This module can be accessed using the following aliases:
 ### Basic Usage
 
 ```
-/dmute
+# Mute a user permanently by replying to their message
 /mute
-/smute
+
+# Mute a user by username
+/mute @username
+
+# Mute a user with a reason
+/mute @username spamming
+
+# Temporary mute for 30 minutes
+/tmute @username 30m
+
+# Temporary mute for 2 hours
+/tmute @username 2h
+
+# Temporary mute for 1 day
+/tmute @username 1d
+
+# Silent mute (deletes your command message)
+/smute @username
+
+# Delete-mute (mutes user and deletes their message)
+/dmute
+
+# Unmute a user
+/unmute @username
 ```
 
 For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+**Admin only commands.** Users executing these commands must have:
+- Admin status in the chat
+- Permission to restrict members
+
+The bot must also have admin privileges with permission to restrict members.

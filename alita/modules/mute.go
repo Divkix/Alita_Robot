@@ -21,7 +21,10 @@ var mutesModule = moduleStruct{moduleName: "Mutes"}
 // with a specified time duration, requiring admin permissions.
 func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -153,7 +156,10 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // from the group, requiring admin permissions.
 func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -287,7 +293,10 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 // and delete the command message, requiring admin permissions.
 func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -353,6 +362,11 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	// Check if trying to mute the bot itself (silent return since this is smute)
+	if userId == b.Id {
+		return ext.EndGroups
+	}
+
 	_, err := chat.RestrictMember(b, userId, gotgbot.ChatPermissions{
 		CanSendMessages:       false,
 		CanSendPhotos:         false,
@@ -387,7 +401,10 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // the replied message, requiring admin permissions.
 func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -445,6 +462,17 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
 		text, _ := tr.GetString("mutes_mute_admin_polite_error")
+		_, err := msg.Reply(b, text, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
+	// Check if trying to mute the bot itself
+	if userId == b.Id {
+		text, _ := tr.GetString("mutes_restrict_self_error")
 		_, err := msg.Reply(b, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
@@ -531,7 +559,10 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // to a previously muted user, requiring admin permissions.
 func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
