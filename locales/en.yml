@@ -433,9 +433,7 @@ formatting_fillings: "<b>Fillings</b>
   - <code>{preview}</code>: Enables previews in the messages.
 
   - <code>{nonotif}</code>: Disables the notification for that message."
-formatting_help_msg:
-  Alita supports a large number of formatting options to make your
-  messages more expressive. Take a look by clicking the buttons below!
+formatting_help_msg: "Alita supports a large number of formatting options to make your messages more expressive. Take a look by clicking the buttons below!"
 formatting_markdown: |
   <b>Markdown Formatting</b>
 

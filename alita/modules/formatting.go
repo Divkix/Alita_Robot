@@ -59,7 +59,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 		backText, _ := tr.GetString("common_back")
 
 		// Keyboard for markdown help menu
-		Mkdkb := append(m.genFormattingKb(ctx),
+		Mkdkb := append(m.genFormattingKb(db.GetLanguage(ctx)),
 			[]gotgbot.InlineKeyboardButton{
 				{
 					Text: backText, CallbackData: "helpq.Help",
@@ -91,43 +91,14 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // genFormattingKb generates the inline keyboard layout for formatting help options.
 // Creates buttons for different formatting categories like markdown, fillings, and random content.
-func (moduleStruct) genFormattingKb(ctx *ext.Context) [][]gotgbot.InlineKeyboardButton {
+// If lang is empty, defaults to "en".
+func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButton {
+	if lang == "" {
+		lang = "en"
+	}
+
 	fxt := "formatting.%s"
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	keyboard := [][]gotgbot.InlineKeyboardButton{
-		make([]gotgbot.InlineKeyboardButton, 2),
-		make([]gotgbot.InlineKeyboardButton, 1),
-	}
-
-	markdownFormattingText, _ := tr.GetString("help_markdown_formatting_button")
-	fillingsText, _ := tr.GetString("help_fillings_button")
-	randomContentText, _ := tr.GetString("help_random_content_button")
-
-	// First row
-	keyboard[0][0] = gotgbot.InlineKeyboardButton{
-		Text:         markdownFormattingText,
-		CallbackData: fmt.Sprintf(fxt, "md_formatting"),
-	}
-	keyboard[0][1] = gotgbot.InlineKeyboardButton{
-		Text:         fillingsText,
-		CallbackData: fmt.Sprintf(fxt, "fillings"),
-	}
-
-	// Second Row
-	keyboard[1][0] = gotgbot.InlineKeyboardButton{
-		Text:         randomContentText,
-		CallbackData: fmt.Sprintf(fxt, "random"),
-	}
-
-	return keyboard
-}
-
-// genFormattingKbDefault generates the inline keyboard layout for help system with default English.
-// Used by help system where context is not available.
-func (moduleStruct) genFormattingKbDefault() [][]gotgbot.InlineKeyboardButton {
-	fxt := "formatting.%s"
-	tr := i18n.MustNewTranslator("en")
+	tr := i18n.MustNewTranslator(lang)
 
 	keyboard := [][]gotgbot.InlineKeyboardButton{
 		make([]gotgbot.InlineKeyboardButton, 2),
@@ -214,7 +185,7 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 // Sets up help commands and callback handlers for formatting assistance.
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(formattingModule.moduleName, true)
-	HelpModule.helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKbDefault()
+	HelpModule.helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
 	cmdDecorator.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting."), formattingModule.formattingHandler))
 }

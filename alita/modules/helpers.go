@@ -457,7 +457,7 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string) (helpText string, kbm
 
 	// compare and check if module name is not empty
 	if moduleName != "" {
-		_parsemode = helpers.Markdown
+		_parsemode = helpers.HTML
 		helpText, kbmarkup = getModuleHelpAndKb(moduleName, userOrGroupLanguage)
 	} else {
 		_parsemode = helpers.HTML
