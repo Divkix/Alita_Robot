@@ -82,27 +82,38 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	var replyString string
-	language := strings.Split(query.Data, ".")[1]
+	// Validate callback data format to prevent index out of bounds panic
+	parts := strings.Split(query.Data, ".")
+	if len(parts) < 2 {
+		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+			Text: "Invalid language selection.",
+		})
+		return ext.EndGroups
+	}
+	language := parts[1]
 
+	// For group chats, check admin permissions first before any language operations
+	if chat.Type != "private" {
+		// RequireUserAdmin with justCheck=false already answers the callback with error
+		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+			// Permission denied - RequireUserAdmin already showed error via callback answer
+			// No need to edit the message or answer again, just return early
+			return ext.EndGroups
+		}
+	}
+
+	// Now we can safely create translator for the target language
 	tr := i18n.MustNewTranslator(language)
+	var replyString string
+
 	if chat.Type == "private" {
 		db.ChangeUserLanguage(user.Id, language)
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
 	} else {
-		// Check if user is admin before changing group language
-		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
-			// Use current language for error message since we can't change it
-			currentLang := db.GetLanguage(ctx)
-			tr := i18n.MustNewTranslator(currentLang)
-			replyString, _ = tr.GetString("language_admin_required", i18n.TranslationParams{})
-			if replyString == "" {
-				replyString = "You need to be an admin to change the group language."
-			}
-		} else {
-			db.ChangeGroupLanguage(chat.Id, language)
-			replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
-		}
+		// User is admin (already verified above)
+		db.ChangeGroupLanguage(chat.Id, language)
+		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
 	}
 
 	// Answer the callback query to stop the loading spinner

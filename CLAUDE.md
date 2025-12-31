@@ -405,3 +405,23 @@ The project uses GoReleaser for multi-platform builds:
   2. Check the parse mode used when sending the message
   3. Use `tgmd2html.MD2HTMLV2()` to convert if there's a mismatch
 - **Prevention**: Consistently use HTML in locale files if the bot primarily uses HTML parse mode
+
+### Callback Query Handler Best Practices
+- **Issue**: Callback handlers with `strings.Split(data, ".")[1]` can panic on malformed data
+- **Fix**: Always validate callback data format before accessing split results:
+  ```go
+  parts := strings.Split(query.Data, ".")
+  if len(parts) < 2 {
+      log.Warnf("[Module] Invalid callback data format: %s", query.Data)
+      _, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid selection."})
+      return ext.EndGroups
+  }
+  value := parts[1]
+  ```
+- **Pattern**: For permission-gated callbacks (e.g., admin-only actions):
+  1. Validate callback data format first
+  2. Check permissions before any other operations
+  3. Return early on permission failure (don't answer callback twice)
+  4. Create expensive resources (translators, etc.) only after validation passes
+- **Double Answer Bug**: `RequireUserAdmin` with `justCheck=false` already answers the callback with error - don't answer again in calling code
+- **Best Practice**: Match the early-return pattern used in command handlers (like `changeLanguage`) for consistency
