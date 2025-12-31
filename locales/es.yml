@@ -984,6 +984,7 @@ misc_translation_error: ¡Error al hacer una solicitud de traducción!
 devs_specify_user: Debes especificar un usuario para obtener información
 
 # Common error messages used across modules
+error_generic: "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde."
 common_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
 common_anonymous_ban_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
 common_cannot_identify_user: No se puede identificar al usuario. Este comando no puede ser usado por canales.
@@ -1319,6 +1320,7 @@ captcha_math_time_remaining: |
 
 # Notes module strings
 notes_save_success: "¡Nota <b>%s</b> guardada!\nObtenla con <code>#%s</code> o <code>/get %s</code>."
+notes_save_failed: "Error al guardar la nota. Por favor, inténtalo de nuevo más tarde."
 notes_keyword_required: "¡Por favor proporciona una palabra clave para responder!"
 notes_overwrite_confirm: "¡La nota ya existe!\n¿Quieres sobrescribirla?"
 notes_remove_keyword_required: "¡Por favor proporciona una palabra clave para eliminar!"

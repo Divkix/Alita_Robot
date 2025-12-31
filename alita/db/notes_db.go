@@ -68,17 +68,19 @@ func GetNote(chatID int64, keyword string) (noteSrc *Notes) {
 }
 
 // GetNotesList retrieves a list of all note names for a specific chat ID.
-// The admin parameter is currently unused as all notes are accessible to all users.
+// The admin parameter determines whether to include admin-only notes.
 // Returns an empty slice if no notes are found.
 func GetNotesList(chatID int64, admin bool) (allNotes []string) {
 	noteSrc := getAllChatNotes(chatID)
 	for _, note := range noteSrc {
 		if admin {
+			// Admin sees all notes
 			allNotes = append(allNotes, note.NoteName)
 		} else {
-			// Note: The new Notes model doesn't have AdminOnly field
-			// All notes are accessible to all users
-			allNotes = append(allNotes, note.NoteName)
+			// Non-admin only sees non-admin notes
+			if !note.AdminOnly {
+				allNotes = append(allNotes, note.NoteName)
+			}
 		}
 	}
 
@@ -102,20 +104,20 @@ func DoesNoteExists(chatID int64, noteName string) bool {
 }
 
 // AddNote creates a new note in the database for the specified chat.
-// Does nothing if a note with the same name already exists.
+// Returns an error if the operation fails.
 // Supports various note types including text, media, and custom buttons.
-func AddNote(chatID int64, noteName, replyText, fileID string, buttons ButtonArray, filtType int, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool) {
+func AddNote(chatID int64, noteName, replyText, fileID string, buttons ButtonArray, filtType int, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool) error {
 	// Check if note already exists using optimized query
 	var existingNote Notes
 	err := DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&existingNote).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			log.Errorf("[Database][AddNote] checking existence: %d - %v", chatID, err)
-			return
+			return err
 		}
 		// Note doesn't exist, continue with creation
 	} else {
-		return // Note already exists
+		return nil // Note already exists
 	}
 
 	noterc := Notes{
@@ -136,37 +138,45 @@ func AddNote(chatID int64, noteName, replyText, fileID string, buttons ButtonArr
 	err = CreateRecord(&noterc)
 	if err != nil {
 		log.Errorf("[Database][AddNotes]: %d - %v", chatID, err)
-		return
+		return err
 	}
+	return nil
 }
 
 // RemoveNote deletes a note with the specified name from the chat.
-// Does nothing if the note doesn't exist.
-func RemoveNote(chatID int64, noteName string) {
+// Returns an error if the operation fails.
+func RemoveNote(chatID int64, noteName string) error {
 	// Directly attempt to delete the note without checking existence first
 	result := DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Delete(&Notes{})
 	if result.Error != nil {
 		log.Errorf("[Database][RemoveNote]: %d - %v", chatID, result.Error)
-		return
+		return result.Error
 	}
 	// result.RowsAffected will be 0 if no note was found, which is fine
+	return nil
 }
 
 // RemoveAllNotes deletes all notes for the specified chat ID from the database.
-func RemoveAllNotes(chatID int64) {
+// Returns an error if the operation fails.
+func RemoveAllNotes(chatID int64) error {
 	err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
 	if err != nil {
 		log.Errorf("[Database][RemoveAllNotes]: %d - %v", chatID, err)
+		return err
 	}
+	return nil
 }
 
 // TooglePrivateNote toggles the private notes setting for the specified chat.
 // When enabled, notes are sent privately to users instead of in the group.
-func TooglePrivateNote(chatID int64, pref bool) {
+// Returns an error if the operation fails.
+func TooglePrivateNote(chatID int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&NotesSettings{}, NotesSettings{ChatId: chatID}, NotesSettings{Private: pref})
 	if err != nil {
 		log.Errorf("[Database][TooglePrivateNote]: %d - %v", chatID, err)
+		return err
 	}
+	return nil
 }
 
 // LoadNotesStats returns statistics about notes across the entire system.

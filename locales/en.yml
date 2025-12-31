@@ -1000,6 +1000,7 @@ misc_translation_error: Error making a translation request!
 devs_specify_user: You must specify a user to get info on
 
 # Common error messages used across modules
+error_generic: "An error occurred. Please try again later."
 common_anonymous_user_error: This command cannot be used on anonymous user.
 common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
@@ -1337,6 +1338,7 @@ captcha_math_time_remaining: |
 
 # Notes module strings
 notes_save_success: "Saved Note <b>%s</b>!\nGet it with <code>#%s</code> or <code>/get %s</code>."
+notes_save_failed: "Failed to save note. Please try again later."
 notes_keyword_required: "Please give a keyword to reply to!"
 notes_overwrite_confirm: "Note already exists!\nDo you want to overwrite it?"
 notes_remove_keyword_required: "Please give a keyword to remove!"

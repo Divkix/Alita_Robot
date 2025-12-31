@@ -140,7 +140,18 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	go db.AddNote(chat.Id, noteWord, text, fileid, buttons, dataType, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif)
+	// Fix Issue 1: Remove go keyword and handle error synchronously
+	if err := db.AddNote(chat.Id, noteWord, text, fileid, buttons, dataType, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif); err != nil {
+		log.Errorf("[Notes] Failed to add note %s in chat %d: %v", noteWord, chat.Id, err)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		errorText, _ := tr.GetString("notes_save_failed")
+		_, err := msg.Reply(b, errorText, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
 
 	_, err := msg.Reply(b, fmt.Sprintf(noteString, noteWord, noteWord, noteWord), helpers.Shtml())
 	if err != nil {
@@ -201,7 +212,18 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	noteWord, _ = extraction.ExtractQuotes(noteWord, false, true)
 
-	db.RemoveNote(chat.Id, strings.ToLower(noteWord))
+	// Fix Issue 2: Add error handling for RemoveNote
+	if err := db.RemoveNote(chat.Id, strings.ToLower(noteWord)); err != nil {
+		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		errorText, _ := tr.GetString("error_generic")
+		_, err := msg.Reply(b, errorText, helpers.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("notes_removed_success")
@@ -227,11 +249,17 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_enabled")
-			go db.TooglePrivateNote(chat.Id, true)
+			// Fix Issue 2a: Remove go keyword and handle error
+			if err := db.TooglePrivateNote(chat.Id, true); err != nil {
+				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
+			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
-			go db.TooglePrivateNote(chat.Id, false)
+			// Fix Issue 2b: Remove go keyword and handle error
+			if err := db.TooglePrivateNote(chat.Id, false); err != nil {
+				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
+			}
 		default:
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_invalid_option")
@@ -459,8 +487,15 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		}
 		noteData := noteDataRaw.(overwriteNote)
 		if db.DoesNoteExists(chatId, noteWord) {
-			db.RemoveNote(chatId, noteWord)
-			db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif)
+			// Fix Issue 3: Add error handling for both RemoveNote and AddNote
+			if err := db.RemoveNote(chatId, noteWord); err != nil {
+				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
+			}
+			if err := db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
+				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
+				helpText, _ = tr.GetString("notes_save_failed")
+				break
+			}
 			notesOverwriteMap.Delete(noteWordMapKey)
 			helpText, _ = tr.GetString("notes_overwrite_success")
 		}
@@ -510,8 +545,13 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	switch response {
 	case "yes":
-		db.RemoveAllNotes(query.Message.GetChat().Id)
-		helpText, _ = tr.GetString("notes_clear_all_success")
+		// Fix Issue 4: Add error handling for RemoveAllNotes
+		if err := db.RemoveAllNotes(query.Message.GetChat().Id); err != nil {
+			log.Errorf("[Notes] Failed to remove all notes: %v", err)
+			helpText, _ = tr.GetString("error_generic")
+		} else {
+			helpText, _ = tr.GetString("notes_clear_all_success")
+		}
 	case "no":
 		helpText, _ = tr.GetString("notes_clear_all_cancelled")
 	}
