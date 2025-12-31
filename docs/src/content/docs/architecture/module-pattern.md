@@ -466,9 +466,53 @@ text := fmt.Sprintf("Settings for %s", helpers.HtmlEscape(chat.Title))
 
 The `helpers.MentionHtml()` function already handles escaping for user names.
 
-### Async Database Operations
+### Database Operations and User Feedback
 
-When running DB operations in goroutines, follow this pattern:
+**Prefer synchronous operations when sending success confirmations:**
+
+```go
+// CORRECT: Synchronous operation before success message
+db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
+_, err := msg.Reply(b, "Welcome message reset successfully!", helpers.Shtml())
+```
+
+```go
+// AVOID: Async operation with premature success message
+go func() {
+    db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT) // May fail silently
+}()
+_, err := msg.Reply(b, "Success!") // User sees success even if DB write fails
+```
+
+**When async operations are necessary**, only use them for non-critical background tasks that don't require user confirmation.
+
+### Handling Functions That Return Errors
+
+**Always check errors from database operations that can fail:**
+
+```go
+// CORRECT: Check error and handle nil case
+captchaSettings, err := db.GetCaptchaSettings(chat.Id)
+if err != nil {
+    log.Errorf("Failed to get captcha settings: %v", err)
+    captchaSettings = &db.CaptchaSettings{Enabled: false} // Use safe default
+}
+if captchaSettings != nil && captchaSettings.Enabled {
+    // Safe to access
+}
+```
+
+```go
+// AVOID: Ignoring errors can cause nil pointer panics
+captchaSettings, _ := db.GetCaptchaSettings(chat.Id)
+if captchaSettings.Enabled { // May panic if captchaSettings is nil!
+    // ...
+}
+```
+
+### Async Database Operations (When Appropriate)
+
+When running DB operations in goroutines for non-critical background tasks, follow this pattern:
 
 ```go
 // 1. Capture loop/closure variables

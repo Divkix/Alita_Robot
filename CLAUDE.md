@@ -344,3 +344,23 @@ The project uses GoReleaser for multi-platform builds:
 - **Context**: Include relevant details (attempt counts, time remaining, etc.)
 - **Cleanup**: Properly clean up resources and temporary data on both success and failure
 - **Timeouts**: Use temporary messages that auto-delete to keep chats clean
+
+### Database Error Handling and Nil Safety
+- **Issue**: Functions returning `(value, error)` where error is ignored with `_` can cause nil pointer panics
+- **Fix**: Always check errors from database operations; if the function can return nil on error, check before accessing
+- **Pattern**:
+  ```go
+  settings, err := db.GetSettings(chatId)
+  if err != nil {
+      log.Errorf("Failed to get settings: %v", err)
+      settings = &db.Settings{Enabled: false} // Use safe default
+  }
+  if settings != nil && settings.Enabled { ... } // Safe access
+  ```
+- **Root Cause**: Go's blank identifier `_` silently discards errors, hiding potential nil returns
+
+### Synchronous Operations Before User Confirmation
+- **Issue**: Goroutines for database writes send success messages before operations complete
+- **Fix**: Perform database writes synchronously when the user needs confirmation of success
+- **Pattern**: Execute DB operation first, then send confirmation message only after it completes
+- **When Async is OK**: Background cleanup, logging, or non-critical operations that don't need user confirmation

@@ -19,7 +19,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
@@ -260,24 +259,12 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 		return ext.EndGroups
 	}
 
-	// Capture variable for goroutine closure
-	chatId := chat.Id
-	go func() {
-		defer error_handling.RecoverFromPanic(
-			func() string {
-				if isWelcome {
-					return "SetWelcomeText"
-				}
-				return "SetGoodbyeText"
-			}(),
-			"greetings",
-		)
-		if isWelcome {
-			db.SetWelcomeText(chatId, db.DefaultWelcome, "", nil, db.TEXT)
-		} else {
-			db.SetGoodbyeText(chatId, db.DefaultGoodbye, "", nil, db.TEXT)
-		}
-	}()
+	// Reset greeting text synchronously to ensure DB write completes before sending success
+	if isWelcome {
+		db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
+	} else {
+		db.SetGoodbyeText(chat.Id, db.DefaultGoodbye, "", nil, db.TEXT)
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	translationKey := "greetings_welcome_reset_success"
@@ -624,8 +611,13 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Check if captcha is enabled
-	captchaSettings, _ := db.GetCaptchaSettings(chat.Id)
-	if captchaSettings.Enabled {
+	captchaSettings, err := db.GetCaptchaSettings(chat.Id)
+	if err != nil {
+		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
+		// Continue with welcome message on error (captcha disabled by default)
+		captchaSettings = &db.CaptchaSettings{Enabled: false}
+	}
+	if captchaSettings != nil && captchaSettings.Enabled {
 		// Mute the new member immediately
 		_, err := chat.RestrictMember(bot, newMember.Id, gotgbot.ChatPermissions{
 			CanSendMessages:       false,
@@ -833,7 +825,13 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Handle new members joining via invite links or being added
 	if msg.NewChatMembers != nil {
-		captchaSettings, _ := db.GetCaptchaSettings(chat.Id)
+		captchaSettings, err := db.GetCaptchaSettings(chat.Id)
+		if err != nil {
+			log.Errorf("[Greetings][cleanService] Failed to get captcha settings for chat %d: %v", chat.Id, err)
+			// Default to disabled captcha on error
+			captchaSettings = &db.CaptchaSettings{Enabled: false}
+		}
+		captchaEnabled := captchaSettings != nil && captchaSettings.Enabled
 
 		// Process multiple members concurrently for better performance
 		numMembers := len(msg.NewChatMembers)
@@ -855,14 +853,14 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 					defer wg.Done()
 					defer func() { <-sem }() // Release semaphore
 
-					processSingleNewMember(bot, ctx, member, captchaSettings.Enabled)
+					processSingleNewMember(bot, ctx, member, captchaEnabled)
 				}(newMember)
 			}
 
 			wg.Wait()
 		} else if numMembers == 1 {
 			// For single member, process directly without goroutine
-			processSingleNewMember(bot, ctx, msg.NewChatMembers[0], captchaSettings.Enabled)
+			processSingleNewMember(bot, ctx, msg.NewChatMembers[0], captchaEnabled)
 		}
 	}
 
