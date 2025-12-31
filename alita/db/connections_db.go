@@ -9,7 +9,7 @@ import (
 
 // ToggleAllowConnect enables or disables connection functionality for a chat.
 func ToggleAllowConnect(chatID int64, pref bool) {
-	err := UpdateRecordWithZeroValues(&ConnectionChatSettings{}, ConnectionChatSettings{ChatId: chatID}, ConnectionChatSettings{Enabled: pref})
+	err := UpdateRecordWithZeroValues(&ConnectionChatSettings{}, ConnectionChatSettings{ChatId: chatID}, ConnectionChatSettings{AllowConnect: pref})
 	if err != nil {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
 	}
@@ -24,18 +24,18 @@ func GetChatConnectionSetting(chatID int64) (connectionSrc *ConnectionChatSettin
 		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
 		if err := EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatConnectionSetting: Failed to ensure chat exists for %d: %v", chatID, err)
-			return &ConnectionChatSettings{ChatId: chatID, Enabled: false}
+			return &ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
 		}
 
 		// Create default settings
-		connectionSrc = &ConnectionChatSettings{ChatId: chatID, Enabled: false}
+		connectionSrc = &ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
 		err := CreateRecord(connectionSrc)
 		if err != nil {
 			log.Errorf("[Database] GetChatConnectionSetting: %d - %v", chatID, err)
 		}
 	} else if err != nil {
 		// Return default on error
-		connectionSrc = &ConnectionChatSettings{ChatId: chatID, Enabled: false}
+		connectionSrc = &ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
 		log.Errorf("[Database] GetChatConnectionSetting: %d - %v", chatID, err)
 	}
 	return connectionSrc
@@ -102,7 +102,7 @@ func ReconnectId(UserID int64) int64 {
 // Returns the count of connected users and chats that allow connections.
 func LoadConnectionStats() (connectedUsers, connectedChats int64) {
 	// Count chats that allow connections
-	err := DB.Model(&ConnectionChatSettings{}).Where("enabled = ?", true).Count(&connectedChats).Error
+	err := DB.Model(&ConnectionChatSettings{}).Where("allow_connect = ?", true).Count(&connectedChats).Error
 	if err != nil {
 		log.Error(err)
 		return

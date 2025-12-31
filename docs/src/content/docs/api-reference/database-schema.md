@@ -285,14 +285,15 @@ Stores per-chat captcha configuration settings.
 
 ### `connection_settings`
 
+Stores per-chat settings for the Connections module, controlling whether users can remotely connect to the chat.
+
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('connection_settings_id_seq'::regclass)` | — |
-| `chat_id` | `BIGINT` | ❌ | — | — |
-| `enabled` | `BOOLEAN` | ✅ | `true` | — |
-| `allow_connect` | `BOOLEAN` | ✅ | `true` | — |
+| `chat_id` | `BIGINT` | ❌ | — | UNIQUE, FK → chats(chat_id) |
+| `allow_connect` | `BOOLEAN` | ✅ | `true` | Controls if users can connect |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
