@@ -144,22 +144,22 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	case "unpinallbtn(yes)":
 		status, err := b.UnpinAllChatMessages(chat.Id, nil)
 		if !status && err != nil {
-			log.Errorf("[Pin] UnpinAllChatMessages: %d", chat.Id)
+			log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
 			return err
 		}
 		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("pins_unpin_all_success")
 		_, _, erredit := query.Message.EditText(b, text, nil)
 		if erredit != nil {
-			log.Errorf("[Pin] UnpinAllChatMessages: %d", chat.Id)
-			return err
+			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
+			return erredit
 		}
 	case "unpinallbtn(no)":
 		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("pins_unpin_all_cancelled")
 		_, _, err := query.Message.EditText(b, text, nil)
 		if err != nil {
-			log.Errorf("[Pin] UnpinAllChatMessages: %d", chat.Id)
+			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)
 			return err
 		}
 	}
@@ -186,8 +186,8 @@ func (moduleStruct) unpinAll(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("pins_unpin_all_confirm")
-	yesText, _ := tr.GetString("pins_yes_button")
-	noText, _ := tr.GetString("pins_no_button")
+	yesText, _ := tr.GetString("button_yes")
+	noText, _ := tr.GetString("button_no")
 	_, err := b.SendMessage(ctx.EffectiveChat.Id, text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -401,7 +401,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			go db.SetAntiChannelPin(chat.Id, true)
+			db.SetAntiChannelPin(chat.Id, true)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_antichannelpin_enabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
@@ -410,7 +410,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		case "off", "no", "false":
-			go db.SetAntiChannelPin(chat.Id, false)
+			db.SetAntiChannelPin(chat.Id, false)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_antichannelpin_disabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
@@ -469,7 +469,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			go db.SetCleanLinked(chat.Id, true)
+			db.SetCleanLinked(chat.Id, true)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_cleanlinked_enabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
@@ -478,7 +478,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		case "off", "no", "false":
-			go db.SetCleanLinked(chat.Id, false)
+			db.SetCleanLinked(chat.Id, false)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_cleanlinked_disabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
