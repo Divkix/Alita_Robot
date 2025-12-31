@@ -18,19 +18,25 @@ description: Complete guide to Blacklists module commands and features
 × /remallbl: Removes all the blacklisted words from chat
 
 *Note:*
-The Default mode for Blacklist is *warn*, which will delete the message and issue a warning to the user.
+The Default mode for Blacklist is *none*, which will just delete the messages from the chat.
 
-## Available Actions
-
+**Available Actions:**
 The following actions can be set using `/blaction`:
+- `none` - Just deletes the message without any further action
+- `warn` - Deletes message and issues a warning to the user (default)
+- `mute` - Deletes message and mutes the user
+- `kick` - Deletes message and kicks the user (they can rejoin)
+- `ban` - Deletes message and permanently bans the user
 
-| Action | Description |
-|--------|-------------|
-| `none` | Just deletes the message without any further action |
-| `warn` | Deletes message and issues a warning to the user (default) |
-| `mute` | Deletes message and mutes the user |
-| `kick` | Deletes message and kicks the user (they can rejoin) |
-| `ban` | Deletes message and permanently bans the user |
+**Note:**
+The Default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
+
+**Commands:**
+- `/addblacklist &lt;trigger&gt;` - Blacklists the word in the current chat
+- `/rmblacklist &lt;trigger&gt;` - Removes the word from current Blacklisted Words in Chat
+- `/blaction &lt;mute/kick/ban/warn/none&gt;` - Sets the action to be performed by bot when a blacklist word is detected
+- `/remallbl` - Removes all the blacklisted words from chat (Owner Only)
+
 
 ## Module Aliases
 
@@ -49,8 +55,6 @@ This module can be accessed using the following aliases:
 | `/blacklists` | Check all the blacklists in chat. | ✅ |
 | `/blaction` | Sets the action to be performed by bot when a blacklist word is detected. | ❌ |
 | `/rmblacklist` | Removes the word from current Blacklisted Words in Chat. | ❌ |
-| `/rmallbl` | Removes all blacklisted words from chat. (Owner only) | ❌ |
-| `/remallbl` | Alias for `/rmallbl`. (Owner only) | ❌ |
 
 ## Usage Examples
 

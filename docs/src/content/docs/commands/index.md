@@ -30,12 +30,6 @@ You know how sometimes, people join, send 100 messages, and ruin your chat? With
 
 **Commands**: 4 | **Aliases**: flood
 
-#### [🛡️ Antispam](./antispam/)
-
-Automatic background spam protection that rate-limits users to prevent message flooding.
-
-**Commands**: 0 (automatic) | **Features**: Per-user rate limiting
-
 #### [🔨 Bans](./bans/)
 
 Sometimes users can be annoying and you might want to remove them from your chat, this module exactly helps you to deal with that!.
@@ -95,6 +89,12 @@ Alita supports a large number of formatting options to make your messages more e
 **Commands**: 0 | **Aliases**: markdownhelp, mdhelp
 
 ### ⚙️ Bot Management
+
+#### [📦 Antispam](./antispam/)
+
+The antispam module provides automatic, behind-the-scenes spam protection for your groups.
+
+**Commands**: 0
 
 #### [📦 Blacklists](./blacklists/)
 

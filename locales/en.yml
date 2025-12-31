@@ -1724,3 +1724,462 @@ db_type_assertion_failed: "type assertion to []byte failed"
 
 # Default button texts
 button_rules_default: "Rules"
+
+# Antispam module strings (no commands - automatic background protection)
+antispam_help_msg: |
+  The antispam module provides automatic, behind-the-scenes spam protection for your groups.
+
+  Unlike other modules, it operates automatically without requiring any user commands.
+
+  <b>How It Works:</b>
+  Per-user-per-chat rate limiting prevents spam automatically.
+  • <b>Rate Limit:</b> 18 messages per second per user per chat
+  • <b>Automatic:</b> No configuration required - works out of the box
+  • <b>Transparent:</b> Silently drops excessive messages without disrupting normal users
+  • <b>Per-User Tracking:</b> Busy groups with many legitimate users won't trigger false positives
+
+antispam_extended_docs: |
+  <b>Technical Details</b>
+
+  <b>Rate Limiting Algorithm:</b>
+  The module uses a sliding window approach:
+  1. <b>First Message:</b> Starts tracking with count = 1
+  2. <b>Subsequent Messages:</b> Increments counter within the time window
+  3. <b>Window Expiry:</b> Counter resets when the time window (1 second) expires
+  4. <b>Threshold Exceeded:</b> Messages beyond 18/second are silently dropped
+
+  <b>Memory Management:</b>
+  • Automatic cleanup: Expired tracking entries are removed every 5 minutes
+  • No memory leaks: Background goroutine prevents unbounded memory growth
+  • Efficient storage: Only active users are tracked
+
+antispam_notes_docs: |
+  <b>Limitations</b>
+  • <b>No User Commands:</b> Cannot be enabled/disabled per chat
+  • <b>Fixed Threshold:</b> 18 messages/second is hardcoded
+  • <b>No Logging to Chat:</b> Spam events are only logged server-side
+
+  Use <b>Antispam</b> for automatic background protection and <b>Antiflood</b> for configurable flood control.
+
+# Admin module extended documentation
+admin_extended_docs: |
+  <b>Anonymous Admin Support</b>
+
+  The <code>/anonadmin</code> command allows group owners to toggle anonymous admin recognition:
+  <code>/anonadmin on</code> - Enable anonymous admin checks
+  <code>/anonadmin off</code> - Disable anonymous admin checks
+
+  When enabled, the bot will request verification for admin actions from anonymous accounts.
+
+  <b>How Anonymous Admin Verification Works:</b>
+  1. Bot detects sender is GroupAnonymousBot
+  2. Original message cached with 20-second TTL
+  3. "Verify Admin" button sent to chat
+  4. Clicking user verified as admin, command executed
+  5. Button expires after 20 seconds if not verified
+
+  <b>Supported Commands:</b>
+  Admin: /promote, /demote, /title
+  Bans: /ban, /dban, /sban, /tban, /unban
+  Mutes: /mute, /smute, /dmute, /tmute, /unmute
+  Pins: /pin, /unpin, /permapin, /unpinall
+  Purges: /purge, /del
+  Warns: /warn, /swarn, /dwarn
+
+admin_notes_docs: |
+  <b>Security Notes</b>
+  • All user-controlled input is HTML-escaped to prevent injection attacks
+  • Admin permission changes run with proper error handling and panic recovery
+
+# Antiflood extended docs
+antiflood_notes_docs: |
+  <b>Default Behavior</b>
+  Antiflood is <b>disabled by default</b>. You must explicitly enable it using <code>/setflood &lt;number&gt;</code>.
+
+# Locks module extended documentation
+locks_types_docs: |
+  <b>Permission Locks</b> (16 types)
+  <code>sticker</code> - Block stickers
+  <code>audio</code> - Block audio files
+  <code>voice</code> - Block voice messages
+  <code>document</code> - Block documents
+  <code>video</code> - Block videos
+  <code>videonote</code> - Block video notes
+  <code>contact</code> - Block contacts
+  <code>photo</code> - Block photos
+  <code>gif</code> - Block GIFs
+  <code>url</code> - Block URLs
+  <code>bots</code> - Prevent adding bots
+  <code>forward</code> - Block forwards
+  <code>game</code> - Block games
+  <code>location</code> - Block locations
+  <code>rtl</code> - Block RTL text
+  <code>anonchannel</code> - Block channel messages
+
+  <b>Restriction Locks</b> (6 types)
+  <code>messages</code> - Block all messages
+  <code>comments</code> - Block non-member comments
+  <code>media</code> - Block all media
+  <code>other</code> - Block games/stickers/GIFs
+  <code>previews</code> - Block URL previews
+  <code>all</code> - Block everything
+
+locks_notes_docs: |
+  <b>Technical Notes</b>
+  • Lock enforcement is real-time
+  • Admins are exempt from all locks
+  • Locks persist across bot restarts
+  • Cache invalidated on updates
+
+# Languages extended docs
+languages_extended_docs: |
+  <b>How It Works</b>
+  • <b>Private Chats:</b> Any user can change their personal language
+  • <b>Group Chats:</b> Only admins can change the group language
+
+  Language preferences are cached for performance and stored separately for users and groups.
+
+# Greetings extended docs
+greetings_extended_docs: |
+  <b>Captcha Integration</b>
+  When Captcha module is enabled:
+  1. New members are muted upon joining
+  2. Captcha challenge sent instead of welcome
+  3. After verification, welcome message is sent
+  4. Failed verification applies captcha action
+
+# Extended documentation locale keys - Notes module
+notes_extended_docs: |
+  <b>Features:</b>
+  • <b>Text &amp; Media Support</b>: Save text messages, photos, videos, documents, and more
+  • <b>Custom Buttons</b>: Add inline keyboard buttons to notes
+  • <b>Formatting Options</b>: Control note visibility and behavior
+  • <b>Admin-Only Notes</b>: Restrict certain notes to administrators only
+  • <b>Private Notes</b>: Send notes privately to users via DM
+  • <b>Web Preview Control</b>: Enable or disable link previews
+  • <b>Protected Content</b>: Prevent note content from being forwarded
+
+  <b>Note Formatting Options:</b>
+  When saving a note, you can use special tags to control its behavior:
+  • <code>{private}</code> - Note will only be sent via DM, never in group
+  • <code>{noprivate}</code> - Note will only be sent in group, never via DM
+  • <code>{admin}</code> - Note can only be accessed by admins
+  • <code>{protect}</code> - Content cannot be forwarded
+  • <code>{nonotif}</code> - Send without notification sound
+  • <code>{nopreview}</code> - Disable link preview
+
+  <b>Private Notes Mode:</b>
+  When private notes are enabled (<code>/privatenotes on</code>), all notes are sent to users via DM instead of in the group. This keeps the group chat clean.
+
+  Individual notes can override this behavior:
+  • <code>{private}</code> - Always send privately
+  • <code>{noprivate}</code> - Always send in group
+
+  <b>Raw Note (No Formatting):</b>
+  To see a note's raw content without formatting (for editing):
+  <code>/get notename noformat</code>
+
+notes_permissions_docs: |
+  <b>Required Permissions:</b>
+  • Save/Clear notes: Change Group Info
+  • View admin notes: Admin status
+  • Clear all notes: Chat Owner
+  • Get regular notes: Any user
+
+# Extended documentation locale keys - Pins module
+pins_extended_docs: |
+  <b>Features:</b>
+
+  <b>Anti-Channel Pin:</b>
+  When enabled, the bot will automatically unpin any message that gets auto-pinned by a linked channel. This is useful when you want to maintain control over what gets pinned in your group.
+
+  <b>Important:</b> When using anti channel pins, always use the <code>/unpin</code> command instead of unpinning manually through Telegram. Manual unpinning will cause the old message to get re-pinned when the channel sends new messages.
+
+  <b>Clean Linked:</b>
+  When enabled, the bot will automatically delete any messages sent to the group from the linked channel. This keeps your group chat clean from cross-posted channel content.
+
+  <b>Permapin:</b>
+  Create custom pinned messages with:
+  • Text with HTML/Markdown formatting
+  • Inline buttons with URLs
+  • Media attachments (photos, documents, stickers, audio, video, voice notes, video notes)
+  • All standard message fillings ({first}, {chatname}, etc.)
+
+  <b>Supported via Connection:</b>
+  The following commands work when connected to a chat via <code>/connect</code>:
+  • <code>/antichannelpin</code>
+  • <code>/cleanlinked</code>
+
+pins_notes_docs: |
+  <b>Notes:</b>
+  • The <code>/unpinall</code> command shows a confirmation dialog before unpinning all messages
+  • Permapin supports all media types that Telegram supports for pinning
+  • Anti-channel pin and clean linked settings are stored per-chat and persist across bot restarts
+
+  <b>Required Permissions:</b>
+  <b>Bot:</b> Must be admin with "Pin Messages" permission
+  <b>User:</b> Most commands require admin with "Pin Messages" permission
+
+# Extended documentation locale keys - Purges module
+purges_extended_docs: |
+  <b>Range Deletion with purgefrom/purgeto:</b>
+  When you need more control over the deletion range:
+
+  1. Reply to the <b>first</b> message in the range:
+  <code>/purgefrom</code>
+  The bot will confirm the message is marked (expires after 30 seconds).
+
+  2. Reply to the <b>last</b> message in the range:
+  <code>/purgeto</code>
+  All messages between the two markers (inclusive) will be deleted.
+
+  This is useful when you can't easily scroll to the starting point or need to verify the range before deletion.
+
+  <b>Limits and Restrictions:</b>
+  • <b>Maximum messages per purge:</b> 1000 messages
+  • <b>Message age limit:</b> Messages older than 48 hours may not be deletable (Telegram API restriction)
+  • <b>Permissions required:</b> Both the user and the bot must have "Delete Messages" permission
+
+purges_notes_docs: |
+  <b>Notes:</b>
+  • The <code>/purgefrom</code> marker expires after 30 seconds if not followed by <code>/purgeto</code>
+  • Deleting large ranges uses concurrent processing for better performance
+  • Status messages (showing how many messages were deleted) auto-delete after 3 seconds
+  • The bot handles already-deleted messages gracefully without errors
+
+# Extended documentation locale keys - Reports module
+reports_extended_docs: |
+  <b>How It Works:</b>
+
+  <b>Reporting a Message:</b>
+  1. <b>Reply to the offending message</b> with <code>/report</code> or mention <code>@admin</code>
+  2. The bot sends a notification mentioning all admins who have reports enabled
+  3. The notification includes action buttons for quick moderation
+
+  <b>Admin Action Buttons:</b>
+  • <b>📩 Message</b> - Link to the reported message
+  • <b>👢 Kick</b> - Kick the reported user (they can rejoin)
+  • <b>🚫 Ban</b> - Permanently ban the reported user
+  • <b>🗑 Delete</b> - Delete the reported message
+  • <b>✅ Resolved</b> - Mark the report as resolved without action
+
+  <b>Personal vs Group Settings:</b>
+  • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications
+  • <b>In Group:</b> <code>/reports on/off</code> toggles whether reporting is enabled for that group
+
+reports_permissions_docs: |
+  <b>Who Can Report?</b>
+  ✅ Regular users
+  ❌ Admins (no need to report to themselves)
+  ❌ Blocked users
+  ❌ Anonymous channels / Telegram system accounts
+
+  <b>Who Can Be Reported?</b>
+  ✅ Regular users
+  ❌ The bot itself
+  ❌ Admins (protected from reports)
+  ❌ Anonymous channels / Telegram system accounts
+
+# Extended documentation locale keys - Rules module
+rules_extended_docs: |
+  <b>Features:</b>
+
+  <b>Private Rules:</b>
+  Enable private rules (<code>/privaterules on</code>) to send rules via PM instead of in the group. This keeps the group chat clean.
+
+  <b>Custom Rules Button:</b>
+  Set a custom button text (max 30 characters):
+  <code>/rulesbtn View Rules</code>
+
+  Reset to default:
+  <code>/resetrulesbtn</code>
+
+  <b>Setting Rules:</b>
+  You can set rules by providing text directly or by replying to a message:
+  <code>/setrules Please be respectful to all members.</code>
+
+  Or reply to a message:
+  <code>/setrules</code>
+
+  <b>Required Permissions:</b>
+  • User commands: Available to all users
+  • Admin commands: Require admin permissions in the chat
+
+# Extended documentation locale keys - Warns module
+warns_extended_docs: |
+  <b>Default Settings:</b>
+  • <b>Default warn limit:</b> 3 warnings
+  • <b>Default warn mode:</b> mute
+
+  <b>Available Warn Modes:</b>
+  • <code>ban</code> - Permanently ban the user from the chat
+  • <code>kick</code> - Kick the user (they can rejoin)
+  • <code>mute</code> - Mute the user (cannot send messages)
+
+  <b>Silent and Delete Warnings:</b>
+  • <code>/swarn</code> - Delete your command and warn silently
+  • <code>/dwarn</code> - Delete the user's message and warn them
+
+warns_permissions_docs: |
+  <b>Permission Requirements:</b>
+  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Bot admin + User admin with restrict
+  • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + User admin
+  • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + User admin
+  • <code>/resetallwarns</code>: Chat owner only
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + User admin
+  • <code>/warnings</code>: Bot admin + User admin
+  • <code>/warns</code>: Any user (disableable)
+
+warns_notes_docs: |
+  <b>Notes:</b>
+  • When a user reaches the warn limit, the configured action (ban/kick/mute) is applied automatically
+  • Warning reasons are stored and displayed when checking a user's warns
+  • The <code>/warns</code> command is the only command in this module that can be disabled by admins
+  • Anonymous channel posts cannot be warned
+  • Admins cannot be warned
+
+# Extended documentation locale keys - Mutes module
+mutes_extended_docs: |
+  <b>Time Format for Temporary Mutes:</b>
+  • <code>m</code> = minutes (e.g., <code>30m</code>)
+  • <code>h</code> = hours (e.g., <code>2h</code>)
+  • <code>d</code> = days (e.g., <code>1d</code>)
+
+  <b>Mute Variants:</b>
+  • <code>/mute</code> - Standard mute with optional reason
+  • <code>/smute</code> - Silent mute (deletes your command message)
+  • <code>/dmute</code> - Delete-mute (mutes user and deletes their message)
+  • <code>/tmute</code> - Temporary mute with specified duration
+
+  <b>Required Permissions:</b>
+  <b>Admin only commands.</b> Users executing these commands must have:
+  • Admin status in the chat
+  • Permission to restrict members
+
+  The bot must also have admin privileges with permission to restrict members.
+
+# Extended documentation locale keys - Filters module
+filters_extended_docs: |
+  <b>Advanced Features:</b>
+
+  <b>Random Responses:</b>
+  Use <code>%%%</code> to separate multiple responses. One will be picked randomly:
+  <code>/filter hello Hi there!%%%Hello!%%%Hey, how are you?</code>
+
+  <b>Media Filters:</b>
+  Reply to any media (photo, video, document, sticker, etc.) with <code>/filter trigger</code> to create a filter that sends that media.
+
+  <b>Noformat Mode:</b>
+  Admins can view the raw filter content (including formatting codes) by adding <code>noformat</code> after the trigger:
+  <code>hello noformat</code>
+  This is useful for debugging filters or seeing button configurations.
+
+  <b>Filter Buttons:</b>
+  You can add inline buttons to your filters:
+  <code>/filter hello Hello! Check out these links:
+  [Button 1](buttonurl:https://example.com)
+  [Button 2](buttonurl:https://example2.com)</code>
+
+filters_technical_docs: |
+  <b>How Filters Work:</b>
+  1. When a message is received, the bot fetches all filters for the chat using an optimized cached query
+  2. The Aho-Corasick algorithm efficiently matches all filter keywords against the message text
+  3. The first matching filter triggers a response
+  4. Filters support text, media, and button responses
+
+  <b>Overwrite Confirmation:</b>
+  When you try to add a filter that already exists, the bot will ask for confirmation before overwriting. The confirmation expires after 5 minutes.
+
+  <b>Cache Behavior:</b>
+  • Filter lists are cached for 15 minutes per chat
+  • Cache is automatically invalidated when filters are added or removed
+
+filters_limits_docs: |
+  <b>Limits:</b>
+  • Maximum 150 filters per chat
+  • Maximum 100 characters per filter keyword
+  • Filter keywords are stored in lowercase
+
+  <b>Required Permissions:</b>
+  • <code>/filter</code>, <code>/addfilter</code>: Admin with Change Info permission
+  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin with Change Info permission
+  • <code>/stopall</code>: Chat Owner only
+  • <code>/filters</code>: Available to all users
+
+# Extended documentation locale keys - Captcha module
+captcha_extended_docs: |
+  <b>How It Works:</b>
+  1. When captcha is enabled, new members are automatically muted upon joining
+  2. A captcha challenge is sent to the new member
+  3. The user must select the correct answer from the provided options
+  4. If successful, the user is unmuted and can participate in the group
+  5. If they fail or timeout, the configured action is taken (kick, ban, or mute)
+
+  <b>Captcha Types:</b>
+  • <b>Math</b>: Solve simple arithmetic problems (addition, subtraction, multiplication)
+  • <b>Text</b>: Identify text shown in a distorted image
+
+  <b>Pending Messages Feature:</b>
+  When a user is completing the captcha, any messages they try to send are stored and deleted. Admins can:
+  • View what messages a user tried to send using <code>/captchapending</code>
+  • Clear stored messages using <code>/captchaclear</code>
+
+  This helps identify potential spam attempts before users complete verification.
+
+captcha_permissions_docs: |
+  <b>Bot Requirements:</b>
+  • Ban users (for kick/ban actions)
+  • Restrict members (for muting during verification)
+  • Delete messages (for cleaning up captcha messages)
+
+  <b>Failure Actions:</b>
+  • <code>kick</code> - Ban then immediately unban (allows user to rejoin)
+  • <code>ban</code> - Permanently ban the user
+  • <code>mute</code> - Keep the user muted for 24 hours
+
+# Extended documentation locale keys - Blacklists module
+blacklists_extended_docs: |
+  <b>Available Actions:</b>
+  The following actions can be set using <code>/blaction</code>:
+  • <code>none</code> - Just deletes the message without any further action
+  • <code>warn</code> - Deletes message and issues a warning to the user (default)
+  • <code>mute</code> - Deletes message and mutes the user
+  • <code>kick</code> - Deletes message and kicks the user (they can rejoin)
+  • <code>ban</code> - Deletes message and permanently bans the user
+
+  <b>Note:</b>
+  The Default mode for Blacklist is <b>warn</b>, which will delete the message and issue a warning to the user.
+
+  <b>Commands:</b>
+  • <code>/addblacklist &lt;trigger&gt;</code> - Blacklists the word in the current chat
+  • <code>/rmblacklist &lt;trigger&gt;</code> - Removes the word from current Blacklisted Words in Chat
+  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Sets the action to be performed by bot when a blacklist word is detected
+  • <code>/remallbl</code> - Removes all the blacklisted words from chat (Owner Only)
+
+# Extended documentation locale keys - Disabling module
+disabling_extended_docs: |
+  <b>Key Features:</b>
+  • Disable specific bot commands for non-admin users
+  • Admins can always bypass disabled commands
+  • Optional automatic deletion of disabled command messages
+  • Support for disabling multiple commands at once
+
+  <b>Disable Multiple Commands:</b>
+  <code>/disable adminlist rules info</code>
+  Disables <code>/adminlist</code>, <code>/rules</code>, and <code>/info</code> commands at once.
+
+  <b>Toggle Command Deletion:</b>
+  <code>/disabledel on</code> - Disabled messages will now be deleted.
+  <code>/disabledel off</code> - Disabled messages will no longer be deleted.
+  <code>/disabledel</code> - Check the current deletion setting.
+
+disabling_notes_docs: |
+  <b>Important Notes:</b>
+  • <b>Admin Bypass:</b> Disabled commands only affect non-admin users. All admins can still use any command.
+  • <b>Connection Support:</b> Disabled commands are still accessible through the <code>/connect</code> feature for connected chats.
+  • <b>Multiple Commands:</b> Both <code>/disable</code> and <code>/enable</code> support multiple command names in a single message.
+  • <b>Error Handling:</b> If some commands fail to disable/enable, you'll be notified about which ones succeeded and which failed.
+
+  <b>Required Permissions:</b>
+  • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Admin only
+  • <code>/disableable</code>, <code>/disabled</code>: All users (but <code>/disabled</code> can be disabled)

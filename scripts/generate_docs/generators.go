@@ -38,6 +38,13 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 			content.WriteString("\n\n")
 		}
 
+		// Extended documentation - append after help text
+		if module.ExtendedDocs.Extended != "" {
+			extendedDocs := convertTelegramMarkdown(module.ExtendedDocs.Extended)
+			content.WriteString(extendedDocs)
+			content.WriteString("\n\n")
+		}
+
 		// Module aliases
 		if len(module.Aliases) > 0 {
 			content.WriteString("## Module Aliases\n\n")
@@ -48,7 +55,7 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 			content.WriteString("\n")
 		}
 
-		// Commands table
+		// Commands table - only if module has commands
 		if len(module.Commands) > 0 {
 			content.WriteString("## Available Commands\n\n")
 			content.WriteString("| Command | Description | Disableable |\n")
@@ -75,15 +82,49 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 			content.WriteString("\n")
 		}
 
+		// Features section - from *_features_docs
+		if module.ExtendedDocs.Features != "" {
+			content.WriteString("## Features\n\n")
+			featureDocs := convertTelegramMarkdown(module.ExtendedDocs.Features)
+			content.WriteString(featureDocs)
+			content.WriteString("\n\n")
+		}
+
 		// Usage examples section
-		content.WriteString("## Usage Examples\n\n")
-		content.WriteString(generateUsageExamples(module))
-		content.WriteString("\n")
+		if module.ExtendedDocs.Examples != "" {
+			// Use custom examples from translation if available
+			content.WriteString("## Usage Examples\n\n")
+			exampleDocs := convertTelegramMarkdown(module.ExtendedDocs.Examples)
+			content.WriteString(exampleDocs)
+			content.WriteString("\n\n")
+		} else if len(module.Commands) > 0 {
+			// Generate basic examples only if module has commands and no custom examples
+			content.WriteString("## Usage Examples\n\n")
+			content.WriteString(generateUsageExamples(module))
+			content.WriteString("\n")
+		}
 
 		// Permissions section
-		content.WriteString("## Required Permissions\n\n")
-		content.WriteString(generatePermissionsSection(module))
-		content.WriteString("\n")
+		if module.ExtendedDocs.Permissions != "" {
+			// Use custom permissions docs from translation if available
+			content.WriteString("## Required Permissions\n\n")
+			permissionDocs := convertTelegramMarkdown(module.ExtendedDocs.Permissions)
+			content.WriteString(permissionDocs)
+			content.WriteString("\n\n")
+		} else if len(module.Commands) > 0 {
+			// Generate generic permissions section only if module has commands
+			content.WriteString("## Required Permissions\n\n")
+			content.WriteString(generatePermissionsSection(module))
+			content.WriteString("\n")
+		}
+
+		// Technical Notes section - from *_notes_docs
+		if module.ExtendedDocs.Notes != "" {
+			content.WriteString("## Technical Notes\n\n")
+			notesDocs := convertTelegramMarkdown(module.ExtendedDocs.Notes)
+			content.WriteString(notesDocs)
+			content.WriteString("\n\n")
+		}
 
 		// Write file
 		if config.DryRun {
@@ -1127,4 +1168,206 @@ func toTitleCase(s string) string {
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+// generateLockTypesReference generates the lock types API reference documentation
+func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
+	filePath := filepath.Join(outputPath, "api-reference", "lock-types.md")
+
+	log.Debug("Generating lock types reference")
+
+	var content strings.Builder
+
+	// Frontmatter
+	content.WriteString("---\n")
+	content.WriteString("title: Lock Types\n")
+	content.WriteString("description: Complete reference of all available lock types in the Locks module\n")
+	content.WriteString("---\n\n")
+
+	// Overview
+	content.WriteString("# 🔒 Lock Types Reference\n\n")
+	content.WriteString("This page documents all available lock types in the Locks module. ")
+	content.WriteString("Locks allow administrators to restrict specific types of content or actions in their groups.\n\n")
+
+	// Count lock types by category
+	permissionCount := 0
+	restrictionCount := 0
+	for _, lock := range lockTypes {
+		if lock.Category == "permission" {
+			permissionCount++
+		} else if lock.Category == "restriction" {
+			restrictionCount++
+		}
+	}
+
+	content.WriteString("## Overview\n\n")
+	content.WriteString(fmt.Sprintf("- **Total Lock Types**: %d\n", len(lockTypes)))
+	content.WriteString(fmt.Sprintf("- **Permission Locks**: %d (specific content types)\n", permissionCount))
+	content.WriteString(fmt.Sprintf("- **Restriction Locks**: %d (broad categories)\n", restrictionCount))
+	content.WriteString("\n")
+
+	// How locks work
+	content.WriteString("## How Locks Work\n\n")
+	content.WriteString("Locks prevent non-admin users from posting specific types of content. ")
+	content.WriteString("When a lock is enabled, the bot will automatically delete matching messages from regular users.\n\n")
+
+	content.WriteString("### Usage\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock <lock_type> [lock_type2 ...]\n")
+	content.WriteString("/unlock <lock_type> [lock_type2 ...]\n")
+	content.WriteString("/locks - View all currently enabled locks\n")
+	content.WriteString("/locktypes - View all available lock types\n")
+	content.WriteString("```\n\n")
+
+	// Restriction Locks
+	content.WriteString("## Restriction Locks\n\n")
+	content.WriteString("Restriction locks affect broad categories of messages. ")
+	content.WriteString("These are powerful locks that can block multiple content types at once.\n\n")
+
+	content.WriteString("| Lock Type | Description |\n")
+	content.WriteString("|-----------|-------------|\n")
+
+	for _, lock := range lockTypes {
+		if lock.Category == "restriction" {
+			content.WriteString(fmt.Sprintf("| `%s` | %s |\n", lock.Name, lock.Description))
+		}
+	}
+	content.WriteString("\n")
+
+	// Permission Locks
+	content.WriteString("## Permission Locks\n\n")
+	content.WriteString("Permission locks target specific types of content or actions. ")
+	content.WriteString("Use these for fine-grained control over what users can post.\n\n")
+
+	content.WriteString("| Lock Type | Description |\n")
+	content.WriteString("|-----------|-------------|\n")
+
+	for _, lock := range lockTypes {
+		if lock.Category == "permission" {
+			content.WriteString(fmt.Sprintf("| `%s` | %s |\n", lock.Name, lock.Description))
+		}
+	}
+	content.WriteString("\n")
+
+	// Media types section
+	content.WriteString("## Media Type Locks\n\n")
+	content.WriteString("These locks control specific types of media content:\n\n")
+	mediaTypes := []string{"photo", "video", "audio", "voice", "document", "gif", "sticker", "videonote"}
+	for _, mediaType := range mediaTypes {
+		for _, lock := range lockTypes {
+			if lock.Name == mediaType && lock.Category == "permission" {
+				content.WriteString(fmt.Sprintf("- **`%s`**: %s\n", lock.Name, lock.Description))
+			}
+		}
+	}
+	content.WriteString("\n")
+
+	// Content behavior locks
+	content.WriteString("## Content Behavior Locks\n\n")
+	content.WriteString("These locks control how content behaves:\n\n")
+	behaviorTypes := []string{"forward", "url", "previews", "rtl", "anonchannel", "comments"}
+	for _, behaviorType := range behaviorTypes {
+		for _, lock := range lockTypes {
+			if lock.Name == behaviorType {
+				content.WriteString(fmt.Sprintf("- **`%s`**: %s\n", lock.Name, lock.Description))
+			}
+		}
+	}
+	content.WriteString("\n")
+
+	// Special locks
+	content.WriteString("## Special Locks\n\n")
+
+	content.WriteString("### `bots`\n\n")
+	for _, lock := range lockTypes {
+		if lock.Name == "bots" {
+			content.WriteString(fmt.Sprintf("%s\n\n", lock.Description))
+		}
+	}
+	content.WriteString("**Behavior**: When enabled, the bot will automatically ban any bot added by non-admins.\n\n")
+
+	content.WriteString("### `all`\n\n")
+	for _, lock := range lockTypes {
+		if lock.Name == "all" {
+			content.WriteString(fmt.Sprintf("%s\n\n", lock.Description))
+		}
+	}
+	content.WriteString("**Use Case**: Useful for temporarily freezing chat activity or creating read-only channels.\n\n")
+
+	// Examples
+	content.WriteString("## Examples\n\n")
+
+	content.WriteString("### Prevent Media Spam\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock media\n")
+	content.WriteString("```\n")
+	content.WriteString("Blocks all media files (audio, documents, videos, photos, video notes, and voice messages).\n\n")
+
+	content.WriteString("### Create Read-Only Chat\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock all\n")
+	content.WriteString("```\n")
+	content.WriteString("Prevents all non-admin users from sending any messages.\n\n")
+
+	content.WriteString("### Block Forwarded Content\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock forward\n")
+	content.WriteString("```\n")
+	content.WriteString("Prevents users from forwarding messages from other chats.\n\n")
+
+	content.WriteString("### Prevent Bot Addition\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock bots\n")
+	content.WriteString("```\n")
+	content.WriteString("Only admins can add bots to the group.\n\n")
+
+	content.WriteString("### Multiple Locks at Once\n\n")
+	content.WriteString("```\n")
+	content.WriteString("/lock sticker gif video\n")
+	content.WriteString("```\n")
+	content.WriteString("Lock multiple content types in a single command.\n\n")
+
+	// Admin exemption
+	content.WriteString("## Important Notes\n\n")
+	content.WriteString("### Admin Exemption\n\n")
+	content.WriteString("All locks automatically exempt administrators. Admins can always post any content type, ")
+	content.WriteString("regardless of which locks are enabled.\n\n")
+
+	content.WriteString("### Bot Permissions\n\n")
+	content.WriteString("The bot requires the following permissions to enforce locks:\n\n")
+	content.WriteString("- **Delete Messages**: Required to remove locked content\n")
+	content.WriteString("- **Ban Users**: Only for the `bots` lock (to ban unauthorized bot additions)\n\n")
+
+	content.WriteString("### Interaction with Other Modules\n\n")
+	content.WriteString("Locks work independently but complement other moderation modules:\n\n")
+	content.WriteString("- **Antiflood**: Locks control content types, antiflood controls message frequency\n")
+	content.WriteString("- **Filters**: Custom filters can block specific words/patterns, locks block content types\n")
+	content.WriteString("- **Blacklist**: Blacklist blocks specific words, locks block entire categories\n\n")
+
+	// Related commands
+	content.WriteString("## Related Commands\n\n")
+	content.WriteString("- `/lock <type>` - Enable one or more locks\n")
+	content.WriteString("- `/unlock <type>` - Disable one or more locks\n")
+	content.WriteString("- `/locks` - View currently enabled locks\n")
+	content.WriteString("- `/locktypes` - View all available lock types\n\n")
+
+	content.WriteString("For more information, see the [Locks module documentation](/commands/locks/).\n\n")
+
+	// Write file
+	if config.DryRun {
+		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
+	} else {
+		refDir := filepath.Join(outputPath, "api-reference")
+		if err := os.MkdirAll(refDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
+		}
+
+		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+			return fmt.Errorf("failed to write lock types reference: %w", err)
+		}
+
+		log.Info("Generated: api-reference/lock-types.md")
+	}
+
+	return nil
 }

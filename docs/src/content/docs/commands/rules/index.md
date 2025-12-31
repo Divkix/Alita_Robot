@@ -6,88 +6,72 @@ description: Complete guide to Rules module commands and features
 # 📋 Rules Commands
 
 Every chat works with different rules; this module will help make those rules clearer!
+*User commands*:
+× /rules: Check the current chat rules.
+*Admin commands*:
+× /setrules `<text>`: Set the rules for this chat.
+× /privaterules `<yes/no/on/off>`: Enable/disable whether the rules should be sent in private.
+× /resetrules: Reset the chat rules to default
+× /rulesbtn `<custom text>`: Sets the text of the rules button.
+× /resetrulesbutton: Reset the text of the rules button to default.
+× /resetrulesbtn: Same as above.
 
-## User Commands
+**Features:**
 
-| Command | Description |
-|---------|-------------|
-| `/rules` | Check the current chat rules. |
+**Private Rules:**
+Enable private rules (`/privaterules on`) to send rules via PM instead of in the group. This keeps the group chat clean.
 
-## Admin Commands
+**Custom Rules Button:**
+Set a custom button text (max 30 characters):
+`/rulesbtn View Rules`
 
-| Command | Description |
-|---------|-------------|
-| `/setrules <text>` | Set the rules for this chat. Reply to a message or provide text. |
-| `/privaterules <yes/no/on/off>` | Enable/disable whether the rules should be sent in private. |
-| `/clearrules` | Clear all rules from the chat. |
-| `/resetrules` | Same as `/clearrules`. |
-| `/rulesbtn <custom text>` | Sets the text of the rules button (max 30 characters). |
-| `/rulesbutton <custom text>` | Same as `/rulesbtn`. |
-| `/resetrulesbtn` | Reset the text of the rules button to default. |
-| `/resetrulesbutton` | Same as `/resetrulesbtn`. |
-| `/clearrulesbtn` | Same as `/resetrulesbtn`. |
-| `/clearrulesbutton` | Same as `/resetrulesbtn`. |
+Reset to default:
+`/resetrulesbtn`
+
+**Setting Rules:**
+You can set rules by providing text directly or by replying to a message:
+`/setrules Please be respectful to all members.`
+
+Or reply to a message:
+`/setrules`
+
+**Required Permissions:**
+- User commands: Available to all users
+- Admin commands: Require admin permissions in the chat
+
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+
+- `rule`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/rules` | Check the current chat rules. | ✅ |
-| `/setrules` | Set the rules for this chat. | ❌ |
+| `/clearrulesbtn` | No description available | ❌ |
+| `/clearrulesbutton` | No description available | ❌ |
 | `/privaterules` | Enable/disable whether the rules should be sent in private. | ❌ |
-| `/clearrules` | Clear all rules from the chat. | ❌ |
-| `/resetrules` | Same as `/clearrules`. | ❌ |
+| `/resetrulesbtn` | Same as above. | ❌ |
+| `/resetrulesbutton` | Reset the text of the rules button to default. | ❌ |
+| `/rules` | Check the current chat rules. | ✅ |
 | `/rulesbtn` | Sets the text of the rules button. | ❌ |
-| `/rulesbutton` | Same as `/rulesbtn`. | ❌ |
-| `/resetrulesbtn` | Reset the text of the rules button to default. | ❌ |
-| `/resetrulesbutton` | Same as `/resetrulesbtn`. | ❌ |
-| `/clearrulesbtn` | Same as `/resetrulesbtn`. | ❌ |
-| `/clearrulesbutton` | Same as `/resetrulesbtn`. | ❌ |
+| `/rulesbutton` | No description available | ❌ |
+| `/setrules` | Set the rules for this chat. | ❌ |
 
 ## Usage Examples
 
-### Setting Rules
+### Basic Usage
 
 ```
-/setrules Please be respectful to all members.
+/clearrulesbtn
+/clearrulesbutton
+/privaterules
 ```
 
-Or reply to a message:
-```
-/setrules
-```
-
-### Private Rules
-
-Enable private rules (rules sent via PM):
-```
-/privaterules on
-```
-
-Disable private rules:
-```
-/privaterules off
-```
-
-### Custom Rules Button
-
-Set a custom button text:
-```
-/rulesbtn View Rules
-```
-
-Reset to default:
-```
-/resetrulesbtn
-```
-
-### Clear Rules
-
-```
-/clearrules
-```
+For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-- User commands: Available to all users
-- Admin commands: Require admin permissions in the chat
+Commands in this module are available to all users unless otherwise specified.

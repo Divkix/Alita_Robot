@@ -50,15 +50,13 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
+- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `antiflood_settings`
-
-:::note[Application Default]
-While the database schema shows a default of `5` for `flood_limit`, the application returns `0` (disabled) when no record exists for a chat. This means antiflood is **disabled by default** until explicitly configured.
-:::
 
 #### Columns
 
@@ -78,6 +76,11 @@ While the database schema shows a default of `5` for `flood_limit`, the applicat
 
 - idx_antiflood_chat_active
 - idx_antiflood_chat_flood_active
+
+#### Foreign Keys
+
+- channel_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 
 ### `blacklists`
 
@@ -100,114 +103,107 @@ While the database schema shows a default of `5` for `flood_limit`, the applicat
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
+- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- channel_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 - user_id -> users(user_id)
 - user_id -> users(user_id)
 
 ### `captcha_attempts`
 
-Tracks active captcha verification attempts for users joining groups.
-
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | ❌ | — | PRIMARY KEY |
-| `user_id` | `BIGINT` | ❌ | — | FK → users(user_id) |
-| `chat_id` | `BIGINT` | ❌ | — | FK → chats(chat_id) |
+| `id` | `SERIAL` | ✅ | — | PRIMARY KEY |
+| `user_id` | `BIGINT` | ❌ | — | — |
+| `chat_id` | `BIGINT` | ❌ | — | — |
 | `answer` | `VARCHAR(255)` | ❌ | — | — |
 | `attempts` | `INTEGER` | ✅ | `0` | — |
 | `message_id` | `BIGINT` | ✅ | — | — |
-| `refresh_count` | `INTEGER` | ✅ | `0` | — |
 | `expires_at` | `TIMESTAMP` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
-- idx_captcha_user_chat (user_id, chat_id)
-- idx_captcha_expires_at (expires_at)
-
-#### Foreign Keys
-
-- user_id → users(user_id) ON DELETE CASCADE
-- chat_id → chats(chat_id) ON DELETE CASCADE
+- idx_captcha_user_chat
+- idx_captcha_expires_at
 
 ### `captcha_muted_users`
-
-Tracks users who failed captcha with "mute" action and need to be automatically unmuted after a period.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `BIGSERIAL` | ❌ | — | PRIMARY KEY |
-| `user_id` | `BIGINT` | ❌ | — | FK → users(user_id) |
-| `chat_id` | `BIGINT` | ❌ | — | FK → chats(chat_id) |
+| `id` | `BIGSERIAL` | ✅ | — | PRIMARY KEY |
+| `user_id` | `BIGINT` | ❌ | — | — |
+| `chat_id` | `BIGINT` | ❌ | — | — |
 | `unmute_at` | `TIMESTAMP` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `NOW()` | — |
 
 #### Indexes
 
-- idx_captcha_muted_user_chat (user_id, chat_id)
-- idx_captcha_unmute_at (unmute_at)
+- idx_captcha_muted_user_chat
+- idx_captcha_unmute_at
 
 #### Foreign Keys
 
-- user_id → users(user_id) ON DELETE CASCADE
-- chat_id → chats(chat_id) ON DELETE CASCADE
+- user_id -> users(user_id)
 
 ### `captcha_settings`
-
-Stores per-chat captcha configuration settings.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | ❌ | — | PRIMARY KEY |
-| `chat_id` | `BIGINT` | ❌ | — | UNIQUE, FK → chats(chat_id) |
+| `id` | `SERIAL` | ✅ | — | PRIMARY KEY |
+| `chat_id` | `BIGINT` | ❌ | — | UNIQUE |
 | `enabled` | `BOOLEAN` | ✅ | `FALSE` | — |
-| `captcha_mode` | `VARCHAR(10)` | ✅ | `'math'` | CHECK (math, text) |
-| `timeout` | `INTEGER` | ✅ | `2` | CHECK (1-10 minutes) |
-| `failure_action` | `VARCHAR(10)` | ✅ | `'kick'` | CHECK (kick, ban, mute) |
-| `max_attempts` | `INTEGER` | ✅ | `3` | CHECK (1-10 attempts) |
+| `captcha_mode` | `VARCHAR(10)` | ✅ | `'math'` | — |
+| `timeout` | `INTEGER` | ✅ | `2` | — |
+| `failure_action` | `VARCHAR(10)` | ✅ | `'kick'` | — |
+| `max_attempts` | `INTEGER` | ✅ | `3` | — |
 | `created_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
-- uk_captcha_settings_chat_id (chat_id) UNIQUE
+- uk_captcha_settings_chat_id
 
 #### Foreign Keys
 
-- chat_id → chats(chat_id) ON DELETE CASCADE
+- user_id -> users(user_id)
 
 ### `channels`
-
-Stores information about Telegram channels that interact with the bot, including channel metadata for lookup functionality.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('channels_id_seq'::regclass)` | — |
-| `chat_id` | `BIGINT` | ❌ | — | UNIQUE |
+| `chat_id` | `BIGINT` | ❌ | — | — |
 | `channel_id` | `BIGINT` | ✅ | — | — |
-| `channel_name` | `TEXT` | ✅ | — | Channel display name |
-| `username` | `TEXT` | ✅ | — | Channel @username |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
 #### Indexes
 
-- idx_channels_chat_update (chat_id)
-- idx_channels_username (username) - for username lookups
+- idx_channels_chat_update
+- idx_channels_username
 
-#### Notes
+#### Foreign Keys
 
-The `channel_name` and `username` columns enable:
-- Looking up channels by @username via `GetChannelIdByUserName()`
-- Retrieving channel display names via `GetChannelInfoById()`
+- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 
 ### `chat_users`
 
@@ -226,7 +222,6 @@ The `channel_name` and `username` columns enable:
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `chats`
 
@@ -255,9 +250,9 @@ The `channel_name` and `username` columns enable:
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 - chat_id -> chats(chat_id)
-- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 
 ### `connection`
 
@@ -277,23 +272,16 @@ The `channel_name` and `username` columns enable:
 - idx_connection_user_id
 - idx_connection_chat_id
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-
 ### `connection_settings`
-
-Stores per-chat settings for the Connections module, controlling whether users can remotely connect to the chat.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('connection_settings_id_seq'::regclass)` | — |
-| `chat_id` | `BIGINT` | ❌ | — | UNIQUE, FK → chats(chat_id) |
-| `allow_connect` | `BOOLEAN` | ✅ | `true` | Controls if users can connect |
+| `chat_id` | `BIGINT` | ❌ | — | — |
+| `enabled` | `BOOLEAN` | ✅ | `true` | — |
+| `allow_connect` | `BOOLEAN` | ✅ | `true` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
@@ -317,7 +305,10 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 #### Foreign Keys
 
+- user_id -> users(user_id)
 - chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `disable`
 
@@ -331,10 +322,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 | `disabled` | `BOOLEAN` | ✅ | `true` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
 
 ### `filters`
 
@@ -356,10 +343,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 #### Indexes
 
 - idx_filters_chat_optimized
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
 
 ### `greetings`
 
@@ -392,12 +375,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 - idx_greetings_chat_enabled
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-
 ### `locks`
 
 #### Columns
@@ -418,7 +395,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `notes`
@@ -451,7 +427,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `notes_settings`
 
@@ -467,7 +442,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `pins`
@@ -488,6 +462,11 @@ Stores per-chat settings for the Connections module, controlling whether users c
 
 - idx_pins_chat
 
+#### Foreign Keys
+
+- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
+
 ### `report_chat_settings`
 
 #### Columns
@@ -501,11 +480,6 @@ Stores per-chat settings for the Connections module, controlling whether users c
 | `blocked_list` | `JSONB` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `report_user_settings`
 
@@ -523,8 +497,7 @@ Stores per-chat settings for the Connections module, controlling whether users c
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- channel_id -> chats(chat_id)
-- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 
 ### `rules`
 
@@ -543,33 +516,28 @@ Stores per-chat settings for the Connections module, controlling whether users c
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 
 ### `stored_messages`
-
-Stores messages sent by users before completing captcha verification. These messages are deleted from the chat but stored for admin review.
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `BIGSERIAL` | ❌ | — | PRIMARY KEY |
+| `id` | `BIGSERIAL` | ✅ | — | PRIMARY KEY |
 | `user_id` | `BIGINT` | ❌ | — | — |
 | `chat_id` | `BIGINT` | ❌ | — | — |
-| `message_type` | `INTEGER` | ❌ | `1` | 1=TEXT, 2=STICKER, etc. |
-| `content` | `TEXT` | ✅ | — | Text content of message |
-| `file_id` | `TEXT` | ✅ | — | Telegram file ID for media |
-| `caption` | `TEXT` | ✅ | — | Media caption if any |
-| `attempt_id` | `BIGINT` | ❌ | — | FK → captcha_attempts(id) |
+| `message_type` | `INTEGER` | ❌ | `1` | — |
+| `content` | `TEXT` | ✅ | — | — |
+| `file_id` | `TEXT` | ✅ | — | — |
+| `caption` | `TEXT` | ✅ | — | — |
+| `attempt_id` | `BIGINT` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `NOW()` | — |
 
 #### Indexes
 
-- idx_stored_user_chat (user_id, chat_id)
-- idx_stored_attempt (attempt_id)
-
-#### Foreign Keys
-
-- attempt_id → captcha_attempts(id) ON DELETE CASCADE
+- idx_stored_user_chat
+- idx_stored_attempt
 
 ### `users`
 
@@ -593,8 +561,9 @@ Stores messages sent by users before completing captcha verification. These mess
 
 #### Foreign Keys
 
-- user_id -> users(user_id)
 - chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- attempt_id -> captcha_attempts(id)
 
 ### `warns_settings`
 
@@ -613,6 +582,7 @@ Stores messages sent by users before completing captcha verification. These mess
 
 - chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `warns_users`
 
@@ -633,11 +603,6 @@ Stores messages sent by users before completing captcha verification. These mess
 - idx_warns_users_user_id
 - idx_warns_users_chat_id
 - idx_warns_users_composite
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
 
 ## Entity Relationships
 

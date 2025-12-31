@@ -35,11 +35,12 @@ type Config struct {
 
 // Module represents a bot module with its commands and help text
 type Module struct {
-	Name        string
-	DisplayName string
-	HelpText    string
-	Commands    []Command
-	Aliases     []string
+	Name         string
+	DisplayName  string
+	HelpText     string
+	Commands     []Command
+	Aliases      []string
+	ExtendedDocs ExtendedDocs // Extended documentation fields
 }
 
 // Command represents a bot command
@@ -131,11 +132,12 @@ func main() {
 
 	// Parse all sources
 	log.Info("📖 Parsing translations...")
-	translations, moduleAliases, err := parseTranslations(filepath.Join(projectRoot, config.LocalesPath))
+	translations, extendedDocs, moduleAliases, err := parseTranslations(filepath.Join(projectRoot, config.LocalesPath))
 	if err != nil {
 		log.Fatalf("Failed to parse translations: %v", err)
 	}
 	log.Infof("   Found %d module help texts", len(translations))
+	log.Infof("   Found %d modules with extended documentation", len(extendedDocs))
 
 	log.Info("🔍 Parsing commands from source...")
 	commands, err := parseCommands(filepath.Join(projectRoot, config.ModulesPath))
@@ -174,8 +176,19 @@ func main() {
 	}
 	log.Infof("   Found %d permission functions", len(permissions))
 
+	// Parse lock types
+	log.Info("🔒 Parsing lock types...")
+	lockTypes, err := parseLockTypes(filepath.Join(projectRoot, config.ModulesPath, "locks.go"))
+	if err != nil {
+		log.Fatalf("Failed to parse lock types: %v", err)
+	}
+	log.Infof("   Found %d lock types (%d permission locks, %d restriction locks)",
+		len(lockTypes),
+		countLocksByCategory(lockTypes, "permission"),
+		countLocksByCategory(lockTypes, "restriction"))
+
 	// Build modules with their commands
-	modules := buildModules(translations, commands, moduleAliases)
+	modules := buildModules(translations, extendedDocs, commands, moduleAliases)
 	log.Infof("📦 Built %d modules with commands", len(modules))
 
 	// Generate documentation
@@ -215,6 +228,12 @@ func main() {
 	}
 	log.Info("Generated: api-reference/permissions.md")
 
+	// Generate lock types reference
+	if err := generateLockTypesReference(lockTypes, outputPath); err != nil {
+		log.Fatalf("Failed to generate lock types reference: %v", err)
+	}
+	log.Info("Generated: api-reference/lock-types.md")
+
 	log.Info("✅ Documentation generation complete!")
 	log.Infof("   Output: %s", outputPath)
 }
@@ -240,14 +259,18 @@ func findProjectRoot() (string, error) {
 }
 
 // buildModules combines translations and commands into Module structs
-func buildModules(translations map[string]string, commands []Command, aliases map[string][]string) []Module {
+func buildModules(translations map[string]string, extendedDocs map[string]ExtendedDocs, commands []Command, aliases map[string][]string) []Module {
 	// Group commands by module
 	commandsByModule := make(map[string][]Command)
 	for _, cmd := range commands {
 		commandsByModule[cmd.Module] = append(commandsByModule[cmd.Module], cmd)
 	}
 
+	// Track which modules we've already added
+	addedModules := make(map[string]bool)
 	var modules []Module
+
+	// First, add modules from translation help texts
 	for name, helpText := range translations {
 		// Extract module name from key (e.g., "admin_help_msg" -> "Admin")
 		moduleName := strings.TrimSuffix(name, "_help_msg")
@@ -271,13 +294,54 @@ func buildModules(translations map[string]string, commands []Command, aliases ma
 			return moduleCommands[i].Name < moduleCommands[j].Name
 		})
 
+		// Get extended docs for this module
+		var moduleDocs ExtendedDocs
+		if docs, ok := extendedDocs[normalizedName]; ok {
+			moduleDocs = docs
+		}
+
 		modules = append(modules, Module{
-			Name:        normalizedName,
-			DisplayName: displayName,
-			HelpText:    helpText,
-			Commands:    moduleCommands,
-			Aliases:     aliases[displayName],
+			Name:         normalizedName,
+			DisplayName:  displayName,
+			HelpText:     helpText,
+			Commands:     moduleCommands,
+			Aliases:      aliases[displayName],
+			ExtendedDocs: moduleDocs,
 		})
+
+		addedModules[normalizedName] = true
+	}
+
+	// Now check for modules that only have extended docs but no help_msg
+	for moduleName, docs := range extendedDocs {
+		normalizedName := strings.ToLower(moduleName)
+		if !addedModules[normalizedName] {
+			displayName := cases.Title(language.English).String(moduleName)
+
+			// Find commands for this module
+			var moduleCommands []Command
+			for modName, cmds := range commandsByModule {
+				if strings.ToLower(modName) == normalizedName ||
+					strings.ToLower(modName) == normalizedName+"s" ||
+					strings.ToLower(modName)+"s" == normalizedName {
+					moduleCommands = append(moduleCommands, cmds...)
+				}
+			}
+
+			// Sort commands by name
+			sort.Slice(moduleCommands, func(i, j int) bool {
+				return moduleCommands[i].Name < moduleCommands[j].Name
+			})
+
+			modules = append(modules, Module{
+				Name:         normalizedName,
+				DisplayName:  displayName,
+				HelpText:     "", // No help message
+				Commands:     moduleCommands,
+				Aliases:      aliases[displayName],
+				ExtendedDocs: docs,
+			})
+		}
 	}
 
 	// Sort modules by name
@@ -286,4 +350,15 @@ func buildModules(translations map[string]string, commands []Command, aliases ma
 	})
 
 	return modules
+}
+
+// countLocksByCategory returns the count of locks in a specific category
+func countLocksByCategory(locks []LockType, category string) int {
+	count := 0
+	for _, lock := range locks {
+		if lock.Category == category {
+			count++
+		}
+	}
+	return count
 }

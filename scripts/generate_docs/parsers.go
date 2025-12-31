@@ -13,29 +13,92 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// parseTranslations parses locale YAML files and extracts help messages
-func parseTranslations(localesPath string) (map[string]string, map[string][]string, error) {
+// LockType represents a lock type that can be enabled/disabled
+type LockType struct {
+	Name        string
+	Description string
+	Category    string // "permission" or "restriction"
+}
+
+// ExtendedDocs holds all extended documentation for a module
+type ExtendedDocs struct {
+	Extended    string // Technical documentation
+	Features    string // Feature lists
+	Permissions string // Permission requirements
+	Examples    string // Usage examples
+	Notes       string // Important notes/limitations
+}
+
+// parseTranslations parses locale YAML files and extracts help messages and extended docs
+func parseTranslations(localesPath string) (map[string]string, map[string]ExtendedDocs, map[string][]string, error) {
 	helpTexts := make(map[string]string)
+	extendedDocs := make(map[string]ExtendedDocs)
 	aliases := make(map[string][]string)
 
-	// Parse en.yml for help messages
+	// Parse en.yml for help messages and extended docs
 	enPath := filepath.Join(localesPath, "en.yml")
 	data, err := os.ReadFile(enPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read %s: %w", enPath, err)
+		return nil, nil, nil, fmt.Errorf("failed to read %s: %w", enPath, err)
 	}
 
 	var translations map[string]interface{}
 	if err := yaml.Unmarshal(data, &translations); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse %s: %w", enPath, err)
+		return nil, nil, nil, fmt.Errorf("failed to parse %s: %w", enPath, err)
 	}
 
-	// Extract help messages
+	// Extract help messages and extended documentation
 	for key, value := range translations {
+		str, ok := value.(string)
+		if !ok {
+			continue
+		}
+
+		// Extract help messages
 		if strings.HasSuffix(key, "_help_msg") {
-			if str, ok := value.(string); ok {
-				helpTexts[key] = str
-			}
+			helpTexts[key] = str
+			continue
+		}
+
+		// Extract extended documentation
+		if strings.HasSuffix(key, "_extended_docs") {
+			moduleName := strings.TrimSuffix(key, "_extended_docs")
+			docs := extendedDocs[moduleName]
+			docs.Extended = str
+			extendedDocs[moduleName] = docs
+			continue
+		}
+
+		if strings.HasSuffix(key, "_features_docs") {
+			moduleName := strings.TrimSuffix(key, "_features_docs")
+			docs := extendedDocs[moduleName]
+			docs.Features = str
+			extendedDocs[moduleName] = docs
+			continue
+		}
+
+		if strings.HasSuffix(key, "_permissions_docs") {
+			moduleName := strings.TrimSuffix(key, "_permissions_docs")
+			docs := extendedDocs[moduleName]
+			docs.Permissions = str
+			extendedDocs[moduleName] = docs
+			continue
+		}
+
+		if strings.HasSuffix(key, "_examples_docs") {
+			moduleName := strings.TrimSuffix(key, "_examples_docs")
+			docs := extendedDocs[moduleName]
+			docs.Examples = str
+			extendedDocs[moduleName] = docs
+			continue
+		}
+
+		if strings.HasSuffix(key, "_notes_docs") {
+			moduleName := strings.TrimSuffix(key, "_notes_docs")
+			docs := extendedDocs[moduleName]
+			docs.Notes = str
+			extendedDocs[moduleName] = docs
+			continue
 		}
 	}
 
@@ -44,13 +107,13 @@ func parseTranslations(localesPath string) (map[string]string, map[string][]stri
 	configData, err := os.ReadFile(configPath)
 	if err != nil {
 		log.Warnf("Could not read config.yml: %v", err)
-		return helpTexts, aliases, nil
+		return helpTexts, extendedDocs, aliases, nil
 	}
 
 	var configYaml map[string]interface{}
 	if err := yaml.Unmarshal(configData, &configYaml); err != nil {
 		log.Warnf("Could not parse config.yml: %v", err)
-		return helpTexts, aliases, nil
+		return helpTexts, extendedDocs, aliases, nil
 	}
 
 	// Extract alt_names
@@ -69,7 +132,7 @@ func parseTranslations(localesPath string) (map[string]string, map[string][]stri
 		}
 	}
 
-	return helpTexts, aliases, nil
+	return helpTexts, extendedDocs, aliases, nil
 }
 
 // parseCommands parses Go source files to extract command registrations
@@ -448,6 +511,139 @@ func parseMigrations(migrationsPath string) ([]DBTable, error) {
 	})
 
 	return result, nil
+}
+
+// parseLockTypes extracts lock types from locks.go by parsing the lockMap and restrMap
+func parseLockTypes(locksPath string) ([]LockType, error) {
+	data, err := os.ReadFile(locksPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", locksPath, err)
+	}
+
+	content := string(data)
+	var lockTypes []LockType
+
+	// Regex patterns to extract map keys
+	// Matches: "key": value,
+	mapEntryPattern := regexp.MustCompile(`"(\w+)":\s*[^,}]+,?`)
+
+	// Find lockMap section
+	lockMapStart := strings.Index(content, "lockMap = map[string]filters.Message{")
+	lockMapEnd := -1
+	if lockMapStart != -1 {
+		depth := 0
+		for i := lockMapStart; i < len(content); i++ {
+			if content[i] == '{' {
+				depth++
+			} else if content[i] == '}' {
+				depth--
+				if depth == 0 {
+					lockMapEnd = i
+					break
+				}
+			}
+		}
+	}
+
+	// Extract permission locks from lockMap
+	if lockMapStart != -1 && lockMapEnd != -1 {
+		lockMapSection := content[lockMapStart:lockMapEnd]
+		matches := mapEntryPattern.FindAllStringSubmatch(lockMapSection, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				lockName := match[1]
+				description := getLockDescription(lockName, "permission")
+				lockTypes = append(lockTypes, LockType{
+					Name:        lockName,
+					Description: description,
+					Category:    "permission",
+				})
+			}
+		}
+	}
+
+	// Find restrMap section
+	restrMapStart := strings.Index(content, "restrMap = map[string]filters.Message{")
+	restrMapEnd := -1
+	if restrMapStart != -1 {
+		depth := 0
+		for i := restrMapStart; i < len(content); i++ {
+			if content[i] == '{' {
+				depth++
+			} else if content[i] == '}' {
+				depth--
+				if depth == 0 {
+					restrMapEnd = i
+					break
+				}
+			}
+		}
+	}
+
+	// Extract restriction locks from restrMap
+	if restrMapStart != -1 && restrMapEnd != -1 {
+		restrMapSection := content[restrMapStart:restrMapEnd]
+		matches := mapEntryPattern.FindAllStringSubmatch(restrMapSection, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				lockName := match[1]
+				description := getLockDescription(lockName, "restriction")
+				lockTypes = append(lockTypes, LockType{
+					Name:        lockName,
+					Description: description,
+					Category:    "restriction",
+				})
+			}
+		}
+	}
+
+	// Sort lock types: restrictions first, then permissions, alphabetically within each category
+	sort.Slice(lockTypes, func(i, j int) bool {
+		if lockTypes[i].Category != lockTypes[j].Category {
+			return lockTypes[i].Category == "restriction" // Restrictions come first
+		}
+		return lockTypes[i].Name < lockTypes[j].Name
+	})
+
+	return lockTypes, nil
+}
+
+// getLockDescription returns a human-readable description for a lock type
+func getLockDescription(lockName, category string) string {
+	// Descriptions based on the lock implementation in locks.go
+	descriptions := map[string]string{
+		// Permission locks (from lockMap)
+		"sticker":     "Blocks sticker messages",
+		"audio":       "Blocks audio file messages",
+		"voice":       "Blocks voice messages",
+		"document":    "Blocks document files (excludes GIFs/animations)",
+		"video":       "Blocks video messages",
+		"videonote":   "Blocks video note messages (round videos)",
+		"contact":     "Blocks contact card messages",
+		"photo":       "Blocks photo messages",
+		"gif":         "Blocks GIF/animation messages",
+		"url":         "Blocks messages containing URLs",
+		"bots":        "Prevents non-admins from adding bots to the group",
+		"forward":     "Blocks forwarded messages",
+		"game":        "Blocks game messages",
+		"location":    "Blocks location/venue messages",
+		"rtl":         "Blocks messages containing right-to-left (Arabic) text",
+		"anonchannel": "Blocks messages from anonymous channels and linked channel posts",
+
+		// Restriction locks (from restrMap)
+		"messages": "Blocks all text and media messages",
+		"comments": "Blocks messages from non-members (discussion comments)",
+		"media":    "Blocks all media files (audio, document, video, photo, video note, voice)",
+		"other":    "Blocks games, stickers, and GIFs",
+		"previews": "Blocks messages with URL previews",
+		"all":      "Blocks all messages from non-admins",
+	}
+
+	if desc, exists := descriptions[lockName]; exists {
+		return desc
+	}
+
+	return "No description available"
 }
 
 // camelToScreamingSnake converts CamelCase to SCREAMING_SNAKE_CASE

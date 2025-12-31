@@ -198,53 +198,14 @@ dispatcher.AddHandler(handlers.NewCallback(
 func (m moduleStruct) myCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
     query := ctx.CallbackQuery
 
-    // Parse callback data - ALWAYS validate bounds before accessing array elements
-    args := strings.Split(query.Data, ".")
-    if len(args) < 2 {
-        log.Warn("[MyCallbackHandler] Invalid callback data format")
-        _, _ = query.Answer(b, nil)
-        return ext.EndGroups
-    }
-    action := args[1]
+    // Parse callback data
+    data := strings.TrimPrefix(query.Data, "myprefix.")
 
-    // Process based on action
-    var responseText string
-    switch action {
-    case "confirm":
-        responseText = "Action confirmed"
-    case "cancel":
-        responseText = "Action cancelled"
-    default:
-        responseText = "Unknown action"
-    }
-
-    // Answer the callback
-    _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-        Text: responseText,
+    // Process and answer
+    query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
+        Text: "Action completed",
     })
-    if err != nil {
-        log.Error(err)
-        return err
-    }
 
     return ext.EndGroups
 }
-```
-
-### Important: Bounds Checking
-
-**Always validate array bounds** when splitting callback data. Without proper validation, accessing an index that doesn't exist will cause a panic:
-
-```go
-// ❌ WRONG - Can panic if callback data doesn't contain "."
-args := strings.Split(query.Data, ".")
-action := args[1]  // Panics if len(args) < 2
-
-// ✅ CORRECT - Validate bounds first
-args := strings.Split(query.Data, ".")
-if len(args) < 2 {
-    _, _ = query.Answer(b, nil)
-    return ext.EndGroups
-}
-action := args[1]  // Safe to access
 ```
