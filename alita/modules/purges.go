@@ -71,7 +71,7 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 
 	// For small ranges, use sequential deletion
 	if totalMessages <= 10 {
-		for mId := deleteTo + 1; mId > msgId-1; mId-- {
+		for mId := deleteTo; mId >= msgId; mId-- {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, mId)
 		}
 		return true
@@ -86,7 +86,7 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 	var wg sync.WaitGroup
 
 	// Delete messages concurrently
-	for mId := deleteTo + 1; mId > msgId-1; mId-- {
+	for mId := deleteTo; mId >= msgId; mId-- {
 		wg.Add(1)
 		worker.sem <- struct{}{} // Acquire semaphore
 
@@ -187,15 +187,13 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			pMsg, err := bot.SendMessage(chat.Id, Text, helpers.Smarkdown())
 			if err != nil {
 				log.Error(err)
-			}
-
-			// Use timer instead of sleep for better resource management
-			timer := time.NewTimer(3 * time.Second)
-			<-timer.C
-			_, err = pMsg.Delete(bot, nil)
-			if err != nil {
-				log.Error(err)
-				return err
+			} else {
+				// Delete notification message after 3 seconds in background
+				go func(msgToDelete *gotgbot.Message) {
+					timer := time.NewTimer(3 * time.Second)
+					<-timer.C
+					_, _ = msgToDelete.Delete(bot, nil)
+				}(pMsg)
 			}
 		}
 	} else {
@@ -261,6 +259,22 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender.User
 
+	// Validate callback data format before processing
+	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid button data."})
+		return ext.EndGroups
+	}
+
+	// Parse message ID from callback data
+	msgId, err := strconv.Atoi(args[1])
+	if err != nil {
+		log.Warnf("[Purges] Invalid message ID in callback: %s", args[1])
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid message ID."})
+		return ext.EndGroups
+	}
+
 	// permissions check
 	if !chat_status.CanUserDelete(b, ctx, nil, user.Id, false) {
 		return ext.EndGroups
@@ -269,12 +283,9 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	msgId, _ := strconv.Atoi(args[1])
-
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, int64(msgId))
 
-	_, err := query.Answer(b, nil)
+	_, err = query.Answer(b, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -335,17 +346,23 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		delMsgs.Store(chat.Id, TodelId)
-		// Use timer with timeout for cleanup
-		timer := time.NewTimer(30 * time.Second)
-		<-timer.C
-		if existingId, ok := delMsgs.Load(chat.Id); ok && existingId == TodelId {
-			delMsgs.Delete(chat.Id)
-		}
-		_, err = pMsg.Delete(bot, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+
+		// Run cleanup in background goroutine to avoid blocking the handler
+		go func(chatId, toDelId int64, msgToDelete *gotgbot.Message) {
+			timer := time.NewTimer(30 * time.Second)
+			<-timer.C
+			// Only clean up if the stored ID is still the same (not overwritten by another purgefrom)
+			if existingId, ok := delMsgs.Load(chatId); ok && existingId == toDelId {
+				delMsgs.Delete(chatId)
+			}
+			_, err := msgToDelete.Delete(bot, nil)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"chat_id":    chatId,
+					"message_id": msgToDelete.MessageId,
+				}).Debug("Failed to delete purgefrom notification message")
+			}
+		}(chat.Id, TodelId, pMsg)
 	} else {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_purgefrom")
@@ -411,12 +428,13 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			return ext.EndGroups
 		}
-		totalMsgs := int64(0)
-		if deleteTo > msgId {
-			totalMsgs = deleteTo - msgId + 1
-		} else {
-			totalMsgs = msgId - deleteTo + 1
+		// Ensure msgId is the lower bound and deleteTo is the upper bound
+		// This normalizes the range regardless of which message was marked first
+		startId, endId := msgId, deleteTo
+		if deleteTo < msgId {
+			startId, endId = deleteTo, msgId
 		}
+		totalMsgs := endId - startId + 1
 
 		// Enforce same limit as /purge command to prevent abuse
 		const maxPurgeMessages = 1000
@@ -430,7 +448,10 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		purge := m.purgeMsgs(bot, chat, true, msgId, deleteTo)
+		// Clear the stored purgefrom marker since we're using it now
+		delMsgs.Delete(chat.Id)
+
+		purge := m.purgeMsgs(bot, chat, true, startId, endId)
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			log.Error(err)
 		}
@@ -447,14 +468,13 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			pMsg, err := bot.SendMessage(chat.Id, Text, helpers.Smarkdown())
 			if err != nil {
 				log.Error(err)
-			}
-			// Use timer instead of sleep for better resource management
-			timer := time.NewTimer(3 * time.Second)
-			<-timer.C
-			_, err = pMsg.Delete(bot, nil)
-			if err != nil {
-				log.Error(err)
-				return err
+			} else {
+				// Delete notification message after 3 seconds in background
+				go func(msgToDelete *gotgbot.Message) {
+					timer := time.NewTimer(3 * time.Second)
+					<-timer.C
+					_, _ = msgToDelete.Delete(bot, nil)
+				}(pMsg)
 			}
 		}
 	} else {
