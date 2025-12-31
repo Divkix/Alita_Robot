@@ -74,13 +74,10 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	// send a message to group itself
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	thanksText, _ := tr.GetString("bot_updates_thanks_for_adding")
+	creatorsPlug, _ := tr.GetString("bot_updates_creators_plug")
 	_, err := b.SendMessage(
 		chat.Id,
-		fmt.Sprint(
-			thanksText,
-			func() string { plug, _ := tr.GetString("bot_updates_creators_plug"); return plug }(),
-			msgAdmin,
-		),
+		fmt.Sprint(thanksText, creatorsPlug, msgAdmin),
 		nil,
 	)
 	if err != nil {
@@ -106,10 +103,12 @@ func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// function used to verify anonymous admins when they press to verify admin button
-// verifyAnonyamousAdmin handles callback verification for anonymous admins.
-// Verifies admin status and executes the original command from cached context.
-func verifyAnonyamousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+// verifyAnonymousAdmin handles callback verification for anonymous admins.
+// When an anonymous admin presses the verify button, this function:
+// 1. Verifies they are actually an admin in the chat
+// 2. Retrieves the original command from cache
+// 3. Executes the appropriate command handler with restored context
+func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	qmsg := query.Message
 
@@ -134,7 +133,7 @@ func verifyAnonyamousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	chatIdData, errCache := setAdminCache(chatId, msgId)
+	chatIdData, errCache := getAnonAdminCache(chatId, msgId)
 
 	if errCache != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -147,7 +146,16 @@ func verifyAnonyamousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	msg := chatIdData.(*gotgbot.Message)
+	// Type-safe assertion with error handling
+	msg, ok := chatIdData.(*gotgbot.Message)
+	if !ok || msg == nil {
+		log.WithFields(log.Fields{
+			"chatId": chatId,
+			"msgId":  msgId,
+			"type":   fmt.Sprintf("%T", chatIdData),
+		}).Error("getAnonAdminCache: unexpected type in cache")
+		return ext.EndGroups
+	}
 
 	_, err := qmsg.Delete(b, nil)
 	if err != nil {
@@ -227,9 +235,9 @@ func verifyAnonyamousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// setAdminCache retrieves cached message data for anonymous admin verification.
+// getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
-func setAdminCache(chatId, msgId int64) (any, error) {
+func getAnonAdminCache(chatId, msgId int64) (any, error) {
 	return cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
 }
 
@@ -254,5 +262,5 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("alita:anonAdmin:"), verifyAnonyamousAdmin))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("alita:anonAdmin:"), verifyAnonymousAdmin))
 }

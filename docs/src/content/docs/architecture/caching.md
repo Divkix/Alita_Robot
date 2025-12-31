@@ -103,7 +103,35 @@ All cache keys use the `alita:` prefix for namespace isolation:
 | `alita:blacklist:{chatId}` | Blacklist settings |
 | `alita:warn_settings:{chatId}` | Warning settings |
 | `alita:disabled_cmds:{chatId}` | Disabled commands |
-| `alita:anonAdmin:{chatId}:{msgId}` | Anonymous admin verification |
+| `alita:anonAdmin:{chatId}:{msgId}` | Anonymous admin verification (20s TTL) |
+| `alita:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
+
+### Anonymous Admin Verification Flow
+
+When an anonymous admin uses a command, the bot:
+1. Stores the original message in cache with key `alita:anonAdmin:{chatId}:{msgId}`
+2. Sends a verification button to the chat
+3. When clicked, `getAnonAdminCache()` retrieves the original message
+4. The bot verifies the user is an admin and executes the original command
+
+```go
+// Store original message for anonymous admin
+cache.Marshal.Set(
+    cache.Context,
+    fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
+    originalMessage,
+    store.WithExpiration(20*time.Second),  // Short TTL - button expires quickly
+)
+
+// Retrieve when verification button is clicked
+func getAnonAdminCache(chatId, msgId int64) (any, error) {
+    return cache.Marshal.Get(
+        cache.Context,
+        fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
+        new(gotgbot.Message),
+    )
+}
+```
 
 ### Key Generator Functions
 

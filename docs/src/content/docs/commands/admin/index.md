@@ -59,6 +59,27 @@ The `/anonadmin` command allows group owners to toggle anonymous admin recogniti
 
 When enabled, the bot will request verification for admin actions from anonymous accounts.
 
+### How Anonymous Admin Verification Works
+
+When an anonymous admin (posting as the group) runs a command like `/ban`:
+
+1. **Command Interception**: The bot detects the sender is `GroupAnonymousBot` (Telegram's ID for anonymous group posts)
+2. **Cache Storage**: The original message is cached with key `alita:anonAdmin:{chatId}:{msgId}` (20-second TTL)
+3. **Verification Button**: A "Verify Admin" button is sent to the chat
+4. **Button Click**: When clicked, the handler:
+   - Verifies the clicking user is actually an admin via `IsUserAdmin()`
+   - Retrieves the original command from cache via `getAnonAdminCache()`
+   - Executes the command as if the admin had sent it directly
+5. **Expiration**: If 20 seconds pass without verification, the button expires
+
+**Supported Commands for Anonymous Verification:**
+- Admin: `/promote`, `/demote`, `/title`
+- Bans: `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/restrict`, `/unrestrict`
+- Mutes: `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute`
+- Pins: `/pin`, `/unpin`, `/permapin`, `/unpinall`
+- Purges: `/purge`, `/del`
+- Warns: `/warn`, `/swarn`, `/dwarn`
+
 ## User Lookup Behavior
 
 Admin commands accept multiple input formats to identify target users:
