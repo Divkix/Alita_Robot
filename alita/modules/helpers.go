@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -115,12 +116,15 @@ func initHelpButtons() {
 
 // getModuleHelpAndKb retrieves help text and keyboard for a specific module.
 // Returns localized help content and navigation buttons for the requested module.
+// Note: Help messages in locales use Markdown formatting, which is converted to HTML here.
 func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
 	ModName := cases.Title(language.English).String(module)
 	tr := i18n.MustNewTranslator(lang)
 	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
 	headerTemplate, _ := tr.GetString("helpers_module_help_header")
-	helpText = fmt.Sprintf(headerTemplate, ModName) + helpMsg
+	// Convert Markdown to HTML since locale strings use Markdown formatting
+	// but the bot sends messages with HTML parse mode
+	helpText = tgmd2html.MD2HTMLV2(fmt.Sprintf(headerTemplate, ModName) + helpMsg)
 
 	// Create back button suffix dynamically
 	backText, _ := tr.GetString("common_back_arrow")

@@ -274,6 +274,29 @@ go func(uid int64) {
 }(userId)
 ```
 
+### Markdown/HTML Parse Mode Mismatch
+
+**Problem:** Locale strings use Markdown formatting (`*bold*`, `` `code` ``) but the bot sends messages with HTML parse mode, causing raw asterisks to appear instead of formatted text.
+
+```go
+// Wrong - locale uses Markdown, but sending with HTML parse mode
+helpMsg, _ := tr.GetString("module_help_msg")  // Contains *bold*
+b.SendMessage(chatId, helpMsg, &gotgbot.SendMessageOpts{
+    ParseMode: helpers.HTML,  // Markdown won't render!
+})
+
+// Correct - convert Markdown to HTML before sending
+helpMsg, _ := tr.GetString("module_help_msg")
+htmlMsg := tgmd2html.MD2HTMLV2(helpMsg)  // Converts *bold* to <b>bold</b>
+b.SendMessage(chatId, htmlMsg, &gotgbot.SendMessageOpts{
+    ParseMode: helpers.HTML,
+})
+```
+
+The `tgmd2html` library provides conversion functions:
+- `tgmd2html.MD2HTMLV2(text)` - Converts Markdown formatting to HTML
+- `tgmd2html.MD2HTMLButtonsV2(text)` - Converts and extracts inline buttons
+
 ## Getting Help
 
 - **Support Group**: [t.me/DivideSupport](https://t.me/DivideSupport)

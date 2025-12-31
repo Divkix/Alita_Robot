@@ -391,3 +391,17 @@ The project uses GoReleaser for multi-platform builds:
   ```
 - **Pattern**: Use wrapper functions for all async DB calls to ensure errors are logged
 - **Best Practice**: Functions should return errors even if callers discard them for debugging
+
+### Markdown/HTML Parse Mode Mismatch in Help System
+- **Issue**: Locale help strings use Markdown formatting (`*bold*`, `` `code` ``) but bot sends with HTML parse mode
+- **Symptom**: Help text displays raw asterisks instead of bold text, making help "appear broken"
+- **Root Cause**: The `_help_msg` locale strings were written in Markdown, but `getModuleHelpAndKb()` sent messages with `ParseMode: helpers.HTML`
+- **Fix**: Use `tgmd2html.MD2HTMLV2()` to convert Markdown to HTML before sending:
+  ```go
+  helpText = tgmd2html.MD2HTMLV2(fmt.Sprintf(headerTemplate, ModName) + helpMsg)
+  ```
+- **Pattern**: When working with locale strings that may contain Markdown:
+  1. Check if the locale uses Markdown formatting (`*bold*`, `` `code` ``, etc.)
+  2. Check the parse mode used when sending the message
+  3. Use `tgmd2html.MD2HTMLV2()` to convert if there's a mismatch
+- **Prevention**: Consistently use HTML in locale files if the bot primarily uses HTML parse mode
