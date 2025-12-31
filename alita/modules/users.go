@@ -17,6 +17,27 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
+// asyncUpdateUser wraps db.UpdateUser for async execution with error logging.
+func asyncUpdateUser(userId int64, username, name string) {
+	if err := db.UpdateUser(userId, username, name); err != nil {
+		log.Warnf("[Users] Failed to update user %d: %v", userId, err)
+	}
+}
+
+// asyncUpdateChat wraps db.UpdateChat for async execution with error logging.
+func asyncUpdateChat(chatId int64, chatname string, userid int64) {
+	if err := db.UpdateChat(chatId, chatname, userid); err != nil {
+		log.Warnf("[Users] Failed to update chat %d: %v", chatId, err)
+	}
+}
+
+// asyncUpdateChannel wraps db.UpdateChannel for async execution with error logging.
+func asyncUpdateChannel(channelId int64, channelName, username string) {
+	if err := db.UpdateChannel(channelId, channelName, username); err != nil {
+		log.Warnf("[Users] Failed to update channel %d: %v", channelId, err)
+	}
+}
+
 var (
 	usersModule = moduleStruct{
 		moduleName:   "Users",
@@ -60,7 +81,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
 			log.Debugf("Updating channel %d in db", user.Id())
 			// update when users send a message
-			go db.UpdateChannel(
+			go asyncUpdateChannel(
 				user.Id(),
 				user.Name(),
 				user.Username(),
@@ -71,7 +92,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if chat_status.RequireGroup(bot, ctx, chat, true) {
 			// Update user in chat collection with rate limiting
 			if shouldUpdate(chatUpdateCache, chat.Id, chatUpdateInterval) {
-				go db.UpdateChat(
+				go asyncUpdateChat(
 					chat.Id,
 					chat.Title,
 					user.Id(),
@@ -83,7 +104,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if shouldUpdate(userUpdateCache, user.Id(), userUpdateInterval) {
 			log.Debugf("Updating user %d in db", user.Id())
 			// update when users send a message
-			go db.UpdateUser(
+			go asyncUpdateUser(
 				user.Id(),
 				user.Username(),
 				user.Name(),
@@ -96,7 +117,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if repliedMsg.GetSender().IsAnonymousChannel() {
 			if shouldUpdate(channelUpdateCache, repliedMsg.GetSender().Id(), channelUpdateInterval) {
 				log.Debugf("Updating channel %d in db", repliedMsg.GetSender().Id())
-				go db.UpdateChannel(
+				go asyncUpdateChannel(
 					repliedMsg.GetSender().Id(),
 					repliedMsg.GetSender().Name(),
 					repliedMsg.GetSender().Username(),
@@ -105,7 +126,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			if shouldUpdate(userUpdateCache, repliedMsg.GetSender().Id(), userUpdateInterval) {
 				log.Debugf("Updating user %d in db", repliedMsg.GetSender().Id())
-				go db.UpdateUser(
+				go asyncUpdateUser(
 					repliedMsg.GetSender().Id(),
 					repliedMsg.GetSender().Username(),
 					repliedMsg.GetSender().Name(),
@@ -119,7 +140,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		forwarded := msg.ForwardOrigin.MergeMessageOrigin()
 		if forwarded.Chat != nil && forwarded.Chat.Type != "group" {
 			if shouldUpdate(channelUpdateCache, forwarded.Chat.Id, channelUpdateInterval) {
-				go db.UpdateChannel(
+				go asyncUpdateChannel(
 					forwarded.Chat.Id,
 					forwarded.Chat.Title,
 					forwarded.Chat.Username,
@@ -128,7 +149,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		} else if forwarded.SenderUser != nil {
 			// if chat type is not group
 			if shouldUpdate(userUpdateCache, forwarded.SenderUser.Id, userUpdateInterval) {
-				go db.UpdateUser(
+				go asyncUpdateUser(
 					forwarded.SenderUser.Id,
 					forwarded.SenderUser.Username,
 					helpers.GetFullName(

@@ -184,30 +184,30 @@ Stores per-chat captcha configuration settings.
 
 ### `channels`
 
+Stores information about Telegram channels that interact with the bot, including channel metadata for lookup functionality.
+
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('channels_id_seq'::regclass)` | — |
-| `chat_id` | `BIGINT` | ❌ | — | — |
+| `chat_id` | `BIGINT` | ❌ | — | UNIQUE |
 | `channel_id` | `BIGINT` | ✅ | — | — |
+| `channel_name` | `TEXT` | ✅ | — | Channel display name |
+| `username` | `TEXT` | ✅ | — | Channel @username |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
 #### Indexes
 
-- idx_channels_chat_update
+- idx_channels_chat_update (chat_id)
+- idx_channels_username (username) - for username lookups
 
-#### Foreign Keys
+#### Notes
 
-- channel_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
+The `channel_name` and `username` columns enable:
+- Looking up channels by @username via `GetChannelIdByUserName()`
+- Retrieving channel display names via `GetChannelInfoById()`
 
 ### `chat_users`
 

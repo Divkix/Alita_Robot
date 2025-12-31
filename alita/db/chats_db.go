@@ -45,7 +45,8 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 // UpdateChat updates or creates a chat record with the given information.
 // Adds user to the chat's user list if not already present, marks chat as active,
 // and updates the last activity timestamp to track when messages are received.
-func UpdateChat(chatId int64, chatname string, userid int64) {
+// Returns error if database operation fails.
+func UpdateChat(chatId int64, chatname string, userid int64) error {
 	chatr := GetChatSettings(chatId)
 	foundUser := string_handling.FindInInt64Slice(chatr.Users, userid)
 	now := time.Now()
@@ -59,10 +60,11 @@ func UpdateChat(chatId int64, chatname string, userid int64) {
 		}).Error
 		if err != nil {
 			log.Errorf("[Database] UpdateChat (activity only): %d - %v", chatId, err)
+			return err
 		}
 		// Invalidate cache after update
 		deleteCache(chatCacheKey(chatId))
-		return
+		return nil
 	}
 
 	// Prepare updates for all fields
@@ -90,20 +92,21 @@ func UpdateChat(chatId int64, chatname string, userid int64) {
 		err := DB.Create(newChat).Error
 		if err != nil {
 			log.Errorf("[Database] UpdateChat: %v - %d (%d)", err, chatId, userid)
-			return
+			return err
 		}
 	} else if len(updates) > 0 {
 		// Update existing chat with all changes
 		err := DB.Model(&Chat{}).Where("chat_id = ?", chatId).Updates(updates).Error
 		if err != nil {
 			log.Errorf("[Database] UpdateChat: %v - %d (%d)", err, chatId, userid)
-			return
+			return err
 		}
 	}
 
 	// Invalidate cache after update
 	deleteCache(chatCacheKey(chatId))
 	log.Debugf("[Database] UpdateChat: %d", chatId)
+	return nil
 }
 
 // GetAllChats retrieves all chat records and returns them as a map indexed by chat ID.

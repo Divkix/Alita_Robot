@@ -77,7 +77,8 @@ func checkUserInfo(userId int64) (userc *User) {
 // Only updates fields that have actually changed to minimize database operations.
 // Always updates last_activity to track user interactions.
 // Invalidates user cache after successful update.
-func UpdateUser(userId int64, username, name string) {
+// Returns error if database operation fails.
+func UpdateUser(userId int64, username, name string) error {
 	userc := checkUserInfo(userId)
 	now := time.Now()
 
@@ -98,7 +99,7 @@ func UpdateUser(userId int64, username, name string) {
 		err := DB.Model(&User{}).Where("user_id = ?", userId).Updates(updates).Error
 		if err != nil {
 			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
-			return
+			return err
 		}
 		// Invalidate cache after update
 		deleteCache(userCacheKey(userId))
@@ -114,12 +115,13 @@ func UpdateUser(userId int64, username, name string) {
 		err := DB.Create(userc).Error
 		if err != nil {
 			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
-			return
+			return err
 		}
 		// Invalidate cache after create
 		deleteCache(userCacheKey(userId))
 		log.Infof("[Database] UpdateUser: created new user %d", userId)
 	}
+	return nil
 }
 
 // GetUserIdByUserName retrieves a user ID by their username.

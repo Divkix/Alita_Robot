@@ -364,3 +364,30 @@ The project uses GoReleaser for multi-platform builds:
 - **Fix**: Perform database writes synchronously when the user needs confirmation of success
 - **Pattern**: Execute DB operation first, then send confirmation message only after it completes
 - **When Async is OK**: Background cleanup, logging, or non-critical operations that don't need user confirmation
+
+### Database Schema and Struct Synchronization
+- **Issue**: Database functions accepting parameters that the schema cannot store leads to silent data loss
+- **Example**: `UpdateChannel(channelId, channelName, username)` received name and username but the `channels` table had no columns for them
+- **Fix**: Always verify that:
+  1. Database table columns match the GORM struct fields
+  2. Function parameters can actually be persisted
+  3. Early returns don't prevent legitimate updates
+- **Pattern**: When adding parameters to a database function:
+  1. Add migration for new columns first
+  2. Update GORM struct to include new fields
+  3. Update optimized queries SELECT to include new columns
+  4. Then update the function to use them
+- **Testing**: Verify data is actually stored by querying after insert/update
+
+### Async Database Operations with Error Handling
+- **Issue**: Fire-and-forget goroutines (`go db.UpdateX()`) lose errors
+- **Fix**: Create wrapper functions that handle errors from async operations:
+  ```go
+  func asyncUpdateUser(userId int64, username, name string) {
+      if err := db.UpdateUser(userId, username, name); err != nil {
+          log.Warnf("[Users] Failed to update user %d: %v", userId, err)
+      }
+  }
+  ```
+- **Pattern**: Use wrapper functions for all async DB calls to ensure errors are logged
+- **Best Practice**: Functions should return errors even if callers discard them for debugging

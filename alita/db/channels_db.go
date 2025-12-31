@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -48,58 +49,89 @@ func EnsureChatExists(chatId int64, chatName string) error {
 	return nil
 }
 
-// UpdateChannel updates or creates a channel record.
-// Ensures the chat exists before creating channel settings and invalidates cache after updates.
-func UpdateChannel(channelId int64, channelName, username string) {
+// UpdateChannel updates or creates a channel record with full metadata.
+// Stores channel name and username, and invalidates cache after updates.
+// Returns error if database operation fails.
+func UpdateChannel(channelId int64, channelName, username string) error {
 	// Check if channel already exists
 	channelSrc := GetChannelSettings(channelId)
+	now := time.Now()
 
-	if channelSrc != nil && channelSrc.ChannelId == channelId {
-		// Channel already exists with same ID, no update needed
-		return
-	}
+	if channelSrc != nil && channelSrc.ChatId != 0 {
+		// Channel exists - check if update is needed
+		needsUpdate := false
+		updates := make(map[string]any)
 
-	// Ensure the chat exists before creating/updating channel
-	if err := EnsureChatExists(channelId, channelName); err != nil {
-		log.Errorf("[Database] UpdateChannel: Failed to ensure chat exists for %d (%s): %v", channelId, username, err)
-		return
-	}
-
-	if channelSrc == nil {
-		// Create new channel - Note: The original Channel struct doesn't map well to ChannelSettings
-		// ChannelSettings is for chat->channel mapping, not channel info storage
-		channelSrc = &ChannelSettings{
-			ChatId:    channelId,
-			ChannelId: channelId, // Assuming this is the mapping
+		if channelSrc.ChannelName != channelName && channelName != "" {
+			updates["channel_name"] = channelName
+			needsUpdate = true
 		}
-		err := CreateRecord(channelSrc)
-		if err != nil {
-			log.Errorf("[Database] UpdateChannel: %v - %d (%s)", err, channelId, username)
-			return
+		if channelSrc.Username != username && username != "" {
+			updates["username"] = username
+			needsUpdate = true
 		}
-		// Invalidate cache after create
-		deleteCache(channelCacheKey(channelId))
-		log.Debugf("[Database] UpdateChannel: created channel %d", channelId)
+
+		if needsUpdate {
+			updates["updated_at"] = now
+			err := DB.Model(&ChannelSettings{}).Where("chat_id = ?", channelId).Updates(updates).Error
+			if err != nil {
+				log.Errorf("[Database] UpdateChannel: failed to update %d: %v", channelId, err)
+				return err
+			}
+			deleteCache(channelCacheKey(channelId))
+			log.Debugf("[Database] UpdateChannel: updated channel %d", channelId)
+		}
+		return nil
 	}
+
+	// Create new channel with full metadata
+	channelSrc = &ChannelSettings{
+		ChatId:      channelId,
+		ChannelId:   channelId,
+		ChannelName: channelName,
+		Username:    username,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	err := DB.Create(channelSrc).Error
+	if err != nil {
+		log.Errorf("[Database] UpdateChannel: failed to create %d (%s): %v", channelId, username, err)
+		return err
+	}
+	deleteCache(channelCacheKey(channelId))
+	log.Infof("[Database] UpdateChannel: created channel %d (%s)", channelId, channelName)
+	return nil
 }
 
-// GetChannelIdByUserName attempts to find a channel ID by username.
-// Returns 0 as this function is not supported with the current model structure.
+// GetChannelIdByUserName finds a channel ID by username.
+// Returns 0 if the channel is not found or an error occurs.
 func GetChannelIdByUserName(username string) int64 {
-	// Note: The new ChannelSettings model doesn't store username
-	// This function cannot be implemented with the current model structure
-	log.Warnf("[Database] GetChannelIdByUserName: Function not supported with current model structure")
-	return 0
+	if username == "" {
+		return 0
+	}
+
+	var chatId int64
+	err := DB.Model(&ChannelSettings{}).
+		Select("chat_id").
+		Where("username = ?", username).
+		Scan(&chatId).Error
+
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[Database] GetChannelIdByUserName: %v - %s", err, username)
+		}
+		return 0
+	}
+	return chatId
 }
 
-// GetChannelInfoById retrieves channel information by user ID.
-// Returns empty strings for username and name as the current model doesn't store this data.
-func GetChannelInfoById(userId int64) (username, name string, found bool) {
-	channel := GetChannelSettings(userId)
-	if channel != nil {
-		// Note: The new model doesn't store username/name, only IDs
-		username = ""
-		name = ""
+// GetChannelInfoById retrieves channel information by channel ID.
+// Returns username, name, and whether the channel was found.
+func GetChannelInfoById(channelId int64) (username, name string, found bool) {
+	channel := GetChannelSettings(channelId)
+	if channel != nil && channel.ChatId != 0 {
+		username = channel.Username
+		name = channel.ChannelName
 		found = true
 	}
 	return

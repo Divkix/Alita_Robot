@@ -264,7 +264,7 @@ func NewOptimizedChannelQueries() *OptimizedChannelQueries {
 	return &OptimizedChannelQueries{db: DB}
 }
 
-// GetChannelSettings retrieves channel settings with minimal column selection.
+// GetChannelSettings retrieves channel settings with all relevant columns.
 // Returns channel settings for the specified chat or nil if not found.
 func (o *OptimizedChannelQueries) GetChannelSettings(chatID int64) (*ChannelSettings, error) {
 	if o.db == nil {
@@ -273,7 +273,7 @@ func (o *OptimizedChannelQueries) GetChannelSettings(chatID int64) (*ChannelSett
 
 	var settings ChannelSettings
 	err := o.db.Model(&ChannelSettings{}).
-		Select("id, chat_id, channel_id").
+		Select("id, chat_id, channel_id, channel_name, username").
 		Where("chat_id = ?", chatID).
 		First(&settings).Error
 
