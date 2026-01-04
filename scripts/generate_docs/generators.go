@@ -1193,9 +1193,10 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	permissionCount := 0
 	restrictionCount := 0
 	for _, lock := range lockTypes {
-		if lock.Category == "permission" {
+		switch lock.Category {
+		case "permission":
 			permissionCount++
-		} else if lock.Category == "restriction" {
+		case "restriction":
 			restrictionCount++
 		}
 	}
