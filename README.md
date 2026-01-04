@@ -29,6 +29,10 @@
 > customization, Alita provides comprehensive moderation tools for Telegram
 > communities of any size.
 
+<p align='center'>
+<a href="https://render.com/deploy?repo=https://github.com/divkix/Alita_Robot"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render"></a> <a href="https://railway.com/deploy/2vHOTV?referralCode=Divkix"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a> <a href="https://heroku.com/deploy?template=https://github.com/divkix/Alita_Robot"><img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy"></a>
+</p>
+
 ## 📋 Table of Contents
 
 - [Features](#-features)
@@ -147,16 +151,6 @@ docker-compose logs -f alita
 ### Interact with Your Bot
 
 Open Telegram and search for your bot username to start using it!
-
-## ☁️ One-Click Deploy
-
-Deploy Alita to your favorite cloud platform with a single click:
-
-| Platform | Deploy | Notes |
-|----------|--------|-------|
-| Render | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/divkix/Alita_Robot) | Free tier available |
-| Railway | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/2vHOTV?referralCode=Divkix) | Includes PostgreSQL & Redis |
-| Heroku | [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/divkix/Alita_Robot) | Paid plans only (~$13/mo) |
 
 > **Note:** After deploying, configure the required environment variables
 > (`BOT_TOKEN`, `OWNER_ID`, `MESSAGE_DUMP`) in your platform's dashboard.
@@ -739,7 +733,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 for details.
 
 ```
-Copyright (C) 2020-2025 Divkix
+Copyright (C) 2020-2026 Divkix
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
