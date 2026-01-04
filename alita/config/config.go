@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"runtime"
@@ -10,6 +11,54 @@ import (
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
+
+// getRedisAddress returns the Redis address from REDIS_ADDRESS or parses it from REDIS_URL (Heroku format)
+// REDIS_URL format: redis://user:password@host:port
+// Returns: host:port
+func getRedisAddress() string {
+	if addr := os.Getenv("REDIS_ADDRESS"); addr != "" {
+		return addr
+	}
+
+	// Fallback to parsing REDIS_URL (Heroku provides this)
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(redisURL)
+	if err != nil {
+		log.Warnf("Failed to parse REDIS_URL: %v", err)
+		return ""
+	}
+
+	return parsed.Host
+}
+
+// getRedisPassword returns the Redis password from REDIS_PASSWORD or extracts it from REDIS_URL
+func getRedisPassword() string {
+	if pass := os.Getenv("REDIS_PASSWORD"); pass != "" {
+		return pass
+	}
+
+	// Fallback to extracting from REDIS_URL
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(redisURL)
+	if err != nil {
+		return ""
+	}
+
+	if parsed.User != nil {
+		pass, _ := parsed.User.Password()
+		return pass
+	}
+
+	return ""
+}
 
 // Config holds all configuration for the bot
 type Config struct {
@@ -124,7 +173,7 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("DATABASE_URL is required")
 	}
 	if cfg.RedisAddress == "" {
-		return fmt.Errorf("REDIS_ADDRESS is required")
+		return fmt.Errorf("REDIS_ADDRESS or REDIS_URL is required")
 	}
 
 	// Validate webhook configuration if webhooks are enabled
@@ -220,9 +269,9 @@ func LoadConfig() (*Config, error) {
 		DBConnMaxLifetimeMin: typeConvertor{str: os.Getenv("DB_CONN_MAX_LIFETIME_MIN")}.Int(),
 		DBConnMaxIdleTimeMin: typeConvertor{str: os.Getenv("DB_CONN_MAX_IDLE_TIME_MIN")}.Int(),
 
-		// Redis configuration
-		RedisAddress:  os.Getenv("REDIS_ADDRESS"),
-		RedisPassword: os.Getenv("REDIS_PASSWORD"),
+		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for Heroku compatibility)
+		RedisAddress:  getRedisAddress(),
+		RedisPassword: getRedisPassword(),
 		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
 
 		// HTTP Server configuration
