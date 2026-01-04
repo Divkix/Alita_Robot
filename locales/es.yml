@@ -333,6 +333,7 @@ connections_is_user_connected_need_group:
   no en PM!
 connections_is_user_connected_user_not_admin: Necesitas ser administrador para hacer esto.
 connections_not_connected: No estás conectado a ningún chat.
+connections_stale_connection: "Tu conexión está obsoleta: ya no puedo acceder a este chat. Usa /connect para reconectarte a un chat válido."
 connections_reconnect_need_pm: ¡Necesitas estar en PM conmigo para reconectarte a un chat!
 connections_reconnect_no_last_chat: ¡No tienes último chat al cual reconectarte!
 connections_reconnect_reconnected: ¡¡Ahora estás reconectado a <b>%s</b>!!
@@ -942,6 +943,14 @@ captcha_invalid_user: ID de usuario inválido
 captcha_error_processing: Error procesando respuesta
 captcha_invalid_refresh: Datos de actualización inválidos
 
+# Captcha max attempts
+captcha_max_attempts_current: "Intentos máximos de verificación actuales: <b>%d</b>"
+captcha_max_attempts_invalid: "Valor inválido. Especifica un número entre 1 y 10."
+captcha_max_attempts_set: "Intentos máximos de verificación establecidos en <b>%d</b>"
+
+# Captcha auto-unmute
+captcha_user_auto_unmute: "El usuario %s será desmuteado automáticamente en 24 horas."
+
 # Help module strings
 help_pm_questions: "¡Hola :) Envíame un PM si tienes alguna pregunta sobre cómo usarme!"
 help_config_private_only: La configuración solo funciona en privado
@@ -979,6 +988,9 @@ notes_invalid: ¡Nota Inválida!
 
 # Misc module strings
 misc_translation_error: ¡Error al hacer una solicitud de traducción!
+misc_need_text_and_lang: Necesito texto y un código de idioma para traducir.
+misc_no_text_to_translate: El mensaje respondido no contiene texto para traducir.
+misc_provide_text_translate: Por favor proporciona texto para traducir.
 
 # Devs module strings
 devs_specify_user: Debes especificar un usuario para obtener información
@@ -1232,6 +1244,10 @@ devs_getting_chat_list: Obteniendo lista de chats en los que estoy...
 devs_chat_list_caption: ¡Aquí está la lista de chats en mi Base de Datos!
 devs_no_team_users: ¡No hay usuarios añadidos en el Equipo!
 devs_no_users: "Sin Usuarios"
+devs_getting_chatlist: Obteniendo lista de chats en los que estoy...
+devs_chatlist_caption: ¡Aquí está la lista de chats en mi Base de Datos!
+devs_no_team_members: ¡No hay usuarios añadidos en el Equipo!
+devs_no_users_in_category: "Sin Usuarios"
 
 # Additional hardcoded strings from modules
 bans_anonymous_ban_only_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
@@ -1362,7 +1378,9 @@ filters_limit_exceeded: |
   ¡Límite de filtros excedido, un grupo solo puede tener máximo 150 filtros!
   Esta limitación se debe a que el bot funciona gratis sin donaciones de usuarios.
 filters_keyword_required: "¡Por favor proporciona una palabra clave para responder!"
+filters_keyword_too_long: "¡La palabra clave del filtro es demasiado larga! Máximo 100 caracteres permitidos."
 filters_overwrite_confirm: "¡El filtro ya existe!\n¿Quieres sobrescribirlo?"
+filters_overwrite_expired: "⏰ ¡Confirmación expirada! Inténtalo de nuevo."
 filters_added_success: "Añadida respuesta para palabra de filtro <code>%s</code>"
 filters_remove_keyword_required: "¡Por favor proporciona una palabra de filtro para eliminar!"
 filters_not_exists: "¡El filtro no existe!"
@@ -1502,6 +1520,8 @@ helpers_need_content: "¡Necesitas darme algo de contenido para %s usuarios!"
 helpers_text_too_long: "Tu texto de mensaje tiene %d caracteres de largo. La longitud máxima para texto es 4096; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 helpers_caption_too_long: "Tu pie de foto del mensaje tiene %d caracteres de largo. La longitud máxima del pie de foto es 1024; por favor recórtalo a un tamaño menor. Ten en cuenta que los caracteres markdown pueden ocupar más espacio del esperado."
 helpers_module_help_header: "Aquí está la ayuda para el módulo *%s*:\n\n"
+helpers_invalid_deep_link: "Enlace profundo inválido o mal formado. Verifica la URL e inténtalo de nuevo."
+helpers_chat_not_found: "No se pudo encontrar el chat asociado a este enlace. Es posible que el chat ya no exista o que no tenga acceso a él."
 
 # Repository validation errors
 repo_user_nil_error: "el usuario no puede ser nulo"
@@ -1708,3 +1728,462 @@ db_type_assertion_failed: "aserción de tipo a []byte falló"
 
 # Default button texts
 button_rules_default: "Reglas"
+
+# Antispam module strings (no commands - automatic background protection)
+antispam_help_msg: |
+  El módulo antispam proporciona protección automática contra spam, funcionando en segundo plano para tus grupos.
+
+  A diferencia de otros módulos, opera automáticamente sin requerir comandos de usuario.
+
+  <b>Cómo funciona:</b>
+  La limitación de tasa por usuario y por chat evita el spam automáticamente.
+  • <b>Límite de tasa:</b> 18 mensajes por segundo por usuario y por chat
+  • <b>Automático:</b> No requiere configuración - funciona desde el primer momento
+  • <b>Transparente:</b> Descarta silenciosamente los mensajes excesivos sin interrumpir a usuarios normales
+  • <b>Seguimiento por usuario:</b> Grupos ocupados con muchos usuarios legítimos no generan falsos positivos
+
+antispam_extended_docs: |
+  <b>Detalles técnicos</b>
+
+  <b>Algoritmo de limitación de tasa:</b>
+  El módulo usa una ventana deslizante:
+  1. <b>Primer mensaje:</b> Comienza el seguimiento con contador = 1
+  2. <b>Mensajes posteriores:</b> Incrementa el contador dentro de la ventana de tiempo
+  3. <b>Vencimiento de la ventana:</b> El contador se reinicia cuando la ventana (1 segundo) expira
+  4. <b>Umbral excedido:</b> Los mensajes por encima de 18/segundo se descartan silenciosamente
+
+  <b>Gestión de memoria:</b>
+  • Limpieza automática: Las entradas de seguimiento expiradas se eliminan cada 5 minutos
+  • Sin fugas de memoria: Un goroutine en segundo plano evita crecimiento sin límites
+  • Almacenamiento eficiente: Solo se rastrean usuarios activos
+
+antispam_notes_docs: |
+  <b>Limitaciones</b>
+  • <b>Sin comandos de usuario:</b> No se puede habilitar/deshabilitar por chat
+  • <b>Umbral fijo:</b> 18 mensajes/segundo está codificado
+  • <b>Sin registros en el chat:</b> Los eventos de spam solo se registran en el servidor
+
+  Usa <b>Antispam</b> para protección automática en segundo plano y <b>Antiflood</b> para control de inundación configurable.
+
+# Admin module extended documentation
+admin_extended_docs: |
+  <b>Soporte para administradores anónimos</b>
+
+  El comando <code>/anonadmin</code> permite a los propietarios del grupo alternar el reconocimiento de administradores anónimos:
+  <code>/anonadmin on</code> - Habilitar verificación de admins anónimos
+  <code>/anonadmin off</code> - Deshabilitar verificación de admins anónimos
+
+  Cuando está habilitado, el bot solicitará verificación para acciones de admin realizadas desde cuentas anónimas.
+
+  <b>Cómo funciona la verificación de admin anónimo:</b>
+  1. El bot detecta que el remitente es GroupAnonymousBot
+  2. El mensaje original se cachea con TTL de 20 segundos
+  3. Se envía un botón de "Verificar Admin" al chat
+  4. Al hacer clic, el usuario se verifica como admin y el comando se ejecuta
+  5. El botón expira después de 20 segundos si no se verifica
+
+  <b>Comandos compatibles:</b>
+  Admin: /promote, /demote, /title
+  Bans: /ban, /dban, /sban, /tban, /unban
+  Mutes: /mute, /smute, /dmute, /tmute, /unmute
+  Pins: /pin, /unpin, /permapin, /unpinall
+  Purges: /purge, /del
+  Warns: /warn, /swarn, /dwarn
+
+admin_notes_docs: |
+  <b>Notas de seguridad</b>
+  • Toda la entrada controlada por el usuario se escapa en HTML para prevenir ataques de inyección
+  • Los cambios de permisos de admin se ejecutan con manejo de errores y recuperación de pánico
+
+# Antiflood extended docs
+antiflood_notes_docs: |
+  <b>Comportamiento predeterminado</b>
+  Antiflood está <b>deshabilitado por defecto</b>. Debes habilitarlo explícitamente usando <code>/setflood &lt;número&gt;</code>.
+
+# Locks module extended documentation
+locks_types_docs: |
+  <b>Bloqueos de permisos</b> (16 tipos)
+  <code>sticker</code> - Bloquear stickers
+  <code>audio</code> - Bloquear archivos de audio
+  <code>voice</code> - Bloquear mensajes de voz
+  <code>document</code> - Bloquear documentos
+  <code>video</code> - Bloquear videos
+  <code>videonote</code> - Bloquear notas de video
+  <code>contact</code> - Bloquear contactos
+  <code>photo</code> - Bloquear fotos
+  <code>gif</code> - Bloquear GIFs
+  <code>url</code> - Bloquear URLs
+  <code>bots</code> - Evitar añadir bots
+  <code>forward</code> - Bloquear reenviados
+  <code>game</code> - Bloquear juegos
+  <code>location</code> - Bloquear ubicaciones
+  <code>rtl</code> - Bloquear texto RTL
+  <code>anonchannel</code> - Bloquear mensajes de canales
+
+  <b>Bloqueos de restricción</b> (6 tipos)
+  <code>messages</code> - Bloquear todos los mensajes
+  <code>comments</code> - Bloquear comentarios de no miembros
+  <code>media</code> - Bloquear todos los medios
+  <code>other</code> - Bloquear juegos/stickers/GIFs
+  <code>previews</code> - Bloquear vistas previas de URL
+  <code>all</code> - Bloquear todo
+
+locks_notes_docs: |
+  <b>Notas técnicas</b>
+  • La aplicación de bloqueos es en tiempo real
+  • Los administradores están exentos de todos los bloqueos
+  • Los bloqueos persisten tras reinicios del bot
+  • La caché se invalida al actualizar
+
+# Languages extended docs
+languages_extended_docs: |
+  <b>Cómo funciona</b>
+  • <b>Chats privados:</b> Cualquier usuario puede cambiar su idioma personal
+  • <b>Chats de grupo:</b> Solo los admins pueden cambiar el idioma del grupo
+
+  Las preferencias de idioma se cachean por rendimiento y se almacenan por separado para usuarios y grupos.
+
+# Greetings extended docs
+greetings_extended_docs: |
+  <b>Integración con Captcha</b>
+  Cuando el módulo Captcha está habilitado:
+  1. Los nuevos miembros quedan silenciados al unirse
+  2. Se envía un desafío de captcha en lugar de bienvenida
+  3. Tras la verificación, se envía el mensaje de bienvenida
+  4. Si falla la verificación, se aplica la acción configurada
+
+# Extended documentation locale keys - Notes module
+notes_extended_docs: |
+  <b>Funciones:</b>
+  • <b>Soporte de texto y multimedia</b>: Guarda mensajes de texto, fotos, videos, documentos y más
+  • <b>Botones personalizados</b>: Añade botones en teclado inline a las notas
+  • <b>Opciones de formato</b>: Controla visibilidad y comportamiento de las notas
+  • <b>Notas solo para admins</b>: Restringe ciertas notas a administradores
+  • <b>Notas privadas</b>: Envía notas por DM a los usuarios
+  • <b>Control de vista previa web</b>: Habilita o deshabilita vistas previas de enlaces
+  • <b>Contenido protegido</b>: Evita que el contenido de notas sea reenviado
+
+  <b>Opciones de formato de notas:</b>
+  Al guardar una nota, puedes usar etiquetas especiales para controlar su comportamiento:
+  • <code>{private}</code> - La nota solo se enviará por DM, nunca en el grupo
+  • <code>{noprivate}</code> - La nota solo se enviará en el grupo, nunca por DM
+  • <code>{admin}</code> - La nota solo puede ser accedida por admins
+  • <code>{protect}</code> - El contenido no puede ser reenviado
+  • <code>{nonotif}</code> - Enviar sin sonido de notificación
+  • <code>{nopreview}</code> - Deshabilitar vista previa de enlace
+
+  <b>Modo de notas privadas:</b>
+  Cuando las notas privadas están habilitadas (<code>/privatenotes on</code>), todas las notas se envían por DM en lugar de en el grupo. Esto mantiene el chat limpio.
+
+  Las notas individuales pueden anular este comportamiento:
+  • <code>{private}</code> - Enviar siempre en privado
+  • <code>{noprivate}</code> - Enviar siempre en el grupo
+
+  <b>Nota sin formato (No Formatting):</b>
+  Para ver el contenido sin formato de una nota (para editar):
+  <code>/get nombredenota noformat</code>
+
+notes_permissions_docs: |
+  <b>Permisos requeridos:</b>
+  • Guardar/Borrar notas: Cambiar información del grupo
+  • Ver notas de admin: Estado de admin
+  • Borrar todas las notas: Propietario del chat
+  • Obtener notas normales: Cualquier usuario
+
+# Extended documentation locale keys - Pins module
+pins_extended_docs: |
+  <b>Funciones:</b>
+
+  <b>Anti-Channel Pin:</b>
+  Cuando está habilitado, el bot desanclará automáticamente cualquier mensaje que se ancle automáticamente desde un canal enlazado. Esto es útil cuando quieres mantener el control sobre lo que se fija en tu grupo.
+
+  <b>Importante:</b> Al usar anti channel pins, utiliza siempre el comando <code>/unpin</code> en lugar de desanclar manualmente desde Telegram. Desanclar manualmente hará que el mensaje antiguo se vuelva a fijar cuando el canal envíe nuevos mensajes.
+
+  <b>Clean Linked:</b>
+  Cuando está habilitado, el bot eliminará automáticamente cualquier mensaje enviado al grupo desde el canal enlazado. Esto mantiene tu chat libre de contenido cruzado del canal.
+
+  <b>Permapin:</b>
+  Crea mensajes fijados personalizados con:
+  • Texto con formato HTML/Markdown
+  • Botones inline con URLs
+  • Adjuntos multimedia (fotos, documentos, stickers, audio, video, notas de voz, notas de video)
+  • Todos los rellenos de mensaje estándar ({first}, {chatname}, etc.)
+
+  <b>Compatibles vía conexión:</b>
+  Los siguientes comandos funcionan cuando estás conectado a un chat mediante <code>/connect</code>:
+  • <code>/antichannelpin</code>
+  • <code>/cleanlinked</code>
+
+pins_notes_docs: |
+  <b>Notas:</b>
+  • El comando <code>/unpinall</code> muestra un diálogo de confirmación antes de desanclar todos los mensajes
+  • Permapin admite todos los tipos de medios que Telegram permite fijar
+  • Los ajustes de anti-channel pin y clean linked se guardan por chat y persisten tras reinicios del bot
+
+  <b>Permisos requeridos:</b>
+  <b>Bot:</b> Debe ser admin con permiso de "Fijar mensajes"
+  <b>Usuario:</b> La mayoría de comandos requieren admin con permiso de "Fijar mensajes"
+
+# Extended documentation locale keys - Purges module
+purges_extended_docs: |
+  <b>Borrado por rango con purgefrom/purgeto:</b>
+  Cuando necesitas más control sobre el rango de borrado:
+
+  1. Responde al <b>primer</b> mensaje del rango:
+  <code>/purgefrom</code>
+  El bot confirmará que el mensaje está marcado (expira tras 30 segundos).
+
+  2. Responde al <b>último</b> mensaje del rango:
+  <code>/purgeto</code>
+  Se eliminarán todos los mensajes entre los dos marcadores (incluidos).
+
+  Esto es útil cuando no puedes desplazarte fácilmente al punto inicial o necesitas verificar el rango antes de borrar.
+
+  <b>Límites y restricciones:</b>
+  • <b>Máximo de mensajes por purge:</b> 1000 mensajes
+  • <b>Límite de antigüedad:</b> Mensajes con más de 48 horas pueden no ser borrables (restricción de la API de Telegram)
+  • <b>Permisos requeridos:</b> Tanto el usuario como el bot deben tener permiso de "Eliminar mensajes"
+
+purges_notes_docs: |
+  <b>Notas:</b>
+  • El marcador de <code>/purgefrom</code> expira tras 30 segundos si no se usa <code>/purgeto</code>
+  • Eliminar rangos grandes usa procesamiento concurrente para mejor rendimiento
+  • Los mensajes de estado (mostrando cuántos mensajes se borraron) se autoeliminan tras 3 segundos
+  • El bot maneja mensajes ya eliminados sin errores
+
+# Extended documentation locale keys - Reports module
+reports_extended_docs: |
+  <b>Cómo funciona:</b>
+
+  <b>Reportar un mensaje:</b>
+  1. <b>Responde al mensaje ofensivo</b> con <code>/report</code> o menciona <code>@admin</code>
+  2. El bot envía una notificación mencionando a todos los admins que tienen reportes habilitados
+  3. La notificación incluye botones de acción para moderación rápida
+
+  <b>Botones de acción de admin:</b>
+  • <b>📩 Mensaje</b> - Enlace al mensaje reportado
+  • <b>👢 Expulsar</b> - Expulsa al usuario reportado (puede volver a unirse)
+  • <b>🚫 Banear</b> - Banea permanentemente al usuario reportado
+  • <b>🗑 Eliminar</b> - Elimina el mensaje reportado
+  • <b>✅ Resuelto</b> - Marca el reporte como resuelto sin acción
+
+  <b>Configuración personal vs de grupo:</b>
+  • <b>En PM:</b> <code>/reports on/off</code> alterna si TÚ recibes notificaciones
+  • <b>En grupo:</b> <code>/reports on/off</code> alterna si los reportes están habilitados en ese grupo
+
+reports_permissions_docs: |
+  <b>¿Quién puede reportar?</b>
+  ✅ Usuarios normales
+  ❌ Admins (no necesitan reportarse a sí mismos)
+  ❌ Usuarios bloqueados
+  ❌ Canales anónimos / cuentas del sistema de Telegram
+
+  <b>¿A quién se puede reportar?</b>
+  ✅ Usuarios normales
+  ❌ El bot
+  ❌ Admins (protegidos de reportes)
+  ❌ Canales anónimos / cuentas del sistema de Telegram
+
+# Extended documentation locale keys - Rules module
+rules_extended_docs: |
+  <b>Funciones:</b>
+
+  <b>Reglas privadas:</b>
+  Habilita reglas privadas (<code>/privaterules on</code>) para enviar las reglas por PM en lugar de en el grupo. Esto mantiene el chat limpio.
+
+  <b>Botón de reglas personalizado:</b>
+  Establece un texto de botón personalizado (máximo 30 caracteres):
+  <code>/rulesbtn Ver reglas</code>
+
+  Restablecer al valor predeterminado:
+  <code>/resetrulesbtn</code>
+
+  <b>Establecer reglas:</b>
+  Puedes establecer reglas proporcionando el texto directamente o respondiendo a un mensaje:
+  <code>/setrules Por favor, sé respetuoso con todos los miembros.</code>
+
+  O responde a un mensaje:
+  <code>/setrules</code>
+
+  <b>Permisos requeridos:</b>
+  • Comandos de usuario: Disponibles para todos los usuarios
+  • Comandos de admin: Requieren permisos de admin en el chat
+
+# Extended documentation locale keys - Warns module
+warns_extended_docs: |
+  <b>Configuración predeterminada:</b>
+  • <b>Límite de advertencias predeterminado:</b> 3 advertencias
+  • <b>Modo de advertencias predeterminado:</b> silenciar
+
+  <b>Modos de advertencia disponibles:</b>
+  • <code>ban</code> - Banea permanentemente al usuario del chat
+  • <code>kick</code> - Expulsa al usuario (puede volver a unirse)
+  • <code>mute</code> - Silencia al usuario (no puede enviar mensajes)
+
+  <b>Advertencias silenciosas y con eliminación:</b>
+  • <code>/swarn</code> - Elimina tu comando y advierte en silencio
+  • <code>/dwarn</code> - Elimina el mensaje del usuario y le advierte
+
+warns_permissions_docs: |
+  <b>Requisitos de permisos:</b>
+  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code>: Bot admin + Usuario admin con restricción
+  • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Usuario admin
+  • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Usuario admin
+  • <code>/resetallwarns</code>: Solo propietario del chat
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + Usuario admin
+  • <code>/warnings</code>: Bot admin + Usuario admin
+  • <code>/warns</code>: Cualquier usuario (deshabilitable)
+
+warns_notes_docs: |
+  <b>Notas:</b>
+  • Cuando un usuario alcanza el límite de advertencias, se aplica automáticamente la acción configurada (ban/kick/mute)
+  • Las razones de advertencia se guardan y se muestran al revisar las advertencias de un usuario
+  • El comando <code>/warns</code> es el único comando en este módulo que puede ser deshabilitado por admins
+  • Las publicaciones de canales anónimos no pueden ser advertidas
+  • Los admins no pueden ser advertidos
+
+# Extended documentation locale keys - Mutes module
+mutes_extended_docs: |
+  <b>Formato de tiempo para silencios temporales:</b>
+  • <code>m</code> = minutos (ej., <code>30m</code>)
+  • <code>h</code> = horas (ej., <code>2h</code>)
+  • <code>d</code> = días (ej., <code>1d</code>)
+
+  <b>Variantes de mute:</b>
+  • <code>/mute</code> - Silencio estándar con razón opcional
+  • <code>/smute</code> - Silencio silencioso (elimina tu comando)
+  • <code>/dmute</code> - Delete-mute (silencia al usuario y elimina su mensaje)
+  • <code>/tmute</code> - Silencio temporal con duración específica
+
+  <b>Permisos requeridos:</b>
+  <b>Comandos solo para admins.</b> Los usuarios que ejecutan estos comandos deben tener:
+  • Estado de admin en el chat
+  • Permiso para restringir miembros
+
+  El bot también debe tener privilegios de admin con permiso para restringir miembros.
+
+# Extended documentation locale keys - Filters module
+filters_extended_docs: |
+  <b>Funciones avanzadas:</b>
+
+  <b>Respuestas aleatorias:</b>
+  Usa <code>%%%</code> para separar múltiples respuestas. Se elegirá una al azar:
+  <code>/filter hola ¡Hola!%%%¡Hey!%%%¿Cómo estás?</code>
+
+  <b>Filtros multimedia:</b>
+  Responde a cualquier medio (foto, video, documento, sticker, etc.) con <code>/filter disparador</code> para crear un filtro que envíe ese medio.
+
+  <b>Modo noformat:</b>
+  Los admins pueden ver el contenido crudo del filtro (incluyendo códigos de formato) agregando <code>noformat</code> después del disparador:
+  <code>hola noformat</code>
+  Esto es útil para depurar filtros o ver configuraciones de botones.
+
+  <b>Botones de filtro:</b>
+  Puedes añadir botones inline a tus filtros:
+  <code>/filter hola ¡Hola! Mira estos enlaces:
+  [Botón 1](buttonurl:https://example.com)
+  [Botón 2](buttonurl:https://example2.com)</code>
+
+filters_technical_docs: |
+  <b>Cómo funcionan los filtros:</b>
+  1. Cuando se recibe un mensaje, el bot obtiene todos los filtros del chat usando una consulta optimizada en caché
+  2. El algoritmo Aho-Corasick coincide eficientemente todas las palabras clave con el texto del mensaje
+  3. El primer filtro que coincide dispara una respuesta
+  4. Los filtros admiten texto, medios y respuestas con botones
+
+  <b>Confirmación de sobrescritura:</b>
+  Cuando intentas añadir un filtro que ya existe, el bot pedirá confirmación antes de sobrescribirlo. La confirmación expira después de 5 minutos.
+
+  <b>Comportamiento de caché:</b>
+  • La lista de filtros se almacena en caché durante 15 minutos por chat
+  • La caché se invalida automáticamente cuando se agregan o eliminan filtros
+
+filters_limits_docs: |
+  <b>Límites:</b>
+  • Máximo 150 filtros por chat
+  • Máximo 100 caracteres por palabra clave de filtro
+  • Las palabras clave de filtro se almacenan en minúsculas
+
+  <b>Permisos requeridos:</b>
+  • <code>/filter</code>, <code>/addfilter</code>: Admin con permiso de cambiar info
+  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code>: Admin con permiso de cambiar info
+  • <code>/stopall</code>: Solo propietario del chat
+  • <code>/filters</code>: Disponible para todos los usuarios
+
+# Extended documentation locale keys - Captcha module
+captcha_extended_docs: |
+  <b>Cómo funciona:</b>
+  1. Cuando el captcha está habilitado, los nuevos miembros se silencian automáticamente al unirse
+  2. Se envía un desafío de captcha al nuevo miembro
+  3. El usuario debe seleccionar la respuesta correcta de las opciones proporcionadas
+  4. Si tiene éxito, el usuario se desmutea y puede participar en el grupo
+  5. Si falla o expira, se aplica la acción configurada (kick, ban o mute)
+
+  <b>Tipos de captcha:</b>
+  • <b>Matemático</b>: Resolver problemas aritméticos simples (suma, resta, multiplicación)
+  • <b>Texto</b>: Identificar texto mostrado en una imagen distorsionada
+
+  <b>Función de mensajes pendientes:</b>
+  Cuando un usuario está completando el captcha, cualquier mensaje que intente enviar se almacena y elimina. Los admins pueden:
+  • Ver qué mensajes intentó enviar un usuario usando <code>/captchapending</code>
+  • Borrar mensajes almacenados usando <code>/captchaclear</code>
+
+  Esto ayuda a identificar posibles intentos de spam antes de que los usuarios completen la verificación.
+
+captcha_permissions_docs: |
+  <b>Requisitos del bot:</b>
+  • Banear usuarios (para acciones de kick/ban)
+  • Restringir miembros (para silenciar durante la verificación)
+  • Eliminar mensajes (para limpiar mensajes de captcha)
+
+  <b>Acciones de fallo:</b>
+  • <code>kick</code> - Banear y desbanear inmediatamente (permite que el usuario vuelva a unirse)
+  • <code>ban</code> - Banear permanentemente al usuario
+  • <code>mute</code> - Mantener al usuario silenciado por 24 horas
+
+# Extended documentation locale keys - Blacklists module
+blacklists_extended_docs: |
+  <b>Acciones disponibles:</b>
+  Las siguientes acciones se pueden configurar usando <code>/blaction</code>:
+  • <code>none</code> - Solo elimina el mensaje sin más acciones
+  • <code>warn</code> - Elimina el mensaje y emite una advertencia al usuario (predeterminado)
+  • <code>mute</code> - Elimina el mensaje y silencia al usuario
+  • <code>kick</code> - Elimina el mensaje y expulsa al usuario (puede volver a unirse)
+  • <code>ban</code> - Elimina el mensaje y banea permanentemente al usuario
+
+  <b>Nota:</b>
+  El modo predeterminado de Blacklist es <b>warn</b>, que eliminará el mensaje y emitirá una advertencia al usuario.
+
+  <b>Comandos:</b>
+  • <code>/addblacklist &lt;disparador&gt;</code> - Añade una palabra a la lista negra en el chat actual
+  • <code>/rmblacklist &lt;disparador&gt;</code> - Elimina la palabra de las palabras en lista negra del chat actual
+  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Define la acción que realizará el bot cuando detecte una palabra en lista negra
+  • <code>/remallbl</code> - Elimina todas las palabras de la lista negra del chat (solo propietario)
+
+# Extended documentation locale keys - Disabling module
+disabling_extended_docs: |
+  <b>Funciones clave:</b>
+  • Deshabilita comandos específicos del bot para usuarios no admins
+  • Los admins siempre pueden evitar comandos deshabilitados
+  • Eliminación automática opcional de mensajes de comandos deshabilitados
+  • Soporte para deshabilitar múltiples comandos a la vez
+
+  <b>Deshabilitar múltiples comandos:</b>
+  <code>/disable adminlist rules info</code>
+  Deshabilita los comandos <code>/adminlist</code>, <code>/rules</code> y <code>/info</code> a la vez.
+
+  <b>Alternar eliminación de comandos:</b>
+  <code>/disabledel on</code> - Los mensajes deshabilitados ahora se eliminarán.
+  <code>/disabledel off</code> - Los mensajes deshabilitados ya no se eliminarán.
+  <code>/disabledel</code> - Ver el estado actual de eliminación.
+
+disabling_notes_docs: |
+  <b>Notas importantes:</b>
+  • <b>Bypass de admin:</b> Los comandos deshabilitados solo afectan a usuarios no admins. Todos los admins aún pueden usar cualquier comando.
+  • <b>Soporte de conexión:</b> Los comandos deshabilitados siguen siendo accesibles mediante la función <code>/connect</code> para chats conectados.
+  • <b>Comandos múltiples:</b> Tanto <code>/disable</code> como <code>/enable</code> admiten múltiples nombres de comando en un solo mensaje.
+  • <b>Manejo de errores:</b> Si algunos comandos no se pueden deshabilitar/habilitar, se te notificará cuáles se lograron y cuáles fallaron.
+
+  <b>Permisos requeridos:</b>
+  • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Solo admins
+  • <code>/disableable</code>, <code>/disabled</code>: Todos los usuarios (pero <code>/disabled</code> puede deshabilitarse)
