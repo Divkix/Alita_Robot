@@ -1,0 +1,30 @@
+{
+  "name": "alita-robot",
+  "description": "Telegram group management bot built with Go",
+  "repository": "https://github.com/divkix/Alita_Robot",
+  "keywords": ["telegram", "bot", "go", "group-management"],
+  "addons": [
+    { "plan": "heroku-postgresql:essential-0" },
+    { "plan": "heroku-redis:mini" }
+  ],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "Your Telegram user ID",
+      "required": true
+    },
+    "MESSAGE_DUMP": {
+      "description": "Log channel ID (must start with -100)",
+      "required": true
+    },
+    "AUTO_MIGRATE": {
+      "value": "true"
+    }
+  },
+  "buildpacks": [
+    { "url": "heroku/go" }
+  ]
+}

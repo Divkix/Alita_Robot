@@ -1,0 +1,40 @@
+services:
+  # Main bot service
+  - type: web
+    name: alita-robot
+    runtime: docker
+    dockerfilePath: ./docker/alpine
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: OWNER_ID
+        sync: false
+      - key: MESSAGE_DUMP
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alita-db
+          property: connectionString
+      - key: REDIS_ADDRESS
+        fromService:
+          type: redis
+          name: alita-redis
+          property: hostport
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: HTTP_PORT
+        value: "10000"
+  # Redis service
+  - type: redis
+    name: alita-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: [] # Allow all internal services
+
+databases:
+  - name: alita-db
+    plan: free
+    databaseName: alita_robot

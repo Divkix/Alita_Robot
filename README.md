@@ -33,6 +33,7 @@
 
 - [Features](#-features)
 - [Quick Start](#-quick-start)
+- [One-Click Deploy](#-one-click-deploy)
 - [Installation](#-installation)
   - [Docker (Recommended)](#docker-recommended)
   - [Binary Release](#binary-release)
@@ -146,6 +147,27 @@ docker-compose logs -f alita
 ### Interact with Your Bot
 
 Open Telegram and search for your bot username to start using it!
+
+## ☁️ One-Click Deploy
+
+Deploy Alita to your favorite cloud platform with a single click:
+
+| Platform | Deploy | Notes |
+|----------|--------|-------|
+| Render | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/divkix/Alita_Robot) | Free tier available |
+| Railway | [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/2vHOTV?referralCode=Divkix) | Includes PostgreSQL & Redis |
+| Heroku | [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/divkix/Alita_Robot) | Paid plans only (~$13/mo) |
+
+> **Note:** After deploying, configure the required environment variables
+> (`BOT_TOKEN`, `OWNER_ID`, `MESSAGE_DUMP`) in your platform's dashboard.
+
+**Platform-specific notes:**
+
+- **Render**: PostgreSQL and Redis are automatically provisioned. Free tier
+  includes 750 hours/month.
+- **Railway**: PostgreSQL and Redis are included in the template.
+- **Heroku**: Requires paid dynos ($5/mo) + PostgreSQL Essential ($5/mo) + Redis
+  Mini ($3/mo). All addons are auto-configured.
 
 ## 💻 Installation
 
