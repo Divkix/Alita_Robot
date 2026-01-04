@@ -2095,7 +2095,7 @@ filters_technical_docs: |
   Cuando intentas añadir un filtro que ya existe, el bot pedirá confirmación antes de sobrescribirlo. La confirmación expira después de 5 minutos.
 
   <b>Comportamiento de caché:</b>
-  • La lista de filtros se cachea 15 minutos por chat
+  • La lista de filtros se almacena en caché durante 15 minutos por chat
   • La caché se invalida automáticamente cuando se agregan o eliminan filtros
 
 filters_limits_docs: |
