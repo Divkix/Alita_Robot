@@ -20,7 +20,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	go.mongodb.org/mongo-driver v1.17.6
 	golang.org/x/sync v0.19.0
-	golang.org/x/text v0.32.0
+	golang.org/x/text v0.33.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
