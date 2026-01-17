@@ -68,7 +68,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - **Commit**: `feat(i18n): add utility strings to French locale`
   - _Requirements: FR-6_
 
-- [ ] 1.6 Add extended documentation strings
+- [x] 1.6 Add extended documentation strings
   - **Do**:
     1. Translate all `*_extended_docs` keys
     2. Translate all `*_notes_docs` keys

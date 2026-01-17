@@ -1468,3 +1468,480 @@ languages_help_msg: "Vous n'arrivez pas a changer la langue du bot ?
 
 
   Vous pouvez nous aider a apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"
+
+# Antiflood module help message
+antiflood_help_msg: |
+  Vous savez comment parfois, des gens rejoignent, envoient 100 messages, et ruinent
+  votre chat ? Avec antiflood, ca n'arrive plus !
+
+  Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages
+  d'affilee. Actions : ban/kick/mute
+
+  *Commandes Admin* :
+
+  × /flood : Obtenir les parametres antiflood actuels.
+
+  × /setflood `<nombre/off/no>` : Definir le nombre de messages apres lequel agir
+  sur un utilisateur. Mettez '0', 'off', ou 'no' pour desactiver.
+
+  × /setfloodmode `<type d'action>` : Choisir l'action a prendre sur un utilisateur qui a
+  flood. Options : ban/kick/mute
+
+  × /delflood `<yes/no/on/off>` : Si vous voulez que le bot supprime les messages floodes par l'utilisateur.
+
+antiflood_notes_docs: |
+  <b>Comportement par defaut</b>
+  Antiflood est <b>desactive par defaut</b>. Vous devez l'activer explicitement en utilisant <code>/setflood &lt;nombre&gt;</code>.
+
+# Antispam module documentation
+antispam_help_msg: |
+  Le module antispam fournit une protection automatique contre le spam en arriere-plan pour vos groupes.
+
+  Contrairement aux autres modules, il fonctionne automatiquement sans necessiter de commandes utilisateur.
+
+  <b>Comment ca fonctionne :</b>
+  Limitation de debit par utilisateur par chat pour prevenir le spam automatiquement.
+  • <b>Limite de debit :</b> 18 messages par seconde par utilisateur par chat
+  • <b>Automatique :</b> Aucune configuration requise - fonctionne immediatement
+  • <b>Transparent :</b> Supprime silencieusement les messages excessifs sans deranger les utilisateurs normaux
+  • <b>Suivi par utilisateur :</b> Les groupes occupes avec beaucoup d'utilisateurs legitimes ne declenchent pas de faux positifs
+
+antispam_extended_docs: |
+  <b>Details Techniques</b>
+
+  <b>Algorithme de limitation de debit :</b>
+  Le module utilise une approche de fenetre glissante :
+  1. <b>Premier message :</b> Commence le suivi avec compteur = 1
+  2. <b>Messages suivants :</b> Incremente le compteur dans la fenetre de temps
+  3. <b>Expiration de fenetre :</b> Le compteur se reinitialise quand la fenetre de temps (1 seconde) expire
+  4. <b>Seuil depasse :</b> Les messages au-dela de 18/seconde sont silencieusement ignores
+
+  <b>Gestion de la memoire :</b>
+  • Nettoyage automatique : Les entrees de suivi expirees sont supprimees toutes les 5 minutes
+  • Pas de fuites memoire : Un goroutine en arriere-plan empeche la croissance memoire illimitee
+  • Stockage efficace : Seuls les utilisateurs actifs sont suivis
+
+antispam_notes_docs: |
+  <b>Limitations</b>
+  • <b>Pas de commandes utilisateur :</b> Ne peut pas etre active/desactive par chat
+  • <b>Seuil fixe :</b> 18 messages/seconde est code en dur
+  • <b>Pas de journalisation dans le chat :</b> Les evenements de spam sont uniquement journalises cote serveur
+
+  Utilisez <b>Antispam</b> pour une protection automatique en arriere-plan et <b>Antiflood</b> pour un controle de flood configurable.
+
+# Locks module extended documentation
+locks_types_docs: |
+  <b>Verrous de permission</b> (16 types)
+  <code>sticker</code> - Bloquer les stickers
+  <code>audio</code> - Bloquer les fichiers audio
+  <code>voice</code> - Bloquer les messages vocaux
+  <code>document</code> - Bloquer les documents
+  <code>video</code> - Bloquer les videos
+  <code>videonote</code> - Bloquer les notes video
+  <code>contact</code> - Bloquer les contacts
+  <code>photo</code> - Bloquer les photos
+  <code>gif</code> - Bloquer les GIFs
+  <code>url</code> - Bloquer les URLs
+  <code>bots</code> - Empecher l'ajout de bots
+  <code>forward</code> - Bloquer les transferts
+  <code>game</code> - Bloquer les jeux
+  <code>location</code> - Bloquer les localisations
+  <code>rtl</code> - Bloquer le texte RTL
+  <code>anonchannel</code> - Bloquer les messages de chaines
+
+  <b>Verrous de restriction</b> (6 types)
+  <code>messages</code> - Bloquer tous les messages
+  <code>comments</code> - Bloquer les commentaires des non-membres
+  <code>media</code> - Bloquer tous les medias
+  <code>other</code> - Bloquer jeux/stickers/GIFs
+  <code>previews</code> - Bloquer les apercus URL
+  <code>all</code> - Tout bloquer
+
+locks_notes_docs: |
+  <b>Notes techniques</b>
+  • L'application des verrous est en temps reel
+  • Les admins sont exemptes de tous les verrous
+  • Les verrous persistent apres les redemarrages du bot
+  • Le cache est invalide lors des mises a jour
+
+# Languages extended docs
+languages_extended_docs: |
+  <b>Comment ca fonctionne</b>
+  • <b>Chats prives :</b> N'importe quel utilisateur peut changer sa langue personnelle
+  • <b>Chats de groupe :</b> Seuls les admins peuvent changer la langue du groupe
+
+  Les preferences de langue sont mises en cache pour la performance et stockees separement pour les utilisateurs et les groupes.
+
+# Greetings extended docs
+greetings_extended_docs: |
+  <b>Integration Captcha</b>
+  Quand le module Captcha est active :
+  1. Les nouveaux membres sont rendus muets a l'arrivee
+  2. Un defi captcha est envoye au lieu du message de bienvenue
+  3. Apres verification, le message de bienvenue est envoye
+  4. L'echec de verification applique l'action captcha
+
+# Notes module extended documentation
+notes_extended_docs: |
+  <b>Fonctionnalites :</b>
+  • <b>Support Texte &amp; Medias</b> : Sauvegardez des messages texte, photos, videos, documents, et plus
+  • <b>Boutons Personnalises</b> : Ajoutez des boutons clavier en ligne aux notes
+  • <b>Options de Formatage</b> : Controlez la visibilite et le comportement des notes
+  • <b>Notes Admin Uniquement</b> : Restreignez certaines notes aux administrateurs seulement
+  • <b>Notes Privees</b> : Envoyez des notes en prive aux utilisateurs via DM
+  • <b>Controle Apercu Web</b> : Activez ou desactivez les apercus de liens
+  • <b>Contenu Protege</b> : Empechoz le transfert du contenu des notes
+
+  <b>Options de Formatage des Notes :</b>
+  Lors de la sauvegarde d'une note, vous pouvez utiliser des tags speciaux pour controler son comportement :
+  • <code>{private}</code> - La note sera uniquement envoyee via DM, jamais dans le groupe
+  • <code>{noprivate}</code> - La note sera uniquement envoyee dans le groupe, jamais via DM
+  • <code>{admin}</code> - La note ne peut etre accedee que par les admins
+  • <code>{protect}</code> - Le contenu ne peut pas etre transfere
+  • <code>{nonotif}</code> - Envoyer sans son de notification
+  • <code>{nopreview}</code> - Desactiver l'apercu des liens
+
+  <b>Mode Notes Privees :</b>
+  Quand les notes privees sont activees (<code>/privatenotes on</code>), toutes les notes sont envoyees aux utilisateurs via DM au lieu du groupe. Cela garde le chat de groupe propre.
+
+  Les notes individuelles peuvent outrepasser ce comportement :
+  • <code>{private}</code> - Toujours envoyer en prive
+  • <code>{noprivate}</code> - Toujours envoyer dans le groupe
+
+  <b>Note Brute (Sans Formatage) :</b>
+  Pour voir le contenu brut d'une note sans formatage (pour edition) :
+  <code>/get nomdelanote noformat</code>
+
+notes_permissions_docs: |
+  <b>Permissions Requises :</b>
+  • Sauvegarder/Effacer notes : Changer les Infos du Groupe
+  • Voir les notes admin : Statut Admin
+  • Effacer toutes les notes : Proprietaire du Chat
+  • Obtenir les notes regulieres : N'importe quel utilisateur
+
+# Pins module extended documentation
+pins_extended_docs: |
+  <b>Fonctionnalites :</b>
+
+  <b>Anti-Epingle de Chaine :</b>
+  Quand active, le bot desepinglera automatiquement tout message qui est auto-epingle par une chaine liee. C'est utile quand vous voulez garder le controle sur ce qui est epingle dans votre groupe.
+
+  <b>Important :</b> Lors de l'utilisation des anti-epingles de chaine, utilisez toujours la commande <code>/unpin</code> au lieu de desepingler manuellement via Telegram. Le desepinglage manuel causera le re-epinglage de l'ancien message quand la chaine envoie de nouveaux messages.
+
+  <b>Nettoyer Lie :</b>
+  Quand active, le bot supprimera automatiquement tous les messages envoyes au groupe depuis la chaine liee. Cela garde votre chat de groupe propre du contenu cross-poste de la chaine.
+
+  <b>Permapin :</b>
+  Creez des messages epingles personnalises avec :
+  • Texte avec formatage HTML/Markdown
+  • Boutons en ligne avec URLs
+  • Pieces jointes medias (photos, documents, stickers, audio, video, notes vocales, notes video)
+  • Tous les remplissages de message standard ({first}, {chatname}, etc.)
+
+  <b>Supporte via Connexion :</b>
+  Les commandes suivantes fonctionnent quand connecte a un chat via <code>/connect</code> :
+  • <code>/antichannelpin</code>
+  • <code>/cleanlinked</code>
+
+pins_notes_docs: |
+  <b>Notes :</b>
+  • La commande <code>/unpinall</code> affiche un dialogue de confirmation avant de desepingler tous les messages
+  • Permapin supporte tous les types de medias que Telegram supporte pour l'epinglage
+  • Les parametres anti-epingle de chaine et nettoyer lie sont stockes par chat et persistent apres les redemarrages du bot
+
+  <b>Permissions Requises :</b>
+  <b>Bot :</b> Doit etre admin avec permission "Epingler des Messages"
+  <b>Utilisateur :</b> La plupart des commandes requierent admin avec permission "Epingler des Messages"
+
+# Purges module extended documentation
+purges_extended_docs: |
+  <b>Suppression de Plage avec purgefrom/purgeto :</b>
+  Quand vous avez besoin de plus de controle sur la plage de suppression :
+
+  1. Repondez au <b>premier</b> message de la plage :
+  <code>/purgefrom</code>
+  Le bot confirmera que le message est marque (expire apres 30 secondes).
+
+  2. Repondez au <b>dernier</b> message de la plage :
+  <code>/purgeto</code>
+  Tous les messages entre les deux marqueurs (inclus) seront supprimes.
+
+  C'est utile quand vous ne pouvez pas facilement defiler jusqu'au point de depart ou avez besoin de verifier la plage avant suppression.
+
+  <b>Limites et Restrictions :</b>
+  • <b>Maximum de messages par purge :</b> 1000 messages
+  • <b>Limite d'age des messages :</b> Les messages de plus de 48 heures peuvent ne pas etre supprimables (restriction API Telegram)
+  • <b>Permissions requises :</b> L'utilisateur et le bot doivent avoir la permission "Supprimer des Messages"
+
+purges_notes_docs: |
+  <b>Notes :</b>
+  • Le marqueur <code>/purgefrom</code> expire apres 30 secondes s'il n'est pas suivi par <code>/purgeto</code>
+  • La suppression de grandes plages utilise un traitement concurrent pour de meilleures performances
+  • Les messages de statut (montrant combien de messages ont ete supprimes) s'auto-suppriment apres 3 secondes
+  • Le bot gere gracieusement les messages deja supprimes sans erreurs
+
+# Reports module extended documentation
+reports_extended_docs: |
+  <b>Comment ca fonctionne :</b>
+
+  <b>Signaler un Message :</b>
+  1. <b>Repondez au message offensant</b> avec <code>/report</code> ou mentionnez <code>@admin</code>
+  2. Le bot envoie une notification mentionnant tous les admins qui ont les rapports actives
+  3. La notification inclut des boutons d'action pour une moderation rapide
+
+  <b>Boutons d'Action Admin :</b>
+  • <b>📩 Message</b> - Lien vers le message signale
+  • <b>👢 Expulser</b> - Expulser l'utilisateur signale (il peut rejoindre)
+  • <b>🚫 Bannir</b> - Bannir permanemment l'utilisateur signale
+  • <b>🗑 Supprimer</b> - Supprimer le message signale
+  • <b>✅ Resolu</b> - Marquer le rapport comme resolu sans action
+
+  <b>Parametres Personnels vs Groupe :</b>
+  • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport
+  • <b>En Groupe :</b> <code>/reports on/off</code> bascule si le signalement est active pour ce groupe
+
+reports_permissions_docs: |
+  <b>Qui peut signaler ?</b>
+  ✅ Utilisateurs reguliers
+  ❌ Admins (pas besoin de se signaler eux-memes)
+  ❌ Utilisateurs bloques
+  ❌ Chaines anonymes / Comptes systeme Telegram
+
+  <b>Qui peut etre signale ?</b>
+  ✅ Utilisateurs reguliers
+  ❌ Le bot lui-meme
+  ❌ Admins (proteges des signalements)
+  ❌ Chaines anonymes / Comptes systeme Telegram
+
+# Rules module extended documentation
+rules_extended_docs: |
+  <b>Fonctionnalites :</b>
+
+  <b>Regles Privees :</b>
+  Activez les regles privees (<code>/privaterules on</code>) pour envoyer les regles via MP au lieu du groupe. Cela garde le chat de groupe propre.
+
+  <b>Bouton Regles Personnalise :</b>
+  Definissez un texte de bouton personnalise (max 30 caracteres) :
+  <code>/rulesbtn Voir les Regles</code>
+
+  Reinitialiser par defaut :
+  <code>/resetrulesbtn</code>
+
+  <b>Definir les Regles :</b>
+  Vous pouvez definir les regles en fournissant du texte directement ou en repondant a un message :
+  <code>/setrules Veuillez respecter tous les membres.</code>
+
+  Ou repondez a un message :
+  <code>/setrules</code>
+
+  <b>Permissions Requises :</b>
+  • Commandes utilisateur : Disponibles pour tous les utilisateurs
+  • Commandes admin : Requierent des permissions admin dans le chat
+
+# Filters module extended documentation
+filters_extended_docs: |
+  <b>Fonctionnalites Avancees :</b>
+
+  <b>Reponses Aleatoires :</b>
+  Utilisez <code>%%%</code> pour separer plusieurs reponses. Une sera choisie aleatoirement :
+  <code>/filter bonjour Salut !%%%Bonjour !%%%Hey, comment ca va ?</code>
+
+  <b>Filtres Media :</b>
+  Repondez a n'importe quel media (photo, video, document, sticker, etc.) avec <code>/filter declencheur</code> pour creer un filtre qui envoie ce media.
+
+  <b>Mode Noformat :</b>
+  Les admins peuvent voir le contenu brut du filtre (incluant les codes de formatage) en ajoutant <code>noformat</code> apres le declencheur :
+  <code>bonjour noformat</code>
+  C'est utile pour deboguer les filtres ou voir les configurations de boutons.
+
+  <b>Boutons de Filtre :</b>
+  Vous pouvez ajouter des boutons en ligne a vos filtres :
+  <code>/filter bonjour Bonjour ! Consultez ces liens :
+  [Bouton 1](buttonurl:https://example.com)
+  [Bouton 2](buttonurl://example.com:same)</code>
+
+filters_technical_docs: |
+  <b>Comment fonctionnent les Filtres :</b>
+  1. Quand un message est recu, le bot recupere tous les filtres pour le chat en utilisant une requete optimisee en cache
+  2. L'algorithme Aho-Corasick fait correspondre efficacement tous les mots-cles de filtre avec le texte du message
+  3. Le premier filtre correspondant declenche une reponse
+  4. Les filtres supportent les reponses texte, media et boutons
+
+  <b>Confirmation d'Ecrasement :</b>
+  Quand vous essayez d'ajouter un filtre qui existe deja, le bot demandera confirmation avant d'ecraser. La confirmation expire apres 5 minutes.
+
+  <b>Comportement du Cache :</b>
+  • Les listes de filtres sont mises en cache pendant 15 minutes par chat
+  • Le cache est automatiquement invalide quand des filtres sont ajoutes ou supprimes
+
+filters_limits_docs: |
+  <b>Limites :</b>
+  • Maximum 150 filtres par chat
+  • Maximum 100 caracteres par mot-cle de filtre
+  • Les mots-cles de filtre sont stockes en minuscules
+
+  <b>Permissions Requises :</b>
+  • <code>/filter</code>, <code>/addfilter</code> : Admin avec permission Changer les Infos
+  • <code>/stop</code>, <code>/rmfilter</code>, <code>/removefilter</code> : Admin avec permission Changer les Infos
+  • <code>/stopall</code> : Proprietaire du Chat uniquement
+  • <code>/filters</code> : Disponible pour tous les utilisateurs
+
+# Captcha module extended documentation
+captcha_extended_docs: |
+  <b>Comment ca fonctionne :</b>
+  1. Quand le captcha est active, les nouveaux membres sont automatiquement rendus muets a l'arrivee
+  2. Un defi captcha est envoye au nouveau membre
+  3. L'utilisateur doit selectionner la bonne reponse parmi les options fournies
+  4. Si reussi, l'utilisateur est demuet et peut participer au groupe
+  5. S'ils echouent ou timeout, l'action configuree est prise (kick, ban, ou mute)
+
+  <b>Types de Captcha :</b>
+  • <b>Math</b> : Resoudre des problemes arithmetiques simples (addition, soustraction, multiplication)
+  • <b>Text</b> : Identifier le texte montre dans une image deformee
+
+  <b>Fonctionnalite Messages en Attente :</b>
+  Quand un utilisateur complete le captcha, tous les messages qu'il essaie d'envoyer sont stockes et supprimes. Les admins peuvent :
+  • Voir quels messages un utilisateur a essaye d'envoyer en utilisant <code>/captchapending</code>
+  • Effacer les messages stockes en utilisant <code>/captchaclear</code>
+
+  Cela aide a identifier les tentatives de spam potentielles avant que les utilisateurs ne completent la verification.
+
+captcha_permissions_docs: |
+  <b>Exigences du Bot :</b>
+  • Bannir des utilisateurs (pour les actions kick/ban)
+  • Restreindre des membres (pour rendre muet pendant la verification)
+  • Supprimer des messages (pour nettoyer les messages captcha)
+
+  <b>Actions d'Echec :</b>
+  • <code>kick</code> - Bannir puis debannir immediatement (permet a l'utilisateur de rejoindre)
+  • <code>ban</code> - Bannir permanemment l'utilisateur
+  • <code>mute</code> - Garder l'utilisateur muet pendant 24 heures
+
+# Blacklists module extended documentation
+blacklists_extended_docs: |
+  <b>Actions Disponibles :</b>
+  Les actions suivantes peuvent etre definies en utilisant <code>/blaction</code> :
+  • <code>none</code> - Supprime juste le message sans autre action
+  • <code>warn</code> - Supprime le message et emet un avertissement a l'utilisateur (par defaut)
+  • <code>mute</code> - Supprime le message et rend l'utilisateur muet
+  • <code>kick</code> - Supprime le message et expulse l'utilisateur (il peut rejoindre)
+  • <code>ban</code> - Supprime le message et bannit permanemment l'utilisateur
+
+  <b>Note :</b>
+  Le mode par defaut pour la Liste Noire est <b>warn</b>, qui supprimera le message et emettra un avertissement a l'utilisateur.
+
+  <b>Commandes :</b>
+  • <code>/addblacklist &lt;declencheur&gt;</code> - Ajoute le mot a la liste noire dans le chat actuel
+  • <code>/rmblacklist &lt;declencheur&gt;</code> - Supprime le mot des Mots sur Liste Noire actuels dans le Chat
+  • <code>/blaction &lt;mute/kick/ban/warn/none&gt;</code> - Definit l'action a effectuer par le bot quand un mot sur liste noire est detecte
+  • <code>/remallbl</code> - Supprime tous les mots sur liste noire du chat (Proprietaire Uniquement)
+
+# Disabling module extended documentation
+disabling_extended_docs: |
+  <b>Fonctionnalites Cles :</b>
+  • Desactiver des commandes bot specifiques pour les utilisateurs non-admin
+  • Les admins peuvent toujours contourner les commandes desactivees
+  • Suppression automatique optionnelle des messages de commandes desactivees
+  • Support pour desactiver plusieurs commandes a la fois
+
+  <b>Desactiver Plusieurs Commandes :</b>
+  <code>/disable adminlist rules info</code>
+  Desactive les commandes <code>/adminlist</code>, <code>/rules</code>, et <code>/info</code> en une fois.
+
+  <b>Basculer Suppression de Commande :</b>
+  <code>/disabledel on</code> - Les messages desactives seront maintenant supprimes.
+  <code>/disabledel off</code> - Les messages desactives ne seront plus supprimes.
+  <code>/disabledel</code> - Verifier le parametre de suppression actuel.
+
+disabling_notes_docs: |
+  <b>Notes Importantes :</b>
+  • <b>Contournement Admin :</b> Les commandes desactivees n'affectent que les utilisateurs non-admin. Tous les admins peuvent toujours utiliser n'importe quelle commande.
+  • <b>Support Connexion :</b> Les commandes desactivees sont toujours accessibles via la fonctionnalite <code>/connect</code> pour les chats connectes.
+  • <b>Commandes Multiples :</b> <code>/disable</code> et <code>/enable</code> supportent tous deux plusieurs noms de commandes dans un seul message.
+  • <b>Gestion d'Erreurs :</b> Si certaines commandes echouent a etre desactivees/activees, vous serez notifie de celles qui ont reussi et celles qui ont echoue.
+
+  <b>Permissions Requises :</b>
+  • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code> : Admin uniquement
+  • <code>/disableable</code>, <code>/disabled</code> : Tous les utilisateurs (mais <code>/disabled</code> peut etre desactive)
+
+# Formatting module help message
+formatting_help_msg: "Alita supporte un grand nombre d'options de formatage pour rendre vos messages plus expressifs. Jetez un oeil en cliquant sur les boutons ci-dessous !"
+
+# Formatting module - Markdown documentation
+formatting_markdown: |
+  <b>Formatage Markdown</b>
+
+  Vous pouvez formater votre message en utilisant <b>gras</b>, <i>italique</i>, <u>souligne</u>,
+  et bien plus. Allez-y et experimentez !
+
+  <b>Markdown supporte</b> :
+
+  - <code>`mots de code`</code> : Les accents graves sont utilises pour les polices monospace. S'affiche comme : <code>mots de code</code>.
+
+  - <code>_mots italiques_</code> : Les underscores sont utilises pour les polices italiques. S'affiche comme : <i>mots italiques</i>.
+
+  - <code>*mots gras*</code> : Les asterisques sont utilises pour les polices gras. S'affiche comme : <b>mots gras</b>.
+
+  - <code>~barre~</code> : Les tildes sont utilises pour le texte barre. S'affiche comme : <strike>barre</strike>.
+
+  - <code>||spoiler||</code> : Les doubles barres verticales sont utilisees pour les spoilers. S'affiche comme : <tg-spoiler>Spoiler</tg-spoiler>.
+
+  - <code>```pre```</code> : Pour que le formateur ignore les autres caracteres de formatage a l'interieur du texte formate avec '```', sera comme : <code>**gras** | *gras*</code>.
+
+  - <code>__souligne__</code> : Les doubles underscores sont utilises pour le soulignement. S'affiche comme : souligne. NOTE : Certains clients essaient d'etre intelligents et l'interpretent comme italique. Dans ce cas, essayez d'utiliser le formatage integre de votre application.
+
+  - <code>[hyperlien](example.com)</code> : C'est le formatage utilise pour les hyperliens. S'affiche comme : <a href='https://example.com/'>hyperlien</a>.
+
+  - <code>[Mon Bouton](buttonurl://example.com)</code> : C'est le formatage utilise pour creer des boutons. Cet exemple creera un bouton nomme "Mon bouton" qui ouvre <code>example.com</code> quand on clique.
+
+  Si vous souhaitez envoyer des boutons sur la meme ligne, utilisez le formatage <code>:same</code>.
+
+  <b>Exemple :</b>
+
+  <code>[bouton 1](buttonurl:example.com)</code>
+
+  <code>[bouton 2](buttonurl://example.com:same)</code>
+
+  <code>[bouton 3](buttonurl://example.com)</code>
+
+  Cela affichera les boutons 1 et 2 sur la meme ligne, avec le 3 en dessous.
+
+formatting_random: |
+  <b>Contenu Aleatoire</b>
+
+  Une autre chose qui peut etre amusante, c'est de randomiser le contenu d'un message. Rendez les choses
+  un peu plus personnelles en changeant les messages de bienvenue, ou en changeant les notes !
+
+  Comment utiliser le contenu aleatoire :
+
+  - %%% : Ce separateur peut etre utilise pour ajouter des reponses aleatoires au bot.
+
+  Par exemple :
+
+  <code>bonjour
+
+  %%%
+
+  comment ca va</code>
+
+  Cela choisira aleatoirement entre envoyer le premier message, "bonjour", ou le second
+  message, "comment ca va".
+
+  Utilisez ceci pour rendre Alita un peu plus personnalise ! (fonctionne uniquement dans les filtres/notes)
+
+  Exemple de message de bienvenue :
+
+  - Chaque fois qu'un nouvel utilisateur rejoint, il verra un des trois messages
+  montres ici.
+
+  -> /filter "hey"
+
+  bonjour <code>{first}</code> !
+
+  %%%
+
+  Ooooh, <code>{first}</code> comment ca va ?
+
+  %%%
+
+  Salut ! <code>{first}</code>
