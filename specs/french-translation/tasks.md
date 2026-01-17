@@ -126,7 +126,7 @@ After POC validated, fix any quality issues.
   - **Verify**: `yq eval '.' locales/fr.yml > /dev/null && echo "Valid"`
   - **Commit**: `test(i18n): validate French locale YAML structure`
 
-- [ ] 3.2 Compare key coverage
+- [x] 3.2 Compare key coverage
   - **Do**:
     1. Extract all keys from en.yml
     2. Extract all keys from fr.yml
