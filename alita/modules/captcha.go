@@ -111,6 +111,32 @@ func isPermanentTelegramError(err error) bool {
 	return false
 }
 
+// isPermanentUnmuteError checks if an unmute error is permanent and the record should be deleted
+func isPermanentUnmuteError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	permanentErrors := []string{
+		"user not found",
+		"USER_NOT_PARTICIPANT",
+		"bot was kicked",
+		"chat not found",
+		"group chat was deactivated",
+		"bot is not a member",
+		"CHAT_NOT_FOUND",
+		"PEER_ID_INVALID",
+		"user is an administrator",
+		"not enough rights",
+	}
+	for _, pe := range permanentErrors {
+		if strings.Contains(errStr, pe) {
+			return true
+		}
+	}
+	return false
+}
+
 // recoverOrphanedCaptchas handles captcha attempts left over from bot restart.
 // For expired attempts: delete message and DB record.
 // For still-valid attempts: delete message (user must rejoin to get new captcha).
@@ -762,6 +788,12 @@ func generateTextCaptcha() (string, []byte, []string, error) {
 	// Shuffle options
 	secureShuffleStrings(options)
 
+	// Verify answer is in options (defensive check)
+	if !slices.Contains(options, answer) {
+		log.Errorf("[Captcha] BUG: Text answer %q not in options %v, regenerating", answer, options)
+		return generateTextCaptcha() // Retry
+	}
+
 	return answer, imageBytes, options, nil
 }
 
@@ -857,6 +889,10 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 			isImage = true
 		}
 	}
+
+	// Debug logging for captcha generation
+	log.Debugf("[Captcha] Generated %s captcha for user %d in chat %d: answer=%q, options=%v",
+		settings.CaptchaMode, userID, chat.Id, answer, options)
 
 	// Validate user and chat exist in Telegram before creating DB records
 	// This prevents FK constraint violations for non-existent entities
@@ -1131,6 +1167,26 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, messageID int6
 			log.Errorf("Failed to ban user %d: %v", userID, err)
 		}
 	case "mute":
+		// Explicitly mute the user (don't rely on initial mute from greetings)
+		_, muteErr := bot.RestrictChatMember(chatID, userID, gotgbot.ChatPermissions{
+			CanSendMessages:       false,
+			CanSendPhotos:         false,
+			CanSendVideos:         false,
+			CanSendAudios:         false,
+			CanSendDocuments:      false,
+			CanSendVideoNotes:     false,
+			CanSendVoiceNotes:     false,
+			CanAddWebPagePreviews: false,
+			CanChangeInfo:         false,
+			CanInviteUsers:        false,
+			CanPinMessages:        false,
+			CanManageTopics:       false,
+			CanSendPolls:          false,
+			CanSendOtherMessages:  false,
+		}, nil)
+		if muteErr != nil {
+			log.Errorf("[Captcha] Failed to mute user %d in chat %d: %v", userID, chatID, muteErr)
+		}
 		// Store for auto-unmute in 24 hours
 		unmuteAt := time.Now().Add(24 * time.Hour)
 		if err := db.CreateMutedUser(userID, chatID, unmuteAt); err != nil {
@@ -1318,6 +1374,8 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 	} else {
 		// Wrong answer - increment attempts
+		log.Debugf("[Captcha] Wrong answer for user %d in chat %d: selected=%q, expected=%q",
+			targetUserID, chat.Id, selectedAnswer, attempt.Answer)
 		attempt, err = db.IncrementCaptchaAttempts(targetUserID, chat.Id)
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -1765,7 +1823,7 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 			var unmuteIDs []uint
 			for _, user := range users {
-				// Unmute the user by granting full permissions
+				// Unmute the user by granting standard member permissions (matching success unmute)
 				_, err := captchaBotRef.RestrictChatMember(user.ChatID, user.UserID, gotgbot.ChatPermissions{
 					CanSendMessages:       true,
 					CanSendAudios:         true,
@@ -1777,15 +1835,27 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 					CanSendPolls:          true,
 					CanSendOtherMessages:  true,
 					CanAddWebPagePreviews: true,
-					CanChangeInfo:         true,
+					CanChangeInfo:         false, // Match success unmute permissions
 					CanInviteUsers:        true,
-					CanPinMessages:        true,
-					CanManageTopics:       true,
+					CanPinMessages:        false, // Match success unmute permissions
+					CanManageTopics:       false, // Match success unmute permissions
 				}, nil)
 				if err != nil {
-					log.Warnf("[CaptchaUnmute] Failed to unmute user %d in chat %d: %v", user.UserID, user.ChatID, err)
+					if isPermanentUnmuteError(err) {
+						// Permanent error - user left, chat deleted, etc. - remove from DB
+						log.Infof("[CaptchaUnmute] User %d no longer in chat %d, removing from muted list: %v",
+							user.UserID, user.ChatID, err)
+						unmuteIDs = append(unmuteIDs, user.ID)
+					} else {
+						// Transient error - will retry on next tick
+						log.Warnf("[CaptchaUnmute] Failed to unmute user %d in chat %d (will retry): %v",
+							user.UserID, user.ChatID, err)
+						// Don't add to unmuteIDs - will retry on next tick
+					}
+				} else {
+					// Success - add to cleanup list
+					unmuteIDs = append(unmuteIDs, user.ID)
 				}
-				unmuteIDs = append(unmuteIDs, user.ID)
 			}
 
 			// Clean up DB records
