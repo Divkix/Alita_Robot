@@ -138,3 +138,227 @@ button_mute: "Rendre muet"
 button_unban: "Debannir"
 button_unmute: "Reactiver la voix"
 button_rules_default: "Regles"
+
+# Bans module strings
+bans_ban_ban_reason: <b>Raison :</b> %s
+bans_ban_dban_no_reply: Vous devez repondre a un message pour le supprimer et bannir l'utilisateur !
+bans_ban_is_admin: Pourquoi bannirais-je un admin ? Ca semble etre une idee plutot stupide.
+bans_ban_is_bot_itself: Vous pensez vraiment que je vais me bannir moi-meme ?
+bans_ban_normal_ban: "Un autre mord la poussiere... !
+
+  %s banni."
+bans_ban_tban: "%s banni pour %s"
+bans_help_msg:
+  "Parfois les utilisateurs peuvent etre agacants et vous pourriez vouloir
+  les supprimer de votre chat, ce module vous aide exactement a gerer cela !
+
+  Bannir/expulser des utilisateurs de votre chat, et les debannir plus tard s'ils se comportent bien.
+
+
+  *Commandes Utilisateur :*
+
+  × /kickme : expulse l'utilisateur qui a emis la commande.
+
+
+  *Commandes de Bannissement* (Admin uniquement) :
+
+  × /ban <pseudo> : bannit un utilisateur. (via le pseudo, ou en reponse)
+
+  × /sban <pseudo> : bannit un utilisateur silencieusement, n'envoie pas de message au groupe et
+  supprime egalement votre commande. (via le pseudo, ou en reponse)
+
+  × /dban <pseudo> : bannit un utilisateur et supprime le message auquel vous avez repondu. (via le pseudo, ou
+  en reponse)
+
+  × /tban <pseudo> x(m/h/d) : bannit un utilisateur pour une duree `x`. (via le pseudo, ou en reponse).
+  m = minutes, h = heures, d = jours.
+
+  × /unban <pseudo> : debannit un utilisateur. (via le pseudo, ou en reponse)
+
+
+  *Commandes de Restriction :* (Admin uniquement)
+
+  × /restrict : Affiche un clavier en ligne pour choisir parmi expulser, bannir et rendre muet
+
+  × /unrestrict : Affiche un clavier en ligne pour choisir parmi reactiver la voix et debannir."
+bans_kick_cannot_kick_admin:
+  Pourquoi expulserais-je un admin ? Ca semble etre une idee plutot
+  stupide.
+bans_kick_is_bot_itself: Pourquoi m'expulserais-je moi-meme ?
+bans_kick_kicked_reason: <b>Raison :</b> %s
+bans_kick_kicked_user: "%s expulse avec succes."
+bans_kick_user_not_in_chat:
+  Cet utilisateur n'est pas dans ce chat, comment suis-je cense
+  le restreindre ?
+bans_kickme_is_admin: Vous etes admin, et vous etes coince ici avec tout le monde !
+bans_kickme_ok_out: Comme vous le souhaitez, dehors !
+bans_unban_is_admin: Pourquoi debannirais-je un admin ?
+bans_unban_is_bot_itself: Pourquoi me de-restreindre moi-meme quand je suis deja la ?
+bans_unban_unbanned_user: "Donnons-lui une autre chance.
+
+  %s debanni !"
+bans_dkick_no_reply: Repondez au message d'un utilisateur pour le supprimer et l'expulser !
+bans_anonymous_ban_user: "Utilisateur banni : %s"
+bans_anonymous_ban_reply_only: Vous pouvez uniquement bannir un utilisateur anonyme en repondant a son message.
+bans_anonymous_unban_user: "Utilisateur debanni : %s"
+bans_anonymous_unban_reply_only: Vous pouvez uniquement debannir un utilisateur anonyme en repondant a son message.
+bans_unban_button: Debannir (Admin uniquement)
+bans_restrict_question: Comment puis-je restreindre cet utilisateur ?
+bans_restrict_admin_error: Pourquoi restreindrais-je un admin ? Ca semble etre une idee plutot stupide.
+bans_restrict_self_error: Pourquoi me restreindrais-je moi-meme ?
+bans_restrict_kicked: "L'admin %s a expulse %s de ce chat !"
+bans_restrict_muted: "L'admin %s a rendu muet %s dans ce chat !"
+bans_restrict_banned: "L'admin %s a banni %s de ce chat !"
+bans_unrestrict_question: Comment puis-je lever la restriction de cet utilisateur ?
+bans_unrestrict_admin_error: Pourquoi expulserais-je un admin ? Ca semble etre une idee plutot stupide.
+bans_unrestrict_self_error: Non toi
+bans_unrestrict_unmuted: "Voix reactivee par %s !"
+bans_unrestrict_unbanned: "Debanni par %s !"
+bans_invalid_callback_data: "Donnees de rappel invalides."
+bans_invalid_user_id: "ID utilisateur invalide."
+bans_anonymous_ban_only_error: Cette commande ne peut pas etre utilisee sur un utilisateur anonyme, ces utilisateurs peuvent uniquement etre bannis/debannis.
+
+# Mutes module strings
+mutes_help_msg:
+  "Parfois les utilisateurs peuvent etre agacants et vous pourriez vouloir les empecher
+  d'envoyer des messages dans le chat, ce module est la pour vous aider, vous pouvez utiliser ce module
+  pour rendre muets les membres de votre groupe.
+
+
+  *Commandes de Mute :* (Admin uniquement)
+
+  × /mute <pseudo> : rend muet un utilisateur, (via le pseudo, ou en reponse)
+
+  × /smute <pseudo> : rend muet un utilisateur silencieusement, n'envoie pas de message au groupe,
+  et supprime egalement votre commande. (via le pseudo, ou en reponse)
+
+  × /dmute <pseudo> : rend muet un utilisateur et supprime le message auquel vous avez repondu. (via le pseudo,
+  ou en reponse)
+
+  × /tmute <pseudo> x(m/h/d) : rend muet un utilisateur pour une duree `x`. (via le pseudo, ou en reponse).
+  m = minutes, h = heures, d = jours.
+
+  × /unmute <pseudo> : reactive la voix d'un utilisateur. (via le pseudo, ou en reponse)"
+mutes_tmute_message: "Chut...\n%s rendu muet pour %s"
+mutes_mute_message: "Chut...\n%s rendu muet."
+mutes_reason_suffix: "\n<b>Raison : </b>%s"
+mutes_unmute_button: Reactiver la voix (Admin uniquement)
+mutes_mute_admin_error: Pourquoi rendrais-je un admin muet ? Ca semble etre une idee plutot stupide.
+mutes_mute_admin_polite_error: Je ne pense pas que vous voudriez que je rende un admin muet.
+mutes_restrict_self_error: Pourquoi me restreindrais-je moi-meme ?
+mutes_unmute_message: "D'accord !\nJe vais permettre a %s de parler a nouveau."
+mutes_extended_docs: |
+  <b>Format de temps pour les mutes temporaires :</b>
+  • <code>m</code> = minutes (ex., <code>30m</code>)
+  • <code>h</code> = heures (ex., <code>2h</code>)
+  • <code>d</code> = jours (ex., <code>1d</code>)
+
+  <b>Variantes de Mute :</b>
+  • <code>/mute</code> - Mute standard avec raison optionnelle
+  • <code>/smute</code> - Mute silencieux (supprime votre message de commande)
+  • <code>/dmute</code> - Mute avec suppression (rend muet l'utilisateur et supprime son message)
+  • <code>/tmute</code> - Mute temporaire avec duree specifiee
+
+  <b>Permissions requises :</b>
+  <b>Commandes reservees aux admins.</b> Les utilisateurs executant ces commandes doivent avoir :
+  • Le statut d'admin dans le chat
+  • La permission de restreindre les membres
+
+  Le bot doit egalement avoir les privileges d'admin avec la permission de restreindre les membres.
+
+# Warns module strings
+warns_help_msg:
+  "Gardez vos membres sous controle avec les avertissements ; empechons-les de
+  deraper !
+
+  Si vous cherchez des avertissements automatises, consultez le module liste noire !
+
+
+  *Commandes Admin :*
+
+  - /warn <raison> : Avertir un utilisateur.
+
+  - /dwarn <raison> : Avertir un utilisateur en reponse, et supprimer son message.
+
+  - /swarn <raison> : Avertir silencieusement un utilisateur, et supprimer votre message.
+
+  - /warns : Voir les avertissements d'un utilisateur.
+
+  - /rmwarn : Supprimer le dernier avertissement d'un utilisateur.
+
+  - /resetwarn : Remettre a zero tous les avertissements d'un utilisateur.
+
+  - /resetallwarns : Supprimer tous les avertissements du chat. Tous les utilisateurs reviennent a 0 avertissement.
+
+  - /warnings : Obtenir les parametres d'avertissement du chat.
+
+  - /setwarnmode <ban/kick/mute> : Definir le mode d'avertissement du chat.
+
+  - /setwarnlimit <nombre> : Definir le nombre d'avertissements avant sanction.
+
+
+  *Exemples*
+
+  - Avertir un utilisateur.
+
+  -> `/warn @user Pour avoir desobei aux regles`"
+warns_specify_action: "Vous devez specifier une action a effectuer en cas de trop d'avertissements. Modes actuels : ban/kick/mute"
+warns_mode_updated_ban: "Mode d'avertissement mis a jour : ban"
+warns_mode_updated_kick: "Mode d'avertissement mis a jour : kick"
+warns_mode_updated_mute: "Mode d'avertissement mis a jour : mute"
+warns_mode_unknown: "Type inconnu '%s'. Veuillez utiliser : ban/kick/mute"
+warns_admin_warning_error: Je ne vais pas avertir un admin !
+warns_limit_kicked: "Ca fait %d/%d avertissements ; Donc %s a ete expulse !"
+warns_limit_muted: "Ca fait %d/%d avertissements ; Donc %s a ete rendu muet !"
+warns_limit_banned: "Ca fait %d/%d avertissements ; Donc %s a ete banni !"
+warns_remove_button: ❌ Supprimer l'avertissement
+warns_rules_button: Regles 📝
+warns_user_warning: "L'utilisateur %s a %d/%d avertissements ; attention !"
+warns_warning_reason: "\n<b>Raison</b> :\n%s"
+warns_settings_display: "Le groupe a les parametres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>"
+warns_user_warnings_list: "Cet utilisateur a %d/%d avertissements, pour les raisons suivantes :"
+warns_user_warnings_no_reasons: "L'utilisateur a %d/%d avertissements, mais aucune raison pour aucun d'entre eux."
+warns_user_no_warnings: Cet utilisateur n'a aucun avertissement !
+warns_removed_by: "Avertissement supprime par %s."
+warns_no_warns_to_remove: L'utilisateur n'a deja aucun avertissement !
+warns_limit_set_help: "Veuillez specifier combien d'avertissements un utilisateur doit recevoir avant d'etre sanctionne. Ex. `/setwarnlimit 5`"
+warns_invalid_number: "%s n'est pas un entier valide."
+warns_limit_range_error: La limite d'avertissements doit etre definie entre 1 et 100.
+warns_limit_updated: "Les parametres de limite d'avertissements de ce chat ont ete mis a jour a %d."
+warns_reset_success: Les avertissements ont ete reinitialises !
+warns_no_users_warned: Aucun utilisateur n'est averti dans ce chat !
+warns_reset_all_confirm: Etes-vous sur de vouloir supprimer tous les avertissements de tous les utilisateurs de ce chat ?
+warns_reset_all_success: Tous les avertissements de tous les utilisateurs de ce chat ont ete supprimes !
+warns_reset_all_cancelled: Suppression de tous les avertissements de tous les utilisateurs de ce chat annulee !
+warns_reset_all_final: Tous les avertissements de tous les utilisateurs de ce chat ont ete supprimes.
+warns_extended_docs: |
+  <b>Parametres par defaut :</b>
+  • <b>Limite d'avertissements par defaut :</b> 3 avertissements
+  • <b>Mode d'avertissement par defaut :</b> mute
+
+  <b>Modes d'avertissement disponibles :</b>
+  • <code>ban</code> - Bannir definitivement l'utilisateur du chat
+  • <code>kick</code> - Expulser l'utilisateur (il peut revenir)
+  • <code>mute</code> - Rendre muet l'utilisateur (ne peut plus envoyer de messages)
+
+  <b>Avertissements silencieux et avec suppression :</b>
+  • <code>/swarn</code> - Supprimer votre commande et avertir silencieusement
+  • <code>/dwarn</code> - Supprimer le message de l'utilisateur et l'avertir
+
+warns_permissions_docs: |
+  <b>Permissions requises :</b>
+  • <code>/warn</code>, <code>/dwarn</code>, <code>/swarn</code> : Bot admin + Utilisateur admin avec restriction
+  • <code>/rmwarn</code>, <code>/unwarn</code> : Bot admin + Utilisateur admin
+  • <code>/resetwarn</code>, <code>/resetwarns</code> : Bot admin + Utilisateur admin
+  • <code>/resetallwarns</code> : Proprietaire du chat uniquement
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code> : Bot admin + Utilisateur admin
+  • <code>/warnings</code> : Bot admin + Utilisateur admin
+  • <code>/warns</code> : Tout utilisateur (desactivable)
+
+warns_notes_docs: |
+  <b>Notes :</b>
+  • Quand un utilisateur atteint la limite d'avertissements, l'action configuree (ban/kick/mute) est appliquee automatiquement
+  • Les raisons d'avertissement sont stockees et affichees lors de la verification des avertissements d'un utilisateur
+  • La commande <code>/warns</code> est la seule commande de ce module qui peut etre desactivee par les admins
+  • Les publications de chaines anonymes ne peuvent pas etre averties
+  • Les admins ne peuvent pas etre avertis

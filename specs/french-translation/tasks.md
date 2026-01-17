@@ -35,7 +35,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - **Commit**: `feat(i18n): add common and language strings to French locale`
   - _Requirements: FR-8_
 
-- [ ] 1.3 Add bans, mutes, warns module translations
+- [x] 1.3 Add bans, mutes, warns module translations
   - **Do**:
     1. Translate all `bans_*` keys
     2. Translate all `mutes_*` keys
