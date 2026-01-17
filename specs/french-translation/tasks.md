@@ -92,7 +92,7 @@ Focus: Create fr.yml with core translations to validate language selection works
 
 After POC validated, fix any quality issues.
 
-- [ ] 2.1 Fix escape sequence formatting
+- [x] 2.1 Fix escape sequence formatting
   - **Do**:
     1. Find all strings containing `\n` with single quotes
     2. Convert to double quotes
