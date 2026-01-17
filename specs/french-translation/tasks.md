@@ -116,7 +116,7 @@ After POC validated, fix any quality issues.
 
 ## Phase 3: Testing
 
-- [ ] 3.1 Validate YAML structure
+- [x] 3.1 Validate YAML structure
   - **Do**:
     1. Parse fr.yml with yq or YAML validator
     2. Check for duplicate keys
