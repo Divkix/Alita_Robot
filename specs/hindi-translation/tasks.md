@@ -54,7 +54,7 @@ Focus: Create minimal working Hindi locale with core keys.
   - **Commit**: `feat(i18n): add Hindi module help translations`
   - _Requirements: FR-1_
 
-- [ ] 2.2 Translate remaining module keys
+- [x] 2.2 Translate remaining module keys
   - **Do**: Translate antiflood_, bans_, blacklists_, captcha_, connections_, disabling_, filters_, greetings_, locks_, misc_, mutes_, notes_, pins_, purges_, reports_, rules_, warns_ keys
   - **Files**: `locales/hi.yml`
   - **Done when**: All module keys translated (~650 remaining keys)
@@ -62,7 +62,7 @@ Focus: Create minimal working Hindi locale with core keys.
   - **Commit**: `feat(i18n): complete Hindi module translations`
   - _Requirements: FR-1_
 
-- [ ] 2.3 Translate extended documentation keys
+- [x] 2.3 Translate extended documentation keys
   - **Do**: Translate all *_extended_docs, *_notes_docs, *_permissions_docs keys
   - **Files**: `locales/hi.yml`
   - **Done when**: All documentation keys translated
