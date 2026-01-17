@@ -362,3 +362,606 @@ warns_notes_docs: |
   • La commande <code>/warns</code> est la seule commande de ce module qui peut etre desactivee par les admins
   • Les publications de chaines anonymes ne peuvent pas etre averties
   • Les admins ne peuvent pas etre avertis
+
+# Blacklists module strings
+blacklists_bl_watcher_banned_user: "%s banni a cause de %s"
+blacklists_bl_watcher_kicked_user: "%s expulse a cause de %s"
+blacklists_bl_watcher_muted_user: "%s rendu muet a cause de %s"
+blacklists_blacklist_added_bl: "Ces mots ont ete ajoutes a la liste noire :"
+blacklists_blacklist_already_blacklisted: "Ces mots sont deja sur la liste noire :"
+blacklists_blacklist_give_bl_word: Veuillez me donner un mot a ajouter a la liste noire !
+blacklists_blacklist_word_too_long: "Ces mots sont trop longs (max 100 caracteres) : %s"
+blacklists_help_msg: "*Commandes Utilisateur :*
+
+  × /blacklists : Verifier tous les mots sur liste noire dans le chat.
+
+
+  *Commandes Admin :*
+
+  × /addblacklist `<declencheur>` : Ajoute le mot a la liste noire du chat actuel.
+
+  × /rmblacklist `<declencheur>` : Supprime le mot de la liste noire du chat actuel.
+
+  × /blaction `<mute/kick/ban/warn/none>` : Definit l'action a effectuer par le bot
+  lorsqu'un mot de la liste noire est detecte.
+
+  × /blacklistaction : Identique a ci-dessus
+
+
+  *Proprietaire uniquement :*
+
+  × /remallbl : Supprime tous les mots de la liste noire du chat
+
+
+  *Note :*
+
+  Le mode par defaut pour la liste noire est *none*, ce qui supprimera simplement les messages du
+  chat."
+blacklists_ls_bl_list_bl: "Ces mots sont sur la liste noire de ce chat :"
+blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce chat.
+blacklists_rm_all_bl_ask: |
+  Etes-vous sur de vouloir supprimer tous les mots de la liste noire de
+  ce chat ?
+blacklists_rm_all_bl_button_handler_no: |
+  Suppression de la liste noire de ce chat annulee
+  ❌
+blacklists_rm_all_bl_button_handler_yes: Tous les mots de la liste noire ont ete supprimes de ce chat ✅
+blacklists_set_bl_action_changed_mode: "Mode de liste noire change avec succes : *%s*"
+blacklists_set_bl_action_choose_correct_option: Veuillez choisir une option parmi <mute/kick/ban/warn/none>
+blacklists_set_bl_action_current_mode: |
+  Le mode de liste noire actuel pour ce chat est :
+  %s
+blacklists_unblacklist_give_bl_word: Veuillez me donner un mot a retirer de la liste noire !
+blacklists_unblacklist_no_removed_bl: |
+  Aucun des mots donnes n'etait sur la liste noire
+  et ne peut etre supprime !
+blacklists_unblacklist_removed_bl: |
+  '%s' supprime avec succes de la liste
+  noire !
+
+# Captcha module strings
+captcha_help_msg: |
+  Protegez votre groupe des bots et spammeurs avec la verification CAPTCHA !
+
+
+  Obligez les nouveaux membres a prouver qu'ils sont humains en resolvant un simple defi avant de
+  pouvoir envoyer des messages.
+
+
+  *Types de Captcha :*
+
+  × Math : Resoudre des problemes arithmetiques simples
+
+  × Text : Identifier du texte affiche dans une image
+
+
+  *Commandes Admin :*
+
+  × /captcha `<on/off>` : Activer ou desactiver la verification captcha
+
+  × /captchamode `<math/text>` : Definir le type de captcha (problemes mathematiques ou reconnaissance de texte)
+
+  × /captchatime `<1-10>` : Definir le delai en minutes (defaut : 2)
+
+  × /captchaaction `<kick/ban/mute>` : Definir l'action en cas d'echec de verification (defaut :
+  kick)
+
+  × /captchaattempts `<1-10>` : Definir le nombre maximum de tentatives de verification (defaut : 3)
+
+
+  Lorsque c'est active, les nouveaux membres sont automatiquement rendus muets jusqu'a ce qu'ils completent le captcha.
+
+  S'ils echouent ou depassent le delai, l'action configuree est appliquee.
+captcha_enable_failed: Echec de l'activation du captcha. Veuillez reessayer.
+captcha_disable_failed: Echec de la desactivation du captcha. Veuillez reessayer.
+captcha_usage: Veuillez utiliser <code>/captcha on</code> ou <code>/captcha off</code>
+captcha_mode_specify: "Veuillez specifier un mode : <code>math</code> ou <code>text</code>"
+captcha_mode_invalid: Mode invalide. Utilisez <code>math</code> ou <code>text</code>
+captcha_mode_failed: Echec de la definition du mode captcha. Veuillez reessayer.
+captcha_timeout_specify: Veuillez specifier un delai en minutes (1-10)
+captcha_timeout_invalid: Delai invalide. Veuillez utiliser un nombre entre 1 et 10.
+captcha_timeout_failed: Echec de la definition du delai. Veuillez reessayer.
+captcha_action_specify: "Veuillez specifier une action : <code>kick</code>, <code>ban</code> ou <code>mute</code>"
+captcha_action_invalid: Action invalide. Utilisez <code>kick</code>, <code>ban</code> ou <code>mute</code>
+captcha_action_failed: Echec de la definition de l'action d'echec. Veuillez reessayer.
+captcha_welcome_math_image: |
+  👋 Bienvenue %s !
+
+  Veuillez resoudre le probleme affiche dans l'image et selectionner la bonne reponse :
+
+  ⏱ Vous avez <b>%d minutes</b> pour repondre.
+captcha_welcome_text_image: |
+  👋 Bienvenue %s !
+
+  Veuillez selectionner le texte affiche dans l'image pour verifier que vous etes humain :
+
+  ⏱ Vous avez <b>%d minutes</b> pour repondre.
+captcha_welcome_math_text: |
+  👋 Bienvenue %s !
+
+  Veuillez resoudre ce probleme mathematique pour verifier que vous etes humain :
+
+  <b>%s = ?</b>
+
+  ⏱ Vous avez <b>%d minutes</b> pour repondre.
+captcha_failed_verify: Echec de la verification. Veuillez contacter un administrateur.
+captcha_wait_refresh: Veuillez attendre quelques secondes avant de demander une nouvelle image.
+captcha_failed_generate: Echec de la generation d'une nouvelle image, reessayez.
+captcha_failed_send: Echec de l'envoi de la nouvelle image captcha.
+captcha_invalid_data: Donnees captcha invalides
+captcha_invalid_attempt: ID de tentative invalide
+captcha_invalid_user: ID utilisateur invalide
+captcha_error_processing: Erreur lors du traitement de la reponse
+captcha_invalid_refresh: Donnees d'actualisation invalides
+captcha_max_attempts_current: "Nombre maximum de tentatives de verification actuel : <b>%d</b>"
+captcha_max_attempts_invalid: "Valeur invalide. Veuillez specifier un nombre entre 1 et 10."
+captcha_max_attempts_set: "Nombre maximum de tentatives de verification defini a <b>%d</b>"
+captcha_user_auto_unmute: "L'utilisateur %s sera automatiquement reactive dans 24 heures."
+captcha_enabled_success: "✅ La verification captcha a ete <b>activee</b>. Les nouveaux membres devront completer un captcha pour rejoindre."
+captcha_disabled_success: "❌ La verification captcha a ete <b>desactivee</b>."
+captcha_mode_set_success: "✅ Mode captcha defini a <b>%s</b> (%s)"
+captcha_timeout_set_success: "✅ Delai captcha defini a <b>%d minutes</b>"
+captcha_action_set_success: "✅ Action d'echec captcha definie a <b>%s</b>"
+captcha_refresh_button: "🔄 Nouvelle Image"
+captcha_verified_success_msg: "✅ Verifie avec succes !"
+captcha_wrong_answer_final: "❌ Mauvaise reponse ! Vous avez ete %s."
+captcha_wrong_answer_remaining: "❌ Mauvaise reponse ! %d tentatives restantes."
+captcha_action_kicked: "expulse"
+captcha_action_banned: "banni"
+captcha_action_muted: "rendu muet definitivement"
+captcha_refresh_success: "🔄 Nouveau captcha envoye !"
+captcha_timeout_failure_kicked: "❌ %s n'a pas complete la verification captcha et a ete expulse."
+captcha_timeout_failure_banned: "❌ %s n'a pas complete la verification captcha et a ete banni."
+captcha_timeout_failure_muted: "❌ %s n'a pas complete la verification captcha et a ete rendu muet."
+captcha_timeout_with_messages: "❌ %s n'a pas complete la verification captcha et a ete %s.\n\n📝 %d message(s) ont ete tentes mais supprimes en raison de la verification incomplete."
+captcha_stored_messages_summary: "📝 %s a essaye d'envoyer %d message(s) (%s) avant la verification"
+captcha_pending_usage: "Utilisation : <code>/captchapending @utilisateur</code> ou <code>/captchapending user_id</code>"
+captcha_no_pending_messages: "Aucun message en attente trouve pour cet utilisateur."
+captcha_clear_usage: "Utilisation : <code>/captchaclear @utilisateur</code> ou <code>/captchaclear user_id</code>"
+captcha_clear_failed: "Echec de la suppression des messages stockes. Veuillez reessayer."
+captcha_clear_success: "✅ Tous les messages stockes pour l'utilisateur %d ont ete supprimes"
+captcha_refresh_time_remaining: |
+  👋 Bienvenue %s !
+
+  Veuillez selectionner le texte affiche dans l'image pour verifier que vous etes humain :
+
+  ⏱ Vous avez <b>%d minutes</b> pour repondre.
+captcha_math_time_remaining: |
+  👋 Bienvenue %s !
+
+  Veuillez resoudre le probleme affiche dans l'image et selectionner la bonne reponse :
+
+  ⏱ Vous avez <b>%d minutes</b> pour repondre.
+captcha_invalid_mode_error: "mode captcha invalide : doit etre 'math' ou 'text'"
+captcha_timeout_range_error: "le delai doit etre entre 1 et 10 minutes"
+captcha_invalid_action_error: "action d'echec invalide : doit etre 'kick', 'ban' ou 'mute'"
+captcha_attempts_range_error: "le nombre max de tentatives doit etre entre 1 et 10"
+captcha_status_usage: "Utilisez <code>/captcha on</code> ou <code>/captcha off</code> pour changer le statut."
+captcha_not_for_you: "Ce captcha n'est pas pour vous !"
+captcha_expired_or_not_found: "Captcha expire ou introuvable"
+captcha_attempt_not_valid: "Cette tentative de captcha n'est plus valide."
+captcha_refresh_limit_reached: "Limite d'actualisation atteinte pour ce captcha."
+captcha_internal_update_error: "Erreur interne lors de la mise a jour du captcha."
+captcha_no_active_attempt: "aucune tentative de captcha active trouvee"
+captcha_settings_header: "<b>Parametres Captcha :</b>"
+captcha_settings_status: "Statut : <code>%s</code>"
+captcha_settings_mode: "Mode : <code>%s</code>"
+captcha_settings_timeout: "Delai : <code>%d minutes</code>"
+captcha_settings_failure_action: "Action d'echec : <code>%s</code>"
+captcha_settings_max_attempts: "Tentatives max : <code>%d</code>"
+captcha_status_enabled: "active"
+captcha_status_disabled: "desactive"
+captcha_mode_math_desc: "problemes mathematiques"
+captcha_mode_text_desc: "reconnaissance de texte a partir d'images"
+captcha_mode_set_formatted: "✅ Mode captcha defini a <b>%s</b> (%s)"
+captcha_welcome_text_detailed: "👋 Bienvenue %s !\n\nVeuillez selectionner le texte affiche dans l'image pour verifier que vous etes humain :\n\n⏱ Vous avez <b>%d minutes</b> pour repondre."
+captcha_welcome_math_detailed: "👋 Bienvenue %s !\n\nVeuillez resoudre le probleme affiche dans l'image et selectionner la bonne reponse :\n\n⏱ Vous avez <b>%d minutes</b> pour repondre."
+captcha_pending_messages_header: "📋 <b>Messages en attente de l'utilisateur %d :</b>\n\n"
+captcha_pending_message_type: "%d. Type : %s\n"
+captcha_pending_message_caption: "   Legende : %s\n"
+captcha_pending_message_content: "   Contenu : %s\n"
+captcha_pending_message_time: "   Heure : %s\n\n"
+
+# Greetings module strings
+greetings_help_msg: |
+  Accueillez les nouveaux membres dans vos groupes ou dites au revoir apres leur depart !
+
+
+  *Commandes Admin :*
+
+  × /setwelcome `<reponse/texte>` : Definit le texte de bienvenue pour le groupe.
+
+  × /welcome `<yes/no/on/off>` : Active ou desactive le parametre de bienvenue pour le groupe.
+
+  × /resetwelcome : Reinitialise le message de bienvenue par defaut.
+
+  × /setgoodbye `<reponse/texte>` : Definit le texte d'au revoir pour le groupe.
+
+  × /goodbye `<yes/no/on/off>` : Active ou desactive le parametre d'au revoir pour le groupe.
+
+  × /resetgoodbye : Reinitialise le message d'au revoir par defaut.
+
+  × /cleanservice `<yes/no/on/off>` : Supprime tous les messages de service tels que la notification
+  'x a rejoint le groupe'.
+
+  × /cleanwelcome `<yes/no/on/off>` : Supprime l'ancien message de bienvenue a chaque fois qu'un nouveau
+  membre rejoint.
+
+  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres.
+greetings_welcome_status: |
+  J'accueille actuellement les utilisateurs : <code>%s</code>
+  Je supprime actuellement les anciens messages de bienvenue : <code>%s</code>
+  Je supprime actuellement les messages de service : <code>%s</code>
+  Le message de bienvenue sans remplir les {} est :
+greetings_welcome_enabled: "J'accueillerai les utilisateurs a partir de maintenant."
+greetings_welcome_disabled: "Je n'accueillerai plus les utilisateurs."
+greetings_welcome_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_welcome_set_success: "Message de bienvenue personnalise defini avec succes !"
+greetings_welcome_reset_success: "Message de bienvenue reinitialise par defaut avec succes !"
+greetings_goodbye_status: |
+  Je dis au revoir aux utilisateurs : <code>%s</code>
+  Je supprime actuellement les anciens messages d'au revoir : <code>%s</code>
+  Je supprime actuellement les messages de service : <code>%s</code>
+  Le message d'au revoir sans remplir les {} est :
+greetings_goodbye_enabled: "Je dirai au revoir aux utilisateurs a partir de maintenant."
+greetings_goodbye_disabled: "Je ne dirai plus au revoir aux utilisateurs."
+greetings_goodbye_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_goodbye_set_success: "Message d'au revoir personnalise defini avec succes !"
+greetings_goodbye_reset_success: "Message d'au revoir reinitialise par defaut avec succes !"
+greetings_clean_welcome_status_should: "Je devrais supprimer les messages de bienvenue vieux de jusqu'a deux jours."
+greetings_clean_welcome_status_not: "Je ne supprime actuellement pas les anciens messages de bienvenue !"
+greetings_clean_welcome_disabled: "Je ne supprimerai pas les anciens messages de bienvenue !"
+greetings_clean_welcome_enabled: "J'essaierai de supprimer les anciens messages de bienvenue !"
+greetings_clean_welcome_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_clean_goodbye_status_should: "Je devrais supprimer les messages d'au revoir vieux de jusqu'a deux jours."
+greetings_clean_goodbye_status_not: "Je ne supprime actuellement pas les anciens messages d'au revoir !"
+greetings_clean_goodbye_disabled: "Je ne supprimerai pas les anciens messages d'au revoir !"
+greetings_clean_goodbye_enabled: "J'essaierai de supprimer les anciens messages d'au revoir !"
+greetings_clean_goodbye_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_clean_service_enabled: "Je devrais supprimer les messages 'utilisateur a rejoint le chat' maintenant."
+greetings_clean_service_disabled: "Je ne supprime actuellement pas les messages de rejointe."
+greetings_clean_service_disable: "Je ne supprimerai pas les messages de rejointe."
+greetings_clean_service_enable: "J'essaierai de supprimer les messages de rejointe !"
+greetings_clean_service_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_captcha_verified_success: "✅ %s a ete verifie et peut maintenant discuter !"
+greetings_join_request_new: "Un nouvel utilisateur a demande a rejoindre le chat !"
+greetings_join_request_approve_button: "✅ Approuver"
+greetings_join_request_decline_button: "❌ Refuser"
+greetings_join_request_ban_button: "✅ Bannir"
+greetings_join_request_accepted: "%s accepte dans le chat ✅"
+greetings_join_request_declined: "Demande de %s de rejoindre le chat refusee ❌"
+greetings_join_request_banned: "✅ Banni avec succes ! %s"
+greetings_auto_approve_enabled: "J'approuve automatiquement les nouvelles demandes de rejointe maintenant."
+greetings_auto_approve_disabled: "Je n'approuve pas automatiquement les nouvelles demandes de rejointe actuellement."
+greetings_auto_approve_disable: "Je n'approuverai pas automatiquement les nouvelles demandes de rejointe !"
+greetings_auto_approve_enable: "J'essaierai d'approuver automatiquement les nouvelles demandes de rejointe !"
+greetings_auto_approve_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_goodbye_enable: "Je dirai au revoir aux utilisateurs a partir de maintenant."
+greetings_goodbye_disable: "Je ne dirai plus au revoir aux utilisateurs."
+greetings_goodbye_invalid: "Je comprends uniquement 'on/yes' ou 'off/no' !"
+greetings_goodbye_reset: "Message d'au revoir reinitialise par defaut avec succes !"
+greetings_clean_welcome_should: "Je devrais supprimer les messages de bienvenue vieux de jusqu'a deux jours."
+greetings_clean_welcome_not: "Je ne supprime actuellement pas les anciens messages de bienvenue !"
+greetings_clean_welcome_disable: "Je ne supprimerai pas les anciens messages de bienvenue !"
+greetings_clean_welcome_enable: "J'essaierai de supprimer les anciens messages de bienvenue !"
+greetings_clean_goodbye_should: "Je devrais supprimer les messages d'au revoir vieux de jusqu'a deux jours."
+greetings_clean_goodbye_not: "Je ne supprime actuellement pas les anciens messages d'au revoir !"
+greetings_clean_goodbye_disable: "Je ne supprimerai pas les anciens messages d'au revoir !"
+greetings_clean_goodbye_enable: "J'essaierai de supprimer les anciens messages d'au revoir !"
+greetings_clean_service_should: "Je devrais supprimer les messages 'utilisateur a rejoint le chat' maintenant."
+greetings_clean_service_not: "Je ne supprime actuellement pas les messages de rejointe."
+
+# Filters module strings
+filters_help_msg: |
+  Les filtres ne sont pas sensibles a la casse ; chaque fois que quelqu'un dit vos mots
+  declencheurs, Alita repondra autre chose ! Cela peut etre utilise pour creer vos propres commandes,
+  si desire.
+
+
+  Commandes :
+
+  - /filter <declencheur> <reponse> : Chaque fois que quelqu'un dit le declencheur, le bot repondra
+  avec la phrase. Pour les filtres a plusieurs mots, mettez le declencheur entre guillemets.
+
+  - /filters : Lister tous les filtres du chat.
+
+  - /stop <declencheur> : Arreter le bot de repondre au declencheur.
+
+  - /stopall : Arreter TOUS les filtres du chat actuel. Cette action ne peut pas etre annulee.
+
+
+  Exemples :
+
+  - Definir un filtre :
+
+  -> /filter bonjour Bonjour ! Comment allez-vous ?
+
+  - Definir un filtre a plusieurs mots :
+
+  -> /filter bonjour ami Salut ! Ca faisait longtemps !
+
+  - Definir un filtre qui ne peut etre utilise que par les admins :
+
+  -> /filter exemple Ce filtre ne fonctionnera pas si un utilisateur normal le dit {admin}
+
+  - Pour sauvegarder un fichier, image, gif ou tout autre piece jointe, repondez simplement au fichier
+  avec :
+
+  -> /filter declencheur
+filters_invalid: Filtre invalide !
+filters_limit_exceeded: |
+  Limite de filtres depassee, un groupe ne peut avoir que 150 filtres maximum !
+  Cette limitation est due au fait que le bot fonctionne gratuitement sans aucun don des utilisateurs.
+filters_keyword_required: "Veuillez me donner un mot-cle auquel repondre !"
+filters_keyword_too_long: "Le mot-cle du filtre est trop long ! Maximum 100 caracteres autorises."
+filters_overwrite_confirm: "Le filtre existe deja !\nVoulez-vous l'ecraser ?"
+filters_added_success: "Reponse ajoutee pour le mot filtre <code>%s</code>"
+filters_remove_keyword_required: "Veuillez me donner un mot filtre a supprimer !"
+filters_not_exists: "Le filtre n'existe pas !"
+filters_removed_success: "Ok !\nJe ne repondrai plus a <code>%s</code>"
+filters_none_in_chat: "Il n'y a pas de filtres dans ce chat !"
+filters_current_in_chat: "Voici les filtres actuels dans ce chat :"
+filters_clear_all_confirm: "Etes-vous sur de vouloir supprimer tous les filtres de ce chat ?"
+filters_clear_all_success: "Tous les filtres ont ete supprimes de ce chat ✅"
+filters_clear_all_cancelled: "Suppression de tous les filtres de ce chat annulee ❌"
+filters_overwrite_success: "Le filtre a ete ecrase avec succes ✅"
+filters_overwrite_cancelled: "Ecrasement du filtre annule ❌"
+filters_overwrite_expired: "⏰ Confirmation expiree ! Veuillez reessayer."
+
+# Notes module strings
+notes_help_msg: "Sauvegardez des donnees pour les futurs utilisateurs avec les notes !
+
+  Les notes sont geniales pour sauvegarder des informations aleatoires ; un numero de telephone, un gif sympa,
+  une image drole - n'importe quoi !
+
+  *Commandes Utilisateur :*
+
+  - /get <nom_note> : Obtenir une note.
+
+  - #nom_note : Identique a /get.
+
+  Commandes Admin :
+
+  - /save <nom_note> <texte_note> : Sauvegarder une nouvelle note appelee \"word\". Repondre a un message
+  sauvegardera ce message. Fonctionne meme avec les medias !
+
+  - /clear <nom_note> : Supprimer la note associee.
+
+  - /notes : Lister toutes les notes du chat actuel.
+
+  - /saved : Identique a /notes.
+
+  - /clearall : Supprimer TOUTES les notes d'un chat. Cela ne peut pas etre annule.
+
+  - /privatenotes : Si les notes doivent etre envoyees en MP ou non. Enverra un message avec un
+  bouton sur lequel les utilisateurs peuvent cliquer pour obtenir la note en MP."
+notes_invalid: Note invalide !
+notes_save_success: "Note <b>%s</b> sauvegardee !\nObtenez-la avec <code>#%s</code> ou <code>/get %s</code>."
+notes_save_failed: "Echec de la sauvegarde de la note. Veuillez reessayer plus tard."
+notes_keyword_required: "Veuillez me donner un mot-cle auquel repondre !"
+notes_overwrite_confirm: "La note existe deja !\nVoulez-vous l'ecraser ?"
+notes_remove_keyword_required: "Veuillez me donner un mot-cle a supprimer !"
+notes_not_exists: "La note n'existe pas !"
+notes_removed_success: "Note <b>%s</b> supprimee."
+notes_private_enabled: "Notes privees activees.\nLes utilisateurs recevront les notes en message prive."
+notes_private_disabled: "Notes privees desactivees.\nToutes les notes seront envoyees dans le chat du groupe."
+notes_private_invalid_option: "Je comprends uniquement une option parmi <on/off/yes/no>"
+notes_private_status_on: "Les notes privees sont actuellement activees !"
+notes_private_status_off: "Les notes privees sont actuellement desactivees !"
+notes_none_in_chat: "Il n'y a pas de notes dans ce chat !"
+notes_list_for_chat: "Voici les notes actuelles dans <b>%s</b> :"
+notes_check_button: "Cliquez sur le bouton ci-dessous pour obtenir les notes !"
+notes_click_me_btn: "Cliquez-moi !"
+notes_current_in_chat: "Voici les notes actuelles dans ce chat :\n"
+notes_get_instruction: "\nVous pouvez obtenir une note avec <code>#nom_note</code> ou <code>/get nom_note</code>"
+notes_clear_all_confirm: "Etes-vous sur de vouloir supprimer toutes les notes de ce chat ?"
+notes_creator_only: "Seul le createur du chat peut utiliser cette commande."
+notes_overwrite_cancelled: "Ecrasement de la note annule ❌"
+notes_overwrite_success: "La note a ete ecrasee avec succes ✅"
+notes_clear_all_success: "Toutes les notes ont ete supprimees de ce chat ✅"
+notes_clear_all_cancelled: "Suppression de toutes les notes de ce chat annulee ❌"
+notes_parsing_error: "Il y a une erreur d'analyse de la note, veuillez le signaler dans le chat de support."
+notes_admin_only: "Cette note ne peut etre consultee que par un admin !"
+notes_click_for_private: "Cliquez sur le bouton ci-dessous pour obtenir la note *%s*"
+notes_get_insufficient_args: "Pas assez d'arguments."
+notes_does_not_exist: "La note n'existe pas !"
+notes_parsing_error_support: "Il y a une erreur d'analyse de la note, veuillez le signaler au chat de support."
+notes_admin_only_access: "Cette note ne peut etre consultee que par un admin !"
+notes_private_conflict_warning: "\n\n<b>Note :</b> Cette note sera envoyee selon le parametre par defaut des notes de groupe, car elle a a la fois <code>{private}</code> et <code>{noprivate}</code>."
+
+# Rules module strings
+rules_help_msg: |
+  Chaque chat fonctionne avec des regles differentes ; ce module vous aidera a rendre
+  ces regles plus claires !
+
+  *Commandes Utilisateur* :
+
+  × /rules : Verifier les regles du chat actuel.
+
+  *Commandes Admin* :
+
+  × /setrules `<texte>` : Definir les regles pour ce chat.
+
+  × /privaterules `<yes/no/on/off>` : Activer/desactiver si les regles doivent etre envoyees
+  en prive.
+
+  × /resetrules : Reinitialiser les regles du chat par defaut
+
+  × /rulesbtn `<texte personnalise>` : Definit le texte du bouton des regles.
+
+  × /resetrulesbutton : Reinitialiser le texte du bouton des regles par defaut.
+
+  × /resetrulesbtn : Identique a ci-dessus.
+rules_not_set: Ce chat n'a pas de regles definies !
+rules_for_chat: "Regles pour <b>%s</b> :\n\n%s"
+rules_need_text: "Vous devez me donner des regles a definir !\nRepondez a un message pour les fournir avec la commande."
+rules_cleared_successfully: Regles supprimees avec succes !
+rules_private_pm_usage: L'utilisation de /rules enverra les regles en MP a l'utilisateur.
+rules_private_group_usage: Toutes les commandes /rules enverront les regles a %s.
+rules_private_current_pm: L'utilisation de /rules enverra les regles en MP a l'utilisateur.
+rules_private_current_group: Toutes les commandes /rules enverront les regles a %s.
+rules_for_chat_header: "Les regles pour <b>%s</b> sont :"
+rules_no_rules_set: Ce chat ne semble pas avoir de regles definies... Je ne prendrais pas cela comme une invitation cependant.
+rules_click_for_rules: Cliquez sur le bouton pour voir les regles du chat !
+rules_set_successfully: Regles definies avec succes pour ce groupe !
+rules_button_too_long: Le nom du bouton personnalise que vous avez entre est trop long. Veuillez entrer un texte de moins de 30 caracteres.
+rules_button_set_successfully: "Bouton des regles defini avec succes a : <b>%s</b>"
+rules_button_not_set: "Vous n'avez pas encore defini de bouton de regles personnalise. Le texte par defaut \"%s\" sera utilise."
+rules_button_current: "Le bouton des regles est actuellement defini au texte suivant :\n%s"
+rules_button_cleared: Texte du bouton des regles personnalise supprime avec succes !
+
+# Connections module strings
+connections_allow_connect_currently_off: |
+  Les connexions utilisateur sont actuellement <b>desactivees</b>.
+
+  Les utilisateurs ne peuvent pas connecter ce chat a leurs MP !
+connections_allow_connect_currently_on: |
+  Les connexions utilisateur sont actuellement <b>activees</b>.
+
+  Les utilisateurs peuvent connecter ce chat a leurs MP !
+connections_allow_connect_turned_off: |
+  Connexions utilisateur <b>desactivees</b> pour ce
+  chat !
+
+  Les utilisateurs ne peuvent pas connecter ce chat a leurs MP !
+connections_allow_connect_turned_on: |
+  Connexions utilisateur <b>activees</b> pour ce chat !
+
+  Les utilisateurs peuvent maintenant connecter ce chat a leurs MP !
+connections_connect_connected: Vous etes maintenant connecte a <b>%s</b> !
+connections_connect_connection_disabled: |
+  Les connexions utilisateur sont actuellement <b>desactivees</b>
+  pour ce chat.
+
+  Veuillez demander aux admins d'autoriser si vous souhaitez vous connecter !
+connections_connect_tap_btn_connect: |
+  Veuillez appuyer sur le bouton ci-dessous pour connecter ce
+  chat a votre MP.
+connections_connected: Vous etes actuellement connecte a <b>%s</b> !
+connections_connections_btns_admin_conn_cmds: Commandes Admin disponibles :%s
+connections_connections_btns_user_conn_cmds: Commandes Utilisateur disponibles :%s
+connections_disconnect_disconnected: |
+  Deconnecte avec succes du chat
+  connecte.
+connections_disconnect_need_pm: |
+  Vous devez m'envoyer ceci en MP pour vous deconnecter
+  du chat !
+connections_help_msg: |
+  Ce module vous permet de vous connecter a la base de donnees d'un chat et
+  d'y ajouter des choses sans que le chat le sache ! Pour des raisons evidentes, vous devez
+  etre admin pour ajouter des choses ; mais tout membre peut voir vos donnees. (les utilisateurs bannis/expulses
+  ne peuvent pas !)
+
+
+  *Commandes* :
+
+  × /connect `<chatid>` : Se connecter au chat specifie, vous permettant de voir/modifier
+  le contenu.
+
+  × /disconnect : Se deconnecter du chat actuel.
+
+  × /reconnect : Se reconnecter au chat precedemment connecte
+
+  × /connection : Voir les informations sur le chat actuellement connecte.
+
+
+  *Commandes Admin :*
+
+  × /allowconnect <yes/no> : Autoriser les utilisateurs a se connecter aux chats ou non.
+
+
+  Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
+  si l'id est negatif ; tous les super groupes ont des ids negatifs.
+connections_is_user_connected_bot_not_admin: Je ne suis pas admin dans ce chat !
+connections_is_user_connected_need_group: |
+  Cette commande est faite pour etre utilisee dans les chats de groupe,
+  pas en MP !
+connections_is_user_connected_user_not_admin: Vous devez etre admin pour faire cela.
+connections_not_connected: Vous n'etes connecte a aucun chat.
+connections_stale_connection: "Votre connexion est obsolete - je ne peux plus acceder a ce chat. Veuillez utiliser /connect pour vous reconnecter a un chat valide."
+connections_reconnect_need_pm: Vous devez etre en MP avec moi pour vous reconnecter a un chat !
+connections_reconnect_no_last_chat: Vous n'avez pas de dernier chat auquel vous reconnecter !
+connections_reconnect_reconnected: Vous etes maintenant reconnecte a <b>%s</b> !!
+connections_invalid_option: "Veuillez me donner une option valide parmi <yes/on/no/off>"
+connections_button_connect: "Se connecter au chat"
+
+# Disabling module strings
+disabling_help_msg: |
+  Ce module vous permet de desactiver certaines commandes couramment utilisees,
+  afin que personne ne puisse les utiliser. Il vous permettra egalement de les supprimer automatiquement, empechant les gens
+  de faire du texte bleu.
+
+
+  *Commandes Admin* :
+
+  × /disable `<nom_commande>` : Empecher les utilisateurs d'utiliser nom_commande dans ce groupe.
+
+  × /enable `<nom element>` : Autoriser les utilisateurs a utiliser nom_commande dans ce groupe.
+
+  × /disableable : Lister toutes les commandes desactivables.
+
+  × /disabledel `<yes/no/on/off>` : Supprimer les commandes desactivees lorsqu'utilisees par des non-admins.
+
+  × /disabled : Lister les commandes desactivees dans ce chat.
+
+
+  Note :
+
+  Lors de la desactivation d'une commande, elle n'est desactivee que pour les non-admins. Tous les admins
+  peuvent toujours utiliser ces commandes.
+
+  Les commandes desactivees sont toujours accessibles via la fonction /connect. Si vous souhaitez
+  voir cela egalement desactive, faites-le moi savoir dans le chat de support.
+disabling_disabled_successfully: "L'utilisation des commandes suivantes a ete desactivee dans ce chat :%s"
+disabling_unknown_command: "Commande inconnue a desactiver :\n-%s\nVerifiez /disableable !"
+disabling_no_command_specified: Vous n'avez pas specifie de commande a desactiver.
+disabling_disableable_commands: "Les commandes suivantes peuvent etre desactivees :"
+disabling_no_disabled_commands: Il n'y a pas de commandes desactivees dans ce chat.
+disabling_disabled_commands: "Les commandes suivantes sont desactivees dans ce chat :"
+disabling_delete_enabled: Les messages de commandes desactivees seront maintenant supprimes.
+disabling_delete_disabled: Les messages de commandes desactivees ne seront plus supprimes.
+disabling_delete_current_enabled: La suppression des commandes desactivees est *activee*, les commandes desactivees des utilisateurs seront supprimees !
+disabling_delete_current_disabled: La suppression des commandes desactivees est *desactivee*, les commandes desactivees des utilisateurs ne seront *pas* supprimees !
+disabling_enabled_successfully: "L'utilisation des commandes suivantes a ete reactivee dans ce chat :%s"
+disabling_unknown_reenable: "Commande inconnue a reactiver :\n-%s\nVerifiez /disableable !"
+disabling_no_command_reenable: Vous n'avez pas specifie de commande a desactiver.
+disabling_invalid_option: "Je comprends uniquement une option parmi : `yes`/`no`/`on`/`off`"
+
+# Locks module strings
+locks_help_msg: "*Admin uniquement* :
+
+  × /lock `<permission>` : Verrouiller la permission du chat.
+
+  × /unlock `<permission>` : Deverrouiller la permission du chat.
+
+  × /locks : Voir les permissions du chat.
+
+  × /locktypes : Verifier les types de verrous disponibles !
+
+
+  Les verrous peuvent etre utilises pour restreindre les utilisateurs d'un groupe.
+
+  Verrouiller les URLs supprimera automatiquement tous les messages avec des URLs, verrouiller les stickers supprimera
+  tous les stickers, etc.
+
+  Verrouiller les bots empechera les non-admins d'ajouter des bots au chat.
+
+
+  **Exemple :**
+
+  `/lock media` : cela verrouille tous les messages media dans le chat."
+locks_locktypes_header: "Verrous :
+  - "
+locks_what_to_lock: Que voulez-vous verrouiller ? Verifiez /locktypes pour les options disponibles.
+locks_invalid_lock_type: "`%s` n'est pas un type de verrou correct, verifiez /locktypes."
+locks_locked_successfully: "Les elements suivants ont ete verrouilles dans ce groupe :
+  - %s"
+locks_unlocked_successfully: "Les elements suivants ont ete deverrouilles dans ce groupe :
+  - %s"
+locks_lock_failed: "Echec du verrouillage : %s. Veuillez reessayer plus tard."
+locks_unlock_failed: "Echec du deverrouillage : %s. Veuillez reessayer plus tard."
+locks_what_to_unlock: Que voulez-vous deverrouiller ? Verifiez /locktypes pour les options disponibles.
+locks_current_locks_header: "Voici les verrous dans ce chat :"
+locks_bot_lock_no_permission: Je vois un bot, et on m'a dit de l'empecher de rejoindre... mais je ne suis pas admin !
+locks_bot_lock_no_ban_permission: Je vois un bot, et on m'a dit de l'empecher de rejoindre... mais je n'ai pas la permission de le bannir !
+locks_bot_only_admins: Seuls les admins sont autorises a ajouter des bots a ce chat !

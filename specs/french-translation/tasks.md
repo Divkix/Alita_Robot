@@ -46,7 +46,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - **Commit**: `feat(i18n): add moderation module strings to French locale`
   - _Requirements: FR-6, FR-7_
 
-- [ ] 1.4 Add remaining core modules
+- [x] 1.4 Add remaining core modules
   - **Do**:
     1. Translate `blacklists_*`, `captcha_*`, `greetings_*` keys
     2. Translate `filters_*`, `notes_*`, `rules_*` keys
