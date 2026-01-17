@@ -13,7 +13,7 @@ generated: auto
 Focus: Create minimal working Hindi locale with core keys.
 
 - [x] 1.1 Create hi.yml with language identity keys
-  - **Do**: Create `/Users/divkix/GitHub/Alita_Robot/locales/hi.yml` with language_name, language_flag, lang_sample keys
+  - **Do**: Create `locales/hi.yml` with language_name, language_flag, lang_sample keys
   - **Files**: `locales/hi.yml`
   - **Done when**: File exists with 3 identity keys
   - **Verify**: `cat locales/hi.yml | head -5`
