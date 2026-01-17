@@ -68,6 +68,10 @@ admin_title_is_bot_itself: Si tan solo pudiera hacer esto conmigo mismo ;_;
 admin_title_is_owner: Esta persona creó este chat, ¿cómo se supone que debo
   establecer un título de administrador para ella?
 admin_title_success_set: Título de administrador de %s establecido exitosamente a <b>%s</b>
+admin_title_truncated: "\nNota: Título de administrador truncado a 16 caracteres desde %d"
+admin_cache_cleared: Caché de administradores limpiado exitosamente.
+admin_no_visible_admins: "\nNo hay administradores visibles (todos son bots o anónimos)."
+admin_anon_admin_db_error: Error al actualizar la configuración de administrador anónimo. Por favor intente de nuevo.
 antiflood_checkflood_perform_action: Sí, no me gusta tu flood. ¡%s ha sido
   %s!
 antiflood_errors_expected_args:

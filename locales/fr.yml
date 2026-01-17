@@ -32,6 +32,10 @@ admin_title_is_admin: "Cette personne est déjà administrateur, comment puis-je
 admin_title_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
 admin_title_is_owner: "Cette personne a créé ce chat, comment suis-je censé lui définir un titre d'administrateur ?"
 admin_title_success_set: "Titre d'administrateur de %s défini avec succès à <b>%s</b>"
+admin_title_truncated: "\nNote : Titre d'administrateur tronqué à 16 caractères depuis %d"
+admin_cache_cleared: Cache des administrateurs effacé avec succès.
+admin_no_visible_admins: "\nAucun administrateur visible (tous sont des bots ou anonymes)."
+admin_anon_admin_db_error: Échec de la mise à jour du paramètre d'administrateur anonyme. Veuillez réessayer.
 admin_need_admin: Vous devez être administrateur pour faire cela !
 admin_adminlist_note_cached: "\n\nNote : Ces valeurs sont en cache et peuvent ne pas être à jour"
 admin_adminlist_note_fresh: "\n\nNote : Ces valeurs sont à jour"

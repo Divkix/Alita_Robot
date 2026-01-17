@@ -10,7 +10,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -68,12 +67,18 @@ func (m moduleStruct) adminlist(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 		if user.Username != "" {
-			sb.WriteString(fmt.Sprintf("\n- @%s", helpers.HtmlEscape(user.Username)))
+			fmt.Fprintf(&sb, "\n- @%s", helpers.HtmlEscape(user.Username))
 		} else {
-			sb.WriteString(fmt.Sprintf("\n- %s", helpers.MentionHtml(user.Id, user.FirstName)))
+			fmt.Fprintf(&sb, "\n- %s", helpers.MentionHtml(user.Id, user.FirstName))
 		}
 	}
-	text += sb.String()
+	if sb.Len() == 0 {
+		// All admins are bots or anonymous
+		noVisibleText, _ := tr.GetString("admin_no_visible_admins")
+		text += noVisibleText
+	} else {
+		text += sb.String()
+	}
 	if !cached {
 		noteText, _ := tr.GetString("admin_adminlist_note_fresh")
 		text += noteText
@@ -223,6 +228,9 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
+	// Invalidate admin cache immediately so permission checks reflect the change
+	cache.InvalidateAdminCache(chat.Id)
+
 	mem := userMember.MergeChatMember().User
 	_, err = msg.Reply(b,
 		func() string {
@@ -363,6 +371,11 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	teamMemInfo := teamMem.Sudo || teamMem.Dev
 	isPromoterOwner := chat_status.RequireUserOwner(b, ctx, nil, user.Id, true)
 
+	// Privilege Escalation Behavior (Intentional):
+	// - Group owners and sudo/dev team members can grant full bot-level permissions
+	// - Regular admins can only grant permissions they themselves have
+	// This is by design: trusted users (owners, sudo, dev) bypass the permission mirroring
+	// that normally prevents admins from granting permissions they don't have.
 	checkCommonPerms := isPromoterOwner || teamMemInfo
 
 	_, err = chat.PromoteMember(b,
@@ -409,6 +422,9 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 	}
+	// Invalidate admin cache immediately so permission checks reflect the change
+	cache.InvalidateAdminCache(chat.Id)
+
 	mem := userMember.MergeChatMember().User
 	_, err = msg.Reply(b,
 		func() string {
@@ -538,6 +554,7 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// for managing custom title
+	var extraText string
 	if customTitle == "" {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_title_empty")
 		_, err := msg.Reply(b, text, helpers.Shtml())
@@ -547,7 +564,9 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if len(customTitle) > 16 {
-		// trim title to 16 characters (telegram restriction)
+		// trim title to 16 characters (telegram restriction) and notify user
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_truncated")
+		extraText = fmt.Sprintf(temp, len(customTitle))
 		customTitle = customTitle[0:16]
 	}
 
@@ -575,7 +594,7 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_success_set")
 			return fmt.Sprintf(temp, mem.User.FirstName, mem.CustomTitle)
-		}(),
+		}()+extraText,
 		helpers.Shtml(),
 	)
 	if err != nil {
@@ -626,14 +645,13 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			} else {
-				// Capture variable for goroutine closure
-				chatId := chat.Id
-				go func() {
-					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
-					if err := db.SetAnonAdminMode(chatId, true); err != nil {
-						log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chatId, err)
-					}
-				}()
+				// Synchronous DB write - confirm success before sending message
+				if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
+					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
+					_, _ = msg.Reply(b, errorText, helpers.Shtml())
+					return ext.EndGroups
+				}
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_enabled_now")
 				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			}
@@ -642,14 +660,13 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			} else {
-				// Capture variable for goroutine closure
-				chatId := chat.Id
-				go func() {
-					defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
-					if err := db.SetAnonAdminMode(chatId, false); err != nil {
-						log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chatId, err)
-					}
-				}()
+				// Synchronous DB write - confirm success before sending message
+				if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
+					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
+					_, _ = msg.Reply(b, errorText, helpers.Shtml())
+					return ext.EndGroups
+				}
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_disabled_now")
 				text = fmt.Sprintf(temp, helpers.HtmlEscape(chat.Title))
 			}
@@ -721,19 +738,42 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	misc.AddCmdToDisableable("adminlist")
 	dispatcher.AddHandler(handlers.NewCommand("anonadmin", adminModule.anonAdmin))
 	dispatcher.AddHandler(handlers.NewCommand("admincache", adminModule.adminCache))
-	dispatcher.AddHandler(
-		handlers.NewCommand(
-			"clearadmincache",
-			func(b *gotgbot.Bot, ctx *ext.Context) error {
-				chat := ctx.EffectiveChat
-				err := cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:adminCache:%d", chat.Id))
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				log.Info(fmt.Sprintf("Cleared admin cache for %d (%s)", chat.Id, chat.Title))
-				return ext.EndGroups
-			},
-		),
-	)
+	dispatcher.AddHandler(handlers.NewCommand("clearadmincache", adminModule.clearAdminCache))
+}
+
+// clearAdminCache handles the /clearadmincache command to delete the cached admin list.
+// Requires admin permissions and provides user feedback on success.
+func (moduleStruct) clearAdminCache(b *gotgbot.Bot, ctx *ext.Context) error {
+	chat := ctx.EffectiveChat
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveSender.User
+
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+
+	// permission checks
+	if !chat_status.RequireGroup(b, ctx, nil, false) {
+		return ext.EndGroups
+	}
+	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+		return ext.EndGroups
+	}
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+		return ext.EndGroups
+	}
+
+	err := cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:adminCache:%d", chat.Id))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	log.Infof("[Admin] Cleared admin cache for %d (%s)", chat.Id, chat.Title)
+
+	text, _ := tr.GetString("admin_cache_cleared")
+	_, err = msg.Reply(b, text, helpers.Shtml())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return ext.EndGroups
 }

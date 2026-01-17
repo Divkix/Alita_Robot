@@ -64,6 +64,10 @@ admin_title_is_bot_itself: If only I could do this to myself ;_;
 admin_title_is_owner: This person created this chat, and how am I supposed to
   set an admin title for them?
 admin_title_success_set: Successfully set %s's admin title to <b>%s</b>
+admin_title_truncated: "\nNote: Admin title truncated to 16 characters from %d"
+admin_cache_cleared: Successfully cleared admin cache.
+admin_no_visible_admins: "\nNo visible admins (all are bots or anonymous)."
+admin_anon_admin_db_error: Failed to update anonymous admin setting. Please try again.
 antiflood_checkflood_perform_action:
   Yeah, I don't like your flooding. %s has been
   %s!
