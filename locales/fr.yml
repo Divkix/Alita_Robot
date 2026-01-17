@@ -65,3 +65,76 @@ admin_notes_docs: |
   <b>Notes de securite</b>
   • Toutes les entrees controlees par l'utilisateur sont echappees en HTML pour prevenir les attaques par injection
   • Les changements de permissions d'administration s'executent avec une gestion d'erreurs appropriee et une recuperation en cas de panique
+
+# Common error messages used across modules
+error_generic: "Une erreur s'est produite. Veuillez reessayer plus tard."
+common_anonymous_user_error: Cette commande ne peut pas etre utilisee sur un utilisateur anonyme.
+common_anonymous_ban_error: Cette commande ne peut pas etre utilisee sur un utilisateur anonyme, ces utilisateurs peuvent uniquement etre bannis/debannis.
+common_cannot_identify_user: Impossible d'identifier l'utilisateur. Cette commande ne peut pas etre utilisee par les chaines.
+common_no_user_specified: Je ne sais pas de qui vous parlez, vous allez devoir specifier un utilisateur... !
+common_user_not_in_chat: Cet utilisateur n'est pas dans ce chat, comment puis-je le restreindre ?
+
+# Common action verbs (for dynamic error messages)
+common_action_ban: "bannir"
+common_action_kick: "expulser"
+common_action_mute: "rendre muet"
+common_action_warn: "avertir"
+common_action_promote: "promouvoir"
+common_action_demote: "retrograder"
+common_action_restrict: "restreindre"
+
+# Time units for duration formatting
+common_time_minute: "minute"
+common_time_minutes: "minutes"
+common_time_hour: "heure"
+common_time_hours: "heures"
+common_time_day: "jour"
+common_time_days: "jours"
+common_time_week: "semaine"
+common_time_weeks: "semaines"
+
+# Status indicators (for replacing %t boolean formatters)
+common_status_enabled: "Active"
+common_status_disabled: "Desactive"
+common_status_on: "Active"
+common_status_off: "Desactive"
+
+# Common/Shared strings
+common_yes: "Oui"
+common_no: "Non"
+common_back: "Retour"
+common_back_arrow: "« Retour"
+common_back_arrow_alt: "⬅ Retour"
+common_done: "Termine ✅"
+common_continue: "✅ Continuer ✅"
+common_home: "Accueil"
+common_formatting_button: "Formatage"
+common_rules_button: "Regles"
+common_rules_button_emoji: "Regles 📝"
+
+# Language module strings
+language_current_user: "Votre langue actuelle est %s\nChoisissez une langue dans le clavier ci-dessous."
+language_current_group: "La langue actuelle de ce groupe est %s\nChoisissez une langue dans le clavier ci-dessous."
+language_changed_user: "Votre langue a ete changee en %s"
+language_changed_group: "La langue de ce groupe a ete changee en %s"
+language_admin_required: "Vous devez etre administrateur pour changer la langue du groupe."
+language_help_translate: "Aidez-nous a traduire 🌎"
+language_invalid_selection: "Selection de langue invalide."
+
+# Common button texts
+button_yes: "Oui"
+button_no: "Non"
+button_back: "Retour"
+button_unmute_admin: "Reactiver la voix (Admin uniquement)"
+button_unban_admin: "Debannir (Admin uniquement)"
+button_unmute_admins: "Reactiver la voix (Admins uniquement)"
+button_unban_admins: "Debannir (Admins uniquement)"
+button_connect_to_chat: "Se connecter au chat"
+button_formatting: "Formatage"
+button_click_me: "Cliquez-moi !"
+button_ban: "Bannir"
+button_kick: "Expulser"
+button_mute: "Rendre muet"
+button_unban: "Debannir"
+button_unmute: "Reactiver la voix"
+button_rules_default: "Regles"

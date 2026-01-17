@@ -24,7 +24,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - _Requirements: FR-1, FR-2, FR-3, FR-4_
   - _Design: fr.yml Locale File_
 
-- [ ] 1.2 Add common strings and language module
+- [x] 1.2 Add common strings and language module
   - **Do**:
     1. Translate all `common_*` keys
     2. Translate all `language_*` keys
