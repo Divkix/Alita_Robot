@@ -1,0 +1,67 @@
+# French locale for Alita Robot
+# Language metadata
+lang_sample: Bonjour, je suis un bot de gestion de groupe
+language_flag: 🇫🇷
+language_name: Français
+
+# Admin module strings
+admin_adminlist: "Administrateurs de <b>%s</b> :"
+admin_anon_admin_already_disabled: Le mode AnonAdmin est deja <b>desactive</b> pour %s
+admin_anon_admin_already_enabled: Le mode AnonAdmin est deja <b>active</b> pour %s
+admin_anon_admin_disabled: "Le mode AnonAdmin est actuellement <b>desactive</b> pour %s.\n\nCela necessite que les administrateurs anonymes appuient sur un bouton pour confirmer leurs permissions."
+admin_anon_admin_disabled_now: "Le mode AnonAdmin est maintenant <b>desactive</b> pour %s.\n\nDesormais, je ne demanderai plus aux administrateurs anonymes de verifier leurs permissions."
+admin_anon_admin_enabled: "Le mode AnonAdmin est actuellement <b>active</b> pour %s.\n\nCela permet a tous les administrateurs anonymes d'effectuer des actions d'administration sans restriction."
+admin_anon_admin_enabled_now: "Le mode AnonAdmin est maintenant <b>active</b> pour %s.\n\nDesormais, je demanderai aux administrateurs de verifier les permissions des administrateurs anonymes."
+admin_anon_admin_invalid_arg: "Argument invalide, je comprends uniquement <code>on</code>, <code>off</code>, <code>yes</code>, <code>no</code>"
+admin_demote_not_admin: "Cette personne n'est pas administrateur, comment suis-je cense la retrograder ?"
+admin_demote_is_bot_itself: Je ne vais pas me retrograder moi-meme.
+admin_demote_is_owner: Cette personne a cree ce chat, comment pourrais-je la retrograder ?
+admin_demote_success_demote: "%s retrogrades avec succes !"
+admin_errors_err_cannot_demote: "Echec de la retrogradation ; il se peut que je ne sois pas administrateur, ou qu'ils aient ete promus par un autre administrateur."
+admin_errors_err_cannot_promote: "Echec de la promotion ; il se peut que je ne sois pas administrateur, ou qu'ils aient ete promus par un autre administrateur."
+admin_errors_err_set_title: "Echec de la definition du titre d'administrateur personnalise ; le titre peut etre incorrect ou contenir des emojis."
+admin_errors_title_empty: Vous devez me donner un titre d'administrateur a definir.
+admin_errors_admin_cache_failed: "J'ai du mal a acceder a la liste des administrateurs. Veuillez reessayer plus tard."
+admin_help_msg: "Facilitez la promotion et la retrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<reponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<reponse/nom d'utilisateur/mention/id utilisateur>` : Retrograder un utilisateur.\n\n× /title `<reponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalise>` : Definir un titre personnalise pour l'utilisateur"
+admin_promote_admin_title_truncated: Titre d'administrateur tronque a 16 caracteres depuis %d
+admin_promote_is_admin: "Cette personne est deja administrateur, comment suis-je cense la promouvoir ?"
+admin_promote_is_bot_itself: Si seulement je pouvais me faire ca a moi-meme ;_;
+admin_promote_is_owner: "Cette personne a cree ce chat, comment suis-je cense la promouvoir ?"
+admin_promote_success_promote: "%s promu avec succes !"
+admin_title_is_admin: "Cette personne est deja administrateur, comment puis-je lui definir un titre d'administrateur personnalise ?"
+admin_title_is_bot_itself: Si seulement je pouvais me faire ca a moi-meme ;_;
+admin_title_is_owner: "Cette personne a cree ce chat, comment suis-je cense lui definir un titre d'administrateur ?"
+admin_title_success_set: "Titre d'administrateur de %s defini avec succes a <b>%s</b>"
+admin_need_admin: Vous devez etre administrateur pour faire cela !
+admin_adminlist_note_cached: "\n\nNote : Ces valeurs sont en cache et peuvent ne pas etre a jour"
+admin_adminlist_note_fresh: "\n\nNote : Ces valeurs sont a jour"
+admin_invitelink_public: "Voici le lien d'invitation de ce chat : %s"
+admin_invitelink_private: "Voici le lien d'invitation de ce chat : %s"
+admin_extended_docs: |
+  <b>Support des Administrateurs Anonymes</b>
+
+  La commande <code>/anonadmin</code> permet aux proprietaires de groupe de basculer la reconnaissance des administrateurs anonymes :
+  <code>/anonadmin on</code> - Activer les verifications d'administrateurs anonymes
+  <code>/anonadmin off</code> - Desactiver les verifications d'administrateurs anonymes
+
+  Lorsque c'est active, le bot demandera une verification pour les actions d'administration des comptes anonymes.
+
+  <b>Comment fonctionne la verification des administrateurs anonymes :</b>
+  1. Le bot detecte que l'expediteur est GroupAnonymousBot
+  2. Le message original est mis en cache avec un TTL de 20 secondes
+  3. Un bouton "Verifier Admin" est envoye dans le chat
+  4. L'utilisateur qui clique est verifie comme admin, la commande est executee
+  5. Le bouton expire apres 20 secondes s'il n'est pas verifie
+
+  <b>Commandes supportees :</b>
+  Admin : /promote, /demote, /title
+  Bannissements : /ban, /dban, /sban, /tban, /unban
+  Mutes : /mute, /smute, /dmute, /tmute, /unmute
+  Epingles : /pin, /unpin, /permapin, /unpinall
+  Purges : /purge, /del
+  Avertissements : /warn, /swarn, /dwarn
+
+admin_notes_docs: |
+  <b>Notes de securite</b>
+  • Toutes les entrees controlees par l'utilisateur sont echappees en HTML pour prevenir les attaques par injection
+  • Les changements de permissions d'administration s'executent avec une gestion d'erreurs appropriee et une recuperation en cas de panique

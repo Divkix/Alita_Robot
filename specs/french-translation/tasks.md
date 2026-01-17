@@ -12,7 +12,7 @@ generated: auto
 
 Focus: Create fr.yml with core translations to validate language selection works.
 
-- [ ] 1.1 Create fr.yml with metadata and admin module
+- [x] 1.1 Create fr.yml with metadata and admin module
   - **Do**:
     1. Create `locales/fr.yml`
     2. Add language metadata: `lang_sample`, `language_flag`, `language_name`
