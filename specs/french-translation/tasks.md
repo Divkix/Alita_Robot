@@ -140,7 +140,7 @@ After POC validated, fix any quality issues.
 
 ## Phase 4: Quality Gates
 
-- [ ] 4.1 Local quality check
+- [x] 4.1 Local quality check
   - **Do**:
     1. Run `make lint` (if applicable)
     2. Verify YAML is valid
@@ -149,7 +149,7 @@ After POC validated, fix any quality issues.
   - **Done when**: No errors from validation
   - **Commit**: `chore(i18n): finalize French locale` (if needed)
 
-- [ ] 4.2 Create PR
+- [x] 4.2 Create PR
   - **Do**:
     1. Create feature branch if not exists
     2. Push changes
