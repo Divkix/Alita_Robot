@@ -34,3 +34,5 @@ scripts/migrate/migrate
 .mcp.json
 alita_test
 .gocache/
+specs/.current-spec
+**/.progress.md
