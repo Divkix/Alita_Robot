@@ -29,7 +29,7 @@ Focus: Create minimal working Hindi locale with core keys.
   - **Commit**: `feat(i18n): add Hindi admin module translations`
   - _Requirements: FR-1_
 
-- [ ] 1.3 Translate common/utility keys (~100 keys)
+- [x] 1.3 Translate common/utility keys (~100 keys)
   - **Do**: Translate common_, utils_, helpers_, button_, format_ keys
   - **Files**: `locales/hi.yml`
   - **Done when**: All utility keys translated
