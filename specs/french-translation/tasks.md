@@ -103,7 +103,7 @@ After POC validated, fix any quality issues.
   - **Commit**: `fix(i18n): correct escape sequence quoting in French locale`
   - _Design: Translation Format Patterns_
 
-- [ ] 2.2 Verify printf formatter consistency
+- [x] 2.2 Verify printf formatter consistency
   - **Do**:
     1. Extract all keys with %s, %d from en.yml
     2. Compare formatter order in fr.yml

@@ -1,0 +1,12 @@
+{
+  "source": "plan",
+  "name": "french-translation",
+  "basePath": "./specs/french-translation",
+  "phase": "execution",
+  "taskIndex": 10,
+  "totalTasks": 12,
+  "taskIteration": 1,
+  "maxTaskIterations": 5,
+  "globalIteration": 1,
+  "maxGlobalIterations": 100
+}
