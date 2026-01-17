@@ -965,3 +965,506 @@ locks_current_locks_header: "Voici les verrous dans ce chat :"
 locks_bot_lock_no_permission: Je vois un bot, et on m'a dit de l'empecher de rejoindre... mais je ne suis pas admin !
 locks_bot_lock_no_ban_permission: Je vois un bot, et on m'a dit de l'empecher de rejoindre... mais je n'ai pas la permission de le bannir !
 locks_bot_only_admins: Seuls les admins sont autorises a ajouter des bots a ce chat !
+
+# Utils chat status strings
+utils_chat_status_anon_admin_btn: Confirmez votre identite
+utils_chat_status_anon_admin_string: |
+  Il semble que vous soyez anonyme. Appuyez sur ce bouton
+  pour confirmer votre identite.
+utils_chat_status_bot_no_permission_delete: Je n'ai pas la permission de supprimer des messages !
+utils_chat_status_bot_no_permission_pin: |
+  Je ne peux pas epingler de messages ici ! Assurez-vous que je suis
+  admin et que je peux epingler des messages.
+utils_chat_status_bot_no_permission_promote: |
+  Je ne peux pas promouvoir/retrograder des personnes ici ! Assurez-vous
+  que je suis admin et que je peux nommer de nouveaux admins.
+utils_chat_status_bot_no_permission_restrict: |
+  Je n'ai pas la permission de restreindre
+  les membres !
+utils_chat_status_bot_no_permission_restrict_group: |
+  Je ne peux pas restreindre des personnes ici !
+  Assurez-vous que je suis admin et que je peux restreindre d'autres membres.
+utils_chat_status_bot_require_admin: |
+  Je ne suis pas admin ! Assurez-vous que je suis admin et
+  que j'ai les permissions appropriees.
+utils_chat_status_require_group: |
+  Cette commande est faite pour etre utilisee dans les chats de groupe, pas
+  en MP !
+utils_chat_status_require_private: Cette commande est faite pour le MP, pas pour les chats de groupe !
+utils_chat_status_user_no_permission_change_info_btn: |
+  Vous n'avez pas la permission de
+  modifier les informations !!
+utils_chat_status_user_no_permission_change_info_cmd: |
+  Vous n'avez pas la permission de
+  modifier les informations dans ce groupe !
+utils_chat_status_user_no_permission_delete: Vous n'avez pas la permission de supprimer des messages !
+utils_chat_status_user_no_permission_pin: |
+  Vous ne pouvez pas epingler de messages ici ! Assurez-vous que vous etes
+  admin et que vous pouvez epingler des messages.
+utils_chat_status_user_no_permission_promote_btn: |
+  Vous n'avez pas la permission de promouvoir/retrograder
+  des membres !!
+utils_chat_status_user_no_permission_promote_cmd: |
+  Vous ne pouvez pas promouvoir/retrograder des personnes
+  ici ! Assurez-vous d'avoir les droits appropries !
+utils_chat_status_user_no_permission_restrict_btn: |
+  Vous n'avez pas la permission de restreindre
+  les membres !
+utils_chat_status_user_no_permission_restrict_cmd: |
+  Vous n'avez pas la permission de restreindre
+  les membres dans ce groupe !
+utils_chat_status_user_require_admin_btn: Vous devez etre admin pour faire cela !
+utils_chat_status_user_require_admin_cmd: Seuls les admins peuvent executer cette commande !
+utils_chat_status_user_require_owner_btn: Vous devez etre le createur du groupe pour faire cela !
+utils_chat_status_user_require_owner_cmd: Seul le createur du groupe peut faire cela !
+
+# Utils extraction strings
+utils_extraction_extract_chat_badrequest_failed_getchat: |
+  "echec de la connexion au chat :
+  echec de l'obtention du chat : impossible de getChat : Bad Request : chat introuvable"
+utils_extraction_extract_chat_fail_need_chat: J'ai besoin d'un ID de chat pour me connecter !
+utils_extraction_extract_chat_fail_need_chat_id: |
+  Je m'attendais a un ID de chat, mais ce n'est pas
+  un entier valide.
+utils_extraction_extract_user_badrequest_failed_getchatmember: |
+  "echec de l'obtention de l'utilisateur :
+  impossible de getChatMember : Bad Request : chat introuvable"
+utils_extraction_extract_user_no_user_found: |
+  Impossible de trouver un utilisateur avec ce nom ; etes-vous
+  sur que je l'ai deja vu ?
+utils_string_handling_extract_time_invalid_time_amount: Quantite de temps invalide specifiee.
+utils_string_handling_extract_time_invalid_time_type: |
+  "Type de temps invalide specifie.
+  Attendu m, h, ou d obtenu : %s"
+
+# Chat status permission strings
+chat_status_change_info_button_error: "Vous n'avez pas les permissions pour modifier les informations !!"
+chat_status_change_info_cmd_error: "Vous n'avez pas la permission de modifier les informations dans ce groupe !"
+chat_status_restrict_button_error: "Vous n'avez pas les permissions pour restreindre les membres !!"
+chat_status_restrict_cmd_error: "Vous n'avez pas la permission de restreindre les utilisateurs dans ce groupe !"
+chat_status_bot_restrict_error: "Je n'ai pas les permissions pour restreindre les membres !!"
+chat_status_bot_restrict_group_error: "Je ne peux pas restreindre des personnes ici ! Assurez-vous que je suis admin et que je peux restreindre d'autres membres."
+chat_status_promote_button_error: "Vous n'avez pas les permissions pour promouvoir/retrograder des membres !!"
+chat_status_promote_cmd_error: "Vous ne pouvez pas promouvoir/retrograder des personnes ici ! Assurez-vous d'avoir les droits appropries !"
+chat_status_bot_promote_error: "Je ne peux pas promouvoir/retrograder des personnes ici ! Assurez-vous que je suis admin et que je peux nommer de nouveaux admins."
+chat_status_pin_user_error: "Vous ne pouvez pas epingler de messages ici ! Assurez-vous que vous etes admin et que vous pouvez epingler des messages."
+chat_status_pin_bot_error: "Je ne peux pas epingler de messages ici ! Assurez-vous que je suis admin et que je peux epingler des messages."
+chat_status_invite_link_bot_error: "Je n'ai pas acces aux liens d'invitation ! Assurez-vous que je suis admin et que je peux inviter des utilisateurs."
+chat_status_invite_link_user_error: "Vous n'avez pas acces aux liens d'invitation ; vous devez etre admin pour obtenir cela !"
+chat_status_delete_button_error: "Vous n'avez pas les permissions pour supprimer des messages !!"
+chat_status_delete_cmd_error: "Vous n'avez pas les permissions pour supprimer des messages !"
+chat_status_bot_delete_error: "Je n'ai pas les permissions pour supprimer des messages !"
+chat_status_bot_not_admin: "Je ne suis pas admin !"
+chat_status_user_admin_button_error: "Vous devez etre admin pour faire cela !"
+chat_status_user_admin_cmd_error: "Seuls les admins peuvent executer cette commande !"
+chat_status_owner_button_error: "Vous devez etre le createur du groupe pour faire cela !"
+chat_status_owner_cmd_error: "Seul le createur du groupe peut faire cela !"
+chat_status_pm_only_error: "Cette commande est faite pour le MP, pas pour les chats de groupe !"
+chat_status_group_only_error: "Cette commande est faite pour etre utilisee dans les chats de groupe, pas en MP !"
+chat_status_anon_confirm: "Il semble que vous soyez anonyme. Appuyez sur ce bouton pour confirmer votre identite."
+chat_status_anon_prove_admin: "Cliquez pour prouver que vous etes admin"
+
+# Extraction module strings
+extraction_chat_not_found: "echec de la connexion au chat : echec de l'obtention du chat : impossible de getChat : Bad Request : chat introuvable"
+extraction_need_chat_id: "J'ai besoin d'un ID de chat pour me connecter !"
+extraction_user_not_found: "Impossible de trouver un utilisateur avec ce nom ; etes-vous sur que je l'ai deja vu ?"
+extraction_get_chat_member_failed: "Echec de l'obtention de l'utilisateur : impossible de getChatMember : Bad Request : chat introuvable"
+extraction_invalid_time_amount: "Quantite de temps invalide specifiee."
+extraction_time_limit_exceeded: "Impossible de definir un temps superieur a 1 an !"
+extraction_no_time_specified: "Veuillez specifier une duree (ex. 1m, 1h, 1d, 1w)."
+extraction_invalid_time_type: "Type de temps invalide specifie. Attendu m, h, d ou w obtenu : %s"
+extraction_invalid_time_format: "Format de temps invalide specifie."
+
+# Help module strings
+help_about: "@%s est l'un des gestionnaires de groupe les plus rapides et les plus complets.
+
+
+  Alita ✨ est developpe et activement maintenu par @DivideProjects !
+
+
+  Alita est en ligne depuis 2020 et a servi des milliers de groupes avec des centaines
+  de milliers d'utilisateurs !
+
+
+  <b>Pourquoi Alita :</b>
+
+  - Simple : Utilisation facile et compatible avec de nombreuses commandes de bot.
+
+  - Complet : De nombreuses fonctionnalites que d'autres bots de gestion de groupe n'ont pas.
+
+  - Rapide : Devinez quoi ? Il n'est pas fait en Python, nous utilisons <a href='https://go.dev/'>Go</a>
+  comme langage de programmation principal.
+
+
+  <b>Version actuelle :</b> %s"
+help_configuration_step-1: "Bienvenue dans la configuration d'Alita
+
+
+  La premiere chose a faire est d'ajouter Alita ✨ a votre groupe ! Pour ce faire, appuyez sur le
+  bouton ci-dessous et selectionnez votre groupe, puis appuyez sur Termine pour continuer le tutoriel."
+help_configuration_step-2: "Ok, bien joue !
+
+
+  Maintenant, pour que je fonctionne correctement, vous devez me faire Admin de votre Groupe !
+
+  Pour ce faire, suivez ces etapes simples :
+
+  ▫️ Allez dans votre groupe
+
+  ▫️ Appuyez sur le nom du groupe
+
+  ▫️ Appuyez sur Modifier
+
+  ▫️ Appuyez sur Administrateur
+
+  ▫️ Appuyez sur Ajouter un administrateur
+
+  ▫️ Appuyez sur la loupe
+
+  ▫️ Recherchez @%s
+
+  ▫️ Confirmez"
+help_configuration_step-3: "Excellent !
+
+
+  Maintenant le Bot est pret a l'emploi !
+
+  Toutes les commandes peuvent etre utilisees avec / ou !
+
+
+  Si vous rencontrez des difficultes pour me configurer dans votre groupe, n'hesitez pas
+  a venir sur @DivideSupport.
+
+  Nous serons ravis de vous aider."
+help_donatetext: "Vous voulez faire un don ? Incroyable !
+
+  Quand vous faites un don, tous les fonds vont vers mon developpement, ce qui me rend rapide et
+  reactif.
+
+  Votre don pourrait aussi me permettre d'obtenir une ou deux nouvelles fonctionnalites, que je n'etais pas en mesure d'avoir
+  en raison des limitations du serveur.
+
+  Tous les fonds seront utilises pour mes services tels que la base de donnees, le stockage et l'hebergement !
+
+  Vous pouvez faire un don en contactant mon proprietaire ici : @DivideProjectsBot"
+help_pm_questions: "Salut :) Envoyez-moi un MP si vous avez des questions sur mon utilisation !"
+help_config_private_only: La configuration ne fonctionne qu'en prive
+help_info_about_header: "Info & A propos\n\nVoici quelques FAQ sur Alita."
+help_news_channel_text: "Rejoignez mon <a href='https://t.me/AlitaRobotUpdates'>canal d'actualites</a> pour obtenir des informations sur toutes les dernieres mises a jour."
+help_all_commands_usage: "Toutes les commandes peuvent etre utilisees avec : / ou !"
+help_button_about_me: "A propos de moi 👨‍💻"
+help_button_news_channel: "Canal d'actualites 📢"
+help_button_support_group: "Groupe de support 👥"
+help_button_configuration: "Configuration ⚙️"
+help_button_about: "A propos ✨"
+help_button_add_to_chat: "➕ Ajoute-moi au chat !"
+help_button_add_alita: "➕ Ajouter Alita au chat !"
+help_button_commands_help: "📚 Commandes & Aide"
+help_button_language: "Langue 🌏"
+help_click_button_info: "Cliquez sur le bouton ci-dessous pour obtenir des infos sur moi !"
+help_click_here: "Cliquez ici pour de l'aide !"
+help_contact_pm: "Contactez-moi en MP pour de l'aide !"
+help_markdown_help_button: "Aide Markdown"
+help_markdown_formatting_button: "Formatage Markdown"
+help_fillings_button: "Remplissages"
+help_random_content_button: "Contenu aleatoire"
+help_bot_intro: "Salut ! Je m'appelle Alita ✨.\nJe suis la pour vous aider a gerer vos groupes !\nTapez /help pour en savoir plus sur comment m'utiliser au maximum.\n"
+help_pm_intro: |
+  Salut %s !
+  Je m'appelle Alita ✨.
+
+  Je suis un bot de gestion de groupe, la pour vous aider a naviguer et maintenir l'ordre dans vos groupes !
+  J'ai plein de fonctionnalites pratiques, comme le controle du flood, un systeme d'avertissements, un systeme de notes, et meme des reponses predefinies sur certains mots-cles.
+
+  Commandes utiles :
+  - /start : Me demarre ! Vous avez probablement deja utilise cette commande.
+  - /help : Envoie ce message ; je vous en dirai plus sur moi-meme !
+  - /donate : Vous donne des infos sur comment me soutenir ainsi que mon createur.
+
+  Si vous avez des bugs ou des questions sur comment m'utiliser, consultez mon site web, ou rendez-vous sur @DivideSupport.
+  Toutes les commandes peuvent etre utilisees avec / ou !.
+
+# Misc module strings
+misc_help_msg: |
+  × /info : Obtenez vos informations utilisateur, peut etre utilise en reponse ou en passant
+  un ID utilisateur ou un nom d'utilisateur.
+
+  × /id : Obtenez l'ID du groupe actuel. Si utilise en reponse a un message, obtenez l'ID de cet utilisateur.
+
+  × /ping : Pingez le serveur Telegram !
+
+  × /tr <code langue> <msg/reponse au message> : Traduisez le message.
+
+  × /removebotkeyboard : Supprime le clavier de bot bloque de votre chat.
+
+  × /stat : Obtient le nombre total de messages dans le chat.
+misc_translation_error: Erreur lors de la demande de traduction !
+misc_reply_to_someone: Repondez a quelqu'un.
+misc_provide_content: Fournissez du contenu pour repondre !
+misc_could_not_find_user: Impossible de trouver des informations sur cet utilisateur.
+misc_user_not_found: Impossible de trouver des informations sur cet utilisateur.
+misc_channel_info: "<b>Info de la chaine :</b>\nID : <code>%d</code>\nNom de la chaine : %s"
+misc_channel_username: "Nom d'utilisateur : @%s"
+misc_user_info: "<b>Info utilisateur :</b>\nID : <code>%d</code>\nNom : %s"
+misc_user_username: "Nom d'utilisateur : @%s"
+misc_user_link: "Lien utilisateur : %s"
+misc_owner_tag: "C'est mon proprietaire !"
+misc_dev_user_tag: "C'est l'un de mes developpeurs !"
+misc_pinging: "<code>Ping en cours</code>"
+misc_pinged_in: Ping effectue en %d ms
+misc_ping_response: "🏓 Pong ! <b>%dms</b>"
+misc_thread_id: "ID du fil : <code>%d</code>"
+misc_chat_id: "<b>ID du chat :</b> <code>%d</code>"
+misc_user_id: "<b>ID de %s :</b> <code>%d</code>"
+misc_forwarded_from_user: "<b>Transfere de l'ID de %s :</b> <code>%d</code>"
+misc_forwarded_from_chat: "<b>Transfere du chat %s ID :</b> <code>%d</code>"
+misc_gif_id: "<b>ID du GIF :</b> <code>%s</code>"
+misc_sticker_id: "<b>ID du sticker :</b> <code>%s</code>"
+misc_user_id_is: "L'ID de %s est <code>%d</code>"
+misc_your_id_private: "Votre ID est <code>%d</code>"
+misc_your_id_group: "Votre ID est <code>%d</code>\nL'ID de ce groupe est <code>%d</code>"
+misc_need_text_and_lang: J'ai besoin de texte et d'un code de langue pour traduire.
+misc_no_text_to_translate: Le message en reponse ne contient pas de texte a traduire.
+misc_provide_text_translate: Veuillez fournir du texte a traduire.
+misc_detected_translation: "<b>Langue detectee :</b> <code>%s</code>\n<b>Traduction :</b> <code>%s</code>"
+misc_removing_keyboard: Suppression du clavier de bot bloque...
+misc_total_messages: "Total des messages dans %s : %d"
+misc_channel_info_header: "<b>Info de la chaine :</b>\n\nID : <code>%d</code>\n\nNom de la chaine : %s"
+misc_username: "Nom d'utilisateur : @%s"
+misc_channel_link: "Lien de la chaine : @%s"
+misc_user_info_header: "<b>Info utilisateur :</b>\n\nID : <code>%d</code>\n\nNom : %s"
+misc_owner_info: C'est mon proprietaire !
+misc_dev_info: C'est l'un de mes developpeurs !
+misc_translate_read_error: Erreur de lecture
+misc_translate_result: "<b>Langue detectee :</b> <code>%s</code>\n\n<b>Traduction :</b> <code>%s</code>"
+
+# Pins module strings
+pins_help_msg: |
+  Toutes les commandes liees aux epingles peuvent etre trouvees ici ; gardez votre chat a
+  jour sur les dernieres actualites avec un simple message epingle !
+
+
+  *Commandes Utilisateur :*
+
+  × /pinned : Obtenez le message epingle actuel.
+
+
+  *Commandes Admin :*
+
+  × /pin : Epinglez le message auquel vous avez repondu. Ajoutez 'loud' ou 'notify' pour envoyer une notification
+  aux membres du groupe.
+
+  × /pinned : Obtenez le dernier message epingle dans le chat actuel.
+
+  × /permapin <texte> : Epinglez un message personnalise via le bot. Ce message peut contenir
+  du markdown, des boutons et toutes les autres fonctionnalites cool.
+
+  × /unpin : Desepinglez le message epingle actuel. Si utilise en reponse, desepinglez le message
+  auquel vous avez repondu.
+
+  × /unpinall : Desepinglez tous les messages epingles.
+
+  × /antichannelpin <yes/no/on/off> : Ne laissez pas Telegram epingler automatiquement les chaines liees.
+  Si aucun argument n'est donne, affiche le parametre actuel.
+
+  × /cleanlinked <yes/no/on/off> : Supprimez les messages envoyes par la chaine liee.
+
+  Note : Lors de l'utilisation des anti-epingles de chaine, assurez-vous d'utiliser la commande /unpin, au lieu
+  de le faire manuellement. Sinon, l'ancien message sera re-epingle quand la chaine
+  enverra des messages.
+pins_unpin_not_pinned: Le message en reponse n'est pas un message epingle.
+pins_unpinned_message: Message desepingle.
+pins_unpinned_last: Dernier message epingle desepingle.
+pins_unpin_all_confirm: Etes-vous sur de vouloir desepingler tous les messages epingles ?
+pins_unpin_all_success: Tous les messages epingles de ce chat ont ete desepingles !
+pins_unpin_all_cancelled: Operation de desepinglage annulee !
+pins_permapin_reply_or_text: Veuillez repondre a un message ou donner du texte a epingler.
+pins_permapin_unsupported: Permapin non supporte pour ce type de donnees !
+pins_pinned_message: J'ai epingle <a href='%s'>ce message</a>
+pins_reply_to_pin: Repondez a un message pour l'epingler
+pins_pinned_message_loud: J'ai epingle <a href='%s'>ce message</a> avec notification !
+pins_antichannelpin_enabled: <b>Active</b> les anti-epingles de chaine. Les epingles automatiques d'une chaine seront maintenant remplaces par l'epingle precedent.
+pins_antichannelpin_disabled: <b>Desactive</b> les anti-epingles de chaine. Les epingles automatiques d'une chaine ne seront pas supprimes.
+pins_antichannelpin_current_enabled: Les anti-epingles de chaine sont actuellement <b>actives</b> dans %s. Toutes les publications de chaine qui sont auto-epinglees par Telegram seront remplacees par l'epingle precedent.
+pins_antichannelpin_current_disabled: Les anti-epingles de chaine sont actuellement <b>desactives</b> dans %s.
+pins_cleanlinked_enabled: <b>Active</b> la suppression des publications de chaine liee dans les Logs. Les messages envoyes par la chaine liee seront supprimes.
+pins_cleanlinked_disabled: <b>Desactive</b> la suppression des publications de chaine liee dans les Logs.
+pins_cleanlinked_current_enabled: La suppression des publications de chaine liee est actuellement <b>activee</b> dans %s. Les messages envoyes par la chaine liee seront supprimes.
+pins_cleanlinked_current_disabled: La suppression des publications de chaine liee est actuellement <b>desactivee</b> dans %s.
+pins_no_pinned_message: Aucun message n'a ete epingle dans ce chat !
+pins_here_is_pinned: <a href='%s'>Voici</a> le message epingle.
+pins_pinned_message_button: Message epingle
+pins_input_not_recognized: "Votre entree n'a pas ete reconnue comme l'une des suivantes : yes/no/on/off"
+
+# Purges module strings
+purges_help_msg: "*Admin uniquement :*
+
+  × /purge : Supprime tous les messages depuis le message auquel vous avez repondu.
+
+  × /purgeto : Marque l'endroit jusqu'ou supprimer.
+
+  × /purgefrom : Marque l'endroit depuis ou supprimer.
+
+  × /del : Supprime le message auquel vous avez repondu."
+purges_cannot_delete_old: Vous ne pouvez pas supprimer des messages de plus de deux jours. Veuillez choisir un message plus recent.
+purges_purged_messages: "%d messages supprimes."
+purges_purged_with_reason: "%d messages supprimes.\n*Raison* :\n%s"
+purges_reply_to_purge: Repondez a un message pour selectionner ou commencer la suppression.
+purges_reply_to_delete: Repondez a un message pour le supprimer !
+purges_message_marked: Ce message est deja marque pour la suppression !
+purges_marked_for_deletion: Message marque pour suppression. Repondez a un autre message avec /purgeto pour supprimer tous les messages entre les deux ; dans les 30s !
+purges_reply_to_purgefrom: Repondez a un message pour selectionner ou commencer la suppression.
+purges_need_purgefrom: Vous ne pouvez utiliser cette commande qu'apres avoir utilise la commande /purgefrom !
+purges_use_del_single: Utilisez la commande /del pour supprimer un seul message !
+purges_reply_to_purgeto: Repondez a un message pour me montrer jusqu'ou supprimer.
+purges_limit_exceeded: "Impossible de supprimer plus de %d messages a la fois ! Veuillez selectionner une plage plus petite."
+purges_invalid_button_data: "Donnees de bouton invalides."
+purges_invalid_message_id: "ID de message invalide."
+
+# Reports module strings
+reports_help_msg: |
+  Si vous souhaitez signaler un message dans votre groupe pour qu'un admin vienne s'en occuper,
+  c'est votre module ! Lorsque le signalement est active, les utilisateurs peuvent etre alertes
+  par d'autres utilisateurs via /report ou @admin.
+
+  *Commandes Utilisateur :*
+  × /report : Repondez a un message pour le signaler aux admins.
+
+  *Commandes Admin :*
+  × /reports <on/off/yes/no> : Active/desactive le signalement
+  × /reports block : Bloquer l'utilisateur (reponse) du signalement
+  × /reports unblock : Debloquer l'utilisateur (reponse) du signalement
+  × /reports showblocklist : Afficher la liste des utilisateurs bloques du signalement
+
+  Note : L'utilisateur peut choisir s'il veut etre notifie lorsque quelqu'un signale quelque chose.
+  Pour ce faire, tapez /reports dans mes MP.
+reports_reply_to_report: Vous devez repondre a un message pour le signaler.
+reports_expose_yourself: Vous devez d'abord vous exposer !
+reports_reply_to_block: Vous devez repondre a un utilisateur pour le bloquer.
+reports_reply_to_unblock: Vous devez repondre a un utilisateur pour le debloquer.
+reports_cannot_report_self: "Vous ne pouvez pas signaler votre propre message !"
+reports_special_account: "C'est un compte special de Telegram !"
+reports_admin_report: "Vous etes admin, a qui vais-je signaler vos problemes ?"
+reports_why_report_myself: "Pourquoi me signalerais-je moi-meme ?"
+reports_why_report_admin: "Pourquoi signalerais-je un admin ?"
+reports_turned_on_personal: "Signalement active ! Vous serez notifie chaque fois que quelqu'un signale quelque chose dans les groupes ou vous etes admin."
+reports_turned_on_group: "Les utilisateurs pourront maintenant signaler des messages."
+reports_turned_off_personal: "Signalement desactive ! Vous ne serez plus notifie quand quelqu'un signale quelque chose dans les groupes ou vous etes admin."
+reports_turned_off_group: "Les utilisateurs ne pourront plus signaler via @admin ou /report."
+reports_group_only: "Cette commande ne peut etre utilisee que dans un groupe !"
+reports_user_blocked: "Utilisateur %s bloque du signalement."
+reports_user_unblocked: "Utilisateur %s debloque du signalement."
+reports_no_blocked_users: "Aucun utilisateur n'est actuellement bloque de l'utilisation des commandes de signalement !"
+reports_preference_enabled: "Votre preference actuelle est activee. Vous serez notifie chaque fois que quelqu'un signale quelque chose dans les groupes ou vous etes admin."
+reports_preference_disabled: "Vous n'avez pas active les signalements. Vous ne serez pas notifie."
+reports_status_enabled: "Les signalements sont actuellement actives dans ce chat.\nLes utilisateurs peuvent utiliser la commande /report, ou mentionner @admin, pour taguer tous les admins."
+reports_status_disabled: "Les signalements sont actuellement desactives dans ce chat."
+reports_user_kicked: "Utilisateur expulse !"
+reports_user_banned: "Utilisateur banni !"
+reports_message_deleted: "Message supprime !"
+reports_button_message: "➡ Message"
+reports_button_kick: "⚠ Expulser"
+reports_button_ban: "⛔️ Bannir"
+reports_button_delete: "❎ Supprimer le message"
+reports_button_resolved: "✔️ Marquer comme resolu"
+reports_blocked_users_header: "Utilisateurs bloques de l'utilisation des commandes de signalement :"
+reports_invalid_input: "Votre entree n'a pas ete reconnue comme l'une des suivantes : <code><yes/on/no/off> ou <block/unblock/showblocklist></code>"
+reports_preference_enabled_private: "Votre preference actuelle est activee. Vous serez notifie chaque fois que quelqu'un signale quelque chose dans les groupes ou vous etes admin."
+reports_preference_disabled_private: "Vous n'avez pas active les signalements. Vous ne serez pas notifie."
+reports_status_enabled_group: "Les signalements sont actuellement actives dans ce chat.\nLes utilisateurs peuvent utiliser la commande /report, ou mentionner @admin, pour taguer tous les admins."
+reports_status_disabled_group: "Les signalements sont actuellement desactives dans ce chat."
+reports_change_settings_hint: "\n\nPour modifier ce parametre, essayez cette commande a nouveau, avec l'un des arguments suivants : yes/no/on/off"
+reports_success_kick: "✅ Expulse avec succes"
+reports_success_ban: "✅ Banni avec succes"
+reports_success_delete: "✅ Supprime avec succes"
+reports_resolved_success: "✅ Signalement resolu"
+reports_action_by: "Action effectuee par %s"
+reports_resolved_by: "<b>Resolu par :</b> %s"
+reports_message_template: "<b>⚠️ Signalement :</b>\n<b> • Signale par :</b> %s\n<b> • Utilisateur signale :</b> %s\n<b>Statut :</b> <i>En attente...</i>"
+reports_invalid_action: "Action invalide."
+
+# Mute module strings (additional)
+mute_reply_to_dmute: Vous devez repondre a un message pour le supprimer et rendre l'utilisateur muet !
+
+# Bot updates module strings
+bot_updates_creators_plug: "\nSuivez @DivideProjects pour plus de bots utiles de mes createurs."
+bot_updates_need_admin: Vous devez etre admin pour faire cela !
+bot_updates_need_supergroup: "Desole, mais pour utiliser toutes mes fonctionnalites, vous devez convertir ce groupe en supergroupe."
+bot_updates_thanks_for_adding: "Merci de m'avoir ajoute a votre groupe !"
+bot_updates_button_expired: "Ce bouton a expire. Veuillez utiliser la commande a nouveau."
+
+# Devs module strings
+devs_specify_user: Vous devez specifier un utilisateur pour obtenir des informations
+devs_chat_info: "<b>Nom :</b> %s\n<b>ID du chat</b> : %d\n<b>Nombre d'utilisateurs :</b> %d\n<b>Lien :</b> %s"
+devs_getting_chatlist: Obtention de la liste des chats ou je suis...
+devs_chatlist_caption: Voici la liste des chats dans ma base de donnees !
+devs_left_chat: D'accord, j'ai quitte le chat !
+devs_user_already_sudo: L'utilisateur est deja Sudo !
+devs_added_to_sudo: "%s ajoute a la liste Sudo !"
+
+# Database default strings
+db_default_welcome: "Salut {first}, comment vas-tu ?"
+db_default_goodbye: "Triste de te voir partir {first}"
+db_warn_no_reason: "Aucune raison"
+db_not_initialized: "base de donnees non initialisee"
+
+# Helpers utility strings
+helpers_admin_commands: "Commandes Admin"
+helpers_user_commands: "Commandes Utilisateur"
+helpers_person_no_name: "PersonneSansNom"
+helpers_need_filter_content: "Vous devez donner du contenu au filtre !"
+helpers_need_note_content: "Vous devez donner du contenu a la note !"
+helpers_need_content: "Vous devez me donner du contenu pour %s les utilisateurs !"
+helpers_text_too_long: "Votre texte de message fait %d caracteres. La longueur maximale pour le texte est de 4096 ; veuillez le reduire. Notez que les caracteres markdown peuvent prendre plus d'espace que prevu."
+helpers_caption_too_long: "Votre legende de message fait %d caracteres. La longueur maximale de la legende est de 1024 ; veuillez la reduire. Notez que les caracteres markdown peuvent prendre plus d'espace que prevu."
+helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
+helpers_invalid_deep_link: "Lien profond invalide ou mal forme. Veuillez verifier l'URL et reessayer."
+helpers_chat_not_found: "Impossible de trouver le chat associe a ce lien. Le chat n'existe peut-etre plus ou je n'y ai pas acces."
+
+# Repository validation errors
+repo_user_nil_error: "l'utilisateur ne peut pas etre nil"
+repo_user_id_zero_error: "l'ID utilisateur ne peut pas etre zero"
+repo_username_empty_error: "le nom d'utilisateur ne peut pas etre vide"
+repo_user_not_found: "utilisateur %d introuvable"
+repo_user_at_index_nil: "l'utilisateur a l'index %d ne peut pas etre nil"
+repo_user_at_index_zero_id: "l'utilisateur a l'index %d a un ID zero"
+repo_chat_nil_error: "le chat ne peut pas etre nil"
+repo_chat_id_zero_error: "l'ID du chat ne peut pas etre zero"
+repo_chat_not_found: "chat %d introuvable"
+
+# Formatting strings
+format_user_info: "Utilisateur : %s"
+format_user_id: "ID utilisateur : %d"
+format_list_item: " - %s"
+format_bullet_item: "• %s"
+format_list_item_code: " - <code>%s</code>"
+
+# System messages
+system_safety_shutdown: "le gestionnaire de securite est en cours d'arret"
+system_timeout_worker: "delai d'attente pour l'acquisition d'un emplacement de travailleur pour %s"
+system_shutdown_acquisition: "arret du gestionnaire de securite pendant l'acquisition de l'emplacement"
+pipeline_no_processor: "aucun processeur enregistre pour l'etape : %s"
+pipeline_shutting_down: "pipeline en cours d'arret, saut de l'etape : %s"
+pipeline_processor_timeout: "delai d'attente du processeur pour l'etape : %s"
+pipeline_results_timeout: "delai d'attente pour les resultats du traitement"
+
+# Math operators (for captcha)
+math_operator_plus: "+"
+math_operator_minus: "-"
+math_operator_multiply: "×"
+
+# Formatting module additional strings
+formatting_press_button: "Appuyez sur le bouton ci-dessous pour obtenir l'aide Markdown !"
+formatting_large_options: "Alita supporte un grand nombre d'options de formatage pour rendre vos messages plus expressifs. Jetez un oeil !"
+
+# Languages help module strings
+languages_help_msg: "Vous n'arrivez pas a changer la langue du bot ?
+
+  Changez facilement en utilisant ce module !
+
+
+  Tapez simplement /lang et utilisez le clavier en ligne pour choisir une langue pour vous ou votre
+  groupe.
+
+
+  Vous pouvez nous aider a apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"

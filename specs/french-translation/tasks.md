@@ -57,7 +57,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - **Commit**: `feat(i18n): add core module strings to French locale`
   - _Requirements: FR-5, FR-6_
 
-- [ ] 1.5 Add utility and system strings
+- [x] 1.5 Add utility and system strings
   - **Do**:
     1. Translate `utils_*`, `misc_*`, `help_*` keys
     2. Translate `chat_status_*`, `extraction_*` keys
