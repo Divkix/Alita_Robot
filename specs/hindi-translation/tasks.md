@@ -80,7 +80,7 @@ Focus: Create minimal working Hindi locale with core keys.
   - **Commit**: `fix(i18n): correct Hindi locale YAML syntax` (if needed)
   - _Requirements: NFR-3_
 
-- [ ] 3.2 Validate key parity with en.yml
+- [x] 3.2 Validate key parity with en.yml
   - **Do**: Compare key counts and names between en.yml and hi.yml
   - **Files**: `locales/hi.yml`, `locales/en.yml`
   - **Done when**: Key count matches (818 keys)
