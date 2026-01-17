@@ -21,7 +21,7 @@ Focus: Create minimal working Hindi locale with core keys.
   - _Requirements: FR-2_
   - _Design: Component hi.yml_
 
-- [ ] 1.2 Translate admin module keys (~30 keys)
+- [x] 1.2 Translate admin module keys (~30 keys)
   - **Do**: Translate all keys starting with `admin_` from en.yml
   - **Files**: `locales/hi.yml`
   - **Done when**: All admin_* keys translated
