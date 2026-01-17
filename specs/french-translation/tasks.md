@@ -79,7 +79,7 @@ Focus: Create fr.yml with core translations to validate language selection works
   - **Commit**: `feat(i18n): add extended documentation to French locale`
   - _Requirements: FR-5_
 
-- [ ] 1.7 POC Checkpoint - Test French locale
+- [x] 1.7 POC Checkpoint - Test French locale
   - **Do**:
     1. Validate YAML syntax: `yq eval '.' locales/fr.yml`
     2. Compare key count: `wc -l locales/fr.yml locales/en.yml`

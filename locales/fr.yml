@@ -1392,6 +1392,8 @@ bot_updates_need_admin: Vous devez etre admin pour faire cela !
 bot_updates_need_supergroup: "Desole, mais pour utiliser toutes mes fonctionnalites, vous devez convertir ce groupe en supergroupe."
 bot_updates_thanks_for_adding: "Merci de m'avoir ajoute a votre groupe !"
 bot_updates_button_expired: "Ce bouton a expire. Veuillez utiliser la commande a nouveau."
+bot_updates_convert_instruction: "Apres avoir converti ce groupe en supergroupe, vous pouvez m'ajouter a nouveau pour m'utiliser.\n"
+bot_updates_convert_howto: "Pour convertir ce groupe en supergroupe, veuillez suivre les instructions ici :\n"
 
 # Devs module strings
 devs_specify_user: Vous devez specifier un utilisateur pour obtenir des informations
@@ -1401,12 +1403,31 @@ devs_chatlist_caption: Voici la liste des chats dans ma base de donnees !
 devs_left_chat: D'accord, j'ai quitte le chat !
 devs_user_already_sudo: L'utilisateur est deja Sudo !
 devs_added_to_sudo: "%s ajoute a la liste Sudo !"
+devs_user_already_dev: L'utilisateur est deja Dev !
+devs_added_to_dev: "%s ajoute a la liste Dev !"
+devs_user_not_sudo: L'utilisateur n'est pas Sudo !
+devs_removed_from_sudo: "%s retire de la liste Sudo !"
+devs_user_not_dev: L'utilisateur n'est pas Dev !
+devs_removed_from_dev: "%s retire de la liste Dev !"
+devs_no_team_members: Aucun utilisateur n'a ete ajoute a l'equipe !
+devs_dev_users_header: "<b>Utilisateurs Dev :</b>"
+devs_sudo_users_header: "<b>Utilisateurs Sudo :</b>"
+devs_no_users_in_category: "Aucun utilisateur"
+devs_fetching_stats: "<code>Recuperation des statistiques du bot...</code>"
 
 # Database default strings
 db_default_welcome: "Salut {first}, comment vas-tu ?"
 db_default_goodbye: "Triste de te voir partir {first}"
 db_warn_no_reason: "Aucune raison"
 db_not_initialized: "base de donnees non initialisee"
+db_lock_queries_not_initialized: "requetes de verrou non initialisees"
+db_user_queries_not_initialized: "requetes utilisateur non initialisees"
+db_chat_queries_not_initialized: "requetes de chat non initialisees"
+db_antiflood_queries_not_initialized: "requetes antiflood non initialisees"
+db_filter_queries_not_initialized: "requetes de filtre non initialisees"
+db_blacklist_queries_not_initialized: "requetes de liste noire non initialisees"
+db_channel_queries_not_initialized: "requetes de chaine non initialisees"
+db_type_assertion_failed: "echec de l'assertion de type vers []byte"
 
 # Helpers utility strings
 helpers_admin_commands: "Commandes Admin"
@@ -1420,6 +1441,12 @@ helpers_caption_too_long: "Votre legende de message fait %d caracteres. La longu
 helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
 helpers_invalid_deep_link: "Lien profond invalide ou mal forme. Veuillez verifier l'URL et reessayer."
 helpers_chat_not_found: "Impossible de trouver le chat associe a ce lien. Le chat n'existe peut-etre plus ou je n'y ai pas acces."
+helpers_back_button: "« Retour"
+helpers_connection_success: "Vous avez ete connecte a %s !"
+helpers_note_not_exist: "Cette note n'existe pas !"
+helpers_note_admin_only: "Cette note ne peut etre consultee que par un administrateur !"
+helpers_connected_to_chat: "Vous avez ete connecte a %s !"
+helpers_notes_current_header: "Voici les notes actuelles dans ce chat :\n"
 
 # Repository validation errors
 repo_user_nil_error: "l'utilisateur ne peut pas etre nil"
@@ -1945,3 +1972,112 @@ formatting_random: |
   %%%
 
   Salut ! <code>{first}</code>
+
+# Antiflood module runtime strings
+antiflood_checkflood_perform_action: |
+  Ouais, je n'aime pas vos inondations. %s a ete
+  %s !
+antiflood_errors_expected_args: |
+  J'attendais des arguments ! Soit off, soit un entier.
+  ex: `/setflood 5`, ou `/setflood off`
+antiflood_errors_invalid_int: |
+  Ce n'est pas un entier valide. Veuillez me donner un entier valide,
+  ou `off`.
+antiflood_errors_set_in_limit: La limite antiflood doit etre definie entre 3 et 100.
+antiflood_flood_deleter_already_disabled: |
+  La suppression des messages antiflood est actuellement
+  *desactivee* dans ce chat, les messages causant l'antiflood seront ignores !
+antiflood_flood_deleter_already_enabled: |
+  La suppression des messages antiflood est actuellement *activee*
+  dans ce chat, les messages causant l'antiflood seront supprimes !
+antiflood_flood_deleter_disabled: |
+  Desactivation de la suppression des messages antiflood. Les messages
+  causant l'antiflood seront ignores !
+antiflood_flood_deleter_enabled: |
+  Activation de la suppression des messages antiflood. Les messages causant
+  l'antiflood seront supprimes !
+antiflood_flood_deleter_invalid_option: "Je ne comprends qu'une option parmi : `yes`/`no`/`on`/`off`"
+antiflood_flood_disabled: Ce chat n'applique actuellement pas le controle d'inondation.
+antiflood_flood_show_settings: |
+  Ce chat applique actuellement le controle d'inondation apres
+  %d messages. Tout utilisateur envoyant plus que cette quantite de messages sera %s.
+antiflood_setflood_disabled: |
+  D'accord.
+  Je n'avertirai pas les utilisateurs pour inondation.
+antiflood_setflood_success: La limite d'inondation a ete definie a <b>%d</b> messages.
+antiflood_setfloodmode_specify_action: |
+  Vous devez specifier une action a prendre en cas
+  d'inondation. Les modes actuels sont : `ban`/`kick`/`mute`
+antiflood_setfloodmode_success: Le mode d'inondation a ete defini sur %s.
+antiflood_setfloodmode_unknown_type: "Type inconnu '%s'. Veuillez utiliser l'un des suivants : ban/kick/mute"
+antiflood_button_unban_admins: "Debannir (Admins uniquement)"
+
+# Common strings admin cache
+commonstrings_admin_cache_cache_reloaded: Cache admin recharge avec succes.
+commonstrings_admin_cache_not_found: |
+  Cache admin introuvable. Demandez a un admin d'utiliser /admincache
+  pour recharger le cache admin.
+
+# Formatting fillings
+formatting_fillings: "<b>Remplissages</b>
+
+
+  Vous pouvez egalement personnaliser le contenu de vos messages avec des donnees contextuelles. Par exemple,
+  vous pouvez mentionner un utilisateur par son nom dans le message de bienvenue, ou le mentionner dans un filtre !
+
+  Vous pouvez utiliser ces remplissages pour mentionner un utilisateur dans les notes aussi !
+
+
+  <b>Remplissages supportes :</b>
+
+  - <code>{first}</code> : Le prenom de l'utilisateur.
+
+  - <code>{last}</code> : Le nom de famille de l'utilisateur.
+
+  - <code>{fullname}</code> : Le nom complet de l'utilisateur.
+
+  - <code>{username}</code> : Le nom d'utilisateur. S'il n'en a pas, mentionne
+  l'utilisateur a la place.
+
+  - <code>{mention}</code> : Mentionne l'utilisateur avec son prenom.
+
+  - <code>{id}</code> : L'ID de l'utilisateur.
+
+  - <code>{chatname}</code> : Le nom du chat.
+
+  - <code>{rules}</code> : Ajoute un bouton Regles au message.
+
+  - <code>{protect}</code> : Protege le contenu contre le partage.
+
+  - <code>{preview}</code> : Active les aperus dans les messages.
+
+  - <code>{nonotif}</code> : Desactive la notification pour ce message."
+
+# Main bot command strings
+main_bot_command_start: "Demarre le bot"
+main_bot_command_help: "Consulter la section d'aide du bot"
+
+# Message type strings
+message_type_text: "texte"
+message_type_sticker: "autocollant"
+message_type_document: "document"
+message_type_photo: "photo"
+message_type_audio: "audio"
+message_type_voice: "message vocal"
+message_type_video: "video"
+message_type_video_note: "note video"
+message_type_unknown: "inconnu"
+
+# Config validation strings
+config_bot_token_required: "BOT_TOKEN est requis"
+config_owner_id_required: "OWNER_ID est requis et doit etre superieur a 0"
+config_message_dump_required: "MESSAGE_DUMP est requis et doit etre superieur a 0"
+config_database_url_required: "DATABASE_URL est requis"
+config_redis_address_required: "REDIS_ADDRESS est requis"
+config_webhook_domain_required: "WEBHOOK_DOMAIN est requis lorsque USE_WEBHOOKS est active"
+config_webhook_port_invalid: "WEBHOOK_PORT doit etre entre 1 et 65535"
+config_workers_invalid: "%s doit etre entre %d et %d"
+
+# System strings
+system_db_connected: "Connecte a la base de donnees PostgreSQL avec succes !"
+system_config_loaded: "Configuration chargee et validee avec succes"
