@@ -46,7 +46,7 @@ Focus: Create minimal working Hindi locale with core keys.
 
 ## Phase 2: Complete Translation
 
-- [ ] 2.1 Translate all module help messages
+- [x] 2.1 Translate all module help messages
   - **Do**: Translate all *_help_msg keys (major feature docs)
   - **Files**: `locales/hi.yml`
   - **Done when**: All help_msg keys translated (~25 keys)
