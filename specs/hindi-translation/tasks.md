@@ -72,7 +72,7 @@ Focus: Create minimal working Hindi locale with core keys.
 
 ## Phase 3: Validation
 
-- [ ] 3.1 Validate YAML syntax
+- [x] 3.1 Validate YAML syntax
   - **Do**: Run YAML linter on hi.yml
   - **Files**: `locales/hi.yml`
   - **Done when**: No YAML syntax errors
