@@ -234,7 +234,6 @@ Key dependencies from `go.mod`:
 | `go-redis/v9` | Redis client |
 | `sirupsen/logrus` | Structured logging |
 | `spf13/viper` | Configuration management |
-| `sentry-go` | Error tracking |
 | `prometheus/client_golang` | Metrics |
 
 ## Testing

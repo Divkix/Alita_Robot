@@ -5,7 +5,7 @@ description: Monitor Alita Robot health, metrics, and errors.
 
 # Monitoring and Observability
 
-Alita Robot provides comprehensive monitoring capabilities including health checks, Prometheus metrics, Sentry error tracking, and resource monitoring.
+Alita Robot provides comprehensive monitoring capabilities including health checks, Prometheus metrics, and resource monitoring.
 
 ## Health Endpoint
 
@@ -138,54 +138,6 @@ volumes:
   grafana_data:
 ```
 
-## Sentry Error Tracking
-
-Sentry provides real-time error tracking and performance monitoring.
-
-### Configuration
-
-```bash
-# Enable Sentry integration
-ENABLE_SENTRY=true
-
-# Sentry DSN from your project settings
-SENTRY_DSN=https://your-key@o123456.ingest.sentry.io/1234567
-
-# Environment name (helps organize errors)
-SENTRY_ENVIRONMENT=production
-
-# Sample rate for error events (0.0-1.0)
-# Default: 1.0 (100% of errors sent)
-SENTRY_SAMPLE_RATE=1.0
-```
-
-### Sentry Features
-
-1. **Error Tracking**: Automatically captures and reports errors
-2. **Logrus Integration**: Error, Fatal, and Panic log levels are sent to Sentry
-3. **Context Enrichment**: Errors include user ID, chat ID, and message context
-4. **Filtering**: Sensitive data (bot token) is automatically redacted
-5. **Expected Errors**: Common errors like "user blocked bot" are suppressed
-
-### Error Context
-
-When an error occurs, Sentry receives:
-
-- Update ID
-- User ID and username
-- Chat ID and type
-- Message ID and text
-- Source file, line, and function
-
-### Sentry Pricing
-
-| Plan | Errors/Month | Cost |
-|------|-------------|------|
-| Free | 5,000 | $0 |
-| Team | 50,000 | $29/month |
-
-For high-volume bots, reduce `SENTRY_SAMPLE_RATE` to stay within limits.
-
 ## Resource Monitoring
 
 Alita Robot includes automatic resource monitoring to prevent resource exhaustion.
@@ -314,7 +266,7 @@ Structured log entries include:
 | `DEBUG` | Verbose debugging (DEBUG=true only) |
 | `INFO` | Normal operation events |
 | `WARN` | Expected issues (e.g., user blocked bot) |
-| `ERROR` | Unexpected errors (sent to Sentry) |
+| `ERROR` | Unexpected errors |
 | `FATAL` | Critical errors that stop the bot |
 | `PANIC` | Unrecoverable errors |
 
@@ -352,10 +304,3 @@ groups:
         annotations:
           summary: "Database connection failed"
 ```
-
-### Sentry Alerting
-
-Configure alerts in Sentry dashboard:
-1. Go to Alerts > Create Alert
-2. Set conditions (error count, unique users affected)
-3. Configure notification channels (email, Slack, PagerDuty)

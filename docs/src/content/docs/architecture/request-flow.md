@@ -60,18 +60,7 @@ localeManager := i18n.GetManager()
 localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
 ```
 
-### 4. Sentry Initialization (If Enabled)
-```go
-if config.AppConfig.EnableSentry {
-    sentry.Init(sentry.ClientOptions{
-        Dsn:         config.AppConfig.SentryDSN,
-        Environment: config.AppConfig.SentryEnvironment,
-        // ...
-    })
-}
-```
-
-### 5. HTTP Transport Configuration
+### 4. HTTP Transport Configuration
 ```go
 httpTransport := &http.Transport{
     MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
@@ -81,7 +70,7 @@ httpTransport := &http.Transport{
 }
 ```
 
-### 6. Bot Client Creation
+### 5. Bot Client Creation
 ```go
 b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
     BotClient: &gotgbot.BaseBotClient{
@@ -90,7 +79,7 @@ b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 })
 ```
 
-### 7. Connection Pre-warming
+### 6. Connection Pre-warming
 ```go
 go func() {
     for i := 0; i < 3; i++ {
@@ -100,19 +89,19 @@ go func() {
 }()
 ```
 
-### 8. Initial Checks
+### 7. Initial Checks
 ```go
 alita.InitialChecks(b)  // Validates config, initializes cache
 ```
 
-### 9. Async Processor (If Enabled)
+### 8. Async Processor (If Enabled)
 ```go
 if config.AppConfig.EnableAsyncProcessing {
     async.InitializeAsyncProcessor()
 }
 ```
 
-### 10. Dispatcher Creation
+### 9. Dispatcher Creation
 ```go
 dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
     Error:       errorHandler,
@@ -120,14 +109,14 @@ dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 })
 ```
 
-### 11. Monitoring Systems
+### 10. Monitoring Systems
 ```go
 statsCollector = monitoring.NewBackgroundStatsCollector()
 autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
 activityMonitor = monitoring.NewActivityMonitor()
 ```
 
-### 12. HTTP Server & Mode Selection
+### 11. HTTP Server & Mode Selection
 ```go
 httpServer := httpserver.New(config.AppConfig.HTTPPort)
 httpServer.RegisterHealth()
@@ -370,14 +359,13 @@ Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
     }
 
     // 3. Check for expected/suppressible errors
-    if helpers.ShouldSuppressFromSentry(err) {
-        log.WithFields(logFields).Warn("Expected error (suppressed)")
+    if helpers.IsExpectedTelegramError(err) {
+        log.WithFields(logFields).Warn("Expected Telegram API error")
         return ext.DispatcherActionNoop
     }
 
-    // 4. Log and report to Sentry
+    // 4. Log the error
     log.WithFields(logFields).Error("Handler error")
-    sentry.CaptureException(err)
 
     // 5. Continue processing other updates
     return ext.DispatcherActionNoop

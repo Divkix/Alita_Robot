@@ -27,7 +27,7 @@ func DeleteMessageWithErrorHandling(bot *gotgbot.Bot, chatId, messageId int64) e
 }
 
 // SendMessageWithErrorHandling wraps bot.SendMessage with graceful error handling for expected permission errors.
-// This prevents Sentry spam when the bot lacks send message permissions in a chat.
+// This handles cases when the bot lacks send message permissions in a chat.
 // Returns (*Message, nil) for suppressed permission errors to allow callers to continue execution.
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	msg, err := bot.SendMessage(chatId, text, opts)
@@ -50,9 +50,9 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 	return msg, nil
 }
 
-// ShouldSuppressFromSentry checks if an error should be suppressed from Sentry reporting.
-// Returns true for expected Telegram API errors that occur during normal bot operations.
-func ShouldSuppressFromSentry(err error) bool {
+// IsExpectedTelegramError checks if an error is an expected Telegram API error.
+// Returns true for expected errors that occur during normal bot operations.
+func IsExpectedTelegramError(err error) bool {
 	if err == nil {
 		return false
 	}

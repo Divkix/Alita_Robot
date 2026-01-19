@@ -414,45 +414,6 @@ Computed from OperationTimeoutSeconds
 | **Required** | No |
 | **Validation** | min=1,max=300 |
 
-## 📂 Sentry configuration
-
-### `ENABLE_SENTRY`
-
-Whether to enable Sentry error tracking
-
-| Property | Value |
-|----------|-------|
-| **Type** | `boolean` |
-| **Required** | No |
-
-### `SENTRY_D_S_N`
-
-Sentry Data Source Name (DSN)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-### `SENTRY_ENVIRONMENT`
-
-Environment name (production, staging, development)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-### `SENTRY_SAMPLE_RATE`
-
-Sample rate for error events (0.0-1.0)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `float` |
-| **Required** | No |
-| **Validation** | min=0,max=1 |
-
 ## 📂 Webhook configuration
 
 ### `USE_WEBHOOKS`
@@ -579,7 +540,6 @@ ENABLE_H_T_T_P_CONNECTION_POOLING=# (optional)
 ENABLE_PERFORMANCE_MONITORING=# (optional)
 ENABLE_QUERY_PREFETCHING=# (optional)
 ENABLE_RESPONSE_CACHING=# (optional)
-ENABLE_SENTRY=# (optional)
 H_T_T_P_MAX_IDLE_CONNS=# (optional)
 H_T_T_P_MAX_IDLE_CONNS_PER_HOST=# (optional)
 H_T_T_P_PORT=# (optional)
@@ -595,9 +555,6 @@ RESOURCE_G_C_THRESHOLD_M_B=# (optional)
 RESOURCE_MAX_GOROUTINES=# (optional)
 RESOURCE_MAX_MEMORY_M_B=# (optional)
 RESPONSE_CACHE_T_T_L=# (optional)
-SENTRY_D_S_N=# (optional)
-SENTRY_ENVIRONMENT=# (optional)
-SENTRY_SAMPLE_RATE=# (optional)
 STATS_COLLECTION_WORKERS=# (optional)
 USE_WEBHOOKS=# (optional)
 VALID_LANG_CODES=# (optional)

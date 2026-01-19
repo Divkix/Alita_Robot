@@ -213,7 +213,6 @@ Key patterns:
 
 Application entry point handling:
 - Health check mode (`--health` flag)
-- Sentry initialization
 - HTTP transport configuration
 - Dispatcher setup with error handling
 - Monitoring system initialization

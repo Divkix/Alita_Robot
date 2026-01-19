@@ -14,7 +14,6 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
 | **Database** | PostgreSQL + GORM | Persistent data storage with ORM |
 | **Caching** | Redis + gocache | Distributed caching layer |
 | **Monitoring** | Prometheus | Metrics and observability |
-| **Error Tracking** | Sentry | Error reporting and alerting |
 | **Build System** | GoReleaser | Multi-platform builds and releases |
 
 ## Core Design Principles
@@ -109,7 +108,7 @@ Redis-based caching with stampede protection:
 The dispatcher routes incoming Telegram updates to appropriate handlers:
 
 - Configurable max goroutines (default: 100)
-- Enhanced error handler with Sentry integration
+- Enhanced error handler with structured logging
 - Recovery from panics in any handler
 
 ```go
