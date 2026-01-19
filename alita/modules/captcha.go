@@ -198,10 +198,14 @@ func recoverOrphanedCaptchas(bot *gotgbot.Bot) {
 				case "kick":
 					_, err := bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
 					if err == nil {
-						_, _ = bot.UnbanChatMember(attempt.ChatID, attempt.UserID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+						if _, unbanErr := bot.UnbanChatMember(attempt.ChatID, attempt.UserID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false}); unbanErr != nil {
+							log.Warnf("[CaptchaRecovery] Failed to unban user %d in chat %d after kick: %v", attempt.UserID, attempt.ChatID, unbanErr)
+						}
 					}
 				case "ban":
-					_, _ = bot.BanChatMember(attempt.ChatID, attempt.UserID, nil)
+					if _, banErr := bot.BanChatMember(attempt.ChatID, attempt.UserID, nil); banErr != nil {
+						log.Warnf("[CaptchaRecovery] Failed to ban user %d in chat %d: %v", attempt.UserID, attempt.ChatID, banErr)
+					}
 				case "mute":
 					// User remains muted
 				}
@@ -212,7 +216,9 @@ func recoverOrphanedCaptchas(bot *gotgbot.Bot) {
 			}
 
 			// Delete attempt from DB
-			_ = db.DeleteCaptchaAttempt(attempt.UserID, attempt.ChatID)
+			if err := db.DeleteCaptchaAttempt(attempt.UserID, attempt.ChatID); err != nil {
+				log.Warnf("[CaptchaRecovery] Failed to delete captcha attempt for user %d in chat %d: %v", attempt.UserID, attempt.ChatID, err)
+			}
 
 			// Small delay to avoid rate limiting
 			time.Sleep(50 * time.Millisecond)
@@ -414,7 +420,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_enable_failed")
-			_, _ = msg.Reply(bot, text, nil)
+			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
+				log.Warnf("[Captcha] Failed to send enable error message in chat %d: %v", chat.Id, replyErr)
+			}
 			return err
 		}
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -427,7 +435,9 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_disable_failed")
-			_, _ = msg.Reply(bot, text, nil)
+			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
+				log.Warnf("[Captcha] Failed to send disable error message in chat %d: %v", chat.Id, replyErr)
+			}
 			return err
 		}
 		// Clean up any pending captcha attempts
@@ -515,7 +525,9 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		} else {
 			text, _ = tr.GetString("captcha_mode_failed")
 		}
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		if _, replyErr := msg.Reply(bot, text, helpers.Shtml()); replyErr != nil {
+			log.Warnf("[Captcha] Failed to send mode error message in chat %d: %v", chat.Id, replyErr)
+		}
 		return err
 	}
 
@@ -571,7 +583,9 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		} else {
 			text, _ = tr.GetString("captcha_timeout_failed")
 		}
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		if _, replyErr := msg.Reply(bot, text, helpers.Shtml()); replyErr != nil {
+			log.Warnf("[Captcha] Failed to send timeout error message in chat %d: %v", chat.Id, replyErr)
+		}
 		return err
 	}
 
@@ -621,7 +635,9 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 		} else {
 			text, _ = tr.GetString("captcha_action_failed")
 		}
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		if _, replyErr := msg.Reply(bot, text, helpers.Shtml()); replyErr != nil {
+			log.Warnf("[Captcha] Failed to send action error message in chat %d: %v", chat.Id, replyErr)
+		}
 		return err
 	}
 

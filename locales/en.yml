@@ -1252,6 +1252,10 @@ devs_dev_users_header: "<b>Dev Users:</b>"
 devs_sudo_users_header: "<b>Sudo Users:</b>"
 devs_no_users_in_category: "No Users"
 devs_fetching_stats: "<code>Fetching bot stats...</code>"
+devs_failed_to_add_sudo: "Failed to add user to Sudo list. Please try again."
+devs_failed_to_add_dev: "Failed to add user to Dev list. Please try again."
+devs_failed_to_remove_sudo: "Failed to remove user from Sudo list. Please try again."
+devs_failed_to_remove_dev: "Failed to remove user from Dev list. Please try again."
 
 # Additional hardcoded strings from modules
 bans_anonymous_ban_only_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.

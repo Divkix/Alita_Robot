@@ -69,7 +69,7 @@ func GetTeamMembers() map[int64]string {
 // AddDev adds a user as a developer or updates existing record to dev status.
 // Creates a new record if the user doesn't exist in DevSettings.
 // Sets both IsDev and Dev fields for consistency.
-func AddDev(userID int64) {
+func AddDev(userID int64) error {
 	devSettings := &DevSettings{UserId: userID, IsDev: true, Dev: true}
 
 	// Try to update existing record first
@@ -81,25 +81,27 @@ func AddDev(userID int64) {
 
 	if err != nil {
 		log.Errorf("[Database] AddDev: %v - %d", err, userID)
-		return
+		return err
 	}
 	log.Infof("[Database] AddDev: %d", userID)
+	return nil
 }
 
 // RemDev removes developer status from a user by setting IsDev and Dev to false.
 // Does not delete the record as the user might still have Sudo privileges.
-func RemDev(userID int64) {
+func RemDev(userID int64) error {
 	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: false, Dev: false})
 	if err != nil {
 		log.Errorf("[Database] RemDev: %v - %d", err, userID)
-		return
+		return err
 	}
 	log.Infof("[Database] RemDev: %d", userID)
+	return nil
 }
 
 // AddSudo adds a user as a sudo user or updates existing record to sudo status.
 // Creates a new record if the user doesn't exist in DevSettings.
-func AddSudo(userID int64) {
+func AddSudo(userID int64) error {
 	sudoSettings := &DevSettings{UserId: userID, Sudo: true}
 
 	// Try to update existing record first
@@ -111,20 +113,22 @@ func AddSudo(userID int64) {
 
 	if err != nil {
 		log.Errorf("[Database] AddSudo: %v - %d", err, userID)
-		return
+		return err
 	}
 	log.Infof("[Database] AddSudo: %d", userID)
+	return nil
 }
 
 // RemSudo removes sudo status from a user by setting Sudo to false.
 // Does not delete the record as the user might still be a Dev.
-func RemSudo(userID int64) {
+func RemSudo(userID int64) error {
 	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{Sudo: false})
 	if err != nil {
 		log.Errorf("[Database] RemSudo: %v - %d", err, userID)
-		return
+		return err
 	}
 	log.Infof("[Database] RemSudo: %d", userID)
+	return nil
 }
 
 // LoadAllStats generates a comprehensive statistics report for the bot.

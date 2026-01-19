@@ -226,9 +226,13 @@ func (moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	if memStatus.Sudo {
 		txt, _ = tr.GetString("devs_user_already_sudo")
 	} else {
-		textTemplate, _ := tr.GetString("devs_added_to_sudo")
-		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.AddSudo(userId)
+		if err := db.AddSudo(userId); err != nil {
+			log.Errorf("[Devs] Failed to add sudo for user %d: %v", userId, err)
+			txt, _ = tr.GetString("devs_failed_to_add_sudo")
+		} else {
+			textTemplate, _ := tr.GetString("devs_added_to_sudo")
+			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+		}
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
@@ -271,9 +275,13 @@ func (moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	if memStatus.Dev {
 		txt, _ = tr.GetString("devs_user_already_dev")
 	} else {
-		textTemplate, _ := tr.GetString("devs_added_to_dev")
-		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.AddDev(userId)
+		if err := db.AddDev(userId); err != nil {
+			log.Errorf("[Devs] Failed to add dev for user %d: %v", userId, err)
+			txt, _ = tr.GetString("devs_failed_to_add_dev")
+		} else {
+			textTemplate, _ := tr.GetString("devs_added_to_dev")
+			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+		}
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
@@ -316,9 +324,13 @@ func (moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !memStatus.Sudo {
 		txt, _ = tr.GetString("devs_user_not_sudo")
 	} else {
-		textTemplate, _ := tr.GetString("devs_removed_from_sudo")
-		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.RemSudo(userId)
+		if err := db.RemSudo(userId); err != nil {
+			log.Errorf("[Devs] Failed to remove sudo for user %d: %v", userId, err)
+			txt, _ = tr.GetString("devs_failed_to_remove_sudo")
+		} else {
+			textTemplate, _ := tr.GetString("devs_removed_from_sudo")
+			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+		}
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {
@@ -361,9 +373,13 @@ func (moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !memStatus.Dev {
 		txt, _ = tr.GetString("devs_user_not_dev")
 	} else {
-		textTemplate, _ := tr.GetString("devs_removed_from_dev")
-		txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		go db.RemDev(userId)
+		if err := db.RemDev(userId); err != nil {
+			log.Errorf("[Devs] Failed to remove dev for user %d: %v", userId, err)
+			txt, _ = tr.GetString("devs_failed_to_remove_dev")
+		} else {
+			textTemplate, _ := tr.GetString("devs_removed_from_dev")
+			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+		}
 	}
 	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
 	if err != nil {

@@ -1418,6 +1418,10 @@ devs_dev_users_header: "<b>Utilisateurs Dev :</b>"
 devs_sudo_users_header: "<b>Utilisateurs Sudo :</b>"
 devs_no_users_in_category: "Aucun utilisateur"
 devs_fetching_stats: "<code>Récupération des statistiques du bot...</code>"
+devs_failed_to_add_sudo: "Échec de l'ajout de l'utilisateur à la liste Sudo. Veuillez réessayer."
+devs_failed_to_add_dev: "Échec de l'ajout de l'utilisateur à la liste Dev. Veuillez réessayer."
+devs_failed_to_remove_sudo: "Échec de la suppression de l'utilisateur de la liste Sudo. Veuillez réessayer."
+devs_failed_to_remove_dev: "Échec de la suppression de l'utilisateur de la liste Dev. Veuillez réessayer."
 
 # Database default strings
 db_default_welcome: "Salut {first}, comment vas-tu ?"

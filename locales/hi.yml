@@ -1551,6 +1551,10 @@ devs_dev_users_header: "<b>Dev उपयोगकर्ता:</b>"
 devs_sudo_users_header: "<b>Sudo उपयोगकर्ता:</b>"
 devs_no_users_in_category: "कोई उपयोगकर्ता नहीं"
 devs_fetching_stats: "<code>बॉट आंकड़े प्राप्त कर रहा हूं...</code>"
+devs_failed_to_add_sudo: "उपयोगकर्ता को Sudo सूची में जोड़ने में विफल। कृपया पुनः प्रयास करें।"
+devs_failed_to_add_dev: "उपयोगकर्ता को Dev सूची में जोड़ने में विफल। कृपया पुनः प्रयास करें।"
+devs_failed_to_remove_sudo: "उपयोगकर्ता को Sudo सूची से हटाने में विफल। कृपया पुनः प्रयास करें।"
+devs_failed_to_remove_dev: "उपयोगकर्ता को Dev सूची से हटाने में विफल। कृपया पुनः प्रयास करें।"
 
 # Languages module keys
 language_current_user: "आपकी वर्तमान भाषा %s है\nनीचे दिए गए कीबोर्ड से एक भाषा चुनें।"

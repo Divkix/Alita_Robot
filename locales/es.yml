@@ -1252,6 +1252,10 @@ devs_getting_chatlist: Obteniendo lista de chats en los que estoy...
 devs_chatlist_caption: ¡Aquí está la lista de chats en mi Base de Datos!
 devs_no_team_members: ¡No hay usuarios añadidos en el Equipo!
 devs_no_users_in_category: "Sin Usuarios"
+devs_failed_to_add_sudo: "Error al agregar usuario a la lista de Sudo. Por favor, inténtelo de nuevo."
+devs_failed_to_add_dev: "Error al agregar usuario a la lista de Dev. Por favor, inténtelo de nuevo."
+devs_failed_to_remove_sudo: "Error al eliminar usuario de la lista de Sudo. Por favor, inténtelo de nuevo."
+devs_failed_to_remove_dev: "Error al eliminar usuario de la lista de Dev. Por favor, inténtelo de nuevo."
 
 # Additional hardcoded strings from modules
 bans_anonymous_ban_only_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.

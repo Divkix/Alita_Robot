@@ -333,7 +333,6 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		// For all remaining modules
-		// FIXME: error for pins, purges, reports, rules, warns
 		helpText, replyKb, parsemode = getHelpTextAndMarkup(ctx, strings.ToLower(module))
 	}
 

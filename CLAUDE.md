@@ -90,31 +90,30 @@ If you prefer manual control, keep `AUTO_MIGRATE=false` (default) and use:
 4. **Data Access Pattern**:
    - Repository pattern with interfaces in `db/repositories/interfaces/`
    - Implementations use GORM with connection pooling
-   - Two-tier caching (Ristretto L1 + Redis L2) with stampede protection
+   - Redis caching with stampede protection via singleflight
 
 ### Concurrency Architecture
 
-The bot uses multiple worker pool patterns for performance:
+The bot uses several concurrency patterns for performance:
 
-- **Message Pipeline** (`concurrent_processing/message_pipeline.go`): Concurrent
-  validation stages
-- **Bulk Operations** (`db/bulk_operations.go`): Parallel batch processors with
-  generic framework
-- **Activity Monitor** (`monitoring/activity_monitor.go`): Automatic group
-  activity tracking with configurable thresholds
+- **Activity Monitor** (`alita/utils/monitoring/activity_monitor.go`): Automatic
+  group activity tracking with configurable thresholds
+- **Auto Remediation** (`alita/utils/monitoring/auto_remediation.go`): Memory
+  monitoring and GC triggering when thresholds exceeded
+- **Background Stats** (`alita/utils/monitoring/background_stats.go`): Background
+  statistics collection and performance monitoring
 - **Dispatcher**: Limited to 100 max goroutines to prevent explosion
-- **Worker Safety** (`safety/worker_safety.go`): Panic recovery and rate
-  limiting
+- **Async Operations** (`alita/utils/async/`): Utilities for async database
+  operations with error handling
 
 ### Caching Strategy
 
-Two-layer cache system with fallback:
+Redis-based caching with stampede protection:
 
-1. **L1 Cache** (Ristretto): In-memory, ultra-fast, LFU eviction
-2. **L2 Cache** (Redis): Distributed, persistent across restarts
-3. **Stampede Protection**: Distributed locking prevents thundering herd
-4. **Cache Helpers** (`db/cache_helpers.go`): TTL management, invalidation
-   patterns
+1. **Redis Cache**: Distributed, persistent across restarts, handles all caching
+2. **Stampede Protection**: Uses `singleflight` pattern to prevent thundering herd
+3. **Cache Helpers** (`db/cache_helpers.go`): TTL management, invalidation patterns
+4. **Admin Cache** (`alita/utils/cache/adminCache.go`): Specialized caching for admin member lists
 
 ### Database Optimization Patterns
 
@@ -169,9 +168,9 @@ dbclean command:
 - **Smart Reactivation**: Automatically reactivates groups when they become
   active again
 
-### Current Feature Branch: Captcha Module
+### Captcha Module
 
-The `dev/captcha-module` branch adds CAPTCHA verification for new members:
+The captcha module (`alita/modules/captcha.go`) provides CAPTCHA verification for new members:
 
 - **Math Captcha**: Generates secure random arithmetic problems with image
   rendering
@@ -179,6 +178,7 @@ The `dev/captcha-module` branch adds CAPTCHA verification for new members:
 - **Refresh Mechanism**: Limited refreshes with cooldown to prevent abuse
 - **Pre-Message Storage**: Captures messages sent before captcha completion
 - **Security**: Uses crypto/rand for unpredictable challenges
+- **Recovery**: Automatic cleanup of orphaned captcha attempts on bot restart
 
 ## Environment Configuration
 
