@@ -107,7 +107,10 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 
 	// check permission
@@ -249,7 +252,10 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// check permission
@@ -363,7 +369,10 @@ Only owner can remove all filters from the chat
 // Only chat owners can use this command. Shows confirmation buttons before deletion.
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	filterKeys := db.GetFiltersList(chat.Id)
 
@@ -420,6 +429,11 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Filters] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	response := args[1]
 	var helpText string
 
@@ -547,7 +561,10 @@ Replies with appropriate data to the filter.
 func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, true)
+	if user == nil {
+		return ext.ContinueGroups
+	}
 
 	// Use optimized cached query to fetch all filters at once (no N+1 query)
 	optQueries := db.GetOptimizedQueries()

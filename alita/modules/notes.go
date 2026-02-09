@@ -42,7 +42,10 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 
 	// check permission
@@ -173,7 +176,10 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 
 	if len(args) == 1 {
@@ -296,7 +302,10 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	noteKeys := db.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id, true))
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -381,7 +390,10 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 // rmAllNotes handles the /clearall command to remove all notes
 // from the chat, restricted to chat owners only.
 func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
@@ -539,6 +551,11 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	response := args[1]
 	var helpText string
 
@@ -583,7 +600,10 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, true)
+	if user == nil {
+		return ext.ContinueGroups
+	}
 
 	var replyMsgId int64
 	var err error
@@ -722,7 +742,10 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	noteName := args[0]
 
 	// check if note exists or not
@@ -809,7 +832,10 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 // sendNoFormatNote sends a note in raw format without markdown processing,
 // showing the original formatting codes, restricted to admins.
 func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgId int64, noteData *db.Notes) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// check if user is admin or not
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {

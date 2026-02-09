@@ -51,7 +51,7 @@ func IsChannelId(id int64) bool {
 // Returns true if user should be treated as admin (anon bypass enabled),
 // false if anon keyboard was sent, and a bool indicating if caller should return immediately.
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
-	if !sender.IsAnonymousAdmin() {
+	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
 	}
 	if db.GetAdminSettings(chat.Id).AnonAdmin {

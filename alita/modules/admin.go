@@ -106,7 +106,10 @@ Bot can only Demote people it promoted! */
 func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
@@ -258,7 +261,10 @@ Bot will give promoted user permissions of bot*/
 func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	extraText := ""
@@ -482,7 +488,10 @@ Only works with admins whom bot has promoted.*/
 func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
@@ -610,7 +619,10 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -689,14 +701,22 @@ func (m moduleStruct) anonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) adminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	var err error
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
-	userMember, _ := chat.GetMember(b, user.Id, nil)
+	userMember, err := chat.GetMember(b, user.Id, nil)
+	if err != nil {
+		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
+		_, _ = msg.Reply(b, "Failed to check user status.", helpers.Shtml())
+		return ext.EndGroups
+	}
 	mem := userMember.MergeChatMember()
 	if mem.Status == "member" {
 		errorText, _ := tr.GetString("admin_need_admin")
@@ -746,7 +766,10 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 func (moduleStruct) clearAdminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 

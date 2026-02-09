@@ -15,6 +15,7 @@ type ActivityMonitor struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	wg                    sync.WaitGroup
+	stopOnce              sync.Once
 	checkInterval         time.Duration
 	inactivityThreshold   time.Duration
 	enableAutoCleanup     bool
@@ -78,9 +79,11 @@ func (am *ActivityMonitor) Start() {
 
 // Stop gracefully stops the activity monitor
 func (am *ActivityMonitor) Stop() {
-	log.Info("[ActivityMonitor] Stopping activity monitoring service")
-	am.cancel()
-	am.wg.Wait()
+	am.stopOnce.Do(func() {
+		log.Info("[ActivityMonitor] Stopping activity monitoring service")
+		am.cancel()
+		am.wg.Wait()
+	})
 }
 
 // monitorLoop runs the periodic activity check

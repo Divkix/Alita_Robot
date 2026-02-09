@@ -49,7 +49,10 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -221,7 +224,10 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -370,7 +376,10 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -428,7 +437,10 @@ Only chat creator can use this command to remove all blacklists aat once from th
 // Only chat owners can use this command with confirmation via inline keyboard.
 func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -477,6 +489,11 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	creatorAction := args[1]
 	var helpText string
 

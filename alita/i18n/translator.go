@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -237,7 +239,12 @@ func (t *Translator) interpolateParams(text string, params TranslationParams) (s
 	if legacyParamRegex.MatchString(result) {
 		// For legacy support, try to find numbered parameters or use order
 		if orderedValues := extractOrderedValues(params); len(orderedValues) > 0 {
-			result = fmt.Sprintf(result, orderedValues...)
+			specCount := len(legacyParamRegex.FindAllString(result, -1))
+			if specCount <= len(orderedValues) {
+				result = fmt.Sprintf(result, orderedValues[:specCount]...)
+			} else {
+				log.Warnf("Translation specifier count mismatch: %d specifiers, %d values for key in lang %s", specCount, len(orderedValues), t.langCode)
+			}
 		}
 	}
 

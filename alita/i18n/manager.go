@@ -145,6 +145,8 @@ func (lm *LocaleManager) ReloadLocales() error {
 
 // GetStats returns statistics about the locale manager.
 func (lm *LocaleManager) GetStats() map[string]any {
+	languages := lm.GetAvailableLanguages()
+
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
 
@@ -152,10 +154,9 @@ func (lm *LocaleManager) GetStats() map[string]any {
 		"total_languages":  len(lm.localeData),
 		"default_language": lm.defaultLang,
 		"cache_enabled":    lm.cacheClient != nil,
-		"languages":        lm.GetAvailableLanguages(),
+		"languages":        languages,
 	}
 
-	// Add memory usage stats if needed
 	totalSize := 0
 	for _, data := range lm.localeData {
 		totalSize += len(data)

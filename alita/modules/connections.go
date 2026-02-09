@@ -33,7 +33,10 @@ well.
 // Shows current connected chat and provides keyboard with available commands.
 func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
@@ -85,7 +88,10 @@ Also, if no word is given, you will get your current setting.
 func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -144,7 +150,10 @@ Admins and Users both can use this.
 func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var text string
 	var replyMarkup gotgbot.ReplyMarkup
@@ -213,6 +222,11 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Connections] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	userType := args[1]
 
 	backText, _ := tr.GetString("button_back")
@@ -288,7 +302,10 @@ Used to disconnect from currently connected chat
 // Removes the user's connection to allow connecting to different chats.
 func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	var text string
@@ -358,7 +375,10 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	if ctx.Message.Chat.Type == "private" {
-		user := ctx.EffectiveSender.User
+		user := chat_status.RequireUser(b, ctx, false)
+		if user == nil {
+			return ext.EndGroups
+		}
 		chatId := db.ReconnectId(user.Id)
 
 		if chatId != 0 {

@@ -225,7 +225,10 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 	var err error
 	var text string

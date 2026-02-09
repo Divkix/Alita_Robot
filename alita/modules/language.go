@@ -39,7 +39,10 @@ func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 // changeLanguage displays the language selection menu for users or groups.
 // Shows current language and allows users/admins to select a different interface language.
 func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 

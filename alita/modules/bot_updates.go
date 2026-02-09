@@ -113,6 +113,11 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	qmsg := query.Message
 
 	data := strings.Split(query.Data, ".")
+	if len(data) < 3 {
+		log.Warnf("[BotUpdates] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	chatId, _ := strconv.ParseInt(data[1], 10, 64)
 	msgId, _ := strconv.ParseInt(data[2], 10, 64)
 

@@ -35,7 +35,10 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permissions check
@@ -235,7 +238,10 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions
@@ -294,7 +300,10 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions
@@ -353,7 +362,10 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions
@@ -412,7 +424,10 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions
@@ -514,7 +529,10 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 // to remove the latest warning from a user, requiring admin permissions.
 func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -527,6 +545,11 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	userMatch := args[1]
 	userId, _ := strconv.Atoi(userMatch)
 	var replyText string
@@ -571,7 +594,10 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -617,7 +643,10 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions
@@ -666,7 +695,10 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 // resetAllWarns handles the /resetallwarns command to clear all warnings
 // for all users in the chat with confirmation, restricted to owners.
 func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -725,6 +757,11 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	response := args[1]
 	var helpText string
 
@@ -768,7 +805,10 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check permissions

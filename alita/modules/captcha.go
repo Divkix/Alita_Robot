@@ -258,7 +258,10 @@ func secureShuffleStrings(values []string) {
 func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Check admin permissions
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
@@ -326,7 +329,10 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Check admin permissions
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
@@ -374,7 +380,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
@@ -490,7 +499,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
@@ -548,7 +560,10 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
@@ -600,7 +615,10 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
@@ -652,7 +670,10 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
@@ -1615,7 +1636,10 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, true)
+	if user == nil {
+		return ext.ContinueGroups
+	}
 
 	// Skip if this is not a group chat
 	if chat.Type != "group" && chat.Type != "supergroup" {

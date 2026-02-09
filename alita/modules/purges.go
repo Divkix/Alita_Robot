@@ -131,7 +131,10 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 // purge handles the /purge command to delete all messages from a replied
 // message up to the command message, requiring admin permissions.
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Permission checks
 	if !chat_status.RequireGroup(bot, ctx, nil, false) {
@@ -212,7 +215,10 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 // delCmd handles the /del command to delete a specific replied message
 // along with the command message, requiring admin permissions.
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Permission checks
 	if !chat_status.RequireGroup(bot, ctx, nil, false) {
@@ -257,7 +263,10 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -301,7 +310,10 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 // purgeFrom handles the /purgefrom command to mark a starting message
 // for range deletion, requiring admin permissions.
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Permission checks
 	if !chat_status.RequireGroup(bot, ctx, nil, false) {
@@ -382,7 +394,10 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 // purgeTo handles the /purgeto command to complete range deletion
 // from a previously marked message, requiring admin permissions.
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// Permission checks
 	if !chat_status.RequireGroup(bot, ctx, nil, false) {

@@ -9,6 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	log "github.com/sirupsen/logrus"
 
@@ -366,7 +367,10 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // start handles the /start command and displays welcome message with navigation options.
 // Shows different content in private vs group chats and handles start parameters.
 func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
 

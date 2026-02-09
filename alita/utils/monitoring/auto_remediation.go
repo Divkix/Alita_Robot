@@ -23,6 +23,7 @@ type AutoRemediationManager struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	wg             sync.WaitGroup
+	stopOnce       sync.Once
 	actions        []RemediationAction
 	enabled        bool
 	lastActionTime map[string]time.Time
@@ -206,10 +207,12 @@ func (m *AutoRemediationManager) markActionExecuted(action RemediationAction) {
 
 // Stop gracefully shuts down the auto-remediation manager
 func (m *AutoRemediationManager) Stop() {
-	log.Info("[AutoRemediation] Stopping auto-remediation monitoring")
-	m.cancel()
-	m.wg.Wait()
-	log.Info("[AutoRemediation] Auto-remediation monitoring stopped")
+	m.stopOnce.Do(func() {
+		log.Info("[AutoRemediation] Stopping auto-remediation monitoring")
+		m.cancel()
+		m.wg.Wait()
+		log.Info("[AutoRemediation] Auto-remediation monitoring stopped")
+	})
 }
 
 // Built-in remediation actions

@@ -78,7 +78,10 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 
 	var greetingText string
@@ -213,7 +216,10 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
@@ -253,7 +259,10 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
 		return ext.EndGroups
@@ -304,7 +313,10 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
 		return ext.EndGroups
@@ -350,7 +362,10 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 	var err error
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
 		return ext.EndGroups
@@ -426,7 +441,10 @@ func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
 		return ext.EndGroups
@@ -502,7 +520,10 @@ func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {
 		return ext.EndGroups
@@ -817,7 +838,10 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	if user.Id == bot.Id {
 		return ext.EndGroups
@@ -956,6 +980,11 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	args := strings.Split(query.Data, ".")
+	if len(args) < 3 {
+		log.Warnf("[Greetings] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	response := args[1]
 	joinUserId, _ := strconv.ParseInt(args[2], 10, 64)
 	joinUser, err := b.GetChat(joinUserId, nil)
@@ -1017,7 +1046,10 @@ func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(bot, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id, false) {

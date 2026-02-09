@@ -45,6 +45,7 @@ type BackgroundStatsCollector struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	wg          sync.WaitGroup
+	stopOnce    sync.Once
 	metrics     SystemMetrics
 	metricsLock sync.RWMutex
 
@@ -385,19 +386,21 @@ func (collector *BackgroundStatsCollector) GetCurrentMetrics() SystemMetrics {
 
 // Stop gracefully shuts down the background stats collector
 func (collector *BackgroundStatsCollector) Stop() {
-	log.Info("Stopping background statistics collection")
+	collector.stopOnce.Do(func() {
+		log.Info("Stopping background statistics collection")
 
-	collector.cancel()
+		collector.cancel()
 
-	// Wait for all workers to finish FIRST
-	collector.wg.Wait()
+		// Wait for all workers to finish FIRST
+		collector.wg.Wait()
 
-	// Then safely close channels
-	close(collector.systemStatsChan)
-	close(collector.databaseStatsChan)
+		// Then safely close channels
+		close(collector.systemStatsChan)
+		close(collector.databaseStatsChan)
 
-	// Log final statistics
-	collector.reportStats()
+		// Log final statistics
+		collector.reportStats()
 
-	log.Info("Background statistics collection stopped")
+		log.Info("Background statistics collection stopped")
+	})
 }

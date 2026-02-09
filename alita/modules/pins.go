@@ -62,7 +62,10 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 // unpin handles the /unpin command to unpin messages, either the latest
 // pinned message or a specific replied message, requiring admin permissions.
 func (moduleStruct) unpin(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 
@@ -169,7 +172,10 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 // unpinAll handles the /unpinall command to unpin all messages in the chat
 // with a confirmation dialog, requiring admin permissions.
 func (moduleStruct) unpinAll(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 
 	if !chat_status.RequireGroup(b, ctx, nil, false) {
 		return ext.EndGroups
@@ -212,7 +218,10 @@ func (moduleStruct) unpinAll(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) permaPin(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 
 	// permission checks
@@ -316,7 +325,10 @@ func (m moduleStruct) permaPin(b *gotgbot.Bot, ctx *ext.Context) error {
 // pin handles the /pin command to pin a replied message with options
 // for silent or loud pinning, requiring admin permissions.
 func (moduleStruct) pin(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	isSilent := true

@@ -393,7 +393,10 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	chat := ctx.EffectiveChat
-	user := ctx.EffectiveSender.User
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
 	msg := query.Message
 	var replyQuery, replyText string
 

@@ -151,7 +151,13 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Get the sub-module
-	module := strings.Split(query.Data, ".")[1]
+	args := strings.Split(query.Data, ".")
+	if len(args) < 2 {
+		log.Warnf("[Formatting] Invalid callback data format: %s", query.Data)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
+	module := args[1]
 
 	backText, _ := tr.GetString("common_back")
 
