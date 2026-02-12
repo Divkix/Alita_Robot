@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,6 +31,14 @@ import (
 var notesModule = moduleStruct{
 	moduleName: "Notes",
 	// overwriteNotesMap is a sync.Map, initialized to zero value (no make needed)
+}
+
+func newNotesOverwriteToken() (string, error) {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 // addNote handles the /save command to create new notes
@@ -98,8 +108,16 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// check if note already exists or not
 	if db.DoesNoteExists(chat.Id, noteWord) {
-		noteWordMapKey := fmt.Sprintf("%d_%s", chat.Id, noteWord)
-		notesOverwriteMap.Store(noteWordMapKey, overwriteNote{
+		token, tokenErr := newNotesOverwriteToken()
+		if tokenErr != nil {
+			log.Errorf("[Notes] Failed to generate overwrite token: %v", tokenErr)
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			errorText, _ := tr.GetString("notes_overwrite_token_failed")
+			_, _ = msg.Reply(b, errorText, helpers.Shtml())
+			return ext.EndGroups
+		}
+		notesOverwriteMap.Store(token, overwriteNote{
+			chatID:      chat.Id,
 			noteWord:    noteWord,
 			text:        text,
 			fileId:      fileid,
@@ -124,12 +142,18 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 						{
 							{
-								Text:         yesText,
-								CallbackData: fmt.Sprintf("notes.overwrite.yes.%s", noteWordMapKey),
+								Text: yesText,
+								CallbackData: encodeCallbackData("notes.overwrite", map[string]string{
+									"a": "yes",
+									"t": token,
+								}, fmt.Sprintf("notes.overwrite.yes.%d_%s", chat.Id, noteWord)),
 							},
 							{
-								Text:         noText,
-								CallbackData: fmt.Sprintf("notes.overwrite.no.%s", noteWordMapKey),
+								Text: noText,
+								CallbackData: encodeCallbackData("notes.overwrite", map[string]string{
+									"a": "no",
+									"t": token,
+								}, fmt.Sprintf("notes.overwrite.no.%d_%s", chat.Id, noteWord)),
 							},
 						},
 					},
@@ -430,8 +454,14 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 						{
-							{Text: yesText, CallbackData: "rmAllNotes.yes"},
-							{Text: noText, CallbackData: "rmAllNotes.no"},
+							{
+								Text:         yesText,
+								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}, "rmAllNotes.yes"),
+							},
+							{
+								Text:         noText,
+								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+							},
 						},
 					},
 				},
@@ -456,7 +486,9 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // noteOverWriteHandler processes callback queries for note overwrite
 // confirmations when adding notes that already exist.
-// Callback format: notes.overwrite.{action}.{chatId}_{noteWord}
+// Callback formats:
+// - v1 codec: notes.overwrite|v1|a={yes/no}&t={token}
+// - legacy: notes.overwrite.{action}.{chatId}_{noteWord}
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	user := query.From
@@ -467,37 +499,80 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	var helpText string
-	args := strings.Split(query.Data, ".")
-
-	// Validate callback data format: notes.overwrite.{action}.{key}
-	if len(args) < 4 {
+	action, token, legacyNoteWordMapKey, ok := parseNoteOverwriteCallbackData(query.Data)
+	if !ok {
 		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
 		return ext.EndGroups
 	}
-
-	action := args[2]         // "yes" or "no"
-	noteWordMapKey := args[3] // "{chatId}_{noteWord}"
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	switch action {
 	case "no":
 		// Clean up the pending overwrite entry when user cancels
-		notesOverwriteMap.Delete(noteWordMapKey)
+		if token != "" {
+			notesOverwriteMap.Delete(token)
+		}
+		if legacyNoteWordMapKey != "" {
+			notesOverwriteMap.Delete(legacyNoteWordMapKey)
+		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	case "yes":
-		dataSplit := strings.Split(noteWordMapKey, "_")
-		if len(dataSplit) < 2 {
+		var (
+			chatId      int64
+			noteWord    string
+			noteDataRaw interface{}
+			ok          bool
+			dataSplit   []string
+		)
+
+		if token != "" {
+			noteDataRaw, ok = notesOverwriteMap.Load(token)
+			if !ok {
+				helpText, _ = tr.GetString("notes_overwrite_cancelled")
+				break
+			}
+			noteData, castOk := noteDataRaw.(overwriteNote)
+			if !castOk {
+				helpText, _ = tr.GetString("notes_overwrite_cancelled")
+				break
+			}
+			chatId = noteData.chatID
+			noteWord = noteData.noteWord
+			if chatId == 0 {
+				chatId = query.Message.GetChat().Id
+			}
+		} else {
+			dataSplit = strings.SplitN(legacyNoteWordMapKey, "_", 2)
+			if len(dataSplit) < 2 {
+				helpText, _ = tr.GetString("notes_overwrite_cancelled")
+				break
+			}
+			strChatId, parsedNoteWord := dataSplit[0], dataSplit[1]
+			parsedChatID, parseErr := strconv.ParseInt(strChatId, 10, 64)
+			if parseErr != nil {
+				helpText, _ = tr.GetString("notes_overwrite_cancelled")
+				break
+			}
+			chatId = parsedChatID
+			noteWord = parsedNoteWord
+			noteDataRaw, ok = notesOverwriteMap.Load(legacyNoteWordMapKey)
+			if !ok {
+				helpText, _ = tr.GetString("notes_overwrite_cancelled")
+				break
+			}
+		}
+
+		noteData, castOk := noteDataRaw.(overwriteNote)
+		if !castOk {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		strChatId, noteWord := dataSplit[0], dataSplit[1]
-		chatId, _ := strconv.ParseInt(strChatId, 10, 64)
-		noteDataRaw, ok := notesOverwriteMap.Load(noteWordMapKey)
-		if !ok {
+
+		if noteData.chatID != 0 && noteData.chatID != query.Message.GetChat().Id {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		noteData := noteDataRaw.(overwriteNote)
+
 		if db.DoesNoteExists(chatId, noteWord) {
 			// Fix Issue 3: Add error handling for both RemoveNote and AddNote
 			if err := db.RemoveNote(chatId, noteWord); err != nil {
@@ -508,8 +583,15 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 				helpText, _ = tr.GetString("notes_save_failed")
 				break
 			}
-			notesOverwriteMap.Delete(noteWordMapKey)
+			if token != "" {
+				notesOverwriteMap.Delete(token)
+			}
+			if legacyNoteWordMapKey != "" {
+				notesOverwriteMap.Delete(legacyNoteWordMapKey)
+			}
 			helpText, _ = tr.GetString("notes_overwrite_success")
+		} else {
+			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 		}
 	default:
 		log.WithField("action", action).Warn("Unknown note overwrite action")
@@ -550,13 +632,20 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	response := ""
+	if decoded, ok := decodeCallbackData(query.Data, "rmAllNotes"); ok {
+		response, _ = decoded.Field("a")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			response = args[1]
+		}
+	}
+	if response == "" {
 		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	response := args[1]
 	var helpText string
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -886,7 +975,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
-				CallbackData: fmt.Sprintf("helpq.%s", "Formatting"),
+				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
 			},
 		},
 	} // Adds Formatting kb button to Notes Menu
@@ -900,7 +989,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	misc.AddCmdToDisableable("notes")
 	dispatcher.AddHandler(handlers.NewCommand("clearall", notesModule.rmAllNotes))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite."), notesModule.noteOverWriteHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
 	dispatcher.AddHandler(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {

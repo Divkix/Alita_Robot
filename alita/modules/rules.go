@@ -126,11 +126,12 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if rulesBtn == "" {
 		rulesBtn = m.defaultRulesBtn
 	}
+	normalizedRules := normalizeRulesForHTML(rules.Rules)
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	if rules.Rules != "" {
+	if normalizedRules != "" {
 		temp, _ := tr.GetString("rules_for_chat_header")
 		Text += fmt.Sprintf(temp, chat.Title) + "\n\n"
-		Text += rules.Rules
+		Text += normalizedRules
 	} else {
 		Text, _ = tr.GetString("rules_no_rules_set")
 	}

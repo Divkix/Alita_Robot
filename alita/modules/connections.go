@@ -164,8 +164,8 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		if !db.GetChatConnectionSetting(chat.Id).AllowConnect && !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_connection_disabled")
+		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
+			text, _ = tr.GetString(denyKey)
 		} else {
 			go func() {
 				defer error_handling.RecoverFromPanic("ConnectId", "connections")
@@ -176,8 +176,8 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyMarkup = helpers.InitButtons(b, chat.Id, user.Id)
 		}
 	} else {
-		if !db.GetChatConnectionSetting(chat.Id).AllowConnect && !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_connection_disabled")
+		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
+			text, _ = tr.GetString(denyKey)
 		} else {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connect_tap_btn_connect")
 			replyMarkup = gotgbot.InlineKeyboardMarkup{
@@ -221,13 +221,20 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	msg := query.Message
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	userType := ""
+	if decoded, ok := decodeCallbackData(query.Data, "connbtns"); ok {
+		userType, _ = decoded.Field("t")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			userType = args[1]
+		}
+	}
+	if userType == "" {
 		log.Warnf("[Connections] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	userType := args[1]
 
 	backText, _ := tr.GetString("button_back")
 	var (
@@ -237,7 +244,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 				{
 					{
 						Text:         backText,
-						CallbackData: "connbtns.Main",
+						CallbackData: encodeCallbackData("connbtns", map[string]string{"t": "Main"}, "connbtns.Main"),
 					},
 				},
 			},
@@ -445,5 +452,5 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("connection", ConnectionsModule.connection))
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
 	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns."), ConnectionsModule.connectionButtons))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
 }

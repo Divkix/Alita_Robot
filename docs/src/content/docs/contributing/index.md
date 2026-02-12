@@ -31,6 +31,7 @@ cp sample.env .env
 make run          # Run the bot locally
 make build        # Build release artifacts using goreleaser
 make lint         # Run golangci-lint for code quality checks
+make test         # Run automated regression tests
 make tidy         # Clean up and download go.mod dependencies
 ```
 
@@ -93,6 +94,7 @@ func init() {
 ## Code Style
 
 - Run `make lint` before committing
+- Run `make test` before committing
 - Follow Go conventions and idioms
 - Use the repository pattern for data access
 - Add proper error handling with panic recovery
@@ -162,19 +164,18 @@ mymodule_help_msg: |
 
 ## Testing
 
-The project uses `golangci-lint` for code quality. Manual testing is done with a test bot and group:
+Automated regression tests are required for all contributions:
 
-1. Create a test bot via [@BotFather](https://t.me/BotFather)
-2. Create a test group
-3. Configure your `.env` with the test bot token
-4. Run `make run` and test your changes
+1. Run `make test` (or `go test ./...`) and make sure all tests pass
+2. Run `make lint` and fix any lint findings
+3. Manually verify behavior with a test bot/group for user-facing changes
 
 ## Submitting Changes
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Make your changes
-4. Run `make lint` to check for issues
+4. Run `make test` and `make lint`
 5. Commit with a descriptive message
 6. Push to your fork
 7. Open a Pull Request

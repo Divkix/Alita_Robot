@@ -62,7 +62,8 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 		Mkdkb := append(m.genFormattingKb(db.GetLanguage(ctx)),
 			[]gotgbot.InlineKeyboardButton{
 				{
-					Text: backText, CallbackData: "helpq.Help",
+					Text:         backText,
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
 				},
 			},
 		)
@@ -97,7 +98,6 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 		lang = "en"
 	}
 
-	fxt := "formatting.%s"
 	tr := i18n.MustNewTranslator(lang)
 
 	keyboard := [][]gotgbot.InlineKeyboardButton{
@@ -112,17 +112,17 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 	// First row
 	keyboard[0][0] = gotgbot.InlineKeyboardButton{
 		Text:         markdownFormattingText,
-		CallbackData: fmt.Sprintf(fxt, "md_formatting"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}, "formatting.md_formatting"),
 	}
 	keyboard[0][1] = gotgbot.InlineKeyboardButton{
 		Text:         fillingsText,
-		CallbackData: fmt.Sprintf(fxt, "fillings"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "fillings"}, "formatting.fillings"),
 	}
 
 	// Second Row
 	keyboard[1][0] = gotgbot.InlineKeyboardButton{
 		Text:         randomContentText,
-		CallbackData: fmt.Sprintf(fxt, "random"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "random"}, "formatting.random"),
 	}
 
 	return keyboard
@@ -150,14 +150,20 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	msg := query.Message
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-	// Get the sub-module
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	module := ""
+	if decoded, ok := decodeCallbackData(query.Data, "formatting"); ok {
+		module, _ = decoded.Field("m")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 2 {
+			module = parts[1]
+		}
+	}
+	if module == "" {
 		log.Warnf("[Formatting] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	module := args[1]
 
 	backText, _ := tr.GetString("common_back")
 
@@ -167,7 +173,10 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 				{
-					{Text: backText, CallbackData: "helpq.Formatting"},
+					{
+						Text:         backText,
+						CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
+					},
 				},
 			},
 		},
@@ -193,5 +202,5 @@ func LoadMkdCmd(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(formattingModule.moduleName, true)
 	HelpModule.helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
 	cmdDecorator.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting."), formattingModule.formattingHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting"), formattingModule.formattingHandler))
 }

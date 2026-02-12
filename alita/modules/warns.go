@@ -182,7 +182,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: fmt.Sprintf("rmWarn.%d", u.Id),
+							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}, fmt.Sprintf("rmWarn.%d", u.Id)),
 						},
 						{
 							Text: rulesButtonText,
@@ -197,7 +197,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: fmt.Sprintf("rmWarn.%d", u.Id),
+							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}, fmt.Sprintf("rmWarn.%d", u.Id)),
 						},
 					},
 				},
@@ -544,13 +544,20 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	userMatch := ""
+	if decoded, ok := decodeCallbackData(query.Data, "rmWarn"); ok {
+		userMatch, _ = decoded.Field("u")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			userMatch = args[1]
+		}
+	}
+	if userMatch == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	userMatch := args[1]
 	userId, _ := strconv.Atoi(userMatch)
 	var replyText string
 
@@ -729,8 +736,14 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 						{
-							{Text: yesText, CallbackData: "rmAllChatWarns.yes"},
-							{Text: noText, CallbackData: "rmAllChatWarns.no"},
+							{
+								Text:         yesText,
+								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}, "rmAllChatWarns.yes"),
+							},
+							{
+								Text:         noText,
+								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "no"}, "rmAllChatWarns.no"),
+							},
 						},
 					},
 				},
@@ -756,13 +769,20 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	response := ""
+	if decoded, ok := decodeCallbackData(query.Data, "rmAllChatWarns"); ok {
+		response, _ = decoded.Field("a")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			response = args[1]
+		}
+	}
+	if response == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	response := args[1]
 	var helpText string
 
 	var replyText string

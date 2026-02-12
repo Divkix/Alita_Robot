@@ -8,6 +8,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 )
 
 // sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.
@@ -28,8 +29,15 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{{
-						Text:         buttonText,
-						CallbackData: fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, msg.MessageId),
+						Text: buttonText,
+						CallbackData: callbackcodec.EncodeOrFallback(
+							"anon_admin",
+							map[string]string{
+								"c": fmt.Sprint(chat.Id),
+								"m": fmt.Sprint(msg.MessageId),
+							},
+							fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, msg.MessageId),
+						),
 					}},
 				},
 			},

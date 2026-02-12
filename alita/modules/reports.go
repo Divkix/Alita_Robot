@@ -168,7 +168,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	reported += sb.String()
 
-	callbackData := "report." + "%s=" + fmt.Sprint(reportedUser.Id) + "=" + fmt.Sprint(reportedMsgId)
 	_, err = msg.Reply(b,
 		reported,
 		&gotgbot.SendMessageOpts{
@@ -196,7 +195,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								t, _ := tr.GetString("reports_button_kick")
 								return t
 							}(),
-							CallbackData: fmt.Sprintf(callbackData, "kick"),
+							CallbackData: encodeCallbackData("report", map[string]string{
+								"a": "kick",
+								"u": fmt.Sprint(reportedUser.Id),
+								"m": fmt.Sprint(reportedMsgId),
+							}, fmt.Sprintf("report.kick=%d=%d", reportedUser.Id, reportedMsgId)),
 						},
 						{
 							Text: func() string {
@@ -204,7 +207,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								t, _ := tr.GetString("reports_button_ban")
 								return t
 							}(),
-							CallbackData: fmt.Sprintf(callbackData, "ban"),
+							CallbackData: encodeCallbackData("report", map[string]string{
+								"a": "ban",
+								"u": fmt.Sprint(reportedUser.Id),
+								"m": fmt.Sprint(reportedMsgId),
+							}, fmt.Sprintf("report.ban=%d=%d", reportedUser.Id, reportedMsgId)),
 						},
 					},
 					{
@@ -214,7 +221,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								t, _ := tr.GetString("reports_button_delete")
 								return t
 							}(),
-							CallbackData: fmt.Sprintf(callbackData, "delete"),
+							CallbackData: encodeCallbackData("report", map[string]string{
+								"a": "delete",
+								"u": fmt.Sprint(reportedUser.Id),
+								"m": fmt.Sprint(reportedMsgId),
+							}, fmt.Sprintf("report.delete=%d=%d", reportedUser.Id, reportedMsgId)),
 						},
 					},
 					{
@@ -224,7 +235,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								t, _ := tr.GetString("reports_button_resolved")
 								return t
 							}(),
-							CallbackData: fmt.Sprintf(callbackData, "resolved"),
+							CallbackData: encodeCallbackData("report", map[string]string{
+								"a": "resolved",
+								"u": fmt.Sprint(reportedUser.Id),
+								"m": fmt.Sprint(reportedMsgId),
+							}, fmt.Sprintf("report.resolved=%d=%d", reportedUser.Id, reportedMsgId)),
 						},
 					},
 				},
@@ -408,28 +423,38 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	invalidActionText, _ := tr.GetString("reports_invalid_action")
 
-	parts := strings.Split(query.Data, ".")
-	if len(parts) < 2 {
+	action := ""
+	userIDRaw := ""
+	msgIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "report"); ok {
+		action, _ = decoded.Field("a")
+		userIDRaw, _ = decoded.Field("u")
+		msgIDRaw, _ = decoded.Field("m")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 2 {
+			args := strings.Split(parts[1], "=")
+			if len(args) >= 3 {
+				action = args[0]
+				userIDRaw = args[1]
+				msgIDRaw = args[2]
+			}
+		}
+	}
+	if action == "" || userIDRaw == "" || msgIDRaw == "" {
 		log.Warnf("[Reports] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
-	args := strings.Split(parts[1], "=")
-	if len(args) < 3 {
-		log.Warnf("[Reports] Invalid callback args format: %s", query.Data)
+	userId, err := strconv.ParseInt(userIDRaw, 10, 64)
+	if err != nil {
+		log.Warnf("[Reports] Invalid user ID in callback: %s", userIDRaw)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
-	action := args[0]
-	userId, err := strconv.ParseInt(args[1], 10, 64)
+	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
 	if err != nil {
-		log.Warnf("[Reports] Invalid user ID in callback: %s", args[1])
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
-		return ext.EndGroups
-	}
-	msgId, err := strconv.ParseInt(args[2], 10, 64)
-	if err != nil {
-		log.Warnf("[Reports] Invalid message ID in callback: %s", args[2])
+		log.Warnf("[Reports] Invalid message ID in callback: %s", msgIDRaw)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
@@ -515,7 +540,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 		),
 		reportsModule.handlerGroup,
 	)
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report."), reportsModule.markResolvedButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report"), reportsModule.markResolvedButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	misc.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))

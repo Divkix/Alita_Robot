@@ -2089,3 +2089,9 @@ config_workers_invalid: "%s doit être entre %d et %d"
 # System strings
 system_db_connected: "Connecté à la base de données PostgreSQL avec succès !"
 system_config_loaded: "Configuration chargée et validée avec succès"
+
+# Issue #628 remediation keys
+misc_translate_parse_error: "Impossible d'analyser la réponse de traduction. Veuillez réessayer."
+blacklists_set_bl_action_update_failed: "Impossible de mettre à jour l'action de la liste noire. Veuillez réessayer."
+filters_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
+notes_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."

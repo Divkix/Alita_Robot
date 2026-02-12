@@ -41,6 +41,7 @@ var notesOverwriteMap sync.Map
 
 // struct for filters module
 type overwriteFilter struct {
+	chatID     int64
 	filterWord string
 	text       string
 	fileid     string
@@ -50,6 +51,7 @@ type overwriteFilter struct {
 
 // struct for notes module
 type overwriteNote struct {
+	chatID      int64
 	noteWord    string
 	text        string
 	fileId      string
@@ -105,12 +107,20 @@ func initHelpButtons() {
 	var kb []gotgbot.InlineKeyboardButton
 
 	for _, i := range listModules() {
-		kb = append(kb, gotgbot.InlineKeyboardButton{Text: i, CallbackData: fmt.Sprintf("helpq.%s", i)})
+		kb = append(kb, gotgbot.InlineKeyboardButton{
+			Text: i,
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": i},
+				fmt.Sprintf("helpq.%s", i),
+			),
+		})
 	}
 	zb := helpers.ChunkKeyboardSlices(kb, 3)
 	tr := i18n.MustNewTranslator("en") // Default to English for help system
 	backText, _ := tr.GetString("helpers_back_button")
-	zb = append(zb, []gotgbot.InlineKeyboardButton{{Text: backText, CallbackData: "helpq.BackStart"}})
+	zb = append(zb, []gotgbot.InlineKeyboardButton{{
+		Text:         backText,
+		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
+	}})
 	markup = gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
 }
 
@@ -132,11 +142,11 @@ func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgb
 	backBtnSuffix := []gotgbot.InlineKeyboardButton{
 		{
 			Text:         backText,
-			CallbackData: "helpq.Help",
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
 		},
 		{
 			Text:         homeText,
-			CallbackData: "helpq.BackStart",
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
 		},
 	}
 
@@ -240,6 +250,13 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			return ext.EndGroups
 		}
 
+		if allowed, denyKey := canUserConnectToChat(b, cochat.Id, user.Id); !allowed {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString(denyKey)
+			_, _ = msg.Reply(b, text, helpers.Shtml())
+			return ext.EndGroups
+		}
+
 		go db.ConnectId(user.Id, cochat.Id)
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -281,8 +298,9 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		}
 
 		rulesrc := db.GetChatRulesInfo(int64(chatID))
+		normalizedRules := normalizeRulesForHTML(rulesrc.Rules)
 
-		if rulesrc.Rules == "" {
+		if normalizedRules == "" {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("rules_not_set")
 			_, err := msg.Reply(b, text, helpers.Shtml())
@@ -296,7 +314,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("rules_for_chat", i18n.TranslationParams{
 			"first":  chatinfo.Title,
-			"second": rulesrc.Rules,
+			"second": normalizedRules,
 		})
 		_, err = msg.Reply(b, text, helpers.Shtml())
 		if err != nil {

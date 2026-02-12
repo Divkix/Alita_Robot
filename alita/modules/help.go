@@ -73,7 +73,7 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			{
 				{
 					Text:         aboutMeText,
-					CallbackData: "about.me",
+					CallbackData: encodeCallbackData("about", map[string]string{"a": "me"}, "about.me"),
 				},
 			},
 			{
@@ -89,13 +89,13 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			{
 				{
 					Text:         configurationText,
-					CallbackData: "configuration.step1",
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step1"}, "configuration.step1"),
 				},
 			},
 			{
 				{
 					Text:         backText,
-					CallbackData: "helpq.BackStart",
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
 				},
 			},
 		},
@@ -117,7 +117,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 			{
 				{
 					Text:         aboutText,
-					CallbackData: "about.main",
+					CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
 				},
 			},
 			{
@@ -133,13 +133,13 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 			{
 				{
 					Text:         commandsHelpText,
-					CallbackData: "helpq.Help",
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
 				},
 			},
 			{
 				{
 					Text:         languageText,
-					CallbackData: "helpq.Languages",
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Languages"}, "helpq.Languages"),
 				},
 			},
 		},
@@ -201,13 +201,20 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	if query := ctx.CallbackQuery; query != nil {
-		args := strings.Split(query.Data, ".")
-		if len(args) < 2 {
+		response := ""
+		if decoded, ok := decodeCallbackData(query.Data, "about"); ok {
+			response, _ = decoded.Field("a")
+		} else {
+			args := strings.Split(query.Data, ".")
+			if len(args) >= 2 {
+				response = args[1]
+			}
+		}
+		if response == "" {
 			log.Warn("[About] Invalid callback data format - missing response part")
 			_, _ = query.Answer(b, nil)
 			return ext.EndGroups
 		}
-		response := args[1]
 
 		switch response {
 		case "main":
@@ -222,7 +229,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         backText,
-							CallbackData: "about.main",
+							CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
 						},
 					},
 				},
@@ -274,7 +281,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         aboutButtonText,
-								CallbackData: "about.main",
+								CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
 							},
 						},
 					},
@@ -305,13 +312,20 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 // Navigates between help sections and displays appropriate help content for modules.
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	module := ""
+	if decoded, ok := decodeCallbackData(query.Data, "helpq"); ok {
+		module, _ = decoded.Field("m")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			module = args[1]
+		}
+	}
+	if module == "" {
 		log.Warn("[HelpButtonHandler] Invalid callback data format - missing module part")
 		_, _ = query.Answer(b, nil)
 		return ext.EndGroups
 	}
-	module := args[1]
 
 	var (
 		parsemode, helpText string
@@ -461,13 +475,20 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	response := ""
+	if decoded, ok := decodeCallbackData(query.Data, "configuration"); ok {
+		response, _ = decoded.Field("s")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			response = args[1]
+		}
+	}
+	if response == "" {
 		log.Warn("[BotConfig] Invalid callback data format - missing response part")
 		_, _ = query.Answer(b, nil)
 		return ext.EndGroups
 	}
-	response := args[1]
 
 	var (
 		iKeyboard [][]gotgbot.InlineKeyboardButton
@@ -490,7 +511,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         doneText,
-					CallbackData: "configuration.step2",
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step2"}, "configuration.step2"),
 				},
 			},
 		}
@@ -501,7 +522,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         doneText,
-					CallbackData: "configuration.step3",
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step3"}, "configuration.step3"),
 				},
 			},
 		}
@@ -513,7 +534,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         continueText,
-					CallbackData: "helpq.Help",
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
 				},
 			},
 		}

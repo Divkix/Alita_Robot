@@ -975,8 +975,16 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	var buttons [][]gotgbot.InlineKeyboardButton
 	for _, option := range options {
 		button := gotgbot.InlineKeyboardButton{
-			Text:         option,
-			CallbackData: fmt.Sprintf("captcha_verify.%d.%d.%s", preAttempt.ID, userID, option),
+			Text: option,
+			CallbackData: encodeCallbackData(
+				"captcha_verify",
+				map[string]string{
+					"a": fmt.Sprint(preAttempt.ID),
+					"u": fmt.Sprint(userID),
+					"s": option,
+				},
+				fmt.Sprintf("captcha_verify.%d.%d.%s", preAttempt.ID, userID, option),
+			),
 		}
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
 	}
@@ -987,8 +995,15 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		buttonText, _ := tr.GetString("captcha_refresh_button")
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{
 			{
-				Text:         buttonText,
-				CallbackData: fmt.Sprintf("captcha_refresh.%d.%d", preAttempt.ID, userID),
+				Text: buttonText,
+				CallbackData: encodeCallbackData(
+					"captcha_refresh",
+					map[string]string{
+						"a": fmt.Sprint(preAttempt.ID),
+						"u": fmt.Sprint(userID),
+					},
+					fmt.Sprintf("captcha_refresh.%d.%d", preAttempt.ID, userID),
+				),
 			},
 		})
 	}
@@ -1059,7 +1074,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	}
 
 	// Schedule cleanup after timeout with proper context and cancellation
-	go func(originalMessageID int64, chatID int64, uID int64) {
+	go func(attemptID uint, originalMessageID int64, chatID int64, uID int64) {
 		// Create a context with the timeout duration plus a small buffer
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(settings.Timeout)*time.Minute+30*time.Second)
 		defer cancel()
@@ -1070,45 +1085,52 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 
 		select {
 		case <-timer.C:
-			// Check if attempt still exists (not completed)
-			attempt, _ := db.GetCaptchaAttempt(uID, chatID)
-			if attempt != nil {
-				// Use the latest message ID from the attempt to avoid leaving a stale message after refresh
-				handleCaptchaTimeout(bot, chatID, uID, attempt.MessageID, settings.FailureAction)
-			}
+			// Target a specific attempt ID to avoid stale timers affecting newer attempts.
+			handleCaptchaTimeout(bot, chatID, uID, attemptID, originalMessageID, settings.FailureAction)
 		case <-ctx.Done():
 			log.Warnf("Captcha timeout handler cancelled for user %d in chat %d", uID, chatID)
 			return
 		}
-	}(sent.MessageId, chat.Id, userID)
+	}(preAttempt.ID, sent.MessageId, chat.Id, userID)
 
 	return nil
 }
 
 // handleCaptchaTimeout handles when a user fails to complete captcha in time.
-func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, messageID int64, action string) {
-	// Get the attempt first to check for stored messages before deletion
-	attempt, _ := db.GetCaptchaAttempt(userID, chatID)
-	var storedMsgCount int64
-	var attemptID uint
-	if attempt != nil {
-		attemptID = attempt.ID
-		storedMsgCount, _ = db.CountStoredMessagesForAttempt(attempt.ID)
+func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint, fallbackMessageID int64, action string) {
+	// Fetch and validate the specific attempt targeted by this timeout event.
+	attempt, err := db.GetCaptchaAttemptByID(attemptID)
+	if err != nil || attempt == nil {
+		log.Debugf("[Captcha] Timeout handler skipped - attempt not found for attempt_id=%d", attemptID)
+		return
 	}
-
-	// Atomic delete - if this returns 0 rows, another handler already processed it
-	deleted, err := db.DeleteCaptchaAttemptAtomic(userID, chatID)
-	if err != nil || !deleted {
-		log.Debugf("[Captcha] Timeout handler skipped - attempt already handled for user %d in chat %d", userID, chatID)
+	if attempt.UserID != userID || attempt.ChatID != chatID {
+		log.WithFields(log.Fields{
+			"attempt_id":   attemptID,
+			"attempt_user": attempt.UserID,
+			"attempt_chat": attempt.ChatID,
+			"user_id":      userID,
+			"chat_id":      chatID,
+		}).Warn("[Captcha] Timeout handler skipped - attempt identity mismatch")
 		return
 	}
 
-	// Clean up stored messages if we had an attempt
-	if attemptID > 0 {
-		_ = db.DeleteStoredMessagesForAttempt(attemptID)
+	storedMsgCount, _ := db.CountStoredMessagesForAttempt(attemptID)
+
+	// Atomic delete by attempt ID - if this returns 0 rows, another handler already processed it.
+	deleted, err := db.DeleteCaptchaAttemptByIDAtomic(attemptID, userID, chatID)
+	if err != nil || !deleted {
+		log.Debugf("[Captcha] Timeout handler skipped - attempt already handled for attempt_id=%d", attemptID)
+		return
 	}
 
+	_ = db.DeleteStoredMessagesForAttempt(attemptID)
+
 	// Delete the captcha message
+	messageID := attempt.MessageID
+	if messageID == 0 {
+		messageID = fallbackMessageID
+	}
 	_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, messageID)
 
 	// Get user info for the failure message
@@ -1240,16 +1262,32 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	// Parse callback data: captcha_verify.{attempt_id}.{user_id}.{answer}
-	parts := strings.Split(query.Data, ".")
-	if len(parts) != 4 {
+	// Parse callback data (codec-first with legacy fallback):
+	// New: captcha_verify|v1|a={attempt_id}&u={user_id}&s={answer}
+	// Old: captcha_verify.{attempt_id}.{user_id}.{answer}
+	attemptIDRaw := ""
+	targetUserIDRaw := ""
+	selectedAnswer := ""
+	if decoded, ok := decodeCallbackData(query.Data, "captcha_verify"); ok {
+		attemptIDRaw, _ = decoded.Field("a")
+		targetUserIDRaw, _ = decoded.Field("u")
+		selectedAnswer, _ = decoded.Field("s")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 4 {
+			attemptIDRaw = parts[1]
+			targetUserIDRaw = parts[2]
+			selectedAnswer = strings.Join(parts[3:], ".")
+		}
+	}
+	if attemptIDRaw == "" || targetUserIDRaw == "" || selectedAnswer == "" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_data")
 		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return err
 	}
 
-	attemptID64, err := strconv.ParseUint(parts[1], 10, 64)
+	attemptID64, err := strconv.ParseUint(attemptIDRaw, 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_attempt")
@@ -1257,7 +1295,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		return err
 	}
 
-	targetUserID, err := strconv.ParseInt(parts[2], 10, 64)
+	targetUserID, err := strconv.ParseInt(targetUserIDRaw, 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_user")
@@ -1272,8 +1310,6 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return err
 	}
-
-	selectedAnswer := parts[3]
 
 	// Get the captcha attempt and ensure IDs match
 	attempt, err := db.GetCaptchaAttempt(targetUserID, chat.Id)
@@ -1294,6 +1330,15 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 	// Check if answer is correct
 	if selectedAnswer == attempt.Answer {
+		// Claim the attempt first to prevent timeout workers from acting after success.
+		claimed, claimErr := db.DeleteCaptchaAttemptByIDAtomic(attempt.ID, targetUserID, chat.Id)
+		if claimErr != nil || !claimed {
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("captcha_expired_or_not_found")
+			_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return err
+		}
+
 		// Correct answer - unmute the user
 		_, err = chat.RestrictMember(bot, targetUserID, gotgbot.ChatPermissions{
 			CanSendMessages:       true,
@@ -1371,9 +1416,6 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		// Delete the captcha message
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, attempt.MessageID)
 
-		// Delete the attempt from database
-		_ = db.DeleteCaptchaAttempt(targetUserID, chat.Id)
-
 		// Send success message
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		msgTemplate, _ := tr.GetString("greetings_captcha_verified_success")
@@ -1423,7 +1465,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 		if attempt.Attempts >= settings.MaxAttempts {
 			// Max attempts reached - execute failure action
-			handleCaptchaTimeout(bot, chat.Id, targetUserID, attempt.MessageID, settings.FailureAction)
+			handleCaptchaTimeout(bot, chat.Id, targetUserID, attempt.ID, attempt.MessageID, settings.FailureAction)
 
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			actionText, _ := tr.GetString("captcha_action_kicked")
@@ -1461,16 +1503,29 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	// Parse callback data: captcha_refresh.{attempt_id}.{user_id}
-	parts := strings.Split(query.Data, ".")
-	if len(parts) != 3 {
+	// Parse callback data (codec-first with legacy fallback):
+	// New: captcha_refresh|v1|a={attempt_id}&u={user_id}
+	// Old: captcha_refresh.{attempt_id}.{user_id}
+	attemptIDRaw := ""
+	targetUserIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "captcha_refresh"); ok {
+		attemptIDRaw, _ = decoded.Field("a")
+		targetUserIDRaw, _ = decoded.Field("u")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 3 {
+			attemptIDRaw = parts[1]
+			targetUserIDRaw = parts[2]
+		}
+	}
+	if attemptIDRaw == "" || targetUserIDRaw == "" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_refresh")
 		_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return err
 	}
 
-	attemptID64, err := strconv.ParseUint(parts[1], 10, 64)
+	attemptID64, err := strconv.ParseUint(attemptIDRaw, 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_attempt")
@@ -1478,7 +1533,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 		return err
 	}
 
-	targetUserID, err := strconv.ParseInt(parts[2], 10, 64)
+	targetUserID, err := strconv.ParseInt(targetUserIDRaw, 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_user")
@@ -1555,16 +1610,31 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	var buttons [][]gotgbot.InlineKeyboardButton
 	for _, option := range options {
 		button := gotgbot.InlineKeyboardButton{
-			Text:         option,
-			CallbackData: fmt.Sprintf("captcha_verify.%d.%d.%s", attempt.ID, targetUserID, option),
+			Text: option,
+			CallbackData: encodeCallbackData(
+				"captcha_verify",
+				map[string]string{
+					"a": fmt.Sprint(attempt.ID),
+					"u": fmt.Sprint(targetUserID),
+					"s": option,
+				},
+				fmt.Sprintf("captcha_verify.%d.%d.%s", attempt.ID, targetUserID, option),
+			),
 		}
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	refreshBtnText, _ := tr.GetString("captcha_refresh_button")
 	buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
-		Text:         refreshBtnText,
-		CallbackData: fmt.Sprintf("captcha_refresh.%d.%d", attempt.ID, targetUserID),
+		Text: refreshBtnText,
+		CallbackData: encodeCallbackData(
+			"captcha_refresh",
+			map[string]string{
+				"a": fmt.Sprint(attempt.ID),
+				"u": fmt.Sprint(targetUserID),
+			},
+			fmt.Sprintf("captcha_refresh.%d.%d", attempt.ID, targetUserID),
+		),
 	}})
 
 	keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
@@ -1737,8 +1807,8 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("captchaclear", captchaModule.clearPendingMessages))
 
 	// Callbacks
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify."), captchaModule.captchaVerifyCallback))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_refresh."), captchaModule.captchaRefreshCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_refresh"), captchaModule.captchaRefreshCallback))
 
 	// Start periodic cleanup of expired attempts with proper context management
 	go func() {

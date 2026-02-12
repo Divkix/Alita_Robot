@@ -641,7 +641,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         func() string { t, _ := tr.GetString("bans_unban_button"); return t }(),
-							CallbackData: fmt.Sprintf("unrestrict.unban.%d", userId),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unban.%d", userId)),
 						},
 					},
 				},
@@ -855,7 +855,7 @@ func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         func() string { t, _ := tr.GetString("bans_unban_button"); return t }(),
-							CallbackData: fmt.Sprintf("unrestrict.unban.%d", userId),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unban.%d", userId)),
 						},
 					},
 				},
@@ -1042,10 +1042,19 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: func() string { t, _ := tr.GetString("button_ban"); return t }(), CallbackData: fmt.Sprintf("restrict.ban.%d", userId)},
-						{Text: func() string { t, _ := tr.GetString("button_kick"); return t }(), CallbackData: fmt.Sprintf("restrict.kick.%d", userId)},
+						{
+							Text:         func() string { t, _ := tr.GetString("button_ban"); return t }(),
+							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.ban.%d", userId)),
+						},
+						{
+							Text:         func() string { t, _ := tr.GetString("button_kick"); return t }(),
+							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "kick", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.kick.%d", userId)),
+						},
 					},
-					{{Text: func() string { t, _ := tr.GetString("button_mute"); return t }(), CallbackData: fmt.Sprintf("restrict.mute.%d", userId)}},
+					{{
+						Text:         func() string { t, _ := tr.GetString("button_mute"); return t }(),
+						CallbackData: encodeCallbackData("restrict", map[string]string{"a": "mute", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.mute.%d", userId)),
+					}},
 				},
 			},
 		},
@@ -1075,8 +1084,19 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 3 {
+	action := ""
+	userIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "restrict"); ok {
+		action, _ = decoded.Field("a")
+		userIDRaw, _ = decoded.Field("u")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 3 {
+			action = args[1]
+			userIDRaw = args[2]
+		}
+	}
+	if action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -1085,9 +1105,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		})
 		return ext.EndGroups
 	}
-
-	action := args[1]
-	userId, err := strconv.Atoi(args[2])
+	userId, err := strconv.Atoi(userIDRaw)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"callbackData": query.Data,
@@ -1291,8 +1309,14 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: unbanText, CallbackData: fmt.Sprintf("unrestrict.unban.%d", userId)},
-						{Text: unmuteText, CallbackData: fmt.Sprintf("unrestrict.unmute.%d", userId)},
+						{
+							Text:         unbanText,
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unban.%d", userId)),
+						},
+						{
+							Text:         unmuteText,
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
+						},
 					},
 				},
 			},
@@ -1324,8 +1348,19 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 3 {
+	action := ""
+	userIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "unrestrict"); ok {
+		action, _ = decoded.Field("a")
+		userIDRaw, _ = decoded.Field("u")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 3 {
+			action = args[1]
+			userIDRaw = args[2]
+		}
+	}
+	if action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")
 		errText, _ := tr.GetString("bans_invalid_callback_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -1334,9 +1369,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		})
 		return ext.EndGroups
 	}
-
-	action := args[1]
-	userId, err := strconv.Atoi(args[2])
+	userId, err := strconv.Atoi(userIDRaw)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"callbackData": query.Data,
@@ -1360,9 +1393,10 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			log.Error(err)
 			return err
 		}
+		unmutePermissions := resolveUnmutePermissions(c)
 
 		_, err = chat.RestrictMember(b, int64(userId),
-			*c.Permissions,
+			unmutePermissions,
 			nil,
 		)
 		if err != nil {
@@ -1440,7 +1474,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 
 	// special commands
 	dispatcher.AddHandler(handlers.NewCommand("restrict", bansModule.restrict))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict."), bansModule.restrictButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict"), bansModule.restrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("unrestrict", bansModule.unrestrict))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict."), bansModule.unrestrictButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 }

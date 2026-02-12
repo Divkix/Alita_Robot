@@ -2195,3 +2195,9 @@ disabling_notes_docs: |
   <b>Permisos requeridos:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Solo admins
   • <code>/disableable</code>, <code>/disabled</code>: Todos los usuarios (pero <code>/disabled</code> puede deshabilitarse)
+
+# Issue #628 remediation keys
+misc_translate_parse_error: "No se pudo procesar la respuesta de traducción. Inténtalo de nuevo."
+blacklists_set_bl_action_update_failed: "No se pudo actualizar la acción de lista negra. Inténtalo de nuevo."
+filters_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
+notes_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."

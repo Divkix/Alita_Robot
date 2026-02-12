@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
@@ -38,6 +39,33 @@ var (
 		},
 	}
 )
+
+func parseTranslateResponse(body []byte) (detectedLang, translatedText string, err error) {
+	var payload []interface{}
+	if err = json.Unmarshal(body, &payload); err != nil {
+		return "", "", err
+	}
+
+	if len(payload) == 0 {
+		return "", "", fmt.Errorf("empty translate response")
+	}
+
+	firstEntry, ok := payload[0].([]interface{})
+	if !ok || len(firstEntry) < 2 {
+		return "", "", fmt.Errorf("unexpected translate response shape")
+	}
+
+	translatedText, ok = firstEntry[0].(string)
+	if !ok || translatedText == "" {
+		return "", "", fmt.Errorf("missing translated text")
+	}
+	detectedLang, ok = firstEntry[1].(string)
+	if !ok || detectedLang == "" {
+		return "", "", fmt.Errorf("missing detected language")
+	}
+
+	return detectedLang, translatedText, nil
+}
 
 // echomsg handles the /tell command to make the bot echo a message
 // as a reply to another message, requiring admin permissions.
@@ -370,10 +398,20 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = msg.Reply(b, text+": "+err.Error(), nil)
 		return ext.EndGroups
 	}
-	data := strings.Split(strings.Trim(string(all), `"][`), `","`)
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	detectedLang, translatedText, parseErr := parseTranslateResponse(all)
+	if parseErr != nil {
+		log.WithFields(log.Fields{
+			"error":       parseErr,
+			"target_lang": toLang,
+			"response":    string(all),
+		}).Warn("[Misc] Failed to parse translation response")
+		text, _ := tr.GetString("misc_translate_parse_error")
+		_, _ = msg.Reply(b, text, helpers.Shtml())
+		return ext.EndGroups
+	}
 	textTemplate, _ := tr.GetString("misc_translate_result")
-	text := fmt.Sprintf(textTemplate, data[1], data[0])
+	text := fmt.Sprintf(textTemplate, detectedLang, translatedText)
 	_, _ = msg.Reply(b, text, helpers.Shtml())
 	return ext.EndGroups
 }

@@ -270,9 +270,16 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-	// Validate callback data format before processing
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	msgIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "deleteMsg"); ok {
+		msgIDRaw, _ = decoded.Field("m")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			msgIDRaw = args[1]
+		}
+	}
+	if msgIDRaw == "" {
 		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
 		errText, _ := tr.GetString("purges_invalid_button_data")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
@@ -280,9 +287,9 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	// Parse message ID from callback data
-	msgId, err := strconv.Atoi(args[1])
+	msgId, err := strconv.Atoi(msgIDRaw)
 	if err != nil {
-		log.Warnf("[Purges] Invalid message ID in callback: %s", args[1])
+		log.Warnf("[Purges] Invalid message ID in callback: %s", msgIDRaw)
 		errText, _ := tr.GetString("purges_invalid_message_id")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 		return ext.EndGroups
@@ -517,5 +524,5 @@ func LoadPurges(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("purge", purgesModule.purge))
 	dispatcher.AddHandler(handlers.NewCommand("purgefrom", purgesModule.purgeFrom))
 	dispatcher.AddHandler(handlers.NewCommand("purgeto", purgesModule.purgeTo))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("deleteMsg."), purgesModule.deleteButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("deleteMsg"), purgesModule.deleteButtonHandler))
 }

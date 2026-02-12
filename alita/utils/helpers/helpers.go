@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
@@ -180,13 +181,13 @@ func InitButtonsWithLanguage(b *gotgbot.Bot, chatId, userId int64, language stri
 			{
 				{
 					Text:         adminText,
-					CallbackData: "connbtns.Admin",
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "Admin"}, "connbtns.Admin"),
 				},
 			},
 			{
 				{
 					Text:         userText,
-					CallbackData: "connbtns.User",
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "User"}, "connbtns.User"),
 				},
 			},
 		}
@@ -195,7 +196,7 @@ func InitButtonsWithLanguage(b *gotgbot.Bot, chatId, userId int64, language stri
 			{
 				{
 					Text:         userText,
-					CallbackData: "connbtns.User",
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "User"}, "connbtns.User"),
 				},
 			},
 		}
@@ -417,7 +418,7 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 			kb,
 			gotgbot.InlineKeyboardButton{
 				Text:         properLang,
-				CallbackData: fmt.Sprintf("change_language.%s", langCode),
+				CallbackData: callbackcodec.EncodeOrFallback("change_language", map[string]string{"l": langCode}, fmt.Sprintf("change_language.%s", langCode)),
 			},
 		)
 	}

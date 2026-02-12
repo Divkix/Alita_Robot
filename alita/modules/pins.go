@@ -143,8 +143,20 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	chat := ctx.EffectiveChat
 
-	switch query.Data {
-	case "unpinallbtn(yes)":
+	action := ""
+	if decoded, ok := decodeCallbackData(query.Data, "unpinallbtn"); ok {
+		action, _ = decoded.Field("a")
+	} else {
+		switch query.Data {
+		case "unpinallbtn(yes)":
+			action = "yes"
+		case "unpinallbtn(no)":
+			action = "no"
+		}
+	}
+
+	switch action {
+	case "yes":
 		status, err := b.UnpinAllChatMessages(chat.Id, nil)
 		if !status && err != nil {
 			log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
@@ -157,7 +169,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
 			return erredit
 		}
-	case "unpinallbtn(no)":
+	case "no":
 		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("pins_unpin_all_cancelled")
 		_, _, err := query.Message.EditText(b, text, nil)
@@ -165,6 +177,9 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)
 			return err
 		}
+	default:
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
 	}
 	return ext.EndGroups
 }
@@ -199,8 +214,8 @@ func (moduleStruct) unpinAll(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: yesText, CallbackData: "unpinallbtn(yes)"},
-						{Text: noText, CallbackData: "unpinallbtn(no)"},
+						{Text: yesText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"}, "unpinallbtn(yes)")},
+						{Text: noText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "no"}, "unpinallbtn(no)")},
 					},
 				},
 			},

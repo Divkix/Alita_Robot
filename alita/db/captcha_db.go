@@ -220,6 +220,20 @@ func GetCaptchaAttempt(userID, chatID int64) (*CaptchaAttempts, error) {
 	return attempt, nil
 }
 
+// GetCaptchaAttemptByID retrieves a captcha attempt by ID regardless of expiration.
+func GetCaptchaAttemptByID(attemptID uint) (*CaptchaAttempts, error) {
+	attempt := &CaptchaAttempts{}
+	err := DB.First(attempt, attemptID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		log.Errorf("[Database][GetCaptchaAttemptByID]: %v", err)
+		return nil, err
+	}
+	return attempt, nil
+}
+
 // IncrementCaptchaAttempts increments the attempt counter for a captcha.
 // Returns the updated attempt record.
 // Uses SELECT FOR UPDATE to prevent race conditions on concurrent requests.
@@ -265,6 +279,17 @@ func DeleteCaptchaAttemptAtomic(userID, chatID int64) (bool, error) {
 	result := DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&CaptchaAttempts{})
 	if result.Error != nil {
 		log.Errorf("[Database][DeleteCaptchaAttemptAtomic]: %v", result.Error)
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
+// DeleteCaptchaAttemptByIDAtomic deletes a specific attempt and returns whether it was deleted.
+// The userID/chatID filter prevents deleting another attempt with the same ID unexpectedly.
+func DeleteCaptchaAttemptByIDAtomic(attemptID uint, userID, chatID int64) (bool, error) {
+	result := DB.Where("id = ? AND user_id = ? AND chat_id = ?", attemptID, userID, chatID).Delete(&CaptchaAttempts{})
+	if result.Error != nil {
+		log.Errorf("[Database][DeleteCaptchaAttemptByIDAtomic]: %v", result.Error)
 		return false, result.Error
 	}
 	return result.RowsAffected > 0, nil

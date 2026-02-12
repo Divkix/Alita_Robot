@@ -938,17 +938,17 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         approveText,
-								CallbackData: fmt.Sprintf("%s.accept.%d", joinReqStr, user.Id),
+								CallbackData: encodeCallbackData(joinReqStr, map[string]string{"a": "accept", "u": fmt.Sprint(user.Id)}, fmt.Sprintf("%s.accept.%d", joinReqStr, user.Id)),
 							},
 							{
 								Text:         declineText,
-								CallbackData: fmt.Sprintf("%s.decline.%d", joinReqStr, user.Id),
+								CallbackData: encodeCallbackData(joinReqStr, map[string]string{"a": "decline", "u": fmt.Sprint(user.Id)}, fmt.Sprintf("%s.decline.%d", joinReqStr, user.Id)),
 							},
 						},
 						{
 							{
 								Text:         banText,
-								CallbackData: fmt.Sprintf("%s.ban.%d", joinReqStr, user.Id),
+								CallbackData: encodeCallbackData(joinReqStr, map[string]string{"a": "ban", "u": fmt.Sprint(user.Id)}, fmt.Sprintf("%s.ban.%d", joinReqStr, user.Id)),
 							},
 						},
 					},
@@ -979,14 +979,24 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 3 {
+	response := ""
+	joinUserIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "join_request"); ok {
+		response, _ = decoded.Field("a")
+		joinUserIDRaw, _ = decoded.Field("u")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 3 {
+			response = args[1]
+			joinUserIDRaw = args[2]
+		}
+	}
+	if response == "" || joinUserIDRaw == "" {
 		log.Warnf("[Greetings] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	response := args[1]
-	joinUserId, _ := strconv.ParseInt(args[2], 10, 64)
+	joinUserId, _ := strconv.ParseInt(joinUserIDRaw, 10, 64)
 	joinUser, err := b.GetChat(joinUserId, nil)
 	if err != nil {
 		log.Error(err)
@@ -1134,7 +1144,7 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
-				CallbackData: fmt.Sprintf("helpq.%s", "Formatting"),
+				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
 			},
 		},
 	}
@@ -1188,5 +1198,5 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("cleangoodbye", greetingsModule.cleanGoodbye))
 	dispatcher.AddHandler(handlers.NewCommand("cleanservice", greetingsModule.delJoined))
 	dispatcher.AddHandler(handlers.NewCommand("autoapprove", greetingsModule.autoApprove))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("join_request."), greetingsModule.joinRequestHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("join_request"), greetingsModule.joinRequestHandler))
 }

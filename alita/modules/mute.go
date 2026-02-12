@@ -274,7 +274,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         func() string { t, _ := tr.GetString("mutes_unmute_button"); return t }(),
-							CallbackData: fmt.Sprintf("unrestrict.unmute.%d", userId),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
 						},
 					},
 				},
@@ -536,7 +536,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         func() string { t, _ := tr.GetString("mutes_unmute_button"); return t }(),
-							CallbackData: fmt.Sprintf("unrestrict.unmute.%d", userId),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
 						},
 					},
 				},
@@ -626,12 +626,13 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
+	unmutePermissions := resolveUnmutePermissions(c)
 
 	// should give the current chat permissions to the users who is unmuted
 	_, err = chat.RestrictMember(
 		b,
 		userId,
-		*c.Permissions,
+		unmutePermissions,
 		nil,
 	)
 	if err != nil {

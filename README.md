@@ -616,6 +616,7 @@ Alita_Robot/
 make run          # Run bot locally
 make build        # Build release binaries
 make lint         # Run linters
+make test         # Run automated regression tests
 make tidy         # Clean dependencies
 make vendor       # Vendor dependencies
 make psql-migrate # Run migrations
@@ -638,11 +639,11 @@ make psql-reset   # Reset database (DANGEROUS)
 # Run linters
 make lint
 
+# Run automated tests
+make test
+
 # Format code
 gofmt -w .
-
-# Run tests (when available)
-go test ./...
 ```
 
 ### Verifying Releases
@@ -688,6 +689,7 @@ git checkout -b feature/amazing-feature
 # Make changes and test
 make run
 make lint
+make test
 
 # Commit with conventional commits
 git commit -m "feat: add amazing feature"

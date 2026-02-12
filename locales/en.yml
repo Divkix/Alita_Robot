@@ -2197,3 +2197,9 @@ disabling_notes_docs: |
   <b>Required Permissions:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Admin only
   • <code>/disableable</code>, <code>/disabled</code>: All users (but <code>/disabled</code> can be disabled)
+
+# Issue #628 remediation keys
+misc_translate_parse_error: "Failed to parse translation response. Please try again."
+blacklists_set_bl_action_update_failed: "Failed to update blacklist action. Please try again."
+filters_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
+notes_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."

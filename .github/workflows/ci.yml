@@ -105,6 +105,56 @@ jobs:
           path: alita_robot
           retention-days: 7
 
+  # Automated regression tests
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: alita_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d alita_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BOT_TOKEN: test-token
+      OWNER_ID: "1"
+      MESSAGE_DUMP: "1"
+      REDIS_ADDRESS: "localhost:6379"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable"
+      AUTO_MIGRATE: "false"
+      USE_WEBHOOKS: "false"
+      DEBUG: "false"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time"
+          exit 1
+
+      - name: Run test suite
+        run: make test
+
   # Docker build verification (single arch, fast)
   docker-verify:
     name: Docker Build Test
@@ -124,7 +174,7 @@ jobs:
     name: Publish Docker Images
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [security, lint, build, docker-verify]
+    needs: [security, lint, build, test, docker-verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
@@ -201,7 +251,7 @@ jobs:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [security, lint, build, docker-verify, docker-publish]
+    needs: [security, lint, build, test, docker-verify, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
@@ -210,6 +260,7 @@ jobs:
           if [ "${{ needs.security.result }}" != "success" ] || \
              [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.docker-verify.result }}" != "success" ]; then
             echo "One or more CI jobs failed!"
             exit 1

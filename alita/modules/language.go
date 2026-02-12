@@ -87,9 +87,16 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	// Validate callback data format to prevent index out of bounds panic
-	parts := strings.Split(query.Data, ".")
-	if len(parts) < 2 {
+	language := ""
+	if decoded, ok := decodeCallbackData(query.Data, "change_language"); ok {
+		language, _ = decoded.Field("l")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 2 {
+			language = parts[1]
+		}
+	}
+	if language == "" {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		errText, _ := tr.GetString("language_invalid_selection")
@@ -98,7 +105,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 		return ext.EndGroups
 	}
-	language := parts[1]
 
 	// For group chats, check admin permissions first before any language operations
 	if chat.Type != "private" {
@@ -153,6 +159,6 @@ func LoadLanguage(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(languagesModule.moduleName, true)
 	HelpModule.helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()
 
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language."), languagesModule.langBtnHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languagesModule.changeLanguage))
 }

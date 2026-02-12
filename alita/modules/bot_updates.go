@@ -112,14 +112,42 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	qmsg := query.Message
 
-	data := strings.Split(query.Data, ".")
-	if len(data) < 3 {
+	chatIDRaw := ""
+	msgIDRaw := ""
+	if decoded, ok := decodeCallbackData(query.Data, "anon_admin"); ok {
+		chatIDRaw, _ = decoded.Field("c")
+		msgIDRaw, _ = decoded.Field("m")
+	} else {
+		legacy := strings.Split(query.Data, ":")
+		if len(legacy) >= 4 && legacy[0] == "alita" && legacy[1] == "anonAdmin" {
+			chatIDRaw = legacy[2]
+			msgIDRaw = legacy[3]
+		} else {
+			// Backward compatibility for legacy malformed dotted payloads if any exist.
+			data := strings.Split(query.Data, ".")
+			if len(data) >= 3 {
+				chatIDRaw = data[1]
+				msgIDRaw = data[2]
+			}
+		}
+	}
+	if chatIDRaw == "" || msgIDRaw == "" {
 		log.Warnf("[BotUpdates] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	chatId, _ := strconv.ParseInt(data[1], 10, 64)
-	msgId, _ := strconv.ParseInt(data[2], 10, 64)
+	chatId, err := strconv.ParseInt(chatIDRaw, 10, 64)
+	if err != nil {
+		log.Warnf("[BotUpdates] Invalid callback chat ID: %s (%s)", query.Data, chatIDRaw)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
+	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
+	if err != nil {
+		log.Warnf("[BotUpdates] Invalid callback message ID: %s (%s)", query.Data, msgIDRaw)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 
 	// if non-admins try to press it
 	// using this func because it's the only one that can be called by taking chatId from callback query
@@ -162,7 +190,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := qmsg.Delete(b, nil)
+	_, err = qmsg.Delete(b, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -270,5 +298,6 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 		),
 	)
 
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("anon_admin"), verifyAnonymousAdmin))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("alita:anonAdmin:"), verifyAnonymousAdmin))
 }

@@ -53,14 +53,16 @@ func RemoveAllBlacklist(chatId int64) {
 
 // SetBlacklistAction updates the action for all blacklist entries in a chat.
 // The action is converted to lowercase before storage.
-func SetBlacklistAction(chatId int64, action string) {
+func SetBlacklistAction(chatId int64, action string) error {
 	err := DB.Model(&BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action)).Error
 	if err != nil {
 		log.Errorf("[Database] SetBlacklistAction: %v - %d", err, chatId)
+		return err
 	}
 
 	// Invalidate cache after updating action
 	deleteCache(blacklistCacheKey(chatId))
+	return nil
 }
 
 // GetBlacklistSettings retrieves all blacklist settings for a chat with caching support.

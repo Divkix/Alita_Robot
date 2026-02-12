@@ -13,7 +13,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -400,20 +399,17 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	} else if len(args) == 1 {
 		action := strings.ToLower(args[0])
 		if string_handling.FindInStringSlice([]string{"mute", "kick", "warn", "ban", "none"}, action) {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode")
-			rMsg = fmt.Sprintf(temp, action)
-			go func(chatId int64, actionType string) {
-				defer func() {
-					if r := recover(); r != nil {
-						log.WithFields(log.Fields{
-							"panic":  r,
-							"chatId": chatId,
-							"action": actionType,
-						}).Error("Panic in SetBlacklistAction goroutine")
-					}
-				}()
-				db.SetBlacklistAction(chatId, actionType)
-			}(chat.Id, action)
+			if err := db.SetBlacklistAction(chat.Id, action); err != nil {
+				log.WithFields(log.Fields{
+					"chatId": chat.Id,
+					"action": action,
+					"error":  err,
+				}).Error("[Blacklists] Failed to persist blacklist action")
+				rMsg, _ = tr.GetString("blacklists_set_bl_action_update_failed")
+			} else {
+				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_changed_mode")
+				rMsg = fmt.Sprintf(temp, action)
+			}
 		} else {
 			rMsg, _ = tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_choose_correct_option")
 		}
@@ -460,8 +456,14 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: yesText, CallbackData: "rmAllBlacklist.yes"},
-						{Text: noText, CallbackData: "rmAllBlacklist.no"},
+						{
+							Text:         yesText,
+							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}, "rmAllBlacklist.yes"),
+						},
+						{
+							Text:         noText,
+							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "no"}, "rmAllBlacklist.no"),
+						},
 					},
 				},
 			},
@@ -488,13 +490,20 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	args := strings.Split(query.Data, ".")
-	if len(args) < 2 {
+	creatorAction := ""
+	if decoded, ok := decodeCallbackData(query.Data, "rmAllBlacklist"); ok {
+		creatorAction, _ = decoded.Field("a")
+	} else {
+		args := strings.Split(query.Data, ".")
+		if len(args) >= 2 {
+			creatorAction = args[1]
+		}
+	}
+	if creatorAction == "" {
 		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
 		return ext.EndGroups
 	}
-	creatorAction := args[1]
 	var helpText string
 
 	switch creatorAction {
@@ -549,6 +558,9 @@ Watcher for blacklisted words, if any of the sentence contains the word, it will
 func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
+	if user == nil {
+		return ext.ContinueGroups
+	}
 	if user.IsAnonymousAdmin() {
 		return ext.ContinueGroups
 	}
@@ -566,6 +578,10 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	msg := ctx.EffectiveMessage
+	matchText := buildModerationMatchText(msg)
+	if matchText == "" {
+		return ext.ContinueGroups
+	}
 	blSettings := db.GetBlacklistSettings(chat.Id)
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -579,12 +595,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	matcher := cache.GetOrCreateMatcher(chat.Id, triggers)
 
 	// Check for any blacklist match first
-	if !matcher.HasMatch(msg.Text) {
+	if !matcher.HasMatch(matchText) {
 		return ext.ContinueGroups
 	}
 
 	// Get first match to process
-	matches := matcher.FindMatches(msg.Text)
+	matches := matcher.FindMatches(matchText)
 	if len(matches) == 0 {
 		return ext.ContinueGroups
 	}
@@ -727,5 +743,7 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("blacklistaction", blacklistsModule.setBlacklistAction))
 	cmdDecorator.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
-	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.Text, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)
+	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
+		return msg.Text != "" || msg.Caption != ""
+	}, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)
 }
