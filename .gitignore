@@ -28,9 +28,6 @@ local.docker-compose.yml
 
 # Mac OS DS_Store file
 .DS_Store
-
-# migrate
-scripts/migrate/migrate
 .mcp.json
 alita_test
 .gocache/
