@@ -70,7 +70,7 @@ jobs:
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.7.2
+          version: v2.9.0
           install-mode: binary
 
   # Build verification - run in parallel with other checks
