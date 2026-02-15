@@ -3,7 +3,7 @@ module github.com/divkix/Alita_Robot
 go 1.25.0
 
 require (
-	github.com/PaulSonOfLars/gotg_md2html v0.0.0-20240605215313-a6fdd2445f54
+	github.com/PaulSonOfLars/gotg_md2html v0.0.0-20260214100625-69ffd2817536
 	github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.33
 	github.com/cloudflare/ahocorasick v0.0.0-20240916140611-054963ec9396
 	github.com/dustin/go-humanize v1.0.1
@@ -51,7 +51,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/exp v0.0.0-20260211191109-2735e65f0518 // indirect
+	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a // indirect
 	golang.org/x/image v0.36.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
