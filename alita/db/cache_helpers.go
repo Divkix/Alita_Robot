@@ -14,15 +14,16 @@ import (
 
 const (
 	// Cache expiration times
-	CacheTTLChatSettings = 30 * time.Minute
-	CacheTTLLanguage     = 1 * time.Hour
-	CacheTTLFilterList   = 30 * time.Minute
-	CacheTTLBlacklist    = 30 * time.Minute
-	CacheTTLGreetings    = 30 * time.Minute
-	CacheTTLNotesList    = 30 * time.Minute
-	CacheTTLWarnSettings = 30 * time.Minute
-	CacheTTLAntiflood    = 30 * time.Minute
-	CacheTTLDisabledCmds = 30 * time.Minute
+	CacheTTLChatSettings    = 30 * time.Minute
+	CacheTTLLanguage        = 1 * time.Hour
+	CacheTTLFilterList      = 30 * time.Minute
+	CacheTTLBlacklist       = 30 * time.Minute
+	CacheTTLGreetings       = 30 * time.Minute
+	CacheTTLNotesList       = 30 * time.Minute
+	CacheTTLWarnSettings    = 30 * time.Minute
+	CacheTTLAntiflood       = 30 * time.Minute
+	CacheTTLDisabledCmds    = 30 * time.Minute
+	CacheTTLCaptchaSettings = 30 * time.Minute
 )
 
 // Singleflight group for preventing cache stampede
@@ -64,6 +65,11 @@ func warnSettingsCacheKey(chatID int64) string {
 // disabledCommandsCacheKey generates a cache key for chat disabled commands.
 func disabledCommandsCacheKey(chatID int64) string {
 	return fmt.Sprintf("alita:disabled_cmds:%d", chatID)
+}
+
+// captchaSettingsCacheKey generates a cache key for chat captcha settings.
+func captchaSettingsCacheKey(chatID int64) string {
+	return fmt.Sprintf("alita:captcha_settings:%d", chatID)
 }
 
 // getFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.

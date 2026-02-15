@@ -2,7 +2,6 @@ package db
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -21,28 +20,30 @@ var (
 
 // GetCaptchaSettings retrieves captcha settings for a chat.
 // Returns default settings if the chat doesn't have custom settings.
+// Results are cached with stampede protection for performance.
 func GetCaptchaSettings(chatID int64) (*CaptchaSettings, error) {
-	settings := &CaptchaSettings{}
-	err := GetRecord(settings, map[string]any{"chat_id": chatID})
+	return getFromCacheOrLoad(captchaSettingsCacheKey(chatID), CacheTTLCaptchaSettings, func() (*CaptchaSettings, error) {
+		settings := &CaptchaSettings{}
+		err := GetRecord(settings, map[string]any{"chat_id": chatID})
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Return default settings if not found
-		return &CaptchaSettings{
-			ChatID:        chatID,
-			Enabled:       false,
-			CaptchaMode:   "math",
-			Timeout:       2,
-			FailureAction: "kick",
-			MaxAttempts:   3,
-		}, nil
-	}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &CaptchaSettings{
+				ChatID:        chatID,
+				Enabled:       false,
+				CaptchaMode:   "math",
+				Timeout:       2,
+				FailureAction: "kick",
+				MaxAttempts:   3,
+			}, nil
+		}
 
-	if err != nil {
-		log.Errorf("[Database][GetCaptchaSettings]: %v", err)
-		return nil, err
-	}
+		if err != nil {
+			log.Errorf("[Database][GetCaptchaSettings]: %v", err)
+			return nil, err
+		}
 
-	return settings, nil
+		return settings, nil
+	})
 }
 
 // SetCaptchaEnabled enables or disables captcha for a chat.
@@ -61,7 +62,7 @@ func SetCaptchaEnabled(chatID int64, enabled bool) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(fmt.Sprintf("captcha_settings:%d", chatID))
+	deleteCache(captchaSettingsCacheKey(chatID))
 
 	return nil
 }
@@ -86,7 +87,7 @@ func SetCaptchaMode(chatID int64, mode string) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(fmt.Sprintf("captcha_settings:%d", chatID))
+	deleteCache(captchaSettingsCacheKey(chatID))
 
 	return nil
 }
@@ -111,7 +112,7 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(fmt.Sprintf("captcha_settings:%d", chatID))
+	deleteCache(captchaSettingsCacheKey(chatID))
 
 	return nil
 }
@@ -123,13 +124,17 @@ func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
 		return ErrInvalidMaxAttempts
 	}
 
-	cacheKey := fmt.Sprintf("captcha_settings:%d", chatID)
-	deleteCache(cacheKey)
-
-	return DB.Clauses(clause.OnConflict{
+	err := DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{"max_attempts": maxAttempts}),
 	}).Create(&CaptchaSettings{ChatID: chatID, MaxAttempts: maxAttempts}).Error
+	if err != nil {
+		log.Errorf("[Database][SetCaptchaMaxAttempts]: %v", err)
+		return err
+	}
+
+	deleteCache(captchaSettingsCacheKey(chatID))
+	return nil
 }
 
 // SetCaptchaFailureAction sets the action to take when captcha verification fails.
@@ -152,7 +157,7 @@ func SetCaptchaFailureAction(chatID int64, action string) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(fmt.Sprintf("captcha_settings:%d", chatID))
+	deleteCache(captchaSettingsCacheKey(chatID))
 
 	return nil
 }
