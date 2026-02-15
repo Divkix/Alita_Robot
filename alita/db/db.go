@@ -756,6 +756,9 @@ func UpdateRecord(model any, where any, updates any) error {
 		log.Errorf("[Database][UpdateRecord]: %v", result.Error)
 		return result.Error
 	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
@@ -768,6 +771,9 @@ func UpdateRecordWithZeroValues(model any, where any, updates any) error {
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecordWithZeroValues]: %v", result.Error)
 		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }
