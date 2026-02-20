@@ -24,9 +24,9 @@
       }
     }
   },
-  "postCreateCommand": "go mod download && go mod tidy",
+  "postCreateCommand": "go mod download",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "workspaceMount": "source=${localWorkspace},target=/workspaces/${localWorkspaceFolderBasename},type=bind",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind",
   "portsAttributes": {
     "8080": {
       "label": "HTTP Port",
@@ -41,7 +41,7 @@
       "onAutoForward": "ignore"
     }
   },
-  "postStartCommand": "docker-compose -f docker-compose.yml up -d postgres redis",
+  "postStartCommand": "docker compose -f debug.docker-compose.yml up -d postgres redis",
   "remoteUser": "vscode",
   "annotations": {
     "annotation": "Alita Robot - Telegram Group Management Bot"
