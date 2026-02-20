@@ -62,7 +62,6 @@ func InitTracing() error {
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
 			attribute.String("bot.version", config.AppConfig.BotVersion),
-			attribute.String("bot.working_mode", config.AppConfig.WorkingMode),
 		),
 	)
 	if err != nil {
@@ -172,6 +171,13 @@ func GetPropagator() propagation.TextMapPropagator {
 		)
 	}
 	return propagator
+}
+
+// WorkingModeAttribute returns a span attribute for the current working mode.
+// This reads config.AppConfig.WorkingMode at call time, so it reflects the
+// actual runtime value (webhook/polling) rather than the default set at init.
+func WorkingModeAttribute() attribute.KeyValue {
+	return attribute.String("bot.working_mode", config.AppConfig.WorkingMode)
 }
 
 // StartSpan starts a new span with the given name and options.

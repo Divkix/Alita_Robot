@@ -197,6 +197,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			attribute.String("http.method", r.Method),
 			// Record a sanitized route instead of the full URL to avoid leaking the webhook secret
 			attribute.String("http.route", "/webhook/{secret}"),
+			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
 

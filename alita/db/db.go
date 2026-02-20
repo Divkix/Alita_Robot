@@ -759,7 +759,7 @@ func CreateRecord(model any) error {
 // The provided context is used for both span parenting and GORM query-level context.
 func CreateRecordWithContext(ctx context.Context, model any) error {
 	ctx, span := tracing.StartSpan(ctx, "db.create",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Create(model)
@@ -784,7 +784,7 @@ func UpdateRecord(model any, where any, updates any) error {
 // The provided context is used for both span parenting and GORM query-level context.
 func UpdateRecordWithContext(ctx context.Context, model any, where any, updates any) error {
 	ctx, span := tracing.StartSpan(ctx, "db.update",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
@@ -813,7 +813,7 @@ func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) er
 // The provided context is used for both span parenting and GORM query-level context.
 func UpdateRecordWithZeroValuesWithContext(ctx context.Context, model any, where any, updates map[string]any) error {
 	ctx, span := tracing.StartSpan(ctx, "db.update",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
@@ -853,7 +853,7 @@ func GetRecord(model any, where any) error {
 // The provided context is used for both span parenting and GORM query-level context.
 func GetRecordWithContext(ctx context.Context, model any, where any) error {
 	ctx, span := tracing.StartSpan(ctx, "db.get",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Where(where).First(model)
@@ -888,7 +888,7 @@ func GetRecords(models any, where any) error {
 // The provided context is used for both span parenting and GORM query-level context.
 func GetRecordsWithContext(ctx context.Context, models any, where any) error {
 	ctx, span := tracing.StartSpan(ctx, "db.find",
-		trace.WithAttributes(getSpanAttributes(models)...))
+		trace.WithAttributes(append(getSpanAttributes(models), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Where(where).Find(models)
