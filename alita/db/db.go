@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -8,11 +9,15 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // Message type constants - maintain compatibility with existing code
@@ -735,14 +740,29 @@ func init() {
 
 // Helper functions for GORM-specific operations
 
+// getSpanAttributes returns common span attributes for database operations
+func getSpanAttributes(model any) []attribute.KeyValue {
+	attrs := []attribute.KeyValue{}
+	if model != nil {
+		attrs = append(attrs, attribute.String("db.model", fmt.Sprintf("%T", model)))
+	}
+	return attrs
+}
+
 // CreateRecord creates a new database record using the provided model.
 // It logs any errors that occur during the creation process.
 func CreateRecord(model any) error {
+	_, span := tracing.StartSpan(context.Background(), "db.create",
+		trace.WithAttributes(getSpanAttributes(model)...))
+	defer span.End()
+
 	result := DB.Create(model)
 	if result.Error != nil {
 		log.Errorf("[Database][CreateRecord]: %v", result.Error)
+		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}
+	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
 	return nil
 }
 
@@ -751,14 +771,21 @@ func CreateRecord(model any) error {
 // NOTE: This function skips zero values when updating with structs. Use UpdateRecordWithZeroValues
 // if you need to update boolean fields to false or other zero values.
 func UpdateRecord(model any, where any, updates any) error {
+	_, span := tracing.StartSpan(context.Background(), "db.update",
+		trace.WithAttributes(getSpanAttributes(model)...))
+	defer span.End()
+
 	result := DB.Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecord]: %v", result.Error)
+		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
+		span.SetStatus(codes.Error, "record not found")
 		return gorm.ErrRecordNotFound
 	}
+	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
 	return nil
 }
 
@@ -767,14 +794,21 @@ func UpdateRecord(model any, where any, updates any) error {
 // Maps bypass GORM's zero-value skip logic, unlike structs.
 // Returns gorm.ErrRecordNotFound if no matching record exists.
 func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
+	_, span := tracing.StartSpan(context.Background(), "db.update",
+		trace.WithAttributes(getSpanAttributes(model)...))
+	defer span.End()
+
 	result := DB.Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecordWithZeroValues]: %v", result.Error)
+		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
+		span.SetStatus(codes.Error, "record not found")
 		return gorm.ErrRecordNotFound
 	}
+	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
 	return nil
 }
 
@@ -794,14 +828,21 @@ func Close() error {
 // GetRecord retrieves a single database record matching the where clause.
 // Returns gorm.ErrRecordNotFound if no matching record is found.
 func GetRecord(model any, where any) error {
+	_, span := tracing.StartSpan(context.Background(), "db.get",
+		trace.WithAttributes(getSpanAttributes(model)...))
+	defer span.End()
+
 	result := DB.Where(where).First(model)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			span.SetAttributes(attribute.Bool("db.record_found", false))
 			return result.Error
 		}
 		log.Errorf("[Database][GetRecord]: %v", result.Error)
+		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}
+	span.SetAttributes(attribute.Bool("db.record_found", true))
 	return nil
 }
 
@@ -816,10 +857,16 @@ func ChatExists(chatID int64) bool {
 // GetRecords retrieves multiple database records matching the where clause.
 // The results are stored in the provided models slice.
 func GetRecords(models any, where any) error {
+	_, span := tracing.StartSpan(context.Background(), "db.find",
+		trace.WithAttributes(getSpanAttributes(models)...))
+	defer span.End()
+
 	result := DB.Where(where).Find(models)
 	if result.Error != nil {
 		log.Errorf("[Database][GetRecords]: %v", result.Error)
+		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}
+	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
 	return nil
 }

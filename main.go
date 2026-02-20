@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -69,6 +71,13 @@ func main() {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
+
+	// Initialize OpenTelemetry tracing
+	if err := tracing.InitTracing(); err != nil {
+		log.Warnf("Failed to initialize tracing: %v - continuing without distributed tracing", err)
+	} else {
+		log.Info("Distributed tracing initialized successfully")
+	}
 
 	// Create optimized HTTP transport with connection pooling for better performance
 	// IMPORTANT: We create a transport pointer that will be shared across all requests
@@ -250,6 +259,12 @@ func main() {
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Closing database connections...")
 		return closeDBConnections()
+	})
+
+	// Register tracing shutdown handler
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Shutting down tracer provider...")
+		return tracing.Shutdown(context.Background())
 	})
 
 	// Start shutdown handler in background

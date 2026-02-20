@@ -9,9 +9,15 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
-	redis_store "github.com/eko/gocache/store/redis/v4"
+	"github.com/eko/gocache/lib/v4/store"
+	gocache_store "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var (
@@ -68,7 +74,7 @@ func InitCache() error {
 	}
 
 	// Initialize cache manager with Redis only
-	redisStore := redis_store.NewRedis(redisClient)
+	redisStore := gocache_store.NewRedis(redisClient)
 	cacheManager := cache.New[any](redisStore)
 
 	// Initializes marshaler
@@ -95,5 +101,51 @@ func ClearAllCaches() error {
 	}
 
 	log.Info("[Cache] Successfully cleared all cache entries")
+	return nil
+}
+
+// TracedGet retrieves a value from cache with tracing
+func TracedGet(ctx context.Context, key string) (any, error) {
+	ctx, span := tracing.StartSpan(ctx, "cache.get",
+		trace.WithAttributes(attribute.String("cache.key", key)))
+	defer span.End()
+
+	value, err := Manager.Get(ctx, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	span.SetAttributes(attribute.Bool("cache.hit", true))
+	return value, nil
+}
+
+// TracedSet stores a value in cache with tracing
+func TracedSet(ctx context.Context, key string, value any, opts ...store.Option) error {
+	ctx, span := tracing.StartSpan(ctx, "cache.set",
+		trace.WithAttributes(
+			attribute.String("cache.key", key),
+			attribute.String("cache.value_type", fmt.Sprintf("%T", value)),
+		))
+	defer span.End()
+
+	err := Manager.Set(ctx, key, value, opts...)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	return nil
+}
+
+// TracedDelete removes a value from cache with tracing
+func TracedDelete(ctx context.Context, key string) error {
+	ctx, span := tracing.StartSpan(ctx, "cache.delete",
+		trace.WithAttributes(attribute.String("cache.key", key)))
+	defer span.End()
+
+	err := Manager.Delete(ctx, key)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 	return nil
 }

@@ -12,11 +12,16 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/eko/gocache/lib/v4/store"
 )
 
@@ -158,17 +163,33 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 
 // webhookHandler handles incoming webhook requests from Telegram
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract trace context from incoming request and start a span
+	_, span := tracing.StartSpan(
+		tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header)),
+		"webhook.request",
+		trace.WithAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.url", r.URL.String()),
+		))
+	defer span.End()
+
 	if r.Method != http.MethodPost {
-		log.Error("[HTTPServer] Invalid request method: ", r.Method)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Invalid request method: ", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		span.SetStatus(codes.Error, "invalid method")
 		return
 	}
 
 	// Read the request body with size limit to prevent DoS attacks
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
-		log.Error("[HTTPServer] Failed to read request body: ", err)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Failed to read request body: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		span.SetStatus(codes.Error, "failed to read body")
 		return
 	}
 	defer func() {
@@ -180,25 +201,53 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate the webhook secret
 	if !s.validateWebhook(r) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		span.SetStatus(codes.Error, "unauthorized")
 		return
 	}
 
 	// Parse the update
 	var update gotgbot.Update
 	if err := json.Unmarshal(body, &update); err != nil {
-		log.Error("[HTTPServer] Failed to parse update: ", err)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Failed to parse update: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		span.SetStatus(codes.Error, "failed to parse update")
 		return
 	}
 
-	// Process the update through the dispatcher
+	// Add update-specific attributes to the span
+	if update.Message != nil {
+		span.SetAttributes(
+			attribute.Int64("message.chat_id", update.Message.Chat.Id),
+			attribute.Int64("message.from_id", update.Message.From.Id),
+			attribute.String("message.text", update.Message.Text),
+		)
+	} else if update.CallbackQuery != nil {
+		span.SetAttributes(
+			attribute.String("callback_query.id", update.CallbackQuery.Id),
+			attribute.Int64("callback_query.from_id", update.CallbackQuery.From.Id),
+		)
+	}
+
+	// Process the update through the dispatcher with trace context
 	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
 	// will complete even if the HTTP response has already been sent. This is by design
 	// as Telegram expects a quick 200 OK response while processing happens async.
 	go func() {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
-		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
-			log.Error("[HTTPServer] Failed to process update: ", err)
+
+		// Create a new context with the trace for the async processing
+		asyncCtx := trace.ContextWithSpan(context.Background(), span)
+		// Pass context in the data map for handlers to use
+		data := map[string]interface{}{
+			"context": asyncCtx,
+		}
+		if err := s.dispatcher.ProcessUpdate(s.bot, &update, data); err != nil {
+			log.WithFields(log.Fields{
+				"trace_id": span.SpanContext().TraceID().String(),
+			}).Error("[HTTPServer] Failed to process update: ", err)
+			span.SetStatus(codes.Error, "failed to process update")
 		}
 	}()
 
