@@ -223,21 +223,36 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-	// Send initial "Pinging..." message and measure the API round-trip
+	// Step 1: Measure sendMessage RTT (includes Telegram message processing)
 	pingingText, _ := tr.GetString("misc_pinging")
-	start := time.Now()
+	sendStart := time.Now()
 	sentMsg, err := msg.Reply(b, pingingText, &gotgbot.SendMessageOpts{
 		ParseMode: helpers.HTML,
 	})
-	latency := time.Since(start)
+	sendLatency := time.Since(sendStart)
 	if err != nil {
 		log.WithError(err).Error("[Ping] Failed to send ping response")
 		return err
 	}
 
-	// Edit the message with the measured latency
-	pingedTemplate, _ := tr.GetString("misc_pinged_in")
-	text := fmt.Sprintf(pingedTemplate, latency.Milliseconds())
+	// Step 2: Measure getMe RTT (lightweight call, baseline network latency)
+	getMeStart := time.Now()
+	_, getMeErr := b.GetMe(nil)
+	getMeLatency := time.Since(getMeStart)
+	if getMeErr != nil {
+		log.WithError(getMeErr).Error("[Ping] Failed to call getMe")
+	}
+
+	// Step 3: Edit with detailed breakdown
+	text := fmt.Sprintf(
+		"🏓 <b>Pong!</b>\n\n"+
+			"<b>API RTT</b> (getMe): <code>%dms</code>\n"+
+			"<b>Send msg</b>: <code>%dms</code>\n"+
+			"<b>Overhead</b>: <code>%dms</code>",
+		getMeLatency.Milliseconds(),
+		sendLatency.Milliseconds(),
+		(sendLatency - getMeLatency).Milliseconds(),
+	)
 	_, _, err = sentMsg.EditText(b, text, &gotgbot.EditMessageTextOpts{
 		ParseMode: helpers.HTML,
 	})
@@ -247,8 +262,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	log.WithFields(log.Fields{
-		"user_id": msg.From.Id,
-		"latency": latency.Milliseconds(),
+		"user_id":       msg.From.Id,
+		"send_latency":  sendLatency.Milliseconds(),
+		"getme_latency": getMeLatency.Milliseconds(),
 	}).Debug("[Ping] Response sent")
 
 	return ext.EndGroups
