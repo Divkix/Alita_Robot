@@ -1,0 +1,49 @@
+{
+  "name": "Alita Robot Dev",
+  "image": "mcr.microsoft.com/devcontainers/go:1.25",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "github.copilot",
+        "github.copilot-chat",
+        "mutantdino.resourcemonitor"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": true,
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "package",
+        "go.formatTool": "gofmt",
+        "go.testFlags": ["-v", "-race"],
+        "go.coverOnSave": "package"
+      }
+    }
+  },
+  "postCreateCommand": "go mod download && go mod tidy",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "workspaceMount": "source=${localWorkspace},target=/workspaces/${localWorkspaceFolderBasename},type=bind",
+  "portsAttributes": {
+    "8080": {
+      "label": "HTTP Port",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "ignore"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "ignore"
+    }
+  },
+  "postStartCommand": "docker-compose -f docker-compose.yml up -d postgres redis",
+  "remoteUser": "vscode",
+  "annotations": {
+    "annotation": "Alita Robot - Telegram Group Management Bot"
+  }
+}
