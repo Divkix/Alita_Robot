@@ -112,6 +112,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))" >> $GITHUB_STEP_SUMMARY
 
+      - name: Run duplicate code detection
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9.0
+          install-mode: binary
+          args: --enable dupl --issues-exit-code 0
+
   # Build verification - run in parallel with other checks
   build:
     name: Build Verification

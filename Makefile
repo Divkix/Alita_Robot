@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build lint test check-translations psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs docs-dev
+.PHONY: run tidy vendor build lint test check-translations check-duplicates psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs docs-dev
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
@@ -31,6 +31,11 @@ test:
 check-translations:
 	@echo "🔍 Checking for missing translations..."
 	@cd scripts/check_translations && $(GO_CMD) mod tidy && $(GO_CMD) run main.go
+
+check-duplicates:
+	@echo "🔍 Checking for duplicate code..."
+	@which $(GOLANGCI_LINT_CMD) > /dev/null || (echo "golangci-lint not found, install it from https://golangci-lint.run/usage/install/" && exit 1)
+	$(GOLANGCI_LINT_CMD) run --enable dupl
 
 # PostgreSQL Migration Targets
 psql-prepare:
