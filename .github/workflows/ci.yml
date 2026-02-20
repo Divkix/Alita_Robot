@@ -72,6 +72,7 @@ jobs:
         with:
           version: v2.9.0
           install-mode: binary
+          only-new-issues: true
 
   # Build verification - run in parallel with other checks
   build:

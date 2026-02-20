@@ -23,7 +23,7 @@ build:
 
 lint:
 	@which $(GOLANGCI_LINT_CMD) > /dev/null || (echo "golangci-lint not found, install it from https://golangci-lint.run/usage/install/" && exit 1)
-	$(GOLANGCI_LINT_CMD) run
+	$(GOLANGCI_LINT_CMD) run --new-from-rev=HEAD~1
 
 test:
 	$(GO_CMD) test ./...

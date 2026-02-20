@@ -23,6 +23,21 @@ make generate-docs      # Generate documentation site content
 make docs-dev           # Start Astro docs dev server (uses bun)
 ```
 
+### Naming Conventions
+
+This project follows Go naming conventions enforced via golangci-lint (see
+`.golangci.yaml`). The linter configuration enforces:
+
+- **Exported functions/types/variables**: PascalCase (e.g., `GetUser`, `BotModule`)
+- **Unexported functions/variables**: camelCase (e.g., `getUser`, `botModule`)
+- **Types**: PascalCase (e.g., `UserConfig`, `HandlerFunc`)
+- **Constants**: SCREAMING_SNAKE_CASE (e.g., `MaxRetries`, `DefaultTimeout`)
+- **Acronyms**: Use ALL CAPS for acronyms (URL, HTTP, API, JSON, HTML, SQL, TTL)
+
+Avoid generic names like `arg`, `val`, `tmp`, `buf` — use descriptive names.
+
+Run `make lint` to check for naming violations before committing.
+
 ### Database Migrations
 
 ```bash
