@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof" // pprof handlers registration
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -119,6 +120,27 @@ func (s *Server) RegisterHealth() {
 func (s *Server) RegisterMetrics() {
 	s.mux.Handle("/metrics", promhttp.Handler())
 	log.Info("[HTTPServer] Registered /metrics endpoint")
+}
+
+// RegisterPPROF registers pprof endpoints for performance profiling.
+// This should only be enabled in development environments.
+func (s *Server) RegisterPPROF() {
+	// Register pprof handlers at /debug/pprof/*
+	// net/http/pprof automatically registers to DefaultServeMux,
+	// but we want to use our own mux for consistency
+	s.mux.HandleFunc("/debug/pprof/", pprofHandler)
+	s.mux.HandleFunc("/debug/pprof/heap", pprofHandler)
+	s.mux.HandleFunc("/debug/pprof/goroutine", pprofHandler)
+	s.mux.HandleFunc("/debug/pprof/threadcreate", pprofHandler)
+	s.mux.HandleFunc("/debug/pprof/block", pprofHandler)
+	s.mux.HandleFunc("/debug/pprof/mutex", pprofHandler)
+
+	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
+}
+
+// pprofHandler wraps the default pprof handler to work with our mux
+func pprofHandler(w http.ResponseWriter, r *http.Request) {
+	http.DefaultServeMux.ServeHTTP(w, r)
 }
 
 // RegisterWebhook registers the webhook endpoint and configures the Telegram webhook
