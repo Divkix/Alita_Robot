@@ -329,7 +329,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	slices.Sort(blSrc.Triggers())
 	var sb strings.Builder
 	for _, i := range blSrc.Triggers() {
-		sb.WriteString(fmt.Sprintf("\n - <code>%s</code>", html.EscapeString(i)))
+		fmt.Fprintf(&sb, "\n - <code>%s</code>", html.EscapeString(i))
 	}
 	blacklistsText += sb.String()
 

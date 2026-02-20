@@ -23,13 +23,13 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 
 		// Starlight frontmatter
 		content.WriteString("---\n")
-		content.WriteString(fmt.Sprintf("title: %s Commands\n", module.DisplayName))
-		content.WriteString(fmt.Sprintf("description: Complete guide to %s module commands and features\n", module.DisplayName))
+		fmt.Fprintf(&content, "title: %s Commands\n", module.DisplayName)
+		fmt.Fprintf(&content, "description: Complete guide to %s module commands and features\n", module.DisplayName)
 		content.WriteString("---\n\n")
 
 		// Module header with emoji
 		emoji := getModuleEmoji(module.Name)
-		content.WriteString(fmt.Sprintf("# %s %s Commands\n\n", emoji, module.DisplayName))
+		fmt.Fprintf(&content, "# %s %s Commands\n\n", emoji, module.DisplayName)
 
 		// Module description (converted from Telegram markdown)
 		if module.HelpText != "" {
@@ -50,7 +50,7 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 			content.WriteString("## Module Aliases\n\n")
 			content.WriteString("This module can be accessed using the following aliases:\n\n")
 			for _, alias := range module.Aliases {
-				content.WriteString(fmt.Sprintf("- `%s`\n", alias))
+				fmt.Fprintf(&content, "- `%s`\n", alias)
 			}
 			content.WriteString("\n")
 		}
@@ -74,10 +74,10 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 					description += fmt.Sprintf(" (Aliases: `%s`)", aliasStr)
 				}
 
-				content.WriteString(fmt.Sprintf("| `/%s` | %s | %s |\n",
+				fmt.Fprintf(&content, "| `/%s` | %s | %s |\n",
 					cmd.Name,
 					description,
-					disableable))
+					disableable)
 			}
 			content.WriteString("\n")
 		}
@@ -171,8 +171,8 @@ func generateCommandReference(modules []Module, outputPath string) error {
 	}
 
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Modules**: %d\n", len(modules)))
-	content.WriteString(fmt.Sprintf("- **Total Commands**: %d\n", totalCommands))
+	fmt.Fprintf(&content, "- **Total Modules**: %d\n", len(modules))
+	fmt.Fprintf(&content, "- **Total Commands**: %d\n", totalCommands)
 	content.WriteString("\n")
 
 	// Commands by module
@@ -184,7 +184,7 @@ func generateCommandReference(modules []Module, outputPath string) error {
 		}
 
 		emoji := getModuleEmoji(module.Name)
-		content.WriteString(fmt.Sprintf("### %s %s\n\n", emoji, module.DisplayName))
+		fmt.Fprintf(&content, "### %s %s\n\n", emoji, module.DisplayName)
 
 		// Sort commands alphabetically
 		sortedCmds := make([]Command, len(module.Commands))
@@ -207,11 +207,11 @@ func generateCommandReference(modules []Module, outputPath string) error {
 				aliases = strings.Join(cmd.Aliases, ", ")
 			}
 
-			content.WriteString(fmt.Sprintf("| `/%s` | `%s` | %s | %s |\n",
+			fmt.Fprintf(&content, "| `/%s` | `%s` | %s | %s |\n",
 				cmd.Name,
 				cmd.Handler,
 				disableable,
-				aliases))
+				aliases)
 		}
 		content.WriteString("\n")
 	}
@@ -234,10 +234,10 @@ func generateCommandReference(modules []Module, outputPath string) error {
 	content.WriteString("|---------|--------|----------|\n")
 
 	for _, cmd := range allCommands {
-		content.WriteString(fmt.Sprintf("| `/%s` | %s | `%s` |\n",
+		fmt.Fprintf(&content, "| `/%s` | %s | `%s` |\n",
 			cmd.Name,
 			cmd.Module,
-			cmd.Handler))
+			cmd.Handler)
 	}
 	content.WriteString("\n")
 
@@ -322,7 +322,7 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 		})
 
 		emoji := getCategoryEmoji(category)
-		content.WriteString(fmt.Sprintf("## %s %s\n\n", emoji, category))
+		fmt.Fprintf(&content, "## %s %s\n\n", emoji, category)
 
 		for _, env := range vars {
 			// Variable heading
@@ -330,25 +330,25 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 			if env.Required {
 				required = " (Required)"
 			}
-			content.WriteString(fmt.Sprintf("### `%s`%s\n\n", env.Name, required))
+			fmt.Fprintf(&content, "### `%s`%s\n\n", env.Name, required)
 
 			// Description
 			if env.Description != "" {
-				content.WriteString(fmt.Sprintf("%s\n\n", env.Description))
+				fmt.Fprintf(&content, "%s\n\n", env.Description)
 			}
 
 			// Details table
 			content.WriteString("| Property | Value |\n")
 			content.WriteString("|----------|-------|\n")
-			content.WriteString(fmt.Sprintf("| **Type** | `%s` |\n", env.Type))
-			content.WriteString(fmt.Sprintf("| **Required** | %s |\n", boolToYesNo(env.Required)))
+			fmt.Fprintf(&content, "| **Type** | `%s` |\n", env.Type)
+			fmt.Fprintf(&content, "| **Required** | %s |\n", boolToYesNo(env.Required))
 
 			if env.Default != "" {
-				content.WriteString(fmt.Sprintf("| **Default** | `%s` |\n", env.Default))
+				fmt.Fprintf(&content, "| **Default** | `%s` |\n", env.Default)
 			}
 
 			if env.Validation != "" {
-				content.WriteString(fmt.Sprintf("| **Validation** | %s |\n", env.Validation))
+				fmt.Fprintf(&content, "| **Validation** | %s |\n", env.Validation)
 			}
 
 			content.WriteString("\n")
@@ -373,7 +373,7 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 
 		content.WriteString("```bash\n")
 		for _, env := range requiredVars {
-			content.WriteString(fmt.Sprintf("%s=\n", env.Name))
+			fmt.Fprintf(&content, "%s=\n", env.Name)
 		}
 		content.WriteString("```\n\n")
 	}
@@ -398,7 +398,7 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 			if defaultValue == "" {
 				defaultValue = "# (optional)"
 			}
-			content.WriteString(fmt.Sprintf("%s=%s\n", env.Name, defaultValue))
+			fmt.Fprintf(&content, "%s=%s\n", env.Name, defaultValue)
 		}
 		content.WriteString("```\n\n")
 	}
@@ -441,7 +441,7 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 
 	// Overview
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Tables**: %d\n", len(tables)))
+	fmt.Fprintf(&content, "- **Total Tables**: %d\n", len(tables))
 	content.WriteString("- **Database Type**: PostgreSQL\n")
 	content.WriteString("- **ORM**: GORM\n")
 	content.WriteString("- **Migration Tool**: golang-migrate\n\n")
@@ -467,10 +467,10 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 	content.WriteString("## Tables\n\n")
 
 	for _, table := range tables {
-		content.WriteString(fmt.Sprintf("### `%s`\n\n", table.Name))
+		fmt.Fprintf(&content, "### `%s`\n\n", table.Name)
 
 		if table.Description != "" {
-			content.WriteString(fmt.Sprintf("%s\n\n", table.Description))
+			fmt.Fprintf(&content, "%s\n\n", table.Description)
 		}
 
 		// Columns table
@@ -502,12 +502,12 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 				constraintStr = strings.Join(constraints, ", ")
 			}
 
-			content.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | %s | %s |\n",
+			fmt.Fprintf(&content, "| `%s` | `%s` | %s | %s | %s |\n",
 				col.Name,
 				col.Type,
 				nullable,
 				defaultVal,
-				constraintStr))
+				constraintStr)
 		}
 		content.WriteString("\n")
 
@@ -515,7 +515,7 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 		if len(table.Indexes) > 0 {
 			content.WriteString("#### Indexes\n\n")
 			for _, index := range table.Indexes {
-				content.WriteString(fmt.Sprintf("- %s\n", index))
+				fmt.Fprintf(&content, "- %s\n", index)
 			}
 			content.WriteString("\n")
 		}
@@ -524,7 +524,7 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 		if len(table.ForeignKeys) > 0 {
 			content.WriteString("#### Foreign Keys\n\n")
 			for _, fk := range table.ForeignKeys {
-				content.WriteString(fmt.Sprintf("- %s\n", fk))
+				fmt.Fprintf(&content, "- %s\n", fk)
 			}
 			content.WriteString("\n")
 		}
@@ -586,8 +586,8 @@ func generateCommandsOverview(modules []Module, outputPath string) error {
 	}
 
 	content.WriteString("## Quick Stats\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Modules**: %d\n", len(modules)))
-	content.WriteString(fmt.Sprintf("- **Total Commands**: %d\n", totalCommands))
+	fmt.Fprintf(&content, "- **Total Modules**: %d\n", len(modules))
+	fmt.Fprintf(&content, "- **Total Commands**: %d\n", totalCommands)
 	content.WriteString("\n")
 
 	// Module categories
@@ -622,24 +622,24 @@ func generateCommandsOverview(modules []Module, outputPath string) error {
 		})
 
 		emoji := getCategoryEmoji(category)
-		content.WriteString(fmt.Sprintf("### %s %s\n\n", emoji, category))
+		fmt.Fprintf(&content, "### %s %s\n\n", emoji, category)
 
 		for _, module := range modules {
 			moduleEmoji := getModuleEmoji(module.Name)
 			commandCount := len(module.Commands)
 
-			content.WriteString(fmt.Sprintf("#### [%s %s](./%s/)\n\n",
+			fmt.Fprintf(&content, "#### [%s %s](./%s/)\n\n",
 				moduleEmoji,
 				module.DisplayName,
-				module.Name))
+				module.Name)
 
 			// Extract first line of help text as summary
 			summary := extractFirstSentence(module.HelpText)
-			content.WriteString(fmt.Sprintf("%s\n\n", summary))
+			fmt.Fprintf(&content, "%s\n\n", summary)
 
-			content.WriteString(fmt.Sprintf("**Commands**: %d", commandCount))
+			fmt.Fprintf(&content, "**Commands**: %d", commandCount)
 			if len(module.Aliases) > 0 {
-				content.WriteString(fmt.Sprintf(" | **Aliases**: %s", strings.Join(module.Aliases, ", ")))
+				fmt.Fprintf(&content, " | **Aliases**: %s", strings.Join(module.Aliases, ", "))
 			}
 			content.WriteString("\n\n")
 		}
@@ -754,7 +754,7 @@ func generateUsageExamples(module Module) string {
 		content.WriteString("```\n")
 		for i := 0; i < limit; i++ {
 			cmd := module.Commands[i]
-			content.WriteString(fmt.Sprintf("/%s\n", cmd.Name))
+			fmt.Fprintf(&content, "/%s\n", cmd.Name)
 		}
 		content.WriteString("```\n\n")
 	}
@@ -936,14 +936,14 @@ func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 	content.WriteString("# 🔔 Callback Queries\n\n")
 	content.WriteString("This page documents all inline button callback handlers in Alita Robot.\n\n")
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Callbacks**: %d\n", len(callbacks)))
+	fmt.Fprintf(&content, "- **Total Callbacks**: %d\n", len(callbacks))
 
 	// Count modules
 	modules := make(map[string]bool)
 	for _, cb := range callbacks {
 		modules[cb.Module] = true
 	}
-	content.WriteString(fmt.Sprintf("- **Modules with Callbacks**: %d\n\n", len(modules)))
+	fmt.Fprintf(&content, "- **Modules with Callbacks**: %d\n\n", len(modules))
 
 	// Callback data format section
 	content.WriteString("## Callback Data Format\n\n")
@@ -956,7 +956,7 @@ func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 	content.WriteString("| Module | Prefix | Handler |\n")
 	content.WriteString("|--------|--------|----------|\n")
 	for _, cb := range callbacks {
-		content.WriteString(fmt.Sprintf("| %s | `%s` | %s |\n", cb.Module, cb.Prefix, cb.Handler))
+		fmt.Fprintf(&content, "| %s | `%s` | %s |\n", cb.Module, cb.Prefix, cb.Handler)
 	}
 	content.WriteString("\n")
 
@@ -967,11 +967,11 @@ func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 	for _, cb := range callbacks {
 		if cb.Module != currentModule {
 			currentModule = cb.Module
-			content.WriteString(fmt.Sprintf("### %s\n\n", toTitleCase(currentModule)))
+			fmt.Fprintf(&content, "### %s\n\n", toTitleCase(currentModule))
 		}
-		content.WriteString(fmt.Sprintf("#### `%s`\n\n", cb.Prefix))
-		content.WriteString(fmt.Sprintf("- **Handler**: `%s`\n", cb.Handler))
-		content.WriteString(fmt.Sprintf("- **Source**: `%s`\n\n", cb.SourceFile))
+		fmt.Fprintf(&content, "#### `%s`\n\n", cb.Prefix)
+		fmt.Fprintf(&content, "- **Handler**: `%s`\n", cb.Handler)
+		fmt.Fprintf(&content, "- **Source**: `%s`\n\n", cb.SourceFile)
 	}
 
 	// Registration example
@@ -1038,7 +1038,7 @@ func generatePermissionsReference(permissions []PermissionFunc, outputPath strin
 	content.WriteString("# 🔐 Permission System\n\n")
 	content.WriteString("This page documents all permission checking functions in Alita Robot.\n\n")
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Functions**: %d\n", len(permissions)))
+	fmt.Fprintf(&content, "- **Total Functions**: %d\n", len(permissions))
 	content.WriteString("- **Location**: `alita/utils/chat_status/chat_status.go`\n\n")
 
 	// Summary table
@@ -1053,7 +1053,7 @@ func generatePermissionsReference(permissions []PermissionFunc, outputPath strin
 		if desc == "" {
 			desc = "—"
 		}
-		content.WriteString(fmt.Sprintf("| `%s` | `%s` | %s |\n", perm.Name, perm.ReturnType, desc))
+		fmt.Fprintf(&content, "| `%s` | `%s` | %s |\n", perm.Name, perm.ReturnType, desc)
 	}
 	content.WriteString("\n")
 
@@ -1065,22 +1065,22 @@ func generatePermissionsReference(permissions []PermissionFunc, outputPath strin
 		if perm.Category != currentCategory {
 			currentCategory = perm.Category
 			emoji := getPermissionCategoryEmoji(currentCategory)
-			content.WriteString(fmt.Sprintf("### %s %s\n\n", emoji, currentCategory))
+			fmt.Fprintf(&content, "### %s %s\n\n", emoji, currentCategory)
 		}
 
-		content.WriteString(fmt.Sprintf("#### `%s`\n\n", perm.Name))
+		fmt.Fprintf(&content, "#### `%s`\n\n", perm.Name)
 		content.WriteString("```go\n")
 		content.WriteString(perm.Signature + "\n")
 		content.WriteString("```\n\n")
 
 		if perm.Description != "" {
-			content.WriteString(fmt.Sprintf("%s\n\n", perm.Description))
+			fmt.Fprintf(&content, "%s\n\n", perm.Description)
 		}
 
 		if len(perm.Parameters) > 0 {
 			content.WriteString("**Parameters:**\n")
 			for _, param := range perm.Parameters {
-				content.WriteString(fmt.Sprintf("- `%s`\n", param))
+				fmt.Fprintf(&content, "- `%s`\n", param)
 			}
 			content.WriteString("\n")
 		}
@@ -1202,9 +1202,9 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	}
 
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("- **Total Lock Types**: %d\n", len(lockTypes)))
-	content.WriteString(fmt.Sprintf("- **Permission Locks**: %d (specific content types)\n", permissionCount))
-	content.WriteString(fmt.Sprintf("- **Restriction Locks**: %d (broad categories)\n", restrictionCount))
+	fmt.Fprintf(&content, "- **Total Lock Types**: %d\n", len(lockTypes))
+	fmt.Fprintf(&content, "- **Permission Locks**: %d (specific content types)\n", permissionCount)
+	fmt.Fprintf(&content, "- **Restriction Locks**: %d (broad categories)\n", restrictionCount)
 	content.WriteString("\n")
 
 	// How locks work
@@ -1230,7 +1230,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 
 	for _, lock := range lockTypes {
 		if lock.Category == "restriction" {
-			content.WriteString(fmt.Sprintf("| `%s` | %s |\n", lock.Name, lock.Description))
+			fmt.Fprintf(&content, "| `%s` | %s |\n", lock.Name, lock.Description)
 		}
 	}
 	content.WriteString("\n")
@@ -1245,7 +1245,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 
 	for _, lock := range lockTypes {
 		if lock.Category == "permission" {
-			content.WriteString(fmt.Sprintf("| `%s` | %s |\n", lock.Name, lock.Description))
+			fmt.Fprintf(&content, "| `%s` | %s |\n", lock.Name, lock.Description)
 		}
 	}
 	content.WriteString("\n")
@@ -1257,7 +1257,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	for _, mediaType := range mediaTypes {
 		for _, lock := range lockTypes {
 			if lock.Name == mediaType && lock.Category == "permission" {
-				content.WriteString(fmt.Sprintf("- **`%s`**: %s\n", lock.Name, lock.Description))
+				fmt.Fprintf(&content, "- **`%s`**: %s\n", lock.Name, lock.Description)
 			}
 		}
 	}
@@ -1270,7 +1270,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	for _, behaviorType := range behaviorTypes {
 		for _, lock := range lockTypes {
 			if lock.Name == behaviorType {
-				content.WriteString(fmt.Sprintf("- **`%s`**: %s\n", lock.Name, lock.Description))
+				fmt.Fprintf(&content, "- **`%s`**: %s\n", lock.Name, lock.Description)
 			}
 		}
 	}
@@ -1282,7 +1282,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	content.WriteString("### `bots`\n\n")
 	for _, lock := range lockTypes {
 		if lock.Name == "bots" {
-			content.WriteString(fmt.Sprintf("%s\n\n", lock.Description))
+			fmt.Fprintf(&content, "%s\n\n", lock.Description)
 		}
 	}
 	content.WriteString("**Behavior**: When enabled, the bot will automatically ban any bot added by non-admins.\n\n")
@@ -1290,7 +1290,7 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 	content.WriteString("### `all`\n\n")
 	for _, lock := range lockTypes {
 		if lock.Name == "all" {
-			content.WriteString(fmt.Sprintf("%s\n\n", lock.Description))
+			fmt.Fprintf(&content, "%s\n\n", lock.Description)
 		}
 	}
 	content.WriteString("**Use Case**: Useful for temporarily freezing chat activity or creating read-only channels.\n\n")

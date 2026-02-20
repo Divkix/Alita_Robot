@@ -121,7 +121,7 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("disabling_disableable_commands")
 	var sb strings.Builder
 	for _, cmds := range misc.DisableCmds {
-		sb.WriteString(fmt.Sprintf("\n - `%s`", cmds))
+		fmt.Fprintf(&sb, "\n - `%s`", cmds)
 	}
 	text += sb.String()
 
@@ -188,7 +188,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 		slices.Sort(disabled)
 		var sb strings.Builder
 		for _, cmds := range disabled {
-			sb.WriteString(fmt.Sprintf("\n - `%s`", cmds))
+			fmt.Fprintf(&sb, "\n - `%s`", cmds)
 		}
 		text += sb.String()
 		_, err := msg.Reply(b, text, helpers.Smarkdown())

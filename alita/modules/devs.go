@@ -108,7 +108,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	var sb strings.Builder
 	for chatId, v := range allChats {
 		if !v.IsInactive {
-			sb.WriteString(fmt.Sprintf("%d: %s\n", chatId, v.ChatName))
+			fmt.Fprintf(&sb, "%d: %s\n", chatId, v.ChatName)
 		}
 	}
 	writeString += sb.String()

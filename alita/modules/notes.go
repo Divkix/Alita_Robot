@@ -354,8 +354,8 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info = fmt.Sprintf(listText, chat.Title)
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			sb.WriteString(fmt.Sprintf("\n - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>",
-				b.Username, chat.Id, note, note))
+			fmt.Fprintf(&sb, "\n - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>",
+				b.Username, chat.Id, note, note)
 		}
 		info += sb.String()
 		_, err := msg.Reply(b, info, helpers.Shtml())
@@ -396,7 +396,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info = currentNotesText
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			sb.WriteString(fmt.Sprintf(" - <code>#%s</code>\n", note))
+			fmt.Fprintf(&sb, " - <code>#%s</code>\n", note)
 		}
 		info += sb.String()
 		instructionText, _ := tr.GetString("notes_get_instruction")

@@ -171,7 +171,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 		var sb strings.Builder
 		for _, warnReason := range reasons {
-			sb.WriteString(fmt.Sprintf("\n - %s", html.EscapeString(warnReason)))
+			fmt.Fprintf(&sb, "\n - %s", html.EscapeString(warnReason))
 		}
 		reply += sb.String()
 	} else {
@@ -495,7 +495,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
 			var sb strings.Builder
 			for _, reason := range reasons {
-				sb.WriteString(fmt.Sprintf("\n - %s", reason))
+				fmt.Fprintf(&sb, "\n - %s", reason)
 			}
 			text += sb.String()
 			msgs := helpers.SplitMessage(text)

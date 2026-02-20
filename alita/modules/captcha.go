@@ -299,14 +299,14 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var response strings.Builder
 	headerText, _ := tr.GetString("captcha_pending_messages_header")
-	response.WriteString(fmt.Sprintf(headerText, targetUserID))
+	fmt.Fprintf(&response, headerText, targetUserID)
 
 	for i, msg := range messages {
 		typeText, _ := tr.GetString("captcha_pending_message_type")
-		response.WriteString(fmt.Sprintf(typeText, i+1, messageTypeToString(tr, msg.MessageType)))
+		fmt.Fprintf(&response, typeText, i+1, messageTypeToString(tr, msg.MessageType))
 		if msg.Caption != "" {
 			captionText, _ := tr.GetString("captcha_pending_message_caption")
-			response.WriteString(fmt.Sprintf(captionText, html.EscapeString(msg.Caption)))
+			fmt.Fprintf(&response, captionText, html.EscapeString(msg.Caption))
 		}
 		if msg.Content != "" && msg.MessageType == db.TEXT {
 			preview := msg.Content
@@ -314,10 +314,10 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 				preview = preview[:100] + "..."
 			}
 			contentText, _ := tr.GetString("captcha_pending_message_content")
-			response.WriteString(fmt.Sprintf(contentText, html.EscapeString(preview)))
+			fmt.Fprintf(&response, contentText, html.EscapeString(preview))
 		}
 		timeText, _ := tr.GetString("captcha_pending_message_time")
-		response.WriteString(fmt.Sprintf(timeText, msg.CreatedAt.Format("15:04:05")))
+		fmt.Fprintf(&response, timeText, msg.CreatedAt.Format("15:04:05"))
 	}
 
 	_, err = msg.Reply(bot, response.String(), helpers.Shtml())
