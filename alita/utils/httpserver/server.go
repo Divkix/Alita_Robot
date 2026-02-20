@@ -12,11 +12,16 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 	"github.com/eko/gocache/lib/v4/store"
 )
 
@@ -158,17 +163,36 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 
 // webhookHandler handles incoming webhook requests from Telegram
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract trace context from incoming request and start a span
+	// Note: Don't record the full URL path because it contains the webhook secret
+	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	_, span := tracing.StartSpan(
+		ctx,
+		"webhook.request",
+		trace.WithAttributes(
+			attribute.String("http.method", r.Method),
+			// Record a sanitized route instead of the full URL to avoid leaking the webhook secret
+			attribute.String("http.route", "/webhook/{secret}"),
+		))
+	defer span.End()
+
 	if r.Method != http.MethodPost {
-		log.Error("[HTTPServer] Invalid request method: ", r.Method)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Invalid request method: ", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		span.SetStatus(codes.Error, "invalid method")
 		return
 	}
 
 	// Read the request body with size limit to prevent DoS attacks
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
-		log.Error("[HTTPServer] Failed to read request body: ", err)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Failed to read request body: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		span.SetStatus(codes.Error, "failed to read body")
 		return
 	}
 	defer func() {
@@ -180,27 +204,68 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate the webhook secret
 	if !s.validateWebhook(r) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		span.SetStatus(codes.Error, "unauthorized")
 		return
 	}
 
 	// Parse the update
 	var update gotgbot.Update
 	if err := json.Unmarshal(body, &update); err != nil {
-		log.Error("[HTTPServer] Failed to parse update: ", err)
+		log.WithFields(log.Fields{
+			"trace_id": span.SpanContext().TraceID().String(),
+		}).Error("[HTTPServer] Failed to parse update: ", err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		span.SetStatus(codes.Error, "failed to parse update")
 		return
 	}
 
-	// Process the update through the dispatcher
+	// Add update-specific attributes to the span
+	// Avoid recording full message text to reduce the risk of leaking sensitive data
+	// and to limit cardinality/size. Record text length and a preview instead.
+	if update.Message != nil {
+		text := update.Message.Text
+		const maxPreviewLen = 100
+		textPreview := text
+		if len(textPreview) > maxPreviewLen {
+			textPreview = textPreview[:maxPreviewLen] + "..."
+		}
+
+		span.SetAttributes(
+			attribute.Int64("message.chat_id", update.Message.Chat.Id),
+			attribute.Int64("message.from_id", update.Message.From.Id),
+			attribute.Int("message.text_length", len(text)),
+			attribute.String("message.text_preview", textPreview),
+		)
+	} else if update.CallbackQuery != nil {
+		span.SetAttributes(
+			attribute.String("callback_query.id", update.CallbackQuery.Id),
+			attribute.Int64("callback_query.from_id", update.CallbackQuery.From.Id),
+		)
+	}
+
+	// Process the update through the dispatcher with trace context
 	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
 	// will complete even if the HTTP response has already been sent. This is by design
 	// as Telegram expects a quick 200 OK response while processing happens async.
-	go func() {
+	// Pass the trace context to the goroutine for proper span parenting
+	go func(requestCtx context.Context) {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
-		if err := s.dispatcher.ProcessUpdate(s.bot, &update, nil); err != nil {
-			log.Error("[HTTPServer] Failed to process update: ", err)
+
+		// Start a new child span for the async processing using the request context
+		asyncCtx, asyncSpan := tracing.StartSpan(requestCtx, "dispatcher.processUpdate")
+		defer asyncSpan.End()
+
+		// Pass context in the data map for handlers to use
+		data := map[string]interface{}{
+			"context": asyncCtx,
 		}
-	}()
+		if err := s.dispatcher.ProcessUpdate(s.bot, &update, data); err != nil {
+			log.WithFields(log.Fields{
+				"trace_id": asyncSpan.SpanContext().TraceID().String(),
+			}).Error("[HTTPServer] Failed to process update: ", err)
+			asyncSpan.SetStatus(codes.Error, "failed to process update")
+		}
+	}(ctx)
 
 	// Send OK response to Telegram
 	w.WriteHeader(http.StatusOK)
