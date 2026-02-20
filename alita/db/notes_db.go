@@ -171,7 +171,7 @@ func RemoveAllNotes(chatID int64) error {
 // When enabled, notes are sent privately to users instead of in the group.
 // Returns an error if the operation fails.
 func TooglePrivateNote(chatID int64, pref bool) error {
-	err := UpdateRecordWithZeroValues(&NotesSettings{}, NotesSettings{ChatId: chatID}, NotesSettings{Private: pref})
+	err := UpdateRecordWithZeroValues(&NotesSettings{}, NotesSettings{ChatId: chatID}, map[string]any{"private": pref})
 	if err != nil {
 		log.Errorf("[Database][TooglePrivateNote]: %d - %v", chatID, err)
 		return err

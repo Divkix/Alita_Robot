@@ -514,8 +514,8 @@ func (RulesSettings) TableName() string {
 // LockSettings represents lock settings for a chat
 type LockSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	ChatId    int64     `gorm:"column:chat_id;not null;index:idx_lock_chat_type" json:"chat_id,omitempty"`
-	LockType  string    `gorm:"column:lock_type;not null;index:idx_lock_chat_type" json:"lock_type,omitempty"`
+	ChatId    int64     `gorm:"column:chat_id;not null;uniqueIndex:idx_lock_chat_type" json:"chat_id,omitempty"`
+	LockType  string    `gorm:"column:lock_type;not null;uniqueIndex:idx_lock_chat_type" json:"lock_type,omitempty"`
 	Locked    bool      `gorm:"column:locked;default:false" json:"locked,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
@@ -763,11 +763,11 @@ func UpdateRecord(model any, where any, updates any) error {
 }
 
 // UpdateRecordWithZeroValues updates a database record including zero values (false, 0, "").
-// This function should be used when you need to set boolean fields to false or other zero values.
-// Returns error if update fails.
-func UpdateRecordWithZeroValues(model any, where any, updates any) error {
-	// Select("*") forces GORM to update all fields including zero values
-	result := DB.Model(model).Where(where).Select("*").Updates(updates)
+// Updates must be a map[string]any to ensure zero values are persisted correctly.
+// Maps bypass GORM's zero-value skip logic, unlike structs.
+// Returns gorm.ErrRecordNotFound if no matching record exists.
+func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
+	result := DB.Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecordWithZeroValues]: %v", result.Error)
 		return result.Error

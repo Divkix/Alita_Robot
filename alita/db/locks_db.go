@@ -5,6 +5,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
 )
 
 // GetChatLocks retrieves all lock settings for a specific chat ID.
@@ -21,21 +22,21 @@ func GetChatLocks(chatID int64) map[string]bool {
 	return locks
 }
 
-// UpdateLock modifies the value of a specific lock setting and updates it in the database.
-// Creates a new lock record if one doesn't exist for the given chat and permission type.
+// UpdateLock atomically upserts a lock record for the given chat and permission type.
+// Uses INSERT ... ON CONFLICT DO UPDATE for atomicity under concurrent writes.
 // Invalidates the cache after successful update to ensure immediate enforcement.
 // Returns an error if the database operation fails.
 func UpdateLock(chatID int64, perm string, val bool) error {
-	// Use map-based Assign to handle zero values correctly (val=false must be persisted)
-	updates := map[string]any{
-		"chat_id":   chatID,
-		"lock_type": perm,
-		"locked":    val,
+	record := LockSettings{
+		ChatId:   chatID,
+		LockType: perm,
+		Locked:   val,
 	}
 
-	err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).
-		Assign(updates).
-		FirstOrCreate(&LockSettings{}).Error
+	err := DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "lock_type"}},
+		DoUpdates: clause.AssignmentColumns([]string{"locked"}),
+	}).Create(&record).Error
 	if err != nil {
 		log.Errorf("[Database] UpdateLock: %v", err)
 		return err

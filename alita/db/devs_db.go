@@ -90,7 +90,7 @@ func AddDev(userID int64) error {
 // RemDev removes developer status from a user by setting IsDev and Dev to false.
 // Does not delete the record as the user might still have Sudo privileges.
 func RemDev(userID int64) error {
-	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: false, Dev: false})
+	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, map[string]any{"is_dev": false, "dev": false})
 	if err != nil {
 		log.Errorf("[Database] RemDev: %v - %d", err, userID)
 		return err
@@ -122,7 +122,7 @@ func AddSudo(userID int64) error {
 // RemSudo removes sudo status from a user by setting Sudo to false.
 // Does not delete the record as the user might still be a Dev.
 func RemSudo(userID int64) error {
-	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{Sudo: false})
+	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, map[string]any{"sudo": false})
 	if err != nil {
 		log.Errorf("[Database] RemSudo: %v - %d", err, userID)
 		return err
