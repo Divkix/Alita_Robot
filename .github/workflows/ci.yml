@@ -199,7 +199,41 @@ jobs:
           exit 1
 
       - name: Run test suite
-        run: make test
+        run: |
+          # Run tests and capture timing
+          start_time=$(date +%s)
+          make test
+          end_time=$(date +%s)
+          duration=$((end_time - start_time))
+
+          # Print duration to logs
+          echo "Test suite duration: ${duration}s"
+
+          # Add to job summary
+          echo "## 🧪 Test Suite Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Duration:** ${duration} seconds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-${{ github.sha }}
+          path: |
+            coverage.out
+            test-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: coverage.out
+          retention-days: 30
+          if-no-files-found: ignore
 
   # Docker build verification (single arch, fast)
   docker-verify:
