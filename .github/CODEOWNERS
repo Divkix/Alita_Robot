@@ -3,15 +3,3 @@
 
 # Default owner for all files
 * @divkix
-
-# GitHub workflows and CI/CD
-.github/ @divkix
-
-# Docker configurations
-docker/ @divkix
-
-# Database migrations
-migrations/ @divkix
-
-# Documentation
-docs/ @divkix
