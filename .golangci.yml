@@ -7,26 +7,14 @@ run:
 # Linters to enable
 linters:
   enable:
-    - godox      # Detects TODO, FIXME, and other keywords - requires issue references
+    - godox      # Detects TODO, FIXME, and other keywords
     - dupl       # Detects duplicate code fragments
-
-# Linter settings
-linters-settings:
-  godox:
-    # Keywords to detect
-    keywords:
-      - TODO
-      - FIXME
-      - HACK
-      - XXX
-    # Require issue reference in format: TODO(issue-ref), FIXME(issue-ref), etc.
-    with-issue-ref: true
-    issue-ref-format: "([a-zA-Z0-9._-]+)"  # Accepts issue numbers like #123, ISSUE-456, etc.
-  dupl:
-    threshold: 100
+  # Linter settings (v2 format)
+  settings:
+    dupl:
+      threshold: 100
 
 # Output settings
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
