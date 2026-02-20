@@ -752,11 +752,17 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 // CreateRecord creates a new database record using the provided model.
 // It logs any errors that occur during the creation process.
 func CreateRecord(model any) error {
-	_, span := tracing.StartSpan(context.Background(), "db.create",
+	return CreateRecordWithContext(context.Background(), model)
+}
+
+// CreateRecordWithContext creates a new database record with context support for trace propagation.
+// The provided context is used for both span parenting and GORM query-level context.
+func CreateRecordWithContext(ctx context.Context, model any) error {
+	ctx, span := tracing.StartSpan(ctx, "db.create",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
-	result := DB.Create(model)
+	result := DB.WithContext(ctx).Create(model)
 	if result.Error != nil {
 		log.Errorf("[Database][CreateRecord]: %v", result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
@@ -771,11 +777,17 @@ func CreateRecord(model any) error {
 // NOTE: This function skips zero values when updating with structs. Use UpdateRecordWithZeroValues
 // if you need to update boolean fields to false or other zero values.
 func UpdateRecord(model any, where any, updates any) error {
-	_, span := tracing.StartSpan(context.Background(), "db.update",
+	return UpdateRecordWithContext(context.Background(), model, where, updates)
+}
+
+// UpdateRecordWithContext updates a database record with context support for trace propagation.
+// The provided context is used for both span parenting and GORM query-level context.
+func UpdateRecordWithContext(ctx context.Context, model any, where any, updates any) error {
+	ctx, span := tracing.StartSpan(ctx, "db.update",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
-	result := DB.Model(model).Where(where).Updates(updates)
+	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecord]: %v", result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
@@ -794,11 +806,17 @@ func UpdateRecord(model any, where any, updates any) error {
 // Maps bypass GORM's zero-value skip logic, unlike structs.
 // Returns gorm.ErrRecordNotFound if no matching record exists.
 func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
-	_, span := tracing.StartSpan(context.Background(), "db.update",
+	return UpdateRecordWithZeroValuesWithContext(context.Background(), model, where, updates)
+}
+
+// UpdateRecordWithZeroValuesWithContext updates a database record including zero values with context support.
+// The provided context is used for both span parenting and GORM query-level context.
+func UpdateRecordWithZeroValuesWithContext(ctx context.Context, model any, where any, updates map[string]any) error {
+	ctx, span := tracing.StartSpan(ctx, "db.update",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
-	result := DB.Model(model).Where(where).Updates(updates)
+	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
 		log.Errorf("[Database][UpdateRecordWithZeroValues]: %v", result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
@@ -828,11 +846,17 @@ func Close() error {
 // GetRecord retrieves a single database record matching the where clause.
 // Returns gorm.ErrRecordNotFound if no matching record is found.
 func GetRecord(model any, where any) error {
-	_, span := tracing.StartSpan(context.Background(), "db.get",
+	return GetRecordWithContext(context.Background(), model, where)
+}
+
+// GetRecordWithContext retrieves a single database record with context support for trace propagation.
+// The provided context is used for both span parenting and GORM query-level context.
+func GetRecordWithContext(ctx context.Context, model any, where any) error {
+	ctx, span := tracing.StartSpan(ctx, "db.get",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
-	result := DB.Where(where).First(model)
+	result := DB.WithContext(ctx).Where(where).First(model)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			span.SetAttributes(attribute.Bool("db.record_found", false))
@@ -857,11 +881,17 @@ func ChatExists(chatID int64) bool {
 // GetRecords retrieves multiple database records matching the where clause.
 // The results are stored in the provided models slice.
 func GetRecords(models any, where any) error {
-	_, span := tracing.StartSpan(context.Background(), "db.find",
+	return GetRecordsWithContext(context.Background(), models, where)
+}
+
+// GetRecordsWithContext retrieves multiple database records with context support for trace propagation.
+// The provided context is used for both span parenting and GORM query-level context.
+func GetRecordsWithContext(ctx context.Context, models any, where any) error {
+	ctx, span := tracing.StartSpan(ctx, "db.find",
 		trace.WithAttributes(append(getSpanAttributes(models), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
-	result := DB.Where(where).Find(models)
+	result := DB.WithContext(ctx).Where(where).Find(models)
 	if result.Error != nil {
 		log.Errorf("[Database][GetRecords]: %v", result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())

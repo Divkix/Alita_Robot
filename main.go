@@ -180,6 +180,8 @@ func main() {
 
 	// Create dispatcher with limited max routines and proper error recovery
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
+		// Use TracingProcessor to inject trace context into every update
+		Processor: tracing.TracingProcessor{},
 		// Enhanced error handler with recovery and structured logging
 		Error: func(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 			// Recover from any panics in error handler
