@@ -1,0 +1,32 @@
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - wontfix
+      - "On Hold."
+    authors:
+      - dependabot[bot]
+      - github-actions[bot]
+  categories:
+    - title: "⚠️ Breaking Changes"
+      labels:
+        - breaking-change
+    - title: "🚀 New Features"
+      labels:
+        - enhancement
+    - title: "🐛 Bug Fixes"
+      labels:
+        - bug
+    - title: "🔒 Security"
+      labels:
+        - security
+    - title: "📚 Documentation"
+      labels:
+        - documentation
+    - title: "📦 Dependencies"
+      labels:
+        - dependencies
+    - title: "🔧 Other Changes"
+      labels:
+        - "*"
