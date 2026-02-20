@@ -164,12 +164,15 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 // webhookHandler handles incoming webhook requests from Telegram
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract trace context from incoming request and start a span
+	// Note: Don't record the full URL path because it contains the webhook secret
+	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	_, span := tracing.StartSpan(
-		tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header)),
+		ctx,
 		"webhook.request",
 		trace.WithAttributes(
 			attribute.String("http.method", r.Method),
-			attribute.String("http.url", r.URL.String()),
+			// Record a sanitized route instead of the full URL to avoid leaking the webhook secret
+			attribute.String("http.route", "/webhook/{secret}"),
 		))
 	defer span.End()
 
@@ -217,11 +220,21 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add update-specific attributes to the span
+	// Avoid recording full message text to reduce the risk of leaking sensitive data
+	// and to limit cardinality/size. Record text length and a preview instead.
 	if update.Message != nil {
+		text := update.Message.Text
+		const maxPreviewLen = 100
+		textPreview := text
+		if len(textPreview) > maxPreviewLen {
+			textPreview = textPreview[:maxPreviewLen] + "..."
+		}
+
 		span.SetAttributes(
 			attribute.Int64("message.chat_id", update.Message.Chat.Id),
 			attribute.Int64("message.from_id", update.Message.From.Id),
-			attribute.String("message.text", update.Message.Text),
+			attribute.Int("message.text_length", len(text)),
+			attribute.String("message.text_preview", textPreview),
 		)
 	} else if update.CallbackQuery != nil {
 		span.SetAttributes(
@@ -234,22 +247,25 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
 	// will complete even if the HTTP response has already been sent. This is by design
 	// as Telegram expects a quick 200 OK response while processing happens async.
-	go func() {
+	// Pass the trace context to the goroutine for proper span parenting
+	go func(requestCtx context.Context) {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
 
-		// Create a new context with the trace for the async processing
-		asyncCtx := trace.ContextWithSpan(context.Background(), span)
+		// Start a new child span for the async processing using the request context
+		asyncCtx, asyncSpan := tracing.StartSpan(requestCtx, "dispatcher.processUpdate")
+		defer asyncSpan.End()
+
 		// Pass context in the data map for handlers to use
 		data := map[string]interface{}{
 			"context": asyncCtx,
 		}
 		if err := s.dispatcher.ProcessUpdate(s.bot, &update, data); err != nil {
 			log.WithFields(log.Fields{
-				"trace_id": span.SpanContext().TraceID().String(),
+				"trace_id": asyncSpan.SpanContext().TraceID().String(),
 			}).Error("[HTTPServer] Failed to process update: ", err)
-			span.SetStatus(codes.Error, "failed to process update")
+			asyncSpan.SetStatus(codes.Error, "failed to process update")
 		}
-	}()
+	}(ctx)
 
 	// Send OK response to Telegram
 	w.WriteHeader(http.StatusOK)

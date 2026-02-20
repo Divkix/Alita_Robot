@@ -42,8 +42,19 @@ func InitTracing() error {
 	}
 
 	sampleRate := 1.0
-	if _, err := fmt.Sscanf(os.Getenv("OTEL_TRACES_SAMPLE_RATE"), "%f", &sampleRate); err != nil {
-		log.Warnf("[Tracing] Failed to parse OTEL_TRACES_SAMPLE_RATE: %v, using default 1.0", err)
+	if sampleRateEnv := os.Getenv("OTEL_TRACES_SAMPLE_RATE"); sampleRateEnv != "" {
+		if _, err := fmt.Sscanf(sampleRateEnv, "%f", &sampleRate); err != nil {
+			log.Warnf("[Tracing] Failed to parse OTEL_TRACES_SAMPLE_RATE: %v, using default 1.0", err)
+			sampleRate = 1.0
+		}
+		// Clamp sampleRate to [0.0, 1.0] to ensure a safe sampling ratio
+		if sampleRate < 0.0 {
+			log.Warnf("[Tracing] OTEL_TRACES_SAMPLE_RATE %.4f is less than 0.0, clamping to 0.0", sampleRate)
+			sampleRate = 0.0
+		} else if sampleRate > 1.0 {
+			log.Warnf("[Tracing] OTEL_TRACES_SAMPLE_RATE %.4f is greater than 1.0, clamping to 1.0", sampleRate)
+			sampleRate = 1.0
+		}
 	}
 
 	// Create resource with service name
@@ -62,14 +73,19 @@ func InitTracing() error {
 	var exporter sdktrace.SpanExporter
 	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	useConsole := os.Getenv("OTEL_EXPORTER_CONSOLE") == "true"
+	otlpInsecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == "true"
 
 	if otlpEndpoint != "" {
 		// Use OTLP exporter
 		log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
-		exporter, err = otlptracegrpc.New(ctx,
+		opts := []otlptracegrpc.Option{
 			otlptracegrpc.WithEndpoint(otlpEndpoint),
-			otlptracegrpc.WithInsecure(),
-		)
+		}
+		if otlpInsecure {
+			log.Warn("[Tracing] Using insecure OTLP gRPC connection (no TLS)")
+			opts = append(opts, otlptracegrpc.WithInsecure())
+		}
+		exporter, err = otlptracegrpc.New(ctx, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to create OTLP exporter: %w", err)
 		}
