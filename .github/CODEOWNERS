@@ -1,0 +1,5 @@
+# CODEOWNERS file for Alita Robot
+# https://help.github.com/articles/about-codeowners/
+
+# Default owner for all files
+* @divkix

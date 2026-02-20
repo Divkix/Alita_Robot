@@ -72,6 +72,52 @@ jobs:
         with:
           version: v2.9.0
           install-mode: binary
+          args: --issues-exit-code 0
+
+      - name: Technical Debt Tracking
+        run: |
+          echo "## 📋 Technical Debt Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Find all TODO, FIXME, HACK, XXX comments in Go files
+          echo "### Detected Technical Debt Markers" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count markers
+          TODO_COUNT=$(grep -r -n "TODO" --include="*.go" . 2>/dev/null | grep -v "godot\|godoc" | wc -l)
+          FIXME_COUNT=$(grep -r -n "FIXME" --include="*.go" . 2>/dev/null | wc -l)
+          HACK_COUNT=$(grep -r -n "HACK" --include="*.go" . 2>/dev/null | wc -l)
+          XXX_COUNT=$(grep -r -n "XXX" --include="*.go" . 2>/dev/null | wc -l)
+
+          echo "| Marker | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| TODO | $TODO_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| FIXME | $FIXME_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| HACK | $HACK_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| XXX | $XXX_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          TOTAL=$((TODO_COUNT + FIXME_COUNT + HACK_COUNT + XXX_COUNT))
+          echo "**Total Technical Debt Markers: $TOTAL**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show details if any markers found
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "### Details" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -r -n -E "(TODO|FIXME|HACK|XXX)" --include="*.go" . 2>/dev/null | head -50 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Please ensure TODO/FIXME comments reference an issue (e.g., TODO(#123))" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run duplicate code detection
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9.0
+          install-mode: binary
+          args: --enable dupl --issues-exit-code 0
 
   # Build verification - run in parallel with other checks
   build:

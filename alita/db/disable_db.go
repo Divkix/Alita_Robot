@@ -96,7 +96,7 @@ func invalidateDisabledCommandsCache(chatID int64) {
 // Updates the DeleteCommands setting for the chat.
 // Returns an error if the database operation fails.
 func ToggleDel(chatId int64, pref bool) error {
-	err := UpdateRecordWithZeroValues(&DisableChatSettings{}, DisableChatSettings{ChatId: chatId}, DisableChatSettings{DeleteCommands: pref})
+	err := UpdateRecordWithZeroValues(&DisableChatSettings{}, DisableChatSettings{ChatId: chatId}, map[string]any{"delete_commands": pref})
 	if err != nil {
 		log.Errorf("[Database] ToggleDel: %v", err)
 		return err

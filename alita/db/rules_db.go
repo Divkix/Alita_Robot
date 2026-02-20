@@ -61,7 +61,7 @@ func SetChatRulesButton(chatId int64, rulesButton string) {
 // SetPrivateRules sets whether rules should be sent privately to users instead of in the group.
 // When enabled, rules are sent as a private message to the requesting user.
 func SetPrivateRules(chatId int64, pref bool) {
-	err := UpdateRecordWithZeroValues(&RulesSettings{}, RulesSettings{ChatId: chatId}, RulesSettings{Private: pref})
+	err := UpdateRecordWithZeroValues(&RulesSettings{}, RulesSettings{ChatId: chatId}, map[string]any{"private": pref})
 	if err != nil {
 		log.Errorf("[Database] SetPrivateRules: %v", err)
 	}

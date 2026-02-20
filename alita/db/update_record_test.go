@@ -39,7 +39,7 @@ func TestUpdateRecordWithZeroValuesReturnsErrorOnNoMatch(t *testing.T) {
 	err := UpdateRecordWithZeroValues(
 		&LockSettings{},
 		LockSettings{ChatId: nonExistentChatID, LockType: "url"},
-		LockSettings{Locked: false},
+		map[string]any{"locked": false},
 	)
 	if err == nil {
 		t.Fatalf("expected error for non-existent record, got nil")
@@ -70,7 +70,7 @@ func TestUpdateRecordWithZeroValuesUpdatesZeroValues(t *testing.T) {
 	err := UpdateRecordWithZeroValues(
 		&LockSettings{},
 		LockSettings{ChatId: chatID, LockType: perm},
-		LockSettings{Locked: false},
+		map[string]any{"locked": false},
 	)
 	if err != nil {
 		t.Fatalf("UpdateRecordWithZeroValues() error = %v", err)
