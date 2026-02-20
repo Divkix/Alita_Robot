@@ -1,20 +1,22 @@
 {
-  "name": "",
+  "name": "alita-docs",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
-  "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.0",
-    "@astrojs/starlight": "^0.37.5",
-    "astro": "^5.17.1",
-    "sharp": "^0.34.5",
-    "starlight-llms-txt": "^0.7.0",
-    "tailwindcss": "^4.1.18"
+    "devalue": "^5.6.3",
+    "vite": "^4.3.9",
+    "vue": "^3.2.47"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0"
+  },
+  "overrides": {
+    "devalue": "^5.6.3"
   }
 }
