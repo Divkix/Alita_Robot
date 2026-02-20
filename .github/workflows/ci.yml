@@ -200,9 +200,9 @@ jobs:
 
       - name: Run test suite
         run: |
-          # Run tests and capture timing
+          # Run tests and capture timing (capture exit status to track duration even on failure)
           start_time=$(date +%s)
-          make test
+          make test || test_exit=$?
           end_time=$(date +%s)
           duration=$((end_time - start_time))
 
@@ -215,16 +215,10 @@ jobs:
           echo "**Total Duration:** ${duration} seconds" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: test-results-${{ github.sha }}
-          path: |
-            coverage.out
-            test-results/
-          retention-days: 30
-          if-no-files-found: ignore
+          # Re-exit with test failure status if tests failed
+          if [ -n "${test_exit}" ]; then
+            exit ${test_exit}
+          fi
 
       - name: Upload coverage reports
         if: always()
