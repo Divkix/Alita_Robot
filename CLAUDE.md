@@ -40,29 +40,48 @@ Auto-migration on startup: set `AUTO_MIGRATE=true`. Supabase-specific SQL
 ### Startup Flow (main.go)
 
 1. Locale manager init (singleton, embedded YAML via `go:embed`)
-2. HTTP transport with connection pooling (optional API server rewriting)
-3. Bot init + Telegram API connection pre-warming
-4. Database (GORM/PostgreSQL) and cache (Redis) initialization
-5. Dispatcher creation (configurable max goroutines)
-6. Monitoring systems: background stats, auto-remediation (GC triggers), activity monitor
-7. Graceful shutdown manager (LIFO handler execution, 60s timeout)
-8. Unified HTTP server (health + metrics + webhook on single port)
-9. Mode selection: webhook or polling
-10. Module loading via `alita.LoadModules(dispatcher)`
+2. OpenTelemetry tracing initialization (`tracing.InitTracing()`)
+3. HTTP transport with connection pooling (optional API server rewriting)
+4. Bot init + Telegram API connection pre-warming
+5. Database (GORM/PostgreSQL) and cache (Redis) initialization
+6. Async processing initialization (if `EnableAsyncProcessing` is configured)
+7. Dispatcher creation (configurable max goroutines)
+8. Monitoring systems: background stats, auto-remediation (GC triggers), activity monitor
+9. Graceful shutdown manager (LIFO handler execution, 60s timeout)
+10. Unified HTTP server (health + metrics + pprof + webhook on single port)
+11. Mode selection: webhook or polling
+12. Module loading via `alita.LoadModules(dispatcher)`
 
 ### Module System
 
-Modules live in `alita/modules/`. Each module exposes a `LoadXxx(dispatcher)`
-function called explicitly from `alita/main.go:LoadModules()` — **not** Go
-`init()` functions. Load order matters; help module loads last to collect all
-registered modules.
+Modules live in `alita/modules/`. Most modules expose a `LoadXxx(dispatcher)`
+function called explicitly from `alita/main.go:LoadModules()`. Note:
+`antiflood` and `antispam` modules also use Go `init()` functions for
+background goroutine startup. Load order matters; help module loads last to
+collect all registered modules.
+
+**Non-module files in `alita/modules/`:** `helpers.go` (defines `moduleStruct`,
+shared help utilities), `moderation_input.go` (text extraction for
+filters/blacklists), `callback_codec.go` and `callback_parse_overwrite.go`
+(callback data encoding), `chat_permissions.go` (permission helpers),
+`connections_auth.go` (connection auth helper), `rules_format.go` (HTML
+formatting for rules).
 
 **Module structure pattern:**
-- Value receiver `(m moduleStruct)` on handler methods (stateless, no locks)
-- Handlers return `ext.EndGroups` (stop propagation) or `error`
+- Value receiver on handler methods — typically unnamed `(moduleStruct)`,
+  named `(m moduleStruct)` when method body needs struct field access
+- `moduleStruct` fields: `moduleName`, `handlerGroup`, `permHandlerGroup`,
+  `restrHandlerGroup`, `defaultRulesBtn`, `AbleMap`, `AltHelpOptions`,
+  `helpableKb`
+- Handlers return `ext.EndGroups` (stop propagation), `ext.ContinueGroups`
+  (for monitoring/watcher handlers that should not block downstream), or `error`
 - Commands registered via `dispatcher.AddHandler()` with handler groups
+- Multiple command aliases registered via `cmdDecorator.MultiCommand(dispatcher, aliases, handler)`
 - Disableable commands added via `misc.AddCmdToDisableable()`
-- Help keyboards registered in `HelpModule.AbleMap` (sync.Map)
+- Module enablement tracked in `HelpModule.AbleMap` (custom `moduleEnabled`
+  struct wrapping `map[string]bool` with Store/Load methods — not sync.Map)
+- Help keyboard buttons stored separately in `HelpModule.helpableKb`
+  (`map[string][][]gotgbot.InlineKeyboardButton`)
 
 **Adding a new module:**
 1. Create DB operations in `alita/db/*_db.go`
@@ -77,33 +96,39 @@ registered modules.
 
 **Surrogate key pattern:** All tables use auto-increment `id` as PK. External
 IDs (`user_id`, `chat_id`) have unique constraints but aren't primary keys.
-Exception: `chat_users` join table uses composite PK `(chat_id, user_id)`.
 
 **File organization:**
 - `alita/db/db.go` — GORM models, connection setup, pool config
 - `alita/db/*_db.go` — Domain-specific operations (`Get*`, `Add*`, `Update*`, `Delete*`)
 - `alita/db/cache_helpers.go` — TTL management, cache invalidation
-- `alita/db/optimized_queries.go` — Batch prefetching, bulk parallel operations
-- `alita/db/shared_helpers.go` — Transaction support with auto-rollback
+- `alita/db/optimized_queries.go` — Optimized SELECT queries with minimal column selection, singleflight-protected caching via `getFromCacheOrLoad`, thread-safe singleton query instances
 - `alita/db/migrations.go` — Runtime migration engine
 - `migrations/*.sql` — Source of truth for schema (timestamped filenames)
 
 ### Cache Layer
 
-Redis-only via gocache library. Stampede protection via `singleflight`.
+Redis-only via gocache library. Stampede protection via `singleflight` in the
+DB caching layer (`alita/db/cache_helpers.go`).
 
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
 - Operations: `cache.Marshal.Get/Set/Delete` with context
+- Traced operations: `TracedGet()`, `TracedSet()`, `TracedDelete()` — OpenTelemetry-instrumented cache access
+- `ClearAllCaches()` — FLUSHDB on startup when `ClearCacheOnStartup` is configured
 - Admin cache specialized in `alita/utils/cache/adminCache.go`
+- Cache key sanitization for tracing in `alita/utils/cache/sanitize.go`
 - **Cache must be invalidated on writes** — every DB update function that
   modifies cached data must call the corresponding invalidation
 
 ### Permission System (`alita/utils/chat_status/`)
 
 - `RequireGroup()` / `RequirePrivate()` — chat type guards
-- `RequireBotAdmin()` / `RequireUserAdmin()` — permission guards
-- `RequireUser()` — extracts valid user (nil for channels)
-- `IsUserAdmin()` — bool check (returns false for channel IDs)
+- `RequireBotAdmin()` / `RequireUserAdmin()` / `RequireUserOwner()` — permission guards (send error messages on failure)
+- `IsBotAdmin()` / `IsUserAdmin()` — bool checks (no error messages)
+- `RequireUser()` / `GetEffectiveUser()` — safe user extraction (nil for channels)
+- `IsValidUserId()` / `IsChannelId()` — ID validation
+- `IsUserInChat()` / `IsUserBanProtected()` — membership/protection checks
+- `CanUserChangeInfo()`, `CanUserRestrict()`, `CanBotRestrict()`, `CanUserPromote()`, `CanBotPromote()`, `CanUserPin()`, `CanBotPin()`, `CanUserDelete()`, `CanBotDelete()` — granular permission checks
+- `CheckDisabledCmd()` — checks if command is disabled for chat
 - Anonymous admin detection with keyboard fallback
 - Results cached to reduce Telegram API calls
 
@@ -118,7 +143,9 @@ files embedded via `go:embed`. Supports named parameters in code
 Four-layer recovery: dispatcher → worker pool → decorator → handler. The
 `error_handling` package provides `RecoverFromPanic()`, `HandleErr()`, and
 `CaptureError()`. Expected Telegram API errors (bot not admin, chat closed)
-are filtered via `helpers.IsExpectedTelegramError()`.
+are filtered via `helpers.IsExpectedTelegramError()`. Custom error wrapping
+with file/line/function metadata via `alita/utils/errors/` (`Wrap()`/`Wrapf()`
+using `runtime.Caller`).
 
 ### Graceful Shutdown (`alita/utils/shutdown/`)
 
@@ -127,9 +154,22 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 
 ### Monitoring (`alita/utils/monitoring/`)
 
-- **Activity monitor**: Tracks `last_activity` per chat, marks inactive after threshold
-- **Auto-remediation**: GC triggers when memory/goroutine thresholds exceeded
-- **Background stats**: 5-minute collection of goroutines, memory, GC metrics
+- **Activity monitor**: Tracks `last_activity` per chat AND per user (daily/weekly/monthly active users), marks inactive after threshold
+- **Auto-remediation**: 4-tier system — warning logs at 80% threshold, GC trigger at 60% memory, aggressive memory cleanup (multiple GC cycles), restart recommendation at 150%+ threshold
+- **Background stats**: System stats collected every 30s, DB stats every 1m, summary reported every 5 minutes
+
+### Additional Utility Packages
+
+- `alita/utils/extraction/` — extracts user IDs, chat IDs, time durations from Telegram messages
+- `alita/utils/keyword_matcher/` — Aho-Corasick multi-pattern matching with per-chat caching (used by filters/blacklists)
+- `alita/utils/media/` — unified media send interface for notes/filters/greetings
+- `alita/utils/string_handling/` — slice search utilities
+- `alita/utils/tracing/` — OpenTelemetry distributed tracing with OTLP/console exporters
+- `alita/utils/httpserver/` — unified HTTP server (health + metrics + pprof + webhook)
+- `alita/utils/async/` — async processing with enable flag
+- `alita/utils/constants/` — centralized time/duration constants (cache TTLs, timeouts, intervals)
+- `alita/utils/callbackcodec/` — versioned callback data encoding/decoding
+- `alita/utils/decorators/cmdDecorator/` — multi-command alias registration
 
 ## Environment Configuration
 
@@ -140,6 +180,8 @@ See `sample.env` for all variables. Critical ones:
 - `USE_WEBHOOKS`, `WEBHOOK_DOMAIN`, `WEBHOOK_SECRET` — webhook mode
 - `AUTO_MIGRATE` — enable startup migrations
 - `DEBUG` — verbose logging (performance monitoring auto-disabled when true)
+- `ENABLE_PPROF` — enables `/debug/pprof/*` endpoints (dangerous in production)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE` — OpenTelemetry tracing (set via environment, not in `sample.env`)
 
 ## Deployment
 
@@ -163,11 +205,11 @@ These are hard-won patterns from past bugs. Violating them causes real issues.
 - **Struct alias fields**: When a struct has related fields (e.g., `Dev` and `IsDev`), set both consistently everywhere
 
 ### Handler Patterns
-- **Handler groups**: Use negative numbers (-10) for early interception handlers
+- **Handler groups**: Negative numbers (e.g., -1) for early interception, positive numbers (4-10) for message watchers/monitors. Default group (0) for standard command handlers
 - **Return values**: `ext.EndGroups` stops propagation, `ext.ContinueGroups` continues
-- **Callback data validation**: Always check `len(strings.Split(data, "."))` before indexing
+- **Callback data**: Use versioned codec (`alita/utils/callbackcodec/`): `Encode(namespace, fields)` produces `<namespace>|v1|<url-encoded fields>`. Use `Decode(data)` to parse. Legacy dot-notation fallback exists for backward compatibility. Avoid raw `strings.Split(data, ".")` — use the codec
 - **Double-answer bug**: `RequireUserAdmin` with `justCheck=false` already answers the callback — don't answer again
-- **`IsUserConnected()`** sets `ctx.EffectiveChat` internally — no need to reassign after calling it
+- **`IsUserConnected()`**: After calling, use the returned `connectedChat` value for the effective chat
 - **Entity completeness**: Check both `msg.Entities` AND `msg.CaptionEntities` for URL/mention detection
 
 ### i18n Patterns
