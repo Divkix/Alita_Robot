@@ -275,6 +275,12 @@ func main() {
 	httpServer.RegisterHealth()
 	httpServer.RegisterMetrics()
 
+	// Register pprof endpoints if enabled (development only)
+	if config.AppConfig.EnablePPROF {
+		httpServer.RegisterPPROF()
+		log.Warn("[Main] pprof endpoints enabled - DO NOT enable in production!")
+	}
+
 	// Check if we should use webhooks or polling
 	if config.AppConfig.UseWebhooks {
 		// Validate webhook configuration

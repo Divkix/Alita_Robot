@@ -145,6 +145,9 @@ type Config struct {
 	ResourceMaxGoroutines int `validate:"min=100,max=10000"` // Maximum goroutines before triggering cleanup
 	ResourceMaxMemoryMB   int `validate:"min=100,max=10000"` // Maximum memory usage in MB
 	ResourceGCThresholdMB int `validate:"min=100,max=5000"`  // Memory threshold for triggering GC
+
+	// Profiling configuration
+	EnablePPROF bool // Enable pprof endpoints for performance profiling (development only)
 }
 
 // AppConfig is the global configuration instance - the single source of truth.
@@ -321,6 +324,9 @@ func LoadConfig() (*Config, error) {
 		ResourceMaxGoroutines: typeConvertor{str: os.Getenv("RESOURCE_MAX_GOROUTINES")}.Int(),
 		ResourceMaxMemoryMB:   typeConvertor{str: os.Getenv("RESOURCE_MAX_MEMORY_MB")}.Int(),
 		ResourceGCThresholdMB: typeConvertor{str: os.Getenv("RESOURCE_GC_THRESHOLD_MB")}.Int(),
+
+		// Profiling configuration
+		EnablePPROF: typeConvertor{str: os.Getenv("ENABLE_PPROF")}.Bool(),
 	}
 
 	// Set defaults
