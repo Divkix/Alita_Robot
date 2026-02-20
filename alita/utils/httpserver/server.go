@@ -34,6 +34,7 @@ type Server struct {
 	dispatcher     *ext.Dispatcher
 	secret         string
 	webhookEnabled bool
+	pprofEnabled   bool
 	startTime      time.Time
 }
 
@@ -135,6 +136,7 @@ func (s *Server) RegisterPPROF() {
 	s.mux.HandleFunc("/debug/pprof/block", pprofHandler)
 	s.mux.HandleFunc("/debug/pprof/mutex", pprofHandler)
 
+	s.pprofEnabled = true
 	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
 }
 
@@ -260,6 +262,9 @@ func (s *Server) Start() error {
 
 	// Log the registered endpoints
 	endpoints := []string{"/health", "/metrics"}
+	if s.pprofEnabled {
+		endpoints = append(endpoints, "/debug/pprof/*")
+	}
 	if s.webhookEnabled {
 		endpoints = append(endpoints, "/webhook/{secret}")
 	}

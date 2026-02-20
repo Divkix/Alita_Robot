@@ -31,6 +31,8 @@ When enabled, the following endpoints become available:
 | `/debug/pprof/block` | Block (goroutine blocking) profile |
 | `/debug/pprof/mutex` | Mutex contention profile |
 
+> Note: The block and mutex profiles are **disabled by default** in Go. With `ENABLE_PPROF=true` set, the endpoints are exposed but will return empty data unless you enable collection via `GODEBUG=blockprofilerate=1,mutexprofilefraction=1` environment variable or `runtime.SetBlockProfileRate()` in code.
+
 ### CPU Profiling
 
 CPU profiling requires a separate request:
@@ -61,56 +63,81 @@ Common commands in pprof:
 
 ### Examples
 
-#### Top Memory Consumers
+#### Option 1: Web UI Mode
 
 ```bash
-# Get heap profile
+# Open web UI at http://localhost:8081
 go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap
+```
 
-# In pprof console
-top
+Use the web interface to explore the profile visually.
+
+#### Option 2: Interactive Console
+
+```bash
+# Drop into interactive console
+go tool pprof http://localhost:8080/debug/pprof/heap
+
+# Then run commands like:
+(pprof) top
+(pprof) web
+(pprof) list functionname
 ```
 
 #### Goroutine Analysis
 
 ```bash
-# Get goroutine dump
-go tool pprof -http=:8081 http://localhost:8080/debug/pprof/goroutine
+# Get goroutine dump in console mode
+go tool pprof http://localhost:8080/debug/pprof/goroutine
 
 # Check for goroutine leaks
-top
+(pprof) top
 ```
 
 #### CPU Profiling
 
 ```bash
-# Collect and analyze CPU profile
-go tool pprof -http=:8081 http://localhost:8080/debug/pprof/profile?seconds=30
-```
+# Collect 30 seconds of CPU profile
+# Note: The server has a 10s WriteTimeout - use shorter duration or profile externally
+go tool pprof -seconds=30 http://localhost:8080/debug/pprof/profile
 
 ## Flame Graphs
 
 Flame graphs provide a visual representation of CPU or memory usage.
 
-### Installation
+### Option 1: go tool pprof (Recommended)
+
+The simplest way to generate flame graphs:
 
 ```bash
-# Install flamegraph tool
-go install github.com/brendangregg/FlameGraph@latest
+# Generate SVG flame graph from heap profile
+go tool pprof -svg -output=heap-flamegraph.svg http://localhost:8080/debug/pprof/heap
+
+# Generate SVG flame graph from CPU profile (30 seconds)
+go tool pprof -svg -output=cpu-flamegraph.svg http://localhost:8080/debug/pprof/profile?seconds=30
+
+# Or open in browser directly
+go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap
 ```
 
-### Generation
+### Option 2: FlameGraph Perl Scripts
+
+For more control, use Brendan Gregg's FlameGraph tools:
 
 ```bash
-# Get profile data
-curl -s http://localhost:8080/debug/pprof/heap > heap.out
+# Clone the FlameGraph repository
+git clone https://github.com/brendangregg/FlameGraph.git
+cd FlameGraph
+
+# Generate heap flame graph from pprof
+# First, get the profile as raw protobuf
+curl -s http://localhost:8080/debug/pprof/heap > heap.pb
+
+# Convert to SVG using go tool pprof to export folded stacks
+go tool pprof -proto -output=heap.folded ./your-binary heap.pb
 
 # Generate flame graph
-flamegraph.pl heap.out > flamegraph.svg
-
-# Or with go-torch (for CPU profiles)
-go install github.com/uber/go-torch@latest
-go-torch -u http://localhost:8080 -f flamegraph.svg
+./flamegraph.pl heap.folded > heap-flamegraph.svg
 ```
 
 ## Common Performance Issues
