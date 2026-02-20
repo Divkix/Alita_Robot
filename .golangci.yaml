@@ -1,0 +1,41 @@
+# golangci-lint configuration for v2
+# See: https://golangci-lint.run/docs/configuration/file/
+
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: standard
+  enable:
+    - revive
+    - staticcheck
+    - govet
+    - unused
+  settings:
+    govet:
+      enable-all: false
+    staticcheck:
+      checks:
+        - all
+        - "-ST1000"
+        - "-ST1003"
+        - "-SA1029"
+
+  exclusions:
+    paths:
+      - docs
+      - dist
+    rules:
+      # Exclude some linters from running on tests files
+      - path: _test\.go
+        linters:
+          - staticcheck
+          - unused
+          - govet
+      # Exclude shadow check from all files (pre-existing issues)
+      - linters:
+          - govet
+        text: "shadows declaration"
