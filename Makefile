@@ -26,7 +26,7 @@ lint:
 	$(GOLANGCI_LINT_CMD) run
 
 test:
-	$(GO_CMD) test ./...
+	$(GO_CMD) test -v -race -coverprofile=coverage.out -count=1 -timeout 10m ./...
 
 check-translations:
 	@echo "🔍 Checking for missing translations..."

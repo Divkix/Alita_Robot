@@ -199,7 +199,35 @@ jobs:
           exit 1
 
       - name: Run test suite
-        run: make test
+        run: |
+          # Run tests and capture timing (capture exit status to track duration even on failure)
+          start_time=$(date +%s)
+          make test || test_exit=$?
+          end_time=$(date +%s)
+          duration=$((end_time - start_time))
+
+          # Print duration to logs
+          echo "Test suite duration: ${duration}s"
+
+          # Add to job summary
+          echo "## 🧪 Test Suite Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Duration:** ${duration} seconds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Re-exit with test failure status if tests failed
+          if [ -n "${test_exit}" ]; then
+            exit ${test_exit}
+          fi
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: coverage.out
+          retention-days: 30
+          if-no-files-found: ignore
 
   # Docker build verification (single arch, fast)
   docker-verify:
