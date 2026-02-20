@@ -75,6 +75,7 @@ Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
 | `CacheTTLWarnSettings` | 30 minutes | Warning configuration |
 | `CacheTTLAntiflood` | 30 minutes | Flood protection settings |
 | `CacheTTLDisabledCmds` | 30 minutes | Disabled commands list |
+| `CacheTTLCaptchaSettings` | 30 minutes | Captcha verification settings |
 
 ```go
 const (
@@ -105,13 +106,19 @@ All cache keys use the `alita:` prefix for namespace isolation:
 | `alita:disabled_cmds:{chatId}` | Disabled commands |
 | `alita:anonAdmin:{chatId}:{msgId}` | Anonymous admin verification (20s TTL) |
 | `alita:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
+| `alita:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
+| `alita:lock:{chatId}:{lockType}` | Lock status (1 hour TTL, from optimized queries) |
+| `alita:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |
+| `alita:chat:{chatId}` | Chat basic info (30 min TTL, from optimized queries) |
+| `alita:antiflood:{chatId}` | Antiflood settings (1 hour TTL, from optimized queries) |
+| `alita:channel:{chatId}` | Channel settings (30 min TTL, from optimized queries) |
 
 ### Anonymous Admin Verification Flow
 
 When an anonymous admin uses a command, the bot:
 1. Stores the original message in cache with key `alita:anonAdmin:{chatId}:{msgId}`
 2. Sends a verification button to the chat
-3. When clicked, `getAnonAdminCache()` retrieves the original message
+3. When clicked, the callback handler retrieves the original message from cache via `cache.Marshal.Get`
 4. The bot verifies the user is an admin and executes the original command
 
 ```go
@@ -124,13 +131,12 @@ cache.Marshal.Set(
 )
 
 // Retrieve when verification button is clicked
-func getAnonAdminCache(chatId, msgId int64) (any, error) {
-    return cache.Marshal.Get(
-        cache.Context,
-        fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
-        new(gotgbot.Message),
-    )
-}
+var originalMsg gotgbot.Message
+_, err := cache.Marshal.Get(
+    cache.Context,
+    fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
+    &originalMsg,
+)
 ```
 
 ### Key Generator Functions
@@ -162,6 +168,10 @@ func warnSettingsCacheKey(chatID int64) string {
 
 func disabledCommandsCacheKey(chatID int64) string {
     return fmt.Sprintf("alita:disabled_cmds:%d", chatID)
+}
+
+func captchaSettingsCacheKey(chatID int64) string {
+    return fmt.Sprintf("alita:captcha_settings:%d", chatID)
 }
 ```
 
@@ -285,14 +295,8 @@ type AdminCache struct {
     Cached   bool
 }
 
-// LoadAdminCache fetches and caches admin list
+// LoadAdminCache fetches and caches admin list (simplified)
 func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
-    // Check if already cached
-    found, adminCache := GetAdminCacheList(chatID)
-    if found && adminCache.Cached {
-        return adminCache
-    }
-
     // Fetch from Telegram API
     admins, err := b.GetChatAdministrators(chatID, nil)
     if err != nil {
@@ -305,18 +309,21 @@ func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
         memberList = append(memberList, admin.MergeChatMember())
     }
 
-    cache := AdminCache{
+    adminCache := AdminCache{
         ChatId:   chatID,
         UserInfo: memberList,
         Cached:   true,
     }
 
-    // Store in Redis
-    SetAdminCacheList(chatID, cache)
+    // Store in Redis via cache.Marshal.Set
+    cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:adminCache:%d", chatID),
+        adminCache, store.WithExpiration(30*time.Minute))
 
-    return cache
+    return adminCache
 }
 ```
+
+> **Note:** The actual implementation includes additional robustness features: bot admin verification before API calls, retry logic with exponential backoff, background cache storage with panic recovery, and graceful handling of non-admin bots.
 
 ### Admin Cache Lookup
 

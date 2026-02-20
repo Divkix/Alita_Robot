@@ -9,7 +9,7 @@ This module allows you to disable some commonly used commands, So, no one can us
 
 *Admin commands*:
 × /disable `<commandname>`: Stop users from using commandname in this group.
-× /enable `<item name>`: Allow users from using commandname in this group.
+× /enable `<item name>`: Allow users to use commandname in this group.
 × /disableable: List all disableable commands.
 × /disabledel `<yes/no/on/off>`: Delete disabled commands when used by non-admins.
 × /disabled: List the disabled commands in this chat.
@@ -47,9 +47,9 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/disable` | Stop users from using commandname in this group. | ❌ |
 | `/disableable` | List all disableable commands. | ❌ |
-| `/disabled` | Delete disabled commands when used by non-admins. | ✅ |
+| `/disabled` | List the disabled commands in this chat. | ✅ |
 | `/disabledel` | Delete disabled commands when used by non-admins. | ❌ |
-| `/enable` | Allow users from using commandname in this group. | ❌ |
+| `/enable` | Allow users to use commandname in this group. | ❌ |
 
 ## Usage Examples
 

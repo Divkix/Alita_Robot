@@ -43,8 +43,8 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/ban` | bans a user. (via handle, or reply) | ❌ |
 | `/dban` | bans a user and delete the replied message. (via handle, or reply) | ❌ |
-| `/dkick` | No description available | ❌ |
-| `/kick` | kicks the user who issued the command. | ❌ |
+| `/dkick` | Delete the replied message and kick the sender. | ❌ |
+| `/kick` | Kick a user from the group (by reply, @handle, or user ID). | ❌ |
 | `/kickme` | kicks the user who issued the command. | ❌ |
 | `/restrict` | Shows an InlineKeyboard to choose options from kick, ban and mute | ❌ |
 | `/sban` | bans a user silently, does not send message to group and also deletes your command. (via handle, or reply) | ❌ |
@@ -66,11 +66,10 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+Most commands require admin with ban/restrict permissions. `/kickme` is available to all non-admin users.
 
 **Bot Permissions Required:**
 
-- Delete messages
 - Ban users
-- Restrict users
-- Pin messages (if applicable)
+- Delete messages (for /dban, /dkick, /sban)
+- Restrict members (for /restrict)

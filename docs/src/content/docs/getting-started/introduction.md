@@ -27,7 +27,7 @@ Alita Robot is a modern, feature-rich Telegram group management bot built with G
 - **Auto-Approve** - Automatically approve join requests
 
 ### Utilities
-- **Multi-Language** - Supports English and Spanish (extensible)
+- **Multi-Language** - Supports English, Spanish, French, and Hindi (extensible)
 - **Remote Management** - Manage groups from private messages
 - **Command Disabling** - Disable specific commands per group
 

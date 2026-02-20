@@ -52,11 +52,12 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/admincache` | No description available | ❌ |
+| `/admincache` | Refresh the admin cache by reloading the admin list from Telegram. | ❌ |
 | `/adminlist` | List the admins in the current chat. | ✅ |
-| `/anonadmin` | No description available | ❌ |
+| `/anonadmin` | Toggle or view anonymous admin recognition mode. | ❌ |
+| `/clearadmincache` | Clear the admin cache for the current chat. | ❌ |
 | `/demote` | Demote a user. | ❌ |
-| `/invitelink` | No description available | ❌ |
+| `/invitelink` | Get the chat's invite link. | ❌ |
 | `/promote` | Promote a user. | ❌ |
 | `/title` | Set custom title for user | ❌ |
 
@@ -74,14 +75,12 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+Most commands require admin permissions. `/adminlist` is available to all users.
 
 **Bot Permissions Required:**
 
-- Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
+- Promote members (for promote/demote/title commands)
+- Invite users (for invitelink command)
 
 ## Technical Notes
 

@@ -9,7 +9,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 22
+- **Total Functions**: 25
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -38,6 +38,9 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
 | `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
+| `GetChat` | `*gotgbot.Chat, error` | GetChat retrieves chat info by ID or username via direct Telegram API request |
+| `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts user from context, returns nil for channels |
+| `RequireUser` | `*gotgbot.User` | RequireUser extracts valid user from context, returns nil for channels |
 
 ## Functions by Category
 
@@ -302,6 +305,32 @@ Caninvite checks if the bot and user have permissions to generate invite links. 
 - `msg`
 - `justCheck`
 
+### 👤 User Extraction
+
+#### `GetEffectiveUser`
+
+```go
+func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
+```
+
+GetEffectiveUser safely extracts the user from the context. Returns nil for channel messages where no user is present. Checks `ctx.EffectiveSender` for nil before accessing `.User`.
+
+**Parameters:**
+- `ctx`
+
+#### `RequireUser`
+
+```go
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
+```
+
+RequireUser extracts a valid user from the context. Returns nil for channel messages where no user is present. If justCheck is false, sends an error message explaining that channels cannot use this command.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `justCheck`
+
 ### 👤 User Status Checks
 
 #### `IsUserAdmin`
@@ -346,6 +375,18 @@ IsUserInChat checks if a user is currently a member of the specified chat. Retur
 
 ### 🔧 Utility Functions
 
+#### `GetChat`
+
+```go
+func GetChat(b *gotgbot.Bot, chatId string) (*gotgbot.Chat, error)
+```
+
+GetChat retrieves chat info by ID or username via a direct Telegram API request. Makes a raw `getChat` API call, supporting both numeric chat IDs and @username strings.
+
+**Parameters:**
+- `b`
+- `chatId` — string chat ID (numeric) or @username
+
 #### `CheckDisabledCmd`
 
 ```go
@@ -365,7 +406,7 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 |----|-------------|
 | `1087968824` | Anonymous Admin Bot (GroupAnonymousBot) |
 | `777000` | Telegram System Account |
-| `136817688` | Channel Bot (deprecated) |
+| `136817688` | Channel Bot (listed for reference only — not actively checked in the codebase) |
 
 ## Usage Example
 

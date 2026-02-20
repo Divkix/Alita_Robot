@@ -27,7 +27,7 @@ USE_WEBHOOKS=true
 # Your public HTTPS domain (required)
 WEBHOOK_DOMAIN=https://your-domain.com
 
-# Random secret for webhook validation (recommended)
+# Webhook secret for request validation (required — if empty, all webhook requests are rejected)
 WEBHOOK_SECRET=your-random-secret-string
 
 # HTTP server port (default: 8080)
@@ -43,6 +43,9 @@ Alita Robot uses a single HTTP server for all endpoints:
 | `/health` | GET | Health check with database and Redis status |
 | `/metrics` | GET | Prometheus metrics for monitoring |
 | `/webhook/{secret}` | POST | Telegram webhook endpoint (webhook mode only) |
+| `/debug/pprof/*` | GET | Go profiling endpoints (only when `ENABLE_PPROF=true`) |
+
+When `ENABLE_PPROF=true` is set, additional debug endpoints are available at `/debug/pprof/*`. These expose Go runtime profiling data and should never be enabled in production without access controls.
 
 All endpoints run on the port specified by `HTTP_PORT` (default: 8080).
 
@@ -152,9 +155,9 @@ services:
 
 ## Security Best Practices
 
-### 1. Always Use WEBHOOK_SECRET
+### 1. Always Set WEBHOOK_SECRET
 
-The secret prevents unauthorized requests to your webhook endpoint:
+The webhook secret is required for security. If left empty, the webhook handler will reject all incoming requests. Generate a secure value:
 
 ```bash
 # Generate a secure random secret

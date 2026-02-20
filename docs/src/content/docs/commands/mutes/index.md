@@ -67,4 +67,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+All mute commands require admin with restrict permissions in groups.

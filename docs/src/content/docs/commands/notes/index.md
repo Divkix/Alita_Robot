@@ -59,14 +59,16 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/addnote` | No description available | ❌ |
+| `/addnote` | Save a new note. Alias for /save. | ❌ |
 | `/clear` | Delete the associated note. | ❌ |
 | `/clearall` | Delete ALL notes in a chat. This cannot be undone. | ❌ |
 | `/get` | Get a note. | ✅ |
 | `/notes` | List all notes in the current chat. | ✅ |
-| `/rmnote` | No description available | ❌ |
+| `/rmnote` | Delete the associated note. Alias for /clear. | ❌ |
 | `/save` | Save a new note called "word". Replying to a message will save that message. Even works on media! | ❌ |
 | `/saved` | Same as /notes. | ❌ |
+| `/privnote` | Toggle private notes mode. Alias for /privatenotes. | ❌ |
+| `/privatenotes` | Toggle private notes mode (send notes in PM instead of group). | ❌ |
 
 ## Usage Examples
 

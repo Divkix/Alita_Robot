@@ -12,4 +12,11 @@ Alita supports a large number of formatting options to make your messages more e
 This module can be accessed using the following aliases:
 
 - `markdownhelp`
-- `mdhelp`
+- `formatting`
+
+## Available Commands
+
+| Command | Description | Disableable |
+|---------|-------------|-------------|
+| `/markdownhelp` | Show formatting help for messages | ❌ |
+| `/formatting` | Show formatting help for messages. Alias for /markdownhelp. | ❌ |

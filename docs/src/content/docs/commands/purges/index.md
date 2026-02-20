@@ -45,8 +45,8 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/del` | deletes the message you replied to. | ❌ |
 | `/purge` | deletes all messages between this and the replied-to message. | ❌ |
-| `/purgefrom` | No description available | ❌ |
-| `/purgeto` | No description available | ❌ |
+| `/purgefrom` | Mark a message as the starting point for range deletion. | ❌ |
+| `/purgeto` | Mark the ending point and delete all messages in the range. | ❌ |
 
 ## Usage Examples
 
@@ -67,9 +67,6 @@ Most commands in this module require **admin permissions** in the group.
 **Bot Permissions Required:**
 
 - Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
 
 ## Technical Notes
 

@@ -18,7 +18,9 @@ Force new members to prove they're human by solving a simple challenge before th
 × /captchamode `<math/text>`: Set captcha type (math problems or text recognition)
 × /captchatime `<1-10>`: Set timeout in minutes (default: 2)
 × /captchaaction `<kick/ban/mute>`: Set action for failed verification (default: kick)
-× /captchaattempts `<1-10>`: Set maximum verification attempts (default: 3)
+× /captchamaxattempts `<1-10>`: Set maximum verification attempts (default: 3)
+× /captchapending: View stored messages from users currently completing captcha
+× /captchaclear: Clear all stored pending messages
 
 When enabled, new members are automatically muted until they complete the captcha.
 If they fail or timeout, the configured action is taken.
@@ -48,10 +50,10 @@ This helps identify potential spam attempts before users complete verification.
 |---------|-------------|-------------|
 | `/captcha` | Enable or disable captcha verification | ❌ |
 | `/captchaaction` | Set action for failed verification (default: kick) | ❌ |
-| `/captchaclear` | No description available | ❌ |
-| `/captchamaxattempts` | No description available | ❌ |
+| `/captchaclear` | Clear stored pending messages for a user. | ❌ |
+| `/captchamaxattempts` | Set maximum verification attempts (default: 3, range: 1-10). | ❌ |
 | `/captchamode` | Set captcha type (math problems or text recognition) | ❌ |
-| `/captchapending` | No description available | ❌ |
+| `/captchapending` | View messages a user tried to send during captcha verification. | ❌ |
 | `/captchatime` | Set timeout in minutes (default: 2) | ❌ |
 
 ## Usage Examples

@@ -30,7 +30,7 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lang` | No description available | ❌ |
+| `/lang` | Display language selection menu to change bot language. | ❌ |
 
 ## Usage Examples
 
@@ -44,4 +44,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+In private chats, available to all users. In groups, requires admin permissions.
