@@ -212,7 +212,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// ping handles the /ping command to measure and display response time
+// ping handles the /ping command to measure bot-to-Telegram API round-trip time
 func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
@@ -221,24 +221,31 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Calculate time since user sent the message
-	userSentTime := time.Unix(int64(msg.Date), 0)
-	latency := time.Since(userSentTime)
-
-	// Simple response with latency
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	pingTemplate, _ := tr.GetString("misc_ping_response")
-	text := fmt.Sprintf(pingTemplate, latency.Milliseconds())
 
-	_, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{
+	// Send initial "Pinging..." message and measure the API round-trip
+	pingingText, _ := tr.GetString("misc_pinging")
+	start := time.Now()
+	sentMsg, err := msg.Reply(b, pingingText, &gotgbot.SendMessageOpts{
 		ParseMode: helpers.HTML,
 	})
+	latency := time.Since(start)
 	if err != nil {
 		log.WithError(err).Error("[Ping] Failed to send ping response")
 		return err
 	}
 
-	// Log latency for monitoring
+	// Edit the message with the measured latency
+	pingedTemplate, _ := tr.GetString("misc_pinged_in")
+	text := fmt.Sprintf(pingedTemplate, latency.Milliseconds())
+	_, _, err = sentMsg.EditText(b, text, &gotgbot.EditMessageTextOpts{
+		ParseMode: helpers.HTML,
+	})
+	if err != nil {
+		log.WithError(err).Error("[Ping] Failed to edit ping response")
+		return err
+	}
+
 	log.WithFields(log.Fields{
 		"user_id": msg.From.Id,
 		"latency": latency.Milliseconds(),
