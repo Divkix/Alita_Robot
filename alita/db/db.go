@@ -753,7 +753,7 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 // It logs any errors that occur during the creation process.
 func CreateRecord(model any) error {
 	_, span := tracing.StartSpan(context.Background(), "db.create",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.Create(model)
@@ -772,7 +772,7 @@ func CreateRecord(model any) error {
 // if you need to update boolean fields to false or other zero values.
 func UpdateRecord(model any, where any, updates any) error {
 	_, span := tracing.StartSpan(context.Background(), "db.update",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.Model(model).Where(where).Updates(updates)
@@ -795,7 +795,7 @@ func UpdateRecord(model any, where any, updates any) error {
 // Returns gorm.ErrRecordNotFound if no matching record exists.
 func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
 	_, span := tracing.StartSpan(context.Background(), "db.update",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.Model(model).Where(where).Updates(updates)
@@ -829,7 +829,7 @@ func Close() error {
 // Returns gorm.ErrRecordNotFound if no matching record is found.
 func GetRecord(model any, where any) error {
 	_, span := tracing.StartSpan(context.Background(), "db.get",
-		trace.WithAttributes(getSpanAttributes(model)...))
+		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.Where(where).First(model)
@@ -858,7 +858,7 @@ func ChatExists(chatID int64) bool {
 // The results are stored in the provided models slice.
 func GetRecords(models any, where any) error {
 	_, span := tracing.StartSpan(context.Background(), "db.find",
-		trace.WithAttributes(getSpanAttributes(models)...))
+		trace.WithAttributes(append(getSpanAttributes(models), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.Where(where).Find(models)

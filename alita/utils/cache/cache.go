@@ -110,6 +110,7 @@ func TracedGet(ctx context.Context, key string) (any, error) {
 		trace.WithAttributes(
 			attribute.String("cache.key_prefix", SanitizeCacheKey(key)),
 			attribute.Int("cache.key_segment_count", CacheKeySegmentCount(key)),
+			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
 
@@ -129,6 +130,7 @@ func TracedSet(ctx context.Context, key string, value any, opts ...store.Option)
 			attribute.String("cache.key_prefix", SanitizeCacheKey(key)),
 			attribute.Int("cache.key_segment_count", CacheKeySegmentCount(key)),
 			attribute.String("cache.value_type", fmt.Sprintf("%T", value)),
+			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
 
@@ -146,6 +148,7 @@ func TracedDelete(ctx context.Context, key string) error {
 		trace.WithAttributes(
 			attribute.String("cache.key_prefix", SanitizeCacheKey(key)),
 			attribute.Int("cache.key_segment_count", CacheKeySegmentCount(key)),
+			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
 
