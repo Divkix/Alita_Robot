@@ -56,13 +56,34 @@ archives:
         formats: [zip]
 
 changelog:
+  use: github
   sort: asc
+  abbrev: -1
+  groups:
+    - title: "🚀 Features"
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: "⚡ Performance"
+      regexp: '^perf(\(.+\))?!?:'
+      order: 2
+    - title: "🔒 Security"
+      regexp: '^sec(urity)?(\(.+\))?!?:'
+      order: 3
+    - title: "♻️ Refactoring"
+      regexp: '^refactor(\(.+\))?!?:'
+      order: 4
+    - title: "📦 Other"
+      order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^ci:"
+      - '^docs(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^chore(\(.+\))?:'
+      - '^ci(\(.+\))?:'
+      - '^deps(\(.+\))?:'
       - Merge pull request
       - Merge branch
 
