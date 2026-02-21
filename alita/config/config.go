@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -530,13 +531,14 @@ func (cfg *Config) setDefaults() {
 	}
 }
 
-// init initializes the logging configuration, loads the global configuration
-// from environment variables, validates it, and sets up global variables for
-// backward compatibility. This function is called automatically at package import.
+var (
+	configOnce sync.Once
+	configErr  error
+)
+
+// init sets up logging format only. Config loading is deferred to MustInit() / GetConfig().
 func init() {
-	// set logger config
 	log.SetLevel(log.DebugLevel)
-	// SetReportCaller will be configured after debug mode is determined
 	log.SetFormatter(
 		&log.JSONFormatter{
 			DisableHTMLEscape: true,
@@ -546,23 +548,41 @@ func init() {
 			},
 		},
 	)
+}
 
-	// Load the structured configuration
-	cfg, err := LoadConfig()
-	if err != nil {
-		log.Fatalf("[Config] Failed to load configuration: %v", err)
+// loadConfigOnce loads configuration exactly once using sync.Once.
+func loadConfigOnce() {
+	configOnce.Do(func() {
+		cfg, err := LoadConfig()
+		if err != nil {
+			configErr = err
+			return
+		}
+		AppConfig = cfg
+
+		if cfg.Debug {
+			log.SetLevel(log.DebugLevel)
+		} else {
+			log.SetLevel(log.InfoLevel)
+		}
+		log.SetReportCaller(cfg.Debug)
+
+		log.Info("[Config] Configuration loaded and validated successfully")
+	})
+}
+
+// MustInit loads configuration and fatals if it fails. Call this as the first
+// line of main() to preserve production startup behavior.
+func MustInit() {
+	loadConfigOnce()
+	if configErr != nil {
+		log.Fatalf("[Config] Failed to load configuration: %v", configErr)
 	}
+}
 
-	// Set global configuration instance
-	AppConfig = cfg
-
-	// Configure logger based on debug mode
-	if cfg.Debug {
-		log.SetLevel(log.DebugLevel)
-	} else {
-		log.SetLevel(log.InfoLevel)
-	}
-	log.SetReportCaller(cfg.Debug) // Only enable stack traces in debug mode
-
-	log.Info("[Config] Configuration loaded and validated successfully")
+// GetConfig returns the global Config, loading it on first call.
+// Returns nil if loading failed (check configErr via MustInit in production).
+func GetConfig() *Config {
+	loadConfigOnce()
+	return AppConfig
 }

@@ -37,6 +37,9 @@ var Locales embed.FS
 // It sets up monitoring, database connections, webhook/polling mode,
 // loads all modules, and handles graceful shutdown.
 func main() {
+	// Load config first — must be the very first statement.
+	config.MustInit()
+
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))

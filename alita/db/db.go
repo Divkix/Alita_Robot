@@ -657,6 +657,11 @@ var DB *gorm.DB
 
 // Initialize database connection and auto-migrate
 func init() {
+	if config.AppConfig == nil {
+		log.Debug("[Database] Skipping init: config not loaded (test environment)")
+		return
+	}
+
 	var err error
 
 	// Configure GORM logger
