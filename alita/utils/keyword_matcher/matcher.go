@@ -14,7 +14,7 @@ import (
 type KeywordMatcher struct {
 	matcher   *ahocorasick.Matcher
 	patterns  []string
-	mu        sync.RWMutex
+	mu        sync.Mutex
 	lastBuild time.Time
 }
 
@@ -59,8 +59,8 @@ func (km *KeywordMatcher) build() {
 
 // FindMatches returns all matches in the given text
 func (km *KeywordMatcher) FindMatches(text string) []MatchResult {
-	km.mu.RLock()
-	defer km.mu.RUnlock()
+	km.mu.Lock()
+	defer km.mu.Unlock()
 
 	if km.matcher == nil {
 		return nil
@@ -153,8 +153,8 @@ func (km *KeywordMatcher) findMatchesWithPositions(text []byte) []matchInfo {
 
 // HasMatch returns true if any pattern matches the text
 func (km *KeywordMatcher) HasMatch(text string) bool {
-	km.mu.RLock()
-	defer km.mu.RUnlock()
+	km.mu.Lock()
+	defer km.mu.Unlock()
 
 	if km.matcher == nil {
 		return false
@@ -167,8 +167,8 @@ func (km *KeywordMatcher) HasMatch(text string) bool {
 
 // GetPatterns returns a copy of the current patterns
 func (km *KeywordMatcher) GetPatterns() []string {
-	km.mu.RLock()
-	defer km.mu.RUnlock()
+	km.mu.Lock()
+	defer km.mu.Unlock()
 
 	patterns := make([]string, len(km.patterns))
 	copy(patterns, km.patterns)
