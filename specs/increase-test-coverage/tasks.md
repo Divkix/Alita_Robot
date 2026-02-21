@@ -2,688 +2,812 @@
 
 **Date:** 2026-02-21
 **Design Source:** design.md
-**Total Tasks:** 10
+**Total Tasks:** 18
 **Slicing Strategy:** vertical (each task = complete feature slice)
 
 ---
 
-## TASK-001: Add unit tests for string_handling package
+## TASK-001: Test error_handling package (3 pure functions)
 
 **Complexity:** S
 **Files:**
-- CREATE: `alita/utils/string_handling/string_handling_test.go`
+- CREATE: `alita/utils/error_handling/error_handling_test.go`
 **Dependencies:** None
 **Description:**
-Create a comprehensive test file for all 3 functions in the `string_handling` package. This is a Phase 1 task with zero infrastructure dependencies -- no env vars, no DB, no cache.
-
-Functions under test (all in `alita/utils/string_handling/string_handling.go`):
-
-1. `FindInStringSlice(slice []string, val string) bool` -- wraps `slices.Contains`
-2. `FindInInt64Slice(slice []int64, val int64) bool` -- wraps `slices.Contains`
-3. `IsDuplicateInStringSlice(arr []string) (string, bool)` -- map-based duplicate detection
-
-The test file MUST use `package string_handling` (internal), NOT `package string_handling_test`.
-
-Test cases for `TestFindInStringSlice`:
-- nil slice -> false
-- empty slice -> false
-- slice with value present -> true
-- slice with value absent -> false
-- empty string as search value in slice containing empty string -> true
-- empty string as search value in slice without empty string -> false
-
-Test cases for `TestFindInInt64Slice`:
-- nil slice -> false
-- empty slice -> false
-- slice with value present -> true
-- slice with value absent -> false
-- zero value (0) present -> true
-- zero value (0) absent -> false
-- negative value (e.g., -1001234567890 channel ID) -> true
-- `math.MaxInt64` boundary -> true when present
-- `math.MinInt64` boundary -> true when present
-
-Test cases for `TestIsDuplicateInStringSlice`:
-- nil slice -> ("", false) without panic
-- empty slice -> ("", false)
-- single element -> ("", false)
-- no duplicates ["a","b","c"] -> ("", false)
-- duplicate present ["a","b","a"] -> ("a", true)
-- all identical ["x","x","x"] -> ("x", true)
-- empty string duplicates ["",""] -> ("", true)
-
-Follow the exact pattern from `alita/utils/callbackcodec/callbackcodec_test.go`:
-- `t.Parallel()` at both top-level and subtest level
-- `tc := tc` loop variable capture
-- `t.Fatalf()` for assertions
-- Table-driven with named struct fields
-
-Import only `testing` and `math` from stdlib.
-
-**Context to Read:**
-- design.md, section "Component: string_handling Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/string_handling/string_handling.go` -- source under test
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference test pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 ./alita/utils/string_handling/... && make lint
-```
-
----
-
-## TASK-002: Add unit tests for errors package
-
-**Complexity:** M
-**Files:**
-- CREATE: `alita/utils/errors/errors_test.go`
-**Dependencies:** None
-**Description:**
-Create a comprehensive test file for the custom error wrapping package. This is a Phase 1 task with zero infrastructure dependencies.
-
-Functions under test (all in `alita/utils/errors/errors.go`):
-
-1. `Wrap(err error, message string) error` -- wraps error with runtime caller info (file/line/func)
-2. `Wrapf(err error, format string, args ...any) error` -- wraps with formatted message, delegates to `Wrap`
-3. `WrappedError.Error() string` -- formats as `"<message> at <file>:<line> in <func>: <err>"`
-4. `WrappedError.Unwrap() error` -- returns underlying error
-
-The test file MUST use `package errors` (internal) to access `WrappedError` struct fields directly.
-
-Import stdlib `errors` with an alias (e.g., `stderrors "errors"`) to avoid conflict with the package name. Also import `strings` and `testing`.
+Create a test file for the `error_handling` package covering all 3 functions: `HandleErr`, `RecoverFromPanic`, and `CaptureError`. This package has zero external dependencies beyond logrus -- it is trivially testable without any env vars or infrastructure.
 
 Test functions to implement:
+- `TestHandleErr` -- table-driven with subtests: nil error (no-op), non-nil error (logs, no panic), wrapped error
+- `TestRecoverFromPanic` -- subtests: recovers from panic in goroutine (use `done` channel to confirm goroutine started, then panic), no-op when no panic (just defer and return), empty funcName/modName strings
+- `TestCaptureError` -- table-driven: nil error (returns immediately), non-nil error with tags, nil tags map, empty tags map
+- `TestHandleErrConcurrent` -- spawn 50 goroutines calling `HandleErr` with `sync.WaitGroup`, verify no data races under `-race`
 
-`TestWrapNilError`: `Wrap(nil, "msg")` returns nil.
-
-`TestWrapNonNilError`: `Wrap(fmt.Errorf("base"), "operation failed")` returns a `*WrappedError` with:
-- `.Message == "operation failed"`
-- `.Err` equals the base error
-- `.File` is non-empty and contains at most 1 slash (path truncation: `strings.Count(we.File, "/") <= 1`)
-- `.Line > 0`
-- `.Function` is non-empty
-
-`TestWrapfNilError`: `Wrapf(nil, "op %s", "save")` returns nil.
-
-`TestWrapfFormatsMessage`: `Wrapf(err, "op %s id %d", "save", 42)` produces `.Message == "op save id 42"`.
-
-`TestWrappedErrorFormat`: `.Error()` output contains "at", the file, ":", the line number, "in", the function name, and the original error message.
-
-`TestUnwrapChain`: `stderrors.Is(Wrap(baseErr, "outer"), baseErr)` returns true. `stderrors.Unwrap(wrappedErr)` returns the underlying error.
-
-`TestDoubleWrap`: `Wrap(Wrap(baseErr, "inner"), "outer")` -- `stderrors.Is` still reaches `baseErr` through the chain.
-
-`TestWrapEmptyMessage`: `Wrap(err, "")` still produces a valid `WrappedError` with file/line populated.
-
-`TestFilePathTruncation`: The `.File` field contains at most 2 path segments. Verify with `strings.Count(we.File, "/") <= 1`.
+All tests must use `t.Parallel()` on both the top-level test and each subtest. Use table-driven pattern with `t.Run`. No external dependencies needed.
 
 **Context to Read:**
-- design.md, section "Component: errors Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/errors/errors.go` -- source under test (62 lines)
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
+- design.md, section "Component: error_handling tests" -- exact test function signatures and implementation sketch
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/error_handling/error_handling.go` -- the 3 functions to test (HandleErr, RecoverFromPanic, CaptureError)
+
 **Verification:**
 ```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 ./alita/utils/errors/... && make lint
+cd /Users/divkix/GitHub/Alita_Robot && go test -v -race ./alita/utils/error_handling/...
 ```
 
 ---
 
-## TASK-003: Add unit tests for keyword_matcher package
-
-**Complexity:** M
-**Files:**
-- CREATE: `alita/utils/keyword_matcher/matcher_test.go`
-**Dependencies:** None
-**Description:**
-Create a comprehensive test file for the Aho-Corasick keyword matcher. This is a Phase 1 task -- the package only depends on `cloudflare/ahocorasick` and `logrus` (both already in `go.mod`), no config dependency.
-
-Functions under test (all in `alita/utils/keyword_matcher/matcher.go`):
-
-1. `NewKeywordMatcher(patterns []string) *KeywordMatcher`
-2. `FindMatches(text string) []MatchResult` -- returns `[]MatchResult{Pattern, Start, End}`
-3. `HasMatch(text string) bool`
-4. `GetPatterns() []string` -- returns a defensive copy
-
-The test file MUST use `package keyword_matcher` (internal).
-
-Imports: `testing`, `sync` (for concurrent test).
-
-Test functions:
-
-`TestNewKeywordMatcher`: Constructs matchers with various pattern sets. Verify patterns are stored via `GetPatterns()`.
-
-`TestFindMatches` (table-driven):
-- patterns=["hello","world"], text="hello world" -> 2 results
-- patterns=["hello"], text="HELLO" -> 1 result (case-insensitive)
-- patterns=["ab"], text="ababab" -> 3 results with correct Start/End positions (0-2, 2-4, 4-6)
-- patterns=["hello"], text="" -> nil
-- patterns=[], text="anything" -> nil
-- patterns=["foo.bar"], text="foo.bar" -> 1 result (regex metacharacters matched literally)
-
-`TestHasMatch` (table-driven):
-- patterns=["hello"], text="say hello there" -> true
-- patterns=["hello"], text="goodbye" -> false
-- patterns=["hello"], text="" -> false
-- patterns=[], text="anything" -> false
-
-`TestGetPatterns`:
-- Create matcher with ["abc","def"], call `GetPatterns()`, verify returns ["abc","def"]
-- Mutate the returned slice, call `GetPatterns()` again, verify internal patterns unchanged (defensive copy)
-
-`TestFindMatchesPositions`:
-- patterns=["test"], text="test" -> Start=0, End=4
-- patterns=["ab"], text="xabx" -> Start=1, End=3
-
-`TestConcurrentAccess`:
-- Create matcher with ["hello","world"]
-- Launch 10 goroutines via `sync.WaitGroup`, each calling `FindMatches` and `HasMatch` 100 times
-- Race detector (`-race` flag) validates thread safety
-- No assertions on return values -- the test is purely for race detection
-
-`TestNewKeywordMatcherNilPatterns`: `NewKeywordMatcher(nil)` -> `HasMatch("anything")` returns false.
-
-`TestFindMatchesEmptyText`: `FindMatches("")` -> returns nil.
-
-`TestSpecialCharacterPatterns`: patterns with regex metacharacters `["foo.bar", "[test]", "(abc)"]` -> matched literally in text.
-
-**Context to Read:**
-- design.md, section "Component: keyword_matcher Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/keyword_matcher/matcher.go` -- source under test (177 lines)
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 ./alita/utils/keyword_matcher/... && make lint
-```
-
----
-
-## TASK-004: Fill coverage gaps in callbackcodec tests
+## TASK-002: Test shutdown package (Manager lifecycle)
 
 **Complexity:** S
 **Files:**
-- MODIFY: `alita/utils/callbackcodec/callbackcodec_test.go` -- append new test functions to existing file
+- CREATE: `alita/utils/shutdown/graceful_test.go`
 **Dependencies:** None
 **Description:**
-Append new test functions to the existing `callbackcodec_test.go` to increase coverage from 79.1% to >95%. This is a Phase 1 task.
+Create a test file for the `shutdown` package covering `NewManager`, `RegisterHandler`, and `executeHandler`. CRITICAL: Do NOT call `WaitForShutdown()` or `shutdown()` -- both call `os.Exit`.
 
-The existing file has 4 test functions: `TestEncodeDecodeRoundTrip`, `TestEncodeRejectsInvalidNamespace`, `TestEncodeRejectsOversizedPayload`, `TestDecodeRejectsMalformedPayloads`. Append AFTER these existing functions. Do NOT modify existing tests.
+Test functions to implement:
+- `TestNewManager` -- subtests: returned manager is non-nil, handlers slice is empty and non-nil (length 0, not nil)
+- `TestRegisterHandler` -- subtests: single handler registration (verify length=1), multiple sequential registrations (verify length=N), concurrent registration from 50 goroutines using `sync.WaitGroup` (verify all 50 registered, no data races)
+- `TestExecuteHandler` -- subtests: handler returns nil (verify executeHandler returns nil), handler returns error (verify executeHandler returns that error), handler panics (verify executeHandler recovers, does not propagate panic, returns nil since panic recovery does not set err)
 
-Functions needing additional coverage (in `alita/utils/callbackcodec/callbackcodec.go`):
-1. `EncodeOrFallback(namespace string, fields map[string]string, fallback string) string`
-2. `Decoded.Field(key string) (string, bool)` -- nil receiver path
-3. `Encode` with empty fields, nil fields, empty key
+For `executeHandler`, construct a `*Manager` via `NewManager()` and call the method directly: `m.executeHandler(handler, 0)`. The method takes a `func() error` and an `int` index.
+
+All tests must use `t.Parallel()`.
+
+**Context to Read:**
+- design.md, section "Component: shutdown tests"
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/shutdown/graceful.go` -- Manager struct, NewManager, RegisterHandler, executeHandler signatures
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && go test -v -race ./alita/utils/shutdown/...
+```
+
+---
+
+## TASK-003: Test decorators/misc package (command array helpers)
+
+**Complexity:** S
+**Files:**
+- CREATE: `alita/utils/decorators/misc/handler_vars_test.go`
+**Dependencies:** None
+**Description:**
+Create a test file for the `misc` package covering `addToArray` (unexported, accessible from same package test file) and `AddCmdToDisableable`.
+
+Test functions to implement:
+- `TestAddToArray` -- subtests: nil slice with one value (returns slice containing that value), existing slice with multiple values (all appended), empty variadic args (returns original slice unchanged), empty string value (appends empty string)
+- `TestAddCmdToDisableable` -- subtests: single command (verify DisableCmds contains it), duplicate command (appears twice -- append semantics not set), concurrent 50 goroutines each adding a unique command (all 50 present, no data races under `-race`)
+
+IMPORTANT: `DisableCmds` is a package-level `var`. Each test function must save/restore it via `t.Cleanup()` to avoid cross-test pollution:
+```go
+t.Cleanup(func() {
+    mu.Lock()
+    DisableCmds = make([]string, 0)
+    mu.Unlock()
+})
+```
+
+All tests must use `t.Parallel()` at the top-level function. Note: subtests that mutate `DisableCmds` should NOT be parallel with each other (shared global state).
+
+**Context to Read:**
+- design.md, section "Component: decorators/misc tests"
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/decorators/misc/handler_vars.go` -- addToArray, AddCmdToDisableable, DisableCmds, mu
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && go test -v -race ./alita/utils/decorators/misc/...
+```
+
+---
+
+## TASK-004: Test keyword_matcher cache (close 40% coverage gap)
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/utils/keyword_matcher/cache_test.go`
+**Dependencies:** None
+**Description:**
+Create a test file for the cache portion of `keyword_matcher` package covering `NewCache`, `GetOrCreateMatcher`, `CleanupExpired`, and `patternsEqual` (all unexported, accessible from same package). Do NOT test `GetGlobalCache` (it starts a background goroutine).
+
+Test functions to implement:
+- `TestNewCache` -- subtests: TTL is set correctly, matchers map is initialized and empty, lastUsed map is initialized and empty
+- `TestGetOrCreateMatcher` -- subtests: new chatID creates and returns matcher, same chatID with same patterns returns cached matcher (same pointer via `==`), same chatID with different patterns creates new matcher (different pointer), empty patterns slice (creates matcher with zero patterns, does not panic), concurrent access from 10 goroutines for same chatID (no data races)
+- `TestCleanupExpired` -- subtests: expired entries removed (create cache with 1ms TTL, add entry, sleep 5ms, call CleanupExpired, verify removed), unexpired entries kept (create cache with 1h TTL, add entry, call CleanupExpired, verify still present), empty cache (does not panic), zero TTL (all entries expire immediately)
+- `TestPatternsEqual` -- table-driven subtests: identical sets `["a","b"]` vs `["a","b"]` -> true, different order `["b","a"]` vs `["a","b"]` -> true (set comparison), different lengths `["a"]` vs `["a","b"]` -> false, nil/nil -> true (both length 0), different content `["a","b"]` vs `["a","c"]` -> false, duplicates `["a","a"]` vs `["a"]` -> false (different lengths)
+
+Use `time.Sleep` for TTL expiry tests. All tests must use `t.Parallel()`.
+
+**Context to Read:**
+- design.md, section "Component: keyword_matcher cache tests"
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/keyword_matcher/cache.go` -- Cache struct, NewCache, GetOrCreateMatcher, CleanupExpired, patternsEqual
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/keyword_matcher/matcher_test.go` -- existing test patterns for reference
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && go test -v -race ./alita/utils/keyword_matcher/...
+```
+
+---
+
+## TASK-005: Add TestMain to alita/db package for shared initialization
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/db/testmain_test.go`
+- MODIFY: `alita/db/captcha_db_test.go` -- remove `DB.AutoMigrate` calls on lines 13-15 and 81-83, add `skipIfNoDb(t)` at start of each test
+- MODIFY: `alita/db/locks_db_test.go` -- remove `DB.AutoMigrate` calls at the start of each test function (lines 10-12, 40-42, 78-80, 105-107), add `skipIfNoDb(t)` at start of each test
+- MODIFY: `alita/db/antiflood_db_test.go` -- remove `DB.AutoMigrate` calls at the start of each test function (lines 9-11, 42-44, 75-77), add `skipIfNoDb(t)` at start of each test
+**Dependencies:** None
+**Description:**
+Create `testmain_test.go` in `alita/db/` with a `TestMain(m *testing.M)` function and a `skipIfNoDb(t *testing.T)` helper. This is the foundational infrastructure for ALL DB tests.
+
+`TestMain` implementation:
+1. Check `DB == nil` -- if nil, print `"Skipping DB tests: PostgreSQL not available (DB == nil)"` to stdout and call `os.Exit(0)` to skip all tests gracefully
+2. Call `DB.AutoMigrate(...)` for ALL GORM models: `User`, `Chat`, `WarnSettings`, `Warns`, `GreetingSettings`, `ChatFilters`, `AdminSettings`, `BlacklistSettings`, `PinSettings`, `ReportChatSettings`, `ReportUserSettings`, `DevSettings`, `ChannelSettings`, `AntifloodSettings`, `ConnectionSettings`, `ConnectionChatSettings`, `DisableSettings`, `DisableChatSettings`, `RulesSettings`, `LockSettings`, `NotesSettings`, `Notes`, `CaptchaSettings`, `CaptchaAttempts`, `StoredMessages`, `CaptchaMutedUsers`
+3. If AutoMigrate returns error, print error and call `os.Exit(1)`
+4. Call `os.Exit(m.Run())`
+
+`skipIfNoDb` helper (defense-in-depth for individual test functions):
+```go
+func skipIfNoDb(t *testing.T) {
+    t.Helper()
+    if DB == nil {
+        t.Skip("requires PostgreSQL connection")
+    }
+}
+```
+
+Then MODIFY the 3 existing test files to remove their per-test `DB.AutoMigrate()` calls. In each file, replace the `AutoMigrate` block at the start of each test function with a call to `skipIfNoDb(t)`. For example, in `captcha_db_test.go`, replace:
+```go
+if err := DB.AutoMigrate(&CaptchaAttempts{}); err != nil {
+    t.Fatalf("failed to migrate captcha_attempts: %v", err)
+}
+```
+with:
+```go
+skipIfNoDb(t)
+```
+
+Do the same for all test functions in `locks_db_test.go` and `antiflood_db_test.go`.
+
+**Context to Read:**
+- design.md, sections "Component: DB TestMain", "TestMain Contract", "skipIfNoDb Contract"
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/db.go` -- GORM model type definitions (all struct types that need AutoMigrate)
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/captcha_db_test.go` -- existing test to modify
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/locks_db_test.go` -- existing test to modify
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/antiflood_db_test.go` -- existing test to modify
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -count=1 ./alita/db/...
+```
+
+---
+
+## TASK-006: Test DB cache key generators and migration SQL cleaning
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/db/cache_helpers_test.go`
+- CREATE: `alita/db/migrations_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create two test files for pure functions in the `db` package that do not require a live database connection. These test cache key formatting and SQL cleaning logic.
+
+**cache_helpers_test.go:**
+- `TestCacheKeyGenerators` -- table-driven test covering all 8 key generator functions. For each function, test with positive ID (12345), zero (0), and negative channel ID (-1001234567890). Verify:
+  1. Each key starts with `"alita:"` prefix
+  2. Each key matches expected format `"alita:{segment}:{id}"`
+  3. No two functions produce the same output for the same input (segment uniqueness)
+
+Functions to test: `chatSettingsCacheKey`, `userLanguageCacheKey`, `chatLanguageCacheKey`, `filterListCacheKey`, `blacklistCacheKey`, `warnSettingsCacheKey`, `disabledCommandsCacheKey`, `captchaSettingsCacheKey`
+
+Expected segments: `chat_settings`, `user_lang`, `chat_lang`, `filter_list`, `blacklist`, `warn_settings`, `disabled_cmds`, `captcha_settings`
+
+**migrations_test.go:**
+- `TestCleanSupabaseSQL` -- table-driven subtests: GRANT removal (`GRANT SELECT ON users TO anon;` -> removed), policy removal, `with schema "extensions"` removal, CREATE EXTENSION normalization (adds `IF NOT EXISTS`), Supabase-only extension removal (e.g., `CREATE EXTENSION hypopg;` -> commented out), empty SQL (returns empty), clean SQL passthrough (no Supabase syntax -> unchanged), idempotency transforms (CREATE TABLE -> CREATE TABLE IF NOT EXISTS)
+- `TestSplitSQLStatements` -- subtests: simple split on semicolons, dollar-quoted strings (semicolons inside `$$...$$` are not split), block comments (`/* ; */` not split), line comments (`-- ;` not split), quoted semicolons (inside single quotes), empty input
+- `TestSchemaMigrationTableName` -- verify `SchemaMigration{}.TableName()` returns `"schema_migrations"`
+
+For `cleanSupabaseSQL` and `splitSQLStatements`, construct a `MigrationRunner` with nil db: `runner := &MigrationRunner{db: nil, migrationsPath: "", cleanSQL: true}`. These methods do not use `m.db`.
+
+All tests must call `skipIfNoDb(t)` as the first line for consistency with other `db` package tests, even though these particular functions are pure. In practice, `TestMain` already gates the package when DB is unavailable.
+
+**Context to Read:**
+- design.md, sections "Component: DB cache key generator tests" and "Component: DB cleanSupabaseSQL and splitSQLStatements tests"
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/cache_helpers.go` -- 8 cache key generator functions
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/migrations.go` -- cleanSupabaseSQL, splitSQLStatements, SchemaMigration, MigrationRunner struct
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestCacheKey|TestCleanSupabase|TestSplitSQL|TestSchemaMigration" ./alita/db/...
+```
+
+---
+
+## TASK-007: Test DB CRUD -- greetings (15 functions, most complex module)
+
+**Complexity:** L
+**Files:**
+- CREATE: `alita/db/greetings_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for all greeting DB functions in `greetings_db.go`. This is the most complex DB module (380 LOC, 15 functions).
+
+Pattern for every test function:
+```go
+func TestXxx(t *testing.T) {
+    t.Parallel()
+    skipIfNoDb(t)
+    chatID := time.Now().UnixNano()
+    if err := EnsureChatInDb(chatID, "test_greetings"); err != nil {
+        t.Fatalf("EnsureChatInDb() error = %v", err)
+    }
+    t.Cleanup(func() {
+        DB.Where("chat_id = ?", chatID).Delete(&GreetingSettings{})
+        DB.Where("chat_id = ?", chatID).Delete(&Chat{})
+    })
+    // ... test body ...
+}
+```
+
+Test functions to implement:
+- `TestGetGreetingSettings_Defaults` -- verify default values: `ShouldWelcome=true`, `WelcomeText=DefaultWelcome`, `ShouldGoodbye=false`
+- `TestSetWelcomeToggle_ZeroValueBoolean` -- set true, verify, set false, verify false persisted (GORM zero-value gotcha)
+- `TestSetWelcomeText` -- set text/fileId/buttons/type, retrieve, verify all fields match
+- `TestSetGoodbyeText` -- same pattern as welcome text
+- `TestSetGoodbyeToggle_ZeroValueBoolean` -- same pattern as welcome toggle
+- `TestSetShouldCleanService` -- boolean round-trip
+- `TestSetShouldAutoApprove` -- boolean round-trip
+- `TestSetCleanWelcomeSetting` -- boolean round-trip
+- `TestSetCleanWelcomeMsgId` -- int64 round-trip
+- `TestSetCleanGoodbyeSetting` -- boolean round-trip
+- `TestSetCleanGoodbyeMsgId` -- int64 round-trip
+- `TestGetWelcomeButtons_Empty` -- returns empty slice, not nil
+- `TestGetGoodbyeButtons_Empty` -- returns empty slice, not nil
+- `TestLoadGreetingsStats_EmptyDB` -- returns zeros on fresh chat ID range
+- `TestGreetingSettings_ConcurrentWrites` -- 10 goroutines setting welcome/goodbye concurrently, no data corruption
+
+**Context to Read:**
+- design.md, section "Component: DB CRUD test files (16 new files)" and "DB Test Data Isolation Contract"
+- requirements.md, US-010
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/greetings_db.go` -- all 15 functions to test
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/captcha_db_test.go` -- existing DB test pattern for reference
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestGetGreeting|TestSetWelcome|TestSetGoodbye|TestSetShouldClean|TestSetShouldAutoApprove|TestSetCleanWelcome|TestSetCleanGoodbye|TestGetWelcomeButtons|TestGetGoodbyeButtons|TestLoadGreetingsStats|TestGreetingSettings" ./alita/db/...
+```
+
+---
+
+## TASK-008: Test DB CRUD -- warns (13 functions) and notes (11 functions)
+
+**Complexity:** L
+**Files:**
+- CREATE: `alita/db/warns_db_test.go`
+- CREATE: `alita/db/notes_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for warn and note DB functions. Both follow the same pattern as TASK-007.
+
+**warns_db_test.go** -- test all warn CRUD functions:
+- `TestCheckWarnSettings_Defaults` -- verify default `WarnLimit=3`, `WarnMode="mute"` for new chat
+- `TestWarnUser` -- warn a user, retrieve warns, verify count=1, reason matches
+- `TestWarnUserReachesLimit` -- warn user N times where N=WarnLimit, verify limit-reached signal
+- `TestRemoveWarn` -- add warn, remove it, verify count decremented
+- `TestResetWarns` -- add multiple warns, reset all, verify zero warns for user
+- `TestSetWarnLimit` -- set limit to 5, verify persisted
+- `TestSetWarnMode` -- set mode to "ban", verify persisted
+- `TestWarnWithEmptyReason` -- stores and retrieves empty string correctly
+- `TestResetWarns_NoWarns` -- reset on user with zero warns, no error
+- `TestConcurrentWarns` -- 10 goroutines warning same user simultaneously, verify correct final count
+- `TestLoadWarnStats` -- verify stats after creating test data
+
+**notes_db_test.go** -- test all note CRUD functions:
+- `TestGetNotesSettings_Defaults` -- verify default `Private=false` for new chat
+- `TestSaveNote` -- save note with name/text/buttons/type, retrieve by name, verify all fields
+- `TestGetAllNotes` -- save 3 notes, retrieve all, verify count=3
+- `TestRemoveNote` -- add note, delete by name, verify not found
+- `TestToggleNotesPrivate` -- toggle private mode, verify round-trip
+- `TestNoteUpsertBehavior` -- save same note name twice, verify updated not duplicated
+- `TestGetAllNotes_EmptyChat` -- returns empty slice not nil
+- `TestRemoveNonExistentNote` -- no error, no-op
+- `TestLoadNotesStats` -- verify stats after creating test data
+
+Each test uses `time.Now().UnixNano()` for unique IDs, `EnsureChatInDb()` for setup, and `t.Cleanup()` for teardown.
+
+**Context to Read:**
+- design.md, "DB Test Data Isolation Contract"
+- requirements.md, US-011, US-012
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/warns_db.go` -- all warn functions
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/notes_db.go` -- all note functions
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestCheckWarnSettings|TestWarnUser|TestRemoveWarn|TestResetWarns|TestSetWarnLimit|TestSetWarnMode|TestConcurrentWarns|TestLoadWarnStats|TestGetNotesSettings|TestSaveNote|TestGetAllNotes|TestRemoveNote|TestToggleNotes|TestNoteUpsert|TestRemoveNonExistent|TestLoadNotesStats" ./alita/db/...
+```
+
+---
+
+## TASK-009: Test DB CRUD -- filters (7 functions) and blacklists (6 functions)
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/db/filters_db_test.go`
+- CREATE: `alita/db/blacklists_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for filter and blacklist DB functions.
+
+**filters_db_test.go:**
+- `TestSaveFilter` -- save filter with keyword/reply text/type, retrieve by keyword, verify
+- `TestGetAllFilters` -- save 3 filters, retrieve all, verify count
+- `TestRemoveFilter` -- add filter, delete by keyword, verify removed
+- `TestFilterExists` -- add filter, verify `FilterExists` returns true; verify false for nonexistent
+- `TestGetAllFilters_EmptyChat` -- returns empty slice not nil
+- `TestConcurrentFilterCreation` -- concurrent creation for same chat/keyword, no corruption
+- `TestFilterSpecialCharacterKeyword` -- keyword with regex metacharacters `.*+?` stores correctly
+- `TestLoadFiltersStats` -- verify stats
+
+**blacklists_db_test.go:**
+- `TestAddBlacklistTrigger` -- add trigger, retrieve, verify
+- `TestRemoveBlacklistTrigger` -- add then remove, verify removed
+- `TestGetBlacklistSettings` -- verify default settings for new chat
+- `TestSetBlacklistAction` -- set action mode, verify persisted
+- `TestGetAllBlacklists` -- add multiple triggers, retrieve all, verify count
+- `TestLoadBlacklistStats` -- verify stats
+
+Each test follows the standard pattern: `skipIfNoDb`, unique IDs, `EnsureChatInDb`, `t.Cleanup`.
+
+**Context to Read:**
+- requirements.md, US-013, US-014 (blacklists section)
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/filters_db.go` -- all filter functions
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/blacklists_db.go` -- all blacklist functions
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestSaveFilter|TestGetAllFilters|TestRemoveFilter|TestFilterExists|TestConcurrentFilter|TestFilterSpecialChar|TestLoadFiltersStats|TestAddBlacklist|TestRemoveBlacklist|TestGetBlacklist|TestSetBlacklist|TestGetAllBlacklists|TestLoadBlacklistStats" ./alita/db/...
+```
+
+---
+
+## TASK-010: Test DB CRUD -- chats, users, channels, devs (4 core entity files)
+
+**Complexity:** L
+**Files:**
+- CREATE: `alita/db/chats_db_test.go`
+- CREATE: `alita/db/user_db_test.go`
+- CREATE: `alita/db/channels_db_test.go`
+- CREATE: `alita/db/devs_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for the 4 core entity DB files. These are foundational entities used by many other modules.
+
+**chats_db_test.go** (6+ functions):
+- `TestEnsureChatInDb` -- create chat, verify exists
+- `TestUpdateChat` -- update chat title, verify
+- `TestGetAllChats` -- create 2 chats, verify both returned
+- `TestChatExists` -- verify true for existing, false for nonexistent
+- `TestLoadChatStats` -- verify stats
+
+**user_db_test.go** (8 functions):
+- `TestEnsureUserInDb` -- create user, verify exists
+- `TestUpdateUser` -- update username, verify
+- `TestGetUserIdByUserName` -- create user with username, look up by username
+- `TestGetUserIdByUserName_NotFound` -- returns 0 for nonexistent username
+- `TestGetUserInfoById` -- verify returns username, name, found=true
+- `TestGetUserInfoById_NotFound` -- returns empty strings, found=false
+- `TestLoadUserStats` -- verify stats
+- `TestConcurrentUserCreation` -- concurrent EnsureUserInDb for same ID
+
+**channels_db_test.go** (6 functions):
+- `TestEnsureChannelInDb` -- create channel, verify
+- `TestGetChannelIdByUserName` -- create channel with username, look up
+- `TestGetChannelIdByUserName_NotFound` -- returns 0
+- `TestGetChannelInfoById` -- verify returns username, name, found
+- `TestGetChannelInfoById_NotFound` -- returns empty, found=false
+- `TestUpdateChannel` -- update channel info, verify
+
+**devs_db_test.go** (7 functions):
+- `TestAddDev` -- add dev user, verify with GetDevSettings
+- `TestRemoveDev` -- add then remove, verify removed
+- `TestAddSudo` -- add sudo user, verify
+- `TestRemoveSudo` -- add then remove sudo, verify
+- `TestGetDevSettings` -- verify default settings
+- `TestDevDualBooleanFields` -- verify both `Dev`/`IsDev` and `Sudo`/`IsSudo` fields are set consistently
+- `TestLoadDevStats` -- verify stats
+
+**Context to Read:**
+- requirements.md, US-014
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/chats_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/user_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/channels_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/devs_db.go`
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestEnsureChat|TestUpdateChat|TestGetAllChats|TestChatExists|TestLoadChatStats|TestEnsureUser|TestUpdateUser|TestGetUserId|TestGetUserInfo|TestLoadUserStats|TestConcurrentUser|TestEnsureChannel|TestGetChannelId|TestGetChannelInfo|TestUpdateChannel|TestAddDev|TestRemoveDev|TestAddSudo|TestRemoveSudo|TestGetDevSettings|TestDevDualBoolean|TestLoadDevStats" ./alita/db/...
+```
+
+---
+
+## TASK-011: Test DB CRUD -- connections, disable, admin (3 settings files)
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/db/connections_db_test.go`
+- CREATE: `alita/db/disable_db_test.go`
+- CREATE: `alita/db/admin_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for connections, disable, and admin DB files.
+
+**connections_db_test.go** (8 functions):
+- `TestConnectChat` -- connect user to chat, verify connection exists
+- `TestDisconnectChat` -- connect then disconnect, verify removed
+- `TestGetConnection` -- verify retrieval of active connection
+- `TestReconnect` -- disconnect then reconnect, verify works
+- `TestSetAllowConnect` -- toggle allow_connect boolean, verify round-trip (including false)
+- `TestGetConnectedChats` -- connect user to 2 chats, verify both returned
+- `TestLoadConnectionStats` -- verify stats
+- `TestConcurrentConnect` -- 5 goroutines connecting same user/chat, no corruption
+
+**disable_db_test.go** (9 functions):
+- `TestDisableCommand` -- disable a command for chat, verify disabled
+- `TestEnableCommand` -- disable then enable, verify enabled
+- `TestIsCommandDisabled` -- verify returns true/false correctly
+- `TestGetDisabledCommands` -- disable 3 commands, verify all returned
+- `TestToggleDeleteEnabled_ZeroValueBoolean` -- set del_enabled true then false, verify round-trip
+- `TestDisableNonExistentCommand` -- disable a command that was never enabled, verify creates record
+- `TestLoadDisableStats` -- verify stats
+- `TestGetDisableSettings_Defaults` -- verify defaults for new chat
+- `TestConcurrentDisableEnable` -- concurrent disable/enable, no corruption
+
+**admin_db_test.go** (3 functions):
+- `TestGetAdminSettings_Defaults` -- verify default admin settings for new chat
+- `TestSetAnonAdmin` -- toggle anon admin setting, verify round-trip including false
+- `TestLoadAdminStats` -- verify stats (if exists)
+
+**Context to Read:**
+- requirements.md, US-014
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/connections_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/disable_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/admin_db.go`
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestConnectChat|TestDisconnectChat|TestGetConnection|TestReconnect|TestSetAllowConnect|TestGetConnectedChats|TestLoadConnectionStats|TestConcurrentConnect|TestDisableCommand|TestEnableCommand|TestIsCommandDisabled|TestGetDisabledCommands|TestToggleDeleteEnabled|TestDisableNonExistent|TestLoadDisableStats|TestGetDisableSettings|TestConcurrentDisableEnable|TestGetAdminSettings|TestSetAnonAdmin|TestLoadAdminStats" ./alita/db/...
+```
+
+---
+
+## TASK-012: Test DB CRUD -- lang, pin, reports, rules (4 small files)
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/db/lang_db_test.go`
+- CREATE: `alita/db/pin_db_test.go`
+- CREATE: `alita/db/reports_db_test.go`
+- CREATE: `alita/db/rules_db_test.go`
+**Dependencies:** TASK-005
+**Description:**
+Create integration tests for the 4 remaining smaller DB files.
+
+**lang_db_test.go** (5 functions):
+- `TestGetLanguage_DefaultsToEn` -- new chat/user returns "en"
+- `TestSetChatLanguage` -- set to "es", verify
+- `TestSetUserLanguage` -- set to "fr", verify
+- `TestGetChatLanguage` -- set and retrieve
+- `TestGetUserLanguage` -- set and retrieve
+
+**pin_db_test.go** (4 functions):
+- `TestGetPinSettings_Defaults` -- verify defaults for new chat
+- `TestSetCleanLinkedChannel` -- boolean round-trip
+- `TestSetAntiChannelPin` -- boolean round-trip
+- `TestConcurrentPinSettings` -- concurrent writes, no corruption
+
+**reports_db_test.go** (7 functions):
+- `TestGetChatReportSettings_Defaults` -- verify defaults
+- `TestSetChatReportEnabled` -- boolean round-trip
+- `TestGetUserReportSettings_Defaults` -- verify defaults
+- `TestSetUserReportEnabled` -- boolean round-trip
+- `TestGetBlockedReportsList` -- verify empty list for new user
+- `TestAddBlockedReport` -- add blocked user, verify in list
+- `TestRemoveBlockedReport` -- add then remove, verify removed
+
+**rules_db_test.go** (6 functions):
+- `TestGetRules_Defaults` -- verify empty/default rules for new chat
+- `TestSetRules` -- set rules text, verify
+- `TestClearRules` -- set then clear, verify empty
+- `TestTogglePrivateRules_ZeroValueBoolean` -- boolean round-trip
+- `TestGetRulesSettings_Defaults` -- verify default settings
+- `TestLoadRulesStats` -- verify stats
+
+**Context to Read:**
+- requirements.md, US-014
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/lang_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/pin_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/reports_db.go`
+- `/Users/divkix/GitHub/Alita_Robot/alita/db/rules_db.go`
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestGetLanguage|TestSetChatLanguage|TestSetUserLanguage|TestGetChatLanguage|TestGetUserLanguage|TestGetPinSettings|TestSetCleanLinked|TestSetAntiChannel|TestConcurrentPin|TestGetChatReport|TestSetChatReport|TestGetUserReport|TestSetUserReport|TestGetBlockedReports|TestAddBlockedReport|TestRemoveBlockedReport|TestGetRules|TestSetRules|TestClearRules|TestTogglePrivate|TestGetRulesSettings|TestLoadRulesStats" ./alita/db/...
+```
+
+---
+
+## TASK-013: Test extraction package pure functions (ExtractQuotes, IdFromReply)
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/utils/extraction/extraction_test.go`
+**Dependencies:** None
+**Description:**
+Create tests for the pure functions in the `extraction` package: `ExtractQuotes` and `IdFromReply`. These functions do not call the Telegram API. The package imports `db`, `i18n`, `chat_status` transitively, so it requires CI env vars to compile, but the functions themselves are pure once the package loads.
+
+**TestExtractQuotes** -- table-driven with at least 8 subtests:
+- Quoted text: `"\"hello world\" remaining"` with matchQuotes=true, matchWord=false -> inQuotes="hello world", afterWord="remaining"
+- Word extraction: `"firstword rest of text"` with matchQuotes=false, matchWord=true -> inQuotes="firstword", afterWord="rest of text"
+- Empty string: `""` with both flags true -> returns empty strings
+- Unmatched opening quote: `"\"hello"` with matchQuotes=true -> returns empty strings (regex does not match closing quote)
+- Both flags false: `"anything"` -> returns empty strings
+- Special characters in quotes: `"\"hello & <world>\" rest"` with matchQuotes=true -> preserves special characters
+- Multiline in quotes: `"\"hello\nworld\" rest"` with matchQuotes=true -> regex uses `(?s)` flag, matches across lines
+- Word with special chars: `"hello-world_123 rest"` with matchWord=true -> inQuotes="hello-world_123", afterWord="rest"
+
+**TestIdFromReply** -- subtests constructing `gotgbot.Message` structs directly:
+- Nil ReplyToMessage: `&gotgbot.Message{ReplyToMessage: nil}` -> returns (0, "")
+- Valid reply with text: `&gotgbot.Message{Text: "/cmd reason text", ReplyToMessage: &gotgbot.Message{From: &gotgbot.User{Id: 42}}}` -> returns (42, "reason text")
+- Reply with no spaces in text: `&gotgbot.Message{Text: "/cmd", ReplyToMessage: &gotgbot.Message{From: &gotgbot.User{Id: 42}}}` -> returns (42, "")
+- Reply from channel (SenderChat): construct message where `GetSender()` returns the channel ID
+
+Note: `IdFromReply` calls `prevMessage.GetSender().Id()` which requires `From` field to be non-nil. Set `From: &gotgbot.User{Id: X}` in test structs.
+
+All tests use `t.Parallel()`.
+
+**Context to Read:**
+- design.md, section "Component: extraction pure function tests"
+- requirements.md, US-006
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/extraction/extraction.go` -- ExtractQuotes and IdFromReply function signatures and implementation
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestExtractQuotes|TestIdFromReply" ./alita/utils/extraction/...
+```
+
+---
+
+## TASK-014: Test modules callback codec wrappers and expand helpers tests
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/modules/callback_codec_test.go`
+- MODIFY: `alita/utils/helpers/helpers_test.go` -- append new test functions (no existing code modified)
+**Dependencies:** None
+**Description:**
+Two independent test additions for CI-dependent packages.
+
+**callback_codec_test.go** (new file in `alita/modules/`):
+Test `encodeCallbackData` and `decodeCallbackData` -- both unexported, accessible from same package test file.
+
+- `TestEncodeCallbackData` -- subtests: valid encode (namespace="test", fields={"a":"1"}, fallback="fb" -> returns encoded string), encode error with fallback (empty namespace causes error -> returns fallback), nil fields map (verify no panic), empty fallback on error (returns "")
+- `TestDecodeCallbackData` -- subtests: valid decode with no expected namespaces (returns decoded, true), valid decode with matching namespace (returns decoded, true), namespace mismatch (returns nil, false), case-insensitive match ("TEST" matches "test" via `strings.EqualFold`), invalid/malformed data (returns nil, false), empty string data (returns nil, false)
+
+**helpers_test.go** (append new test functions -- do NOT modify existing 28 tests):
+- `TestShtml` -- call `Shtml("test")`, verify it returns `*gotgbot.SendMessageOpts` with `ParseMode: "HTML"`
+- `TestSmarkdown` -- call `Smarkdown("test")`, verify ParseMode is "Markdown"
+- `TestGetMessageLinkFromMessageId` -- subtests: supergroup ID `-1001234567890` with messageID 42 -> correct `https://t.me/c/1234567890/42` URL, private chat positive ID -> correct URL format, messageID 0 -> valid URL
+- `TestGetLangFormat` -- subtests: "en" returns English display, "es"/"fr"/"hi" return respective displays, unknown code returns fallback
+- `TestExtractJoinLeftStatusChange` -- construct `gotgbot.ChatMemberUpdated` structs: join event (old=left, new=member -> identified as join), left event (old=member, new=left -> identified as left), nil update -> zero-value return
+- `TestExtractAdminUpdateStatusChange` -- construct `gotgbot.ChatMemberUpdated` structs: promotion (old=member, new=admin), demotion (old=admin, new=member)
+
+All tests use `t.Parallel()` and construct `gotgbot` structs directly (no API calls).
+
+**Context to Read:**
+- design.md, sections "Component: modules callback codec tests" and "Component: helpers expanded tests"
+- requirements.md, US-007, US-019
+- `/Users/divkix/GitHub/Alita_Robot/alita/modules/callback_codec.go` -- encodeCallbackData, decodeCallbackData
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/helpers/helpers.go` -- Shtml, Smarkdown, GetMessageLinkFromMessageId, GetLangFormat, ExtractJoinLeftStatusChange, ExtractAdminUpdateStatusChange
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/helpers/helpers_test.go` -- existing test patterns (DO NOT break existing tests)
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestEncodeCallbackData|TestDecodeCallbackData" ./alita/modules/... && go test -v -race -run "TestShtml|TestSmarkdown|TestGetMessageLink|TestGetLangFormat|TestExtractJoinLeft|TestExtractAdminUpdate" ./alita/utils/helpers/...
+```
+
+---
+
+## TASK-015: Expand i18n package tests
+
+**Complexity:** M
+**Files:**
+- MODIFY: `alita/i18n/i18n_test.go` -- append new test functions (no existing code modified)
+**Dependencies:** None
+**Description:**
+Add new test functions to the existing `i18n_test.go` file. The existing 10 tests must continue to pass unchanged.
 
 New test functions to append:
+- `TestTranslatorGet` -- subtests: existing key returns translated string (use a known key from `locales/en.yml`), nonexistent key returns fallback/error indicator, key with params substitutes named parameters correctly, nil params map does not panic
+- `TestTranslatorGetPlural` -- subtests: count=0 selects "other" form, count=1 selects "one" form, count=2+ selects "other" form
+- `TestLocaleManagerGetTranslator` -- subtests: "en" returns English translator (non-nil), nonexistent locale returns default/fallback translator or error
+- `TestLocaleManagerGetAvailableLocales` -- verify at least `["en", "es", "fr", "hi"]` are available
 
-`TestEncodeOrFallbackSuccess`: Valid encode returns encoded data (not the fallback).
+To get a `Translator` instance, use the `i18n.MustNewTranslator("en")` or `i18n.NewTranslator("en")` function. To get the `LocaleManager`, use `i18n.GetLocaleManager()` or the singleton.
 
-`TestEncodeOrFallbackInvalidNamespace`: Empty namespace -> returns fallback string "fallback_data".
+Read the `i18n_test.go` to understand the existing patterns and the `i18n.go`/`translator.go` files to understand the API surface. Use actual translation keys from `locales/en.yml` for testing.
 
-`TestEncodeOrFallbackOversized`: Oversized payload -> returns fallback.
-
-`TestEncodeOrFallbackEmptyFallback`: Failure with fallback="" -> returns "".
-
-`TestFieldNilReceiver`: `(*Decoded)(nil).Field("x")` -> ("", false), no panic.
-
-`TestFieldExistingKey`: Decoded with Fields={"a":"yes"} -> `.Field("a")` returns ("yes", true).
-
-`TestFieldMissingKey`: Decoded with Fields={"a":"yes"} -> `.Field("missing")` returns ("", false).
-
-`TestEncodeEmptyFields`: `Encode("ns", map[string]string{})` -> succeeds, decoded payload has empty Fields map.
-
-`TestEncodeNilFields`: `Encode("ns", nil)` -> succeeds, payload uses "_" placeholder.
-
-`TestEncodeSkipsEmptyKey`: `Encode("ns", map[string]string{"": "val"})` -> empty key skipped, payload is "_".
-
-`TestDecodeUnderscorePayload`: `Decode("ns|v1|_")` -> Decoded with empty Fields map.
-
-`TestRoundTripURLSpecialChars`: Encode with field values containing `&`, `=`, `%25` -> Decode preserves values exactly.
-
-All new tests follow existing style: `t.Parallel()`, `t.Fatalf()`. No new imports needed beyond what already exists (`errors`, `strings`, `testing`).
+All tests use `t.Parallel()`.
 
 **Context to Read:**
-- design.md, section "Component: callbackcodec Gap-Fill Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec.go` -- source under test
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- existing tests to append to
+- design.md, section "Component: i18n expanded tests"
+- requirements.md, US-018
+- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/i18n_test.go` -- existing tests to understand patterns
+- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/i18n.go` -- LocaleManager API
+- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/translator.go` -- Translator.Get, Translator.GetPlural
+- `/Users/divkix/GitHub/Alita_Robot/locales/en.yml` -- available translation keys
+
 **Verification:**
 ```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 -coverprofile=codec.out ./alita/utils/callbackcodec/... && go tool cover -func=codec.out | grep total && make lint
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race ./alita/i18n/...
 ```
 
 ---
 
-## TASK-005: Add unit tests for config/types typeConvertor
+## TASK-016: Test monitoring auto_remediation and background_stats pure functions
+
+**Complexity:** M
+**Files:**
+- CREATE: `alita/utils/monitoring/auto_remediation_test.go`
+- CREATE: `alita/utils/monitoring/background_stats_test.go`
+**Dependencies:** None
+**Description:**
+Create tests for testable portions of the monitoring package. The package imports `config` and `db`, so it requires CI env vars.
+
+**auto_remediation_test.go:**
+Test `CanExecute`, `Name`, and `Severity` for all 4 action types. Do NOT call `Execute()` (triggers actual GC/runtime operations). Do NOT call `NewAutoRemediationManager()` (reads `config.AppConfig`). Instead, construct action structs directly.
+
+- `TestGCActionCanExecute` -- subtests: metrics with `MemoryAllocMB` above 60% of `config.AppConfig.ResourceMaxMemoryMB` -> true, metrics below threshold AND GCPauseMs<50 -> false, metrics with GCPauseMs>50 but low memory -> true (OR condition), zero-value SystemMetrics -> false
+- `TestMemoryCleanupActionCanExecute` -- subtests: `MemoryAllocMB` above `config.AppConfig.ResourceGCThresholdMB` -> true, below -> false
+- `TestLogWarningActionCanExecute` -- subtests: goroutines above 80% of `config.AppConfig.ResourceMaxGoroutines` -> true, memory above 50% of max -> true, both below -> false
+- `TestRestartRecommendationActionCanExecute` -- subtests: goroutines above 150% of max -> true, memory above 160% of max -> true, both below -> false
+- `TestActionNames` -- verify `GCAction{}.Name()` = "garbage_collection", `MemoryCleanupAction{}.Name()` = "memory_cleanup", `LogWarningAction{}.Name()` = "log_warning", `RestartRecommendationAction{}.Name()` = "restart_recommendation"
+- `TestActionSeverityOrdering` -- verify LogWarning(0) < GC(1) < MemoryCleanup(2) < RestartRecommendation(10)
+
+**background_stats_test.go:**
+Test atomic counter methods and `GetCurrentMetrics`. Do NOT call `Start()` or `Stop()` (start background goroutines).
+
+- `TestNewBackgroundStatsCollector` -- verify intervals: systemStatsInterval=30s, databaseStatsInterval=1m, reportingInterval=5m; counters are zero
+- `TestRecordMessage` -- call RecordMessage() N=100 times, verify messageCounter >= 100 via atomic read
+- `TestRecordError` -- call RecordError() N=100 times, verify errorCounter >= 100
+- `TestRecordResponseTime` -- call RecordResponseTime(10ms) 5 times, verify responseTimeSum and responseTimeCount
+- `TestGetCurrentMetrics` -- initially returns zero-value SystemMetrics
+- `TestConcurrentRecordMessage` -- 50 goroutines each calling RecordMessage() 100 times, verify total >= 5000 under `-race`
+- `TestRecordResponseTimeZero` -- RecordResponseTime(0) does not cause issues
+
+All tests use `t.Parallel()`.
+
+**Context to Read:**
+- design.md, sections "Component: monitoring auto_remediation tests" and "Component: monitoring background_stats tests"
+- requirements.md, US-016, US-017
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/monitoring/auto_remediation.go` -- all 4 action types, RemediationAction interface, SystemMetrics usage
+- `/Users/divkix/GitHub/Alita_Robot/alita/utils/monitoring/background_stats.go` -- BackgroundStatsCollector struct, counter methods, GetCurrentMetrics
+
+**Verification:**
+```bash
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -run "TestGCAction|TestMemoryCleanupAction|TestLogWarningAction|TestRestartRecommendation|TestActionNames|TestActionSeverity|TestNewBackgroundStats|TestRecordMessage|TestRecordError|TestRecordResponseTime|TestGetCurrentMetrics|TestConcurrentRecord" ./alita/utils/monitoring/...
+```
+
+---
+
+## TASK-017: Add CI coverage threshold enforcement
 
 **Complexity:** S
 **Files:**
-- CREATE: `alita/config/types_test.go`
+- MODIFY: `.github/workflows/ci.yml` -- add coverage threshold check step after "Run test suite" step
 **Dependencies:** None
 **Description:**
-Create tests for the 5 `typeConvertor` methods. This is a Phase 2 task -- the `config` package has an `init()` that calls `log.Fatalf` when env vars are missing. Tests WILL pass in CI (which sets dummy env vars) but NOT locally without env vars.
+Add a CI step that parses `coverage.out` and fails the build if total coverage drops below 40%.
 
-The test file MUST use `package config` (internal) because `typeConvertor` is unexported.
+Insert a new step after the "Run test suite" step and before the "Upload coverage reports" step in the `test` job:
 
-Functions under test (all in `alita/config/types.go`):
+```yaml
+      - name: Check coverage threshold
+        if: success()
+        run: |
+          if [ ! -f coverage.out ]; then
+            echo "ERROR: coverage.out not found"
+            exit 1
+          fi
 
-1. `typeConvertor.Bool() bool` -- returns true for "yes"/"true"/"1" (case-insensitive, trimmed), false otherwise
-2. `typeConvertor.Int() int` -- `strconv.Atoi`, returns 0 on failure
-3. `typeConvertor.Int64() int64` -- `strconv.ParseInt(s, 10, 64)`, returns 0 on failure
-4. `typeConvertor.Float64() float64` -- `strconv.ParseFloat(s, 64)`, returns 0.0 on failure
-5. `typeConvertor.StringArray() []string` -- `strings.Split(s, ",")` with `TrimSpace` on each element
+          THRESHOLD=40
+          COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
 
-Imports: `testing`, `math` (for boundary values), `reflect` (for slice comparison).
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Minimum Threshold:** ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-`TestTypeConvertorBool` (table-driven):
-- "true" -> true, "yes" -> true, "1" -> true
-- "TRUE" -> true, "YES" -> true, " true " -> true (whitespace trimmed)
-- "false" -> false, "no" -> false, "0" -> false
-- "" -> false, "2" -> false, "random" -> false
+          # Use awk for float comparison (bc may not be available)
+          BELOW=$(awk "BEGIN {print ($COVERAGE < $THRESHOLD) ? 1 : 0}")
+          if [ "$BELOW" -eq 1 ]; then
+            echo "FAIL: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          else
+            echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          fi
+```
 
-`TestTypeConvertorInt` (table-driven):
-- "42" -> 42, "-100" -> -100, "0" -> 0
-- "" -> 0, "not_a_number" -> 0
-- "9999999999999999999" (overflow) -> 0
-
-`TestTypeConvertorInt64` (table-driven):
-- "42" -> 42, "-100" -> -100, "0" -> 0
-- "9223372036854775807" (math.MaxInt64) -> math.MaxInt64
-- "" -> 0, "invalid" -> 0
-- " 42 " (whitespace) -> 0 (ParseInt does NOT trim)
-
-`TestTypeConvertorFloat64` (table-driven):
-- "3.14" -> 3.14, "0" -> 0.0, "-1.5" -> -1.5
-- "" -> 0.0, "invalid" -> 0.0
-- "NaN" -> use `math.IsNaN()` to check
-- "Inf" -> use `math.IsInf(val, 1)` to check
-
-`TestTypeConvertorStringArray` (table-driven):
-- "a,b,c" -> ["a","b","c"]
-- " a , b , c " -> ["a","b","c"] (trimmed)
-- "single" -> ["single"]
-- "" -> [""] (strings.Split behavior: one empty element)
-- ",," -> ["","",""] (consecutive commas)
-
-Use `reflect.DeepEqual` for slice assertions.
+The step must:
+1. Check `coverage.out` exists (fail with clear message if missing)
+2. Parse total coverage from `go tool cover -func` output
+3. Compare against 40% threshold using `awk` (avoids `bc` dependency)
+4. Write results to `$GITHUB_STEP_SUMMARY` for PR visibility
+5. Exit 1 if below threshold, exit 0 if at or above
+6. Use `if: success()` condition so it only runs if tests passed
 
 **Context to Read:**
-- design.md, section "Component: config/types Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/config/types.go` -- source under test (51 lines)
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
+- design.md, section "Component: CI coverage threshold" and the YAML snippet
+- requirements.md, US-021
+- `/Users/divkix/GitHub/Alita_Robot/.github/workflows/ci.yml` -- current CI configuration, specifically the `test` job steps
+
 **Verification:**
 ```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" REDIS_ADDRESS=localhost:6379 go test -v -race -count=1 ./alita/config/... && make lint
+cd /Users/divkix/GitHub/Alita_Robot && grep -A 20 "Check coverage threshold" .github/workflows/ci.yml
 ```
 
 ---
 
-## TASK-006: Add unit tests for helpers package pure functions
-
-**Complexity:** L
-**Files:**
-- CREATE: `alita/utils/helpers/helpers_test.go`
-**Dependencies:** None
-**Description:**
-Create tests for 13 pure helper functions spread across 3 source files in the helpers package. This is a Phase 2 task (requires dummy env vars because helpers imports config, db, i18n transitively).
-
-The test file MUST use `package helpers` (internal) because `notesParser` is unexported.
-
-Imports: `testing`, `strings`, `errors` (stdlib), `fmt`, `reflect`, `github.com/PaulSonOfLars/gotgbot/v2`, `github.com/PaulSonOfLars/gotg_md2html`, `github.com/divkix/Alita_Robot/alita/db`.
-
-Test functions to implement:
-
-**TestIsChannelID** (table-driven, source: `channel_helpers.go`):
-- -1001234567890 -> true
-- -1000000000001 -> true (boundary: first channel ID)
-- -1000000000000 -> false (boundary: strictly less than)
-- -123456789 -> false (regular group)
-- 123456789 -> false (user)
-- 0 -> false
-
-**TestSplitMessage** (table-driven, source: `helpers.go`):
-- String of 4096 runes -> single-element slice
-- String of 4097 runes -> multi-element slice with each <= 4096 runes
-- Empty string -> `[""]`
-- Multi-byte UTF-8 (4096 emoji chars, each 4 bytes) -> single element (split by rune count, not bytes)
-- Long single line (>4096 runes, no newlines) -> split into 4096-rune chunks
-- String with newlines that fit -> preserves newline-based structure
-
-**TestMentionHtml** (table-driven):
-- userId=123, name="Test" -> `<a href="tg://user?id=123">Test</a>`
-- name with HTML special chars "<script>" -> chars escaped via `html.EscapeString`
-
-**TestMentionUrl** (table-driven):
-- url="https://example.com", name="Link" -> `<a href="https://example.com">Link</a>`
-- name with `&` -> escaped
-
-**TestHtmlEscape** (table-driven):
-- "&<>" -> "&amp;&lt;&gt;" (& escaped first to prevent double-escaping)
-- "" -> ""
-- "no special chars" -> "no special chars"
-- Already escaped "&amp;" -> "&amp;amp;" (no double-escape prevention -- the function does NOT check for existing escapes)
-
-**TestGetFullName** (table-driven):
-- "John", "Doe" -> "John Doe"
-- "John", "" -> "John"
-- "", "" -> ""
-
-**TestBuildKeyboard** (table-driven):
-- empty slice -> empty 2D slice
-- single button SameLine=false -> [[button]]
-- two buttons, second SameLine=true -> [[button1, button2]]
-- two buttons, both SameLine=false -> [[button1], [button2]]
-- first button SameLine=true -> [[button]] (len(keyb)==0 check, gets own row)
-Construct `db.Button{Name: "x", Url: "https://x.com", SameLine: false/true}` structs.
-
-**TestConvertButtonV2ToDbButton** (table-driven):
-- basic conversion from `[]tgmd2html.ButtonV2` to `[]db.Button`
-- empty slice -> empty slice (not nil, since `make([]db.Button, 0)`)
-- nil slice -> empty slice of len 0 via `make([]db.Button, 0)` (since `len(nil)` is 0)
-
-**TestRevertButtons** (table-driven):
-- single button SameLine=false -> "\n[name](buttonurl://url)"
-- single button SameLine=true -> "\n[name](buttonurl://url:same)"
-- empty slice -> ""
-
-**TestChunkKeyboardSlices** (table-driven):
-- 4 buttons, chunkSize=2 -> 2 chunks of 2
-- 5 buttons, chunkSize=2 -> 2 chunks of 2 + 1 chunk of 1
-- empty slice -> nil
-- chunkSize > len(slice) -> single chunk with all elements
-- NOTE: Do NOT test chunkSize=0 -- known infinite loop defect. Add a comment documenting this.
-
-**TestReverseHTML2MD** (table-driven):
-- `<b>bold</b>` -> `*bold*`
-- `<i>italic</i>` -> `_italic_`
-- `<a href="https://x.com">link</a>` -> `[link](https://x.com)`
-- no HTML tags -> unchanged
-- Verify at least bold, italic, and link conversion
-
-**TestIsExpectedTelegramError** (table-driven, source: `telegram_helpers.go`):
-- nil error -> false
-- error with each of the 17 expected error strings -> true (one test case per string)
-- unexpected error "unknown xyz" -> false
-Construct errors with `fmt.Errorf("...string...")`.
-
-**TestNotesParser** (table-driven):
-- "hello {private} world" -> pvtOnly=true, sentBack="hello  world"
-- "test {admin}" -> adminOnly=true
-- "test {preview}" -> webPrev=true
-- "test {noprivate}" -> grpOnly=true
-- "test {protect}" -> protectedContent=true
-- "test {nonotif}" -> noNotif=true
-- "no tags here" -> all false, sentBack="no tags here"
-- "all {private} {admin} {preview} {protect} {nonotif}" -> pvtOnly=true, adminOnly=true, webPrev=true, protectedContent=true, noNotif=true
-
-**Context to Read:**
-- design.md, section "Component: helpers Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/helpers/helpers.go` -- most functions
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/helpers/channel_helpers.go` -- IsChannelID
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/helpers/telegram_helpers.go` -- IsExpectedTelegramError
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" REDIS_ADDRESS=localhost:6379 go test -v -race -count=1 ./alita/utils/helpers/... && make lint
-```
-
----
-
-## TASK-007: Add unit tests for chat_status pure functions
-
-**Complexity:** S
-**Files:**
-- CREATE: `alita/utils/chat_status/chat_status_test.go`
-**Dependencies:** None
-**Description:**
-Create tests for the 2 pure ID validation functions in `chat_status`. This is a Phase 2 task (imports `db` which imports `config`).
-
-The test file MUST use `package chat_status` (internal).
-
-Functions under test (in `alita/utils/chat_status/chat_status.go`):
-
-1. `IsValidUserId(id int64) bool` -- returns `id > 0`
-2. `IsChannelId(id int64) bool` -- returns `id < -1000000000000`
-
-Imports: `testing`, `math`.
-
-`TestIsValidUserId` (table-driven):
-- 123456789 -> true
-- 1 -> true (minimum valid)
-- 0 -> false
-- -1 -> false
-- -1001234567890 (channel ID) -> false
-- math.MaxInt64 -> true
-- math.MinInt64 -> false
-- 1087968824 (Group Anonymous Bot) -> true
-- 777000 (Telegram) -> true
-
-`TestIsChannelId` (table-driven):
-- -1001234567890 -> true
-- -1000000000001 -> true (boundary: first channel ID)
-- -1000000000000 -> false (boundary: strictly less than)
-- 123456789 -> false (user)
-- 0 -> false
-- math.MaxInt64 -> false
-- math.MinInt64 -> true
-
-**Context to Read:**
-- design.md, section "Component: chat_status Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/chat_status/chat_status.go` -- first 48 lines contain the functions
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" REDIS_ADDRESS=localhost:6379 go test -v -race -count=1 ./alita/utils/chat_status/... && make lint
-```
-
----
-
-## TASK-008: Add unit tests for i18n package pure functions
-
-**Complexity:** L
-**Files:**
-- CREATE: `alita/i18n/i18n_test.go`
-**Dependencies:** None
-**Description:**
-Create tests for the pure utility functions in the i18n package including loader utilities, error types, and translator utilities. This is a Phase 2 task (i18n imports `alita/utils/cache` which may transitively import config).
-
-The test file MUST use `package i18n` (internal) because `extractLangCode`, `isYAMLFile`, `validateYAMLStructure`, `extractOrderedValues`, and `selectPluralForm` are all unexported.
-
-Imports: `testing`, `errors` (stdlib), `strings`.
-
-**Loader Utilities:**
-
-`TestExtractLangCode` (table-driven, source: `loader.go:102-108`):
-The function does `strings.TrimSuffix(fileName, filepath.Ext(fileName))` then trims `.yml` and `.yaml`.
-- "en.yml" -> "en"
-- "en.yaml" -> "en"
-- "pt-BR.yml" -> "pt-BR"
-- "README" (no extension) -> "README"
-- "en.yml.bak" -> "en.yml" (filepath.Ext returns ".bak", trimming it leaves "en.yml", then ".yml" trim leaves "en")
-
-`TestIsYAMLFile` (table-driven, source: `loader.go:123-126`):
-The function does `strings.ToLower(filepath.Ext(fileName))` and checks `.yml` or `.yaml`.
-- "en.yml" -> true
-- "en.yaml" -> true
-- "en.json" -> false
-- "" -> false
-- "en.YML" -> true (case-insensitive)
-- "en.YAML" -> true
-
-`TestValidateYAMLStructure` (table-driven, source: `loader.go:87-99`):
-- Valid YAML map `[]byte("key: value\n")` -> nil error
-- Invalid YAML `[]byte("{{{")` -> non-nil error
-- List root `[]byte("- item1\n- item2\n")` -> non-nil error (root must be map)
-- Scalar root `[]byte("hello\n")` -> non-nil error (not a map)
-- Empty content `[]byte("")` -> non-nil error (nil is not a map)
-- Valid nested map `[]byte("parent:\n  child: value\n")` -> nil
-
-**Error Types:**
-
-`TestI18nErrorFormat`:
-- With Err: `NewI18nError("get", "en", "hello", "not found", fmt.Errorf("base"))` -> `.Error()` contains "i18n get failed" and "base"
-- Without Err: `NewI18nError("get", "en", "hello", "not found", nil)` -> `.Error()` does NOT contain ": <nil>"
-
-`TestI18nErrorUnwrap`:
-- Non-nil Err -> `.Unwrap()` returns the underlying error
-- Nil Err -> `.Unwrap()` returns nil
-
-`TestNewI18nError`: Constructor sets all fields correctly. Verify Op, Lang, Key, Message, Err.
-
-`TestPredefinedErrorsDistinct`: All 6 predefined errors (`ErrLocaleNotFound`, `ErrKeyNotFound`, `ErrInvalidYAML`, `ErrManagerNotInit`, `ErrRecursiveFallback`, `ErrInvalidParams`) are distinct via `errors.Is`. Each pair returns false.
-
-`TestPredefinedErrorsChain`: `NewI18nError("op", "en", "key", "msg", ErrKeyNotFound)` -> `errors.Is(err, ErrKeyNotFound)` returns true.
-
-**Translator Utilities:**
-
-`TestExtractOrderedValues` (table-driven, source: `translator.go:280-324`):
-- `TranslationParams{"0": "a", "1": "b", "2": "c"}` -> `[]any{"a", "b", "c"}`
-- `TranslationParams{"first": "x", "second": "y"}` -> `[]any{"x", "y"}` (common key order)
-- nil -> nil
-- `TranslationParams{}` -> nil (empty map, no numbered keys, no common keys)
-- Gap in numbered keys `{"0": "a", "2": "c"}` -> `[]any{"a"}` (breaks at missing "1")
-- Mixed numbered and named `{"0": "a", "1": "b", "first": "x"}` -> `[]any{"a", "b"}` (numbered keys take priority, len > 0 so common keys skipped)
-
-`TestSelectPluralForm` (table-driven, source: `translator.go:255-277`):
-Construct a minimal `Translator` struct: `&Translator{langCode: "en", manager: &LocaleManager{defaultLang: "en"}}`.
-- count=0, Zero="none" -> "none"
-- count=1, One="one item" -> "one item"
-- count=2, Two="two items" -> "two items"
-- count=5, Other="many" -> "many"
-- count=0, Zero="", Other="fallback" -> "fallback" (Zero empty, falls to Other)
-- count=1, One="", Many="", Other="fallback" -> "fallback"
-- All forms empty -> ""
-- count=0, Zero="", One="", Many="lots", Other="" -> "lots" (fallback chain: Other empty, tries Many)
-
-**Context to Read:**
-- design.md, section "Component: i18n Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/errors.go` -- I18nError and predefined errors
-- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/loader.go` -- extractLangCode, isYAMLFile, validateYAMLStructure
-- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/translator.go` lines 255-324 -- selectPluralForm, extractOrderedValues
-- `/Users/divkix/GitHub/Alita_Robot/alita/i18n/types.go` -- TranslationParams, PluralRule, Translator, LocaleManager struct definitions
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" REDIS_ADDRESS=localhost:6379 go test -v -race -count=1 ./alita/i18n/... && make lint
-```
-
----
-
-## TASK-009: Add unit tests for rules_format normalizeRulesForHTML
-
-**Complexity:** S
-**Files:**
-- CREATE: `alita/modules/rules_format_test.go`
-**Dependencies:** None
-**Description:**
-Create tests for the `normalizeRulesForHTML` function. This is a Phase 2 task (modules package imports config, db, etc.).
-
-The test file MUST use `package modules` (internal) because `normalizeRulesForHTML` is unexported.
-
-Function under test (in `alita/modules/rules_format.go`):
-
-`normalizeRulesForHTML(rawRules string) string`:
-1. Trims whitespace. If empty, returns "".
-2. Checks `htmlTagPattern.MatchString(trimmed)` -- regex: `(?i)<\/?[a-z][^>]*>`.
-3. If HTML tags detected, returns rawRules UNCHANGED (not trimmed).
-4. If no HTML tags, returns `tgmd2html.MD2HTMLV2(rawRules)`.
-
-Imports: `testing`, `strings`.
-
-`TestNormalizeRulesForHTML` (table-driven):
-- Empty string "" -> ""
-- Whitespace-only "   " -> ""
-- HTML tags present `"<b>Rule 1</b>"` -> returned unchanged (HTML passthrough)
-- Self-closing tag `"<br/>"` -> returned unchanged
-- Markdown only `"*bold* _italic_"` -> run through `tgmd2html.MD2HTMLV2` (verify output contains `<b>` or similar)
-- Angle brackets NOT HTML `"1 < 2 > 0"` -> regex `<\/?[a-z][^>]*>` does NOT match (`<` is followed by space, not [a-z]), so treated as markdown
-- HTML entities without tags `"&amp; stuff"` -> NOT detected as HTML, processed as markdown
-- Mixed with HTML tag present `"some text <b>bold</b> more"` -> returned unchanged
-
-For the markdown conversion cases, do NOT hardcode the exact `tgmd2html.MD2HTMLV2` output. Instead, verify:
-- Output is NOT equal to input (conversion happened)
-- Or use `strings.Contains` to check for expected HTML tags
-
-For the HTML passthrough cases, verify output equals the original `rawRules` (NOT the trimmed version -- the function returns `rawRules` not `trimmed`).
-
-**Context to Read:**
-- design.md, section "Component: rules_format Tests"
-- `/Users/divkix/GitHub/Alita_Robot/alita/modules/rules_format.go` -- source under test (22 lines)
-- `/Users/divkix/GitHub/Alita_Robot/alita/utils/callbackcodec/callbackcodec_test.go` -- reference pattern
-**Verification:**
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" REDIS_ADDRESS=localhost:6379 go test -v -race -count=1 -run TestNormalizeRulesForHTML ./alita/modules/... && make lint
-```
-
----
-
-## TASK-010: Full integration verification
+## TASK-018: Full integration verification
 
 **Complexity:** S
 **Files:**
 - None (verification only)
-**Dependencies:** TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007, TASK-008, TASK-009
+**Dependencies:** TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007, TASK-008, TASK-009, TASK-010, TASK-011, TASK-012, TASK-013, TASK-014, TASK-015, TASK-016, TASK-017
 **Description:**
-Run the full test suite, linter, and verify all acceptance criteria are met. This task produces no file changes -- it is purely verification.
+Run the full test suite and lint to verify all tasks are complete, all tests pass, no regressions, and coverage meets the 40% threshold.
 
 Steps:
-
-1. Run Phase 1 tests locally without env vars:
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 \
-  ./alita/utils/string_handling/... \
-  ./alita/utils/errors/... \
-  ./alita/utils/keyword_matcher/... \
-  ./alita/utils/callbackcodec/...
-```
-All 4 packages MUST pass with zero failures.
-
-2. Run Phase 2 tests with dummy env vars:
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 \
-  DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" \
-  REDIS_ADDRESS=localhost:6379 \
-  go test -v -race -count=1 \
-  ./alita/config/... \
-  ./alita/utils/helpers/... \
-  ./alita/utils/chat_status/... \
-  ./alita/i18n/... \
-  ./alita/modules/...
-```
-Note: Some Phase 2 packages may fail due to DB connection in `init()`. The TEST FUNCTIONS themselves must pass if the process starts. If `init()` kills the process, that is a pre-existing condition, not a regression.
-
-3. Run linter:
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && make lint
-```
-No new warnings from `_test.go` files.
-
-4. Verify callbackcodec coverage:
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -coverprofile=codec.out ./alita/utils/callbackcodec/... && go tool cover -func=codec.out | grep total
-```
-Coverage MUST be >95%.
-
-5. Verify no new dependencies:
-```bash
-cd /Users/divkix/GitHub/Alita_Robot && git diff go.mod go.sum
-```
-No changes to `go.mod` or `go.sum`.
-
-6. Verify acceptance criteria:
-- [ ] US-001: string_handling -- 3 functions tested with nil/empty/present/absent/boundary cases
-- [ ] US-002: errors -- Wrap/Wrapf/Error/Unwrap with nil, chain, format, truncation tests
-- [ ] US-003: config/types -- 5 typeConvertor methods with truthy/falsy/boundary/invalid tests
-- [ ] US-004: keyword_matcher -- 4 functions with case-insensitivity, concurrency, empty input tests
-- [ ] US-005: callbackcodec -- EncodeOrFallback, nil Field, empty fields, URL special chars tested; >95% coverage
-- [ ] US-006: helpers -- 13 functions tested with boundary, HTML escape order, all expected errors
-- [ ] US-007: chat_status -- 2 pure functions with boundary values, system IDs
-- [ ] US-008 + US-010: i18n -- loader utils, error types, predefined errors, extractOrderedValues, selectPluralForm
-- [ ] US-009: rules_format -- HTML detection, markdown passthrough, edge cases
+1. Run full test suite with race detection:
+   ```bash
+   BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" make test
+   ```
+2. Run linter:
+   ```bash
+   make lint
+   ```
+3. Check coverage:
+   ```bash
+   go tool cover -func=coverage.out | tail -1
+   ```
+4. Verify per-package coverage:
+   ```bash
+   go tool cover -func=coverage.out | grep -E "^(github|total)"
+   ```
+5. Verify acceptance criteria:
+   - [ ] US-001: All 8 previously-failing packages show non-zero coverage
+   - [ ] US-002: `error_handling` package coverage >= 90%
+   - [ ] US-003: `shutdown` package coverage >= 70%
+   - [ ] US-004: `decorators/misc` package coverage >= 90%
+   - [ ] US-005: `keyword_matcher` package coverage >= 85%
+   - [ ] US-006: `extraction` package shows coverage for ExtractQuotes and IdFromReply
+   - [ ] US-008: DB cache key generators tested
+   - [ ] US-009: TestMain in alita/db/ works (tests skip when DB unavailable)
+   - [ ] US-010-014: All 16 DB files have test coverage
+   - [ ] US-021: CI YAML has coverage threshold step
+   - [ ] NFR-003: All tests use `t.Parallel()`
+   - [ ] NFR-006: Zero data races under `-race`
+   - [ ] NFR-007: Overall coverage >= 40%
+   - [ ] NFR-008: No new Go module dependencies (`go.mod` unchanged)
 
 **Context to Read:**
-- requirements.md, section "Acceptance Criteria" for each US
-- design.md, section "Verification Commands"
+- requirements.md, "Non-Functional Requirements" section
+
 **Verification:**
 ```bash
-cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 ./alita/utils/string_handling/... ./alita/utils/errors/... ./alita/utils/keyword_matcher/... ./alita/utils/callbackcodec/... && make lint
+cd /Users/divkix/GitHub/Alita_Robot && BOT_TOKEN=test-token OWNER_ID=1 MESSAGE_DUMP=1 DATABASE_URL="postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable" go test -v -race -coverprofile=coverage.out -count=1 -timeout 10m ./... && go tool cover -func=coverage.out | tail -1 && make lint
 ```
 
 ---
@@ -692,49 +816,74 @@ cd /Users/divkix/GitHub/Alita_Robot && go test -v -race -count=1 ./alita/utils/s
 
 | Task | Files Touched |
 |------|---------------|
-| TASK-001 | `alita/utils/string_handling/string_handling_test.go` |
-| TASK-002 | `alita/utils/errors/errors_test.go` |
-| TASK-003 | `alita/utils/keyword_matcher/matcher_test.go` |
-| TASK-004 | `alita/utils/callbackcodec/callbackcodec_test.go` |
-| TASK-005 | `alita/config/types_test.go` |
-| TASK-006 | `alita/utils/helpers/helpers_test.go` |
-| TASK-007 | `alita/utils/chat_status/chat_status_test.go` |
-| TASK-008 | `alita/i18n/i18n_test.go` |
-| TASK-009 | `alita/modules/rules_format_test.go` |
-| TASK-010 | None (verification only) |
+| TASK-001 | `alita/utils/error_handling/error_handling_test.go` |
+| TASK-002 | `alita/utils/shutdown/graceful_test.go` |
+| TASK-003 | `alita/utils/decorators/misc/handler_vars_test.go` |
+| TASK-004 | `alita/utils/keyword_matcher/cache_test.go` |
+| TASK-005 | `alita/db/testmain_test.go`, `alita/db/captcha_db_test.go`, `alita/db/locks_db_test.go`, `alita/db/antiflood_db_test.go` |
+| TASK-006 | `alita/db/cache_helpers_test.go`, `alita/db/migrations_test.go` |
+| TASK-007 | `alita/db/greetings_db_test.go` |
+| TASK-008 | `alita/db/warns_db_test.go`, `alita/db/notes_db_test.go` |
+| TASK-009 | `alita/db/filters_db_test.go`, `alita/db/blacklists_db_test.go` |
+| TASK-010 | `alita/db/chats_db_test.go`, `alita/db/user_db_test.go`, `alita/db/channels_db_test.go`, `alita/db/devs_db_test.go` |
+| TASK-011 | `alita/db/connections_db_test.go`, `alita/db/disable_db_test.go`, `alita/db/admin_db_test.go` |
+| TASK-012 | `alita/db/lang_db_test.go`, `alita/db/pin_db_test.go`, `alita/db/reports_db_test.go`, `alita/db/rules_db_test.go` |
+| TASK-013 | `alita/utils/extraction/extraction_test.go` |
+| TASK-014 | `alita/modules/callback_codec_test.go`, `alita/utils/helpers/helpers_test.go` |
+| TASK-015 | `alita/i18n/i18n_test.go` |
+| TASK-016 | `alita/utils/monitoring/auto_remediation_test.go`, `alita/utils/monitoring/background_stats_test.go` |
+| TASK-017 | `.github/workflows/ci.yml` |
+| TASK-018 | None (verification only) |
 
-**Total: 9 files (8 new, 1 modified). Zero production code changes.**
+---
 
-## Parallelization Matrix
+## Dependency Graph
 
-All tasks TASK-001 through TASK-009 touch completely different files. There is zero file overlap between any pair of tasks. Therefore, all 9 implementation tasks can run in parallel. TASK-010 depends on all of them.
+```
+Stream A (Pure Functions -- all parallel, no deps):
+  TASK-001 (error_handling)     --|
+  TASK-002 (shutdown)           --|-- All independent, run in parallel
+  TASK-003 (decorators/misc)    --|
+  TASK-004 (keyword_matcher)    --|
 
-| Stream | Tasks | Files |
-|--------|-------|-------|
-| A | TASK-001 | `string_handling_test.go` (NEW) |
-| B | TASK-002 | `errors_test.go` (NEW) |
-| C | TASK-003 | `matcher_test.go` (NEW) |
-| D | TASK-004 | `callbackcodec_test.go` (MODIFY) |
-| E | TASK-005 | `types_test.go` (NEW) |
-| F | TASK-006 | `helpers_test.go` (NEW) |
-| G | TASK-007 | `chat_status_test.go` (NEW) |
-| H | TASK-008 | `i18n_test.go` (NEW) |
-| I | TASK-009 | `rules_format_test.go` (NEW) |
-| J | TASK-010 | None (depends on A-I) |
+Stream B (DB Tests -- TestMain first, then parallel):
+  TASK-005 (TestMain + modify existing) --|
+                                          |-- TASK-006 (cache keys + migrations)
+                                          |-- TASK-007 (greetings)
+                                          |-- TASK-008 (warns + notes)
+                                          |-- TASK-009 (filters + blacklists)
+                                          |-- TASK-010 (chats, users, channels, devs)
+                                          |-- TASK-011 (connections, disable, admin)
+                                          |-- TASK-012 (lang, pin, reports, rules)
+
+Stream C (CI-dependent packages -- all parallel, no deps):
+  TASK-013 (extraction)         --|
+  TASK-014 (callback codec +    --|-- All independent, run in parallel
+            helpers expansion)  --|
+  TASK-015 (i18n expansion)     --|
+  TASK-016 (monitoring)         --|
+  TASK-017 (CI threshold)       --|
+
+Final Gate:
+  TASK-018 (verification) -- depends on ALL above
+```
+
+---
 
 ## Risk Register
 
 | Task | Risk | Mitigation |
 |------|------|------------|
-| TASK-003 | Aho-Corasick `Match()` returns pattern indices, not positions. Overlapping match count depends on library internals. | Read `findMatchesWithPositions` implementation carefully. The function does its own `strings.Index` loop to find all occurrences. Verify expected positions match actual behavior by running test first. |
-| TASK-004 | Modifying existing test file could break existing tests if appended code has syntax errors. | Append only. Run existing tests first to confirm baseline passes. Never modify existing functions. |
-| TASK-005 | Config `init()` may crash test runner in local dev. | Phase 2 task. Document that CI env vars are required. Verification command includes env vars. |
-| TASK-006 | `ChunkKeyboardSlices` with chunkSize=0 causes infinite loop. | Do NOT test chunkSize=0. Add comment documenting known defect. |
-| TASK-006 | Large task (13 functions). May take longer than estimated. | Functions are simple. Most are 1-5 line pure functions. Table-driven tests follow a repetitive pattern. |
-| TASK-008 | `selectPluralForm` requires constructing `Translator` struct with unexported fields. | Internal package test (`package i18n`) has access. Construct minimal struct: `&Translator{langCode: "en", manager: &LocaleManager{defaultLang: "en"}}`. |
-| TASK-008 | `validateYAMLStructure` imports `gopkg.in/yaml.v3`. Test may need YAML bytes. | Already in `go.mod`. Use simple `[]byte("key: value\n")` literals. No new dependency. |
-| TASK-009 | `tgmd2html.MD2HTMLV2` output format may change between library versions. | Do NOT hardcode exact output. Use `strings.Contains` or verify output != input instead of exact string match. |
-| TASK-010 | Phase 2 tests may fail locally due to missing PostgreSQL. | Expected. CI has PostgreSQL. Local verification only covers Phase 1. Phase 2 verified in CI. |
-| ALL | Test files introduce lint warnings (unused imports, etc.). | Each task verification includes `make lint`. Fix warnings before marking complete. |
+| TASK-005 | `TestMain` `AutoMigrate` list falls out of sync with new GORM models added later | CI failure is immediate when a new model is used in tests but not migrated; add model to list when adding to `db.go` |
+| TASK-005 | Removing `AutoMigrate` from existing tests breaks them if `TestMain` is incorrect | Run existing test suite immediately after modification to catch regressions |
+| TASK-007-012 | Test data collision with `time.Now().UnixNano()` | Nanosecond resolution makes collision nearly impossible; each test uses `base + offset` pattern for multiple IDs |
+| TASK-007-012 | GORM zero-value boolean gotcha: `false` not persisted via `.Updates()` struct | Design mandates explicit zero-value boolean round-trip test in every DB file with boolean fields |
+| TASK-007-012 | DB functions internally call `ChatExists()` requiring chat to exist | Every test calls `EnsureChatInDb()` in setup before exercising module-specific functions |
+| TASK-013 | `IdFromReply` calls `GetSender().Id()` which panics if `From` is nil | Test struct construction must always set `From: &gotgbot.User{Id: X}` |
+| TASK-014 | Modifying `helpers_test.go` could break existing 28 tests | Only append new functions; never modify existing code; run full test suite after |
+| TASK-015 | Modifying `i18n_test.go` could break existing 10 tests | Only append new functions; never modify existing code |
+| TASK-016 | `CanExecute` reads `config.AppConfig` which may have unexpected test-token defaults | Test verifies against actual `config.AppConfig` values, not hardcoded expected values |
+| TASK-017 | Coverage threshold blocks unrelated PRs | Set initial threshold at 40% (conservative); can be ratcheted up later |
+| TASK-018 | Full suite takes > 5 minutes due to DB test volume | CI timeout is 20 minutes; individual DB tests are fast (sub-second each); 10-minute timeout in `make test` |
 
 TASKS_COMPLETE
