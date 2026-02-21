@@ -115,6 +115,10 @@ GOOS=windows GOARCH=amd64 go build -o alita_robot_windows_amd64.exe .
 | `psql-migrate` | `make psql-migrate` | Apply database migrations |
 | `psql-status` | `make psql-status` | Check migration status |
 | `psql-reset` | `make psql-reset` | Reset database (DANGEROUS) |
+| `test` | `make test` | Run test suite (`go test ./...`) |
+| `check-translations` | `make check-translations` | Detect missing translation keys across locale files |
+| `generate-docs` | `make generate-docs` | Generate documentation site content |
+| `docs-dev` | `make docs-dev` | Start Astro docs dev server |
 
 ## Code Quality
 

@@ -25,6 +25,8 @@ This module can be accessed using the following aliases:
 - `connection`
 - `connect`
 
+Note: `/connection` and `/connect` are separate commands with different functionality, not true aliases.
+
 ## Available Commands
 
 | Command | Description | Disableable |
@@ -49,4 +51,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Most commands available to all users. `/allowconnect` requires admin permissions.

@@ -135,19 +135,19 @@ Optimize database performance with connection pooling:
 
 ```bash
 # Maximum idle connections in the pool
-# Default: 10, Recommended: 30-80 depending on deployment size
+# Default: 50, Recommended: 30-80 depending on deployment size
 DB_MAX_IDLE_CONNS=50
 
 # Maximum open connections to the database
-# Default: 100, Recommended: 150-400 depending on deployment size
+# Default: 200, Recommended: 150-400 depending on deployment size
 DB_MAX_OPEN_CONNS=200
 
 # Maximum connection lifetime in minutes
-# Default: 60, Recommended: 120-480 minutes
+# Default: 240, Recommended: 120-480 minutes
 DB_CONN_MAX_LIFETIME_MIN=240
 
 # Maximum idle time in minutes
-# Default: 10, Recommended: 30-120 minutes
+# Default: 60, Recommended: 30-120 minutes
 DB_CONN_MAX_IDLE_TIME_MIN=60
 ```
 

@@ -18,7 +18,7 @@ We're all busy people who don't have time to monitor our groups 24/7. But how do
 × /reports `unblock` (via reply only): Unblock a user from using /report or @admin.
 × /reports `showblocklist`: Check all the blocked users who cannot use /report or @admin.
 
-To report a user, simply reply to his message with @admin or /report; Natalie will then reply with a message stating that admins have been notified.
+To report a user, simply reply to his message with @admin or /report; the bot will then reply with a message stating that admins have been notified.
 You MUST reply to a message to report a user; you can't just use @admin to tag admins for no reason!
 
 *NOTE:* Neither of these will get triggered if used by admins.

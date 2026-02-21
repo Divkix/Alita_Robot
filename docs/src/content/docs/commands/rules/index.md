@@ -58,6 +58,8 @@ This module can be accessed using the following aliases:
 | `/rules` | Check the current chat rules. | ✅ |
 | `/rulesbtn` | Sets the text of the rules button. | ❌ |
 | `/rulesbutton` | No description available | ❌ |
+| `/resetrules` | Reset the group rules. Alias for /clearrules. | ❌ |
+| `/clearrules` | Clear the group rules. | ❌ |
 | `/setrules` | Set the rules for this chat. | ❌ |
 
 ## Usage Examples
@@ -74,4 +76,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Admin commands require admin permissions. `/rules` is available to all users.

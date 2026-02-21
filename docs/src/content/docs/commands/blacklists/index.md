@@ -17,9 +17,6 @@ description: Complete guide to Blacklists module commands and features
 *Owner Only:*
 × /remallbl: Removes all the blacklisted words from chat
 
-*Note:*
-The Default mode for Blacklist is *none*, which will just delete the messages from the chat.
-
 **Available Actions:**
 The following actions can be set using `/blaction`:
 - `none` - Just deletes the message without any further action
@@ -50,10 +47,12 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/addblacklist` | Blacklists the word in the current chat. | ❌ |
-| `/blacklist` | Check all the blacklists in chat. | ❌ |
-| `/blacklistaction` | Same as above | ❌ |
+| `/blacklist` | Add words to the blacklist. Alias for /addblacklist. | ❌ |
+| `/blacklistaction` | Set the action to take when a blacklisted word is detected. | ❌ |
 | `/blacklists` | Check all the blacklists in chat. | ✅ |
 | `/blaction` | Sets the action to be performed by bot when a blacklist word is detected. | ❌ |
+| `/rmallbl` | Remove all blacklisted words from the chat. | ❌ |
+| `/remallbl` | Remove all blacklisted words from the chat. Alias for /rmallbl. | ❌ |
 | `/rmblacklist` | Removes the word from current Blacklisted Words in Chat. | ❌ |
 
 ## Usage Examples
@@ -70,4 +69,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Most commands require admin with restrict permissions. `/blacklists` (list command) is available to all users. `/rmallbl` requires chat owner.

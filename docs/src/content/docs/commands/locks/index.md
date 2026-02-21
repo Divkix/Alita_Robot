@@ -6,7 +6,7 @@ description: Complete guide to Locks module commands and features
 # 🔒 Locks Commands
 
 *Admin only*:
-× /lock `<permission>`: Lock Chat permission..
+× /lock `<permission>`: Lock Chat permission.
 × /unlock `<permission>`: Unlock Chat permission.
 × /locks: View Chat permission.
 × /locktypes: Check available lock types!
@@ -29,7 +29,7 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lock` | Lock Chat permission.. | ❌ |
+| `/lock` | Lock Chat permission. | ❌ |
 | `/locks` | View Chat permission. | ✅ |
 | `/locktypes` | Check available lock types! | ✅ |
 | `/unlock` | Unlock Chat permission. | ❌ |
@@ -53,9 +53,7 @@ Most commands in this module require **admin permissions** in the group.
 **Bot Permissions Required:**
 
 - Delete messages
-- Ban users
 - Restrict users
-- Pin messages (if applicable)
 
 ## Technical Notes
 

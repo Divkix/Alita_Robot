@@ -60,7 +60,14 @@ localeManager := i18n.GetManager()
 localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
 ```
 
-### 4. HTTP Transport Configuration
+### 4. OpenTelemetry Tracing Initialization
+```go
+tracing.InitTracing()
+```
+
+`tracing.InitTracing()` sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
+
+### 5. HTTP Transport Configuration
 ```go
 httpTransport := &http.Transport{
     MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
@@ -70,7 +77,7 @@ httpTransport := &http.Transport{
 }
 ```
 
-### 5. Bot Client Creation
+### 6. Bot Client Creation
 ```go
 b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
     BotClient: &gotgbot.BaseBotClient{
@@ -79,7 +86,7 @@ b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 })
 ```
 
-### 6. Connection Pre-warming
+### 7. Connection Pre-warming
 ```go
 go func() {
     for i := 0; i < 3; i++ {
@@ -89,19 +96,19 @@ go func() {
 }()
 ```
 
-### 7. Initial Checks
+### 8. Initial Checks
 ```go
 alita.InitialChecks(b)  // Validates config, initializes cache
 ```
 
-### 8. Async Processor (If Enabled)
+### 9. Async Processor (If Enabled)
 ```go
 if config.AppConfig.EnableAsyncProcessing {
     async.InitializeAsyncProcessor()
 }
 ```
 
-### 9. Dispatcher Creation
+### 10. Dispatcher Creation
 ```go
 dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
     Error:       errorHandler,
@@ -109,14 +116,16 @@ dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
 })
 ```
 
-### 10. Monitoring Systems
+The dispatcher uses a `TracingProcessor` wrapper for trace context propagation in polling mode, ensuring that OpenTelemetry spans are correctly associated with each update.
+
+### 11. Monitoring Systems
 ```go
 statsCollector = monitoring.NewBackgroundStatsCollector()
 autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
 activityMonitor = monitoring.NewActivityMonitor()
 ```
 
-### 11. HTTP Server & Mode Selection
+### 12. HTTP Server & Mode Selection
 ```go
 httpServer := httpserver.New(config.AppConfig.HTTPPort)
 httpServer.RegisterHealth()

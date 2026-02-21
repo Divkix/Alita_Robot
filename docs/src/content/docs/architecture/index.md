@@ -18,16 +18,12 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
 
 ## Core Design Principles
 
-### 1. Repository Pattern
+### 1. Domain Functions Pattern
 
-All database operations are abstracted behind repository interfaces in `db/repositories/interfaces/`. This decouples business logic from data access, enabling:
-
-- Testability through mock implementations
-- Consistent data access patterns
-- Easy migration between storage backends
+All database operations are organized by domain in `alita/db/*_db.go` files. Each file provides Get/Add/Update/Delete functions for its domain, with surrogate key pattern (auto-increment `id` as PK, external IDs as unique constraints):
 
 ```go
-// Example: Data access follows repository pattern
+// Example: Direct domain function calls
 settings := db.GetChatSettings(chatId)
 db.UpdateChatSettings(chatId, newSettings)
 ```
@@ -44,11 +40,11 @@ Middleware functionality is implemented through decorators in `alita/utils/decor
 
 Concurrent processing uses bounded worker pools with panic recovery:
 
-- **Dispatcher**: Limited to 100 max goroutines (configurable via `DISPATCHER_MAX_ROUTINES`)
+- **Dispatcher**: Limited to 200 max goroutines by default (configurable via `DISPATCHER_MAX_ROUTINES`)
 - **Message Pipeline**: Concurrent validation stages
 - **Bulk Operations**: Parallel batch processors with generic framework
 
-### 4. Two-Tier Caching
+### 4. Redis Caching
 
 Redis-based caching with stampede protection:
 
@@ -79,7 +75,7 @@ Redis-based caching with stampede protection:
                                              v
                                   +----------+----------+
                                   |     Dispatcher      |
-                                  |  (max 100 routines) |
+                                  | (configurable routines)|
                                   +----------+----------+
                                              |
                          +-------------------+-------------------+
@@ -97,7 +93,7 @@ Redis-based caching with stampede protection:
                               v                             v
                     +---------+----------+        +---------+----------+
                     |   Redis Cache      |        |   PostgreSQL       |
-                    |   (L1 lookup)      |        |   (via GORM)       |
+                    |   (cache lookup)    |        |   (via GORM)       |
                     +--------------------+        +--------------------+
 ```
 
@@ -107,14 +103,14 @@ Redis-based caching with stampede protection:
 
 The dispatcher routes incoming Telegram updates to appropriate handlers:
 
-- Configurable max goroutines (default: 100)
+- Configurable max goroutines (default: 200)
 - Enhanced error handler with structured logging
 - Recovery from panics in any handler
 
 ```go
 dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
     Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
-        // Error handling with Sentry reporting
+        // Error handling with structured logging
         return ext.DispatcherActionNoop
     },
     MaxRoutines: config.AppConfig.DispatcherMaxRoutines,
@@ -132,7 +128,7 @@ Each feature module follows a consistent pattern:
 
 ### Cache Layer
 
-Two-tier caching with Redis:
+Redis caching with stampede protection:
 
 - **Cache Keys**: Prefixed with `alita:` for namespace isolation
 - **Stampede Protection**: Singleflight prevents concurrent cache rebuilds
@@ -153,7 +149,7 @@ Comprehensive monitoring subsystems:
 
 ```go
 // Dispatcher limits concurrent handler execution
-MaxRoutines: 100  // Configurable via DISPATCHER_MAX_ROUTINES
+MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 
 // Worker pools use bounded parallelism
 workerPool := NewWorkerPool(config.AppConfig.WorkerPoolSize)
@@ -184,14 +180,14 @@ shutdownManager.RegisterHandler(func() error {
 
 ## Error Handling Strategy
 
-Alita uses a 3-layer error handling hierarchy:
+Alita uses a 4-layer error handling hierarchy:
 
 ### Layer 1: Dispatcher Level
 
 ```go
 Error: func(b *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
     defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
-    // Log error, send to Sentry
+    // Log error with structured fields
     return ext.DispatcherActionNoop
 }
 ```
@@ -220,6 +216,15 @@ Individual handlers use decorators for error handling:
 if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
     return ext.EndGroups
 }
+```
+
+### Layer 4: Decorator Level
+
+Command decorators provide permission validation and error context:
+
+```go
+// Decorators wrap handlers with cross-cutting concerns
+cmdDecorator.MultiCommand(dispatcher, []string{"cmd", "alias"}, handler)
 ```
 
 ## Database Schema Design

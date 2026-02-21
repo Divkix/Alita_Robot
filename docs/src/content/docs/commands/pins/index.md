@@ -58,7 +58,7 @@ This module can be accessed using the following aliases:
 | `/antichannelpin` | Don't let telegram auto-pin linked channels. If no arguments are given, show the current setting. | ❌ |
 | `/cleanlinked` | Delete messages sent by the linked channel. | ❌ |
 | `/permapin` | Pin a custom message through the bot. This message can contain markdown, buttons, and all the other cool features. | ❌ |
-| `/pin` | Get the current pinned message. | ❌ |
+| `/pin` | Pin the message you replied to. Add 'loud'/'notify' to send notification. | ❌ |
 | `/pinned` | Get the current pinned message. | ❌ |
 | `/unpin` | Unpin the current pinned message. If used as a reply, unpins the replied-to message. | ❌ |
 | `/unpinall` | Unpins all pinned messages. | ❌ |
@@ -77,7 +77,7 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Most commands require admin with 'Pin Messages' permission. `/pinned` is available to all users with bot admin.
 
 ## Technical Notes
 

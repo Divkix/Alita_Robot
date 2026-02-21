@@ -39,7 +39,7 @@ This module can be accessed using the following aliases:
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/autoapprove` | Automatically approve all new members. | ❌ |
-| `/cleangoodbye` | No description available | ❌ |
+| `/cleangoodbye` | Delete the old goodbye message when a member leaves. | ❌ |
 | `/cleanservice` | Delete all service messages such as 'x joined the group' notification. | ❌ |
 | `/cleanwelcome` | Delete the old welcome message, whenever a new member joins. | ❌ |
 | `/goodbye` | Enables or Disables goodbye setting for group. | ❌ |
@@ -63,4 +63,4 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Most commands require admin with 'Change Group Info' permission.

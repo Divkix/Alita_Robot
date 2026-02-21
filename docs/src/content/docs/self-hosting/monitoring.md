@@ -160,11 +160,12 @@ RESOURCE_GC_THRESHOLD_MB=400
 
 ### Auto-Remediation
 
-When thresholds are exceeded, the system automatically:
+The system uses a 4-tier auto-remediation approach when resource thresholds are exceeded:
 
-1. Triggers garbage collection
-2. Logs warnings about resource usage
-3. Takes corrective action if configured
+1. **Tier 0 — Warning**: Logs warnings at 80% goroutine threshold or 50% memory usage
+2. **Tier 1 — GC Trigger**: Triggers garbage collection at 60% memory usage or 50ms GC pause times
+3. **Tier 2 — Aggressive Cleanup**: Runs multiple GC cycles when memory exceeds the GC threshold
+4. **Tier 3 — Restart Recommendation**: Logs a restart recommendation at 150%+ goroutines or 160%+ memory usage
 
 ## Activity Monitoring
 
@@ -186,11 +187,13 @@ ENABLE_AUTO_CLEANUP=true
 
 ### Activity Metrics
 
-The system tracks:
+The system tracks group activity:
 
 - **DAG**: Daily Active Groups
 - **WAG**: Weekly Active Groups
 - **MAG**: Monthly Active Groups
+
+The activity monitor also tracks individual user activity, calculating Daily Active Users (DAU), Weekly Active Users (WAU), and Monthly Active Users (MAU).
 
 Groups are automatically:
 - Marked inactive after the threshold period

@@ -29,15 +29,9 @@ Alita_Robot/
 │   │   ├── *_db.go             # Per-feature database operations
 │   │   └── shared_helpers.go   # Transaction support utilities
 │   │
-│   ├── health/                 # Health check endpoints
-│   │   └── health.go           # /health handler implementation
-│   │
 │   ├── i18n/                   # Internationalization
 │   │   ├── i18n.go             # Translation manager
 │   │   └── translator.go       # Per-request translator
-│   │
-│   ├── metrics/                # Prometheus metrics
-│   │   └── metrics.go          # Metric definitions and /metrics handler
 │   │
 │   ├── modules/                # Command handlers (features)
 │   │   ├── help.go             # Help system and module registry
@@ -53,7 +47,10 @@ Alita_Robot/
 │   └── utils/                  # Utility packages
 │       ├── async/              # Async processing utilities
 │       ├── cache/              # Redis cache initialization
-│       │   └── cache.go        # Cache client setup
+│       │   ├── cache.go        # Cache client setup
+│       │   ├── adminCache.go   # Admin cache operations
+│       │   └── sanitize.go     # Cache key sanitization for tracing
+│       ├── callbackcodec/      # Versioned callback data encoding/decoding
 │       ├── chat_status/        # Permission checking
 │       │   ├── chat_status.go  # Admin/permission checks
 │       │   └── helpers.go      # Helper functions
@@ -70,6 +67,7 @@ Alita_Robot/
 │       ├── monitoring/         # Activity and resource monitoring
 │       ├── shutdown/           # Graceful shutdown manager
 │       ├── string_handling/    # String manipulation
+│       ├── tracing/            # OpenTelemetry distributed tracing
 │       └── webhook/            # Webhook configuration
 │
 ├── migrations/                 # SQL migration files

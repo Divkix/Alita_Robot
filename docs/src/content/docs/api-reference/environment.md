@@ -117,7 +117,7 @@ Days before marking a chat as inactive
 
 ## 📂 Database configuration
 
-### `DATABASE_U_R_L` (Required)
+### `DATABASE_URL` (Required)
 
 | Property | Value |
 |----------|-------|
@@ -127,7 +127,7 @@ Days before marking a chat as inactive
 
 ## 📂 Database connection pool configuration
 
-### `D_B_CONN_MAX_IDLE_TIME_MIN`
+### `DB_CONN_MAX_IDLE_TIME_MIN`
 
 Max idle time in minutes
 
@@ -137,7 +137,7 @@ Max idle time in minutes
 | **Required** | No |
 | **Validation** | min=1,max=60 |
 
-### `D_B_CONN_MAX_LIFETIME_MIN`
+### `DB_CONN_MAX_LIFETIME_MIN`
 
 Max lifetime in minutes
 
@@ -147,7 +147,7 @@ Max lifetime in minutes
 | **Required** | No |
 | **Validation** | min=1,max=1440 |
 
-### `D_B_MAX_IDLE_CONNS`
+### `DB_MAX_IDLE_CONNS`
 
 | Property | Value |
 |----------|-------|
@@ -155,7 +155,7 @@ Max lifetime in minutes
 | **Required** | No |
 | **Validation** | min=1,max=100 |
 
-### `D_B_MAX_OPEN_CONNS`
+### `DB_MAX_OPEN_CONNS`
 
 | Property | Value |
 |----------|-------|
@@ -194,7 +194,7 @@ Path to migration files (defaults to migrations)
 
 ## 📂 Performance optimization settings
 
-### `BATCH_REQUEST_TIMEOUT_M_S`
+### `BATCH_REQUEST_TIMEOUT_MS`
 
 Batch request timeout in milliseconds
 
@@ -231,7 +231,7 @@ Enable cache prewarming on startup
 | **Type** | `boolean` |
 | **Required** | No |
 
-### `ENABLE_H_T_T_P_CONNECTION_POOLING`
+### `ENABLE_HTTP_CONNECTION_POOLING`
 
 Enable HTTP connection pooling
 
@@ -258,7 +258,7 @@ Enable response caching
 | **Type** | `boolean` |
 | **Required** | No |
 
-### `H_T_T_P_MAX_IDLE_CONNS`
+### `HTTP_MAX_IDLE_CONNS`
 
 HTTP connection pool size
 
@@ -268,7 +268,7 @@ HTTP connection pool size
 | **Required** | No |
 | **Validation** | min=10,max=1000 |
 
-### `H_T_T_P_MAX_IDLE_CONNS_PER_HOST`
+### `HTTP_MAX_IDLE_CONNS_PER_HOST`
 
 HTTP connections per host
 
@@ -278,7 +278,7 @@ HTTP connections per host
 | **Required** | No |
 | **Validation** | min=5,max=500 |
 
-### `RESPONSE_CACHE_T_T_L`
+### `RESPONSE_CACHE_TTL`
 
 Response cache TTL in seconds
 
@@ -287,6 +287,26 @@ Response cache TTL in seconds
 | **Type** | `integer` |
 | **Required** | No |
 | **Validation** | min=1,max=3600 |
+
+## 📂 Telegram API configuration
+
+### `TELEGRAM_API_ID`
+
+Telegram API ID for custom Bot API server (obtain from https://my.telegram.org/apps)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+
+### `TELEGRAM_API_HASH`
+
+Telegram API hash for custom Bot API server (obtain from https://my.telegram.org/apps)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
 
 ## 📂 Redis configuration
 
@@ -298,17 +318,7 @@ Response cache TTL in seconds
 | **Required** | Yes |
 | **Validation** | required |
 
-### `H_T_T_P_PORT`
-
-HTTP Server configuration (unified server for health, metrics, webhook)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-| **Validation** | min=1,max=65535 |
-
-### `REDIS_D_B`
+### `REDIS_DB`
 
 | Property | Value |
 |----------|-------|
@@ -322,9 +332,30 @@ HTTP Server configuration (unified server for health, metrics, webhook)
 | **Type** | `string` |
 | **Required** | No |
 
+### `REDIS_URL`
+
+Redis URL for connection (auto-parsed, used by Heroku/Railway). Alternative to REDIS_ADDRESS + REDIS_PASSWORD + REDIS_DB.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+## 📂 HTTP server configuration
+
+### `HTTP_PORT`
+
+HTTP Server configuration (unified server for health, metrics, webhook)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Validation** | min=1,max=65535 |
+
 ## 📂 Resource monitoring limits
 
-### `RESOURCE_G_C_THRESHOLD_M_B`
+### `RESOURCE_GC_THRESHOLD_MB`
 
 Memory threshold for triggering GC
 
@@ -344,7 +375,7 @@ Maximum goroutines before triggering cleanup
 | **Required** | No |
 | **Validation** | min=100,max=10000 |
 
-### `RESOURCE_MAX_MEMORY_M_B`
+### `RESOURCE_MAX_MEMORY_MB`
 
 Maximum memory usage in MB
 
@@ -413,6 +444,28 @@ Computed from OperationTimeoutSeconds
 | **Type** | `integer` |
 | **Required** | No |
 | **Validation** | min=1,max=300 |
+
+## 📂 Localization configuration
+
+### `ENABLED_LOCALES`
+
+Comma-separated list of enabled locale codes (default: en)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+## 📂 Cloudflare configuration
+
+### `CLOUDFLARE_TUNNEL_TOKEN`
+
+Cloudflare Tunnel token (only needed if using webhooks with Cloudflare Tunnel)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
 
 ## 📂 Webhook configuration
 
@@ -497,13 +550,52 @@ Deprecated: use HTTPPort instead
 | **Required** | No |
 | **Validation** | min=1,max=10 |
 
+## 📂 Observability configuration
+
+### `ENABLE_PPROF`
+
+Enable pprof profiling endpoints at /debug/pprof/*
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+
+### `OTEL_EXPORTER_OTLP_ENDPOINT`
+
+OpenTelemetry OTLP gRPC endpoint for trace export
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+### `OTEL_SERVICE_NAME`
+
+OpenTelemetry service name (default: alita_robot)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+### `OTEL_TRACES_SAMPLE_RATE`
+
+Trace sampling rate from 0.0 to 1.0 (default: 1.0)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `float` |
+| **Required** | No |
+| **Validation** | min=0,max=1 |
+
 ## Quick Reference
 
 ### Required Variables
 
 ```bash
 BOT_TOKEN=
-DATABASE_U_R_L=
+DATABASE_URL=
 MESSAGE_DUMP=
 OWNER_ID=
 REDIS_ADDRESS=
@@ -514,10 +606,11 @@ REDIS_ADDRESS=
 ```bash
 ACTIVITY_CHECK_INTERVAL=# (optional)
 ALLOWED_UPDATES=# (optional)
+CLOUDFLARE_TUNNEL_TOKEN=# (optional)
 API_SERVER=# (optional)
 AUTO_MIGRATE=# (optional)
 AUTO_MIGRATE_SILENT_FAIL=# (optional)
-BATCH_REQUEST_TIMEOUT_M_S=# (optional)
+BATCH_REQUEST_TIMEOUT_MS=# (optional)
 BOT_VERSION=# (optional)
 BULK_OPERATION_WORKERS=# (optional)
 CACHE_WORKERS=# (optional)
@@ -527,35 +620,43 @@ DATABASE_WORKERS=# (optional)
 DEBUG=# (optional)
 DISPATCHER_MAX_ROUTINES=# (optional)
 DROP_PENDING_UPDATES=# (optional)
-D_B_CONN_MAX_IDLE_TIME_MIN=# (optional)
-D_B_CONN_MAX_LIFETIME_MIN=# (optional)
-D_B_MAX_IDLE_CONNS=# (optional)
-D_B_MAX_OPEN_CONNS=# (optional)
+DB_CONN_MAX_IDLE_TIME_MIN=# (optional)
+DB_CONN_MAX_LIFETIME_MIN=# (optional)
+DB_MAX_IDLE_CONNS=# (optional)
+DB_MAX_OPEN_CONNS=# (optional)
 ENABLE_ASYNC_PROCESSING=# (optional)
 ENABLE_AUTO_CLEANUP=# (optional)
 ENABLE_BACKGROUND_STATS=# (optional)
 ENABLE_BATCH_REQUESTS=# (optional)
 ENABLE_CACHE_PREWARMING=# (optional)
-ENABLE_H_T_T_P_CONNECTION_POOLING=# (optional)
+ENABLED_LOCALES=# (optional)
+ENABLE_HTTP_CONNECTION_POOLING=# (optional)
 ENABLE_PERFORMANCE_MONITORING=# (optional)
+ENABLE_PPROF=# (optional)
 ENABLE_QUERY_PREFETCHING=# (optional)
 ENABLE_RESPONSE_CACHING=# (optional)
-H_T_T_P_MAX_IDLE_CONNS=# (optional)
-H_T_T_P_MAX_IDLE_CONNS_PER_HOST=# (optional)
-H_T_T_P_PORT=# (optional)
+HTTP_MAX_IDLE_CONNS=# (optional)
+HTTP_MAX_IDLE_CONNS_PER_HOST=# (optional)
+HTTP_PORT=# (optional)
 INACTIVITY_THRESHOLD_DAYS=# (optional)
 MAX_CONCURRENT_OPERATIONS=# (optional)
 MESSAGE_PIPELINE_WORKERS=# (optional)
 MIGRATIONS_PATH=# (optional)
 OPERATION_TIMEOUT=# (optional)
 OPERATION_TIMEOUT_SECONDS=# (optional)
-REDIS_D_B=# (optional)
+OTEL_EXPORTER_OTLP_ENDPOINT=# (optional)
+OTEL_SERVICE_NAME=# (optional)
+OTEL_TRACES_SAMPLE_RATE=# (optional)
+REDIS_DB=# (optional)
 REDIS_PASSWORD=# (optional)
-RESOURCE_G_C_THRESHOLD_M_B=# (optional)
+REDIS_URL=# (optional)
+RESOURCE_GC_THRESHOLD_MB=# (optional)
 RESOURCE_MAX_GOROUTINES=# (optional)
-RESOURCE_MAX_MEMORY_M_B=# (optional)
-RESPONSE_CACHE_T_T_L=# (optional)
+RESOURCE_MAX_MEMORY_MB=# (optional)
+RESPONSE_CACHE_TTL=# (optional)
 STATS_COLLECTION_WORKERS=# (optional)
+TELEGRAM_API_ID=# (optional)
+TELEGRAM_API_HASH=# (optional)
 USE_WEBHOOKS=# (optional)
 VALID_LANG_CODES=# (optional)
 WEBHOOK_DOMAIN=# (optional)

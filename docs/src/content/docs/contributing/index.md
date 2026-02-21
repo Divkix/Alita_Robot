@@ -31,7 +31,7 @@ cp sample.env .env
 make run          # Run the bot locally
 make build        # Build release artifacts using goreleaser
 make lint         # Run golangci-lint for code quality checks
-make test         # Run automated regression tests
+make test         # Run test suite
 make tidy         # Clean up and download go.mod dependencies
 ```
 
@@ -62,8 +62,9 @@ Alita_Robot/
 
 1. **Create database operations** in `alita/db/{module}_db.go`
 2. **Implement command handlers** in `alita/modules/{module}.go`
-3. **Register commands** in the module's `init()` function
+3. **Register commands** in a `LoadXxx(dispatcher)` function
 4. **Add translations** to `locales/en.yml` (and other locale files)
+5. **Call `LoadMyModule(dispatcher)`** from `LoadModules()` in `alita/main.go`
 
 ### Module Template
 
@@ -71,7 +72,6 @@ Alita_Robot/
 package modules
 
 import (
-    "github.com/divkix/Alita_Robot/alita/utils/helpers"
     "github.com/PaulSonOfLars/gotgbot/v2"
     "github.com/PaulSonOfLars/gotgbot/v2/ext"
     "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
@@ -84,10 +84,8 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     return ext.EndGroups
 }
 
-func init() {
-    helpers.RegisterModule(myModule.moduleName, func(d *ext.Dispatcher) {
-        d.AddHandler(handlers.NewCommand("mycommand", myModule.myCommand))
-    })
+func LoadMyModule(d *ext.Dispatcher) {
+    d.AddHandler(handlers.NewCommand("mycommand", myModule.myCommand))
 }
 ```
 
@@ -96,7 +94,6 @@ func init() {
 - Run `make lint` before committing
 - Run `make test` before committing
 - Follow Go conventions and idioms
-- Use the repository pattern for data access
 - Add proper error handling with panic recovery
 - Use decorators for common middleware (permissions, error handling)
 

@@ -54,11 +54,11 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/addfilter` | No description available | ❌ |
+| `/addfilter` | Add a filter. Alias for /filter. | ❌ |
 | `/filter` | Every time someone says trigger, the bot will reply with sentence. For multiple word filters, quote the trigger. | ❌ |
 | `/filters` | List all chat filters. | ✅ |
-| `/removefilter` | No description available | ❌ |
-| `/rmfilter` | No description available | ❌ |
+| `/removefilter` | Stop a filter. Alias for /stop. | ❌ |
+| `/rmfilter` | Stop a filter. Alias for /stop. | ❌ |
 | `/stop` | Stop the bot from replying to trigger. | ❌ |
 | `/stopall` | Stop ALL filters in the current chat. This action cannot be undone. | ❌ |
 
@@ -76,4 +76,8 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Admin commands require admin with 'Change Group Info' permission. `/stopall` requires chat owner. `/filters` is available to all users.
+
+## Technical Notes
+
+**Limits:** Maximum 150 filters per chat. Filter keywords cannot exceed 100 characters.

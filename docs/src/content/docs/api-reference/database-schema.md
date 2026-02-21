@@ -9,10 +9,10 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Total Tables**: 26
+- **Total Tables**: 23
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
-- **Migration Tool**: golang-migrate
+- **Migration Tool**: custom migration runner (`alita/db/migrations.go`)
 
 ## Design Patterns
 
@@ -45,17 +45,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_admin_settings_chat
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-
 ### `antiflood_settings`
 
 #### Columns
@@ -64,7 +53,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('antiflood_settings_id_seq'::regclass)` | — |
 | `chat_id` | `BIGINT` | ❌ | — | — |
-| `limit` | `BIGINT` | ✅ | `5` | — |
 | `action` | `TEXT` | ✅ | `'mute'::text` | — |
 | `mode` | `TEXT` | ✅ | `'mute'::text` | — |
 | `delete_antiflood_message` | `BOOLEAN` | ✅ | `false` | — |
@@ -76,11 +64,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_antiflood_chat_active
 - idx_antiflood_chat_flood_active
-
-#### Foreign Keys
-
-- channel_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
 
 ### `blacklists`
 
@@ -100,23 +83,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_blacklists_chat_word_optimized
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- channel_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- user_id -> users(user_id)
-
 ### `captcha_attempts`
 
 #### Columns
@@ -128,6 +94,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `chat_id` | `BIGINT` | ❌ | — | — |
 | `answer` | `VARCHAR(255)` | ❌ | — | — |
 | `attempts` | `INTEGER` | ✅ | `0` | — |
+| `refresh_count` | `INTEGER` | ✅ | `0` | — |
 | `message_id` | `BIGINT` | ✅ | — | — |
 | `expires_at` | `TIMESTAMP` | ❌ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | `CURRENT_TIMESTAMP` | — |
@@ -155,10 +122,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_captcha_muted_user_chat
 - idx_captcha_unmute_at
 
-#### Foreign Keys
-
-- user_id -> users(user_id)
-
 ### `captcha_settings`
 
 #### Columns
@@ -179,10 +142,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - uk_captcha_settings_chat_id
 
-#### Foreign Keys
-
-- user_id -> users(user_id)
-
 ### `channels`
 
 #### Columns
@@ -192,6 +151,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `id` | `BIGINT` | ❌ | `nextval('channels_id_seq'::regclass)` | — |
 | `chat_id` | `BIGINT` | ❌ | — | — |
 | `channel_id` | `BIGINT` | ✅ | — | — |
+| `channel_name` | `TEXT` | ✅ | — | — |
+| `username` | `TEXT` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
@@ -199,29 +160,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_channels_chat_update
 - idx_channels_username
-
-#### Foreign Keys
-
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-
-### `chat_users`
-
-#### Columns
-
-| Column | Type | Nullable | Default | Constraints |
-|--------|------|----------|---------|-------------|
-| `chat_id` | `BIGINT` | ❌ | — | — |
-| `user_id` | `BIGINT` | ❌ | — | — |
-
-#### Indexes
-
-- idx_chat_users_user_id
-- idx_chat_users_chat_id
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
 
 ### `chats`
 
@@ -235,6 +173,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `language` | `TEXT` | ✅ | — | — |
 | `users` | `JSONB` | ✅ | — | — |
 | `is_inactive` | `BOOLEAN` | ✅ | `false` | — |
+| `last_activity` | `TIMESTAMP` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
@@ -246,13 +185,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_chats_inactive
 - idx_chats_last_activity
 - idx_chats_activity_status
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
 
 ### `connection`
 
@@ -280,14 +212,9 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | ❌ | `nextval('connection_settings_id_seq'::regclass)` | — |
 | `chat_id` | `BIGINT` | ❌ | — | — |
-| `enabled` | `BOOLEAN` | ✅ | `true` | — |
 | `allow_connect` | `BOOLEAN` | ✅ | `true` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
 
 ### `devs`
 
@@ -303,13 +230,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
-#### Foreign Keys
-
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-
 ### `disable`
 
 #### Columns
@@ -320,6 +240,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `chat_id` | `BIGINT` | ❌ | — | — |
 | `command` | `TEXT` | ❌ | — | — |
 | `disabled` | `BOOLEAN` | ✅ | `true` | — |
+| `delete_commands` | `BOOLEAN` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
@@ -393,10 +314,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_locks_chat_lock_lookup
 - idx_locks_covering
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-
 ### `notes`
 
 #### Columns
@@ -423,11 +340,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_notes_chat_name
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-
 ### `notes_settings`
 
 #### Columns
@@ -439,10 +351,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `private` | `BOOLEAN` | ✅ | `false` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
 
 ### `pins`
 
@@ -461,11 +369,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Indexes
 
 - idx_pins_chat
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `report_chat_settings`
 
@@ -494,11 +397,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-
 ### `rules`
 
 #### Columns
@@ -512,11 +410,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `private` | `BOOLEAN` | ✅ | `false` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
 
 ### `stored_messages`
 
@@ -550,6 +443,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `username` | `TEXT` | ✅ | — | — |
 | `name` | `TEXT` | ✅ | — | — |
 | `language` | `TEXT` | ✅ | `'en'::text` | — |
+| `last_activity` | `TIMESTAMP` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
 
@@ -558,12 +452,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_users_user_id_active
 - idx_users_covering
 - idx_users_last_activity
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- attempt_id -> captcha_attempts(id)
 
 ### `warns_settings`
 
@@ -577,12 +465,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `warn_mode` | `TEXT` | ✅ | — | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `warns_users`
 
@@ -610,10 +492,9 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - **Users**: Telegram users who interact with the bot
 - **Chats**: Telegram groups/channels managed by the bot
-- **ChatUsers**: Join table linking users to chats
 
 ### Relationship Patterns
 
-- User ↔ Chat: Many-to-many through `chat_users`
+- User ↔ Chat: Tracked via JSONB `users` field on the `chats` table (chat_users join table was removed)
 - Chat → Settings: One-to-one (module-specific settings)
 - Chat → Content: One-to-many (filters, notes, rules, etc.)
