@@ -749,14 +749,6 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if greetPrefs.GoodbyeSettings.CleanGoodbye {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.GoodbyeSettings.LastMsgId)
 			db.SetCleanGoodbyeMsgId(chat.Id, sent.MessageId)
-			// if err.Error() == "unable to deleteMessage: Bad Request: message to delete not found" {
-			// 	log.WithFields(
-			// 		log.Fields{
-			// 			"chat": chat.Id,
-			// 		},
-			// 	).Error("error deleting message")
-			// 	return ext.EndGroups
-			// }
 		}
 	}
 	return ext.EndGroups

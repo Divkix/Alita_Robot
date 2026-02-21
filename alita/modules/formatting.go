@@ -70,9 +70,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		largeOptionsText, _ := tr.GetString("formatting_large_options")
 		_, err := msg.Reply(b,
-			// help.HELPABLE[ModName],
-
-			// TODO: Fix help msg here
+			// Uses localized largeOptionsText for the formatting help message.
 			largeOptionsText,
 			&gotgbot.SendMessageOpts{
 				ParseMode: helpers.HTML,

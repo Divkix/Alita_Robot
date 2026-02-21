@@ -91,7 +91,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 
 	textToParse := splitText[1]
 
-	// func used to trim newlines from the text, fixes the pasring issues of '\n' before and after text
+	// trimTextNewline trims leading/trailing newlines to fix parsing issues with '\n' before and after text
 	trimTextNewline := func(str string) string {
 		return strings.Trim(str, "\n")
 	}
@@ -266,7 +266,7 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 		return
 	}
 
-	// if first character starts with '""' and matchQutes is true
+	// if first character is a double quote and matchQuotes is true
 	if sentence[0] == '"' && matchQuotes {
 		// regex pattern to match text between strings
 		pattern, err := regexp.Compile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)

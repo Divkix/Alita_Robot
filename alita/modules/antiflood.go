@@ -71,7 +71,6 @@ func init() {
 	}()
 }
 
-// cleanupLoop periodically cleans up old entries from the flood cache
 // cleanupLoop periodically removes old flood control entries from memory.
 // Runs every 5 minutes to clean entries older than 10 minutes.
 // Accepts a context for graceful shutdown.

@@ -23,7 +23,7 @@ import (
 
 var (
 	purgesModule = moduleStruct{moduleName: "Purges"}
-	delMsgs      = sync.Map{} // Changed to sync.Map for concurrent access
+	delMsgs      = sync.Map{} // Concurrent-safe map for tracking messages to delete
 )
 
 // PurgeWorker manages concurrent message deletion with rate limiting

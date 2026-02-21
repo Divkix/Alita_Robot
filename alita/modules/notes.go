@@ -30,7 +30,6 @@ import (
 
 var notesModule = moduleStruct{
 	moduleName: "Notes",
-	// overwriteNotesMap is a sync.Map, initialized to zero value (no make needed)
 }
 
 func newNotesOverwriteToken() (string, error) {
@@ -955,9 +954,6 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 		IsProtected:       noteData.IsProtected,
 		AllowWithoutReply: true,
 	})
-	// if strings.Contains(err.Error(), "replied message not found") {
-	// 	return ext.EndGroups
-	// }
 	if err != nil {
 		log.Error(err)
 		return err

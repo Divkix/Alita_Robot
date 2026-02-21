@@ -207,7 +207,8 @@ func InitButtonsWithLanguage(b *gotgbot.Bot, chatId, userId int64, language stri
 
 // GetMessageLinkFromMessageId generates a Telegram message link from chat and message ID.
 // Handles both public groups (with username) and private groups (without username).
-// TODO: maybe replace in future by msg.GetLink()
+// NOTE: msg.GetLink() only works for supergroups/channels. This custom implementation
+// also handles private groups and non-supergroups by constructing the link manually.
 func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLink string) {
 	messageLink = "https://t.me/"
 	chatIdStr := fmt.Sprint(chat.Id)
@@ -589,7 +590,7 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 	return res, btns
 }
 
-// NOTE: extract statis helper functions
+// NOTE: extract status helper functions
 
 // ExtractJoinLeftStatusChange analyzes ChatMemberUpdated events to detect join/leave status changes.
 // Returns (was_member, is_member) booleans indicating membership status transition.
@@ -690,8 +691,7 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 
 	// extract the noteword
 	if len(args) >= 2 && replyMsg == nil {
-		// TODO: Fix circular dependency with extraction package
-		// For now, use a simple extraction
+		// Uses inline extraction to avoid circular dependency with the extraction package.
 		if len(args) > 0 {
 			keyWord = args[0]
 			if len(args) > 1 {
@@ -701,7 +701,7 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 		text, _buttons = tgmd2html.MD2HTMLButtonsV2(text)
 		dataType = db.TEXT
 	} else if replyMsg != nil && len(args) >= 1 {
-		// TODO: Fix circular dependency with extraction package
+		// Uses inline extraction to avoid circular dependency with the extraction package.
 		keyWord = strings.Join(args, " ")
 
 		if replyMsg.ReplyMarkup == nil {
@@ -952,8 +952,7 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 			}
 		}
 
-		// temporary variable function until we don't support notes in inline keyboard
-		// will remove non url buttons from keyboard
+		// buttonUrlFixer filters out non-URL buttons from the keyboard, keeping only valid URL buttons.
 		buttonUrlFixer := func(_buttons *[]tgmd2html.ButtonV2) {
 			// regex taken from https://regexr.com/39nr7
 			buttonUrlPattern, _ := regexp.Compile(`[(htps)?:/w.a-zA-Z\d@%_+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z\d@:%_+.~#?&/=]*)`)

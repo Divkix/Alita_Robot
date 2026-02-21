@@ -26,7 +26,7 @@ func NewOptimizedLockQueries() *OptimizedLockQueries {
 }
 
 // GetLockStatus retrieves only the lock status for a specific lock type.
-// Optimized for high-frequency calls (319K+ calls) by selecting only the locked column.
+// Optimized for high-frequency lock status checks by selecting only the locked column.
 // Returns false by default if no record is found.
 func (o *OptimizedLockQueries) GetLockStatus(chatID int64, lockType string) (bool, error) {
 	if o.db == nil {
@@ -131,7 +131,7 @@ func NewOptimizedChatQueries() *OptimizedChatQueries {
 }
 
 // GetChatBasicInfo retrieves only essential chat information with minimal column selection.
-// Optimized for high-frequency calls (123K+ calls) by selecting only necessary fields.
+// Optimized for high-frequency calls by selecting only necessary fields.
 func (o *OptimizedChatQueries) GetChatBasicInfo(chatID int64) (*Chat, error) {
 	if o.db == nil {
 		return nil, errors.New("database not initialized")

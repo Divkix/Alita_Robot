@@ -33,7 +33,7 @@ const (
 	VideoNote int = 8
 )
 
-// Default greeting messages - deprecated constants, use GetDefaultWelcome/GetDefaultGoodbye instead
+// Default greeting messages used when no custom greetings are configured.
 const (
 	DefaultWelcome = "Hey {first}, how are you?"
 	DefaultGoodbye = "Sad to see you leaving {first}"

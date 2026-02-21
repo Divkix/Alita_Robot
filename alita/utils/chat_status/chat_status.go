@@ -27,8 +27,8 @@ const (
 )
 
 var (
-	tgAdminList            = []int64{groupAnonymousBot, tgUserId}
-	anonChatMapExpirartion = 20 * time.Second
+	tgAdminList           = []int64{groupAnonymousBot, tgUserId}
+	anonChatMapExpiration = 20 * time.Second
 )
 
 // IsValidUserId checks if an ID represents a valid Telegram user.
@@ -41,7 +41,7 @@ func IsValidUserId(id int64) bool {
 }
 
 // IsChannelId checks if an ID represents a Telegram channel.
-// Channel IDs have the format -100XXXXXXXXXX (13 digits starting with -100).
+// Channel IDs have the format -100XXXXXXXXXX (-100 prefix followed by 10+ digits).
 func IsChannelId(id int64) bool {
 	// Channel IDs are < -1000000000000 (-100 followed by 10+ digits)
 	return id < -1000000000000
@@ -1018,7 +1018,7 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 // Used to track anonymous admin verification requests with expiration.
 // Logs errors but doesn't fail since cache is non-critical.
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
-	err := cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpirartion))
+	err := cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
 	if err != nil {
 		// Log error but don't fail the operation since cache is not critical
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
