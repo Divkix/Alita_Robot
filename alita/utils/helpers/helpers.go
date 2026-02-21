@@ -84,6 +84,11 @@ func SplitMessage(msg string) []string {
 	}
 
 	lines := strings.Split(msg, "\n")
+	// strings.Split produces a trailing empty string when msg ends with "\n".
+	// Remove it to avoid appending an extra newline during reconstruction.
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
 	smallMsg := ""
 	result := make([]string, 0)
 
