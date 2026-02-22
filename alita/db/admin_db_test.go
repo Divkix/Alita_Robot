@@ -77,3 +77,41 @@ func TestLoadAdminStats(t *testing.T) {
 		}
 	}
 }
+
+func TestSetAnonAdmin_Toggle(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano() + 3000
+
+	t.Cleanup(func() {
+		DB.Where("chat_id = ?", chatID).Delete(&AdminSettings{})
+	})
+
+	// New chat: default AnonAdmin=false
+	settings := GetAdminSettings(chatID)
+	if settings == nil {
+		t.Fatal("GetAdminSettings() returned nil")
+	}
+	if settings.AnonAdmin {
+		t.Fatal("expected default AnonAdmin=false for new chat")
+	}
+
+	// Enable anon admin
+	if err := SetAnonAdminMode(chatID, true); err != nil {
+		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
+	}
+	settings = GetAdminSettings(chatID)
+	if !settings.AnonAdmin {
+		t.Fatal("expected AnonAdmin=true after SetAnonAdminMode(true)")
+	}
+
+	// Disable anon admin -- zero-value boolean must be persisted (UPSERT test)
+	if err := SetAnonAdminMode(chatID, false); err != nil {
+		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
+	}
+	settings = GetAdminSettings(chatID)
+	if settings.AnonAdmin {
+		t.Fatal("expected AnonAdmin=false after SetAnonAdminMode(false) -- zero-value UPSERT must persist")
+	}
+}

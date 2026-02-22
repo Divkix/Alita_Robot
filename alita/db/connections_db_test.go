@@ -240,3 +240,63 @@ func TestConcurrentConnect(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestConnectionForNewUser(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	userID := time.Now().UnixNano() + 9000
+
+	t.Cleanup(func() {
+		DB.Where("user_id = ?", userID).Delete(&ConnectionSettings{})
+	})
+
+	// Connection() for a brand-new user must return a non-nil record with Connected=false
+	conn := Connection(userID)
+	if conn == nil {
+		t.Fatal("Connection() returned nil for new user")
+	}
+	if conn.Connected {
+		t.Fatalf("expected Connected=false for new user, got true")
+	}
+	if conn.UserId != userID {
+		t.Fatalf("expected UserId=%d, got %d", userID, conn.UserId)
+	}
+}
+
+func TestDisconnectId(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano() + 10000
+	userID := base
+	chatID := base + 1
+
+	t.Cleanup(func() {
+		DB.Where("user_id = ?", userID).Delete(&ConnectionSettings{})
+		DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{})
+	})
+
+	// Establish a connection
+	_ = Connection(userID)
+	ConnectId(userID, chatID)
+
+	got := Connection(userID)
+	if !got.Connected {
+		t.Fatal("expected Connected=true after ConnectId")
+	}
+	if got.ChatId != chatID {
+		t.Fatalf("expected ChatId=%d after ConnectId, got %d", chatID, got.ChatId)
+	}
+
+	// Disconnect and verify
+	DisconnectId(userID)
+
+	got = Connection(userID)
+	if got == nil {
+		t.Fatal("Connection() returned nil after DisconnectId")
+	}
+	if got.Connected {
+		t.Fatalf("expected Connected=false after DisconnectId, got true")
+	}
+}

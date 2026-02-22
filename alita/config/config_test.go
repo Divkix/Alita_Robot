@@ -305,3 +305,151 @@ func TestValidateConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestSetDefaults(t *testing.T) {
+	t.Parallel()
+	skipIfNoConfig(t)
+
+	t.Run("zero config gets defaults", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{}
+		cfg.setDefaults()
+
+		if cfg.ApiServer != "https://api.telegram.org" {
+			t.Errorf("ApiServer: got %q, want %q", cfg.ApiServer, "https://api.telegram.org")
+		}
+		if cfg.WorkingMode != "worker" {
+			t.Errorf("WorkingMode: got %q, want %q", cfg.WorkingMode, "worker")
+		}
+		if cfg.RedisAddress != "localhost:6379" {
+			t.Errorf("RedisAddress: got %q, want %q", cfg.RedisAddress, "localhost:6379")
+		}
+		if cfg.RedisDB != 1 {
+			t.Errorf("RedisDB: got %d, want %d", cfg.RedisDB, 1)
+		}
+		if cfg.HTTPPort != 8080 {
+			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 8080)
+		}
+		if cfg.ChatValidationWorkers != 10 {
+			t.Errorf("ChatValidationWorkers: got %d, want %d", cfg.ChatValidationWorkers, 10)
+		}
+		if cfg.DatabaseWorkers != 5 {
+			t.Errorf("DatabaseWorkers: got %d, want %d", cfg.DatabaseWorkers, 5)
+		}
+		if cfg.BulkOperationWorkers != 4 {
+			t.Errorf("BulkOperationWorkers: got %d, want %d", cfg.BulkOperationWorkers, 4)
+		}
+		if cfg.CacheWorkers != 3 {
+			t.Errorf("CacheWorkers: got %d, want %d", cfg.CacheWorkers, 3)
+		}
+		if cfg.StatsCollectionWorkers != 2 {
+			t.Errorf("StatsCollectionWorkers: got %d, want %d", cfg.StatsCollectionWorkers, 2)
+		}
+		if cfg.DBMaxIdleConns != 50 {
+			t.Errorf("DBMaxIdleConns: got %d, want %d", cfg.DBMaxIdleConns, 50)
+		}
+		if cfg.DBMaxOpenConns != 200 {
+			t.Errorf("DBMaxOpenConns: got %d, want %d", cfg.DBMaxOpenConns, 200)
+		}
+		if cfg.DBConnMaxLifetimeMin != 240 {
+			t.Errorf("DBConnMaxLifetimeMin: got %d, want %d", cfg.DBConnMaxLifetimeMin, 240)
+		}
+		if cfg.DBConnMaxIdleTimeMin != 60 {
+			t.Errorf("DBConnMaxIdleTimeMin: got %d, want %d", cfg.DBConnMaxIdleTimeMin, 60)
+		}
+		if cfg.MigrationsPath != "migrations" {
+			t.Errorf("MigrationsPath: got %q, want %q", cfg.MigrationsPath, "migrations")
+		}
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true")
+		}
+		if cfg.MaxConcurrentOperations != 50 {
+			t.Errorf("MaxConcurrentOperations: got %d, want %d", cfg.MaxConcurrentOperations, 50)
+		}
+		if cfg.OperationTimeoutSeconds != 30 {
+			t.Errorf("OperationTimeoutSeconds: got %d, want %d", cfg.OperationTimeoutSeconds, 30)
+		}
+		if cfg.DispatcherMaxRoutines != 200 {
+			t.Errorf("DispatcherMaxRoutines: got %d, want %d", cfg.DispatcherMaxRoutines, 200)
+		}
+		if cfg.ResourceMaxGoroutines != 1000 {
+			t.Errorf("ResourceMaxGoroutines: got %d, want %d", cfg.ResourceMaxGoroutines, 1000)
+		}
+		if cfg.ResourceMaxMemoryMB != 500 {
+			t.Errorf("ResourceMaxMemoryMB: got %d, want %d", cfg.ResourceMaxMemoryMB, 500)
+		}
+		if cfg.ResourceGCThresholdMB != 400 {
+			t.Errorf("ResourceGCThresholdMB: got %d, want %d", cfg.ResourceGCThresholdMB, 400)
+		}
+	})
+
+	t.Run("pre-set ApiServer preserved", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{ApiServer: "custom"}
+		cfg.setDefaults()
+
+		if cfg.ApiServer != "custom" {
+			t.Errorf("ApiServer: got %q, want %q", cfg.ApiServer, "custom")
+		}
+	})
+
+	t.Run("pre-set RedisDB preserved", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{RedisDB: 5}
+		cfg.setDefaults()
+
+		if cfg.RedisDB != 5 {
+			t.Errorf("RedisDB: got %d, want %d", cfg.RedisDB, 5)
+		}
+	})
+
+	t.Run("pre-set HTTPPort preserved", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{HTTPPort: 3000}
+		cfg.setDefaults()
+
+		if cfg.HTTPPort != 3000 {
+			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 3000)
+		}
+	})
+
+	t.Run("backward compat WebhookPort", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{WebhookPort: 9090, HTTPPort: 0}
+		cfg.setDefaults()
+
+		if cfg.HTTPPort != 9090 {
+			t.Errorf("HTTPPort: got %d, want %d (expected WebhookPort to be used)", cfg.HTTPPort, 9090)
+		}
+	})
+
+	t.Run("ClearCacheOnStartup unconditional", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{ClearCacheOnStartup: false}
+		cfg.setDefaults()
+
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true (setDefaults always sets this to true)")
+		}
+	})
+
+	t.Run("Debug false enables monitoring", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &Config{Debug: false}
+		cfg.setDefaults()
+
+		if !cfg.EnablePerformanceMonitoring {
+			t.Errorf("EnablePerformanceMonitoring: got false, want true when Debug=false")
+		}
+		if !cfg.EnableBackgroundStats {
+			t.Errorf("EnableBackgroundStats: got false, want true when Debug=false")
+		}
+	})
+}

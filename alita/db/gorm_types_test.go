@@ -615,3 +615,50 @@ func TestInt64Array_Value(t *testing.T) {
 		})
 	}
 }
+
+func TestTableNames(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		model     interface{ TableName() string }
+		wantTable string
+	}{
+		{"User", User{}, "users"},
+		{"Chat", Chat{}, "chats"},
+		{"WarnSettings", WarnSettings{}, "warns_settings"},
+		{"Warns", Warns{}, "warns_users"},
+		{"GreetingSettings", GreetingSettings{}, "greetings"},
+		{"ChatFilters", ChatFilters{}, "filters"},
+		{"AdminSettings", AdminSettings{}, "admin"},
+		{"BlacklistSettings", BlacklistSettings{}, "blacklists"},
+		{"PinSettings", PinSettings{}, "pins"},
+		{"ReportChatSettings", ReportChatSettings{}, "report_chat_settings"},
+		{"ReportUserSettings", ReportUserSettings{}, "report_user_settings"},
+		{"DevSettings", DevSettings{}, "devs"},
+		{"ChannelSettings", ChannelSettings{}, "channels"},
+		{"AntifloodSettings", AntifloodSettings{}, "antiflood_settings"},
+		{"ConnectionSettings", ConnectionSettings{}, "connection"},
+		{"ConnectionChatSettings", ConnectionChatSettings{}, "connection_settings"},
+		{"DisableSettings", DisableSettings{}, "disable"},
+		{"DisableChatSettings", DisableChatSettings{}, "disable_chat_settings"},
+		{"RulesSettings", RulesSettings{}, "rules"},
+		{"LockSettings", LockSettings{}, "locks"},
+		{"NotesSettings", NotesSettings{}, "notes_settings"},
+		{"Notes", Notes{}, "notes"},
+		{"CaptchaSettings", CaptchaSettings{}, "captcha_settings"},
+		{"CaptchaAttempts", CaptchaAttempts{}, "captcha_attempts"},
+		{"StoredMessages", StoredMessages{}, "stored_messages"},
+		{"CaptchaMutedUsers", CaptchaMutedUsers{}, "captcha_muted_users"},
+		{"SchemaMigration", SchemaMigration{}, "schema_migrations"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.model.TableName(); got != tc.wantTable {
+				t.Fatalf("%s.TableName() = %q, want %q", tc.name, got, tc.wantTable)
+			}
+		})
+	}
+}
