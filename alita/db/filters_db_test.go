@@ -23,8 +23,8 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	}
 
 	// Add two filters
-	AddFilter(chatID, "spam", "spam reply", "", nil, 1)
-	AddFilter(chatID, "flood", "flood reply", "", nil, 1)
+	_ = AddFilter(chatID, "spam", "spam reply", "", nil, 1)
+	_ = AddFilter(chatID, "flood", "flood reply", "", nil, 1)
 
 	list = GetFiltersList(chatID)
 	if len(list) != 2 {
@@ -32,7 +32,7 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	}
 
 	// Adding same keyword again should not duplicate
-	AddFilter(chatID, "spam", "different reply", "", nil, 2)
+	_ = AddFilter(chatID, "spam", "different reply", "", nil, 2)
 	list = GetFiltersList(chatID)
 	if len(list) != 2 {
 		t.Fatalf("expected 2 filters (no duplicate), got %d", len(list))
@@ -53,7 +53,7 @@ func TestDoesFilterExists(t *testing.T) {
 		t.Fatal("expected DoesFilterExists=false for non-existent filter")
 	}
 
-	AddFilter(chatID, "hello", "hello reply", "", nil, 1)
+	_ = AddFilter(chatID, "hello", "hello reply", "", nil, 1)
 
 	if !DoesFilterExists(chatID, "hello") {
 		t.Fatal("expected DoesFilterExists=true after adding filter")
@@ -75,10 +75,10 @@ func TestRemoveFilter(t *testing.T) {
 		RemoveAllFilters(chatID)
 	})
 
-	AddFilter(chatID, "remove_me", "reply", "", nil, 1)
-	AddFilter(chatID, "keep_me", "reply", "", nil, 1)
+	_ = AddFilter(chatID, "remove_me", "reply", "", nil, 1)
+	_ = AddFilter(chatID, "keep_me", "reply", "", nil, 1)
 
-	RemoveFilter(chatID, "remove_me")
+	_ = RemoveFilter(chatID, "remove_me")
 
 	if DoesFilterExists(chatID, "remove_me") {
 		t.Fatal("expected filter to be removed")
@@ -88,7 +88,7 @@ func TestRemoveFilter(t *testing.T) {
 	}
 
 	// Removing non-existent filter should not error
-	RemoveFilter(chatID, "does_not_exist")
+	_ = RemoveFilter(chatID, "does_not_exist")
 }
 
 func TestRemoveAllFilters(t *testing.T) {
@@ -97,9 +97,9 @@ func TestRemoveAllFilters(t *testing.T) {
 
 	chatID := -time.Now().UnixNano()
 
-	AddFilter(chatID, "a", "a", "", nil, 1)
-	AddFilter(chatID, "b", "b", "", nil, 1)
-	AddFilter(chatID, "c", "c", "", nil, 1)
+	_ = AddFilter(chatID, "a", "a", "", nil, 1)
+	_ = AddFilter(chatID, "b", "b", "", nil, 1)
+	_ = AddFilter(chatID, "c", "c", "", nil, 1)
 
 	RemoveAllFilters(chatID)
 
@@ -124,7 +124,7 @@ func TestCountFilters(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		AddFilter(chatID, fmt.Sprintf("word%d", i), "reply", "", nil, 1)
+		_ = AddFilter(chatID, fmt.Sprintf("word%d", i), "reply", "", nil, 1)
 	}
 
 	if CountFilters(chatID) != 3 {
@@ -160,7 +160,7 @@ func TestAddFilterWithButtons(t *testing.T) {
 		{Name: "Click me", Url: "https://example.com", SameLine: false},
 	}
 
-	AddFilter(chatID, "btn_filter", "Filter with button", "", buttons, 1)
+	_ = AddFilter(chatID, "btn_filter", "Filter with button", "", buttons, 1)
 
 	if !DoesFilterExists(chatID, "btn_filter") {
 		t.Fatal("expected filter with buttons to exist")

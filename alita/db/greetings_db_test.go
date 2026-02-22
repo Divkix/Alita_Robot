@@ -56,13 +56,13 @@ func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
 	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	SetWelcomeToggle(chatID, true)
+	_ = SetWelcomeToggle(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil || !settings.WelcomeSettings.ShouldWelcome {
 		t.Fatalf("expected ShouldWelcome=true after SetWelcomeToggle(true)")
 	}
 
-	SetWelcomeToggle(chatID, false)
+	_ = SetWelcomeToggle(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil || settings.WelcomeSettings.ShouldWelcome {
 		t.Fatalf("expected ShouldWelcome=false after SetWelcomeToggle(false)")
@@ -86,7 +86,7 @@ func TestSetWelcomeText(t *testing.T) {
 	_ = GetGreetingSettings(chatID)
 
 	buttons := []Button{{Name: "btn1", Url: "https://example.com", SameLine: false}}
-	SetWelcomeText(chatID, "Hello {first}!", "file123", buttons, PHOTO)
+	_ = SetWelcomeText(chatID, "Hello {first}!", "file123", buttons, PHOTO)
 
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil {
@@ -126,7 +126,7 @@ func TestSetGoodbyeText(t *testing.T) {
 	_ = GetGreetingSettings(chatID)
 
 	buttons := []Button{{Name: "bye", Url: "https://example.com/bye", SameLine: true}}
-	SetGoodbyeText(chatID, "Goodbye {first}!", "gbfile456", buttons, STICKER)
+	_ = SetGoodbyeText(chatID, "Goodbye {first}!", "gbfile456", buttons, STICKER)
 
 	settings := GetGreetingSettings(chatID)
 	if settings.GoodbyeSettings == nil {
@@ -162,13 +162,13 @@ func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
 	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	SetGoodbyeToggle(chatID, true)
+	_ = SetGoodbyeToggle(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if settings.GoodbyeSettings == nil || !settings.GoodbyeSettings.ShouldGoodbye {
 		t.Fatalf("expected ShouldGoodbye=true after SetGoodbyeToggle(true)")
 	}
 
-	SetGoodbyeToggle(chatID, false)
+	_ = SetGoodbyeToggle(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.GoodbyeSettings == nil || settings.GoodbyeSettings.ShouldGoodbye {
 		t.Fatalf("expected ShouldGoodbye=false after SetGoodbyeToggle(false)")
@@ -191,13 +191,13 @@ func TestSetShouldCleanService(t *testing.T) {
 	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	SetShouldCleanService(chatID, true)
+	_ = SetShouldCleanService(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if !settings.ShouldCleanService {
 		t.Fatalf("expected ShouldCleanService=true, got false")
 	}
 
-	SetShouldCleanService(chatID, false)
+	_ = SetShouldCleanService(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.ShouldCleanService {
 		t.Fatalf("expected ShouldCleanService=false after reset")
@@ -220,13 +220,13 @@ func TestSetShouldAutoApprove(t *testing.T) {
 	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	SetShouldAutoApprove(chatID, true)
+	_ = SetShouldAutoApprove(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if !settings.ShouldAutoApprove {
 		t.Fatalf("expected ShouldAutoApprove=true, got false")
 	}
 
-	SetShouldAutoApprove(chatID, false)
+	_ = SetShouldAutoApprove(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.ShouldAutoApprove {
 		t.Fatalf("expected ShouldAutoApprove=false after reset")
@@ -249,13 +249,13 @@ func TestSetCleanWelcomeSetting(t *testing.T) {
 	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	SetCleanWelcomeSetting(chatID, true)
+	_ = SetCleanWelcomeSetting(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil || !settings.WelcomeSettings.CleanWelcome {
 		t.Fatalf("expected CleanWelcome=true, got false")
 	}
 
-	SetCleanWelcomeSetting(chatID, false)
+	_ = SetCleanWelcomeSetting(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil || settings.WelcomeSettings.CleanWelcome {
 		t.Fatalf("expected CleanWelcome=false after reset")
@@ -304,7 +304,7 @@ func TestSetCleanMsgId(t *testing.T) {
 
 			_ = GetGreetingSettings(chatID)
 
-			tc.setFunc(chatID, tc.msgID)
+			_ = tc.setFunc(chatID, tc.msgID)
 			settings := GetGreetingSettings(chatID)
 			if tc.nilCheck(settings) {
 				t.Fatalf("settings sub-struct is nil")
@@ -313,7 +313,7 @@ func TestSetCleanMsgId(t *testing.T) {
 				t.Fatalf("expected LastMsgId=%d, got %d", tc.msgID, tc.getLastMsg(settings))
 			}
 
-			tc.setFunc(chatID, 0)
+			_ = tc.setFunc(chatID, 0)
 			settings = GetGreetingSettings(chatID)
 			if tc.getLastMsg(settings) != 0 {
 				t.Fatalf("expected LastMsgId=0 after reset, got %d", tc.getLastMsg(settings))
@@ -337,13 +337,13 @@ func TestSetCleanGoodbyeSetting(t *testing.T) {
 
 	_ = GetGreetingSettings(chatID)
 
-	SetCleanGoodbyeSetting(chatID, true)
+	_ = SetCleanGoodbyeSetting(chatID, true)
 	settings := GetGreetingSettings(chatID)
 	if settings.GoodbyeSettings == nil || !settings.GoodbyeSettings.CleanGoodbye {
 		t.Fatalf("expected CleanGoodbye=true, got false")
 	}
 
-	SetCleanGoodbyeSetting(chatID, false)
+	_ = SetCleanGoodbyeSetting(chatID, false)
 	settings = GetGreetingSettings(chatID)
 	if settings.GoodbyeSettings == nil || settings.GoodbyeSettings.CleanGoodbye {
 		t.Fatalf("expected CleanGoodbye=false after reset")
@@ -443,9 +443,9 @@ func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			if i%2 == 0 {
-				SetWelcomeToggle(chatID, true)
+				_ = SetWelcomeToggle(chatID, true)
 			} else {
-				SetGoodbyeToggle(chatID, true)
+				_ = SetGoodbyeToggle(chatID, true)
 			}
 		}(i)
 	}
@@ -521,7 +521,7 @@ func TestSetWelcomeText_EmptyText(t *testing.T) {
 	_ = GetGreetingSettings(chatID)
 
 	// Set welcome text to empty
-	SetWelcomeText(chatID, "", "", []Button{}, TEXT)
+	_ = SetWelcomeText(chatID, "", "", []Button{}, TEXT)
 
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil {
@@ -556,11 +556,11 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 
 	// Set custom welcome text
 	customWelcome := "Custom welcome for {first}"
-	SetWelcomeText(chatID, customWelcome, "", []Button{}, TEXT)
+	_ = SetWelcomeText(chatID, customWelcome, "", []Button{}, TEXT)
 
 	// Set custom goodbye text
 	customGoodbye := "Custom goodbye for {first}"
-	SetGoodbyeText(chatID, customGoodbye, "", []Button{}, TEXT)
+	_ = SetGoodbyeText(chatID, customGoodbye, "", []Button{}, TEXT)
 
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil {
@@ -580,7 +580,7 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 
 	// Modify welcome, verify goodbye unchanged
 	newWelcome := "Modified welcome"
-	SetWelcomeText(chatID, newWelcome, "", []Button{}, TEXT)
+	_ = SetWelcomeText(chatID, newWelcome, "", []Button{}, TEXT)
 
 	settings = GetGreetingSettings(chatID)
 	if settings.WelcomeSettings.WelcomeText != newWelcome {
@@ -611,7 +611,7 @@ func TestResetWelcomeText(t *testing.T) {
 
 	// Set a custom welcome
 	customText := "This is a custom welcome message for {first}!"
-	SetWelcomeText(chatID, customText, "", []Button{}, TEXT)
+	_ = SetWelcomeText(chatID, customText, "", []Button{}, TEXT)
 
 	settings := GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil || settings.WelcomeSettings.WelcomeText != customText {
@@ -619,7 +619,7 @@ func TestResetWelcomeText(t *testing.T) {
 	}
 
 	// Reset to DefaultWelcome
-	SetWelcomeText(chatID, DefaultWelcome, "", []Button{}, TEXT)
+	_ = SetWelcomeText(chatID, DefaultWelcome, "", []Button{}, TEXT)
 
 	settings = GetGreetingSettings(chatID)
 	if settings.WelcomeSettings == nil {

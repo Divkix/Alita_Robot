@@ -105,7 +105,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	allChats := db.GetAllChats()
 
@@ -133,7 +133,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	defer openedFile.Close()
+	defer func() { _ = openedFile.Close() }()
 
 	_, err = rMsg.Delete(b, nil)
 	if err != nil {

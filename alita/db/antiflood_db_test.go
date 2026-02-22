@@ -15,7 +15,7 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 	})
 
 	// Set to true first
-	SetFloodMsgDel(chatID, true)
+	_ = SetFloodMsgDel(chatID, true)
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -26,7 +26,7 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 	}
 
 	// Now set to false — this was the bug: zero value was silently skipped
-	SetFloodMsgDel(chatID, false)
+	_ = SetFloodMsgDel(chatID, false)
 
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
 		t.Fatalf("query error after SetFloodMsgDel(false): %v", err)
@@ -46,7 +46,7 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 	})
 
 	// Set limit to 5 (enable flood detection)
-	SetFlood(chatID, 5)
+	_ = SetFlood(chatID, 5)
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -57,7 +57,7 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 	}
 
 	// Set limit to 0 (disable) — this was the bug: zero value was silently skipped
-	SetFlood(chatID, 0)
+	_ = SetFlood(chatID, 0)
 
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
 		t.Fatalf("query error after SetFlood(0): %v", err)
@@ -77,7 +77,7 @@ func TestSetFloodMsgDelCreatesRecord(t *testing.T) {
 	})
 
 	// First-time call on a fresh chat should create a record
-	SetFloodMsgDel(chatID, true)
+	_ = SetFloodMsgDel(chatID, true)
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {

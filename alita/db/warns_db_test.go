@@ -189,7 +189,7 @@ func TestSetWarnLimit(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
 	})
 
-	SetWarnLimit(chatID, 5)
+	_ = SetWarnLimit(chatID, 5)
 
 	settings := GetWarnSetting(chatID)
 	if settings.WarnLimit != 5 {
@@ -211,7 +211,7 @@ func TestSetWarnMode(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
 	})
 
-	SetWarnMode(chatID, "ban")
+	_ = SetWarnMode(chatID, "ban")
 
 	settings := GetWarnSetting(chatID)
 	if settings.WarnMode != "ban" {
