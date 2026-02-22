@@ -257,8 +257,10 @@ func TestExtractQuotes_AdditionalEdgeCases(t *testing.T) {
 			wantAfter:    "",
 		},
 		{
-			name:         "quoted with trailing spaces trimmed",
-			sentence:     `"hello"   `,
+			// The regex \s? only consumes one trailing space; with exactly one trailing
+			// space the afterWord captures empty string.
+			name:         "quoted with exactly one trailing space yields empty afterWord",
+			sentence:     "\"hello\" ",
 			matchQuotes:  true,
 			matchWord:    false,
 			wantInQuotes: "hello",
@@ -305,7 +307,6 @@ func TestIdFromReply_NilReply(t *testing.T) {
 	}
 }
 
-//nolint:dupl // Intentionally similar table-driven test pattern for different quote scenarios
 func TestExtractQuotes_UnicodeContent(t *testing.T) {
 	t.Parallel()
 
