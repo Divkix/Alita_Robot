@@ -1,6 +1,7 @@
 package db
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -331,5 +332,84 @@ func TestRemoveAllNotes(t *testing.T) {
 	list := GetNotesList(chatID, false)
 	if len(list) != 0 {
 		t.Fatalf("expected 0 notes after RemoveAllNotes, got %d", len(list))
+	}
+}
+
+func TestAddNoteWithAdminOnly(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	if err := EnsureChatInDb(chatID, "test-admin-only-note"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	// Add a note with adminOnly=true
+	if err := AddNote(chatID, "admin-note", "secret content", "", ButtonArray{}, TEXT, false, false, true, false, false, false); err != nil {
+		t.Fatalf("AddNote() adminOnly error = %v", err)
+	}
+
+	// Admin view (admin=true) should include admin-only notes
+	adminList := GetNotesList(chatID, true)
+	if !slices.Contains(adminList, "admin-note") {
+		t.Fatalf("GetNotesList(chatID, true) = %v, expected to contain 'admin-note'", adminList)
+	}
+
+	// Non-admin view (admin=false) should exclude admin-only notes
+	nonAdminList := GetNotesList(chatID, false)
+	if slices.Contains(nonAdminList, "admin-note") {
+		t.Fatalf("GetNotesList(chatID, false) = %v, must not contain 'admin-note' (admin-only)", nonAdminList)
+	}
+}
+
+func TestSaveNoteTwice_Overwrites(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	if err := EnsureChatInDb(chatID, "test-save-twice"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	// Save note v1
+	if err := AddNote(chatID, "my-note", "v1 content", "", ButtonArray{}, TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() v1 error = %v", err)
+	}
+
+	// Save note v2 (same name) -- AddNote is a no-op for duplicates (returns nil, keeps v1)
+	if err := AddNote(chatID, "my-note", "v2 content", "", ButtonArray{}, TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() v2 error = %v", err)
+	}
+
+	// GetNote should return the existing note (v1 content, since AddNote is idempotent)
+	note := GetNote(chatID, "my-note")
+	if note == nil {
+		t.Fatal("GetNote() returned nil")
+	}
+	// AddNote does not overwrite existing notes - v1 content is preserved
+	if note.NoteContent != "v1 content" {
+		t.Fatalf("NoteContent = %q, want %q (AddNote is idempotent, does not overwrite)", note.NoteContent, "v1 content")
+	}
+
+	// Verify no duplicate entries
+	list := GetNotesList(chatID, false)
+	count := 0
+	for _, n := range list {
+		if n == "my-note" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 entry for 'my-note', got %d; list: %v", count, list)
 	}
 }

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -22,14 +23,7 @@ func TestDisableCommand(t *testing.T) {
 	}
 
 	cmds := GetChatDisabledCMDs(chatID)
-	found := false
-	for _, c := range cmds {
-		if c == cmd {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(cmds, cmd) {
 		t.Fatalf("expected command %q in disabled list, got %v", cmd, cmds)
 	}
 }
@@ -54,10 +48,8 @@ func TestEnableCommand(t *testing.T) {
 	}
 
 	cmds := GetChatDisabledCMDs(chatID)
-	for _, c := range cmds {
-		if c == cmd {
-			t.Fatalf("command %q should have been enabled, but still found in disabled list", cmd)
-		}
+	if slices.Contains(cmds, cmd) {
+		t.Fatalf("command %q should have been enabled, but still found in disabled list", cmd)
 	}
 }
 
@@ -207,7 +199,7 @@ func TestConcurrentDisableEnable(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		chatID := base + int64(i)
 		cmd := "testcmd"
 		go func(cid int64) {
@@ -226,4 +218,37 @@ func TestConcurrentDisableEnable(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestDisableSameCommandTwice(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano() + 8000
+	cmd := "start"
+
+	t.Cleanup(func() {
+		DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&DisableSettings{})
+	})
+
+	// Disable "start" twice -- DisableCMD uses CreateRecord (no deduplication),
+	// so two rows may be inserted. The important invariant is that IsCommandDisabled
+	// returns true and the command appears at least once in the list.
+	if err := DisableCMD(chatID, cmd); err != nil {
+		t.Fatalf("DisableCMD() first call error = %v", err)
+	}
+	if err := DisableCMD(chatID, cmd); err != nil {
+		t.Fatalf("DisableCMD() second call error = %v", err)
+	}
+
+	// Verify the command is reported as disabled
+	if !IsCommandDisabled(chatID, cmd) {
+		t.Fatalf("IsCommandDisabled() = false after two DisableCMD calls, want true")
+	}
+
+	// Verify it appears at least once in the list
+	cmds := GetChatDisabledCMDs(chatID)
+	if !slices.Contains(cmds, cmd) {
+		t.Fatalf("DisableCMD() twice: command %q not found in list at all; list: %v", cmd, cmds)
+	}
 }

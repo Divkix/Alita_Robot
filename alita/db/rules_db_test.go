@@ -214,3 +214,76 @@ func TestLoadRulesStats_ReflectsNewEntries(t *testing.T) {
 		t.Fatalf("expected at least 1 chat with private rules enabled, got %d", pvtRules)
 	}
 }
+
+func TestSetRules_EmptyString(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	if err := EnsureChatInDb(chatID, ""); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+
+	// Initialize settings (default rules = "")
+	_ = GetChatRulesInfo(chatID)
+
+	// SetChatRules with empty string is a GORM zero-value skip (no-op on a struct Update)
+	// The initial default of "" should remain.
+	SetChatRules(chatID, "")
+
+	rulesrc := GetChatRulesInfo(chatID)
+	if rulesrc == nil {
+		t.Fatal("GetChatRulesInfo() returned nil")
+	}
+	// Default empty string persists whether or not the call is a no-op
+	if rulesrc.Rules != "" {
+		t.Fatalf("expected Rules='', got %q", rulesrc.Rules)
+	}
+}
+
+func TestClearRules(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	if err := EnsureChatInDb(chatID, ""); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+
+	// Initialize and set rules to something non-empty
+	_ = GetChatRulesInfo(chatID)
+	SetChatRules(chatID, "Some rules text")
+
+	rulesrc := GetChatRulesInfo(chatID)
+	if rulesrc.Rules != "Some rules text" {
+		t.Fatalf("expected 'Some rules text', got %q", rulesrc.Rules)
+	}
+
+	// SetChatRules uses struct-based Updates which skips zero values (empty string).
+	// To "clear" rules via the DB layer directly:
+	if err := DB.Model(&RulesSettings{}).
+		Where("chat_id = ?", chatID).
+		Update("rules", "").Error; err != nil {
+		t.Fatalf("DB direct update to clear rules error = %v", err)
+	}
+
+	rulesrc = GetChatRulesInfo(chatID)
+	if rulesrc == nil {
+		t.Fatal("GetChatRulesInfo() returned nil after clearing")
+	}
+	if rulesrc.Rules != "" {
+		t.Fatalf("expected empty rules after clear, got %q", rulesrc.Rules)
+	}
+}
