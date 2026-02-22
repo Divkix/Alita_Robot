@@ -296,13 +296,14 @@ func SetCleanWelcomeSetting(chatID int64, pref bool) {
 // SetCleanWelcomeMsgId updates the message ID of the last welcome message for cleanup purposes.
 // Creates default greeting settings if they don't exist.
 func SetCleanWelcomeMsgId(chatId, msgId int64) {
-	cleanWelcomeSrc := checkGreetingSettings(chatId)
-	if cleanWelcomeSrc.WelcomeSettings == nil {
-		cleanWelcomeSrc.WelcomeSettings = &WelcomeSettings{}
-	}
-	cleanWelcomeSrc.WelcomeSettings.LastMsgId = msgId
+	_ = checkGreetingSettings(chatId) // ensure record exists
 
-	err := UpdateRecord(&GreetingSettings{}, map[string]any{"chat_id": chatId}, cleanWelcomeSrc)
+	updates := map[string]any{
+		"welcome_last_msg_id": msgId,
+		"updated_at":          time.Now(),
+	}
+
+	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatId).Updates(updates).Error
 	if err != nil {
 		log.Errorf("[Database][SetCleanWelcomeMsgId]: %v", err)
 		return
@@ -334,13 +335,14 @@ func SetCleanGoodbyeSetting(chatID int64, pref bool) {
 // SetCleanGoodbyeMsgId updates the message ID of the last goodbye message for cleanup purposes.
 // Creates default greeting settings if they don't exist.
 func SetCleanGoodbyeMsgId(chatId, msgId int64) {
-	cleanGoodbyeSrc := checkGreetingSettings(chatId)
-	if cleanGoodbyeSrc.GoodbyeSettings == nil {
-		cleanGoodbyeSrc.GoodbyeSettings = &GoodbyeSettings{}
-	}
-	cleanGoodbyeSrc.GoodbyeSettings.LastMsgId = msgId
+	_ = checkGreetingSettings(chatId) // ensure record exists
 
-	err := UpdateRecord(&GreetingSettings{}, map[string]any{"chat_id": chatId}, cleanGoodbyeSrc)
+	updates := map[string]any{
+		"goodbye_last_msg_id": msgId,
+		"updated_at":          time.Now(),
+	}
+
+	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatId).Updates(updates).Error
 	if err != nil {
 		log.Errorf("[Database][SetCleanGoodbyeMsgId]: %v", err)
 		return
@@ -361,7 +363,7 @@ func LoadGreetingsStats() (enabledWelcome, enabledGoodbye, cleanServiceEnabled, 
 
 	var stats greetingStats
 	query := `
-		SELECT 
+		SELECT
 			COUNT(CASE WHEN welcome_enabled = true THEN 1 END) as enabled_welcome,
 			COUNT(CASE WHEN goodbye_enabled = true THEN 1 END) as enabled_goodbye,
 			COUNT(CASE WHEN clean_service_settings = true THEN 1 END) as clean_service_enabled,
