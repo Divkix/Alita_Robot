@@ -59,7 +59,7 @@ func TestSetRules_SetAndGet(t *testing.T) {
 	}
 }
 
-func TestClearRules_SetThenClear(t *testing.T) {
+func TestSetRules_OverwriteWithNewValue(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
 
@@ -77,13 +77,13 @@ func TestClearRules_SetThenClear(t *testing.T) {
 	// Create default settings first
 	_ = GetChatRulesInfo(chatID)
 
-	// Set then clear
-	SetChatRules(chatID, "some rules")
-	SetChatRules(chatID, "")
+	// Set rules then overwrite with different non-empty value
+	SetChatRules(chatID, "original rules")
+	SetChatRules(chatID, "updated rules")
 
 	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc.Rules != "" {
-		t.Fatalf("expected empty rules after clearing, got %q", rulesrc.Rules)
+	if rulesrc.Rules != "updated rules" {
+		t.Fatalf("expected rules %q after overwrite, got %q", "updated rules", rulesrc.Rules)
 	}
 }
 

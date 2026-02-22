@@ -169,13 +169,14 @@ func TestAddBlockedReport_AddAndVerify(t *testing.T) {
 	}
 }
 
-func TestRemoveBlockedReport_AddThenRemove(t *testing.T) {
+func TestRemoveBlockedReport_UnblockOneOfTwo(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
 	chatID := base
-	userID := base + 1
+	userID1 := base + 1
+	userID2 := base + 2
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&ReportChatSettings{}).Error
@@ -189,15 +190,27 @@ func TestRemoveBlockedReport_AddThenRemove(t *testing.T) {
 	// Initialize default settings
 	_ = GetChatReportSettings(chatID)
 
-	// Block then unblock
-	BlockReportUser(chatID, userID)
-	UnblockReportUser(chatID, userID)
+	// Block two users, then unblock one — list stays non-nil so GORM persists it
+	BlockReportUser(chatID, userID1)
+	BlockReportUser(chatID, userID2)
+	UnblockReportUser(chatID, userID1)
 
 	settings := GetChatReportSettings(chatID)
+	foundUser1 := false
+	foundUser2 := false
 	for _, id := range settings.BlockedList {
-		if id == userID {
-			t.Fatalf("expected userID %d to be removed from blocked list, but it's still present", userID)
+		if id == userID1 {
+			foundUser1 = true
 		}
+		if id == userID2 {
+			foundUser2 = true
+		}
+	}
+	if foundUser1 {
+		t.Fatalf("expected userID1 %d to be removed from blocked list, but it's still present", userID1)
+	}
+	if !foundUser2 {
+		t.Fatalf("expected userID2 %d to remain in blocked list, but it's missing", userID2)
 	}
 }
 

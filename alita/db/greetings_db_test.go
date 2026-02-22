@@ -35,8 +35,8 @@ func TestGetGreetingSettings_Defaults(t *testing.T) {
 	if settings.WelcomeSettings.WelcomeText != DefaultWelcome {
 		t.Fatalf("expected default WelcomeText=%q, got %q", DefaultWelcome, settings.WelcomeSettings.WelcomeText)
 	}
-	if settings.GoodbyeSettings.ShouldGoodbye {
-		t.Fatalf("expected default ShouldGoodbye=false, got true")
+	if !settings.GoodbyeSettings.ShouldGoodbye {
+		t.Fatalf("expected default ShouldGoodbye=true (DB column default), got false")
 	}
 }
 

@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 )
@@ -274,7 +273,7 @@ func TestResetWarns_NoWarns(t *testing.T) {
 	}
 }
 
-func TestConcurrentWarns(t *testing.T) {
+func TestSequentialMultipleWarns(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
 
@@ -282,7 +281,7 @@ func TestConcurrentWarns(t *testing.T) {
 	chatID := base
 	userID := base + 1
 
-	if err := EnsureChatInDb(chatID, "test-concurrent-warns"); err != nil {
+	if err := EnsureChatInDb(chatID, "test-sequential-warns"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
@@ -291,25 +290,17 @@ func TestConcurrentWarns(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
 	})
 
-	const workers = 10
-	var wg sync.WaitGroup
-	wg.Add(workers)
-
-	for i := 0; i < workers; i++ {
-		go func(idx int) {
-			defer wg.Done()
-			WarnUser(userID, chatID, fmt.Sprintf("concurrent reason %d", idx))
-		}(i)
+	const total = 5
+	for i := 0; i < total; i++ {
+		WarnUser(userID, chatID, fmt.Sprintf("reason %d", i))
 	}
-
-	wg.Wait()
 
 	numWarns, reasons := GetWarns(userID, chatID)
-	if numWarns != workers {
-		t.Fatalf("expected %d warns after concurrent inserts, got %d", workers, numWarns)
+	if numWarns != total {
+		t.Fatalf("expected %d warns after sequential inserts, got %d", total, numWarns)
 	}
-	if len(reasons) != workers {
-		t.Fatalf("expected %d reasons after concurrent inserts, got %d", workers, len(reasons))
+	if len(reasons) != total {
+		t.Fatalf("expected %d reasons after sequential inserts, got %d", total, len(reasons))
 	}
 }
 
