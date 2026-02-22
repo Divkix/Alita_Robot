@@ -229,3 +229,152 @@ func TestActionSeverityOrdering(t *testing.T) {
 		}
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Additional: AggressiveGCAction (RestartRecommendationAction at 150%+ threshold)
+// ---------------------------------------------------------------------------
+
+// TestAggressiveGCAction_CanExecute tests RestartRecommendationAction which triggers
+// at 150% goroutine threshold or 160% memory threshold -- the most aggressive action.
+func TestAggressiveGCAction_CanExecute(t *testing.T) {
+	t.Parallel()
+
+	action := &RestartRecommendationAction{}
+	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 1.5)
+	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 1.6
+
+	t.Run("metrics below 150% thresholds returns false", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: goroutineThreshold - 1,
+			MemoryAllocMB:  memoryThreshold - 1,
+		}
+		if action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=false when goroutines=%d < threshold=%d and memory=%.1f < threshold=%.1f",
+				metrics.GoroutineCount, goroutineThreshold, metrics.MemoryAllocMB, memoryThreshold)
+		}
+	})
+
+	t.Run("memory above 160% threshold returns true", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: 0,
+			MemoryAllocMB:  memoryThreshold + 1,
+		}
+		if !action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=true when MemoryAllocMB=%.1f > threshold=%.1f",
+				metrics.MemoryAllocMB, memoryThreshold)
+		}
+	})
+
+	t.Run("goroutines above 150% threshold returns true", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: goroutineThreshold + 1,
+			MemoryAllocMB:  0,
+		}
+		if !action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=true when goroutines=%d > threshold=%d",
+				metrics.GoroutineCount, goroutineThreshold)
+		}
+	})
+
+	t.Run("zero-value metrics returns false", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{}
+		if action.CanExecute(metrics) {
+			t.Fatal("expected CanExecute=false for zero-value SystemMetrics")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Additional: WarningAction (LogWarningAction at 80% goroutine / 50% memory threshold)
+// ---------------------------------------------------------------------------
+
+// TestWarningAction_CanExecute tests LogWarningAction which triggers at 80% goroutine
+// threshold or 50% memory threshold.
+func TestWarningAction_CanExecute(t *testing.T) {
+	t.Parallel()
+
+	action := &LogWarningAction{}
+	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 0.8)
+	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.5
+
+	t.Run("metrics below 80% thresholds returns false", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: goroutineThreshold - 1,
+			MemoryAllocMB:  memoryThreshold - 1,
+		}
+		if action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=false when goroutines=%d < threshold=%d and memory=%.1f < threshold=%.1f",
+				metrics.GoroutineCount, goroutineThreshold, metrics.MemoryAllocMB, memoryThreshold)
+		}
+	})
+
+	t.Run("memory above 50% ResourceMaxMemoryMB returns true", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: 0,
+			MemoryAllocMB:  memoryThreshold + 1,
+		}
+		if !action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=true when MemoryAllocMB=%.1f > threshold=%.1f",
+				metrics.MemoryAllocMB, memoryThreshold)
+		}
+	})
+
+	t.Run("goroutines above 80% ResourceMaxGoroutines returns true", func(t *testing.T) {
+		t.Parallel()
+
+		metrics := SystemMetrics{
+			GoroutineCount: goroutineThreshold + 1,
+			MemoryAllocMB:  0,
+		}
+		if !action.CanExecute(metrics) {
+			t.Fatalf("expected CanExecute=true when goroutines=%d > threshold=%d",
+				metrics.GoroutineCount, goroutineThreshold)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Additional: GCAction Name and Severity
+// ---------------------------------------------------------------------------
+
+// TestGCAction_NameAndSeverity tests that all built-in actions have non-empty names
+// and valid severity values.
+func TestGCAction_NameAndSeverity(t *testing.T) {
+	t.Parallel()
+
+	actions := []RemediationAction{
+		&GCAction{},
+		&MemoryCleanupAction{},
+		&LogWarningAction{},
+		&RestartRecommendationAction{},
+	}
+
+	for _, action := range actions {
+		action := action
+		t.Run(action.Name(), func(t *testing.T) {
+			t.Parallel()
+
+			name := action.Name()
+			if name == "" {
+				t.Fatalf("%T.Name() returned empty string", action)
+			}
+
+			severity := action.Severity()
+			if severity < 0 {
+				t.Fatalf("%T.Severity() = %d, must be >= 0", action, severity)
+			}
+		})
+	}
+}

@@ -235,3 +235,125 @@ func TestIdFromReply(t *testing.T) {
 		}
 	})
 }
+
+//nolint:dupl // Intentionally similar table-driven test pattern for different quote scenarios
+func TestExtractQuotes_AdditionalEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		sentence     string
+		matchQuotes  bool
+		matchWord    bool
+		wantInQuotes string
+		wantAfter    string
+	}{
+		{
+			name:         "single word with matchWord=true extracts word with no after",
+			sentence:     "hello",
+			matchQuotes:  false,
+			matchWord:    true,
+			wantInQuotes: "hello",
+			wantAfter:    "",
+		},
+		{
+			name:         "quoted with trailing spaces trimmed",
+			sentence:     `"hello"   `,
+			matchQuotes:  true,
+			matchWord:    false,
+			wantInQuotes: "hello",
+			wantAfter:    "",
+		},
+		{
+			name:         "multiple quotes only first extracted",
+			sentence:     `"first" "second"`,
+			matchQuotes:  true,
+			matchWord:    false,
+			wantInQuotes: "first",
+			wantAfter:    `"second"`,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotIn, gotAfter := ExtractQuotes(tc.sentence, tc.matchQuotes, tc.matchWord)
+			if gotIn != tc.wantInQuotes {
+				t.Errorf("inQuotes: got %q, want %q", gotIn, tc.wantInQuotes)
+			}
+			if gotAfter != tc.wantAfter {
+				t.Errorf("afterWord: got %q, want %q", gotAfter, tc.wantAfter)
+			}
+		})
+	}
+}
+
+func TestIdFromReply_NilReply(t *testing.T) {
+	t.Parallel()
+
+	msg := &gotgbot.Message{
+		ReplyToMessage: nil,
+	}
+	// Should not panic, should return zero values
+	gotId, gotText := IdFromReply(msg)
+	if gotId != 0 {
+		t.Errorf("expected userId=0 for nil reply, got %d", gotId)
+	}
+	if gotText != "" {
+		t.Errorf("expected empty text for nil reply, got %q", gotText)
+	}
+}
+
+//nolint:dupl // Intentionally similar table-driven test pattern for different quote scenarios
+func TestExtractQuotes_UnicodeContent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		sentence     string
+		matchQuotes  bool
+		matchWord    bool
+		wantInQuotes string
+		wantAfter    string
+	}{
+		{
+			name:         "unicode word extracted correctly",
+			sentence:     `"café" remaining`,
+			matchQuotes:  true,
+			matchWord:    false,
+			wantInQuotes: "café",
+			wantAfter:    "remaining",
+		},
+		{
+			name:         "unicode content in quotes fully extracted",
+			sentence:     `"日本語テスト" after`,
+			matchQuotes:  true,
+			matchWord:    false,
+			wantInQuotes: "日本語テスト",
+			wantAfter:    "after",
+		},
+		{
+			name:         "emoji in quotes extracted correctly",
+			sentence:     `"hello 🌍" world`,
+			matchQuotes:  true,
+			matchWord:    false,
+			wantInQuotes: "hello 🌍",
+			wantAfter:    "world",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotIn, gotAfter := ExtractQuotes(tc.sentence, tc.matchQuotes, tc.matchWord)
+			if gotIn != tc.wantInQuotes {
+				t.Errorf("inQuotes: got %q, want %q", gotIn, tc.wantInQuotes)
+			}
+			if gotAfter != tc.wantAfter {
+				t.Errorf("afterWord: got %q, want %q", gotAfter, tc.wantAfter)
+			}
+		})
+	}
+}
