@@ -428,8 +428,13 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			db.SetAntiChannelPin(chat.Id, true)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if err := db.SetAntiChannelPin(chat.Id, true); err != nil {
+				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			text, _ := tr.GetString("pins_antichannelpin_enabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
 			if err != nil {
@@ -437,8 +442,13 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		case "off", "no", "false":
-			db.SetAntiChannelPin(chat.Id, false)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if err := db.SetAntiChannelPin(chat.Id, false); err != nil {
+				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			text, _ := tr.GetString("pins_antichannelpin_disabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
 			if err != nil {
@@ -496,8 +506,13 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			db.SetCleanLinked(chat.Id, true)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if err := db.SetCleanLinked(chat.Id, true); err != nil {
+				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			text, _ := tr.GetString("pins_cleanlinked_enabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
 			if err != nil {
@@ -505,8 +520,13 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		case "off", "no", "false":
-			db.SetCleanLinked(chat.Id, false)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if err := db.SetCleanLinked(chat.Id, false); err != nil {
+				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			text, _ := tr.GetString("pins_cleanlinked_disabled")
 			_, err := msg.Reply(b, text, helpers.Shtml())
 			if err != nil {

@@ -144,10 +144,7 @@ func MentionUrl(url, name string) string {
 // HtmlEscape escapes special HTML characters in a string to prevent injection.
 // Used when inserting untrusted content into HTML-formatted messages.
 func HtmlEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
+	return html.EscapeString(s)
 }
 
 // GetFullName combines first name and last name into a full name.
@@ -304,7 +301,6 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 			return nil
 		}
 	}
-	ctx.EffectiveChat = chat
 	return chat
 }
 

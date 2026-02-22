@@ -2095,3 +2095,5 @@ misc_translate_parse_error: "Impossible d'analyser la réponse de traduction. Ve
 blacklists_set_bl_action_update_failed: "Impossible de mettre à jour l'action de la liste noire. Veuillez réessayer."
 filters_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
 notes_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
+common_settings_save_failed: "Echec de la sauvegarde des parametres. Veuillez reessayer plus tard."
+devs_chatlist_error: "Echec de la generation de la liste des chats. Veuillez reessayer."

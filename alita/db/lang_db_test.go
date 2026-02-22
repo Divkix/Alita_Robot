@@ -55,7 +55,7 @@ func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
 	})
 
 	// Set language to "es"
-	ChangeGroupLanguage(chatID, "es")
+	_ = ChangeGroupLanguage(chatID, "es")
 
 	lang := getGroupLanguage(chatID)
 	if lang != "es" {
@@ -76,7 +76,7 @@ func TestChangeUserLanguage_SetAndGet(t *testing.T) {
 	})
 
 	// Set language to "fr"
-	ChangeUserLanguage(userID, "fr")
+	_ = ChangeUserLanguage(userID, "fr")
 
 	lang := getUserLanguage(userID)
 	if lang != "fr" {
@@ -98,10 +98,10 @@ func TestChangeGroupLanguage_Update(t *testing.T) {
 	})
 
 	// Create with "en"
-	ChangeGroupLanguage(chatID, "en")
+	_ = ChangeGroupLanguage(chatID, "en")
 
 	// Update to "hi"
-	ChangeGroupLanguage(chatID, "hi")
+	_ = ChangeGroupLanguage(chatID, "hi")
 
 	lang := getGroupLanguage(chatID)
 	if lang != "hi" {
@@ -122,10 +122,10 @@ func TestChangeUserLanguage_Update(t *testing.T) {
 	})
 
 	// Create with "en"
-	ChangeUserLanguage(userID, "en")
+	_ = ChangeUserLanguage(userID, "en")
 
 	// Update to "es"
-	ChangeUserLanguage(userID, "es")
+	_ = ChangeUserLanguage(userID, "es")
 
 	lang := getUserLanguage(userID)
 	if lang != "es" {
@@ -146,9 +146,9 @@ func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
 		deleteCache(chatCacheKey(chatID))
 	})
 
-	ChangeGroupLanguage(chatID, "en")
+	_ = ChangeGroupLanguage(chatID, "en")
 	// Calling again with same value should be a no-op (no error)
-	ChangeGroupLanguage(chatID, "en")
+	_ = ChangeGroupLanguage(chatID, "en")
 
 	lang := getGroupLanguage(chatID)
 	if lang != "en" {
@@ -168,9 +168,9 @@ func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
 		deleteCache(userCacheKey(userID))
 	})
 
-	ChangeUserLanguage(userID, "fr")
+	_ = ChangeUserLanguage(userID, "fr")
 	// Calling again with same value should be a no-op
-	ChangeUserLanguage(userID, "fr")
+	_ = ChangeUserLanguage(userID, "fr")
 
 	lang := getUserLanguage(userID)
 	if lang != "fr" {

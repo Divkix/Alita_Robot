@@ -272,7 +272,13 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Perform DB operation synchronously to ensure completion before confirmation
-	db.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType)
+	if err := db.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType); err != nil {
+		log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		errText, _ := tr.GetString("common_settings_save_failed")
+		_, _ = msg.Reply(b, errText, helpers.Shtml())
+		return ext.EndGroups
+	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	successText, _ := tr.GetString("filters_added_success")
@@ -336,7 +342,12 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			// Perform DB operation synchronously to ensure completion before confirmation
-			db.RemoveFilter(chat.Id, strings.ToLower(filterWord))
+			if err := db.RemoveFilter(chat.Id, strings.ToLower(filterWord)); err != nil {
+				log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			successText, _ := tr.GetString("filters_removed_success")
 			_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), helpers.Shtml())
 			if err != nil {
@@ -596,15 +607,21 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 
 	if db.DoesFilterExists(chat.Id, filterData.filterWord) {
-		db.RemoveFilter(chat.Id, filterData.filterWord)
-		db.AddFilter(chat.Id, filterData.filterWord, filterData.text, filterData.fileid, filterData.buttons, filterData.dataType)
-		if token != "" {
-			deleteFilterOverwriteCache(token) // Clean up cache
+		if err := db.RemoveFilter(chat.Id, filterData.filterWord); err != nil {
+			log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
+			helpText, _ = tr.GetString("common_settings_save_failed")
+		} else if err := db.AddFilter(chat.Id, filterData.filterWord, filterData.text, filterData.fileid, filterData.buttons, filterData.dataType); err != nil {
+			log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
+			helpText, _ = tr.GetString("common_settings_save_failed")
+		} else {
+			if token != "" {
+				deleteFilterOverwriteCache(token) // Clean up cache
+			}
+			if legacyFilterWord != "" {
+				deleteLegacyFilterOverwriteCache(legacyFilterWord, chat.Id)
+			}
+			helpText, _ = tr.GetString("filters_overwrite_success")
 		}
-		if legacyFilterWord != "" {
-			deleteLegacyFilterOverwriteCache(legacyFilterWord, chat.Id)
-		}
-		helpText, _ = tr.GetString("filters_overwrite_success")
 	} else {
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
 		if token != "" {

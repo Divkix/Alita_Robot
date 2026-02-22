@@ -2201,3 +2201,5 @@ misc_translate_parse_error: "No se pudo procesar la respuesta de traducción. In
 blacklists_set_bl_action_update_failed: "No se pudo actualizar la acción de lista negra. Inténtalo de nuevo."
 filters_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
 notes_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
+common_settings_save_failed: "Error al guardar la configuracion. Intentalo de nuevo mas tarde."
+devs_chatlist_error: "Error al generar la lista de chats. Intentalo de nuevo."

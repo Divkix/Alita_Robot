@@ -146,7 +146,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, ctx.EffectiveUser.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
@@ -332,7 +332,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, ctx.EffectiveUser.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
@@ -416,7 +416,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, ctx.EffectiveUser.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {

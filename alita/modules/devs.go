@@ -100,8 +100,12 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	var writeString string
-	fileName := "chatlist.txt"
+	tmpFile, err := os.CreateTemp("", "chatlist-*.txt")
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	allChats := db.GetAllChats()
 
@@ -111,16 +115,25 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 			fmt.Fprintf(&sb, "%d: %s\n", chatId, v.ChatName)
 		}
 	}
-	writeString += sb.String()
 
-	// If the file doesn't exist, create it or re-write it
-	err = os.WriteFile(fileName, []byte(writeString), 0o600)
+	_, err = tmpFile.WriteString(sb.String())
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	openedFile, _ := os.Open(fileName)
+	err = tmpFile.Close()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	openedFile, err := os.Open(tmpFile.Name())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	defer func() { _ = openedFile.Close() }()
 
 	_, err = rMsg.Delete(b, nil)
 	if err != nil {
@@ -130,7 +143,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err = b.SendDocument(
 		chat.Id,
-		gotgbot.InputFileByReader(fileName, openedFile),
+		gotgbot.InputFileByReader("chatlist.txt", openedFile),
 		&gotgbot.SendDocumentOpts{
 			Caption: func() string { caption, _ := tr.GetString("devs_chat_list_caption"); return caption }(),
 			ReplyParameters: &gotgbot.ReplyParameters{
@@ -142,15 +155,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		log.Error(err)
 		return err
-	}
-
-	err = openedFile.Close()
-	if err != nil {
-		log.Error(err)
-	}
-	err = os.Remove(fileName)
-	if err != nil {
-		log.Error(err)
 	}
 
 	return ext.EndGroups

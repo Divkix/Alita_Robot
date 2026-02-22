@@ -32,12 +32,12 @@ func checkFloodSetting(chatID int64) (floodSrc *AntifloodSettings) {
 }
 
 // SetFlood set Flood Setting for a Chat
-func SetFlood(chatID int64, limit int) {
+func SetFlood(chatID int64, limit int) error {
 	floodSrc := checkFloodSetting(chatID)
 
 	// Check if update is actually needed
 	if floodSrc.Limit == limit {
-		return
+		return nil
 	}
 
 	action := floodSrc.Action
@@ -56,17 +56,19 @@ func SetFlood(chatID int64, limit int) {
 		FirstOrCreate(&AntifloodSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] SetFlood: %v - %d", err, chatID)
+		return err
 	}
 	// Invalidate cache after update
 	deleteCache(optimizedAntifloodCacheKey(chatID))
+	return nil
 }
 
 // SetFloodMode Set flood mode for a chat
-func SetFloodMode(chatID int64, mode string) {
+func SetFloodMode(chatID int64, mode string) error {
 	floodSrc := checkFloodSetting(chatID)
 	// Check if update is actually needed
 	if floodSrc.Action == mode {
-		return
+		return nil
 	}
 	// Use map for consistency with other antiflood setters
 	updates := map[string]any{
@@ -78,17 +80,19 @@ func SetFloodMode(chatID int64, mode string) {
 		FirstOrCreate(&AntifloodSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] SetFloodMode: %v - %d", err, chatID)
+		return err
 	}
 	// Invalidate cache after update
 	deleteCache(optimizedAntifloodCacheKey(chatID))
+	return nil
 }
 
 // SetFloodMsgDel Set flood message deletion setting for a chat
-func SetFloodMsgDel(chatID int64, val bool) {
+func SetFloodMsgDel(chatID int64, val bool) error {
 	floodSrc := checkFloodSetting(chatID)
 	// Check if update is actually needed
 	if floodSrc.DeleteAntifloodMessage == val {
-		return
+		return nil
 	}
 	// Use map to ensure zero values (val=false) are persisted
 	updates := map[string]any{
@@ -100,10 +104,11 @@ func SetFloodMsgDel(chatID int64, val bool) {
 		FirstOrCreate(&AntifloodSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] SetFloodMsgDel: %v", err)
-		return
+		return err
 	}
 	// Invalidate cache after update
 	deleteCache(optimizedAntifloodCacheKey(chatID))
+	return nil
 }
 
 // LoadAntifloodStats returns the count of chats with antiflood enabled (limit > 0).

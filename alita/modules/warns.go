@@ -54,13 +54,28 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		switch strings.ToLower(args[0]) {
 		case "ban":
-			db.SetWarnMode(chat.Id, "ban")
+			if err := db.SetWarnMode(chat.Id, "ban"); err != nil {
+				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			replyText, _ = tr.GetString("warns_mode_updated_ban")
 		case "kick":
-			db.SetWarnMode(chat.Id, "kick")
+			if err := db.SetWarnMode(chat.Id, "kick"); err != nil {
+				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			replyText, _ = tr.GetString("warns_mode_updated_kick")
 		case "mute":
-			db.SetWarnMode(chat.Id, "mute")
+			if err := db.SetWarnMode(chat.Id, "mute"); err != nil {
+				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
+				errText, _ := tr.GetString("common_settings_save_failed")
+				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				return ext.EndGroups
+			}
 			replyText, _ = tr.GetString("warns_mode_updated_mute")
 		default:
 			temp, _ := tr.GetString("warns_mode_unknown")
@@ -629,7 +644,12 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			if num < 1 || num > 100 {
 				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
-				db.SetWarnLimit(chat.Id, num)
+				if err := db.SetWarnLimit(chat.Id, num); err != nil {
+					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
+					errText, _ := tr.GetString("common_settings_save_failed")
+					_, _ = msg.Reply(b, errText, helpers.Smarkdown())
+					return ext.EndGroups
+				}
 				temp, _ := tr.GetString("warns_limit_updated")
 				replyText = fmt.Sprintf(temp, num)
 			}

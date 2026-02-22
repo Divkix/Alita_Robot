@@ -248,7 +248,11 @@ func IdFromReply(m *gotgbot.Message) (int64, string) {
 	}
 
 	// get's the Id for both user and channel
-	userId = prevMessage.GetSender().Id()
+	replySender := prevMessage.GetSender()
+	if replySender == nil {
+		return 0, ""
+	}
+	userId = replySender.Id()
 
 	res := strings.SplitN(m.Text, " ", 2)
 	if len(res) < 2 {

@@ -45,14 +45,14 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 	_ = GetPinData(chatID)
 
 	// Enable CleanLinked
-	SetCleanLinked(chatID, true)
+	_ = SetCleanLinked(chatID, true)
 	data := GetPinData(chatID)
 	if !data.CleanLinked {
 		t.Fatal("expected CleanLinked=true after SetCleanLinked(true)")
 	}
 
 	// Disable CleanLinked — zero value boolean must persist
-	SetCleanLinked(chatID, false)
+	_ = SetCleanLinked(chatID, false)
 	data = GetPinData(chatID)
 	if data.CleanLinked {
 		t.Fatal("expected CleanLinked=false after SetCleanLinked(false)")
@@ -73,14 +73,14 @@ func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 	_ = GetPinData(chatID)
 
 	// Enable AntiChannelPin
-	SetAntiChannelPin(chatID, true)
+	_ = SetAntiChannelPin(chatID, true)
 	data := GetPinData(chatID)
 	if !data.AntiChannelPin {
 		t.Fatal("expected AntiChannelPin=true after SetAntiChannelPin(true)")
 	}
 
 	// Disable AntiChannelPin — zero value boolean must persist
-	SetAntiChannelPin(chatID, false)
+	_ = SetAntiChannelPin(chatID, false)
 	data = GetPinData(chatID)
 	if data.AntiChannelPin {
 		t.Fatal("expected AntiChannelPin=false after SetAntiChannelPin(false)")
@@ -135,8 +135,8 @@ func TestConcurrentPinSettings(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			pref := i%2 == 0
-			SetAntiChannelPin(chatID, pref)
-			SetCleanLinked(chatID, pref)
+			_ = SetAntiChannelPin(chatID, pref)
+			_ = SetCleanLinked(chatID, pref)
 		}(i)
 	}
 

@@ -236,13 +236,16 @@ func secureIntn(max int) int {
 		return 0
 	}
 	// Use crypto/rand.Int for unbiased secure random selection
-	// Retry on the extremely unlikely error case.
-	for {
+	// Bounded retry to avoid CPU starvation if entropy source fails persistently.
+	const maxRetries = 10
+	for i := 0; i < maxRetries; i++ {
 		n, err := crand.Int(crand.Reader, big.NewInt(int64(max)))
 		if err == nil {
 			return int(n.Int64())
 		}
 	}
+	log.Error("[Captcha] secureIntn: exhausted retries for crypto/rand.Int, returning 0")
+	return 0
 }
 
 // secureShuffleStrings shuffles a slice of strings using Fisher-Yates with crypto-grade randomness.

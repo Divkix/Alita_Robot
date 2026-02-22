@@ -2203,3 +2203,5 @@ misc_translate_parse_error: "Failed to parse translation response. Please try ag
 blacklists_set_bl_action_update_failed: "Failed to update blacklist action. Please try again."
 filters_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
 notes_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
+common_settings_save_failed: "Failed to save settings. Please try again later."
+devs_chatlist_error: "Failed to generate chat list. Please try again."
