@@ -1,0 +1,119 @@
+---
+title: Self-Hosting Overview
+description: Host your own instance of Alita Robot.
+---
+
+import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+# Self-Hosting Alita Robot
+
+This guide covers everything you need to deploy your own instance of Alita Robot.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+| Component | Minimum Version | Purpose |
+|-----------|-----------------|---------|
+| **PostgreSQL** | 14+ | Primary database |
+| **Redis** | 6+ | Caching layer |
+| **Docker** (recommended) | 20.10+ | Container deployment |
+
+For building from source:
+- **Go** 1.25+
+
+## Deployment Options
+
+:::tip[Quick Recommendation]
+Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redis so you do not need to install them separately.
+:::
+
+<CardGrid>
+  <Card title="Docker Compose" icon="seti:docker">
+    <Badge text="Recommended" variant="success" /> The easiest way to deploy Alita. Includes PostgreSQL and Redis out of the box.
+
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    cp sample.env .env
+    # Edit .env with your configuration
+    docker-compose up -d
+    ```
+
+    [Full Docker Guide →](/self-hosting/docker/)
+  </Card>
+  <Card title="Binary Deployment" icon="seti:shell">
+    Download pre-built binaries for your platform:
+
+    - Linux (amd64, arm64)
+    - macOS (amd64, arm64)
+    - Windows (amd64)
+
+    [Binary Installation →](/self-hosting/binary/)
+  </Card>
+  <Card title="Build from Source" icon="seti:config">
+    Compile the bot yourself for development or customization:
+
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    go build -o alita_robot .
+    ```
+
+    [Building from Source →](/self-hosting/source/)
+  </Card>
+</CardGrid>
+
+## Essential Configuration
+
+At minimum, you need these environment variables:
+
+```bash
+BOT_TOKEN=your_bot_token_from_botfather
+OWNER_ID=your_telegram_user_id
+MESSAGE_DUMP=-100xxxxxxxxxx  # Log channel ID
+DATABASE_URL=postgres://user:pass@host:5432/db
+REDIS_ADDRESS=localhost:6379
+```
+
+<LinkCard title="Full Environment Reference" href="/api-reference/environment/" description="Complete list of all environment variables and their descriptions." />
+
+## Webhook vs Polling
+
+| Mode | Use Case | Setup Complexity |
+|------|----------|------------------|
+| **Webhook** | Production | Requires HTTPS domain |
+| **Polling** | Development | Simple, works anywhere |
+
+<LinkCard title="Webhook Setup" href="/self-hosting/webhooks/" description="Configure webhooks for production deployments." />
+
+## Database Setup
+
+Alita uses PostgreSQL with automatic migrations:
+
+```bash
+# Enable auto-migration
+AUTO_MIGRATE=true
+
+# Or run manually
+make psql-migrate
+```
+
+<LinkCard title="Database Guide" href="/self-hosting/database/" description="Database setup, migrations, connection pooling, and schema design." />
+
+## Monitoring
+
+Built-in observability endpoints:
+
+- `GET /health` - Health check with DB/Redis status
+- `GET /metrics` - Prometheus metrics
+
+<LinkCard title="Monitoring Guide" href="/self-hosting/monitoring/" description="Health checks, Prometheus metrics, and resource monitoring." />
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard title="Docker Deployment" href="/self-hosting/docker/" description="Quick start with containers" />
+  <LinkCard title="Environment Variables" href="/api-reference/environment/" description="Full configuration reference" />
+  <LinkCard title="Troubleshooting" href="/self-hosting/troubleshooting/" description="Common issues and solutions" />
+</CardGrid>

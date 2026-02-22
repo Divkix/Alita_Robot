@@ -21,6 +21,10 @@ Failed to create new bot: invalid token
 2. Ensure no extra spaces or newlines in the token
 3. Check that the token format is correct: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
 
+:::caution
+Do not wrap the token in quotes in your `.env` file. The quotes become part of the value and will cause authentication failure.
+:::
+
 ```bash
 # Correct format in .env
 BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
@@ -95,6 +99,10 @@ BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 ```
 [Bot] Failed to send startup message to log group
 ```
+
+:::tip
+The easiest way to get a channel ID is to forward any message from the channel to [@userinfobot](https://t.me/userinfobot).
+:::
 
 **Solutions:**
 
@@ -185,6 +193,10 @@ BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 ```
 
 **Solutions:**
+
+:::caution
+Only use `AUTO_MIGRATE_SILENT_FAIL=true` in development. In production, always investigate and resolve migration failures before continuing.
+:::
 
 1. **Skip with silent fail (development only):**
    ```bash
@@ -377,6 +389,10 @@ If you're running an older version, upgrade to get this fix.
 
 ### Enable Debug Logging
 
+:::tip
+Enable debug logging when investigating issues, then disable it once the problem is resolved. Leaving debug mode on degrades performance.
+:::
+
 ```bash
 DEBUG=true
 ```
@@ -440,6 +456,10 @@ curl http://localhost:8080/health
 ```
 
 ### Cannot Connect to Other Services
+
+:::caution
+Inside Docker Compose, services communicate by service name, not `localhost`. Use the Docker Compose service name (e.g., `postgres`, `redis`) as the hostname in connection strings.
+:::
 
 ```bash
 # Check network

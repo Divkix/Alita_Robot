@@ -3,11 +3,17 @@ title: Building from Source
 description: Compile Alita Robot from source code.
 ---
 
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
 # Building from Source
 
 Build Alita Robot from source for development, customization, or when pre-built binaries are not available for your platform.
 
 ## Prerequisites
+
+:::note
+All tools below must be accessible from your `PATH`. After installing Go or golangci-lint, you may need to add `$(go env GOPATH)/bin` to your shell's `PATH`.
+:::
 
 | Tool | Minimum Version | Purpose |
 |------|-----------------|---------|
@@ -18,28 +24,41 @@ Build Alita Robot from source for development, customization, or when pre-built 
 
 ### Install Go
 
-```bash
-# macOS
-brew install go
-
-# Ubuntu/Debian
-sudo snap install go --classic
-
-# Or download from https://go.dev/dl/
-```
+<Tabs>
+  <TabItem label="macOS">
+    ```bash
+    brew install go
+    ```
+  </TabItem>
+  <TabItem label="Ubuntu/Debian">
+    ```bash
+    sudo snap install go --classic
+    ```
+  </TabItem>
+  <TabItem label="Manual Download">
+    Download from [https://go.dev/dl/](https://go.dev/dl/)
+  </TabItem>
+</Tabs>
 
 ### Install golangci-lint
 
-```bash
-# macOS
-brew install golangci-lint
-
-# Linux/macOS via script
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-
-# Go install
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-```
+<Tabs>
+  <TabItem label="macOS">
+    ```bash
+    brew install golangci-lint
+    ```
+  </TabItem>
+  <TabItem label="Linux/macOS Script">
+    ```bash
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+    ```
+  </TabItem>
+  <TabItem label="Go Install">
+    ```bash
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    ```
+  </TabItem>
+</Tabs>
 
 ## Clone the Repository
 
@@ -64,17 +83,23 @@ go run main.go
 
 ### Production Build
 
-Build optimized release binaries using GoReleaser:
+<Steps>
 
-```bash
-# Install GoReleaser
-go install github.com/goreleaser/goreleaser@latest
+1. **Install GoReleaser**
 
-# Build
-make build
-```
+   ```bash
+   go install github.com/goreleaser/goreleaser@latest
+   ```
 
-This creates binaries in the `dist/` directory for all supported platforms.
+2. **Build release binaries**
+
+   ```bash
+   make build
+   ```
+
+   This creates binaries in the `dist/` directory for all supported platforms.
+
+</Steps>
 
 ### Manual Build
 
@@ -84,11 +109,12 @@ Build for your current platform:
 go build -o alita_robot .
 ```
 
-Build with optimizations:
-
+:::tip[Smaller Binaries]
+Build with optimizations to strip debug symbols and reduce binary size:
 ```bash
 go build -ldflags="-s -w" -o alita_robot .
 ```
+:::
 
 Cross-compile for other platforms:
 
@@ -178,10 +204,9 @@ Or set in your `.env` file:
 DEBUG=true
 ```
 
-Debug mode:
-- Increases log verbosity
-- Disables performance monitoring
-- Shows detailed error stack traces
+:::note
+Debug mode increases log verbosity, disables performance monitoring, and shows detailed error stack traces. Do not use in production.
+:::
 
 ## GoReleaser Configuration
 
@@ -242,11 +267,12 @@ Key dependencies from `go.mod`:
 
 ## Testing
 
-While the project primarily uses golangci-lint for quality checks:
-
 ```bash
 # Run linter (recommended before commits)
 make lint
+
+# Run test suite
+make test
 
 # Test manually with a test bot
 DEBUG=true make run
@@ -254,7 +280,9 @@ DEBUG=true make run
 
 ## Hot Reload (Development)
 
-Use `air` for automatic reloading during development:
+:::tip
+Use `air` for automatic reloading during development so you do not need to manually restart the bot after every code change.
+:::
 
 ```bash
 # Install air
@@ -288,7 +316,7 @@ exclude_dir = ["tmp", "vendor", "docs"]
 4. Run `make lint` and fix any issues
 5. Submit a pull request
 
-See [Contributing Guide](/contributing) for more details.
+See [Contributing Guide](/contributing/) for more details.
 
 ## Troubleshooting
 
@@ -322,10 +350,10 @@ make tidy
 
 ### Build fails with CGO errors
 
-The bot is built with `CGO_ENABLED=0` for static binaries. If you need CGO:
+:::caution
+The bot is built with `CGO_ENABLED=0` for static binaries. If you explicitly need CGO, you must have a C compiler and platform-specific libraries installed.
+:::
 
 ```bash
 CGO_ENABLED=1 go build -o alita_robot .
 ```
-
-Note: CGO requires C compiler and platform-specific libraries.

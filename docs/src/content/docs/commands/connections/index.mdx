@@ -1,0 +1,62 @@
+---
+title: Connections Commands
+description: Complete guide to Connections module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Connections Commands
+
+This module allows you to connect to a chat's database and add things to it without the chat knowing about it! For obvious reasons, you need to be an admin to add things; but any member can view your data. (Banned/kicked users cannot.)
+
+:::tip[How to Get Your Chat ID]
+Use the `/id` command in your group to get the chat ID. Don't be surprised if the ID is negative — all super groups have negative IDs.
+:::
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/connect` | Connect to the specified chat, allowing you to view/edit contents. | No |
+    | `/disconnect` | Disconnect from the current chat. | No |
+    | `/reconnect` | Reconnect to the previously connected chat. | No |
+    | `/connection` | See information about the currently connected chat. | No |
+
+    :::tip[Usage]
+    ```text
+    /connect -1001234567890    # Connect to a chat by ID
+    /disconnect                # Disconnect from current chat
+    /reconnect                 # Reconnect to last connected chat
+    /connection                # View current connection info
+    ```
+    :::
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/allowconnect` | Allow users to connect to chats or not. | No |
+
+    ```text
+    /allowconnect yes    # Allow connections
+    /allowconnect no     # Disallow connections
+    ```
+  </TabItem>
+</Tabs>
+
+:::note
+`/connection` and `/connect` are separate commands with different functionality, not true aliases.
+:::
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`connection`, `connect`
+
+## Required Permissions
+
+Most commands are available to all users. `/allowconnect` requires admin permissions.

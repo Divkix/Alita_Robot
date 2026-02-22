@@ -3,6 +3,8 @@ title: Docker Deployment
 description: Deploy Alita Robot using Docker and docker-compose.
 ---
 
+import { Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
 # Docker Deployment
 
 Docker is the recommended way to deploy Alita Robot. The provided `docker-compose.yml` includes all required services with optimized configurations for production use.
@@ -16,20 +18,30 @@ Docker is the recommended way to deploy Alita Robot. The provided `docker-compos
 
 ## Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/divkix/Alita_Robot.git
-cd Alita_Robot
+<Steps>
 
-# Copy and configure environment variables
-cp sample.env .env
+1. **Clone the repository**
 
-# Edit .env with your configuration
-# At minimum, set: BOT_TOKEN, OWNER_ID, MESSAGE_DUMP
+   ```bash
+   git clone https://github.com/divkix/Alita_Robot.git
+   cd Alita_Robot
+   ```
 
-# Start all services
-docker-compose up -d
-```
+2. **Copy and configure environment variables**
+
+   ```bash
+   cp sample.env .env
+   ```
+
+   Edit `.env` with your configuration. At minimum, set: <Badge text="BOT_TOKEN" variant="danger" />, <Badge text="OWNER_ID" variant="danger" />, <Badge text="MESSAGE_DUMP" variant="danger" />.
+
+3. **Start all services**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+</Steps>
 
 ## Docker Compose Configuration
 
@@ -130,7 +142,9 @@ The main Telegram bot service.
 | **CPU Limit** | 1.0 | Maximum CPU cores |
 | **CPU Reservation** | 0.25 | Guaranteed minimum CPU |
 
-The health check uses the built-in `--health` flag, which is ideal for distroless container images that lack curl or wget.
+:::tip[Health Check]
+The health check uses the built-in `--health` flag, which is ideal for distroless container images that lack curl or wget. No additional tooling is needed inside the container.
+:::
 
 ### postgres (Database)
 
@@ -170,7 +184,7 @@ WEBHOOK_DOMAIN=https://your-domain.com
 WEBHOOK_SECRET=your-random-secret
 ```
 
-For a complete list of environment variables, see the [Environment Reference](/api-reference/environment).
+For a complete list of environment variables, see the [Environment Reference](/api-reference/environment/).
 
 ## Resource Limits
 
@@ -194,34 +208,52 @@ deploy:
 
 ## Updating the Bot
 
-Pull the latest image and recreate containers:
+<Steps>
 
-```bash
-# Pull latest images
-docker-compose pull
+1. **Pull the latest images**
 
-# Recreate containers with new images
-docker-compose up -d
+   ```bash
+   docker-compose pull
+   ```
 
-# Optional: Remove old images
-docker image prune -f
-```
+2. **Recreate containers with new images**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Optional: Remove old images**
+
+   ```bash
+   docker image prune -f
+   ```
+
+</Steps>
 
 ## Viewing Logs
 
-```bash
-# View all service logs
-docker-compose logs -f
-
-# View only bot logs
-docker-compose logs -f alita
-
-# View last 100 lines
-docker-compose logs --tail=100 alita
-
-# View PostgreSQL logs
-docker-compose logs -f postgres
-```
+<Tabs>
+  <TabItem label="All Services">
+    ```bash
+    docker-compose logs -f
+    ```
+  </TabItem>
+  <TabItem label="Bot Only">
+    ```bash
+    docker-compose logs -f alita
+    ```
+  </TabItem>
+  <TabItem label="Last 100 Lines">
+    ```bash
+    docker-compose logs --tail=100 alita
+    ```
+  </TabItem>
+  <TabItem label="PostgreSQL">
+    ```bash
+    docker-compose logs -f postgres
+    ```
+  </TabItem>
+</Tabs>
 
 ## Common Operations
 
@@ -237,7 +269,11 @@ docker-compose restart alita
 docker-compose down
 ```
 
-### Stop and remove volumes (WARNING: deletes all data)
+### Stop and remove volumes
+
+:::danger[Data Loss]
+This command deletes all data including the PostgreSQL database. Make sure you have a backup before running this.
+:::
 
 ```bash
 docker-compose down -v
@@ -257,7 +293,9 @@ docker-compose exec redis redis-cli -a redis
 
 ## Health Checks
 
-The bot includes built-in health checks accessible at `http://localhost:8080/health`:
+:::tip
+The bot includes built-in health checks accessible at `http://localhost:8080/health`. Use this endpoint for load balancer health probes and uptime monitoring.
+:::
 
 ```json
 {
@@ -302,4 +340,4 @@ The postgres container should show `healthy` status.
 2. Check that `WEBHOOK_SECRET` is configured
 3. Verify port 8080 is accessible externally
 
-See [Webhooks Guide](/self-hosting/webhooks) for detailed setup.
+See [Webhooks Guide](/self-hosting/webhooks/) for detailed setup.

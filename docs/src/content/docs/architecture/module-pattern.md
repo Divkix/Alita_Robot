@@ -163,6 +163,10 @@ func SetExampleSettings(chatID int64, enabled bool, value string) error {
 }
 ```
 
+:::caution[Never ignore DB errors]
+Always check `err` returns from database operations. Assigning to `_` causes nil pointer panics when the result is used downstream. This is the single most common source of production crashes.
+:::
+
 ### Step 2: Create Migration File
 
 Create `migrations/XXX_add_example_settings.sql`:
@@ -181,6 +185,10 @@ CREATE TABLE IF NOT EXISTS example_settings (
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_example_settings_chat_id ON example_settings(chat_id);
 ```
+
+:::note[Surrogate key pattern]
+Always use auto-increment `id` as the primary key. External IDs (`chat_id`, `user_id`) should be unique constraints, not primary keys. This decouples internal schema from Telegram's ID space.
+:::
 
 ### Step 3: Implement Database Operations
 
@@ -219,6 +227,10 @@ func GetExampleSettings(chatID int64) *ExampleSettings {
 }
 ```
 
+:::tip[Cache invalidation is mandatory]
+Every function that writes to the database MUST invalidate the corresponding cache key. Forgetting this causes stale data that persists until TTL expiry, which can be up to 1 hour.
+:::
+
 ### Step 4: Add Translations
 
 Add to `locales/en.yml`:
@@ -241,6 +253,10 @@ example_cancelled: "Action cancelled."
 
 Add to other locale files (de.yml, etc.) with appropriate translations.
 
+:::caution[Translation completeness]
+You must add keys to ALL locale files, not just `en.yml`. Missing keys cause runtime panics or empty strings. Run `make check-translations` to detect missing keys before committing.
+:::
+
 ### Step 5: Register Module
 
 Add to `alita/main.go` in `LoadModules`:
@@ -254,6 +270,10 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     modules.LoadExample(dispatcher)  // Add your module
 }
 ```
+
+:::note[Load order matters]
+Place your module after any modules it depends on (e.g., after `LoadUsers` if you need user lookups) and before `LoadHelp` (which is deferred and always loads last).
+:::
 
 ## Permission Check Functions
 
@@ -281,6 +301,10 @@ Use these functions to validate permissions before executing commands:
 
 - `justCheck = false`: Sends error message to user if check fails
 - `justCheck = true`: Silently returns false without messaging
+
+:::caution[Double-answer bug with callbacks]
+When using `RequireUserAdmin` with `justCheck=false` in a callback handler, the function already answers the callback query on failure. Do NOT call `query.Answer()` again, or you will get a "callback query already answered" error from Telegram.
+:::
 
 ### Common Permission Patterns
 
@@ -332,6 +356,10 @@ return nil
 | `err` | Something went wrong, let error handler deal with it |
 | `nil` | Same as `ext.EndGroups` for most purposes |
 
+:::tip[When to use ContinueGroups]
+Use `ext.ContinueGroups` only for monitoring/watcher handlers (handler groups 4-10) that observe traffic without consuming it. Standard command handlers should always return `ext.EndGroups` to prevent duplicate processing.
+:::
+
 ## Translation Best Practices
 
 ### Parameter Passing
@@ -361,6 +389,10 @@ example_multiline: "Line 1\nLine 2\nLine 3"
 example_multiline: 'Line 1\nLine 2\nLine 3'
 ```
 
+:::caution[Printf type safety]
+`%d` requires an `int`, not a `strconv.Itoa()` output (which is a string). Passing the wrong type causes runtime panics. Always match format verbs to argument types.
+:::
+
 ### Key Naming Convention
 
 Follow the pattern: `module_feature_description`
@@ -371,6 +403,10 @@ bans_ban_ban_reason: "\nReason: %s"
 bans_kick_kicked_user: "Kicked %s!"
 bans_unban_unbanned_user: "Unbanned %s!"
 ```
+
+:::note[Parse mode mismatch]
+Locale strings often use Markdown formatting but the bot sends messages in HTML parse mode. Use `tgmd2html.MD2HTMLV2()` to convert before sending. Forgetting this conversion results in raw Markdown symbols appearing in user messages.
+:::
 
 ## Complete Example: Greeting Counter Module
 
@@ -471,6 +507,10 @@ text := fmt.Sprintf("Settings for %s", helpers.HtmlEscape(chat.Title))
 
 The `helpers.MentionHtml()` function already handles escaping for user names.
 
+:::caution[XSS via Telegram HTML]
+Telegram supports a subset of HTML in messages. User-controlled strings (chat titles, usernames, filter keywords) must be escaped with `helpers.HtmlEscape()` before insertion into HTML-formatted messages. Unescaped angle brackets can break message formatting or inject unintended HTML tags.
+:::
+
 ### Database Operations and User Feedback
 
 **Prefer synchronous operations when sending success confirmations:**
@@ -488,6 +528,10 @@ go func() {
 }()
 _, err := msg.Reply(b, "Success!") // User sees success even if DB write fails
 ```
+
+:::caution[Sync before confirm]
+Never send a success confirmation to the user before the database write completes. If the write fails, the user has already been told it succeeded. This is a trust-breaking bug that is hard to debug in production.
+:::
 
 **When async operations are necessary**, only use them for non-critical background tasks that don't require user confirmation.
 
@@ -534,6 +578,10 @@ go func() {
 }()
 ```
 
+:::tip[Closure variable capture]
+Always capture loop/closure variables into local variables before passing them to goroutines. Go closures capture variables by reference, so the value may change by the time the goroutine executes.
+:::
+
 ### User Extraction
 
 Use `extraction.ExtractUserAndText()` for consistent user identification. It handles:
@@ -541,6 +589,10 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - Text mentions
 - Username lookups (with Telegram API fallback)
 - Numeric user IDs
+
+:::note[Nil sender check]
+`ctx.EffectiveSender` can be nil for channel messages. Always check before accessing `.User`. Use `chat_status.RequireUser()` or `chat_status.GetEffectiveUser()` for safe extraction.
+:::
 
 ## Checklist for New Modules
 

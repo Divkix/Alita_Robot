@@ -12,6 +12,10 @@ This page provides a complete reference of all commands available in Alita Robot
 - **Total Modules**: 21
 - **Total Commands**: 120
 
+:::note
+Commands marked as "Disableable" can be turned off per-chat using `/disable <command>`. Non-disableable commands (mostly admin operations) are always available.
+:::
+
 ## Commands by Module
 
 ### 👑 Admin

@@ -18,7 +18,9 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ### Surrogate Key Pattern
 
-All tables use an auto-incremented `id` field as the primary key (internal identifier), while external identifiers like `user_id` and `chat_id` (Telegram IDs) are stored with unique constraints.
+:::note
+All tables use an auto-incremented `id` field as the primary key (internal identifier), while external identifiers like `user_id` and `chat_id` (Telegram IDs) are stored with unique constraints. This is a deliberate design choice -- never use Telegram IDs as primary keys.
+:::
 
 **Benefits:**
 
@@ -487,6 +489,10 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_warns_users_composite
 
 ## Entity Relationships
+
+:::caution
+When modifying the schema, always follow the full migration workflow: add migration SQL, update GORM struct, update optimized queries, update DB functions, and invalidate relevant caches. Skipping any step causes runtime errors.
+:::
 
 ### Core Entities
 

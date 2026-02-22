@@ -3,18 +3,69 @@ title: Architecture Overview
 description: High-level architecture and design principles of Alita Robot.
 ---
 
+import { Badge, Tabs, TabItem, Card, CardGrid } from '@astrojs/starlight/components';
+
 Alita Robot is a modern Telegram group management bot built with Go and the gotgbot library. This document provides an overview of the architectural decisions, technology stack, and design principles that guide the codebase.
 
 ## Technology Stack
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Language** | Go 1.25+ | Core application runtime |
-| **Telegram Library** | gotgbot v2 | Telegram Bot API wrapper |
-| **Database** | PostgreSQL + GORM | Persistent data storage with ORM |
-| **Caching** | Redis + gocache | Distributed caching layer |
-| **Monitoring** | Prometheus | Metrics and observability |
-| **Build System** | GoReleaser | Multi-platform builds and releases |
+<Tabs>
+  <TabItem label="Go Runtime">
+    | Component | Technology | Purpose |
+    |-----------|------------|---------|
+    | **Language** | <Badge text="Go 1.25+" variant="note" /> | Core application runtime |
+    | **Telegram Library** | <Badge text="gotgbot v2" variant="note" /> | Telegram Bot API wrapper |
+    | **Build System** | <Badge text="GoReleaser" variant="default" /> | Multi-platform builds and releases |
+  </TabItem>
+  <TabItem label="PostgreSQL">
+    | Component | Technology | Purpose |
+    |-----------|------------|---------|
+    | **Database** | <Badge text="PostgreSQL" variant="tip" /> | Persistent data storage |
+    | **ORM** | <Badge text="GORM" variant="tip" /> | Object-relational mapping |
+    | **Migrations** | <Badge text="Custom Engine" variant="default" /> | Schema versioning with transactional execution |
+
+    The database uses a **surrogate key pattern**: auto-increment `id` as PK with external IDs (`user_id`, `chat_id`) as unique constraints.
+  </TabItem>
+  <TabItem label="Redis">
+    | Component | Technology | Purpose |
+    |-----------|------------|---------|
+    | **Caching** | <Badge text="Redis" variant="caution" /> | Distributed caching layer |
+    | **Client** | <Badge text="gocache" variant="caution" /> | Go cache library with marshaling |
+    | **Stampede Protection** | <Badge text="singleflight" variant="default" /> | Prevents thundering herd on cache misses |
+
+    All cache keys are prefixed with `alita:` for namespace isolation. TTLs range from 20 seconds (anonymous admin verification) to 1 hour (language preferences).
+  </TabItem>
+  <TabItem label="Monitoring">
+    | Component | Technology | Purpose |
+    |-----------|------------|---------|
+    | **Metrics** | <Badge text="Prometheus" variant="success" /> | Metrics and observability |
+    | **Tracing** | <Badge text="OpenTelemetry" variant="success" /> | Distributed tracing with OTLP/console exporters |
+    | **Health** | <Badge text="HTTP /health" variant="default" /> | Unified health, metrics, pprof on single port |
+  </TabItem>
+</Tabs>
+
+## Architecture Components
+
+<CardGrid>
+  <Card title="Dispatcher" icon="rocket">
+    Routes incoming Telegram updates to appropriate handlers. Configurable max goroutines (default: 200) with enhanced error handling and panic recovery.
+  </Card>
+  <Card title="Module System" icon="puzzle">
+    Feature modules in `alita/modules/` follow a consistent pattern: `moduleStruct`, handler methods, `LoadModule` registration. Help module loads last to collect all commands.
+  </Card>
+  <Card title="Cache Layer" icon="star">
+    Redis caching with singleflight stampede protection. Per-type TTLs, automatic invalidation on writes, and traced operations via OpenTelemetry.
+  </Card>
+  <Card title="Permission System" icon="approve-check">
+    Centralized permission validation in `alita/utils/chat_status/`. Checks are cached to reduce Telegram API calls. Supports anonymous admin detection.
+  </Card>
+  <Card title="Monitoring" icon="seti:config">
+    4-tier auto-remediation, activity tracking (per-chat and per-user DAU/WAU/MAU), background stats every 30s, and GC triggers on memory thresholds.
+  </Card>
+  <Card title="Graceful Shutdown" icon="close">
+    Central coordinator with LIFO handler execution. Each handler gets panic recovery. Total timeout: 60 seconds.
+  </Card>
+</CardGrid>
 
 ## Core Design Principles
 
@@ -182,6 +233,10 @@ shutdownManager.RegisterHandler(func() error {
 
 Alita uses a 4-layer error handling hierarchy:
 
+:::note[Error Recovery Layers]
+The 4-layer hierarchy ensures that no panic or error goes unhandled. Each layer catches what the layer below it might miss, providing defense-in-depth against crashes.
+:::
+
 ### Layer 1: Dispatcher Level
 
 ```go
@@ -237,6 +292,10 @@ The database uses a **surrogate key pattern**:
   - Decouples internal schema from Telegram IDs
   - Stable identifiers if external systems change
   - Better performance for joins and indexing
+
+:::note[Why Surrogate Keys?]
+Telegram IDs are external identifiers that the project does not control. Using auto-increment internal IDs as primary keys decouples the schema from Telegram's ID space, provides stable join targets, and allows better index performance on frequently queried columns.
+:::
 
 ## Next Steps
 
