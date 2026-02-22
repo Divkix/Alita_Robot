@@ -145,10 +145,12 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "locktypes") {
 		return ext.EndGroups
 	}
-	// connection status - also sets ctx.EffectiveChat
-	if helpers.IsUserConnected(b, ctx, false, true) == nil {
+	// connection status
+	connectedChat := helpers.IsUserConnected(b, ctx, false, true)
+	if connectedChat == nil {
 		return ext.EndGroups
 	}
+	ctx.EffectiveChat = connectedChat
 	_locktypes := m.getLockMapAsArray()
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -170,11 +172,12 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.CheckDisabledCmd(b, msg, "locks") {
 		return ext.EndGroups
 	}
-	// connection status - also sets ctx.EffectiveChat
-	if helpers.IsUserConnected(b, ctx, true, true) == nil {
+	// connection status
+	chat := helpers.IsUserConnected(b, ctx, true, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
-	chat := ctx.EffectiveChat
+	ctx.EffectiveChat = chat
 
 	_, err := msg.Reply(b, m.buildLockTypesMessage(chat.Id), helpers.Shtml())
 	if err != nil {

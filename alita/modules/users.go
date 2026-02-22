@@ -76,6 +76,10 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender
 	repliedMsg := msg.ReplyToMessage
 
+	if user == nil {
+		return ext.ContinueGroups
+	}
+
 	if user.IsAnonymousChannel() {
 		// Only update if enough time has passed
 		if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
@@ -114,22 +118,26 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	// update if message is replied
 	if repliedMsg != nil {
-		if repliedMsg.GetSender().IsAnonymousChannel() {
-			if shouldUpdate(channelUpdateCache, repliedMsg.GetSender().Id(), channelUpdateInterval) {
-				log.Debugf("Updating channel %d in db", repliedMsg.GetSender().Id())
+		replySender := repliedMsg.GetSender()
+		if replySender == nil {
+			return ext.ContinueGroups
+		}
+		if replySender.IsAnonymousChannel() {
+			if shouldUpdate(channelUpdateCache, replySender.Id(), channelUpdateInterval) {
+				log.Debugf("Updating channel %d in db", replySender.Id())
 				go asyncUpdateChannel(
-					repliedMsg.GetSender().Id(),
-					repliedMsg.GetSender().Name(),
-					repliedMsg.GetSender().Username(),
+					replySender.Id(),
+					replySender.Name(),
+					replySender.Username(),
 				)
 			}
 		} else {
-			if shouldUpdate(userUpdateCache, repliedMsg.GetSender().Id(), userUpdateInterval) {
-				log.Debugf("Updating user %d in db", repliedMsg.GetSender().Id())
+			if shouldUpdate(userUpdateCache, replySender.Id(), userUpdateInterval) {
+				log.Debugf("Updating user %d in db", replySender.Id())
 				go asyncUpdateUser(
-					repliedMsg.GetSender().Id(),
-					repliedMsg.GetSender().Username(),
-					repliedMsg.GetSender().Name(),
+					replySender.Id(),
+					replySender.Username(),
+					replySender.Name(),
 				)
 			}
 		}

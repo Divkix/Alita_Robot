@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	log "github.com/sirupsen/logrus"
 
@@ -76,7 +77,7 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.RequireGroup(b, ctx, nil, false) {
 		return ext.EndGroups
 	}
-	if !chat_status.IsUserAdmin(b, msg.Chat.Id, msg.From.Id) {
+	if msg.From == nil || !chat_status.IsUserAdmin(b, msg.Chat.Id, msg.From.Id) {
 		return ext.EndGroups
 	}
 
@@ -281,6 +282,9 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		// 0 id is for self
+		if sender == nil {
+			return ext.EndGroups
+		}
 		userId = sender.Id()
 	}
 
@@ -458,12 +462,12 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	time.Sleep(1 * time.Second)
-	_, err = rMsg.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	time.AfterFunc(1*time.Second, func() {
+		defer error_handling.RecoverFromPanic("removeBotKeyboard", "misc")
+		if _, err := rMsg.Delete(b, nil); err != nil {
+			log.Error(err)
+		}
+	})
 
 	return ext.EndGroups
 }
