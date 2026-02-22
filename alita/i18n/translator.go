@@ -18,6 +18,10 @@ var (
 
 // GetString retrieves a translated string with optional parameter interpolation.
 func (t *Translator) GetString(key string, params ...TranslationParams) (string, error) {
+	if t.manager == nil {
+		return "", NewI18nError("get_string", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	// Create cache key if caching is enabled
 	cacheKey := ""
 	if t.manager.cacheClient != nil && len(params) == 0 {
@@ -71,6 +75,10 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 
 // GetStringSlice retrieves a translated string slice.
 func (t *Translator) GetStringSlice(key string) ([]string, error) {
+	if t.manager == nil {
+		return nil, NewI18nError("get_string_slice", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	// Create cache key
 	cacheKey := ""
 	if t.manager.cacheClient != nil {
@@ -112,6 +120,10 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 
 // GetInt retrieves a translated integer value.
 func (t *Translator) GetInt(key string) (int, error) {
+	if t.manager == nil {
+		return 0, NewI18nError("get_int", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	result := t.viper.GetInt(key)
 	if !t.viper.IsSet(key) {
 		if t.langCode != t.manager.defaultLang {
@@ -128,6 +140,10 @@ func (t *Translator) GetInt(key string) (int, error) {
 
 // GetBool retrieves a translated boolean value.
 func (t *Translator) GetBool(key string) (bool, error) {
+	if t.manager == nil {
+		return false, NewI18nError("get_bool", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	result := t.viper.GetBool(key)
 	if !t.viper.IsSet(key) {
 		if t.langCode != t.manager.defaultLang {
@@ -144,6 +160,10 @@ func (t *Translator) GetBool(key string) (bool, error) {
 
 // GetFloat retrieves a translated float value.
 func (t *Translator) GetFloat(key string) (float64, error) {
+	if t.manager == nil {
+		return 0.0, NewI18nError("get_float", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	result := t.viper.GetFloat64(key)
 	if !t.viper.IsSet(key) {
 		if t.langCode != t.manager.defaultLang {
@@ -160,6 +180,10 @@ func (t *Translator) GetFloat(key string) (float64, error) {
 
 // GetPlural retrieves a pluralized string based on count.
 func (t *Translator) GetPlural(key string, count int, params ...TranslationParams) (string, error) {
+	if t.manager == nil {
+		return "", NewI18nError("get_plural", t.langCode, key, "manager not initialized", ErrManagerNotInit)
+	}
+
 	// Try to get plural forms
 	pluralRule := PluralRule{
 		Zero:  t.viper.GetString(key + ".zero"),
