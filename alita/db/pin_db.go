@@ -30,20 +30,24 @@ func GetPinData(chatID int64) (pinrc *PinSettings) {
 
 // SetCleanLinked updates the clean linked messages preference for the specified chat.
 // When enabled, linked channel messages are automatically cleaned from the chat.
-func SetCleanLinked(chatID int64, pref bool) {
+func SetCleanLinked(chatID int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&PinSettings{}, PinSettings{ChatId: chatID}, map[string]any{"clean_linked": pref})
 	if err != nil {
 		log.Errorf("[Database] SetCleanLinked: %v", err)
+		return err
 	}
+	return nil
 }
 
 // SetAntiChannelPin updates the anti-channel pin preference for the specified chat.
 // When enabled, prevents channel messages from being automatically pinned.
-func SetAntiChannelPin(chatID int64, pref bool) {
+func SetAntiChannelPin(chatID int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&PinSettings{}, PinSettings{ChatId: chatID}, map[string]any{"anti_channel_pin": pref})
 	if err != nil {
 		log.Errorf("[Database] SetAntiChannelPin: %v", err)
+		return err
 	}
+	return nil
 }
 
 // LoadPinStats returns statistics about pin features across all chats.

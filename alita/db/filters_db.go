@@ -51,18 +51,18 @@ func DoesFilterExists(chatId int64, keyword string) bool {
 // AddFilter creates a new filter in the database for the specified chat.
 // Does nothing if a filter with the same keyword already exists.
 // Invalidates the filter list cache after successful addition.
-func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []Button, filtType int) {
+func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []Button, filtType int) error {
 	// Check if filter already exists using optimized query
 	var existingFilter ChatFilters
 	err := DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Take(&existingFilter).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			log.Errorf("[Database][AddFilter] checking existence: %d - %v", chatID, err)
-			return
+			return err
 		}
 		// Filter doesn't exist, continue with creation
 	} else {
-		return // Filter already exists
+		return nil // Filter already exists
 	}
 
 	// add the filter
@@ -78,21 +78,22 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []Button
 	err = CreateRecord(&newFilter)
 	if err != nil {
 		log.Errorf("[Database][AddFilter]: %d - %v", chatID, err)
-		return
+		return err
 	}
 
 	// Invalidate cache after adding filter
 	deleteCache(filterListCacheKey(chatID))
+	return nil
 }
 
 // RemoveFilter deletes a filter with the specified keyword from the chat.
 // Invalidates the filter list cache if a filter was successfully removed.
-func RemoveFilter(chatID int64, keyWord string) {
+func RemoveFilter(chatID int64, keyWord string) error {
 	// Directly attempt to delete the filter without checking existence first
 	result := DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Delete(&ChatFilters{})
 	if result.Error != nil {
 		log.Errorf("[Database][RemoveFilter]: %d - %v", chatID, result.Error)
-		return
+		return result.Error
 	}
 	// result.RowsAffected will be 0 if no filter was found, which is fine
 
@@ -100,6 +101,7 @@ func RemoveFilter(chatID int64, keyWord string) {
 	if result.RowsAffected > 0 {
 		deleteCache(filterListCacheKey(chatID))
 	}
+	return nil
 }
 
 // RemoveAllFilters deletes all filters for the specified chat ID from the database.

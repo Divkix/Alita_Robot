@@ -121,11 +121,21 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyString string
 
 	if chat.Type == "private" {
-		db.ChangeUserLanguage(user.Id, language)
+		if err := db.ChangeUserLanguage(user.Id, language); err != nil {
+			log.Errorf("[Language] ChangeUserLanguage failed for user %d: %v", user.Id, err)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
+			return ext.EndGroups
+		}
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
 	} else {
 		// User is admin (already verified above)
-		db.ChangeGroupLanguage(chat.Id, language)
+		if err := db.ChangeGroupLanguage(chat.Id, language); err != nil {
+			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
+			return ext.EndGroups
+		}
 		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
 	}
 

@@ -77,7 +77,7 @@ func getUserLanguage(UserID int64) string {
 // Creates the user with the specified language if they don't exist.
 // Does nothing if the language is already set to the specified value.
 // Invalidates the user language cache after successful update.
-func ChangeUserLanguage(UserID int64, lang string) {
+func ChangeUserLanguage(UserID int64, lang string) error {
 	userc := checkUserInfo(UserID)
 	if userc == nil {
 		// Create new user with the specified language
@@ -88,33 +88,34 @@ func ChangeUserLanguage(UserID int64, lang string) {
 		err := DB.Create(newUser).Error
 		if err != nil {
 			log.Errorf("[Database] ChangeUserLanguage (create): %v - %d", err, UserID)
-			return
+			return err
 		}
 		// Invalidate both language cache and optimized query cache after create
 		deleteCache(userLanguageCacheKey(UserID))
 		deleteCache(userCacheKey(UserID))
 		log.Infof("[Database] ChangeUserLanguage: created new user %d with language %s", UserID, lang)
-		return
+		return nil
 	} else if userc.Language == lang {
-		return
+		return nil
 	}
 
 	err := UpdateRecord(&User{}, User{UserId: UserID}, User{Language: lang})
 	if err != nil {
 		log.Errorf("[Database] ChangeUserLanguage: %v - %d", err, UserID)
-		return
+		return err
 	}
 	// Invalidate both language cache and optimized query cache after update
 	deleteCache(userLanguageCacheKey(UserID))
 	deleteCache(userCacheKey(UserID))
 	log.Infof("[Database] ChangeUserLanguage: %d", UserID)
+	return nil
 }
 
 // ChangeGroupLanguage updates the language preference for a specific group.
 // Creates the chat with the specified language if it doesn't exist.
 // Does nothing if the language is already set to the specified value.
 // Invalidates both the group language and chat settings caches after successful update.
-func ChangeGroupLanguage(GroupID int64, lang string) {
+func ChangeGroupLanguage(GroupID int64, lang string) error {
 	groupc := GetChatSettings(GroupID)
 
 	// Check if chat exists (GetChatSettings returns empty struct if not found)
@@ -127,26 +128,27 @@ func ChangeGroupLanguage(GroupID int64, lang string) {
 		err := DB.Create(newChat).Error
 		if err != nil {
 			log.Errorf("[Database] ChangeGroupLanguage (create): %v - %d", err, GroupID)
-			return
+			return err
 		}
 		// Invalidate all cache layers after create
 		deleteCache(chatLanguageCacheKey(GroupID))
 		deleteCache(chatSettingsCacheKey(GroupID))
 		deleteCache(chatCacheKey(GroupID))
 		log.Infof("[Database] ChangeGroupLanguage: created new chat %d with language %s", GroupID, lang)
-		return
+		return nil
 	} else if groupc.Language == lang {
-		return
+		return nil
 	}
 
 	err := UpdateRecord(&Chat{}, Chat{ChatId: GroupID}, Chat{Language: lang})
 	if err != nil {
 		log.Errorf("[Database] ChangeGroupLanguage: %v - %d", err, GroupID)
-		return
+		return err
 	}
 	// Invalidate all cache layers after update
 	deleteCache(chatLanguageCacheKey(GroupID))
 	deleteCache(chatSettingsCacheKey(GroupID)) // Also invalidate chat settings cache since language is part of it
 	deleteCache(chatCacheKey(GroupID))
 	log.Infof("[Database] ChangeGroupLanguage: %d", GroupID)
+	return nil
 }

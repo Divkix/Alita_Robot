@@ -209,30 +209,32 @@ func GetWarns(userId, chatId int64) (int, []string) {
 
 // SetWarnLimit updates the warning limit for a specific chat.
 // When users reach this limit, the configured warn mode action is applied.
-func SetWarnLimit(chatId int64, warnLimit int) {
+func SetWarnLimit(chatId int64, warnLimit int) error {
 	warnrc := checkWarnSettings(chatId)
 	warnrc.WarnLimit = warnLimit
 	err := DB.Save(warnrc).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnLimit: %v", err)
-		return
+		return err
 	}
 	// Invalidate cache after successful update
 	deleteCache(warnSettingsCacheKey(chatId))
+	return nil
 }
 
 // SetWarnMode updates the action to take when users reach the warning limit.
 // Common modes include "mute", "kick", "ban".
-func SetWarnMode(chatId int64, warnMode string) {
+func SetWarnMode(chatId int64, warnMode string) error {
 	warnrc := checkWarnSettings(chatId)
 	warnrc.WarnMode = warnMode
 	err := DB.Save(warnrc).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
-		return
+		return err
 	}
 	// Invalidate cache after successful update
 	deleteCache(warnSettingsCacheKey(chatId))
+	return nil
 }
 
 // GetWarnSetting returns the warning settings for the specified chat.

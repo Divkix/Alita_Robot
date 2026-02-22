@@ -269,7 +269,7 @@ func TestSetCleanMsgId(t *testing.T) {
 	cases := []struct {
 		name       string
 		msgID      int64
-		setFunc    func(int64, int64)
+		setFunc    func(int64, int64) error
 		getLastMsg func(*GreetingSettings) int64
 		nilCheck   func(*GreetingSettings) bool
 	}{

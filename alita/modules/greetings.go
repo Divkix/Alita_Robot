@@ -168,21 +168,41 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		var err error
 		switch strings.ToLower(args[0]) {
 		case "on", "yes":
-			if config.gType == greetingWelcome {
-				db.SetWelcomeToggle(chat.Id, true)
-			} else {
-				db.SetGoodbyeToggle(chat.Id, true)
-			}
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if config.gType == greetingWelcome {
+				if dbErr := db.SetWelcomeToggle(chat.Id, true); dbErr != nil {
+					log.Errorf("[Greetings] SetWelcomeToggle failed for chat %d: %v", chat.Id, dbErr)
+					errText, _ := tr.GetString("common_settings_save_failed")
+					_, _ = msg.Reply(bot, errText, helpers.Shtml())
+					return ext.EndGroups
+				}
+			} else {
+				if dbErr := db.SetGoodbyeToggle(chat.Id, true); dbErr != nil {
+					log.Errorf("[Greetings] SetGoodbyeToggle failed for chat %d: %v", chat.Id, dbErr)
+					errText, _ := tr.GetString("common_settings_save_failed")
+					_, _ = msg.Reply(bot, errText, helpers.Shtml())
+					return ext.EndGroups
+				}
+			}
 			text, _ := tr.GetString(config.enabledKey)
 			_, err = msg.Reply(bot, text, helpers.Shtml())
 		case "off", "no":
-			if config.gType == greetingWelcome {
-				db.SetWelcomeToggle(chat.Id, false)
-			} else {
-				db.SetGoodbyeToggle(chat.Id, false)
-			}
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			if config.gType == greetingWelcome {
+				if dbErr := db.SetWelcomeToggle(chat.Id, false); dbErr != nil {
+					log.Errorf("[Greetings] SetWelcomeToggle failed for chat %d: %v", chat.Id, dbErr)
+					errText, _ := tr.GetString("common_settings_save_failed")
+					_, _ = msg.Reply(bot, errText, helpers.Shtml())
+					return ext.EndGroups
+				}
+			} else {
+				if dbErr := db.SetGoodbyeToggle(chat.Id, false); dbErr != nil {
+					log.Errorf("[Greetings] SetGoodbyeToggle failed for chat %d: %v", chat.Id, dbErr)
+					errText, _ := tr.GetString("common_settings_save_failed")
+					_, _ = msg.Reply(bot, errText, helpers.Shtml())
+					return ext.EndGroups
+				}
+			}
 			text, _ := tr.GetString(config.disabledKey)
 			_, err = msg.Reply(bot, text, helpers.Shtml())
 		default:
@@ -236,8 +256,13 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	db.SetWelcomeText(chat.Id, text, content, buttons, dataType)
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	if dbErr := db.SetWelcomeText(chat.Id, text, content, buttons, dataType); dbErr != nil {
+		log.Errorf("[Greetings] SetWelcomeText failed for chat %d: %v", chat.Id, dbErr)
+		errText, _ := tr.GetString("common_settings_save_failed")
+		_, _ = msg.Reply(bot, errText, helpers.Shtml())
+		return ext.EndGroups
+	}
 	successText, _ := tr.GetString("greetings_welcome_set_success")
 	_, err := msg.Reply(bot, successText, helpers.Shtml())
 	if err != nil {
@@ -269,13 +294,22 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	}
 
 	// Reset greeting text synchronously to ensure DB write completes before sending success
-	if isWelcome {
-		db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
-	} else {
-		db.SetGoodbyeText(chat.Id, db.DefaultGoodbye, "", nil, db.TEXT)
-	}
-
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	if isWelcome {
+		if dbErr := db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT); dbErr != nil {
+			log.Errorf("[Greetings] SetWelcomeText failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
+	} else {
+		if dbErr := db.SetGoodbyeText(chat.Id, db.DefaultGoodbye, "", nil, db.TEXT); dbErr != nil {
+			log.Errorf("[Greetings] SetGoodbyeText failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
+	}
 	translationKey := "greetings_welcome_reset_success"
 	if !isWelcome {
 		translationKey = "greetings_goodbye_reset"
@@ -332,8 +366,13 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	db.SetGoodbyeText(chat.Id, text, content, buttons, dataType)
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	if dbErr := db.SetGoodbyeText(chat.Id, text, content, buttons, dataType); dbErr != nil {
+		log.Errorf("[Greetings] SetGoodbyeText failed for chat %d: %v", chat.Id, dbErr)
+		errText, _ := tr.GetString("common_settings_save_failed")
+		_, _ = msg.Reply(bot, errText, helpers.Shtml())
+		return ext.EndGroups
+	}
 	successText, _ := tr.GetString("greetings_goodbye_set_success")
 	_, err := msg.Reply(bot, successText, helpers.Shtml())
 	if err != nil {
@@ -406,13 +445,23 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		db.SetCleanWelcomeSetting(chat.Id, false)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetCleanWelcomeSetting(chat.Id, false); dbErr != nil {
+			log.Errorf("[Greetings] SetCleanWelcomeSetting failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_welcome_disable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	case "on", "yes":
-		db.SetCleanWelcomeSetting(chat.Id, true)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetCleanWelcomeSetting(chat.Id, true); dbErr != nil {
+			log.Errorf("[Greetings] SetCleanWelcomeSetting failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_welcome_enable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	default:
@@ -485,13 +534,23 @@ func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		db.SetCleanGoodbyeSetting(chat.Id, false)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetCleanGoodbyeSetting(chat.Id, false); dbErr != nil {
+			log.Errorf("[Greetings] SetCleanGoodbyeSetting failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_goodbye_disable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	case "on", "yes":
-		db.SetCleanGoodbyeSetting(chat.Id, true)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetCleanGoodbyeSetting(chat.Id, true); dbErr != nil {
+			log.Errorf("[Greetings] SetCleanGoodbyeSetting failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_goodbye_enable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	default:
@@ -548,13 +607,23 @@ func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		db.SetShouldCleanService(chat.Id, false)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetShouldCleanService(chat.Id, false); dbErr != nil {
+			log.Errorf("[Greetings] SetShouldCleanService failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_service_disable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	case "on", "yes":
-		db.SetShouldCleanService(chat.Id, true)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetShouldCleanService(chat.Id, true); dbErr != nil {
+			log.Errorf("[Greetings] SetShouldCleanService failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_clean_service_enable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	default:
@@ -613,7 +682,9 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		}
 		if greetPrefs.WelcomeSettings.CleanWelcome {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.WelcomeSettings.LastMsgId)
-			db.SetCleanWelcomeMsgId(chat.Id, sent.MessageId)
+			if err := db.SetCleanWelcomeMsgId(chat.Id, sent.MessageId); err != nil {
+				log.Warnf("[Greetings] Failed to store clean welcome msg ID for chat %d: %v", chat.Id, err)
+			}
 		}
 	}
 	return nil
@@ -748,7 +819,9 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		if greetPrefs.GoodbyeSettings.CleanGoodbye {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, greetPrefs.GoodbyeSettings.LastMsgId)
-			db.SetCleanGoodbyeMsgId(chat.Id, sent.MessageId)
+			if err := db.SetCleanGoodbyeMsgId(chat.Id, sent.MessageId); err != nil {
+				log.Warnf("[Greetings] Failed to store clean goodbye msg ID for chat %d: %v", chat.Id, err)
+			}
 		}
 	}
 	return ext.EndGroups
@@ -1077,13 +1150,23 @@ func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		db.SetShouldAutoApprove(chat.Id, false)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetShouldAutoApprove(chat.Id, false); dbErr != nil {
+			log.Errorf("[Greetings] SetShouldAutoApprove failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_auto_approve_disable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	case "on", "yes":
-		db.SetShouldAutoApprove(chat.Id, true)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if dbErr := db.SetShouldAutoApprove(chat.Id, true); dbErr != nil {
+			log.Errorf("[Greetings] SetShouldAutoApprove failed for chat %d: %v", chat.Id, dbErr)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, errText, helpers.Shtml())
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("greetings_auto_approve_enable")
 		_, err = msg.Reply(bot, text, helpers.Shtml())
 	default:
