@@ -485,7 +485,9 @@ Cloudflare Tunnel token (only needed if using webhooks with Cloudflare Tunnel)
 
 ### `WEBHOOK_PORT`
 
-Deprecated: use HTTPPort instead
+:::note
+Deprecated: use `HTTP_PORT` instead. This variable will be removed in a future release.
+:::
 
 | Property | Value |
 |----------|-------|
@@ -554,6 +556,10 @@ Deprecated: use HTTPPort instead
 
 ### `ENABLE_PPROF`
 
+:::danger
+Enabling pprof in production exposes internal runtime state. Only enable for debugging in isolated staging environments behind a firewall.
+:::
+
 Enable pprof profiling endpoints at /debug/pprof/*
 
 | Property | Value |
@@ -590,6 +596,10 @@ Trace sampling rate from 0.0 to 1.0 (default: 1.0)
 | **Validation** | min=0,max=1 |
 
 ## Quick Reference
+
+:::caution[Secrets]
+Never commit `.env` files or any file containing `BOT_TOKEN`, `WEBHOOK_SECRET`, or database passwords to version control. Use environment variables or a secrets manager in production.
+:::
 
 ### Required Variables
 

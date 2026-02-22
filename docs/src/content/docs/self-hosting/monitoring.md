@@ -43,6 +43,10 @@ GET /health
 
 ### HTTP Status Codes
 
+:::tip
+Use the HTTP status code (not the response body) in your load balancer or uptime monitoring tool. A 503 response means at least one dependency is unhealthy.
+:::
+
 | Code | Meaning |
 |------|---------|
 | 200 | All systems healthy |
@@ -160,6 +164,10 @@ RESOURCE_GC_THRESHOLD_MB=400
 
 ### Auto-Remediation
 
+:::note
+Auto-remediation runs automatically in the background. No manual intervention is required unless Tier 3 is triggered, at which point you should investigate and restart the bot.
+:::
+
 The system uses a 4-tier auto-remediation approach when resource thresholds are exceeded:
 
 1. **Tier 0 — Warning**: Logs warnings at 80% goroutine threshold or 50% memory usage
@@ -228,6 +236,10 @@ For detailed logging during development:
 DEBUG=true
 ```
 
+:::caution
+Debug mode disables background performance monitoring and significantly increases log volume. Never enable in production as it degrades overall performance.
+:::
+
 Debug mode:
 - Increases log verbosity
 - Disables background monitoring
@@ -274,6 +286,10 @@ Structured log entries include:
 | `PANIC` | Unrecoverable errors |
 
 ## Alerting
+
+:::tip
+At minimum, set up alerts for `AlitaUnhealthy` and `DatabaseConnectionFailed` to catch critical outages early.
+:::
 
 ### Prometheus Alerting Rules
 

@@ -3,44 +3,39 @@ title: Languages Commands
 description: Complete guide to Languages module commands and features
 ---
 
-# 📦 Languages Commands
+# Languages Commands
 
-Not able to change language of the bot?
-Easily change by using this module!
+Not able to change the language of the bot? Easily change it using this module!
 
-Just type /lang and use inline keyboard to choose a language for yourself or your group.
+Just type `/lang` and use the inline keyboard to choose a language for yourself or your group.
 
-You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)
-
-**How It Works**
+:::note[How Permissions Work]
 - **Private Chats:** Any user can change their personal language
 - **Group Chats:** Only admins can change the group language
-
-Language preferences are cached for performance and stored separately for users and groups.
-
-
-## Module Aliases
-
-This module can be accessed using the following aliases:
-
-- `language`
-- `lang`
+:::
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lang` | Display language selection menu to change bot language. | ❌ |
+| `/lang` | Display language selection menu to change bot language. | No |
 
-## Usage Examples
+## Usage
 
-### Basic Usage
-
-```
+```text
 /lang
 ```
 
-For detailed command usage, refer to the commands table above.
+:::tip[Help Translate]
+You can help bring the bot to more languages by contributing translations on [Crowdin](https://crowdin.com/project/alita_robot).
+:::
+
+Language preferences are cached for performance and stored separately for users and groups.
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`language`, `lang`
 
 ## Required Permissions
 

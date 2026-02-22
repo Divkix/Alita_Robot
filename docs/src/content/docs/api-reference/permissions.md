@@ -402,18 +402,31 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 
 ## Special Telegram IDs
 
+:::note
+These are special Telegram system accounts that receive automatic admin treatment. Hardcoding checks against these IDs ensures the bot does not attempt to ban or restrict system-level accounts.
+:::
+
 | ID | Description |
 |----|-------------|
 | `1087968824` | Anonymous Admin Bot (GroupAnonymousBot) |
 | `777000` | Telegram System Account |
-| `136817688` | Channel Bot (listed for reference only — not actively checked in the codebase) |
+| `136817688` | Channel Bot (listed for reference only -- not actively checked in the codebase) |
 
 ## Usage Example
+
+:::caution
+Always check `ctx.EffectiveSender` and `ctx.EffectiveSender.User` for nil before accessing user properties. Channel posts have no sender user, causing a nil pointer panic.
+:::
 
 ```go
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
-    user := ctx.EffectiveSender.User
+
+    // Safe user extraction - returns nil for channels
+    user := chat_status.RequireUser(b, ctx, false)
+    if user == nil {
+        return ext.EndGroups
+    }
 
     // Check if user is admin
     if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
@@ -429,3 +442,7 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     return ext.EndGroups
 }
 ```
+
+:::tip
+Use `justCheck=true` when you only need to know the result without sending error messages to the user. Use `justCheck=false` when you want the function to automatically reply with an appropriate error message on failure.
+:::

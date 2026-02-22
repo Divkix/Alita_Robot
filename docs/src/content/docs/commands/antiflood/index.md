@@ -3,56 +3,51 @@ title: Antiflood Commands
 description: Complete guide to Antiflood module commands and features
 ---
 
-# 🌊 Antiflood Commands
+# Antiflood Commands
 
 You know how sometimes, people join, send 100 messages, and ruin your chat? With antiflood, that happens no more!
 
-Antiflood allows you to take action on users that send more than x messages in a row. Actions are: ban/kick/mute
+Antiflood allows you to take action on users that send more than x messages in a row. Actions are: ban/kick/mute.
 
-*Admin commands*:
-× /flood: Get the current antiflood settings.
-× /setflood `<number/off/no/false/0>`: Set the number of messages after which to take action on a user (limit: 3-100). Set to '0', 'off', 'no', or 'false' to disable.
-× /setfloodmode `<action type>`: Choose which action to take on a user who has been flooding. Options: ban/kick/mute
-× /delflood `<yes/no/on/off>`: If you want bot to delete messages flooded by user.
-
-## Module Aliases
-
-This module can be accessed using the following aliases:
-
-- `flood`
+:::caution[Admin Permissions Required]
+All commands in this module require admin permissions in groups.
+:::
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/delflood` | If you want bot to delete messages flooded by user. | ❌ |
-| `/flood` | Get the current antiflood settings. | ✅ |
-| `/setflood` | Set the number of messages after which to take action on a user (limit: 3-100). Set to '0', 'off', 'no', or 'false' to disable. | ❌ |
-| `/setfloodmode` | Choose which action to take on a user who has been flooding. Options: ban/kick/mute | ❌ |
+| `/flood` | Get the current antiflood settings. | Yes |
+| `/setflood` | Set the number of messages after which to take action on a user (limit: 3-100). Set to `0`, `off`, `no`, or `false` to disable. | No |
+| `/setfloodmode` | Choose which action to take on a user who has been flooding. Options: ban/kick/mute. | No |
+| `/delflood` | Toggle whether the bot should delete messages from flooding users. | No |
 
 ## Usage Examples
 
-### Basic Usage
-
+```text
+/flood                    # Check current settings
+/setflood 10              # Take action after 10 messages
+/setflood off             # Disable antiflood
+/setfloodmode ban         # Ban flooding users
+/delflood yes             # Delete flood messages
 ```
-/delflood
-/flood
-/setflood
-```
 
-For detailed command usage, refer to the commands table above.
+:::tip[Recommended Setup]
+Start with a threshold of 10-15 messages and adjust based on your group's activity level. Use `mute` mode first — it is less disruptive than `ban` while still stopping the flood.
+:::
+
+:::note[Default Behavior]
+Antiflood is **disabled by default**. You must explicitly enable it using `/setflood <number>`.
+:::
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`flood`
 
 ## Required Permissions
 
-All commands require admin permissions in groups.
-
 **Bot Permissions Required:**
-
 - Delete messages
 - Ban users
 - Restrict members
-
-## Technical Notes
-
-**Default Behavior**
-Antiflood is **disabled by default**. You must explicitly enable it using `/setflood &lt;number&gt;`.

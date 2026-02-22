@@ -3,68 +3,64 @@ title: Mutes Commands
 description: Complete guide to Mutes module commands and features
 ---
 
-# 📦 Mutes Commands
+# Mutes Commands
 
-Sometimes users can be annoying and you might want to restrict them from sending a message to chat, this module is here to help, you can use this module to mute members in your group.
+Sometimes users can be annoying and you might want to restrict them from sending messages. This module lets you mute members in your group.
 
-*Mute Commands:* (Admin only)
-× /mute <userhandle>: mutes a user, (via a handle, or reply)
-× /smute <userhandle>: mutes a user silently, does not send a message to the group, and also deletes your command. (via a handle, or reply)
-× /dmute <userhandle>: mutes a user and deletes the replied message. (via a handle, or reply)
-× /tmute <userhandle> x(m/h/d): mutes a user for `x` time. (via a handle, or reply). m = minutes, h = hours, d = days.
-× /unmute <userhandle>: unmutes a user. (via a handle, or reply)
-
-**Time Format for Temporary Mutes:**
-- `m` = minutes (e.g., `30m`)
-- `h` = hours (e.g., `2h`)
-- `d` = days (e.g., `1d`)
-
-**Mute Variants:**
-- `/mute` - Standard mute with optional reason
-- `/smute` - Silent mute (deletes your command message)
-- `/dmute` - Delete-mute (mutes user and deletes their message)
-- `/tmute` - Temporary mute with specified duration
-
-**Required Permissions:**
-**Admin only commands.** Users executing these commands must have:
-- Admin status in the chat
-- Permission to restrict members
-
-The bot must also have admin privileges with permission to restrict members.
-
-
-## Module Aliases
-
-This module can be accessed using the following aliases:
-
-- `mute`
-- `unmute`
-- `tmute`
-- `smute`
-- `dmute`
+:::caution[Admin Permissions Required]
+All mute commands require admin permissions with restrict rights in groups.
+:::
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/dmute` | mutes a user and deletes the replied message. (via a handle, or reply) | ❌ |
-| `/mute` | mutes a user, (via a handle, or reply) | ❌ |
-| `/smute` | mutes a user silently, does not send a message to the group, and also deletes your command. (via a handle, or reply) | ❌ |
-| `/tmute` | mutes a user for `x` time. (via a handle, or reply). m = minutes, h = hours, d = days. | ❌ |
-| `/unmute` | unmutes a user. (via a handle, or reply) | ❌ |
+| `/mute` | Mutes a user (via handle or reply). | No |
+| `/smute` | Mutes a user silently — no group message, deletes your command. | No |
+| `/dmute` | Mutes a user and deletes the replied message. | No |
+| `/tmute` | Mutes a user for a specified time (via handle or reply). | No |
+| `/unmute` | Unmutes a user (via handle or reply). | No |
 
 ## Usage Examples
 
-### Basic Usage
-
+```text
+/mute @username          # Mute a user
+/mute @username Spamming # Mute with reason
+/smute @username         # Mute silently
+/dmute                   # Reply to mute and delete their message
+/tmute @username 2h      # Mute for 2 hours
+/unmute @username        # Unmute a user
 ```
-/dmute
-/mute
-/smute
-```
 
-For detailed command usage, refer to the commands table above.
+:::tip[Time Format for Temporary Mutes]
+Use `/tmute` with a time suffix: `m` = minutes, `h` = hours, `d` = days.
+
+```text
+/tmute @user 30m    # Mute for 30 minutes
+/tmute @user 2h     # Mute for 2 hours
+/tmute @user 1d     # Mute for 1 day
+```
+:::
+
+## Mute Variants
+
+| Variant | Behavior |
+|---------|----------|
+| `/mute` | Standard mute with optional reason |
+| `/smute` | Silent mute (deletes your command message) |
+| `/dmute` | Delete-mute (mutes user and deletes their message) |
+| `/tmute` | Temporary mute with specified duration |
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`mute`, `unmute`, `tmute`, `smute`, `dmute`
 
 ## Required Permissions
 
-All mute commands require admin with restrict permissions in groups.
+**Bot Permissions Required:**
+- Restrict members
+
+**User must have:**
+- Admin status in the chat
+- Permission to restrict members

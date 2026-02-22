@@ -14,7 +14,9 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Callback Data Format
 
-Callbacks use a prefix-based routing system:
+:::note
+Callbacks use a prefix-based routing system. The dispatcher matches the beginning of the callback data string and routes to the corresponding handler.
+:::
 
 ```
 {prefix}{data}
@@ -193,6 +195,10 @@ dispatcher.AddHandler(handlers.NewCallback(
 ```
 
 ## Handling Callbacks
+
+:::caution
+Always answer the callback query. If you do not call `query.Answer()`, the user sees a loading spinner indefinitely. Also be careful not to answer twice -- `RequireUserAdmin` with `justCheck=false` already answers the callback.
+:::
 
 ```go
 func (m moduleStruct) myCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {

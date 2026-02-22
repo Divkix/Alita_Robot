@@ -1,0 +1,91 @@
+---
+title: Admin Commands
+description: Complete guide to Admin module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Admin Commands
+
+Make it easy to promote and demote users with the admin module!
+
+:::caution[Admin Permissions Required]
+Most commands in this module require admin permissions. Only `/adminlist` is available to all users.
+:::
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/adminlist` | List the admins in the current chat. | Yes |
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/promote` | Promote a user. | No |
+    | `/demote` | Demote a user. | No |
+    | `/title` | Set custom title for user. | No |
+    | `/invitelink` | Get the chat's invite link. | No |
+    | `/admincache` | Refresh the admin cache by reloading the admin list from Telegram. | No |
+    | `/clearadmincache` | Clear the admin cache for the current chat. | No |
+    | `/anonadmin` | Toggle or view anonymous admin recognition mode. | No |
+
+    :::tip[Usage]
+    Use `/promote`, `/demote`, and `/title` by replying to a user's message or passing a username/user ID:
+
+    ```text
+    /promote @username
+    /demote @username
+    /title @username Custom Admin Title
+    ```
+    :::
+  </TabItem>
+</Tabs>
+
+## Anonymous Admin Support
+
+The `/anonadmin` command allows group owners to toggle anonymous admin recognition:
+
+```text
+/anonadmin on    # Enable anonymous admin checks
+/anonadmin off   # Disable anonymous admin checks
+```
+
+When enabled, the bot will request verification for admin actions from anonymous accounts.
+
+:::note[How Anonymous Admin Verification Works]
+1. Bot detects sender is GroupAnonymousBot
+2. Original message cached with 20-second TTL
+3. "Verify Admin" button sent to chat
+4. Clicking user verified as admin, command executed
+5. Button expires after 20 seconds if not verified
+:::
+
+**Supported Commands for Anonymous Admin Verification:**
+- **Admin**: /promote, /demote, /title
+- **Bans**: /ban, /dban, /sban, /tban, /unban
+- **Mutes**: /mute, /smute, /dmute, /tmute, /unmute
+- **Pins**: /pin, /unpin, /permapin, /unpinall
+- **Purges**: /purge, /del
+- **Warns**: /warn, /swarn, /dwarn
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`admins`, `promote`, `demote`, `title`
+
+## Required Permissions
+
+**Bot Permissions Required:**
+- Promote members (for promote/demote/title commands)
+- Invite users (for invitelink command)
+
+## Technical Notes
+
+- All user-controlled input is HTML-escaped to prevent injection attacks
+- Admin permission changes run with proper error handling and panic recovery

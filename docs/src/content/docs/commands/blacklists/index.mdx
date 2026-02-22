@@ -1,0 +1,79 @@
+---
+title: Blacklists Commands
+description: Complete guide to Blacklists module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Blacklists Commands
+
+Automatically detect and act on blacklisted words in your group. When a user sends a message containing a blacklisted trigger, the bot deletes the message and takes the configured action.
+
+:::caution[Admin Permissions Required]
+Most commands require admin permissions with restrict rights. `/blacklists` is available to all users. `/rmallbl` and `/remallbl` require chat owner.
+:::
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/blacklists` | Check all the blacklists in chat. | Yes |
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/addblacklist` | Blacklists the word in the current chat. | No |
+    | `/blacklist` | Add words to the blacklist. Alias for /addblacklist. | No |
+    | `/rmblacklist` | Removes the word from current blacklisted words in chat. | No |
+    | `/blaction` | Sets the action to be performed when a blacklist word is detected. | No |
+    | `/blacklistaction` | Set the action to take when a blacklisted word is detected. | No |
+
+    :::tip[Adding Blacklist Triggers]
+    ```text
+    /addblacklist badword
+    /addblacklist "multi word trigger"
+    ```
+    :::
+  </TabItem>
+
+  <TabItem label="Owner Commands">
+    ### Owner Commands <Badge text="Owner Only" variant="danger" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/rmallbl` | Remove all blacklisted words from the chat. | No |
+    | `/remallbl` | Remove all blacklisted words from the chat. Alias for /rmallbl. | No |
+  </TabItem>
+</Tabs>
+
+## Available Actions
+
+The following actions can be set using `/blaction`:
+
+| Action | Behavior |
+|--------|----------|
+| `none` | Just deletes the message without any further action |
+| `warn` | Deletes message and issues a warning to the user **(default)** |
+| `mute` | Deletes message and mutes the user |
+| `kick` | Deletes message and kicks the user (they can rejoin) |
+| `ban` | Deletes message and permanently bans the user |
+
+:::note[Default Action]
+The default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
+:::
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`blacklist`, `unblacklist`
+
+## Required Permissions
+
+**Bot Permissions Required:**
+- Delete messages
+- Restrict members (for mute/kick/ban actions)

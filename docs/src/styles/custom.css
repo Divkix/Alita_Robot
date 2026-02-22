@@ -1,0 +1,34 @@
+/* Teal/cyan accent palette — overrides shadcn default purple */
+:root {
+  --sl-font: 'Geist Sans', sans-serif;
+  --sl-font-mono: 'Geist Mono', monospace;
+  --sl-color-accent-low: #042f2e;
+  --sl-color-accent: #2dd4bf;
+  --sl-color-accent-high: #ccfbf1;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #ccfbf1;
+  --sl-color-accent: #0d9488;
+  --sl-color-accent-high: #042f2e;
+}
+
+/* Hero section enhancement */
+.hero {
+  background: radial-gradient(ellipse at 50% 0%, rgba(45, 212, 191, 0.08) 0%, transparent 60%);
+}
+
+/* Card hover effect */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1);
+}
+
+/* Subtle link underline on hover */
+.sl-markdown-content a:hover {
+  text-decoration-color: var(--sl-color-accent);
+}

@@ -12,9 +12,12 @@
   "dependencies": {
     "@astrojs/sitemap": "^3.7.0",
     "@astrojs/starlight": "^0.37.6",
+    "@fontsource/geist-mono": "^5.2.7",
+    "@fontsource/geist-sans": "^5.2.5",
     "astro": "^5.17.3",
     "sharp": "^0.34.5",
     "starlight-llms-txt": "^0.7.0",
+    "starlight-theme-black": "^0.6.0",
     "tailwindcss": "^4.2.0"
   }
 }
