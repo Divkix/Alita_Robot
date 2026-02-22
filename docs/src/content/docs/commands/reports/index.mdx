@@ -1,0 +1,84 @@
+---
+title: Reports Commands
+description: Complete guide to Reports module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Reports Commands
+
+We're all busy people who don't have time to monitor our groups 24/7. But how do you react if someone in your group is spamming? Reports let your users flag problems for admins.
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/report` | Reply to a message to report it to admins. | Yes |
+
+    You can also mention `@admin` in a reply to report — it works the same way as `/report`.
+
+    :::note
+    You **must** reply to a message to report a user. You cannot just use `@admin` to tag admins without replying.
+    :::
+
+    :::tip
+    Neither `/report` nor `@admin` will get triggered if used by admins — admins don't need to report to themselves.
+    :::
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/reports` | Change report setting, or view current status. | No |
+
+    **Toggle reports:**
+    ```text
+    /reports on     # Enable reports (in PM: receive notifications; in group: enable reporting)
+    /reports off    # Disable reports
+    ```
+
+    **Block/unblock users from reporting:**
+    ```text
+    /reports block          # Reply to block a user from reporting
+    /reports unblock        # Reply to unblock a user
+    /reports showblocklist  # View blocked users
+    ```
+
+    :::note[Personal vs Group Settings]
+    - **In PM:** `/reports on/off` toggles whether **you** receive report notifications
+    - **In Group:** `/reports on/off` toggles whether reporting is enabled for **that group**
+    :::
+  </TabItem>
+</Tabs>
+
+## How It Works
+
+1. **Reply to the offending message** with `/report` or mention `@admin`
+2. The bot sends a notification mentioning all admins who have reports enabled
+3. The notification includes action buttons for quick moderation
+
+**Admin Action Buttons:**
+- **Message** — Link to the reported message
+- **Kick** — Kick the reported user (they can rejoin)
+- **Ban** — Permanently ban the reported user
+- **Delete** — Delete the reported message
+- **Resolved** — Mark the report as resolved without action
+
+## Who Can Report?
+
+| | Can Report | Can Be Reported |
+|---|---|---|
+| Regular users | Yes | Yes |
+| Admins | No | No |
+| Blocked users | No | — |
+| Anonymous channels | No | No |
+| The bot itself | — | No |
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`report`, `reporting`

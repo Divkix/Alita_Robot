@@ -1,0 +1,73 @@
+---
+title: Bans Commands
+description: Complete guide to Bans module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Bans Commands
+
+Sometimes users can be annoying and you might want to remove them from your chat. This module helps you deal with that — ban, kick, and restrict users, and unban them later if they behave.
+
+:::caution[Admin Permissions Required]
+All ban and restrict commands require admin permissions with ban/restrict rights. Only `/kickme` is available to regular users.
+:::
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/kickme` | Kicks the user who issued the command. | No |
+
+    :::note
+    `/kickme` only works for non-admin users. Admins cannot kick themselves.
+    :::
+  </TabItem>
+
+  <TabItem label="Ban Commands">
+    ### Ban Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/ban` | Bans a user (via handle or reply). | No |
+    | `/sban` | Bans a user silently — no group message, deletes your command. | No |
+    | `/dban` | Bans a user and deletes the replied message. | No |
+    | `/tban` | Bans a user for a specified time (via handle or reply). | No |
+    | `/unban` | Unbans a user (via handle or reply). | No |
+    | `/kick` | Kick a user from the group (by reply, @handle, or user ID). | No |
+    | `/dkick` | Delete the replied message and kick the sender. | No |
+
+    :::tip[Temporary Ban Format]
+    Use `/tban` with a time suffix: `m` = minutes, `h` = hours, `d` = days.
+
+    ```text
+    /tban @user 30m    # Ban for 30 minutes
+    /tban @user 2h     # Ban for 2 hours
+    /tban @user 1d     # Ban for 1 day
+    ```
+    :::
+  </TabItem>
+
+  <TabItem label="Restrict Commands">
+    ### Restrict Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/restrict` | Shows an InlineKeyboard to choose from kick, ban, and mute. | No |
+    | `/unrestrict` | Shows an InlineKeyboard to choose from unmute and unban. | No |
+  </TabItem>
+</Tabs>
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`ban`, `kick`, `dkick`, `restrict`, `kickme`, `unrestrict`, `sban`, `dban`, `tban`, `unban`
+
+## Required Permissions
+
+**Bot Permissions Required:**
+- Ban users
+- Delete messages (for /dban, /dkick, /sban)
+- Restrict members (for /restrict)

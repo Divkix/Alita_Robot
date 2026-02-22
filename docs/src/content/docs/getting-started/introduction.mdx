@@ -1,0 +1,79 @@
+---
+title: Introduction
+description: Learn about Alita Robot, a powerful Telegram group management bot built with Go.
+---
+
+import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+# What is Alita Robot?
+
+Alita Robot is a modern, feature-rich Telegram group management bot built with Go and the [gotgbot](https://github.com/PaulSonOfLars/gotgbot) library. It provides comprehensive tools for managing Telegram groups of any size.
+
+## Key Features
+
+<CardGrid>
+  <Card title="Moderation Tools" icon="warning">
+    <Badge text="Popular" variant="tip" />
+
+    - **Banning & Muting** — Ban, mute, kick users with optional reasons and time limits
+    - **Warning System** — Configurable warning limits with automatic actions
+    - **Anti-Flood Protection** — Prevent message spam with customizable limits
+    - **Blacklist** — Automatically moderate messages containing blacklisted words
+  </Card>
+
+  <Card title="Content Management" icon="document">
+    <Badge text="Core" variant="note" />
+
+    - **Notes** — Save and retrieve text/media snippets with keywords
+    - **Filters** — Auto-respond to keywords with custom messages
+    - **Rules** — Set and display group rules
+    - **Pins** — Advanced message pinning with anti-channel-pin protection
+  </Card>
+
+  <Card title="Automation" icon="rocket">
+    <Badge text="Smart" variant="success" />
+
+    - **Welcome Messages** — Customizable greetings for new members
+    - **CAPTCHA Verification** — Math or text-based verification for new users
+    - **Auto-Approve** — Automatically approve join requests
+  </Card>
+
+  <Card title="Utilities" icon="setting">
+    <Badge text="Built-in" variant="default" />
+
+    - **Multi-Language** — Supports English, Spanish, French, and Hindi (extensible)
+    - **Remote Management** — Manage groups from private messages
+    - **Command Disabling** — Disable specific commands per group
+  </Card>
+</CardGrid>
+
+## Architecture Highlights
+
+<CardGrid>
+  <Card title="High Performance" icon="seti:go">
+    <Badge text="Go-Powered" variant="success" /> Built in Go with concurrent processing for handling high message throughput.
+  </Card>
+  <Card title="Scalable Caching" icon="random">
+    <Badge text="Redis" variant="tip" /> Redis-based caching with stampede protection via singleflight.
+  </Card>
+  <Card title="PostgreSQL Database" icon="list-format">
+    <Badge text="Reliable" variant="note" /> Robust data storage with automatic migrations and connection pooling.
+  </Card>
+  <Card title="Observability" icon="open-book">
+    <Badge text="Built-in" variant="default" /> Prometheus metrics and OpenTelemetry distributed tracing.
+  </Card>
+  <Card title="Docker Ready" icon="setting">
+    <Badge text="One Command" variant="caution" /> Easy deployment with Docker Compose, multi-arch images on GHCR.
+  </Card>
+</CardGrid>
+
+## Getting Started
+
+<CardGrid>
+  <LinkCard title="Quick Start" href="/getting-started/quick-start/" description="Add Alita to your group in under 2 minutes." />
+  <LinkCard title="Self-Hosting" href="/self-hosting/" description="Host your own instance with Docker or build from source." />
+</CardGrid>
+
+:::tip[Ready to get started?]
+The fastest way to try Alita is to add the hosted bot to your group — no setup required. Search for **@AlitaRobot** on Telegram or use the [Quick Start](/getting-started/quick-start/) guide.
+:::

@@ -9,6 +9,10 @@ Alita Robot uses PostgreSQL as its primary database with GORM as the ORM layer. 
 
 ## Requirements
 
+:::note
+PostgreSQL is the only supported database engine. MySQL, SQLite, and other databases are not supported.
+:::
+
 - **PostgreSQL** 14 or higher
 - UTF-8 encoding support
 - Minimum 512MB RAM for the database
@@ -32,6 +36,10 @@ DATABASE_URL=postgres://user:pass@db.example.com:5432/alita?sslmode=require
 ```
 
 ### SSL Modes
+
+:::caution
+Never use `sslmode=disable` in production. Always use `require` or stronger to protect data in transit.
+:::
 
 | Mode | Description |
 |------|-------------|
@@ -58,6 +66,10 @@ MIGRATIONS_PATH=migrations
 ```
 
 ### How Auto-Migration Works
+
+:::tip
+Auto-migration is safe to enable on every startup. Migrations are tracked and only applied once, so re-running them is a no-op.
+:::
 
 1. **Migration Files**: SQL migrations are stored in the `migrations/` directory
 2. **Version Tracking**: Applied migrations are tracked in the `schema_migrations` table
@@ -121,6 +133,10 @@ Output:
 
 ### Reset Database (DANGEROUS)
 
+:::danger[Irreversible Data Loss]
+This will drop ALL tables and delete ALL data. There is no undo. Make sure you have a verified backup before running this command.
+:::
+
 This will drop all tables and recreate the schema:
 
 ```bash
@@ -152,6 +168,10 @@ DB_CONN_MAX_IDLE_TIME_MIN=60
 ```
 
 ### Sizing Guidelines
+
+:::tip[Performance Tuning]
+Start with the defaults and only adjust pool settings if you observe connection exhaustion or idle timeout issues in the logs. Over-provisioning connections wastes database resources.
+:::
 
 | Deployment Size | MAX_IDLE_CONNS | MAX_OPEN_CONNS | Use Case |
 |-----------------|----------------|----------------|----------|
@@ -243,6 +263,10 @@ Alita Robot creates the following tables:
 | `schema_migrations` | Migration tracking |
 
 ## Backup and Restore
+
+:::caution
+Always test your backup restoration process before relying on it in production. A backup that cannot be restored is worthless.
+:::
 
 ### Backup
 

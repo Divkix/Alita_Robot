@@ -1,0 +1,229 @@
+---
+title: Commands Overview
+description: Overview of all command modules and categories
+---
+
+import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+# Commands Overview
+
+Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
+
+**Total Modules**: 21 | **Total Commands**: 120+
+
+## Administration
+
+<CardGrid>
+  <Card title="Admin" icon="star">
+    Make it easy to promote and demote users with the admin module.
+
+    <Badge text="8 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Admin Commands" href="/commands/admin/" />
+  </Card>
+</CardGrid>
+
+## Moderation
+
+<CardGrid>
+  <Card title="Antiflood" icon="warning">
+    Automatic flood detection and action. Set message thresholds and choose ban, kick, or mute for offenders.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Antiflood Commands" href="/commands/antiflood/" />
+  </Card>
+
+  <Card title="Antispam" icon="shield">
+    Automatic behind-the-scenes rate limiting. No configuration required — works out of the box.
+
+    <Badge text="No commands" variant="default" /> <Badge text="Automatic" variant="success" />
+
+    <LinkCard title="View Antispam Details" href="/commands/antispam/" />
+  </Card>
+
+  <Card title="Bans" icon="close">
+    Ban, kick, and restrict users. Supports silent bans, delete-bans, and temporary bans with time limits.
+
+    <Badge text="10 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Bans Commands" href="/commands/bans/" />
+  </Card>
+
+  <Card title="Blacklists" icon="list-format">
+    Automatically detect and act on blacklisted words. Configurable actions: warn, mute, kick, or ban.
+
+    <Badge text="8 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Blacklists Commands" href="/commands/blacklists/" />
+  </Card>
+
+  <Card title="Captcha" icon="puzzle">
+    Force new members to solve a challenge before they can send messages. Math and text captcha types.
+
+    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Captcha Commands" href="/commands/captcha/" />
+  </Card>
+
+  <Card title="Locks" icon="lock">
+    Restrict group permissions by locking specific message types — URLs, stickers, media, bots, and more.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Locks Commands" href="/commands/locks/" />
+  </Card>
+
+  <Card title="Mutes" icon="forbidden">
+    Mute users to prevent them from sending messages. Supports silent, delete, and temporary mutes.
+
+    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Mutes Commands" href="/commands/mutes/" />
+  </Card>
+
+  <Card title="Purges" icon="trash">
+    Bulk-delete messages between two points, or delete individual messages by reply.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Purges Commands" href="/commands/purges/" />
+  </Card>
+
+  <Card title="Warns" icon="warning">
+    Issue warnings to users. Configurable warn limit and action (ban, kick, or mute) when the limit is reached.
+
+    <Badge text="12 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Warns Commands" href="/commands/warns/" />
+  </Card>
+</CardGrid>
+
+## Content Management
+
+<CardGrid>
+  <Card title="Filters" icon="magnifier">
+    Auto-reply when trigger words are detected. Supports text, media, random responses, and inline buttons.
+
+    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Filters Commands" href="/commands/filters/" />
+  </Card>
+
+  <Card title="Greetings" icon="heart">
+    Welcome new members and say goodbye when they leave. Customizable messages with media support.
+
+    <Badge text="10 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Greetings Commands" href="/commands/greetings/" />
+  </Card>
+
+  <Card title="Notes" icon="document">
+    Save and retrieve text, media, and formatted messages. Supports private notes, admin-only notes, and buttons.
+
+    <Badge text="10 commands" variant="note" />
+
+    <LinkCard title="View Notes Commands" href="/commands/notes/" />
+  </Card>
+
+  <Card title="Rules" icon="open-book">
+    Set and display group rules. Supports private rules and custom button text.
+
+    <Badge text="11 commands" variant="note" />
+
+    <LinkCard title="View Rules Commands" href="/commands/rules/" />
+  </Card>
+</CardGrid>
+
+## User Tools
+
+<CardGrid>
+  <Card title="Formatting" icon="pencil">
+    Learn about message formatting options — Markdown, HTML, and special tags supported by Alita.
+
+    <Badge text="2 commands" variant="note" /> <Badge text="Everyone" variant="success" />
+
+    <LinkCard title="View Formatting Help" href="/commands/formatting/" />
+  </Card>
+
+  <Card title="Misc" icon="setting">
+    Utility commands: user info, group ID, bot ping, translation, message stats, and more.
+
+    <Badge text="7 commands" variant="note" /> <Badge text="Everyone" variant="success" />
+
+    <LinkCard title="View Misc Commands" href="/commands/misc/" />
+  </Card>
+
+  <Card title="Reports" icon="approve-check">
+    Let users report rule-breaking messages to admins with one command. Admins get action buttons.
+
+    <Badge text="2 commands" variant="note" />
+
+    <LinkCard title="View Reports Commands" href="/commands/reports/" />
+  </Card>
+</CardGrid>
+
+## Bot Management
+
+<CardGrid>
+  <Card title="Connections" icon="forward-slash">
+    Connect to a chat's database from PM to manage settings without the group seeing your commands.
+
+    <Badge text="5 commands" variant="note" />
+
+    <LinkCard title="View Connections Commands" href="/commands/connections/" />
+  </Card>
+
+  <Card title="Disabling" icon="close">
+    Disable specific commands for non-admin users. Optionally auto-delete disabled command messages.
+
+    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Disabling Commands" href="/commands/disabling/" />
+  </Card>
+
+  <Card title="Languages" icon="translate">
+    Change the bot's language for yourself or your group. Supports English, Spanish, French, and Hindi.
+
+    <Badge text="1 command" variant="note" /> <Badge text="Everyone" variant="success" />
+
+    <LinkCard title="View Languages Commands" href="/commands/languages/" />
+  </Card>
+
+  <Card title="Pins" icon="document">
+    Pin and unpin messages. Anti-channel-pin, clean linked channel messages, and custom permapin.
+
+    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Pins Commands" href="/commands/pins/" />
+  </Card>
+</CardGrid>
+
+## Getting Started
+
+:::tip[Basic Command Syntax]
+All commands follow this format:
+
+```text
+/command [required_argument] [optional_argument]
+```
+
+Commands can be used with or without the bot username:
+- `/start` — Works in private chat or group
+- `/start@AlitaRobot` — Explicitly targets this bot in groups
+:::
+
+:::note[Getting Help]
+- `/help` — Show general help and module list
+- `/help <module>` — Show detailed help for a specific module
+- `/cmds <module>` — List all commands in a module
+:::
+
+### Permission Levels
+
+Commands require different permission levels:
+
+- **Everyone** — All group members can use the command
+- **Admin** — Requires admin rights in the group
+- **Owner** — Requires group creator/owner status
+- **Dev** — Requires bot developer access

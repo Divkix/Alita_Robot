@@ -1,0 +1,76 @@
+---
+title: Rules Commands
+description: Complete guide to Rules module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Rules Commands
+
+Every chat works with different rules; this module will help make those rules clearer!
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/rules` | Check the current chat rules. | Yes |
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/setrules` | Set the rules for this chat. | No |
+    | `/clearrules` | Clear the group rules. | No |
+    | `/resetrules` | Reset the group rules. Alias for /clearrules. | No |
+    | `/privaterules` | Enable/disable whether the rules should be sent in private. | No |
+    | `/rulesbtn` | Sets the text of the rules button. | No |
+    | `/rulesbutton` | Sets the text of the rules button. Alias for /rulesbtn. | No |
+    | `/resetrulesbtn` | Reset the text of the rules button to default. | No |
+    | `/resetrulesbutton` | Reset the text of the rules button to default. Alias for /resetrulesbtn. | No |
+    | `/clearrulesbtn` | Clear the rules button text. | No |
+    | `/clearrulesbutton` | Clear the rules button text. Alias for /clearrulesbtn. | No |
+
+    :::tip[Setting Rules]
+    You can set rules by providing text directly or by replying to a message:
+
+    ```text
+    /setrules Please be respectful to all members.
+    /setrules    # Reply to a message to use its content as rules
+    ```
+    :::
+  </TabItem>
+</Tabs>
+
+## Features
+
+### Private Rules
+
+Enable private rules (`/privaterules on`) to send rules via PM instead of in the group. This keeps the group chat clean.
+
+```text
+/privaterules on    # Send rules via PM
+/privaterules off   # Send rules in group
+```
+
+### Custom Rules Button
+
+Set a custom button text (max 30 characters):
+
+```text
+/rulesbtn View Rules
+/resetrulesbtn       # Reset to default
+```
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`rule`
+
+## Required Permissions
+
+- **User commands**: Available to all users
+- **Admin commands**: Require admin permissions in the chat

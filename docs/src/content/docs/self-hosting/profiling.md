@@ -7,9 +7,9 @@ description: Debug performance issues using Go pprof.
 
 Alita Robot supports Go's pprof profiling tool for diagnosing performance bottlenecks. This guide covers how to enable and use profiling endpoints.
 
-## ⚠️ Security Warning
-
-**pprof endpoints should NEVER be enabled in production.** They expose detailed runtime information that can aid attackers. Only enable for development or debugging temporary issues in staging.
+:::danger[Production Safety]
+pprof endpoints should **NEVER** be enabled in production. They expose detailed runtime information including memory contents, goroutine stacks, and internal state that can aid attackers. Only enable for development or debugging temporary issues in staging environments behind a firewall.
+:::
 
 ## Enabling Profiling
 
@@ -31,7 +31,9 @@ When enabled, the following endpoints become available:
 | `/debug/pprof/block` | Block (goroutine blocking) profile |
 | `/debug/pprof/mutex` | Mutex contention profile |
 
-> Note: The block and mutex profiles are **disabled by default** in Go. With `ENABLE_PPROF=true` set, the endpoints are exposed but will return empty data unless you enable collection via `GODEBUG=blockprofilerate=1,mutexprofilefraction=1` environment variable or `runtime.SetBlockProfileRate()` in code.
+:::note
+The block and mutex profiles are **disabled by default** in Go. With `ENABLE_PPROF=true` set, the endpoints are exposed but will return empty data unless you enable collection via `GODEBUG=blockprofilerate=1,mutexprofilefraction=1` environment variable or `runtime.SetBlockProfileRate()` in code.
+:::
 
 ### CPU Profiling
 
@@ -161,6 +163,10 @@ go tool pprof -proto -output=heap.folded ./your-binary heap.pb
 3. Look for busy loops or excessive locking
 
 ## Production Alternatives
+
+:::tip
+For production environments, use Prometheus metrics and the built-in auto-remediation system instead of pprof. They provide observability without exposing internal runtime details.
+:::
 
 For production monitoring without pprof:
 

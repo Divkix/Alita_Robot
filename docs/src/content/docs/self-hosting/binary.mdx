@@ -3,6 +3,8 @@ title: Binary Installation
 description: Deploy Alita Robot using pre-built binaries.
 ---
 
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
 # Binary Installation
 
 Pre-built binaries are available for all major platforms, making it easy to deploy Alita Robot without Docker or building from source.
@@ -17,6 +19,10 @@ Pre-built binaries are available for all major platforms, making it easy to depl
 | macOS | arm64 (Apple Silicon) | `alita_robot_macOS_arm64` |
 | Windows | amd64 | `alita_robot_windows_amd64.exe` |
 | Windows | arm64 | `alita_robot_windows_arm64.exe` |
+
+:::caution[Platform Selection]
+Make sure you download the correct binary for your platform and architecture. Running the wrong binary will result in an "exec format error" or similar failure.
+:::
 
 ## Download
 
@@ -50,26 +56,35 @@ curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/che
 sha256sum -c checksums.txt --ignore-missing
 ```
 
+:::tip
+Always verify checksums after downloading to ensure the binary has not been tampered with or corrupted during transfer.
+:::
+
 ## Quick Start
 
-1. Download and extract the binary
-2. Create a configuration file:
+<Steps>
 
-```bash
-cat > .env << EOF
-BOT_TOKEN=your_bot_token
-OWNER_ID=your_telegram_id
-MESSAGE_DUMP=-100xxxxxxxxxx
-DATABASE_URL=postgres://user:pass@localhost:5432/alita
-REDIS_ADDRESS=localhost:6379
-EOF
-```
+1. **Download and extract the binary** (see above)
 
-3. Run the bot:
+2. **Create a configuration file**
 
-```bash
-./alita_robot
-```
+   ```bash
+   cat > .env << EOF
+   BOT_TOKEN=your_bot_token
+   OWNER_ID=your_telegram_id
+   MESSAGE_DUMP=-100xxxxxxxxxx
+   DATABASE_URL=postgres://user:pass@localhost:5432/alita
+   REDIS_ADDRESS=localhost:6379
+   EOF
+   ```
+
+3. **Run the bot**
+
+   ```bash
+   ./alita_robot
+   ```
+
+</Steps>
 
 ## Systemd Service (Linux)
 
@@ -126,25 +141,39 @@ WantedBy=multi-user.target
 
 ### Setup
 
-```bash
-# Create user and directory
-sudo useradd -r -s /bin/false alita
-sudo mkdir -p /opt/alita-robot
-sudo chown alita:alita /opt/alita-robot
+<Steps>
 
-# Copy binary and config
-sudo cp alita_robot /opt/alita-robot/
-sudo cp .env /opt/alita-robot/
-sudo chmod 600 /opt/alita-robot/.env
-sudo chown alita:alita /opt/alita-robot/*
+1. **Create user and directory**
 
-# Copy migrations if using auto-migrate
-sudo cp -r migrations /opt/alita-robot/
+   ```bash
+   sudo useradd -r -s /bin/false alita
+   sudo mkdir -p /opt/alita-robot
+   sudo chown alita:alita /opt/alita-robot
+   ```
 
-# Reload systemd and enable service
-sudo systemctl daemon-reload
-sudo systemctl enable alita-robot
-```
+2. **Copy binary and config**
+
+   ```bash
+   sudo cp alita_robot /opt/alita-robot/
+   sudo cp .env /opt/alita-robot/
+   sudo chmod 600 /opt/alita-robot/.env
+   sudo chown alita:alita /opt/alita-robot/*
+   ```
+
+3. **Copy migrations if using auto-migrate**
+
+   ```bash
+   sudo cp -r migrations /opt/alita-robot/
+   ```
+
+4. **Reload systemd and enable service**
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable alita-robot
+   ```
+
+</Steps>
 
 ### Service Management
 
@@ -228,21 +257,30 @@ DB_MAX_OPEN_CONNS=100
 DISPATCHER_MAX_ROUTINES=200
 ```
 
+:::caution[File Permissions]
+Always set restrictive permissions on the `.env` file since it contains sensitive credentials like `BOT_TOKEN` and database passwords. Use `chmod 600` so only the service user can read it.
+:::
+
 ## macOS Installation
 
-### Using Homebrew (if available)
-
-The binary can be installed manually:
-
-```bash
-# Download for Apple Silicon
-curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_macOS_arm64.tar.gz"
-tar -xzf alita_robot_macOS_arm64.tar.gz
-chmod +x alita_robot
-
-# Run
-./alita_robot
-```
+<Tabs>
+  <TabItem label="Apple Silicon">
+    ```bash
+    curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_macOS_arm64.tar.gz"
+    tar -xzf alita_robot_macOS_arm64.tar.gz
+    chmod +x alita_robot
+    ./alita_robot
+    ```
+  </TabItem>
+  <TabItem label="Intel">
+    ```bash
+    curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_macOS_amd64.tar.gz"
+    tar -xzf alita_robot_macOS_amd64.tar.gz
+    chmod +x alita_robot
+    ./alita_robot
+    ```
+  </TabItem>
+</Tabs>
 
 ### Create a Launch Agent (Optional)
 
@@ -312,21 +350,34 @@ nssm start AlitaRobot
 
 ## Updating
 
-To update the binary:
+<Steps>
 
-1. Stop the service
-2. Download the new binary
-3. Replace the existing binary
-4. Start the service
+1. **Stop the service**
 
-```bash
-# Linux example
-sudo systemctl stop alita-robot
-curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_linux_amd64.tar.gz"
-tar -xzf alita_robot_linux_amd64.tar.gz
-sudo cp alita_robot /opt/alita-robot/
-sudo systemctl start alita-robot
-```
+   ```bash
+   sudo systemctl stop alita-robot
+   ```
+
+2. **Download the new binary**
+
+   ```bash
+   curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_linux_amd64.tar.gz"
+   tar -xzf alita_robot_linux_amd64.tar.gz
+   ```
+
+3. **Replace the existing binary**
+
+   ```bash
+   sudo cp alita_robot /opt/alita-robot/
+   ```
+
+4. **Start the service**
+
+   ```bash
+   sudo systemctl start alita-robot
+   ```
+
+</Steps>
 
 ## Troubleshooting
 
@@ -338,7 +389,9 @@ chmod +x alita_robot
 
 ### Library not found
 
-The binary is statically compiled, so no external libraries are needed. If you see library errors, ensure you downloaded the correct platform.
+:::tip
+The binary is statically compiled, so no external libraries are needed. If you see library errors, ensure you downloaded the correct platform binary.
+:::
 
 ### Cannot connect to database
 

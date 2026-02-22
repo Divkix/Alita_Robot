@@ -20,6 +20,10 @@ Webhooks provide real-time message delivery from Telegram to your bot, making th
 
 ## Required Environment Variables
 
+:::caution[Security]
+If `WEBHOOK_SECRET` is left empty, the webhook handler will reject ALL incoming requests. Always generate a strong random secret.
+:::
+
 ```bash
 # Enable webhook mode
 USE_WEBHOOKS=true
@@ -45,7 +49,9 @@ Alita Robot uses a single HTTP server for all endpoints:
 | `/webhook/{secret}` | POST | Telegram webhook endpoint (webhook mode only) |
 | `/debug/pprof/*` | GET | Go profiling endpoints (only when `ENABLE_PPROF=true`) |
 
-When `ENABLE_PPROF=true` is set, additional debug endpoints are available at `/debug/pprof/*`. These expose Go runtime profiling data and should never be enabled in production without access controls.
+:::danger
+When `ENABLE_PPROF=true` is set, additional debug endpoints are available at `/debug/pprof/*`. These expose Go runtime profiling data and should **never** be enabled in production without access controls.
+:::
 
 All endpoints run on the port specified by `HTTP_PORT` (default: 8080).
 
@@ -65,7 +71,9 @@ The webhook URL will be: `https://bot.example.com/webhook/abc123`
 
 ## Cloudflare Tunnel Setup
 
-Cloudflare Tunnel is the recommended way to expose your bot to the internet without opening ports or managing certificates.
+:::tip[Recommended]
+Cloudflare Tunnel is the recommended way to expose your bot to the internet. It handles SSL certificates automatically and does not require opening ports on your firewall.
+:::
 
 ### Step 1: Install cloudflared
 
@@ -172,7 +180,9 @@ Alita automatically validates that requests come from Telegram by checking:
 
 ### 3. Use HTTPS Only
 
-Telegram requires HTTPS for webhooks. Never use HTTP in production.
+:::caution
+Telegram requires HTTPS for webhooks. Never use HTTP in production. If you do not have an SSL certificate, use Cloudflare Tunnel or Let's Encrypt.
+:::
 
 ### 4. Keep Your Secret Private
 

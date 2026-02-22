@@ -3,6 +3,8 @@ title: Request Flow
 description: How Telegram updates are processed through the Alita Robot pipeline.
 ---
 
+import { Badge, Steps } from '@astrojs/starlight/components';
+
 This document details how Telegram updates flow through Alita Robot, from reception to response.
 
 ## Update Processing Pipeline
@@ -36,107 +38,147 @@ This document details how Telegram updates flow through Alita Robot, from recept
 
 When the bot starts (`main.go`), it performs these steps in order:
 
-### 1. Health Check Mode (Optional)
-```go
-if os.Args[1] == "--health" {
-    // HTTP GET to /health, exit with status code
-    os.Exit(0)
-}
-```
+<Steps>
 
-### 2. Panic Recovery Setup
-```go
-defer func() {
-    if r := recover(); r != nil {
-        log.Errorf("[Main] Panic recovered: %v", r)
-        os.Exit(1)
+1. **Health Check Mode** <Badge text="Optional" variant="default" />
+
+   If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
+
+   ```go
+   if os.Args[1] == "--health" {
+       // HTTP GET to /health, exit with status code
+       os.Exit(0)
+   }
+   ```
+
+2. **Panic Recovery Setup** <Badge text="Safety" variant="caution" />
+
+   A top-level deferred recovery ensures the process logs the panic and exits cleanly rather than crashing silently.
+
+   ```go
+   defer func() {
+       if r := recover(); r != nil {
+           log.Errorf("[Main] Panic recovered: %v", r)
+           os.Exit(1)
+       }
+   }()
+   ```
+
+3. **Locale Manager Initialization** <Badge text="i18n" variant="note" />
+
+   The singleton `LocaleManager` loads embedded YAML translation files for all supported languages.
+
+   ```go
+   localeManager := i18n.GetManager()
+   localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
+   ```
+
+4. **OpenTelemetry Tracing Initialization** <Badge text="Observability" variant="success" />
+
+   Sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
+
+   ```go
+   tracing.InitTracing()
+   ```
+
+5. **HTTP Transport Configuration** <Badge text="Networking" variant="note" />
+
+   Connection pooling is configured for outbound HTTP requests to the Telegram API.
+
+   ```go
+   httpTransport := &http.Transport{
+       MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
+       MaxIdleConnsPerHost: config.AppConfig.HTTPMaxIdleConnsPerHost,
+       IdleConnTimeout:     120 * time.Second,
+       ForceAttemptHTTP2:   true,
+   }
+   ```
+
+6. **Bot Client Creation** <Badge text="Core" variant="note" />
+
+   The gotgbot client is initialized with the configured HTTP transport and a 30-second timeout.
+
+   ```go
+   b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
+       BotClient: &gotgbot.BaseBotClient{
+           Client: http.Client{Transport: transport, Timeout: 30 * time.Second},
+       },
+   })
+   ```
+
+7. **Connection Pre-warming** <Badge text="Performance" variant="tip" />
+
+   Three `GetMe` calls run in a background goroutine to establish the HTTP connection pool before real traffic arrives.
+
+   ```go
+   go func() {
+       for i := 0; i < 3; i++ {
+           b.GetMe(nil)  // Establish connection pool
+           time.Sleep(100 * time.Millisecond)
+       }
+   }()
+   ```
+
+   :::tip
+   Pre-warming prevents the first real user request from paying the TCP + TLS handshake cost. The 3 calls ensure multiple connections are established in the pool.
+   :::
+
+8. **Initial Checks** <Badge text="Validation" variant="note" />
+
+   Validates configuration, initializes cache, and performs startup health checks.
+
+   ```go
+   alita.InitialChecks(b)  // Validates config, initializes cache
+   ```
+
+9. **Async Processor** <Badge text="Optional" variant="default" />
+
+   If `EnableAsyncProcessing` is configured, the async processor is initialized for non-critical background operations.
+
+   ```go
+   if config.AppConfig.EnableAsyncProcessing {
+       async.InitializeAsyncProcessor()
+   }
+   ```
+
+10. **Dispatcher Creation** <Badge text="Core" variant="note" />
+
+    The dispatcher routes updates to handlers with bounded concurrency. It uses a `TracingProcessor` wrapper for trace context propagation in polling mode.
+
+    ```go
+    dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
+        Error:       errorHandler,
+        MaxRoutines: config.AppConfig.DispatcherMaxRoutines,
+    })
+    ```
+
+11. **Monitoring Systems** <Badge text="Observability" variant="success" />
+
+    Three monitoring subsystems start: background stats collection (every 30s), auto-remediation (GC triggers on memory thresholds), and activity monitoring (per-chat and per-user tracking).
+
+    ```go
+    statsCollector = monitoring.NewBackgroundStatsCollector()
+    autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
+    activityMonitor = monitoring.NewActivityMonitor()
+    ```
+
+12. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
+
+    The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
+
+    ```go
+    httpServer := httpserver.New(config.AppConfig.HTTPPort)
+    httpServer.RegisterHealth()
+    httpServer.RegisterMetrics()
+
+    if config.AppConfig.UseWebhooks {
+        httpServer.RegisterWebhook(b, dispatcher, secret, domain)
+    } else {
+        updater.StartPolling(b, pollingOpts)
     }
-}()
-```
+    ```
 
-### 3. Locale Manager Initialization
-```go
-localeManager := i18n.GetManager()
-localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
-```
-
-### 4. OpenTelemetry Tracing Initialization
-```go
-tracing.InitTracing()
-```
-
-`tracing.InitTracing()` sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
-
-### 5. HTTP Transport Configuration
-```go
-httpTransport := &http.Transport{
-    MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
-    MaxIdleConnsPerHost: config.AppConfig.HTTPMaxIdleConnsPerHost,
-    IdleConnTimeout:     120 * time.Second,
-    ForceAttemptHTTP2:   true,
-}
-```
-
-### 6. Bot Client Creation
-```go
-b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
-    BotClient: &gotgbot.BaseBotClient{
-        Client: http.Client{Transport: transport, Timeout: 30 * time.Second},
-    },
-})
-```
-
-### 7. Connection Pre-warming
-```go
-go func() {
-    for i := 0; i < 3; i++ {
-        b.GetMe(nil)  // Establish connection pool
-        time.Sleep(100 * time.Millisecond)
-    }
-}()
-```
-
-### 8. Initial Checks
-```go
-alita.InitialChecks(b)  // Validates config, initializes cache
-```
-
-### 9. Async Processor (If Enabled)
-```go
-if config.AppConfig.EnableAsyncProcessing {
-    async.InitializeAsyncProcessor()
-}
-```
-
-### 10. Dispatcher Creation
-```go
-dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
-    Error:       errorHandler,
-    MaxRoutines: config.AppConfig.DispatcherMaxRoutines,
-})
-```
-
-The dispatcher uses a `TracingProcessor` wrapper for trace context propagation in polling mode, ensuring that OpenTelemetry spans are correctly associated with each update.
-
-### 11. Monitoring Systems
-```go
-statsCollector = monitoring.NewBackgroundStatsCollector()
-autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
-activityMonitor = monitoring.NewActivityMonitor()
-```
-
-### 12. HTTP Server & Mode Selection
-```go
-httpServer := httpserver.New(config.AppConfig.HTTPPort)
-httpServer.RegisterHealth()
-httpServer.RegisterMetrics()
-
-if config.AppConfig.UseWebhooks {
-    httpServer.RegisterWebhook(b, dispatcher, secret, domain)
-} else {
-    updater.StartPolling(b, pollingOpts)
-}
-```
+</Steps>
 
 ## Module Loading Order
 
@@ -223,6 +265,12 @@ dispatcher.AddHandler(handler)  // Same as group 0
 // Positive group = lower priority
 dispatcher.AddHandlerToGroup(handler, 10)
 ```
+
+:::tip[Handler group conventions]
+- **Negative groups (-1, -10)**: Early interception handlers (antispam, antiflood)
+- **Group 0**: Standard command handlers (default)
+- **Positive groups (4-10)**: Message watchers and monitors that should not block downstream processing
+:::
 
 ## Permission Check Flow
 
@@ -324,6 +372,10 @@ query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 
 ## Async Processing
 
+:::tip[When to use async]
+Only use async processing for non-critical background tasks that do not require user confirmation. Operations that need success feedback must be synchronous.
+:::
+
 Non-critical operations can be processed asynchronously:
 
 ```go
@@ -398,6 +450,10 @@ if err != nil {
 // Silent failure for expected cases
 _, _ = msg.Delete(b, nil)  // Ignore delete errors
 ```
+
+:::tip[Expected Telegram errors]
+The `helpers.IsExpectedTelegramError()` function filters common non-actionable errors like "bot is not an admin", "chat was deleted", and "message to delete not found". These are logged at Warn level instead of Error to reduce noise.
+:::
 
 ## Next Steps
 

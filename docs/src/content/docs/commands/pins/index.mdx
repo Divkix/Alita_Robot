@@ -1,0 +1,84 @@
+---
+title: Pins Commands
+description: Complete guide to Pins module commands and features
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Pins Commands
+
+All the pin-related commands can be found here. Keep your chat up to date on the latest news with a simple pinned message!
+
+<Tabs>
+  <TabItem label="User Commands">
+    ### User Commands <Badge text="Everyone" variant="success" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/pinned` | Get the current pinned message. | No |
+  </TabItem>
+
+  <TabItem label="Admin Commands">
+    ### Admin Commands <Badge text="Admin Only" variant="caution" />
+
+    | Command | Description | Disableable |
+    |---------|-------------|-------------|
+    | `/pin` | Pin the message you replied to. Add `loud`/`notify` to send notification. | No |
+    | `/unpin` | Unpin the current pinned message. If used as a reply, unpins the replied-to message. | No |
+    | `/unpinall` | Unpins all pinned messages. | No |
+    | `/permapin` | Pin a custom message through the bot with markdown, buttons, and media. | No |
+    | `/antichannelpin` | Don't let Telegram auto-pin linked channels. Shows current setting if no arguments. | No |
+    | `/cleanlinked` | Delete messages sent by the linked channel. | No |
+
+    :::tip[Pin with Notification]
+    ```text
+    /pin              # Pin silently
+    /pin loud         # Pin with notification
+    /pin notify       # Pin with notification
+    ```
+    :::
+  </TabItem>
+</Tabs>
+
+## Features
+
+### Anti-Channel Pin
+
+When enabled, the bot will automatically unpin any message that gets auto-pinned by a linked channel. This is useful when you want to maintain control over what gets pinned in your group.
+
+:::caution[Important]
+When using anti-channel pins, always use the `/unpin` command instead of unpinning manually through Telegram. Manual unpinning will cause the old message to get re-pinned when the channel sends new messages.
+:::
+
+### Clean Linked
+
+When enabled, the bot will automatically delete any messages sent to the group from the linked channel. This keeps your group chat clean from cross-posted channel content.
+
+### Permapin
+
+Create custom pinned messages with:
+- Text with HTML/Markdown formatting
+- Inline buttons with URLs
+- Media attachments (photos, documents, stickers, audio, video, voice notes, video notes)
+- All standard message fillings (`{first}`, `{chatname}`, etc.)
+
+:::note[Connection Support]
+The following commands work when connected to a chat via `/connect`:
+`/antichannelpin`, `/cleanlinked`
+:::
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+`antichannelpin`, `cleanlinked`, `pins`
+
+## Required Permissions
+
+**Bot:** Must be admin with "Pin Messages" permission.
+**User:** Most commands require admin with "Pin Messages" permission. `/pinned` is available to all users.
+
+## Technical Notes
+
+- The `/unpinall` command shows a confirmation dialog before unpinning all messages
+- Permapin supports all media types that Telegram supports for pinning
+- Anti-channel pin and clean linked settings persist across bot restarts

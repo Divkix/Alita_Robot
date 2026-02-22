@@ -60,6 +60,10 @@ func InitCache() error {
 }
 ```
 
+:::note[Connection retry]
+The cache initialization uses exponential backoff (1s, 2s, 4s, 8s, 16s) for Redis connection retries. This handles transient network issues during startup, particularly in containerized environments where Redis may not be immediately available.
+:::
+
 ## TTL Values
 
 Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
@@ -90,6 +94,14 @@ const (
     CacheTTLDisabledCmds = 30 * time.Minute
 )
 ```
+
+:::tip[TTL selection strategy]
+Choose TTL based on how frequently data changes:
+- **Rarely changed** (language preferences): 1 hour
+- **Occasionally changed** (chat settings, filters): 30 minutes
+- **Highly dynamic** (anonymous admin verification): 20 seconds
+- **Never use infinite TTL** -- always set an upper bound to prevent stale data accumulation.
+:::
 
 ## Key Patterns
 
@@ -138,6 +150,10 @@ _, err := cache.Marshal.Get(
     &originalMsg,
 )
 ```
+
+:::note[Why 20 seconds?]
+The anonymous admin verification window is intentionally short. If the admin does not click the verification button within 20 seconds, the cached message expires and the command is silently dropped. This prevents stale command executions and reduces cache memory usage.
+:::
 
 ### Key Generator Functions
 
@@ -235,6 +251,10 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 }
 ```
 
+:::tip[Singleflight explained]
+Without singleflight, if a cache key expires and 100 concurrent requests need that key, all 100 would hit the database simultaneously. With singleflight, only 1 request executes the database query while the other 99 wait and share the result. This is the primary defense against cache stampede.
+:::
+
 ### How Singleflight Works
 
 ```
@@ -250,6 +270,10 @@ Without singleflight, if cache expires and 100 requests arrive simultaneously:
 - **Good**: 1 database query, 99 requests wait and share result
 
 ## Cache Invalidation
+
+:::caution[The most important rule]
+Every database write function that modifies cached data MUST call the corresponding cache invalidation function. Missing invalidation is the most common caching bug and causes users to see stale data for up to the TTL duration (30 minutes to 1 hour).
+:::
 
 When data changes, invalidate the cache:
 
@@ -323,7 +347,9 @@ func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
 }
 ```
 
-> **Note:** The actual implementation includes additional robustness features: bot admin verification before API calls, retry logic with exponential backoff, background cache storage with panic recovery, and graceful handling of non-admin bots.
+:::note[Admin cache robustness]
+The actual implementation includes additional robustness features: bot admin verification before API calls, retry logic with exponential backoff, background cache storage with panic recovery, and graceful handling of non-admin bots.
+:::
 
 ### Admin Cache Lookup
 
@@ -370,6 +396,10 @@ func ClearAllCaches() error {
 }
 ```
 
+:::caution[FLUSHDB is destructive]
+`CLEAR_CACHE_ON_STARTUP` triggers `FLUSHDB`, which wipes ALL keys in the Redis database. If other applications share the same Redis instance and database number, their data will be destroyed. Always use a dedicated Redis database number for the bot.
+:::
+
 **When to enable:**
 - After schema changes
 - When debugging cache issues
@@ -383,6 +413,10 @@ func ClearAllCaches() error {
 ## Best Practices
 
 ### 1. Always Invalidate on Updates
+
+:::caution
+This is the single most important caching rule. Forgetting to invalidate causes stale data bugs that are difficult to diagnose because they only manifest intermittently (depending on TTL timing).
+:::
 
 ```go
 // BAD - Cache becomes stale
@@ -412,6 +446,10 @@ anonChatMapExpiration = 20 * time.Second
 ```
 
 ### 3. Handle Cache Misses Gracefully
+
+:::tip
+Always return a safe default when the cache and database both fail. Never let a cache miss propagate as a nil pointer to the caller. The pattern below returns a disabled-by-default struct, which is the safest fallback for most settings.
+:::
 
 ```go
 func GetSettings(chatID int64) *Settings {
@@ -450,6 +488,10 @@ func GetSettings(chatID int64) *Settings {
 "chatFilters{chatId}"
 ```
 
+:::note[Key format convention]
+All keys follow the pattern `alita:{domain}:{identifier}`. Use underscores within domain names (e.g., `chat_settings`, `user_lang`). Use colons as separators between segments. This makes it easy to use Redis `KEYS alita:chat_settings:*` for debugging.
+:::
+
 ### 5. Set Timeout on Cache Operations
 
 ```go
@@ -465,6 +507,10 @@ case <-ctx.Done():
     return defaultValue, ctx.Err()
 }
 ```
+
+:::tip[Why 30-second timeout?]
+The 30-second timeout on cache operations ensures that if Redis becomes unresponsive, the application degrades gracefully by falling back to direct database queries rather than hanging indefinitely. The `cacheGroup.Forget(key)` call prevents the singleflight group from holding a stale entry.
+:::
 
 ## Cache Monitoring
 
@@ -487,6 +533,10 @@ redis-cli TTL "alita:chat_settings:123456789"
 # Memory usage
 redis-cli MEMORY USAGE "alita:chat_settings:123456789"
 ```
+
+:::tip[Traced cache operations]
+For production debugging, use the `TracedGet()`, `TracedSet()`, and `TracedDelete()` functions instead of raw cache operations. These emit OpenTelemetry spans that appear in your tracing backend, making it easy to correlate cache behavior with request latency. Cache keys are automatically sanitized by `alita/utils/cache/sanitize.go` to remove sensitive IDs from span names.
+:::
 
 ## Next Steps
 
