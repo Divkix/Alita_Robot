@@ -1,829 +1,700 @@
-# Requirements: Increase Test Coverage Across Alita Robot
+# Requirements: Increase Test Coverage to 45%+
 
 **Date:** 2026-02-21
-**Goal:** Raise overall test coverage from 5.3% to 60%+ by systematically adding tests to all packages, prioritizing pure functions, then DB CRUD, then infrastructure/monitoring.
-**Source:** `specs/increase-test-coverage/research.md`
+**Goal:** Raise Go test coverage from 12.5% to >= 45% (CI threshold: 40%, target: 45% for margin)
+**Source:** research.md
 
 ## Scope
 
 ### In Scope
-- All Go packages under `alita/` that contain testable logic
-- Pure function tests (Tier 1 and 2) for packages with zero or struct-only dependencies
-- DB CRUD integration tests (Tier 3) for all 16 untested `*_db.go` files
-- Cache key generator unit tests in `alita/db/cache_helpers.go`
-- Monitoring and infrastructure package tests (Tier 4) where pure function extraction is feasible
-- Keyword matcher `cache.go` coverage gap (currently 0% within the 60.2% package)
-- Extraction package pure functions (`ExtractQuotes`, `IdFromReply`)
-- Module-level pure function tests (`encodeCallbackData`, `decodeCallbackData`)
-- CI pipeline enhancement: coverage threshold enforcement
-- Fixing the 8 packages with existing tests that fail locally due to `config.init()` crash
-- Expanding coverage on the 4 DB files that already have partial tests
-- `TestMain` for the `alita/db/` package for shared initialization
+- Adding unit tests for pure functions across all packages (no external dependencies)
+- Adding unit tests for GORM custom types (Scan/Value/TableName methods) in `alita/db/db.go`
+- Adding unit tests for `ValidateConfig()` and `setDefaults()` in `alita/config/config.go`
+- Adding integration tests for DB CRUD operations following existing TestMain/skipIfNoDb pattern
+- Adding unit tests for i18n translator and manager functions
+- Adding unit tests for unexported helper functions in `alita/modules/`
+- Adding unit tests for `alita/utils/extraction/`, `alita/utils/helpers/`, `alita/utils/monitoring/`
+- Adding unit tests for migration SQL processing functions in `alita/db/migrations.go`
+- Adding unit tests for `alita/utils/chat_status/` pure helper functions
+- Ensuring all new tests follow existing patterns (table-driven, `t.Parallel()`, subtests)
+- Ensuring all new tests pass in CI (with env vars set, PostgreSQL available, no Redis)
 
 ### Out of Scope
-- **Handler-level integration tests for `alita/modules/*` (250+ handler methods)** -- these require a `BotAPI` interface abstraction or live Telegram API, which is a separate refactor effort. Reason: ~100+ file refactor to introduce Bot interface.
-- **Introducing third-party test frameworks** (testify, gomock, etc.) -- the project convention is stdlib `testing` only. Reason: maintaining zero test dependencies.
-- **Creating a `BotAPI` interface wrapper around `gotgbot.Bot`** -- significant refactor, tracked separately. Reason: scope creep.
-- **End-to-end tests with a real Telegram bot token** -- requires secrets management. Reason: security and infrastructure complexity.
-- **Testing `alita/utils/webhook/`** -- requires Bot + HTTP integration. Reason: same Bot interface blocker.
-- **Testing `alita/health/` beyond basic struct verification** -- requires live DB + Redis. Reason: infrastructure dependency.
-- **Testing `alita/metrics/`** -- contains only Prometheus var declarations, no logic. Reason: nothing to test.
-- **Testing `alita/utils/constants/`** -- contains only const declarations, no logic. Reason: nothing to test.
-- **Testing `scripts/generate_docs/`** -- documentation generation tooling, not bot runtime. Reason: not production code.
-- **Redis-dependent cache integration tests** -- CI has no Redis service; nil-guard pattern suffices. Reason: infrastructure not available.
-- **Refactoring `config.init()` to lazy initialization** -- architectural change that would unblock local testing but is out of scope for a test coverage effort. Reason: separate design decision.
+- Refactoring `config.init()` to remove `log.Fatalf` -- separate PR, architectural change
+- Adding Redis to CI services -- infrastructure change, not test code
+- Mocking the Telegram Bot API (`gotgbot.Bot`) for handler-level integration tests -- requires significant infrastructure (mock HTTP server or interface abstraction) that is a project in itself
+- Testing HTTP server endpoints in `alita/utils/httpserver/` -- requires full server lifecycle management
+- Testing `alita/utils/media/` sender functions -- requires Telegram API mocking
+- Increasing coverage beyond 50% -- diminishing returns, handler-level tests require API mocking
+- Performance optimization of existing tests -- focus is on coverage quantity, not test speed
+- Adding tests for `alita/utils/webhook/` (18 LOC, trivial, negligible coverage impact)
+- Adding tests for `alita/utils/debug_bot/` (20 LOC, trivial)
+- Adding tests for `alita/utils/decorators/cmdDecorator/` (15 LOC, trivial)
 
 ## User Stories
 
-### US-001: Fix Locally-Failing Test Suites
+### US-001: GORM Custom Type Unit Tests
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want all existing test files to pass when run in CI with the established env vars,
-So that the existing ~100 test cases contribute to measured coverage rather than being dead code.
+I want unit tests for all GORM custom types (ButtonArray, StringArray, Int64Array) Scan/Value methods,
+So that serialization and deserialization correctness is verified without requiring a database.
 
 **Acceptance Criteria:**
-- [ ] GIVEN the 8 packages with failing tests (`config`, `db`, `i18n`, `modules`, `helpers`, `cache`, `chat_status`, `tracing`) WHEN `go test ./...` is run in CI with `BOT_TOKEN=test-token`, `OWNER_ID=1`, `MESSAGE_DUMP=1`, `DATABASE_URL` set THEN all test files in those packages pass (exit code 0)
-- [ ] GIVEN any test file that requires PostgreSQL WHEN PostgreSQL is unavailable THEN the test is skipped with `t.Skip("requires PostgreSQL")` rather than failing
-- [ ] GIVEN all existing test files pass WHEN coverage is measured THEN the overall coverage increases from 5.3% to at least 15% (from existing tests alone contributing)
+- [ ] GIVEN a nil input WHEN `ButtonArray.Scan(nil)` is called THEN the result is an empty `ButtonArray{}` with no error
+- [ ] GIVEN valid JSON bytes WHEN `ButtonArray.Scan([]byte)` is called THEN the result contains the deserialized buttons with no error
+- [ ] GIVEN a non-byte input WHEN `ButtonArray.Scan("string")` is called THEN an error is returned with message containing "type assertion"
+- [ ] GIVEN malformed JSON WHEN `ButtonArray.Scan([]byte("{invalid"))` is called THEN a JSON unmarshal error is returned
+- [ ] GIVEN an empty ButtonArray WHEN `ButtonArray.Value()` is called THEN `"[]"` is returned with no error
+- [ ] GIVEN a populated ButtonArray WHEN `ButtonArray.Value()` is called THEN valid JSON bytes are returned with no error
+- [ ] GIVEN identical test cases WHEN applied to StringArray Scan/Value THEN identical behavior patterns hold
+- [ ] GIVEN identical test cases WHEN applied to Int64Array Scan/Value THEN identical behavior patterns hold
 
 **Edge Cases:**
-- [ ] DB tests that rely on `DB.AutoMigrate()` SHALL call `t.Skip()` if `DB` is nil (no PostgreSQL connection) -> test is skipped, not failed
-- [ ] Tests that import `config` transitively SHALL not crash when `DATABASE_URL` points to an unreachable host -> tests skip gracefully via `TestMain` or skip guard
-- [ ] Tests SHALL not depend on Redis being available -> use nil-guard pattern (`if cache.Marshal != nil`)
+- [ ] `Scan` with empty byte slice `[]byte("")` -> JSON unmarshal error (empty string is not valid JSON)
+- [ ] `Scan` with `[]byte("null")` -> empty array (JSON null unmarshals to nil slice, but pointer receiver sets empty)
+- [ ] `Value` with single-element arrays -> valid JSON with one element
+- [ ] `Value` with ButtonArray containing empty-string fields -> valid JSON with empty strings preserved
+- [ ] `Scan` with deeply nested JSON (Button with special characters in Name/Url) -> correctly deserialized
+- [ ] Int64Array with max int64 values -> correctly serialized and deserialized
+- [ ] Int64Array with negative values -> correctly serialized and deserialized
+- [ ] StringArray with unicode characters -> correctly serialized and deserialized
 
 **Definition of Done:**
-- [ ] `make test` passes in CI with zero test failures
-- [ ] No test file calls `log.Fatal` or `os.Exit` in test execution paths
-- [ ] Coverage output shows non-zero percentages for all 8 previously-failing packages
+- [ ] Test file `alita/db/gorm_types_test.go` exists with table-driven tests
+- [ ] All 6 Scan/Value methods have at least 4 test cases each (nil, valid, invalid type, malformed)
+- [ ] Tests pass with `go test ./alita/db/... -run TestButtonArray -run TestStringArray -run TestInt64Array`
+- [ ] Tests do NOT require PostgreSQL (no `skipIfNoDb` guard needed)
+- [ ] Tests use `t.Parallel()` at both top level and subtest level
 
 ---
 
-### US-002: Test `error_handling` Package (3 functions)
+### US-002: TableName Method Unit Tests
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for `HandleErr`, `RecoverFromPanic`, and `CaptureError`,
-So that the foundational error handling layer is verified to work correctly.
+I want unit tests for every `TableName()` method on GORM model structs,
+So that table name mappings are verified and regressions are caught if a table name changes.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `HandleErr` is called with a nil error WHEN executed THEN it does not panic
-- [ ] GIVEN `HandleErr` is called with a non-nil error WHEN executed THEN it logs the error via logrus (no panic, no crash)
-- [ ] GIVEN `RecoverFromPanic` is deferred in a goroutine that panics WHEN the panic occurs THEN the panic is recovered and does not propagate
-- [ ] GIVEN `RecoverFromPanic` is deferred in a goroutine that does not panic WHEN the function completes THEN nothing happens (no-op)
-- [ ] GIVEN `CaptureError` is called with nil error WHEN executed THEN it returns immediately without side effects
-- [ ] GIVEN `CaptureError` is called with a non-nil error and tags map WHEN executed THEN it does not panic
-- [ ] GIVEN `CaptureError` is called with an empty tags map WHEN executed THEN it does not panic
+- [ ] GIVEN each GORM model struct WHEN its `TableName()` method is called THEN the expected table name string is returned
+- [ ] GIVEN the full list of models (User, Chat, WarnSettings, Warns, GreetingSettings, ChatFilters, AdminSettings, BlacklistSettings, PinSettings, ReportChatSettings, ReportUserSettings, DevSettings, ChannelSettings, AntifloodSettings, ConnectionSettings, ConnectionChatSettings, DisableSettings, DisableChatSettings, RulesSettings, LockSettings, NotesSettings, Notes, CaptchaSettings, CaptchaAttempts, StoredMessages, CaptchaMutedUsers, SchemaMigration) WHEN each is tested THEN all return their documented table name
 
 **Edge Cases:**
-- [ ] `CaptureError` with nil tags map -> does not panic
-- [ ] `RecoverFromPanic` with empty string funcName/modName -> does not panic
-- [ ] `HandleErr` called concurrently from multiple goroutines -> no data races (verified by `-race`)
+- [ ] Ensure zero-value struct (no fields set) still returns correct table name -> TableName is independent of struct field values
 
 **Definition of Done:**
-- [ ] Test file `alita/utils/error_handling/error_handling_test.go` exists
-- [ ] All tests use table-driven pattern with `t.Parallel()`
-- [ ] All 3 functions have at least 2 test cases each
-- [ ] Package coverage >= 90%
+- [ ] All 27+ TableName() methods have a corresponding test case
+- [ ] Tests are in a single table-driven test function `TestTableNames`
+- [ ] Tests pass without PostgreSQL connection
+- [ ] Tests use `t.Parallel()`
 
 ---
 
-### US-003: Test `shutdown` Package (Manager lifecycle)
+### US-003: BlacklistSettingsSlice Method Tests
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for the shutdown `Manager` struct,
-So that handler registration, LIFO execution order, and panic recovery in handlers are verified.
+I want unit tests for `BlacklistSettingsSlice.Triggers()`, `.Action()`, and `.Reason()`,
+So that the slice helper methods return correct defaults and aggregations.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `NewManager()` is called WHEN the manager is returned THEN its handlers slice is empty and non-nil
-- [ ] GIVEN `RegisterHandler` is called N times WHEN handlers are inspected THEN exactly N handlers are registered
-- [ ] GIVEN `RegisterHandler` is called from multiple goroutines concurrently WHEN all calls complete THEN all handlers are registered without data races
-- [ ] GIVEN `executeHandler` is called with a handler that returns nil WHEN executed THEN it returns nil
-- [ ] GIVEN `executeHandler` is called with a handler that returns an error WHEN executed THEN it returns that error
-- [ ] GIVEN `executeHandler` is called with a handler that panics WHEN executed THEN the panic is recovered and no panic propagates to the caller
+- [ ] GIVEN an empty BlacklistSettingsSlice WHEN `Triggers()` is called THEN an empty/nil slice is returned
+- [ ] GIVEN a slice with 3 entries WHEN `Triggers()` is called THEN a slice of 3 Word strings is returned in order
+- [ ] GIVEN an empty BlacklistSettingsSlice WHEN `Action()` is called THEN `"warn"` is returned (default)
+- [ ] GIVEN a slice with entries WHEN `Action()` is called THEN the first entry's Action is returned
+- [ ] GIVEN an empty BlacklistSettingsSlice WHEN `Reason()` is called THEN the default format string `"Blacklisted word: '%s'"` is returned
+- [ ] GIVEN a slice with a non-empty Reason WHEN `Reason()` is called THEN the first entry's Reason is returned
+- [ ] GIVEN a slice with an empty-string Reason WHEN `Reason()` is called THEN the default format string is returned
 
 **Edge Cases:**
-- [ ] `RegisterHandler` with nil function pointer -> does not panic during registration (may panic during execution, which `executeHandler` recovers from)
-- [ ] `executeHandler` with a panicking handler -> logged, recovered, returned error is nil (panic recovery does not return an error in the current implementation)
-- [ ] Concurrent `RegisterHandler` from 50 goroutines -> all handlers registered, no data races
+- [ ] Slice with one entry that has empty Action string -> returns empty string (not default, because len > 0)
+- [ ] Slice with nil pointer entries -> panic expected; document this behavior or test that it does panic
+- [ ] Slice with mixed Action values -> only first entry's Action matters
 
 **Definition of Done:**
-- [ ] Test file `alita/utils/shutdown/graceful_test.go` exists
-- [ ] Tests do NOT call `WaitForShutdown()` or `shutdown()` (those call `os.Exit`)
-- [ ] Tests cover `NewManager`, `RegisterHandler`, and `executeHandler` only
-- [ ] All tests use `t.Parallel()`
-- [ ] Package coverage >= 70% (excluding `WaitForShutdown` and `shutdown` which call `os.Exit`)
+- [ ] Tests cover all 3 methods with at least 3 test cases each
+- [ ] Tests pass without PostgreSQL
+- [ ] Tests verify the exact default string values
 
 ---
 
-### US-004: Test `decorators/misc` Package (Command array helpers)
+### US-004: getSpanAttributes and NotesSettings Helper Tests
+
+**Priority:** P1 (should-have)
+
+As a developer,
+I want unit tests for `getSpanAttributes()` and `NotesSettings.PrivateNotesEnabled()`,
+So that tracing attributes and boolean accessor correctness is verified.
+
+**Acceptance Criteria:**
+- [ ] GIVEN a nil model WHEN `getSpanAttributes(nil)` is called THEN an empty attribute slice is returned
+- [ ] GIVEN a User struct WHEN `getSpanAttributes(user)` is called THEN a slice with one attribute `db.model` containing `*db.User` is returned
+- [ ] GIVEN a NotesSettings with Private=true WHEN `PrivateNotesEnabled()` is called THEN true is returned
+- [ ] GIVEN a NotesSettings with Private=false WHEN `PrivateNotesEnabled()` is called THEN false is returned
+
+**Edge Cases:**
+- [ ] `getSpanAttributes` with a non-struct type (e.g., string) -> attribute contains `string` type name
+- [ ] `getSpanAttributes` with a pointer vs non-pointer model -> attribute reflects the pointer type
+
+**Definition of Done:**
+- [ ] Tests exist and pass without external dependencies
+- [ ] Tests use `t.Parallel()`
+
+---
+
+### US-005: Config ValidateConfig Unit Tests
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for `addToArray` and `AddCmdToDisableable`,
-So that the thread-safe command registration is verified.
+I want unit tests for `ValidateConfig()` covering all validation branches,
+So that configuration validation logic is verified without triggering `init()` side effects.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `addToArray` is called with a nil slice and one value WHEN executed THEN it returns a slice containing that value
-- [ ] GIVEN `addToArray` is called with an existing slice and multiple values WHEN executed THEN all values are appended
-- [ ] GIVEN `AddCmdToDisableable` is called with a command string WHEN executed THEN `DisableCmds` contains that command
-- [ ] GIVEN `AddCmdToDisableable` is called concurrently from 50 goroutines with unique commands WHEN all calls complete THEN `DisableCmds` contains all 50 commands without data races
+- [ ] GIVEN a Config with empty BotToken WHEN `ValidateConfig` is called THEN an error containing "BOT_TOKEN is required" is returned
+- [ ] GIVEN a Config with OwnerId=0 WHEN `ValidateConfig` is called THEN an error containing "OWNER_ID" is returned
+- [ ] GIVEN a Config with empty DatabaseURL WHEN `ValidateConfig` is called THEN an error containing "DATABASE_URL" is returned
+- [ ] GIVEN a Config with empty RedisAddress WHEN `ValidateConfig` is called THEN an error containing "REDIS_ADDRESS" is returned
+- [ ] GIVEN a Config with UseWebhooks=true and empty WebhookDomain WHEN `ValidateConfig` is called THEN an error containing "WEBHOOK_DOMAIN" is returned
+- [ ] GIVEN a Config with UseWebhooks=true and empty WebhookSecret WHEN `ValidateConfig` is called THEN an error containing "WEBHOOK_SECRET" is returned
+- [ ] GIVEN a Config with HTTPPort=0 WHEN `ValidateConfig` is called THEN an error containing "HTTP_PORT" is returned
+- [ ] GIVEN a Config with HTTPPort=70000 WHEN `ValidateConfig` is called THEN an error containing "HTTP_PORT" is returned
+- [ ] GIVEN a Config with ChatValidationWorkers=0 WHEN `ValidateConfig` is called THEN an error is returned
+- [ ] GIVEN a Config with ChatValidationWorkers=101 WHEN `ValidateConfig` is called THEN an error is returned
+- [ ] GIVEN a fully valid Config WHEN `ValidateConfig` is called THEN nil is returned
+- [ ] GIVEN a Config with all worker pool values at boundary minimums (1) WHEN `ValidateConfig` is called THEN nil is returned
+- [ ] GIVEN a Config with all worker pool values at boundary maximums WHEN `ValidateConfig` is called THEN nil is returned
+- [ ] GIVEN a Config with DB pool values at boundary (DBMaxIdleConns=100, DBMaxOpenConns=1000) WHEN `ValidateConfig` is called THEN nil is returned
+- [ ] GIVEN a Config with DB pool values exceeding max (DBMaxIdleConns=101) WHEN `ValidateConfig` is called THEN an error is returned
 
 **Edge Cases:**
-- [ ] `addToArray` with empty string value -> appends empty string
-- [ ] `addToArray` with variadic empty args (no values) -> returns original slice unchanged
-- [ ] `AddCmdToDisableable` with duplicate command -> command appears twice (append semantics, not set)
+- [ ] Config with MessageDump=0 but all other required fields valid -> error on MessageDump
+- [ ] Config with negative OwnerId -> passes validation (only checks == 0), document this gap
+- [ ] Config with DispatcherMaxRoutines=0 -> passes (0 means "use default", validation allows it)
+- [ ] Config with DBMaxIdleConns=0 -> passes (0 means "not set, use default")
+- [ ] Config with UseWebhooks=false and empty WebhookDomain -> passes (webhook validation skipped)
+- [ ] Config with OperationTimeoutSeconds=301 -> error
+- [ ] Config with MaxConcurrentOperations=-1 -> error
 
 **Definition of Done:**
-- [ ] Test file `alita/utils/decorators/misc/handler_vars_test.go` exists
-- [ ] Concurrency test verifies no data races under `-race`
-- [ ] Package coverage >= 90%
+- [ ] Tests exist in `alita/config/config_test.go`
+- [ ] NOTE: This file is in the `config` package which has `init()` that calls `log.Fatalf`. Tests rely on CI environment variables being set (`BOT_TOKEN`, `OWNER_ID`, etc.) to survive the init(). Tests SHALL be guarded with a skip check if required env vars are absent.
+- [ ] All 17 validation branches in ValidateConfig are covered
+- [ ] Tests use table-driven pattern with `t.Parallel()`
+- [ ] Each validation error message is checked via `strings.Contains` or `errors.Is`
 
 ---
 
-### US-005: Test `keyword_matcher/cache.go` (Cache management)
+### US-006: Config setDefaults Unit Tests
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for `NewCache`, `GetOrCreateMatcher`, `CleanupExpired`, and `patternsEqual`,
-So that the per-chat matcher cache manages lifecycle correctly and the package coverage gap (40%) is closed.
+I want unit tests for `Config.setDefaults()` covering all default value assignments,
+So that default configuration behavior is verified and documented via tests.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `NewCache(ttl)` is called WHEN the cache is returned THEN its matchers map is empty, lastUsed map is empty, and ttl is set to the provided value
-- [ ] GIVEN `GetOrCreateMatcher(chatID, patterns)` is called for a new chatID WHEN executed THEN a new matcher is created, stored, and returned
-- [ ] GIVEN `GetOrCreateMatcher(chatID, patterns)` is called for an existing chatID with the same patterns WHEN executed THEN the existing matcher is returned (same pointer)
-- [ ] GIVEN `GetOrCreateMatcher(chatID, patterns)` is called for an existing chatID with different patterns WHEN executed THEN a new matcher replaces the old one
-- [ ] GIVEN `CleanupExpired()` is called WHEN some matchers have exceeded TTL THEN those matchers are removed and unexpired matchers remain
-- [ ] GIVEN `patternsEqual(a, b)` is called with identical sets in different order WHEN executed THEN it returns true
-- [ ] GIVEN `patternsEqual(a, b)` is called with different sets WHEN executed THEN it returns false
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN ApiServer is set to `"https://api.telegram.org"`
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN WorkingMode is set to `"worker"`
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN RedisAddress is set to `"localhost:6379"`
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN HTTPPort is set to 8080
+- [ ] GIVEN a Config with WebhookPort=9090 and HTTPPort=0 WHEN `setDefaults()` is called THEN HTTPPort is set to 9090 (backward compat)
+- [ ] GIVEN a Config with HTTPPort=3000 WHEN `setDefaults()` is called THEN HTTPPort remains 3000 (not overwritten)
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN all worker pool configs are populated with values > 0
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN DB pool defaults are set (DBMaxIdleConns=50, DBMaxOpenConns=200, etc.)
+- [ ] GIVEN a zero-value Config WHEN `setDefaults()` is called THEN MigrationsPath is set to `"migrations"`
+- [ ] GIVEN a Config with Debug=false WHEN `setDefaults()` is called THEN EnablePerformanceMonitoring and EnableBackgroundStats are true
+- [ ] GIVEN a Config with Debug=true WHEN `setDefaults()` is called THEN EnablePerformanceMonitoring and EnableBackgroundStats remain their original values
 
 **Edge Cases:**
-- [ ] `NewCache(0)` with zero TTL -> all entries expire immediately on `CleanupExpired`
-- [ ] `GetOrCreateMatcher` with empty patterns slice -> creates matcher with zero patterns, does not panic
-- [ ] `GetOrCreateMatcher` called concurrently for the same chatID -> no data races, one matcher wins
-- [ ] `patternsEqual(nil, nil)` -> returns true (both length 0)
-- [ ] `patternsEqual([]string{"a", "a"}, []string{"a"})` -> returns false (different lengths)
-- [ ] `patternsEqual([]string{"a", "b"}, []string{"a", "a"})` -> returns false ("b" not in second set)
-- [ ] `CleanupExpired` with empty cache -> does not panic, no-op
+- [ ] Config with pre-set values -> pre-set values are NOT overwritten (only zero values get defaults)
+- [ ] Config with RedisDB=0 -> set to 1 (default), but RedisDB=5 stays 5
+- [ ] ClearCacheOnStartup is always set to true regardless of prior value -> verify this unconditional set
 
 **Definition of Done:**
-- [ ] Test file `alita/utils/keyword_matcher/cache_test.go` exists
-- [ ] All tests use `t.Parallel()`
-- [ ] Package coverage >= 85% (up from 60.2%)
+- [ ] Tests exist in `alita/config/config_test.go` alongside US-005 tests
+- [ ] Same CI env var guard applies as US-005
+- [ ] At least 15 default values verified
+- [ ] Tests verify both "sets default when zero" and "preserves non-zero"
 
 ---
 
-### US-006: Test `extraction` Package Pure Functions (`ExtractQuotes`, `IdFromReply`)
+### US-007: Config getRedisAddress and getRedisPassword Tests
+
+**Priority:** P1 (should-have)
+
+As a developer,
+I want unit tests for `getRedisAddress()` and `getRedisPassword()`,
+So that Redis connection string parsing from both direct env vars and Heroku-style REDIS_URL is verified.
+
+**Acceptance Criteria:**
+- [ ] GIVEN REDIS_ADDRESS env var is set WHEN `getRedisAddress()` is called THEN the REDIS_ADDRESS value is returned
+- [ ] GIVEN REDIS_ADDRESS is empty and REDIS_URL is set to a valid Redis URL WHEN `getRedisAddress()` is called THEN the host:port from REDIS_URL is returned
+- [ ] GIVEN both REDIS_ADDRESS and REDIS_URL are empty WHEN `getRedisAddress()` is called THEN empty string is returned
+- [ ] GIVEN REDIS_PASSWORD env var is set WHEN `getRedisPassword()` is called THEN the password is returned
+- [ ] GIVEN REDIS_PASSWORD is empty and REDIS_URL contains a password WHEN `getRedisPassword()` is called THEN the password from REDIS_URL is returned
+- [ ] GIVEN both REDIS_PASSWORD and REDIS_URL are empty WHEN `getRedisPassword()` is called THEN empty string is returned
+
+**Edge Cases:**
+- [ ] REDIS_URL with invalid URL format -> empty string returned (parse error handled)
+- [ ] REDIS_URL with no password in userinfo -> empty string returned
+- [ ] REDIS_URL with username but no password -> empty string returned
+- [ ] REDIS_ADDRESS takes priority over REDIS_URL even when both are set
+
+**Definition of Done:**
+- [ ] Tests use `t.Setenv()` to manipulate environment variables safely
+- [ ] Tests restore env vars after each test case (t.Setenv handles this automatically)
+- [ ] Tests NOT marked `t.Parallel()` due to env var mutation (or use subtests that each set their own env)
+- [ ] Same CI env var guard as US-005/006
+
+---
+
+### US-008: DB Integration Tests for Optimized Queries
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for the pure functions `ExtractQuotes` and `IdFromReply` in the extraction package,
-So that text parsing logic is verified without requiring Telegram API calls.
+I want integration tests for `OptimizedLockQueries`, `OptimizedDisableQueries`, `OptimizedGreetingQueries`, and `OptimizedBlacklistQueries`,
+So that the optimized query paths are verified against a real PostgreSQL database.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `ExtractQuotes(sentence, true, false)` with `"\"hello world\" remaining"` WHEN executed THEN `inQuotes="hello world"` and `afterWord="remaining"`
-- [ ] GIVEN `ExtractQuotes(sentence, false, true)` with `"firstword rest of text"` WHEN executed THEN `inQuotes="firstword"` and `afterWord="rest of text"`
-- [ ] GIVEN `ExtractQuotes("", true, true)` with empty string WHEN executed THEN it returns empty strings without panicking
-- [ ] GIVEN `IdFromReply(msg)` with a message that has `ReplyToMessage` set WHEN executed THEN it returns the sender ID from the replied message and remaining command text
-- [ ] GIVEN `IdFromReply(msg)` with a message that has nil `ReplyToMessage` WHEN executed THEN it returns `(0, "")`
+- [ ] GIVEN a nil DB WHEN `NewOptimizedLockQueries()` is called THEN a non-nil struct with nil db field is returned
+- [ ] GIVEN a nil db field WHEN `GetLockStatus()` is called THEN an error containing "database not initialized" is returned
+- [ ] GIVEN no lock record exists WHEN `GetLockStatus(chatID, "sticker")` is called THEN `(false, nil)` is returned
+- [ ] GIVEN a lock record with locked=true WHEN `GetLockStatus(chatID, "sticker")` is called THEN `(true, nil)` is returned
+- [ ] GIVEN no locks exist WHEN `GetChatLocksOptimized(chatID)` is called THEN an empty map is returned
+- [ ] GIVEN 3 locks exist WHEN `GetChatLocksOptimized(chatID)` is called THEN a map with 3 entries is returned
+- [ ] GIVEN equivalent tests for `OptimizedDisableQueries` WHEN tested THEN disabled command checks work correctly
+- [ ] GIVEN equivalent tests for `OptimizedGreetingQueries` WHEN tested THEN greeting status checks work correctly
+- [ ] GIVEN equivalent tests for `OptimizedBlacklistQueries` WHEN tested THEN blacklist trigger checks work correctly
 
 **Edge Cases:**
-- [ ] `ExtractQuotes` with unmatched opening quote (e.g., `"\"hello`) -> returns empty strings (regex does not match)
-- [ ] `ExtractQuotes` with `matchQuotes=false` and `matchWord=false` -> returns empty strings
-- [ ] `ExtractQuotes` with special characters in quoted text (`"hello & <world>"`) -> preserves special characters
-- [ ] `ExtractQuotes` with multiline quoted text (contains `\n`) -> regex uses `(?s)` flag, matches across lines
-- [ ] `IdFromReply` with `ReplyToMessage` set but `Text` has no spaces -> returns `(senderID, "")`
-- [ ] `IdFromReply` with `ReplyToMessage` containing a forwarded sender -> returns forwarded sender ID
+- [ ] Query for non-existent chat ID -> default/empty results, no error
+- [ ] Query after inserting and then deleting the record -> returns default/not-found
+- [ ] Concurrent reads on the same chat ID -> no race conditions (use `-race` flag)
+- [ ] Chat ID at boundary (max int64) -> query executes without overflow
 
 **Definition of Done:**
-- [ ] Test file `alita/utils/extraction/extraction_test.go` exists
-- [ ] Tests for `ExtractQuotes` use table-driven pattern with at least 8 subtests
-- [ ] Tests for `IdFromReply` construct `gotgbot.Message` structs directly (no API calls)
-- [ ] Tests require CI env vars (package imports `db` transitively) -- include skip guard for local runs
-- [ ] All tests use `t.Parallel()`
+- [ ] Test file `alita/db/optimized_queries_test.go` exists
+- [ ] All tests call `skipIfNoDb(t)` at the start
+- [ ] All tests use unique chat IDs via `time.Now().UnixNano()` to avoid collisions
+- [ ] All tests use `t.Cleanup()` to remove test data
+- [ ] Tests pass in CI with PostgreSQL service
+- [ ] Tests are skipped gracefully when PostgreSQL is unavailable
 
 ---
 
-### US-007: Test `modules` Package Pure Functions (Callback codec wrappers)
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want unit tests for `encodeCallbackData` and `decodeCallbackData` in `alita/modules/callback_codec.go`,
-So that the module-level callback encoding/decoding wrappers are verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `encodeCallbackData` is called with valid namespace and fields WHEN executed THEN it returns the encoded callback string matching `callbackcodec.Encode` output
-- [ ] GIVEN `encodeCallbackData` is called and `callbackcodec.Encode` would return an error (e.g., empty namespace) WHEN executed THEN it returns the fallback string
-- [ ] GIVEN `decodeCallbackData` is called with valid encoded data and no expected namespaces WHEN executed THEN it returns the decoded struct and `true`
-- [ ] GIVEN `decodeCallbackData` is called with valid data but a non-matching namespace WHEN executed THEN it returns `nil` and `false`
-- [ ] GIVEN `decodeCallbackData` is called with invalid/malformed data WHEN executed THEN it returns `nil` and `false`
-
-**Edge Cases:**
-- [ ] `encodeCallbackData` with nil fields map -> verify no panic
-- [ ] `decodeCallbackData` with empty string data -> returns `nil, false`
-- [ ] `decodeCallbackData` with case-insensitive namespace matching -> verifies `strings.EqualFold` behavior (e.g., "NS" matches "ns")
-- [ ] `encodeCallbackData` with empty fallback string -> returns `""` on encode failure
-
-**Definition of Done:**
-- [ ] Tests added to a test file in `alita/modules/`
-- [ ] Tests require CI env vars -- include skip guard
-- [ ] At least 6 subtests covering happy path, error path, and edge cases
-- [ ] All tests use `t.Parallel()`
-
----
-
-### US-008: Test DB Cache Key Generators (Pure functions in `cache_helpers.go`)
+### US-009: DB Integration Tests for Captcha Operations
 
 **Priority:** P0 (must-have)
 
 As a developer,
-I want unit tests for all 8 cache key generator functions in `alita/db/cache_helpers.go`,
-So that cache key formatting is verified and regressions in key format are caught.
+I want integration tests for CRUD operations in `captcha_db.go`,
+So that captcha settings, attempts, stored messages, and muted users operations are verified.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `chatSettingsCacheKey(12345)` is called WHEN executed THEN it returns `"alita:chat_settings:12345"`
-- [ ] GIVEN each of the 8 cache key functions is called with a known ID WHEN executed THEN the returned string matches `"alita:{segment}:{id}"` format
-- [ ] GIVEN any cache key function is called with `0` WHEN executed THEN it returns `"alita:{segment}:0"` (zero is a valid ID for testing)
-- [ ] GIVEN any cache key function is called with a negative channel ID like `-1001234567890` WHEN executed THEN it returns `"alita:{segment}:-1001234567890"`
+- [ ] GIVEN no captcha settings exist for a chat WHEN `GetCaptchaSettings(chatID)` is called THEN default settings are returned (Enabled=false, CaptchaMode="math", Timeout=2, FailureAction="kick", MaxAttempts=3)
+- [ ] GIVEN captcha settings are created WHEN `GetCaptchaSettings(chatID)` is called THEN the created settings are returned
+- [ ] GIVEN captcha settings exist WHEN settings are updated THEN subsequent Get returns updated values
+- [ ] GIVEN a captcha attempt is created WHEN `GetCaptchaAttempt(userID, chatID)` is called THEN the attempt is returned
+- [ ] GIVEN a captcha attempt exists WHEN `IncrementCaptchaAttempts(userID, chatID)` is called THEN the attempt count increases by 1
+- [ ] GIVEN a captcha attempt exists WHEN `DeleteCaptchaAttempt(userID, chatID)` is called THEN subsequent Get returns not-found
+- [ ] GIVEN stored messages exist WHEN `GetStoredMessages(attemptID)` is called THEN all stored messages for that attempt are returned
+- [ ] GIVEN a muted user record exists WHEN `GetCaptchaMutedUsers()` is called THEN the record is included in results
+- [ ] GIVEN a muted user with expired UnmuteAt WHEN `CleanupExpiredCaptchaMutes()` is called THEN the record is removed
 
 **Edge Cases:**
-- [ ] All 8 key functions tested: `chatSettingsCacheKey`, `userLanguageCacheKey`, `chatLanguageCacheKey`, `filterListCacheKey`, `blacklistCacheKey`, `warnSettingsCacheKey`, `disabledCommandsCacheKey`, `captchaSettingsCacheKey`
-- [ ] Key format consistency: all keys SHALL start with `"alita:"` prefix
-- [ ] No two key functions SHALL produce the same output for the same input ID -> verify segment names are distinct
+- [ ] Create captcha attempt with expiry in the past -> still created, cleanup handles it
+- [ ] Multiple stored messages for same attempt -> all returned in order
+- [ ] Delete non-existent captcha attempt -> no error (idempotent) or ErrRecordNotFound depending on implementation
+- [ ] Get captcha settings for chat ID 0 -> returns default settings
 
 **Definition of Done:**
-- [ ] Tests added to `alita/db/cache_helpers_test.go`
-- [ ] Tests require CI env vars (package imports `config`) -- include skip guard
-- [ ] Table-driven test covering all 8 functions with at least 3 input values each
-- [ ] All tests use `t.Parallel()`
+- [ ] Test file `alita/db/captcha_db_test.go` has comprehensive CRUD tests (some tests already exist; expand them)
+- [ ] All tests use `skipIfNoDb(t)` and unique IDs
+- [ ] Tests cover the full lifecycle: create -> read -> update -> read -> delete -> read
+- [ ] Tests pass in CI
 
 ---
 
-### US-009: Add `TestMain` to `alita/db/` for Shared Initialization
+### US-010: DB Integration Tests for Greetings Operations
+
+**Priority:** P0 (must-have)
+
+As a developer,
+I want integration tests for CRUD operations in `greetings_db.go`,
+So that greeting settings for welcome/goodbye messages are verified.
+
+**Acceptance Criteria:**
+- [ ] GIVEN no greeting settings exist for a chat WHEN `GetGreetingSettings(chatID)` is called THEN default settings are returned with DefaultWelcome and DefaultGoodbye text
+- [ ] GIVEN greeting settings are created WHEN `GetGreetingSettings(chatID)` is called THEN the created settings are returned
+- [ ] GIVEN greeting settings exist WHEN welcome text is updated THEN subsequent Get returns updated welcome text
+- [ ] GIVEN greeting settings exist WHEN welcome is disabled THEN `ShouldWelcome` returns false
+- [ ] GIVEN greeting settings exist WHEN clean service is toggled THEN the toggle is persisted
+- [ ] GIVEN greeting settings exist WHEN goodbye text is updated THEN subsequent Get returns updated goodbye text
+
+**Edge Cases:**
+- [ ] Update greeting with empty welcome text -> persisted as empty string
+- [ ] Update greeting with ButtonArray containing buttons -> buttons serialized and deserialized correctly
+- [ ] Get greeting for non-existent chat -> returns defaults, not error
+- [ ] Update welcome and goodbye independently -> one update does not affect the other
+
+**Definition of Done:**
+- [ ] Test file `alita/db/greetings_db_test.go` has comprehensive tests (some may exist; expand them)
+- [ ] All tests use `skipIfNoDb(t)` and unique IDs
+- [ ] Tests verify default values match `DefaultWelcome` and `DefaultGoodbye` constants
+- [ ] Tests pass in CI
+
+---
+
+### US-011: i18n Translator and Manager Tests
+
+**Priority:** P0 (must-have)
+
+As a developer,
+I want comprehensive unit tests for `Translator.GetString()`, `GetPlural()`, `interpolateParams()`, and `LocaleManager` methods,
+So that translation lookup, fallback, interpolation, and pluralization logic is verified.
+
+**Acceptance Criteria:**
+- [ ] GIVEN a Translator with nil manager WHEN `GetString(key)` is called THEN an error wrapping `ErrManagerNotInit` is returned
+- [ ] GIVEN a valid Translator WHEN `GetString("existing_key")` is called THEN the translated string is returned with no error
+- [ ] GIVEN a valid Translator for "es" WHEN `GetString("nonexistent_key")` is called THEN it falls back to the default language ("en") value
+- [ ] GIVEN a valid Translator for the default language WHEN `GetString("nonexistent_key")` is called THEN an error wrapping `ErrKeyNotFound` is returned
+- [ ] GIVEN a string with `{user}` placeholder WHEN `GetString(key, params{"user": "Alice"})` is called THEN `{user}` is replaced with "Alice"
+- [ ] GIVEN a Translator with nil manager WHEN `GetPlural(key, count)` is called THEN an error wrapping `ErrManagerNotInit` is returned
+- [ ] GIVEN a LocaleManager WHEN `IsLanguageSupported("en")` is called THEN true is returned
+- [ ] GIVEN a LocaleManager WHEN `IsLanguageSupported("zz")` is called THEN false is returned
+- [ ] GIVEN a LocaleManager WHEN `GetDefaultLanguage()` is called THEN `"en"` is returned
+- [ ] GIVEN a LocaleManager WHEN `GetStats()` is called THEN stats contain the number of loaded languages
+
+**Edge Cases:**
+- [ ] GetString with empty key -> returns error (key not found)
+- [ ] GetString with params but string has no placeholders -> returns string unchanged
+- [ ] GetString with params containing extra unused keys -> returns string with only matched placeholders replaced
+- [ ] GetString with params containing key that maps to non-string value (int) -> value is converted to string via fmt.Sprintf
+- [ ] interpolateParams with `%s` legacy format and params -> positional replacement works
+- [ ] GetPlural with count=0, count=1, count=2, count=100 -> correct plural form selected
+- [ ] Recursive fallback detection (translator falls back to itself) -> `ErrRecursiveFallback` returned
+- [ ] GetStringSlice with nil manager -> `ErrManagerNotInit` returned
+
+**Definition of Done:**
+- [ ] Tests in `alita/i18n/i18n_test.go` are expanded (file already exists with test helpers)
+- [ ] Use existing `newTestTranslator` helper pattern for test setup
+- [ ] At least 15 new test cases added
+- [ ] Tests pass without Redis (cacheClient is nil in tests, and code handles nil cacheClient)
+- [ ] Tests use `t.Parallel()`
+
+---
+
+### US-012: Module Helper Function Tests
+
+**Priority:** P0 (must-have)
+
+As a developer,
+I want unit tests for pure unexported functions in `alita/modules/`,
+So that the largest package in the codebase (51% of code) has measurably higher coverage.
+
+**Acceptance Criteria:**
+- [ ] GIVEN no arguments WHEN `defaultUnmutePermissions()` is called THEN a `ChatPermissions` struct is returned with `CanSendMessages=true`, `CanChangeInfo=false`, `CanPinMessages=false`, `CanManageTopics=false`
+- [ ] GIVEN a nil ChatFullInfo pointer WHEN `resolveUnmutePermissions(nil)` is called THEN `defaultUnmutePermissions()` result is returned
+- [ ] GIVEN a ChatFullInfo with nil Permissions WHEN `resolveUnmutePermissions(chatInfo)` is called THEN `defaultUnmutePermissions()` result is returned
+- [ ] GIVEN a ChatFullInfo with non-nil Permissions WHEN `resolveUnmutePermissions(chatInfo)` is called THEN the chatInfo.Permissions is returned
+- [ ] GIVEN a moduleEnabled with Init() called WHEN `Store("admin", true)` then `Load("admin")` are called THEN `("admin", true)` is returned
+- [ ] GIVEN a moduleEnabled with Init() called WHEN `Load("nonexistent")` is called THEN `("nonexistent", false)` is returned
+- [ ] GIVEN a moduleEnabled with 3 modules stored (2 enabled, 1 disabled) WHEN `LoadModules()` is called THEN a slice of 2 enabled module names is returned
+- [ ] GIVEN a moduleEnabled with Init() called and no modules stored WHEN `LoadModules()` is called THEN an empty slice is returned
+
+**Edge Cases:**
+- [ ] resolveUnmutePermissions with ChatFullInfo that has Permissions with all-false fields -> returns all-false permissions
+- [ ] moduleEnabled Store with empty string key -> stores and loads with empty key (map allows it)
+- [ ] moduleEnabled Store same module twice with different values -> second value overwrites first
+- [ ] LoadModules result order is NOT guaranteed (map iteration) -> test should use `slices.Contains` not index comparison
+- [ ] listModules returns sorted output -> test the sort guarantees after populating modules
+
+**Definition of Done:**
+- [ ] New test file `alita/modules/chat_permissions_test.go` for permission helpers
+- [ ] New test file `alita/modules/help_test.go` or expanded existing test for moduleEnabled
+- [ ] Tests are in `package modules` (internal tests, accessing unexported functions)
+- [ ] Tests use `t.Parallel()`
+- [ ] At least 12 test cases across the module helper functions
+
+---
+
+### US-013: Extraction Function Tests
 
 **Priority:** P1 (should-have)
 
 As a developer,
-I want a `TestMain` function in the `alita/db/` package,
-So that all DB tests share a one-time `AutoMigrate` call and skip cleanly when PostgreSQL is unavailable.
+I want additional unit tests for functions in `alita/utils/extraction/extraction.go`,
+So that user extraction, time parsing, and mention ID extraction are verified with more edge cases.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `TestMain` exists in `alita/db/` WHEN PostgreSQL is available THEN it runs `DB.AutoMigrate()` for all models once before any test executes
-- [ ] GIVEN `TestMain` exists WHEN PostgreSQL is unavailable (`DB == nil`) THEN all DB tests are skipped with a clear message printed to stderr
-- [ ] GIVEN `TestMain` handles migration WHEN individual test files no longer call `AutoMigrate()` THEN no duplicate migration calls occur
+- [ ] GIVEN a message with a reply to another user WHEN `ExtractUser()` is called THEN the replied-to user's ID is extracted
+- [ ] GIVEN a message with a @username mention WHEN `ExtractUser()` is called THEN the mentioned user's details are extracted
+- [ ] GIVEN a message with a numeric user ID argument WHEN `ExtractUser()` is called THEN the user ID is parsed correctly
+- [ ] GIVEN a time string "2h30m" WHEN `ExtractTime()` is called THEN the duration is correctly parsed
+- [ ] GIVEN a message with text_mention entity WHEN `ExtractIDFromMention()` is called THEN the user ID from the entity is returned
 
 **Edge Cases:**
-- [ ] `TestMain` called with `DB == nil` -> prints skip message, calls `os.Exit(0)` to skip all tests gracefully
-- [ ] `DB.AutoMigrate()` fails (e.g., permission issue) -> `TestMain` calls `log.Fatalf` with clear error, test suite does not proceed with partial schema
+- [ ] ExtractUser with no reply, no arguments, no mentions -> returns appropriate zero value or error
+- [ ] ExtractUser with channel message (negative ID) -> handles correctly per IsChannelId rules
+- [ ] ExtractTime with invalid format "abc" -> returns error
+- [ ] ExtractTime with zero duration "0s" -> returns zero duration
+- [ ] ExtractTime with negative duration -> handles per implementation
+- [ ] ExtractIDFromMention with both Entities and CaptionEntities -> both are checked (per CLAUDE.md rules)
+- [ ] Message with nil Entities slice -> no panic
 
 **Definition of Done:**
-- [ ] File `alita/db/testmain_test.go` (or similar) exists with `func TestMain(m *testing.M)`
-- [ ] Contains `AutoMigrate` for all GORM models
-- [ ] Existing DB test files (`captcha_db_test.go`, `locks_db_test.go`, etc.) no longer duplicate `AutoMigrate` calls
-- [ ] All DB tests pass in CI and are skipped locally without PostgreSQL
+- [ ] Tests in `alita/utils/extraction/extraction_test.go` are expanded
+- [ ] Tests construct `gotgbot.Message` structs directly (no API calls needed)
+- [ ] At least 10 new test cases
+- [ ] Tests pass in CI with env vars set
 
 ---
 
-### US-010: Test DB CRUD Operations -- Greetings (15 functions)
+### US-014: Monitoring Pure Function Tests
 
 **Priority:** P1 (should-have)
 
 As a developer,
-I want integration tests for all greeting DB functions,
-So that the most complex DB module (380 LOC, 15 functions) is verified.
+I want unit tests for pure functions in `alita/utils/monitoring/`,
+So that system stats collection, remediation action metadata, and threshold calculations are verified.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `GetGreetingSettings(chatID)` for a non-existent chat WHEN the chat does not exist in the `chats` table THEN default settings are returned with `ShouldWelcome=true`, `WelcomeText=DefaultWelcome`, `ShouldGoodbye=false`
-- [ ] GIVEN `SetWelcomeText(chatID, text, fileId, buttons, type)` WHEN the greeting record exists THEN `GetGreetingSettings` returns the updated welcome text, file ID, buttons, and type
-- [ ] GIVEN `SetWelcomeToggle(chatID, false)` WHEN the setting was previously true THEN `GetGreetingSettings` returns `ShouldWelcome=false` (zero-value boolean round-trip verified)
-- [ ] GIVEN `SetGoodbyeText(chatID, ...)` and `SetGoodbyeToggle(chatID, true)` WHEN retrieved THEN goodbye settings reflect the updates
-- [ ] GIVEN `SetShouldCleanService(chatID, true)` WHEN retrieved THEN `ShouldCleanService=true`
-- [ ] GIVEN `SetShouldAutoApprove(chatID, true)` WHEN retrieved THEN `ShouldAutoApprove=true`
-- [ ] GIVEN `SetCleanWelcomeSetting` and `SetCleanWelcomeMsgId` WHEN retrieved THEN `CleanWelcome` and `LastMsgId` are correct
-- [ ] GIVEN `SetCleanGoodbyeSetting` and `SetCleanGoodbyeMsgId` WHEN retrieved THEN `CleanGoodbye` and `LastMsgId` are correct
-- [ ] GIVEN `GetWelcomeButtons(chatID)` after setting welcome text with buttons WHEN retrieved THEN the correct buttons are returned
-- [ ] GIVEN `GetGoodbyeButtons(chatID)` after setting goodbye text with buttons WHEN retrieved THEN the correct buttons are returned
-- [ ] GIVEN `LoadGreetingsStats()` with multiple chats having different settings WHEN called THEN correct aggregate counts are returned
+- [ ] GIVEN the Go runtime is running WHEN `CollectSystemStats()` is called THEN a non-nil stats struct is returned with `NumGoroutine > 0` and `MemAllocMB >= 0`
+- [ ] GIVEN each remediation action type WHEN `Name()` is called THEN a non-empty string is returned
+- [ ] GIVEN each remediation action type WHEN `Severity()` is called THEN a valid severity level is returned
+- [ ] GIVEN a memory usage below threshold WHEN `CanExecute()` is called on GCTriggerAction THEN false is returned
+- [ ] GIVEN a memory usage above threshold WHEN `CanExecute()` is called on GCTriggerAction THEN true is returned
 
 **Edge Cases:**
-- [ ] Zero-value boolean toggling: `SetWelcomeToggle(chatID, false)` after `true` -> `ShouldWelcome=false`
-- [ ] Empty welcome text: `SetWelcomeText(chatID, "", ...)` -> `checkGreetingSettings` returns `DefaultWelcome` for empty text
-- [ ] Concurrent `SetWelcomeText` and `SetGoodbyeText` for the same chat -> no data corruption (verified by `-race`)
-- [ ] `GetWelcomeButtons` for chat with no buttons set -> returns empty slice, not nil
-- [ ] `LoadGreetingsStats` with empty database -> returns all zeros
+- [ ] CollectSystemStats on a system with very few goroutines -> values are still positive
+- [ ] Remediation action Execute with nil dependencies -> no panic (defensive)
 
 **Definition of Done:**
-- [ ] Test file `alita/db/greetings_db_test.go` exists
-- [ ] Tests rely on `TestMain` (US-009) for schema setup, skip if `DB == nil`
-- [ ] Tests use `time.Now().UnixNano()` for unique chat IDs and `t.Cleanup()` for data removal
-- [ ] All 15 functions have at least one test case
-- [ ] Tests use `t.Parallel()` at the top-level test function
-
----
-
-### US-011: Test DB CRUD Operations -- Warns (13 functions)
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want integration tests for all warn DB functions,
-So that the warn system (critical for moderation) is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `checkWarnSettings(chatID)` for a new chat WHEN the chat exists THEN default settings are created with `WarnLimit=3` and `WarnMode="mute"`
-- [ ] GIVEN a user is warned WHEN the warn is retrieved THEN the warn record contains the correct user ID, chat ID, reason, and warner ID
-- [ ] GIVEN a user has N warns and `WarnLimit` is N WHEN another warn is added THEN the function signals that the limit is reached
-- [ ] GIVEN a warn is removed WHEN the warn count is checked THEN it reflects the removal
-- [ ] GIVEN `ResetWarns(chatID, userID)` WHEN all warns are retrieved THEN zero warns exist for that user in that chat
-- [ ] GIVEN warn settings are updated (limit, mode) WHEN retrieved THEN the updated values are returned
-
-**Edge Cases:**
-- [ ] Warn with empty reason string -> stores and retrieves correctly
-- [ ] `ResetWarns` for a user with zero warns -> no error, no-op
-- [ ] Concurrent warn creation for the same user/chat -> no duplicate IDs, correct count
-- [ ] Warn limit set to 0 -> should handle gracefully, not cause infinite warns
-- [ ] Warn mode set to invalid string -> stores as-is (validation at handler level)
-
-**Definition of Done:**
-- [ ] Test file `alita/db/warns_db_test.go` exists
-- [ ] Tests rely on `TestMain` (US-009), skip if `DB == nil`
-- [ ] All CRUD functions tested with at least one happy-path and one edge case
-- [ ] `t.Cleanup()` removes all test data
-
----
-
-### US-012: Test DB CRUD Operations -- Notes (11 functions)
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want integration tests for all notes DB functions,
-So that the notes storage system is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `getNotesSettings(chatID)` for a new chat WHEN chat exists THEN default settings with `Private=false` are created
-- [ ] GIVEN a note is saved with name, text, buttons, and type WHEN retrieved by name THEN all fields match
-- [ ] GIVEN multiple notes are saved for a chat WHEN `GetAllNotes(chatID)` is called THEN all notes are returned
-- [ ] GIVEN a note is deleted by name WHEN retrieved THEN it returns not-found
-- [ ] GIVEN notes private mode is toggled WHEN retrieved THEN the toggle state is correct
-
-**Edge Cases:**
-- [ ] Note with empty name -> stores (validation at handler level)
-- [ ] Note with very long text (> 4096 chars) -> stores without truncation at DB level
-- [ ] Duplicate note name for the same chat -> updates existing (upsert behavior)
-- [ ] `GetAllNotes` for chat with zero notes -> returns empty slice, not nil
-- [ ] Delete non-existent note -> no error, no-op
-
-**Definition of Done:**
-- [ ] Test file `alita/db/notes_db_test.go` exists
-- [ ] Tests rely on `TestMain` (US-009), skip if `DB == nil`
-- [ ] All 11 functions have at least one test case
-- [ ] `t.Cleanup()` removes all test data
-
----
-
-### US-013: Test DB CRUD Operations -- Filters (7 functions)
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want integration tests for all filter DB functions,
-So that the filter/autoresponse storage is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN a filter is saved with keyword, reply text, and type WHEN retrieved by keyword THEN all fields match
-- [ ] GIVEN `GetAllFilters(chatID)` WHEN multiple filters exist THEN all are returned
-- [ ] GIVEN a filter is deleted by keyword WHEN retrieved THEN it returns not-found
-- [ ] GIVEN `FilterExists(chatID, keyword)` for an existing filter WHEN called THEN it returns true
-- [ ] GIVEN cache invalidation occurs on filter write WHEN the same filter is read THEN fresh data is returned (not stale cache)
-
-**Edge Cases:**
-- [ ] Filter with special characters in keyword (regex metacharacters like `.*+?`) -> stores and retrieves correctly
-- [ ] Filter with empty reply text -> stores as-is
-- [ ] Concurrent filter creation for the same chat/keyword -> no data corruption
-- [ ] `GetAllFilters` for chat with zero filters -> returns empty slice
-
-**Definition of Done:**
-- [ ] Test file `alita/db/filters_db_test.go` exists
-- [ ] Tests rely on `TestMain` (US-009), skip if `DB == nil`
-- [ ] All 7 functions tested
-- [ ] `t.Cleanup()` removes all test data
-
----
-
-### US-014: Test DB CRUD Operations -- Remaining 12 Files
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want integration tests for the remaining 12 untested DB files,
-So that all DB CRUD operations have test coverage.
-
-**Files:** `admin_db.go` (3 functions), `blacklists_db.go` (6), `channels_db.go` (6), `chats_db.go` (6), `connections_db.go` (8), `devs_db.go` (7), `disable_db.go` (9), `lang_db.go` (5), `pin_db.go` (4), `reports_db.go` (7), `rules_db.go` (6), `user_db.go` (8).
-
-**Acceptance Criteria:**
-- [ ] GIVEN each DB file's functions WHEN tested with the existing pattern (unique IDs, `t.Cleanup`) THEN all CRUD operations work correctly for create, read, update, and delete paths
-- [ ] GIVEN `admin_db.go` WHEN tested THEN admin cache list and related functions are verified
-- [ ] GIVEN `blacklists_db.go` WHEN tested THEN blacklist keyword CRUD and chat blacklist mode are verified
-- [ ] GIVEN `channels_db.go` WHEN tested THEN channel registration and lookup by ID/username are verified
-- [ ] GIVEN `chats_db.go` WHEN tested THEN chat registration, existence check (`ChatExists`), and listing are verified
-- [ ] GIVEN `connections_db.go` WHEN tested THEN user-to-chat connections (connect, disconnect, retrieval) are verified
-- [ ] GIVEN `devs_db.go` WHEN tested THEN developer/sudo user management is verified
-- [ ] GIVEN `disable_db.go` WHEN tested THEN command disable/enable per chat is verified including zero-value boolean round-trip
-- [ ] GIVEN `lang_db.go` WHEN tested THEN language preference storage for users and chats is verified
-- [ ] GIVEN `pin_db.go` WHEN tested THEN pin message tracking is verified
-- [ ] GIVEN `reports_db.go` WHEN tested THEN report settings and storage are verified
-- [ ] GIVEN `rules_db.go` WHEN tested THEN chat rules CRUD and private-rules toggle are verified
-- [ ] GIVEN `user_db.go` WHEN tested THEN user registration, lookup by ID/username, and info retrieval are verified
-
-**Edge Cases (applies to all 12 files):**
-- [ ] Zero-value boolean fields (e.g., `false` toggles) are persisted and retrieved correctly (GORM zero-value gotcha -- must use `map[string]any` for updates)
-- [ ] Non-existent record lookups return appropriate defaults or errors, not panics
-- [ ] Concurrent create operations for the same entity -> exactly one succeeds or both succeed idempotently (unique constraint behavior)
-- [ ] Delete of non-existent record -> no error, no-op
-- [ ] Lookup by username with and without `@` prefix -> consistent behavior
-
-**Definition of Done:**
-- [ ] One test file per DB file (e.g., `admin_db_test.go`, `blacklists_db_test.go`, etc.)
-- [ ] All test files rely on `TestMain` (US-009), skip if `DB == nil`
-- [ ] Each function has at least one happy-path test and one error/edge-case test
-- [ ] `t.Cleanup()` removes all test data
-- [ ] All tests use `time.Now().UnixNano()` for unique IDs
-
----
-
-### US-015: Expand Coverage on Existing DB Test Files
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want to expand test coverage for the 4 DB files that already have partial tests (`captcha_db.go`, `locks_db.go`, `antiflood_db.go`, `update_record.go`),
-So that untested functions in these files are covered.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `captcha_db.go` has functions beyond the 2 tested WHEN new tests are added THEN all public functions (`CreateCaptchaAttemptPreMessage`, `GetCaptchaSettings`, `SetCaptchaEnabled`, `SetCaptchaMode`, `SetCaptchaTimeout`, `SetCaptchaMaxAttempts`, `SetCaptchaFailureAction`, `GetCaptchaAttemptByID`, etc.) have at least one test case
-- [ ] GIVEN `locks_db.go` has functions beyond the 4 tested WHEN new tests are added THEN all `GetLock*`, `UpdateLock`, and `GetAllLocks` functions are tested
-- [ ] GIVEN `antiflood_db.go` has functions beyond the 3 tested WHEN new tests are added THEN all `GetFlood`, `SetFlood`, `GetFloodMsgDel`, `SetFloodMsgDel` functions are tested
-
-**Edge Cases:**
-- [ ] All existing tests continue to pass after new tests are added
-- [ ] New tests do not interfere with existing test data (use unique IDs via `time.Now().UnixNano()`)
-
-**Definition of Done:**
-- [ ] All public functions in `captcha_db.go`, `locks_db.go`, and `antiflood_db.go` have test coverage
-- [ ] No regressions in existing tests
-- [ ] Tests follow established patterns
-
----
-
-### US-016: Test `monitoring/auto_remediation.go` Pure Functions
-
-**Priority:** P2 (nice-to-have)
-
-As a developer,
-I want unit tests for the `RemediationAction` implementations' `CanExecute`, `Name`, and `Severity` methods,
-So that threshold-based decision logic is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `GCAction.CanExecute(metrics)` with `MemoryAllocMB` above 60% of `ResourceMaxMemoryMB` WHEN called THEN it returns true
-- [ ] GIVEN `GCAction.CanExecute(metrics)` with `MemoryAllocMB` below 60% threshold and `GCPauseMs` below 50 WHEN called THEN it returns false
-- [ ] GIVEN `MemoryCleanupAction.CanExecute(metrics)` with `MemoryAllocMB` above `ResourceGCThresholdMB` WHEN called THEN it returns true
-- [ ] GIVEN `LogWarningAction.CanExecute(metrics)` with goroutines above 80% of max WHEN called THEN it returns true
-- [ ] GIVEN `RestartRecommendationAction.CanExecute(metrics)` with resources above 150% of max WHEN called THEN it returns true
-- [ ] GIVEN each action's `Name()` WHEN called THEN it returns the expected string identifier
-- [ ] GIVEN each action's `Severity()` WHEN called THEN LogWarning=0 < GC=1 < MemoryCleanup=2 < RestartRecommendation=10
-
-**Edge Cases:**
-- [ ] `CanExecute` with zero-value `SystemMetrics` -> all actions return false (thresholds are above zero)
-- [ ] `CanExecute` with `MemoryAllocMB` exactly at threshold boundary -> verify inclusive/exclusive behavior
-- [ ] `CanExecute` with negative metric values -> returns false (below threshold)
-
-**Definition of Done:**
-- [ ] Test file `alita/utils/monitoring/auto_remediation_test.go` exists
-- [ ] Tests require CI env vars (package imports `config`) -- include skip guard
-- [ ] All 4 actions tested for `CanExecute`, `Name`, and `Severity`
-- [ ] Tests SHALL NOT call `Execute` (which triggers actual GC/runtime operations)
-- [ ] All tests use `t.Parallel()`
-
----
-
-### US-017: Test `monitoring/background_stats.go` Non-Infrastructure Functions
-
-**Priority:** P2 (nice-to-have)
-
-As a developer,
-I want unit tests for the `BackgroundStatsCollector` atomic counter methods and lifecycle creation,
-So that the stats recording API is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN `NewBackgroundStatsCollector()` WHEN called THEN counter fields are zero and intervals are defaults (30s system, 1m db, 5m reporting)
-- [ ] GIVEN `RecordMessage()` is called N times concurrently WHEN counter is read THEN `messageCounter >= N`
-- [ ] GIVEN `RecordError()` is called N times concurrently WHEN counter is read THEN `errorCounter >= N`
-- [ ] GIVEN `RecordResponseTime(duration)` is called WHEN metrics are read THEN `responseTimeSum` and `responseTimeCount` reflect the recordings
-- [ ] GIVEN `GetCurrentMetrics()` is called from multiple goroutines concurrently WHEN executed THEN no data races occur
-
-**Edge Cases:**
-- [ ] `RecordResponseTime(0)` -> does not cause divide-by-zero when computing average
-- [ ] `GetCurrentMetrics` before any stats collection -> returns zero-value `SystemMetrics`
-- [ ] `Stop()` called twice -> second call is a no-op (`sync.Once`)
-
-**Definition of Done:**
-- [ ] Test file `alita/utils/monitoring/background_stats_test.go` exists
-- [ ] Tests require CI env vars (package imports `db`) -- include skip guard
-- [ ] Tests SHALL NOT call `Start()` or `Stop()` with live goroutines (test counter methods and `GetCurrentMetrics` only)
-- [ ] All tests use `t.Parallel()`
-
----
-
-### US-018: Expand `i18n` Package Tests
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want the existing 10 tests in `i18n_test.go` to pass AND additional tests for `Translator` methods and `LocaleManager` methods,
-So that the internationalization layer has comprehensive coverage.
-
-**Acceptance Criteria:**
-- [ ] GIVEN the existing 10 tests WHEN run with CI env vars THEN all pass
-- [ ] GIVEN `Translator.Get("existing_key")` WHEN called THEN it returns the translated string
-- [ ] GIVEN `Translator.Get("nonexistent_key")` WHEN called THEN it returns a fallback or error indicator
-- [ ] GIVEN `Translator.Get("key_with_params", params)` WHEN called THEN named parameters are substituted
-- [ ] GIVEN `LocaleManager.GetTranslator("en")` WHEN called THEN it returns the English translator
-- [ ] GIVEN `LocaleManager.GetTranslator("nonexistent_locale")` WHEN called THEN it returns default translator or error
-- [ ] GIVEN `LocaleManager.GetAvailableLocales()` WHEN called THEN it returns at least `["en", "es", "fr", "hi"]`
-
-**Edge Cases:**
-- [ ] `Translator.Get` with nil params map -> no panic
-- [ ] `Translator.Get` with more params than placeholders -> extra params ignored
-- [ ] `Translator.Get` with fewer params than placeholders -> remaining placeholders unsubstituted or error
-- [ ] `selectPluralForm` with count=0, count=1, count=2 -> correct plural form selected
-
-**Definition of Done:**
-- [ ] Additional tests added to `alita/i18n/i18n_test.go`
-- [ ] Tests require CI env vars -- include skip guard
-- [ ] At least 5 new test cases beyond existing 10
-- [ ] Package coverage >= 60%
-
----
-
-### US-019: Expand `helpers` Package Tests
-
-**Priority:** P1 (should-have)
-
-As a developer,
-I want the existing 28 tests in `helpers_test.go` to pass AND additional tests for remaining pure functions,
-So that the helpers package achieves comprehensive coverage.
-
-**Acceptance Criteria:**
-- [ ] GIVEN the existing 28 tests WHEN run with CI env vars THEN all pass
-- [ ] GIVEN `Shtml(text)` WHEN called THEN it returns the correct HTML parse mode opts
-- [ ] GIVEN `Smarkdown(text)` WHEN called THEN it returns the correct Markdown parse mode opts
-- [ ] GIVEN `GetMessageLinkFromMessageId(chatID, messageID)` with a supergroup chat ID WHEN called THEN it returns the correct `https://t.me/c/...` URL
-- [ ] GIVEN `GetLangFormat(langCode)` with "en" WHEN called THEN it returns the English locale display format
-- [ ] GIVEN `ExtractJoinLeftStatusChange(update)` with a join event WHEN called THEN it correctly identifies the join
-- [ ] GIVEN `ExtractAdminUpdateStatusChange(update)` with a promotion event WHEN called THEN it correctly identifies the admin promotion
-
-**Edge Cases:**
-- [ ] `GetMessageLinkFromMessageId` with private chat ID -> correct URL format
-- [ ] `GetMessageLinkFromMessageId` with message ID 0 -> valid URL with 0
-- [ ] `ExtractJoinLeftStatusChange` with nil `ChatMemberUpdated` -> returns appropriate zero-value
-- [ ] `ExtractAdminUpdateStatusChange` with demotion (admin -> member) -> identified correctly
-
-**Definition of Done:**
-- [ ] Additional tests added to `alita/utils/helpers/helpers_test.go`
-- [ ] Tests require CI env vars -- include skip guard
+- [ ] Tests in `alita/utils/monitoring/` test files are expanded
+- [ ] Tests for pure stat collection do not require config package (or handle init gracefully)
 - [ ] At least 8 new test cases
-- [ ] Tests construct `gotgbot` structs directly (no API calls)
-- [ ] All tests use `t.Parallel()`
 
 ---
 
-### US-020: Test DB `migrations.go` Pure Functions
-
-**Priority:** P2 (nice-to-have)
-
-As a developer,
-I want unit tests for the SQL cleaning functions and `SchemaMigration.TableName()` in `migrations.go`,
-So that Supabase-specific SQL cleaning is verified.
-
-**Acceptance Criteria:**
-- [ ] GIVEN a SQL string containing `GRANT ... TO anon` WHEN cleaned THEN the GRANT line is removed
-- [ ] GIVEN a SQL string containing `with schema "extensions"` WHEN cleaned THEN it is removed
-- [ ] GIVEN a SQL string with `create extension if not exists` WHEN cleaned THEN it is uppercased to `CREATE EXTENSION IF NOT EXISTS`
-- [ ] GIVEN a clean SQL string with no Supabase-specific syntax WHEN cleaned THEN it is returned unchanged
-- [ ] GIVEN `SchemaMigration.TableName()` WHEN called THEN it returns `"schema_migrations"`
-
-**Edge Cases:**
-- [ ] Empty SQL string -> returned empty
-- [ ] SQL with multiple GRANT lines -> all removed
-- [ ] SQL with GRANT in a SQL comment (`-- GRANT ...`) -> behavior documented (current regex may remove)
-
-**Definition of Done:**
-- [ ] Test file `alita/db/migrations_test.go` exists
-- [ ] Tests require CI env vars -- include skip guard
-- [ ] SQL cleaning functions tested with at least 5 input variations
-- [ ] `TableName()` method tested
-
----
-
-### US-021: Add Coverage Threshold Enforcement to CI
+### US-015: Migration SQL Processing Tests
 
 **Priority:** P1 (should-have)
 
 As a developer,
-I want CI to fail if overall test coverage drops below a configured threshold,
-So that coverage regressions are caught before merge.
+I want unit tests for `cleanSupabaseSQL()`, `splitSQLStatements()`, and `getMigrationFiles()` in `alita/db/migrations.go`,
+So that SQL cleaning and splitting logic is verified without requiring a database.
 
 **Acceptance Criteria:**
-- [ ] GIVEN `coverage.out` is generated by `make test` WHEN a CI step parses it THEN it extracts the total coverage percentage
-- [ ] GIVEN the total coverage is below the threshold (initially 40%) WHEN the CI step evaluates THEN the CI job fails with a clear message showing actual vs. required coverage
-- [ ] GIVEN the total coverage is at or above the threshold WHEN the CI step evaluates THEN the CI job passes
-- [ ] GIVEN the threshold is configurable WHEN a developer updates it THEN only the threshold value needs to change (single source of truth)
+- [ ] GIVEN SQL with Supabase GRANT statements WHEN `cleanSupabaseSQL()` is called THEN GRANT statements targeting anon/authenticated/service_role are removed
+- [ ] GIVEN SQL with CREATE TABLE WHEN `cleanSupabaseSQL()` is called THEN it is transformed to CREATE TABLE IF NOT EXISTS
+- [ ] GIVEN SQL with CREATE INDEX WHEN `cleanSupabaseSQL()` is called THEN it is transformed to CREATE INDEX IF NOT EXISTS
+- [ ] GIVEN SQL with CREATE UNIQUE INDEX WHEN `cleanSupabaseSQL()` is called THEN it is transformed to CREATE UNIQUE INDEX IF NOT EXISTS
+- [ ] GIVEN SQL with CREATE TYPE ... AS ENUM WHEN `cleanSupabaseSQL()` is called THEN it is wrapped in a DO block with exception handling
+- [ ] GIVEN SQL with two statements separated by `;` WHEN `splitSQLStatements()` is called THEN a slice of 2 strings is returned
+- [ ] GIVEN SQL with a semicolon inside a single-quoted string WHEN `splitSQLStatements()` is called THEN the string is not split on the internal semicolon
+- [ ] GIVEN SQL with dollar-quoted strings WHEN `splitSQLStatements()` is called THEN dollar-quoted content is preserved as one statement
+- [ ] GIVEN SQL with `--` line comments WHEN `splitSQLStatements()` is called THEN comments do not interfere with splitting
+- [ ] GIVEN SQL with `/* */` block comments WHEN `splitSQLStatements()` is called THEN block comments do not interfere with splitting
 
 **Edge Cases:**
-- [ ] `coverage.out` is empty or missing -> CI step fails with "no coverage data" message, not a silent pass
-- [ ] Coverage is exactly at threshold (e.g., 40.0%) -> passes (inclusive comparison)
-- [ ] Coverage output contains `[no test files]` for some packages -> those are excluded from the total calculation
+- [ ] Empty SQL string -> empty results
+- [ ] SQL with only comments and whitespace -> empty results
+- [ ] SQL with nested quotes (escaped single quotes `''`) -> handled correctly
+- [ ] getMigrationFiles with non-existent path -> returns error
+- [ ] getMigrationFiles with empty directory -> returns empty slice
+- [ ] cleanSupabaseSQL with ALTER TABLE ADD CONSTRAINT -> wrapped in idempotent DO block
+- [ ] cleanSupabaseSQL with Supabase-only extensions (hypopg, pg_graphql, etc.) -> extension statements removed
 
 **Definition of Done:**
-- [ ] CI workflow `.github/workflows/ci.yml` contains a coverage threshold check step after test execution
-- [ ] Threshold starts at 40% (achievable after P0 + P1 work)
-- [ ] Coverage percentage is printed in the CI job summary
-- [ ] The check uses `go tool cover -func=coverage.out` to parse total coverage
+- [ ] Tests in `alita/db/migrations_test.go` are expanded (file exists)
+- [ ] Tests for cleanSupabaseSQL and splitSQLStatements are pure unit tests (no DB needed)
+- [ ] Tests for getMigrationFiles use temporary directories created with `t.TempDir()`
+- [ ] At least 15 test cases covering the SQL processing functions
+- [ ] Tests pass without PostgreSQL for the pure functions
 
 ---
 
-### US-022: Test `config/types.go` Expansion
-
-**Priority:** P2 (nice-to-have)
-
-As a developer,
-I want the existing 5 test functions (~30 subtests) in `config/types_test.go` to pass and have additional edge cases for `LoadConfig`,
-So that configuration loading edge cases are covered.
-
-**Acceptance Criteria:**
-- [ ] GIVEN the existing 5 test functions WHEN run with CI env vars THEN all pass
-- [ ] GIVEN `LoadConfig()` is called with all required env vars set WHEN executed THEN it returns a valid `Config` struct with no error
-- [ ] GIVEN `LoadConfig()` is called with `BOT_TOKEN` unset WHEN executed THEN it returns an error
-
-**Edge Cases:**
-- [ ] `LoadConfig` with empty string `BOT_TOKEN=""` -> verify behavior (error or accepted)
-- [ ] Boolean env vars with mixed case ("TRUE", "True", "true") -> all accepted
-
-**Definition of Done:**
-- [ ] Additional tests added to `alita/config/` test files
-- [ ] Tests require CI env vars
-- [ ] At least 3 new test cases
-
----
-
-### US-023: Verify Existing `tracing` and `cache/sanitize` Tests Pass
-
-**Priority:** P2 (nice-to-have)
-
-As a developer,
-I want the existing 10 tracing tests and 18 cache/sanitize subtests to pass in CI,
-So that these packages contribute to measured coverage.
-
-**Acceptance Criteria:**
-- [ ] GIVEN the existing `context_test.go` (6 tests) and `processor_test.go` (4 tests) WHEN run with CI env vars THEN all pass
-- [ ] GIVEN the existing `sanitize_test.go` (2 functions, ~18 subtests) WHEN run with CI env vars THEN all pass
-- [ ] GIVEN coverage is measured THEN both packages show non-zero coverage
-
-**Definition of Done:**
-- [ ] Existing tests pass in CI
-- [ ] No new tests required (existing coverage is already solid for these packages)
-
----
-
-### US-024: Test `chat_status` Package ID Validation
+### US-016: Helpers Package Additional Tests
 
 **Priority:** P1 (should-have)
 
 As a developer,
-I want the existing 2 test functions (~14 subtests) in `chat_status_test.go` to pass,
-So that ID validation logic is verified.
+I want additional unit tests for pure functions in `alita/utils/helpers/helpers.go`,
+So that message splitting, HTML reversal, and formatting helpers have higher coverage.
 
 **Acceptance Criteria:**
-- [ ] GIVEN the existing `IsValidUserId` and `IsChannelId` tests WHEN run with CI env vars THEN all pass
-- [ ] GIVEN any additional pure functions in `chat_status.go` that do not call Telegram API WHEN identified THEN tests are added
+- [ ] GIVEN a message shorter than MaxMessageLength (4096 chars) WHEN `SplitMessage()` is called THEN a single-element slice is returned
+- [ ] GIVEN a message longer than MaxMessageLength WHEN `SplitMessage()` is called THEN a multi-element slice is returned with each element <= MaxMessageLength
+- [ ] GIVEN a message with newlines WHEN `SplitMessage()` is called THEN splitting happens on newline boundaries
+- [ ] GIVEN HTML with `<a href="...">text</a>` WHEN `ReverseHTML2MD()` is called THEN it is converted to `[text](url)` markdown format
+- [ ] GIVEN HTML with `<b>text</b>` WHEN `ReverseHTML2MD()` is called THEN it is converted to `*text*` or `**text**` markdown
+- [ ] GIVEN `Shtml()` is called THEN the returned opts have ParseMode="HTML", disabled link preview, and AllowSendingWithoutReply=true
+- [ ] GIVEN `Smarkdown()` is called THEN the returned opts have ParseMode="Markdown"
 
 **Edge Cases:**
-- [ ] Already covered by existing tests (positive IDs, zero, negative, channel IDs, boundary values, Telegram system IDs)
+- [ ] SplitMessage with empty string -> single-element slice with empty string (or empty slice)
+- [ ] SplitMessage with exactly MaxMessageLength chars -> single-element slice
+- [ ] SplitMessage with MaxMessageLength+1 chars and no newlines -> forced split at boundary
+- [ ] SplitMessage with unicode characters (multi-byte) -> splits on rune count, not byte count
+- [ ] ReverseHTML2MD with nested tags -> handles innermost tags
+- [ ] ChunkKeyboardSlices with empty input -> returns empty result
+- [ ] ChunkKeyboardSlices with items not divisible by chunk size -> last chunk is smaller
 
 **Definition of Done:**
-- [ ] Existing tests pass in CI
-- [ ] Any newly discovered pure functions without API dependencies are tested
+- [ ] Tests in `alita/utils/helpers/helpers_test.go` are expanded
+- [ ] Tests pass in CI with env vars set (helpers imports config)
+- [ ] At least 12 new test cases
+- [ ] Tests use `t.Parallel()` where safe
+
+---
+
+### US-017: Chat Status Helper Tests
+
+**Priority:** P2 (nice-to-have)
+
+As a developer,
+I want additional unit tests for functions in `alita/utils/chat_status/`,
+So that ID validation, permission checking helpers, and chat type guards have higher coverage.
+
+**Acceptance Criteria:**
+- [ ] GIVEN a positive int64 WHEN `IsValidUserId(123)` is called THEN true is returned (already tested, verify edge cases)
+- [ ] GIVEN a large negative int64 (<-1000000000000) WHEN `IsChannelId(id)` is called THEN true is returned
+- [ ] GIVEN a small negative int64 (>-1000000000000) WHEN `IsChannelId(id)` is called THEN false is returned
+- [ ] GIVEN 0 WHEN `IsValidUserId(0)` is called THEN false is returned
+
+**Edge Cases:**
+- [ ] IsValidUserId with int64 max value -> true
+- [ ] IsChannelId with exactly -1000000000000 -> test boundary
+- [ ] IsValidUserId with negative non-channel ID -> false
+
+**Definition of Done:**
+- [ ] Tests in `alita/utils/chat_status/chat_status_test.go` are expanded
+- [ ] At least 6 new test cases for boundary conditions
+- [ ] Tests pass in CI
+
+---
+
+### US-018: DB Integration Tests for Remaining CRUD Operations
+
+**Priority:** P0 (must-have)
+
+As a developer,
+I want comprehensive integration tests for DB operations that currently have low or no coverage: `disable_db.go`, `notes_db.go`, `rules_db.go`, `admin_db.go`, `connections_db.go`,
+So that the core CRUD paths for these modules are verified against a real database.
+
+**Acceptance Criteria:**
+- [ ] GIVEN no disable settings for a chat WHEN `GetDisabledCommands(chatID)` is called THEN an empty result is returned
+- [ ] GIVEN a command is disabled WHEN `GetDisabledCommands(chatID)` is called THEN the disabled command is in the result
+- [ ] GIVEN no notes for a chat WHEN `GetAllNotes(chatID)` is called THEN an empty slice is returned
+- [ ] GIVEN a note is saved WHEN `GetNote(chatID, noteName)` is called THEN the note is returned with correct content
+- [ ] GIVEN no rules for a chat WHEN `GetRules(chatID)` is called THEN default/empty rules are returned
+- [ ] GIVEN rules are set WHEN `GetRules(chatID)` is called THEN the rules text is returned
+- [ ] GIVEN admin settings are created WHEN `GetAdminSettings(chatID)` is called THEN the settings are returned
+- [ ] GIVEN a connection is created WHEN `GetConnection(userID)` is called THEN the connected chat ID is returned
+- [ ] GIVEN a connection exists WHEN `DisconnectId(userID)` is called THEN subsequent GetConnection returns no active connection
+
+**Edge Cases:**
+- [ ] Disable the same command twice -> idempotent, no duplicate entries
+- [ ] Save a note with the same name twice -> update/overwrite, not duplicate
+- [ ] GetNote with case-insensitive name matching -> verify behavior
+- [ ] Delete a note that does not exist -> no error or appropriate error
+- [ ] Connection for user with no prior connections -> default/not-found
+- [ ] Admin settings with AnonAdmin toggle -> boolean false is persisted (UPSERT pattern)
+
+**Definition of Done:**
+- [ ] Existing test files (`disable_db_test.go`, `notes_db_test.go`, `rules_db_test.go`, `admin_db_test.go`, `connections_db_test.go`) are expanded
+- [ ] All tests use `skipIfNoDb(t)` and unique IDs
+- [ ] Full CRUD lifecycle tested for each module
+- [ ] Tests pass in CI
+- [ ] At least 20 new test cases across these files
 
 ## Non-Functional Requirements
 
-### NFR-001: Test Execution Time
+### NFR-001: CI Coverage Threshold
 
-- **Metric:** Full test suite (`make test`) SHALL complete in under 5 minutes in CI (excluding PostgreSQL startup and Go compilation)
-- **Verification:** CI job summary prints duration; SHALL not exceed 300 seconds for test execution
+- **Metric:** `go tool cover -func=coverage.out | grep '^total:'` SHALL report >= 40.0% (hard floor) and SHOULD report >= 45.0% (target)
+- **Verification:** CI pipeline `Check coverage threshold` step passes. Manual verification: run `make test` locally with appropriate env vars, then check `go tool cover -func=coverage.out`.
 
-### NFR-002: Test Conventions -- stdlib Only
+### NFR-002: Test Execution Time
 
-- **Metric:** 100% of new test files SHALL use stdlib `testing` only. Zero new test framework dependencies.
-- **Verification:** `go list -m all` shows no new test-only modules; no imports of testify, gomock, gocheck in any `_test.go` file
+- **Metric:** Total test suite execution time SHALL remain under 10 minutes (current CI timeout)
+- **Verification:** CI `Run test suite` step completes within the 20-minute job timeout. The `make test` command has a 10-minute timeout built in. No single test SHALL take more than 60 seconds.
 
-### NFR-003: Test Parallelism
+### NFR-003: Test Isolation
 
-- **Metric:** 100% of new test functions and subtests SHALL call `t.Parallel()` where safe (no shared mutable global state mutation in test body)
-- **Verification:** All new test files contain `t.Parallel()` calls; `-race` flag detects no races
+- **Metric:** Every test SHALL be independently runnable. No test SHALL depend on the execution order or side effects of another test.
+- **Verification:** Run tests with `-count=1 -shuffle=on` and verify all pass. Run any single test in isolation and verify it passes.
 
-### NFR-004: Table-Driven Test Pattern
+### NFR-004: Race Condition Freedom
 
-- **Metric:** 100% of new test functions with 3+ test cases SHALL use table-driven pattern with `t.Run` subtests
-- **Verification:** Code review confirms `tests := []struct{...}` pattern
+- **Metric:** Zero data races detected by the Go race detector
+- **Verification:** `go test -race ./...` completes with no race warnings. This is already enforced by the `-race` flag in `make test`.
 
-### NFR-005: Test Data Isolation
+### NFR-005: No Redis Dependency for Non-Cache Tests
 
-- **Metric:** 100% of DB integration tests SHALL use unique IDs (via `time.Now().UnixNano()`) and `t.Cleanup()` for data removal
-- **Verification:** No DB test uses hardcoded IDs; all tests include `t.Cleanup` block
+- **Metric:** All unit tests and non-cache integration tests SHALL pass when Redis is unavailable (CI has no Redis service)
+- **Verification:** Tests pass in CI where `REDIS_ADDRESS` is set to `localhost:6379` but no Redis server is running. Cache-dependent code paths return nil/zero values gracefully.
 
-### NFR-006: Race Condition Detection
+### NFR-006: Test Naming Convention
 
-- **Metric:** `go test -race ./...` SHALL pass with zero data races for all new and existing tests
-- **Verification:** CI runs `make test` which includes `-race` flag; zero race conditions reported
+- **Metric:** All test function names SHALL follow the pattern `Test[FunctionName]` or `Test[TypeName]_[MethodName]`. All subtests SHALL have descriptive names.
+- **Verification:** `go test -v ./...` output shows clear, descriptive test names. No unnamed subtests.
 
-### NFR-007: Coverage Targets
+### NFR-007: No Test Pollution of Production Data
 
-- **Metric:** Overall coverage SHALL reach 40% after P0 + P1 work is complete, and 55% after all P0 + P1 + P2 work is complete
-- **Verification:** `go tool cover -func=coverage.out | tail -1` shows total coverage >= target; CI step enforces threshold per US-021
-
-### NFR-008: No New Module Dependencies
-
-- **Metric:** Zero new Go module dependencies SHALL be added solely for testing purposes
-- **Verification:** `go.mod` diff shows no new `require` entries added for test frameworks or test utilities
-
-### NFR-009: Graceful Skip for Missing Infrastructure
-
-- **Metric:** Tests requiring PostgreSQL SHALL skip (not fail) when database is unreachable. Tests requiring env vars SHALL skip (not crash) when run without them.
-- **Verification:** Running `go test ./alita/db/...` locally without PostgreSQL produces skip messages, exit code 0
+- **Metric:** All DB integration tests SHALL use unique IDs generated via `time.Now().UnixNano()` and SHALL clean up via `t.Cleanup()`.
+- **Verification:** Code review confirms all DB test functions use the `skipIfNoDb` + unique ID + `t.Cleanup` pattern from `testmain_test.go`.
 
 ## Dependencies
 
 | Dependency | Required By | Risk if Unavailable |
 |-----------|------------|-------------------|
-| PostgreSQL 16 in CI | US-009 through US-015, US-020 | DB tests cannot run; ~20-25% coverage gain blocked |
-| `BOT_TOKEN=test-token` env var in CI | US-001, all packages importing `config` transitively | 8 packages crash; ~15% coverage blocked |
-| `DATABASE_URL` env var in CI | US-009 through US-015 | DB connection fails; same as PostgreSQL unavailable |
-| `GORM v1.31.1` (existing) | US-009 through US-015, US-020 | All DB tests; zero risk (already in go.mod) |
-| `gotgbot/v2 v2.0.0-rc.33` (existing) | US-006, US-019 | Pure struct construction; zero risk (already in go.mod) |
-| `logrus v1.9.4` (existing) | US-002 | Log verification; zero risk |
-| CI PostgreSQL health check | US-009 through US-015 | Tests may start before DB ready; mitigated by existing `pg_isready` loop in CI |
-| US-009 (TestMain) | US-010 through US-015 | DB tests without shared init will duplicate AutoMigrate calls; functional but wasteful |
+| PostgreSQL 16 (CI service) | US-008, US-009, US-010, US-018 | DB integration tests are skipped; ~1,000+ statements uncovered; likely miss 45% target |
+| CI environment variables (BOT_TOKEN, OWNER_ID, etc.) | US-005, US-006, US-007, US-011, US-012, US-013, US-016 | Tests in packages that import `alita/config` fail with `log.Fatalf`; ~2,000+ statements uncovered |
+| gotgbot/v2 structs | US-012, US-013 | Cannot construct test message/chat structs; moderate impact on modules coverage |
+| Embedded locale YAML files (go:embed) | US-011 | i18n tests cannot load translations; ~200 statements uncovered |
+| `alita/db/testmain_test.go` TestMain harness | US-008, US-009, US-010, US-018 | DB tests cannot run AutoMigrate; all DB integration tests fail |
+| go test `-coverpkg=./...` flag | All | Without cross-package coverage measurement, reported total coverage is lower than actual |
 
 ## Assumptions
 
-1. **CI continues to set `BOT_TOKEN=test-token`, `OWNER_ID=1`, `MESSAGE_DUMP=1`** -- if removed, all packages importing `config` crash. Impact: US-001 and all downstream blocked.
-
-2. **`config.init()` remains `log.Fatalf` on missing BOT_TOKEN** -- if refactored to lazy init, env var requirements for testing relax. Impact: skip guards become unnecessary.
-
-3. **DB tests only expected to pass in CI, not locally without PostgreSQL** -- if local execution is required, Docker Compose or testcontainers needed. Impact: new dependency.
-
-4. **`gotgbot` types remain plain structs** -- if changed to interfaces, test construction patterns change. Impact: US-006, US-019.
-
-5. **No Redis service added to CI** -- cache tests use nil-guard pattern. Impact: cache integration tests remain out of scope.
-
-6. **Handler-level testing remains out of scope** until a `BotAPI` interface is introduced -- separate design decision. Impact: ~250 handler functions remain untested.
-
-7. **`go test -race` produces no false positives** for existing code -- if it does, those must be fixed first. Impact: NFR-006 baseline.
+1. **CI environment variables remain as documented in ci.yml** -- if CI stops setting `BOT_TOKEN=test-token` and other env vars, all tests in packages importing `alita/config` will crash with `log.Fatalf`. Impact: ~70% of new tests would fail.
+2. **PostgreSQL 16 service continues to be available in CI** -- if removed, all DB integration tests (~1,000 statements) are skipped. Impact: coverage drops by ~10-12 percentage points.
+3. **The `-coverpkg=./...` flag continues to be used** -- this flag measures cross-package coverage (a test in package A exercising code in package B counts for B). Without it, per-package percentages are different. Impact: reported total coverage may appear lower without the flag.
+4. **No Redis service is added to CI** -- tests are designed to gracefully handle nil cache. If Redis were added, additional cache-layer tests could contribute ~2-3% more coverage. Impact: minor upside missed.
+5. **gotgbot/v2 struct constructors remain public** -- tests construct `gotgbot.Message`, `gotgbot.ChatFullInfo`, etc. directly. If these become private, extraction and module tests break. Impact: US-012, US-013 would need rewriting.
+6. **The 45% target assumes ~11,288 total statements** -- the actual statement count depends on compiler version and build tags. If the count is higher (e.g., 13,000), more tests would be needed. Impact: may need to add 10-15% more test cases.
+7. **Existing tests continue to pass** -- if existing tests break (e.g., due to upstream dependency changes), the total coverage could decrease. Impact: rework existing tests first before adding new ones.
 
 ## Open Questions
 
-- [ ] **Target coverage percentage confirmation** -- This document uses 40% (P0+P1) and 55% (full). Should a different threshold be used? Blocks: US-021 threshold value.
-- [ ] **Build tags vs. `t.Skip` for DB tests** -- Should `//go:build integration` tags be added so `go test ./...` does not even compile DB tests locally? Or is `t.Skip` in `TestMain` sufficient? Blocks: US-009 approach.
-- [ ] **Codecov integration** -- Should coverage be tracked over time via Codecov/Coveralls? Currently `coverage.out` is an artifact only. Blocks: US-021 reporting scope.
-- [ ] **TestMain vs. per-test AutoMigrate** -- Should new DB tests use `TestMain` (US-009) from the start, or write with per-test `AutoMigrate` first and consolidate later? Blocks: US-010 through US-014 implementation approach.
-- [ ] **Monitoring `CanExecute` testability** -- `auto_remediation.go` reads `config.AppConfig` in `CanExecute`. Should thresholds be refactored to accept parameters (pure function), or test with CI env vars as-is? Blocks: US-016 test approach.
+- [ ] What is the exact statement count from `go tool cover -func=coverage.out`? The 12.5% is from CI, but the denominator matters for calculating how many new statements we need. -- blocks accurate estimation for all stories
+- [ ] Should `config.init()` be refactored to not use `log.Fatalf`? This would unblock local testing for all packages that transitively import config. Currently a separate PR is recommended. -- blocks nothing (CI has env vars), but would improve developer experience for US-005, US-006, US-007
+- [ ] Is there an existing gotgbot mock or testing utility? The gotgbot library does not ship one. Creating a minimal mock HTTP server for `Bot.GetChat()` etc. would unlock handler-level testing (~51% of code). -- blocks future coverage beyond 50%, does not block current scope
+- [ ] Can we add Redis to CI to enable cache integration tests? -- blocks cache-layer testing, does not block current scope (tests handle nil cache)
+- [ ] Are there any planned schema changes that would break DB integration tests? -- blocks US-008, US-009, US-010, US-018 if migrations change model shapes
 
 ## Glossary
 
 | Term | Definition |
 |------|-----------|
-| Pure function | A function that depends only on its input parameters and has no side effects (no DB, no API, no global state mutation) |
-| Tier 1 | Packages with zero external dependencies; trivially testable with no setup |
-| Tier 2 | Packages testable by constructing gotgbot structs directly (plain data, no API) |
-| Tier 3 | Packages requiring live PostgreSQL for integration tests (DB CRUD) |
-| Tier 4 | Packages requiring Telegram Bot API mock/interface or live API (handlers, permissions) |
-| Config init crash | `log.Fatalf` in `alita/config/config.go:init()` that kills test process when `BOT_TOKEN` missing |
-| Nil-guard pattern | `if cache.Marshal != nil` before cache operations, allowing tests without Redis |
-| Table-driven test | Go pattern: `tests := []struct{...}` with `t.Run(tc.name, func(t *testing.T) {...})` |
-| Zero-value boolean | GORM does not update `false` with `.Updates()` struct; requires `map[string]any` |
-| Singleflight | `golang.org/x/sync/singleflight` for deduplicating concurrent cache loads |
-| Skip guard | `t.Skip("reason")` at test start to skip when prerequisites unavailable |
-| Coverage threshold | Minimum coverage enforced by CI; pipeline fails if coverage drops below value |
-| TestMain | `func TestMain(m *testing.M)` -- Go's per-package test setup/teardown hook |
-| LIFO | Last In, First Out -- shutdown handler execution order |
+| Coverage | Percentage of Go source statements executed during `go test` runs, as measured by `go tool cover -func` |
+| Statement | A single executable line in compiled Go code; the unit of coverage measurement |
+| `-coverpkg=./...` | Go test flag that measures coverage across ALL packages in the module, not just the package under test |
+| `skipIfNoDb` | Test helper function in `alita/db/testmain_test.go` that skips a test when PostgreSQL is unavailable |
+| TestMain | Go testing entry point that runs before any tests in a package; used in `alita/db/` to set up AutoMigrate |
+| Pure function | A function with no side effects and no external dependencies (DB, cache, API); always safe to unit test |
+| Integration test | A test that requires external infrastructure (PostgreSQL, Redis, HTTP server) to execute |
+| Table-driven test | Go testing pattern where test cases are defined as a slice of structs and iterated with `t.Run()` |
+| GORM custom type | A Go type that implements `database/sql.Scanner` and `database/sql/driver.Valuer` for custom DB serialization |
+| Stampede protection | Mechanism (via `singleflight`) that prevents multiple goroutines from executing the same cache-miss query simultaneously |
+| Trophy testing | Testing strategy that prioritizes integration tests (the "trophy" shape) over pure unit tests, focusing on the layer that provides the most confidence |
+| UPSERT | Database operation that inserts a row if it does not exist, or updates it if it does (INSERT ... ON CONFLICT DO UPDATE) |
 
 REQUIREMENTS_COMPLETE
