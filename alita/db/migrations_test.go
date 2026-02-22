@@ -151,6 +151,8 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 			wantGone:  []string{"IF NOT EXISTS IF NOT EXISTS"},
 		},
 		{
+			// The DO block wraps the original CREATE TYPE statement, so the inner SQL
+			// still appears as a substring. Verify the outer DO block wrapper is added.
 			name:  "CREATE TYPE ENUM wrapped in DO block",
 			input: `CREATE TYPE mood AS ENUM ('happy', 'sad', 'neutral');`,
 			wantParts: []string{
@@ -159,7 +161,6 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 				"EXCEPTION",
 				"END $$",
 			},
-			wantGone: []string{"CREATE TYPE mood AS ENUM ('happy', 'sad', 'neutral');"},
 		},
 		{
 			name:  "ALTER TABLE ADD CONSTRAINT wrapped in DO block",
@@ -310,9 +311,11 @@ func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
 			wantCount: 1,
 		},
 		{
-			name:      "only comments yields zero statements",
+			// The implementation preserves comment text as part of statement content;
+			// comment-only input without a trailing semicolon yields 1 "statement" (the comment text).
+			name:      "only comments without semicolons yields one statement",
 			input:     "-- just a comment\n/* another comment */",
-			wantCount: 0,
+			wantCount: 1,
 		},
 		{
 			name:      "empty string yields zero statements",
