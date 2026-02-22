@@ -3,7 +3,6 @@ package db
 import (
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
@@ -86,10 +85,7 @@ func IsCommandDisabled(chatId int64, cmd string) bool {
 
 // invalidateDisabledCommandsCache invalidates the disabled commands cache for a specific chat.
 func invalidateDisabledCommandsCache(chatID int64) {
-	cacheKey := disabledCommandsCacheKey(chatID)
-	if err := cache.Marshal.Delete(cache.Context, cacheKey); err != nil {
-		log.Debugf("[Cache] Failed to invalidate disabled commands cache for chat %d: %v", chatID, err)
-	}
+	deleteCache(disabledCommandsCacheKey(chatID))
 }
 
 // ToggleDel toggles the automatic deletion of disabled commands in a chat.
