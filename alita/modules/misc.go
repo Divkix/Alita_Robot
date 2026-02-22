@@ -464,9 +464,7 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	time.AfterFunc(1*time.Second, func() {
 		defer error_handling.RecoverFromPanic("removeBotKeyboard", "misc")
-		if _, err := rMsg.Delete(b, nil); err != nil {
-			log.Error(err)
-		}
+		_ = helpers.DeleteMessageWithErrorHandling(b, rMsg.Chat.Id, rMsg.MessageId)
 	})
 
 	return ext.EndGroups

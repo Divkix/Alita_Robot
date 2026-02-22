@@ -192,11 +192,12 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 // in the chat, requiring admin permissions.
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status - also sets ctx.EffectiveChat
+	// connection status
 	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
+	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
@@ -278,11 +279,12 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 // in the chat, requiring admin permissions.
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status - also sets ctx.EffectiveChat
+	// connection status
 	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
+	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -45,14 +46,18 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 	_ = GetPinData(chatID)
 
 	// Enable CleanLinked
-	_ = SetCleanLinked(chatID, true)
+	if err := SetCleanLinked(chatID, true); err != nil {
+		t.Fatalf("SetCleanLinked(true) failed: %v", err)
+	}
 	data := GetPinData(chatID)
 	if !data.CleanLinked {
 		t.Fatal("expected CleanLinked=true after SetCleanLinked(true)")
 	}
 
 	// Disable CleanLinked — zero value boolean must persist
-	_ = SetCleanLinked(chatID, false)
+	if err := SetCleanLinked(chatID, false); err != nil {
+		t.Fatalf("SetCleanLinked(false) failed: %v", err)
+	}
 	data = GetPinData(chatID)
 	if data.CleanLinked {
 		t.Fatal("expected CleanLinked=false after SetCleanLinked(false)")
@@ -73,14 +78,18 @@ func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 	_ = GetPinData(chatID)
 
 	// Enable AntiChannelPin
-	_ = SetAntiChannelPin(chatID, true)
+	if err := SetAntiChannelPin(chatID, true); err != nil {
+		t.Fatalf("SetAntiChannelPin(true) failed: %v", err)
+	}
 	data := GetPinData(chatID)
 	if !data.AntiChannelPin {
 		t.Fatal("expected AntiChannelPin=true after SetAntiChannelPin(true)")
 	}
 
 	// Disable AntiChannelPin — zero value boolean must persist
-	_ = SetAntiChannelPin(chatID, false)
+	if err := SetAntiChannelPin(chatID, false); err != nil {
+		t.Fatalf("SetAntiChannelPin(false) failed: %v", err)
+	}
 	data = GetPinData(chatID)
 	if data.AntiChannelPin {
 		t.Fatal("expected AntiChannelPin=false after SetAntiChannelPin(false)")
@@ -135,8 +144,13 @@ func TestConcurrentPinSettings(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			pref := i%2 == 0
-			_ = SetAntiChannelPin(chatID, pref)
-			_ = SetCleanLinked(chatID, pref)
+			if err := SetAntiChannelPin(chatID, pref); err != nil {
+				errs <- fmt.Errorf("SetAntiChannelPin(%v): %w", pref, err)
+				return
+			}
+			if err := SetCleanLinked(chatID, pref); err != nil {
+				errs <- fmt.Errorf("SetCleanLinked(%v): %w", pref, err)
+			}
 		}(i)
 	}
 

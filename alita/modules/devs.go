@@ -105,6 +105,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	allChats := db.GetAllChats()
@@ -117,12 +118,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	_, err = tmpFile.WriteString(sb.String())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	err = tmpFile.Close()
 	if err != nil {
 		log.Error(err)
 		return err

@@ -76,69 +76,66 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := ctx.EffectiveSender
 	repliedMsg := msg.ReplyToMessage
 
-	if user == nil {
-		return ext.ContinueGroups
-	}
-
-	if user.IsAnonymousChannel() {
-		// Only update if enough time has passed
-		if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
-			log.Debugf("Updating channel %d in db", user.Id())
-			// update when users send a message
-			go asyncUpdateChannel(
-				user.Id(),
-				user.Name(),
-				user.Username(),
-			)
-		}
-	} else {
-		// Don't add user to chat entry
-		if chat_status.RequireGroup(bot, ctx, chat, true) {
-			// Update user in chat collection with rate limiting
-			if shouldUpdate(chatUpdateCache, chat.Id, chatUpdateInterval) {
-				go asyncUpdateChat(
-					chat.Id,
-					chat.Title,
+	if user != nil {
+		if user.IsAnonymousChannel() {
+			// Only update if enough time has passed
+			if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
+				log.Debugf("Updating channel %d in db", user.Id())
+				// update when users send a message
+				go asyncUpdateChannel(
 					user.Id(),
+					user.Name(),
+					user.Username(),
 				)
 			}
-		}
+		} else {
+			// Don't add user to chat entry
+			if chat_status.RequireGroup(bot, ctx, chat, true) {
+				// Update user in chat collection with rate limiting
+				if shouldUpdate(chatUpdateCache, chat.Id, chatUpdateInterval) {
+					go asyncUpdateChat(
+						chat.Id,
+						chat.Title,
+						user.Id(),
+					)
+				}
+			}
 
-		// Only update user if enough time has passed
-		if shouldUpdate(userUpdateCache, user.Id(), userUpdateInterval) {
-			log.Debugf("Updating user %d in db", user.Id())
-			// update when users send a message
-			go asyncUpdateUser(
-				user.Id(),
-				user.Username(),
-				user.Name(),
-			)
+			// Only update user if enough time has passed
+			if shouldUpdate(userUpdateCache, user.Id(), userUpdateInterval) {
+				log.Debugf("Updating user %d in db", user.Id())
+				// update when users send a message
+				go asyncUpdateUser(
+					user.Id(),
+					user.Username(),
+					user.Name(),
+				)
+			}
 		}
 	}
 
 	// update if message is replied
 	if repliedMsg != nil {
 		replySender := repliedMsg.GetSender()
-		if replySender == nil {
-			return ext.ContinueGroups
-		}
-		if replySender.IsAnonymousChannel() {
-			if shouldUpdate(channelUpdateCache, replySender.Id(), channelUpdateInterval) {
-				log.Debugf("Updating channel %d in db", replySender.Id())
-				go asyncUpdateChannel(
-					replySender.Id(),
-					replySender.Name(),
-					replySender.Username(),
-				)
-			}
-		} else {
-			if shouldUpdate(userUpdateCache, replySender.Id(), userUpdateInterval) {
-				log.Debugf("Updating user %d in db", replySender.Id())
-				go asyncUpdateUser(
-					replySender.Id(),
-					replySender.Username(),
-					replySender.Name(),
-				)
+		if replySender != nil {
+			if replySender.IsAnonymousChannel() {
+				if shouldUpdate(channelUpdateCache, replySender.Id(), channelUpdateInterval) {
+					log.Debugf("Updating channel %d in db", replySender.Id())
+					go asyncUpdateChannel(
+						replySender.Id(),
+						replySender.Name(),
+						replySender.Username(),
+					)
+				}
+			} else {
+				if shouldUpdate(userUpdateCache, replySender.Id(), userUpdateInterval) {
+					log.Debugf("Updating user %d in db", replySender.Id())
+					go asyncUpdateUser(
+						replySender.Id(),
+						replySender.Username(),
+						replySender.Name(),
+					)
+				}
 			}
 		}
 	}
