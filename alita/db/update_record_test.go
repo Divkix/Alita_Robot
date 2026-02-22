@@ -9,9 +9,7 @@ import (
 )
 
 func TestUpdateRecordReturnsErrorOnNoMatch(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	// Use a chat ID that doesn't exist in the database
 	nonExistentChatID := time.Now().UnixNano()
@@ -30,9 +28,7 @@ func TestUpdateRecordReturnsErrorOnNoMatch(t *testing.T) {
 }
 
 func TestUpdateRecordWithZeroValuesReturnsErrorOnNoMatch(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	nonExistentChatID := time.Now().UnixNano()
 
@@ -50,9 +46,7 @@ func TestUpdateRecordWithZeroValuesReturnsErrorOnNoMatch(t *testing.T) {
 }
 
 func TestUpdateRecordWithZeroValuesUpdatesZeroValues(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "photo"
@@ -86,9 +80,7 @@ func TestUpdateRecordWithZeroValuesUpdatesZeroValues(t *testing.T) {
 }
 
 func TestUpdateRecordSucceedsWhenRowsAffected(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "forward"

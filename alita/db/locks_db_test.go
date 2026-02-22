@@ -7,9 +7,7 @@ import (
 )
 
 func TestUpdateLockCreatesNewRecord(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "sticker"
@@ -37,9 +35,7 @@ func TestUpdateLockCreatesNewRecord(t *testing.T) {
 }
 
 func TestUpdateLockHandlesZeroValueBoolean(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "url"
@@ -75,9 +71,7 @@ func TestUpdateLockHandlesZeroValueBoolean(t *testing.T) {
 }
 
 func TestUpdateLockIdempotent(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "forward"
@@ -102,9 +96,7 @@ func TestUpdateLockIdempotent(t *testing.T) {
 }
 
 func TestUpdateLockConcurrentCreation(t *testing.T) {
-	if err := DB.AutoMigrate(&LockSettings{}); err != nil {
-		t.Fatalf("failed to migrate locks: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	perm := "photo"

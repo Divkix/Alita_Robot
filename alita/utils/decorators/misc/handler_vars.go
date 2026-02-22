@@ -9,17 +9,16 @@ var (
 	mu          = &sync.Mutex{}
 )
 
-// addToArray safely appends multiple strings to a string slice using mutex protection.
-// Thread-safe function for concurrent access to shared command arrays.
+// addToArray appends multiple strings to a string slice.
+// Callers must hold mu before calling this function.
 func addToArray(arr []string, val ...string) []string {
-	mu.Lock()
-	arr = append(arr, val...)
-	mu.Unlock()
-	return arr
+	return append(arr, val...)
 }
 
 // AddCmdToDisableable adds a command to the list of commands that can be disabled in chats.
 // Administrators can use this to control which commands are available to regular users.
 func AddCmdToDisableable(cmd string) {
+	mu.Lock()
 	DisableCmds = addToArray(DisableCmds, cmd)
+	mu.Unlock()
 }

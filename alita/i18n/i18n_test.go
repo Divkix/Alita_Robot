@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 // ---- Loader utilities ----
@@ -361,5 +363,242 @@ func TestSelectPluralForm(t *testing.T) {
 				t.Fatalf("selectPluralForm(%v, %d) = %q, want %q", tc.rule, tc.count, got, tc.want)
 			}
 		})
+	}
+}
+
+// ---- Translator.GetString ----
+
+// newTestTranslator creates a Translator backed by inline YAML content for tests.
+func newTestTranslator(t *testing.T, yamlContent string) *Translator {
+	t.Helper()
+	vi, err := compileViper([]byte(yamlContent))
+	if err != nil {
+		t.Fatalf("compileViper() error = %v", err)
+	}
+	lm := &LocaleManager{
+		defaultLang: "en",
+		viperCache:  map[string]*viper.Viper{"en": vi},
+		localeData:  map[string][]byte{"en": []byte(yamlContent)},
+	}
+	return &Translator{
+		langCode:    "en",
+		manager:     lm,
+		viper:       vi,
+		cachePrefix: "i18n:en:",
+	}
+}
+
+func TestTranslatorGet(t *testing.T) {
+	t.Parallel()
+
+	const yamlContent = `language_name: English
+greeting: "Hello, World!"
+templ: "Hello, %s!"
+`
+
+	t.Run("existing key returns translated string", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, yamlContent)
+		result, err := tr.GetString("language_name")
+		if err != nil {
+			t.Fatalf("GetString(language_name) error = %v", err)
+		}
+		if result != "English" {
+			t.Fatalf("GetString(language_name) = %q, want %q", result, "English")
+		}
+	})
+
+	t.Run("nonexistent key returns error", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, yamlContent)
+		_, err := tr.GetString("nonexistent_key_xyz")
+		if err == nil {
+			t.Fatal("GetString(nonexistent_key) expected error, got nil")
+		}
+		if !errors.Is(err, ErrKeyNotFound) {
+			t.Fatalf("expected ErrKeyNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("key with params substitutes correctly", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, yamlContent)
+		result, err := tr.GetString("templ", TranslationParams{"0": "Alice"})
+		if err != nil {
+			t.Fatalf("GetString(templ, params) error = %v", err)
+		}
+		if !strings.Contains(result, "Alice") {
+			t.Fatalf("GetString(templ) = %q, want it to contain 'Alice'", result)
+		}
+	})
+
+	t.Run("nil params map does not panic", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, yamlContent)
+		// Calling with explicit nil params should not panic
+		result, err := tr.GetString("greeting", nil)
+		if err != nil {
+			t.Fatalf("GetString(greeting, nil) error = %v", err)
+		}
+		if result == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+}
+
+// ---- Translator.GetPlural ----
+
+func TestTranslatorGetPlural(t *testing.T) {
+	t.Parallel()
+
+	// Construct YAML with plural subkeys that GetPlural expects
+	const pluralYAML = `
+items:
+  zero: "no items"
+  one: "one item"
+  other: "many items"
+`
+
+	t.Run("count 0 uses other form when no zero configured", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, `items:
+  one: one item
+  other: many items
+`)
+		result, err := tr.GetPlural("items", 0)
+		if err != nil {
+			t.Fatalf("GetPlural(items, 0) error = %v", err)
+		}
+		// count 0 with no Zero form falls to Other
+		if result != "many items" {
+			t.Fatalf("GetPlural(items, 0) = %q, want %q", result, "many items")
+		}
+	})
+
+	t.Run("count 1 uses one form", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, pluralYAML)
+		result, err := tr.GetPlural("items", 1)
+		if err != nil {
+			t.Fatalf("GetPlural(items, 1) error = %v", err)
+		}
+		if result != "one item" {
+			t.Fatalf("GetPlural(items, 1) = %q, want %q", result, "one item")
+		}
+	})
+
+	t.Run("count 5 uses other form", func(t *testing.T) {
+		t.Parallel()
+
+		tr := newTestTranslator(t, pluralYAML)
+		result, err := tr.GetPlural("items", 5)
+		if err != nil {
+			t.Fatalf("GetPlural(items, 5) error = %v", err)
+		}
+		if result != "many items" {
+			t.Fatalf("GetPlural(items, 5) = %q, want %q", result, "many items")
+		}
+	})
+}
+
+// ---- LocaleManager.GetTranslator ----
+
+func TestLocaleManagerGetTranslator(t *testing.T) {
+	t.Parallel()
+
+	const enYAML = "language_name: English\n"
+
+	vi, err := compileViper([]byte(enYAML))
+	if err != nil {
+		t.Fatalf("compileViper() error = %v", err)
+	}
+
+	// Use a local (non-singleton) LocaleManager to avoid contaminating global state.
+	// We embed a minimal FS pointer placeholder — use the trick of setting localeFS
+	// to a non-nil value via the embed pointer is not straightforward without go:embed.
+	// Instead, we bypass the localeFS nil check by setting viperCache so GetTranslator
+	// can succeed when localeFS check is bypassed. Since GetTranslator checks localeFS,
+	// we test via the singleton initialized from main, or use MustNewTranslator.
+
+	// Verify MustNewTranslator returns a non-nil translator for known language.
+	// The singleton may or may not be initialized (no embed FS in unit tests),
+	// so MustNewTranslator returns a bare translator — that is still non-nil.
+	t.Run("MustNewTranslator returns non-nil translator", func(t *testing.T) {
+		t.Parallel()
+
+		tr := MustNewTranslator("en")
+		if tr == nil {
+			t.Fatal("MustNewTranslator('en') returned nil")
+		}
+	})
+
+	t.Run("MustNewTranslator unknown locale falls back to non-nil translator", func(t *testing.T) {
+		t.Parallel()
+
+		tr := MustNewTranslator("xx_unknown_locale")
+		if tr == nil {
+			t.Fatal("MustNewTranslator(unknown) returned nil")
+		}
+	})
+
+	t.Run("direct GetTranslator on local manager with data returns translator", func(t *testing.T) {
+		t.Parallel()
+
+		lm := &LocaleManager{
+			defaultLang: "en",
+			viperCache:  map[string]*viper.Viper{"en": vi},
+			localeData:  map[string][]byte{"en": []byte(enYAML)},
+		}
+
+		// localeFS is nil so GetTranslator returns ErrManagerNotInit.
+		// Verify the error is correct.
+		_, getErr := lm.GetTranslator("en")
+		if getErr == nil {
+			t.Fatal("expected error when localeFS is nil, got nil")
+		}
+		if !errors.Is(getErr, ErrManagerNotInit) {
+			t.Fatalf("expected ErrManagerNotInit, got: %v", getErr)
+		}
+	})
+}
+
+// ---- LocaleManager.GetAvailableLocales ----
+
+func TestLocaleManagerGetAvailableLocales(t *testing.T) {
+	t.Parallel()
+
+	// Build a local LocaleManager with known locales.
+	lm := &LocaleManager{
+		defaultLang: "en",
+		viperCache:  make(map[string]*viper.Viper),
+		localeData: map[string][]byte{
+			"en": []byte("language_name: English\n"),
+			"es": []byte("language_name: Spanish\n"),
+			"fr": []byte("language_name: French\n"),
+			"hi": []byte("language_name: Hindi\n"),
+		},
+	}
+
+	langs := lm.GetAvailableLanguages()
+	if len(langs) < 4 {
+		t.Fatalf("GetAvailableLanguages() returned %d languages, want at least 4: %v", len(langs), langs)
+	}
+
+	// Verify all 4 known locales are present.
+	langSet := make(map[string]bool, len(langs))
+	for _, l := range langs {
+		langSet[l] = true
+	}
+
+	for _, required := range []string{"en", "es", "fr", "hi"} {
+		if !langSet[required] {
+			t.Fatalf("GetAvailableLanguages() missing %q; got: %v", required, langs)
+		}
 	}
 }

@@ -6,9 +6,7 @@ import (
 )
 
 func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
-	if err := DB.AutoMigrate(&AntifloodSettings{}); err != nil {
-		t.Fatalf("failed to migrate antiflood: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 
@@ -39,9 +37,7 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 }
 
 func TestSetFloodZeroValueLimit(t *testing.T) {
-	if err := DB.AutoMigrate(&AntifloodSettings{}); err != nil {
-		t.Fatalf("failed to migrate antiflood: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 
@@ -72,9 +68,7 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 }
 
 func TestSetFloodMsgDelCreatesRecord(t *testing.T) {
-	if err := DB.AutoMigrate(&AntifloodSettings{}); err != nil {
-		t.Fatalf("failed to migrate antiflood: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 

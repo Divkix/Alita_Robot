@@ -10,9 +10,7 @@ import (
 )
 
 func TestDeleteCaptchaAttemptByIDAtomicSingleClaim(t *testing.T) {
-	if err := DB.AutoMigrate(&CaptchaAttempts{}); err != nil {
-		t.Fatalf("failed to migrate captcha_attempts: %v", err)
-	}
+	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
 	userID := base
@@ -78,9 +76,7 @@ func TestDeleteCaptchaAttemptByIDAtomicSingleClaim(t *testing.T) {
 }
 
 func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
-	if err := DB.AutoMigrate(&CaptchaSettings{}); err != nil {
-		t.Fatalf("failed to migrate captcha_settings: %v", err)
-	}
+	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 

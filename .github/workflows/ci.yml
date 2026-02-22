@@ -220,6 +220,33 @@ jobs:
             exit ${test_exit}
           fi
 
+      - name: Check coverage threshold
+        if: success()
+        run: |
+          if [ ! -f coverage.out ]; then
+            echo "ERROR: coverage.out not found"
+            exit 1
+          fi
+
+          THRESHOLD=40
+          COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
+
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Minimum Threshold:** ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Use awk for float comparison (bc may not be available)
+          BELOW=$(awk "BEGIN {print ($COVERAGE < $THRESHOLD) ? 1 : 0}")
+          if [ "$BELOW" -eq 1 ]; then
+            echo "FAIL: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          else
+            echo "PASS: Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v6
