@@ -291,17 +291,34 @@ func TestLoadNotesStats(t *testing.T) {
 	if notesBefore < 0 {
 		t.Fatalf("LoadNotesStats() notesNum should be >= 0, got %d", notesBefore)
 	}
+	if chatsBefore < 0 {
+		t.Fatalf("LoadNotesStats() chatsUsingNotes should be >= 0, got %d", chatsBefore)
+	}
 
 	if err := AddNote(chatID, "stats-note", "content", "", ButtonArray{}, TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() error = %v", err)
 	}
+	if !DoesNoteExists(chatID, "stats-note") {
+		t.Fatalf("expected DoesNoteExists=true after AddNote")
+	}
+
+	var localNotes int64
+	if err := DB.Model(&Notes{}).Where("chat_id = ?", chatID).Count(&localNotes).Error; err != nil {
+		t.Fatalf("count local notes error = %v", err)
+	}
+	if localNotes != 1 {
+		t.Fatalf("expected exactly 1 local note after AddNote, got %d", localNotes)
+	}
 
 	notesAfter, chatsAfter := LoadNotesStats()
-	if notesAfter <= notesBefore {
-		t.Fatalf("expected notesNum to increase after AddNote, before=%d after=%d", notesBefore, notesAfter)
+	// Global note stats are shared across many t.Parallel() DB tests, so other
+	// tests may add/remove notes between snapshots. Assert lower bounds instead
+	// of monotonic deltas.
+	if notesAfter < localNotes {
+		t.Fatalf("expected notesNum to include local notes, local=%d global=%d", localNotes, notesAfter)
 	}
-	if chatsAfter < chatsBefore {
-		t.Fatalf("expected chatsUsingNotes to be >= before, before=%d after=%d", chatsBefore, chatsAfter)
+	if chatsAfter < 1 {
+		t.Fatalf("expected chatsUsingNotes to be >= 1 after AddNote, got %d", chatsAfter)
 	}
 }
 
