@@ -453,3 +453,127 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 }
+
+// TestGetRedisAddress tests the getRedisAddress() helper. The top-level test does
+// NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
+// parallel execution at the enclosing level — Go enforces this at runtime.
+func TestGetRedisAddress(t *testing.T) {
+	skipIfNoConfig(t)
+
+	t.Run("REDIS_ADDRESS set returns it directly", func(t *testing.T) {
+		t.Setenv("REDIS_ADDRESS", "myhost:1234")
+		t.Setenv("REDIS_URL", "")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		got := getRedisAddress()
+		if got != "myhost:1234" {
+			t.Errorf("got %q, want %q", got, "myhost:1234")
+		}
+	})
+
+	t.Run("REDIS_ADDRESS empty falls back to REDIS_URL host:port", func(t *testing.T) {
+		t.Setenv("REDIS_ADDRESS", "")
+		t.Setenv("REDIS_URL", "redis://user:pass@host:6380")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		got := getRedisAddress()
+		if got != "host:6380" {
+			t.Errorf("got %q, want %q", got, "host:6380")
+		}
+	})
+
+	t.Run("both REDIS_ADDRESS and REDIS_URL empty returns empty string", func(t *testing.T) {
+		t.Setenv("REDIS_ADDRESS", "")
+		t.Setenv("REDIS_URL", "")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		got := getRedisAddress()
+		if got != "" {
+			t.Errorf("got %q, want empty string", got)
+		}
+	})
+
+	t.Run("REDIS_ADDRESS takes priority over REDIS_URL", func(t *testing.T) {
+		t.Setenv("REDIS_ADDRESS", "x")
+		t.Setenv("REDIS_URL", "redis://host:9999")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		got := getRedisAddress()
+		if got != "x" {
+			t.Errorf("got %q, want %q", got, "x")
+		}
+	})
+
+	t.Run("REDIS_URL with invalid percent-encoding returns empty string", func(t *testing.T) {
+		t.Setenv("REDIS_ADDRESS", "")
+		t.Setenv("REDIS_URL", "not-a-valid-url-%%%")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		got := getRedisAddress()
+		if got != "" {
+			t.Errorf("got %q, want empty string on parse error", got)
+		}
+	})
+}
+
+// TestGetRedisPassword tests the getRedisPassword() helper. The top-level test does
+// NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
+// parallel execution at the enclosing level — Go enforces this at runtime.
+func TestGetRedisPassword(t *testing.T) {
+	skipIfNoConfig(t)
+
+	t.Run("REDIS_PASSWORD set returns it directly", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "secret")
+		t.Setenv("REDIS_URL", "")
+		t.Setenv("REDIS_ADDRESS", "")
+
+		got := getRedisPassword()
+		if got != "secret" {
+			t.Errorf("got %q, want %q", got, "secret")
+		}
+	})
+
+	t.Run("REDIS_PASSWORD empty extracts password from REDIS_URL", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "")
+		t.Setenv("REDIS_URL", "redis://user:pass123@host:6380")
+		t.Setenv("REDIS_ADDRESS", "")
+
+		got := getRedisPassword()
+		if got != "pass123" {
+			t.Errorf("got %q, want %q", got, "pass123")
+		}
+	})
+
+	t.Run("both REDIS_PASSWORD and REDIS_URL empty returns empty string", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "")
+		t.Setenv("REDIS_URL", "")
+		t.Setenv("REDIS_ADDRESS", "")
+
+		got := getRedisPassword()
+		if got != "" {
+			t.Errorf("got %q, want empty string", got)
+		}
+	})
+
+	t.Run("REDIS_URL without userinfo returns empty string", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "")
+		t.Setenv("REDIS_URL", "redis://host:6380")
+		t.Setenv("REDIS_ADDRESS", "")
+
+		got := getRedisPassword()
+		if got != "" {
+			t.Errorf("got %q, want empty string when no userinfo in URL", got)
+		}
+	})
+
+	t.Run("REDIS_URL with username but no password returns empty string", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "")
+		t.Setenv("REDIS_URL", "redis://user@host:6380")
+		t.Setenv("REDIS_ADDRESS", "")
+
+		got := getRedisPassword()
+		if got != "" {
+			t.Errorf("got %q, want empty string when user has no password", got)
+		}
+	})
+}

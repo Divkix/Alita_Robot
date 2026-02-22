@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -658,6 +659,285 @@ func TestTableNames(t *testing.T) {
 			t.Parallel()
 			if got := tc.model.TableName(); got != tc.wantTable {
 				t.Fatalf("%s.TableName() = %q, want %q", tc.name, got, tc.wantTable)
+			}
+		})
+	}
+}
+
+func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		slice    BlacklistSettingsSlice
+		wantLen  int
+		contains []string
+	}{
+		{
+			name:    "nil slice returns nil triggers",
+			slice:   nil,
+			wantLen: 0,
+		},
+		{
+			name:    "empty slice returns empty triggers",
+			slice:   BlacklistSettingsSlice{},
+			wantLen: 0,
+		},
+		{
+			name: "single entry returns word",
+			slice: BlacklistSettingsSlice{
+				{Word: "spam", Action: "warn"},
+			},
+			wantLen:  1,
+			contains: []string{"spam"},
+		},
+		{
+			name: "multiple entries returns all words",
+			slice: BlacklistSettingsSlice{
+				{Word: "badword1", Action: "ban"},
+				{Word: "badword2", Action: "kick"},
+				{Word: "badword3", Action: "warn"},
+			},
+			wantLen:  3,
+			contains: []string{"badword1", "badword2", "badword3"},
+		},
+		{
+			name: "entries with empty word included",
+			slice: BlacklistSettingsSlice{
+				{Word: "", Action: "warn"},
+				{Word: "foo", Action: "ban"},
+			},
+			wantLen:  2,
+			contains: []string{"", "foo"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.slice.Triggers()
+
+			if len(got) != tc.wantLen {
+				t.Fatalf("Triggers() len=%d, want %d; got %v", len(got), tc.wantLen, got)
+			}
+
+			gotSet := make(map[string]bool, len(got))
+			for _, g := range got {
+				gotSet[g] = true
+			}
+			for _, w := range tc.contains {
+				if !gotSet[w] {
+					t.Fatalf("Triggers() missing %q; got %v", w, got)
+				}
+			}
+		})
+	}
+}
+
+func TestBlacklistSettingsSlice_Action(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		slice      BlacklistSettingsSlice
+		wantAction string
+	}{
+		{
+			name:       "nil slice returns default warn",
+			slice:      nil,
+			wantAction: "warn",
+		},
+		{
+			name:       "empty slice returns default warn",
+			slice:      BlacklistSettingsSlice{},
+			wantAction: "warn",
+		},
+		{
+			name: "single entry returns its action",
+			slice: BlacklistSettingsSlice{
+				{Word: "spam", Action: "ban"},
+			},
+			wantAction: "ban",
+		},
+		{
+			name: "multiple entries returns first action",
+			slice: BlacklistSettingsSlice{
+				{Word: "a", Action: "kick"},
+				{Word: "b", Action: "ban"},
+			},
+			wantAction: "kick",
+		},
+		{
+			name: "empty action field on first entry returns empty string",
+			slice: BlacklistSettingsSlice{
+				{Word: "spam", Action: ""},
+			},
+			wantAction: "",
+		},
+		{
+			name: "mute action preserved",
+			slice: BlacklistSettingsSlice{
+				{Word: "x", Action: "mute"},
+			},
+			wantAction: "mute",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.slice.Action()
+			if got != tc.wantAction {
+				t.Fatalf("Action()=%q, want %q", got, tc.wantAction)
+			}
+		})
+	}
+}
+
+func TestBlacklistSettingsSlice_Reason(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		slice      BlacklistSettingsSlice
+		wantReason string
+	}{
+		{
+			name:       "nil slice returns default format string",
+			slice:      nil,
+			wantReason: "Blacklisted word: '%s'",
+		},
+		{
+			name:       "empty slice returns default format string",
+			slice:      BlacklistSettingsSlice{},
+			wantReason: "Blacklisted word: '%s'",
+		},
+		{
+			name: "entry with empty reason returns default format string",
+			slice: BlacklistSettingsSlice{
+				{Word: "spam", Reason: ""},
+			},
+			wantReason: "Blacklisted word: '%s'",
+		},
+		{
+			name: "entry with non-empty reason returns it",
+			slice: BlacklistSettingsSlice{
+				{Word: "spam", Reason: "No spamming allowed"},
+			},
+			wantReason: "No spamming allowed",
+		},
+		{
+			name: "multiple entries returns first entry reason",
+			slice: BlacklistSettingsSlice{
+				{Word: "a", Reason: "first reason"},
+				{Word: "b", Reason: "second reason"},
+			},
+			wantReason: "first reason",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.slice.Reason()
+			if got != tc.wantReason {
+				t.Fatalf("Reason()=%q, want %q", got, tc.wantReason)
+			}
+		})
+	}
+}
+
+func TestGetSpanAttributes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		model         any
+		wantLen       int
+		wantModelType string
+	}{
+		{
+			name:    "nil model returns empty attributes",
+			model:   nil,
+			wantLen: 0,
+		},
+		{
+			name:          "struct pointer model returns one attribute with type",
+			model:         &BlacklistSettings{},
+			wantLen:       1,
+			wantModelType: fmt.Sprintf("%T", &BlacklistSettings{}),
+		},
+		{
+			name:          "string model returns one attribute",
+			model:         "some string",
+			wantLen:       1,
+			wantModelType: "string",
+		},
+		{
+			name:          "int model returns one attribute",
+			model:         42,
+			wantLen:       1,
+			wantModelType: "int",
+		},
+		{
+			name:          "slice model returns one attribute",
+			model:         []string{"a", "b"},
+			wantLen:       1,
+			wantModelType: "[]string",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			attrs := getSpanAttributes(tc.model)
+
+			if len(attrs) != tc.wantLen {
+				t.Fatalf("getSpanAttributes() len=%d, want %d", len(attrs), tc.wantLen)
+			}
+
+			if tc.wantModelType != "" && len(attrs) > 0 {
+				got := attrs[0].Value.AsString()
+				if got != tc.wantModelType {
+					t.Fatalf("db.model attribute=%q, want %q", got, tc.wantModelType)
+				}
+			}
+		})
+	}
+}
+
+func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		private bool
+		want    bool
+	}{
+		{
+			name:    "Private=false returns false",
+			private: false,
+			want:    false,
+		},
+		{
+			name:    "Private=true returns true",
+			private: true,
+			want:    true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ns := &NotesSettings{Private: tc.private}
+			got := ns.PrivateNotesEnabled()
+			if got != tc.want {
+				t.Fatalf("PrivateNotesEnabled()=%v, want %v", got, tc.want)
 			}
 		})
 	}
