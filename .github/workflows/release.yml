@@ -159,7 +159,7 @@ jobs:
       security-events: write
     steps:
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: ghcr.io/divkix/alita_robot:latest
           format: table
