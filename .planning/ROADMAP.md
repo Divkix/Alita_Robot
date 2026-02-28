@@ -29,14 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The canonical command inventory lists all 22 modules with every command, alias, callback, message watcher, and disableable status — including `cmdDecorator.MultiCommand()` registrations that the old script missed
   3. `starlight-links-validator` is integrated into the Astro docs build and catches broken internal links at build time
   4. A module-to-docs mapping table exists showing which of the 22 modules have docs directories and which do not
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
 
 Plans:
-- [ ] 01-01: Fix `make check-translations` path resolution bug in `scripts/check_translations/main.go`
-- [ ] 01-02: Patch `scripts/generate_docs/parsers.go` to extract `cmdDecorator.MultiCommand()` registrations
-- [ ] 01-03: Produce canonical command inventory (all 22 modules, all registration patterns)
-- [ ] 01-04: Install and configure `starlight-links-validator` in Astro docs build
-- [ ] 01-05: Build module-to-docs mapping table
+- [ ] 01-01-PLAN.md — Fix check-translations path resolution bug (TDD: test + fix) [Wave 1, TOOL-01]
+- [ ] 01-02-PLAN.md — Patch parsers.go MultiCommand regex + install starlight-links-validator [Wave 1, TOOL-02, TOOL-04]
+- [ ] 01-03-PLAN.md — Generate canonical inventory + module-to-docs mapping [Wave 2, TOOL-03, TOOL-05]
 
 ### Phase 2: API Reference and Command Documentation
 **Goal**: Every registered command and alias is accurately documented in the docs site with correct permissions, disableable status, and callback codec format
@@ -118,7 +116,7 @@ Note: Phases 2 and 3 both depend on Phase 1 and can be parallelized if multiple 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Ground Truth and Tooling | 0/5 | Not started | - |
+| 1. Ground Truth and Tooling | 0/3 | Planned | - |
 | 2. API Reference and Command Documentation | 0/7 | Not started | - |
 | 3. Locale and i18n Fixes | 0/5 | Not started | - |
 | 4. Operator Documentation | 0/3 | Not started | - |
