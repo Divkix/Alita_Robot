@@ -22,7 +22,7 @@ Requirements for this audit. Each maps to roadmap phases.
 - [ ] **DOCS-03**: Document all command aliases explicitly — each alias points to its primary command with explanation
 - [ ] **DOCS-04**: Verify and correct disableable column in docs against actual `AddCmdToDisableable()` calls in code
 - [ ] **DOCS-05**: Update `callbacks.md` to document versioned codec format (`namespace|v1|url-encoded-fields`) instead of old dot-notation
-- [ ] **DOCS-06**: Create docs directory and content for undocumented modules (`devs`, `help`)
+- [ ] **DOCS-06**: Create docs directory and content for undocumented modules (`devs`, `help`, `language`, `users`) — all four have no docs directory per codebase inspection
 - [ ] **DOCS-07**: Verify permission requirements listed in docs match actual `Require*` calls in each handler
 
 ### Locale Consistency
@@ -108,4 +108,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 after initial definition*
+*Last updated: 2026-02-27 after roadmap creation — DOCS-06 scope clarified to cover all 4 undocumented modules (devs, help, language, users)*
