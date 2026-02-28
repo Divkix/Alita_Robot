@@ -1,4 +1,6 @@
 {
+  "mode": "yolo",
+  "depth": "standard",
   "model_profile": "balanced",
   "commit_docs": true,
   "search_gitignored": false,
