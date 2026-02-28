@@ -9,7 +9,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 25
+- **Total Functions**: 22
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -38,9 +38,6 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
 | `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
-| `GetChat` | `*gotgbot.Chat, error` | GetChat retrieves chat info by ID or username via direct Telegram API request |
-| `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts user from context, returns nil for channels |
-| `RequireUser` | `*gotgbot.User` | RequireUser extracts valid user from context, returns nil for channels |
 
 ## Functions by Category
 
@@ -123,7 +120,7 @@ IsBotAdmin checks if the bot has administrator privileges in the specified chat.
 func IsChannelId(id int64) bool
 ```
 
-IsChannelId checks if an ID represents a Telegram channel. Channel IDs have the format -100XXXXXXXXXX (13 digits starting with -100).
+IsChannelId checks if an ID represents a Telegram channel. Channel IDs have the format -100XXXXXXXXXX (-100 prefix followed by 10+ digits).
 
 **Parameters:**
 - `id`
@@ -305,32 +302,6 @@ Caninvite checks if the bot and user have permissions to generate invite links. 
 - `msg`
 - `justCheck`
 
-### 👤 User Extraction
-
-#### `GetEffectiveUser`
-
-```go
-func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
-```
-
-GetEffectiveUser safely extracts the user from the context. Returns nil for channel messages where no user is present. Checks `ctx.EffectiveSender` for nil before accessing `.User`.
-
-**Parameters:**
-- `ctx`
-
-#### `RequireUser`
-
-```go
-func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
-```
-
-RequireUser extracts a valid user from the context. Returns nil for channel messages where no user is present. If justCheck is false, sends an error message explaining that channels cannot use this command.
-
-**Parameters:**
-- `b`
-- `ctx`
-- `justCheck`
-
 ### 👤 User Status Checks
 
 #### `IsUserAdmin`
@@ -375,18 +346,6 @@ IsUserInChat checks if a user is currently a member of the specified chat. Retur
 
 ### 🔧 Utility Functions
 
-#### `GetChat`
-
-```go
-func GetChat(b *gotgbot.Bot, chatId string) (*gotgbot.Chat, error)
-```
-
-GetChat retrieves chat info by ID or username via a direct Telegram API request. Makes a raw `getChat` API call, supporting both numeric chat IDs and @username strings.
-
-**Parameters:**
-- `b`
-- `chatId` — string chat ID (numeric) or @username
-
 #### `CheckDisabledCmd`
 
 ```go
@@ -402,31 +361,18 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 
 ## Special Telegram IDs
 
-:::note
-These are special Telegram system accounts that receive automatic admin treatment. Hardcoding checks against these IDs ensures the bot does not attempt to ban or restrict system-level accounts.
-:::
-
 | ID | Description |
 |----|-------------|
 | `1087968824` | Anonymous Admin Bot (GroupAnonymousBot) |
 | `777000` | Telegram System Account |
-| `136817688` | Channel Bot (listed for reference only -- not actively checked in the codebase) |
+| `136817688` | Channel Bot (deprecated) |
 
 ## Usage Example
-
-:::caution
-Always check `ctx.EffectiveSender` and `ctx.EffectiveSender.User` for nil before accessing user properties. Channel posts have no sender user, causing a nil pointer panic.
-:::
 
 ```go
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
-
-    // Safe user extraction - returns nil for channels
-    user := chat_status.RequireUser(b, ctx, false)
-    if user == nil {
-        return ext.EndGroups
-    }
+    user := ctx.EffectiveSender.User
 
     // Check if user is admin
     if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
@@ -442,7 +388,3 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     return ext.EndGroups
 }
 ```
-
-:::tip
-Use `justCheck=true` when you only need to know the result without sending error messages to the user. Use `justCheck=false` when you want the function to automatically reply with an appropriate error message on failure.
-:::

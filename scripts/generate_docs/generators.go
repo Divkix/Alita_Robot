@@ -10,11 +10,31 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// manualMaintenanceSentinel marks files that should not be overwritten by the generator.
+// Files containing this sentinel in their first 512 bytes are skipped during generation.
+const manualMaintenanceSentinel = "<!-- MANUALLY MAINTAINED: do not regenerate -->"
+
+// skipIfManuallyMaintained checks if a file has the sentinel comment
+// indicating it should not be overwritten by the generator.
+func skipIfManuallyMaintained(filePath string) bool {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return false // File doesn't exist, proceed with generation
+	}
+	checkLen := min(512, len(data))
+	return strings.Contains(string(data[:checkLen]), manualMaintenanceSentinel)
+}
+
 // generateModuleDocs generates individual module pages in commands/{module}/index.md
 func generateModuleDocs(modules []Module, outputPath string) error {
 	for _, module := range modules {
 		moduleDir := filepath.Join(outputPath, "commands", module.Name)
 		moduleFile := filepath.Join(moduleDir, "index.md")
+
+		if skipIfManuallyMaintained(moduleFile) {
+			log.Infof("Skipped: commands/%s/index.md (manually maintained)", module.Name)
+			continue
+		}
 
 		log.Debugf("Generating module doc: %s", module.DisplayName)
 
@@ -150,6 +170,11 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 func generateCommandReference(modules []Module, outputPath string) error {
 	refDir := filepath.Join(outputPath, "api-reference")
 	refFile := filepath.Join(refDir, "commands.md")
+
+	if skipIfManuallyMaintained(refFile) {
+		log.Infof("Skipped: %s (manually maintained)", filepath.Base(refFile))
+		return nil
+	}
 
 	log.Debug("Generating command reference")
 
@@ -716,9 +741,7 @@ func convertTelegramMarkdown(text string) string {
 // extractCommandDescription attempts to extract description for a command from help text
 func extractCommandDescription(cmdName, helpText string) string {
 	// Try to find command in help text with various patterns
-	lines := strings.Split(helpText, "\n")
-
-	for _, line := range lines {
+	for line := range strings.SplitSeq(helpText, "\n") {
 		// Look for lines mentioning the command
 		if strings.Contains(strings.ToLower(line), "/"+strings.ToLower(cmdName)) {
 			// Extract description after command
@@ -746,15 +769,11 @@ func generateUsageExamples(module Module) string {
 
 	if len(module.Commands) > 0 {
 		// Show first few commands as examples
-		limit := 3
-		if len(module.Commands) < limit {
-			limit = len(module.Commands)
-		}
+		limit := min(3, len(module.Commands))
 
 		content.WriteString("```\n")
-		for i := 0; i < limit; i++ {
-			cmd := module.Commands[i]
-			fmt.Fprintf(&content, "/%s\n", cmd.Name)
+		for i := range limit {
+			fmt.Fprintf(&content, "/%s\n", module.Commands[i].Name)
 		}
 		content.WriteString("```\n\n")
 	}
@@ -921,6 +940,11 @@ func truncateString(s string, maxLen int) string {
 // generateCallbacksReference generates the callbacks API reference documentation
 func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 	filePath := filepath.Join(outputPath, "api-reference", "callbacks.md")
+
+	if skipIfManuallyMaintained(filePath) {
+		log.Infof("Skipped: %s (manually maintained)", filepath.Base(filePath))
+		return nil
+	}
 
 	log.Debug("Generating callbacks reference")
 

@@ -2,57 +2,68 @@
 title: Locks Commands
 description: Complete guide to Locks module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
-# Locks Commands
+# 🔒 Locks Commands
 
-Locks can be used to restrict a group's users. Locking URLs will auto-delete all messages with URLs, locking stickers will delete all stickers, etc. Locking bots will stop non-admins from adding bots to the chat.
+*Admin only*:
+× /lock `<permission>`: Lock Chat permission..
+× /unlock `<permission>`: Unlock Chat permission.
+× /locks: View Chat permission.
+× /locktypes: Check available lock types!
 
-:::caution[Admin Permissions Required]
-Most commands require admin permissions. `/locks` and `/locktypes` are available to all users.
-:::
+Locks can be used to restrict a group's users.
+Locking URLs will auto-delete all messages with URLs, locking stickers will delete all stickers, etc.
+Locking bots will stop non-admins from adding bots to the chat.
+
+**Example:**
+`/lock media`: this locks all the media messages in the chat.
+
+## Module Aliases
+
+> These are help-menu module names, not command aliases.
+
+This module can be accessed using the following aliases:
+
+- `lock`
+- `unlock`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lock` | Lock a chat permission. | No |
-| `/unlock` | Unlock a chat permission. | No |
-| `/locks` | View current chat permissions. | Yes |
-| `/locktypes` | Check available lock types. | Yes |
+| `/lock` | Lock a permission type in the group | ❌ |
+| `/locks` | Show current lock settings | ✅ |
+| `/locktypes` | List all available lock types | ✅ |
+| `/unlock` | Unlock a permission type in the group | ❌ |
 
 ## Usage Examples
 
-```text
-/lock media          # Lock all media messages
-/lock url            # Lock all URLs
-/lock sticker        # Lock all stickers
-/unlock media        # Unlock media messages
-/locks               # View all current locks
-/locktypes           # See all available lock types
+### Basic Usage
+
+```
+/lock
+/locks
+/locktypes
 ```
 
-:::tip[Check Available Types First]
-Use `/locktypes` to see all the available lock types before trying to lock something.
-:::
-
-:::note
-Admins are exempt from all locks. Only non-admin users will have their messages deleted.
-:::
-
-## Module Aliases
-
-This module can be accessed using the following aliases:
-`lock`, `unlock`
+For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
+Most commands in this module require **admin permissions** in the group.
+
 **Bot Permissions Required:**
+
 - Delete messages
+- Ban users
 - Restrict users
+- Pin messages (if applicable)
 
 ## Technical Notes
 
+**Technical Notes**
 - Lock enforcement is real-time
 - Admins are exempt from all locks
 - Locks persist across bot restarts
-- Cache is invalidated on lock updates
+- Cache invalidated on updates

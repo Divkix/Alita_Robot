@@ -2,34 +2,39 @@
 title: Formatting Commands
 description: Complete guide to Formatting module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
-# Formatting Commands
+# 📄 Formatting Commands
 
 Alita supports a large number of formatting options to make your messages more expressive. Take a look by clicking the buttons below!
 
-:::note[Everyone Can Use This]
-These commands are available to all users in both private chats and groups.
-:::
+## Module Aliases
+
+> These are help-menu module names, not command aliases.
+
+This module can be accessed using the following aliases:
+
+- `markdownhelp`
+- `mdhelp`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/markdownhelp` | Show formatting help for messages. | No |
-| `/formatting` | Show formatting help for messages. Alias for /markdownhelp. | No |
+| `/markdownhelp` | Show markdown formatting reference | ❌ |
+| `/formatting` | Alias of `/markdownhelp` | ❌ |
 
-## Usage
+## Usage Examples
 
-```text
-/markdownhelp
+### Basic Usage
+
+```
 /formatting
+/markdownhelp
 ```
 
-:::tip
-Use `/markdownhelp` to see all supported formatting syntax for notes, filters, greetings, and other bot messages that support rich text.
-:::
+For detailed command usage, refer to the commands table above.
 
-## Module Aliases
+## Required Permissions
 
-This module can be accessed using the following aliases:
-`markdownhelp`, `formatting`
+Commands in this module are available to all users unless otherwise specified.

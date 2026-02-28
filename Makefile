@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build lint test check-translations check-duplicates psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs docs-dev
+.PHONY: run tidy vendor build lint test check-translations check-duplicates psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs check-docs inventory docs-dev
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
@@ -106,6 +106,15 @@ generate-docs:
 	@echo "📚 Generating documentation..."
 	@cd scripts/generate_docs && $(GO_CMD) run .
 	@echo "✅ Documentation generated in docs/src/content/docs/"
+
+check-docs:
+	@echo "Checking docs generation for drift..."
+	@cd scripts/generate_docs && $(GO_CMD) run .
+
+inventory:
+	@echo "Generating canonical command inventory..."
+	@cd scripts/generate_docs && $(GO_CMD) run . -inventory
+	@echo "Inventory written to .planning/INVENTORY.json and .planning/INVENTORY.md"
 
 docs-dev:
 	@echo "🚀 Starting Astro dev server..."

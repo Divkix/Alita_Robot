@@ -9,7 +9,7 @@ import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
 
-**Total Modules**: 21 | **Total Commands**: 120+
+**Total Modules**: 24 | **Total Commands**: 142
 
 ## Administration
 
@@ -182,6 +182,14 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
     <LinkCard title="View Disabling Commands" href="/commands/disabling/" />
   </Card>
 
+  <Card title="Help" icon="information">
+    Bot entry points and navigation. Welcome message, help menu, about, and donate.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Everyone" variant="success" />
+
+    <LinkCard title="View Help Commands" href="/commands/help/" />
+  </Card>
+
   <Card title="Languages" icon="translate">
     Change the bot's language for yourself or your group. Supports English, Spanish, French, and Hindi.
 
@@ -196,6 +204,30 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
     <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
 
     <LinkCard title="View Pins Commands" href="/commands/pins/" />
+  </Card>
+</CardGrid>
+
+## Developer
+
+<CardGrid>
+  <Card title="Devs" icon="setting">
+    Bot management and diagnostic commands for the bot owner and trusted developers.
+
+    <Badge text="9 commands" variant="note" /> <Badge text="Owner/Dev Only" variant="caution" />
+
+    <LinkCard title="View Devs Commands" href="/commands/devs/" />
+  </Card>
+</CardGrid>
+
+## Background
+
+<CardGrid>
+  <Card title="Users" icon="seti:db">
+    Automatic user and chat tracking. Silently logs all message senders and chats.
+
+    <Badge text="No commands" variant="default" /> <Badge text="Automatic" variant="success" />
+
+    <LinkCard title="View Users Module" href="/commands/users/" />
   </Card>
 </CardGrid>
 

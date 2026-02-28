@@ -7,11 +7,20 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
+
+// MessageWatcher represents a message handler registration
+type MessageWatcher struct {
+	Handler      string
+	Module       string
+	HandlerGroup int
+	SourceFile   string
+}
 
 // LockType represents a lock type that can be enabled/disabled
 type LockType struct {
@@ -201,6 +210,47 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					Module:      modName,
 					Disableable: disableableCmds[cmdName],
 				})
+			}
+		}
+
+		// Extract MultiCommand registrations (cmdDecorator.MultiCommand(dispatcher, []string{...}, handler))
+		multiCommandPattern := regexp.MustCompile(
+			`cmdDecorator\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*(\w+)\.(\w+)\s*\)`,
+		)
+		multiMatches := multiCommandPattern.FindAllStringSubmatch(content, -1)
+		for _, match := range multiMatches {
+			if len(match) >= 4 {
+				aliasesRaw := match[1] // e.g., `"remallbl", "rmallbl"`
+				moduleVar := match[2]  // e.g., "blacklistsModule"
+				handler := match[3]    // e.g., "rmAllBlacklists"
+
+				// Parse individual alias strings from the slice literal
+				aliasPattern := regexp.MustCompile(`"([^"]+)"`)
+				aliasMatches := aliasPattern.FindAllStringSubmatch(aliasesRaw, -1)
+
+				var aliases []string
+				for _, a := range aliasMatches {
+					if len(a) > 1 {
+						aliases = append(aliases, a[1])
+					}
+				}
+
+				// Resolve module name from the module variable
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = name
+				}
+
+				// Register each alias as a command
+				for _, alias := range aliases {
+					commands = append(commands, Command{
+						Name:        alias,
+						Handler:     handler,
+						Module:      modName,
+						Disableable: disableableCmds[alias],
+						Aliases:     aliases,
+					})
+				}
 			}
 		}
 	}
@@ -646,17 +696,25 @@ func getLockDescription(lockName, category string) string {
 	return "No description available"
 }
 
-// camelToScreamingSnake converts CamelCase to SCREAMING_SNAKE_CASE
+// camelToScreamingSnake converts CamelCase to SCREAMING_SNAKE_CASE.
+// Handles consecutive uppercase sequences (acronyms) correctly:
+// DatabaseURL -> DATABASE_URL, DBMaxIdleConns -> DB_MAX_IDLE_CONNS
 func camelToScreamingSnake(s string) string {
 	var result strings.Builder
-	for i, r := range s {
-		if r >= 'A' && r <= 'Z' {
-			if i > 0 {
+	runes := []rune(s)
+	for i, r := range runes {
+		isUpper := r >= 'A' && r <= 'Z'
+		if isUpper && i > 0 {
+			prevIsLower := runes[i-1] >= 'a' && runes[i-1] <= 'z'
+			nextIsLower := i+1 < len(runes) && runes[i+1] >= 'a' && runes[i+1] <= 'z'
+			if prevIsLower || nextIsLower {
 				result.WriteRune('_')
 			}
-			result.WriteRune(r)
+		}
+		if r >= 'a' && r <= 'z' {
+			result.WriteRune(r - 32)
 		} else {
-			result.WriteRune(r - 32) // Convert to uppercase
+			result.WriteRune(r)
 		}
 	}
 	return result.String()
@@ -753,6 +811,188 @@ func parseCallbacks(modulesPath string) ([]Callback, error) {
 	return callbacks, nil
 }
 
+// parseMessageWatchers parses Go source files to extract message handler registrations
+func parseMessageWatchers(modulesPath string) ([]MessageWatcher, error) {
+	var watchers []MessageWatcher
+
+	// Pattern 1: Single line with module.handler and literal group number
+	// e.g., dispatcher.AddHandlerToGroup(handlers.NewMessage(filter, module.handler), 5)
+	watcherPatternLiteral := regexp.MustCompile(
+		`dispatcher\.AddHandlerToGroup\s*\(\s*handlers\.NewMessage\s*\([^,]+,\s*(\w+)\.(\w+)\s*\)\s*,\s*(-?\d+)\s*\)`,
+	)
+
+	// Pattern 2: Module.handler with variable group reference
+	// e.g., dispatcher.AddHandlerToGroup(handlers.NewMessage(filter, module.handler), module.handlerGroup)
+	watcherPatternVar := regexp.MustCompile(
+		`dispatcher\.AddHandlerToGroup\s*\(\s*handlers\.NewMessage\s*\([^,]+,\s*(\w+)\.(\w+)\s*\)\s*,\s*(\w+)\.(\w+)\s*\)`,
+	)
+
+	// Pattern 3: Multi-line with anonymous function handler and literal group
+	// e.g., dispatcher.AddHandlerToGroup(\n\thandlers.NewMessage(..., func(...)...),\n\t-2,\n)
+	// We search for AddHandlerToGroup blocks and extract group numbers
+	watcherPatternMultiline := regexp.MustCompile(
+		`(?s)dispatcher\.AddHandlerToGroup\s*\(\s*handlers\.NewMessage\s*\([\s\S]*?\)\s*,\s*(-?\d+)\s*,?\s*\)`,
+	)
+
+	// Module name pattern
+	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
+
+	// Handler group field pattern (to extract default handler group numbers)
+	handlerGroupPattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{[^}]*handlerGroup:\s*(-?\d+)`)
+
+	files, err := filepath.Glob(filepath.Join(modulesPath, "*.go"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			log.Warnf("Could not read %s: %v", file, err)
+			continue
+		}
+
+		content := string(data)
+		fileName := filepath.Base(file)
+		moduleName := strings.TrimSuffix(fileName, ".go")
+
+		// Find module name from struct declaration
+		moduleMatches := moduleNamePattern.FindAllStringSubmatch(content, -1)
+		moduleNames := make(map[string]string)
+		for _, match := range moduleMatches {
+			if len(match) >= 3 {
+				moduleNames[match[1]+"Module"] = match[2]
+			}
+		}
+
+		// Extract handler group numbers from struct declarations
+		handlerGroups := make(map[string]int)
+		hgMatches := handlerGroupPattern.FindAllStringSubmatch(content, -1)
+		for _, match := range hgMatches {
+			if len(match) >= 3 {
+				groupNum, parseErr := strconv.Atoi(match[2])
+				if parseErr == nil {
+					handlerGroups[match[1]+"Module"] = groupNum
+				}
+			}
+		}
+
+		// Track found handlers to avoid duplicates
+		foundHandlers := make(map[string]bool)
+
+		// Pattern 1: Literal group number with named handler
+		watcherMatches := watcherPatternLiteral.FindAllStringSubmatch(content, -1)
+		for _, match := range watcherMatches {
+			if len(match) >= 4 {
+				moduleVar := match[1]
+				handler := match[2]
+				groupStr := match[3]
+
+				groupNum, parseErr := strconv.Atoi(groupStr)
+				if parseErr != nil {
+					log.Warnf("Could not parse handler group number '%s' in %s", groupStr, fileName)
+					continue
+				}
+
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = name
+				}
+
+				key := modName + "." + handler
+				if !foundHandlers[key] {
+					foundHandlers[key] = true
+					watchers = append(watchers, MessageWatcher{
+						Handler:      handler,
+						Module:       modName,
+						HandlerGroup: groupNum,
+						SourceFile:   fileName,
+					})
+				}
+			}
+		}
+
+		// Pattern 2: Variable group reference with named handler
+		varMatches := watcherPatternVar.FindAllStringSubmatch(content, -1)
+		for _, match := range varMatches {
+			if len(match) >= 5 {
+				moduleVar := match[1]
+				handler := match[2]
+				groupVar := match[3]
+				// match[4] is the field name like "handlerGroup"
+
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = name
+				}
+
+				// Try to resolve the group number from struct declaration
+				groupNum := 0
+				if g, ok := handlerGroups[groupVar]; ok {
+					groupNum = g
+				}
+
+				key := modName + "." + handler
+				if !foundHandlers[key] {
+					foundHandlers[key] = true
+					watchers = append(watchers, MessageWatcher{
+						Handler:      handler,
+						Module:       modName,
+						HandlerGroup: groupNum,
+						SourceFile:   fileName,
+					})
+				}
+			}
+		}
+
+		// Pattern 3: Multiline with anonymous function - extract group from block
+		multiMatches := watcherPatternMultiline.FindAllStringSubmatch(content, -1)
+		for _, match := range multiMatches {
+			if len(match) >= 2 {
+				groupStr := match[1]
+				groupNum, parseErr := strconv.Atoi(groupStr)
+				if parseErr != nil {
+					continue
+				}
+
+				// For anonymous handlers, use module name as handler description
+				modName := moduleName
+
+				// Try to find module handler in the match by looking for module.method pattern
+				handlerName := "anonymous"
+				handlerRe := regexp.MustCompile(`(\w+Module)\.(\w+)`)
+				if hMatch := handlerRe.FindStringSubmatch(match[0]); hMatch != nil {
+					if name, ok := moduleNames[hMatch[1]]; ok {
+						modName = name
+					}
+					handlerName = hMatch[2]
+				}
+
+				key := modName + "." + handlerName
+				if !foundHandlers[key] {
+					foundHandlers[key] = true
+					watchers = append(watchers, MessageWatcher{
+						Handler:      handlerName,
+						Module:       modName,
+						HandlerGroup: groupNum,
+						SourceFile:   fileName,
+					})
+				}
+			}
+		}
+	}
+
+	// Sort by handler group then module
+	sort.Slice(watchers, func(i, j int) bool {
+		if watchers[i].HandlerGroup != watchers[j].HandlerGroup {
+			return watchers[i].HandlerGroup < watchers[j].HandlerGroup
+		}
+		return watchers[i].Module < watchers[j].Module
+	})
+
+	return watchers, nil
+}
+
 // parsePermissions parses chat_status.go to extract permission checking functions
 func parsePermissions(chatStatusPath string) ([]PermissionFunc, error) {
 	var permissions []PermissionFunc
@@ -772,8 +1012,7 @@ func parsePermissions(chatStatusPath string) ([]PermissionFunc, error) {
 
 	for i, line := range lines {
 		// Collect comments
-		if strings.HasPrefix(strings.TrimSpace(line), "//") {
-			comment := strings.TrimPrefix(strings.TrimSpace(line), "//")
+		if comment, ok := strings.CutPrefix(strings.TrimSpace(line), "//"); ok {
 			comment = strings.TrimSpace(comment)
 			if pendingComment != "" {
 				pendingComment += " "
@@ -834,8 +1073,7 @@ func parseParameterList(params string) []string {
 		return result
 	}
 
-	parts := strings.Split(params, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(params, ",") {
 		part = strings.TrimSpace(part)
 		// Get just the parameter name (first word)
 		fields := strings.Fields(part)

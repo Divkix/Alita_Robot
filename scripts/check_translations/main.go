@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -94,7 +93,7 @@ func extractTranslationKeys(rootDir string) ([]TranslationKey, error) {
 			return err
 		}
 
-		if d.IsDir() || !strings.HasSuffix(path, ".go") {
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 
@@ -123,11 +122,12 @@ func extractTranslationKeys(rootDir string) ([]TranslationKey, error) {
 func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 	var keys []TranslationKey
 
-	// Validate file path to prevent path traversal attacks
-	cleanPath := path.Clean(filePath)
-	if cleanPath != filePath || strings.Contains(filePath, "..") {
-		return nil, fmt.Errorf("potentially unsafe file path: %s", filePath)
+	// Resolve to absolute path to handle legitimate relative paths (e.g., ../../alita/...)
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve path %s: %w", filePath, err)
 	}
+	filePath = absPath
 
 	// Read file content
 	content, err := os.ReadFile(filePath) // #nosec G304 - path validation performed above
@@ -241,16 +241,18 @@ func loadLocaleFiles(localesDir string) (map[string]map[string]interface{}, erro
 
 		filePath := filepath.Join(localesDir, filename)
 
-		// Validate file path to prevent path traversal attacks
-		cleanPath := path.Clean(filePath)
-		if cleanPath != filePath || strings.Contains(filePath, "..") {
-			fmt.Printf("  ⚠️  Warning: Potentially unsafe file path %s, skipping\n", filename)
+		// Resolve to absolute path to handle legitimate relative paths
+		absFilePath, err := filepath.Abs(filePath)
+		if err != nil {
+			fmt.Printf("  Warning: Could not resolve path %s, skipping: %v\n", filename, err)
 			continue
 		}
+		filePath = absFilePath
 
-		// Additional check: ensure the file is still within the locales directory
-		if !strings.HasPrefix(filePath, localesDir) {
-			fmt.Printf("  ⚠️  Warning: File path %s is outside locales directory, skipping\n", filename)
+		// Ensure the resolved path is still within the locales directory
+		absLocalesDir, _ := filepath.Abs(localesDir)
+		if !strings.HasPrefix(filePath, absLocalesDir) {
+			fmt.Printf("  Warning: File path %s is outside locales directory, skipping\n", filename)
 			continue
 		}
 

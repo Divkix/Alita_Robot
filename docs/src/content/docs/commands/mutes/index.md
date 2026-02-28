@@ -2,65 +2,72 @@
 title: Mutes Commands
 description: Complete guide to Mutes module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
-# Mutes Commands
+# 📦 Mutes Commands
 
-Sometimes users can be annoying and you might want to restrict them from sending messages. This module lets you mute members in your group.
+Sometimes users can be annoying and you might want to restrict them from sending a message to chat, this module is here to help, you can use this module to mute members in your group.
 
-:::caution[Admin Permissions Required]
-All mute commands require admin permissions with restrict rights in groups.
-:::
+*Mute Commands:* (Admin only)
+× /mute <userhandle>: mutes a user, (via a handle, or reply)
+× /smute <userhandle>: mutes a user silently, does not send a message to the group, and also deletes your command. (via a handle, or reply)
+× /dmute <userhandle>: mutes a user and deletes the replied message. (via a handle, or reply)
+× /tmute <userhandle> x(m/h/d): mutes a user for `x` time. (via a handle, or reply). m = minutes, h = hours, d = days.
+× /unmute <userhandle>: unmutes a user. (via a handle, or reply)
+
+**Time Format for Temporary Mutes:**
+- `m` = minutes (e.g., `30m`)
+- `h` = hours (e.g., `2h`)
+- `d` = days (e.g., `1d`)
+
+**Mute Variants:**
+- `/mute` - Standard mute with optional reason
+- `/smute` - Silent mute (deletes your command message)
+- `/dmute` - Delete-mute (mutes user and deletes their message)
+- `/tmute` - Temporary mute with specified duration
+
+**Required Permissions:**
+**Admin only commands.** Users executing these commands must have:
+- Admin status in the chat
+- Permission to restrict members
+
+The bot must also have admin privileges with permission to restrict members.
+
+
+## Module Aliases
+
+> These are help-menu module names, not command aliases.
+
+This module can be accessed using the following aliases:
+
+- `mute`
+- `unmute`
+- `tmute`
+- `smute`
+- `dmute`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/mute` | Mutes a user (via handle or reply). | No |
-| `/smute` | Mutes a user silently — no group message, deletes your command. | No |
-| `/dmute` | Mutes a user and deletes the replied message. | No |
-| `/tmute` | Mutes a user for a specified time (via handle or reply). | No |
-| `/unmute` | Unmutes a user (via handle or reply). | No |
+| `/dmute` | Mute a user and delete the replied message | ❌ |
+| `/mute` | Mute a user | ❌ |
+| `/smute` | Mute a user silently and delete your command | ❌ |
+| `/tmute` | Temporarily mute a user for a specified duration | ❌ |
+| `/unmute` | Unmute a user | ❌ |
 
 ## Usage Examples
 
-```text
-/mute @username          # Mute a user
-/mute @username Spamming # Mute with reason
-/smute @username         # Mute silently
-/dmute                   # Reply to mute and delete their message
-/tmute @username 2h      # Mute for 2 hours
-/unmute @username        # Unmute a user
+### Basic Usage
+
+```
+/dmute
+/mute
+/smute
 ```
 
-:::tip[Time Format for Temporary Mutes]
-Use `/tmute` with a time suffix: `m` = minutes, `h` = hours, `d` = days.
-
-```text
-/tmute @user 30m    # Mute for 30 minutes
-/tmute @user 2h     # Mute for 2 hours
-/tmute @user 1d     # Mute for 1 day
-```
-:::
-
-## Mute Variants
-
-| Variant | Behavior |
-|---------|----------|
-| `/mute` | Standard mute with optional reason |
-| `/smute` | Silent mute (deletes your command message) |
-| `/dmute` | Delete-mute (mutes user and deletes their message) |
-| `/tmute` | Temporary mute with specified duration |
-
-## Module Aliases
-
-This module can be accessed using the following aliases:
-`mute`, `unmute`, `tmute`, `smute`, `dmute`
+For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-**Bot Permissions Required:**
-- Restrict members
-
-**User must have:**
-- Admin status in the chat
-- Permission to restrict members
+Commands in this module are available to all users unless otherwise specified.

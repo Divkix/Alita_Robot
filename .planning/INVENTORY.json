@@ -1,0 +1,1270 @@
+[
+  {
+    "module": "admin",
+    "source_file": "alita/modules/admin.go",
+    "commands": [
+      {
+        "command": "admincache",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "adminlist",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "anonadmin",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "clearadmincache",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "demote",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "invitelink",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "promote",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "title",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/admin"
+  },
+  {
+    "module": "antiflood",
+    "source_file": "alita/modules/antiflood.go",
+    "commands": [
+      {
+        "command": "delflood",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "flood",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setflood",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setfloodmode",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": [
+      {
+        "handler": "checkFlood",
+        "handler_group": 0
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/antiflood"
+  },
+  {
+    "module": "antispam",
+    "source_file": "alita/modules/antispam.go",
+    "commands": null,
+    "callbacks": null,
+    "message_watchers": [
+      {
+        "handler": "anonymous",
+        "handler_group": -2
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/antispam"
+  },
+  {
+    "module": "bans",
+    "source_file": "alita/modules/bans.go",
+    "commands": [
+      {
+        "command": "ban",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "dban",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "dkick",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "kick",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "kickme",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "restrict",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "sban",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "tban",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unban",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unrestrict",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "restrict",
+        "handler": "restrictButtonHandler"
+      },
+      {
+        "prefix": "unrestrict",
+        "handler": "unrestrictButtonHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/bans"
+  },
+  {
+    "module": "blacklists",
+    "source_file": "alita/modules/blacklists.go",
+    "commands": [
+      {
+        "command": "addblacklist",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "blacklist",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "blacklistaction",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "blacklists",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "blaction",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "remallbl",
+        "aliases": [
+          "remallbl",
+          "rmallbl"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "rmallbl",
+        "aliases": [
+          "remallbl",
+          "rmallbl"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "rmblacklist",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "rmAllBlacklist",
+        "handler": "buttonHandler"
+      }
+    ],
+    "message_watchers": [
+      {
+        "handler": "blacklistWatcher",
+        "handler_group": 7
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/blacklists"
+  },
+  {
+    "module": "bot_updates",
+    "source_file": "alita/modules/bot_updates.go",
+    "internal": true,
+    "commands": null,
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": false
+  },
+  {
+    "module": "captcha",
+    "source_file": "alita/modules/captcha.go",
+    "commands": [
+      {
+        "command": "captcha",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchaaction",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchaclear",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchamaxattempts",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchamode",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchapending",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "captchatime",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "captcha_refresh",
+        "handler": "captchaRefreshCallback"
+      },
+      {
+        "prefix": "captcha_verify",
+        "handler": "captchaVerifyCallback"
+      }
+    ],
+    "message_watchers": [
+      {
+        "handler": "handlePendingCaptchaMessage",
+        "handler_group": -10
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/captcha"
+  },
+  {
+    "module": "connections",
+    "source_file": "alita/modules/connections.go",
+    "commands": [
+      {
+        "command": "allowconnect",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "connect",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "connection",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "disconnect",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "reconnect",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "connbtns",
+        "handler": "connectionButtons"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/connections"
+  },
+  {
+    "module": "devs",
+    "source_file": "alita/modules/devs.go",
+    "commands": [
+      {
+        "command": "adddev",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "addsudo",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "chatinfo",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "chatlist",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "leavechat",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "remdev",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "remsudo",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "stats",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "teamusers",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/devs"
+  },
+  {
+    "module": "disabling",
+    "source_file": "alita/modules/disabling.go",
+    "commands": [
+      {
+        "command": "disable",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "disableable",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "disabled",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "disabledel",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "enable",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/disabling"
+  },
+  {
+    "module": "filters",
+    "source_file": "alita/modules/filters.go",
+    "commands": [
+      {
+        "command": "addfilter",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "filter",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "filters",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "removefilter",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "rmfilter",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "stop",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "stopall",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "filters_overwrite",
+        "handler": "filterOverWriteHandler"
+      },
+      {
+        "prefix": "rmAllFilters",
+        "handler": "filtersButtonHandler"
+      }
+    ],
+    "message_watchers": [
+      {
+        "handler": "filtersWatcher",
+        "handler_group": 9
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/filters"
+  },
+  {
+    "module": "formatting",
+    "source_file": "alita/modules/formatting.go",
+    "commands": [
+      {
+        "command": "formatting",
+        "aliases": [
+          "markdownhelp",
+          "formatting"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "markdownhelp",
+        "aliases": [
+          "markdownhelp",
+          "formatting"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "formatting",
+        "handler": "formattingHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/formatting"
+  },
+  {
+    "module": "greetings",
+    "source_file": "alita/modules/greetings.go",
+    "commands": [
+      {
+        "command": "autoapprove",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "cleangoodbye",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "cleanservice",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "cleanwelcome",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "goodbye",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetgoodbye",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetwelcome",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setgoodbye",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setwelcome",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "welcome",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "join_request",
+        "handler": "joinRequestHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/greetings"
+  },
+  {
+    "module": "help",
+    "source_file": "alita/modules/help.go",
+    "commands": [
+      {
+        "command": "about",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "donate",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "help",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "start",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "about",
+        "handler": "about"
+      },
+      {
+        "prefix": "configuration",
+        "handler": "botConfig"
+      },
+      {
+        "prefix": "helpq",
+        "handler": "helpButtonHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/help"
+  },
+  {
+    "module": "language",
+    "source_file": "alita/modules/language.go",
+    "commands": [
+      {
+        "command": "lang",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "change_language",
+        "handler": "langBtnHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/languages"
+  },
+  {
+    "module": "locks",
+    "source_file": "alita/modules/locks.go",
+    "commands": [
+      {
+        "command": "lock",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "locks",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "locktypes",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unlock",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": [
+      {
+        "handler": "permHandler",
+        "handler_group": 0
+      },
+      {
+        "handler": "restHandler",
+        "handler_group": 0
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/locks"
+  },
+  {
+    "module": "misc",
+    "source_file": "alita/modules/misc.go",
+    "commands": [
+      {
+        "command": "id",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "info",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "ping",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "removebotkeyboard",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "stat",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "tell",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "tr",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/misc"
+  },
+  {
+    "module": "mute",
+    "source_file": "alita/modules/mute.go",
+    "commands": [
+      {
+        "command": "dmute",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "mute",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "smute",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "tmute",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unmute",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/mutes"
+  },
+  {
+    "module": "notes",
+    "source_file": "alita/modules/notes.go",
+    "commands": [
+      {
+        "command": "addnote",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "clear",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "clearall",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "get",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "notes",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "privatenotes",
+        "aliases": [
+          "privnote",
+          "privatenotes"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "privnote",
+        "aliases": [
+          "privnote",
+          "privatenotes"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "rmnote",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "save",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "saved",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "notes.overwrite",
+        "handler": "noteOverWriteHandler"
+      },
+      {
+        "prefix": "rmAllNotes",
+        "handler": "notesButtonHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/notes"
+  },
+  {
+    "module": "pins",
+    "source_file": "alita/modules/pins.go",
+    "commands": [
+      {
+        "command": "antichannelpin",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "cleanlinked",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "permapin",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "pin",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "pinned",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unpin",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unpinall",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "unpinallbtn",
+        "handler": "unpinallCallback"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/pins"
+  },
+  {
+    "module": "purges",
+    "source_file": "alita/modules/purges.go",
+    "commands": [
+      {
+        "command": "del",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "purge",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "purgefrom",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "purgeto",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "deleteMsg",
+        "handler": "deleteButtonHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/purges"
+  },
+  {
+    "module": "reports",
+    "source_file": "alita/modules/reports.go",
+    "commands": [
+      {
+        "command": "report",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "reports",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "report",
+        "handler": "markResolvedButtonHandler"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/reports"
+  },
+  {
+    "module": "rules",
+    "source_file": "alita/modules/rules.go",
+    "commands": [
+      {
+        "command": "clearrules",
+        "aliases": [
+          "resetrules",
+          "clearrules"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "clearrulesbtn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "clearrulesbutton",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "privaterules",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetrules",
+        "aliases": [
+          "resetrules",
+          "clearrules"
+        ],
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "MultiCommand"
+      },
+      {
+        "command": "resetrulesbtn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetrulesbutton",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "rules",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "rulesbtn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "rulesbutton",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setrules",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": null,
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/rules"
+  },
+  {
+    "module": "users",
+    "source_file": "alita/modules/users.go",
+    "commands": null,
+    "callbacks": null,
+    "message_watchers": [
+      {
+        "handler": "logUsers",
+        "handler_group": -1
+      }
+    ],
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/users"
+  },
+  {
+    "module": "warns",
+    "source_file": "alita/modules/warns.go",
+    "commands": [
+      {
+        "command": "dwarn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetallwarns",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetwarn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "resetwarns",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "rmwarn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setwarnlimit",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "setwarnmode",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "swarn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "unwarn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "warn",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "warnings",
+        "handler_group": 0,
+        "disableable": false,
+        "registration_pattern": "NewCommand"
+      },
+      {
+        "command": "warns",
+        "handler_group": 0,
+        "disableable": true,
+        "registration_pattern": "NewCommand"
+      }
+    ],
+    "callbacks": [
+      {
+        "prefix": "rmAllChatWarns",
+        "handler": "warnsButtonHandler"
+      },
+      {
+        "prefix": "rmWarn",
+        "handler": "rmWarnButton"
+      }
+    ],
+    "message_watchers": null,
+    "has_docs_directory": true,
+    "docs_path": "docs/src/content/docs/commands/warns"
+  }
+]

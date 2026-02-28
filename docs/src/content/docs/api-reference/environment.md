@@ -288,24 +288,15 @@ Response cache TTL in seconds
 | **Required** | No |
 | **Validation** | min=1,max=3600 |
 
-## 📂 Telegram API configuration
+## 📂 Profiling configuration
 
-### `TELEGRAM_API_ID`
+### `ENABLE_PPROF`
 
-Telegram API ID for custom Bot API server (obtain from https://my.telegram.org/apps)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-
-### `TELEGRAM_API_HASH`
-
-Telegram API hash for custom Bot API server (obtain from https://my.telegram.org/apps)
+Enable pprof endpoints for performance profiling (development only)
 
 | Property | Value |
 |----------|-------|
-| **Type** | `string` |
+| **Type** | `boolean` |
 | **Required** | No |
 
 ## 📂 Redis configuration
@@ -317,6 +308,16 @@ Telegram API hash for custom Bot API server (obtain from https://my.telegram.org
 | **Type** | `string` |
 | **Required** | Yes |
 | **Validation** | required |
+
+### `HTTP_PORT`
+
+HTTP Server configuration (unified server for health, metrics, webhook)
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Validation** | min=1,max=65535 |
 
 ### `REDIS_DB`
 
@@ -331,27 +332,6 @@ Telegram API hash for custom Bot API server (obtain from https://my.telegram.org
 |----------|-------|
 | **Type** | `string` |
 | **Required** | No |
-
-### `REDIS_URL`
-
-Redis URL for connection (auto-parsed, used by Heroku/Railway). Alternative to REDIS_ADDRESS + REDIS_PASSWORD + REDIS_DB.
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-## 📂 HTTP server configuration
-
-### `HTTP_PORT`
-
-HTTP Server configuration (unified server for health, metrics, webhook)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-| **Validation** | min=1,max=65535 |
 
 ## 📂 Resource monitoring limits
 
@@ -445,28 +425,6 @@ Computed from OperationTimeoutSeconds
 | **Required** | No |
 | **Validation** | min=1,max=300 |
 
-## 📂 Localization configuration
-
-### `ENABLED_LOCALES`
-
-Comma-separated list of enabled locale codes (default: en)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-## 📂 Cloudflare configuration
-
-### `CLOUDFLARE_TUNNEL_TOKEN`
-
-Cloudflare Tunnel token (only needed if using webhooks with Cloudflare Tunnel)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
 ## 📂 Webhook configuration
 
 ### `USE_WEBHOOKS`
@@ -485,9 +443,7 @@ Cloudflare Tunnel token (only needed if using webhooks with Cloudflare Tunnel)
 
 ### `WEBHOOK_PORT`
 
-:::note
-Deprecated: use `HTTP_PORT` instead. This variable will be removed in a future release.
-:::
+Deprecated: use HTTPPort instead
 
 | Property | Value |
 |----------|-------|
@@ -552,54 +508,7 @@ Deprecated: use `HTTP_PORT` instead. This variable will be removed in a future r
 | **Required** | No |
 | **Validation** | min=1,max=10 |
 
-## 📂 Observability configuration
-
-### `ENABLE_PPROF`
-
-:::danger
-Enabling pprof in production exposes internal runtime state. Only enable for debugging in isolated staging environments behind a firewall.
-:::
-
-Enable pprof profiling endpoints at /debug/pprof/*
-
-| Property | Value |
-|----------|-------|
-| **Type** | `boolean` |
-| **Required** | No |
-
-### `OTEL_EXPORTER_OTLP_ENDPOINT`
-
-OpenTelemetry OTLP gRPC endpoint for trace export
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-### `OTEL_SERVICE_NAME`
-
-OpenTelemetry service name (default: alita_robot)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
-### `OTEL_TRACES_SAMPLE_RATE`
-
-Trace sampling rate from 0.0 to 1.0 (default: 1.0)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `float` |
-| **Required** | No |
-| **Validation** | min=0,max=1 |
-
 ## Quick Reference
-
-:::caution[Secrets]
-Never commit `.env` files or any file containing `BOT_TOKEN`, `WEBHOOK_SECRET`, or database passwords to version control. Use environment variables or a secrets manager in production.
-:::
 
 ### Required Variables
 
@@ -616,7 +525,6 @@ REDIS_ADDRESS=
 ```bash
 ACTIVITY_CHECK_INTERVAL=# (optional)
 ALLOWED_UPDATES=# (optional)
-CLOUDFLARE_TUNNEL_TOKEN=# (optional)
 API_SERVER=# (optional)
 AUTO_MIGRATE=# (optional)
 AUTO_MIGRATE_SILENT_FAIL=# (optional)
@@ -627,19 +535,18 @@ CACHE_WORKERS=# (optional)
 CHAT_VALIDATION_WORKERS=# (optional)
 CLEAR_CACHE_ON_STARTUP=# (optional)
 DATABASE_WORKERS=# (optional)
-DEBUG=# (optional)
-DISPATCHER_MAX_ROUTINES=# (optional)
-DROP_PENDING_UPDATES=# (optional)
 DB_CONN_MAX_IDLE_TIME_MIN=# (optional)
 DB_CONN_MAX_LIFETIME_MIN=# (optional)
 DB_MAX_IDLE_CONNS=# (optional)
 DB_MAX_OPEN_CONNS=# (optional)
+DEBUG=# (optional)
+DISPATCHER_MAX_ROUTINES=# (optional)
+DROP_PENDING_UPDATES=# (optional)
 ENABLE_ASYNC_PROCESSING=# (optional)
 ENABLE_AUTO_CLEANUP=# (optional)
 ENABLE_BACKGROUND_STATS=# (optional)
 ENABLE_BATCH_REQUESTS=# (optional)
 ENABLE_CACHE_PREWARMING=# (optional)
-ENABLED_LOCALES=# (optional)
 ENABLE_HTTP_CONNECTION_POOLING=# (optional)
 ENABLE_PERFORMANCE_MONITORING=# (optional)
 ENABLE_PPROF=# (optional)
@@ -654,19 +561,13 @@ MESSAGE_PIPELINE_WORKERS=# (optional)
 MIGRATIONS_PATH=# (optional)
 OPERATION_TIMEOUT=# (optional)
 OPERATION_TIMEOUT_SECONDS=# (optional)
-OTEL_EXPORTER_OTLP_ENDPOINT=# (optional)
-OTEL_SERVICE_NAME=# (optional)
-OTEL_TRACES_SAMPLE_RATE=# (optional)
 REDIS_DB=# (optional)
 REDIS_PASSWORD=# (optional)
-REDIS_URL=# (optional)
 RESOURCE_GC_THRESHOLD_MB=# (optional)
 RESOURCE_MAX_GOROUTINES=# (optional)
 RESOURCE_MAX_MEMORY_MB=# (optional)
 RESPONSE_CACHE_TTL=# (optional)
 STATS_COLLECTION_WORKERS=# (optional)
-TELEGRAM_API_ID=# (optional)
-TELEGRAM_API_HASH=# (optional)
 USE_WEBHOOKS=# (optional)
 VALID_LANG_CODES=# (optional)
 WEBHOOK_DOMAIN=# (optional)

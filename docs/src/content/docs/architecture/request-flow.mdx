@@ -267,9 +267,11 @@ dispatcher.AddHandlerToGroup(handler, 10)
 ```
 
 :::tip[Handler group conventions]
-- **Negative groups (-1, -10)**: Early interception handlers (antispam, antiflood)
+- **Negative groups**: Early interception — captcha (-10), antispam (-2), user logging (-1)
 - **Group 0**: Standard command handlers (default)
-- **Positive groups (4-10)**: Message watchers and monitors that should not block downstream processing
+- **Positive groups (4-10)**: Message watchers — antiflood (4), locks (5-6), blacklists (7), reports (8), filters (9), pins (10)
+
+For the complete precedence table with propagation behavior, see [Handler Group Precedence](/architecture/handler-groups).
 :::
 
 ## Permission Check Flow

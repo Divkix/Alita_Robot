@@ -220,6 +220,7 @@ bans_unrestrict_unmuted: "Voix réactivée par %s !"
 bans_unrestrict_unbanned: "Débanni par %s !"
 bans_invalid_callback_data: "Données de rappel invalides."
 bans_invalid_user_id: "ID utilisateur invalide."
+bans_cannot_identify_user: "Impossible d'identifier l'utilisateur à partir du message cité."
 bans_anonymous_ban_only_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme, ces utilisateurs peuvent uniquement être bannis/débannis.
 
 # Mutes module strings
@@ -546,6 +547,7 @@ captcha_expired_or_not_found: "Captcha expiré ou introuvable"
 captcha_attempt_not_valid: "Cette tentative de captcha n'est plus valide."
 captcha_refresh_limit_reached: "Limite d'actualisation atteinte pour ce captcha."
 captcha_internal_update_error: "Erreur interne lors de la mise à jour du captcha."
+captcha_internal_error: "Une erreur interne s'est produite lors de la mise à jour des paramètres du captcha. Veuillez réessayer."
 captcha_no_active_attempt: "aucune tentative de captcha active trouvée"
 captcha_settings_header: "<b>Paramètres Captcha :</b>"
 captcha_settings_status: "Statut : <code>%s</code>"
@@ -629,9 +631,9 @@ greetings_clean_service_enable: "J'essaierai de supprimer les messages de rejoin
 greetings_clean_service_invalid_option: "Je comprends uniquement 'on/yes' ou 'off/no' !"
 greetings_captcha_verified_success: "✅ %s a été vérifié et peut maintenant discuter !"
 greetings_join_request_new: "Un nouvel utilisateur a demandé à rejoindre le chat !"
-greetings_join_request_approve_button: "✅ Approuver"
-greetings_join_request_decline_button: "❌ Refuser"
-greetings_join_request_ban_button: "✅ Bannir"
+greetings_join_request_approve_btn: "✅ Approuver"
+greetings_join_request_decline_btn: "❌ Refuser"
+greetings_join_request_ban_btn: "✅ Bannir"
 greetings_join_request_accepted: "%s accepté dans le chat ✅"
 greetings_join_request_declined: "Demande de %s de rejoindre le chat refusée ❌"
 greetings_join_request_banned: "✅ Banni avec succès ! %s"
@@ -1346,6 +1348,7 @@ reports_reply_to_report: Vous devez répondre à un message pour le signaler.
 reports_expose_yourself: Vous devez d'abord vous exposer !
 reports_reply_to_block: Vous devez répondre à un utilisateur pour le bloquer.
 reports_reply_to_unblock: Vous devez répondre à un utilisateur pour le débloquer.
+reports_cannot_report_channel: "Vous ne pouvez pas signaler une publication de chaîne."
 reports_cannot_report_self: "Vous ne pouvez pas signaler votre propre message !"
 reports_special_account: "C'est un compte spécial de Telegram !"
 reports_admin_report: "Vous êtes admin, à qui vais-je signaler vos problèmes ?"
@@ -1402,8 +1405,8 @@ bot_updates_convert_howto: "Pour convertir ce groupe en supergroupe, veuillez su
 # Devs module strings
 devs_specify_user: Vous devez spécifier un utilisateur pour obtenir des informations
 devs_chat_info: "<b>Nom :</b> %s\n<b>ID du chat</b> : %d\n<b>Nombre d'utilisateurs :</b> %d\n<b>Lien :</b> %s"
-devs_getting_chatlist: Obtention de la liste des chats où je suis...
-devs_chatlist_caption: Voici la liste des chats dans ma base de données !
+devs_getting_chat_list: Obtention de la liste des chats où je suis...
+devs_chat_list_caption: Voici la liste des chats dans ma base de données !
 devs_left_chat: D'accord, j'ai quitté le chat !
 devs_user_already_sudo: L'utilisateur est déjà Sudo !
 devs_added_to_sudo: "%s ajouté à la liste Sudo !"
@@ -1413,10 +1416,10 @@ devs_user_not_sudo: L'utilisateur n'est pas Sudo !
 devs_removed_from_sudo: "%s retiré de la liste Sudo !"
 devs_user_not_dev: L'utilisateur n'est pas Dev !
 devs_removed_from_dev: "%s retiré de la liste Dev !"
-devs_no_team_members: Aucun utilisateur n'a été ajouté à l'équipe !
+devs_no_team_users: Aucun utilisateur n'a été ajouté à l'équipe !
 devs_dev_users_header: "<b>Utilisateurs Dev :</b>"
 devs_sudo_users_header: "<b>Utilisateurs Sudo :</b>"
-devs_no_users_in_category: "Aucun utilisateur"
+devs_no_users: "Aucun utilisateur"
 devs_fetching_stats: "<code>Récupération des statistiques du bot...</code>"
 devs_failed_to_add_sudo: "Échec de l'ajout de l'utilisateur à la liste Sudo. Veuillez réessayer."
 devs_failed_to_add_dev: "Échec de l'ajout de l'utilisateur à la liste Dev. Veuillez réessayer."

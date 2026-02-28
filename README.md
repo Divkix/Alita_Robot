@@ -82,7 +82,7 @@
 ### 🔧 **Technical Excellence**
 
 - **Performance**: Built with Go for blazing-fast response times
-- **Dual-Layer Cache**: Redis + Ristretto for optimal performance
+- **Cache**: Redis with TTL support and stampede protection
 - **Database**: PostgreSQL with connection pooling and batch operations
 - **Deployment Modes**: Support for both polling and webhook modes
 - **Multi-Language**: i18n support with YAML locale files
@@ -250,7 +250,7 @@ chmod +x alita_robot
 
 #### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.25 or higher
 - PostgreSQL 14+
 - Redis 6+
 - Make (optional)
@@ -311,21 +311,20 @@ project root:
 
 #### Optional Variables
 
-| Variable           | Description                      | Default      |
-| ------------------ | -------------------------------- | ------------ |
-| `REDIS_PASSWORD`   | Redis password                   | (empty)      |
-| `ENABLED_LOCALES`  | Comma-separated locale codes     | `en`         |
-| `USE_WEBHOOKS`     | Enable webhook mode              | `false`      |
-| `WEBHOOK_DOMAIN`   | Webhook domain (if enabled)      | -            |
-| `WEBHOOK_SECRET`   | Webhook security token           | -            |
-| `WEBHOOK_PORT`     | Webhook server port              | `8080`       |
-| `MAX_DB_POOL_SIZE` | Database connection pool size    | (calculated) |
-| `CACHE_TTL`        | Cache time-to-live (seconds)     | `300`        |
-| `CACHE_SIZE`       | In-memory cache size (MB)        | `100`        |
-| `WORKER_POOL_SIZE` | Concurrent worker pool size      | `10`         |
-| `QUERY_TIMEOUT`    | Database query timeout (seconds) | `30`         |
+| Variable               | Description                                     | Default |
+| ---------------------- | ----------------------------------------------- | ------- |
+| `REDIS_PASSWORD`       | Redis password                                  | (empty) |
+| `ENABLED_LOCALES`      | Comma-separated locale codes                    | `en`    |
+| `USE_WEBHOOKS`         | Enable webhook mode                             | `false` |
+| `WEBHOOK_DOMAIN`       | Webhook domain (if enabled)                     | -       |
+| `WEBHOOK_SECRET`       | Webhook security token                          | -       |
+| `HTTP_PORT`            | Unified server port (health, metrics, webhook)  | `8080`  |
+| `DEBUG`                | Enable verbose logging                          | `false` |
+| `AUTO_MIGRATE`         | Auto-apply SQL migrations on startup            | `false` |
+| `DROP_PENDING_UPDATES` | Drop pending updates on start                   | `true`  |
 
-See `sample.env` for a complete list of configuration options.
+See `sample.env` for the complete list of configuration options including
+database pool tuning, worker pool sizes, monitoring, and performance settings.
 
 ### Webhook Mode (Production)
 
@@ -377,7 +376,7 @@ REDIS_PASSWORD=your_redis_password
 USE_WEBHOOKS=true
 WEBHOOK_DOMAIN=https://alita-bot.yourdomain.com
 WEBHOOK_SECRET=your-random-secret-string-here
-WEBHOOK_PORT=8080
+HTTP_PORT=8080
 
 # Cloudflare Tunnel
 CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNzU1...your-tunnel-token-here
@@ -504,8 +503,8 @@ USE_WEBHOOKS=false
 
 ## 📖 Documentation
 
-- **Comprehensive Code Documentation**: All 774+ functions across 83 Go files
-  are fully documented
+- **Comprehensive Code Documentation**: Comprehensive code documentation across
+  the Go codebase
 - **GoDoc Compatible**: Documentation follows Go standards for automatic
   documentation generation
 - **Developer Guide**: See [CLAUDE.md](CLAUDE.md) for detailed architecture and
@@ -526,24 +525,23 @@ Alita_Robot/
 │   ├── modules/        # Command handlers
 │   ├── utils/          # Utility packages
 │   └── i18n/           # Internationalization
-├── cmd/                # Executables
-│   ├── alita/          # Main bot
-│   └── migrate/        # Migration tool
+├── migrations/         # Database migration SQL files
 ├── locales/            # Language files
-├── supabase/           # Database migrations
+├── supabase/           # Supabase CLI configuration
+├── docs/               # Documentation site (Astro/Starlight)
 └── docker/             # Docker configurations
 ```
 
 ### Development Setup
 
-1. **Install Go 1.21+**
+1. **Install Go 1.25+**
    ```bash
    # macOS
    brew install go
 
    # Linux
-   wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz
-   sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+   wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+   sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
    ```
 
 2. **Setup PostgreSQL and Redis**

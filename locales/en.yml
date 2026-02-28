@@ -1062,6 +1062,7 @@ bans_unrestrict_unmuted: "Unmuted by %s!"
 bans_unrestrict_unbanned: "Unbanned by %s !"
 bans_invalid_callback_data: "Invalid callback data."
 bans_invalid_user_id: "Invalid user ID."
+bans_cannot_identify_user: "Cannot identify the user from the replied message."
 
 # Mute module missing strings
 mutes_tmute_message: "Shh...\nMuted %s for %s"
@@ -1236,8 +1237,8 @@ misc_translate_result: "<b>Detected Language:</b> <code>%s</code>\n\n<b>Translat
 
 # Devs module strings
 devs_chat_info: "<b>Name:</b> %s\n<b>Chat ID</b>: %d\n<b>Users Count:</b> %d\n<b>Link:</b> %s"
-devs_getting_chatlist: Getting list of chats I'm in...
-devs_chatlist_caption: Here is the list of chats in my Database!
+devs_getting_chat_list: Getting list of chats I'm in...
+devs_chat_list_caption: Here is the list of chats in my Database!
 devs_left_chat: Okay, I left the chat!
 devs_user_already_sudo: User is already Sudo!
 devs_added_to_sudo: Added %s to Sudo List!
@@ -1247,10 +1248,10 @@ devs_user_not_sudo: User is not Sudo!
 devs_removed_from_sudo: Removed %s from Sudo List!
 devs_user_not_dev: User is not Dev!
 devs_removed_from_dev: Removed %s from Dev List!
-devs_no_team_members: No users are added Added in Team!
+devs_no_team_users: No users are added in Team!
 devs_dev_users_header: "<b>Dev Users:</b>"
 devs_sudo_users_header: "<b>Sudo Users:</b>"
-devs_no_users_in_category: "No Users"
+devs_no_users: "No Users"
 devs_fetching_stats: "<code>Fetching bot stats...</code>"
 devs_failed_to_add_sudo: "Failed to add user to Sudo list. Please try again."
 devs_failed_to_add_dev: "Failed to add user to Dev list. Please try again."
@@ -1299,9 +1300,9 @@ greetings_clean_service_enable: "I'll try to delete joined messages!"
 greetings_clean_service_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 greetings_captcha_verified_success: "✅ %s has been verified and can now chat!"
 greetings_join_request_new: "A new user has requested to join chat!"
-greetings_join_request_approve_button: "✅ Approve"
-greetings_join_request_decline_button: "❌ Decline"
-greetings_join_request_ban_button: "✅ Ban"
+greetings_join_request_approve_btn: "✅ Approve"
+greetings_join_request_decline_btn: "❌ Decline"
+greetings_join_request_ban_btn: "✅ Ban"
 greetings_join_request_accepted: "Accepted %s in Chat ✅"
 greetings_join_request_declined: "Declined %s to join chat ❌"
 greetings_join_request_banned: "✅ Successfully Banned! %s"
@@ -1502,6 +1503,7 @@ captcha_expired_or_not_found: "Captcha expired or not found"
 captcha_attempt_not_valid: "This captcha attempt is no longer valid."
 captcha_refresh_limit_reached: "Refresh limit reached for this captcha."
 captcha_internal_update_error: "Internal error updating captcha."
+captcha_internal_error: "An internal error occurred while updating captcha settings. Please try again."
 
 # Greetings additional strings
 greetings_goodbye_enable: "I'll goodbye users from now on."
@@ -1568,6 +1570,7 @@ math_operator_minus: "-"
 math_operator_multiply: "×"
 
 # Reports module additional strings
+reports_cannot_report_channel: "You can't report a channel post."
 reports_cannot_report_self: "You can't report your own message!"
 reports_special_account: "It's a special account of telegram!"
 reports_admin_report: "You're an admin, whom will I report your issues to?"

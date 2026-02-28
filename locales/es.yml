@@ -1058,6 +1058,7 @@ bans_unrestrict_unmuted: "¡Desilenciado por %s!"
 bans_unrestrict_unbanned: "¡Desbaneado por %s!"
 bans_invalid_callback_data: "Datos de callback inválidos."
 bans_invalid_user_id: "ID de usuario inválido."
+bans_cannot_identify_user: "No se puede identificar al usuario del mensaje respondido."
 
 # Mute module missing strings
 mutes_tmute_message: "Shh...\nSilenciado %s por %s"
@@ -1224,9 +1225,6 @@ misc_channel_link: "Enlace del canal: @%s"
 misc_user_info_header: "<b>Información del Usuario:</b>\n\nID: <code>%d</code>\n\nNombre: %s"
 misc_owner_info: ¡Él es mi dueño!
 misc_dev_info: ¡Él es uno de mis usuarios desarrolladores!
-misc_translate_need_text: Necesito algo de texto y un código de idioma para traducir.
-misc_translate_no_text: El mensaje respondido no contiene texto para traducir.
-misc_translate_provide_text: Por favor proporciona algo de texto para traducir.
 misc_translate_read_error: Error de Lectura
 misc_translate_result: "<b>Idioma Detectado:</b> <code>%s</code>\n\n<b>Traducción:</b> <code>%s</code>"
 
@@ -1248,10 +1246,6 @@ devs_getting_chat_list: Obteniendo lista de chats en los que estoy...
 devs_chat_list_caption: ¡Aquí está la lista de chats en mi Base de Datos!
 devs_no_team_users: ¡No hay usuarios añadidos en el Equipo!
 devs_no_users: "Sin Usuarios"
-devs_getting_chatlist: Obteniendo lista de chats en los que estoy...
-devs_chatlist_caption: ¡Aquí está la lista de chats en mi Base de Datos!
-devs_no_team_members: ¡No hay usuarios añadidos en el Equipo!
-devs_no_users_in_category: "Sin Usuarios"
 devs_failed_to_add_sudo: "Error al agregar usuario a la lista de Sudo. Por favor, inténtelo de nuevo."
 devs_failed_to_add_dev: "Error al agregar usuario a la lista de Dev. Por favor, inténtelo de nuevo."
 devs_failed_to_remove_sudo: "Error al eliminar usuario de la lista de Sudo. Por favor, inténtelo de nuevo."
@@ -1298,9 +1292,9 @@ greetings_clean_service_enable: "¡Intentaré eliminar mensajes de unirse!"
 greetings_clean_service_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
 greetings_captcha_verified_success: "✅ ¡%s ha sido verificado y ahora puede chatear!"
 greetings_join_request_new: "¡Un nuevo usuario ha solicitado unirse al chat!"
-greetings_join_request_approve_button: "✅ Aprobar"
-greetings_join_request_decline_button: "❌ Rechazar"
-greetings_join_request_ban_button: "✅ Banear"
+greetings_join_request_approve_btn: "✅ Aprobar"
+greetings_join_request_decline_btn: "❌ Rechazar"
+greetings_join_request_ban_btn: "✅ Banear"
 greetings_join_request_accepted: "Aceptado %s en el Chat ✅"
 greetings_join_request_declined: "Rechazado %s para unirse al chat ❌"
 greetings_join_request_banned: "✅ ¡Baneado exitosamente! %s"
@@ -1501,6 +1495,7 @@ captcha_expired_or_not_found: "Captcha expirado o no encontrado"
 captcha_attempt_not_valid: "Este intento de captcha ya no es válido."
 captcha_refresh_limit_reached: "Límite de actualización alcanzado para este captcha."
 captcha_internal_update_error: "Error interno actualizando captcha."
+captcha_internal_error: "Ocurrió un error interno al actualizar la configuración de captcha. Por favor, inténtelo de nuevo."
 
 # Greetings additional strings
 greetings_goodbye_enable: "Me despediré de los usuarios de ahora en adelante."
@@ -1567,6 +1562,7 @@ math_operator_minus: "-"
 math_operator_multiply: "×"
 
 # Reports module additional strings
+reports_cannot_report_channel: "No puedes reportar una publicación de canal."
 reports_cannot_report_self: "¡No puedes reportar tu propio mensaje!"
 reports_special_account: "¡Es una cuenta especial de telegram!"
 reports_admin_report: "Eres administrador, ¿a quién reportaré tus problemas?"

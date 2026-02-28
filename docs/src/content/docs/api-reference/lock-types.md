@@ -28,10 +28,6 @@ Locks prevent non-admin users from posting specific types of content. When a loc
 
 ## Restriction Locks
 
-:::caution
-Restriction locks are broad and affect entire categories of messages. For example, locking `all` blocks every non-admin message. Use with care.
-:::
-
 Restriction locks affect broad categories of messages. These are powerful locks that can block multiple content types at once.
 
 | Lock Type | Description |
@@ -143,19 +139,13 @@ Lock multiple content types in a single command.
 
 ## Important Notes
 
-:::tip
-All locks automatically exempt administrators. Admins can always post any content type, regardless of which locks are enabled.
-:::
-
 ### Admin Exemption
 
 All locks automatically exempt administrators. Admins can always post any content type, regardless of which locks are enabled.
 
 ### Bot Permissions
 
-:::note
-The bot requires the following permissions to enforce locks. Without these permissions, the bot will silently fail to enforce lock rules.
-:::
+The bot requires the following permissions to enforce locks:
 
 - **Delete Messages**: Required to remove locked content
 - **Ban Users**: Only for the `bots` lock (to ban unauthorized bot additions)

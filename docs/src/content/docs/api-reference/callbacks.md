@@ -2,8 +2,9 @@
 title: Callback Queries
 description: Complete reference of inline button callback handlers
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
-# 🔔 Callback Queries
+# Callback Queries
 
 This page documents all inline button callback handlers in Alita Robot.
 
@@ -14,39 +15,45 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Callback Data Format
 
-:::note
-Callbacks use a prefix-based routing system. The dispatcher matches the beginning of the callback data string and routes to the corresponding handler.
-:::
+Callbacks use a versioned codec with URL-encoded fields:
 
 ```
-{prefix}{data}
+<namespace>|v1|<url-encoded-fields>
 ```
 
-For example: `restrict.ban.123456789` routes to the `restrict.` handler with data `ban.123456789`.
+For example: `restrict|v1|a=ban&uid=123456789` routes to the `restrict` namespace handler.
+
+When the payload has no fields, `_` is used as placeholder: `helpq|v1|_`.
+
+**Maximum length**: 64 bytes (Telegram's `callback_data` limit).
+
+### Backward Compatibility
+
+Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backward compatibility but is deprecated. All new callbacks use the versioned format.
 
 ## All Callbacks
 
 | Module | Prefix | Handler |
 |--------|--------|----------|
-| Bans | `restrict.` | restrictButtonHandler |
-| Bans | `unrestrict.` | unrestrictButtonHandler |
+| Bans | `restrict` | restrictButtonHandler |
+| Bans | `unrestrict` | unrestrictButtonHandler |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
-| Captcha | `captcha_refresh.` | captchaRefreshCallback |
-| Captcha | `captcha_verify.` | captchaVerifyCallback |
-| Connections | `connbtns.` | connectionButtons |
-| Filters | `filters_overwrite.` | filterOverWriteHandler |
+| Captcha | `captcha_refresh` | captchaRefreshCallback |
+| Captcha | `captcha_verify` | captchaVerifyCallback |
+| Connections | `connbtns` | connectionButtons |
+| Filters | `filters_overwrite` | filterOverWriteHandler |
 | Filters | `rmAllFilters` | filtersButtonHandler |
-| Formatting | `formatting.` | formattingHandler |
-| Greetings | `join_request.` | joinRequestHandler |
+| Formatting | `formatting` | formattingHandler |
+| Greetings | `join_request` | joinRequestHandler |
 | Help | `about` | about |
 | Help | `configuration` | botConfig |
 | Help | `helpq` | helpButtonHandler |
-| Languages | `change_language.` | langBtnHandler |
-| Notes | `notes.overwrite.` | noteOverWriteHandler |
+| Languages | `change_language` | langBtnHandler |
+| Notes | `notes.overwrite` | noteOverWriteHandler |
 | Notes | `rmAllNotes` | notesButtonHandler |
 | Pins | `unpinallbtn` | unpinallCallback |
-| Purges | `deleteMsg.` | deleteButtonHandler |
-| Reports | `report.` | markResolvedButtonHandler |
+| Purges | `deleteMsg` | deleteButtonHandler |
+| Reports | `report` | markResolvedButtonHandler |
 | Warns | `rmAllChatWarns` | warnsButtonHandler |
 | Warns | `rmWarn` | rmWarnButton |
 
@@ -54,12 +61,12 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 
 ### Bans
 
-#### `restrict.`
+#### `restrict`
 
 - **Handler**: `restrictButtonHandler`
 - **Source**: `bans.go`
 
-#### `unrestrict.`
+#### `unrestrict`
 
 - **Handler**: `unrestrictButtonHandler`
 - **Source**: `bans.go`
@@ -73,26 +80,26 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 
 ### Captcha
 
-#### `captcha_refresh.`
+#### `captcha_refresh`
 
 - **Handler**: `captchaRefreshCallback`
 - **Source**: `captcha.go`
 
-#### `captcha_verify.`
+#### `captcha_verify`
 
 - **Handler**: `captchaVerifyCallback`
 - **Source**: `captcha.go`
 
 ### Connections
 
-#### `connbtns.`
+#### `connbtns`
 
 - **Handler**: `connectionButtons`
 - **Source**: `connections.go`
 
 ### Filters
 
-#### `filters_overwrite.`
+#### `filters_overwrite`
 
 - **Handler**: `filterOverWriteHandler`
 - **Source**: `filters.go`
@@ -104,14 +111,14 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 
 ### Formatting
 
-#### `formatting.`
+#### `formatting`
 
 - **Handler**: `formattingHandler`
 - **Source**: `formatting.go`
 
 ### Greetings
 
-#### `join_request.`
+#### `join_request`
 
 - **Handler**: `joinRequestHandler`
 - **Source**: `greetings.go`
@@ -135,14 +142,14 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 
 ### Languages
 
-#### `change_language.`
+#### `change_language`
 
 - **Handler**: `langBtnHandler`
 - **Source**: `language.go`
 
 ### Notes
 
-#### `notes.overwrite.`
+#### `notes.overwrite`
 
 - **Handler**: `noteOverWriteHandler`
 - **Source**: `notes.go`
@@ -161,14 +168,14 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 
 ### Purges
 
-#### `deleteMsg.`
+#### `deleteMsg`
 
 - **Handler**: `deleteButtonHandler`
 - **Source**: `purges.go`
 
 ### Reports
 
-#### `report.`
+#### `report`
 
 - **Handler**: `markResolvedButtonHandler`
 - **Source**: `reports.go`
@@ -185,33 +192,34 @@ For example: `restrict.ban.123456789` routes to the `restrict.` handler with dat
 - **Handler**: `rmWarnButton`
 - **Source**: `warns.go`
 
-## Registering Callbacks
+## Code Example
+
+### Encoding and Decoding Callback Data
+
+```go
+// Encode callback data
+data, err := callbackcodec.Encode("restrict", map[string]string{
+    "a":   "ban",
+    "uid": "123456789",
+})
+// -> "restrict|v1|a=ban&uid=123456789"
+
+// Empty payload
+data, err := callbackcodec.Encode("helpq", map[string]string{})
+// -> "helpq|v1|_"
+
+// Decode callback data
+decoded, err := callbackcodec.Decode("restrict|v1|a=ban&uid=123456789")
+namespace := decoded.Namespace  // "restrict"
+action, _ := decoded.Field("a") // "ban"
+uid, _ := decoded.Field("uid")  // "123456789"
+```
+
+### Registering a Callback Handler
 
 ```go
 dispatcher.AddHandler(handlers.NewCallback(
-    callbackquery.Prefix("myprefix."),
-    myModule.myCallbackHandler,
+    callbackquery.Prefix("restrict"),
+    myModule.restrictHandler,
 ))
-```
-
-## Handling Callbacks
-
-:::caution
-Always answer the callback query. If you do not call `query.Answer()`, the user sees a loading spinner indefinitely. Also be careful not to answer twice -- `RequireUserAdmin` with `justCheck=false` already answers the callback.
-:::
-
-```go
-func (m moduleStruct) myCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-    query := ctx.CallbackQuery
-
-    // Parse callback data
-    data := strings.TrimPrefix(query.Data, "myprefix.")
-
-    // Process and answer
-    query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-        Text: "Action completed",
-    })
-
-    return ext.EndGroups
-}
 ```
