@@ -103,7 +103,7 @@ func getUserMemberWithCache(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, fu
 // GetChat retrieves chat information by chat ID or username.
 // Makes a direct API request to support username-based chat retrieval.
 func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
-	r, err := bot.Request("getChat", map[string]string{"chat_id": chatId}, nil, nil)
+	r, err := bot.Request("getChat", map[string]any{"chat_id": chatId}, nil)
 	if err != nil {
 		return nil, err
 	}
