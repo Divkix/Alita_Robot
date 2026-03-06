@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -550,6 +551,12 @@ func init() {
 	// Load the structured configuration
 	cfg, err := LoadConfig()
 	if err != nil {
+		if testing.Testing() {
+			// During tests, provide a zero-value config so packages that
+			// transitively import config don't crash.
+			AppConfig = &Config{}
+			return
+		}
 		log.Fatalf("[Config] Failed to load configuration: %v", err)
 	}
 

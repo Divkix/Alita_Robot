@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -831,4 +832,163 @@ func TestExtractAdminUpdateStatusChange(t *testing.T) {
 			t.Fatal("expected false for member->left — no admin change")
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// IsExpectedTelegramError — extended coverage
+// ---------------------------------------------------------------------------
+
+func TestIsExpectedTelegramErrorAllStrings(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		errMsg string
+	}{
+		{"CHAT_RESTRICTED", "CHAT_RESTRICTED"},
+		{"bot was kicked from the", "bot was kicked from the group"},
+		{"bot was blocked by the user", "bot was blocked by the user"},
+		{"Forbidden: bot was kicked", "Forbidden: bot was kicked"},
+		{"Forbidden: bot is not a member", "Forbidden: bot is not a member"},
+		{"message thread not found", "message thread not found"},
+		{"thread not found", "thread not found"},
+		{"group chat was deactivated", "group chat was deactivated"},
+		{"chat not found", "chat not found"},
+		{"group chat was upgraded to a supergroup", "group chat was upgraded to a supergroup"},
+		{"timeout awaiting response headers", "timeout awaiting response headers"},
+		{"http2: timeout", "http2: timeout"},
+		{"context deadline exceeded", "context deadline exceeded"},
+		{"not enough rights to restrict/unrestrict chat member", "not enough rights to restrict/unrestrict chat member"},
+		{"not enough rights to send text messages", "not enough rights to send text messages"},
+		{"not enough rights to", "not enough rights to pin"},
+		{"message can't be deleted", "message can't be deleted"},
+		{"message to delete not found", "message to delete not found"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := errors.New(tc.errMsg)
+			if !IsExpectedTelegramError(err) {
+				t.Fatalf("IsExpectedTelegramError(%q) expected true", tc.errMsg)
+			}
+		})
+	}
+}
+
+func TestIsExpectedTelegramErrorSubstring(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("failed: bot was kicked from the group chat")
+	if !IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError with extra context expected true, got false")
+	}
+}
+
+func TestIsExpectedTelegramErrorWrapped(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("wrap: %w", errors.New("chat not found"))
+	if !IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError with wrapped error expected true, got false")
+	}
+}
+
+func TestIsExpectedTelegramErrorEmptyError(t *testing.T) {
+	t.Parallel()
+
+	err := errors.New("")
+	if IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError(\"\") expected false")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// InlineKeyboardMarkupToTgmd2htmlButtonV2
+// ---------------------------------------------------------------------------
+
+func TestInlineKeyboardMarkupToTgmd2htmlButtonV2SingleRow(t *testing.T) {
+	t.Parallel()
+
+	markup := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{Text: "Visit", Url: "https://example.com"},
+			},
+		},
+	}
+	btns := InlineKeyboardMarkupToTgmd2htmlButtonV2(markup)
+	if len(btns) != 1 {
+		t.Fatalf("expected 1 button, got %d", len(btns))
+	}
+	if btns[0].Name != "Visit" {
+		t.Fatalf("expected Name=%q, got %q", "Visit", btns[0].Name)
+	}
+	if btns[0].Content != "https://example.com" {
+		t.Fatalf("expected Content=%q, got %q", "https://example.com", btns[0].Content)
+	}
+	if btns[0].SameLine {
+		t.Fatalf("expected SameLine=false for single-row single button")
+	}
+}
+
+func TestInlineKeyboardMarkupToTgmd2htmlButtonV2MultiRow(t *testing.T) {
+	t.Parallel()
+
+	markup := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{Text: "Row1", Url: "https://row1.com"},
+			},
+			{
+				{Text: "Row2", Url: "https://row2.com"},
+			},
+		},
+	}
+	btns := InlineKeyboardMarkupToTgmd2htmlButtonV2(markup)
+	if len(btns) != 2 {
+		t.Fatalf("expected 2 buttons, got %d", len(btns))
+	}
+	if btns[0].SameLine {
+		t.Fatalf("expected btns[0].SameLine=false")
+	}
+	if btns[1].SameLine {
+		t.Fatalf("expected btns[1].SameLine=false (each is first in its row)")
+	}
+}
+
+func TestInlineKeyboardMarkupToTgmd2htmlButtonV2SameLineButtons(t *testing.T) {
+	t.Parallel()
+
+	markup := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+			{
+				{Text: "First", Url: "https://first.com"},
+				{Text: "Second", Url: "https://second.com"},
+			},
+		},
+	}
+	btns := InlineKeyboardMarkupToTgmd2htmlButtonV2(markup)
+	if len(btns) != 2 {
+		t.Fatalf("expected 2 buttons, got %d", len(btns))
+	}
+	if btns[0].SameLine {
+		t.Fatalf("expected btns[0].SameLine=false (first in row)")
+	}
+	if !btns[1].SameLine {
+		t.Fatalf("expected btns[1].SameLine=true (second in same row)")
+	}
+}
+
+func TestInlineKeyboardMarkupToTgmd2htmlButtonV2EmptyMarkup(t *testing.T) {
+	t.Parallel()
+
+	markup := &gotgbot.InlineKeyboardMarkup{
+		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{},
+	}
+	btns := InlineKeyboardMarkupToTgmd2htmlButtonV2(markup)
+	if len(btns) != 0 {
+		t.Fatalf("expected 0 buttons for empty markup, got %d", len(btns))
+	}
 }

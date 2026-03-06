@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -657,6 +658,11 @@ var DB *gorm.DB
 
 // Initialize database connection and auto-migrate
 func init() {
+	// Skip DB initialization during tests — no real database available
+	if testing.Testing() {
+		return
+	}
+
 	var err error
 
 	// Configure GORM logger
