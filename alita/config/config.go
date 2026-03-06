@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -551,9 +550,8 @@ func init() {
 	// Load the structured configuration
 	cfg, err := LoadConfig()
 	if err != nil {
-		if testing.Testing() {
-			// During tests, provide a zero-value config so packages that
-			// transitively import config don't crash.
+		// If essential env vars are missing (e.g., during unit tests), provide zero-value config
+		if os.Getenv("BOT_TOKEN") == "" {
 			AppConfig = &Config{}
 			return
 		}
