@@ -4,7 +4,6 @@ import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
-import starlightThemeBlack from 'starlight-theme-black';
 
 // https://astro.build/config
 export default defineConfig({
@@ -12,15 +11,8 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Alita Robot',
-      logo: {
-        dark: './src/assets/logo-dark.svg',
-        light: './src/assets/logo-light.svg',
-      },
-      plugins: [starlightThemeBlack({}), starlightClientMermaid(), starlightLlmsTxt(), starlightLinksValidator()],
+      plugins: [starlightClientMermaid(), starlightLlmsTxt(), starlightLinksValidator()],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/divkix/Alita_Robot' }],
-      customCss: [
-        './src/styles/custom.css',
-      ],
       sidebar: [
         {
           label: 'Getting Started',
