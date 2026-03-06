@@ -550,6 +550,11 @@ func init() {
 	// Load the structured configuration
 	cfg, err := LoadConfig()
 	if err != nil {
+		// If essential env vars are missing (e.g., during unit tests), provide zero-value config
+		if os.Getenv("BOT_TOKEN") == "" {
+			AppConfig = &Config{}
+			return
+		}
 		log.Fatalf("[Config] Failed to load configuration: %v", err)
 	}
 
