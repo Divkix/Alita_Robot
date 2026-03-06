@@ -84,7 +84,7 @@ type DatabaseStats struct {
 
 // NewBackgroundStatsCollector creates a new background statistics collector
 func NewBackgroundStatsCollector() *BackgroundStatsCollector {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 
 	return &BackgroundStatsCollector{
 		ctx:                   ctx,

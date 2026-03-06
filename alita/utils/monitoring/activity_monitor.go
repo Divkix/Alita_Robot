@@ -40,7 +40,7 @@ type ActivityMetrics struct {
 
 // NewActivityMonitor creates a new activity monitor instance
 func NewActivityMonitor() *ActivityMonitor {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 
 	// Default values, can be overridden by environment variables
 	checkInterval := 1 * time.Hour

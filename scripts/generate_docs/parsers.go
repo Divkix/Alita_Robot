@@ -46,7 +46,7 @@ func parseTranslations(localesPath string) (map[string]string, map[string]Extend
 
 	// Parse en.yml for help messages and extended docs
 	enPath := filepath.Join(localesPath, "en.yml")
-	data, err := os.ReadFile(enPath)
+	data, err := os.ReadFile(filepath.Clean(enPath))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to read %s: %w", enPath, err)
 	}
@@ -113,7 +113,7 @@ func parseTranslations(localesPath string) (map[string]string, map[string]Extend
 
 	// Parse config.yml for aliases
 	configPath := filepath.Join(localesPath, "config.yml")
-	configData, err := os.ReadFile(configPath)
+	configData, err := os.ReadFile(filepath.Clean(configPath))
 	if err != nil {
 		log.Warnf("Could not read config.yml: %v", err)
 		return helpTexts, extendedDocs, aliases, nil
@@ -165,7 +165,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	}
 
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			log.Warnf("Could not read %s: %v", file, err)
 			continue
@@ -270,7 +270,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 func parseConfigStruct(configPath string) ([]EnvVar, error) {
 	var envVars []EnvVar
 
-	file, err := os.Open(configPath)
+	file, err := os.Open(filepath.Clean(configPath))
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func parseMigrations(migrationsPath string) ([]DBTable, error) {
 	foreignKeyPattern := regexp.MustCompile(`(?i)FOREIGN\s+KEY\s*\((\w+)\)\s*REFERENCES\s+(\w+)\s*\((\w+)\)`)
 
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			log.Warnf("Could not read %s: %v", file, err)
 			continue
@@ -565,7 +565,7 @@ func parseMigrations(migrationsPath string) ([]DBTable, error) {
 
 // parseLockTypes extracts lock types from locks.go by parsing the lockMap and restrMap
 func parseLockTypes(locksPath string) ([]LockType, error) {
-	data, err := os.ReadFile(locksPath)
+	data, err := os.ReadFile(filepath.Clean(locksPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", locksPath, err)
 	}
@@ -757,7 +757,7 @@ func parseCallbacks(modulesPath string) ([]Callback, error) {
 	}
 
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			log.Warnf("Could not read %s: %v", file, err)
 			continue
@@ -846,7 +846,7 @@ func parseMessageWatchers(modulesPath string) ([]MessageWatcher, error) {
 	}
 
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			log.Warnf("Could not read %s: %v", file, err)
 			continue
@@ -997,7 +997,7 @@ func parseMessageWatchers(modulesPath string) ([]MessageWatcher, error) {
 func parsePermissions(chatStatusPath string) ([]PermissionFunc, error) {
 	var permissions []PermissionFunc
 
-	data, err := os.ReadFile(chatStatusPath)
+	data, err := os.ReadFile(filepath.Clean(chatStatusPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", chatStatusPath, err)
 	}

@@ -17,7 +17,7 @@ const manualMaintenanceSentinel = "<!-- MANUALLY MAINTAINED: do not regenerate -
 // skipIfManuallyMaintained checks if a file has the sentinel comment
 // indicating it should not be overwritten by the generator.
 func skipIfManuallyMaintained(filePath string) bool {
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return false // File doesn't exist, proceed with generation
 	}
@@ -151,11 +151,11 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 			log.Infof("[DRY RUN] Would write: %s (%d bytes)", moduleFile, content.Len())
 			log.Debugf("Content preview:\n%s", truncateString(content.String(), 500))
 		} else {
-			if err := os.MkdirAll(moduleDir, 0755); err != nil {
+			if err := os.MkdirAll(moduleDir, 0o750); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", moduleDir, err)
 			}
 
-			if err := os.WriteFile(moduleFile, []byte(content.String()), 0644); err != nil {
+			if err := os.WriteFile(moduleFile, []byte(content.String()), 0o600); err != nil {
 				return fmt.Errorf("failed to write module doc %s: %w", moduleFile, err)
 			}
 
@@ -270,11 +270,11 @@ func generateCommandReference(modules []Module, outputPath string) error {
 	if config.DryRun {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", refFile, content.Len())
 	} else {
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(refFile, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(refFile, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write command reference: %w", err)
 		}
 
@@ -432,11 +432,11 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 	if config.DryRun {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", refFile, content.Len())
 	} else {
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(refFile, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(refFile, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write environment reference: %w", err)
 		}
 
@@ -571,11 +571,11 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 	if config.DryRun {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", refFile, content.Len())
 	} else {
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(refFile, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(refFile, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write schema reference: %w", err)
 		}
 
@@ -699,11 +699,11 @@ func generateCommandsOverview(modules []Module, outputPath string) error {
 	if config.DryRun {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", overviewFile, content.Len())
 	} else {
-		if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		if err := os.MkdirAll(commandsDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", commandsDir, err)
 		}
 
-		if err := os.WriteFile(overviewFile, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(overviewFile, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write commands overview: %w", err)
 		}
 
@@ -1030,11 +1030,11 @@ func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
 	} else {
 		refDir := filepath.Join(outputPath, "api-reference")
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write callbacks reference: %w", err)
 		}
 
@@ -1145,11 +1145,11 @@ func generatePermissionsReference(permissions []PermissionFunc, outputPath strin
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
 	} else {
 		refDir := filepath.Join(outputPath, "api-reference")
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write permissions reference: %w", err)
 		}
 
@@ -1383,11 +1383,11 @@ func generateLockTypesReference(lockTypes []LockType, outputPath string) error {
 		log.Infof("[DRY RUN] Would write: %s (%d bytes)", filePath, content.Len())
 	} else {
 		refDir := filepath.Join(outputPath, "api-reference")
-		if err := os.MkdirAll(refDir, 0755); err != nil {
+		if err := os.MkdirAll(refDir, 0o750); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", refDir, err)
 		}
 
-		if err := os.WriteFile(filePath, []byte(content.String()), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content.String()), 0o600); err != nil {
 			return fmt.Errorf("failed to write lock types reference: %w", err)
 		}
 

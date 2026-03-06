@@ -30,7 +30,7 @@ func InitializeAsyncProcessor() {
 	asyncProcessorMu.Lock()
 	defer asyncProcessorMu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 	GlobalAsyncProcessor = &AsyncProcessor{
 		enabled: config.AppConfig.EnableAsyncProcessing,
 		ctx:     ctx,

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	_ "net/http/pprof" // pprof handlers registration
+	_ "net/http/pprof" // #nosec G108 -- pprof gated behind ENABLE_PPROF env var
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"

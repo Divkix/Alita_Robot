@@ -461,7 +461,7 @@ func generateInventory(projectRoot string) error {
 
 	// Ensure .planning directory exists
 	planningDir := filepath.Join(projectRoot, ".planning")
-	if err := os.MkdirAll(planningDir, 0o755); err != nil {
+	if err := os.MkdirAll(planningDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create .planning directory: %w", err)
 	}
 
@@ -472,7 +472,7 @@ func generateInventory(projectRoot string) error {
 	}
 
 	jsonPath := filepath.Join(planningDir, "INVENTORY.json")
-	if err := os.WriteFile(jsonPath, jsonData, 0o644); err != nil {
+	if err := os.WriteFile(jsonPath, jsonData, 0o600); err != nil {
 		return fmt.Errorf("failed to write INVENTORY.json: %w", err)
 	}
 	log.Infof("Written: %s", jsonPath)
@@ -480,7 +480,7 @@ func generateInventory(projectRoot string) error {
 	// Write INVENTORY.md
 	mdContent := generateInventoryMarkdown(inventory)
 	mdPath := filepath.Join(planningDir, "INVENTORY.md")
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write INVENTORY.md: %w", err)
 	}
 	log.Infof("Written: %s", mdPath)
