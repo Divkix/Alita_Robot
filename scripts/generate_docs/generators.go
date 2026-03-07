@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -53,7 +55,7 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 
 		// Module description (converted from Telegram markdown)
 		if module.HelpText != "" {
-			helpText := convertTelegramMarkdown(module.HelpText)
+			helpText := formatHelpText(module.HelpText)
 			content.WriteString(helpText)
 			content.WriteString("\n\n")
 		}
@@ -715,9 +717,23 @@ func generateCommandsOverview(modules []Module, outputPath string) error {
 
 // Helper functions
 
-// convertTelegramMarkdown converts Telegram markdown to standard Markdown
+// sectionHeaderRe matches *Section Name*: at line start (Telegram bold used as header).
+var sectionHeaderRe = regexp.MustCompile(`^\*([^*]+)\*\s*:?\s*$`)
+
+// inlineBoldRe matches *text* mid-sentence (Telegram bold → Markdown bold).
+var inlineBoldRe = regexp.MustCompile(`\*([^*\n]+)\*`)
+
+// crossBulletCommandRe matches × lines that start with a /command.
+var crossBulletCommandRe = regexp.MustCompile(`^×\s+(/\S+)`)
+
+// arrowSubExampleRe matches -> lines (sub-examples in filters/notes help).
+var arrowSubExampleRe = regexp.MustCompile(`^->\s+(.+)`)
+
+// convertTelegramMarkdown converts Telegram markdown to standard Markdown.
+// Handles HTML tags, bullet characters, × command bullets, -> sub-examples,
+// and HTML entity decoding.
 func convertTelegramMarkdown(text string) string {
-	// Remove HTML tags that might be in help text
+	// Convert HTML tags to Markdown equivalents
 	text = strings.ReplaceAll(text, "<b>", "**")
 	text = strings.ReplaceAll(text, "</b>", "**")
 	text = strings.ReplaceAll(text, "<i>", "*")
@@ -725,17 +741,71 @@ func convertTelegramMarkdown(text string) string {
 	text = strings.ReplaceAll(text, "<code>", "`")
 	text = strings.ReplaceAll(text, "</code>", "`")
 
-	// Convert bullet points
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
+
+		// × bullet conversion
+		if strings.HasPrefix(trimmed, "×") {
+			if m := crossBulletCommandRe.FindStringSubmatch(trimmed); m != nil {
+				// × /cmd ... : desc → - `/cmd ...`: desc
+				rest := strings.TrimPrefix(trimmed, "× ")
+				// Split on first colon to wrap the command part in backticks
+				if colonIdx := strings.Index(rest, ":"); colonIdx != -1 {
+					cmdPart := strings.TrimSpace(rest[:colonIdx])
+					descPart := strings.TrimSpace(rest[colonIdx+1:])
+					lines[i] = "- `" + cmdPart + "`: " + descPart
+				} else {
+					lines[i] = "- `" + rest + "`"
+				}
+			} else {
+				// × plain text → - plain text
+				rest := strings.TrimPrefix(trimmed, "×")
+				lines[i] = "-" + rest
+			}
+			continue
+		}
+
+		// -> sub-example conversion
+		if m := arrowSubExampleRe.FindStringSubmatch(trimmed); m != nil {
+			lines[i] = "  - `" + m[1] + "`"
+			continue
+		}
+
+		// • and · bullet conversion
 		if strings.HasPrefix(trimmed, "•") || strings.HasPrefix(trimmed, "·") {
 			lines[i] = strings.Replace(line, "•", "-", 1)
 			lines[i] = strings.Replace(lines[i], "·", "-", 1)
 		}
 	}
 
-	return strings.Join(lines, "\n")
+	text = strings.Join(lines, "\n")
+
+	// Decode HTML entities last (after tag conversion)
+	text = html.UnescapeString(text)
+
+	return text
+}
+
+// formatHelpText processes _help_msg content with help-specific patterns
+// (section headers, inline bold) before calling convertTelegramMarkdown for
+// the remaining patterns.
+func formatHelpText(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Convert *Section Name*: at line start → ### Section Name
+		if m := sectionHeaderRe.FindStringSubmatch(trimmed); m != nil {
+			lines[i] = "### " + m[1]
+			continue
+		}
+		// Convert remaining *text* (Telegram bold) → **text** (Markdown bold)
+		if inlineBoldRe.MatchString(trimmed) {
+			lines[i] = inlineBoldRe.ReplaceAllString(line, "**$1**")
+		}
+	}
+	text = strings.Join(lines, "\n")
+	return convertTelegramMarkdown(text)
 }
 
 // extractCommandDescription attempts to extract description for a command from help text
