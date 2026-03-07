@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -149,14 +150,14 @@ func TestFormatHelpText_AntifloodHelp(t *testing.T) {
 	got := formatHelpText(input)
 
 	// Should have ### heading
-	if !contains(got, "### Admin commands") {
+	if !strings.Contains(got, "### Admin commands") {
 		t.Error("expected ### Admin commands heading")
 	}
 	// Should have backtick-wrapped commands
-	if !contains(got, "- `/flood`:") {
+	if !strings.Contains(got, "- `/flood`:") {
 		t.Errorf("expected backtick-wrapped /flood command, got:\n%s", got)
 	}
-	if !contains(got, "- `/setflood`:") {
+	if !strings.Contains(got, "- `/setflood`:") {
 		t.Errorf("expected backtick-wrapped /setflood command, got:\n%s", got)
 	}
 }
@@ -180,10 +181,10 @@ Examples:
 
 	got := formatHelpText(input)
 
-	if !contains(got, "  - `/filter hello Hello there!`") {
+	if !strings.Contains(got, "  - `/filter hello Hello there!`") {
 		t.Errorf("expected indented sub-example, got:\n%s", got)
 	}
-	if !contains(got, "  - `/filter hello friend Hello back!`") {
+	if !strings.Contains(got, "  - `/filter hello friend Hello back!`") {
 		t.Errorf("expected indented multiword sub-example, got:\n%s", got)
 	}
 }
@@ -213,27 +214,60 @@ func TestConvertTelegramMarkdown_NoSpecialPatterns(t *testing.T) {
 func TestFormatHelpText_NestedFormatting(t *testing.T) {
 	input := "*Section*:\n× /cmd: Does <b>bold</b> &amp; things"
 	got := formatHelpText(input)
-	if !contains(got, "### Section") {
+	if !strings.Contains(got, "### Section") {
 		t.Errorf("expected ### Section, got:\n%s", got)
 	}
-	if !contains(got, "**bold**") {
+	if !strings.Contains(got, "**bold**") {
 		t.Errorf("expected **bold**, got:\n%s", got)
 	}
-	if !contains(got, "& things") {
+	if !strings.Contains(got, "& things") {
 		t.Errorf("expected decoded ampersand, got:\n%s", got)
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		findSubstring(s, substr))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
+func TestConvertTelegramMarkdown_CrossBulletBacktickParams(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			"single backtick pair in command",
+			"× `/flood`: Get the current antiflood settings.",
+			"- `/flood`: Get the current antiflood settings.",
+		},
+		{
+			"multiple backtick pairs in command",
+			"× `/setflood` `<number>`: Set flood limit.",
+			"- `/setflood` `<number>`: Set flood limit.",
+		},
+		{
+			"backticks preserved in description",
+			"× /flood: Get `current` settings.",
+			"- `/flood`: Get `current` settings.",
+		},
+		{
+			"code tags converted then handled",
+			"× <code>/flood</code>: Get the settings.",
+			"- `/flood`: Get the settings.",
+		},
+		{
+			"no backticks regression guard",
+			"× /flood: Get the current antiflood settings.",
+			"- `/flood`: Get the current antiflood settings.",
+		},
+		{
+			"command without colon but with backticks",
+			"× `/flood`",
+			"- `/flood`",
+		},
 	}
-	return false
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertTelegramMarkdown(tt.input)
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
 }

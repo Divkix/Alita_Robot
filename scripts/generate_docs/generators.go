@@ -747,15 +747,17 @@ func convertTelegramMarkdown(text string) string {
 
 		// × bullet conversion
 		if strings.HasPrefix(trimmed, "×") {
-			if m := crossBulletCommandRe.FindStringSubmatch(trimmed); m != nil {
+			if crossBulletCommandRe.MatchString(trimmed) {
 				// × /cmd ... : desc → - `/cmd ...`: desc
 				rest := strings.TrimPrefix(trimmed, "× ")
 				// Split on first colon to wrap the command part in backticks
 				if colonIdx := strings.Index(rest, ":"); colonIdx != -1 {
 					cmdPart := strings.TrimSpace(rest[:colonIdx])
 					descPart := strings.TrimSpace(rest[colonIdx+1:])
+					cmdPart = strings.ReplaceAll(cmdPart, "`", "")
 					lines[i] = "- `" + cmdPart + "`: " + descPart
 				} else {
+					rest = strings.ReplaceAll(rest, "`", "")
 					lines[i] = "- `" + rest + "`"
 				}
 			} else {
