@@ -1,20 +1,19 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Go 1.25+ Telegram group management bot using gotgbot/v2.
+  Stack: PostgreSQL (GORM), Redis (gocache), OpenTelemetry, Prometheus, logrus.
+  Build: GoReleaser v2, multi-arch Docker to ghcr.io, golangci-lint.
+  CI: GitHub Actions (gosec, govulncheck, golangci-lint, multi-arch Docker).
+  Structure: alita/{modules,db,utils,i18n,config}, migrations/, locales/, docs/ (Astro).
+  Conventions: conventional commits, snake_case files, goimports 3-group ordering, strict TDD (red-green-refactor).
+  Testing: standard Go testing package, parallel tests, 10m timeout.
+  i18n: embedded YAML locales (en, es, fr, hi) with named-to-positional param mapping.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+    - Reference affected modules by path
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Include test criteria for each task
