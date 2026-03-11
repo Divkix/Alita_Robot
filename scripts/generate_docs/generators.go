@@ -591,6 +591,12 @@ func generateSchemaReference(tables []DBTable, outputPath string) error {
 func generateCommandsOverview(modules []Module, outputPath string) error {
 	commandsDir := filepath.Join(outputPath, "commands")
 	overviewFile := filepath.Join(commandsDir, "index.md")
+	manualOverviewFile := filepath.Join(commandsDir, "index.mdx")
+
+	if _, err := os.Stat(manualOverviewFile); err == nil {
+		log.Infof("Skipped: commands/index.md (manually maintained via %s)", filepath.Base(manualOverviewFile))
+		return nil
+	}
 
 	log.Debug("Generating commands overview")
 
