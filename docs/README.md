@@ -26,6 +26,9 @@ Documentation pages live in `src/content/docs/`. Each file becomes a route based
 
 All commands run from the `docs/` directory:
 
+Node.js `v22.12.0` or higher is required by Astro 6. Use an even-numbered
+release line such as Node 22 or 24.
+
 | Command         | Action                                       |
 | :-------------- | :------------------------------------------- |
 | `bun install`   | Install dependencies                         |
