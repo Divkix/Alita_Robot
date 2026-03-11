@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import starlightLinksValidator from 'starlight-links-validator';
+import starlightLinksValidator from './starlight-links-validator-compat.ts';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
