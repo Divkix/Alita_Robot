@@ -26,7 +26,7 @@ import (
 // Concurrency limit for processing multiple new members
 const (
 	maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
-	recentJoinProcessTTL          = 30 * time.Second
+	recentJoinProcessTTL          = 5 * time.Second
 )
 
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
@@ -69,8 +69,23 @@ var goodbyeConfig = greetingConfig{
 	invalidKey:       "greetings_goodbye_invalid",
 }
 
+func recentJoinProcessingKey(chatID, userID int64) string {
+	return fmt.Sprintf("alita:recentJoinProcessing:%d:%d", chatID, userID)
+}
+
 func claimRecentJoinProcessing(chatID, userID int64) bool {
-	key := fmt.Sprintf("%d:%d", chatID, userID)
+	key := recentJoinProcessingKey(chatID, userID)
+
+	if cache.Marshal != nil {
+		if exists, _ := cache.Marshal.Get(cache.Context, key, new(bool)); exists != nil {
+			return false
+		}
+		if err := cache.Marshal.Set(cache.Context, key, true, store.WithExpiration(recentJoinProcessTTL)); err == nil {
+			return true
+		}
+		log.Debugf("[Greetings] Shared cache unavailable for join dedupe key %s, falling back to in-memory claim", key)
+	}
+
 	if _, loaded := recentJoinProcessing.LoadOrStore(key, struct{}{}); loaded {
 		return false
 	}
@@ -80,6 +95,18 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 	})
 
 	return true
+}
+
+func clearRecentJoinProcessing(chatID, userID int64) {
+	key := recentJoinProcessingKey(chatID, userID)
+
+	if cache.Marshal != nil {
+		if err := cache.Marshal.Delete(cache.Context, key); err != nil {
+			log.Debugf("[Greetings] Failed to clear shared join dedupe key %s: %v", key, err)
+		}
+	}
+
+	recentJoinProcessing.Delete(key)
 }
 
 // displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
@@ -801,6 +828,8 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if leftMember.Id == bot.Id {
 		return ext.EndGroups
 	}
+
+	clearRecentJoinProcessing(chat.Id, leftMember.Id)
 
 	// Clean up any pending captcha for the leaving user
 	captchaAttempt, err := db.GetCaptchaAttempt(leftMember.Id, chat.Id)
