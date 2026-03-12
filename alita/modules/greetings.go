@@ -26,9 +26,11 @@ import (
 // Concurrency limit for processing multiple new members
 const (
 	maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
+	recentJoinProcessTTL          = 30 * time.Second
 )
 
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
+var recentJoinProcessing sync.Map
 
 type greetingType int
 
@@ -65,6 +67,19 @@ var goodbyeConfig = greetingConfig{
 	enabledKey:       "greetings_goodbye_enable",
 	disabledKey:      "greetings_goodbye_disable",
 	invalidKey:       "greetings_goodbye_invalid",
+}
+
+func claimRecentJoinProcessing(chatID, userID int64) bool {
+	key := fmt.Sprintf("%d:%d", chatID, userID)
+	if _, loaded := recentJoinProcessing.LoadOrStore(key, struct{}{}); loaded {
+		return false
+	}
+
+	time.AfterFunc(recentJoinProcessTTL, func() {
+		recentJoinProcessing.Delete(key)
+	})
+
+	return true
 }
 
 // displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
@@ -702,6 +717,13 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	// Telegram can emit both ChatMemberUpdated and a service message for the same join.
+	// Claim once per user/chat to avoid sending duplicate welcome/captcha prompts.
+	if !claimRecentJoinProcessing(chat.Id, newMember.Id) {
+		log.Debugf("[Greetings][newMember] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
+		return ext.EndGroups
+	}
+
 	// Check if captcha is enabled
 	captchaSettings, err := db.GetCaptchaSettings(chat.Id)
 	if err != nil {
@@ -833,6 +855,11 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 	chat := ctx.EffectiveChat
 
 	if newMember.Id == bot.Id {
+		return
+	}
+
+	if !claimRecentJoinProcessing(chat.Id, newMember.Id) {
+		log.Debugf("[Greetings][cleanService] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
 		return
 	}
 
