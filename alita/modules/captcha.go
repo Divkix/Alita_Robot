@@ -872,7 +872,7 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 		80,            // height
 		240,           // width (wider for math expression)
 		0,             // noiseCount
-		2,             // showLineOptions
+		0,             // showLineOptions - keep math operators readable
 		len(question), // source length
 		question,      // source string (the question itself)
 		nil,           // bgColor

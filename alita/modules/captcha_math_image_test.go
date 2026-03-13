@@ -42,3 +42,26 @@ func TestFormatMathQuestionUsesASCIIForMultiplication(t *testing.T) {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 }
+
+func TestMathCaptchaDriverDisablesLineNoise(t *testing.T) {
+	const question = "10 x 3"
+
+	driver := &fixedStringCaptchaDriver{
+		DriverString: base64Captcha.NewDriverString(
+			80,
+			240,
+			0,
+			0,
+			len(question),
+			question,
+			nil,
+			nil,
+			[]string{},
+		),
+		content: question,
+	}
+
+	if driver.ShowLineOptions != 0 {
+		t.Fatalf("expected show line options to be disabled, got %d", driver.ShowLineOptions)
+	}
+}
