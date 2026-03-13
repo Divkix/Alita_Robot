@@ -32,6 +32,50 @@ import (
 
 var captchaModule = moduleStruct{moduleName: "Captcha"}
 
+// fixedStringCaptchaDriver wraps DriverString so captcha.Generate renders
+// the exact provided content instead of randomly sampling from Source.
+type fixedStringCaptchaDriver struct {
+	*base64Captcha.DriverString
+	content string
+}
+
+func (d *fixedStringCaptchaDriver) GenerateIdQuestionAnswer() (id, q, a string) {
+	id = base64Captcha.RandomId()
+	return id, d.content, d.content
+}
+
+// noopCaptchaStore avoids persisting unused answers for image-only generation paths.
+type noopCaptchaStore struct{}
+
+func (noopCaptchaStore) Set(id string, value string) error {
+	return nil
+}
+
+func (noopCaptchaStore) Get(id string, clear bool) string {
+	return ""
+}
+
+func (noopCaptchaStore) Verify(id, answer string, clear bool) bool {
+	return false
+}
+
+func newMathImageCaptchaDriver(question string) *fixedStringCaptchaDriver {
+	return &fixedStringCaptchaDriver{
+		DriverString: base64Captcha.NewDriverString(
+			80,            // height
+			240,           // width (wider for math expression)
+			0,             // noiseCount
+			0,             // showLineOptions - keep math operators readable
+			len(question), // source length
+			question,      // source string (the question itself)
+			nil,           // bgColor
+			nil,           // fonts
+			[]string{},    // fontsArray
+		),
+		content: question,
+	}
+}
+
 // messageTypeToString converts message type constants to human-readable strings
 func messageTypeToString(tr *i18n.Translator, messageType int) string {
 	var key string
@@ -735,17 +779,17 @@ func generateMathCaptcha() (string, string, []string) {
 		a = secureIntn(50) + 1
 		b = secureIntn(50) + 1
 		answer = a + b
-		question = fmt.Sprintf("%d + %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	case "-":
 		a = secureIntn(50) + 20
 		b = secureIntn(a) + 1
 		answer = a - b
-		question = fmt.Sprintf("%d - %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	case "*":
 		a = secureIntn(12) + 1
 		b = secureIntn(12) + 1
 		answer = a * b
-		question = fmt.Sprintf("%d × %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	}
 
 	// Generate wrong answers
@@ -766,6 +810,16 @@ func generateMathCaptcha() (string, string, []string) {
 	secureShuffleStrings(options)
 
 	return question, strconv.Itoa(answer), options
+}
+
+func formatMathQuestion(a, b int, operation string) string {
+	operator := operation
+	if operation == "*" {
+		// Use ASCII x instead of the multiplication symbol to avoid missing glyphs
+		// in some embedded captcha fonts.
+		operator = "x"
+	}
+	return fmt.Sprintf("%d %s %d", a, operator, b)
 }
 
 // generateTextCaptcha generates a captcha image with random text.
@@ -843,20 +897,11 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 	// Use our reliable math generation
 	question, answer, options := generateMathCaptcha()
 
-	// Create a character driver to render the question as an image
-	driver := base64Captcha.NewDriverString(
-		80,            // height
-		240,           // width (wider for math expression)
-		0,             // noiseCount
-		2,             // showLineOptions
-		len(question), // source length
-		question,      // source string (the question itself)
-		nil,           // bgColor
-		nil,           // fonts
-		[]string{},    // fontsArray
-	)
+	// DriverString normally samples random characters from Source on Generate.
+	// Wrap it so the rendered image always matches the computed math question.
+	driver := newMathImageCaptchaDriver(question)
 
-	captcha := base64Captcha.NewCaptcha(driver, base64Captcha.DefaultMemStore)
+	captcha := base64Captcha.NewCaptcha(driver, noopCaptchaStore{})
 	_, b64s, _, err := captcha.Generate()
 	if err != nil {
 		return "", nil, nil, err
