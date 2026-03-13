@@ -34,3 +34,11 @@ func TestFixedStringCaptchaDriverReturnsExactQuestion(t *testing.T) {
 		t.Fatalf("expected generated answer payload %q, got %q", question, gotAnswer)
 	}
 }
+
+func TestFormatMathQuestionUsesASCIIForMultiplication(t *testing.T) {
+	got := formatMathQuestion(10, 3, "*")
+	want := "10 x 3"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}

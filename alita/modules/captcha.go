@@ -747,17 +747,17 @@ func generateMathCaptcha() (string, string, []string) {
 		a = secureIntn(50) + 1
 		b = secureIntn(50) + 1
 		answer = a + b
-		question = fmt.Sprintf("%d + %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	case "-":
 		a = secureIntn(50) + 20
 		b = secureIntn(a) + 1
 		answer = a - b
-		question = fmt.Sprintf("%d - %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	case "*":
 		a = secureIntn(12) + 1
 		b = secureIntn(12) + 1
 		answer = a * b
-		question = fmt.Sprintf("%d × %d", a, b)
+		question = formatMathQuestion(a, b, operation)
 	}
 
 	// Generate wrong answers
@@ -778,6 +778,16 @@ func generateMathCaptcha() (string, string, []string) {
 	secureShuffleStrings(options)
 
 	return question, strconv.Itoa(answer), options
+}
+
+func formatMathQuestion(a, b int, operation string) string {
+	operator := operation
+	if operation == "*" {
+		// Use ASCII x instead of the multiplication symbol to avoid missing glyphs
+		// in some embedded captcha fonts.
+		operator = "x"
+	}
+	return fmt.Sprintf("%d %s %d", a, operator, b)
 }
 
 // generateTextCaptcha generates a captcha image with random text.
