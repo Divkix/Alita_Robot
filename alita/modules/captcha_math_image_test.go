@@ -2,27 +2,12 @@ package modules
 
 import (
 	"testing"
-
-	"github.com/mojocn/base64Captcha"
 )
 
 func TestFixedStringCaptchaDriverReturnsExactQuestion(t *testing.T) {
 	const question = "12 + 34"
 
-	driver := &fixedStringCaptchaDriver{
-		DriverString: base64Captcha.NewDriverString(
-			80,
-			240,
-			0,
-			2,
-			len(question),
-			question,
-			nil,
-			nil,
-			[]string{},
-		),
-		content: question,
-	}
+	driver := newMathImageCaptchaDriver(question)
 
 	_, gotQuestion, gotAnswer := driver.GenerateIdQuestionAnswer()
 
@@ -46,20 +31,7 @@ func TestFormatMathQuestionUsesASCIIForMultiplication(t *testing.T) {
 func TestMathCaptchaDriverDisablesLineNoise(t *testing.T) {
 	const question = "10 x 3"
 
-	driver := &fixedStringCaptchaDriver{
-		DriverString: base64Captcha.NewDriverString(
-			80,
-			240,
-			0,
-			0,
-			len(question),
-			question,
-			nil,
-			nil,
-			[]string{},
-		),
-		content: question,
-	}
+	driver := newMathImageCaptchaDriver(question)
 
 	if driver.ShowLineOptions != 0 {
 		t.Fatalf("expected show line options to be disabled, got %d", driver.ShowLineOptions)

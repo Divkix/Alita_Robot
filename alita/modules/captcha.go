@@ -44,6 +44,38 @@ func (d *fixedStringCaptchaDriver) GenerateIdQuestionAnswer() (id, q, a string) 
 	return id, d.content, d.content
 }
 
+// noopCaptchaStore avoids persisting unused answers for image-only generation paths.
+type noopCaptchaStore struct{}
+
+func (noopCaptchaStore) Set(id string, value string) error {
+	return nil
+}
+
+func (noopCaptchaStore) Get(id string, clear bool) string {
+	return ""
+}
+
+func (noopCaptchaStore) Verify(id, answer string, clear bool) bool {
+	return false
+}
+
+func newMathImageCaptchaDriver(question string) *fixedStringCaptchaDriver {
+	return &fixedStringCaptchaDriver{
+		DriverString: base64Captcha.NewDriverString(
+			80,            // height
+			240,           // width (wider for math expression)
+			0,             // noiseCount
+			0,             // showLineOptions - keep math operators readable
+			len(question), // source length
+			question,      // source string (the question itself)
+			nil,           // bgColor
+			nil,           // fonts
+			[]string{},    // fontsArray
+		),
+		content: question,
+	}
+}
+
 // messageTypeToString converts message type constants to human-readable strings
 func messageTypeToString(tr *i18n.Translator, messageType int) string {
 	var key string
@@ -867,22 +899,9 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 
 	// DriverString normally samples random characters from Source on Generate.
 	// Wrap it so the rendered image always matches the computed math question.
-	driver := &fixedStringCaptchaDriver{
-		DriverString: base64Captcha.NewDriverString(
-		80,            // height
-		240,           // width (wider for math expression)
-		0,             // noiseCount
-		0,             // showLineOptions - keep math operators readable
-		len(question), // source length
-		question,      // source string (the question itself)
-		nil,           // bgColor
-		nil,           // fonts
-		[]string{},    // fontsArray
-		),
-		content: question,
-	}
+	driver := newMathImageCaptchaDriver(question)
 
-	captcha := base64Captcha.NewCaptcha(driver, base64Captcha.DefaultMemStore)
+	captcha := base64Captcha.NewCaptcha(driver, noopCaptchaStore{})
 	_, b64s, _, err := captcha.Generate()
 	if err != nil {
 		return "", nil, nil, err
