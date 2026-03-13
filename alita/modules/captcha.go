@@ -32,6 +32,18 @@ import (
 
 var captchaModule = moduleStruct{moduleName: "Captcha"}
 
+// fixedStringCaptchaDriver wraps DriverString so captcha.Generate renders
+// the exact provided content instead of randomly sampling from Source.
+type fixedStringCaptchaDriver struct {
+	*base64Captcha.DriverString
+	content string
+}
+
+func (d *fixedStringCaptchaDriver) GenerateIdQuestionAnswer() (id, q, a string) {
+	id = base64Captcha.RandomId()
+	return id, d.content, d.content
+}
+
 // messageTypeToString converts message type constants to human-readable strings
 func messageTypeToString(tr *i18n.Translator, messageType int) string {
 	var key string
@@ -843,8 +855,10 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 	// Use our reliable math generation
 	question, answer, options := generateMathCaptcha()
 
-	// Create a character driver to render the question as an image
-	driver := base64Captcha.NewDriverString(
+	// DriverString normally samples random characters from Source on Generate.
+	// Wrap it so the rendered image always matches the computed math question.
+	driver := &fixedStringCaptchaDriver{
+		DriverString: base64Captcha.NewDriverString(
 		80,            // height
 		240,           // width (wider for math expression)
 		0,             // noiseCount
@@ -854,7 +868,9 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 		nil,           // bgColor
 		nil,           // fonts
 		[]string{},    // fontsArray
-	)
+		),
+		content: question,
+	}
 
 	captcha := base64Captcha.NewCaptcha(driver, base64Captcha.DefaultMemStore)
 	_, b64s, _, err := captcha.Generate()
