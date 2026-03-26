@@ -1,29 +1,26 @@
 {
-  "name": "",
-  "type": "module",
-  "version": "0.0.1",
-  "engines": {
-    "node": ">=22.12.0 <23 || >=24.0.0"
-  },
-  "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
-  },
-  "dependencies": {
-    "@astrojs/check": "^0.9.8",
-    "@astrojs/sitemap": "3.7.2",
-    "@astrojs/starlight": "0.38.2",
-    "@pasqal-io/starlight-client-mermaid": "^0.1.0",
-    "astro": "6.1.1",
-    "sharp": "^0.34.5",
-    "starlight-llms-txt": "^0.8.0",
-    "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2"
-  },
-  "devDependencies": {
-    "starlight-links-validator": "^0.20.1"
-  }
+	"name": "",
+	"type": "module",
+	"version": "0.0.1",
+	"engines": {
+		"node": ">=22.12.0 <23 || >=24.0.0"
+	},
+	"scripts": {
+		"dev": "astro dev",
+		"start": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro": "astro"
+	},
+	"dependencies": {
+		"@astrojs/check": "^0.9.8",
+		"@astrojs/starlight": "0.38.2",
+		"@pasqal-io/starlight-client-mermaid": "^0.1.0",
+		"astro": "6.1.1",
+		"starlight-llms-txt": "^0.8.0",
+		"typescript": "^6.0.2"
+	},
+	"devDependencies": {
+		"starlight-links-validator": "^0.20.1"
+	}
 }
