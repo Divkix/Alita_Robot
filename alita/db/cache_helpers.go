@@ -26,51 +26,21 @@ const (
 	CacheTTLCaptchaSettings = 30 * time.Minute
 )
 
+// CacheKey generates a cache key with the alita prefix and any number of ID segments.
+// Usage: CacheKey("chat_settings", chatID) → "alita:chat_settings:123"
+// Usage: CacheKey("lock", chatID, lockType) → "alita:lock:123:photos"
+func CacheKey(module string, ids ...any) string {
+	key := fmt.Sprintf("alita:%s", module)
+	for _, id := range ids {
+		key = fmt.Sprintf("%s:%v", key, id)
+	}
+	return key
+}
+
 // Singleflight group for preventing cache stampede
 var (
 	cacheGroup singleflight.Group
 )
-
-// Cache key generators with "alita:" prefix for better organization
-// chatSettingsCacheKey generates a cache key for chat settings.
-func chatSettingsCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:chat_settings:%d", chatID)
-}
-
-// userLanguageCacheKey generates a cache key for user language settings.
-func userLanguageCacheKey(userID int64) string {
-	return fmt.Sprintf("alita:user_lang:%d", userID)
-}
-
-// chatLanguageCacheKey generates a cache key for chat language settings.
-func chatLanguageCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:chat_lang:%d", chatID)
-}
-
-// filterListCacheKey generates a cache key for chat filter lists.
-func filterListCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:filter_list:%d", chatID)
-}
-
-// blacklistCacheKey generates a cache key for chat blacklist settings.
-func blacklistCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:blacklist:%d", chatID)
-}
-
-// warnSettingsCacheKey generates a cache key for chat warning settings.
-func warnSettingsCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:warn_settings:%d", chatID)
-}
-
-// disabledCommandsCacheKey generates a cache key for chat disabled commands.
-func disabledCommandsCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:disabled_cmds:%d", chatID)
-}
-
-// captchaSettingsCacheKey generates a cache key for chat captcha settings.
-func captchaSettingsCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:captcha_settings:%d", chatID)
-}
 
 // getFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.
 // Uses singleflight pattern with timeout to prevent cache stampede and goroutine accumulation.

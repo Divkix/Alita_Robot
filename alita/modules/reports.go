@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var reportsModule = moduleStruct{
@@ -79,7 +78,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	reportprefs := db.GetChatReportSettings(chat.Id)
 
 	// don't let blocked users report
-	if string_handling.FindInInt64Slice(reportprefs.BlockedList, user.Id) {
+	if slices.Contains(reportprefs.BlockedList, user.Id) {
 		if chat_status.CanBotDelete(b, ctx, nil, true) {
 			_, err := msg.Delete(b, nil)
 			if err != nil {
@@ -141,7 +140,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	}
-	if string_handling.FindInInt64Slice(adminArray, reportedUser.Id) {
+	if slices.Contains(adminArray, reportedUser.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_why_report_admin")
 		_, err := msg.Reply(b, text, helpers.Shtml())
@@ -542,6 +541,6 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report"), reportsModule.markResolvedButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
-	misc.AddCmdToDisableable("report")
+	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
 }

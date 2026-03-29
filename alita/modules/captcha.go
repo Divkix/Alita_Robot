@@ -1275,22 +1275,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		}
 	case "mute":
 		// Explicitly mute the user (don't rely on initial mute from greetings)
-		_, muteErr := bot.RestrictChatMember(chatID, userID, gotgbot.ChatPermissions{
-			CanSendMessages:       false,
-			CanSendPhotos:         false,
-			CanSendVideos:         false,
-			CanSendAudios:         false,
-			CanSendDocuments:      false,
-			CanSendVideoNotes:     false,
-			CanSendVoiceNotes:     false,
-			CanAddWebPagePreviews: false,
-			CanChangeInfo:         false,
-			CanInviteUsers:        false,
-			CanPinMessages:        false,
-			CanManageTopics:       false,
-			CanSendPolls:          false,
-			CanSendOtherMessages:  false,
-		}, nil)
+		_, muteErr := bot.RestrictChatMember(chatID, userID, MutedPermissions, nil)
 		if muteErr != nil {
 			log.Errorf("[Captcha] Failed to mute user %d in chat %d: %v", userID, chatID, muteErr)
 		}

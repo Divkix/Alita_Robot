@@ -13,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	log "github.com/sirupsen/logrus"
@@ -308,7 +307,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		// If channel then this info
-		if helpers.IsChannelID(userId) {
+		if chat_status.IsChannelId(userId) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			textTemplate, _ := tr.GetString("misc_channel_info_header")
 			text = fmt.Sprintf(textTemplate, userId, html.EscapeString(user.FirstName))
@@ -498,15 +497,15 @@ func LoadMisc(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(miscModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("stat", miscModule.stat))
-	misc.AddCmdToDisableable("stat")
+	helpers.AddCmdToDisableable("stat")
 	dispatcher.AddHandler(handlers.NewCommand("id", miscModule.getId))
-	misc.AddCmdToDisableable("id")
+	helpers.AddCmdToDisableable("id")
 	dispatcher.AddHandler(handlers.NewCommand("tell", miscModule.echomsg))
 	dispatcher.AddHandler(handlers.NewCommand("ping", miscModule.ping))
-	misc.AddCmdToDisableable("ping")
+	helpers.AddCmdToDisableable("ping")
 	dispatcher.AddHandler(handlers.NewCommand("info", miscModule.info))
-	misc.AddCmdToDisableable("info")
+	helpers.AddCmdToDisableable("info")
 	dispatcher.AddHandler(handlers.NewCommand("tr", miscModule.translate))
-	misc.AddCmdToDisableable("tr")
+	helpers.AddCmdToDisableable("tr")
 	dispatcher.AddHandler(handlers.NewCommand("removebotkeyboard", miscModule.removeBotKeyboard))
 }

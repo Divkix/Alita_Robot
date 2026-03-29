@@ -198,28 +198,28 @@ func TestCacheKeyFormats(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "lockCacheKey",
-			fn:       func() string { return lockCacheKey(123, "text") },
+			name:     "CacheKey with two IDs (lock style)",
+			fn:       func() string { return CacheKey("lock", int64(123), "text") },
 			expected: "alita:lock:123:text",
 		},
 		{
-			name:     "userCacheKey",
-			fn:       func() string { return userCacheKey(456) },
+			name:     "CacheKey user",
+			fn:       func() string { return CacheKey("user", int64(456)) },
 			expected: "alita:user:456",
 		},
 		{
-			name:     "chatCacheKey",
-			fn:       func() string { return chatCacheKey(789) },
+			name:     "CacheKey chat",
+			fn:       func() string { return CacheKey("chat", int64(789)) },
 			expected: "alita:chat:789",
 		},
 		{
-			name:     "optimizedAntifloodCacheKey",
-			fn:       func() string { return optimizedAntifloodCacheKey(101) },
+			name:     "CacheKey antiflood",
+			fn:       func() string { return CacheKey("antiflood", int64(101)) },
 			expected: "alita:antiflood:101",
 		},
 		{
-			name:     "channelCacheKey",
-			fn:       func() string { return channelCacheKey(202) },
+			name:     "CacheKey channel",
+			fn:       func() string { return CacheKey("channel", int64(202)) },
 			expected: "alita:channel:202",
 		},
 	}

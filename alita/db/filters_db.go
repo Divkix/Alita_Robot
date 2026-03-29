@@ -10,7 +10,7 @@ import (
 // Returns an empty slice if no filters are found or an error occurs.
 func GetFiltersList(chatID int64) (allFilterWords []string) {
 	// Try to get from cache first
-	cacheKey := filterListCacheKey(chatID)
+	cacheKey := CacheKey("filter_list", chatID)
 	result, err := getFromCacheOrLoad(cacheKey, CacheTTLFilterList, func() ([]string, error) {
 		var results []*ChatFilters
 		err := GetRecords(&results, map[string]any{"chat_id": chatID})
@@ -83,7 +83,7 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []Button
 	}
 
 	// Invalidate cache after adding filter
-	deleteCache(filterListCacheKey(chatID))
+	deleteCache(CacheKey("filter_list", chatID))
 	return nil
 }
 
@@ -100,7 +100,7 @@ func RemoveFilter(chatID int64, keyWord string) error {
 
 	// Invalidate cache after removing filter
 	if result.RowsAffected > 0 {
-		deleteCache(filterListCacheKey(chatID))
+		deleteCache(CacheKey("filter_list", chatID))
 	}
 	return nil
 }
@@ -114,7 +114,7 @@ func RemoveAllFilters(chatID int64) {
 	}
 
 	// Invalidate cache after removing all filters
-	deleteCache(filterListCacheKey(chatID))
+	deleteCache(CacheKey("filter_list", chatID))
 }
 
 // CountFilters returns the total number of filters configured for the specified chat ID.

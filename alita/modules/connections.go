@@ -14,7 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -433,13 +432,13 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 // adminCmdConnString returns a formatted list of admin commands available via connections.
 // Used for displaying available commands in connection interface.
 func (moduleStruct) adminCmdConnString() string {
-	return "\n - /" + strings.Join(misc.AdminCmds, "\n - /")
+	return "\n - /" + strings.Join(helpers.AdminCmds, "\n - /")
 }
 
 // userCmdConnString returns a formatted list of user commands available via connections.
 // Used for displaying available commands in connection interface.
 func (moduleStruct) userCmdConnString() string {
-	return "\n - /" + strings.Join(misc.UserCmds, "\n - /")
+	return "\n - /" + strings.Join(helpers.UserCmds, "\n - /")
 }
 
 // LoadConnections registers all connection module handlers with the dispatcher.

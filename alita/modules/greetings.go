@@ -760,22 +760,7 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if captchaSettings != nil && captchaSettings.Enabled {
 		// Mute the new member immediately
-		_, err := chat.RestrictMember(bot, newMember.Id, gotgbot.ChatPermissions{
-			CanSendMessages:       false,
-			CanSendPhotos:         false,
-			CanSendVideos:         false,
-			CanSendAudios:         false,
-			CanSendDocuments:      false,
-			CanSendVideoNotes:     false,
-			CanSendVoiceNotes:     false,
-			CanAddWebPagePreviews: false,
-			CanChangeInfo:         false,
-			CanInviteUsers:        false,
-			CanPinMessages:        false,
-			CanManageTopics:       false,
-			CanSendPolls:          false,
-			CanSendOtherMessages:  false,
-		}, nil)
+		_, err := chat.RestrictMember(bot, newMember.Id, MutedPermissions, nil)
 
 		if err != nil {
 			log.Errorf("Failed to mute user %d for captcha: %v", newMember.Id, err)
@@ -894,22 +879,7 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 
 	if captchaEnabled {
 		// Mute the new member immediately
-		_, err := chat.RestrictMember(bot, newMember.Id, gotgbot.ChatPermissions{
-			CanSendMessages:       false,
-			CanSendPhotos:         false,
-			CanSendVideos:         false,
-			CanSendAudios:         false,
-			CanSendDocuments:      false,
-			CanSendVideoNotes:     false,
-			CanSendVoiceNotes:     false,
-			CanAddWebPagePreviews: false,
-			CanChangeInfo:         false,
-			CanInviteUsers:        false,
-			CanPinMessages:        false,
-			CanManageTopics:       false,
-			CanSendPolls:          false,
-			CanSendOtherMessages:  false,
-		}, nil)
+		_, err := chat.RestrictMember(bot, newMember.Id, MutedPermissions, nil)
 
 		if err != nil {
 			log.Errorf("Failed to mute user %d for captcha: %v", newMember.Id, err)

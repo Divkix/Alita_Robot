@@ -1,9 +1,9 @@
 package db
 
 import (
-	log "github.com/sirupsen/logrus"
+	"slices"
 
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
+	log "github.com/sirupsen/logrus"
 )
 
 // DisableCMD disables a command in a specific chat.
@@ -65,7 +65,7 @@ func GetChatDisabledCMDs(chatId int64) []string {
 // GetChatDisabledCMDsCached retrieves all disabled commands for a chat with caching.
 // Uses cache with TTL to avoid database queries on every command check.
 func GetChatDisabledCMDsCached(chatId int64) []string {
-	cacheKey := disabledCommandsCacheKey(chatId)
+	cacheKey := CacheKey("disabled_cmds", chatId)
 	result, err := getFromCacheOrLoad(cacheKey, CacheTTLDisabledCmds, func() ([]string, error) {
 		return GetChatDisabledCMDs(chatId), nil
 	})
@@ -80,12 +80,12 @@ func GetChatDisabledCMDsCached(chatId int64) []string {
 // Returns true if the command is in the chat's disabled commands list.
 // Uses cached version for better performance.
 func IsCommandDisabled(chatId int64, cmd string) bool {
-	return string_handling.FindInStringSlice(GetChatDisabledCMDsCached(chatId), cmd)
+	return slices.Contains(GetChatDisabledCMDsCached(chatId), cmd)
 }
 
 // invalidateDisabledCommandsCache invalidates the disabled commands cache for a specific chat.
 func invalidateDisabledCommandsCache(chatID int64) {
-	deleteCache(disabledCommandsCacheKey(chatID))
+	deleteCache(CacheKey("disabled_cmds", chatID))
 }
 
 // ToggleDel toggles the automatic deletion of disabled commands in a chat.

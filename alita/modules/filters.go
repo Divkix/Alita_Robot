@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"html"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -28,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var filtersModule = moduleStruct{
@@ -333,7 +332,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		filterWord, _ := extraction.ExtractQuotes(strings.Join(args, " "), true, true)
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		if !string_handling.FindInStringSlice(db.GetFiltersList(chat.Id), strings.ToLower(filterWord)) {
+		if !slices.Contains(db.GetFiltersList(chat.Id), strings.ToLower(filterWord)) {
 			text, _ := tr.GetString("filters_not_exists")
 			_, err := msg.Reply(b, text, helpers.Shtml())
 			if err != nil {
@@ -790,7 +789,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("rmfilter", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("removefilter", filtersModule.rmFilter))
 	dispatcher.AddHandler(handlers.NewCommand("filters", filtersModule.filtersList))
-	misc.AddCmdToDisableable("filters")
+	helpers.AddCmdToDisableable("filters")
 	dispatcher.AddHandler(handlers.NewCommand("stopall", filtersModule.rmAllFilters))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllFilters"), filtersModule.filtersButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("filters_overwrite"), filtersModule.filterOverWriteHandler))

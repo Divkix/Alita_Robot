@@ -16,7 +16,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // ResourceMonitor monitors system resources including memory usage and goroutine count.
@@ -95,7 +94,18 @@ func checkDuplicateAliases() {
 		althelp = append(althelp, i...)
 	}
 
-	duplicateAlias, val := string_handling.IsDuplicateInStringSlice(althelp)
+	// Check for duplicate aliases in module help options
+	var duplicateAlias string
+	val := false
+	visited := make(map[string]bool)
+	for _, item := range althelp {
+		if visited[item] {
+			duplicateAlias = item
+			val = true
+			break
+		}
+		visited[item] = true
+	}
 	if val {
 		log.Fatalf("Found duplicate alias: %s", duplicateAlias)
 	}

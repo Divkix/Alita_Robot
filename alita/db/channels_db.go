@@ -78,7 +78,7 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 				log.Errorf("[Database] UpdateChannel: failed to update %d: %v", channelId, err)
 				return err
 			}
-			deleteCache(channelCacheKey(channelId))
+			deleteCache(CacheKey("channel", channelId))
 			log.Debugf("[Database] UpdateChannel: updated channel %d", channelId)
 		}
 		return nil
@@ -98,7 +98,7 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 		log.Errorf("[Database] UpdateChannel: failed to create %d (%s): %v", channelId, username, err)
 		return err
 	}
-	deleteCache(channelCacheKey(channelId))
+	deleteCache(CacheKey("channel", channelId))
 	log.Infof("[Database] UpdateChannel: created channel %d (%s)", channelId, channelName)
 	return nil
 }

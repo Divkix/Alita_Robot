@@ -2,6 +2,42 @@ package modules
 
 import "github.com/PaulSonOfLars/gotgbot/v2"
 
+// MutedPermissions represents a fully restricted user - all sending capabilities disabled
+var MutedPermissions = gotgbot.ChatPermissions{
+	CanSendMessages:       false,
+	CanSendPhotos:         false,
+	CanSendVideos:         false,
+	CanSendAudios:         false,
+	CanSendDocuments:      false,
+	CanSendVideoNotes:     false,
+	CanSendVoiceNotes:     false,
+	CanAddWebPagePreviews: false,
+	CanChangeInfo:         false,
+	CanInviteUsers:        false,
+	CanPinMessages:        false,
+	CanManageTopics:       false,
+	CanSendPolls:          false,
+	CanSendOtherMessages:  false,
+}
+
+// FullPermissions represents unrestricted user with all standard permissions
+var FullPermissions = gotgbot.ChatPermissions{
+	CanSendMessages:       true,
+	CanSendPhotos:         true,
+	CanSendVideos:         true,
+	CanSendAudios:         true,
+	CanSendDocuments:      true,
+	CanSendVideoNotes:     true,
+	CanSendVoiceNotes:     true,
+	CanAddWebPagePreviews: true,
+	CanChangeInfo:         true,
+	CanInviteUsers:        true,
+	CanPinMessages:        true,
+	CanManageTopics:       true,
+	CanSendPolls:          true,
+	CanSendOtherMessages:  true,
+}
+
 // defaultUnmutePermissions represents a safe fallback when chat defaults are unavailable.
 func defaultUnmutePermissions() gotgbot.ChatPermissions {
 	return gotgbot.ChatPermissions{

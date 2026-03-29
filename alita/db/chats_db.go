@@ -3,12 +3,11 @@ package db
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // GetChatSettings retrieves chat settings using optimized cached queries.
@@ -48,7 +47,7 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 // Returns error if database operation fails.
 func UpdateChat(chatId int64, chatname string, userid int64) error {
 	chatr := GetChatSettings(chatId)
-	foundUser := string_handling.FindInInt64Slice(chatr.Users, userid)
+	foundUser := slices.Contains(chatr.Users, userid)
 	now := time.Now()
 
 	// Always update last_activity to track message activity
@@ -63,7 +62,7 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 			return err
 		}
 		// Invalidate cache after update
-		deleteCache(chatCacheKey(chatId))
+		deleteCache(CacheKey("chat", chatId))
 		return nil
 	}
 
@@ -104,7 +103,7 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(chatCacheKey(chatId))
+	deleteCache(CacheKey("chat", chatId))
 	log.Debugf("[Database] UpdateChat: %d", chatId)
 	return nil
 }

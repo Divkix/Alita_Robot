@@ -76,7 +76,7 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, reason := extraction.ExtractUserAndText(b, ctx)
 	userId := msg.ReplyToMessage.From.Id
-	if helpers.IsChannelID(userId) {
+	if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -222,7 +222,7 @@ func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -454,7 +454,7 @@ func (m moduleStruct) tBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -603,7 +603,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if helpers.IsChannelID(userId) {
+	if chat_status.IsChannelId(userId) {
 		if msg.ReplyToMessage != nil {
 			userId = msg.ReplyToMessage.GetSender().Id()
 			_, err := b.BanChatSenderChat(chat.Id, userId, nil)
@@ -698,7 +698,7 @@ func (m moduleStruct) sBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -784,7 +784,7 @@ func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("bans_anonymous_ban_only_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -927,7 +927,7 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if helpers.IsChannelID(userId) {
+	if chat_status.IsChannelId(userId) {
 		if msg.ReplyToMessage != nil {
 			userId = msg.ReplyToMessage.GetSender().Id()
 			_, err := b.UnbanChatSenderChat(chat.Id, userId, nil)
@@ -1173,22 +1173,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		}()
 	case "mute":
 		_, err := chat.RestrictMember(b, int64(userId),
-			gotgbot.ChatPermissions{
-				CanSendMessages:       false,
-				CanSendPhotos:         false,
-				CanSendVideos:         false,
-				CanSendAudios:         false,
-				CanSendDocuments:      false,
-				CanSendVideoNotes:     false,
-				CanSendVoiceNotes:     false,
-				CanAddWebPagePreviews: false,
-				CanChangeInfo:         false,
-				CanInviteUsers:        false,
-				CanPinMessages:        false,
-				CanManageTopics:       false,
-				CanSendPolls:          false,
-				CanSendOtherMessages:  false,
-			},
+			MutedPermissions,
 			nil,
 		)
 		if err != nil {

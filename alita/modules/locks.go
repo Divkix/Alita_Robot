@@ -17,11 +17,9 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var (
@@ -237,7 +235,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Validate all lock types first
 	toLock := make([]string, 0, len(args))
 	for _, perm := range args {
-		if !string_handling.FindInStringSlice(m.getLockMapAsArray(), perm) {
+		if !slices.Contains(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
 			text := fmt.Sprintf(temp, perm)
@@ -324,7 +322,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Validate all lock types first
 	toUnlock := make([]string, 0, len(args))
 	for _, perm := range args {
-		if !string_handling.FindInStringSlice(m.getLockMapAsArray(), perm) {
+		if !slices.Contains(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
 			text := fmt.Sprintf(temp, perm)
@@ -527,9 +525,9 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("lock", locksModule.lockPerm))
 	dispatcher.AddHandler(handlers.NewCommand("unlock", locksModule.unlockPerm))
 	dispatcher.AddHandler(handlers.NewCommand("locktypes", locksModule.locktypes))
-	misc.AddCmdToDisableable("locktypes")
+	helpers.AddCmdToDisableable("locktypes")
 	dispatcher.AddHandler(handlers.NewCommand("locks", locksModule.locks))
-	misc.AddCmdToDisableable("locks")
+	helpers.AddCmdToDisableable("locks")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.permHandler), locksModule.permHandlerGroup)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, locksModule.restHandler), locksModule.restrHandlerGroup)
 	dispatcher.AddHandler(

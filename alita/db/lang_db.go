@@ -39,7 +39,7 @@ func GetLanguage(ctx *ext.Context) string {
 // Uses caching to improve performance and defaults to "en" if no preference is set.
 func getGroupLanguage(GroupID int64) string {
 	// Try to get from cache first
-	cacheKey := chatLanguageCacheKey(GroupID)
+	cacheKey := CacheKey("chat_lang", GroupID)
 	lang, err := getFromCacheOrLoad(cacheKey, CacheTTLLanguage, func() (string, error) {
 		groupc := GetChatSettings(GroupID)
 		if groupc.Language == "" {
@@ -57,7 +57,7 @@ func getGroupLanguage(GroupID int64) string {
 // Uses caching to improve performance and defaults to "en" if no preference is set.
 func getUserLanguage(UserID int64) string {
 	// Try to get from cache first
-	cacheKey := userLanguageCacheKey(UserID)
+	cacheKey := CacheKey("user_lang", UserID)
 	lang, err := getFromCacheOrLoad(cacheKey, CacheTTLLanguage, func() (string, error) {
 		userc := checkUserInfo(UserID)
 		if userc == nil {
@@ -91,8 +91,8 @@ func ChangeUserLanguage(UserID int64, lang string) error {
 			return err
 		}
 		// Invalidate both language cache and optimized query cache after create
-		deleteCache(userLanguageCacheKey(UserID))
-		deleteCache(userCacheKey(UserID))
+		deleteCache(CacheKey("user_lang", UserID))
+		deleteCache(CacheKey("user", UserID))
 		log.Infof("[Database] ChangeUserLanguage: created new user %d with language %s", UserID, lang)
 		return nil
 	} else if userc.Language == lang {
@@ -105,8 +105,8 @@ func ChangeUserLanguage(UserID int64, lang string) error {
 		return err
 	}
 	// Invalidate both language cache and optimized query cache after update
-	deleteCache(userLanguageCacheKey(UserID))
-	deleteCache(userCacheKey(UserID))
+	deleteCache(CacheKey("user_lang", UserID))
+	deleteCache(CacheKey("user", UserID))
 	log.Infof("[Database] ChangeUserLanguage: %d", UserID)
 	return nil
 }
@@ -131,9 +131,9 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 			return err
 		}
 		// Invalidate all cache layers after create
-		deleteCache(chatLanguageCacheKey(GroupID))
-		deleteCache(chatSettingsCacheKey(GroupID))
-		deleteCache(chatCacheKey(GroupID))
+		deleteCache(CacheKey("chat_lang", GroupID))
+		deleteCache(CacheKey("chat_settings", GroupID))
+		deleteCache(CacheKey("chat", GroupID))
 		log.Infof("[Database] ChangeGroupLanguage: created new chat %d with language %s", GroupID, lang)
 		return nil
 	} else if groupc.Language == lang {
@@ -146,9 +146,9 @@ func ChangeGroupLanguage(GroupID int64, lang string) error {
 		return err
 	}
 	// Invalidate all cache layers after update
-	deleteCache(chatLanguageCacheKey(GroupID))
-	deleteCache(chatSettingsCacheKey(GroupID)) // Also invalidate chat settings cache since language is part of it
-	deleteCache(chatCacheKey(GroupID))
+	deleteCache(CacheKey("chat_lang", GroupID))
+	deleteCache(CacheKey("chat_settings", GroupID)) // Also invalidate chat settings cache since language is part of it
+	deleteCache(CacheKey("chat", GroupID))
 	log.Infof("[Database] ChangeGroupLanguage: %d", GroupID)
 	return nil
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -151,22 +150,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			}
 		case "mute":
 			_, err = chat.RestrictMember(b, userId,
-				gotgbot.ChatPermissions{
-					CanSendMessages:       false,
-					CanSendPhotos:         false,
-					CanSendVideos:         false,
-					CanSendAudios:         false,
-					CanSendDocuments:      false,
-					CanSendVideoNotes:     false,
-					CanSendVoiceNotes:     false,
-					CanAddWebPagePreviews: false,
-					CanChangeInfo:         false,
-					CanInviteUsers:        false,
-					CanPinMessages:        false,
-					CanManageTopics:       false,
-					CanSendPolls:          false,
-					CanSendOtherMessages:  false,
-				},
+				MutedPermissions,
 				nil,
 			)
 			temp, _ := tr.GetString("warns_limit_muted")
@@ -279,7 +263,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -341,7 +325,7 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -403,7 +387,7 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -482,7 +466,7 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		userId = ctx.EffectiveUser.Id
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -690,7 +674,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -865,7 +849,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -914,7 +898,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("rmwarn", warnsModule.removeWarn))
 	dispatcher.AddHandler(handlers.NewCommand("unwarn", warnsModule.removeWarn))
 	dispatcher.AddHandler(handlers.NewCommand("warns", warnsModule.warns))
-	misc.AddCmdToDisableable("warns")
+	helpers.AddCmdToDisableable("warns")
 	dispatcher.AddHandler(handlers.NewCommand("setwarnlimit", warnsModule.setWarnLimit))
 	dispatcher.AddHandler(handlers.NewCommand("setwarnmode", warnsModule.setWarnMode))
 	dispatcher.AddHandler(handlers.NewCommand("resetallwarns", warnsModule.resetAllWarns))

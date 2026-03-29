@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -13,9 +14,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/cmdDecorator"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
@@ -24,8 +22,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var notesModule = moduleStruct{
@@ -229,7 +225,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// check if note exists in admin notes as well
-	if !string_handling.FindInStringSlice(db.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
+	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, helpers.Shtml())
@@ -708,7 +704,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	noformatNote := len(noteNameArgs) == 2 && noteNameArgs[1] == "noformat"
 
 	// if note does not exist, continue groups
-	if !string_handling.FindInStringSlice(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
 		return ext.EndGroups
 	}
 
@@ -837,7 +833,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	noteName := args[0]
 
 	// check if note exists or not
-	if !string_handling.FindInStringSlice(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_does_not_exist")
 		_, err := msg.Reply(b, text, helpers.Shtml())
@@ -982,7 +978,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("notes", notesModule.notesList))
 	// Alias: /saved should behave like /notes per documentation
 	dispatcher.AddHandler(handlers.NewCommand("saved", notesModule.notesList))
-	misc.AddCmdToDisableable("notes")
+	helpers.AddCmdToDisableable("notes")
 	dispatcher.AddHandler(handlers.NewCommand("clearall", notesModule.rmAllNotes))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllNotes"), notesModule.notesButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("notes.overwrite"), notesModule.noteOverWriteHandler))
@@ -994,7 +990,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 			notesModule.notesWatcher,
 		),
 	)
-	cmdDecorator.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
+	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
 	dispatcher.AddHandler(handlers.NewCommand("get", notesModule.getNotes))
-	misc.AddCmdToDisableable("get")
+	helpers.AddCmdToDisableable("get")
 }

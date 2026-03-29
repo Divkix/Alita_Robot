@@ -9,7 +9,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -149,7 +148,7 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -306,7 +305,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, customTitle := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -514,7 +513,7 @@ func (m moduleStruct) setTitle(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, customTitle := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -755,7 +754,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("invitelink", adminModule.getinvitelink))
 	dispatcher.AddHandler(handlers.NewCommand("title", adminModule.setTitle))
 	dispatcher.AddHandler(handlers.NewCommand("adminlist", adminModule.adminlist))
-	misc.AddCmdToDisableable("adminlist")
+	helpers.AddCmdToDisableable("adminlist")
 	dispatcher.AddHandler(handlers.NewCommand("anonadmin", adminModule.anonAdmin))
 	dispatcher.AddHandler(handlers.NewCommand("admincache", adminModule.adminCache))
 	dispatcher.AddHandler(handlers.NewCommand("clearadmincache", adminModule.clearAdminCache))

@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var devsModule = moduleStruct{moduleName: "Dev"}
@@ -222,7 +221,7 @@ func (moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.ContinueGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		return ext.ContinueGroups
 	}
 
@@ -274,7 +273,7 @@ func (moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.ContinueGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		return ext.ContinueGroups
 	}
 
@@ -326,7 +325,7 @@ func (moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.ContinueGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		return ext.ContinueGroups
 	}
 
@@ -378,7 +377,7 @@ func (moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.ContinueGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		return ext.ContinueGroups
 	}
 
@@ -430,7 +429,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	teamint64Slice = append(teamint64Slice, config.AppConfig.OwnerId)
 
-	if !string_handling.FindInInt64Slice(teamint64Slice, user.Id) {
+	if !slices.Contains(teamint64Slice, user.Id) {
 		return ext.EndGroups
 	}
 

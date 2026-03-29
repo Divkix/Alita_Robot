@@ -13,40 +13,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// IsChannelID
-// ---------------------------------------------------------------------------
-
-func TestIsChannelIDTrue(t *testing.T) {
-	t.Parallel()
-
-	ids := []int64{-1000000000001, -1000000123456, -9999999999999}
-	for _, id := range ids {
-
-		t.Run(fmt.Sprintf("id=%d", id), func(t *testing.T) {
-			t.Parallel()
-			if !IsChannelID(id) {
-				t.Fatalf("IsChannelID(%d) expected true", id)
-			}
-		})
-	}
-}
-
-func TestIsChannelIDFalse(t *testing.T) {
-	t.Parallel()
-
-	ids := []int64{0, 123456, -1000000000000, -999999999999, -100}
-	for _, id := range ids {
-
-		t.Run(fmt.Sprintf("id=%d", id), func(t *testing.T) {
-			t.Parallel()
-			if IsChannelID(id) {
-				t.Fatalf("IsChannelID(%d) expected false", id)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
 // SplitMessage
 // ---------------------------------------------------------------------------
 

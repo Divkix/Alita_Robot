@@ -14,9 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var disablingModule = moduleStruct{moduleName: "Disabling"}
@@ -58,7 +56,7 @@ func (moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	for _, cmd := range args {
 		cmd = strings.ToLower(cmd)
-		if string_handling.FindInStringSlice(misc.DisableCmds, cmd) {
+		if slices.Contains(helpers.DisableCmds, cmd) {
 			toDisable = append(toDisable, cmd)
 		} else {
 			unknownCmds = append(unknownCmds, cmd)
@@ -120,7 +118,7 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("disabling_disableable_commands")
 	var sb strings.Builder
-	for _, cmds := range misc.DisableCmds {
+	for _, cmds := range helpers.DisableCmds {
 		fmt.Fprintf(&sb, "\n - `%s`", cmds)
 	}
 	text += sb.String()
@@ -302,7 +300,7 @@ func (moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	for _, cmd := range args {
 		cmd = strings.ToLower(cmd)
-		if string_handling.FindInStringSlice(misc.DisableCmds, cmd) {
+		if slices.Contains(helpers.DisableCmds, cmd) {
 			toEnable = append(toEnable, cmd)
 		} else {
 			unknownCmds = append(unknownCmds, cmd)
@@ -359,7 +357,7 @@ func LoadDisabling(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("disable", disablingModule.disable))
 	dispatcher.AddHandler(handlers.NewCommand("disableable", disablingModule.disableable))
 	dispatcher.AddHandler(handlers.NewCommand("disabled", disablingModule.disabled))
-	misc.AddCmdToDisableable("disabled")
+	helpers.AddCmdToDisableable("disabled")
 	dispatcher.AddHandler(handlers.NewCommand("disabledel", disablingModule.disabledel))
 	dispatcher.AddHandler(handlers.NewCommand("enable", disablingModule.enable))
 }

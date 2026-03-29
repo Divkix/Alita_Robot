@@ -22,7 +22,7 @@ var (
 // Returns default settings if the chat doesn't have custom settings.
 // Results are cached with stampede protection for performance.
 func GetCaptchaSettings(chatID int64) (*CaptchaSettings, error) {
-	return getFromCacheOrLoad(captchaSettingsCacheKey(chatID), CacheTTLCaptchaSettings, func() (*CaptchaSettings, error) {
+	return getFromCacheOrLoad(CacheKey("captcha_settings", chatID), CacheTTLCaptchaSettings, func() (*CaptchaSettings, error) {
 		settings := &CaptchaSettings{}
 		err := GetRecord(settings, map[string]any{"chat_id": chatID})
 
@@ -62,7 +62,7 @@ func SetCaptchaEnabled(chatID int64, enabled bool) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(captchaSettingsCacheKey(chatID))
+	deleteCache(CacheKey("captcha_settings", chatID))
 
 	return nil
 }
@@ -87,7 +87,7 @@ func SetCaptchaMode(chatID int64, mode string) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(captchaSettingsCacheKey(chatID))
+	deleteCache(CacheKey("captcha_settings", chatID))
 
 	return nil
 }
@@ -112,7 +112,7 @@ func SetCaptchaTimeout(chatID int64, timeout int) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(captchaSettingsCacheKey(chatID))
+	deleteCache(CacheKey("captcha_settings", chatID))
 
 	return nil
 }
@@ -133,7 +133,7 @@ func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
 		return err
 	}
 
-	deleteCache(captchaSettingsCacheKey(chatID))
+	deleteCache(CacheKey("captcha_settings", chatID))
 	return nil
 }
 
@@ -157,7 +157,7 @@ func SetCaptchaFailureAction(chatID int64, action string) error {
 	}
 
 	// Invalidate cache after update
-	deleteCache(captchaSettingsCacheKey(chatID))
+	deleteCache(CacheKey("captcha_settings", chatID))
 
 	return nil
 }

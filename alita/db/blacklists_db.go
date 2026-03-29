@@ -23,7 +23,7 @@ func AddBlacklist(chatId int64, trigger string) {
 	}
 
 	// Invalidate cache after adding blacklist
-	deleteCache(blacklistCacheKey(chatId))
+	deleteCache(CacheKey("blacklist", chatId))
 }
 
 // RemoveBlacklist removes a specific blacklist word from a chat.
@@ -36,7 +36,7 @@ func RemoveBlacklist(chatId int64, trigger string) {
 
 	// Invalidate cache if something was deleted
 	if result.RowsAffected > 0 {
-		deleteCache(blacklistCacheKey(chatId))
+		deleteCache(CacheKey("blacklist", chatId))
 	}
 }
 
@@ -48,7 +48,7 @@ func RemoveAllBlacklist(chatId int64) {
 	}
 
 	// Invalidate cache after removing all blacklist entries
-	deleteCache(blacklistCacheKey(chatId))
+	deleteCache(CacheKey("blacklist", chatId))
 }
 
 // SetBlacklistAction updates the action for all blacklist entries in a chat.
@@ -61,7 +61,7 @@ func SetBlacklistAction(chatId int64, action string) error {
 	}
 
 	// Invalidate cache after updating action
-	deleteCache(blacklistCacheKey(chatId))
+	deleteCache(CacheKey("blacklist", chatId))
 	return nil
 }
 
@@ -69,7 +69,7 @@ func SetBlacklistAction(chatId int64, action string) error {
 // Returns an empty slice if no blacklists are found or on error.
 func GetBlacklistSettings(chatId int64) BlacklistSettingsSlice {
 	// Try to get from cache first
-	cacheKey := blacklistCacheKey(chatId)
+	cacheKey := CacheKey("blacklist", chatId)
 	result, err := getFromCacheOrLoad(cacheKey, CacheTTLBlacklist, func() (BlacklistSettingsSlice, error) {
 		var blacklists []*BlacklistSettings
 		err := GetRecords(&blacklists, BlacklistSettings{ChatId: chatId})

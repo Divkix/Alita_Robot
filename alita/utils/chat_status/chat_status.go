@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 )
 
 // 1087968824 - Group Anonymous Bot (For anonymous users)
@@ -173,7 +174,7 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	}
 
 	// Placing this first would not make additional queries if check is success!
-	if string_handling.FindInInt64Slice(tgAdminList, userId) {
+	if slices.Contains(tgAdminList, userId) {
 		return true
 	}
 
@@ -826,7 +827,7 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 		return false
 	}
 	userStatus := member.MergeChatMember().Status
-	return !string_handling.FindInStringSlice([]string{"left", "kicked"}, userStatus)
+	return !slices.Contains([]string{"left", "kicked"}, userStatus)
 }
 
 // IsUserBanProtected checks if a user is protected from being banned.
@@ -843,7 +844,7 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 		return true
 	}
 
-	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || string_handling.FindInInt64Slice(tgAdminList, userId)
+	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || slices.Contains(tgAdminList, userId)
 }
 
 // RequireUserAdmin ensures a user has administrator privileges in the chat.
@@ -1048,4 +1049,38 @@ func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
 		return nil
 	}
 	return user
+}
+
+// sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.
+// Creates a callback button that anonymous admins can click to prove their admin status.
+func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat) (*gotgbot.Message, error) {
+	// Create a minimal context to get the language
+	ctx := &ext.Context{
+		EffectiveMessage: msg,
+	}
+
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	mainText, _ := tr.GetString("chat_status_anon_confirm")
+	buttonText, _ := tr.GetString("chat_status_anon_prove_admin")
+
+	return msg.Reply(b,
+		mainText,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{{
+						Text: buttonText,
+						CallbackData: callbackcodec.EncodeOrFallback(
+							"anon_admin",
+							map[string]string{
+								"c": fmt.Sprint(chat.Id),
+								"m": fmt.Sprint(msg.MessageId),
+							},
+							fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, msg.MessageId),
+						),
+					}},
+				},
+			},
+		},
+	)
 }

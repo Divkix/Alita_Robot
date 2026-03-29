@@ -17,7 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // ExtractChat extracts and validates a chat from command arguments.
@@ -136,7 +135,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		}
 	} else if len(args) >= 2 {
 		isId = true
-		if chatId, err := strconv.ParseInt(args[1], 10, 64); err != nil || !helpers.IsChannelID(chatId) {
+		if chatId, err := strconv.ParseInt(args[1], 10, 64); err != nil || !chat_status.IsChannelId(chatId) {
 			for _, arg := range args[1] {
 				if unicode.IsDigit(arg) {
 					continue

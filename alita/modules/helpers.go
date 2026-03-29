@@ -18,7 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -475,7 +474,7 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string) (helpText string, kbm
 		// add key as well to this array
 		altnames := getAltNamesOfModule(ModName)
 
-		if string_handling.FindInStringSlice(altnames, module) {
+		if slices.Contains(altnames, module) {
 			moduleName = ModName
 			break
 		}

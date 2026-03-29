@@ -18,11 +18,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/cmdDecorator"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 var blacklistsModule = moduleStruct{
@@ -263,7 +260,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		allBlWords := db.GetBlacklistSettings(chat.Id).Triggers()
 		for _, blWord := range args {
-			if string_handling.FindInStringSlice(allBlWords, blWord) {
+			if slices.Contains(allBlWords, blWord) {
 				removedBlacklists = append(removedBlacklists, blWord)
 				go func(chatId int64, word string) {
 					defer func() {
@@ -404,7 +401,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 		rMsg = fmt.Sprintf(temp, currAction)
 	} else if len(args) == 1 {
 		action := strings.ToLower(args[0])
-		if string_handling.FindInStringSlice([]string{"mute", "kick", "warn", "ban", "none"}, action) {
+		if slices.Contains([]string{"mute", "kick", "warn", "ban", "none"}, action) {
 			if err := db.SetBlacklistAction(chat.Id, action); err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chat.Id,
@@ -741,13 +738,13 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(blacklistsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("blacklists", blacklistsModule.listBlacklists))
-	misc.AddCmdToDisableable("blacklists")
+	helpers.AddCmdToDisableable("blacklists")
 	dispatcher.AddHandler(handlers.NewCommand("addblacklist", blacklistsModule.addBlacklist))
 	dispatcher.AddHandler(handlers.NewCommand("blacklist", blacklistsModule.addBlacklist))
 	dispatcher.AddHandler(handlers.NewCommand("rmblacklist", blacklistsModule.removeBlacklist))
 	dispatcher.AddHandler(handlers.NewCommand("blaction", blacklistsModule.setBlacklistAction))
 	dispatcher.AddHandler(handlers.NewCommand("blacklistaction", blacklistsModule.setBlacklistAction))
-	cmdDecorator.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
+	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllBlacklist"), blacklistsModule.buttonHandler))
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""

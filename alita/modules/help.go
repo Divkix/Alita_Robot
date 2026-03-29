@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"html"
+	"slices"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -16,8 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // cache the bot username after first successful fetch
@@ -333,7 +332,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	// Sort the module names
-	if string_handling.FindInStringSlice([]string{"BackStart", "Help"}, module) {
+	if slices.Contains([]string{"BackStart", "Help"}, module) {
 		parsemode = helpers.HTML
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		switch module {
@@ -616,7 +615,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			helpModName := args[1]
 			lowerModName = strings.ToLower(helpModName)
 			originalModuleName := getModuleNameFromAltName(lowerModName)
-			if originalModuleName != "" && string_handling.FindInStringSlice(getAltNamesOfModule(originalModuleName), lowerModName) {
+			if originalModuleName != "" && slices.Contains(getAltNamesOfModule(originalModuleName), lowerModName) {
 				contactPmText, _ := tr.GetString("help_contact_pm")
 				moduleHelpString = strings.Replace(contactPmText, "for help!", fmt.Sprintf("for help regarding <code>%s</code>!", originalModuleName), 1)
 				pmMeKbUri = fmt.Sprintf("https://t.me/%s?start=help_%s", b.Username, lowerModName)

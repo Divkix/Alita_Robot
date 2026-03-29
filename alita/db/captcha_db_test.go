@@ -83,7 +83,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error
 		if cache.Marshal != nil {
-			_ = cache.Marshal.Delete(cache.Context, captchaSettingsCacheKey(chatID))
+			_ = cache.Marshal.Delete(cache.Context, CacheKey("captcha_settings", chatID))
 		}
 	})
 
@@ -107,7 +107,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 	// If cache is available, verify the old default is no longer served
 	if cache.Marshal != nil {
 		var cached CaptchaSettings
-		_, cacheErr := cache.Marshal.Get(cache.Context, captchaSettingsCacheKey(chatID), &cached)
+		_, cacheErr := cache.Marshal.Get(cache.Context, CacheKey("captcha_settings", chatID), &cached)
 		if cacheErr == nil && !cached.Enabled {
 			t.Fatalf("cache was not invalidated after SetCaptchaEnabled(true)")
 		}
@@ -183,7 +183,7 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 
 	// Verify cache key uses correct prefix
 	expectedKey := fmt.Sprintf("alita:captcha_settings:%d", chatID)
-	actualKey := captchaSettingsCacheKey(chatID)
+	actualKey := CacheKey("captcha_settings", chatID)
 	if actualKey != expectedKey {
 		t.Fatalf("cache key mismatch: expected %q, got %q", expectedKey, actualKey)
 	}

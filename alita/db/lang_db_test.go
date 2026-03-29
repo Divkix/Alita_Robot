@@ -13,7 +13,7 @@ func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
-		deleteCache(chatLanguageCacheKey(chatID))
+		deleteCache(CacheKey("chat_lang", chatID))
 	})
 
 	// No chat record → should return "en"
@@ -31,7 +31,7 @@ func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("user_id = ?", userID).Delete(&User{}).Error
-		deleteCache(userLanguageCacheKey(userID))
+		deleteCache(CacheKey("user_lang", userID))
 	})
 
 	// No user record → should return "en"
@@ -49,9 +49,9 @@ func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
-		deleteCache(chatLanguageCacheKey(chatID))
-		deleteCache(chatSettingsCacheKey(chatID))
-		deleteCache(chatCacheKey(chatID))
+		deleteCache(CacheKey("chat_lang", chatID))
+		deleteCache(CacheKey("chat_settings", chatID))
+		deleteCache(CacheKey("chat", chatID))
 	})
 
 	// Set language to "es"
@@ -71,8 +71,8 @@ func TestChangeUserLanguage_SetAndGet(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("user_id = ?", userID).Delete(&User{}).Error
-		deleteCache(userLanguageCacheKey(userID))
-		deleteCache(userCacheKey(userID))
+		deleteCache(CacheKey("user_lang", userID))
+		deleteCache(CacheKey("user", userID))
 	})
 
 	// Set language to "fr"
@@ -92,9 +92,9 @@ func TestChangeGroupLanguage_Update(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
-		deleteCache(chatLanguageCacheKey(chatID))
-		deleteCache(chatSettingsCacheKey(chatID))
-		deleteCache(chatCacheKey(chatID))
+		deleteCache(CacheKey("chat_lang", chatID))
+		deleteCache(CacheKey("chat_settings", chatID))
+		deleteCache(CacheKey("chat", chatID))
 	})
 
 	// Create with "en"
@@ -117,8 +117,8 @@ func TestChangeUserLanguage_Update(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("user_id = ?", userID).Delete(&User{}).Error
-		deleteCache(userLanguageCacheKey(userID))
-		deleteCache(userCacheKey(userID))
+		deleteCache(CacheKey("user_lang", userID))
+		deleteCache(CacheKey("user", userID))
 	})
 
 	// Create with "en"
@@ -141,9 +141,9 @@ func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
-		deleteCache(chatLanguageCacheKey(chatID))
-		deleteCache(chatSettingsCacheKey(chatID))
-		deleteCache(chatCacheKey(chatID))
+		deleteCache(CacheKey("chat_lang", chatID))
+		deleteCache(CacheKey("chat_settings", chatID))
+		deleteCache(CacheKey("chat", chatID))
 	})
 
 	_ = ChangeGroupLanguage(chatID, "en")
@@ -164,8 +164,8 @@ func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("user_id = ?", userID).Delete(&User{}).Error
-		deleteCache(userLanguageCacheKey(userID))
-		deleteCache(userCacheKey(userID))
+		deleteCache(CacheKey("user_lang", userID))
+		deleteCache(CacheKey("user", userID))
 	})
 
 	_ = ChangeUserLanguage(userID, "fr")

@@ -15,9 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/cmdDecorator"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 )
 
 var rulesModule = moduleStruct{
@@ -297,9 +294,9 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(rulesModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("rules", rulesModule.sendRules))
-	misc.AddCmdToDisableable("rules")
+	helpers.AddCmdToDisableable("rules")
 	dispatcher.AddHandler(handlers.NewCommand("setrules", rulesModule.setRules))
-	cmdDecorator.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
+	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
 	dispatcher.AddHandler(handlers.NewCommand("privaterules", rulesModule.privaterules))
 	dispatcher.AddHandler(handlers.NewCommand("rulesbutton", rulesModule.rulesBtn))
 	dispatcher.AddHandler(handlers.NewCommand("rulesbtn", rulesModule.rulesBtn))

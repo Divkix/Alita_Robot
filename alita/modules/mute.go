@@ -48,7 +48,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -102,22 +102,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := chat.RestrictMember(b, userId, gotgbot.ChatPermissions{
-		CanSendMessages:       false,
-		CanSendPhotos:         false,
-		CanSendVideos:         false,
-		CanSendAudios:         false,
-		CanSendDocuments:      false,
-		CanSendVideoNotes:     false,
-		CanSendVoiceNotes:     false,
-		CanAddWebPagePreviews: false,
-		CanChangeInfo:         false,
-		CanInviteUsers:        false,
-		CanPinMessages:        false,
-		CanManageTopics:       false,
-		CanSendPolls:          false,
-		CanSendOtherMessages:  false,
-	},
+	_, err := chat.RestrictMember(b, userId, MutedPermissions,
 		&gotgbot.RestrictChatMemberOpts{
 			UntilDate: _time,
 		},
@@ -183,7 +168,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -231,22 +216,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := chat.RestrictMember(b, userId, gotgbot.ChatPermissions{
-		CanSendMessages:       false,
-		CanSendPhotos:         false,
-		CanSendVideos:         false,
-		CanSendAudios:         false,
-		CanSendDocuments:      false,
-		CanSendVideoNotes:     false,
-		CanSendVoiceNotes:     false,
-		CanAddWebPagePreviews: false,
-		CanChangeInfo:         false,
-		CanInviteUsers:        false,
-		CanPinMessages:        false,
-		CanManageTopics:       false,
-		CanSendPolls:          false,
-		CanSendOtherMessages:  false,
-	}, nil)
+	_, err := chat.RestrictMember(b, userId, MutedPermissions, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -323,7 +293,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -367,22 +337,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := chat.RestrictMember(b, userId, gotgbot.ChatPermissions{
-		CanSendMessages:       false,
-		CanSendPhotos:         false,
-		CanSendVideos:         false,
-		CanSendAudios:         false,
-		CanSendDocuments:      false,
-		CanSendVideoNotes:     false,
-		CanSendVoiceNotes:     false,
-		CanAddWebPagePreviews: false,
-		CanChangeInfo:         false,
-		CanInviteUsers:        false,
-		CanPinMessages:        false,
-		CanManageTopics:       false,
-		CanSendPolls:          false,
-		CanSendOtherMessages:  false,
-	}, nil)
+	_, err := chat.RestrictMember(b, userId, MutedPermissions, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -427,7 +382,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -493,22 +448,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	_, err = chat.RestrictMember(b, userId, gotgbot.ChatPermissions{
-		CanSendMessages:       false,
-		CanSendPhotos:         false,
-		CanSendVideos:         false,
-		CanSendAudios:         false,
-		CanSendDocuments:      false,
-		CanSendVideoNotes:     false,
-		CanSendVoiceNotes:     false,
-		CanAddWebPagePreviews: false,
-		CanChangeInfo:         false,
-		CanInviteUsers:        false,
-		CanPinMessages:        false,
-		CanManageTopics:       false,
-		CanSendPolls:          false,
-		CanSendOtherMessages:  false,
-	}, nil)
+	_, err = chat.RestrictMember(b, userId, MutedPermissions, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -582,7 +522,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
-	} else if helpers.IsChannelID(userId) {
+	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {

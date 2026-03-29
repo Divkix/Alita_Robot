@@ -14,7 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/cmdDecorator"
 )
 
 var formattingModule = moduleStruct{moduleName: "Formatting"}
@@ -199,6 +198,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
 	HelpModule.AbleMap.Store(formattingModule.moduleName, true)
 	HelpModule.helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
-	cmdDecorator.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
+	helpers.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting"), formattingModule.formattingHandler))
 }

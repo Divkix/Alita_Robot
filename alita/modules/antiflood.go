@@ -3,6 +3,7 @@ package modules
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,14 +16,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/decorators/misc"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // Concurrency limits for flood protection operations
@@ -336,22 +334,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		_, err := chat.RestrictMember(b, userId,
-			gotgbot.ChatPermissions{
-				CanSendMessages:       false,
-				CanSendPhotos:         false,
-				CanSendVideos:         false,
-				CanSendAudios:         false,
-				CanSendDocuments:      false,
-				CanSendVideoNotes:     false,
-				CanSendVoiceNotes:     false,
-				CanAddWebPagePreviews: false,
-				CanChangeInfo:         false,
-				CanInviteUsers:        false,
-				CanPinMessages:        false,
-				CanManageTopics:       false,
-				CanSendPolls:          false,
-				CanSendOtherMessages:  false,
-			},
+			MutedPermissions,
 			nil,
 		)
 		if err != nil {
@@ -448,7 +431,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
-		if string_handling.FindInStringSlice([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
+		if slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
 			if err := db.SetFlood(chat.Id, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
@@ -545,7 +528,7 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
-		if string_handling.FindInStringSlice([]string{"ban", "kick", "mute"}, selectedMode) {
+		if slices.Contains([]string{"ban", "kick", "mute"}, selectedMode) {
 			if err := db.SetFloodMode(chat.Id, selectedMode); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
@@ -637,6 +620,6 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))
 	dispatcher.AddHandler(handlers.NewCommand("delflood", antifloodModule.setFloodDeleter))
 	dispatcher.AddHandler(handlers.NewCommand("flood", antifloodModule.flood))
-	misc.AddCmdToDisableable("flood")
+	helpers.AddCmdToDisableable("flood")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
 }

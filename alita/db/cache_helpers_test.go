@@ -6,83 +6,102 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Cache Key Generators
+// Cache Key Generator
 // ---------------------------------------------------------------------------
 
-func TestCacheKeyGenerators(t *testing.T) {
+func TestCacheKey(t *testing.T) {
 	t.Parallel()
 
-	type keyCase struct {
-		id   int64
-		want string
+	tests := []struct {
+		name     string
+		module   string
+		ids      []any
+		expected string
+	}{
+		{
+			name:     "single int64 ID",
+			module:   "chat_settings",
+			ids:      []any{int64(12345)},
+			expected: "alita:chat_settings:12345",
+		},
+		{
+			name:     "single string ID",
+			module:   "user",
+			ids:      []any{"abc123"},
+			expected: "alita:user:abc123",
+		},
+		{
+			name:     "multiple IDs - int64 and string",
+			module:   "lock",
+			ids:      []any{int64(123), "photos"},
+			expected: "alita:lock:123:photos",
+		},
+		{
+			name:     "zero ID",
+			module:   "chat",
+			ids:      []any{int64(0)},
+			expected: "alita:chat:0",
+		},
+		{
+			name:     "negative chat ID",
+			module:   "chat_lang",
+			ids:      []any{int64(-1001234567890)},
+			expected: "alita:chat_lang:-1001234567890",
+		},
+		{
+			name:     "no IDs",
+			module:   "stats",
+			ids:      []any{},
+			expected: "alita:stats",
+		},
+		{
+			name:     "multiple int64 IDs",
+			module:   "user_chat",
+			ids:      []any{int64(123), int64(456)},
+			expected: "alita:user_chat:123:456",
+		},
 	}
 
-	type generatorTest struct {
-		name string
-		fn   func(int64) string
-		// Expected key format prefix (everything before the ID)
-		prefix string
-	}
-
-	generators := []generatorTest{
-		{name: "chatSettingsCacheKey", fn: chatSettingsCacheKey, prefix: "alita:chat_settings:"},
-		{name: "userLanguageCacheKey", fn: userLanguageCacheKey, prefix: "alita:user_lang:"},
-		{name: "chatLanguageCacheKey", fn: chatLanguageCacheKey, prefix: "alita:chat_lang:"},
-		{name: "filterListCacheKey", fn: filterListCacheKey, prefix: "alita:filter_list:"},
-		{name: "blacklistCacheKey", fn: blacklistCacheKey, prefix: "alita:blacklist:"},
-		{name: "warnSettingsCacheKey", fn: warnSettingsCacheKey, prefix: "alita:warn_settings:"},
-		{name: "disabledCommandsCacheKey", fn: disabledCommandsCacheKey, prefix: "alita:disabled_cmds:"},
-		{name: "captchaSettingsCacheKey", fn: captchaSettingsCacheKey, prefix: "alita:captcha_settings:"},
-	}
-
-	ids := []keyCase{
-		{id: 12345, want: "12345"},
-		{id: 0, want: "0"},
-		{id: -1001234567890, want: "-1001234567890"},
-	}
-
-	for _, gen := range generators {
-		t.Run(gen.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			for _, ic := range ids {
-				got := gen.fn(ic.id)
+			got := CacheKey(tc.module, tc.ids...)
 
-				// Must start with "alita:" prefix
-				if !strings.HasPrefix(got, "alita:") {
-					t.Errorf("%s(%d) = %q: missing 'alita:' prefix", gen.name, ic.id, got)
-				}
+			// Verify the result
+			if got != tc.expected {
+				t.Errorf("CacheKey(%q, %v) = %q, want %q", tc.module, tc.ids, got, tc.expected)
+			}
 
-				// Must start with the expected key prefix
-				if !strings.HasPrefix(got, gen.prefix) {
-					t.Errorf("%s(%d) = %q: want prefix %q", gen.name, ic.id, got, gen.prefix)
-				}
+			// Must start with "alita:" prefix
+			if !strings.HasPrefix(got, "alita:") {
+				t.Errorf("CacheKey(%q, %v) = %q: missing 'alita:' prefix", tc.module, tc.ids, got)
+			}
 
-				// Must end with the expected ID string
-				if !strings.HasSuffix(got, ic.want) {
-					t.Errorf("%s(%d) = %q: want suffix %q", gen.name, ic.id, got, ic.want)
-				}
+			// Must contain the module name
+			if !strings.Contains(got, tc.module) {
+				t.Errorf("CacheKey(%q, %v) = %q: missing module %q", tc.module, tc.ids, got, tc.module)
 			}
 		})
 	}
 }
 
-// TestCacheKeyGeneratorsUnique verifies that all 8 key generators produce
-// distinct keys for the same input ID to prevent cache collisions.
-func TestCacheKeyGeneratorsUnique(t *testing.T) {
+// TestCacheKeyUnique verifies that different module/ID combinations produce
+// distinct keys to prevent cache collisions.
+func TestCacheKeyUnique(t *testing.T) {
 	t.Parallel()
 
 	const id = int64(12345)
 
 	keys := []string{
-		chatSettingsCacheKey(id),
-		userLanguageCacheKey(id),
-		chatLanguageCacheKey(id),
-		filterListCacheKey(id),
-		blacklistCacheKey(id),
-		warnSettingsCacheKey(id),
-		disabledCommandsCacheKey(id),
-		captchaSettingsCacheKey(id),
+		CacheKey("chat_settings", id),
+		CacheKey("user_lang", id),
+		CacheKey("chat_lang", id),
+		CacheKey("filter_list", id),
+		CacheKey("blacklist", id),
+		CacheKey("warn_settings", id),
+		CacheKey("disabled_cmds", id),
+		CacheKey("captcha_settings", id),
 	}
 
 	seen := make(map[string]bool, len(keys))
@@ -91,5 +110,20 @@ func TestCacheKeyGeneratorsUnique(t *testing.T) {
 			t.Fatalf("duplicate cache key detected: %q", k)
 		}
 		seen[k] = true
+	}
+}
+
+// TestCacheKeyConsistency verifies that calling CacheKey multiple times
+// with the same arguments produces the same result.
+func TestCacheKeyConsistency(t *testing.T) {
+	t.Parallel()
+
+	// Call multiple times with same args
+	key1 := CacheKey("test", int64(123), "abc")
+	key2 := CacheKey("test", int64(123), "abc")
+	key3 := CacheKey("test", int64(123), "abc")
+
+	if key1 != key2 || key2 != key3 {
+		t.Errorf("CacheKey not consistent: %q, %q, %q", key1, key2, key3)
 	}
 }

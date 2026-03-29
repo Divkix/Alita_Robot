@@ -2,7 +2,6 @@ package db
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -316,7 +315,7 @@ func (c *CachedOptimizedQueries) GetLockStatusCached(chatID int64, lockType stri
 		return false, errors.New("lock queries not initialized")
 	}
 
-	cacheKey := lockCacheKey(chatID, lockType)
+	cacheKey := CacheKey("lock", chatID, lockType)
 
 	// Try to get from cache first
 	cached, err := getFromCacheOrLoad(cacheKey, 1*time.Hour, func() (bool, error) {
@@ -337,7 +336,7 @@ func (c *CachedOptimizedQueries) GetUserBasicInfoCached(userID int64) (*User, er
 		return nil, errors.New("user queries not initialized")
 	}
 
-	cacheKey := userCacheKey(userID)
+	cacheKey := CacheKey("user", userID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*User, error) {
 		return c.userQueries.GetUserBasicInfo(userID)
@@ -356,7 +355,7 @@ func (c *CachedOptimizedQueries) GetChatBasicInfoCached(chatID int64) (*Chat, er
 		return nil, errors.New("chat queries not initialized")
 	}
 
-	cacheKey := chatCacheKey(chatID)
+	cacheKey := CacheKey("chat", chatID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 30*time.Minute, func() (*Chat, error) {
 		return c.chatQueries.GetChatBasicInfo(chatID)
@@ -375,7 +374,7 @@ func (c *CachedOptimizedQueries) GetAntifloodSettingsCached(chatID int64) (*Anti
 		return nil, errors.New("antiflood queries not initialized")
 	}
 
-	cacheKey := optimizedAntifloodCacheKey(chatID)
+	cacheKey := CacheKey("antiflood", chatID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*AntifloodSettings, error) {
 		return c.antifloodQueries.GetAntifloodSettings(chatID)
@@ -394,7 +393,7 @@ func (c *CachedOptimizedQueries) GetChatFiltersCached(chatID int64) ([]*ChatFilt
 		return nil, errors.New("filter queries not initialized")
 	}
 
-	cacheKey := filterListCacheKey(chatID)
+	cacheKey := CacheKey("filter_list", chatID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 15*time.Minute, func() ([]*ChatFilters, error) {
 		return c.filterQueries.GetChatFiltersOptimized(chatID)
@@ -413,7 +412,7 @@ func (c *CachedOptimizedQueries) GetChannelSettingsCached(chatID int64) (*Channe
 		return nil, errors.New("channel queries not initialized")
 	}
 
-	cacheKey := channelCacheKey(chatID)
+	cacheKey := CacheKey("channel", chatID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 30*time.Minute, func() (*ChannelSettings, error) {
 		return c.channelQueries.GetChannelSettings(chatID)
@@ -423,36 +422,6 @@ func (c *CachedOptimizedQueries) GetChannelSettingsCached(chatID int64) (*Channe
 	}
 
 	return cached, nil
-}
-
-// lockCacheKey generates a cache key for lock status.
-// Returns a formatted string for use in caching lock status by chat ID and lock type.
-func lockCacheKey(chatID int64, lockType string) string {
-	return fmt.Sprintf("alita:lock:%d:%s", chatID, lockType)
-}
-
-// userCacheKey generates a cache key for user information.
-// Returns a formatted string for use in caching user data by user ID.
-func userCacheKey(userID int64) string {
-	return fmt.Sprintf("alita:user:%d", userID)
-}
-
-// chatCacheKey generates a cache key for chat information.
-// Returns a formatted string for use in caching chat data by chat ID.
-func chatCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:chat:%d", chatID)
-}
-
-// optimizedAntifloodCacheKey generates a cache key for antiflood settings.
-// Returns a formatted string for use in caching antiflood settings by chat ID.
-func optimizedAntifloodCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:antiflood:%d", chatID)
-}
-
-// channelCacheKey generates a cache key for channel settings.
-// Returns a formatted string for use in caching channel settings by chat ID.
-func channelCacheKey(chatID int64) string {
-	return fmt.Sprintf("alita:channel:%d", chatID)
 }
 
 // Global instance for optimized queries with thread-safe reinitialization support.

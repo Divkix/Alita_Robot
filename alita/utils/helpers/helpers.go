@@ -5,6 +5,7 @@ import (
 	"html"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -20,7 +21,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 )
 
 // NOTE: small helper functions
@@ -222,9 +222,9 @@ func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLi
 	chatIdStr := fmt.Sprint(chat.Id)
 	if chat.Username == "" {
 		var linkId string
-		if IsChannelID(chat.Id) {
+		if chat_status.IsChannelId(chat.Id) {
 			linkId = strings.ReplaceAll(chatIdStr, "-100", "")
-		} else if strings.HasPrefix(chatIdStr, "-") && !IsChannelID(chat.Id) {
+		} else if strings.HasPrefix(chatIdStr, "-") && !chat_status.IsChannelId(chat.Id) {
 			// this is for non-supergroups
 			linkId = strings.ReplaceAll(chatIdStr, "-", "")
 		}
@@ -596,12 +596,12 @@ func ExtractJoinLeftStatusChange(u *gotgbot.ChatMemberUpdated) (bool, bool) {
 		return false, false
 	}
 
-	wasMember := string_handling.FindInStringSlice(
+	wasMember := slices.Contains(
 		[]string{"member", "administrator", "creator"},
 		oldMemberStatus,
 	) || (oldMemberStatus == "restricted" && oldIsMember)
 
-	isMember := string_handling.FindInStringSlice(
+	isMember := slices.Contains(
 		[]string{"member", "administrator", "creator"},
 		newMemberStatus,
 	) || (newMemberStatus == "restricted" && newIsMember)
@@ -626,17 +626,17 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 		return false
 	}
 
-	adminStatusChanged := (string_handling.FindInStringSlice(
+	adminStatusChanged := (slices.Contains(
 		[]string{"administrator", "creator"},
 		oldMemberStatus,
-	) && !string_handling.FindInStringSlice(
+	) && !slices.Contains(
 		[]string{"administrator", "creator"},
 		newMemberStatus,
 	)) ||
-		(string_handling.FindInStringSlice(
+		(slices.Contains(
 			[]string{"administrator", "creator"},
 			newMemberStatus,
-		) && !string_handling.FindInStringSlice(
+		) && !slices.Contains(
 			[]string{"administrator", "creator"},
 			oldMemberStatus,
 		))

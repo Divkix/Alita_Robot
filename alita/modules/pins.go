@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
@@ -10,8 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-
-	"github.com/divkix/Alita_Robot/alita/utils/string_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -382,7 +381,7 @@ func (moduleStruct) pin(b *gotgbot.Bot, ctx *ext.Context) error {
 	pinMsg, _ := tr.GetString("pins_pinned_message")
 
 	if len(args) > 1 {
-		isSilent = !string_handling.FindInStringSlice([]string{"notify", "violent", "loud"}, args[1])
+		isSilent = !slices.Contains([]string{"notify", "violent", "loud"}, args[1])
 		if !isSilent {
 			pinMsg, _ = tr.GetString("pins_pinned_message_loud")
 		}

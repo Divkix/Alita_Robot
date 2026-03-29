@@ -102,7 +102,7 @@ func UpdateUser(userId int64, username, name string) error {
 			return err
 		}
 		// Invalidate cache after update
-		deleteCache(userCacheKey(userId))
+		deleteCache(CacheKey("user", userId))
 		log.Debugf("[Database] UpdateUser: %d", userId)
 	} else {
 		// Create new user
@@ -118,7 +118,7 @@ func UpdateUser(userId int64, username, name string) error {
 			return err
 		}
 		// Invalidate cache after create
-		deleteCache(userCacheKey(userId))
+		deleteCache(CacheKey("user", userId))
 		log.Infof("[Database] UpdateUser: created new user %d", userId)
 	}
 	return nil

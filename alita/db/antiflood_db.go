@@ -59,7 +59,7 @@ func SetFlood(chatID int64, limit int) error {
 		return err
 	}
 	// Invalidate cache after update
-	deleteCache(optimizedAntifloodCacheKey(chatID))
+	deleteCache(CacheKey("antiflood", chatID))
 	return nil
 }
 
@@ -83,7 +83,7 @@ func SetFloodMode(chatID int64, mode string) error {
 		return err
 	}
 	// Invalidate cache after update
-	deleteCache(optimizedAntifloodCacheKey(chatID))
+	deleteCache(CacheKey("antiflood", chatID))
 	return nil
 }
 
@@ -107,7 +107,7 @@ func SetFloodMsgDel(chatID int64, val bool) error {
 		return err
 	}
 	// Invalidate cache after update
-	deleteCache(optimizedAntifloodCacheKey(chatID))
+	deleteCache(CacheKey("antiflood", chatID))
 	return nil
 }
 
