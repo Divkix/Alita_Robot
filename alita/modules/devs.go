@@ -441,8 +441,8 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 		txt       string
 		dev       = devHeader + "\n"
 		sudo      = sudoHeader + "\n"
-		sudoUsers = make([]string, 0)
-		devUsers  = make([]string, 0)
+		sudoUsers = make([]string, 0, len(teamUsers))
+		devUsers  = make([]string, 0, len(teamUsers))
 	)
 	msg := ctx.EffectiveMessage
 

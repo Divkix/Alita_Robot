@@ -53,8 +53,8 @@ func (moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Collect valid and invalid commands
-	toDisable := make([]string, 0)
-	unknownCmds := make([]string, 0)
+	toDisable := make([]string, 0, len(args))
+	unknownCmds := make([]string, 0, len(args))
 
 	for _, cmd := range args {
 		cmd = strings.ToLower(cmd)
@@ -66,7 +66,7 @@ func (moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// First, disable all valid commands in the database
-	var failedCmds []string
+	failedCmds := make([]string, 0, len(toDisable))
 	for _, cmd := range toDisable {
 		if err := db.DisableCMD(chat.Id, cmd); err != nil {
 			failedCmds = append(failedCmds, cmd)
@@ -75,7 +75,7 @@ func (moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Remove failed commands from success list
-	successCmds := make([]string, 0)
+	successCmds := make([]string, 0, len(toDisable))
 	for _, cmd := range toDisable {
 		if !slices.Contains(failedCmds, cmd) {
 			successCmds = append(successCmds, cmd)
@@ -297,8 +297,8 @@ func (moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Collect valid and invalid commands
-	toEnable := make([]string, 0)
-	unknownCmds := make([]string, 0)
+	toEnable := make([]string, 0, len(args))
+	unknownCmds := make([]string, 0, len(args))
 
 	for _, cmd := range args {
 		cmd = strings.ToLower(cmd)
@@ -310,7 +310,7 @@ func (moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// First, enable all valid commands in the database
-	var failedCmds []string
+	failedCmds := make([]string, 0, len(toEnable))
 	for _, cmd := range toEnable {
 		if err := db.EnableCMD(chat.Id, cmd); err != nil {
 			failedCmds = append(failedCmds, cmd)
@@ -319,7 +319,7 @@ func (moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Remove failed commands from success list
-	successCmds := make([]string, 0)
+	successCmds := make([]string, 0, len(toEnable))
 	for _, cmd := range toEnable {
 		if !slices.Contains(failedCmds, cmd) {
 			successCmds = append(successCmds, cmd)

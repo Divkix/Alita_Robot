@@ -35,15 +35,6 @@ const (
 // Precompiled regexes and replacer for ReverseHTML2MD function
 var (
 	linkRegex = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
-	// Map of HTML tags to their compiled regexes
-	htmlTagRegexes = map[string]*regexp.Regexp{
-		"i":    regexp.MustCompile(`<i>(.*)</i>`),
-		"u":    regexp.MustCompile(`<u>(.*)</u>`),
-		"b":    regexp.MustCompile(`<b>(.*)</b>`),
-		"s":    regexp.MustCompile(`<s>(.*)</s>`),
-		"code": regexp.MustCompile(`<code>(.*)</code>`),
-		"pre":  regexp.MustCompile(`<pre>(.*)</pre>`),
-	}
 	// htmlToMdReplacer efficiently replaces HTML tags with Markdown in a single pass
 	htmlToMdReplacer = strings.NewReplacer(
 		"<b>", "*",

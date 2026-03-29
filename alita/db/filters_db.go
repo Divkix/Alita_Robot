@@ -13,13 +13,14 @@ func GetFiltersList(chatID int64) (allFilterWords []string) {
 	cacheKey := filterListCacheKey(chatID)
 	result, err := getFromCacheOrLoad(cacheKey, CacheTTLFilterList, func() ([]string, error) {
 		var results []*ChatFilters
-		var filterWords []string
 		err := GetRecords(&results, map[string]any{"chat_id": chatID})
 		if err != nil {
 			log.Errorf("[Database] GetFiltersList: %v - %d", err, chatID)
 			return []string{}, err
 		}
 
+		// Pre-allocate slice with known capacity to avoid reallocations
+		filterWords := make([]string, 0, len(results))
 		for _, j := range results {
 			filterWords = append(filterWords, j.KeyWord)
 		}

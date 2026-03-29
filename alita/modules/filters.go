@@ -393,7 +393,7 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	filterKeys := db.GetFiltersList(chat.Id)
 	info, _ := tr.GetString("filters_none_in_chat")
-	newFilterKeys := make([]string, 0)
+	newFilterKeys := make([]string, 0, len(filterKeys))
 
 	for _, fkey := range filterKeys {
 		newFilterKeys = append(newFilterKeys, fmt.Sprintf("<code>%s</code>", html.EscapeString(fkey)))

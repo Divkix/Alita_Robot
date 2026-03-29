@@ -303,7 +303,8 @@ type BlacklistSettingsSlice []*BlacklistSettings
 // Triggers returns all blacklisted words as a slice of strings for compatibility.
 // This method extracts the Word field from each BlacklistSettings in the slice.
 func (bss BlacklistSettingsSlice) Triggers() []string {
-	var triggers []string
+	// Pre-allocate slice with known capacity to avoid reallocations
+	triggers := make([]string, 0, len(bss))
 	for _, bs := range bss {
 		triggers = append(triggers, bs.Word)
 	}

@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -157,14 +158,10 @@ func (m *AutoRemediationManager) getApplicableActions(metrics SystemMetrics) []R
 		}
 	}
 
-	// Sort by severity (ascending - least severe first)
-	for i := range len(applicable) - 1 {
-		for j := i + 1; j < len(applicable); j++ {
-			if applicable[i].Severity() > applicable[j].Severity() {
-				applicable[i], applicable[j] = applicable[j], applicable[i]
-			}
-		}
-	}
+	// Sort by severity (ascending - least severe first) using efficient sort
+	slices.SortFunc(applicable, func(a, b RemediationAction) int {
+		return a.Severity() - b.Severity()
+	})
 
 	return applicable
 }

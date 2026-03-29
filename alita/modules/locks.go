@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
@@ -91,27 +92,35 @@ var (
 		"previews": PREVIEW,
 		"all":      message.All,
 	}
+
+	// Cached lock types - computed once and reused
+	cachedLockTypes     []string
+	cachedLockTypesOnce sync.Once
 )
 
 // getLockMapAsArray returns a sorted array of all available lock types
 // by combining restriction types and permission lock types.
-func (moduleStruct) getLockMapAsArray() (lockTypes []string) {
-	tmpMap := map[string]filters.Message{}
+// Uses sync.Once to cache the result since lock types never change.
+func (moduleStruct) getLockMapAsArray() []string {
+	cachedLockTypesOnce.Do(func() {
+		tmpMap := make(map[string]filters.Message, len(lockMap)+len(restrMap))
 
-	for r, rk := range restrMap {
-		tmpMap[r] = rk
-	}
-	for l, lk := range lockMap {
-		tmpMap[l] = lk
-	}
+		for r, rk := range restrMap {
+			tmpMap[r] = rk
+		}
+		for l, lk := range lockMap {
+			tmpMap[l] = lk
+		}
 
-	lockTypes = make([]string, 0, len(tmpMap))
+		lockTypes := make([]string, 0, len(tmpMap))
+		for k := range tmpMap {
+			lockTypes = append(lockTypes, k)
+		}
+		slices.Sort(lockTypes)
+		cachedLockTypes = lockTypes
+	})
 
-	for k := range tmpMap {
-		lockTypes = append(lockTypes, k)
-	}
-	slices.Sort(lockTypes)
-	return
+	return cachedLockTypes
 }
 
 // buildLockTypesMessage constructs a formatted string showing all locks
@@ -226,7 +235,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Validate all lock types first
-	var toLock []string
+	toLock := make([]string, 0, len(args))
 	for _, perm := range args {
 		if !string_handling.FindInStringSlice(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -243,7 +252,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Update locks synchronously to ensure success before sending confirmation
-	var failedLocks []string
+	failedLocks := make([]string, 0, len(toLock))
 	for _, perm := range toLock {
 		if err := db.UpdateLock(chat.Id, perm, true); err != nil {
 			log.Warnf("[Locks] Failed to lock %s in chat %d: %v", perm, chat.Id, err)
@@ -313,7 +322,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Validate all lock types first
-	var toUnlock []string
+	toUnlock := make([]string, 0, len(args))
 	for _, perm := range args {
 		if !string_handling.FindInStringSlice(m.getLockMapAsArray(), perm) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -330,7 +339,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Update locks synchronously to ensure success before sending confirmation
-	var failedLocks []string
+	failedLocks := make([]string, 0, len(toUnlock))
 	for _, perm := range toUnlock {
 		if err := db.UpdateLock(chat.Id, perm, false); err != nil {
 			log.Warnf("[Locks] Failed to unlock %s in chat %d: %v", perm, chat.Id, err)
