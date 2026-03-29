@@ -81,7 +81,7 @@ db.UpdateChatSettings(chatId, newSettings)
 
 ### 2. Decorator Pattern
 
-Middleware functionality is implemented through decorators in `alita/utils/decorators/`. Common cross-cutting concerns are handled uniformly:
+Middleware functionality is implemented through decorators in `alita/utils/helpers/decorators.go`. Common cross-cutting concerns are handled uniformly:
 
 - Permission checking (admin, restrict, delete rights)
 - Error handling with panic recovery
@@ -279,7 +279,7 @@ Command decorators provide permission validation and error context:
 
 ```go
 // Decorators wrap handlers with cross-cutting concerns
-cmdDecorator.MultiCommand(dispatcher, []string{"cmd", "alias"}, handler)
+helpers.MultiCommand(dispatcher, []string{"cmd", "alias"}, handler)
 ```
 
 ## Database Schema Design

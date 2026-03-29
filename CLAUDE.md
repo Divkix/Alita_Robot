@@ -76,8 +76,8 @@ formatting for rules).
 - Handlers return `ext.EndGroups` (stop propagation), `ext.ContinueGroups`
   (for monitoring/watcher handlers that should not block downstream), or `error`
 - Commands registered via `dispatcher.AddHandler()` with handler groups
-- Multiple command aliases registered via `cmdDecorator.MultiCommand(dispatcher, aliases, handler)`
-- Disableable commands added via `misc.AddCmdToDisableable()`
+- Multiple command aliases registered via `helpers.MultiCommand(dispatcher, aliases, handler)`
+- Disableable commands added via `helpers.AddCmdToDisableable()`
 - Module enablement tracked in `HelpModule.AbleMap` (custom `moduleEnabled`
   struct wrapping `map[string]bool` with Store/Load methods — not sync.Map)
 - Help keyboard buttons stored separately in `HelpModule.helpableKb`
@@ -163,13 +163,12 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 - `alita/utils/extraction/` — extracts user IDs, chat IDs, time durations from Telegram messages
 - `alita/utils/keyword_matcher/` — Aho-Corasick multi-pattern matching with per-chat caching (used by filters/blacklists)
 - `alita/utils/media/` — unified media send interface for notes/filters/greetings
-- `alita/utils/string_handling/` — slice search utilities
-- `alita/utils/tracing/` — OpenTelemetry distributed tracing with OTLP/console exporters
+- `alita/utils/tracing/` — OpenTelemetry distributed tracing with OTLP/console exporters, includes cache key sanitization helpers
 - `alita/utils/httpserver/` — unified HTTP server (health + metrics + pprof + webhook)
 - `alita/utils/async/` — async processing with enable flag
 - `alita/utils/constants/` — centralized time/duration constants (cache TTLs, timeouts, intervals)
 - `alita/utils/callbackcodec/` — versioned callback data encoding/decoding
-- `alita/utils/decorators/cmdDecorator/` — multi-command alias registration
+- `alita/utils/helpers/decorators.go` — command decorators: MultiCommand (aliases) and AddCmdToDisableable
 
 ## Environment Configuration
 
