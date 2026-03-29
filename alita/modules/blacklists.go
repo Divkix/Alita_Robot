@@ -85,6 +85,12 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if len(args) >= 1 {
 		allBlWords := db.GetBlacklistSettings(chat.Id).Triggers()
 
+		// OPTIMIZATION: Convert blacklist slice to map for O(1) lookups
+		blWordSet := make(map[string]struct{}, len(allBlWords))
+		for _, w := range allBlWords {
+			blWordSet[w] = struct{}{}
+		}
+
 		// Validate word lengths - reject words over 100 characters
 		var tooLong []string
 		validArgs := make([]string, 0, len(args))
@@ -117,7 +123,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(args) <= 3 {
 			var wg sync.WaitGroup
 			for _, blWord := range args {
-				if string_handling.FindInStringSlice(allBlWords, blWord) {
+				if _, exists := blWordSet[blWord]; exists { // O(1) lookup
 					alreadyBlacklisted = append(alreadyBlacklisted, blWord)
 				} else {
 					wg.Add(1)
@@ -163,7 +169,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 						wg.Done()
 					}()
 
-					isListed := string_handling.FindInStringSlice(allBlWords, word)
+					_, isListed := blWordSet[word] // O(1) lookup
 					resultChan <- result{word: word, isAlreadyListed: isListed}
 
 					if !isListed {

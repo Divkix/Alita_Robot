@@ -32,7 +32,7 @@ const (
 	MaxMessageLength int = 4096
 )
 
-// Precompiled regexes for ReverseHTML2MD function
+// Precompiled regexes and replacer for ReverseHTML2MD function
 var (
 	linkRegex = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
 	// Map of HTML tags to their compiled regexes
@@ -44,6 +44,21 @@ var (
 		"code": regexp.MustCompile(`<code>(.*)</code>`),
 		"pre":  regexp.MustCompile(`<pre>(.*)</pre>`),
 	}
+	// htmlToMdReplacer efficiently replaces HTML tags with Markdown in a single pass
+	htmlToMdReplacer = strings.NewReplacer(
+		"<b>", "*",
+		"</b>", "*",
+		"<i>", "_",
+		"</i>", "_",
+		"<u>", "__",
+		"</u>", "__",
+		"<s>", "~",
+		"</s>", "~",
+		"<code>", "`",
+		"</code>", "`",
+		"<pre>", "```",
+		"</pre>", "```",
+	)
 )
 
 // Shtml returns SendMessageOpts configured with HTML parse mode, disabled link preview,
@@ -441,44 +456,23 @@ func GetLangFormat(langCode string) string {
 
 // ReverseHTML2MD converts HTML-formatted text back to markdown format.
 // Handles common HTML tags like bold, italic, underline, strikethrough, code, pre, and links.
+// Uses a single-pass strings.Replacer for O(n) complexity instead of O(n×m) nested loops.
 func ReverseHTML2MD(text string) string {
-	Html2MdMap := map[string]string{
-		"i":    "_%s_",
-		"u":    "__%s__",
-		"b":    "*%s*",
-		"s":    "~%s~",
-		"code": "`%s`",
-		"pre":  "```%s```",
-		"a":    "[%s](%s)",
-	}
-
-	for i := range strings.SplitSeq(text, " ") {
-		for htmlTag, keyValue := range Html2MdMap {
-			k := ""
-			// using this because <a> uses <href> tag
-			if htmlTag == "a" {
-				if linkRegex.MatchString(i) {
-					matches := linkRegex.FindStringSubmatch(i)
-					if len(matches) >= 3 {
-						k = fmt.Sprintf(keyValue, matches[2], matches[1])
-					}
-				} else {
-					continue
-				}
-			} else if regex, exists := htmlTagRegexes[htmlTag]; exists {
-				if regex.MatchString(i) {
-					k = fmt.Sprintf(keyValue, regex.ReplaceAllString(i, "$1"))
-				} else {
-					continue
-				}
-			}
-			if k != "" {
-				text = strings.ReplaceAll(text, i, k)
+	// Handle link tags first (special case with href attribute)
+	if linkRegex.MatchString(text) {
+		matches := linkRegex.FindAllStringSubmatch(text, -1)
+		for _, match := range matches {
+			if len(match) >= 3 {
+				// match[0] = full match, match[1] = url, match[2] = link text
+				oldLink := match[0]
+				newLink := fmt.Sprintf("[%s](%s)", match[2], match[1])
+				text = strings.Replace(text, oldLink, newLink, 1)
 			}
 		}
 	}
 
-	return text
+	// Apply all other HTML tag replacements in a single pass using precompiled replacer
+	return htmlToMdReplacer.Replace(text)
 }
 
 // NOTE: formatting helper functions

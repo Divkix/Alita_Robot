@@ -100,15 +100,23 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		}
 	}
 
-	// Convert ChatMember to MergedChatMember
-	var userList []gotgbot.MergedChatMember
+	// Convert ChatMember to MergedChatMember and build lookup map
+	userList := make([]gotgbot.MergedChatMember, 0, len(adminList))
+	userMap := make(map[int64]gotgbot.MergedChatMember, len(adminList))
 	for _, admin := range adminList {
-		userList = append(userList, admin.MergeChatMember())
+		merged := admin.MergeChatMember()
+		userList = append(userList, merged)
+		// GetUser returns User by value, so check if ID is valid (non-zero)
+		user := admin.GetUser()
+		if user.Id != 0 {
+			userMap[user.Id] = merged
+		}
 	}
 
 	adminCache := AdminCache{
 		ChatId:   chatId,
 		UserInfo: userList,
+		UserMap:  userMap,
 		Cached:   true,
 	}
 
@@ -180,6 +188,12 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 		return false, gotgbot.MergedChatMember{}
 	}
 
+	// O(1) lookup via map (primary method)
+	if admin, found := adminCache.UserMap[userId]; found {
+		return true, admin
+	}
+
+	// Fallback to linear search for backwards compatibility (e.g., cached data without UserMap)
 	for i := range adminCache.UserInfo {
 		admin := &adminCache.UserInfo[i]
 		if admin.User.Id == userId {
