@@ -9,24 +9,31 @@ Alita Robot is a Telegram group management bot built with Go 1.25+ and the
 gotgbot library. Features include user management, filters, greetings,
 anti-spam, captcha verification, and multi-language support (en, es, fr, hi).
 
-## Development Commands
+## Build / Lint / Test Commands
 
 ```bash
+# Development
 make run                # Run the bot locally (go run main.go)
 make build              # Multi-platform release build via GoReleaser
+
+# Code quality (run before commits)
 make lint               # golangci-lint code quality checks (run before commits)
-make test               # go test ./...
+make test               # Run all tests with race detection, coverage
 make tidy               # go mod tidy
 make vendor             # go mod vendor
+
+# Single test execution patterns:
+go test -v -run TestFunctionName ./package       # Run specific test
+go test -v -run "^TestXxx$" ./alita/db          # Run tests matching pattern
+go test -v -count=1 -timeout 10m ./alita/db      # Run all tests in package
+
+# Translations & docs
 make check-translations # Detect missing translation keys across locales
 make generate-docs      # Generate documentation site content
 make docs-dev           # Start Astro docs dev server (uses bun)
-```
 
-### Database Migrations
-
-```bash
-make psql-migrate       # Apply pending migrations (requires PSQL_DB_* env vars)
+# Database migrations (requires PSQL_DB_* env vars)
+make psql-migrate       # Apply pending migrations
 make psql-status        # Check migration status
 make psql-reset         # DROP ALL TABLES — destructive, requires confirmation
 ```
@@ -34,6 +41,74 @@ make psql-reset         # DROP ALL TABLES — destructive, requires confirmation
 Auto-migration on startup: set `AUTO_MIGRATE=true`. Supabase-specific SQL
 (GRANT, RLS) is auto-cleaned at runtime. Migrations tracked in
 `schema_migrations` table, executed transactionally and idempotently.
+
+## Code Style Guidelines
+
+### Imports
+Order: standard library → third-party → internal. Group with blank lines:
+
+```go
+import (
+    "context"
+    "fmt"
+
+    "github.com/PaulSonOfLars/gotgbot/v2"
+    log "github.com/sirupsen/logrus"
+    "gorm.io/gorm"
+
+    "github.com/divkix/Alita_Robot/alita/db"
+    "github.com/divkix/Alita_Robot/alita/i18n"
+)
+```
+
+### Formatting
+- **gofmt**: `gofmt -l -w` enforced via pre-commit hooks
+- Line length: keep under 100 chars where reasonable
+- Comments: full sentences with period, start with `// FunctionName`
+
+### Naming Conventions
+- **Exported**: PascalCase (`GetUser`, `LoadModules`)
+- **Unexported**: camelCase (`getUser`, `moduleEnabled`)
+- **Structs**: PascalCase, descriptive (`moduleStruct`, `ButtonArray`)
+- **Constants**: PascalCase or UPPER_SNAKE for package-level (`DefaultWelcome`)
+- **Interface suffixes**: `er` pattern (`Scanner`, `Valuer`)
+- **Test files**: `_test.go` suffix, test functions: `TestXxx`, helpers: `helperName`
+
+### Types & Structs
+- Use surrogate keys: auto-increment `id` as PK, external IDs as unique constraints
+- Custom GORM types implement `Scan(value any) error` and `Value() (driver.Value, error)`
+- JSONB arrays: define as custom types with driver interface implementations
+
+### Error Handling
+- **Never ignore DB errors with `_`** — nil returns cause panics
+- Wrap errors with context: `errors.Wrap(err, "context")` or `Wrapf` for formatting
+- Four-layer recovery: dispatcher → worker pool → decorator → handler
+- Expected Telegram API errors filtered via `helpers.IsExpectedTelegramError()`
+- Panic recovery: `defer error_handling.RecoverFromPanic("context", "func")`
+
+### Handler Patterns
+- Value receiver on methods: `(moduleStruct)` or `(m moduleStruct)` when field access needed
+- Return values: `ext.EndGroups` (stop), `ext.ContinueGroups` (continue), or `error`
+- Handler groups: negative (-1) for early interception, positive (4-10) for watchers, 0 for standard
+- Callback data: use `callbackcodec.Encode/Decode`, never raw `strings.Split`
+
+### Database & Cache
+- **Cache invalidation on writes**: every update must invalidate corresponding cache key
+- Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
+- Use `singleflight` protection for cache stampede prevention
+- Traced operations: `TracedGet()`, `TracedSet()`, `TracedDelete()` for OpenTelemetry
+
+### Module System
+- Create `LoadXxx(dispatcher)` function per module
+- Register in `alita/main.go:LoadModules()` — load order matters
+- Help module loads last to collect all registered modules
+- Add translation keys to ALL locale files in `locales/`
+
+### i18n Patterns
+- YAML: double quotes for escape sequences (`\n`, `\t`), single quotes preserve literally
+- Printf safety: `%d` requires int, not `strconv.Itoa()` output
+- Key verification: grep `locales/` to confirm keys exist in ALL files before using
+- Parse mode: locale strings use Markdown, bot sends HTML — convert via `tgmd2html.MD2HTMLV2()`
 
 ## Architecture
 
@@ -169,6 +244,18 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 - `alita/utils/constants/` — centralized time/duration constants (cache TTLs, timeouts, intervals)
 - `alita/utils/callbackcodec/` — versioned callback data encoding/decoding
 - `alita/utils/helpers/decorators.go` — command decorators: MultiCommand (aliases) and AddCmdToDisableable
+
+## Pre-commit Hooks
+
+Repository uses pre-commit with:
+- `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`
+- `check-added-large-files` (max 1000KB)
+- `check-merge-conflict`, `detect-private-key`
+- `golangci-lint --timeout=5m`
+- `gofmt -l -w`
+- `go mod tidy`
+
+Install: `pip install pre-commit && pre-commit install`
 
 ## Environment Configuration
 
