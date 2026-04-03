@@ -1,0 +1,20 @@
+{
+  "featureId": "fix-webhook-goroutine-leak",
+  "milestone": "main-fixes",
+  "status": "pass",
+  "summary": "The fix correctly adds a 30-second timeout context to the webhook goroutine to prevent goroutines from hanging indefinitely. The implementation properly uses context.WithTimeout with defer cancel() pattern, and the tracing span now uses the timeout context. All tests pass with race detection. One minor non-blocking issue: the timeout value is hardcoded as 30*time.Second instead of using the existing constants.LongTimeout constant.",
+  "issues": [
+    {
+      "severity": "non-blocking",
+      "description": "Magic number 30*time.Second should use constants.LongTimeout instead of hardcoding. The constants package already defines LongTimeout = 30 * time.Second for this purpose.",
+      "location": "alita/utils/httpserver/server.go:282"
+    }
+  ],
+  "sharedStateObservations": [
+    {
+      "type": "convention",
+      "description": "The codebase has an existing constants package (alita/utils/constants/time.go) that defines LongTimeout = 30 * time.Second, but workers are inconsistently applying this pattern. The CLAUDE.md mentions 'Replace magic numbers in main.go with constants from constants/ package' under VAL-LOW-005, but this should be applied broadly to all timeout values.",
+      "evidence": "server.go line 282 uses '30*time.Second' directly; constants/time.go already defines LongTimeout = 30 * time.Second"
+    }
+  ]
+}
