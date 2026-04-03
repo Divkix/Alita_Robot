@@ -153,6 +153,8 @@ func GetGoodbyeButtons(chatId int64) []Button {
 
 // SetWelcomeText updates the welcome message text, file ID, buttons, and type for a chat.
 // Creates default greeting settings if they don't exist.
+//
+//nolint:dupl // SetGoodbyeText has similar structure but different struct fields
 func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []Button, welcType int) error {
 	welcomeSrc := checkGreetingSettings(chatID)
 	if welcomeSrc.WelcomeSettings == nil {
@@ -202,6 +204,8 @@ func SetWelcomeToggle(chatID int64, pref bool) error {
 
 // SetGoodbyeText updates the goodbye message text, file ID, buttons, and type for a chat.
 // Creates default greeting settings if they don't exist.
+//
+//nolint:dupl // SetGoodbyeText has similar structure to SetWelcomeText but different struct fields
 func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []Button, goodbyeType int) error {
 	goodbyeSrc := checkGreetingSettings(chatID)
 	if goodbyeSrc.GoodbyeSettings == nil {

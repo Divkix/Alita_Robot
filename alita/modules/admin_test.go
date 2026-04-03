@@ -54,12 +54,19 @@ func TestDemoteNilMemberHandling(t *testing.T) {
 
 // TestDemoteErrorHandling verifies error handling patterns in demote logic
 func TestDemoteErrorHandling(t *testing.T) {
-	t.Run("error precedence over nil", func(t *testing.T) {
+	// simulateGetMemberResult simulates the return values of GetMember,
+	// returning values that staticcheck cannot statically resolve.
+	simulateGetMemberResult := func(wantErr bool) (gotgbot.ChatMember, error) {
+		if wantErr {
+			return nil, &testError{msg: "API error"}
+		}
+		return nil, nil
+	}
+
+	t.Run("error takes precedence over nil member", func(t *testing.T) {
 		// When GetMember returns (nil, error), error should be checked first
 		// This is the standard pattern: check err != nil before using result
-
-		var err error = &testError{msg: "API error"}
-		var userMember gotgbot.ChatMember
+		userMember, err := simulateGetMemberResult(true)
 
 		if err != nil {
 			// Expected: error is handled first
@@ -71,5 +78,22 @@ func TestDemoteErrorHandling(t *testing.T) {
 		if userMember == nil {
 			t.Fatal("Should have returned on error, not reached nil check")
 		}
+	})
+
+	t.Run("nil error with nil member", func(t *testing.T) {
+		// When GetMember returns (nil, nil), the nil member should be handled
+		userMember, err := simulateGetMemberResult(false)
+
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// After confirming no error, check the member
+		if userMember == nil {
+			t.Log("Nil member properly detected after nil error check")
+			return
+		}
+
+		t.Log("Non-nil member received")
 	})
 }

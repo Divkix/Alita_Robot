@@ -20,89 +20,135 @@ import (
 var disablingModule = moduleStruct{moduleName: "Disabling"}
 
 /*
-	To disable a command
+	To disable or enable commands
 
 # Connection - true, true
 
-Only Admin can use this command to disable usage of a command in the chat
+Only Admin can use this command to disable/enable usage of a command in the chat
 */
+
+// toggleCmdConfig holds configuration for disable/enable command operations.
+type toggleCmdConfig struct {
+	emptyArgsMsgKey  string
+	noCmdMsgKey      string
+	successMsgKey    string
+	unknownCmdMsgKey string
+	dbOp             func(int64, string) error
+	actionName       string // for logging: "disable" or "enable"
+}
+
+// toggleCommands handles both disabling and enabling commands.
+// Only admins can use this command. Accepts multiple command names as arguments.
+func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context) error {
+	return func(b *gotgbot.Bot, ctx *ext.Context) error {
+		msg := ctx.EffectiveMessage
+		// connection status
+		connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+		if connectedChat == nil {
+			return ext.EndGroups
+		}
+		ctx.EffectiveChat = connectedChat
+		chat := ctx.EffectiveChat
+		args := ctx.Args()[1:]
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+
+		var cfg toggleCmdConfig
+		if enable {
+			cfg = toggleCmdConfig{
+				emptyArgsMsgKey:  "disabling_no_command_reenable",
+				noCmdMsgKey:      "disabling_no_command_reenable",
+				successMsgKey:    "disabling_enabled_successfully",
+				unknownCmdMsgKey: "disabling_unknown_reenable",
+				dbOp:             db.EnableCMD,
+				actionName:       "enable",
+			}
+		} else {
+			cfg = toggleCmdConfig{
+				emptyArgsMsgKey:  "disabling_no_command_specified",
+				noCmdMsgKey:      "disabling_no_command_specified",
+				successMsgKey:    "disabling_disabled_successfully",
+				unknownCmdMsgKey: "disabling_unknown_command",
+				dbOp:             db.DisableCMD,
+				actionName:       "disable",
+			}
+		}
+
+		if len(args) == 0 {
+			text, _ := tr.GetString(cfg.emptyArgsMsgKey)
+			_, err := msg.Reply(b, text, helpers.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
+
+		// Collect valid and invalid commands
+		toToggle := make([]string, 0, len(args))
+		unknownCmds := make([]string, 0, len(args))
+
+		for _, cmd := range args {
+			cmd = strings.ToLower(cmd)
+			if slices.Contains(helpers.DisableCmds, cmd) {
+				toToggle = append(toToggle, cmd)
+			} else {
+				unknownCmds = append(unknownCmds, cmd)
+			}
+		}
+
+		// First, toggle all valid commands in the database
+		failedCmds := make([]string, 0, len(toToggle))
+		for _, cmd := range toToggle {
+			if err := cfg.dbOp(chat.Id, cmd); err != nil {
+				failedCmds = append(failedCmds, cmd)
+				log.Errorf("[Disabling] Failed to %s command '%s' in chat %d: %v", cfg.actionName, cmd, chat.Id, err)
+			}
+		}
+
+		// Remove failed commands from success list
+		successCmds := make([]string, 0, len(toToggle))
+		for _, cmd := range toToggle {
+			if !slices.Contains(failedCmds, cmd) {
+				successCmds = append(successCmds, cmd)
+			}
+		}
+
+		// Send success message for successfully toggled commands
+		if len(successCmds) > 0 {
+			temp, _ := tr.GetString(cfg.successMsgKey)
+			text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
+			_, err := msg.Reply(b, text, helpers.Smarkdown())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+		}
+
+		// Send error message for unknown commands
+		for _, cmd := range unknownCmds {
+			temp, _ := tr.GetString(cfg.unknownCmdMsgKey)
+			text := fmt.Sprintf(temp, cmd)
+			_, err := msg.Reply(b, text, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+		}
+
+		return ext.EndGroups
+	}
+}
+
 // disable disables one or more bot commands in the current chat.
 // Only admins can use this command. Accepts multiple command names as arguments.
-func (moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+func (m moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.toggleCommands(false)(b, ctx)
+}
 
-	if len(args) == 0 {
-		text, _ := tr.GetString("disabling_no_command_specified")
-		_, err := msg.Reply(b, text, helpers.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// Collect valid and invalid commands
-	toDisable := make([]string, 0, len(args))
-	unknownCmds := make([]string, 0, len(args))
-
-	for _, cmd := range args {
-		cmd = strings.ToLower(cmd)
-		if slices.Contains(helpers.DisableCmds, cmd) {
-			toDisable = append(toDisable, cmd)
-		} else {
-			unknownCmds = append(unknownCmds, cmd)
-		}
-	}
-
-	// First, disable all valid commands in the database
-	failedCmds := make([]string, 0, len(toDisable))
-	for _, cmd := range toDisable {
-		if err := db.DisableCMD(chat.Id, cmd); err != nil {
-			failedCmds = append(failedCmds, cmd)
-			log.Errorf("[Disabling] Failed to disable command '%s' in chat %d: %v", cmd, chat.Id, err)
-		}
-	}
-
-	// Remove failed commands from success list
-	successCmds := make([]string, 0, len(toDisable))
-	for _, cmd := range toDisable {
-		if !slices.Contains(failedCmds, cmd) {
-			successCmds = append(successCmds, cmd)
-		}
-	}
-
-	// Send success message for successfully disabled commands
-	if len(successCmds) > 0 {
-		temp, _ := tr.GetString("disabling_disabled_successfully")
-		text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
-		_, err := msg.Reply(b, text, helpers.Smarkdown())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
-
-	// Send error message for unknown commands
-	for _, cmd := range unknownCmds {
-		temp, _ := tr.GetString("disabling_unknown_command")
-		text := fmt.Sprintf(temp, cmd)
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
-
-	return ext.EndGroups
+// enable re-enables one or more previously disabled bot commands in the chat.
+// Only admins can use this command. Accepts multiple command names as arguments.
+func (m moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.toggleCommands(true)(b, ctx)
 }
 
 /*
@@ -258,92 +304,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		log.Error(err)
 		return err
-	}
-
-	return ext.EndGroups
-}
-
-/*
-	To re-enable a command
-
-# Connection - true, true
-
-Only Admin can use this command to re-enable usage of a disabled command in the chat
-*/
-// enable re-enables one or more previously disabled bot commands in the chat.
-// Only admins can use this command. Accepts multiple command names as arguments.
-func (moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	if len(args) == 0 {
-		text, _ := tr.GetString("disabling_no_command_reenable")
-		_, err := msg.Reply(b, text, helpers.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// Collect valid and invalid commands
-	toEnable := make([]string, 0, len(args))
-	unknownCmds := make([]string, 0, len(args))
-
-	for _, cmd := range args {
-		cmd = strings.ToLower(cmd)
-		if slices.Contains(helpers.DisableCmds, cmd) {
-			toEnable = append(toEnable, cmd)
-		} else {
-			unknownCmds = append(unknownCmds, cmd)
-		}
-	}
-
-	// First, enable all valid commands in the database
-	failedCmds := make([]string, 0, len(toEnable))
-	for _, cmd := range toEnable {
-		if err := db.EnableCMD(chat.Id, cmd); err != nil {
-			failedCmds = append(failedCmds, cmd)
-			log.Errorf("[Disabling] Failed to enable command '%s' in chat %d: %v", cmd, chat.Id, err)
-		}
-	}
-
-	// Remove failed commands from success list
-	successCmds := make([]string, 0, len(toEnable))
-	for _, cmd := range toEnable {
-		if !slices.Contains(failedCmds, cmd) {
-			successCmds = append(successCmds, cmd)
-		}
-	}
-
-	// Send success message for successfully enabled commands
-	if len(successCmds) > 0 {
-		temp, _ := tr.GetString("disabling_enabled_successfully")
-		text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
-		_, err := msg.Reply(b, text, helpers.Smarkdown())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-	}
-
-	// Send error message for unknown commands
-	for _, cmd := range unknownCmds {
-		temp, _ := tr.GetString("disabling_unknown_reenable")
-		text := fmt.Sprintf(temp, cmd)
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
 	}
 
 	return ext.EndGroups

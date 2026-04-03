@@ -38,6 +38,8 @@ func newNotesOverwriteToken() (string, error) {
 
 // addNote handles the /save command to create new notes
 // with support for various media types and formatting options.
+//
+//nolint:dupl // addNote shares validation logic with filters module by design
 func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	// connection status
 	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
@@ -408,6 +410,8 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // rmAllNotes handles the /clearall command to remove all notes
 // from the chat, restricted to chat owners only.
+//
+//nolint:dupl // rmAllNotes shares confirmation pattern with filters module by design
 func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {

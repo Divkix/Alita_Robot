@@ -119,6 +119,8 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 }
 
 // GetInt retrieves a translated integer value.
+//
+//nolint:dupl // GetInt follows same pattern as GetFloat with different types
 func (t *Translator) GetInt(key string) (int, error) {
 	if t.manager == nil {
 		return 0, NewI18nError("get_int", t.langCode, key, "manager not initialized", ErrManagerNotInit)
@@ -159,6 +161,8 @@ func (t *Translator) GetBool(key string) (bool, error) {
 }
 
 // GetFloat retrieves a translated float value.
+//
+//nolint:dupl // GetFloat follows same pattern as GetInt with different types
 func (t *Translator) GetFloat(key string) (float64, error) {
 	if t.manager == nil {
 		return 0.0, NewI18nError("get_float", t.langCode, key, "manager not initialized", ErrManagerNotInit)

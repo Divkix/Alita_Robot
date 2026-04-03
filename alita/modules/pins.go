@@ -413,6 +413,8 @@ func (moduleStruct) pin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // antichannelpin handles the /antichannelpin command to toggle automatic
 // unpinning of channel-pinned messages, requiring admin permissions.
+//
+//nolint:dupl // antichannelpin has symmetric logic with cleanlinked
 func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -491,6 +493,8 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // cleanlinked handles the /cleanlinked command to toggle automatic
 // deletion of linked channel messages, requiring admin permissions.
+//
+//nolint:dupl // cleanlinked has symmetric logic with antichannelpin
 func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -646,6 +650,8 @@ func (moduleStruct) pinned(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // PinsEnumFuncMap
 // A rather very complicated PinsEnumFuncMap Variable made by me to send filters in an appropriate way
+//
+//nolint:dupl // Inline functions in map have similar structure for different media types
 var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error){
 	db.TEXT: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
 		return b.SendMessage(

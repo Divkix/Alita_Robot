@@ -129,6 +129,7 @@ Only admin can add new filters in the chat
 */
 // addFilter creates a new filter with a keyword trigger and response content.
 // Only admins can add filters. Supports text, media, and buttons with a limit of 150 filters per chat.
+//nolint:dupl // addFilter shares validation logic with notes module by design
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -429,6 +430,7 @@ Only owner can remove all filters from the chat
 */
 // rmAllFilters removes all filters from the current chat with confirmation.
 // Only chat owners can use this command. Shows confirmation buttons before deletion.
+//nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)

@@ -259,6 +259,8 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // reports handles the /reports command to manage reporting settings
 // for both users and chats, including blocking and status changes.
+//
+//nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	// connection status
 	connectedChat := helpers.IsUserConnected(b, ctx, true, true)

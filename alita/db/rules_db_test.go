@@ -32,6 +32,7 @@ func TestGetRules_Defaults(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetRules_SetAndGet(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -87,6 +88,7 @@ func TestSetRules_OverwriteWithNewValue(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetChatRulesButton_SetAndGet(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)

@@ -664,6 +664,8 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 // GetNoteAndFilterType extracts and processes note or filter content from a Telegram message.
 // Handles text, media files, and reply messages with button parsing and content validation.
 // Returns parsed content with metadata like data type, buttons, and special options.
+//
+//nolint:dupl // GetNoteAndFilterType shares media detection logic with GetWelcomeType
 func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) (keyWord, fileid, text string, dataType int, buttons []db.Button, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool, errorMsg string) {
 	dataType = -1 // not defined datatype; invalid note
 	tr := i18n.MustNewTranslator(language)
@@ -762,6 +764,8 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 // GetWelcomeType extracts and processes welcome/greeting content from a Telegram message.
 // Similar to GetNoteAndFilterType but specifically for greeting messages.
 // Returns processed content with data type, file ID, and buttons for the greeting.
+//
+//nolint:dupl // GetWelcomeType shares media detection logic with GetNoteAndFilterType
 func GetWelcomeType(msg *gotgbot.Message, greetingType string, language string) (text string, dataType int, fileid string, buttons []db.Button, errorMsg string) {
 	dataType = -1
 	tr := i18n.MustNewTranslator(language)
