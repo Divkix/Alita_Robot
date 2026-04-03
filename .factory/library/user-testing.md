@@ -134,5 +134,50 @@ make test
 ```
 
 ### Output Location
-Write JSON report to: `.factory/validation/module-fixes/user-testing/flows/<group-id>.json`
+## Flow Validator Guidance: Utils-Fixes Code Review Surface
+
+For utils-fixes validation, the testing approach combines code review with targeted race detector tests.
+
+### Testing Approach
+1. **Code Review**: Read the relevant source files to verify fixes are applied
+2. **Test Execution**: Run `go test -race` on specific packages
+3. **Static Analysis**: Run `make lint` to ensure code quality
+
+### Isolation Strategy
+- Each validator operates on read-only codebase analysis
+- Tests can run concurrently (different packages don't interfere)
+- Race detector tests run independently per package
+
+### Assertion Testing Pattern
+For each assertion:
+1. Read the relevant source file(s)
+2. Verify the fix pattern matches validation-contract.md specification
+3. Run targeted tests: `go test -v -race ./alita/utils/...`
+4. Record evidence: test output, code snippets showing fix
+5. Report: PASS if fix verified, FAIL if not found, BLOCKED if prerequisite broken
+
+### Commands
+```bash
+# Utils tests
+go test -v -race ./alita/utils/monitoring
+
+# Helpers tests
+
+# Keyword matcher tests
+
+# Extraction tests
+
+# Tracing tests
+
+# Chat status tests
+
+# Lint check
+make lint
+
+# Full test suite
+make test
+```
+
+### Output Location
+Write JSON report to: `.factory/validation/utils-fixes/user-testing/flows/<group-id>.json`
 Save evidence: Code snippets in report, test output captured

@@ -12,6 +12,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -24,11 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
-
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita"
 )
 
 //go:embed locales

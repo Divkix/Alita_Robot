@@ -1,0 +1,62 @@
+{
+  "groupId": "group2-helpers-nil",
+  "testedAt": "2026-04-03T22:17:00Z",
+  "isolation": {
+    "missionDir": "/Users/divkix/.factory/missions/f92a1012-2ecf-42c7-bacf-0bad15dc9ca1",
+    "repoPath": "/Users/divkix/GitHub/Alita_Robot"
+  },
+  "toolsUsed": ["code-review"],
+  "assertions": [
+    {
+      "id": "VAL-HIGH-010",
+      "title": "Helpers nil user check",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read alita/utils/helpers/helpers.go FormattingReplacerWithLanguage()",
+          "expected": "Nil check for user parameter at function entry",
+          "observed": "Found nil check: if user == nil { firstName = i18n.GetString("helpers_person_no_name", langCode, nil) }"
+        },
+        {
+          "action": "Verify fallback values for nil user",
+          "expected": "Default values set when user is nil",
+          "observed": "firstName, fullName, username set to translation key or 'PersonWithNoName', userId set to 0"
+        }
+      ],
+      "evidence": {
+        "codeSnippet": "if user == nil {\n    firstName = i18n.GetString(\"helpers_person_no_name\", langCode, nil)\n    fullName = firstName\n    username = firstName\n    userId = 0\n    mention = html.EscapeString(firstName)\n} else {\n    // ... normal user field access\n}",
+        "filePath": "alita/utils/helpers/helpers.go",
+        "functionName": "FormattingReplacerWithLanguage",
+        "lineRange": "488-502"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MED-007",
+      "title": "Helpers msg nil check",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read alita/modules/helpers.go GetNoteAndFilterType()",
+          "expected": "Nil check for msg parameter before accessing .Text",
+          "observed": "Found nil check: if msg == nil { errorMsg = i18n.GetString(...) }"
+        },
+        {
+          "action": "Verify early return pattern",
+          "expected": "Early return when msg is nil to prevent panic",
+          "observed": "Returns NoteAndFilterTypeResult{Note: \"\", FilterType: \"text\"} with errorMsg set when msg is nil"
+        }
+      ],
+      "evidence": {
+        "codeSnippet": "if msg == nil {\n    errorMsg := i18n.GetString(\"helpers_invalid_message\", ctx.EffectiveChat.LanguageCode, nil)\n    if errorMsg == \"\" {\n        errorMsg = \"Invalid message: message is nil\"\n    }\n    return NoteAndFilterTypeResult{...}, errorMsg\n}",
+        "filePath": "alita/modules/helpers.go",
+        "functionName": "GetNoteAndFilterType",
+        "lineRange": "671-678"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 2 assertions: 2 passed. VAL-HIGH-010: FormattingReplacerWithLanguage has nil check for user parameter with fallback values. VAL-MED-007: GetNoteAndFilterType has nil check for msg parameter with early return. Both functions prevent panics on nil input as required."
+}

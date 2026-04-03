@@ -1,0 +1,44 @@
+{
+  "groupId": "group6-keyword-matcher",
+  "testedAt": "2026-04-03T00:00:00Z",
+  "isolation": {
+    "milestone": "utils-fixes",
+    "assertionId": "VAL-LOW-003"
+  },
+  "toolsUsed": ["code review"],
+  "assertions": [
+    {
+      "id": "VAL-LOW-003",
+      "title": "Keyword matcher goroutine cleanup",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read alita/utils/keyword_matcher/cache.go",
+          "expected": "Cleanup goroutine has stop mechanism (stop channel or context)",
+          "observed": "Both context.CancelFunc and stopChan present, with Stop() method"
+        },
+        {
+          "action": "Verify Stop() method exists",
+          "expected": "Stop() method to signal goroutine termination",
+          "observed": "Stop() method calls cancel() and closes stopChan"
+        },
+        {
+          "action": "Check goroutine select statement",
+          "expected": "Goroutine listens for cancellation signal",
+          "observed": "Select handles ctx.Done() and stopChan for graceful exit"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "// Stop() method (lines 63-73):\nfunc (c *Cache) Stop() {\n    c.mu.Lock()\n    defer c.mu.Unlock()\n\n    if c.cancel != nil {\n        c.cancel()\n    }\n\n    // Also signal via stopChan for backward compatibility\n    if c.stopChan != nil {\n        close(c.stopChan)\n    }\n}",
+          "// Goroutine with stop mechanism (lines 107-122):\nctx, cancel := context.WithCancel(context.Background())\nglobalCache.cancel = cancel\ngo func() {\n    defer error_handling.RecoverFromPanic(\"GetGlobalCache.cleanupRoutine\", \"keyword_matcher\")\n    ticker := time.NewTicker(10 * time.Minute)\n    defer ticker.Stop()\n    for {\n        select {\n        case <-ticker.C:\n            globalCache.CleanupExpired()\n        case <-ctx.Done():\n            log.Debug(\"Keyword matcher cache cleanup routine stopped\")\n            return\n        case <-globalCache.stopChan:\n            log.Debug(\"Keyword matcher cache cleanup routine stopped via stopChan\")\n            return\n        }\n    }\n}()"
+        ],
+        "filePath": "alita/utils/keyword_matcher/cache.go"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 1 assertion: 1 passed. The keyword matcher cache has a comprehensive stop mechanism using both context cancellation (ctx.Done()) and a stop channel (stopChan). The Stop() method properly signals the cleanup goroutine to terminate, preventing goroutine leaks during tests."
+}
