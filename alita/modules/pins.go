@@ -161,7 +161,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
 			return err
 		}
-		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_success")
 		_, _, erredit := query.Message.EditText(b, text, nil)
 		if erredit != nil {
@@ -169,7 +169,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			return erredit
 		}
 	case "no":
-		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_cancelled")
 		_, _, err := query.Message.EditText(b, text, nil)
 		if err != nil {
