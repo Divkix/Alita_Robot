@@ -1,0 +1,27 @@
+{
+  "milestone": "polish",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": ["VAL-LOW-004", "VAL-LOW-005"],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added flow validator guidance for polish milestone code review surface",
+      "source": "synthesis"
+    }
+  ],
+  "flowReports": [
+    ".factory/validation/polish/user-testing/flows/polish-import-order.json",
+    ".factory/validation/polish/user-testing/flows/polish-magic-numbers.json"
+  ],
+  "previousRound": null,
+  "completedAt": "2026-04-03T22:58:00Z"
+}

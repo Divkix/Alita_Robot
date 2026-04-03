@@ -181,3 +181,44 @@ make test
 ### Output Location
 Write JSON report to: `.factory/validation/utils-fixes/user-testing/flows/<group-id>.json`
 Save evidence: Code snippets in report, test output captured
+
+## Flow Validator Guidance: Polish Code Review Surface
+
+For polish milestone validation, the testing approach is code review + static analysis.
+
+### Testing Approach
+1. **Import Order Verification**: Run `make lint` and verify no import order errors
+2. **Magic Numbers Verification**: Read main.go to confirm constants are used instead of magic numbers
+
+### Isolation Strategy
+- Read-only codebase analysis
+- Lint and code review can run concurrently
+- No shared mutable state
+
+### Assertion Testing Pattern
+For each assertion:
+1. **VAL-LOW-004 (Import Order)**: Run `make lint`, check for import order errors
+2. **VAL-LOW-005 (Magic Numbers)**: Read main.go and constants package, verify all magic numbers replaced
+
+### Commands
+```bash
+# Lint check for import order
+make lint
+
+# Verify constants exist
+grep -r "const.*=" alita/utils/constants/
+
+# Check magic number usage in main.go
+grep -n "constants\." main.go
+```
+
+### Output Location
+Write JSON report to: `.factory/validation/polish/user-testing/flows/<group-id>.json`
+Save evidence: Code snippets in report, lint output if relevant
+
+## Validation Concurrency
+
+Based on observed resource usage:
+- **Code review surface**: Max 5 concurrent validators (lightweight, read-only)
+- **Test execution surface**: Max 3 concurrent validators (moderate CPU/memory)
+- **Lint surface**: Max 2 concurrent validators (CPU intensive)

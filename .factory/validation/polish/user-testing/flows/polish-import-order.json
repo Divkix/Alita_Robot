@@ -1,0 +1,28 @@
+{
+  "flowId": "polish-import-order",
+  "milestone": "polish",
+  "assertionsTested": ["VAL-LOW-004"],
+  "status": "completed",
+  "startedAt": "2026-04-03T22:55:00Z",
+  "completedAt": "2026-04-03T22:56:00Z",
+  "testingSurface": "code-review",
+  "tool": "golangci-lint",
+  "results": {
+    "VAL-LOW-004": {
+      "status": "pass",
+      "evidence": {
+        "lintOutput": "No import order errors reported",
+        "codeSnippet": "main.go imports follow CLAUDE.md pattern: stdlib (lines 4-11) → blank line → third-party (lines 13-16) → blank line → constants (line 18) → blank line → internal (lines 20-32)",
+        "importGroups": [
+          "stdlib: context, embed, fmt, net/http, net/url, os, strings, time",
+          "third-party: github.com/sirupsen/logrus, github.com/PaulSonOfLars/gotgbot/v2, github.com/PaulSonOfLars/gotgbot/v2/ext",
+          "internal: github.com/divkix/Alita_Robot/alita/utils/constants",
+          "internal: github.com/divkix/Alita_Robot/alita, alita/config, alita/db, alita/i18n, alita/utils/async, alita/utils/cache, alita/utils/error_handling, alita/utils/errors, alita/utils/helpers, alita/utils/httpserver, alita/utils/monitoring, alita/utils/shutdown, alita/utils/tracing"
+        ]
+      }
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["golangci-lint", "code-review"]
+}
