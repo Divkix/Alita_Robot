@@ -8,7 +8,8 @@ import (
 
 // AddBlacklist adds a new blacklist word to a chat with default 'warn' action.
 // The trigger is converted to lowercase before storage.
-func AddBlacklist(chatId int64, trigger string) {
+// Returns an error if the database operation fails.
+func AddBlacklist(chatId int64, trigger string) error {
 	// Create a new blacklist entry
 	blacklist := &BlacklistSettings{
 		ChatId: chatId,
@@ -20,35 +21,43 @@ func AddBlacklist(chatId int64, trigger string) {
 	err := CreateRecord(blacklist)
 	if err != nil {
 		log.Errorf("[Database] AddBlacklist: %v - %d", err, chatId)
+		return err
 	}
 
 	// Invalidate cache after adding blacklist
 	deleteCache(CacheKey("blacklist", chatId))
+	return nil
 }
 
 // RemoveBlacklist removes a specific blacklist word from a chat.
 // The trigger is converted to lowercase before removal.
-func RemoveBlacklist(chatId int64, trigger string) {
+// Returns an error if the database operation fails.
+func RemoveBlacklist(chatId int64, trigger string) error {
 	result := DB.Where("chat_id = ? AND word = ?", chatId, strings.ToLower(trigger)).Delete(&BlacklistSettings{})
 	if result.Error != nil {
 		log.Errorf("[Database] RemoveBlacklist: %v - %d", result.Error, chatId)
+		return result.Error
 	}
 
 	// Invalidate cache if something was deleted
 	if result.RowsAffected > 0 {
 		deleteCache(CacheKey("blacklist", chatId))
 	}
+	return nil
 }
 
 // RemoveAllBlacklist removes all blacklist entries for a specific chat.
-func RemoveAllBlacklist(chatId int64) {
+// Returns an error if the database operation fails.
+func RemoveAllBlacklist(chatId int64) error {
 	err := DB.Where("chat_id = ?", chatId).Delete(&BlacklistSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] RemoveAllBlacklist: %v - %d", err, chatId)
+		return err
 	}
 
 	// Invalidate cache after removing all blacklist entries
 	deleteCache(CacheKey("blacklist", chatId))
+	return nil
 }
 
 // SetBlacklistAction updates the action for all blacklist entries in a chat.

@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
 )
@@ -125,17 +126,16 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 				} else {
 					wg.Add(1)
 					go func(chatId int64, word string) {
-						defer func() {
-							if r := recover(); r != nil {
-								log.WithFields(log.Fields{
-									"panic":  r,
-									"chatId": chatId,
-									"word":   word,
-								}).Error("Panic in AddBlacklist goroutine")
-							}
-							wg.Done()
-						}()
-						db.AddBlacklist(chatId, word)
+						defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
+						defer wg.Done()
+
+						if err := db.AddBlacklist(chatId, word); err != nil {
+							log.WithFields(log.Fields{
+								"chatId": chatId,
+								"word":   word,
+								"error":  err,
+							}).Error("Failed to add blacklist")
+						}
 					}(chat.Id, blWord)
 					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
 				}
@@ -155,22 +155,20 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			for _, blWord := range args {
 				wg.Add(1)
 				go func(word string) {
-					defer func() {
-						if r := recover(); r != nil {
-							log.WithFields(log.Fields{
-								"panic":  r,
-								"chatId": chat.Id,
-								"word":   word,
-							}).Error("Panic in AddBlacklist concurrent goroutine")
-						}
-						wg.Done()
-					}()
+					defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
+					defer wg.Done()
 
 					_, isListed := blWordSet[word] // O(1) lookup
 					resultChan <- result{word: word, isAlreadyListed: isListed}
 
 					if !isListed {
-						db.AddBlacklist(chat.Id, word)
+						if err := db.AddBlacklist(chat.Id, word); err != nil {
+							log.WithFields(log.Fields{
+								"chatId": chat.Id,
+								"word":   word,
+								"error":  err,
+							}).Error("Failed to add blacklist")
+						}
 					}
 				}(blWord)
 			}
@@ -263,16 +261,15 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			if slices.Contains(allBlWords, blWord) {
 				removedBlacklists = append(removedBlacklists, blWord)
 				go func(chatId int64, word string) {
-					defer func() {
-						if r := recover(); r != nil {
-							log.WithFields(log.Fields{
-								"panic":  r,
-								"chatId": chatId,
-								"word":   word,
-							}).Error("Panic in RemoveBlacklist goroutine")
-						}
-					}()
-					db.RemoveBlacklist(chatId, word)
+					defer error_handling.RecoverFromPanic("removeBlacklist", "blacklists")
+
+					if err := db.RemoveBlacklist(chatId, word); err != nil {
+						log.WithFields(log.Fields{
+							"chatId": chatId,
+							"word":   word,
+							"error":  err,
+						}).Error("Failed to remove blacklist")
+					}
 				}(chat.Id, blWord)
 			}
 		}
@@ -512,15 +509,14 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	switch creatorAction {
 	case "yes":
 		go func(chatId int64) {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithFields(log.Fields{
-						"panic":  r,
-						"chatId": chatId,
-					}).Error("Panic in RemoveAllBlacklist goroutine")
-				}
-			}()
-			db.RemoveAllBlacklist(chatId)
+			defer error_handling.RecoverFromPanic("rmAllBlacklists", "blacklists")
+
+			if err := db.RemoveAllBlacklist(chatId); err != nil {
+				log.WithFields(log.Fields{
+					"chatId": chatId,
+					"error":  err,
+				}).Error("Failed to remove all blacklists")
+			}
 		}(query.Message.GetChat().Id)
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
 	case "no":

@@ -230,6 +230,12 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
+	// Nil check to prevent panic when GetMember returns nil
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
+		log.Error(err)
+		return err
+	}
 	// Invalidate admin cache immediately so permission checks reflect the change
 	cache.InvalidateAdminCache(chat.Id)
 
