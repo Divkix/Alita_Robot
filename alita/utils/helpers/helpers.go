@@ -668,6 +668,15 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 	dataType = -1 // not defined datatype; invalid note
 	tr := i18n.MustNewTranslator(language)
 
+	// Check for nil message to prevent panic
+	if msg == nil {
+		errorMsg, _ = tr.GetString("helpers_invalid_message")
+		if errorMsg == "" {
+			errorMsg = "Invalid message: message is nil" // fallback
+		}
+		return
+	}
+
 	if isFilter {
 		errorMsg, _ = tr.GetString("helpers_need_filter_content")
 		if errorMsg == "" {
