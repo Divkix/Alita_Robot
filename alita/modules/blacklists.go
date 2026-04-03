@@ -508,6 +508,12 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch creatorAction {
 	case "yes":
+		// Check if message is nil (may have been deleted)
+		if query.Message == nil {
+			log.Warn("[Blacklists] Cannot remove all blacklists: message was deleted")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Message no longer available."})
+			return ext.EndGroups
+		}
 		go func(chatId int64) {
 			defer error_handling.RecoverFromPanic("rmAllBlacklists", "blacklists")
 
