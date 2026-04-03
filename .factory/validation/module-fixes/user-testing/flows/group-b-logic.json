@@ -1,0 +1,152 @@
+{
+  "groupId": "group-b",
+  "testedAt": "2026-04-03T14:35:00-07:00",
+  "isolation": {
+    "missionDir": "/Users/divkix/.factory/missions/f92a1012-2ecf-42c7-bacf-0bad15dc9ca1",
+    "repoPath": "/Users/divkix/GitHub/Alita_Robot"
+  },
+  "toolsUsed": ["go test", "code review"],
+  "assertions": [
+    {
+      "id": "VAL-MED-001",
+      "title": "Admin cache invalidation timing",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read admin.go demote() function",
+          "expected": "Cache invalidation occurs after error check",
+          "observed": "cache.InvalidateAdminCache(chat.Id) called after PromoteMember error check and early return"
+        },
+        {
+          "action": "Read admin.go promote() function",
+          "expected": "Cache invalidation occurs after error check",
+          "observed": "cache.InvalidateAdminCache(chat.Id) called after PromoteMember error check and early return"
+        },
+        {
+          "action": "Run go test -race ./alita/modules",
+          "expected": "Tests pass without race conditions",
+          "observed": "PASS ok github.com/divkix/Alita_Robot/alita/modules 1.349s"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "alita/modules/admin.go lines 165-192: demote() cache invalidation after error check",
+          "alita/modules/admin.go lines 259-302: promote() cache invalidation after error check"
+        ],
+        "files": [
+          "evidence/module-fixes/group-b/VAL-MED-001.md"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MED-002",
+      "title": "Reports double-answer fix",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read reports.go markResolvedButtonHandler() function",
+          "expected": "No double-answer when RequireUserAdmin denies permission",
+          "observed": "Early return ext.EndGroups when RequireUserAdmin returns false, with comment explaining callback already answered"
+        },
+        {
+          "action": "Verify comment documentation",
+          "expected": "Comment explains that RequireUserAdmin answers callback",
+          "observed": "Comment: 'Note: RequireUserAdmin with justCheck=false answers the callback when permission is denied'"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "alita/modules/reports.go lines 285-312: markResolvedButtonHandler() early return after RequireUserAdmin check"
+        ],
+        "files": [
+          "evidence/module-fixes/group-b/VAL-MED-002.md"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MED-003",
+      "title": "Reports unbounded regex",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read reports.go package-level variables",
+          "expected": "Pre-compiled regex as package variable",
+          "observed": "var adminMentionRegex = regexp.MustCompile(\"(?i)@admin(s)?\") at package level"
+        },
+        {
+          "action": "Verify regex usage in LoadReports",
+          "expected": "Uses pre-compiled regex, not per-message compilation",
+          "observed": "adminMentionRegex.MatchString(msg.Text) used in message handler"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "alita/modules/reports.go line 27: var adminMentionRegex = regexp.MustCompile(\"(?i)@admin(s)?\")",
+          "alita/modules/reports.go line 420: return adminMentionRegex.MatchString(msg.Text)"
+        ],
+        "files": [
+          "evidence/module-fixes/group-b/VAL-MED-003.md"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MED-011",
+      "title": "Bans kick missing return",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read bans.go kick() function error handling",
+          "expected": "Returns after logging error on BanMember failure",
+          "observed": "if err != nil { log.Error(err); return err } after BanMember call"
+        },
+        {
+          "action": "Read bans.go dkick() function error handling",
+          "expected": "Returns after logging error on BanMember failure",
+          "observed": "if err != nil { log.Error(err); return err } after BanMember call"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "alita/modules/bans.go lines 91-96: kick() returns after BanMember error",
+          "alita/modules/bans.go lines 36-41: dkick() returns after BanMember error"
+        ],
+        "files": [
+          "evidence/module-fixes/group-b/VAL-MED-011.md"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LOW-001",
+      "title": "Pins context creation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read pins.go unpinallCallback() function",
+          "expected": "Uses original ctx instead of creating partial context",
+          "observed": "Uses ctx.EffectiveChat and passes ctx to i18n.MustNewTranslator(db.GetLanguage(ctx))"
+        },
+        {
+          "action": "Verify no partial context creation",
+          "expected": "No &ext.Context{...} creation in function",
+          "observed": "Function only reads from ctx parameter, never creates new context"
+        }
+      ],
+      "evidence": {
+        "codeSnippets": [
+          "alita/modules/pins.go lines 73-111: unpinallCallback() uses original ctx throughout"
+        ],
+        "files": [
+          "evidence/module-fixes/group-b/VAL-LOW-001.md"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked. All medium and low priority module fixes verified through code review and Go testing."
+}

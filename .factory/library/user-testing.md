@@ -63,11 +63,43 @@ Bug fixes are lightweight:
 - CPU: Single core sufficient
 - Race detector adds ~2x time
 
-## Testing Checklist
+## Flow Validator Guidance: Go Test Surface
 
-Before considering a bug fix complete:
-- [ ] Test added/updated for the bug scenario
-- [ ] `go test -race ./package` passes
-- [ ] `make lint` passes
-- [ ] `go build ./...` succeeds
-- [ ] No regressions in existing tests
+For module-fixes validation, the "user surface" is the Go test suite and code verification.
+
+### Testing Approach
+1. **Code Review**: Read the relevant source files to verify fixes are applied
+2. **Test Execution**: Run `go test -race` and `make test` to verify behavior
+3. **Static Analysis**: Run `make lint` to ensure code quality
+
+### Isolation Strategy
+- Each validator operates on read-only codebase analysis
+- Tests can run concurrently (different packages don't interfere)
+- No shared mutable state between validators
+
+### Assertion Testing Pattern
+For each assertion:
+1. Read the relevant source file(s)
+2. Verify the fix pattern matches validation-contract.md specification
+3. Run targeted tests: `go test -v -race ./alita/modules` or specific package
+4. Record evidence: test output, code snippets showing fix
+5. Report: PASS if fix verified, FAIL if not found, BLOCKED if prerequisite broken
+
+### Commands
+```bash
+# Module tests
+go test -v -race ./alita/modules
+
+# Specific test patterns
+go test -v -race -run "TestFilter|TestBlacklist|TestReport" ./alita/modules
+
+# Lint check
+make lint
+
+# Full test suite
+make test
+```
+
+### Output Location
+Write JSON report to: `.factory/validation/module-fixes/user-testing/flows/<group-id>.json`
+Save evidence: Code snippets in report, test output captured
