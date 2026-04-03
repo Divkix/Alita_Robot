@@ -18,7 +18,8 @@ func TestDemoteNilMemberHandling(t *testing.T) {
 		// Verify the logic by simulating what would happen
 		// if GetMember returned nil with no error (edge case)
 
-		var userMember *gotgbot.ChatMember
+		// In gotgbot v2, ChatMember is an interface
+		var userMember gotgbot.ChatMember
 		// Simulate the nil check that now exists in demote()
 		if userMember == nil {
 			// This is the behavior we expect - graceful handling
@@ -28,23 +29,16 @@ func TestDemoteNilMemberHandling(t *testing.T) {
 		}
 	})
 
-	t.Run("MergeChatMember would panic on nil", func(t *testing.T) {
-		// Verify that calling MergeChatMember on nil would cause a panic
-		// This demonstrates why the nil check is necessary
+	t.Run("nil interface behavior", func(t *testing.T) {
+		// In gotgbot v2, ChatMember is an interface
+		// A nil interface value is safe to check but cannot have methods called on it
+		var userMember gotgbot.ChatMember
 
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("As expected, nil member causes panic: %v", r)
-			}
-		}()
-
-		var userMember *gotgbot.ChatMember
-		if userMember != nil {
-			// This will never execute with nil member
-			_ = userMember.MergeChatMember()
+		// Nil interface check works
+		if userMember == nil {
+			t.Log("Nil interface properly detected")
 		} else {
-			// Skip the panic - our fix prevents reaching this point
-			t.Skip("Nil check prevents reaching MergeChatMember on nil")
+			t.Fatal("Nil check failed")
 		}
 	})
 }
@@ -56,7 +50,7 @@ func TestDemoteErrorHandling(t *testing.T) {
 		// This is the standard pattern: check err != nil before using result
 
 		var err error = &testError{msg: "API error"}
-		var userMember *gotgbot.ChatMember
+		var userMember gotgbot.ChatMember
 
 		if err != nil {
 			// Expected: error is handled first

@@ -144,5 +144,6 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.LoadGreetings(dispatcher)
 	modules.LoadCaptcha(dispatcher)
 	modules.LoadBlacklists(dispatcher)
+	modules.LoadReactions(dispatcher)
 	modules.LoadMkdCmd(dispatcher)
 }
