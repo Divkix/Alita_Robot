@@ -19,7 +19,7 @@ type TracingProcessor struct {
 // trace context into ctx.Data["context"] before delegating to the base processor.
 // If a context already exists in ctx.Data (e.g., from webhook handler), it is reused and
 // no new span is created here to avoid duplicating dispatcher.processUpdate spans.
-func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx *ext.Context) error {
+func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx *ext.Context) (err error) {
 	// If an existing context is present (e.g., webhook request), just delegate without
 	// creating a new root span so that we don't break trace parenting or duplicate spans.
 	if ctx != nil && ctx.Data != nil {
@@ -30,16 +30,18 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 
 	// No existing context: create a new root span and propagate its context.
 	traceCtx, span := StartSpan(context.Background(), "dispatcher.processUpdate")
-	defer span.End()
+	defer func() {
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+	}()
 
 	if ctx.Data == nil {
 		ctx.Data = make(map[string]any)
 	}
 	ctx.Data["context"] = traceCtx
 
-	err := tp.BaseProcessor.ProcessUpdate(d, b, ctx)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-	}
+	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 	return err
 }
