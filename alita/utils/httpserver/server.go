@@ -276,8 +276,13 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	go func(requestCtx context.Context) {
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
 
+		// Create a timeout context to prevent goroutine from hanging indefinitely
+		// Timeout of 30s allows for complex operations while preventing resource leaks
+		ctx, cancel := context.WithTimeout(requestCtx, 30*time.Second)
+		defer cancel()
+
 		// Start a new child span for the async processing using the request context
-		asyncCtx, asyncSpan := tracing.StartSpan(requestCtx, "dispatcher.processUpdate")
+		asyncCtx, asyncSpan := tracing.StartSpan(ctx, "dispatcher.processUpdate")
 		defer asyncSpan.End()
 
 		// Pass context in the data map for handlers to use
