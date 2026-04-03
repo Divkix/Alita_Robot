@@ -1,0 +1,26 @@
+{
+  "assertionId": "VAL-CRIT-003",
+  "assertionName": "Captcha integer overflow fix",
+  "status": "pass",
+  "testTool": "code_review",
+  "evidence": {
+    "codeLocation": "alita/modules/captcha.go:631, 749, 1333, 1571",
+    "testLocation": "alita/modules/captcha_test.go:TestParseInt64ForLargeUserIDs",
+    "testResult": "PASS",
+    "subTests": [
+      "normal_user_ID",
+      "large_user_ID_exceeding_32-bit_max",
+      "very_large_user_ID_near_64-bit_range",
+      "negative_user_ID_(channel)"
+    ]
+  },
+  "findings": {
+    "fixVerified": true,
+    "allAtoiReplaced": true,
+    "parseIntWith64Bit": true,
+    "testCoverageForOverflow": true
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["code_review", "go_test"]
+}

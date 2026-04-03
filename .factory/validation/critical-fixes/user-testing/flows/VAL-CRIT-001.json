@@ -1,0 +1,20 @@
+{
+  "assertionId": "VAL-CRIT-001",
+  "assertionName": "Admin demote nil pointer fix",
+  "status": "pass",
+  "testTool": "code_review",
+  "evidence": {
+    "codeLocation": "alita/modules/admin.go:233-238",
+    "testLocation": "alita/modules/admin_test.go:TestDemoteNilMemberHandling",
+    "testResult": "PASS"
+  },
+  "findings": {
+    "fixVerified": true,
+    "nilCheckAdded": true,
+    "panicPrevention": true,
+    "testCoverage": true
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["code_review", "go_test"]
+}
