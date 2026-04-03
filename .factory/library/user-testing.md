@@ -63,7 +63,40 @@ Bug fixes are lightweight:
 - CPU: Single core sufficient
 - Race detector adds ~2x time
 
-## Flow Validator Guidance: Go Test Surface
+## Flow Validator Guidance: Main-Fixes Code Review Surface
+
+For main-fixes validation, the testing approach is code review + static analysis.
+
+### Testing Approach
+1. **Code Review**: Read source files to verify initialization order, goroutine handling, and error checking
+2. **Static Analysis**: Run `make lint` and `go vet` on modified packages
+3. **Build Verification**: Run `go build ./...` to ensure no compilation errors
+
+### Assertion Groups
+
+**Group 1: Main Initialization (main.go)**
+- VAL-HIGH-002: Activity monitor starts AFTER database init
+- VAL-HIGH-004: i18n cache uses validated manager (or proper nil check)
+- VAL-MED-005: Health check uses default port fallback
+
+**Group 2: Webhook & HTTP Server (httpserver/)**
+- VAL-HIGH-003: Webhook goroutines have timeout context
+- VAL-LOW-002: Webhook secret handling consistent between main.go and httpserver
+- VAL-MED-006: HTTP server start properly handles errors after timeout
+
+**Group 3: Config (alita/config/)**
+- VAL-HIGH-012: Type conversion errors are logged, not silently ignored
+
+### Verification Pattern
+For each assertion:
+1. Read the source file(s) mentioned in validation-contract.md
+2. Locate the specific code pattern (e.g., activityMonitor.Start() call)
+3. Verify it matches the expected behavior
+4. Record: PASS if pattern found, FAIL if missing or wrong
+
+### Isolation
+Each validator reads from the codebase (read-only)
+No shared state between validators - safe to run concurrently
 
 For module-fixes validation, the "user surface" is the Go test suite and code verification.
 

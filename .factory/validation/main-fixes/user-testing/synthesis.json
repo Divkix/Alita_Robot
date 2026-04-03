@@ -1,0 +1,30 @@
+{
+  "milestone": "main-fixes",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-HIGH-002",
+    "VAL-HIGH-003",
+    "VAL-HIGH-004",
+    "VAL-HIGH-012",
+    "VAL-LOW-002",
+    "VAL-MED-005",
+    "VAL-MED-006"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance: Main-Fixes Code Review Surface section with testing approach for code review based validations",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}
