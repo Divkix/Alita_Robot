@@ -391,12 +391,13 @@ func (collector *BackgroundStatsCollector) Stop() {
 
 		collector.cancel()
 
-		// Wait for all workers to finish FIRST
-		collector.wg.Wait()
-
-		// Then safely close channels
+		// Close channels FIRST to unblock workers waiting on channel operations
+		// This prevents workers from writing to closed channels during shutdown
 		close(collector.systemStatsChan)
 		close(collector.databaseStatsChan)
+
+		// Then wait for all workers to finish
+		collector.wg.Wait()
 
 		// Log final statistics
 		collector.reportStats()
