@@ -348,7 +348,11 @@ func (s *Server) Start() error {
 	go func() {
 		defer error_handling.RecoverFromPanic("HTTPServer", "main")
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- err
+			// Non-blocking send to prevent goroutine leak if error occurs after timeout
+			select {
+			case errChan <- err:
+			default:
+			}
 			log.Errorf("[HTTPServer] Server failed: %v", err)
 		}
 	}()
