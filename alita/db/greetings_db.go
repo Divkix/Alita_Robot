@@ -168,6 +168,9 @@ func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []Button, w
 		log.Errorf("[Database][SetWelcomeText]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating welcome text
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -191,6 +194,9 @@ func SetWelcomeToggle(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetWelcomeToggle]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating welcome toggle
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -211,6 +217,9 @@ func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []Button, 
 		log.Errorf("[Database][SetGoodbyeText]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating goodbye text
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -234,6 +243,9 @@ func SetGoodbyeToggle(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetGoodbyeToggle]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating goodbye toggle
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -254,6 +266,9 @@ func SetShouldCleanService(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetShouldCleanService]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating clean service setting
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -274,6 +289,9 @@ func SetShouldAutoApprove(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetShouldAutoApprove]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating auto approve setting
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -297,6 +315,9 @@ func SetCleanWelcomeSetting(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetCleanWelcomeSetting]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating clean welcome setting
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -315,6 +336,9 @@ func SetCleanWelcomeMsgId(chatId, msgId int64) error {
 		log.Errorf("[Database][SetCleanWelcomeMsgId]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating welcome message ID
+	deleteCache(CacheKey("greetings", chatId))
 	return nil
 }
 
@@ -338,6 +362,9 @@ func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
 		log.Errorf("[Database][SetCleanGoodbyeSetting]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating clean goodbye setting
+	deleteCache(CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -356,6 +383,9 @@ func SetCleanGoodbyeMsgId(chatId, msgId int64) error {
 		log.Errorf("[Database][SetCleanGoodbyeMsgId]: %v", err)
 		return err
 	}
+
+	// Invalidate cache after updating goodbye message ID
+	deleteCache(CacheKey("greetings", chatId))
 	return nil
 }
 
