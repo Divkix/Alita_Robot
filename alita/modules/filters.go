@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -513,7 +514,11 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	switch response {
 	case "yes":
-		db.RemoveAllFilters(chat.Id)
+		// Fire-and-forget goroutine for DB operation with error handling and panic recovery
+		go func(chatId int64) {
+			defer error_handling.RecoverFromPanic("filtersButtonHandler", "filters")
+			db.RemoveAllFilters(chatId)
+		}(chat.Id)
 		helpText, _ = tr.GetString("filters_clear_all_success")
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
