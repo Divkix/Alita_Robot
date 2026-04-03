@@ -64,7 +64,8 @@ func AddUserNote(userID int64, noteName, content string) error {
 	var existingNote UserNote
 	err := DB.Where("user_id = ? AND note_name = ?", userID, noteName).First(&existingNote).Error
 
-	if err == nil {
+	switch err {
+	case nil:
 		// Note exists, update it
 		existingNote.Content = content
 		existingNote.UpdatedAt = time.Now()
@@ -72,7 +73,7 @@ func AddUserNote(userID int64, noteName, content string) error {
 			log.Errorf("[UserNotes] Failed to update note: %v", err)
 			return err
 		}
-	} else if err == gorm.ErrRecordNotFound {
+	case gorm.ErrRecordNotFound:
 		// Create new note
 		newNote := UserNote{
 			UserId:   userID,
@@ -83,7 +84,7 @@ func AddUserNote(userID int64, noteName, content string) error {
 			log.Errorf("[UserNotes] Failed to create note: %v", err)
 			return err
 		}
-	} else {
+	default:
 		log.Errorf("[UserNotes] Database error checking note existence: %v", err)
 		return err
 	}

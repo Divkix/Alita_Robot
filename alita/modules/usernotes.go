@@ -239,7 +239,7 @@ func (m moduleStruct) myNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Build the list
 	var sb strings.Builder
 	for _, name := range noteList {
-		sb.WriteString(fmt.Sprintf("• <code>%s</code>\n", name))
+		fmt.Fprintf(&sb, "• <code>%s</code>\n", name)
 	}
 
 	text, _ := tr.GetString("usernotes_list", i18n.TranslationParams{

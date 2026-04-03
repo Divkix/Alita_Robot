@@ -6,6 +6,15 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
+// testError is a simple error implementation for testing
+type testError struct {
+	msg string
+}
+
+func (e *testError) Error() string {
+	return e.msg
+}
+
 // TestDemoteNilMemberHandling tests that the demote function properly handles
 // a nil member returned from GetMember without panicking.
 // This is a regression test for the critical nil pointer dereference bug.
@@ -63,13 +72,4 @@ func TestDemoteErrorHandling(t *testing.T) {
 			t.Fatal("Should have returned on error, not reached nil check")
 		}
 	})
-}
-
-// testError is a simple error implementation for testing
-type testError struct {
-	msg string
-}
-
-func (e *testError) Error() string {
-	return e.msg
 }

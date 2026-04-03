@@ -218,13 +218,13 @@ func TestActionSeverityOrdering(t *testing.T) {
 	t.Run("severity ordering LogWarning < GC < MemoryCleanup < RestartRecommendation", func(t *testing.T) {
 		t.Parallel()
 
-		if !(logWarn.Severity() < gc.Severity()) {
+		if logWarn.Severity() >= gc.Severity() {
 			t.Fatalf("expected LogWarning(%d) < GC(%d)", logWarn.Severity(), gc.Severity())
 		}
-		if !(gc.Severity() < memClean.Severity()) {
+		if gc.Severity() >= memClean.Severity() {
 			t.Fatalf("expected GC(%d) < MemoryCleanup(%d)", gc.Severity(), memClean.Severity())
 		}
-		if !(memClean.Severity() < restart.Severity()) {
+		if memClean.Severity() >= restart.Severity() {
 			t.Fatalf("expected MemoryCleanup(%d) < RestartRecommendation(%d)", memClean.Severity(), restart.Severity())
 		}
 	})

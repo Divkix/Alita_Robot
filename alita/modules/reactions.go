@@ -273,7 +273,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Build list
 	var sb strings.Builder
 	for keyword, emoji := range reactionsMap {
-		sb.WriteString(fmt.Sprintf("• %s → %s\n", keyword, emoji))
+		fmt.Fprintf(&sb, "• %s → %s\n", keyword, emoji)
 	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
