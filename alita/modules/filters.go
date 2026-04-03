@@ -661,6 +661,11 @@ Replies with appropriate data to the filter.
 // filtersWatcher monitors incoming messages for filter keyword matches.
 // Automatically responds with filter content when keywords are detected in messages.
 func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
+	// Defensive nil check for EffectiveSender to prevent panics on channel messages
+	if ctx == nil || ctx.EffectiveSender == nil {
+		return ext.ContinueGroups
+	}
+
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	matchText := buildModerationMatchText(msg)
