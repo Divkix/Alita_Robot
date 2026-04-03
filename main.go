@@ -40,7 +40,12 @@ var Locales embed.FS
 func main() {
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
-		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", config.AppConfig.HTTPPort))
+		// Use default port if config is not properly initialized or port is 0
+		healthPort := config.AppConfig.HTTPPort
+		if healthPort == 0 {
+			healthPort = 8080
+		}
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", healthPort))
 		if err != nil {
 			os.Exit(1)
 		}
