@@ -35,23 +35,24 @@ func GetChatReportSettings(chatID int64) (reportsrc *ReportChatSettings) {
 
 // SetChatReportStatus updates the report feature status for the specified chat.
 // When disabled, users cannot report messages in this chat.
-func SetChatReportStatus(chatID int64, pref bool) {
+func SetChatReportStatus(chatID int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&ReportChatSettings{}, ReportChatSettings{ChatId: chatID}, map[string]any{"enabled": pref})
 	if err != nil {
-		log.Error(err)
+		log.Errorf("[Database] SetChatReportStatus: %v", err)
 	}
+	return err
 }
 
 // BlockReportUser adds a user to the chat's report block list.
 // Blocked users cannot send reports in the specified chat.
 // Does nothing if the user is already blocked.
-func BlockReportUser(chatId, userId int64) {
+func BlockReportUser(chatId, userId int64) error {
 	settings := GetChatReportSettings(chatId)
 
 	// Check if user is already blocked
 	for _, blockedId := range settings.BlockedList {
 		if blockedId == userId {
-			return // User already blocked
+			return nil // User already blocked
 		}
 	}
 
@@ -61,11 +62,12 @@ func BlockReportUser(chatId, userId int64) {
 	if err != nil {
 		log.Errorf("[Database] BlockReportUser: %v", err)
 	}
+	return err
 }
 
 // UnblockReportUser removes a user from the chat's report block list.
 // Allows the previously blocked user to send reports again.
-func UnblockReportUser(chatId, userId int64) {
+func UnblockReportUser(chatId, userId int64) error {
 	settings := GetChatReportSettings(chatId)
 
 	// Remove user from blocked list
@@ -80,6 +82,7 @@ func UnblockReportUser(chatId, userId int64) {
 	if err != nil {
 		log.Errorf("[Database] UnblockReportUser: %v", err)
 	}
+	return err
 }
 
 // GetUserReportSettings retrieves or creates default report settings for the specified user.
@@ -105,11 +108,12 @@ func GetUserReportSettings(userId int64) (reportsrc *ReportUserSettings) {
 
 // SetUserReportSettings updates the global report preference for the specified user.
 // When disabled, the user won't receive any report notifications.
-func SetUserReportSettings(userID int64, pref bool) {
+func SetUserReportSettings(userID int64, pref bool) error {
 	err := UpdateRecordWithZeroValues(&ReportUserSettings{}, ReportUserSettings{UserId: userID}, map[string]any{"enabled": pref})
 	if err != nil {
-		log.Error(userID)
+		log.Errorf("[Database] SetUserReportSettings: %v", err)
 	}
+	return err
 }
 
 // LoadReportStats returns statistics about report features across the system.

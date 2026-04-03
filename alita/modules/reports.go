@@ -289,20 +289,36 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		case "on", "yes", "true":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
-				db.SetUserReportSettings(user.Id, true)
-				replyText, _ = tr.GetString("reports_turned_on_personal")
+				err := db.SetUserReportSettings(user.Id, true)
+				if err != nil {
+					replyText, _ = tr.GetString("common_settings_save_failed")
+				} else {
+					replyText, _ = tr.GetString("reports_turned_on_personal")
+				}
 			} else {
-				db.SetChatReportStatus(chat.Id, true)
-				replyText, _ = tr.GetString("reports_turned_on_group")
+				err := db.SetChatReportStatus(chat.Id, true)
+				if err != nil {
+					replyText, _ = tr.GetString("common_settings_save_failed")
+				} else {
+					replyText, _ = tr.GetString("reports_turned_on_group")
+				}
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if msg.Chat.Type == "private" {
-				db.SetUserReportSettings(user.Id, false)
-				replyText, _ = tr.GetString("reports_turned_off_personal")
+				err := db.SetUserReportSettings(user.Id, false)
+				if err != nil {
+					replyText, _ = tr.GetString("common_settings_save_failed")
+				} else {
+					replyText, _ = tr.GetString("reports_turned_off_personal")
+				}
 			} else {
-				db.SetChatReportStatus(chat.Id, false)
-				replyText, _ = tr.GetString("reports_turned_off_group")
+				err := db.SetChatReportStatus(chat.Id, false)
+				if err != nil {
+					replyText, _ = tr.GetString("common_settings_save_failed")
+				} else {
+					replyText, _ = tr.GetString("reports_turned_off_group")
+				}
 			}
 		case "block":
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -315,10 +331,14 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
 						bUser := reply.From
-						db.BlockReportUser(chat.Id, bUser.Id)
-						replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
-							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
-						})
+						err := db.BlockReportUser(chat.Id, bUser.Id)
+						if err != nil {
+							replyText, _ = tr.GetString("common_settings_save_failed")
+						} else {
+							replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
+								"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+							})
+						}
 					}
 				} else {
 					replyText, _ = tr.GetString("reports_reply_to_block")
@@ -335,10 +355,14 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
 						bUser := reply.From
-						db.UnblockReportUser(chat.Id, bUser.Id)
-						replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
-							"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
-						})
+						err := db.UnblockReportUser(chat.Id, bUser.Id)
+						if err != nil {
+							replyText, _ = tr.GetString("common_settings_save_failed")
+						} else {
+							replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
+								"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+							})
+						}
 					}
 				} else {
 					replyText, _ = tr.GetString("reports_reply_to_unblock")
