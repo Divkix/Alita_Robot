@@ -15,6 +15,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
+
 	"github.com/divkix/Alita_Robot/alita"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -42,7 +44,7 @@ func main() {
 		// Use default port if config is not properly initialized or port is 0
 		healthPort := config.AppConfig.HTTPPort
 		if healthPort == 0 {
-			healthPort = 8080
+			healthPort = constants.DefaultHTTPPort
 		}
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", healthPort))
 		if err != nil {
@@ -98,16 +100,16 @@ func main() {
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
 
 	httpTransport := &http.Transport{
-		MaxIdleConns:          maxIdleConns,             // Configurable maximum idle connections across all hosts
-		MaxIdleConnsPerHost:   maxIdleConnsPerHost,      // Configurable connections per host (api.telegram.org)
-		MaxConnsPerHost:       maxIdleConnsPerHost + 20, // Allow some extra connections for burst traffic
-		IdleConnTimeout:       120 * time.Second,        // Keep connections alive longer for better reuse
-		DisableCompression:    false,                    // Enable compression for smaller payloads
-		ForceAttemptHTTP2:     true,                     // Enable HTTP/2 for multiplexing
-		DisableKeepAlives:     false,                    // Explicitly enable keep-alive for connection reuse
-		TLSHandshakeTimeout:   10 * time.Second,         // Timeout for TLS handshake
-		ResponseHeaderTimeout: 10 * time.Second,         // Timeout waiting for response headers
-		ExpectContinueTimeout: 1 * time.Second,          // Timeout for Expect: 100-continue
+		MaxIdleConns:          maxIdleConns,                                            // Configurable maximum idle connections across all hosts
+		MaxIdleConnsPerHost:   maxIdleConnsPerHost,                                     // Configurable connections per host (api.telegram.org)
+		MaxConnsPerHost:       maxIdleConnsPerHost + constants.MaxIdleConnsExtraBuffer, // Allow some extra connections for burst traffic
+		IdleConnTimeout:       constants.VeryLongTimeout,                               // Keep connections alive longer for better reuse
+		DisableCompression:    false,                                                   // Enable compression for smaller payloads
+		ForceAttemptHTTP2:     true,                                                    // Enable HTTP/2 for multiplexing
+		DisableKeepAlives:     false,                                                   // Explicitly enable keep-alive for connection reuse
+		TLSHandshakeTimeout:   constants.DefaultTimeout,                                // Timeout for TLS handshake
+		ResponseHeaderTimeout: constants.DefaultTimeout,                                // Timeout waiting for response headers
+		ExpectContinueTimeout: constants.ShortTimeout,                                  // Timeout for Expect: 100-continue
 	}
 
 	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
@@ -130,11 +132,11 @@ func main() {
 		BotClient: &gotgbot.BaseBotClient{
 			Client: http.Client{
 				Transport: transport, // Use the shared (possibly rewritten) transport
-				Timeout:   30 * time.Second,
+				Timeout:   constants.LongTimeout,
 			},
 			UseTestEnvironment: false,
 			DefaultRequestOpts: &gotgbot.RequestOpts{
-				Timeout: time.Duration(30) * time.Second,
+				Timeout: time.Duration(constants.LongTimeout),
 			},
 		},
 	})
@@ -159,7 +161,7 @@ func main() {
 		log.Info("[Main] Pre-warming connections to Telegram API...")
 
 		// Make multiple requests to establish connection pool
-		for i := 0; i < 3; i++ {
+		for i := 0; i < constants.PreWarmConnectionAttempts; i++ {
 			startTime := time.Now()
 			_, err := b.GetMe(nil)
 			if err != nil {
@@ -168,11 +170,11 @@ func main() {
 				elapsed := time.Since(startTime)
 				log.Infof("[Main] Pre-warm request %d completed in %v", i+1, elapsed)
 				// First request establishes connection, subsequent ones should be faster
-				if i > 0 && elapsed < 100*time.Millisecond {
+				if i > 0 && elapsed < constants.ConnectionFastThreshold {
 					log.Info("[Main] Connection pooling confirmed working - reused existing connection")
 				}
 			}
-			time.Sleep(100 * time.Millisecond) // Small delay between requests
+			time.Sleep(constants.ShortDelay) // Small delay between requests
 		}
 
 		log.Info("[Main] Connection pre-warming completed")
