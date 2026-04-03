@@ -14,8 +14,6 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 // ResourceMonitor monitors system resources including memory usage and goroutine count.
@@ -61,8 +59,8 @@ func ListModules() string {
 
 // InitialChecks performs essential initialization tasks before starting the bot.
 // It ensures the bot exists in the database, validates command aliases for duplicates,
-// initializes the cache system, and starts resource monitoring.
-// Returns an error if cache initialization fails.
+// and starts resource monitoring.
+// Note: Cache is initialized in main.go before this function is called.
 func InitialChecks(b *gotgbot.Bot) error {
 	// Ensure bot exists in database (blocking - required for FK constraints)
 	// This must complete before LoadModules to prevent race conditions with
@@ -73,11 +71,6 @@ func InitialChecks(b *gotgbot.Bot) error {
 	}
 
 	checkDuplicateAliases()
-
-	// Initialize cache with proper error handling
-	if err := cache.InitCache(); err != nil {
-		return fmt.Errorf("failed to initialize cache: %w", err)
-	}
 
 	// Start resource monitoring
 	go ResourceMonitor()

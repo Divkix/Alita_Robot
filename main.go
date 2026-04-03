@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/async"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -65,7 +66,13 @@ func main() {
 		log.Info("Running in RELEASE Mode...")
 	}
 
-	// Initialize Locale Manager
+	// Initialize cache FIRST (before i18n, which depends on it)
+	if err := cache.InitCache(); err != nil {
+		log.Fatalf("Failed to initialize cache: %v", err)
+	}
+	log.Info("Cache system initialized successfully")
+
+	// Initialize Locale Manager (requires cache to be initialized first)
 	localeManager := i18n.GetManager()
 	if err := localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig()); err != nil {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
