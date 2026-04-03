@@ -302,7 +302,7 @@ func main() {
 			log.Fatal("[Webhook] WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
 		}
 		if config.AppConfig.WebhookSecret == "" {
-			log.Warn("[Webhook] WEBHOOK_SECRET is not set, webhook validation will be skipped")
+			log.Fatal("[Webhook] WEBHOOK_SECRET is required when USE_WEBHOOKS is enabled for security")
 		}
 
 		// Register webhook endpoint on the unified HTTP server
