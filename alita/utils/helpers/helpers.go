@@ -481,30 +481,45 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 		firstName     string
 		fullName      string
 		username      string
+		userId        int64
 		rulesBtnRegex = `(?s){rules(:(same|up))?}`
 	)
 
-	firstName = user.FirstName
-	if len(user.FirstName) <= 0 {
+	// Handle nil user (anonymous/channel messages) with default values
+	if user == nil {
 		tr := i18n.MustNewTranslator(language)
 		personNoName, _ := tr.GetString("helpers_person_no_name")
 		if personNoName == "" {
 			personNoName = "PersonWithNoName" // fallback
 		}
 		firstName = personNoName
-	}
-
-	if user.LastName != "" {
-		fullName = firstName + " " + user.LastName
+		fullName = personNoName
+		username = personNoName
+		userId = 0
 	} else {
-		fullName = firstName
-	}
-	mention := MentionHtml(user.Id, firstName)
+		firstName = user.FirstName
+		if len(user.FirstName) <= 0 {
+			tr := i18n.MustNewTranslator(language)
+			personNoName, _ := tr.GetString("helpers_person_no_name")
+			if personNoName == "" {
+				personNoName = "PersonWithNoName" // fallback
+			}
+			firstName = personNoName
+		}
 
-	if user.Username != "" {
-		username = "@" + html.EscapeString(user.Username)
-	} else {
-		username = mention
+		if user.LastName != "" {
+			fullName = firstName + " " + user.LastName
+		} else {
+			fullName = firstName
+		}
+		mention := MentionHtml(user.Id, firstName)
+
+		if user.Username != "" {
+			username = "@" + html.EscapeString(user.Username)
+		} else {
+			username = mention
+		}
+		userId = user.Id
 	}
 
 	// Only fetch member count if {count} placeholder is present
@@ -517,13 +532,13 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 
 	r := strings.NewReplacer(
 		"{first}", html.EscapeString(firstName),
-		"{last}", html.EscapeString(user.LastName),
+		"{last}", html.EscapeString(""),
 		"{fullname}", html.EscapeString(fullName),
 		"{username}", username,
-		"{mention}", mention,
+		"{mention}", username,
 		"{count}", countStr,
 		"{chatname}", html.EscapeString(chat.Title),
-		"{id}", strconv.Itoa(int(user.Id)),
+		"{id}", strconv.Itoa(int(userId)),
 	)
 	res = r.Replace(oldMsg)
 	btns = buttons // copies the buttons over to format rules btn
