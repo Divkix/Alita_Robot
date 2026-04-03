@@ -26,6 +26,10 @@ var reportsModule = moduleStruct{
 	handlerGroup: 8,
 }
 
+// adminMentionRegex matches @admin and @admins mentions in messages.
+// Pre-compiled once at init time to avoid per-message compilation overhead.
+var adminMentionRegex = regexp.MustCompile("(?i)@admin(s)?")
+
 // report handles the /report command and @admin mentions to notify
 // administrators about problematic messages with action buttons.
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -439,7 +443,9 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	var replyQuery, replyText string
 
 	// permissions check
+	// Note: RequireUserAdmin with justCheck=false answers the callback when permission is denied
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+		// Callback already answered by RequireUserAdmin with error message
 		return ext.EndGroups
 	}
 
@@ -556,8 +562,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {
-				r, _ := regexp.Compile("(?i)@admin(s)?")
-				return r.MatchString(msg.Text)
+				return adminMentionRegex.MatchString(msg.Text)
 			},
 			reportsModule.report,
 		),
