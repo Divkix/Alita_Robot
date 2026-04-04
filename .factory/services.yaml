@@ -1,9 +1,0 @@
-commands:
-  install: go mod tidy
-  build: go build ./...
-  test: go test -race ./...
-  lint: golangci-lint run --timeout=5m
-  tidy: go mod tidy
-  vendor: go mod vendor
-
-services: {}
