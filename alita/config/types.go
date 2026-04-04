@@ -3,6 +3,8 @@ package config
 import (
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // typeConvertor is a struct that will convert a string to a specific type
@@ -22,16 +24,24 @@ func (t typeConvertor) StringArray() []string {
 }
 
 // Int converts the string value to an integer. If the conversion fails,
-// it returns 0. This method ignores conversion errors for simplicity.
+// it logs a warning and returns 0.
 func (t typeConvertor) Int() int {
-	val, _ := strconv.Atoi(t.str)
+	val, err := strconv.Atoi(t.str)
+	if err != nil {
+		log.WithError(err).WithField("value", t.str).Warn("Failed to convert config value to int")
+		return 0
+	}
 	return val
 }
 
 // Int64 converts the string value to a 64-bit integer. If the conversion fails,
-// it returns 0. This method ignores conversion errors for simplicity.
+// it logs a warning and returns 0.
 func (t typeConvertor) Int64() int64 {
-	val, _ := strconv.ParseInt(t.str, 10, 64)
+	val, err := strconv.ParseInt(t.str, 10, 64)
+	if err != nil {
+		log.WithError(err).WithField("value", t.str).Warn("Failed to convert config value to int64")
+		return 0
+	}
 	return val
 }
 

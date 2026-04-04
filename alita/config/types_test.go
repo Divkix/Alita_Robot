@@ -53,8 +53,7 @@ func TestTypeConvertorInt(t *testing.T) {
 		{name: "zero", input: "0", want: 0},
 		{name: "empty", input: "", want: 0},
 		{name: "not a number", input: "not_a_number", want: 0},
-		// strconv.Atoi clamps to math.MaxInt64 on overflow (error is ignored by implementation)
-		{name: "overflow clamps to MaxInt64", input: "9999999999999999999", want: math.MaxInt64},
+		{name: "overflow returns 0", input: "9999999999999999999", want: 0},
 	}
 
 	for _, tc := range tests {

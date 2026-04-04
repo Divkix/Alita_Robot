@@ -787,27 +787,6 @@ func UpdateRecord(model any, where any, updates any) error {
 	return UpdateRecordWithContext(context.Background(), model, where, updates)
 }
 
-// UpdateRecordWithContext updates a database record with context support for trace propagation.
-// The provided context is used for both span parenting and GORM query-level context.
-func UpdateRecordWithContext(ctx context.Context, model any, where any, updates any) error {
-	ctx, span := tracing.StartSpan(ctx, "db.update",
-		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
-	defer span.End()
-
-	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
-	if result.Error != nil {
-		log.Errorf("[Database][UpdateRecord]: %v", result.Error)
-		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		span.SetStatus(codes.Error, "record not found")
-		return gorm.ErrRecordNotFound
-	}
-	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
-	return nil
-}
-
 // UpdateRecordWithZeroValues updates a database record including zero values (false, 0, "").
 // Updates must be a map[string]any to ensure zero values are persisted correctly.
 // Maps bypass GORM's zero-value skip logic, unlike structs.
@@ -816,16 +795,28 @@ func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) er
 	return UpdateRecordWithZeroValuesWithContext(context.Background(), model, where, updates)
 }
 
+// UpdateRecordWithContext updates a database record with context support for trace propagation.
+// The provided context is used for both span parenting and GORM query-level context.
+func UpdateRecordWithContext(ctx context.Context, model any, where any, updates any) error {
+	return updateRecordInternal(ctx, model, where, updates, "UpdateRecord")
+}
+
 // UpdateRecordWithZeroValuesWithContext updates a database record including zero values with context support.
 // The provided context is used for both span parenting and GORM query-level context.
 func UpdateRecordWithZeroValuesWithContext(ctx context.Context, model any, where any, updates map[string]any) error {
+	return updateRecordInternal(ctx, model, where, updates, "UpdateRecordWithZeroValues")
+}
+
+// updateRecordInternal is the shared implementation for record updates.
+// The logPrefix is used to differentiate between the different update functions in logs.
+func updateRecordInternal(ctx context.Context, model any, where any, updates any, logPrefix string) error {
 	ctx, span := tracing.StartSpan(ctx, "db.update",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
 
 	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)
 	if result.Error != nil {
-		log.Errorf("[Database][UpdateRecordWithZeroValues]: %v", result.Error)
+		log.Errorf("[Database][%s]: %v", logPrefix, result.Error)
 		span.SetStatus(codes.Error, result.Error.Error())
 		return result.Error
 	}

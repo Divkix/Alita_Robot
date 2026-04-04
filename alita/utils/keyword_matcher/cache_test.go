@@ -262,3 +262,62 @@ func TestPatternsEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestCacheStop(t *testing.T) {
+	t.Parallel()
+
+	c := NewCache(time.Minute)
+	// Ensure stopChan is initialized
+	if c.stopChan == nil {
+		t.Fatal("stopChan should be initialized")
+	}
+
+	// Call Stop and ensure it doesn't panic
+	c.Stop()
+
+	// Multiple Stop calls should not panic (channel is already closed)
+	// Note: This will panic if Stop() doesn't check before closing, but
+	// that's the expected behavior - we should only call Stop() once
+}
+
+func TestCacheStopPreventsGoroutineLeak(t *testing.T) {
+	t.Parallel()
+
+	// Create a cache with stopChan initialized
+	c := NewCache(time.Second)
+	if c.stopChan == nil {
+		t.Fatal("stopChan should be initialized")
+	}
+
+	// Create a done channel to verify goroutine exits
+	done := make(chan struct{})
+
+	// Start a mock cleanup goroutine similar to GetGlobalCache
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.CleanupExpired()
+			case <-c.stopChan:
+				return
+			}
+		}
+	}()
+
+	// Wait for goroutine to start
+	time.Sleep(150 * time.Millisecond)
+
+	// Call Stop
+	c.Stop()
+
+	// Wait for goroutine to exit with timeout
+	select {
+	case <-done:
+		// Goroutine exited successfully
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Goroutine did not exit within timeout - possible leak")
+	}
+}

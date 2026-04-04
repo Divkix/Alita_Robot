@@ -111,6 +111,8 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 
 // displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
 // It consolidates common logic between welcome() and goodbye() commands.
+//
+//nolint:dupl // displayGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -263,12 +265,16 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 
 // welcome manages welcome message settings and displays current welcome configuration.
 // Admins can toggle welcome messages on/off or view current settings with 'noformat' option.
+//
+//nolint:dupl // welcome delegates to displayGreeting with different config
 func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.displayGreeting(bot, ctx, welcomeConfig)
 }
 
 // setWelcome allows admins to set a custom welcome message for new chat members.
 // Supports text, media, and inline buttons with formatting and placeholder variables.
+//
+//nolint:dupl // setWelcome is similar to setGoodbye but uses different DB calls and translation keys
 func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -317,6 +323,8 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // resetGreeting is a shared helper for resetting welcome or goodbye messages to defaults.
 // It consolidates the common logic between resetWelcome and resetGoodbye.
+//
+//nolint:dupl // resetGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome bool) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -374,12 +382,16 @@ func (m moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // goodbye manages goodbye message settings and displays current goodbye configuration.
 // Admins can toggle goodbye messages on/off or view current settings with 'noformat' option.
+//
+//nolint:dupl // goodbye delegates to displayGreeting with different config
 func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.displayGreeting(bot, ctx, goodbyeConfig)
 }
 
 // setGoodbye allows admins to set a custom goodbye message for members leaving the chat.
 // Supports text, media, and inline buttons with formatting and placeholder variables.
+//
+//nolint:dupl // setGoodbye is similar to setWelcome but uses different DB calls and translation keys
 func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -432,6 +444,8 @@ func (m moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // cleanWelcome toggles automatic deletion of old welcome messages.
 // Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
+//
+//nolint:dupl // cleanWelcome has symmetric logic with cleanGoodbye but different settings
 func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -521,6 +535,8 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // cleanGoodbye toggles automatic deletion of old goodbye messages.
 // Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
+//
+//nolint:dupl // cleanGoodbye has symmetric logic with cleanWelcome but different settings
 func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
@@ -610,6 +626,8 @@ func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // delJoined toggles automatic deletion of service messages when users join the chat.
 // Admins can enable/disable cleanup of 'user joined' messages or check current setting.
+//
+//nolint:dupl // delJoined has symmetric logic with autoApprove
 func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
@@ -1136,6 +1154,8 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // autoApprove toggles automatic approval of chat join requests.
 // Admins can enable/disable auto-approval or check current setting for new join requests.
+//
+//nolint:dupl // autoApprove has symmetric logic with delJoined
 func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]

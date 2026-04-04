@@ -481,30 +481,45 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 		firstName     string
 		fullName      string
 		username      string
+		userId        int64
 		rulesBtnRegex = `(?s){rules(:(same|up))?}`
 	)
 
-	firstName = user.FirstName
-	if len(user.FirstName) <= 0 {
+	// Handle nil user (anonymous/channel messages) with default values
+	if user == nil {
 		tr := i18n.MustNewTranslator(language)
 		personNoName, _ := tr.GetString("helpers_person_no_name")
 		if personNoName == "" {
 			personNoName = "PersonWithNoName" // fallback
 		}
 		firstName = personNoName
-	}
-
-	if user.LastName != "" {
-		fullName = firstName + " " + user.LastName
+		fullName = personNoName
+		username = personNoName
+		userId = 0
 	} else {
-		fullName = firstName
-	}
-	mention := MentionHtml(user.Id, firstName)
+		firstName = user.FirstName
+		if len(user.FirstName) <= 0 {
+			tr := i18n.MustNewTranslator(language)
+			personNoName, _ := tr.GetString("helpers_person_no_name")
+			if personNoName == "" {
+				personNoName = "PersonWithNoName" // fallback
+			}
+			firstName = personNoName
+		}
 
-	if user.Username != "" {
-		username = "@" + html.EscapeString(user.Username)
-	} else {
-		username = mention
+		if user.LastName != "" {
+			fullName = firstName + " " + user.LastName
+		} else {
+			fullName = firstName
+		}
+		mention := MentionHtml(user.Id, firstName)
+
+		if user.Username != "" {
+			username = "@" + html.EscapeString(user.Username)
+		} else {
+			username = mention
+		}
+		userId = user.Id
 	}
 
 	// Only fetch member count if {count} placeholder is present
@@ -517,13 +532,13 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 
 	r := strings.NewReplacer(
 		"{first}", html.EscapeString(firstName),
-		"{last}", html.EscapeString(user.LastName),
+		"{last}", html.EscapeString(""),
 		"{fullname}", html.EscapeString(fullName),
 		"{username}", username,
-		"{mention}", mention,
+		"{mention}", username,
 		"{count}", countStr,
 		"{chatname}", html.EscapeString(chat.Title),
-		"{id}", strconv.Itoa(int(user.Id)),
+		"{id}", strconv.Itoa(int(userId)),
 	)
 	res = r.Replace(oldMsg)
 	btns = buttons // copies the buttons over to format rules btn
@@ -649,9 +664,20 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 // GetNoteAndFilterType extracts and processes note or filter content from a Telegram message.
 // Handles text, media files, and reply messages with button parsing and content validation.
 // Returns parsed content with metadata like data type, buttons, and special options.
+//
+//nolint:dupl // GetNoteAndFilterType shares media detection logic with GetWelcomeType
 func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) (keyWord, fileid, text string, dataType int, buttons []db.Button, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool, errorMsg string) {
 	dataType = -1 // not defined datatype; invalid note
 	tr := i18n.MustNewTranslator(language)
+
+	// Check for nil message to prevent panic
+	if msg == nil {
+		errorMsg, _ = tr.GetString("helpers_invalid_message")
+		if errorMsg == "" {
+			errorMsg = "Invalid message: message is nil" // fallback
+		}
+		return
+	}
 
 	if isFilter {
 		errorMsg, _ = tr.GetString("helpers_need_filter_content")
@@ -738,6 +764,8 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 // GetWelcomeType extracts and processes welcome/greeting content from a Telegram message.
 // Similar to GetNoteAndFilterType but specifically for greeting messages.
 // Returns processed content with data type, file ID, and buttons for the greeting.
+//
+//nolint:dupl // GetWelcomeType shares media detection logic with GetNoteAndFilterType
 func GetWelcomeType(msg *gotgbot.Message, greetingType string, language string) (text string, dataType int, fileid string, buttons []db.Button, errorMsg string) {
 	dataType = -1
 	tr := i18n.MustNewTranslator(language)

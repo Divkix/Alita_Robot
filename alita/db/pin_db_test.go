@@ -32,6 +32,7 @@ func TestGetPinData_Defaults(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -64,6 +65,7 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)

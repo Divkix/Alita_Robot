@@ -1,5 +1,7 @@
 // Package media provides a unified interface for sending different types of Telegram media.
 // It consolidates the duplicate logic from NotesEnumFuncMap, GreetingsEnumFuncMap, and FiltersEnumFuncMap.
+//
+//nolint:dupl // Media sender functions follow same pattern by design
 package media
 
 import (

@@ -32,10 +32,10 @@ func EnsureBotInDb(b *gotgbot.Bot) error {
 	}
 
 	usersUpdate := &User{UserId: botID, UserName: botUsername, Name: botFirstName}
-	err := DB.Where("user_id = ?", botID).Assign(usersUpdate).FirstOrCreate(&User{})
-	if err.Error != nil {
-		log.Errorf("[Database] EnsureBotInDb: %v", err.Error)
-		return fmt.Errorf("failed to ensure bot %d in database: %w", botID, err.Error)
+	result := DB.Where("user_id = ?", botID).Assign(usersUpdate).FirstOrCreate(&User{})
+	if result.Error != nil {
+		log.Errorf("[Database] EnsureBotInDb: %v", result.Error)
+		return fmt.Errorf("failed to ensure bot %d in database: %w", botID, result.Error)
 	}
 	log.Infof("[Database] Bot Updated in Database! (id=%d username=%s)", botID, botUsername)
 	return nil
@@ -50,10 +50,10 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 		UserName: username,
 		Name:     firstName,
 	}
-	err := DB.Where("user_id = ?", userId).Assign(userUpdate).FirstOrCreate(&User{})
-	if err.Error != nil {
-		log.Errorf("[Database] EnsureUserInDb: %v", err.Error)
-		return fmt.Errorf("failed to ensure user %d in database: %w", userId, err.Error)
+	result := DB.Where("user_id = ?", userId).Assign(userUpdate).FirstOrCreate(&User{})
+	if result.Error != nil {
+		log.Errorf("[Database] EnsureUserInDb: %v", result.Error)
+		return fmt.Errorf("failed to ensure user %d in database: %w", userId, result.Error)
 	}
 	return nil
 }
@@ -156,9 +156,9 @@ func GetUserInfoById(userId int64) (username, name string, found bool) {
 // LoadUsersStats returns the total count of users in the database.
 // Used for generating system statistics and monitoring.
 func LoadUsersStats() (count int64) {
-	err := DB.Model(&User{}).Count(&count)
-	if err.Error != nil {
-		log.Errorf("[Database] loadStats: %v", err.Error)
+	result := DB.Model(&User{}).Count(&count)
+	if result.Error != nil {
+		log.Errorf("[Database] loadStats: %v", result.Error)
 		return
 	}
 	return

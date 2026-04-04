@@ -197,6 +197,8 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // lockPerm handles the /lock command to enable specific lock types
 // in the chat, requiring admin permissions.
+//
+//nolint:dupl // lockPerm has symmetric logic with unlockPerm
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -284,6 +286,8 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // unlockPerm handles the /unlock command to disable specific lock types
 // in the chat, requiring admin permissions.
+//
+//nolint:dupl // unlockPerm has symmetric logic with lockPerm
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status

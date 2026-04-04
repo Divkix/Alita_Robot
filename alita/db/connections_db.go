@@ -89,12 +89,13 @@ func DisconnectId(UserID int64) {
 // ReconnectId reconnects a user to their previously connected chat.
 // Returns the chat ID the user was reconnected to, or 0 if an error occurs.
 func ReconnectId(UserID int64) int64 {
-	connectionUpdate := Connection(UserID)
 	err := UpdateRecord(&ConnectionSettings{}, ConnectionSettings{UserId: UserID}, ConnectionSettings{Connected: true})
 	if err != nil {
 		log.Errorf("[Database] ReconnectId: %v - %d", err, UserID)
 		return 0
 	}
+	// Reload after update to get fresh data (not stale)
+	connectionUpdate := Connection(UserID)
 	return connectionUpdate.ChatId
 }
 

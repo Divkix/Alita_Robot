@@ -41,6 +41,7 @@ func TestGetGreetingSettings_Defaults(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -155,6 +156,7 @@ func TestSetGoodbyeText(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -188,6 +190,7 @@ func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetShouldCleanService(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -221,6 +224,7 @@ func TestSetShouldCleanService(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetShouldAutoApprove(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -254,6 +258,7 @@ func TestSetShouldAutoApprove(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanWelcomeSetting(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -351,6 +356,7 @@ func TestSetCleanMsgId(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanGoodbyeSetting(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -383,6 +389,7 @@ func TestSetCleanGoodbyeSetting(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestGetWelcomeButtons_Empty(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -405,6 +412,7 @@ func TestGetWelcomeButtons_Empty(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestGetGoodbyeButtons_Empty(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)

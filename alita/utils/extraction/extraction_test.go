@@ -307,6 +307,7 @@ func TestIdFromReply_NilReply(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestExtractQuotes_UnicodeContent(t *testing.T) {
 	t.Parallel()
 

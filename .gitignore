@@ -33,3 +33,6 @@ alita_test
 .gocache/
 specs/.current-spec
 **/.progress.md
+
+# Factory/testing artifacts
+.factory/

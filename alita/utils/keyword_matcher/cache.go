@@ -1,6 +1,7 @@
 package keyword_matcher
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -15,6 +16,8 @@ type Cache struct {
 	mu       sync.RWMutex
 	ttl      time.Duration
 	lastUsed map[int64]time.Time
+	stopChan chan struct{}
+	cancel   context.CancelFunc
 }
 
 // NewCache creates a new keyword matcher cache
@@ -23,6 +26,7 @@ func NewCache(ttl time.Duration) *Cache {
 		matchers: make(map[int64]*KeywordMatcher),
 		lastUsed: make(map[int64]time.Time),
 		ttl:      ttl,
+		stopChan: make(chan struct{}),
 	}
 }
 
@@ -79,6 +83,22 @@ func (c *Cache) CleanupExpired() {
 	}
 }
 
+// Stop stops the cleanup goroutine for this cache
+// This should be called during shutdown or in tests to prevent goroutine leaks
+func (c *Cache) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cancel != nil {
+		c.cancel()
+	}
+
+	// Also signal via stopChan for backward compatibility
+	if c.stopChan != nil {
+		close(c.stopChan)
+	}
+}
+
 // patternsEqual checks if two pattern slices are equal
 func patternsEqual(a, b []string) bool {
 	if len(a) != len(b) {
@@ -110,13 +130,25 @@ var (
 func GetGlobalCache() *Cache {
 	once.Do(func() {
 		globalCache = NewCache(30 * time.Minute) // 30 minute TTL
+		// Create cancellable context for cleanup routine
+		ctx, cancel := context.WithCancel(context.Background())
+		globalCache.cancel = cancel
 		// Start cleanup routine
 		go func() {
 			defer error_handling.RecoverFromPanic("GetGlobalCache.cleanupRoutine", "keyword_matcher")
 			ticker := time.NewTicker(10 * time.Minute)
 			defer ticker.Stop()
-			for range ticker.C {
-				globalCache.CleanupExpired()
+			for {
+				select {
+				case <-ticker.C:
+					globalCache.CleanupExpired()
+				case <-ctx.Done():
+					log.Debug("Keyword matcher cache cleanup routine stopped")
+					return
+				case <-globalCache.stopChan:
+					log.Debug("Keyword matcher cache cleanup routine stopped via stopChan")
+					return
+				}
 			}
 		}()
 	})

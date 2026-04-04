@@ -24,6 +24,8 @@ var rulesModule = moduleStruct{
 
 // clearRules handles commands to completely remove all rules
 // from the chat, requiring admin permissions.
+//
+//nolint:dupl // clearRules has similar structure to resetRulesBtn
 func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
@@ -267,6 +269,8 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // resetRulesBtn handles commands to reset the custom rules button
 // text back to the default value.
+//
+//nolint:dupl // resetRulesBtn has similar structure to clearRules
 func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status

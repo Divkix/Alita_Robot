@@ -296,6 +296,8 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // sWarnUser handles the /swarn command to silently warn users
 // by deleting the command message, requiring admin permissions.
+//
+//nolint:dupl // sWarnUser has similar structure to dWarnUser
 func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -358,6 +360,8 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // dWarnUser handles the /dwarn command to warn users and delete
 // the message they replied to, requiring admin permissions.
+//
+//nolint:dupl // dWarnUser has similar structure to sWarnUser
 func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage

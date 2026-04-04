@@ -202,211 +202,131 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 /*
-	Function used to add sudo users in database of bot
+	Functions used to manage sudo/dev users in database of bot
 
 Can only be used by OWNER
 */
+
+// teamRoleConfig holds configuration for team role management operations.
+type teamRoleConfig struct {
+	roleName      string                     // "sudo" or "dev"
+	add           bool                       // true for add, false for remove
+	checkRole     func(*db.DevSettings) bool // checks if user has role
+	alreadyMsgKey string                     // i18n key for "already has role"
+	notRoleMsgKey string                     // i18n key for "doesn't have role"
+	failMsgKey    string                     // i18n key for operation failure
+	successMsgKey string                     // i18n key for operation success
+	dbOp          func(int64) error          // database operation (AddSudo, RemDev, etc.)
+}
+
+// manageTeamRole handles adding/removing team roles (sudo/dev).
+// Only accessible by bot owner.
+func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamRoleConfig) error {
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
+	if user.Id != config.AppConfig.OwnerId {
+		return ext.ContinueGroups
+	}
+
+	msg := ctx.EffectiveMessage
+	userId := extraction.ExtractUser(b, ctx)
+	if userId == -1 {
+		return ext.ContinueGroups
+	} else if chat_status.IsChannelId(userId) {
+		return ext.ContinueGroups
+	}
+
+	reqUser, err := b.GetChat(userId, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	memStatus := db.GetTeamMemInfo(userId)
+
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var txt string
+
+	// Check if operation is valid based on current role status
+	hasRole := cfg.checkRole(memStatus)
+	if cfg.add && hasRole {
+		txt, _ = tr.GetString(cfg.alreadyMsgKey)
+	} else if !cfg.add && !hasRole {
+		txt, _ = tr.GetString(cfg.notRoleMsgKey)
+	} else {
+		if err := cfg.dbOp(userId); err != nil {
+			log.Errorf("[Devs] Failed to %s %s for user %d: %v",
+				map[bool]string{true: "add", false: "remove"}[cfg.add], cfg.roleName, userId, err)
+			txt, _ = tr.GetString(cfg.failMsgKey)
+		} else {
+			textTemplate, _ := tr.GetString(cfg.successMsgKey)
+			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+		}
+	}
+
+	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.ContinueGroups
+}
+
 // addSudo adds a user to the sudo users list in the bot's database.
 // Only accessible by bot owner. Grants elevated permissions to the specified user.
-func (moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if user.Id != config.AppConfig.OwnerId {
-		return ext.ContinueGroups
-	}
-
-	msg := ctx.EffectiveMessage
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.ContinueGroups
-	} else if chat_status.IsChannelId(userId) {
-		return ext.ContinueGroups
-	}
-
-	reqUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	memStatus := db.GetTeamMemInfo(userId)
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	var txt string
-	if memStatus.Sudo {
-		txt, _ = tr.GetString("devs_user_already_sudo")
-	} else {
-		if err := db.AddSudo(userId); err != nil {
-			log.Errorf("[Devs] Failed to add sudo for user %d: %v", userId, err)
-			txt, _ = tr.GetString("devs_failed_to_add_sudo")
-		} else {
-			textTemplate, _ := tr.GetString("devs_added_to_sudo")
-			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		}
-	}
-	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.ContinueGroups
+func (m moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.manageTeamRole(b, ctx, teamRoleConfig{
+		roleName:      "sudo",
+		add:           true,
+		checkRole:     func(tm *db.DevSettings) bool { return tm.Sudo },
+		alreadyMsgKey: "devs_user_already_sudo",
+		failMsgKey:    "devs_failed_to_add_sudo",
+		successMsgKey: "devs_added_to_sudo",
+		dbOp:          db.AddSudo,
+	})
 }
 
-/*
-	Function used to add dev users in database of bot
-
-Can only be used by OWNER
-*/
 // addDev adds a user to the developer users list in the bot's database.
 // Only accessible by bot owner. Grants developer-level permissions to the specified user.
-func (moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if user.Id != config.AppConfig.OwnerId {
-		return ext.ContinueGroups
-	}
-
-	msg := ctx.EffectiveMessage
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.ContinueGroups
-	} else if chat_status.IsChannelId(userId) {
-		return ext.ContinueGroups
-	}
-
-	reqUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	memStatus := db.GetTeamMemInfo(userId)
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	var txt string
-	if memStatus.Dev {
-		txt, _ = tr.GetString("devs_user_already_dev")
-	} else {
-		if err := db.AddDev(userId); err != nil {
-			log.Errorf("[Devs] Failed to add dev for user %d: %v", userId, err)
-			txt, _ = tr.GetString("devs_failed_to_add_dev")
-		} else {
-			textTemplate, _ := tr.GetString("devs_added_to_dev")
-			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		}
-	}
-	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.ContinueGroups
+func (m moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.manageTeamRole(b, ctx, teamRoleConfig{
+		roleName:      "dev",
+		add:           true,
+		checkRole:     func(tm *db.DevSettings) bool { return tm.Dev },
+		alreadyMsgKey: "devs_user_already_dev",
+		failMsgKey:    "devs_failed_to_add_dev",
+		successMsgKey: "devs_added_to_dev",
+		dbOp:          db.AddDev,
+	})
 }
 
-/*
-	Function used to remove sudo users from database of bot
-
-Can only be used by OWNER
-*/
 // remSudo removes a user from the sudo users list in the bot's database.
 // Only accessible by bot owner. Revokes elevated permissions from the specified user.
-func (moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if user.Id != config.AppConfig.OwnerId {
-		return ext.ContinueGroups
-	}
-
-	msg := ctx.EffectiveMessage
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.ContinueGroups
-	} else if chat_status.IsChannelId(userId) {
-		return ext.ContinueGroups
-	}
-
-	reqUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	memStatus := db.GetTeamMemInfo(userId)
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	var txt string
-	if !memStatus.Sudo {
-		txt, _ = tr.GetString("devs_user_not_sudo")
-	} else {
-		if err := db.RemSudo(userId); err != nil {
-			log.Errorf("[Devs] Failed to remove sudo for user %d: %v", userId, err)
-			txt, _ = tr.GetString("devs_failed_to_remove_sudo")
-		} else {
-			textTemplate, _ := tr.GetString("devs_removed_from_sudo")
-			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		}
-	}
-	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.ContinueGroups
+func (m moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.manageTeamRole(b, ctx, teamRoleConfig{
+		roleName:      "sudo",
+		add:           false,
+		checkRole:     func(tm *db.DevSettings) bool { return tm.Sudo },
+		notRoleMsgKey: "devs_user_not_sudo",
+		failMsgKey:    "devs_failed_to_remove_sudo",
+		successMsgKey: "devs_removed_from_sudo",
+		dbOp:          db.RemSudo,
+	})
 }
 
-/*
-	Function used to remove dev users from database of bot
-
-Can only be used by OWNER
-*/
 // remDev removes a user from the developer users list in the bot's database.
 // Only accessible by bot owner. Revokes developer-level permissions from the specified user.
-func (moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
-	if user == nil {
-		return ext.EndGroups
-	}
-	if user.Id != config.AppConfig.OwnerId {
-		return ext.ContinueGroups
-	}
-
-	msg := ctx.EffectiveMessage
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.ContinueGroups
-	} else if chat_status.IsChannelId(userId) {
-		return ext.ContinueGroups
-	}
-
-	reqUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	memStatus := db.GetTeamMemInfo(userId)
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	var txt string
-	if !memStatus.Dev {
-		txt, _ = tr.GetString("devs_user_not_dev")
-	} else {
-		if err := db.RemDev(userId); err != nil {
-			log.Errorf("[Devs] Failed to remove dev for user %d: %v", userId, err)
-			txt, _ = tr.GetString("devs_failed_to_remove_dev")
-		} else {
-			textTemplate, _ := tr.GetString("devs_removed_from_dev")
-			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
-		}
-	}
-	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.ContinueGroups
+func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.manageTeamRole(b, ctx, teamRoleConfig{
+		roleName:      "dev",
+		add:           false,
+		checkRole:     func(tm *db.DevSettings) bool { return tm.Dev },
+		notRoleMsgKey: "devs_user_not_dev",
+		failMsgKey:    "devs_failed_to_remove_dev",
+		successMsgKey: "devs_removed_from_dev",
+		dbOp:          db.RemDev,
+	})
 }
 
 /*

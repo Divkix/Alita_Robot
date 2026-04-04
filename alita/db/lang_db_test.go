@@ -84,6 +84,7 @@ func TestChangeUserLanguage_SetAndGet(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestChangeGroupLanguage_Update(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -133,6 +134,7 @@ func TestChangeUserLanguage_Update(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)

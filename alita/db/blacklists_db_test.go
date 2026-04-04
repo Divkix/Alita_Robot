@@ -12,10 +12,12 @@ func TestAddBlacklistTrigger(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
-	AddBlacklist(chatID, "badword")
+	if err := AddBlacklist(chatID, "badword"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
 
 	settings := GetBlacklistSettings(chatID)
 	if len(settings) != 1 {
@@ -36,13 +38,19 @@ func TestRemoveBlacklistTrigger(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
-	AddBlacklist(chatID, "remove-me")
-	AddBlacklist(chatID, "keep-me")
+	if err := AddBlacklist(chatID, "remove-me"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
+	if err := AddBlacklist(chatID, "keep-me"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
 
-	RemoveBlacklist(chatID, "remove-me")
+	if err := RemoveBlacklist(chatID, "remove-me"); err != nil {
+		t.Fatalf("RemoveBlacklist() error = %v", err)
+	}
 
 	settings := GetBlacklistSettings(chatID)
 	for _, s := range settings {
@@ -70,7 +78,7 @@ func TestGetBlacklistSettings(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
 	// Empty chat should return empty slice, not nil
@@ -90,11 +98,15 @@ func TestSetBlacklistAction(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
-	AddBlacklist(chatID, "word1")
-	AddBlacklist(chatID, "word2")
+	if err := AddBlacklist(chatID, "word1"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
+	if err := AddBlacklist(chatID, "word2"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
 
 	err := SetBlacklistAction(chatID, "ban")
 	if err != nil {
@@ -116,12 +128,14 @@ func TestGetAllBlacklists(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
 	words := []string{"alpha", "beta", "gamma"}
 	for _, w := range words {
-		AddBlacklist(chatID, w)
+		if err := AddBlacklist(chatID, w); err != nil {
+			t.Fatalf("AddBlacklist() error = %v", err)
+		}
 	}
 
 	settings := GetBlacklistSettings(chatID)
@@ -160,10 +174,12 @@ func TestBlacklistTriggerLowercased(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllBlacklist(chatID)
+		_ = RemoveAllBlacklist(chatID)
 	})
 
-	AddBlacklist(chatID, "BadWord")
+	if err := AddBlacklist(chatID, "BadWord"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
 
 	settings := GetBlacklistSettings(chatID)
 	if len(settings) != 1 {

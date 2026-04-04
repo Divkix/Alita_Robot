@@ -84,11 +84,13 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 
 	splitText := strings.SplitN(msg.Text, " ", 2)
 
+	// Early return if no arguments provided
 	if len(splitText) < 2 {
 		return IdFromReply(msg)
 	}
 
 	textToParse := splitText[1]
+	hasArgs := len(args) >= 2
 
 	// trimTextNewline trims leading/trailing newlines to fix parsing issues with '\n' before and after text
 	trimTextNewline := func(str string) string {
@@ -116,7 +118,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		ent = &entities[0]
 		userId = ent.User.Id
 		text = msg.Text[ent.Offset+ent.Length:]
-	} else if len(args) >= 2 && args[1][0] == '@' {
+	} else if hasArgs && args[1][0] == '@' {
 		user := args[1]
 		userId = GetUserId(b, user)
 		if userId == 0 {
@@ -127,13 +129,12 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 				log.Errorf("[Extraction] Failed to reply with user not found: %v", err)
 			}
 			return -1, ""
-		} else {
-			res := strings.SplitN(msg.Text, " ", 3)
-			if len(res) >= 3 {
-				text = res[2]
-			}
 		}
-	} else if len(args) >= 2 {
+		res := strings.SplitN(msg.Text, " ", 3)
+		if len(res) >= 3 {
+			text = res[2]
+		}
+	} else if hasArgs {
 		isId = true
 		if chatId, err := strconv.ParseInt(args[1], 10, 64); err != nil || !chat_status.IsChannelId(chatId) {
 			for _, arg := range args[1] {
@@ -152,13 +153,13 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 			}
 		}
 	}
-	if !isId && prevMessage != nil && len(args) >= 2 {
+	if !isId && prevMessage != nil && hasArgs {
 		_, parseErr := uuid.Parse(args[1])
 		userId, text = IdFromReply(msg)
 		if parseErr == nil {
 			return userId, trimTextNewline(text)
 		}
-	} else if !isId && len(args) >= 2 {
+	} else if !isId && hasArgs {
 		_, parseErr := uuid.Parse(args[1])
 		if parseErr == nil {
 			return userId, trimTextNewline(text)

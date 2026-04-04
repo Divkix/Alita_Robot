@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
@@ -23,6 +26,42 @@ import (
 )
 
 var bansModule = moduleStruct{moduleName: "Bans"}
+
+// delayedUnban performs a delayed unban after kick with timeout protection.
+// Runs in a goroutine to avoid blocking the main execution.
+func delayedUnban(chat *gotgbot.Chat, b *gotgbot.Bot, userId int64, operation string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.WithField("panic", r).Error("Panic in delayed unban goroutine")
+			}
+		}()
+
+		// Create context with timeout to prevent goroutine from hanging indefinitely
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+
+		select {
+		case <-timer.C:
+			_, unbanErr := chat.UnbanMember(b, userId, nil)
+			if unbanErr != nil {
+				log.WithFields(log.Fields{
+					"chatId": chat.Id,
+					"userId": userId,
+					"error":  unbanErr,
+				}).Errorf("Failed to unban user after %s", operation)
+			}
+		case <-timeoutCtx.Done():
+			log.WithFields(log.Fields{
+				"chatId": chat.Id,
+				"userId": userId,
+			}).Warnf("%s unban operation timed out", cases.Title(language.English).String(operation))
+		}
+	}()
+}
 
 /* Used to Kick a user from group
 
@@ -133,37 +172,7 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Use non-blocking approach with goroutine for delayed unban with timeout
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.WithField("panic", r).Error("Panic in delayed unban goroutine")
-			}
-		}()
-
-		// Create context with timeout
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		timer := time.NewTimer(2 * time.Second)
-		defer timer.Stop()
-
-		select {
-		case <-timer.C:
-			_, unbanErr := chat.UnbanMember(b, userId, nil)
-			if unbanErr != nil {
-				log.WithFields(log.Fields{
-					"chatId": chat.Id,
-					"userId": userId,
-					"error":  unbanErr,
-				}).Error("Failed to unban user after dkick")
-			}
-		case <-timeoutCtx.Done():
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"userId": userId,
-			}).Warn("Dkick unban operation timed out")
-		}
-	}()
+	delayedUnban(chat, b, userId, "dkick")
 
 	// Continue immediately without blocking
 
@@ -277,37 +286,7 @@ func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Use non-blocking approach with goroutine for delayed unban with timeout
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.WithField("panic", r).Error("Panic in delayed unban goroutine")
-			}
-		}()
-
-		// Create context with timeout to prevent goroutine from hanging indefinitely
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		timer := time.NewTimer(2 * time.Second)
-		defer timer.Stop()
-
-		select {
-		case <-timer.C:
-			_, unbanErr := chat.UnbanMember(b, userId, nil)
-			if unbanErr != nil {
-				log.WithFields(log.Fields{
-					"chatId": chat.Id,
-					"userId": userId,
-					"error":  unbanErr,
-				}).Error("Failed to unban user after kick")
-			}
-		case <-timeoutCtx.Done():
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"userId": userId,
-			}).Warn("Kick unban operation timed out")
-		}
-	}()
+	delayedUnban(chat, b, userId, "kick")
 
 	// Continue immediately without blocking
 	kickuser, err := b.GetChat(userId, nil)

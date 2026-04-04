@@ -886,6 +886,8 @@ func generatePermissionsSection(module Module) string {
 }
 
 // getModuleEmoji returns an appropriate emoji for a module
+//
+//nolint:dupl // getModuleEmoji and categorizeModule have similar structure by design
 func getModuleEmoji(moduleName string) string {
 	emojiMap := map[string]string{
 		"admin":      "👑",
@@ -947,6 +949,8 @@ func getCategoryEmoji(category string) string {
 }
 
 // categorizeModule assigns a module to a category
+//
+//nolint:dupl // categorizeModule and getModuleEmoji have similar structure by design
 func categorizeModule(moduleName string) string {
 	categories := map[string]string{
 		"admin":      "Administration",

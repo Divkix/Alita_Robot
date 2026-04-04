@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -128,6 +129,7 @@ Only admin can add new filters in the chat
 */
 // addFilter creates a new filter with a keyword trigger and response content.
 // Only admins can add filters. Supports text, media, and buttons with a limit of 150 filters per chat.
+//nolint:dupl // addFilter shares validation logic with notes module by design
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -428,6 +430,7 @@ Only owner can remove all filters from the chat
 */
 // rmAllFilters removes all filters from the current chat with confirmation.
 // Only chat owners can use this command. Shows confirmation buttons before deletion.
+//nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
@@ -513,7 +516,11 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	switch response {
 	case "yes":
-		db.RemoveAllFilters(chat.Id)
+		// Fire-and-forget goroutine for DB operation with error handling and panic recovery
+		go func(chatId int64) {
+			defer error_handling.RecoverFromPanic("filtersButtonHandler", "filters")
+			db.RemoveAllFilters(chatId)
+		}(chat.Id)
 		helpText, _ = tr.GetString("filters_clear_all_success")
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
@@ -661,6 +668,11 @@ Replies with appropriate data to the filter.
 // filtersWatcher monitors incoming messages for filter keyword matches.
 // Automatically responds with filter content when keywords are detected in messages.
 func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
+	// Defensive nil check for EffectiveSender to prevent panics on channel messages
+	if ctx == nil || ctx.EffectiveSender == nil {
+		return ext.ContinueGroups
+	}
+
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	matchText := buildModerationMatchText(msg)

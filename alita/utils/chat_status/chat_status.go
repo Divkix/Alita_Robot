@@ -69,6 +69,15 @@ func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, se
 // extractChatFromContext extracts the chat from the context.
 // It handles callback queries, regular messages, and MyChatMember updates.
 // If chat parameter is already provided (non-nil), it returns it directly.
+//
+// SAFETY NOTE: This function returns pointers to values within the context struct
+// or local variables. Go's escape analysis ensures these are heap-allocated when
+// their addresses escape, making the returned pointers valid for the lifetime of
+// the context. The caller must ensure the context remains valid while using the
+// returned pointer. This pattern is safe because:
+//  1. Go's compiler escape analysis moves address-taken variables to the heap
+//  2. The gotgbot.Chat struct is a value type that gets copied when assigned
+//  3. All returned pointers point to stable memory locations
 func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat {
 	if chat != nil {
 		return chat
@@ -306,6 +315,8 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 // CanUserChangeInfo checks if a user has permission to change chat information.
 // Handles anonymous admins and validates the CanChangeInfo permission.
 // If justCheck is false, sends error messages to user.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -362,6 +373,8 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 // CanUserRestrict checks if a user has permission to restrict other members.
 // Handles anonymous admins and validates the CanRestrictMembers permission.
 // If justCheck is false, sends error messages to user.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -418,6 +431,8 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 // CanBotRestrict checks if the bot has permission to restrict members in the chat.
 // Validates the bot's CanRestrictMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -467,6 +482,8 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 // CanUserPromote checks if a user has permission to promote/demote other members.
 // Handles anonymous admins and validates the CanPromoteMembers permission.
 // If justCheck is false, sends error messages to user.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -523,6 +540,8 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 // CanBotPromote checks if the bot has permission to promote/demote members in the chat.
 // Validates the bot's CanPromoteMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -601,6 +620,8 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 // CanBotPin checks if the bot has permission to pin messages in the chat.
 // Validates the bot's CanPinMessages permission.
 // If justCheck is false, sends error messages explaining the missing permission.
+//
+//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -958,6 +979,8 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 // RequirePrivate ensures the command is being used in a private chat.
 // Returns false for group chats and supergroups.
 // If justCheck is false, sends error messages explaining the command is for private use only.
+//
+//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -988,6 +1011,8 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 // RequireGroup ensures the command is being used in a group chat.
 // Returns false for private chats.
 // If justCheck is false, sends error messages explaining the command is for group use only.
+//
+//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {

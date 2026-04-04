@@ -225,13 +225,20 @@ func (m moduleStruct) demote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	// Invalidate admin cache immediately after successful demotion
+	cache.InvalidateAdminCache(chat.Id)
+
 	userMember, err := chat.GetMember(b, userId, nil)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	// Invalidate admin cache immediately so permission checks reflect the change
-	cache.InvalidateAdminCache(chat.Id)
+	// Nil check to prevent panic when GetMember returns nil
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
+		log.Error(err)
+		return err
+	}
 
 	mem := userMember.MergeChatMember().User
 	_, err = msg.Reply(b,
@@ -403,6 +410,9 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
+	// Invalidate admin cache immediately after successful promotion
+	cache.InvalidateAdminCache(chat.Id)
+
 	if len(customTitle) > 16 {
 		// trim title to 16 characters (telegram restriction)
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_admin_title_truncated")
@@ -427,8 +437,6 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 	}
-	// Invalidate admin cache immediately so permission checks reflect the change
-	cache.InvalidateAdminCache(chat.Id)
 
 	mem := userMember.MergeChatMember().User
 	_, err = msg.Reply(b,

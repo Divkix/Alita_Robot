@@ -628,13 +628,14 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	timeout, err := strconv.Atoi(args[0])
-	if err != nil || timeout < 1 || timeout > 10 {
+	timeout64, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil || timeout64 < 1 || timeout64 > 10 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_timeout_invalid")
 		_, err = msg.Reply(bot, text, nil)
 		return err
 	}
+	timeout := int(timeout64)
 
 	err = db.SetCaptchaTimeout(chat.Id, timeout)
 	if err != nil {
@@ -745,12 +746,13 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 		return err
 	}
 
-	attempts, err := strconv.Atoi(args[0])
-	if err != nil || attempts < 1 || attempts > 10 {
+	attempts64, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil || attempts64 < 1 || attempts64 > 10 {
 		text, _ := tr.GetString("captcha_max_attempts_invalid")
 		_, err := msg.Reply(bot, text, helpers.Shtml())
 		return err
 	}
+	attempts := int(attempts64)
 
 	if err := db.SetCaptchaMaxAttempts(chat.Id, attempts); err != nil {
 		log.Errorf("Failed to set captcha max attempts: %v", err)

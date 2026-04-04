@@ -175,6 +175,7 @@ func TestResetWarns(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWarnLimit(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)
@@ -199,6 +200,7 @@ func TestSetWarnLimit(t *testing.T) {
 	}
 }
 
+//nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWarnMode(t *testing.T) {
 	t.Parallel()
 	skipIfNoDb(t)

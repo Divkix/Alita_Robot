@@ -51,14 +51,18 @@ func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
 	_ = GetChatReportSettings(chatID)
 
 	// Disable reports — zero value boolean must persist
-	SetChatReportStatus(chatID, false)
+	if err := SetChatReportStatus(chatID, false); err != nil {
+		t.Fatalf("SetChatReportStatus() error = %v", err)
+	}
 	settings := GetChatReportSettings(chatID)
 	if settings.Enabled {
 		t.Fatal("expected Enabled=false after SetChatReportStatus(false)")
 	}
 
 	// Re-enable reports
-	SetChatReportStatus(chatID, true)
+	if err := SetChatReportStatus(chatID, true); err != nil {
+		t.Fatalf("SetChatReportStatus() error = %v", err)
+	}
 	settings = GetChatReportSettings(chatID)
 	if !settings.Enabled {
 		t.Fatal("expected Enabled=true after SetChatReportStatus(true)")
@@ -98,14 +102,18 @@ func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
 	_ = GetUserReportSettings(userID)
 
 	// Disable user reports — zero value boolean must persist
-	SetUserReportSettings(userID, false)
+	if err := SetUserReportSettings(userID, false); err != nil {
+		t.Fatalf("SetUserReportSettings() error = %v", err)
+	}
 	settings := GetUserReportSettings(userID)
 	if settings.Enabled {
 		t.Fatal("expected Enabled=false after SetUserReportSettings(false)")
 	}
 
 	// Re-enable user reports
-	SetUserReportSettings(userID, true)
+	if err := SetUserReportSettings(userID, true); err != nil {
+		t.Fatalf("SetUserReportSettings() error = %v", err)
+	}
 	settings = GetUserReportSettings(userID)
 	if !settings.Enabled {
 		t.Fatal("expected Enabled=true after SetUserReportSettings(true)")
@@ -154,7 +162,9 @@ func TestAddBlockedReport_AddAndVerify(t *testing.T) {
 	_ = GetChatReportSettings(chatID)
 
 	// Block a user
-	BlockReportUser(chatID, userID)
+	if err := BlockReportUser(chatID, userID); err != nil {
+		t.Fatalf("BlockReportUser() error = %v", err)
+	}
 
 	settings := GetChatReportSettings(chatID)
 	found := false
@@ -191,9 +201,15 @@ func TestRemoveBlockedReport_UnblockOneOfTwo(t *testing.T) {
 	_ = GetChatReportSettings(chatID)
 
 	// Block two users, then unblock one — list stays non-nil so GORM persists it
-	BlockReportUser(chatID, userID1)
-	BlockReportUser(chatID, userID2)
-	UnblockReportUser(chatID, userID1)
+	if err := BlockReportUser(chatID, userID1); err != nil {
+		t.Fatalf("BlockReportUser() error = %v", err)
+	}
+	if err := BlockReportUser(chatID, userID2); err != nil {
+		t.Fatalf("BlockReportUser() error = %v", err)
+	}
+	if err := UnblockReportUser(chatID, userID1); err != nil {
+		t.Fatalf("UnblockReportUser() error = %v", err)
+	}
 
 	settings := GetChatReportSettings(chatID)
 	foundUser1 := false
@@ -235,8 +251,13 @@ func TestBlockReportUser_IdempotentAdd(t *testing.T) {
 	_ = GetChatReportSettings(chatID)
 
 	// Add the same user twice
-	BlockReportUser(chatID, userID)
-	BlockReportUser(chatID, userID)
+	if err := BlockReportUser(chatID, userID); err != nil {
+		t.Fatalf("BlockReportUser() error = %v", err)
+	}
+	// Second call should return nil error (idempotent)
+	if err := BlockReportUser(chatID, userID); err != nil {
+		t.Fatalf("BlockReportUser() second call error = %v", err)
+	}
 
 	settings := GetChatReportSettings(chatID)
 	count := 0
