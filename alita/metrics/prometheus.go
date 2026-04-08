@@ -1,11 +1,8 @@
 package metrics
 
 import (
-	"net/http"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -96,8 +93,3 @@ var (
 		},
 	)
 )
-
-// MetricsHandler returns the Prometheus HTTP handler for metrics endpoint
-func MetricsHandler() http.Handler {
-	return promhttp.Handler()
-}

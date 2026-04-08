@@ -44,11 +44,13 @@ type Server struct {
 }
 
 // New creates a new unified HTTP server on the specified port
-func New(port int) *Server {
+// The startTime parameter should be the application's process start time,
+// used for accurate uptime reporting in health checks.
+func New(port int, startTime time.Time) *Server {
 	return &Server{
 		mux:       http.NewServeMux(),
 		port:      port,
-		startTime: time.Now(),
+		startTime: startTime,
 	}
 }
 
@@ -394,9 +396,4 @@ func (s *Server) Stop() error {
 
 	log.Info("[HTTPServer] Server stopped gracefully")
 	return nil
-}
-
-// Addr returns the server address for logging purposes
-func (s *Server) Addr() string {
-	return fmt.Sprintf(":%d", s.port)
 }

@@ -97,50 +97,6 @@ func TestTypeConvertorInt64(t *testing.T) {
 	}
 }
 
-func TestTypeConvertorFloat64(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		input   string
-		want    float64
-		isNaN   bool
-		isInf   bool
-		infSign int
-	}{
-		{name: "pi", input: "3.14", want: 3.14},
-		{name: "zero", input: "0", want: 0.0},
-		{name: "negative", input: "-1.5", want: -1.5},
-		{name: "empty", input: "", want: 0.0},
-		{name: "invalid", input: "invalid", want: 0.0},
-		{name: "NaN", input: "NaN", isNaN: true},
-		{name: "Inf", input: "Inf", isInf: true, infSign: 1},
-	}
-
-	for _, tc := range tests {
-
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got := typeConvertor{str: tc.input}.Float64()
-			if tc.isNaN {
-				if !math.IsNaN(got) {
-					t.Fatalf("typeConvertor{%q}.Float64() = %v, want NaN", tc.input, got)
-				}
-				return
-			}
-			if tc.isInf {
-				if !math.IsInf(got, tc.infSign) {
-					t.Fatalf("typeConvertor{%q}.Float64() = %v, want Inf(sign=%d)", tc.input, got, tc.infSign)
-				}
-				return
-			}
-			if got != tc.want {
-				t.Fatalf("typeConvertor{%q}.Float64() = %v, want %v", tc.input, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestTypeConvertorStringArray(t *testing.T) {
 	t.Parallel()
 

@@ -12,16 +12,6 @@ import (
 // TranslationParams represents parameters for translation interpolation
 type TranslationParams map[string]any
 
-// PluralRule defines pluralization rules for different languages
-type PluralRule struct {
-	Zero  string // "zero" form (e.g., 0 items)
-	One   string // "one" form (e.g., 1 item)
-	Two   string // "two" form (e.g., 2 items)
-	Few   string // "few" form (e.g., 2-4 items in some languages)
-	Many  string // "many" form (e.g., 5+ items in some languages)
-	Other string // "other" form (default fallback)
-}
-
 // LocaleManager manages all locales with thread-safe operations
 type LocaleManager struct {
 	mu          sync.RWMutex

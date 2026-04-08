@@ -5,12 +5,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	s := New(8080)
+	startTime := time.Now().Add(-time.Hour) // Use a distinct past time to verify it’s stored
+	s := New(8080, startTime)
 	if s == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -20,24 +22,15 @@ func TestNewServer(t *testing.T) {
 	if s.mux == nil {
 		t.Error("expected non-nil mux")
 	}
-	if s.startTime.IsZero() {
-		t.Error("expected non-zero startTime")
-	}
-}
-
-func TestServerAddr(t *testing.T) {
-	t.Parallel()
-
-	s := New(8080)
-	if got := s.Addr(); got != ":8080" {
-		t.Errorf("expected ':8080', got %q", got)
+	if !s.startTime.Equal(startTime) {
+		t.Errorf("expected startTime %v, got %v", startTime, s.startTime)
 	}
 }
 
 func TestValidateWebhookValidSecret(t *testing.T) {
 	t.Parallel()
 
-	s := New(9000)
+	s := New(9000, time.Now())
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", nil)
@@ -51,7 +44,7 @@ func TestValidateWebhookValidSecret(t *testing.T) {
 func TestValidateWebhookWrongSecret(t *testing.T) {
 	t.Parallel()
 
-	s := New(9001)
+	s := New(9001, time.Now())
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", nil)
@@ -65,7 +58,7 @@ func TestValidateWebhookWrongSecret(t *testing.T) {
 func TestValidateWebhookEmptyServerSecret(t *testing.T) {
 	t.Parallel()
 
-	s := New(9002)
+	s := New(9002, time.Now())
 	s.secret = ""
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/", nil)
@@ -79,7 +72,7 @@ func TestValidateWebhookEmptyServerSecret(t *testing.T) {
 func TestValidateWebhookMissingHeader(t *testing.T) {
 	t.Parallel()
 
-	s := New(9003)
+	s := New(9003, time.Now())
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", nil)
@@ -93,7 +86,7 @@ func TestValidateWebhookMissingHeader(t *testing.T) {
 func TestValidateWebhookEmptyHeader(t *testing.T) {
 	t.Parallel()
 
-	s := New(9004)
+	s := New(9004, time.Now())
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", nil)
@@ -107,7 +100,7 @@ func TestValidateWebhookEmptyHeader(t *testing.T) {
 func TestWebhookHandlerMethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
-	s := New(9005)
+	s := New(9005, time.Now())
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodGet, "/webhook/mysecret", nil)
@@ -123,7 +116,7 @@ func TestWebhookHandlerMethodNotAllowed(t *testing.T) {
 func TestWebhookHandlerUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	s := New(9006)
+	s := New(9006, time.Now())
 	s.secret = "mysecret"
 
 	// POST with no secret header → reads body OK, then validateWebhook returns false → 401
@@ -141,7 +134,7 @@ func TestWebhookHandlerUnauthorized(t *testing.T) {
 func TestStopWithNilServer(t *testing.T) {
 	t.Parallel()
 
-	s := New(9007)
+	s := New(9007, time.Now())
 	// s.server is nil — never called Start()
 
 	if err := s.Stop(); err != nil {

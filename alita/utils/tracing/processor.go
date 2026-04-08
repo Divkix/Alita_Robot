@@ -2,11 +2,19 @@ package tracing
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"go.opentelemetry.io/otel/codes"
 )
+
+var onProcessUpdateCallback atomic.Value
+
+// SetOnProcessUpdateCallback registers a callback to be called when an update is processed
+func SetOnProcessUpdateCallback(cb func()) {
+	onProcessUpdateCallback.Store(cb)
+}
 
 // TracingProcessor wraps ext.BaseProcessor to inject trace context into every
 // update processed by the dispatcher. This ensures that polling mode updates
@@ -20,6 +28,11 @@ type TracingProcessor struct {
 // If a context already exists in ctx.Data (e.g., from webhook handler), it is reused and
 // no new span is created here to avoid duplicating dispatcher.processUpdate spans.
 func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx *ext.Context) (err error) {
+	// Record message for monitoring
+	if cb, ok := onProcessUpdateCallback.Load().(func()); ok && cb != nil {
+		cb()
+	}
+
 	// If an existing context is present (e.g., webhook request), just delegate without
 	// creating a new root span so that we don't break trace parenting or duplicate spans.
 	if ctx != nil && ctx.Data != nil {

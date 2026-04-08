@@ -374,8 +374,8 @@ func TestCaptchaMutedUsers_CleanupExpired(t *testing.T) {
 	}
 
 	// Delete the muted user (simulates cleanup)
-	if err := DeleteMutedUser(foundID); err != nil {
-		t.Fatalf("DeleteMutedUser() error = %v", err)
+	if _, err := DeleteMutedUsersByIDs([]uint{foundID}); err != nil {
+		t.Fatalf("DeleteMutedUsersByIDs() error = %v", err)
 	}
 
 	// Verify gone
@@ -385,7 +385,7 @@ func TestCaptchaMutedUsers_CleanupExpired(t *testing.T) {
 	}
 	for _, u := range afterExpired {
 		if u.UserID == userID && u.ChatID == chatID {
-			t.Fatalf("muted user still present after DeleteMutedUser()")
+			t.Fatalf("muted user still present after DeleteMutedUsersByIDs()")
 		}
 	}
 }

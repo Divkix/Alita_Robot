@@ -118,132 +118,6 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 	return result, nil
 }
 
-// GetInt retrieves a translated integer value.
-//
-//nolint:dupl // GetInt follows same pattern as GetFloat with different types
-func (t *Translator) GetInt(key string) (int, error) {
-	if t.manager == nil {
-		return 0, NewI18nError("get_int", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	result := t.viper.GetInt(key)
-	if !t.viper.IsSet(key) {
-		if t.langCode != t.manager.defaultLang {
-			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
-			if err != nil {
-				return 0, NewI18nError("get_int", t.langCode, key, "fallback failed", err)
-			}
-			return defaultTranslator.GetInt(key)
-		}
-		return 0, NewI18nError("get_int", t.langCode, key, "translation not found", ErrKeyNotFound)
-	}
-	return result, nil
-}
-
-// GetBool retrieves a translated boolean value.
-func (t *Translator) GetBool(key string) (bool, error) {
-	if t.manager == nil {
-		return false, NewI18nError("get_bool", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	result := t.viper.GetBool(key)
-	if !t.viper.IsSet(key) {
-		if t.langCode != t.manager.defaultLang {
-			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
-			if err != nil {
-				return false, NewI18nError("get_bool", t.langCode, key, "fallback failed", err)
-			}
-			return defaultTranslator.GetBool(key)
-		}
-		return false, NewI18nError("get_bool", t.langCode, key, "translation not found", ErrKeyNotFound)
-	}
-	return result, nil
-}
-
-// GetFloat retrieves a translated float value.
-//
-//nolint:dupl // GetFloat follows same pattern as GetInt with different types
-func (t *Translator) GetFloat(key string) (float64, error) {
-	if t.manager == nil {
-		return 0.0, NewI18nError("get_float", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	result := t.viper.GetFloat64(key)
-	if !t.viper.IsSet(key) {
-		if t.langCode != t.manager.defaultLang {
-			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
-			if err != nil {
-				return 0.0, NewI18nError("get_float", t.langCode, key, "fallback failed", err)
-			}
-			return defaultTranslator.GetFloat(key)
-		}
-		return 0.0, NewI18nError("get_float", t.langCode, key, "translation not found", ErrKeyNotFound)
-	}
-	return result, nil
-}
-
-// GetPlural retrieves a pluralized string based on count.
-func (t *Translator) GetPlural(key string, count int, params ...TranslationParams) (string, error) {
-	if t.manager == nil {
-		return "", NewI18nError("get_plural", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	// Try to get plural forms
-	pluralRule := PluralRule{
-		Zero:  t.viper.GetString(key + ".zero"),
-		One:   t.viper.GetString(key + ".one"),
-		Two:   t.viper.GetString(key + ".two"),
-		Few:   t.viper.GetString(key + ".few"),
-		Many:  t.viper.GetString(key + ".many"),
-		Other: t.viper.GetString(key + ".other"),
-	}
-
-	// If no plural forms found, try fallback
-	if pluralRule.Other == "" && pluralRule.One == "" {
-		// Try simple key without plural forms
-		simple, err := t.GetString(key, params...)
-		if err == nil && simple != "" {
-			return simple, nil
-		}
-
-		// Try fallback to default language
-		if t.langCode != t.manager.defaultLang {
-			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
-			if err != nil {
-				return "", NewI18nError("get_plural", t.langCode, key, "fallback failed", err)
-			}
-			return defaultTranslator.GetPlural(key, count, params...)
-		}
-		return "", NewI18nError("get_plural", t.langCode, key, "plural translation not found", ErrKeyNotFound)
-	}
-
-	// Select appropriate plural form
-	selectedForm := t.selectPluralForm(pluralRule, count)
-	if selectedForm == "" {
-		return "", NewI18nError("get_plural", t.langCode, key, "no appropriate plural form found", ErrKeyNotFound)
-	}
-
-	// Apply parameter interpolation if params provided
-	if len(params) > 0 {
-		// Add count to parameters if not already present
-		enhancedParams := params[0]
-		if enhancedParams == nil {
-			enhancedParams = make(TranslationParams)
-		}
-		if _, exists := enhancedParams["count"]; !exists {
-			enhancedParams["count"] = count
-		}
-
-		var err error
-		selectedForm, err = t.interpolateParams(selectedForm, enhancedParams)
-		if err != nil {
-			return selectedForm, NewI18nError("get_plural", t.langCode, key, "parameter interpolation failed", err)
-		}
-	}
-
-	return selectedForm, nil
-}
-
 // interpolateParams performs parameter interpolation on a string.
 func (t *Translator) interpolateParams(text string, params TranslationParams) (string, error) {
 	if params == nil {
@@ -277,31 +151,6 @@ func (t *Translator) interpolateParams(text string, params TranslationParams) (s
 	}
 
 	return result, nil
-}
-
-// selectPluralForm selects the appropriate plural form based on language rules.
-func (t *Translator) selectPluralForm(rule PluralRule, count int) string {
-	// Implement basic English plural rules
-	// For more languages, this would need language-specific logic
-
-	switch {
-	case count == 0 && rule.Zero != "":
-		return rule.Zero
-	case count == 1 && rule.One != "":
-		return rule.One
-	case count == 2 && rule.Two != "":
-		return rule.Two
-	case rule.Other != "":
-		return rule.Other
-	case rule.Many != "":
-		return rule.Many
-	case rule.Few != "":
-		return rule.Few
-	case rule.One != "":
-		return rule.One
-	default:
-		return ""
-	}
 }
 
 // extractOrderedValues extracts values from params in a predictable order for legacy sprintf.
@@ -349,14 +198,4 @@ func extractOrderedValues(params TranslationParams) []any {
 	}
 
 	return values
-}
-
-// GetLanguageCode returns the language code for this translator.
-func (t *Translator) GetLanguageCode() string {
-	return t.langCode
-}
-
-// IsDefaultLanguage checks if this translator uses the default language.
-func (t *Translator) IsDefaultLanguage() bool {
-	return t.langCode == t.manager.defaultLang
 }

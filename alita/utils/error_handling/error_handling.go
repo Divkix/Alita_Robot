@@ -1,17 +1,17 @@
 package error_handling
 
 import (
-	"fmt"
 	"runtime/debug"
+	"sync/atomic"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// HandleErr handles errors by logging them.
-func HandleErr(err error) {
-	if err != nil {
-		log.Error(err)
-	}
+var onErrorCallback atomic.Value
+
+// SetOnErrorCallback registers a callback to be called when an error is recovered from panic
+func SetOnErrorCallback(cb func()) {
+	onErrorCallback.Store(cb)
 }
 
 // RecoverFromPanic recovers from a panic and logs it as an error.
@@ -22,21 +22,9 @@ func RecoverFromPanic(funcName, modName string) {
 
 		log.Errorf("[%s][%s] Recovered from panic: %v\nStack trace:\n%s",
 			modName, funcName, r, stackTrace)
-	}
-}
 
-// CaptureError logs an error with additional context tags.
-// This is useful for capturing errors with custom tags for debugging.
-func CaptureError(err error, tags map[string]string) {
-	if err == nil {
-		return
+		if cb, ok := onErrorCallback.Load().(func()); ok && cb != nil {
+			cb()
+		}
 	}
-
-	fields := log.Fields{}
-	for key, value := range tags {
-		fields[key] = value
-	}
-	fields["error"] = err.Error()
-
-	log.WithFields(fields).Error(fmt.Sprintf("Error captured: %v", err))
 }

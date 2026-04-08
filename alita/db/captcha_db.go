@@ -277,18 +277,6 @@ func DeleteCaptchaAttempt(userID, chatID int64) error {
 	return nil
 }
 
-// DeleteCaptchaAttemptAtomic deletes an attempt and returns whether it was deleted.
-// This is used to prevent race conditions between timeout and success handlers.
-// Returns true if a row was deleted, false if no row existed.
-func DeleteCaptchaAttemptAtomic(userID, chatID int64) (bool, error) {
-	result := DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][DeleteCaptchaAttemptAtomic]: %v", result.Error)
-		return false, result.Error
-	}
-	return result.RowsAffected > 0, nil
-}
-
 // DeleteCaptchaAttemptByIDAtomic deletes a specific attempt and returns whether it was deleted.
 // The userID/chatID filter prevents deleting another attempt with the same ID unexpectedly.
 func DeleteCaptchaAttemptByIDAtomic(attemptID uint, userID, chatID int64) (bool, error) {
@@ -504,11 +492,6 @@ func GetUsersToUnmute() ([]*CaptchaMutedUsers, error) {
 	var users []*CaptchaMutedUsers
 	err := DB.Where("unmute_at < ?", time.Now()).Find(&users).Error
 	return users, err
-}
-
-// DeleteMutedUser removes a user from the muted users table
-func DeleteMutedUser(id uint) error {
-	return DB.Delete(&CaptchaMutedUsers{}, id).Error
 }
 
 // DeleteMutedUsersByIDs removes multiple users by their IDs

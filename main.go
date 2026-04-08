@@ -27,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
+	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -39,6 +40,10 @@ var Locales embed.FS
 // It sets up monitoring, database connections, webhook/polling mode,
 // loads all modules, and handles graceful shutdown.
 func main() {
+	// Capture process start time for accurate uptime reporting in health checks.
+	// This must be captured before any initialization work begins.
+	appStartTime := time.Now()
+
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
 		// Use default port if config is not properly initialized or port is 0
@@ -240,6 +245,9 @@ func main() {
 
 	if config.AppConfig.EnableBackgroundStats {
 		statsCollector = monitoring.NewBackgroundStatsCollector()
+		monitoring.SetGlobalCollector(statsCollector)
+		error_handling.SetOnErrorCallback(monitoring.GlobalRecordError)
+		tracing.SetOnProcessUpdateCallback(monitoring.GlobalRecordMessage)
 		statsCollector.Start()
 		defer statsCollector.Stop()
 	}
@@ -282,11 +290,18 @@ func main() {
 		return tracing.Shutdown(context.Background())
 	})
 
+	// Register keyword matcher cache shutdown handler
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Stopping keyword matcher cache...")
+		keyword_matcher.GetGlobalCache().Stop()
+		return nil
+	})
+
 	// Start shutdown handler in background
 	go shutdownManager.WaitForShutdown()
 
 	// Create unified HTTP server for health, metrics, and webhook endpoints
-	httpServer := httpserver.New(config.AppConfig.HTTPPort)
+	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
 	httpServer.RegisterMetrics()
 

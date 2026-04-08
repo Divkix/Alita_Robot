@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var globalCollector atomic.Value
+
 // SystemMetrics holds various system performance metrics
 type SystemMetrics struct {
 	// Runtime metrics
@@ -404,4 +406,30 @@ func (collector *BackgroundStatsCollector) Stop() {
 
 		log.Info("Background statistics collection stopped")
 	})
+}
+
+// SetGlobalCollector sets the global stats collector instance
+func SetGlobalCollector(collector *BackgroundStatsCollector) {
+	globalCollector.Store(collector)
+}
+
+// GlobalRecordError increments the global error counter if collector is initialized
+func GlobalRecordError() {
+	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
+		c.RecordError()
+	}
+}
+
+// GlobalRecordMessage increments the global message counter if collector is initialized
+func GlobalRecordMessage() {
+	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
+		c.RecordMessage()
+	}
+}
+
+// GlobalRecordResponseTime records a response time measurement if collector is initialized
+func GlobalRecordResponseTime(duration time.Duration) {
+	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
+		c.RecordResponseTime(duration)
+	}
 }
