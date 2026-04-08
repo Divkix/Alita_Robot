@@ -96,7 +96,7 @@ import (
 - **Cache invalidation on writes**: every update must invalidate corresponding cache key
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
 - Use `singleflight` protection for cache stampede prevention
-- Traced operations: `TracedGet()`, `TracedSet()`, `TracedDelete()` for OpenTelemetry
+- Operations: Use `cache.Marshal.Get/Set/Delete` for direct cache access; use `getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
 
 ### Module System
 - Create `LoadXxx(dispatcher)` function per module
@@ -187,10 +187,8 @@ DB caching layer (`alita/db/cache_helpers.go`).
 
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
 - Operations: `cache.Marshal.Get/Set/Delete` with context
-- Traced operations: `TracedGet()`, `TracedSet()`, `TracedDelete()` — OpenTelemetry-instrumented cache access
 - `ClearAllCaches()` — FLUSHDB on startup when `ClearCacheOnStartup` is configured
 - Admin cache specialized in `alita/utils/cache/adminCache.go`
-- Cache key sanitization for tracing in `alita/utils/cache/sanitize.go`
 - **Cache must be invalidated on writes** — every DB update function that
   modifies cached data must call the corresponding invalidation
 
@@ -216,11 +214,10 @@ files embedded via `go:embed`. Supports named parameters in code
 ### Error Handling
 
 Four-layer recovery: dispatcher → worker pool → decorator → handler. The
-`error_handling` package provides `RecoverFromPanic()`, `HandleErr()`, and
-`CaptureError()`. Expected Telegram API errors (bot not admin, chat closed)
-are filtered via `helpers.IsExpectedTelegramError()`. Custom error wrapping
-with file/line/function metadata via `alita/utils/errors/` (`Wrap()`/`Wrapf()`
-using `runtime.Caller`).
+`error_handling` package provides `RecoverFromPanic()` and `SetOnErrorCallback()`.
+Expected Telegram API errors (bot not admin, chat closed) are filtered via
+`helpers.IsExpectedTelegramError()`. Custom error wrapping with file/line/function
+metadata via `alita/utils/errors/` (`Wrap()`/`Wrapf()` using `runtime.Caller`).
 
 ### Graceful Shutdown (`alita/utils/shutdown/`)
 

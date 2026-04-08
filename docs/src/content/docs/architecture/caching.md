@@ -534,8 +534,10 @@ redis-cli TTL "alita:chat_settings:123456789"
 redis-cli MEMORY USAGE "alita:chat_settings:123456789"
 ```
 
-:::tip[Traced cache operations]
-For production debugging, use the `TracedGet()`, `TracedSet()`, and `TracedDelete()` functions instead of raw cache operations. These emit OpenTelemetry spans that appear in your tracing backend, making it easy to correlate cache behavior with request latency. Cache keys are automatically sanitized by `alita/utils/cache/sanitize.go` to remove sensitive IDs from span names.
+:::tip[Cache operations]
+Use `cache.Marshal.Get/Set/Delete` for direct cache operations, and prefer
+`getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
+with singleflight protection to prevent cache stampedes.
 :::
 
 ## Next Steps

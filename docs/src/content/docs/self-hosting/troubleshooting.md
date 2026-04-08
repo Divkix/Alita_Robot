@@ -156,8 +156,9 @@ The easiest way to get a channel ID is to forward any message from the channel t
 **Solutions:**
 
 1. **Check WEBHOOK_SECRET matches:**
-   - The URL path must include your secret
-   - Example: `/webhook/your-secret-here`
+   - The URL path must include your secret: `/webhook/your-secret-here`
+   - The `X-Telegram-Bot-Api-Secret-Token` header must match your `WEBHOOK_SECRET`
+   - Both conditions must be satisfied for the request to be authorized
 
 2. **Verify configuration:**
    ```bash

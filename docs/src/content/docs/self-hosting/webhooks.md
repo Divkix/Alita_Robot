@@ -175,8 +175,8 @@ openssl rand -hex 32
 ### 2. Validate Webhook Origin
 
 Alita automatically validates that requests come from Telegram by checking:
-- The URL path contains your secret
-- Request headers match Telegram's format
+- The URL path contains your secret in the format `/webhook/{secret}`
+- The `X-Telegram-Bot-Api-Secret-Token` header matches your `WEBHOOK_SECRET`
 
 ### 3. Use HTTPS Only
 
