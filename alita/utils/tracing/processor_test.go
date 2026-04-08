@@ -2,6 +2,7 @@ package tracing
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -110,4 +111,40 @@ func TestTracingProcessor_SkipsSpanForWebhookContext(t *testing.T) {
 	if raw != webhookCtx {
 		t.Fatal("webhook context must not be replaced")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Callback tests (wiring tests for main.go monitoring setup)
+// ---------------------------------------------------------------------------
+
+func TestRunOnProcessUpdateCallback_InvokesRegisteredCallback(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	var called atomic.Int32
+	SetOnProcessUpdateCallback(func() {
+		called.Add(1)
+	})
+	defer SetOnProcessUpdateCallback(nil) // cleanup
+
+	runOnProcessUpdateCallback()
+
+	if called.Load() != 1 {
+		t.Errorf("expected callback to be called exactly once, got %d calls", called.Load())
+	}
+
+	// Call again to verify multiple invocations work
+	runOnProcessUpdateCallback()
+	if called.Load() != 2 {
+		t.Errorf("expected callback to be called twice, got %d calls", called.Load())
+	}
+}
+
+func TestRunOnProcessUpdateCallback_NoCallback_NoOp(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	// Ensure no callback is set
+	SetOnProcessUpdateCallback(nil)
+
+	// Should not panic
+	runOnProcessUpdateCallback()
 }

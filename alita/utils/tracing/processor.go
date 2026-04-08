@@ -23,15 +23,21 @@ type TracingProcessor struct {
 	ext.BaseProcessor
 }
 
+// runOnProcessUpdateCallback executes the registered callback if set.
+// Extracted for testability without requiring full dispatcher integration.
+func runOnProcessUpdateCallback() {
+	if cb, ok := onProcessUpdateCallback.Load().(func()); ok && cb != nil {
+		cb()
+	}
+}
+
 // ProcessUpdate starts a trace span for the update (in polling mode) and injects the
 // trace context into ctx.Data["context"] before delegating to the base processor.
 // If a context already exists in ctx.Data (e.g., from webhook handler), it is reused and
 // no new span is created here to avoid duplicating dispatcher.processUpdate spans.
 func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx *ext.Context) (err error) {
 	// Record message for monitoring
-	if cb, ok := onProcessUpdateCallback.Load().(func()); ok && cb != nil {
-		cb()
-	}
+	runOnProcessUpdateCallback()
 
 	// If an existing context is present (e.g., webhook request), just delegate without
 	// creating a new root span so that we don't break trace parenting or duplicate spans.

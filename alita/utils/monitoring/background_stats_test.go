@@ -244,3 +244,88 @@ func TestRecordMessageAndError(t *testing.T) {
 		t.Fatalf("RecordError() should not affect messageCounter, got %d", c.messageCounter)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Global recorders (wiring tests for main.go callback setup)
+// ---------------------------------------------------------------------------
+
+func TestGlobalRecorders_NoCollector_NoOp(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	// Ensure no collector is set
+	SetGlobalCollector(nil)
+
+	// These should not panic
+	GlobalRecordError()
+	GlobalRecordMessage()
+	GlobalRecordResponseTime(10 * time.Millisecond)
+}
+
+func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	collector := NewBackgroundStatsCollector()
+	SetGlobalCollector(collector)
+	defer SetGlobalCollector(nil) // cleanup
+
+	// Initial state
+	if collector.errorCounter != 0 {
+		t.Fatal("expected initial errorCounter to be 0")
+	}
+	if collector.messageCounter != 0 {
+		t.Fatal("expected initial messageCounter to be 0")
+	}
+	if collector.responseTimeCount != 0 {
+		t.Fatal("expected initial responseTimeCount to be 0")
+	}
+
+	// Record via global functions
+	GlobalRecordError()
+	GlobalRecordMessage()
+	GlobalRecordResponseTime(50 * time.Millisecond)
+
+	// Verify
+	if collector.errorCounter != 1 {
+		t.Errorf("expected errorCounter=1 after GlobalRecordError, got %d", collector.errorCounter)
+	}
+	if collector.messageCounter != 1 {
+		t.Errorf("expected messageCounter=1 after GlobalRecordMessage, got %d", collector.messageCounter)
+	}
+	if collector.responseTimeCount != 1 {
+		t.Errorf("expected responseTimeCount=1 after GlobalRecordResponseTime, got %d", collector.responseTimeCount)
+	}
+	if collector.responseTimeSum != int64(50*time.Millisecond) {
+		t.Errorf("expected responseTimeSum=%d after GlobalRecordResponseTime(50ms), got %d",
+			int64(50*time.Millisecond), collector.responseTimeSum)
+	}
+}
+
+func TestSetGlobalCollector_ReplacesCollector(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	collectorA := NewBackgroundStatsCollector()
+	collectorB := NewBackgroundStatsCollector()
+
+	SetGlobalCollector(collectorA)
+	GlobalRecordMessage()
+
+	if collectorA.messageCounter != 1 {
+		t.Errorf("expected collectorA.messageCounter=1, got %d", collectorA.messageCounter)
+	}
+	if collectorB.messageCounter != 0 {
+		t.Errorf("expected collectorB.messageCounter=0, got %d", collectorB.messageCounter)
+	}
+
+	// Replace with collectorB
+	SetGlobalCollector(collectorB)
+	GlobalRecordMessage()
+
+	if collectorA.messageCounter != 1 {
+		t.Errorf("expected collectorA.messageCounter unchanged at 1, got %d", collectorA.messageCounter)
+	}
+	if collectorB.messageCounter != 1 {
+		t.Errorf("expected collectorB.messageCounter=1, got %d", collectorB.messageCounter)
+	}
+
+	defer SetGlobalCollector(nil) // cleanup
+}

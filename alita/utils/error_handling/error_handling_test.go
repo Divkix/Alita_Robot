@@ -2,6 +2,7 @@ package error_handling
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 )
 
@@ -78,4 +79,43 @@ func TestRecoverFromPanic(t *testing.T) {
 		}()
 		<-done
 	})
+}
+
+func TestRecoverFromPanic_InvokesOnErrorCallback(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	var called atomic.Bool
+	SetOnErrorCallback(func() {
+		called.Store(true)
+	})
+	defer SetOnErrorCallback(nil) // cleanup
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer RecoverFromPanic("testFunc", "testMod")
+		panic("test panic")
+	}()
+	<-done
+
+	if !called.Load() {
+		t.Error("onErrorCallback should have been invoked after panic recovery")
+	}
+}
+
+func TestRecoverFromPanic_DoesNotInvokeOnErrorCallbackWithoutPanic(t *testing.T) {
+	// Do not use t.Parallel() - tests global state
+
+	var called atomic.Bool
+	SetOnErrorCallback(func() {
+		called.Store(true)
+	})
+	defer SetOnErrorCallback(nil) // cleanup
+
+	defer RecoverFromPanic("testFunc", "testMod")
+	// No panic
+
+	if called.Load() {
+		t.Error("onErrorCallback should NOT have been invoked when no panic occurs")
+	}
 }
