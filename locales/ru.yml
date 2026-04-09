@@ -1520,3 +1520,17 @@ filters_overwrite_token_failed: "Не удалось создать подтве
 notes_overwrite_token_failed: "Не удалось создать подтверждение перезаписи. Пожалуйста, попробуйте снова."
 common_settings_save_failed: "Не удалось сохранить настройки. Пожалуйста, попробуйте позже."
 devs_chatlist_error: "Не удалось сгенерировать список чатов. Пожалуйста, попробуйте снова."
+
+# Reactions module strings
+reactions_add_usage: "Использование: /addreaction <ключевое_слово> <эмодзи>"
+reactions_invalid_emoji: "Пожалуйста, укажите корректный эмодзи."
+reactions_add_error: "Не удалось сохранить реакцию. Пожалуйста, попробуйте снова."
+reactions_add_success: "Реакция добавлена: <code>{keyword}</code> -> {emoji}"
+reactions_remove_usage: "Использование: /removereaction <ключевое_слово>"
+reactions_not_found: "Для этого чата не настроено ни одной реакции."
+reactions_keyword_not_found: "Для ключевого слова не найдена реакция: <code>{keyword}</code>"
+reactions_remove_error: "Не удалось удалить реакцию. Пожалуйста, попробуйте снова."
+reactions_remove_success: "Реакция удалена для ключевого слова: <code>{keyword}</code>"
+reactions_none: "В этом чате не настроено ни одной реакции."
+reactions_list_header: "<b>Настроенные реакции:</b>\n{list}"
+reactions_reset_success: "Все реакции для этого чата были сброшены."

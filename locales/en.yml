@@ -2209,3 +2209,17 @@ filters_overwrite_token_failed: "Failed to create overwrite confirmation. Please
 notes_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
 common_settings_save_failed: "Failed to save settings. Please try again later."
 devs_chatlist_error: "Failed to generate chat list. Please try again."
+
+# Reactions module strings
+reactions_add_usage: "Usage: /addreaction <keyword> <emoji>"
+reactions_invalid_emoji: "Please provide a valid emoji."
+reactions_add_error: "Failed to save reaction. Please try again."
+reactions_add_success: "Reaction added: <code>{keyword}</code> -> {emoji}"
+reactions_remove_usage: "Usage: /removereaction <keyword>"
+reactions_not_found: "No reactions are configured for this chat."
+reactions_keyword_not_found: "No reaction found for keyword: <code>{keyword}</code>"
+reactions_remove_error: "Failed to remove reaction. Please try again."
+reactions_remove_success: "Reaction removed for keyword: <code>{keyword}</code>"
+reactions_none: "No reactions are configured in this chat."
+reactions_list_header: "<b>Configured reactions:</b>\n{list}"
+reactions_reset_success: "All reactions have been reset for this chat."

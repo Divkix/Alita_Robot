@@ -7,6 +7,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	log "github.com/sirupsen/logrus"
 
@@ -34,6 +35,7 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("removereaction", reactionsModule.removeReaction))
 	dispatcher.AddHandler(handlers.NewCommand("reactions", reactionsModule.listReactions))
 	dispatcher.AddHandler(handlers.NewCommand("resetreactions", reactionsModule.resetReactions))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("reactions_help"), reactionsModule.reactionsHelpHandler))
 
 	// Message watcher for reactions (positive handler group for monitoring)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
@@ -57,6 +59,76 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	}
 
 	log.Info("[Modules] Reactions module loaded")
+}
+
+// reactionsHelpHandler handles inline help callbacks for reaction commands.
+func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
+
+	action := ""
+	if decoded, ok := decodeCallbackData(query.Data, "reactions_help"); ok {
+		action, _ = decoded.Field("action")
+	} else {
+		parts := strings.Split(query.Data, ".")
+		if len(parts) >= 2 {
+			action = parts[1]
+		}
+	}
+	if action == "" {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
+
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	var helpText string
+	switch action {
+	case "add":
+		helpText, _ = tr.GetString("reactions_add_usage")
+	case "remove":
+		helpText, _ = tr.GetString("reactions_remove_usage")
+	default:
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
+
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		return ext.EndGroups
+	}
+
+	backText, _ := tr.GetString("common_back")
+	_, _, err := query.Message.EditText(
+		b,
+		helpText,
+		&gotgbot.EditMessageTextOpts{
+			ParseMode: helpers.HTML,
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{
+						{
+							Text:         backText,
+							CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Reactions"}, "helpq.Reactions"),
+						},
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	_, err = query.Answer(b, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return ext.EndGroups
 }
 
 // addReaction handles /addreaction <keyword> <emoji> command

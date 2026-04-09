@@ -84,8 +84,15 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 // Updates user or group language preferences based on admin permissions and context.
 func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := query.From
+	if user.Id == 0 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 
 	language := ""
 	if decoded, ok := decodeCallbackData(query.Data, "change_language"); ok {
@@ -139,7 +146,16 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
 	}
 
-	// Answer the callback query to stop the loading spinner
+	if query.Message == nil {
+		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: replyString})
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
+	// Answer the callback query to stop the loading spinner.
 	_, err := query.Answer(b, nil)
 	if err != nil {
 		log.Error(err)

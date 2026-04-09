@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -69,7 +70,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		case "off", "no", "false":
 			db.SetPrivateRules(chat.Id, false)
 			temp, _ := tr.GetString("rules_private_group_usage")
-			text = fmt.Sprintf(temp, chat.Title)
+			text = fmt.Sprintf(temp, html.EscapeString(chat.Title))
 		default:
 			text, _ = tr.GetString("pins_input_not_recognized")
 		}
@@ -79,7 +80,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("rules_private_current_pm")
 		} else {
 			temp2, _ := tr.GetString("rules_private_current_group")
-			text = fmt.Sprintf(temp2, chat.Title)
+			text = fmt.Sprintf(temp2, html.EscapeString(chat.Title))
 		}
 	}
 
@@ -129,7 +130,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	if normalizedRules != "" {
 		temp, _ := tr.GetString("rules_for_chat_header")
-		Text += fmt.Sprintf(temp, chat.Title) + "\n\n"
+		Text += fmt.Sprintf(temp, html.EscapeString(chat.Title)) + "\n\n"
 		Text += normalizedRules
 	} else {
 		Text, _ = tr.GetString("rules_no_rules_set")

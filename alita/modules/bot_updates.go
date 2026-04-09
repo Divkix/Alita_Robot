@@ -92,13 +92,15 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 // Reloads admin permissions cache if it's not already available.
 func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-
-	adminsAvail, _ := cache.GetAdminCacheList(chat.Id)
-
-	if !adminsAvail {
-		cache.LoadAdminCache(b, chat.Id)
-		log.Info(fmt.Sprintf("Reloaded admin cache for %d (%s)", chat.Id, chat.Title))
+	if chat == nil {
+		return ext.ContinueGroups
 	}
+
+	// Always invalidate and reload on admin status updates to avoid stale
+	// permission decisions from outdated cache entries.
+	cache.InvalidateAdminCache(chat.Id)
+	cache.LoadAdminCache(b, chat.Id)
+	log.Info(fmt.Sprintf("Reloaded admin cache for %d (%s)", chat.Id, chat.Title))
 
 	return ext.ContinueGroups
 }

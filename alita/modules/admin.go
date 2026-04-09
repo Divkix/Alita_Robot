@@ -369,6 +369,12 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
+	promoterMember, err := chat.GetMember(b, user.Id, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
 	botMember, err := chat.GetMember(b, b.Id, nil)
 	if err != nil {
 		log.Error(err)
@@ -377,7 +383,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// makes code short
 	bMem := botMember.MergeChatMember()
-	pMem := userMember.MergeChatMember()
+	pMem := promoterMember.MergeChatMember()
 
 	teamMem := db.GetTeamMemInfo(user.Id)
 	teamMemInfo := teamMem.Sudo || teamMem.Dev
@@ -390,7 +396,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	// that normally prevents admins from granting permissions they don't have.
 	checkCommonPerms := isPromoterOwner || teamMemInfo
 
-	_, err = chat.PromoteMember(b,
+	status, err := chat.PromoteMember(b,
 		userId,
 		&gotgbot.PromoteChatMemberOpts{
 			CanPostMessages:     bMem.CanPostMessages && (pMem.CanPostMessages || checkCommonPerms),
@@ -404,20 +410,24 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 			CanManageTopics:     bMem.CanManageTopics && (pMem.CanManageTopics || checkCommonPerms),
 		},
 	)
-	if err != nil {
+	if err != nil || !status {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_promote")
 		_, _ = msg.Reply(b, text, helpers.Shtml())
+		if err == nil {
+			err = fmt.Errorf("promote member returned false status")
+		}
 		return err
 	}
 
 	// Invalidate admin cache immediately after successful promotion
 	cache.InvalidateAdminCache(chat.Id)
 
-	if len(customTitle) > 16 {
+	titleRunes := []rune(customTitle)
+	if len(titleRunes) > 16 {
 		// trim title to 16 characters (telegram restriction)
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_admin_title_truncated")
-		extraText += fmt.Sprintf(temp, len(customTitle))
-		customTitle = customTitle[0:16]
+		extraText += fmt.Sprintf(temp, len(titleRunes))
+		customTitle = string(titleRunes[0:16])
 	}
 
 	// set the custom title

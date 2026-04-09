@@ -2101,3 +2101,17 @@ filters_overwrite_token_failed: "Impossible de créer la confirmation d'écrasem
 notes_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
 common_settings_save_failed: "Echec de la sauvegarde des parametres. Veuillez reessayer plus tard."
 devs_chatlist_error: "Echec de la generation de la liste des chats. Veuillez reessayer."
+
+# Reactions module strings
+reactions_add_usage: "Utilisation : /addreaction <mot_cle> <emoji>"
+reactions_invalid_emoji: "Veuillez fournir un emoji valide."
+reactions_add_error: "Impossible d'enregistrer la réaction. Veuillez réessayer."
+reactions_add_success: "Réaction ajoutée : <code>{keyword}</code> -> {emoji}"
+reactions_remove_usage: "Utilisation : /removereaction <mot_cle>"
+reactions_not_found: "Aucune réaction n'est configurée pour ce chat."
+reactions_keyword_not_found: "Aucune réaction trouvée pour le mot-clé : <code>{keyword}</code>"
+reactions_remove_error: "Impossible de supprimer la réaction. Veuillez réessayer."
+reactions_remove_success: "Réaction supprimée pour le mot-clé : <code>{keyword}</code>"
+reactions_none: "Aucune réaction n'est configurée dans ce chat."
+reactions_list_header: "<b>Réactions configurées :</b>\n{list}"
+reactions_reset_success: "Toutes les réactions ont été réinitialisées pour ce chat."

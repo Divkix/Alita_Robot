@@ -140,7 +140,30 @@ func (moduleStruct) unpin(b *gotgbot.Bot, ctx *ext.Context) error {
 // dialog, handling the user's yes/no response.
 func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
+	user := query.From
+	if user.Id == 0 {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
+
+	// Re-check permissions in callback to prevent non-admin users from executing
+	// an action from a forwarded/stale confirmation button.
+	if !chat_status.RequireGroup(b, ctx, chat, false) {
+		return ext.EndGroups
+	}
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+		return ext.EndGroups
+	}
+	if !chat_status.RequireBotAdmin(b, ctx, chat, false) {
+		return ext.EndGroups
+	}
+	if !chat_status.CanBotPin(b, ctx, chat, false) {
+		return ext.EndGroups
+	}
 
 	action := ""
 	if decoded, ok := decodeCallbackData(query.Data, "unpinallbtn"); ok {
@@ -163,6 +186,10 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_success")
+		if query.Message == nil {
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
 		_, _, erredit := query.Message.EditText(b, text, nil)
 		if erredit != nil {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
@@ -171,6 +198,10 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	case "no":
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_cancelled")
+		if query.Message == nil {
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
 		_, _, err := query.Message.EditText(b, text, nil)
 		if err != nil {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)

@@ -200,6 +200,10 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	if query := ctx.CallbackQuery; query != nil {
+		if query.Message == nil {
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+			return ext.EndGroups
+		}
 		response := ""
 		if decoded, ok := decodeCallbackData(query.Data, "about"); ok {
 			response, _ = decoded.Field("a")
@@ -311,6 +315,13 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 // Navigates between help sections and displays appropriate help content for modules.
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	module := ""
 	if decoded, ok := decodeCallbackData(query.Data, "helpq"); ok {
 		module, _ = decoded.Field("m")
@@ -461,7 +472,14 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 // Walks users through adding the bot to chats and basic setup procedures.
 func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
 	msg := query.Message
+	if msg == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 
 	// just in case
 	if msg.GetChat().Type != "private" {
@@ -472,6 +490,8 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
+		_, _ = query.Answer(b, nil)
+		return ext.EndGroups
 	}
 
 	response := ""

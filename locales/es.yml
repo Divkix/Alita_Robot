@@ -2200,3 +2200,17 @@ filters_overwrite_token_failed: "No se pudo crear la confirmación de sobrescrit
 notes_overwrite_token_failed: "No se pudo crear la confirmación de sobrescritura. Inténtalo de nuevo."
 common_settings_save_failed: "Error al guardar la configuracion. Intentalo de nuevo mas tarde."
 devs_chatlist_error: "Error al generar la lista de chats. Intentalo de nuevo."
+
+# Reactions module strings
+reactions_add_usage: "Uso: /addreaction <palabra_clave> <emoji>"
+reactions_invalid_emoji: "Por favor, proporciona un emoji válido."
+reactions_add_error: "No se pudo guardar la reacción. Inténtalo de nuevo."
+reactions_add_success: "Reacción añadida: <code>{keyword}</code> -> {emoji}"
+reactions_remove_usage: "Uso: /removereaction <palabra_clave>"
+reactions_not_found: "No hay reacciones configuradas para este chat."
+reactions_keyword_not_found: "No se encontró una reacción para la palabra clave: <code>{keyword}</code>"
+reactions_remove_error: "No se pudo eliminar la reacción. Inténtalo de nuevo."
+reactions_remove_success: "Reacción eliminada para la palabra clave: <code>{keyword}</code>"
+reactions_none: "No hay reacciones configuradas en este chat."
+reactions_list_header: "<b>Reacciones configuradas:</b>\n{list}"
+reactions_reset_success: "Todas las reacciones se restablecieron para este chat."

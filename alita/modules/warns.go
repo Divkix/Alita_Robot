@@ -138,7 +138,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	numWarns, reasons := db.WarnUser(userId, chat.Id, reason)
 
 	if numWarns >= warnrc.WarnLimit {
-		db.ResetUserWarns(userId, chat.Id)
+		punished := false
 		switch warnrc.WarnMode {
 		case "kick":
 			_, err = chat.BanMember(b, userId, nil)
@@ -148,6 +148,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
 				return err
 			}
+			punished = true
 		case "mute":
 			_, err = chat.RestrictMember(b, userId,
 				MutedPermissions,
@@ -159,6 +160,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
 				return err
 			}
+			punished = true
 		case "ban":
 			_, err = chat.BanMember(b, userId, nil)
 			temp, _ := tr.GetString("warns_limit_banned")
@@ -167,6 +169,13 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
 				return err
 			}
+			punished = true
+		default:
+			log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+		}
+
+		if punished {
+			db.ResetUserWarns(userId, chat.Id)
 		}
 		var sb strings.Builder
 		for _, warnReason := range reasons {

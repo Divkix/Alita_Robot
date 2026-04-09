@@ -43,7 +43,8 @@ func GetChatRulesInfo(chatId int64) *RulesSettings {
 // SetChatRules updates the rules text for the specified chat.
 // Creates default rules settings if they don't exist.
 func SetChatRules(chatId int64, rules string) {
-	err := UpdateRecord(&RulesSettings{}, RulesSettings{ChatId: chatId}, RulesSettings{Rules: rules})
+	checkRulesSetting(chatId)
+	err := UpdateRecordWithZeroValues(&RulesSettings{}, RulesSettings{ChatId: chatId}, map[string]any{"rules": rules})
 	if err != nil {
 		log.Errorf("[Database] SetChatRules: %v - %d", err, chatId)
 	}
@@ -52,7 +53,8 @@ func SetChatRules(chatId int64, rules string) {
 // SetChatRulesButton updates the rules button text for the specified chat.
 // The button is used to display rules in a more interactive format.
 func SetChatRulesButton(chatId int64, rulesButton string) {
-	err := UpdateRecord(&RulesSettings{}, RulesSettings{ChatId: chatId}, RulesSettings{RulesBtn: rulesButton})
+	checkRulesSetting(chatId)
+	err := UpdateRecordWithZeroValues(&RulesSettings{}, RulesSettings{ChatId: chatId}, map[string]any{"rules_btn": rulesButton})
 	if err != nil {
 		log.Errorf("[Database] SetChatRulesButton: %v", err)
 	}

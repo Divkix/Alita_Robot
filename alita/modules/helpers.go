@@ -316,7 +316,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("rules_for_chat", i18n.TranslationParams{
-			"first":  chatinfo.Title,
+			"first":  html.EscapeString(chatinfo.Title),
 			"second": normalizedRules,
 		})
 		_, err = msg.Reply(b, text, helpers.Shtml())

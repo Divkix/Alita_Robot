@@ -144,7 +144,14 @@ func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 // Updates help messages based on user selections from the formatting keyboard.
 func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
+	if query == nil {
+		return ext.EndGroups
+	}
 	msg := query.Message
+	if msg == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	module := ""

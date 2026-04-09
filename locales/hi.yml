@@ -1806,3 +1806,17 @@ filters_overwrite_token_failed: "ओवरराइट पुष्टि बन
 notes_overwrite_token_failed: "ओवरराइट पुष्टि बनाई नहीं जा सकी। कृपया फिर से प्रयास करें।"
 common_settings_save_failed: "Settings save karne mein error. Baad mein try karein."
 devs_chatlist_error: "Chat list generate karne mein error. Phir try karein."
+
+# Reactions module strings
+reactions_add_usage: "उपयोग: /addreaction <कीवर्ड> <इमोजी>"
+reactions_invalid_emoji: "कृपया एक मान्य इमोजी दें।"
+reactions_add_error: "रिएक्शन सहेजा नहीं जा सका। कृपया फिर से प्रयास करें।"
+reactions_add_success: "रिएक्शन जोड़ा गया: <code>{keyword}</code> -> {emoji}"
+reactions_remove_usage: "उपयोग: /removereaction <कीवर्ड>"
+reactions_not_found: "इस चैट के लिए कोई रिएक्शन कॉन्फ़िगर नहीं है।"
+reactions_keyword_not_found: "कीवर्ड के लिए कोई रिएक्शन नहीं मिला: <code>{keyword}</code>"
+reactions_remove_error: "रिएक्शन हटाया नहीं जा सका। कृपया फिर से प्रयास करें।"
+reactions_remove_success: "कीवर्ड के लिए रिएक्शन हटाया गया: <code>{keyword}</code>"
+reactions_none: "इस चैट में कोई रिएक्शन कॉन्फ़िगर नहीं है।"
+reactions_list_header: "<b>कॉन्फ़िगर किए गए रिएक्शन:</b>\n{list}"
+reactions_reset_success: "इस चैट के सभी रिएक्शन रीसेट कर दिए गए।"

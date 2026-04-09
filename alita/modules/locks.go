@@ -39,21 +39,20 @@ var (
 	MESSAGES filters.Message = func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Contact != nil || msg.Location != nil || msg.Venue != nil || MEDIA(msg) || OTHER(msg)
 	}
-	PREVIEW filters.Message = func(msg *gotgbot.Message) bool {
-		// Check message entities for URL previews
-		for _, s := range msg.Entities {
-			if s.Url != "" {
+	hasURLEntity = func(msg *gotgbot.Message) bool {
+		for _, entity := range msg.Entities {
+			if entity.Type == "url" || entity.Type == "text_link" || entity.Url != "" {
 				return true
 			}
 		}
-		// Also check caption entities for media with URL previews
-		for _, s := range msg.CaptionEntities {
-			if s.Url != "" {
+		for _, entity := range msg.CaptionEntities {
+			if entity.Type == "url" || entity.Type == "text_link" || entity.Url != "" {
 				return true
 			}
 		}
 		return false
 	}
+	PREVIEW filters.Message = hasURLEntity
 
 	lockMap = map[string]filters.Message{
 		"sticker": message.Sticker,
@@ -67,7 +66,7 @@ var (
 		"contact":   message.Contact,
 		"photo":     message.Photo,
 		"gif":       message.Animation,
-		"url":       message.Entity("url"),
+		"url":       hasURLEntity,
 		"bots":      message.NewChatMembers,
 		"forward":   message.Forwarded,
 		"game":      message.Game,
