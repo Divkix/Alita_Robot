@@ -20,24 +20,6 @@ var MutedPermissions = gotgbot.ChatPermissions{
 	CanSendOtherMessages:  false,
 }
 
-// FullPermissions represents unrestricted user with all standard permissions
-var FullPermissions = gotgbot.ChatPermissions{
-	CanSendMessages:       true,
-	CanSendPhotos:         true,
-	CanSendVideos:         true,
-	CanSendAudios:         true,
-	CanSendDocuments:      true,
-	CanSendVideoNotes:     true,
-	CanSendVoiceNotes:     true,
-	CanAddWebPagePreviews: true,
-	CanChangeInfo:         true,
-	CanInviteUsers:        true,
-	CanPinMessages:        true,
-	CanManageTopics:       true,
-	CanSendPolls:          true,
-	CanSendOtherMessages:  true,
-}
-
 // defaultUnmutePermissions represents a safe fallback when chat defaults are unavailable.
 func defaultUnmutePermissions() gotgbot.ChatPermissions {
 	return gotgbot.ChatPermissions{

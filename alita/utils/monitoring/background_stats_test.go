@@ -258,7 +258,6 @@ func TestGlobalRecorders_NoCollector_NoOp(t *testing.T) {
 	// These should not panic
 	GlobalRecordError()
 	GlobalRecordMessage()
-	GlobalRecordResponseTime(10 * time.Millisecond)
 }
 
 func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
@@ -282,7 +281,6 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 	// Record via global functions
 	GlobalRecordError()
 	GlobalRecordMessage()
-	GlobalRecordResponseTime(50 * time.Millisecond)
 
 	// Verify
 	if collector.errorCounter != 1 {
@@ -291,12 +289,11 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 	if collector.messageCounter != 1 {
 		t.Errorf("expected messageCounter=1 after GlobalRecordMessage, got %d", collector.messageCounter)
 	}
-	if collector.responseTimeCount != 1 {
-		t.Errorf("expected responseTimeCount=1 after GlobalRecordResponseTime, got %d", collector.responseTimeCount)
+	if collector.responseTimeCount != 0 {
+		t.Errorf("expected responseTimeCount=0 when no response times are recorded, got %d", collector.responseTimeCount)
 	}
-	if collector.responseTimeSum != int64(50*time.Millisecond) {
-		t.Errorf("expected responseTimeSum=%d after GlobalRecordResponseTime(50ms), got %d",
-			int64(50*time.Millisecond), collector.responseTimeSum)
+	if collector.responseTimeSum != 0 {
+		t.Errorf("expected responseTimeSum=0 when no response times are recorded, got %d", collector.responseTimeSum)
 	}
 }
 

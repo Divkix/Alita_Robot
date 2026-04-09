@@ -289,7 +289,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Pass context in the data map for handlers to use
 		data := map[string]interface{}{
-			"context": asyncCtx,
+			tracing.ContextDataKey: asyncCtx,
 		}
 		if err := s.dispatcher.ProcessUpdate(s.bot, &update, data); err != nil {
 			log.WithFields(log.Fields{

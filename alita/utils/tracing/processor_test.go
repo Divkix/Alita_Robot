@@ -12,7 +12,7 @@ import (
 // This is extracted so we can test the injection behavior without needing a full Dispatcher.
 func injectTraceContext(ctx *ext.Context) (skipped bool) {
 	if ctx != nil && ctx.Data != nil {
-		if _, exists := ctx.Data["context"]; exists {
+		if _, exists := ctx.Data[ContextDataKey]; exists {
 			return true
 		}
 	}
@@ -23,7 +23,7 @@ func injectTraceContext(ctx *ext.Context) (skipped bool) {
 	if ctx.Data == nil {
 		ctx.Data = make(map[string]any)
 	}
-	ctx.Data["context"] = traceCtx
+	ctx.Data[ContextDataKey] = traceCtx
 	return false
 }
 
@@ -37,19 +37,13 @@ func TestTracingProcessor_InjectsContext(t *testing.T) {
 		t.Fatal("should not skip injection when no context exists")
 	}
 
-	// Assert ctx.Data has a "context" key of type context.Context
-	raw, ok := ctx.Data["context"]
+	// Assert ctx.Data has a context key of type context.Context
+	raw, ok := ctx.Data[ContextDataKey]
 	if !ok {
-		t.Fatal(`ctx.Data must contain a "context" entry after injection`)
+		t.Fatal("ctx.Data must contain the trace context entry after injection")
 	}
 	if _, ok := raw.(context.Context); !ok {
-		t.Fatalf(`ctx.Data["context"] must be of type context.Context (got %T)`, raw)
-	}
-
-	// Verify ExtractContext returns the same injected context
-	extracted := ExtractContext(ctx)
-	if extracted != raw {
-		t.Fatal("ExtractContext should return the injected context from ctx.Data")
+		t.Fatalf("trace context entry must be of type context.Context (got %T)", raw)
 	}
 }
 
@@ -58,7 +52,7 @@ func TestTracingProcessor_PreservesExistingContext(t *testing.T) {
 
 	ctx := &ext.Context{
 		Data: map[string]any{
-			"context": existingCtx,
+			ContextDataKey: existingCtx,
 		},
 	}
 
@@ -68,7 +62,10 @@ func TestTracingProcessor_PreservesExistingContext(t *testing.T) {
 	}
 
 	// The existing context should NOT be overwritten
-	extracted := ExtractContext(ctx)
+	extracted, ok := ctx.Data[ContextDataKey].(context.Context)
+	if !ok {
+		t.Fatal("existing trace context entry must be a context.Context")
+	}
 	if extracted != existingCtx {
 		t.Error("TracingProcessor should not overwrite an existing context")
 	}
@@ -87,8 +84,8 @@ func TestTracingProcessor_InitializesNilData(t *testing.T) {
 	if ctx.Data == nil {
 		t.Fatal("TracingProcessor should initialize nil Data map")
 	}
-	if _, ok := ctx.Data["context"]; !ok {
-		t.Fatal(`ctx.Data must contain a "context" key after injection`)
+	if _, ok := ctx.Data[ContextDataKey]; !ok {
+		t.Fatal("ctx.Data must contain the trace context key after injection")
 	}
 }
 
@@ -97,7 +94,7 @@ func TestTracingProcessor_SkipsSpanForWebhookContext(t *testing.T) {
 
 	ctx := &ext.Context{
 		Data: map[string]any{
-			"context": webhookCtx,
+			ContextDataKey: webhookCtx,
 		},
 	}
 
@@ -107,11 +104,14 @@ func TestTracingProcessor_SkipsSpanForWebhookContext(t *testing.T) {
 	}
 
 	// Verify the original webhook context is untouched
-	raw := ctx.Data["context"]
+	raw := ctx.Data[ContextDataKey]
 	if raw != webhookCtx {
 		t.Fatal("webhook context must not be replaced")
 	}
 }
+
+// contextTestKey is a custom type for context keys to avoid collisions.
+type contextTestKey string
 
 // ---------------------------------------------------------------------------
 // Callback tests (wiring tests for main.go monitoring setup)

@@ -426,10 +426,3 @@ func GlobalRecordMessage() {
 		c.RecordMessage()
 	}
 }
-
-// GlobalRecordResponseTime records a response time measurement if collector is initialized
-func GlobalRecordResponseTime(duration time.Duration) {
-	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
-		c.RecordResponseTime(duration)
-	}
-}

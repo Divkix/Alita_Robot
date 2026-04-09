@@ -288,23 +288,6 @@ func DeleteCaptchaAttemptByIDAtomic(attemptID uint, userID, chatID int64) (bool,
 	return result.RowsAffected > 0, nil
 }
 
-// CleanupExpiredCaptchaAttempts removes all expired captcha attempts from the database.
-// NOTE: This function is currently not called from anywhere. Wire it into a periodic
-// cleanup goroutine (e.g., monitoring or antiflood cleanup loop) or remove if unneeded.
-func CleanupExpiredCaptchaAttempts() (int64, error) {
-	result := DB.Where("expires_at < ?", time.Now()).Delete(&CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][CleanupExpiredCaptchaAttempts]: %v", result.Error)
-		return 0, result.Error
-	}
-
-	if result.RowsAffected > 0 {
-		log.Infof("[Database][CleanupExpiredCaptchaAttempts]: Cleaned up %d expired captcha attempts", result.RowsAffected)
-	}
-
-	return result.RowsAffected, nil
-}
-
 // DeleteAllCaptchaAttempts removes all captcha attempts for a chat.
 // Used when captcha is disabled or for admin cleanup.
 func DeleteAllCaptchaAttempts(chatID int64) error {
