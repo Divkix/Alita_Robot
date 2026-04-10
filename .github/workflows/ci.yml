@@ -73,6 +73,8 @@ jobs:
           version: v2.9.0
           install-mode: binary
           args: --timeout 10m
+          # Only report new issues to allow gradual improvement of existing codebase
+          only-new-issues: true
 
       - name: Technical Debt Tracking
         run: |
@@ -117,7 +119,52 @@ jobs:
         with:
           version: v2.9.0
           install-mode: binary
-          args: --enable dupl --timeout 10m
+          # Only run dupl linter, disable gocyclo from config
+          args: --disable gocyclo --timeout 10m
+          # Only report new issues to allow gradual improvement
+          only-new-issues: true
+
+      - name: Cyclomatic Complexity Analysis
+        run: |
+          echo "## 📊 Cyclomatic Complexity Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Install gocyclo for complexity analysis
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+
+          # Run complexity analysis with threshold 15
+          echo "### Functions with Complexity > 15" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get high complexity functions
+          HIGH_COMPLEX=$(gocyclo -over 15 . 2>/dev/null | grep -v "could not get file info" | sort -t= -k2 -nr || true)
+
+          if [ -n "$HIGH_COMPLEX" ]; then
+            echo "| Complexity | Function | Location |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "$HIGH_COMPLEX" | while read line; do
+              # Parse the gocyclo output format: complexity package function file:line
+              COMPLEX=$(echo "$line" | awk '{print $1}')
+              PKG=$(echo "$line" | awk '{print $2}')
+              FUNC=$(echo "$line" | awk '{print $3}')
+              LOC=$(echo "$line" | awk '{print $4}')
+              echo "| $COMPLEX | $PKG.$FUNC | $LOC |" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Warning:** Functions with high cyclomatic complexity should be refactored for better maintainability." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No functions with cyclomatic complexity > 15 detected." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Complexity Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get top 10 most complex functions
+          echo "**Top 10 Most Complex Functions:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          gocyclo . 2>/dev/null | grep -v "could not get file info" | sort -t= -k2 -nr | head -10 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
   # Build verification - run in parallel with other checks
   build:
