@@ -73,6 +73,8 @@ jobs:
           version: v2.9.0
           install-mode: binary
           args: --timeout 10m
+          # Only report new issues to allow gradual improvement of existing codebase
+          only-new-issues: true
 
       - name: Technical Debt Tracking
         run: |
