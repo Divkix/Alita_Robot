@@ -9,12 +9,31 @@ linters:
   enable:
     - godox      # Detects TODO, FIXME, and other keywords
     - dupl       # Detects duplicate code fragments
-  # Linter settings (v2 format)
+    - gocyclo    # Cyclomatic complexity analysis
   settings:
     dupl:
       threshold: 100
+    gocyclo:
+      # Minimal complexity to report.
+      # Threshold of 20 catches problematic functions while allowing reasonable complexity.
+      # CI reports all functions > 15 for visibility and gradual improvement.
+      min-complexity: 20
+  # Exclusions for complexity checks
+  exclusions:
+    rules:
+      # Exclude gocyclo for test files (table-driven tests often have high complexity)
+      - path: _test\.go
+        linters:
+          - gocyclo
+      # Exclude generated files
+      - path: scripts/generate_docs/
+        linters:
+          - gocyclo
 
 # Output settings
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  # Only fail on new issues - allows gradual improvement of existing codebase
+  # Remove this once existing complexity issues are addressed
+  new: true
