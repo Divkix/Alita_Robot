@@ -103,7 +103,7 @@ func (o *OptimizedUserQueries) GetUserBasicInfo(userID int64) (*User, error) {
 
 	var user User
 	err := o.db.Model(&User{}).
-		Select("id, user_id, username, name, language").
+		Select("id, user_id, username, name, language, last_activity").
 		Where("user_id = ?", userID).
 		First(&user).Error
 
@@ -138,7 +138,7 @@ func (o *OptimizedChatQueries) GetChatBasicInfo(chatID int64) (*Chat, error) {
 
 	var chat Chat
 	err := o.db.Model(&Chat{}).
-		Select("id, chat_id, chat_name, language, users, is_inactive").
+		Select("id, chat_id, chat_name, language, users, is_inactive, last_activity").
 		Where("chat_id = ?", chatID).
 		First(&chat).Error
 
