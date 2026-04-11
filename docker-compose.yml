@@ -28,7 +28,7 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/alita_robot", "--health"]
       interval: 30s
@@ -66,10 +66,15 @@ services:
           cpus: "0.5"
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: alita-redis
     restart: always
     command: redis-server --requirepass redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:

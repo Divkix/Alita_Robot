@@ -1,0 +1,37 @@
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Development
+.devcontainer/
+.claude/
+.factory/
+supabase/
+
+# Scripts (not needed for build)
+scripts/
+
+# Test artifacts
+coverage.out
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Config files not needed for build
+*.yml
+*.yaml
+!go.sum
+Makefile
+
+# OS files
+.DS_Store

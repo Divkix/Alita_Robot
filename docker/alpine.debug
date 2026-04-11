@@ -1,23 +1,54 @@
-# Build Stage: Build bot using the alpine image
-# This is an debug image, it will not compress the binary
-FROM golang:alpine AS builder
+# Debug image with full shell access for troubleshooting
+# Multi-stage build to keep image size reasonable while preserving debug symbols
+
+# Stage 1: Build using native platform
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
+
 RUN apk add --no-cache curl wget gnupg git
 WORKDIR /app
 
 # Copy go mod files first for better layer caching
 COPY go.mod go.sum ./
 
-# Download dependencies - this layer is cached unless go.mod/go.sum change
-RUN go mod download && go mod verify
+# Download dependencies - runs on native platform, cached unless go.mod/go.sum change
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download && go mod verify
 
 # Copy source code
 COPY . .
 
-# Build the binary (debug mode - no optimization flags)
-RUN go build -o out/alita_robot
+# Build the binary (debug mode - no optimization flags, preserves symbols)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -trimpath \
+    -o alita_robot .
 
-# Note: supabase directory is already copied with COPY . . above
-ENTRYPOINT ["/app/out/alita_robot"]
+# Stage 2: Alpine runtime with shell access
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy binary and migrations
+COPY --from=builder /app/alita_robot /app/alita_robot
+COPY --from=builder /app/migrations /app/migrations
+
+# Create non-root user
+RUN addgroup -g 65532 -S alita && \
+    adduser -u 65532 -S alita -G alita && \
+    chown -R alita:alita /app
+
+USER alita:alita
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/alita_robot"]
 
 # Metadata
 LABEL org.opencontainers.image.authors="Divanshu Chauhan <divkix@divkix.me>"
