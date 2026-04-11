@@ -655,7 +655,10 @@ func (CaptchaMutedUsers) TableName() string {
 }
 
 // Database instance
-var DB *gorm.DB
+var (
+	DB               *gorm.DB
+	dbMonitoringStop context.CancelFunc
+)
 
 // Initialize database connection and auto-migrate
 func init() {
@@ -677,10 +680,15 @@ func init() {
 		},
 	)
 
+	dsn := config.AppConfig.DatabaseURL
+	if dsn == "" {
+		dsn = os.Getenv("DATABASE_URL")
+	}
+
 	// Open PostgreSQL connection using DATABASE_URL with retry logic
 	maxRetries := 5
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		DB, err = gorm.Open(postgres.Open(config.AppConfig.DatabaseURL), &gorm.Config{
+		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 			Logger:      gormLogger,
 			PrepareStmt: true, // Enable prepared statement caching for better performance
 			NowFunc: func() time.Time {
@@ -747,9 +755,8 @@ func init() {
 	// Start database performance monitoring if enabled
 	if config.AppConfig.EnableDBMonitoring {
 		ctx, cancel := context.WithCancel(context.Background())
-		// Store cancel function for graceful shutdown
-		_ = cancel // Temporary: will be used in shutdown handlers
-		go StartMonitoring(ctx, 1*time.Minute)
+		dbMonitoringStop = cancel
+		StartMonitoring(ctx, time.Minute)
 	}
 }
 
@@ -839,6 +846,11 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 // Close closes the database connection gracefully.
 // This should be called during application shutdown to properly close all database connections.
 func Close() error {
+	if dbMonitoringStop != nil {
+		dbMonitoringStop()
+		dbMonitoringStop = nil
+	}
+
 	if DB != nil {
 		sqlDB, err := DB.DB()
 		if err != nil {

@@ -56,10 +56,10 @@
 
 ### Validation Script Capabilities
 Once database is accessible, the validation script (`scripts/validate_orphaned_data.go`) will check for:
-- Orphaned `admin` records (chat_id not in chats table)
-- Orphaned `antiflood_settings` records (chat_id not in chats table)
-- Orphaned `warns_users` records (chat_id not in chats table)
-- Orphaned `warns_users` records (user_id not in users table)
+- Orphaned chat-linked records across all FK-targeted tables (`admin`, `antiflood_settings`, `blacklists`, `channels`, `connection_settings`, `disable`, `filters`, `greetings`, `locks`, `notes`, `notes_settings`, `pins`, `report_chat_settings`, `rules`, `warns_settings`)
+- Orphaned user-linked records (`devs`, `report_user_settings`)
+- Orphaned junction records in `chat_users`, `connection`, and `warns_users`
+- Invalid optional linked channel references in `channels.channel_id`
 
 The script automatically provides cleanup SQL for any orphaned records found.
 
@@ -84,7 +84,7 @@ None - database connection required before cleanup can be performed.
 ### Script Readiness
 Both validation and backup scripts are properly implemented and ready to execute:
 - **Validation Script**: `scripts/validate_orphaned_data.go`
-  - Checks 4 critical relationships
+  - Checks all FK cleanup relationships used by the foreign key migration
   - Provides cleanup SQL for any issues found
   - Returns appropriate exit codes (0 = clean, 1 = issues found)
 

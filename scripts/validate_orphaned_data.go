@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
-	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 )
 
@@ -16,79 +16,176 @@ type OrphanReport struct {
 	SQL   string
 }
 
-func main() {
-	// Load configuration
-	if _, err := config.LoadConfig(); err != nil {
-		log.Fatalf("[Validation] Failed to load configuration: %v", err)
-	}
+type orphanCheck struct {
+	table     string
+	condition string
+	issue     string
+	cleanup   string
+}
 
-	// Initialize database
+func main() {
+	// Database initialization happens in db package init.
 	if db.DB == nil {
 		log.Fatal("[Validation] Database not initialized. Set DATABASE_URL environment variable.")
 	}
 
 	fmt.Println("🔍 Database Orphaned Data Validation")
-	fmt.Println("=====================================")
+	fmt.Println(strings.Repeat("=", 37))
 
-	reports := []OrphanReport{}
-
-	// Check for orphaned admin records
-	var adminCount int64
-	err := db.DB.Table("admin").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&adminCount).Error
-	if err != nil {
-		log.Fatalf("[Validation] Failed to query admin table: %v", err)
+	// Keep this list in sync with STEP 1 orphan cleanup in
+	// migrations/20250805204145_add_foreign_key_relations.sql.
+	checks := []orphanCheck{
+		{
+			table:     "admin",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "antiflood_settings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM antiflood_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "blacklists",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM blacklists WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "channels",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM channels WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "channels",
+			condition: "channel_id IS NOT NULL AND channel_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent channel_id",
+			cleanup: "UPDATE channels SET channel_id = NULL WHERE channel_id IS NOT NULL " +
+				"AND channel_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "connection_settings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM connection_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "disable",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM disable WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "filters",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM filters WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "greetings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM greetings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "locks",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM locks WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "notes",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM notes WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "notes_settings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM notes_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "pins",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM pins WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "report_chat_settings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM report_chat_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "rules",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM rules WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "warns_settings",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM warns_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "devs",
+			condition: "user_id NOT IN (SELECT user_id FROM users)",
+			issue:     "Records with non-existent user_id",
+			cleanup:   "DELETE FROM devs WHERE user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table:     "report_user_settings",
+			condition: "user_id NOT IN (SELECT user_id FROM users)",
+			issue:     "Records with non-existent user_id",
+			cleanup:   "DELETE FROM report_user_settings WHERE user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table: "chat_users",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats) OR " +
+				"user_id NOT IN (SELECT user_id FROM users)",
+			issue: "Records with non-existent chat_id or user_id",
+			cleanup: "DELETE FROM chat_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) " +
+				"OR user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table: "connection",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats) OR " +
+				"user_id NOT IN (SELECT user_id FROM users)",
+			issue: "Records with non-existent chat_id or user_id",
+			cleanup: "DELETE FROM connection WHERE chat_id NOT IN (SELECT chat_id FROM chats) " +
+				"OR user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table: "warns_users",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats) OR " +
+				"user_id NOT IN (SELECT user_id FROM users)",
+			issue: "Records with non-existent chat_id or user_id",
+			cleanup: "DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) " +
+				"OR user_id NOT IN (SELECT user_id FROM users);",
+		},
 	}
-	if adminCount > 0 {
+
+	reports := make([]OrphanReport, 0, len(checks))
+	for _, check := range checks {
+		var count int64
+		err := db.DB.Table(check.table).Where(check.condition).Count(&count).Error
+		if err != nil {
+			log.Fatalf("[Validation] Failed to query %s: %v", check.table, err)
+		}
+		if count == 0 {
+			continue
+		}
+
 		reports = append(reports, OrphanReport{
-			Table: "admin",
-			Count: adminCount,
-			Issue: "Records with non-existent chat_id",
-			SQL:   "DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
-		})
-	}
-
-	// Check for orphaned antiflood_settings records
-	var antifloodCount int64
-	err = db.DB.Table("antiflood_settings").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&antifloodCount).Error
-	if err != nil {
-		log.Fatalf("[Validation] Failed to query antiflood_settings table: %v", err)
-	}
-	if antifloodCount > 0 {
-		reports = append(reports, OrphanReport{
-			Table: "antiflood_settings",
-			Count: antifloodCount,
-			Issue: "Records with non-existent chat_id",
-			SQL:   "DELETE FROM antiflood_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
-		})
-	}
-
-	// Check for orphaned warns_users records
-	var warnsUsersCount int64
-	err = db.DB.Table("warns_users").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&warnsUsersCount).Error
-	if err != nil {
-		log.Fatalf("[Validation] Failed to query warns_users table: %v", err)
-	}
-	if warnsUsersCount > 0 {
-		reports = append(reports, OrphanReport{
-			Table: "warns_users",
-			Count: warnsUsersCount,
-			Issue: "Records with non-existent chat_id",
-			SQL:   "DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
-		})
-	}
-
-	// Check for orphaned warns_users records (user side)
-	var warnsUserCount int64
-	err = db.DB.Table("warns_users").Where("user_id NOT IN (SELECT user_id FROM users)").Count(&warnsUserCount).Error
-	if err != nil {
-		log.Fatalf("[Validation] Failed to query warns_users table (user check): %v", err)
-	}
-	if warnsUserCount > 0 {
-		reports = append(reports, OrphanReport{
-			Table: "warns_users",
-			Count: warnsUserCount,
-			Issue: "Records with non-existent user_id",
-			SQL:   "DELETE FROM warns_users WHERE user_id NOT IN (SELECT user_id FROM users);",
+			Table: check.table,
+			Count: count,
+			Issue: check.issue,
+			SQL:   check.cleanup,
 		})
 	}
 
@@ -112,16 +209,12 @@ func main() {
 	fmt.Println("   2. Run the cleanup SQL in a transaction")
 	fmt.Println("   3. Re-run this validation script to confirm")
 	fmt.Println("\n   ⚠️  CRITICAL: Always run cleanup in transactions for safety!")
-	fmt.Println("\n   Example cleanup commands:")
-	fmt.Println("   psql $DATABASE_URL -c \"BEGIN;")
-	fmt.Println("   psql $DATABASE_URL -c \"DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);\"")
-	fmt.Println("   psql $DATABASE_URL -c \"COMMIT;\"")
-	fmt.Println("\n   Or all at once:")
-	fmt.Println("   psql $DATABASE_URL << 'EOF'")
+	fmt.Println("\n   Example cleanup transaction:")
+	fmt.Println("   psql \"$DATABASE_URL\" << 'EOF'")
 	fmt.Println("   BEGIN;")
-	fmt.Println("   DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);")
-	fmt.Println("   DELETE FROM antiflood_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);")
-	fmt.Println("   DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) OR user_id NOT IN (SELECT user_id FROM users);")
+	for _, report := range reports {
+		fmt.Printf("   %s\n", report.SQL)
+	}
 	fmt.Println("   COMMIT;")
 	fmt.Println("   EOF")
 

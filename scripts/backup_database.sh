@@ -23,10 +23,7 @@ echo "📦 Creating backup..."
 echo "   Destination: $BACKUP_FILE"
 
 # Create compressed backup with pipe failure detection
-pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
-
-# Check pipe exit status
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
+if ! pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"; then
     echo "❌ ERROR: pg_dump failed"
     rm -f "$BACKUP_FILE"
     exit 1

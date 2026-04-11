@@ -73,7 +73,7 @@ Complete rollback procedures documented in `docs/rollback-procedures.md`
 ## Known Issues
 - Database connectivity issues during development (expected in production)
 - Some tests require database connection (gracefully skip)
-- 11 of 12 CHECK constraints are duplicates (safe due to IF NOT EXISTS)
+- CHECK constraints were reviewed and consolidated to avoid duplicate/invalid migration syntax
 
 ## Recommendations
 1. Complete Task 4 validation when database is accessible

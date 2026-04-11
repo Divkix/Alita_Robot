@@ -5,7 +5,7 @@
 This document provides comprehensive rollback procedures for all three phases of the database schema fixes implemented in the Alita Robot project. These procedures are critical for production safety and should be tested before deployment.
 
 **Phases Covered:**
-- **Phase 1**: CHECK Constraints (Migration: `20250411000000_add_database_constraints.sql`)
+- **Phase 1**: CHECK Constraints (Migration: `20250807115000_add_database_constraints.sql`)
 - **Phase 2**: Foreign Keys (Migration: `20250805204145_add_foreign_key_relations.sql`)
 - **Phase 3**: Database Monitoring (Connection pool monitoring)
 
@@ -13,42 +13,32 @@ This document provides comprehensive rollback procedures for all three phases of
 
 ## Phase 1 Rollback (CHECK Constraints)
 
-**Migration**: `20250411000000_add_database_constraints.sql`
+**Migration**: `20250807115000_add_database_constraints.sql`
 **Risk Level**: LOW - Constraints only validate new data
 **Rollback Time**: < 1 minute
 
 ### Immediate Rollback (SQL)
 
-Execute this SQL to drop all CHECK constraints added in Phase 1:
+Execute this SQL to rollback only the constraints introduced by this Phase 1 migration:
 
 ```bash
-# Drop all CHECK constraints
+# Rollback Phase 1 constraints
 psql $DATABASE_URL << 'EOF'
 BEGIN;
 
--- WARNINGS SYSTEM CONSTRAINTS
-ALTER TABLE warns_settings DROP CONSTRAINT IF EXISTS chk_warns_settings_limit;
-ALTER TABLE warns_users DROP CONSTRAINT IF EXISTS chk_warns_users_num;
-ALTER TABLE warns_settings DROP CONSTRAINT IF EXISTS chk_warns_mode;
-
--- ANTIFLOOD CONSTRAINTS
+-- Restore antiflood behavior from before Phase 1.
 ALTER TABLE antiflood_settings DROP CONSTRAINT IF EXISTS chk_antiflood_limit;
-ALTER TABLE antiflood_settings DROP CONSTRAINT IF EXISTS chk_antiflood_action;
-ALTER TABLE antiflood_settings DROP CONSTRAINT IF EXISTS chk_antiflood_mode;
+ALTER TABLE antiflood_settings
+ADD CONSTRAINT chk_antiflood_limit CHECK (flood_limit > 0);
 
--- BLACKLIST CONSTRAINTS
-ALTER TABLE blacklists DROP CONSTRAINT IF EXISTS chk_blacklists_action;
-
--- CAPTCHA CONSTRAINTS
-ALTER TABLE captcha_settings DROP CONSTRAINT IF EXISTS chk_captcha_timeout;
-ALTER TABLE captcha_settings DROP CONSTRAINT IF EXISTS chk_captcha_failure_action;
-ALTER TABLE captcha_settings DROP CONSTRAINT IF EXISTS chk_captcha_max_attempts;
-ALTER TABLE captcha_settings DROP CONSTRAINT IF EXISTS chk_captcha_mode;
+-- Remove captcha expiration check added by Phase 1.
 ALTER TABLE captcha_attempts DROP CONSTRAINT IF EXISTS chk_captcha_expires_at;
 
 COMMIT;
 EOF
 ```
+
+> Note: Older sections in this document may reference legacy CHECK-constraint rollback examples from earlier plans. For migration `20250807115000_add_database_constraints.sql`, use the SQL above.
 
 ### Code Rollback (Git)
 
