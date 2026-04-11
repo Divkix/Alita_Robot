@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build lint test check-translations check-duplicates psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs check-docs inventory docs-dev
+.PHONY: run tidy vendor build lint test check-translations check-duplicates psql-prepare psql-migrate psql-status psql-rollback psql-reset psql-verify generate-docs check-docs inventory docs-dev validate-db backup-db
 
 GO_CMD = go
 GORELEASER_CMD = goreleaser
@@ -119,3 +119,12 @@ inventory:
 docs-dev:
 	@echo "🚀 Starting Astro dev server..."
 	@cd docs && bun run dev
+
+# Database validation and backup
+validate-db:
+	@echo "🔍 Validating database for orphaned records..."
+	@go run scripts/validate_orphaned_data.go
+
+backup-db:
+	@echo "💾 Creating database backup..."
+	@./scripts/backup_database.sh
