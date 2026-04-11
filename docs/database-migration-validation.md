@@ -99,7 +99,7 @@ Both validation and backup scripts are properly implemented and ready to execute
 - **Rollback Safety**: Not established (no backup created)
 
 ### Configuration Notes
-- Sample env shows `DATABASE_URL=postgres://postgres:password@localhost:5432/alita_robot`
+- Sample env shows `DATABASE_URL=postgres://postgres:PASSWORD@localhost:5432/alita_robot`
 - Error shows connection attempt to `127.0.0.1:54322`
 - Port mismatch detected (5432 vs 54322) - needs investigation
 
