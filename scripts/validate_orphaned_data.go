@@ -34,7 +34,10 @@ func main() {
 
 	// Check for orphaned admin records
 	var adminCount int64
-	db.DB.Table("admin").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&adminCount)
+	err := db.DB.Table("admin").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&adminCount).Error
+	if err != nil {
+		log.Fatalf("[Validation] Failed to query admin table: %v", err)
+	}
 	if adminCount > 0 {
 		reports = append(reports, OrphanReport{
 			Table: "admin",
@@ -46,7 +49,10 @@ func main() {
 
 	// Check for orphaned antiflood_settings records
 	var antifloodCount int64
-	db.DB.Table("antiflood_settings").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&antifloodCount)
+	err = db.DB.Table("antiflood_settings").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&antifloodCount).Error
+	if err != nil {
+		log.Fatalf("[Validation] Failed to query antiflood_settings table: %v", err)
+	}
 	if antifloodCount > 0 {
 		reports = append(reports, OrphanReport{
 			Table: "antiflood_settings",
@@ -58,7 +64,10 @@ func main() {
 
 	// Check for orphaned warns_users records
 	var warnsUsersCount int64
-	db.DB.Table("warns_users").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&warnsUsersCount)
+	err = db.DB.Table("warns_users").Where("chat_id NOT IN (SELECT chat_id FROM chats)").Count(&warnsUsersCount).Error
+	if err != nil {
+		log.Fatalf("[Validation] Failed to query warns_users table: %v", err)
+	}
 	if warnsUsersCount > 0 {
 		reports = append(reports, OrphanReport{
 			Table: "warns_users",
@@ -70,7 +79,10 @@ func main() {
 
 	// Check for orphaned warns_users records (user side)
 	var warnsUserCount int64
-	db.DB.Table("warns_users").Where("user_id NOT IN (SELECT user_id FROM users)").Count(&warnsUserCount)
+	err = db.DB.Table("warns_users").Where("user_id NOT IN (SELECT user_id FROM users)").Count(&warnsUserCount).Error
+	if err != nil {
+		log.Fatalf("[Validation] Failed to query warns_users table (user check): %v", err)
+	}
 	if warnsUserCount > 0 {
 		reports = append(reports, OrphanReport{
 			Table: "warns_users",
@@ -99,8 +111,19 @@ func main() {
 	fmt.Println("   1. Review the orphaned records above")
 	fmt.Println("   2. Run the cleanup SQL in a transaction")
 	fmt.Println("   3. Re-run this validation script to confirm")
-	fmt.Println("\n   Example cleanup command:")
-	fmt.Println("   psql $DATABASE_URL -c \"BEGIN; <sql_above>; COMMIT;\"")
+	fmt.Println("\n   ⚠️  CRITICAL: Always run cleanup in transactions for safety!")
+	fmt.Println("\n   Example cleanup commands:")
+	fmt.Println("   psql $DATABASE_URL -c \"BEGIN;")
+	fmt.Println("   psql $DATABASE_URL -c \"DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);\"")
+	fmt.Println("   psql $DATABASE_URL -c \"COMMIT;\"")
+	fmt.Println("\n   Or all at once:")
+	fmt.Println("   psql $DATABASE_URL << 'EOF'")
+	fmt.Println("   BEGIN;")
+	fmt.Println("   DELETE FROM admin WHERE chat_id NOT IN (SELECT chat_id FROM chats);")
+	fmt.Println("   DELETE FROM antiflood_settings WHERE chat_id NOT IN (SELECT chat_id FROM chats);")
+	fmt.Println("   DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) OR user_id NOT IN (SELECT user_id FROM users);")
+	fmt.Println("   COMMIT;")
+	fmt.Println("   EOF")
 
 	os.Exit(1)
 }
