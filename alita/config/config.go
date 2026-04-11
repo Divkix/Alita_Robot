@@ -85,6 +85,9 @@ type Config struct {
 	DBConnMaxLifetimeMin int `validate:"min=1,max=1440"` // Max lifetime in minutes
 	DBConnMaxIdleTimeMin int `validate:"min=1,max=60"`   // Max idle time in minutes
 
+	// Database monitoring configuration
+	EnableDBMonitoring bool `env:"ENABLE_DB_MONITORING" envDefault:"false"`
+
 	// Redis configuration
 	RedisAddress  string `validate:"required"`
 	RedisPassword string
@@ -265,6 +268,9 @@ func LoadConfig() (*Config, error) {
 		DBMaxOpenConns:       typeConvertor{str: os.Getenv("DB_MAX_OPEN_CONNS")}.Int(),
 		DBConnMaxLifetimeMin: typeConvertor{str: os.Getenv("DB_CONN_MAX_LIFETIME_MIN")}.Int(),
 		DBConnMaxIdleTimeMin: typeConvertor{str: os.Getenv("DB_CONN_MAX_IDLE_TIME_MIN")}.Int(),
+
+		// Database monitoring configuration
+		EnableDBMonitoring: typeConvertor{str: os.Getenv("ENABLE_DB_MONITORING")}.Bool(),
 
 		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for Heroku compatibility)
 		RedisAddress:  getRedisAddress(),

@@ -130,6 +130,22 @@ func (s *Server) RegisterMetrics() {
 	log.Info("[HTTPServer] Registered /metrics endpoint")
 }
 
+// RegisterDBMetrics registers the /db_metrics endpoint for database monitoring
+func (s *Server) RegisterDBMetrics() {
+	s.mux.HandleFunc("/db_metrics", func(w http.ResponseWriter, r *http.Request) {
+		metrics, err := db.GetCurrentMetrics()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(metrics); err != nil {
+			log.Errorf("[HTTPServer] Failed to encode db metrics: %v", err)
+		}
+	})
+	log.Info("[HTTPServer] Registered /db_metrics endpoint")
+}
+
 // RegisterPPROF registers pprof endpoints for performance profiling.
 // This should only be enabled in development environments.
 func (s *Server) RegisterPPROF() {

@@ -743,6 +743,14 @@ func init() {
 		// and our SQL migrations (uk_*). Database schema is managed via SQL migration files.
 		log.Info("Database schema managed via SQL migrations - skipping auto-migration (set AUTO_MIGRATE=true to enable)")
 	}
+
+	// Start database performance monitoring if enabled
+	if config.AppConfig.EnableDBMonitoring {
+		ctx, cancel := context.WithCancel(context.Background())
+		// Store cancel function for graceful shutdown
+		_ = cancel // Temporary: will be used in shutdown handlers
+		go StartMonitoring(ctx, 1*time.Minute)
+	}
 }
 
 // Helper functions for GORM-specific operations

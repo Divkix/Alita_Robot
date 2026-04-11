@@ -304,6 +304,7 @@ func main() {
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
 	httpServer.RegisterMetrics()
+	httpServer.RegisterDBMetrics()
 
 	// Register pprof endpoints if enabled (development only)
 	if config.AppConfig.EnablePPROF {
