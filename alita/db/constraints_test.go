@@ -53,6 +53,23 @@ func TestCaptchaAttemptsConstraint_Expiration(t *testing.T) {
 	assert.False(t, expiresInvalid.After(now), "Expiration in past should be invalid")
 }
 
+// testIntRangeConstraint tests CHECK constraints for integer range fields
+func testIntRangeConstraint(t *testing.T, chatID int64, fieldName string, validValues []int, invalidValues []int, createFunc func(int64, int) error) {
+	t.Run(fieldName+"_Valid", func(t *testing.T) {
+		for _, val := range validValues {
+			err := createFunc(chatID+int64(val), val)
+			assert.NoError(t, err, "Creating with %s=%d should succeed", fieldName, val)
+		}
+	})
+
+	t.Run(fieldName+"_Invalid", func(t *testing.T) {
+		for _, val := range invalidValues {
+			err := createFunc(chatID+int64(val*1000), val)
+			assert.Error(t, err, "Creating with %s=%d should fail due to CHECK constraint", fieldName, val)
+		}
+	})
+}
+
 // TestWarnSettingsIntegration_PositiveLimit tests warn_limit constraint with database
 func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 	skipIfNoDb(t)
@@ -128,26 +145,16 @@ func TestCaptchaSettingsConstraint_TimeoutRangeIntegration(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error
 	})
 
-	// Test valid timeout values (1-10)
-	for _, timeout := range []int{1, 5, 10} {
-		settings := &CaptchaSettings{
-			ChatID:  chatID + int64(timeout),
-			Timeout: timeout,
-		}
-		err := CreateRecord(settings)
-		assert.NoError(t, err, "Creating captcha settings with timeout %d should succeed", timeout)
-	}
-
-	// Test invalid timeout values
-	invalidTimeouts := []int{0, 11, -1, 100}
-	for _, timeout := range invalidTimeouts {
-		settings := &CaptchaSettings{
-			ChatID:  chatID + int64(timeout*1000),
-			Timeout: timeout,
-		}
-		err := CreateRecord(settings)
-		assert.Error(t, err, "Creating captcha settings with timeout %d should fail due to CHECK constraint", timeout)
-	}
+	testIntRangeConstraint(t, chatID, "timeout",
+		[]int{1, 5, 10},       // valid values
+		[]int{0, 11, -1, 100}, // invalid values
+		func(chatID int64, timeout int) error {
+			return CreateRecord(&CaptchaSettings{
+				ChatID:  chatID,
+				Timeout: timeout,
+			})
+		},
+	)
 }
 
 // TestCaptchaSettingsConstraint_MaxAttemptsRange tests max_attempts constraint
@@ -159,26 +166,16 @@ func TestCaptchaSettingsConstraint_MaxAttemptsRange(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error
 	})
 
-	// Test valid max_attempts values (1-10)
-	for _, attempts := range []int{1, 5, 10} {
-		settings := &CaptchaSettings{
-			ChatID:      chatID + int64(attempts),
-			MaxAttempts: attempts,
-		}
-		err := CreateRecord(settings)
-		assert.NoError(t, err, "Creating captcha settings with max_attempts %d should succeed", attempts)
-	}
-
-	// Test invalid max_attempts values
-	invalidAttempts := []int{0, 11, -1, 100}
-	for _, attempts := range invalidAttempts {
-		settings := &CaptchaSettings{
-			ChatID:      chatID + int64(attempts*1000),
-			MaxAttempts: attempts,
-		}
-		err := CreateRecord(settings)
-		assert.Error(t, err, "Creating captcha settings with max_attempts %d should fail due to CHECK constraint", attempts)
-	}
+	testIntRangeConstraint(t, chatID, "max_attempts",
+		[]int{1, 5, 10},       // valid values
+		[]int{0, 11, -1, 100}, // invalid values
+		func(chatID int64, attempts int) error {
+			return CreateRecord(&CaptchaSettings{
+				ChatID:      chatID,
+				MaxAttempts: attempts,
+			})
+		},
+	)
 }
 
 // TestCaptchaSettingsConstraint_ValidModes tests captcha_mode constraint
