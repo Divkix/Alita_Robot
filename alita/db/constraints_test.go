@@ -89,11 +89,10 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 	assert.Greater(t, settings.WarnLimit, 0, "Warn limit should be positive")
 
 	// Test that zero limit violates constraint
-	invalidSettings := &WarnSettings{
-		ChatId:    chatID + 1,
-		WarnLimit: 0,
-	}
-	err = CreateRecord(invalidSettings)
+	err = DB.Model(&WarnSettings{}).Create(map[string]any{
+		"chat_id":    chatID + 1,
+		"warn_limit": 0,
+	}).Error
 	assert.Error(t, err, "Creating warn settings with zero limit should fail due to CHECK constraint")
 
 	// Test that negative limit violates constraint
@@ -149,10 +148,10 @@ func TestCaptchaSettingsConstraint_TimeoutRangeIntegration(t *testing.T) {
 		[]int{1, 5, 10},       // valid values
 		[]int{0, 11, -1, 100}, // invalid values
 		func(chatID int64, timeout int) error {
-			return CreateRecord(&CaptchaSettings{
-				ChatID:  chatID,
-				Timeout: timeout,
-			})
+			return DB.Model(&CaptchaSettings{}).Create(map[string]any{
+				"chat_id": chatID,
+				"timeout": timeout,
+			}).Error
 		},
 	)
 }
@@ -170,10 +169,10 @@ func TestCaptchaSettingsConstraint_MaxAttemptsRange(t *testing.T) {
 		[]int{1, 5, 10},       // valid values
 		[]int{0, 11, -1, 100}, // invalid values
 		func(chatID int64, attempts int) error {
-			return CreateRecord(&CaptchaSettings{
-				ChatID:      chatID,
-				MaxAttempts: attempts,
-			})
+			return DB.Model(&CaptchaSettings{}).Create(map[string]any{
+				"chat_id":      chatID,
+				"max_attempts": attempts,
+			}).Error
 		},
 	)
 }
