@@ -182,8 +182,8 @@ type ChatUser struct {
 type WarnSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
-	WarnLimit int       `gorm:"column:warn_limit;default:3" json:"warn_limit" default:"3"`
-	WarnMode  string    `gorm:"column:warn_mode" json:"warn_mode,omitempty"`
+	WarnLimit int       `gorm:"column:warn_limit;default:3;check:chk_warn_limit,warn_limit > 0" json:"warn_limit" default:"3"`
+	WarnMode  string    `gorm:"column:warn_mode;check:chk_warn_mode,warn_mode = '' OR warn_mode IN ('ban','kick','mute','tban','tmute')" json:"warn_mode,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
@@ -199,7 +199,7 @@ type Warns struct {
 	ID        uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64       `gorm:"column:user_id;not null;index:idx_warns_user_chat" json:"user_id,omitempty"`
 	ChatId    int64       `gorm:"column:chat_id;not null;index:idx_warns_user_chat" json:"chat_id,omitempty"`
-	NumWarns  int         `gorm:"column:num_warns;default:0" json:"num_warns,omitempty"`
+	NumWarns  int         `gorm:"column:num_warns;default:0;check:chk_warns_num_warns,num_warns >= 0" json:"num_warns,omitempty"`
 	Reasons   StringArray `gorm:"column:warns;type:jsonb" json:"warns" default:"[]"`
 	CreatedAt time.Time   `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt time.Time   `gorm:"column:updated_at" json:"updated_at,omitempty"`
@@ -291,7 +291,7 @@ type BlacklistSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;not null;index:idx_blacklist_chat_word" json:"chat_id,omitempty"`
 	Word      string    `gorm:"column:word;not null;index:idx_blacklist_chat_word" json:"word,omitempty"`
-	Action    string    `gorm:"column:action;default:'warn'" json:"action,omitempty"`
+	Action    string    `gorm:"column:action;default:'warn';check:chk_blacklist_action,action IN ('warn','mute','ban','kick','tban','tmute','delete','none')" json:"action,omitempty"`
 	Reason    string    `gorm:"column:reason" json:"reason,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
@@ -423,9 +423,9 @@ func (ChannelSettings) TableName() string {
 type AntifloodSettings struct {
 	ID                     uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId                 int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`
-	Limit                  int       `gorm:"column:flood_limit;default:5" json:"limit,omitempty"`
-	Action                 string    `gorm:"column:action;default:'mute'" json:"action,omitempty"`
-	Mode                   string    `gorm:"column:mode;default:'mute'" json:"mode,omitempty"` // Alias for Action for compatibility
+	Limit                  int       `gorm:"column:flood_limit;default:5;check:chk_antiflood_limit,flood_limit >= 0" json:"limit,omitempty"`
+	Action                 string    `gorm:"column:action;default:'mute';check:chk_antiflood_action,action IN ('mute','ban','kick','warn','tban','tmute')" json:"action,omitempty"`
+	Mode                   string    `gorm:"column:mode;default:'mute';check:chk_antiflood_mode,mode = '' OR mode IN ('mute','ban','kick','warn','tban','tmute')" json:"mode,omitempty"` // Alias for Action for compatibility
 	DeleteAntifloodMessage bool      `gorm:"column:delete_antiflood_message;default:false" json:"delete_antiflood_message,omitempty"`
 	CreatedAt              time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt              time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
@@ -585,10 +585,10 @@ type CaptchaSettings struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID        int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`
 	Enabled       bool      `gorm:"column:enabled;default:false" json:"enabled,omitempty"`
-	CaptchaMode   string    `gorm:"column:captcha_mode;default:'math'" json:"captcha_mode,omitempty"`     // math or text
-	Timeout       int       `gorm:"column:timeout;default:2" json:"timeout,omitempty"`                    // minutes
-	FailureAction string    `gorm:"column:failure_action;default:'kick'" json:"failure_action,omitempty"` // kick, ban, or mute
-	MaxAttempts   int       `gorm:"column:max_attempts;default:3" json:"max_attempts,omitempty"`
+	CaptchaMode   string    `gorm:"column:captcha_mode;default:'math';check:chk_captcha_mode,captcha_mode IN ('math','text')" json:"captcha_mode,omitempty"` // math or text
+	Timeout       int       `gorm:"column:timeout;default:2;check:chk_captcha_timeout_range,timeout BETWEEN 1 AND 10" json:"timeout,omitempty"`              // minutes
+	FailureAction string    `gorm:"column:failure_action;default:'kick';check:chk_captcha_failure_action,failure_action IN ('kick','ban','mute')" json:"failure_action,omitempty"`
+	MaxAttempts   int       `gorm:"column:max_attempts;default:3;check:chk_captcha_max_attempts_range,max_attempts BETWEEN 1 AND 10" json:"max_attempts,omitempty"`
 	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
@@ -608,7 +608,7 @@ type CaptchaAttempts struct {
 	Attempts     int       `gorm:"column:attempts;default:0" json:"attempts,omitempty"`
 	MessageID    int64     `gorm:"column:message_id" json:"message_id,omitempty"`
 	RefreshCount int       `gorm:"column:refresh_count;default:0" json:"refresh_count,omitempty"`
-	ExpiresAt    time.Time `gorm:"column:expires_at;not null" json:"expires_at,omitempty"`
+	ExpiresAt    time.Time `gorm:"column:expires_at;not null;check:chk_captcha_expires_at,expires_at > created_at" json:"expires_at,omitempty"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
