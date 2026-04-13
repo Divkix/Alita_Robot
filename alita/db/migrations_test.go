@@ -159,7 +159,7 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 				"DO $$",
 				"CREATE TYPE mood AS ENUM",
 				"EXCEPTION",
-				"END $$",
+				"END $$;",
 			},
 		},
 		{
@@ -169,7 +169,7 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 				"DO $$",
 				"ALTER TABLE orders ADD CONSTRAINT fk_user",
 				"EXCEPTION",
-				"END $$",
+				"END $$;",
 			},
 		},
 		{
@@ -275,6 +275,13 @@ SELECT 1;`,
 			name:      "three statements",
 			input:     "SELECT 1; SELECT 2; SELECT 3;",
 			wantCount: 3,
+		},
+		{
+			// Critical test: DO block with trailing semicolon followed by another statement
+			// This is the exact bug scenario that caused the migration crash
+			name:      "DO block with semicolon followed by ALTER statement splits correctly",
+			input:     "DO $$ BEGIN\n    ALTER TABLE t ADD CONSTRAINT c CHECK (x > 0);\nEXCEPTION\n    WHEN OTHERS THEN null;\nEND $$;\nALTER TABLE t VALIDATE CONSTRAINT c;",
+			wantCount: 2,
 		},
 	}
 

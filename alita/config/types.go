@@ -24,8 +24,11 @@ func (t typeConvertor) StringArray() []string {
 }
 
 // Int converts the string value to an integer. If the conversion fails,
-// it logs a warning and returns 0.
+// it logs a warning and returns 0. Empty strings return 0 silently (expected for optional config).
 func (t typeConvertor) Int() int {
+	if t.str == "" {
+		return 0
+	}
 	val, err := strconv.Atoi(t.str)
 	if err != nil {
 		log.WithError(err).WithField("value", t.str).Warn("Failed to convert config value to int")
@@ -35,8 +38,11 @@ func (t typeConvertor) Int() int {
 }
 
 // Int64 converts the string value to a 64-bit integer. If the conversion fails,
-// it logs a warning and returns 0.
+// it logs a warning and returns 0. Empty strings return 0 silently (expected for optional config).
 func (t typeConvertor) Int64() int64 {
+	if t.str == "" {
+		return 0
+	}
 	val, err := strconv.ParseInt(t.str, 10, 64)
 	if err != nil {
 		log.WithError(err).WithField("value", t.str).Warn("Failed to convert config value to int64")

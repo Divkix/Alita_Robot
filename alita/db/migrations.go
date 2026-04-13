@@ -449,7 +449,7 @@ func (m *MigrationRunner) cleanSupabaseSQL(sql string) string {
     CREATE TYPE %s AS ENUM (%s);
 EXCEPTION
     WHEN OTHERS THEN null;
-END $$`, typeName, enumValues)
+END $$;`, typeName, enumValues)
 	})
 
 	// Make ALTER TABLE ADD CONSTRAINT idempotent
@@ -468,7 +468,7 @@ END $$`, typeName, enumValues)
     ALTER TABLE %s ADD CONSTRAINT %s %s;
 EXCEPTION
     WHEN OTHERS THEN null;
-END $$`, tableName, constraintName, constraintDef)
+END $$;`, tableName, constraintName, constraintDef)
 	})
 
 	log.Debugf("[Migrations] SQL cleaning: Applied idempotency transformations")
