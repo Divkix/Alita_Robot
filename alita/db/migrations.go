@@ -574,26 +574,25 @@ func (m *MigrationRunner) verifyIndexes() error {
 	log.Info("[Migrations] Verifying database indexes...")
 
 	// Define expected indexes (table -> index_name -> columns)
+	// Note: Some indexes were intentionally dropped as unused - see migration history:
+	// - idx_users_user_id → replaced by uk_users_user_id (unique constraint)
+	// - idx_chats_chat_id → replaced by uk_chats_chat_id (unique constraint)
+	// - idx_filters_chat_keyword → dropped (app loads all filters per chat)
+	// - idx_lock_chat_type → dropped (app loads all locks per chat)
+	// - idx_captcha_expires_at → dropped (0 scans in production)
 	expectedIndexes := map[string]map[string][]string{
 		"users": {
-			"idx_users_user_id":   {"user_id"},
+			"uk_users_user_id":    {"user_id"}, // Unique constraint (replaces idx_users_user_id)
 			"idx_users_user_name": {"username"},
 		},
 		"chats": {
-			"idx_chats_chat_id": {"chat_id"},
-		},
-		"filters": {
-			"idx_filters_chat_keyword": {"chat_id", "keyword"},
+			"uk_chats_chat_id": {"chat_id"}, // Unique constraint (replaces idx_chats_chat_id)
 		},
 		"antiflood_settings": {
 			"idx_antiflood_settings_chat_id": {"chat_id"},
 		},
-		"locks": {
-			"idx_lock_chat_type": {"chat_id", "lock_type"},
-		},
 		"captcha_attempts": {
-			"idx_captcha_user_chat":  {"user_id", "chat_id"},
-			"idx_captcha_expires_at": {"expires_at"},
+			"idx_captcha_user_chat": {"user_id", "chat_id"},
 		},
 	}
 
