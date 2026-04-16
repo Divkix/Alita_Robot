@@ -60,6 +60,7 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
 	}
+	cache.MarkChatNotRestricted(chatId)
 	return msg, nil
 }
 

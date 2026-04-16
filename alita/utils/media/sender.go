@@ -141,6 +141,7 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -168,6 +169,7 @@ func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *got
 		}
 		return nil, errors.Wrapf(err, "failed to send sticker to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -197,6 +199,7 @@ func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode strin
 		}
 		return nil, errors.Wrapf(err, "failed to send document to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -226,6 +229,7 @@ func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		}
 		return nil, errors.Wrapf(err, "failed to send photo to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -255,6 +259,7 @@ func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		}
 		return nil, errors.Wrapf(err, "failed to send audio to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -284,6 +289,7 @@ func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		}
 		return nil, errors.Wrapf(err, "failed to send voice to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -313,6 +319,7 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		}
 		return nil, errors.Wrapf(err, "failed to send video to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 
@@ -340,6 +347,7 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 		}
 		return nil, errors.Wrapf(err, "failed to send video note to chat %d", opts.ChatID)
 	}
+	cache.MarkChatNotRestricted(opts.ChatID)
 	return msg, nil
 }
 

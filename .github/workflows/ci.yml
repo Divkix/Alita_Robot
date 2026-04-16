@@ -217,6 +217,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       BOT_TOKEN: test-token
       OWNER_ID: "1"
@@ -243,6 +252,15 @@ jobs:
             sleep 2
           done
           echo "PostgreSQL did not become ready in time"
+          exit 1
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            (echo > /dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "Redis did not become ready in time"
           exit 1
 
       - name: Run test suite
