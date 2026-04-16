@@ -217,10 +217,7 @@ func (m *AutoRemediationManager) Stop() {
 // GCAction triggers garbage collection
 type GCAction struct{}
 
-// Name returns the name of the GC action
-func (a *GCAction) Name() string { return "garbage_collection" }
-
-// Severity returns the severity level of the GC action
+func (a *GCAction) Name() string  { return "garbage_collection" }
 func (a *GCAction) Severity() int { return 1 }
 
 // CanExecute determines if the GC action should be executed based on current metrics
@@ -240,10 +237,7 @@ func (a *GCAction) Execute(ctx context.Context) error {
 // MemoryCleanupAction triggers memory cleanup operations
 type MemoryCleanupAction struct{}
 
-// Name returns the name of the memory cleanup action
-func (a *MemoryCleanupAction) Name() string { return "memory_cleanup" }
-
-// Severity returns the severity level of the memory cleanup action
+func (a *MemoryCleanupAction) Name() string  { return "memory_cleanup" }
 func (a *MemoryCleanupAction) Severity() int { return 2 }
 
 // CanExecute determines if the memory cleanup action should be executed based on current metrics
@@ -270,10 +264,7 @@ func (a *MemoryCleanupAction) Execute(ctx context.Context) error {
 // LogWarningAction logs warnings for high resource usage
 type LogWarningAction struct{}
 
-// Name returns the name of the log warning action
-func (a *LogWarningAction) Name() string { return "log_warning" }
-
-// Severity returns the severity level of the log warning action
+func (a *LogWarningAction) Name() string  { return "log_warning" }
 func (a *LogWarningAction) Severity() int { return 0 }
 
 // CanExecute determines if the log warning action should be executed based on current metrics
@@ -300,10 +291,7 @@ func (a *LogWarningAction) Execute(ctx context.Context) error {
 // RestartRecommendationAction logs recommendations for restart when critical thresholds are reached
 type RestartRecommendationAction struct{}
 
-// Name returns the name of the restart recommendation action
-func (a *RestartRecommendationAction) Name() string { return "restart_recommendation" }
-
-// Severity returns the severity level of the restart recommendation action
+func (a *RestartRecommendationAction) Name() string  { return "restart_recommendation" }
 func (a *RestartRecommendationAction) Severity() int { return 10 }
 
 // CanExecute determines if the restart recommendation action should be executed based on current metrics

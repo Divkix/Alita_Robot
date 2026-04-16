@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -107,16 +106,4 @@ func GetCurrentMetrics() (*DatabaseMetrics, error) {
 	}
 
 	return &metrics, nil
-}
-
-// StartMonitoringIfNeeded starts database monitoring if enabled in config
-func StartMonitoringIfNeeded(ctx context.Context) {
-	if !config.AppConfig.EnableDBMonitoring {
-		log.Debug("[DBMonitoring] Database monitoring disabled via config")
-		return
-	}
-
-	// Default to 1 minute interval if not specified
-	interval := 1 * time.Minute
-	StartMonitoring(ctx, interval)
 }

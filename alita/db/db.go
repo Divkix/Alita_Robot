@@ -145,8 +145,8 @@ type User struct {
 	// Note: Chat membership is managed via JSONB users field in chats table
 }
 
-// TableName returns the database table name for the User model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the User model.
+
 func (User) TableName() string {
 	return "users"
 }
@@ -166,8 +166,8 @@ type Chat struct {
 	// Note: User membership is managed via JSONB users field
 }
 
-// TableName returns the database table name for the Chat model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the Chat model.
+
 func (Chat) TableName() string {
 	return "chats"
 }
@@ -188,8 +188,8 @@ type WarnSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the WarnSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the WarnSettings model.
+
 func (WarnSettings) TableName() string {
 	return "warns_settings"
 }
@@ -205,8 +205,8 @@ type Warns struct {
 	UpdatedAt time.Time   `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the Warns model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the Warns model.
+
 func (Warns) TableName() string {
 	return "warns_users"
 }
@@ -245,8 +245,8 @@ type GreetingSettings struct {
 	UpdatedAt          time.Time        `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the GreetingSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the GreetingSettings model.
+
 func (GreetingSettings) TableName() string {
 	return "greetings"
 }
@@ -265,8 +265,8 @@ type ChatFilters struct {
 	UpdatedAt   time.Time   `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ChatFilters model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ChatFilters model.
+
 func (ChatFilters) TableName() string {
 	return "filters"
 }
@@ -280,8 +280,8 @@ type AdminSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the AdminSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the AdminSettings model.
+
 func (AdminSettings) TableName() string {
 	return "admin"
 }
@@ -329,8 +329,8 @@ func (bss BlacklistSettingsSlice) Reason() string {
 	return "Blacklisted word: '%s'" // default format string with placeholder for trigger word
 }
 
-// TableName returns the database table name for the BlacklistSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the BlacklistSettings model.
+
 func (BlacklistSettings) TableName() string {
 	return "blacklists"
 }
@@ -346,8 +346,8 @@ type PinSettings struct {
 	UpdatedAt      time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the PinSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the PinSettings model.
+
 func (PinSettings) TableName() string {
 	return "pins"
 }
@@ -363,8 +363,8 @@ type ReportChatSettings struct {
 	UpdatedAt   time.Time  `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ReportChatSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ReportChatSettings model.
+
 func (ReportChatSettings) TableName() string {
 	return "report_chat_settings"
 }
@@ -379,8 +379,8 @@ type ReportUserSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ReportUserSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ReportUserSettings model.
+
 func (ReportUserSettings) TableName() string {
 	return "report_user_settings"
 }
@@ -396,8 +396,8 @@ type DevSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the DevSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the DevSettings model.
+
 func (DevSettings) TableName() string {
 	return "devs"
 }
@@ -413,8 +413,8 @@ type ChannelSettings struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ChannelSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ChannelSettings model.
+
 func (ChannelSettings) TableName() string {
 	return "channels"
 }
@@ -431,8 +431,8 @@ type AntifloodSettings struct {
 	UpdatedAt              time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the AntifloodSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the AntifloodSettings model.
+
 func (AntifloodSettings) TableName() string {
 	return "antiflood_settings"
 }
@@ -447,8 +447,8 @@ type ConnectionSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ConnectionSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ConnectionSettings model.
+
 func (ConnectionSettings) TableName() string {
 	return "connection"
 }
@@ -463,8 +463,8 @@ type ConnectionChatSettings struct {
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the ConnectionChatSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the ConnectionChatSettings model.
+
 func (ConnectionChatSettings) TableName() string {
 	return "connection_settings"
 }
@@ -480,8 +480,8 @@ type DisableSettings struct {
 	UpdatedAt      time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the DisableSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the DisableSettings model.
+
 func (DisableSettings) TableName() string {
 	return "disable"
 }
@@ -495,8 +495,8 @@ type DisableChatSettings struct {
 	UpdatedAt      time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the DisableChatSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the DisableChatSettings model.
+
 func (DisableChatSettings) TableName() string {
 	return "disable_chat_settings"
 }
@@ -512,8 +512,8 @@ type RulesSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the RulesSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the RulesSettings model.
+
 func (RulesSettings) TableName() string {
 	return "rules"
 }
@@ -528,8 +528,8 @@ type LockSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the LockSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the LockSettings model.
+
 func (LockSettings) TableName() string {
 	return "locks"
 }
@@ -549,8 +549,8 @@ func (ns *NotesSettings) PrivateNotesEnabled() bool {
 	return ns.Private
 }
 
-// TableName returns the database table name for the NotesSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the NotesSettings model.
+
 func (NotesSettings) TableName() string {
 	return "notes_settings"
 }
@@ -574,8 +574,8 @@ type Notes struct {
 	UpdatedAt   time.Time   `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the Notes model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the Notes model.
+
 func (Notes) TableName() string {
 	return "notes"
 }
@@ -593,8 +593,8 @@ type CaptchaSettings struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the CaptchaSettings model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the CaptchaSettings model.
+
 func (CaptchaSettings) TableName() string {
 	return "captcha_settings"
 }
@@ -613,8 +613,8 @@ type CaptchaAttempts struct {
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// TableName returns the database table name for the CaptchaAttempts model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the CaptchaAttempts model.
+
 func (CaptchaAttempts) TableName() string {
 	return "captcha_attempts"
 }
@@ -632,8 +632,8 @@ type StoredMessages struct {
 	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 }
 
-// TableName returns the database table name for the StoredMessages model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the StoredMessages model.
+
 func (StoredMessages) TableName() string {
 	return "stored_messages"
 }
@@ -648,8 +648,8 @@ type CaptchaMutedUsers struct {
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at,omitempty"`
 }
 
-// TableName returns the database table name for the CaptchaMutedUsers model.
-// This method overrides GORM's default table naming convention.
+// TableName returns the table name for the CaptchaMutedUsers model.
+
 func (CaptchaMutedUsers) TableName() string {
 	return "captcha_muted_users"
 }

@@ -41,7 +41,7 @@ var (
 )
 
 func parseTranslateResponse(body []byte) (detectedLang, translatedText string, err error) {
-	var payload []interface{}
+	var payload []any
 	if err = json.Unmarshal(body, &payload); err != nil {
 		return "", "", err
 	}
@@ -50,7 +50,7 @@ func parseTranslateResponse(body []byte) (detectedLang, translatedText string, e
 		return "", "", fmt.Errorf("empty translate response")
 	}
 
-	firstEntry, ok := payload[0].([]interface{})
+	firstEntry, ok := payload[0].([]any)
 	if !ok || len(firstEntry) < 2 {
 		return "", "", fmt.Errorf("unexpected translate response shape")
 	}

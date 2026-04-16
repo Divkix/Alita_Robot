@@ -168,7 +168,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	chatIdData, errCache := getAnonAdminCache(chatId, msgId)
+	msg, errCache := getAnonAdminCache(chatId, msgId)
 
 	if errCache != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -181,14 +181,11 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Type-safe assertion with error handling
-	msg, ok := chatIdData.(*gotgbot.Message)
-	if !ok || msg == nil {
+	if msg == nil {
 		log.WithFields(log.Fields{
 			"chatId": chatId,
 			"msgId":  msgId,
-			"type":   fmt.Sprintf("%T", chatIdData),
-		}).Error("getAnonAdminCache: unexpected type in cache")
+		}).Error("getAnonAdminCache: nil message from cache")
 		return ext.EndGroups
 	}
 
@@ -272,11 +269,15 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
-func getAnonAdminCache(chatId, msgId int64) (any, error) {
+func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
 	if cache.Marshal == nil {
 		return nil, fmt.Errorf("cache not initialized")
 	}
-	return cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
+	result, err := cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
+	if err != nil {
+		return nil, err
+	}
+	return result.(*gotgbot.Message), nil
 }
 
 // LoadBotUpdates registers bot event handlers for group management.

@@ -739,7 +739,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 
 	if len(args) == 0 {
 		settings, _ := db.GetCaptchaSettings(chat.Id)
-		text, _ := tr.GetString("captcha_max_attempts_current", map[string]interface{}{
+		text, _ := tr.GetString("captcha_max_attempts_current", map[string]any{
 			"attempts": settings.MaxAttempts,
 		})
 		_, err := msg.Reply(bot, text, helpers.Shtml())
@@ -761,7 +761,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 		return err
 	}
 
-	text, _ := tr.GetString("captcha_max_attempts_set", map[string]interface{}{
+	text, _ := tr.GetString("captcha_max_attempts_set", map[string]any{
 		"attempts": attempts,
 	})
 	_, err = msg.Reply(bot, text, helpers.Shtml())

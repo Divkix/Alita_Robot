@@ -519,7 +519,8 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		var (
 			chatId      int64
 			noteWord    string
-			noteDataRaw interface{}
+			noteData    overwriteNote
+			noteDataRaw any
 			ok          bool
 			dataSplit   []string
 		)

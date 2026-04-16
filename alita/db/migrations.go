@@ -29,7 +29,7 @@ type SchemaMigration struct {
 	ExecutedAt time.Time `gorm:"column:executed_at"`
 }
 
-// TableName returns the database table name for schema migrations
+// TableName returns the table name for schema migrations
 func (SchemaMigration) TableName() string {
 	return "schema_migrations"
 }

@@ -14,7 +14,6 @@ var (
 	managerOnce     sync.Once
 )
 
-// GetManager returns the singleton LocaleManager instance.
 func GetManager() *LocaleManager {
 	managerOnce.Do(func() {
 		managerInstance = &LocaleManager{
