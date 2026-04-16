@@ -710,27 +710,8 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 
 		if replyMsg.Text != "" {
 			dataType = db.TEXT
-		} else if replyMsg.Sticker != nil {
-			fileid = replyMsg.Sticker.FileId
-			dataType = db.STICKER
-		} else if replyMsg.Document != nil {
-			fileid = replyMsg.Document.FileId
-			dataType = db.DOCUMENT
-		} else if len(replyMsg.Photo) > 0 {
-			fileid = replyMsg.Photo[len(replyMsg.Photo)-1].FileId // using -1 index to get best photo quality
-			dataType = db.PHOTO
-		} else if replyMsg.Audio != nil {
-			fileid = replyMsg.Audio.FileId
-			dataType = db.AUDIO
-		} else if replyMsg.Voice != nil {
-			fileid = replyMsg.Voice.FileId
-			dataType = db.VOICE
-		} else if replyMsg.Video != nil {
-			fileid = replyMsg.Video.FileId
-			dataType = db.VIDEO
-		} else if replyMsg.VideoNote != nil {
-			fileid = replyMsg.VideoNote.FileId
-			dataType = db.VideoNote
+		} else {
+			fileid, dataType = extractMediaFromReply(replyMsg)
 		}
 	}
 
@@ -746,11 +727,31 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 	return
 }
 
+// extractMediaFromReply extracts media file ID and data type from a reply message.
+// Checks for sticker, document, photo, audio, voice, video, and video note in order.
+// Returns empty fileid and -1 dataType if no media is found.
+func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
+	if replyMsg.Sticker != nil {
+		return replyMsg.Sticker.FileId, db.STICKER
+	} else if replyMsg.Document != nil {
+		return replyMsg.Document.FileId, db.DOCUMENT
+	} else if len(replyMsg.Photo) > 0 {
+		return replyMsg.Photo[len(replyMsg.Photo)-1].FileId, db.PHOTO
+	} else if replyMsg.Audio != nil {
+		return replyMsg.Audio.FileId, db.AUDIO
+	} else if replyMsg.Voice != nil {
+		return replyMsg.Voice.FileId, db.VOICE
+	} else if replyMsg.Video != nil {
+		return replyMsg.Video.FileId, db.VIDEO
+	} else if replyMsg.VideoNote != nil {
+		return replyMsg.VideoNote.FileId, db.VideoNote
+	}
+	return "", -1
+}
+
 // GetWelcomeType extracts and processes welcome/greeting content from a Telegram message.
 // Similar to GetNoteAndFilterType but specifically for greeting messages.
 // Returns processed content with data type, file ID, and buttons for the greeting.
-//
-//nolint:dupl // GetWelcomeType shares media detection logic with GetNoteAndFilterType
 func GetWelcomeType(msg *gotgbot.Message, greetingType string, language string) (text string, dataType int, fileid string, buttons []db.Button, errorMsg string) {
 	dataType = -1
 	tr := i18n.MustNewTranslator(language)
@@ -782,27 +783,8 @@ func GetWelcomeType(msg *gotgbot.Message, greetingType string, language string) 
 		}
 		if len(args) == 0 && replyMsg.Text != "" {
 			dataType = db.TEXT
-		} else if replyMsg.Sticker != nil {
-			fileid = replyMsg.Sticker.FileId
-			dataType = db.STICKER
-		} else if replyMsg.Document != nil {
-			fileid = replyMsg.Document.FileId
-			dataType = db.DOCUMENT
-		} else if len(replyMsg.Photo) > 0 {
-			fileid = replyMsg.Photo[len(replyMsg.Photo)-1].FileId
-			dataType = db.PHOTO
-		} else if replyMsg.Audio != nil {
-			fileid = replyMsg.Audio.FileId
-			dataType = db.AUDIO
-		} else if replyMsg.Voice != nil {
-			fileid = replyMsg.Voice.FileId
-			dataType = db.VOICE
-		} else if replyMsg.Video != nil {
-			fileid = replyMsg.Video.FileId
-			dataType = db.VIDEO
-		} else if replyMsg.VideoNote != nil {
-			fileid = replyMsg.VideoNote.FileId
-			dataType = db.VideoNote
+		} else {
+			fileid, dataType = extractMediaFromReply(replyMsg)
 		}
 	}
 

@@ -12,15 +12,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// getRedisAddress returns the Redis address from REDIS_ADDRESS or parses it from REDIS_URL (Heroku format)
-// REDIS_URL format: redis://user:password@host:port
+// getRedisAddress returns the Redis address from REDIS_ADDRESS or parses it from REDIS_URL.
+// REDIS_URL format: redis://user:password@host:port (standard Redis URL format)
 // Returns: host:port
 func getRedisAddress() string {
 	if addr := os.Getenv("REDIS_ADDRESS"); addr != "" {
 		return addr
 	}
 
-	// Fallback to parsing REDIS_URL (Heroku provides this)
+	// Fallback to parsing REDIS_URL (standard Redis URL format used by many platforms)
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
 		return ""
@@ -272,7 +272,7 @@ func LoadConfig() (*Config, error) {
 		// Database monitoring configuration
 		EnableDBMonitoring: typeConvertor{str: os.Getenv("ENABLE_DB_MONITORING")}.Bool(),
 
-		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for Heroku compatibility)
+		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for platform compatibility)
 		RedisAddress:  getRedisAddress(),
 		RedisPassword: getRedisPassword(),
 		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
