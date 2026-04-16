@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
 // ---------------------------------------------------------------------------
@@ -992,15 +993,13 @@ func TestIsPermissionError(t *testing.T) {
 }
 
 // TestIsExpectedTelegramError_ErrNoPermission verifies that the ErrNoPermission
-// sentinel value from media.ErrNoPermission ("bot lacks permission to send messages")
-// is classified as an expected Telegram error so the dispatcher logs it at Warn
-// instead of Error.
+// sentinel value from the media package is classified as an expected Telegram error
+// so the dispatcher logs it at Warn instead of Error.
 func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
 	t.Parallel()
 
-	err := fmt.Errorf("bot lacks permission to send messages")
-	if !IsExpectedTelegramError(err) {
-		t.Fatalf("IsExpectedTelegramError(%q) expected true (ErrNoPermission should be suppressed)", err.Error())
+	if !IsExpectedTelegramError(media.ErrNoPermission) {
+		t.Fatalf("IsExpectedTelegramError(media.ErrNoPermission) expected true (ErrNoPermission should be suppressed); got false for %q", media.ErrNoPermission.Error())
 	}
 }
 
