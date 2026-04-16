@@ -39,24 +39,24 @@ type moduleStruct struct {
 // This is separate from moduleStruct to avoid copylocks issues with value receivers.
 var notesOverwriteMap sync.Map
 
+// overwriteBase holds common fields for temporary state storage during command flows.
+type overwriteBase struct {
+	chatID   int64
+	itemName string // filterWord or noteWord
+	text     string
+	fileID   string
+	buttons  []db.Button
+	dataType int
+}
+
 // struct for filters module
 type overwriteFilter struct {
-	chatID     int64
-	filterWord string
-	text       string
-	fileid     string
-	buttons    []db.Button
-	dataType   int
+	overwriteBase
 }
 
 // struct for notes module
 type overwriteNote struct {
-	chatID      int64
-	noteWord    string
-	text        string
-	fileId      string
-	buttons     []db.Button
-	dataType    int
+	overwriteBase
 	pvtOnly     bool
 	grpOnly     bool
 	adminOnly   bool

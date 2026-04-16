@@ -9,8 +9,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-// AsyncProcessor handles asynchronous processing of non-critical operations
-// This is a minimal stub to satisfy main.go requirements
+// AsyncProcessor handles asynchronous processing of non-critical operations.
 type AsyncProcessor struct {
 	enabled bool
 	ctx     context.Context
@@ -24,8 +23,7 @@ var (
 	asyncProcessorMu     sync.RWMutex
 )
 
-// InitializeAsyncProcessor creates and starts the global async processor
-// This is a minimal implementation to satisfy main.go requirements
+// InitializeAsyncProcessor creates and starts the global async processor.
 func InitializeAsyncProcessor() {
 	asyncProcessorMu.Lock()
 	defer asyncProcessorMu.Unlock()
@@ -42,8 +40,7 @@ func InitializeAsyncProcessor() {
 	}
 }
 
-// StopAsyncProcessor stops the global async processor
-// This is a minimal implementation to satisfy main.go requirements
+// StopAsyncProcessor stops the global async processor.
 func StopAsyncProcessor() {
 	asyncProcessorMu.Lock()
 	defer asyncProcessorMu.Unlock()

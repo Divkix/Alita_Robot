@@ -679,8 +679,8 @@ func (moduleStruct) pinned(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// PinsEnumFuncMap
-// A rather very complicated PinsEnumFuncMap Variable made by me to send filters in an appropriate way
+// PinsEnumFuncMap maps data types to functions that send pinned messages with appropriate formatting.
+// Each function handles a specific media type (text, photo, video, etc.) for pin notifications.
 //
 //nolint:dupl // Inline functions in map have similar structure for different media types
 var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error){

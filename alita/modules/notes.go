@@ -114,12 +114,14 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		notesOverwriteMap.Store(token, overwriteNote{
-			chatID:      chat.Id,
-			noteWord:    noteWord,
-			text:        text,
-			fileId:      fileid,
-			buttons:     buttons,
-			dataType:    dataType,
+			overwriteBase: overwriteBase{
+				chatID:   chat.Id,
+				itemName: noteWord,
+				text:     text,
+				fileID:   fileid,
+				buttons:  buttons,
+				dataType: dataType,
+			},
 			pvtOnly:     pvtOnly,
 			grpOnly:     grpOnly,
 			adminOnly:   adminOnly,
@@ -537,7 +539,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 				break
 			}
 			chatId = noteData.chatID
-			noteWord = noteData.noteWord
+			noteWord = noteData.itemName
 			if chatId == 0 {
 				chatId = query.Message.GetChat().Id
 			}
@@ -578,7 +580,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			if err := db.RemoveNote(chatId, noteWord); err != nil {
 				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
 			}
-			if err := db.AddNote(chatId, noteData.noteWord, noteData.text, noteData.fileId, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
+			if err := db.AddNote(chatId, noteData.itemName, noteData.text, noteData.fileID, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
 				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
 				helpText, _ = tr.GetString("notes_save_failed")
 				break

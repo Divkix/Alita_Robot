@@ -23,7 +23,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
-// NOTE: small helper functions
 // constants
 const (
 	Markdown             = "Markdown"
@@ -235,8 +234,6 @@ func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLi
 	return
 }
 
-// NOTE: connection helper functions
-
 // IsUserConnected checks if a user is connected to a chat and validates permissions.
 // Handles both private messages (with connection system) and group messages.
 // Returns the effective chat if all checks pass, nil otherwise.
@@ -309,8 +306,6 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	}
 	return chat
 }
-
-// NOTE: keyboard helper functions
 
 // BuildKeyboard constructs an inline keyboard from a slice of database button objects.
 // Handles button grouping based on the SameLine property for proper layout.
@@ -409,8 +404,6 @@ func ChunkKeyboardSlices(slice []gotgbot.InlineKeyboardButton, chunkSize int) (c
 	return
 }
 
-// NOTE: language helper functions
-
 // MakeLanguageKeyboard creates an inline keyboard with all available language options.
 // Uses valid language codes from config and chunks them into 2-column layout.
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
@@ -443,8 +436,6 @@ func GetLangFormat(langCode string) string {
 	return langName + " " + langFlag
 }
 
-// NOTE: tgmd2html helper functions
-
 // ReverseHTML2MD converts HTML-formatted text back to markdown format.
 // Handles common HTML tags like bold, italic, underline, strikethrough, code, pre, and links.
 // Uses a single-pass strings.Replacer for O(n) complexity instead of O(n×m) nested loops.
@@ -465,8 +456,6 @@ func ReverseHTML2MD(text string) string {
 	// Apply all other HTML tag replacements in a single pass using precompiled replacer
 	return htmlToMdReplacer.Replace(text)
 }
-
-// NOTE: formatting helper functions
 
 // FormattingReplacer processes message text and replaces placeholders with actual user/chat data.
 // Handles variables like {first}, {last}, {username}, {mention}, {count}, {chatname}, {id}.
@@ -591,8 +580,6 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 	return res, btns
 }
 
-// NOTE: extract status helper functions
-
 // ExtractJoinLeftStatusChange analyzes ChatMemberUpdated events to detect join/leave status changes.
 // Returns (was_member, is_member) booleans indicating membership status transition.
 // Returns (false, false) for channels or if no status change occurred.
@@ -658,8 +645,6 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 
 	return adminStatusChanged
 }
-
-// NOTE: NoteWelcomeFilter helper functions
 
 // GetNoteAndFilterType extracts and processes note or filter content from a Telegram message.
 // Handles text, media files, and reply messages with button parsing and content validation.
