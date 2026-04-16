@@ -326,3 +326,22 @@ func TestSetGlobalCollector_ReplacesCollector(t *testing.T) {
 
 	defer SetGlobalCollector(nil) // cleanup
 }
+
+// ---------------------------------------------------------------------------
+// SystemMetrics — RestrictedChatHits / RestrictedChatMisses fields
+// ---------------------------------------------------------------------------
+
+func TestSystemMetrics_RestrictedChatCounters(t *testing.T) {
+	t.Parallel()
+
+	m := SystemMetrics{
+		RestrictedChatHits:   42,
+		RestrictedChatMisses: 100,
+	}
+	if m.RestrictedChatHits != 42 {
+		t.Errorf("expected RestrictedChatHits=42, got %d", m.RestrictedChatHits)
+	}
+	if m.RestrictedChatMisses != 100 {
+		t.Errorf("expected RestrictedChatMisses=100, got %d", m.RestrictedChatMisses)
+	}
+}

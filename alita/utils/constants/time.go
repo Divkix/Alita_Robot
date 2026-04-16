@@ -5,10 +5,12 @@ import "time"
 // Common time durations used throughout the application
 const (
 	// Cache durations
-	AdminCacheTTL   = 30 * time.Minute
-	DefaultCacheTTL = 5 * time.Minute
-	ShortCacheTTL   = 1 * time.Minute
-	LongCacheTTL    = 1 * time.Hour
+	AdminCacheTTL           = 30 * time.Minute
+	RestrictedCacheTTL      = 30 * time.Minute
+	RestrictedProbeInterval = 5 * time.Minute
+	DefaultCacheTTL         = 5 * time.Minute
+	ShortCacheTTL           = 1 * time.Minute
+	LongCacheTTL            = 1 * time.Hour
 
 	// Update intervals
 	UserUpdateInterval    = 5 * time.Minute

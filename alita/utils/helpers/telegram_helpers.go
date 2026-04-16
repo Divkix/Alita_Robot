@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,19 +27,31 @@ func DeleteMessageWithErrorHandling(bot *gotgbot.Bot, chatId, messageId int64) e
 	return nil
 }
 
+// IsPermissionError reports whether the Telegram error string indicates that the
+// bot lacks permission to send messages in a chat.
+func IsPermissionError(errStr string) bool {
+	return strings.Contains(errStr, "not enough rights to send text messages") ||
+		strings.Contains(errStr, "have no rights to send a message") ||
+		strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
+		strings.Contains(errStr, "CHAT_RESTRICTED") ||
+		strings.Contains(errStr, "need administrator rights in the channel chat")
+}
+
 // SendMessageWithErrorHandling wraps bot.SendMessage with graceful error handling for expected permission errors.
 // This handles cases when the bot lacks send message permissions in a chat.
 // Returns (*Message, nil) for suppressed permission errors to allow callers to continue execution.
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
+	// Short-circuit if bot is known to be restricted in this chat.
+	if cache.IsChatRestricted(chatId) {
+		log.WithField("chat_id", chatId).Debug("[Helpers] Skipping send to restricted chat")
+		return nil, nil
+	}
 	msg, err := bot.SendMessage(chatId, text, opts)
 	if err != nil {
 		errStr := err.Error()
 		// Check for expected permission-related errors
-		if strings.Contains(errStr, "not enough rights to send text messages") ||
-			strings.Contains(errStr, "have no rights to send a message") ||
-			strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
-			strings.Contains(errStr, "CHAT_RESTRICTED") ||
-			strings.Contains(errStr, "need administrator rights in the channel chat") {
+		if IsPermissionError(errStr) {
+			cache.MarkChatRestricted(chatId)
 			log.WithFields(log.Fields{
 				"chat_id": chatId,
 				"error":   errStr,
@@ -47,6 +60,7 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
 	}
+	cache.MarkChatNotRestricted(chatId)
 	return msg, nil
 }
 
@@ -86,6 +100,7 @@ func IsExpectedTelegramError(err error) bool {
 		"not enough rights to restrict/unrestrict chat member",
 		"not enough rights to send text messages",
 		"not enough rights to",
+		"bot lacks permission",
 
 		// Message deletion errors (expected for old messages or already deleted)
 		"message can't be deleted",

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,6 +39,10 @@ type SystemMetrics struct {
 	AverageResponseTime time.Duration
 	PeakMemoryUsageMB   float64
 	UptimeSeconds       int64
+
+	// Cache metrics
+	RestrictedChatHits   int64
+	RestrictedChatMisses int64
 
 	Timestamp time.Time
 }
@@ -191,6 +196,9 @@ func (collector *BackgroundStatsCollector) collectSystemStats() {
 	}
 	metrics.PeakMemoryUsageMB = float64(atomic.LoadUint64(&collector.peakMemoryUsage)) / 1024 / 1024
 
+	// Pull restricted chat cache counters for monitoring.
+	metrics.RestrictedChatHits, metrics.RestrictedChatMisses = cache.GetRestrictedCacheStats()
+
 	// Send to processing channel
 	select {
 	case collector.systemStatsChan <- metrics:
@@ -268,6 +276,8 @@ func (collector *BackgroundStatsCollector) updateSystemMetrics(metrics SystemMet
 	collector.metrics.PeakMemoryUsageMB = metrics.PeakMemoryUsageMB
 	collector.metrics.UptimeSeconds = metrics.UptimeSeconds
 	collector.metrics.Timestamp = metrics.Timestamp
+	collector.metrics.RestrictedChatHits = metrics.RestrictedChatHits
+	collector.metrics.RestrictedChatMisses = metrics.RestrictedChatMisses
 }
 
 // updateDatabaseMetrics updates the stored database metrics
@@ -304,17 +314,19 @@ func (collector *BackgroundStatsCollector) reportStats() {
 	collector.metricsLock.RUnlock()
 
 	log.WithFields(log.Fields{
-		"goroutines":           metrics.GoroutineCount,
-		"memory_alloc_mb":      metrics.MemoryAllocMB,
-		"memory_sys_mb":        metrics.MemorySysMB,
-		"gc_pause_ms":          metrics.GCPauseMs,
-		"processed_messages":   metrics.ProcessedMessages,
-		"error_count":          metrics.ErrorCount,
-		"avg_response_time_ms": metrics.AverageResponseTime.Milliseconds(),
-		"peak_memory_mb":       metrics.PeakMemoryUsageMB,
-		"uptime_hours":         metrics.UptimeSeconds / 3600,
-		"db_connections":       metrics.DatabaseConnections,
-		"cache_hit_rate":       metrics.CacheHitRate,
+		"goroutines":             metrics.GoroutineCount,
+		"memory_alloc_mb":        metrics.MemoryAllocMB,
+		"memory_sys_mb":          metrics.MemorySysMB,
+		"gc_pause_ms":            metrics.GCPauseMs,
+		"processed_messages":     metrics.ProcessedMessages,
+		"error_count":            metrics.ErrorCount,
+		"avg_response_time_ms":   metrics.AverageResponseTime.Milliseconds(),
+		"peak_memory_mb":         metrics.PeakMemoryUsageMB,
+		"uptime_hours":           metrics.UptimeSeconds / 3600,
+		"db_connections":         metrics.DatabaseConnections,
+		"cache_hit_rate":         metrics.CacheHitRate,
+		"restricted_cache_hits":  metrics.RestrictedChatHits,
+		"restricted_cache_misses": metrics.RestrictedChatMisses,
 	}).Info("Background system statistics")
 }
 

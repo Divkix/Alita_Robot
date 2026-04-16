@@ -6,7 +6,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 )
-
 func TestTypeConstantsMatchDB(t *testing.T) {
 	t.Parallel()
 
@@ -112,5 +111,33 @@ func TestOptionsDefaults(t *testing.T) {
 	}
 	if opts.AllowWithoutReply != false {
 		t.Error("AllowWithoutReply should be false by default")
+	}
+}
+
+func TestIsPermissionError(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		errStr   string
+		expected bool
+	}{
+		{"not enough rights to send text messages", true},
+		{"have no rights to send a message", true},
+		{"Bad Request: CHAT_WRITE_FORBIDDEN", true},
+		{"Forbidden: CHAT_RESTRICTED", true},
+		{"need administrator rights in the channel chat", true},
+		{"some other error", false},
+		{"Bad Request: message is not modified", false},
+		{"", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.errStr, func(t *testing.T) {
+			t.Parallel()
+			got := isPermissionError(tc.errStr)
+			if got != tc.expected {
+				t.Errorf("isPermissionError(%q) = %v, want %v", tc.errStr, got, tc.expected)
+			}
+		})
 	}
 }

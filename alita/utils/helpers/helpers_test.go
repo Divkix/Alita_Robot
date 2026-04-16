@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
 // ---------------------------------------------------------------------------
@@ -958,3 +959,47 @@ func TestInlineKeyboardMarkupToTgmd2htmlButtonV2EmptyMarkup(t *testing.T) {
 		t.Fatalf("expected 0 buttons for empty markup, got %d", len(btns))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// IsPermissionError
+// ---------------------------------------------------------------------------
+
+func TestIsPermissionError(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		errStr   string
+		expected bool
+	}{
+		{"not enough rights to send text messages", true},
+		{"have no rights to send a message", true},
+		{"Bad Request: CHAT_WRITE_FORBIDDEN", true},
+		{"Forbidden: CHAT_RESTRICTED", true},
+		{"need administrator rights in the channel chat", true},
+		{"some other error", false},
+		{"Bad Request: message is not modified", false},
+		{"", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.errStr, func(t *testing.T) {
+			t.Parallel()
+			got := IsPermissionError(tc.errStr)
+			if got != tc.expected {
+				t.Errorf("IsPermissionError(%q) = %v, want %v", tc.errStr, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestIsExpectedTelegramError_ErrNoPermission verifies that the ErrNoPermission
+// sentinel value from the media package is classified as an expected Telegram error
+// so the dispatcher logs it at Warn instead of Error.
+func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
+	t.Parallel()
+
+	if !IsExpectedTelegramError(media.ErrNoPermission) {
+		t.Fatalf("IsExpectedTelegramError(media.ErrNoPermission) expected true (ErrNoPermission should be suppressed); got false for %q", media.ErrNoPermission.Error())
+	}
+}
+

@@ -52,6 +52,10 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		}
 	}
 
+	// Bot has admin rights — clear any stale restricted flag so sends are
+	// no longer short-circuited for this chat.
+	MarkChatNotRestricted(chatId)
+
 	log.WithFields(log.Fields{
 		"chatId":    chatId,
 		"botId":     b.Id,
