@@ -4,7 +4,7 @@ import starlight from "@astrojs/starlight";
 import starlightClientMermaid from "@pasqal-io/starlight-client-mermaid";
 import { defineConfig } from "astro/config";
 import starlightLlmsTxt from "starlight-llms-txt";
-import starlightLinksValidator from "./starlight-links-validator-compat.ts";
+import starlightLinksValidator from "starlight-links-validator";
 
 // https://astro.build/config
 export default defineConfig({
