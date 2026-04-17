@@ -126,7 +126,7 @@ func SetCaptchaMaxAttempts(chatID int64, maxAttempts int) error {
 
 	err := DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{"max_attempts": maxAttempts}),
+		DoUpdates: clause.Assignments(map[string]any{"max_attempts": maxAttempts}),
 	}).Create(&CaptchaSettings{ChatID: chatID, MaxAttempts: maxAttempts}).Error
 	if err != nil {
 		log.Errorf("[Database][SetCaptchaMaxAttempts]: %v", err)

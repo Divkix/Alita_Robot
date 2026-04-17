@@ -216,8 +216,8 @@ func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 	return keys, nil
 }
 
-func loadLocaleFiles(localesDir string) (map[string]map[string]interface{}, error) {
-	locales := make(map[string]map[string]interface{})
+func loadLocaleFiles(localesDir string) (map[string]map[string]any, error) {
+	locales := make(map[string]map[string]any)
 
 	entries, err := os.ReadDir(localesDir)
 	if err != nil {
@@ -262,7 +262,7 @@ func loadLocaleFiles(localesDir string) (map[string]map[string]interface{}, erro
 			continue
 		}
 
-		var localeData map[string]interface{}
+		var localeData map[string]any
 		if err := yaml.Unmarshal(data, &localeData); err != nil {
 			fmt.Printf("  ⚠️  Warning: Could not parse %s: %v\n", filename, err)
 			continue
@@ -274,7 +274,7 @@ func loadLocaleFiles(localesDir string) (map[string]map[string]interface{}, erro
 	return locales, nil
 }
 
-func checkMissingKeys(keys []TranslationKey, localeData map[string]interface{}, localeName string) []MissingTranslation {
+func checkMissingKeys(keys []TranslationKey, localeData map[string]any, localeName string) []MissingTranslation {
 	missing := make(map[string][]string)
 
 	for _, key := range keys {
@@ -305,7 +305,7 @@ func checkMissingKeys(keys []TranslationKey, localeData map[string]interface{}, 
 	return result
 }
 
-func keyExists(key string, data map[string]interface{}) bool {
+func keyExists(key string, data map[string]any) bool {
 	parts := strings.Split(key, ".")
 	current := data
 
@@ -317,7 +317,7 @@ func keyExists(key string, data map[string]interface{}) bool {
 		}
 
 		// Navigate deeper
-		if next, ok := current[part].(map[string]interface{}); ok {
+		if next, ok := current[part].(map[string]any); ok {
 			current = next
 		} else {
 			return false

@@ -502,7 +502,6 @@ END $$;`, tableName, constraintName, constraintDef)
 				if extensionName == supabaseExt {
 					isSupabaseExtension = true
 					removedExtensions = append(removedExtensions, extensionName)
-					// Add a comment explaining why this was removed
 					processedLines = append(processedLines,
 						fmt.Sprintf("-- Skipped Supabase-specific extension: %s (not available in standard PostgreSQL)", extensionName))
 					break

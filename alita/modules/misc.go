@@ -41,7 +41,7 @@ var (
 )
 
 func parseTranslateResponse(body []byte) (detectedLang, translatedText string, err error) {
-	var payload []any
+	var payload []json.RawMessage
 	if err = json.Unmarshal(body, &payload); err != nil {
 		return "", "", err
 	}
@@ -50,17 +50,15 @@ func parseTranslateResponse(body []byte) (detectedLang, translatedText string, e
 		return "", "", fmt.Errorf("empty translate response")
 	}
 
-	firstEntry, ok := payload[0].([]any)
-	if !ok || len(firstEntry) < 2 {
+	var firstEntry []json.RawMessage
+	if err = json.Unmarshal(payload[0], &firstEntry); err != nil || len(firstEntry) < 2 {
 		return "", "", fmt.Errorf("unexpected translate response shape")
 	}
 
-	translatedText, ok = firstEntry[0].(string)
-	if !ok || translatedText == "" {
+	if err = json.Unmarshal(firstEntry[0], &translatedText); err != nil || translatedText == "" {
 		return "", "", fmt.Errorf("missing translated text")
 	}
-	detectedLang, ok = firstEntry[1].(string)
-	if !ok || detectedLang == "" {
+	if err = json.Unmarshal(firstEntry[1], &detectedLang); err != nil || detectedLang == "" {
 		return "", "", fmt.Errorf("missing detected language")
 	}
 

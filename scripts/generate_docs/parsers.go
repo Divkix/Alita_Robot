@@ -51,7 +51,7 @@ func parseTranslations(localesPath string) (map[string]string, map[string]Extend
 		return nil, nil, nil, fmt.Errorf("failed to read %s: %w", enPath, err)
 	}
 
-	var translations map[string]interface{}
+	var translations map[string]any
 	if err := yaml.Unmarshal(data, &translations); err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to parse %s: %w", enPath, err)
 	}
@@ -119,17 +119,17 @@ func parseTranslations(localesPath string) (map[string]string, map[string]Extend
 		return helpTexts, extendedDocs, aliases, nil
 	}
 
-	var configYaml map[string]interface{}
+	var configYaml map[string]any
 	if err := yaml.Unmarshal(configData, &configYaml); err != nil {
 		log.Warnf("Could not parse config.yml: %v", err)
 		return helpTexts, extendedDocs, aliases, nil
 	}
 
 	// Extract alt_names
-	if altNames, ok := configYaml["alt_names"].(map[string]interface{}); ok {
+	if altNames, ok := configYaml["alt_names"].(map[string]any); ok {
 		for module, aliasList := range altNames {
 			switch v := aliasList.(type) {
-			case []interface{}:
+			case []any:
 				for _, alias := range v {
 					if str, ok := alias.(string); ok {
 						aliases[module] = append(aliases[module], str)

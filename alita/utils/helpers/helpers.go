@@ -901,7 +901,6 @@ func SendNote(b *gotgbot.Bot, chat *gotgbot.Chat, ctx *ext.Context, noteData *db
 	}
 
 	noteData.NoteContent, buttons = FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
-	// below is an additional step, need to remove it
 	_, _, _, _, _, _, noteData.NoteContent = notesParser(noteData.NoteContent) // replaces the text
 	keyb := BuildKeyboard(buttons)
 	keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}

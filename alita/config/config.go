@@ -211,8 +211,6 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("STATS_COLLECTION_WORKERS must be between 1 and 10")
 	}
 
-	// Cache validation removed - using Redis only
-
 	// Validate performance limits
 	if cfg.MaxConcurrentOperations <= 0 || cfg.MaxConcurrentOperations > 1000 {
 		return fmt.Errorf("MAX_CONCURRENT_OPERATIONS must be between 1 and 1000")
@@ -430,9 +428,6 @@ func (cfg *Config) setDefaults() {
 	if cfg.StatsCollectionWorkers == 0 {
 		cfg.StatsCollectionWorkers = 2
 	}
-
-	// Set cache defaults (optimized values for better performance)
-	// Cache defaults removed - using Redis only
 
 	// Set activity monitoring defaults
 	if cfg.InactivityThresholdDays == 0 {
