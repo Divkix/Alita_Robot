@@ -386,7 +386,7 @@ func (m moduleStruct) promote(b *gotgbot.Bot, ctx *ext.Context) error {
 	pMem := promoterMember.MergeChatMember()
 
 	teamMem := db.GetTeamMemInfo(user.Id)
-	teamMemInfo := teamMem.Sudo || teamMem.Dev
+	teamMemInfo := teamMem.Sudo || teamMem.IsDev
 	isPromoterOwner := chat_status.RequireUserOwner(b, ctx, nil, user.Id, true)
 
 	// Privilege Escalation Behavior (Intentional):

@@ -15,42 +15,7 @@ func (e *testError) Error() string {
 	return e.msg
 }
 
-// TestDemoteNilMemberHandling tests that the demote function properly handles
-// a nil member returned from GetMember without panicking.
-// This is a regression test for the critical nil pointer dereference bug.
-func TestDemoteNilMemberHandling(t *testing.T) {
-	// This test verifies that the nil check exists in the demote function.
-	// Since demote requires complex Telegram API mocking, we verify the
-	// code structure by checking that a nil ChatMember would be handled.
 
-	t.Run("nil chat member check exists", func(t *testing.T) {
-		// Verify the logic by simulating what would happen
-		// if GetMember returned nil with no error (edge case)
-
-		// In gotgbot v2, ChatMember is an interface
-		var userMember gotgbot.ChatMember
-		// Simulate the nil check that now exists in demote()
-		if userMember == nil {
-			// This is the behavior we expect - graceful handling
-			t.Log("Nil member properly detected - would return error instead of panic")
-		} else {
-			t.Fatal("Nil check failed - would have caused panic in MergeChatMember()")
-		}
-	})
-
-	t.Run("nil interface behavior", func(t *testing.T) {
-		// In gotgbot v2, ChatMember is an interface
-		// A nil interface value is safe to check but cannot have methods called on it
-		var userMember gotgbot.ChatMember
-
-		// Nil interface check works
-		if userMember == nil {
-			t.Log("Nil interface properly detected")
-		} else {
-			t.Fatal("Nil check failed")
-		}
-	})
-}
 
 // TestDemoteErrorHandling verifies error handling patterns in demote logic
 func TestDemoteErrorHandling(t *testing.T) {

@@ -395,8 +395,8 @@ func TestWarnModeConstraint_ValidModes(t *testing.T) {
 	assert.Error(t, err, "Creating warn settings with invalid warn_mode should fail due to CHECK constraint")
 }
 
-// TestAntifloodModeConstraint_ValidModes tests antiflood mode constraint
-func TestAntifloodModeConstraint_ValidModes(t *testing.T) {
+// TestAntifloodActionConstraint_ValidActions tests antiflood action constraint
+func TestAntifloodActionConstraint_ValidActions(t *testing.T) {
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -404,32 +404,24 @@ func TestAntifloodModeConstraint_ValidModes(t *testing.T) {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
 	})
 
-	// Test NULL mode (should be valid)
-	settings1 := &AntifloodSettings{
-		ChatId: chatID,
-		Mode:   "",
-	}
-	err := CreateRecord(settings1)
-	assert.NoError(t, err, "Creating antiflood settings with NULL/empty mode should succeed")
-
-	// Test valid modes
-	validModes := []string{"mute", "ban", "kick", "warn", "tban", "tmute"}
-	for _, mode := range validModes {
+	// Test valid actions
+	validActions := []string{"mute", "ban", "kick", "warn", "tban", "tmute"}
+	for _, action := range validActions {
 		settings := &AntifloodSettings{
-			ChatId: chatID + int64(hashCode(mode)),
-			Mode:   mode,
+			ChatId: chatID + int64(hashCode(action)),
+			Action: action,
 		}
 		err := CreateRecord(settings)
-		assert.NoError(t, err, "Creating antiflood settings with mode '%s' should succeed", mode)
+		assert.NoError(t, err, "Creating antiflood settings with action '%s' should succeed", action)
 	}
 
-	// Test invalid mode
+	// Test invalid action
 	invalidSettings := &AntifloodSettings{
 		ChatId: chatID + 99999,
-		Mode:   "invalid_mode",
+		Action: "invalid_action",
 	}
-	err = CreateRecord(invalidSettings)
-	assert.Error(t, err, "Creating antiflood settings with invalid mode should fail due to CHECK constraint")
+	err := CreateRecord(invalidSettings)
+	assert.Error(t, err, "Creating antiflood settings with invalid action should fail due to CHECK constraint")
 }
 
 // Helper function to generate deterministic hash codes for test data

@@ -32,7 +32,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
 
@@ -80,7 +80,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
 
@@ -164,7 +164,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
 
@@ -293,7 +293,7 @@ func (m moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "dev",
 		add:           true,
-		checkRole:     func(tm *db.DevSettings) bool { return tm.Dev },
+		checkRole:     func(tm *db.DevSettings) bool { return tm.IsDev },
 		alreadyMsgKey: "devs_user_already_dev",
 		failMsgKey:    "devs_failed_to_add_dev",
 		successMsgKey: "devs_added_to_dev",
@@ -321,7 +321,7 @@ func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "dev",
 		add:           false,
-		checkRole:     func(tm *db.DevSettings) bool { return tm.Dev },
+		checkRole:     func(tm *db.DevSettings) bool { return tm.IsDev },
 		notRoleMsgKey: "devs_user_not_dev",
 		failMsgKey:    "devs_failed_to_remove_dev",
 		successMsgKey: "devs_removed_from_dev",
@@ -421,7 +421,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	memStatus := db.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
-	if user.Id != config.AppConfig.OwnerId && !memStatus.Dev {
+	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
 

@@ -18,9 +18,9 @@ func GetTeamMemInfo(userID int64) (devrc *DevSettings) {
 	devrc = &DevSettings{}
 	err := GetRecord(devrc, DevSettings{UserId: userID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		devrc = &DevSettings{UserId: userID, IsDev: false, Dev: false, Sudo: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
 	} else if err != nil {
-		devrc = &DevSettings{UserId: userID, IsDev: false, Dev: false, Sudo: false}
+		devrc = &DevSettings{UserId: userID, IsDev: false, Sudo: false}
 		log.Errorf("[Database] GetTeamMemInfo: %v - %d", err, userID)
 	}
 	log.Infof("[Database] GetTeamMemInfo: %d", userID)
@@ -68,12 +68,11 @@ func GetTeamMembers() map[int64]string {
 
 // AddDev adds a user as a developer or updates existing record to dev status.
 // Creates a new record if the user doesn't exist in DevSettings.
-// Sets both IsDev and Dev fields for consistency.
 func AddDev(userID int64) error {
-	devSettings := &DevSettings{UserId: userID, IsDev: true, Dev: true}
+	devSettings := &DevSettings{UserId: userID, IsDev: true}
 
 	// Try to update existing record first
-	err := UpdateRecord(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: true, Dev: true})
+	err := UpdateRecord(&DevSettings{}, DevSettings{UserId: userID}, DevSettings{IsDev: true})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Create new record if not exists
 		err = CreateRecord(devSettings)
@@ -87,10 +86,10 @@ func AddDev(userID int64) error {
 	return nil
 }
 
-// RemDev removes developer status from a user by setting IsDev and Dev to false.
+// RemDev removes developer status from a user by setting IsDev to false.
 // Does not delete the record as the user might still have Sudo privileges.
 func RemDev(userID int64) error {
-	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, map[string]any{"is_dev": false, "dev": false})
+	err := UpdateRecordWithZeroValues(&DevSettings{}, DevSettings{UserId: userID}, map[string]any{"is_dev": false})
 	if err != nil {
 		log.Errorf("[Database] RemDev: %v - %d", err, userID)
 		return err
