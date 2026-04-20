@@ -177,7 +177,7 @@ func (o *OptimizedAntifloodQueries) GetAntifloodSettings(chatID int64) (*Antiflo
 
 	var settings AntifloodSettings
 	err := o.db.Model(&AntifloodSettings{}).
-		Select("id, chat_id, flood_limit, action, mode, delete_antiflood_message").
+		Select("id, chat_id, flood_limit, action, delete_antiflood_message").
 		Where("chat_id = ?", chatID).
 		First(&settings).Error
 
