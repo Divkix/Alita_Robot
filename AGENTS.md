@@ -8,9 +8,9 @@ anti-spam, captcha verification, and multi-language support (en, es, fr, hi).
 
 - **`alita/`** - Core application code
   - `config/` - Configuration management
-  - `db/` - Database models, operations, and caching (PostgreSQL + GORM)
+  - **`db/`** - Database models, operations, and caching (PostgreSQL + GORM) — [see @db/AGENTS.md](./alita/db/AGENTS.md)
   - `i18n/` - Internationalization with embedded YAML locales
-  - `modules/` - Bot functionality modules (admin, filters, greetings, etc.)
+  - **`modules/`** - Bot functionality modules (admin, filters, greetings, etc.) — [see @modules/AGENTS.md](./alita/modules/AGENTS.md)
   - `utils/` - Shared utilities (permissions, error handling, monitoring)
 - **`locales/`** - Translation files (en, es, fr, hi, ru, pt, id)
 - **`migrations/`** - Database schema migrations (timestamped SQL files)
