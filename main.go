@@ -62,6 +62,19 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Version check - print version and exit without requiring services
+	// Note: This only works if BOT_TOKEN is not set (otherwise db/cache init runs before main)
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
+		// Config always has BotVersion set (it's a hardcoded default in LoadConfig)
+		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
+		version := config.AppConfig.BotVersion
+		if version == "" {
+			version = "2.1.3" // Fallback to hardcoded version if config wasn't loaded
+		}
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
 	// Setup panic recovery for main goroutine
 	defer func() {
 		if r := recover(); r != nil {
