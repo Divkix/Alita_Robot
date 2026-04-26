@@ -139,4 +139,5 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.LoadBlacklists(dispatcher)
 	modules.LoadReactions(dispatcher)
 	modules.LoadMkdCmd(dispatcher)
+	modules.LoadBackup(dispatcher)
 }

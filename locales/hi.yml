@@ -1820,3 +1820,110 @@ reactions_remove_success: "कीवर्ड के लिए रिएक्�
 reactions_none: "इस चैट में कोई रिएक्शन कॉन्फ़िगर नहीं है।"
 reactions_list_header: "<b>कॉन्फ़िगर किए गए रिएक्शन:</b>\n{list}"
 reactions_reset_success: "इस चैट के सभी रिएक्शन रीसेट कर दिए गए।"
+
+# Backup/Restore module strings
+backup_help_msg: |
+  <b>📦 Backup & Restore</b>
+
+  Backup and restore your group settings using these commands:
+
+  <b>User Commands:</b>
+  • /export - Export all group settings to a JSON file
+  • /export notes filters rules - Export specific modules only
+
+  <b>Creator Commands:</b>
+  • /import - Reply to a backup file to restore settings
+  • /import notes filters - Import only specific modules
+  • /reset - Reset all settings to default
+  • /reset warnings locks - Reset specific modules only
+
+  <b>Rate Limits:</b>
+  • Export: 1 per 5 minutes
+  • Import: 1 per 10 minutes
+  • Reset: 1 per hour
+
+backup_export_button: "📤 Export"
+backup_import_button: "📥 Import"
+backup_export_success: |
+  <b>✅ Export Successful!</b>
+
+  <b>Chat:</b> %s
+  <b>Modules exported:</b> %d
+  <b>Exported at:</b> %s
+
+  <b>Modules:</b>
+  %s
+
+backup_export_success_text: "✅ Successfully exported %d modules. Download the backup file above."
+backup_export_rate_limited: "⏳ Please wait <b>%s</b> before exporting again."
+backup_export_no_modules: "❌ No exportable modules found for this chat."
+backup_export_failed: "❌ Failed to export settings. Please try again later."
+
+backup_import_success: |
+  <b>✅ Import Successful!</b>
+
+  <b>Modules imported:</b> %d
+
+  <b>Modules:</b>
+  %s
+
+backup_import_rate_limited: "⏳ Please wait <b>%s</b> before importing again."
+backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</code>."
+backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
+backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
+backup_import_download_failed: "❌ Failed to download backup file. Please try again."
+backup_import_version_mismatch: "⚠️ This backup was created with a different version. Some settings may not import correctly."
+backup_import_creator_only: "❌ Only the group creator can import settings."
+backup_import_confirm: |
+  <b>⚠️ Confirm Import</b>
+
+  You are about to import <b>%s modules</b>:
+  %s
+
+  This will overwrite existing settings. Are you sure?
+
+backup_import_expired: "❌ Import request has expired. Please start again with <code>/import</code>."
+backup_import_cancelled: "❌ Import cancelled."
+backup_import_failed: "❌ Import failed: %s"
+
+backup_reset_success: |
+  <b>✅ Reset Successful!</b>
+
+  <b>Modules reset:</b> %d
+
+  <b>Modules:</b>
+  %s
+
+backup_reset_rate_limited: "⏳ Please wait <b>%s</b> before resetting again."
+backup_reset_creator_only: "❌ Only the group creator can reset settings."
+backup_reset_confirm: |
+  <b>⚠️ Confirm Reset</b>
+
+  You are about to reset <b>%s modules</b>:
+  %s
+
+  <b>This action cannot be undone!</b> Are you sure?
+
+backup_reset_expired: "❌ Reset request has expired. Please start again with <code>/reset</code>."
+backup_reset_cancelled: "❌ Reset cancelled."
+backup_reset_failed: "❌ Reset failed: %s"
+
+button_confirm_import: "✅ Confirm Import"
+button_cancel_import: "❌ Cancel"
+button_confirm_reset: "⚠️ Yes, Reset All"
+button_cancel_reset: "❌ Cancel"
+
+backup_module_admin: "Admin Settings"
+backup_module_antiflood: "Antiflood"
+backup_module_blacklists: "Blacklists"
+backup_module_captcha: "Captcha"
+backup_module_connections: "Connections"
+backup_module_disabling: "Disabled Commands"
+backup_module_filters: "Filters"
+backup_module_greetings: "Greetings"
+backup_module_locks: "Locks"
+backup_module_notes: "Notes"
+backup_module_pins: "Pin Settings"
+backup_module_reports: "Reports"
+backup_module_rules: "Rules"
+backup_module_warns: "Warnings"
