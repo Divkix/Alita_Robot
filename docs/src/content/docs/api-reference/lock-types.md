@@ -166,3 +166,4 @@ Locks work independently but complement other moderation modules:
 - `/locktypes` - View all available lock types
 
 For more information, see the [Locks module documentation](/commands/locks/).
+

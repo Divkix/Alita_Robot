@@ -150,7 +150,7 @@ func parseCommands(modulesPath string) ([]Command, error) {
 
 	// Regex patterns for command extraction
 	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(\w+)\.(\w+)\s*\)`)
-	disableablePattern := regexp.MustCompile(`misc\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
+	disableablePattern := regexp.MustCompile(`(?:misc|helpers)\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
 	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
 
 	// Track disableable commands

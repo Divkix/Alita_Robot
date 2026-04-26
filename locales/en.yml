@@ -2211,6 +2211,22 @@ common_settings_save_failed: "Failed to save settings. Please try again later."
 devs_chatlist_error: "Failed to generate chat list. Please try again."
 
 # Reactions module strings
+reactions_help_msg: |
+  <b>🎭 Auto-Reactions</b>
+
+  Automatically react to messages with specific keywords!
+
+  Setup automated emoji reactions that trigger when users send specific words.
+
+  <b>Admin Commands:</b>
+  • /addreaction <keyword> <emoji> - Add an auto-reaction
+  • /removereaction <keyword> - Remove a reaction
+  • /reactions - List configured reactions
+  • /resetreactions - Clear all reactions
+
+  <b>Example:</b>
+  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+
 reactions_add_usage: "Usage: /addreaction <keyword> <emoji>"
 reactions_invalid_emoji: "Please provide a valid emoji."
 reactions_add_error: "Failed to save reaction. Please try again."

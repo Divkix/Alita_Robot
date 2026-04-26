@@ -192,6 +192,15 @@ Path to migration files (defaults to migrations)
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Database monitoring configuration
+
+### `ENABLE_DB_MONITORING`
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+
 ## 📂 Performance optimization settings
 
 ### `BATCH_REQUEST_TIMEOUT_MS`
@@ -547,6 +556,7 @@ ENABLE_AUTO_CLEANUP=# (optional)
 ENABLE_BACKGROUND_STATS=# (optional)
 ENABLE_BATCH_REQUESTS=# (optional)
 ENABLE_CACHE_PREWARMING=# (optional)
+ENABLE_DB_MONITORING=# (optional)
 ENABLE_HTTP_CONNECTION_POOLING=# (optional)
 ENABLE_PERFORMANCE_MONITORING=# (optional)
 ENABLE_PPROF=# (optional)
@@ -575,3 +585,4 @@ WEBHOOK_PORT=# (optional)
 WEBHOOK_SECRET=# (optional)
 WORKING_MODE=# (optional)
 ```
+

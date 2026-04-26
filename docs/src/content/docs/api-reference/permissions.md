@@ -63,7 +63,7 @@ CanBotDelete checks if the bot has permission to delete messages in the chat. Va
 func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
 ```
 
-CanBotPin checks if the bot has permission to pin messages in the chat. Validates the bot's CanPinMessages permission. If justCheck is false, sends error messages explaining the missing permission.
+CanBotPin checks if the bot has permission to pin messages in the chat. Validates the bot's CanPinMessages permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -77,7 +77,7 @@ CanBotPin checks if the bot has permission to pin messages in the chat. Validate
 func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
 ```
 
-CanBotPromote checks if the bot has permission to promote/demote members in the chat. Validates the bot's CanPromoteMembers permission. If justCheck is false, sends error messages explaining the missing permission.
+CanBotPromote checks if the bot has permission to promote/demote members in the chat. Validates the bot's CanPromoteMembers permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -91,7 +91,7 @@ CanBotPromote checks if the bot has permission to promote/demote members in the 
 func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
 ```
 
-CanBotRestrict checks if the bot has permission to restrict members in the chat. Validates the bot's CanRestrictMembers permission. If justCheck is false, sends error messages explaining the missing permission.
+CanBotRestrict checks if the bot has permission to restrict members in the chat. Validates the bot's CanRestrictMembers permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -158,7 +158,7 @@ RequireBotAdmin ensures the bot has administrator privileges in the chat. Uses I
 func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
 ```
 
-RequireGroup ensures the command is being used in a group chat. Returns false for private chats. If justCheck is false, sends error messages explaining the command is for group use only.
+RequireGroup ensures the command is being used in a group chat. Returns false for private chats. If justCheck is false, sends error messages explaining the command is for group use only.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 
 **Parameters:**
 - `b`
@@ -172,7 +172,7 @@ RequireGroup ensures the command is being used in a group chat. Returns false fo
 func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
 ```
 
-RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups. If justCheck is false, sends error messages explaining the command is for private use only.
+RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups. If justCheck is false, sends error messages explaining the command is for private use only.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 
 **Parameters:**
 - `b`
@@ -218,7 +218,7 @@ RequireUserOwner ensures a user is the chat creator/owner. Checks for "creator" 
 func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
 ```
 
-CanUserChangeInfo checks if a user has permission to change chat information. Handles anonymous admins and validates the CanChangeInfo permission. If justCheck is false, sends error messages to user.
+CanUserChangeInfo checks if a user has permission to change chat information. Handles anonymous admins and validates the CanChangeInfo permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -263,7 +263,7 @@ CanUserPin checks if a user has permission to pin messages in the chat. Handles 
 func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
 ```
 
-CanUserPromote checks if a user has permission to promote/demote other members. Handles anonymous admins and validates the CanPromoteMembers permission. If justCheck is false, sends error messages to user.
+CanUserPromote checks if a user has permission to promote/demote other members. Handles anonymous admins and validates the CanPromoteMembers permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -278,7 +278,7 @@ CanUserPromote checks if a user has permission to promote/demote other members. 
 func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
 ```
 
-CanUserRestrict checks if a user has permission to restrict other members. Handles anonymous admins and validates the CanRestrictMembers permission. If justCheck is false, sends error messages to user.
+CanUserRestrict checks if a user has permission to restrict other members. Handles anonymous admins and validates the CanRestrictMembers permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
 
 **Parameters:**
 - `b`
@@ -373,18 +373,19 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
     user := ctx.EffectiveSender.User
-
+    
     // Check if user is admin
     if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
         return ext.EndGroups
     }
-
+    
     // Check if bot can restrict
     if !chat_status.CanBotRestrict(b, ctx, chat, false) {
         return ext.EndGroups
     }
-
+    
     // Proceed with action...
     return ext.EndGroups
 }
 ```
+

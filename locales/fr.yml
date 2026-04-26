@@ -2103,6 +2103,23 @@ common_settings_save_failed: "Echec de la sauvegarde des parametres. Veuillez re
 devs_chatlist_error: "Echec de la generation de la liste des chats. Veuillez reessayer."
 
 # Reactions module strings
+# TODO: Translate
+reactions_help_msg: |
+  <b>🎭 Auto-Reactions</b>
+
+  Automatically react to messages with specific keywords!
+
+  Setup automated emoji reactions that trigger when users send specific words.
+
+  <b>Admin Commands:</b>
+  • /addreaction <keyword> <emoji> - Add an auto-reaction
+  • /removereaction <keyword> - Remove a reaction
+  • /reactions - List configured reactions
+  • /resetreactions - Clear all reactions
+
+  <b>Example:</b>
+  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+
 reactions_add_usage: "Utilisation : /addreaction <mot_cle> <emoji>"
 reactions_invalid_emoji: "Veuillez fournir un emoji valide."
 reactions_add_error: "Impossible d'enregistrer la réaction. Veuillez réessayer."

@@ -2202,6 +2202,23 @@ common_settings_save_failed: "Error al guardar la configuracion. Intentalo de nu
 devs_chatlist_error: "Error al generar la lista de chats. Intentalo de nuevo."
 
 # Reactions module strings
+# TODO: Translate
+reactions_help_msg: |
+  <b>🎭 Auto-Reactions</b>
+
+  Automatically react to messages with specific keywords!
+
+  Setup automated emoji reactions that trigger when users send specific words.
+
+  <b>Admin Commands:</b>
+  • /addreaction <keyword> <emoji> - Add an auto-reaction
+  • /removereaction <keyword> - Remove a reaction
+  • /reactions - List configured reactions
+  • /resetreactions - Clear all reactions
+
+  <b>Example:</b>
+  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+
 reactions_add_usage: "Uso: /addreaction <palabra_clave> <emoji>"
 reactions_invalid_emoji: "Por favor, proporciona un emoji válido."
 reactions_add_error: "No se pudo guardar la reacción. Inténtalo de nuevo."

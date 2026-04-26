@@ -8,6 +8,7 @@ alt_names:
   Antiflood: [flood]
   Bans:
     [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban]
+  Backup: [export, import, reset]
   Blacklists: [blacklist, unblacklist]
   Connections: [connection, connect]
   Disabling: [disable, enable]
@@ -21,6 +22,7 @@ alt_names:
   Notes: [note, notes]
   Pins: [antichannelpin, cleanlinked, pins]
   Purges: [purge, del]
+  Reactions: [reaction, addreaction, removereaction]
   Reports: [report, reporting]
   Rules: [rule]
   Warns: [warn, warning, warnings]

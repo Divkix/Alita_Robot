@@ -2197,6 +2197,23 @@ common_settings_save_failed: "Gagal menyimpan pengaturan. Silakan coba lagi nant
 devs_chatlist_error: "Gagal membuat daftar obrolan. Silakan coba lagi."
 
 # Reactions module strings
+# TODO: Translate
+reactions_help_msg: |
+  <b>🎭 Auto-Reactions</b>
+
+  Automatically react to messages with specific keywords!
+
+  Setup automated emoji reactions that trigger when users send specific words.
+
+  <b>Admin Commands:</b>
+  • /addreaction <keyword> <emoji> - Add an auto-reaction
+  • /removereaction <keyword> - Remove a reaction
+  • /reactions - List configured reactions
+  • /resetreactions - Clear all reactions
+
+  <b>Example:</b>
+  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+
 reactions_add_usage: "Penggunaan: /addreaction <kata_kunci> <emoji>"
 reactions_invalid_emoji: "Silakan berikan emoji yang valid."
 reactions_add_error: "Gagal menyimpan reaksi. Silakan coba lagi."
