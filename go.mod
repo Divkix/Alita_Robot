@@ -1,6 +1,6 @@
 module github.com/divkix/Alita_Robot
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/PaulSonOfLars/gotg_md2html v0.0.0-20260314092343-61634cbfb443
