@@ -308,24 +308,24 @@ warns_help_msg:
 
   -> `/warn @user Pour avoir désobéi aux règles`"
 users_help_msg:
-  "Automatic background user and chat tracker. This module has no user-facing
-  commands — it silently records every message sender and chat the bot is active in.
+  "Suivi automatique des utilisateurs et des chats en arrière-plan. Ce module n'a aucune commande
+  visible pour l'utilisateur — il enregistre silencieusement chaque expéditeur de message et chat dans lequel le bot est actif.
 
-  *What It Tracks:*
+  *Ce qu'il suit:*
 
-  × User IDs, usernames, and display names for every message sender.
+  × IDs d'utilisateur, noms d'utilisateur et noms affichés de chaque expéditeur de message.
 
-  × Chat IDs and names for every group the bot is in.
+  × IDs de chat et noms de chaque groupe où le bot est présent.
 
-  × Channel IDs, names, and usernames for linked channels.
+  × IDs de canal, noms et noms d'utilisateur des canaux liés.
 
-  *Rate Limiting:*
+  *Limitation de débit:*
 
-  × User updates are throttled to one per UserUpdateInterval.
+  × Les mises à jour utilisateur sont limitées à une par UserUpdateInterval.
 
-  × Chat updates are throttled to one per ChatUpdateInterval.
+  × Les mises à jour de chat sont limitées à une par ChatUpdateInterval.
 
-  Other modules, such as /info, depend on data collected by this module."
+  D'autres modules, comme /info, dépendent des données collectées par ce module."
 warns_specify_action: "Vous devez spécifier une action à effectuer en cas de trop d'avertissements. Modes actuels : ban/kick/mute"
 warns_mode_updated_ban: "Mode d'avertissement mis à jour : ban"
 warns_mode_updated_kick: "Mode d'avertissement mis à jour : kick"
@@ -938,32 +938,32 @@ disabling_help_msg: |
   Les commandes désactivées sont toujours accessibles via la fonction /connect. Si vous souhaitez
   voir cela également désactivé, faites-le moi savoir dans le chat de support.
 devs_help_msg:
-  "Bot management and diagnostic commands restricted to the bot owner and
-  trusted developers. These commands are not surfaced to regular users.
+  "Commandes de gestion du bot et de diagnostic réservées au propriétaire du bot et
+  aux développeurs de confiance. Ces commandes ne sont pas affichées aux utilisateurs normaux.
 
-  *Team Commands:*
+  *Commandes d'équipe:*
 
-  × /stats: Display bot statistics and system info.
+  × /stats: Afficher les statistiques du bot et les informations système.
 
-  × /teamusers: List all team members.
+  × /teamusers: Lister tous les membres de l'équipe.
 
-  *Owner Commands:*
+  *Commandes du propriétaire:*
 
-  × /addsudo: Grant sudo permissions to a user.
+  × /addsudo: Accorder les permissions sudo à un utilisateur.
 
-  × /adddev: Grant developer permissions to a user.
+  × /adddev: Accorder les permissions de développeur à un utilisateur.
 
-  × /remsudo: Revoke sudo permissions from a user.
+  × /remsudo: Révoquer les permissions sudo d'un utilisateur.
 
-  × /remdev: Revoke developer permissions from a user.
+  × /remdev: Révoquer les permissions de développeur d'un utilisateur.
 
-  *Diagnostic Commands:*
+  *Commandes de diagnostic:*
 
-  × /chatinfo: Display detailed information about a chat.
+  × /chatinfo: Afficher des informations détaillées sur un chat.
 
-  × /chatlist: Generate and send a list of all active chats.
+  × /chatlist: Générer et envoyer une liste de tous les chats actifs.
 
-  × /leavechat: Force the bot to leave a specified chat."
+  × /leavechat: Forcer le bot à quitter un chat spécifié."
 disabling_disabled_successfully: "L'utilisation des commandes suivantes a été désactivée dans ce chat :%s"
 disabling_unknown_command: "Commande inconnue à désactiver :\n-%s\nVérifiez /disableable !"
 disabling_no_command_specified: Vous n'avez pas spécifié de commande à désactiver.
@@ -1544,17 +1544,17 @@ formatting_large_options: "Alita supporte un grand nombre d'options de formatage
 
 # Languages help module strings
 help_help_msg:
-  "The main entry point and navigation system for Alita Robot.
+  "Le point d'entrée principal et le système de navigation d'Alita Robot.
 
-  *Navigation Commands:*
+  *Commandes de navigation:*
 
-  × /start: Show the welcome message with navigation menu.
+  × /start: Afficher le message de bienvenue avec le menu de navigation.
 
-  × /help: Show help menu with module list; use /help <module> for details.
+  × /help: Afficher le menu d'aide avec la liste des modules; utilisez /help <module> pour plus de détails.
 
-  × /about: Show bot information, version, and useful links.
+  × /about: Afficher les informations du bot, la version et les liens utiles.
 
-  × /donate: Show donation information for supporting the project."
+  × /donate: Afficher les informations de don pour soutenir le projet."
 languages_help_msg: "Vous n'arrivez pas à changer la langue du bot ?
 
   Changez facilement en utilisant ce module !
@@ -1963,47 +1963,47 @@ disabling_notes_docs: |
 
 # Extended documentation locale keys - Help module
 help_extended_docs: |
-  <b>Navigation System:</b>
-  The Help module provides the bot's main entry points and navigation. When a user sends <code>/start</code> in a private chat, the bot displays a welcome message with an inline keyboard for navigating to different modules.
+  <b>Système de Navigation:</b>
+  Le module d'Aide fournit les points d'entrée principaux et la navigation du bot. Lorsqu'un utilisateur envoie <code>/start</code> dans un chat privé, le bot affiche un message de bienvenue avec un clavier intégré pour naviguer vers les différents modules.
 
-  The <code>/help</code> command shows a module list. Clicking a module button displays that module's commands and usage information. When <code>/help</code> is used in a group chat, the bot redirects the user to a private message for detailed help to avoid cluttering the group.
+  La commande <code>/help</code> affiche une liste de modules. En cliquant sur un bouton de module, les commandes et les informations d'utilisation de ce module s'affichent. Lorsque <code>/help</code> est utilisé dans un chat de groupe, le bot redirige l'utilisateur vers un message privé pour une aide détaillée afin d'éviter d'encombrer le groupe.
 
-  <code>/about</code> shows bot information, version, and links, while <code>/donate</code> shows donation information for supporting the project.
+  <code>/about</code> affiche les informations du bot, la version et les liens, tandis que <code>/donate</code> affiche les informations de don pour soutenir le projet.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |
-  <b>Team Hierarchy:</b>
-  The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
+  <b>Hiérarchie d'Équipe:</b>
+  Le module Développeurs fournit des commandes de gestion du bot et de diagnostic réservées à l'équipe interne du bot. L'équipe a trois niveaux avec des privilèges décroissants.
 
-  <b>Tier 1 — Owner:</b> Set via <code>OWNER_ID</code> environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
+  <b>Niveau 1 — Propriétaire:</b> Défini via la variable d'environnement <code>OWNER_ID</code> lors du déploiement. Contrôle total : gérer la liste d'équipe, toutes les commandes de diagnostic, toutes les commandes d'équipe.
 
-  <b>Tier 2 — Sudo / Dev:</b> Assigned by owner via <code>/addsudo</code> or <code>/adddev</code>. Diagnostic commands: bot stats, chat info, chat management.
+  <b>Niveau 2 — Sudo / Dev:</b> Attribués par le propriétaire via <code>/addsudo</code> ou <code>/adddev</code>. Commandes de diagnostic : statistiques du bot, informations du chat, gestion du chat.
 
-  <b>Tier 3 — Team Member:</b> Automatically includes owner + all sudo + all dev users. View team roster only via <code>/teamusers</code>.
+  <b>Niveau 3 — Membre d'Équipe:</b> Inclut automatiquement le propriétaire + tous les utilisateurs sudo + tous les utilisateurs dev. Voir la liste d'équipe uniquement via <code>/teamusers</code>.
 
-  <b>Note:</b> Sudo and Dev have identical command access. The distinction exists for organizational purposes.
+  <b>Remarque:</b> Sudo et Dev ont un accès identique aux commandes. La distinction existe à des fins d'organisation.
 
-  <b>Important:</b> These commands are not visible in the public help menu and silently ignore unauthorized users.
+  <b>Important:</b> Ces commandes ne sont pas visibles dans le menu d'aide public et ignorent silencieusement les utilisateurs non autorisés.
 
 # Extended documentation locale keys - Users module
 users_extended_docs: |
-  <b>Background Tracker:</b>
-  The Users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
+  <b>Suivi en Arrière-plan:</b>
+  Le module Utilisateurs est un module passif en arrière-plan sans commandes visibles pour l'utilisateur. Il s'exécute silencieusement sur chaque message que le bot traite, suivant automatiquement tous les expéditeurs de messages et tous les chats dans lesquels le bot est actif.
 
-  <b>What It Tracks:</b>
-  • User IDs, usernames, and display names for every message sender
-  • Chat IDs and names for every group the bot is in
-  • Channel IDs, names, and usernames for linked channels
+  <b>Ce qu'il suit:</b>
+  • IDs d'utilisateur, noms d'utilisateur et noms affichés de chaque expéditeur de message
+  • IDs de chat et noms de chaque groupe où le bot est présent
+  • IDs de canal, noms et noms d'utilisateur des canaux liés
 
-  <b>Rate Limiting:</b>
-  • User updates: throttled to one per <code>UserUpdateInterval</code>
-  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
-  • This prevents excessive database writes while keeping data reasonably current
+  <b>Limitation de débit:</b>
+  • Mises à jour utilisateur : limitées à une par <code>UserUpdateInterval</code>
+  • Mises à jour de chat : limitées à une par <code>ChatUpdateInterval</code>
+  • Cela évite les écritures excessives dans la base de données tout en maintenant les données raisonnablement à jour
 
-  <b>Passive Operation:</b>
-  • Runs as a message watcher at handler group -1 (fires before all command handlers)
-  • No user interaction required — fully automatic
-  • Other modules, such as <code>/info</code>, depend on data collected by this module
+  <b>Fonctionnement Passif:</b>
+  • S'exécute comme un observateur de messages dans le groupe de gestionnaires -1 (se déclenche avant tous les gestionnaires de commandes)
+  • Aucune interaction utilisateur requise — entièrement automatique
+  • D'autres modules, comme <code>/info</code>, dépendent des données collectées par ce module
 
 # Formatting module help message
 formatting_help_msg: "Alita supporte un grand nombre d'options de formatage pour rendre vos messages plus expressifs. Jetez un œil en cliquant sur les boutons ci-dessous !"

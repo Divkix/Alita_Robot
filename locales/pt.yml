@@ -357,32 +357,32 @@ disabling_help_msg:
   Comandos desativados ainda são acessíveis através do recurso /connect. Se você
   estiver interessado em ver isso desativado também, me avise no chat de suporte."
 devs_help_msg:
-  "Bot management and diagnostic commands restricted to the bot owner and
-  trusted developers. These commands are not surfaced to regular users.
+  "Comandos de gerenciamento do bot e diagnóstico restritos ao proprietário do bot e
+  desenvolvedores de confiança. Estes comandos não são exibidos para usuários comuns.
 
-  *Team Commands:*
+  *Comandos de Equipe:*
 
-  × /stats: Display bot statistics and system info.
+  × /stats: Exibir estatísticas do bot e informações do sistema.
 
-  × /teamusers: List all team members.
+  × /teamusers: Listar todos os membros da equipe.
 
-  *Owner Commands:*
+  *Comandos do Proprietário:*
 
-  × /addsudo: Grant sudo permissions to a user.
+  × /addsudo: Conceder permissões de sudo a um usuário.
 
-  × /adddev: Grant developer permissions to a user.
+  × /adddev: Conceder permissões de desenvolvedor a um usuário.
 
-  × /remsudo: Revoke sudo permissions from a user.
+  × /remsudo: Revogar permissões de sudo de um usuário.
 
-  × /remdev: Revoke developer permissions from a user.
+  × /remdev: Revogar permissões de desenvolvedor de um usuário.
 
-  *Diagnostic Commands:*
+  *Comandos de Diagnóstico:*
 
-  × /chatinfo: Display detailed information about a chat.
+  × /chatinfo: Exibir informações detalhadas sobre um chat.
 
-  × /chatlist: Generate and send a list of all active chats.
+  × /chatlist: Gerar e enviar uma lista de todos os chats ativos.
 
-  × /leavechat: Force the bot to leave a specified chat."
+  × /leavechat: Forçar o bot a sair de um chat especificado."
 filters_help_msg:
   "Filtros não diferenciam maiúsculas de minúsculas; toda vez que alguém disser suas palavras
   de gatilho, Alita responderá com algo diferente! Isso pode ser usado para criar seus comandos,
@@ -607,17 +607,17 @@ help_donatetext: "Então você quer doar? Incrível!
 
   Você pode doar contatando meu dono aqui: @DivideProjectsBot"
 help_help_msg:
-  "The main entry point and navigation system for Alita Robot.
+  "O ponto de entrada principal e sistema de navegação do Alita Robot.
 
-  *Navigation Commands:*
+  *Comandos de Navegação:*
 
-  × /start: Show the welcome message with navigation menu.
+  × /start: Mostrar a mensagem de boas-vindas com menu de navegação.
 
-  × /help: Show help menu with module list; use /help <module> for details.
+  × /help: Mostrar menu de ajuda com lista de módulos; use /help <módulo> para detalhes.
 
-  × /about: Show bot information, version, and useful links.
+  × /about: Mostrar informações do bot, versão e links úteis.
 
-  × /donate: Show donation information for supporting the project."
+  × /donate: Mostrar informações de doação para apoiar o projeto."
 languages_help_msg: "Não consegue mudar o idioma do bot?
 
   Mude facilmente usando este módulo!
@@ -912,24 +912,24 @@ warns_help_msg:
 
   -> `/warn @user Por desobedecer as regras`"
 users_help_msg:
-  "Automatic background user and chat tracker. This module has no user-facing
-  commands — it silently records every message sender and chat the bot is active in.
+  "Rastreador automático de usuários e chats em segundo plano. Este módulo não possui comandos
+  visíveis ao usuário — ele registra silenciosamente cada remetente de mensagem e chat onde o bot está ativo.
 
-  *What It Tracks:*
+  *O que Rastreia:*
 
-  × User IDs, usernames, and display names for every message sender.
+  × IDs de usuário, nomes de usuário e nomes de exibição de cada remetente de mensagem.
 
-  × Chat IDs and names for every group the bot is in.
+  × IDs de chat e nomes de cada grupo onde o bot está.
 
-  × Channel IDs, names, and usernames for linked channels.
+  × IDs de canal, nomes e nomes de usuário de canais vinculados.
 
-  *Rate Limiting:*
+  *Limitação de Taxa:*
 
-  × User updates are throttled to one per UserUpdateInterval.
+  × Atualizações de usuário são limitadas a uma por UserUpdateInterval.
 
-  × Chat updates are throttled to one per ChatUpdateInterval.
+  × Atualizações de chat são limitadas a uma por ChatUpdateInterval.
 
-  Other modules, such as /info, depend on data collected by this module."
+  Outros módulos, como /info, dependem de dados coletados por este módulo."
 
 # Captcha module strings
 captcha_enable_failed: Falha ao ativar captcha. Tente novamente.
@@ -2218,47 +2218,47 @@ disabling_notes_docs: |
 
 # Extended documentation locale keys - Help module
 help_extended_docs: |
-  <b>Navigation System:</b>
-  The Help module provides the bot's main entry points and navigation. When a user sends <code>/start</code> in a private chat, the bot displays a welcome message with an inline keyboard for navigating to different modules.
+  <b>Sistema de Navegação:</b>
+  O módulo de Ajuda fornece os pontos de entrada principais e a navegação do bot. Quando um usuário envia <code>/start</code> em um chat privado, o bot exibe uma mensagem de boas-vindas com um teclado inline para navegar para diferentes módulos.
 
-  The <code>/help</code> command shows a module list. Clicking a module button displays that module's commands and usage information. When <code>/help</code> is used in a group chat, the bot redirects the user to a private message for detailed help to avoid cluttering the group.
+  O comando <code>/help</code> mostra uma lista de módulos. Clicar em um botão de módulo exibe os comandos e informações de uso desse módulo. Quando <code>/help</code> é usado em um chat em grupo, o bot redireciona o usuário para uma mensagem privada para obter ajuda detalhada, evitando poluir o grupo.
 
-  <code>/about</code> shows bot information, version, and links, while <code>/donate</code> shows donation information for supporting the project.
+  <code>/about</code> mostra informações do bot, versão e links, enquanto <code>/donate</code> mostra informações de doação para apoiar o projeto.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |
-  <b>Team Hierarchy:</b>
-  The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
+  <b>Hierarquia da Equipe:</b>
+  O módulo de Desenvolvedores fornece comandos de gerenciamento do bot e diagnóstico restritos à equipe interna do bot. A equipe tem três níveis com níveis de privilégio decrescentes.
 
-  <b>Tier 1 — Owner:</b> Set via <code>OWNER_ID</code> environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
+  <b>Nível 1 — Proprietário:</b> Definido via variável de ambiente <code>OWNER_ID</code> na implantação. Controle total: gerenciar a lista da equipe, todos os comandos de diagnóstico, todos os comandos da equipe.
 
-  <b>Tier 2 — Sudo / Dev:</b> Assigned by owner via <code>/addsudo</code> or <code>/adddev</code>. Diagnostic commands: bot stats, chat info, chat management.
+  <b>Nível 2 — Sudo / Dev:</b> Atribuídos pelo proprietário via <code>/addsudo</code> ou <code>/adddev</code>. Comandos de diagnóstico: estatísticas do bot, informações do chat, gerenciamento do chat.
 
-  <b>Tier 3 — Team Member:</b> Automatically includes owner + all sudo + all dev users. View team roster only via <code>/teamusers</code>.
+  <b>Nível 3 — Membro da Equipe:</b> Inclui automaticamente o proprietário + todos os usuários sudo + todos os usuários dev. Ver a lista da equipe apenas via <code>/teamusers</code>.
 
-  <b>Note:</b> Sudo and Dev have identical command access. The distinction exists for organizational purposes.
+  <b>Nota:</b> Sudo e Dev têm acesso idêntico a comandos. A distinção existe para fins organizacionais.
 
-  <b>Important:</b> These commands are not visible in the public help menu and silently ignore unauthorized users.
+  <b>Importante:</b> Estes comandos não são visíveis no menu de ajuda público e ignoram silenciosamente usuários não autorizados.
 
 # Extended documentation locale keys - Users module
 users_extended_docs: |
-  <b>Background Tracker:</b>
-  The Users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
+  <b>Rastreador em Segundo Plano:</b>
+  O módulo de Usuários é um módulo passivo em segundo plano sem comandos visíveis ao usuário. Ele é executado silenciosamente em cada mensagem que o bot processa, rastreando automaticamente todos os remetentes de mensagens e todos os chats onde o bot está ativo.
 
-  <b>What It Tracks:</b>
-  • User IDs, usernames, and display names for every message sender
-  • Chat IDs and names for every group the bot is in
-  • Channel IDs, names, and usernames for linked channels
+  <b>O que Rastreia:</b>
+  • IDs de usuário, nomes de usuário e nomes de exibição de cada remetente de mensagem
+  • IDs de chat e nomes de cada grupo onde o bot está
+  • IDs de canal, nomes e nomes de usuário de canais vinculados
 
-  <b>Rate Limiting:</b>
-  • User updates: throttled to one per <code>UserUpdateInterval</code>
-  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
-  • This prevents excessive database writes while keeping data reasonably current
+  <b>Limitação de Taxa:</b>
+  • Atualizações de usuário: limitadas a uma por <code>UserUpdateInterval</code>
+  • Atualizações de chat: limitadas a uma por <code>ChatUpdateInterval</code>
+  • Isso evita gravações excessivas no banco de dados enquanto mantém os dados razoavelmente atualizados
 
-  <b>Passive Operation:</b>
-  • Runs as a message watcher at handler group -1 (fires before all command handlers)
-  • No user interaction required — fully automatic
-  • Other modules, such as <code>/info</code>, depend on data collected by this module
+  <b>Operação Passiva:</b>
+  • Executa como um vigia de mensagens no grupo de manipuladores -1 (acionado antes de todos os manipuladores de comandos)
+  • Nenhuma interação do usuário necessária — totalmente automático
+  • Outros módulos, como <code>/info</code>, dependem de dados coletados por este módulo
 
 # Issue #628 remediation keys
 misc_translate_parse_error: "Falha ao analisar resposta de tradução. Tente novamente."

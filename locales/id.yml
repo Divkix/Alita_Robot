@@ -366,32 +366,32 @@ disabling_help_msg: |
   Perintah yang dinonaktifkan masih dapat diakses melalui fitur /connect. Jika Anda ingin
   melihat ini dinonaktifkan juga, beri tahu saya di obrolan dukungan."
 devs_help_msg:
-  "Bot management and diagnostic commands restricted to the bot owner and
-  trusted developers. These commands are not surfaced to regular users.
+  "Perintah manajemen bot dan diagnostik yang dibatasi untuk pemilik bot dan
+  pengembang tepercaya. Perintah ini tidak ditampilkan kepada pengguna biasa.
 
-  *Team Commands:*
+  *Perintah Tim:*
 
-  × /stats: Display bot statistics and system info.
+  × /stats: Menampilkan statistik bot dan info sistem.
 
-  × /teamusers: List all team members.
+  × /teamusers: Daftar semua anggota tim.
 
-  *Owner Commands:*
+  *Perintah Pemilik:*
 
-  × /addsudo: Grant sudo permissions to a user.
+  × /addsudo: Berikan izin sudo kepada pengguna.
 
-  × /adddev: Grant developer permissions to a user.
+  × /adddev: Berikan izin pengembang kepada pengguna.
 
-  × /remsudo: Revoke sudo permissions from a user.
+  × /remsudo: Cabut izin sudo dari pengguna.
 
-  × /remdev: Revoke developer permissions from a user.
+  × /remdev: Cabut izin pengembang dari pengguna.
 
-  *Diagnostic Commands:*
+  *Perintah Diagnostik:*
 
-  × /chatinfo: Display detailed information about a chat.
+  × /chatinfo: Menampilkan informasi terperinci tentang chat.
 
-  × /chatlist: Generate and send a list of all active chats.
+  × /chatlist: Hasilkan dan kirim daftar semua chat aktif.
 
-  × /leavechat: Force the bot to leave a specified chat."
+  × /leavechat: Paksa bot untuk meninggalkan chat yang ditentukan."
 filters_help_msg: |
   "Filter tidak peka huruf besar/kecil; setiap kali seseorang mengucapkan kata pemicu
   Anda, Alita akan membalas sesuatu yang lain! Ini dapat digunakan untuk membuat perintah Anda
@@ -636,17 +636,17 @@ help_donatetext: "Jadi Anda ingin donasi? Luar biasa!
 
   Anda dapat berdonasi dengan menghubungi pemilik saya di sini: @DivideProjectsBot"
 help_help_msg:
-  "The main entry point and navigation system for Alita Robot.
+  "Titik masuk utama dan sistem navigasi untuk Alita Robot.
 
-  *Navigation Commands:*
+  *Perintah Navigasi:*
 
-  × /start: Show the welcome message with navigation menu.
+  × /start: Tampilkan pesan selamat datang dengan menu navigasi.
 
-  × /help: Show help menu with module list; use /help <module> for details.
+  × /help: Tampilkan menu bantuan dengan daftar modul; gunakan /help <modul> untuk detail.
 
-  × /about: Show bot information, version, and useful links.
+  × /about: Tampilkan informasi bot, versi, dan tautan berguna.
 
-  × /donate: Show donation information for supporting the project."
+  × /donate: Tampilkan informasi donasi untuk mendukung proyek."
 languages_help_msg: "Tidak dapat mengubah bahasa bot?
 
   Ubah dengan mudah menggunakan modul ini!
@@ -941,24 +941,24 @@ warns_help_msg: |
 
   -> `/warn @user Karena tidak menaati aturan`"
 users_help_msg:
-  "Automatic background user and chat tracker. This module has no user-facing
-  commands — it silently records every message sender and chat the bot is active in.
+  "Pelacak pengguna dan chat latar belakang otomatis. Modul ini tidak memiliki perintah
+  yang terlihat pengguna — modul ini secara diam-diam mencatat setiap pengirim pesan dan chat tempat bot aktif.
 
-  *What It Tracks:*
+  *Apa yang Dilacak:*
 
-  × User IDs, usernames, and display names for every message sender.
+  × ID pengguna, nama pengguna, dan nama tampilan untuk setiap pengirim pesan.
 
-  × Chat IDs and names for every group the bot is in.
+  × ID chat dan nama untuk setiap grup tempat bot berada.
 
-  × Channel IDs, names, and usernames for linked channels.
+  × ID saluran, nama, dan nama pengguna untuk saluran tertaut.
 
-  *Rate Limiting:*
+  *Pembatasan Kecepatan:*
 
-  × User updates are throttled to one per UserUpdateInterval.
+  × Pembaruan pengguna dibatasi satu per UserUpdateInterval.
 
-  × Chat updates are throttled to one per ChatUpdateInterval.
+  × Pembaruan chat dibatasi satu per ChatUpdateInterval.
 
-  Other modules, such as /info, depend on data collected by this module."
+  Modul lain, seperti /info, bergantung pada data yang dikumpulkan oleh modul ini."
 
 # Captcha module strings
 captcha_enable_failed: Gagal mengaktifkan captcha. Silakan coba lagi.
@@ -2248,47 +2248,47 @@ disabling_notes_docs: |
 
 # Extended documentation locale keys - Help module
 help_extended_docs: |
-  <b>Navigation System:</b>
-  The Help module provides the bot's main entry points and navigation. When a user sends <code>/start</code> in a private chat, the bot displays a welcome message with an inline keyboard for navigating to different modules.
+  <b>Sistem Navigasi:</b>
+  Modul Bantuan menyediakan titik masuk utama dan navigasi bot. Ketika pengguna mengirim <code>/start</code> di chat pribadi, bot menampilkan pesan selamat datang dengan keyboard inline untuk menavigasi ke modul yang berbeda.
 
-  The <code>/help</code> command shows a module list. Clicking a module button displays that module's commands and usage information. When <code>/help</code> is used in a group chat, the bot redirects the user to a private message for detailed help to avoid cluttering the group.
+  Perintah <code>/help</code> menampilkan daftar modul. Mengklik tombol modul menampilkan perintah dan informasi penggunaan modul tersebut. Ketika <code>/help</code> digunakan di chat grup, bot mengarahkan pengguna ke pesan pribadi untuk bantuan terperinci guna menghindari kekacauan grup.
 
-  <code>/about</code> shows bot information, version, and links, while <code>/donate</code> shows donation information for supporting the project.
+  <code>/about</code> menampilkan informasi bot, versi, dan tautan, sementara <code>/donate</code> menampilkan informasi donasi untuk mendukung proyek.
 
 # Extended documentation locale keys - Devs module
 devs_extended_docs: |
-  <b>Team Hierarchy:</b>
-  The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
+  <b>Hierarki Tim:</b>
+  Modul Devs menyediakan perintah manajemen bot dan diagnostik yang dibatasi untuk tim internal bot. Tim memiliki tiga tingkat dengan level hak istimewa yang menurun.
 
-  <b>Tier 1 — Owner:</b> Set via <code>OWNER_ID</code> environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
+  <b>Tingkat 1 — Pemilik:</b> Diatur melalui variabel lingkungan <code>OWNER_ID</code> saat penyebaran. Kontrol penuh: mengelola daftar tim, semua perintah diagnostik, semua perintah tim.
 
-  <b>Tier 2 — Sudo / Dev:</b> Assigned by owner via <code>/addsudo</code> or <code>/adddev</code>. Diagnostic commands: bot stats, chat info, chat management.
+  <b>Tingkat 2 — Sudo / Dev:</b> Ditugaskan oleh pemilik melalui <code>/addsudo</code> atau <code>/adddev</code>. Perintah diagnostik: statistik bot, info chat, manajemen chat.
 
-  <b>Tier 3 — Team Member:</b> Automatically includes owner + all sudo + all dev users. View team roster only via <code>/teamusers</code>.
+  <b>Tingkat 3 — Anggota Tim:</b> Secara otomatis mencakup pemilik + semua pengguna sudo + semua pengguna dev. Lihat daftar tim hanya melalui <code>/teamusers</code>.
 
-  <b>Note:</b> Sudo and Dev have identical command access. The distinction exists for organizational purposes.
+  <b>Catatan:</b> Sudo dan Dev memiliki akses perintah yang identik. Perbedaan ini ada untuk tujuan organisasi.
 
-  <b>Important:</b> These commands are not visible in the public help menu and silently ignore unauthorized users.
+  <b>Penting:</b> Perintah ini tidak terlihat di menu bantuan publik dan secara diam-diam mengabaikan pengguna yang tidak berwenang.
 
 # Extended documentation locale keys - Users module
 users_extended_docs: |
-  <b>Background Tracker:</b>
-  The Users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
+  <b>Pelacak Latar Belakang:</b>
+  Modul Pengguna adalah modul latar belakang pasif tanpa perintah yang terlihat pengguna. Modul ini berjalan secara diam-diam pada setiap pesan yang diproses bot, secara otomatis melacak semua pengirim pesan dan semua chat tempat bot aktif.
 
-  <b>What It Tracks:</b>
-  • User IDs, usernames, and display names for every message sender
-  • Chat IDs and names for every group the bot is in
-  • Channel IDs, names, and usernames for linked channels
+  <b>Apa yang Dilacak:</b>
+  • ID pengguna, nama pengguna, dan nama tampilan untuk setiap pengirim pesan
+  • ID chat dan nama untuk setiap grup tempat bot berada
+  • ID saluran, nama, dan nama pengguna untuk saluran tertaut
 
-  <b>Rate Limiting:</b>
-  • User updates: throttled to one per <code>UserUpdateInterval</code>
-  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
-  • This prevents excessive database writes while keeping data reasonably current
+  <b>Pembatasan Kecepatan:</b>
+  • Pembaruan pengguna: dibatasi satu per <code>UserUpdateInterval</code>
+  • Pembaruan chat: dibatasi satu per <code>ChatUpdateInterval</code>
+  • Ini mencegah penulisan basis data yang berlebihan sambil menjaga data tetap terkini secara wajar
 
-  <b>Passive Operation:</b>
-  • Runs as a message watcher at handler group -1 (fires before all command handlers)
-  • No user interaction required — fully automatic
-  • Other modules, such as <code>/info</code>, depend on data collected by this module
+  <b>Operasi Pasif:</b>
+  • Berjalan sebagai pengawas pesan di grup penangan -1 (dijalankan sebelum semua penangan perintah)
+  • Tidak perlu interaksi pengguna — sepenuhnya otomatis
+  • Modul lain, seperti <code>/info</code>, bergantung pada data yang dikumpulkan oleh modul ini
 
 # Issue #628 remediation keys
 misc_translate_parse_error: "Gagal menguraikan respons terjemahan. Silakan coba lagi."
