@@ -147,6 +147,33 @@ connections_reconnect_no_last_chat: У вас нет последнего чат
 connections_reconnect_reconnected: Вы теперь снова подключены к <b>%s</b>!!
 disabling_help_msg: |
   "Этот модуль позволяет вам отключить некоторые часто используемые команды,\n  чтобы никто не мог их использовать. Это также позволит вам автоматически удалять их, не позволяя людям использовать синий текст.\n\n\n  *Команды администратора*:\n\n  × /disable `<commandname>`: Запретить пользователям использовать commandname в этой группе.\n\n  × /enable `<item name>`: Разрешить пользователям использовать commandname в этой группе.\n\n  × /disableable: Список всех отключаемых команд.\n\n  × /disabledel `<yes/no/on/off>`: Удалять отключенные команды, когда используются не-администраторами.\n\n  × /disabled: Список отключенных команд в этом чате.\n\n\n  Примечание:\n\n  При отключении команды, команда отключается только для не-администраторов. Все администраторы могут по-прежнему использовать эти команды.\n\n  Отключенные команды всё ещё доступны через функцию /connect. Если вам интересно, чтобы это также было отключено, дайте мне знать в чате поддержки."
+devs_help_msg:
+  "Bot management and diagnostic commands restricted to the bot owner and
+  trusted developers. These commands are not surfaced to regular users.
+
+  *Team Commands:*
+
+  × /stats: Display bot statistics and system info.
+
+  × /teamusers: List all team members.
+
+  *Owner Commands:*
+
+  × /addsudo: Grant sudo permissions to a user.
+
+  × /adddev: Grant developer permissions to a user.
+
+  × /remsudo: Revoke sudo permissions from a user.
+
+  × /remdev: Revoke developer permissions from a user.
+
+  *Diagnostic Commands:*
+
+  × /chatinfo: Display detailed information about a chat.
+
+  × /chatlist: Generate and send a list of all active chats.
+
+  × /leavechat: Force the bot to leave a specified chat."
 filters_help_msg: |
   "Фильтры нечувствительны к регистру; каждый раз, когда кто-то говорит ваши триггерные слова, Alita будет отвечать чем-то другим! Это можно использовать для создания ваших команд, если desired.\n\n\n  Команды:\n\n  - /filter <trigger> <reply>: Каждый раз, когда кто-то говорит trigger, бот будет отвечать предложением. Для многословных фильтров заключите trigger в кавычки.\n\n  - /filters: Список всех фильтров чата.\n\n  - /stop <trigger>: Остановить бота от ответа на trigger.\n\n  - /stopall: Остановить ВСЕ фильтры в текущем чате. Это действие не может быть отменено.\n\n\n  Примеры:\n\n  - Установить фильтр:\n\n  -> /filter hello Hello there! How are you?\n\n  - Установить многословный фильтр:\n\n  -> /filter hello friend Hello back! Long time no see!\n\n  - Установить фильтр, который могут использовать только администраторы:\n\n  -> /filter example This filter won't  happen if a normal user says it {admin}\n\n  - Чтобы сохранить файл, изображение, gif или любое другое вложение, просто ответьте на файл с:\n\n  -> /filter trigger"
 formatting_fillings: "<b>Заполнения</b>\n\n\n  Вы также можете настроить содержимое вашего сообщения с помощью контекстных данных. Например, вы могли бы упомянуть пользователя по имени в приветственном сообщении или упомянуть их в фильтре!\n\n  Вы можете использовать это, чтобы упоминать пользователя в заметках!\n\n\n  <b>Поддерживаемые заполнения:</b>\n\n  - <code>{first}</code>: Имя пользователя.\n\n  - <code>{last}</code>: Фамилия пользователя.\n\n  - <code>{fullname}</code>: Полное имя пользователя.\n\n  - <code>{username}</code>: Имя пользователя. Если у них его нет, упоминает пользователя вместо этого.\n\n  - <code>{mention}</code>: Упоминает пользователя с его именем.\n\n  - <code>{id}</code>: ID пользователя.\n\n  - <code>{chatname}</code>: Название чата.\n\n  - <code>{rules}</code>: Добавляет кнопку Правила в сообщение.\n\n  - <code>{protect}</code>: Защищает содержимое от пересылки.\n\n  - <code>{preview}</code>: Включает превью в сообщениях.\n\n  - <code>{nonotif}</code>: Отключает уведомление для этого сообщения."
@@ -203,6 +230,18 @@ help_pm_intro: |
   Если у вас есть какие-либо баги или вопросы о том, как использовать меня, посмотрите на мой сайт или зайдите в @DivideSupport.
   Все команды можно использовать с / или !.
 
+help_help_msg:
+  "The main entry point and navigation system for Alita Robot.
+
+  *Navigation Commands:*
+
+  × /start: Show the welcome message with navigation menu.
+
+  × /help: Show help menu with module list; use /help <module> for details.
+
+  × /about: Show bot information, version, and useful links.
+
+  × /donate: Show donation information for supporting the project."
 languages_help_msg: |
   "Не можете изменить язык бота?\n\n  Легко изменить, используя этот модуль!\n\n\n  Просто введите /lang и используйте встроенную клавиатуру, чтобы выбрать язык для себя или вашей группы.\n\n\n  Вы можете помочь нам принести бота на больше языков, помогая на [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Только для администратора*:\n\n  × /lock `<permission>`: Заблокировать разрешение чата..\n\n  × /unlock `<permission>`: Разблокировать разрешение чата.\n\n  × /locks: Просмотреть разрешения чата.\n\n  × /locktypes: Проверить доступные типы блокировок!\n\n\n  Блокировки могут использоваться для ограничения пользователей группы.\n\n  Блокировка URL-адресов будет автоматически удалять все сообщения с URL-адресами, блокировка стикеров будет удалять все стикеры и т.д.\n\n  Блокировка ботов остановит не-администраторов от добавления ботов в чат.\n\n\n  **Пример:**\n\n  `/lock media`: это блокирует все медиа-сообщения в чате."
@@ -269,6 +308,25 @@ utils_string_handling_extract_time_invalid_time_type: |
   "Указан неверный тип времени.\n  Ожидалось m, h, или d, получено: %s"
 warns_help_msg: |
   "Держите ваших участников в порядке с помощью предупреждений; не давайте им выходить из под контроля!\n\n  Если вы ищете автоматические предупреждения, прочитайте о модуле чёрного списка!\n\n\n  *Команды администратора:*\n\n  - /warn <reason>: Предупредить пользователя.\n\n  - /dwarn <reason>: Предупредить пользователя через ответ и удалить его сообщение.\n\n  - /swarn <reason>: Тихо предупредить пользователя и удалить ваше сообщение.\n\n  - /warns: Посмотреть предупреждения пользователя.\n\n  - /rmwarn: Удалить последнее предупреждение пользователя.\n\n  - /resetwarn: Сбросить все предупреждения пользователя на 0.\n\n  - /resetallwarns: Удалить все предупреждения в чате. Все пользователи возвращаются к 0 предупреждений.\n\n  - /warnings: Получить настройки предупреждений чата.\n\n  - /setwarnmode <ban/kick/mute>: Установить режим предупреждений чата.\n\n  - /setwarnlimit <number>: Установить количество предупреждений до применения наказания.\n\n\n  *Примеры*\n\n  - Предупредить пользователя.\n\n  -> `/warn @user За нарушение правил`"
+users_help_msg:
+  "Automatic background user and chat tracker. This module has no user-facing
+  commands — it silently records every message sender and chat the bot is active in.
+
+  *What It Tracks:*
+
+  × User IDs, usernames, and display names for every message sender.
+
+  × Chat IDs and names for every group the bot is in.
+
+  × Channel IDs, names, and usernames for linked channels.
+
+  *Rate Limiting:*
+
+  × User updates are throttled to one per UserUpdateInterval.
+
+  × Chat updates are throttled to one per ChatUpdateInterval.
+
+  Other modules, such as /info, depend on data collected by this module."
 
 # Captcha module strings
 captcha_enable_failed: Не удалось включить капчу. Пожалуйста, попробуйте снова.
@@ -1512,6 +1570,50 @@ disabling_notes_docs: |
   <b>Требуемые разрешения:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Только администратор
   • <code>/disableable</code>, <code>/disabled</code>: Все пользователи (но <code>/disabled</code> можно отключить)
+
+# Extended documentation locale keys - Help module
+help_extended_docs: |
+  <b>Navigation System:</b>
+  The Help module provides the bot's main entry points and navigation. When a user sends <code>/start</code> in a private chat, the bot displays a welcome message with an inline keyboard for navigating to different modules.
+
+  The <code>/help</code> command shows a module list. Clicking a module button displays that module's commands and usage information. When <code>/help</code> is used in a group chat, the bot redirects the user to a private message for detailed help to avoid cluttering the group.
+
+  <code>/about</code> shows bot information, version, and links, while <code>/donate</code> shows donation information for supporting the project.
+
+# Extended documentation locale keys - Devs module
+devs_extended_docs: |
+  <b>Team Hierarchy:</b>
+  The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
+
+  <b>Tier 1 — Owner:</b> Set via <code>OWNER_ID</code> environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
+
+  <b>Tier 2 — Sudo / Dev:</b> Assigned by owner via <code>/addsudo</code> or <code>/adddev</code>. Diagnostic commands: bot stats, chat info, chat management.
+
+  <b>Tier 3 — Team Member:</b> Automatically includes owner + all sudo + all dev users. View team roster only via <code>/teamusers</code>.
+
+  <b>Note:</b> Sudo and Dev have identical command access. The distinction exists for organizational purposes.
+
+  <b>Important:</b> These commands are not visible in the public help menu and silently ignore unauthorized users.
+
+# Extended documentation locale keys - Users module
+users_extended_docs: |
+  <b>Background Tracker:</b>
+  The Users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
+
+  <b>What It Tracks:</b>
+  • User IDs, usernames, and display names for every message sender
+  • Chat IDs and names for every group the bot is in
+  • Channel IDs, names, and usernames for linked channels
+
+  <b>Rate Limiting:</b>
+  • User updates: throttled to one per <code>UserUpdateInterval</code>
+  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
+  • This prevents excessive database writes while keeping data reasonably current
+
+  <b>Passive Operation:</b>
+  • Runs as a message watcher at handler group -1 (fires before all command handlers)
+  • No user interaction required — fully automatic
+  • Other modules, such as <code>/info</code>, depend on data collected by this module
 
 # Issue #628 remediation keys
 misc_translate_parse_error: "Не удалось разобрать ответ перевода. Пожалуйста, попробуйте снова."
