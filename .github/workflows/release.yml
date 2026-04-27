@@ -112,6 +112,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Clean up existing release (handle tag moves)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" &>/dev/null 2>&1; then
+            echo "Existing release for ${{ github.ref_name }} found, deleting before recreate..."
+            gh release delete "${{ github.ref_name }}" --yes
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
