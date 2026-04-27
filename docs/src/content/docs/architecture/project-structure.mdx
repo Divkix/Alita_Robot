@@ -25,7 +25,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - db.go GORM connection and setup
     - cache_helpers.go Cache key patterns and TTLs
     - \*_db.go Per-feature database operations
-    - shared_helpers.go Transaction support utilities
+    - cache_helpers.go Cache key patterns and TTLs
   - i18n/ **Internationalization**
     - i18n.go Translation manager
     - translator.go Per-request translator
@@ -95,7 +95,7 @@ Each `*_db.go` file is self-contained per feature domain. It includes GORM model
 - db/
   - db.go Database connection, GORM setup
   - cache_helpers.go Cache key generators, TTL constants
-  - shared_helpers.go Transaction helpers, bulk operations
+    - cache_helpers.go Cache key generators, TTL constants
   - bans_db.go Ban-related queries
   - users_db.go User storage operations
   - chats_db.go Chat settings operations
@@ -139,7 +139,7 @@ Not every file in `modules/` is a feature module. Files like `helpers.go`, `mode
   - misc.go Miscellaneous commands
   - bot_updates.go Bot status tracking
   - antispam.go Anti-spam measures
-  - mkdcmd.go Markdown commands
+  - formatting.go Markdown commands
 </FileTree>
 
 ### `/alita/utils/chat_status/` - Permission Checking <Badge text="Security" variant="caution" />
@@ -265,6 +265,8 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     modules.LoadGreetings(dispatcher)
     modules.LoadCaptcha(dispatcher)
     modules.LoadBlacklists(dispatcher)
+    modules.LoadReactions(dispatcher)
+    modules.LoadBackup(dispatcher)
     modules.LoadMkdCmd(dispatcher)
 }
 ```

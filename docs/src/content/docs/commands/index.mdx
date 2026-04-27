@@ -9,7 +9,7 @@ import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
 
-**Total Modules**: 24 | **Total Commands**: 142
+**Total Modules**: 26 | **Total Commands**: 149
 
 ## Administration
 
@@ -126,6 +126,14 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
     <LinkCard title="View Notes Commands" href="/commands/notes/" />
   </Card>
 
+  <Card title="Reactions" icon="reaction">
+    Automatically react to messages containing specific keywords with configurable emoji reactions.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Reactions Commands" href="/commands/reactions/" />
+  </Card>
+
   <Card title="Rules" icon="open-book">
     Set and display group rules. Supports private rules and custom button text.
 
@@ -204,6 +212,14 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
     <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
 
     <LinkCard title="View Pins Commands" href="/commands/pins/" />
+  </Card>
+
+  <Card title="Backup & Restore" icon="download">
+    Export and import group settings as JSON files. Supports selective export/import and full reset.
+
+    <Badge text="3 commands" variant="note" /> <Badge text="Admin/Creator" variant="caution" />
+
+    <LinkCard title="View Backup Commands" href="/commands/backup/" />
   </Card>
 </CardGrid>
 

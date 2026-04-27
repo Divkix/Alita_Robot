@@ -236,7 +236,6 @@ func main() {
 	if err := generatePermissionsReference(permissions, outputPath); err != nil {
 		log.Fatalf("Failed to generate permissions reference: %v", err)
 	}
-	log.Info("Generated: api-reference/permissions.md")
 
 	// Generate lock types reference
 	if err := generateLockTypesReference(lockTypes, outputPath); err != nil {

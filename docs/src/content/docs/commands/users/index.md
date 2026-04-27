@@ -1,29 +1,36 @@
 ---
-title: Users Module
-description: Automatic user and chat tracking module
+title: Users Commands
+description: Complete guide to Users module commands and features
 ---
 
-# Users Module
+# 📦 Users Commands
 
-The users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
+Automatic background user and chat tracker. This module has no user-facing commands — it silently records every message sender and chat the bot is active in.
+### What It Tracks:
+- User IDs, usernames, and display names for every message sender.
+- Chat IDs and names for every group the bot is in.
+- Channel IDs, names, and usernames for linked channels.
+### Rate Limiting:
+- User updates are throttled to one per UserUpdateInterval.
+- Chat updates are throttled to one per ChatUpdateInterval.
+Other modules, such as /info, depend on data collected by this module.
 
-It records user IDs, usernames, and display names for every message sender, and chat IDs and names for every group. Database updates are rate-limited to prevent excessive writes. Other modules rely on this data -- for example, `/info` in the Misc module uses user data collected by this module.
+**Background Tracker:**
+The Users module is a passive background module with no user-facing commands. It runs silently on every message the bot processes, automatically tracking all message senders and all chats the bot is active in.
 
-## Module Aliases
+**What It Tracks:**
+- User IDs, usernames, and display names for every message sender
+- Chat IDs and names for every group the bot is in
+- Channel IDs, names, and usernames for linked channels
 
-> These are help-menu module names, not command aliases.
+**Rate Limiting:**
+- User updates: throttled to one per `UserUpdateInterval`
+- Chat updates: throttled to one per `ChatUpdateInterval`
+- This prevents excessive database writes while keeping data reasonably current
 
-This module has no help-menu aliases. It operates silently in the background.
-
-## How It Works
-
+**Passive Operation:**
 - Runs as a message watcher at handler group -1 (fires before all command handlers)
-- Tracks: user ID, username, and display name for every message sender
-- Tracks: chat ID and chat name for every group the bot is in
-- Tracks: channel ID, name, and username for linked channels
-- Rate-limited: user updates throttled to one per `UserUpdateInterval`, chat updates to one per `ChatUpdateInterval`
-- No user interaction required -- fully automatic
+- No user interaction required — fully automatic
+- Other modules, such as `/info`, depend on data collected by this module
 
-## Required Permissions
 
-This module requires no permissions. It operates automatically on all messages.

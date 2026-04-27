@@ -108,8 +108,25 @@ generate-docs:
 	@echo "✅ Documentation generated in docs/src/content/docs/"
 
 check-docs:
-	@echo "Checking docs generation for drift..."
-	@cd scripts/generate_docs && $(GO_CMD) run .
+	@echo "🔍 Checking docs generation for drift..."
+	@TMP=$$(mktemp -d /tmp/alita-docs-check.XXXXXX); \
+	ROOT=$$(pwd); \
+	echo "  Generating docs to temp directory..."; \
+	cd scripts/generate_docs && $(GO_CMD) run . -output "$$TMP"; \
+	cd "$$ROOT"; \
+	echo "  Comparing generated docs against current docs..."; \
+	diff -rq "$$TMP" docs/src/content/docs/ > /dev/null 2>&1; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ No drift detected — generated docs match current docs."; \
+	else \
+		echo "❌ Drift detected! Generated docs differ from current docs:"; \
+		diff -r "$$TMP" docs/src/content/docs/ || true; \
+		echo ""; \
+		echo "Run 'make generate-docs' to sync."; \
+	fi; \
+	rm -rf "$$TMP"; \
+	exit $$EXIT_CODE
 
 inventory:
 	@echo "Generating canonical command inventory..."

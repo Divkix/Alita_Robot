@@ -87,3 +87,29 @@ func TestGenerateModuleDocs_MixedSentinelAndNonSentinel(t *testing.T) {
 		t.Error("Unprotected file was NOT created — likely used return nil instead of continue")
 	}
 }
+
+func TestExtractCommandDescription_DashSeparator(t *testing.T) {
+	helpText := "• /export - Export all group settings to a JSON file\n• /import - Restore settings from a backup file"
+	got := extractCommandDescription("export", helpText)
+	want := "Export all group settings to a JSON file"
+	if got != want {
+		t.Errorf("extractCommandDescription(\"export\", ...) = %q, want %q", got, want)
+	}
+}
+
+func TestExtractCommandDescription_ColonSeparator(t *testing.T) {
+	helpText := "× /flood: Show current flood settings"
+	got := extractCommandDescription("flood", helpText)
+	want := "Show current flood settings"
+	if got != want {
+		t.Errorf("extractCommandDescription(\"flood\", ...) = %q, want %q", got, want)
+	}
+}
+
+func TestExtractCommandDescription_NoMatch(t *testing.T) {
+	got := extractCommandDescription("unknown", "some help text")
+	want := "No description available"
+	if got != want {
+		t.Errorf("extractCommandDescription(\"unknown\", ...) = %q, want %q", got, want)
+	}
+}

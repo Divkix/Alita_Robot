@@ -47,11 +47,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- user_id -> users(user_id)
 - chat_id -> chats(chat_id)
-- channel_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
-- user_id -> users(user_id)
 
 ### `antiflood_settings`
 
@@ -74,6 +71,15 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_antiflood_chat_active
 - idx_antiflood_chat_flood_active
 
+#### Foreign Keys
+
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+
 ### `blacklists`
 
 #### Columns
@@ -95,6 +101,10 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `captcha_attempts`
 
@@ -117,6 +127,11 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_captcha_user_chat
 - idx_captcha_expires_at
 
+#### Foreign Keys
+
+- chat_id -> chats(chat_id)
+- attempt_id -> captcha_attempts(id)
+
 ### `captcha_muted_users`
 
 #### Columns
@@ -133,6 +148,11 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_captcha_muted_user_chat
 - idx_captcha_unmute_at
+
+#### Foreign Keys
+
+- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 
 ### `captcha_settings`
 
@@ -154,11 +174,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - uk_captcha_settings_chat_id
 
-#### Foreign Keys
-
-- user_id -> users(user_id)
-- chat_id -> chats(chat_id)
-
 ### `channels`
 
 #### Columns
@@ -176,17 +191,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 - idx_channels_chat_update
 - idx_channels_username
 
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-
 ### `chat_users`
 
 #### Columns
@@ -200,17 +204,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 - idx_chat_users_user_id
 - idx_chat_users_chat_id
-
-#### Foreign Keys
-
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- user_id -> users(user_id)
-- user_id -> users(user_id)
 
 ### `chats`
 
@@ -238,8 +231,6 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
 - user_id -> users(user_id)
 - chat_id -> chats(chat_id)
 
@@ -263,7 +254,9 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `connection_settings`
@@ -278,6 +271,10 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 | `allow_connect` | `BOOLEAN` | ✅ | `true` | — |
 | `created_at` | `TIMESTAMP` | ✅ | — | — |
 | `updated_at` | `TIMESTAMP` | ✅ | — | — |
+
+#### Foreign Keys
+
+- channel_id -> chats(chat_id)
 
 ### `devs`
 
@@ -295,8 +292,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- user_id -> users(user_id)
-- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `disable`
@@ -315,8 +311,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
+- user_id -> users(user_id)
 
 ### `filters`
 
@@ -378,7 +374,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `locks`
 
@@ -401,6 +397,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 
 ### `notes`
 
@@ -431,7 +428,11 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- channel_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 - chat_id -> chats(chat_id)
 
 ### `notes_settings`
@@ -448,7 +449,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
+- channel_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `pins`
 
@@ -467,6 +469,11 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Indexes
 
 - idx_pins_chat
+
+#### Foreign Keys
+
+- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `report_chat_settings`
 
@@ -501,7 +508,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `rules`
 
@@ -519,10 +526,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
-- chat_id -> chats(chat_id)
+- user_id -> users(user_id)
 
 ### `stored_messages`
 
@@ -568,7 +572,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 #### Foreign Keys
 
 - chat_id -> chats(chat_id)
-- attempt_id -> captcha_attempts(id)
+- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
 
 ### `warns_settings`
 
@@ -585,7 +590,8 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 #### Foreign Keys
 
-- user_id -> users(user_id)
+- chat_id -> chats(chat_id)
+- chat_id -> chats(chat_id)
 
 ### `warns_users`
 

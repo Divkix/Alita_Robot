@@ -818,15 +818,14 @@ func formatHelpText(text string) string {
 
 // extractCommandDescription attempts to extract description for a command from help text
 func extractCommandDescription(cmdName, helpText string) string {
-	// Try to find command in help text with various patterns
 	for line := range strings.SplitSeq(helpText, "\n") {
-		// Look for lines mentioning the command
-		if strings.Contains(strings.ToLower(line), "/"+strings.ToLower(cmdName)) {
-			// Extract description after command
-			parts := strings.SplitN(line, ":", 2)
+		if !strings.Contains(strings.ToLower(line), "/"+strings.ToLower(cmdName)) {
+			continue
+		}
+		for _, sep := range []string{": ", " - "} {
+			parts := strings.SplitN(line, sep, 2)
 			if len(parts) == 2 {
 				desc := strings.TrimSpace(parts[1])
-				// Clean up markdown
 				desc = strings.ReplaceAll(desc, "<b>", "")
 				desc = strings.ReplaceAll(desc, "</b>", "")
 				desc = strings.ReplaceAll(desc, "<code>", "`")
@@ -835,7 +834,6 @@ func extractCommandDescription(cmdName, helpText string) string {
 			}
 		}
 	}
-
 	return "No description available"
 }
 
@@ -1129,6 +1127,11 @@ func generateCallbacksReference(callbacks []Callback, outputPath string) error {
 // generatePermissionsReference generates the permissions API reference documentation
 func generatePermissionsReference(permissions []PermissionFunc, outputPath string) error {
 	filePath := filepath.Join(outputPath, "api-reference", "permissions.md")
+
+	if skipIfManuallyMaintained(filePath) {
+		log.Infof("Skipped: api-reference/permissions.md (manually maintained)")
+		return nil
+	}
 
 	log.Debug("Generating permissions reference")
 

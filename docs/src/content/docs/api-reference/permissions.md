@@ -2,6 +2,7 @@
 title: Permission System
 description: Complete reference of permission checking functions
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 🔐 Permission System
 
@@ -9,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 22
+- **Total Functions**: 25
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -34,10 +35,13 @@ This page documents all permission checking functions in Alita Robot.
 | `CanUserPromote` | `bool` | CanUserPromote checks if a user has permission to promote... |
 | `CanUserRestrict` | `bool` | CanUserRestrict checks if a user has permission to restri... |
 | `Caninvite` | `bool` | Caninvite checks if the bot and user have permissions to ... |
+| `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
+| `GetChat` | `*gotgbot.Chat` | GetChat retrieves a chat by its ID (or username) directly... |
+| `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts the user from a context;... |
 | `IsUserAdmin` | `bool` | IsUserAdmin checks if a user has administrator privileges... |
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
-| `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
+| `RequireUser` | `*gotgbot.User` | RequireUser ensures a valid user exists in the context; r... |
 
 ## Functions by Category
 
@@ -358,6 +362,42 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 - `bot`
 - `msg`
 - `cmd`
+
+#### `GetChat`
+
+```go
+func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error)
+```
+
+GetChat retrieves a chat by its ID or username directly via the Telegram API. Makes a single API request without caching. Returns the Chat object and any error encountered.
+
+**Parameters:**
+- `bot`
+- `chatId`
+
+#### `GetEffectiveUser`
+
+```go
+func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
+```
+
+GetEffectiveUser safely extracts the user from a given context. Returns the user from `ctx.EffectiveSender.User`, or nil if the context has no effective sender (e.g., channel posts).
+
+**Parameters:**
+- `ctx`
+
+#### `RequireUser`
+
+```go
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
+```
+
+RequireUser ensures a valid user exists in the current context. Wraps GetEffectiveUser and sends an error message if the user is nil and `justCheck` is false. Returns the user if present, nil otherwise.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `justCheck`
 
 ## Special Telegram IDs
 

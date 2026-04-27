@@ -19,7 +19,7 @@ description: Complete guide to Blacklists module commands and features
 × /remallbl: Removes all the blacklisted words from chat
 
 *Note:*
-The Default mode for Blacklist is *none*, which will just delete the messages from the chat.
+The Default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
 
 **Available Actions:**
 The following actions can be set using `/blaction`:

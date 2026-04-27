@@ -37,9 +37,9 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/export` | No description available | ✅ |
-| `/import` | No description available | ✅ |
-| `/reset` | No description available | ❌ |
+| `/export` | Export all group settings to a JSON file | ✅ |
+| `/import` | Reply to a backup file to restore settings | ✅ |
+| `/reset` | Reset all settings to default | ❌ |
 
 ## Usage Examples
 

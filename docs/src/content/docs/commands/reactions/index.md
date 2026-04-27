@@ -33,10 +33,10 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/addreaction` | No description available | ❌ |
-| `/reactions` | No description available | ❌ |
-| `/removereaction` | No description available | ❌ |
-| `/resetreactions` | No description available | ❌ |
+| `/addreaction` | Add an auto-reaction | ❌ |
+| `/reactions` | List configured reactions | ❌ |
+| `/removereaction` | Remove a reaction | ❌ |
+| `/resetreactions` | Clear all reactions | ❌ |
 
 ## Usage Examples
 

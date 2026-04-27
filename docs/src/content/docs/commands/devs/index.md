@@ -1,94 +1,65 @@
 ---
 title: Devs Commands
-description: Complete guide to developer and owner commands
+description: Complete guide to Devs module commands and features
 ---
 
-# Developer and Owner Commands
+# 📦 Devs Commands
 
-:::caution[Not surfaced to regular users]
-These commands are restricted to the bot's internal team. They do not appear in the `/help` menu, are not listed in public command references, and are invisible to group admins and regular users. Unauthorized users who attempt these commands receive **no response** -- the bot silently ignores the message.
-:::
+Bot management and diagnostic commands restricted to the bot owner and trusted developers. These commands are not surfaced to regular users.
+### Team Commands:
+- `/stats`: Display bot statistics and system info.
+- `/teamusers`: List all team members.
+### Owner Commands:
+- `/addsudo`: Grant sudo permissions to a user.
+- `/adddev`: Grant developer permissions to a user.
+- `/remsudo`: Revoke sudo permissions from a user.
+- `/remdev`: Revoke developer permissions from a user.
+### Diagnostic Commands:
+- `/chatinfo`: Display detailed information about a chat.
+- `/chatlist`: Generate and send a list of all active chats.
+- `/leavechat`: Force the bot to leave a specified chat.
 
-The devs module provides bot management and diagnostic commands for the bot's internal team. The team has three tiers with descending privilege levels. Commands are protected by guard conditions that check the user's team membership before execution.
+**Team Hierarchy:**
+The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
 
-## Team Hierarchy
+**Tier 1 — Owner:** Set via `OWNER_ID` environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
 
-| Tier | Role | How to Assign | Capabilities |
-|------|------|---------------|-------------|
-| 1 | **Owner** | Set via `OWNER_ID` environment variable at deployment | Full control: manage team roster, all diagnostic commands, all team commands |
-| 2 | **Sudo / Dev** | Assigned by owner via `/addsudo` or `/adddev` | Diagnostic commands: bot stats, chat info, chat management |
-| 3 | **Any Team Member** | Automatically includes owner + all sudo + all dev users | View team roster only |
+**Tier 2 — Sudo / Dev:** Assigned by owner via `/addsudo` or `/adddev`. Diagnostic commands: bot stats, chat info, chat management.
 
-:::tip
-Sudo and Dev have identical command access. The distinction exists for organizational purposes -- sudo users are typically trusted operators, dev users are typically developers with debug access.
-:::
+**Tier 3 — Team Member:** Automatically includes owner + all sudo + all dev users. View team roster only via `/teamusers`.
 
-## Access Level Table
+**Note:** Sudo and Dev have identical command access. The distinction exists for organizational purposes.
 
-Each command is mapped to its access level with the exact guard condition from the source code:
+**Important:** These commands are not visible in the public help menu and silently ignore unauthorized users.
 
-| Command | Description | Access Level | Guard Condition |
-|---------|-------------|-------------|-----------------|
-| `/addsudo` | Grant sudo permissions to a user | Owner Only | `user.Id != config.AppConfig.OwnerId` |
-| `/adddev` | Grant developer permissions to a user | Owner Only | `user.Id != config.AppConfig.OwnerId` |
-| `/remsudo` | Revoke sudo permissions from a user | Owner Only | `user.Id != config.AppConfig.OwnerId` |
-| `/remdev` | Revoke developer permissions from a user | Owner Only | `user.Id != config.AppConfig.OwnerId` |
-| `/stats` | Display bot statistics and system info | Owner or Dev | `user.Id != OwnerId && !memStatus.Dev` |
-| `/chatinfo` | Display detailed information about a chat | Owner or Dev | `user.Id != OwnerId && !memStatus.Dev` |
-| `/chatlist` | Generate and send a list of all active chats | Owner or Dev | `user.Id != OwnerId && !memStatus.Dev` |
-| `/leavechat` | Force the bot to leave a specified chat | Owner or Dev | `user.Id != OwnerId && !memStatus.Dev` |
-| `/teamusers` | List all team members (owner, sudo, dev) | Any Team Member | User must be in `teamint64Slice` |
 
-## Silent Ignore Behavior
+## Available Commands
 
-:::note
-Unlike admin commands which respond with "you need to be an admin", dev commands use a silent-ignore pattern. When the guard condition fails, the handler simply returns without sending any response. This is intentional: it prevents information leakage about which commands exist and avoids giving non-team users any feedback about restricted functionality.
-:::
-
-## Module Aliases
-
-> These are help-menu module names, not command aliases.
-
-This module has no help-menu aliases. It is not listed in the help menu.
-
-## Disableable Status
-
-None of the developer commands are disableable. They cannot be disabled via the `/disable` command because they are not registered with `AddCmdToDisableable()`.
+| Command | Description | Disableable |
+|---------|-------------|-------------|
+| `/adddev` | Grant developer permissions to a user. | ❌ |
+| `/addsudo` | Grant sudo permissions to a user. | ❌ |
+| `/chatinfo` | Display detailed information about a chat. | ❌ |
+| `/chatlist` | Generate and send a list of all active chats. | ❌ |
+| `/leavechat` | Force the bot to leave a specified chat. | ❌ |
+| `/remdev` | Revoke developer permissions from a user. | ❌ |
+| `/remsudo` | Revoke sudo permissions from a user. | ❌ |
+| `/stats` | Display bot statistics and system info. | ❌ |
+| `/teamusers` | List all team members. | ❌ |
 
 ## Usage Examples
 
-### View bot statistics
+### Basic Usage
 
 ```
-/stats
+/adddev
+/addsudo
+/chatinfo
 ```
 
-### Get information about a chat
+For detailed command usage, refer to the commands table above.
 
-```
-/chatinfo -100123456789
-```
+## Required Permissions
 
-### Add a sudo user
+Commands in this module are available to all users unless otherwise specified.
 
-```
-/addsudo <reply to user or user_id>
-```
-
-### Add a dev user
-
-```
-/adddev <reply to user or user_id>
-```
-
-### List team members
-
-```
-/teamusers
-```
-
-### Force bot to leave a chat
-
-```
-/leavechat -100123456789
-```

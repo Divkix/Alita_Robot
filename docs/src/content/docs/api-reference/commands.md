@@ -10,8 +10,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 25 (24 user-facing + 1 internal)
-- **Total Commands**: 142
+- **Total Modules**: 26 (25 user-facing + 1 internal)
+- **Total Commands**: 149
 
 ## Commands by Module
 
@@ -151,6 +151,15 @@ This module has no user-facing commands. It runs as a passive background watcher
 | `/markdownhelp` | Show markdown formatting guide | Everyone | ❌ | `/formatting` |
 | `/formatting` | Alias of `/markdownhelp` | Everyone | ❌ | `/markdownhelp` |
 
+#### 🎭 Reactions
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/addreaction` | Add an auto-reaction for a keyword | Admin | ❌ | — |
+| `/removereaction` | Remove a reaction for a keyword | Admin | ❌ | — |
+| `/reactions` | List configured reactions | Admin | ✅ | — |
+| `/resetreactions` | Clear all reactions | Admin | ❌ | — |
+
 #### 👋 Greetings
 
 | Command | Description | Permission | Disableable | Aliases |
@@ -255,6 +264,14 @@ This module has no user-facing commands. It runs as a passive background watcher
 |---------|-------------|------------|-------------|---------|
 | `/lang` | Change the bot language | User/Admin | ❌ | — |
 
+#### 📦 Backup & Restore
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/export` | Export all group settings to a JSON file | Admin | ✅ | — |
+| `/import` | Restore settings from a backup file | Admin | ✅ | — |
+| `/reset` | Reset all settings to default | Admin | ❌ | — |
+
 #### 📌 Pins
 
 | Command | Description | Permission | Disableable | Aliases |
@@ -295,6 +312,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 |---------|--------|-------------|------------|
 | `/about` | Help | Show bot information and links | Everyone |
 | `/addblacklist` | Blacklists | Add a word to the blacklist | Admin |
+| `/addreaction` | Reactions | Add an auto-reaction for a keyword | Admin |
 | `/adddev` | Devs | Grant developer permissions to a user | Owner |
 | `/addfilter` | Filters | Add a keyword filter | Admin |
 | `/addnote` | Notes | Save a note | Admin |
@@ -345,6 +363,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/donate` | Help | Show donation information | Everyone |
 | `/dwarn` | Warns | Warn a user and delete their message | Admin |
 | `/enable` | Disabling | Re-enable a disabled command | Admin |
+| `/export` | Backup | Export all group settings to a JSON file | Admin |
 | `/filter` | Filters | Add a keyword filter | Admin |
 | `/filters` | Filters | List all active filters | Everyone |
 | `/flood` | Antiflood | Show current flood settings | Admin |
@@ -353,6 +372,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/goodbye` | Greetings | Show current goodbye settings | Admin |
 | `/help` | Help | Show help menu with module list | Everyone |
 | `/id` | Misc | Get user or chat ID | Everyone |
+| `/import` | Backup | Restore settings from a backup file | Admin |
 | `/info` | Misc | Get user information | Everyone |
 | `/invitelink` | Admin | Get the chat invite link | Admin |
 | `/kick` | Bans | Kick a user from the group | Admin |
@@ -376,8 +396,10 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/purge` | Purges | Purge messages from replied-to onwards | Admin |
 | `/purgefrom` | Purges | Set purge start point | Admin |
 | `/purgeto` | Purges | Purge to a specific message | Admin |
+| `/reactions` | Reactions | List configured reactions | Admin |
 | `/reconnect` | Connections | Reconnect to last connected group | Everyone |
 | `/remallbl` | Blacklists | Remove all blacklisted words | Admin |
+| `/removereaction` | Reactions | Remove a reaction for a keyword | Admin |
 | `/remdev` | Devs | Revoke developer permissions from a user | Owner |
 | `/removebotkeyboard` | Misc | Remove a stuck bot keyboard | Everyone |
 | `/removefilter` | Filters | Remove a keyword filter | Admin |
@@ -385,7 +407,9 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/report` | Reports | Report a user to admins | Everyone |
 | `/reports` | Reports | Toggle reporting for the group | Admin |
 | `/resetallwarns` | Warns | Reset all warnings for all users | Admin |
+| `/reset` | Backup | Reset all settings to default | Admin |
 | `/resetgoodbye` | Greetings | Reset goodbye to default | Admin |
+| `/resetreactions` | Reactions | Clear all reactions | Admin |
 | `/resetrules` | Rules | Reset all group rules | Admin |
 | `/resetrulesbtn` | Rules | Reset the rules button text | Admin |
 | `/resetrulesbutton` | Rules | Reset the rules button text | Admin |
