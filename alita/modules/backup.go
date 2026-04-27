@@ -2,10 +2,12 @@ package modules
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -209,8 +211,32 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 	}
 
 	// Download file content
-	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath)
-	resp, err := http.Get(fileURL)
+	downloadURL, err := url.Parse(
+		fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath),
+	)
+	if err != nil {
+		log.Errorf("[Backup] Failed to parse download URL: %v", err)
+		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
+	if downloadURL.Scheme != "https" || downloadURL.Host != "api.telegram.org" {
+		log.Errorf("[Backup] Unexpected download URL host: %s", downloadURL.Host)
+		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL.String(), nil)
+	if err != nil {
+		log.Errorf("[Backup] Failed to create download request: %v", err)
+		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("[Backup] Failed to download file: %v", err)
 		text, _ := tr.GetString("backup_import_download_failed")

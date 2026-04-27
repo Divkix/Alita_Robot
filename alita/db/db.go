@@ -700,6 +700,9 @@ func init() {
 
 	// Start database performance monitoring if enabled
 	if config.AppConfig.EnableDBMonitoring {
+		if dbMonitoringStop != nil {
+			dbMonitoringStop()
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		dbMonitoringStop = cancel
 		StartMonitoring(ctx, time.Minute)
