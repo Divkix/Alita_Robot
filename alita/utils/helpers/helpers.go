@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"math/rand"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -934,12 +935,11 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 
 		// buttonUrlFixer filters out non-URL buttons from the keyboard, keeping only valid URL buttons.
 		buttonUrlFixer := func(_buttons *[]tgmd2html.ButtonV2) {
-			// regex taken from https://regexr.com/39nr7
-			buttonUrlPattern, _ := regexp.Compile(`[(htps)?:/w.a-zA-Z\d@%_+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z\d@:%_+.~#?&/=]*)`)
-			// Build a new slice instead of modifying during iteration
+			// Validate URLs using Go's net/url parser instead of regex for proper validation
 			validButtons := make([]tgmd2html.ButtonV2, 0, len(*_buttons))
 			for _, btn := range *_buttons {
-				if buttonUrlPattern.MatchString(btn.Content) {
+				u, err := url.Parse(btn.Content)
+				if err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" {
 					validButtons = append(validButtons, btn)
 				}
 			}
