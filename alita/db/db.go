@@ -703,7 +703,7 @@ func init() {
 		if dbMonitoringStop != nil {
 			dbMonitoringStop()
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 // Cancel func stored in dbMonitoringStop and called on shutdown
 		dbMonitoringStop = cancel
 		StartMonitoring(ctx, time.Minute)
 	}
