@@ -75,7 +75,7 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/alita_robot", "--health"]
       interval: 30s
@@ -113,10 +113,15 @@ services:
           cpus: "0.5"
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: alita-redis
     restart: always
     command: redis-server --requirepass redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -165,7 +170,7 @@ Redis for caching and session management.
 
 | Configuration | Value | Description |
 |--------------|-------|-------------|
-| **Image** | `redis:latest` | Latest Redis server |
+| **Image** | `redis:7-alpine` | Redis 7 on Alpine Linux |
 | **Memory Limit** | 256MB | Maximum memory allocation |
 | **Authentication** | Password protected | Uses `REDIS_PASSWORD` env var |
 

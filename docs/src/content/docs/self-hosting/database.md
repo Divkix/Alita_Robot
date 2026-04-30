@@ -121,6 +121,25 @@ make psql-migrate
 make psql-status
 ```
 
+### Additional Migration Commands
+
+```bash
+# Prepare database for migrations (create schema_migrations table)
+make psql-prepare
+
+# Rollback the last migration (use with caution)
+make psql-rollback
+
+# Verify migration integrity
+make psql-verify
+
+# Validate database for orphaned data before major migrations
+make validate-db
+
+# Backup database before migrations
+make backup-db
+```
+
 Output:
 
 ```

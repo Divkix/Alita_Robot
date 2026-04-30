@@ -70,7 +70,9 @@ Days before marking a chat as inactive
 | **Type** | `boolean` |
 | **Required** | No |
 
-### `VALID_LANG_CODES`
+### `ENABLED_LOCALES`
+
+Comma-separated list of enabled language codes (e.g., `en,es,fr,hi`). Only these locales will be loaded.
 
 | Property | Value |
 |----------|-------|
@@ -308,6 +310,18 @@ Enable pprof endpoints for performance profiling (development only)
 | **Type** | `boolean` |
 | **Required** | No |
 
+## 📂 HTTP Server configuration
+
+### `HTTP_PORT`
+
+Unified HTTP server for health checks, metrics, and webhooks.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Validation** | min=1,max=65535 |
+
 ## 📂 Redis configuration
 
 ### `REDIS_ADDRESS` (Required)
@@ -317,16 +331,6 @@ Enable pprof endpoints for performance profiling (development only)
 | **Type** | `string` |
 | **Required** | Yes |
 | **Validation** | required |
-
-### `HTTP_PORT`
-
-HTTP Server configuration (unified server for health, metrics, webhook)
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-| **Validation** | min=1,max=65535 |
 
 ### `REDIS_DB`
 
@@ -467,6 +471,15 @@ Deprecated: use HTTPPort instead
 | **Type** | `string` |
 | **Required** | No |
 
+### `CLOUDFLARE_TUNNEL_TOKEN`
+
+Token for Cloudflare Tunnel (cloudflared) when using tunnel mode for webhooks.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
 ## 📂 Worker pool configuration for concurrent processing
 
 ### `BULK_OPERATION_WORKERS`
@@ -579,7 +592,7 @@ RESOURCE_MAX_MEMORY_MB=# (optional)
 RESPONSE_CACHE_TTL=# (optional)
 STATS_COLLECTION_WORKERS=# (optional)
 USE_WEBHOOKS=# (optional)
-VALID_LANG_CODES=# (optional)
+ENABLED_LOCALES=# (optional)
 WEBHOOK_DOMAIN=# (optional)
 WEBHOOK_PORT=# (optional)
 WEBHOOK_SECRET=# (optional)

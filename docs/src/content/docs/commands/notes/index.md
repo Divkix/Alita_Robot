@@ -71,7 +71,7 @@ This module can be accessed using the following aliases:
 | `/privatenotes` | Alias of `/privnote` | ❌ |
 | `/rmnote` | Remove a saved note | ❌ |
 | `/save` | Save a note with a keyword | ❌ |
-| `/saved` | List all saved notes | ❌ |
+| `/saved` | Alias of `/notes` | ❌ |
 
 ## Usage Examples
 

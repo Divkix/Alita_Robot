@@ -55,13 +55,13 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/dwarn` | Warn a user and delete the replied message | ❌ |
 | `/resetallwarns` | Reset all warnings for all users in the chat | ❌ |
-| `/resetwarn` | Reset all warnings for a user | ❌ |
+| `/resetwarn` | Alias of `/resetwarns` - reset all warnings for a user | ❌ |
 | `/resetwarns` | Reset all warnings for a user | ❌ |
-| `/rmwarn` | Remove the last warning from a user | ❌ |
+| `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
 | `/setwarnlimit` | Set maximum warnings before action | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
 | `/swarn` | Warn a user silently and delete your command | ❌ |
-| `/unwarn` | Remove the last warning from a user | ❌ |
+| `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
 | `/warn` | Warn a user | ❌ |
 | `/warnings` | Show warning count for a user | ❌ |
 | `/warns` | Show warning count for a user | ✅ |

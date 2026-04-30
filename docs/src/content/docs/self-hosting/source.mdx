@@ -17,7 +17,7 @@ All tools below must be accessible from your `PATH`. After installing Go or gola
 
 | Tool | Minimum Version | Purpose |
 |------|-----------------|---------|
-| **Go** | 1.25+ | Compilation |
+| **Go** | 1.26+ | Compilation |
 | **Git** | 2.0+ | Clone repository |
 | **Make** | Any | Build automation |
 | **golangci-lint** | Latest | Code quality checks |
@@ -138,11 +138,19 @@ GOOS=windows GOARCH=amd64 go build -o alita_robot_windows_amd64.exe .
 | `lint` | `make lint` | Run golangci-lint for code quality |
 | `tidy` | `make tidy` | Clean and download go.mod dependencies |
 | `vendor` | `make vendor` | Vendor dependencies |
+| `test` | `make test` | Run test suite (`go test ./...`) |
 | `psql-migrate` | `make psql-migrate` | Apply database migrations |
 | `psql-status` | `make psql-status` | Check migration status |
 | `psql-reset` | `make psql-reset` | Reset database (DANGEROUS) |
-| `test` | `make test` | Run test suite (`go test ./...`) |
-| `check-translations` | `make check-translations` | Detect missing translation keys across locale files |
+| `psql-prepare` | `make psql-prepare` | Prepare database for migrations |
+| `psql-rollback` | `make psql-rollback` | Rollback last migration |
+| `psql-verify` | `make psql-verify` | Verify migration integrity |
+| `validate-db` | `make validate-db` | Validate database for orphaned data |
+| `backup-db` | `make backup-db` | Backup database before migrations |
+| `check-translations` | `make check-translations` | Detect missing translation keys |
+| `check-duplicates` | `make check-duplicates` | Check for duplicate code |
+| `check-docs` | `make check-docs` | Check documentation integrity |
+| `inventory` | `make inventory` | Show project structure inventory |
 | `generate-docs` | `make generate-docs` | Generate documentation site content |
 | `docs-dev` | `make docs-dev` | Start Astro docs dev server |
 
@@ -230,7 +238,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
 ```
 
 ### Build Output
@@ -326,7 +334,7 @@ See [Contributing Guide](/contributing/) for more details.
 go: go.mod requires go >= 1.25
 ```
 
-Update Go to version 1.25 or higher.
+Update Go to version 1.26 or higher.
 
 ### golangci-lint not found
 

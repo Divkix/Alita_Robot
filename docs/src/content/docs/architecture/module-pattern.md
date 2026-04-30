@@ -63,14 +63,15 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
     query := ctx.CallbackQuery
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    // Parse callback data - ALWAYS validate bounds before accessing array elements
-    args := strings.Split(query.Data, ".")
-    if len(args) < 2 {
+    // Parse callback data using the callback codec (recommended)
+    // This replaces raw strings.Split with proper encoding/decoding
+    fields, err := callbackcodec.Decode(query.Data)
+    if err != nil {
         log.Warn("[ExampleCallback] Invalid callback data format")
         _, _ = query.Answer(b, nil)
         return ext.EndGroups
     }
-    action := args[1]
+    action := fields.Get("action")
 
     // Handle action
     var responseText string

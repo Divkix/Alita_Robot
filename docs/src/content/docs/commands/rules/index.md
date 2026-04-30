@@ -55,11 +55,11 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/resetrules` | Clear all group rules | ❌ |
 | `/clearrules` | Alias of `/resetrules` | ❌ |
-| `/clearrulesbtn` | Toggle button for clearing rules | ❌ |
-| `/clearrulesbutton` | Toggle button for clearing rules | ❌ |
+| `/clearrulesbtn` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
+| `/clearrulesbutton` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
 | `/privaterules` | Toggle sending rules in private messages | ❌ |
-| `/resetrulesbtn` | Toggle button for resetting rules | ❌ |
-| `/resetrulesbutton` | Toggle button for resetting rules | ❌ |
+| `/resetrulesbtn` | Reset rules button text to default | ❌ |
+| `/resetrulesbutton` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
 | `/rules` | Show group rules | ✅ |
 | `/rulesbtn` | Toggle rules button on welcome message | ❌ |
 | `/rulesbutton` | Toggle rules button on welcome message | ❌ |
