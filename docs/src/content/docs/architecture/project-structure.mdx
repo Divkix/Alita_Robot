@@ -11,7 +11,7 @@ This document explains the directory structure of Alita Robot, helping developer
 
 <FileTree>
 - main.go Application entry point
-- CLAUDE.md AI assistant guidance document
+- AGENTS.md AI assistant guidance document
 - sample.env Environment variable template
 - Makefile Build and development commands
 - go.mod Go module definition
@@ -24,15 +24,19 @@ This document explains the directory structure of Alita Robot, helping developer
   - db/ **Database layer**
     - db.go GORM connection and setup
     - cache_helpers.go Cache key patterns and TTLs
+    - migrations.go Migration runner
     - \*_db.go Per-feature database operations
-    - cache_helpers.go Cache key patterns and TTLs
   - i18n/ **Internationalization**
-    - i18n.go Translation manager
+    - loader.go Locale file loader
+    - manager.go Translation manager
     - translator.go Per-request translator
+    - types.go Translation types
   - modules/ **Command handlers (features)**
     - help.go Help system and module registry
     - bans.go Ban/kick/restrict commands
-    - mutes.go Mute/unmute commands
+    - mute.go Mute/unmute commands
+    - backup.go Backup/import commands
+    - reactions.go Reaction commands
     - filters.go Message filters
     - notes.go Saved notes/messages
     - greetings.go Welcome/goodbye messages
@@ -48,8 +52,6 @@ This document explains the directory structure of Alita Robot, helping developer
     - callbackcodec/ Versioned callback data encoding/decoding
     - chat_status/
       - chat_status.go Admin/permission checks
-      - helpers.go Helper functions
-    - cleanup/ Resource cleanup utilities
     - constants/ Application constants
     - error_handling/ Panic recovery and logging
     - errors/ Custom error types
@@ -59,22 +61,25 @@ This document explains the directory structure of Alita Robot, helping developer
     - keyword_matcher/ Keyword matching utilities
     - media/ Media handling utilities
     - monitoring/ Activity and resource monitoring
+    - ratelimit/ Rate limiting utilities
     - shutdown/ Graceful shutdown manager
     - tracing/ OpenTelemetry distributed tracing
-    - webhook/ Webhook configuration
 - migrations/ **SQL migration files**
-  - 001_initial.sql Initial schema
-  - 002_\*.sql Feature migrations
+  - YYYYMMDDHHMMSS_*.sql Timestamped migrations
   - ...
 - locales/ **Translation files**
   - en.yml English translations
-  - de.yml German translations
-  - ...
-- cmd/ Additional CLI tools
-  - migrate/
-    - main.go Migration entry point
+  - es.yml Spanish translations
+  - fr.yml French translations
+  - hi.yml Hindi translations
+  - id.yml Indonesian translations
+  - pt.yml Portuguese translations
+  - ru.yml Russian translations
 - docker/ Docker-related files
-  - Dockerfile Container build definition
+  - alpine/ Alpine-based Dockerfile
+  - alpine.debug/ Debug variant
+  - goreleaser/ GoReleaser configuration
+  - pr-build/ PR build scripts
 - docs/ **Documentation site (Starlight)**
   - astro.config.mjs Astro configuration
   - src/content/docs/ Documentation pages
@@ -93,15 +98,32 @@ Each `*_db.go` file is self-contained per feature domain. It includes GORM model
 
 <FileTree>
 - db/
-  - db.go Database connection, GORM setup
+  - db.go Database connection, GORM setup, models
   - cache_helpers.go Cache key generators, TTL constants
-    - cache_helpers.go Cache key generators, TTL constants
-  - bans_db.go Ban-related queries
-  - users_db.go User storage operations
+  - migrations.go Migration runner
+  - optimized_queries.go Optimized SELECT queries
+  - monitoring.go Database monitoring
+  - user_db.go User storage operations
   - chats_db.go Chat settings operations
+  - bans_db.go Ban-related operations
   - filters_db.go Filter storage
   - notes_db.go Notes storage
+  - notes_settings_db.go Notes configuration
   - warns_db.go Warning system storage
+  - warns_settings_db.go Warning configuration
+  - greetings_db.go Greeting settings
+  - locks_db.go Lock settings
+  - blacklists_db.go Blacklist storage
+  - antiflood_db.go Antiflood settings
+  - captcha_db.go CAPTCHA settings
+  - admin_db.go Admin settings
+  - connections_db.go Connection settings
+  - disabling_db.go Disabled commands
+  - channels_db.go Channel settings
+  - backup_db.go Backup operations
+  - backup_types.go Backup data types
+  - devs_db.go Developer settings
+  - report_settings_db.go Report configuration
   - ...
 </FileTree>
 
@@ -110,14 +132,14 @@ Each `*_db.go` file is self-contained per feature domain. It includes GORM model
 Feature modules contain command handlers and business logic:
 
 :::note[Non-module files]
-Not every file in `modules/` is a feature module. Files like `helpers.go`, `moderation_input.go`, `callback_codec.go`, `chat_permissions.go`, `connections_auth.go`, and `rules_format.go` are shared utilities used across modules.
+Not every file in `modules/` is a feature module. Files like `helpers.go`, `moderation_input.go`, `callback_codec.go`, `callback_parse_overwrite.go`, `chat_permissions.go`, `connections_auth.go`, and `rules_format.go` are shared utilities used across modules.
 :::
 
 <FileTree>
 - modules/
   - help.go Help system, module registry
   - bans.go /ban, /kick, /restrict, etc.
-  - mutes.go /mute, /unmute, /tmute
+  - mute.go /mute, /unmute, /tmute
   - admin.go /promote, /demote, /adminlist
   - filters.go /filter, /stop, /filters
   - notes.go /save, /get, /notes
@@ -134,12 +156,15 @@ Not every file in `modules/` is a feature module. Files like `helpers.go`, `mode
   - disabling.go Command disabling
   - language.go Language settings
   - dev.go Developer commands
-  - pin.go Pin management
+  - pins.go /pin, /unpin, /pinned
   - purges.go Message purging
   - misc.go Miscellaneous commands
   - bot_updates.go Bot status tracking
   - antispam.go Anti-spam measures
   - formatting.go Markdown commands
+  - backup.go Backup/import commands
+  - reactions.go Reaction commands
+  - pin.go (legacy, now pins.go)
 </FileTree>
 
 ### `/alita/utils/chat_status/` - Permission Checking <Badge text="Security" variant="caution" />
@@ -266,8 +291,8 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     modules.LoadCaptcha(dispatcher)
     modules.LoadBlacklists(dispatcher)
     modules.LoadReactions(dispatcher)
-    modules.LoadBackup(dispatcher)
     modules.LoadMkdCmd(dispatcher)
+    modules.LoadBackup(dispatcher)
 }
 ```
 

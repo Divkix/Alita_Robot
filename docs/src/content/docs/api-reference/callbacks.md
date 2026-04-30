@@ -10,8 +10,8 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 21
-- **Modules with Callbacks**: 14
+- **Total Callbacks**: 24
+- **Modules with Callbacks**: 16
 
 ## Callback Data Format
 
@@ -35,9 +35,11 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 
 | Module | Prefix | Handler |
 |--------|--------|----------|
+| Backup | `backup` | backupCallbackHandler |
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
+| Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | Captcha | `captcha_refresh` | captchaRefreshCallback |
 | Captcha | `captcha_verify` | captchaVerifyCallback |
 | Connections | `connbtns` | connectionButtons |
@@ -53,11 +55,21 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 | Notes | `rmAllNotes` | notesButtonHandler |
 | Pins | `unpinallbtn` | unpinallCallback |
 | Purges | `deleteMsg` | deleteButtonHandler |
+| Reactions | `reactions_help` | reactionsHelpHandler |
 | Reports | `report` | markResolvedButtonHandler |
 | Warns | `rmAllChatWarns` | warnsButtonHandler |
 | Warns | `rmWarn` | rmWarnButton |
 
 ## Callbacks by Module
+
+### Backup
+
+#### `backup`
+
+- **Handler**: `backupCallbackHandler`
+- **Source**: `backup.go`
+
+Handles backup import/export operations via inline buttons.
 
 ### Bans
 
@@ -77,6 +89,15 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 
 - **Handler**: `buttonHandler`
 - **Source**: `blacklists.go`
+
+### Bot Updates
+
+#### `anon_admin`
+
+- **Handler**: `verifyAnonymousAdmin`
+- **Source**: `bot_updates.go`
+
+Handles anonymous admin verification callbacks for channel messages.
 
 ### Captcha
 
@@ -172,6 +193,15 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 
 - **Handler**: `deleteButtonHandler`
 - **Source**: `purges.go`
+
+### Reactions
+
+#### `reactions_help`
+
+- **Handler**: `reactionsHelpHandler`
+- **Source**: `reactions.go`
+
+Displays help information for reaction commands.
 
 ### Reports
 

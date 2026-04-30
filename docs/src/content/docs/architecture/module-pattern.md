@@ -52,7 +52,8 @@ func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     _, err := msg.Reply(b, text, helpers.Shtml())
     if err != nil {
         log.Error(err)
-        return err
+        // Return ext.EndGroups after user notification, not the error
+        return ext.EndGroups
     }
 
     return ext.EndGroups
@@ -63,10 +64,10 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
     query := ctx.CallbackQuery
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    // Parse callback data using the callback codec (recommended)
-    // This replaces raw strings.Split with proper encoding/decoding
-    fields, err := callbackcodec.Decode(query.Data)
-    if err != nil {
+    // Parse callback data using the modules package wrapper
+    // This handles both new codec format and legacy dot-notation fallback
+    fields, ok := decodeCallbackData(query.Data, "example")
+    if !ok {
         log.Warn("[ExampleCallback] Invalid callback data format")
         _, _ = query.Answer(b, nil)
         return ext.EndGroups
@@ -193,19 +194,20 @@ Always use auto-increment `id` as the primary key. External IDs (`chat_id`, `use
 
 ### Step 3: Implement Database Operations
 
-Add cache helpers to `alita/db/cache_helpers.go`:
+Add cache helpers to `alita/db/cache_helpers.go` using the CacheKey helper:
 
 ```go
 const (
     CacheTTLExampleSettings = 30 * time.Minute
 )
 
+// Use the CacheKey helper for consistent key formatting
 func exampleSettingsCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:example_settings:%d", chatID)
+    return CacheKey("example_settings", chatID)
 }
 ```
 
-Update the database operations to use caching:
+Update the database operations to use caching with singleflight protection:
 
 ```go
 func GetExampleSettings(chatID int64) *ExampleSettings {
@@ -227,6 +229,10 @@ func GetExampleSettings(chatID int64) *ExampleSettings {
     return result
 }
 ```
+
+:::tip[CacheKey helper]
+The `CacheKey()` function in `cache_helpers.go` provides consistent key formatting as `alita:{module}:{id}`. Always use it instead of manual string formatting.
+:::
 
 :::tip[Cache invalidation is mandatory]
 Every function that writes to the database MUST invalidate the corresponding cache key. Forgetting this causes stale data that persists until TTL expiry, which can be up to 1 hour.

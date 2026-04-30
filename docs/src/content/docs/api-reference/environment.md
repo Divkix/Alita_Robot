@@ -56,13 +56,6 @@ Days before marking a chat as inactive
 | **Required** | Yes |
 | **Validation** | required,min=1 |
 
-### `ALLOWED_UPDATES`
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string[]` |
-| **Required** | No |
-
 ### `DROP_PENDING_UPDATES`
 
 | Property | Value |
