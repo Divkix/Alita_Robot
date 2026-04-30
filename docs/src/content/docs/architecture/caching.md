@@ -83,15 +83,16 @@ Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
 
 ```go
 const (
-    CacheTTLChatSettings = 30 * time.Minute
-    CacheTTLLanguage     = 1 * time.Hour
-    CacheTTLFilterList   = 30 * time.Minute
-    CacheTTLBlacklist    = 30 * time.Minute
-    CacheTTLGreetings    = 30 * time.Minute
-    CacheTTLNotesList    = 30 * time.Minute
-    CacheTTLWarnSettings = 30 * time.Minute
-    CacheTTLAntiflood    = 30 * time.Minute
-    CacheTTLDisabledCmds = 30 * time.Minute
+    CacheTTLChatSettings    = 30 * time.Minute
+    CacheTTLLanguage        = 1 * time.Hour
+    CacheTTLFilterList      = 30 * time.Minute
+    CacheTTLBlacklist       = 30 * time.Minute
+    CacheTTLGreetings       = 30 * time.Minute
+    CacheTTLNotesList       = 30 * time.Minute
+    CacheTTLWarnSettings    = 30 * time.Minute
+    CacheTTLAntiflood       = 30 * time.Minute
+    CacheTTLDisabledCmds    = 30 * time.Minute
+    CacheTTLCaptchaSettings = 30 * time.Minute
 )
 ```
 
@@ -241,7 +242,7 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
     select {
     case res := <-resultChan:
         if typedResult, ok := res.value.(T); ok {
-            return typedResult, res.err
+            return result, nil
         }
         return result, res.err
     case <-ctx.Done():

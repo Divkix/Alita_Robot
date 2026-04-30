@@ -228,6 +228,53 @@ ENABLE_BACKGROUND_STATS=true
 - Goroutine count
 - Memory usage
 
+## Database Metrics
+
+The `/db_metrics` endpoint exposes real-time database connection pool statistics.
+
+### Endpoint
+
+```
+GET /db_metrics
+```
+
+### Response Format
+
+```json
+{
+  "open_connections": 12,
+  "idle_connections": 38,
+  "in_use": 7,
+  "max_open_connections": 200,
+  "wait_count": 0,
+  "wait_duration": "0s"
+}
+```
+
+The endpoint is always registered. It queries the underlying `*sql.DB` connection pool
+stats via `db.Stats()`.
+
+## Background Database Monitoring
+
+In addition to the `/db_metrics` endpoint, a background monitoring goroutine periodically
+logs pool health metrics.
+
+### Configuration
+
+```bash
+# Enable background database monitoring (logs pool stats every minute)
+# Controls the background goroutine, NOT the /db_metrics endpoint registration
+ENABLE_DB_MONITORING=true
+```
+
+When enabled, the monitoring goroutine logs pool stats at one-minute intervals:
+
+```
+[DB] Pool stats - Open: 50, Idle: 38, InUse: 12, MaxOpen: 200, WaitCount: 0
+```
+
+If `InUse` exceeds 80% of `MaxOpen`, a warning is logged to signal potential pool exhaustion.
+
 ## Debug Mode
 
 For detailed logging during development:

@@ -27,10 +27,12 @@ This document explains the directory structure of Alita Robot, helping developer
     - migrations.go Migration runner
     - \*_db.go Per-feature database operations
   - i18n/ **Internationalization**
+    - i18n.go Locale embed directive
     - loader.go Locale file loader
     - manager.go Translation manager
     - translator.go Per-request translator
     - types.go Translation types
+    - errors.go Error types
   - modules/ **Command handlers (features)**
     - help.go Help system and module registry
     - bans.go Ban/kick/restrict commands
@@ -48,7 +50,6 @@ This document explains the directory structure of Alita Robot, helping developer
     - cache/
       - cache.go Cache client setup
       - adminCache.go Admin cache operations
-      - sanitize.go Cache key sanitization for tracing
     - callbackcodec/ Versioned callback data encoding/decoding
     - chat_status/
       - chat_status.go Admin/permission checks
@@ -65,7 +66,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - shutdown/ Graceful shutdown manager
     - tracing/ OpenTelemetry distributed tracing
 - migrations/ **SQL migration files**
-  - YYYYMMDDHHMMSS_*.sql Timestamped migrations
+  - 20250805200527_initial_migration.sql
   - ...
 - locales/ **Translation files**
   - en.yml English translations
@@ -84,87 +85,6 @@ This document explains the directory structure of Alita Robot, helping developer
   - astro.config.mjs Astro configuration
   - src/content/docs/ Documentation pages
   - ...
-</FileTree>
-
-## Key Directories Explained
-
-### `/alita/db/` - Database Layer <Badge text="Core" variant="note" />
-
-The database layer implements the repository pattern:
-
-:::note
-Each `*_db.go` file is self-contained per feature domain. It includes GORM model definitions, query functions (Get, Set, Delete), and cache invalidation calls. Always invalidate cache after writes.
-:::
-
-<FileTree>
-- db/
-  - db.go Database connection, GORM setup, models
-  - cache_helpers.go Cache key generators, TTL constants
-  - migrations.go Migration runner
-  - optimized_queries.go Optimized SELECT queries
-  - monitoring.go Database monitoring
-  - user_db.go User storage operations
-  - chats_db.go Chat settings operations
-  - bans_db.go Ban-related operations
-  - filters_db.go Filter storage
-  - notes_db.go Notes storage
-  - notes_settings_db.go Notes configuration
-  - warns_db.go Warning system storage
-  - warns_settings_db.go Warning configuration
-  - greetings_db.go Greeting settings
-  - locks_db.go Lock settings
-  - blacklists_db.go Blacklist storage
-  - antiflood_db.go Antiflood settings
-  - captcha_db.go CAPTCHA settings
-  - admin_db.go Admin settings
-  - connections_db.go Connection settings
-  - disabling_db.go Disabled commands
-  - channels_db.go Channel settings
-  - backup_db.go Backup operations
-  - backup_types.go Backup data types
-  - devs_db.go Developer settings
-  - report_settings_db.go Report configuration
-  - ...
-</FileTree>
-
-### `/alita/modules/` - Command Handlers <Badge text="Core" variant="note" />
-
-Feature modules contain command handlers and business logic:
-
-:::note[Non-module files]
-Not every file in `modules/` is a feature module. Files like `helpers.go`, `moderation_input.go`, `callback_codec.go`, `callback_parse_overwrite.go`, `chat_permissions.go`, `connections_auth.go`, and `rules_format.go` are shared utilities used across modules.
-:::
-
-<FileTree>
-- modules/
-  - help.go Help system, module registry
-  - bans.go /ban, /kick, /restrict, etc.
-  - mute.go /mute, /unmute, /tmute
-  - admin.go /promote, /demote, /adminlist
-  - filters.go /filter, /stop, /filters
-  - notes.go /save, /get, /notes
-  - greetings.go /welcome, /goodbye, /setwelcome
-  - warns.go /warn, /warns, /resetwarns
-  - captcha.go CAPTCHA verification system
-  - locks.go /lock, /unlock, /locks
-  - blacklists.go /blacklist, /unblacklist
-  - antiflood.go Anti-flood protection
-  - reports.go /report, /reports
-  - rules.go /rules, /setrules
-  - users.go User tracking
-  - connections.go Chat connections
-  - disabling.go Command disabling
-  - language.go Language settings
-  - dev.go Developer commands
-  - pins.go /pin, /unpin, /pinned
-  - purges.go Message purging
-  - misc.go Miscellaneous commands
-  - bot_updates.go Bot status tracking
-  - antispam.go Anti-spam measures
-  - formatting.go Markdown commands
-  - backup.go Backup/import commands
-  - reactions.go Reaction commands
-  - pin.go (legacy, now pins.go)
 </FileTree>
 
 ### `/alita/utils/chat_status/` - Permission Checking <Badge text="Security" variant="caution" />
@@ -190,10 +110,7 @@ Database migrations follow naming convention:
 
 <FileTree>
 - migrations/
-  - 001_initial_schema.sql
-  - 002_add_users_table.sql
-  - 003_add_chats_table.sql
-  - 004_add_filters_table.sql
+  - 20250805200527_initial_migration.sql
   - ...
 </FileTree>
 

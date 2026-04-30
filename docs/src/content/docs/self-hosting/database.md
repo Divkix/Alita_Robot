@@ -91,10 +91,10 @@ Example log output:
 
 ```
 [Migrations] Starting automatic database migration...
-[Migrations] Found 15 migration files
-[Migrations] Applying 20240101_initial_schema.sql...
-[Migrations] Successfully applied 20240101_initial_schema.sql
-[Migrations] Migration complete - Applied: 5, Skipped: 10
+[Migrations] Found 27 migration files
+[Migrations] Applying 20250805200527_initial_migration.sql...
+[Migrations] Successfully applied 20250805200527_initial_migration.sql
+[Migrations] Migration complete - Applied: 3, Skipped: 24
 ```
 
 ## Manual Migration Commands
@@ -143,11 +143,17 @@ make backup-db
 Output:
 
 ```
-          version           |        executed_at
-----------------------------+----------------------------
- 20240315_add_captcha.sql   | 2024-03-15 10:30:00.000000
- 20240301_add_notes.sql     | 2024-03-01 09:15:00.000000
- 20240101_initial.sql       | 2024-01-01 00:00:00.000000
+          version                                              |        executed_at
+-------------------------------------------------------+----------------------------
+ 20260420120000_consolidate_duplicate_fields.sql        | 2026-04-20 12:00:00.000000
+ 20260412000000_add_missing_check_constraints.sql       | 2026-04-12 00:00:00.000000
+ 20260117120000_drop_channels_chat_fk.sql               | 2026-01-17 12:00:00.000000
+ 20251215000000_add_captcha_muted_users.sql             | 2025-12-15 00:00:00.000000
+ 20250815000000_add_stored_messages_table.sql           | 2025-08-15 00:00:00.000000
+ 20250807103246_add_captcha_tables.sql                  | 2025-08-07 10:32:46.000000
+ 20250806100000_critical_performance_indexes.sql        | 2025-08-06 10:00:00.000000
+ 20250805204145_add_foreign_key_relations.sql           | 2025-08-05 20:41:45.000000
+ 20250805200527_initial_migration.sql                   | 2025-08-05 20:05:27.000000
 ```
 
 ### Reset Database (DANGEROUS)

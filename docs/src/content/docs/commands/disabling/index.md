@@ -68,7 +68,9 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/disable`, `/enable`, `/disabledel` — **Admin only** (`RequireUserAdmin`).
+- `/disableable`, `/disabled` — Available to all users (though `/disabled`
+  can itself be disabled).
 
 ## Technical Notes
 
@@ -77,7 +79,3 @@ Commands in this module are available to all users unless otherwise specified.
 - **Connection Support:** Disabled commands are still accessible through the `/connect` feature for connected chats.
 - **Multiple Commands:** Both `/disable` and `/enable` support multiple command names in a single message.
 - **Error Handling:** If some commands fail to disable/enable, you'll be notified about which ones succeeded and which failed.
-
-**Required Permissions:**
-- `/disable`, `/enable`, `/disabledel`: Admin only
-- `/disableable`, `/disabled`: All users (but `/disabled` can be disabled)

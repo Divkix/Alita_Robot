@@ -58,7 +58,7 @@ This module can be accessed using the following aliases:
 | `/resetwarn` | Alias of `/resetwarns` - reset all warnings for a user | ❌ |
 | `/resetwarns` | Reset all warnings for a user | ❌ |
 | `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
-| `/setwarnlimit` | Set maximum warnings before action | ❌ |
+| `/setwarnlimit` | Set maximum warnings before action (range: 1–100) | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
 | `/swarn` | Warn a user silently and delete your command | ❌ |
 | `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |

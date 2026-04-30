@@ -22,6 +22,7 @@ This page documents every registered message watcher with its exact handler grou
 | 6 | Locks | `restHandler` | `message.All` | `EndGroups` on violation | Restriction-based locks (stickers, animations, etc.) |
 | 7 | Blacklists | `blacklistWatcher` | non-command, non-media-group | `ContinueGroups` (always) | Checks words against blacklist; action taken but processing continues |
 | 8 | Reports | (handler) | `message.All` | varies | Report tracking |
+| 8 | Reactions | `checkReactions` | `message.All` | `EndGroups` | Checks message reactions against configured patterns; takes action (mute/ban) on violation |
 | 9 | Filters | `filtersWatcher` | non-command, non-media-group | `ContinueGroups` (always) | Matches filter patterns; sends configured response but does not block |
 | 10 | Pins | (handler) | `message.All` | `EndGroups` | Anti-channel-pin watcher |
 

@@ -209,6 +209,9 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		}
 
 	} else if len(args) >= 1 {
+		if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+			return ext.EndGroups
+		}
 		var err error
 		switch strings.ToLower(args[0]) {
 		case "on", "yes":

@@ -80,7 +80,9 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/pin`, `/permapin`, `/unpin`, `/unpinall` — Require admin with **Pin Messages** permission
+- `/antichannelpin`, `/cleanlinked` — Require admin permission (+ works via `/connect`)
+- `/pinned` — Any user can use, but **bot must be admin** to fetch pinned message
 
 ## Technical Notes
 

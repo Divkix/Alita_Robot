@@ -43,5 +43,31 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Commands in this module are available to all users.
+
+## Configuration Wizard
+
+Accessible from the `/about` keyboard via the **Configuration** button
+(`configuration` callback prefix), the wizard walks new users through
+setting up Alita in three steps:
+
+1. **Step 1** — Add Alita to a group (deep-link button + "Done").
+2. **Step 2** — Promote Alita to admin with recommended permissions
+   (instructions + "Done").
+3. **Step 3** — Continue to Help module to explore commands.
+
+The wizard is PM-only and uses English regardless of user language setting.
+
+## Deep-Link Support in `/start`
+
+When `/start` is used with a parameter in private chat, the bot resolves it
+as a deep link:
+
+| Prefix | Example | Behavior |
+|--------|---------|----------|
+| `help_` | `start=help_admin` | Opens help for a specific module |
+| `connect_` | `start=connect_-1001234` | Connects user to that group in PM |
+| `rules_` | `start=rules_-1001234` | Shows the group's rules |
+| `notes_` | `start=notes_-1001234` | Lists all notes in the group (admin-only notes hidden from non-admins) |
+| `note_` | `start=note_-1001234_welcome` | Shows a specific note (respects admin-only flag) |
 

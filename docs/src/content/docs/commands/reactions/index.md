@@ -52,5 +52,25 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/addreaction`, `/removereaction`, `/resetreactions` — Require `CanUserChangeInfo`
+  admin right (admins and group owner only).
+- `/reactions` — Available to all users.
+
+## Automatic Message Watcher
+
+The Reactions module includes a background message watcher at **handler group 8**.
+When any user sends a message in the chat, the bot scans the text for configured
+keywords and sets the matching emoji reaction automatically. Only the first matching
+keyword is used to avoid rate limiting. The watcher runs silently and uses
+`ext.ContinueGroups` so it never blocks other handlers.
+
+## Inline Help Callbacks
+
+The help menu for Reactions includes inline keyboard buttons that show detailed
+usage for each command using `reactions_help` prefixed callback data:
+
+| Button | Action |
+|--------|--------|
+| "Add Reaction" | Shows `/addreaction` usage via `reactions_help.add` |
+| "Remove Reaction" | Shows `/removereaction` usage via `reactions_help.remove` |
 

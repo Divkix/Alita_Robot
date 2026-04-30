@@ -269,6 +269,13 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
+	user := chat_status.RequireUser(b, ctx, false)
+	if user == nil {
+		return ext.EndGroups
+	}
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+		return ext.EndGroups
+	}
 	args := ctx.Args()[1:]
 	var txt string
 

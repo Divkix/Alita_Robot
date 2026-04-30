@@ -48,4 +48,25 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/tell` — Requires **Admin** (`RequireGroup` + `IsUserAdmin`). Must be used
+  as a reply to another message. The bot deletes the original command message
+  and echoes the command arguments as a reply to the target message.
+- All other commands (`/id`, `/info`, `/ping`, `/removebotkeyboard`, `/stat`,
+  `/tr`) — Available to all users.
+
+## `/ping` Metrics
+
+`/ping` reports three latency measurements:
+
+| Metric | Source | Description |
+|--------|--------|-------------|
+| **API RTT** | `getMe` call | Baseline network round-trip to Telegram API |
+| **Send msg** | `sendMessage` RTT | Full latency including Telegram message processing |
+| **Overhead** | `Send - API RTT` | Estimated server-side processing overhead |
+
+## `/stat` Details
+
+- `/stat` is **group-only** (`RequireGroup`); it does nothing in private chats.
+- The message count is **approximate**: it uses `MessageId + 1` of the received
+  command message, which may differ from actual message count if messages were
+  deleted by users or admins.

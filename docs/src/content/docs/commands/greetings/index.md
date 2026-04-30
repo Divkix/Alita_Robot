@@ -66,4 +66,14 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/setwelcome`, `/setgoodbye` — Requires **Change Group Info** admin permission (`CanUserChangeInfo`)
+- `/resetwelcome`, `/resetgoodbye` — Requires **Change Group Info** admin permission (`CanUserChangeInfo`)
+- `/welcome on/off`, `/goodbye on/off` — Requires **admin** permission
+- `/welcome`, `/goodbye` (no args, view settings) — Available to any admin
+- `/cleanwelcome`, `/cleangoodbye`, `/cleanservice` — Requires **Change Group Info** admin permission
+- `/autoapprove` — Requires **Change Group Info** admin permission
+
+**View raw greeting content:** Append `noformat` to `/welcome` or `/goodbye`
+(e.g., `/welcome noformat`) to see the raw Markdown/button codes without applied
+formatting. Requires admin permission (only the user triggering `noformat` needs admin;
+the `/welcome` or `/goodbye` view itself does not).

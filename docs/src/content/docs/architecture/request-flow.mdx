@@ -51,7 +51,18 @@ When the bot starts (`main.go`), it performs these steps in order:
    }
    ```
 
-2. **Panic Recovery Setup** <Badge text="Safety" variant="caution" />
+2. **Version Check** <Badge text="Optional" variant="default" />
+
+   If the `--version`, `-version`, or `-v` flag is passed, the process prints the bot version and exits immediately without initializing any services.
+
+   ```go
+   if os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v" {
+       fmt.Println(config.AppConfig.BotVersion)
+       os.Exit(0)
+   }
+   ```
+
+3. **Panic Recovery Setup** <Badge text="Safety" variant="caution" />
 
    A top-level deferred recovery ensures the process logs the panic and exits cleanly rather than crashing silently.
 
@@ -61,10 +72,20 @@ When the bot starts (`main.go`), it performs these steps in order:
            log.Errorf("[Main] Panic recovered: %v", r)
            os.Exit(1)
        }
-   }()
-   ```
+}()
+    ```
 
-3. **Locale Manager Initialization** <Badge text="i18n" variant="note" />
+4. **Cache Initialization** <Badge text="Infrastructure" variant="note" />
+
+    The Redis cache is initialized with connection retry logic (exponential backoff). Cache must be available before i18n (which uses it for translation caching) and before the database layer.
+
+    ```go
+    if err := cache.InitCache(); err != nil {
+        log.Fatalf("Failed to initialize cache: %v", err)
+    }
+    ```
+
+5. **Locale Manager Initialization** <Badge text="i18n" variant="note" />
 
    The singleton `LocaleManager` loads embedded YAML translation files for all supported languages.
 
@@ -73,7 +94,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
    ```
 
-4. **OpenTelemetry Tracing Initialization** <Badge text="Observability" variant="success" />
+6. **OpenTelemetry Tracing Initialization** <Badge text="Observability" variant="success" />
 
    Sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
 
@@ -81,7 +102,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    tracing.InitTracing()
    ```
 
-5. **HTTP Transport Configuration** <Badge text="Networking" variant="note" />
+7. **HTTP Transport Configuration** <Badge text="Networking" variant="note" />
 
    Connection pooling is configured for outbound HTTP requests to the Telegram API.
 
@@ -94,7 +115,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    }
    ```
 
-6. **Bot Client Creation** <Badge text="Core" variant="note" />
+8. **Bot Client Creation** <Badge text="Core" variant="note" />
 
    The gotgbot client is initialized with the configured HTTP transport and a 30-second timeout.
 
@@ -106,7 +127,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    })
    ```
 
-7. **Connection Pre-warming** <Badge text="Performance" variant="tip" />
+9. **Connection Pre-warming** <Badge text="Performance" variant="tip" />
 
    Three `GetMe` calls run in a background goroutine to establish the HTTP connection pool before real traffic arrives.
 
@@ -123,7 +144,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    Pre-warming prevents the first real user request from paying the TCP + TLS handshake cost. The 3 calls ensure multiple connections are established in the pool.
    :::
 
-8. **Initial Checks** <Badge text="Validation" variant="note" />
+10. **Initial Checks** <Badge text="Validation" variant="note" />
 
    Validates configuration, initializes cache, and performs startup health checks.
 
@@ -131,7 +152,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    alita.InitialChecks(b)  // Validates config, initializes cache
    ```
 
-9. **Async Processor** <Badge text="Optional" variant="default" />
+11. **Async Processor** <Badge text="Optional" variant="default" />
 
    If `EnableAsyncProcessing` is configured, the async processor is initialized for non-critical background operations.
 
@@ -141,7 +162,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    }
    ```
 
-10. **Dispatcher Creation** <Badge text="Core" variant="note" />
+12. **Dispatcher Creation** <Badge text="Core" variant="note" />
 
     The dispatcher routes updates to handlers with bounded concurrency. It uses a `TracingProcessor` wrapper for trace context propagation in polling mode.
 
@@ -152,7 +173,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     })
     ```
 
-11. **Monitoring Systems** <Badge text="Observability" variant="success" />
+13. **Monitoring Systems** <Badge text="Observability" variant="success" />
 
     Three monitoring subsystems start: background stats collection (every 30s), auto-remediation (GC triggers on memory thresholds), and activity monitoring (per-chat and per-user tracking).
 
@@ -162,7 +183,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     activityMonitor = monitoring.NewActivityMonitor()
     ```
 
-12. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
+14. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
 
     The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
 
@@ -342,7 +363,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 // Stop processing, no more handlers run
 return ext.EndGroups
 
-// Continue to next handler in same group
+// Continue to subsequent handler groups
 return ext.ContinueGroups
 
 // Error propagates to dispatcher error handler

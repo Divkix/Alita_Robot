@@ -14,7 +14,7 @@ Unlike other modules, it operates automatically without requiring any user comma
 Per-user-per-chat rate limiting prevents spam automatically.
 - **Rate Limit:** 18 messages per second per user per chat
 - **Automatic:** No configuration required - works out of the box
-- **Transparent:** Silently drops excessive messages without disrupting normal users
+- **Transparent:** Silently ignores excessive messages (stops further bot processing, messages remain visible)
 - **Per-User Tracking:** Busy groups with many legitimate users won't trigger false positives
 
 
@@ -25,7 +25,7 @@ The module uses a sliding window approach:
 1. **First Message:** Starts tracking with count = 1
 2. **Subsequent Messages:** Increments counter within the time window
 3. **Window Expiry:** Counter resets when the time window (1 second) expires
-4. **Threshold Exceeded:** Messages beyond 18/second are silently dropped
+4. **Threshold Exceeded:** Messages beyond 18/second are silently ignored (bot stops processing them, but they remain visible to all chat members)
 
 **Memory Management:**
 - Automatic cleanup: Expired tracking entries are removed every 5 minutes

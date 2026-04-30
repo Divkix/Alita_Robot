@@ -16,7 +16,7 @@ description: Complete guide to Blacklists module commands and features
 × /blacklistaction: Same as above
 
 *Owner Only:*
-× /remallbl: Removes all the blacklisted words from chat
+× /remallbl /rmallbl: Removes all the blacklisted words from chat
 
 *Note:*
 The Default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
@@ -29,14 +29,11 @@ The following actions can be set using `/blaction`:
 - `kick` - Deletes message and kicks the user (they can rejoin)
 - `ban` - Deletes message and permanently bans the user
 
-**Note:**
-The Default mode for Blacklist is **warn**, which will delete the message and issue a warning to the user.
-
 **Commands:**
 - `/addblacklist &lt;trigger&gt;` - Blacklists the word in the current chat
 - `/rmblacklist &lt;trigger&gt;` - Removes the word from current Blacklisted Words in Chat
 - `/blaction &lt;mute/kick/ban/warn/none&gt;` - Sets the action to be performed by bot when a blacklist word is detected
-- `/remallbl` - Removes all the blacklisted words from chat (Owner Only)
+- `/remallbl` / `/rmallbl` - Removes all the blacklisted words from chat (Owner Only)
 
 
 ## Module Aliases
@@ -75,4 +72,10 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/addblacklist`, `/blacklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
+- `/rmblacklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
+- `/blaction`, `/blacklistaction` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
+- `/remallbl`, `/rmallbl` — Requires **chat owner** (creator)
+- `/blacklists` — Available to all users (disableable)
+
+**Bot must also be admin** with Restrict Members permission for add/remove/action commands.

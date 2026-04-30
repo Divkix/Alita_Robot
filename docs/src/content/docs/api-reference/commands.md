@@ -10,7 +10,7 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 26 (25 user-facing + 1 internal)
+- **Total Modules**: 27 (26 user-facing + 1 internal)
 - **Total Commands**: 149
 
 ## Commands by Module
@@ -157,7 +157,7 @@ This module has no user-facing commands. It runs as a passive background watcher
 |---------|-------------|------------|-------------|---------|
 | `/addreaction` | Add an auto-reaction for a keyword | Admin | ❌ | — |
 | `/removereaction` | Remove a reaction for a keyword | Admin | ❌ | — |
-| `/reactions` | List configured reactions | Admin | ✅ | — |
+| `/reactions` | List configured reactions | Everyone | ❌ | — |
 | `/resetreactions` | Clear all reactions | Admin | ❌ | — |
 
 #### 👋 Greetings
@@ -269,8 +269,8 @@ This module has no user-facing commands. It runs as a passive background watcher
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/export` | Export all group settings to a JSON file | Admin | ✅ | — |
-| `/import` | Restore settings from a backup file | Admin | ✅ | — |
-| `/reset` | Reset all settings to default | Admin | ❌ | — |
+| `/import` | Restore settings from a backup file | Owner | ✅ | — |
+| `/reset` | Reset all settings to default | Owner | ❌ | — |
 
 #### 📌 Pins
 
@@ -372,7 +372,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/goodbye` | Greetings | Show current goodbye settings | Admin |
 | `/help` | Help | Show help menu with module list | Everyone |
 | `/id` | Misc | Get user or chat ID | Everyone |
-| `/import` | Backup | Restore settings from a backup file | Admin |
+| `/import` | Backup | Restore settings from a backup file | Owner |
 | `/info` | Misc | Get user information | Everyone |
 | `/invitelink` | Admin | Get the chat invite link | Admin |
 | `/kick` | Bans | Kick a user from the group | Admin |
@@ -396,7 +396,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/purge` | Purges | Purge messages from replied-to onwards | Admin |
 | `/purgefrom` | Purges | Set purge start point | Admin |
 | `/purgeto` | Purges | Purge to a specific message | Admin |
-| `/reactions` | Reactions | List configured reactions | Admin |
+| `/reactions` | Reactions | List configured reactions | Everyone |
 | `/reconnect` | Connections | Reconnect to last connected group | Everyone |
 | `/remallbl` | Blacklists | Remove all blacklisted words | Admin |
 | `/removereaction` | Reactions | Remove a reaction for a keyword | Admin |
@@ -407,7 +407,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/report` | Reports | Report a user to admins | Everyone |
 | `/reports` | Reports | Toggle reporting for the group | Admin |
 | `/resetallwarns` | Warns | Reset all warnings for all users | Admin |
-| `/reset` | Backup | Reset all settings to default | Admin |
+| `/reset` | Backup | Reset all settings to default | Owner |
 | `/resetgoodbye` | Greetings | Reset goodbye to default | Admin |
 | `/resetreactions` | Reactions | Clear all reactions | Admin |
 | `/resetrules` | Rules | Reset all group rules | Admin |

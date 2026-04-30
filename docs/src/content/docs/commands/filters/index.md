@@ -79,4 +79,12 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/filter`, `/addfilter` — Requires **Change Group Info** admin permission (`CanUserChangeInfo`)
+- `/stop`, `/rmfilter`, `/removefilter` — Requires **Change Group Info** admin permission (`CanUserChangeInfo`)
+- `/stopall` — Requires **chat owner** (creator)
+- `/filters` — Available to all users (disableable)
+
+**Important:** When re-adding an existing filter keyword, the bot shows an inline
+confirmation dialog (Yes/No buttons) asking the admin to confirm overwrite. The
+confirmation expires after 5 minutes. Each chat can have up to **150 filters**;
+exceeding this limit returns an error.

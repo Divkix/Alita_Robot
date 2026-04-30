@@ -12,8 +12,8 @@ Every chat works with different rules; this module will help make those rules cl
 *Admin commands*:
 × /setrules `<text>`: Set the rules for this chat.
 × /privaterules `<yes/no/on/off>`: Enable/disable whether the rules should be sent in private.
-× /resetrules: Reset the chat rules to default
-× /rulesbtn `<custom text>`: Sets the text of the rules button.
+× /resetrules: Clear all chat rules (sets empty string).
+× /rulesbtn `<custom text>`: Sets the custom text for the rules button in private rules link. (max 30 chars)
 × /resetrulesbutton: Reset the text of the rules button to default.
 × /resetrulesbtn: Same as above.
 
@@ -37,8 +37,8 @@ Or reply to a message:
 `/setrules`
 
 **Required Permissions:**
-- User commands: Available to all users
-- Admin commands: Require admin permissions in the chat
+- `/rules`: Available to all users (disableable)
+- All other commands (`/setrules`, `/resetrules`, `/privaterules`, `/rulesbtn`, `/resetrulesbtn`, etc.): Require admin permissions in the connected chat via `IsUserConnected`
 
 
 ## Module Aliases
@@ -53,16 +53,16 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/resetrules` | Clear all group rules | ❌ |
-| `/clearrules` | Alias of `/resetrules` | ❌ |
-| `/clearrulesbtn` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
-| `/clearrulesbutton` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
-| `/privaterules` | Toggle sending rules in private messages | ❌ |
+| `/resetrules` | Clear all group rules (sets empty string) | ❌ |
+| `/clearrules` | Alias of `/resetrules` — clears all group rules | ❌ |
+| `/clearrulesbtn` | Alias of `/resetrulesbtn` — reset button text to default | ❌ |
+| `/clearrulesbutton` | Alias of `/resetrulesbtn` — reset button text to default | ❌ |
+| `/privaterules` | Toggle sending rules in private messages (admin required) | ❌ |
 | `/resetrulesbtn` | Reset rules button text to default | ❌ |
-| `/resetrulesbutton` | Alias of `/resetrulesbtn` - reset button text to default | ❌ |
+| `/resetrulesbutton` | Alias of `/resetrulesbtn` — reset button text to default | ❌ |
 | `/rules` | Show group rules | ✅ |
-| `/rulesbtn` | Toggle rules button on welcome message | ❌ |
-| `/rulesbutton` | Toggle rules button on welcome message | ❌ |
+| `/rulesbtn` | Set custom button text for private rules link | ❌ |
+| `/rulesbutton` | Alias of `/rulesbtn` — set custom button text for private rules link | ❌ |
 | `/setrules` | Set group rules | ❌ |
 
 ## Usage Examples
@@ -79,4 +79,11 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+| Command | Permissions |
+|---------|-------------|
+| `/rules` | Available to all users (disableable) |
+| `/setrules` | Admin only — requires `IsUserConnected` (bot admin + user admin) |
+| `/resetrules`, `/clearrules` | Admin only — requires `IsUserConnected` |
+| `/privaterules` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |
+| `/rulesbtn`, `/rulesbutton` | Admin only — requires `IsUserConnected`, user must be admin in connected chat |
+| `/resetrulesbtn`, `/resetrulesbutton`, `/clearrulesbtn`, `/clearrulesbutton` | Admin only — requires `IsUserConnected` |

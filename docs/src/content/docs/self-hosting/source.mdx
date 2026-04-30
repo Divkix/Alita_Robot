@@ -190,9 +190,8 @@ Alita_Robot/
 │   ├── config/          # Configuration loading
 │   ├── db/              # Database models and operations
 │   ├── modules/         # Bot command handlers
-│   ├── utils/           # Utility functions
+│   ├── utils/           # Utility functions (incl. httpserver for health/metrics/webhook)
 │   ├── i18n/            # Internationalization
-│   └── health/          # Health check handlers
 ├── migrations/          # SQL migration files
 ├── locales/             # Translation files
 └── docs/                # Documentation
@@ -268,7 +267,7 @@ Key dependencies from `go.mod`:
 |---------|---------|
 | `gotgbot/v2` | Telegram Bot API client |
 | `gorm.io/gorm` | ORM for database operations |
-| `go-redis/v9` | Redis client |
+| `redis/go-redis/v9` | Redis client |
 | `sirupsen/logrus` | Structured logging |
 | `spf13/viper` | Configuration management |
 | `prometheus/client_golang` | Metrics |
@@ -331,7 +330,7 @@ See [Contributing Guide](/contributing/) for more details.
 ### Go version too old
 
 ```
-go: go.mod requires go >= 1.25
+go: go.mod requires go >= 1.26
 ```
 
 Update Go to version 1.26 or higher.

@@ -20,7 +20,7 @@ Before you begin, ensure you have:
 | **Docker** (recommended) | 20.10+ | Container deployment |
 
 For building from source:
-- **Go** 1.25+
+- **Go** 1.26+
 
 ## Deployment Options
 
@@ -107,6 +107,7 @@ Built-in observability endpoints:
 
 - `GET /health` - Health check with DB/Redis status
 - `GET /metrics` - Prometheus metrics
+- `GET /db_metrics` - Database performance metrics
 
 <LinkCard title="Monitoring Guide" href="/self-hosting/monitoring/" description="Health checks, Prometheus metrics, and resource monitoring." />
 

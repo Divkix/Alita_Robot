@@ -19,6 +19,10 @@ Ban/kick users from your chat, and unban them later on if they're behaving thems
 × /tban <userhandle> x(m/h/d): bans a user for `x` time. (via handle, or reply). m = minutes, h = hours, d = days.
 × /unban <userhandle>: unbans a user. (via handle, or reply)
 
+*Kick Commands* (Admin only):
+× /kick <userhandle>: kicks a user. (via handle, or reply)
+× /dkick <userhandle>: deletes the replied message and kicks a user. (via reply)
+
 *Restrict Commands:* (Admin only)
 × /restrict: Shows an InlineKeyboard to choose options from kick, ban and mute
 × /unrestrict: Shows an InlineKeyboard to choose options from unmute and unban.
@@ -76,4 +80,3 @@ Most commands in this module require **admin permissions** in the group.
 - Delete messages
 - Ban users
 - Restrict users
-- Pin messages (if applicable)

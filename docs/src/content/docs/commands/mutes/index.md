@@ -70,4 +70,7 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+**Admin only commands.** All commands in this module require:
+
+- **User Permissions:** Admin status in the chat with permission to restrict members
+- **Bot Permissions:** Admin privileges with permission to restrict members, plus delete messages for `/smute` and `/dmute`

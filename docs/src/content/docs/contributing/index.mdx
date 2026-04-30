@@ -64,6 +64,15 @@ make psql-status   # Check current migration status
 make psql-reset    # Reset database (DANGEROUS: drops all tables)
 ```
 
+### Useful Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `DEBUG=true` | Enable verbose logging and stack traces |
+| `AUTO_MIGRATE=true` | Apply database migrations on startup |
+| `ENABLE_DB_MONITORING=true` | Log database pool stats every minute |
+| `ENABLE_PPROF=true` | Expose pprof profiling endpoints (dev only) |
+
 ## Project Structure
 
 ```
@@ -123,6 +132,17 @@ func LoadMyModule(d *ext.Dispatcher) {
 :::caution[Mandatory Before Committing]
 Always run `make lint` and `make test` before committing. CI will reject pull requests that fail lint or tests.
 :::
+
+The repository uses **pre-commit** hooks that run automatically on `git commit`:
+- **golangci-lint** — Code quality and lint checks
+- **gofmt** — Code formatting enforcement
+- **go mod tidy** — Dependency cleanup
+
+Install hooks:
+
+```bash
+pip install pre-commit && pre-commit install
+```
 
 - Run `make lint` before committing
 - Run `make test` before committing

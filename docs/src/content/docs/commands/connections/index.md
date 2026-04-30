@@ -52,4 +52,30 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+- `/allowconnect` — Requires **Admin** (`IsUserAdmin`) in the target group.
+- `/connect`, `/disconnect`, `/connection`, `/reconnect` — Available to all
+  users, but connection authorization depends on the target chat's settings
+  (admins always allowed; non-admins need `allow_connect` enabled and must
+  be current members, not kicked/left).
+
+## Inline Keyboard Feature
+
+When a user is connected via PM, the `/connection` command and the connect
+flow show an inline keyboard with buttons driven by `connbtns`-prefixed
+callback data:
+
+| Button | Target | Shows |
+|--------|--------|-------|
+| **Admin Commands** | Admins only | List of admin-level commands usable via connection |
+| **User Commands** | All connected users | List of user-level commands usable via connection |
+
+A **Back** button (→ `connbtns.Main`) returns to the main connection view.
+
+## Two Connection Modes
+
+`/connect` behaves differently depending on where it's used:
+
+- **Private chat (PM)**: Extracts a chat argument, authorizes the user,
+  and connects immediately. Shows the inline keyboard for available commands.
+- **Group chat**: Does not connect directly. Instead shows a deep-link button
+  `t.me/<bot>?start=connect_<chat_id>` that the user must tap to connect from PM.

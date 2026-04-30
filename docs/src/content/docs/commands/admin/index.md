@@ -82,10 +82,9 @@ Most commands in this module require **admin permissions** in the group.
 
 **Bot Permissions Required:**
 
+- Promote new admins
+- Invite users via link
 - Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
 
 ## Technical Notes
 

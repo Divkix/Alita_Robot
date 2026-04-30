@@ -66,13 +66,13 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 
     // Parse callback data using the modules package wrapper
     // This handles both new codec format and legacy dot-notation fallback
-    fields, ok := decodeCallbackData(query.Data, "example")
+    decoded, ok := decodeCallbackData(query.Data, "example")
     if !ok {
         log.Warn("[ExampleCallback] Invalid callback data format")
         _, _ = query.Answer(b, nil)
         return ext.EndGroups
     }
-    action := fields.Get("action")
+    action, _ := decoded.Field("action")
 
     // Handle action
     var responseText string
@@ -105,7 +105,7 @@ func LoadExample(dispatcher *ext.Dispatcher) {
 
     // Register callback handlers
     dispatcher.AddHandler(handlers.NewCallback(
-        callbackquery.Prefix("example."),
+        callbackquery.Prefix("example"),
         exampleModule.exampleCallback,
     ))
 }
@@ -258,7 +258,7 @@ example_confirmed: "Action confirmed!"
 example_cancelled: "Action cancelled."
 ```
 
-Add to other locale files (de.yml, etc.) with appropriate translations.
+Add to other locale files (es.yml, fr.yml, hi.yml, id.yml, pt.yml, ru.yml) with appropriate translations.
 
 :::caution[Translation completeness]
 You must add keys to ALL locale files, not just `en.yml`. Missing keys cause runtime panics or empty strings. Run `make check-translations` to detect missing keys before committing.
@@ -448,7 +448,7 @@ func (m moduleStruct) getcount(b *gotgbot.Bot, ctx *ext.Context) error {
         return ext.EndGroups
     }
 
-    count := db.GetGreetingCount(chat.Id)
+    settings := db.GetGreetingSettings(chat.Id)
     text, _ := tr.GetString("counter_current_count")
     _, err := msg.Reply(b, fmt.Sprintf(text, count), helpers.Shtml())
     if err != nil {
@@ -473,7 +473,7 @@ func (m moduleStruct) resetcount(b *gotgbot.Bot, ctx *ext.Context) error {
         return ext.EndGroups
     }
 
-    err := db.ResetGreetingCount(chat.Id)
+    err := db.SetWelcomeToggle(chat.Id, false)
     if err != nil {
         log.Error(err)
         text, _ := tr.GetString("counter_reset_error")
