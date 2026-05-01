@@ -478,6 +478,15 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
+		if ctx.EffectiveUser == nil {
+			text, _ := tr.GetString("common_anonymous_user_error")
+			_, err := msg.Reply(b, text, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
 		userId = ctx.EffectiveUser.Id
 	} else if chat_status.IsChannelId(userId) {
 		text, _ := tr.GetString("common_anonymous_user_error")

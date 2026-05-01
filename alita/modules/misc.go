@@ -192,9 +192,14 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 			text := fmt.Sprintf(temp, chat.Id)
 			builder.WriteString(text)
 		} else {
-			temp, _ := tr.GetString("misc_your_id_group")
-			text := fmt.Sprintf(temp, msg.From.Id, chat.Id)
-			builder.WriteString(text)
+			if msg.From == nil {
+				temp, _ := tr.GetString("common_anonymous_user_error")
+				builder.WriteString(temp)
+			} else {
+				temp, _ := tr.GetString("misc_your_id_group")
+				text := fmt.Sprintf(temp, msg.From.Id, chat.Id)
+				builder.WriteString(text)
+			}
 		}
 	}
 
@@ -251,6 +256,10 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		sendLatency.Milliseconds(),
 		(sendLatency - getMeLatency).Milliseconds(),
 	)
+	var userId int64
+	if msg.From != nil {
+		userId = msg.From.Id
+	}
 	_, _, err = sentMsg.EditText(b, text, &gotgbot.EditMessageTextOpts{
 		ParseMode: helpers.HTML,
 	})
@@ -260,7 +269,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	log.WithFields(log.Fields{
-		"user_id":       msg.From.Id,
+		"user_id":       userId,
 		"send_latency":  sendLatency.Milliseconds(),
 		"getme_latency": getMeLatency.Milliseconds(),
 	}).Debug("[Ping] Response sent")

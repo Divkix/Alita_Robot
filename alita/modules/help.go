@@ -563,6 +563,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		b,
 		text,
 		&gotgbot.EditMessageTextOpts{
+			ParseMode: helpers.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
@@ -595,7 +596,11 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.Message.Chat.Type == "private" {
 		if len(args) == 1 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			mainHelpText := getMainHelp(tr, html.EscapeString(msg.From.FirstName))
+			name := "User"
+			if msg.From != nil {
+				name = html.EscapeString(msg.From.FirstName)
+			}
+			mainHelpText := getMainHelp(tr, name)
 			_, err := b.SendMessage(chat.Id,
 				mainHelpText,
 				&gotgbot.SendMessageOpts{

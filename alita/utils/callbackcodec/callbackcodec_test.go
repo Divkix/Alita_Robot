@@ -208,6 +208,110 @@ func TestDecodeUnderscorePayload(t *testing.T) {
 	}
 }
 
+func TestDecodeRejectsEmptyString(t *testing.T) {
+	t.Parallel()
+
+	_, err := Decode("")
+	if !errors.Is(err, ErrInvalidFormat) {
+		t.Fatalf("Decode(\"\") expected ErrInvalidFormat, got %v", err)
+	}
+}
+
+func TestDecodeRejectsBoundaryUnderscoreOnly(t *testing.T) {
+	t.Parallel()
+
+	d, err := Decode("ns|v1|_")
+	if err != nil {
+		t.Fatalf("Decode(\"ns|v1|_\") unexpected error: %v", err)
+	}
+	if len(d.Fields) != 0 {
+		t.Fatalf("expected empty Fields for underscore payload, got %v", d.Fields)
+	}
+}
+
+func TestDecodeRejectsWrongVersionV2(t *testing.T) {
+	t.Parallel()
+
+	_, err := Decode("ns|v2|a=yes")
+	if !errors.Is(err, ErrUnsupportedVersion) {
+		t.Fatalf("Decode with v2 expected ErrUnsupportedVersion, got %v", err)
+	}
+}
+
+func TestDecodeRejectsWrongVersionV0(t *testing.T) {
+	t.Parallel()
+
+	_, err := Decode("ns|v0|a=yes")
+	if !errors.Is(err, ErrUnsupportedVersion) {
+		t.Fatalf("Decode with v0 expected ErrUnsupportedVersion, got %v", err)
+	}
+}
+
+func TestDecodeRejectsCorruptBase64(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"ns|v1|%%%malformed%%%",
+		"ns|v1|a=%FF%GG",
+		"ns|v1|a=%ZZ",
+	}
+	for _, data := range tests {
+		_, err := Decode(data)
+		if !errors.Is(err, ErrInvalidFormat) {
+			t.Fatalf("expected ErrInvalidFormat for %q, got %v", data, err)
+		}
+	}
+}
+
+func TestDecodeRejectsMissingVersionField(t *testing.T) {
+	t.Parallel()
+
+	// Only 2 pipe-separated parts instead of 3
+	_, err := Decode("ns|v1")
+	if !errors.Is(err, ErrInvalidFormat) {
+		t.Fatalf("expected ErrInvalidFormat for missing payload segment, got %v", err)
+	}
+}
+
+func TestDecodeRejectsEmptyVersion(t *testing.T) {
+	t.Parallel()
+
+	_, err := Decode("ns||a=b")
+	if !errors.Is(err, ErrUnsupportedVersion) {
+		t.Fatalf("expected ErrUnsupportedVersion for empty version, got %v", err)
+	}
+}
+
+func TestDecodeRejectsPipeOnlyPayload(t *testing.T) {
+	t.Parallel()
+
+	// Too few parts after splitting
+	_, err := Decode("|")
+	if !errors.Is(err, ErrInvalidFormat) {
+		t.Fatalf("expected ErrInvalidFormat for single pipe, got %v", err)
+	}
+	_, err = Decode("||")
+	if !errors.Is(err, ErrInvalidNamespace) {
+		t.Fatalf("expected ErrInvalidNamespace for two pipes (empty namespace), got %v", err)
+	}
+}
+
+func TestEncodeNearMaxLength(t *testing.T) {
+	t.Parallel()
+
+	// Construct a payload that approaches MaxCallbackDataLen
+	// Namespace "test" + version separator "|v1|" = 5 chars for "|v1|"
+	// So max field payload = 64 - len("test") - 5 = 55
+	// The payload is URL-encoded, so we need to stay within bounds
+	result, err := Encode("ns", map[string]string{"k": "v"})
+	if err != nil {
+		t.Fatalf("Encode() for small payload error = %v", err)
+	}
+	if len(result) > MaxCallbackDataLen {
+		t.Fatalf("encoded data exceeds max length: %d > %d", len(result), MaxCallbackDataLen)
+	}
+}
+
 func TestRoundTripURLSpecialChars(t *testing.T) {
 	t.Parallel()
 
