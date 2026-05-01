@@ -41,9 +41,9 @@ When the bot starts (`main.go`), it performs these steps in order:
 <Steps>
 
 1. **Health Check Mode** <Badge text="Optional" variant="default" />
-
+   
    If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
-
+   
    ```go
    if os.Args[1] == "--health" {
        // HTTP GET to /health, exit with status code
@@ -52,9 +52,9 @@ When the bot starts (`main.go`), it performs these steps in order:
    ```
 
 2. **Version Check** <Badge text="Optional" variant="default" />
-
+   
    If the `--version`, `-version`, or `-v` flag is passed, the process prints the bot version and exits immediately without initializing any services.
-
+   
    ```go
    if os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v" {
        fmt.Println(config.AppConfig.BotVersion)
@@ -63,49 +63,49 @@ When the bot starts (`main.go`), it performs these steps in order:
    ```
 
 3. **Panic Recovery Setup** <Badge text="Safety" variant="caution" />
-
+   
    A top-level deferred recovery ensures the process logs the panic and exits cleanly rather than crashing silently.
-
+   
    ```go
    defer func() {
        if r := recover(); r != nil {
            log.Errorf("[Main] Panic recovered: %v", r)
            os.Exit(1)
        }
-}()
-    ```
+   }()
+   ```
 
 4. **Cache Initialization** <Badge text="Infrastructure" variant="note" />
-
-    The Redis cache is initialized with connection retry logic (exponential backoff). Cache must be available before i18n (which uses it for translation caching) and before the database layer.
-
-    ```go
-    if err := cache.InitCache(); err != nil {
-        log.Fatalf("Failed to initialize cache: %v", err)
-    }
-    ```
+   
+   The Redis cache is initialized with connection retry logic (exponential backoff). Cache must be available before i18n (which uses it for translation caching) and before the database layer.
+   
+   ```go
+   if err := cache.InitCache(); err != nil {
+       log.Fatalf("Failed to initialize cache: %v", err)
+   }
+   ```
 
 5. **Locale Manager Initialization** <Badge text="i18n" variant="note" />
-
+   
    The singleton `LocaleManager` loads embedded YAML translation files for all supported languages.
-
+   
    ```go
    localeManager := i18n.GetManager()
    localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
    ```
 
 6. **OpenTelemetry Tracing Initialization** <Badge text="Observability" variant="success" />
-
+   
    Sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
-
+   
    ```go
    tracing.InitTracing()
    ```
 
 7. **HTTP Transport Configuration** <Badge text="Networking" variant="note" />
-
+   
    Connection pooling is configured for outbound HTTP requests to the Telegram API.
-
+   
    ```go
    httpTransport := &http.Transport{
        MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
@@ -116,9 +116,9 @@ When the bot starts (`main.go`), it performs these steps in order:
    ```
 
 8. **Bot Client Creation** <Badge text="Core" variant="note" />
-
+   
    The gotgbot client is initialized with the configured HTTP transport and a 30-second timeout.
-
+   
    ```go
    b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
        BotClient: &gotgbot.BaseBotClient{
@@ -128,9 +128,9 @@ When the bot starts (`main.go`), it performs these steps in order:
    ```
 
 9. **Connection Pre-warming** <Badge text="Performance" variant="tip" />
-
+   
    Three `GetMe` calls run in a background goroutine to establish the HTTP connection pool before real traffic arrives.
-
+   
    ```go
    go func() {
        for i := 0; i < 3; i++ {
@@ -139,33 +139,31 @@ When the bot starts (`main.go`), it performs these steps in order:
        }
    }()
    ```
-
-   :::tip
+   
    Pre-warming prevents the first real user request from paying the TCP + TLS handshake cost. The 3 calls ensure multiple connections are established in the pool.
-   :::
 
 10. **Initial Checks** <Badge text="Validation" variant="note" />
-
-   Validates configuration, initializes cache, and performs startup health checks.
-
-   ```go
-   alita.InitialChecks(b)  // Validates config, initializes cache
-   ```
+    
+    Validates configuration, initializes cache, and performs startup health checks.
+    
+    ```go
+    alita.InitialChecks(b)  // Validates config, initializes cache
+    ```
 
 11. **Async Processor** <Badge text="Optional" variant="default" />
-
-   If `EnableAsyncProcessing` is configured, the async processor is initialized for non-critical background operations.
-
-   ```go
-   if config.AppConfig.EnableAsyncProcessing {
-       async.InitializeAsyncProcessor()
-   }
-   ```
+    
+    If `EnableAsyncProcessing` is configured, the async processor is initialized for non-critical background operations.
+    
+    ```go
+    if config.AppConfig.EnableAsyncProcessing {
+        async.InitializeAsyncProcessor()
+    }
+    ```
 
 12. **Dispatcher Creation** <Badge text="Core" variant="note" />
-
+    
     The dispatcher routes updates to handlers with bounded concurrency. It uses a `TracingProcessor` wrapper for trace context propagation in polling mode.
-
+    
     ```go
     dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
         Error:       errorHandler,
@@ -174,9 +172,9 @@ When the bot starts (`main.go`), it performs these steps in order:
     ```
 
 13. **Monitoring Systems** <Badge text="Observability" variant="success" />
-
+    
     Three monitoring subsystems start: background stats collection (every 30s), auto-remediation (GC triggers on memory thresholds), and activity monitoring (per-chat and per-user tracking).
-
+    
     ```go
     statsCollector = monitoring.NewBackgroundStatsCollector()
     autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
@@ -184,14 +182,14 @@ When the bot starts (`main.go`), it performs these steps in order:
     ```
 
 14. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
-
+    
     The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
-
+    
     ```go
     httpServer := httpserver.New(config.AppConfig.HTTPPort)
     httpServer.RegisterHealth()
     httpServer.RegisterMetrics()
-
+    
     if config.AppConfig.UseWebhooks {
         httpServer.RegisterWebhook(b, dispatcher, secret, domain)
     } else {
