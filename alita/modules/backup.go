@@ -459,6 +459,9 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	// Decode callback data
 	decoded, ok := decodeCallbackData(query.Data, "backup")
 	if !ok {
+		tempTr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tempTr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
