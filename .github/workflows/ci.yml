@@ -119,8 +119,8 @@ jobs:
         with:
           version: v2.9.0
           install-mode: binary
-          # Only run dupl linter, disable gocyclo from config
-          args: --disable gocyclo --timeout 10m
+          # Only run dupl linter, disable all other linters
+          args: --disable-all --enable dupl --timeout 10m
           # Only report new issues to allow gradual improvement
           only-new-issues: true
 
