@@ -26,21 +26,23 @@ func antiSpamCleanupLoop() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		antiSpamMutex.Lock()
-		now := time.Now()
-		for key, info := range antiSpamMap {
-			allExpired := true
-			for _, level := range info.Levels {
-				if now.Sub(level.CurrTime) < level.Expiry*2 {
-					allExpired = false
-					break
+		func() {
+			antiSpamMutex.Lock()
+			defer antiSpamMutex.Unlock()
+			now := time.Now()
+			for key, info := range antiSpamMap {
+				allExpired := true
+				for _, level := range info.Levels {
+					if now.Sub(level.CurrTime) < level.Expiry*2 {
+						allExpired = false
+						break
+					}
+				}
+				if allExpired {
+					delete(antiSpamMap, key)
 				}
 			}
-			if allExpired {
-				delete(antiSpamMap, key)
-			}
-		}
-		antiSpamMutex.Unlock()
+		}()
 	}
 }
 
