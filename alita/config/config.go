@@ -464,8 +464,10 @@ func (cfg *Config) setDefaults() {
 	}
 
 	// Set cache defaults
-	// ClearCacheOnStartup defaults to true for better reliability
-	cfg.ClearCacheOnStartup = true
+	// ClearCacheOnStartup defaults to true for better reliability, but only if not explicitly set via env var
+	if os.Getenv("CLEAR_CACHE_ON_STARTUP") == "" {
+		cfg.ClearCacheOnStartup = true
+	}
 
 	// Enable monitoring by default in production
 	if !cfg.Debug {

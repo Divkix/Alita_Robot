@@ -428,16 +428,7 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("ClearCacheOnStartup unconditional", func(t *testing.T) {
-		t.Parallel()
 
-		cfg := &Config{ClearCacheOnStartup: false}
-		cfg.setDefaults()
-
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true (setDefaults always sets this to true)")
-		}
-	})
 
 	t.Run("Debug false enables monitoring", func(t *testing.T) {
 		t.Parallel()
@@ -450,6 +441,45 @@ func TestSetDefaults(t *testing.T) {
 		}
 		if !cfg.EnableBackgroundStats {
 			t.Errorf("EnableBackgroundStats: got false, want true when Debug=false")
+		}
+	})
+}
+
+// TestClearCacheOnStartupEnvVar tests that CLEAR_CACHE_ON_STARTUP env var is respected.
+// These tests do NOT call t.Parallel() because t.Setenv() is incompatible with parallel execution.
+func TestClearCacheOnStartupEnvVar(t *testing.T) {
+	skipIfNoConfig(t)
+
+	t.Run("defaults to true when env var not set", func(t *testing.T) {
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
+
+		cfg := &Config{}
+		cfg.setDefaults()
+
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true (default when env var not set)")
+		}
+	})
+
+	t.Run("respects explicit false", func(t *testing.T) {
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "false")
+
+		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "false"}.Bool()}
+		cfg.setDefaults()
+
+		if cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got true, want false (should respect env var CLEAR_CACHE_ON_STARTUP=false)")
+		}
+	})
+
+	t.Run("respects explicit true", func(t *testing.T) {
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "true")
+
+		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "true"}.Bool()}
+		cfg.setDefaults()
+
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true (should respect env var CLEAR_CACHE_ON_STARTUP=true)")
 		}
 	})
 }
