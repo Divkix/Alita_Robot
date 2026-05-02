@@ -36,3 +36,6 @@ specs/.current-spec
 
 # Factory/testing artifacts
 .factory/
+
+# Git worktrees
+.worktrees/
