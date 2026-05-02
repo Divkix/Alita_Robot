@@ -428,7 +428,41 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
+	t.Run("ClearCacheOnStartup defaults to true when not set", func(t *testing.T) {
+		t.Parallel()
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
 
+		cfg := &Config{}
+		cfg.setDefaults()
+
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true (default when env var not set)")
+		}
+	})
+
+	t.Run("ClearCacheOnStartup respects explicit false", func(t *testing.T) {
+		t.Parallel()
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "false")
+
+		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "false"}.Bool()}
+		cfg.setDefaults()
+
+		if cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got true, want false (should respect env var CLEAR_CACHE_ON_STARTUP=false)")
+		}
+	})
+
+	t.Run("ClearCacheOnStartup respects explicit true", func(t *testing.T) {
+		t.Parallel()
+		t.Setenv("CLEAR_CACHE_ON_STARTUP", "true")
+
+		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "true"}.Bool()}
+		cfg.setDefaults()
+
+		if !cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got false, want true (should respect env var CLEAR_CACHE_ON_STARTUP=true)")
+		}
+	})
 
 	t.Run("Debug false enables monitoring", func(t *testing.T) {
 		t.Parallel()

@@ -2207,20 +2207,20 @@ devs_chatlist_error: "Echec de la generation de la liste des chats. Veuillez ree
 # Reactions module strings
 # TODO: Translate
 reactions_help_msg: |
-  <b>🎭 Auto-Reactions</b>
+  <b>🎭 Auto-Réactions</b>
 
-  Automatically react to messages with specific keywords!
+  Réagissez automatiquement aux messages avec des emojis spécifiques !
 
-  Setup automated emoji reactions that trigger when users send specific words.
+  Configurez des réactions automatiques qui se déclenchent quand les utilisateurs envoient des mots spécifiques.
 
-  <b>Admin Commands:</b>
-  • /addreaction <keyword> <emoji> - Add an auto-reaction
-  • /removereaction <keyword> - Remove a reaction
-  • /reactions - List configured reactions
-  • /resetreactions - Clear all reactions
+  <b>Commandes Admin :</b>
+  • /addreaction <mot-clé> <emoji> - Ajouter une auto-réaction
+  • /removereaction <mot-clé> - Supprimer une réaction
+  • /reactions - Lister les réactions configurées
+  • /resetreactions - Effacer toutes les réactions
 
-  <b>Example:</b>
-  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+  <b>Exemple :</b>
+  • /addreaction bonjour 👋 - Le bot réagit avec 👋 quand quelqu'un dit "bonjour"
 
 reactions_add_usage: "Utilisation : /addreaction <mot_cle> <emoji>"
 reactions_invalid_emoji: "Veuillez fournir un emoji valide."
@@ -2237,107 +2237,119 @@ reactions_reset_success: "Toutes les réactions ont été réinitialisées pour 
 
 # Backup/Restore module strings
 backup_help_msg: |
-  <b>📦 Backup & Restore</b>
+  <b>📦 Sauvegarde & Restauration</b>
 
-  Backup and restore your group settings using these commands:
+  Sauvegardez et restaurez les paramètres de votre groupe :
 
-  <b>User Commands:</b>
-  • /export - Export all group settings to a JSON file
-  • /export notes filters rules - Export specific modules only
+  <b>Commandes Utilisateur :</b>
+  • /export - Exporter tous les paramètres du groupe en fichier JSON
+  • /export notes filters rules - Exporter uniquement des modules spécifiques
 
-  <b>Creator Commands:</b>
-  • /import - Reply to a backup file to restore settings
-  • /import notes filters - Import only specific modules
-  • /reset - Reset all settings to default
-  • /reset warnings locks - Reset specific modules only
+  <b>Commandes Créateur :</b>
+  • /import - Répondre à un fichier de sauvegarde pour restaurer les paramètres
+  • /import notes filters - Importer uniquement des modules spécifiques
+  • /reset - Réinitialiser tous les paramètres par défaut
+  • /reset warnings locks - Réinitialiser uniquement des modules spécifiques
 
-  <b>Rate Limits:</b>
-  • Export: 1 per 5 minutes
-  • Import: 1 per 10 minutes
-  • Reset: 1 per hour
+  <b>Limites de Débit :</b>
+  • Export : 1 par 5 minutes
+  • Import : 1 par 10 minutes
+  • Réinitialisation : 1 par heure
 
-backup_export_button: "📤 Export"
-backup_import_button: "📥 Import"
+backup_export_button: "📤 Exporter"
+backup_import_button: "📥 Importer"
 backup_export_success: |
-  <b>✅ Export Successful!</b>
+  <b>✅ Export Réussi !</b>
 
-  <b>Chat:</b> %s
-  <b>Modules exported:</b> %d
-  <b>Exported at:</b> %s
+  <b>Chat :</b> %s
+  <b>Modules exportés :</b> %d
+  <b>Exporté le :</b> %s
 
-  <b>Modules:</b>
+  <b>Modules :</b>
   %s
 
-backup_export_success_text: "✅ Successfully exported %d modules. Download the backup file above."
-backup_export_rate_limited: "⏳ Please wait <b>%s</b> before exporting again."
-backup_export_no_modules: "❌ No exportable modules found for this chat."
-backup_export_failed: "❌ Failed to export settings. Please try again later."
+backup_export_success_text: "✅ %d modules exportés avec succès. Téléchargez le fichier de sauvegarde ci-dessus."
+backup_export_rate_limited: "⏳ Veuillez attendre <b>%s</b> avant d'exporter à nouveau."
+backup_export_no_modules: "❌ Aucun module exportable trouvé pour ce chat."
+backup_export_failed: "❌ Échec de l'export des paramètres. Veuillez réessayer plus tard."
 
 backup_import_success: |
-  <b>✅ Import Successful!</b>
+  <b>✅ Import Réussi !</b>
 
-  <b>Modules imported:</b> %d
+  <b>Modules importés :</b> %d
 
-  <b>Modules:</b>
+  <b>Modules :</b>
   %s
 
-backup_import_rate_limited: "⏳ Please wait <b>%s</b> before importing again."
-backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</code>."
-backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
-backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
-backup_import_download_failed: "❌ Failed to download backup file. Please try again."
-backup_import_version_mismatch: "⚠️ This backup was created with a different version. Some settings may not import correctly."
-backup_import_creator_only: "❌ Only the group creator can import settings."
+backup_import_rate_limited: "⏳ Veuillez attendre <b>%s</b> avant d'importer à nouveau."
+backup_import_no_reply: "❌ Veuillez répondre à un fichier de sauvegarde avec <code>/import</code>."
+backup_import_invalid_file: "❌ Format de fichier de sauvegarde invalide. Veuillez envoyer un fichier JSON de sauvegarde valide."
+backup_import_file_too_large: "❌ Le fichier de sauvegarde est trop grand. Taille maximale : 10 Mo."
+backup_import_download_failed: "❌ Échec du téléchargement du fichier de sauvegarde. Veuillez réessayer."
+backup_import_version_mismatch: "⚠️ Cette sauvegarde a été créée avec une version différente. Certains paramètres peuvent ne pas s'importer correctement."
+backup_import_creator_only: "❌ Seul le créateur du groupe peut importer des paramètres."
 backup_import_confirm: |
-  <b>⚠️ Confirm Import</b>
+  <b>⚠️ Confirmer l'Import</b>
 
-  You are about to import <b>%s modules</b>:
+  Vous êtes sur le point d'importer <b>%s modules</b> :
   %s
 
-  This will overwrite existing settings. Are you sure?
+  Cela écrasera les paramètres existants. Êtes-vous sûr ?
 
-backup_import_expired: "❌ Import request has expired. Please start again with <code>/import</code>."
-backup_import_cancelled: "❌ Import cancelled."
-backup_import_failed: "❌ Import failed: %s"
+backup_import_expired: "❌ La demande d'import a expiré. Veuillez recommencer avec <code>/import</code>."
+backup_import_cancelled: "❌ Import annulé."
+backup_import_failed: "❌ Échec de l'import : %s"
 
 backup_reset_success: |
-  <b>✅ Reset Successful!</b>
+  <b>✅ Réinitialisation Réussie !</b>
 
-  <b>Modules reset:</b> %d
+  <b>Modules réinitialisés :</b> %d
 
-  <b>Modules:</b>
+  <b>Modules :</b>
   %s
 
-backup_reset_rate_limited: "⏳ Please wait <b>%s</b> before resetting again."
-backup_reset_creator_only: "❌ Only the group creator can reset settings."
+backup_reset_rate_limited: "⏳ Veuillez attendre <b>%s</b> avant de réinitialiser à nouveau."
+backup_reset_creator_only: "❌ Seul le créateur du groupe peut réinitialiser les paramètres."
 backup_reset_confirm: |
-  <b>⚠️ Confirm Reset</b>
+  <b>⚠️ Confirmer la Réinitialisation</b>
 
-  You are about to reset <b>%s modules</b>:
+  Vous êtes sur le point de réinitialiser <b>%s modules</b> :
   %s
 
-  <b>This action cannot be undone!</b> Are you sure?
+  <b>Cette action est irréversible !</b> Êtes-vous sûr ?
 
-backup_reset_expired: "❌ Reset request has expired. Please start again with <code>/reset</code>."
-backup_reset_cancelled: "❌ Reset cancelled."
-backup_reset_failed: "❌ Reset failed: %s"
+backup_reset_expired: "❌ La demande de réinitialisation a expiré. Veuillez recommencer avec <code>/reset</code>."
+backup_reset_cancelled: "❌ Réinitialisation annulée."
+backup_reset_failed: "❌ Échec de la réinitialisation : %s"
 
-button_confirm_import: "✅ Confirm Import"
-button_cancel_import: "❌ Cancel"
-button_confirm_reset: "⚠️ Yes, Reset All"
-button_cancel_reset: "❌ Cancel"
+button_confirm_import: "✅ Confirmer l'Import"
+button_cancel_import: "❌ Annuler"
+button_confirm_reset: "⚠️ Oui, Tout Réinitialiser"
+button_cancel_reset: "❌ Annuler"
 
-backup_module_admin: "Admin Settings"
+backup_module_admin: "Paramètres Admin"
 backup_module_antiflood: "Antiflood"
-backup_module_blacklists: "Blacklists"
+backup_module_blacklists: "Listes Noires"
 backup_module_captcha: "Captcha"
-backup_module_connections: "Connections"
-backup_module_disabling: "Disabled Commands"
-backup_module_filters: "Filters"
-backup_module_greetings: "Greetings"
-backup_module_locks: "Locks"
+backup_module_connections: "Connexions"
+backup_module_disabling: "Commandes Désactivées"
+backup_module_filters: "Filtres"
+backup_module_greetings: "Messages de Bienvenue/Au Revoir"
+backup_module_locks: "Verrous"
 backup_module_notes: "Notes"
-backup_module_pins: "Pin Settings"
-backup_module_reports: "Reports"
-backup_module_rules: "Rules"
-backup_module_warns: "Warnings"
+backup_module_pins: "Paramètres d'Épingle"
+backup_module_reports: "Signalements"
+backup_module_rules: "Règles"
+backup_module_warns: "Avertissements"
+
+# Additional backup keys mentioned in requirements
+backup_import_text_header: "📥 Importer les Paramètres\n\nTéléchargez un fichier de sauvegarde pour restaurer les paramètres."
+backup_invalid_file: "❌ Format de fichier invalide. Veuillez télécharger un fichier de sauvegarde JSON valide."
+backup_import_no_file: "❌ Veuillez télécharger un fichier de sauvegarde valide."
+backup_import_no_modules: "❌ Aucun module à importer trouvé dans le fichier de sauvegarde."
+backup_no_data: "❌ Aucune donnée disponible à exporter."
+backup_text_header: "📦 Sauvegarde & Restauration\n\nExportez ou importez les paramètres de votre groupe."
+backup_upload_prompt: "Veuillez télécharger votre fichier de sauvegarde ou cliquer sur Annuler."
+backup_module_bans: "Bannissements et Restrictions"
+backup_module_purges: "Paramètres de Purge"
+backup_module_disabled: "Commandes Désactivées"

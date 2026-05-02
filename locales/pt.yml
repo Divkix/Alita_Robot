@@ -2271,20 +2271,20 @@ devs_chatlist_error: "Falha ao gerar lista de chats. Tente novamente."
 # Reactions module strings
 # TODO: Translate
 reactions_help_msg: |
-  <b>🎭 Auto-Reactions</b>
+  <b>🎭 Auto-Reações</b>
 
-  Automatically react to messages with specific keywords!
+  Reaja automaticamente a mensagens com palavras-chave específicas!
 
-  Setup automated emoji reactions that trigger when users send specific words.
+  Configure reações automáticas de emoji que são ativadas quando os usuários enviam palavras específicas.
 
-  <b>Admin Commands:</b>
-  • /addreaction <keyword> <emoji> - Add an auto-reaction
-  • /removereaction <keyword> - Remove a reaction
-  • /reactions - List configured reactions
-  • /resetreactions - Clear all reactions
+  <b>Comandos de Admin:</b>
+  • /addreaction <palavra_chave> <emoji> - Adicionar uma auto-reação
+  • /removereaction <palavra_chave> - Remover uma reação
+  • /reactions - Listar reações configuradas
+  • /resetreactions - Limpar todas as reações
 
-  <b>Example:</b>
-  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+  <b>Exemplo:</b>
+  • /addreaction oi 👋 - O bot reage com 👋 quando alguém diz "oi"
 
 reactions_add_usage: "Uso: /addreaction <palavra_chave> <emoji>"
 reactions_invalid_emoji: "Por favor, informe um emoji válido."
@@ -2303,105 +2303,105 @@ reactions_reset_success: "Todas as reações deste chat foram redefinidas."
 backup_help_msg: |
   <b>📦 Backup & Restore</b>
 
-  Backup and restore your group settings using these commands:
+  Faça backup e restaure as configurações do seu grupo usando estes comandos:
 
-  <b>User Commands:</b>
-  • /export - Export all group settings to a JSON file
-  • /export notes filters rules - Export specific modules only
+  <b>Comandos de Usuário:</b>
+  • /export - Exportar todas as configurações do grupo para um arquivo JSON
+  • /export notes filters rules - Exportar apenas módulos específicos
 
-  <b>Creator Commands:</b>
-  • /import - Reply to a backup file to restore settings
-  • /import notes filters - Import only specific modules
-  • /reset - Reset all settings to default
-  • /reset warnings locks - Reset specific modules only
+  <b>Comandos do Criador:</b>
+  • /import - Responda a um arquivo de backup para restaurar as configurações
+  • /import notes filters - Importar apenas módulos específicos
+  • /reset - Redefinir todas as configurações para o padrão
+  • /reset warnings locks - Redefinir apenas módulos específicos
 
-  <b>Rate Limits:</b>
-  • Export: 1 per 5 minutes
-  • Import: 1 per 10 minutes
-  • Reset: 1 per hour
+  <b>Limites de Taxa:</b>
+  • Exportar: 1 a cada 5 minutos
+  • Importar: 1 a cada 10 minutos
+  • Redefinir: 1 a cada hora
 
-backup_export_button: "📤 Export"
-backup_import_button: "📥 Import"
+backup_export_button: "📤 Exportar"
+backup_import_button: "📥 Importar"
 backup_export_success: |
-  <b>✅ Export Successful!</b>
+  <b>✅ Exportação Bem-Sucedida!</b>
 
   <b>Chat:</b> %s
-  <b>Modules exported:</b> %d
-  <b>Exported at:</b> %s
+  <b>Módulos exportados:</b> %d
+  <b>Exportado em:</b> %s
 
-  <b>Modules:</b>
+  <b>Módulos:</b>
   %s
 
-backup_export_success_text: "✅ Successfully exported %d modules. Download the backup file above."
-backup_export_rate_limited: "⏳ Please wait <b>%s</b> before exporting again."
-backup_export_no_modules: "❌ No exportable modules found for this chat."
-backup_export_failed: "❌ Failed to export settings. Please try again later."
+backup_export_success_text: "✅ Exportados com sucesso %d módulos. Baixe o arquivo de backup acima."
+backup_export_rate_limited: "⏳ Por favor aguarde <b>%s</b> antes de exportar novamente."
+backup_export_no_modules: "❌ Nenhum módulo exportável encontrado para este chat."
+backup_export_failed: "❌ Falha ao exportar configurações. Por favor tente novamente mais tarde."
 
 backup_import_success: |
-  <b>✅ Import Successful!</b>
+  <b>✅ Importação Bem-Sucedida!</b>
 
-  <b>Modules imported:</b> %d
+  <b>Módulos importados:</b> %d
 
-  <b>Modules:</b>
+  <b>Módulos:</b>
   %s
 
-backup_import_rate_limited: "⏳ Please wait <b>%s</b> before importing again."
-backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</code>."
-backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
-backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
-backup_import_download_failed: "❌ Failed to download backup file. Please try again."
-backup_import_version_mismatch: "⚠️ This backup was created with a different version. Some settings may not import correctly."
-backup_import_creator_only: "❌ Only the group creator can import settings."
+backup_import_rate_limited: "⏳ Por favor aguarde <b>%s</b> antes de importar novamente."
+backup_import_no_reply: "❌ Por favor responda a um arquivo de backup com <code>/import</code>."
+backup_import_invalid_file: "❌ Formato de arquivo de backup inválido. Por favor envie um arquivo de backup JSON válido."
+backup_import_file_too_large: "❌ O arquivo de backup é muito grande. O tamanho máximo é 10MB."
+backup_import_download_failed: "❌ Falha ao baixar o arquivo de backup. Por favor tente novamente."
+backup_import_version_mismatch: "⚠️ Este backup foi criado com uma versão diferente. Algumas configurações podem não ser importadas corretamente."
+backup_import_creator_only: "❌ Apenas o criador do grupo pode importar configurações."
 backup_import_confirm: |
-  <b>⚠️ Confirm Import</b>
+  <b>⚠️ Confirmar Importação</b>
 
-  You are about to import <b>%s modules</b>:
+  Você está prestes a importar <b>%s módulos</b>:
   %s
 
-  This will overwrite existing settings. Are you sure?
+  Isso sobrescreverá as configurações existentes. Tem certeza?
 
-backup_import_expired: "❌ Import request has expired. Please start again with <code>/import</code>."
-backup_import_cancelled: "❌ Import cancelled."
-backup_import_failed: "❌ Import failed: %s"
+backup_import_expired: "❌ A solicitação de importação expirou. Por favor comece novamente com <code>/import</code>."
+backup_import_cancelled: "❌ Importação cancelada."
+backup_import_failed: "❌ Falha na importação: %s"
 
 backup_reset_success: |
-  <b>✅ Reset Successful!</b>
+  <b>✅ Redefinição Bem-Sucedida!</b>
 
-  <b>Modules reset:</b> %d
+  <b>Módulos redefinidos:</b> %d
 
-  <b>Modules:</b>
+  <b>Módulos:</b>
   %s
 
-backup_reset_rate_limited: "⏳ Please wait <b>%s</b> before resetting again."
-backup_reset_creator_only: "❌ Only the group creator can reset settings."
+backup_reset_rate_limited: "⏳ Por favor aguarde <b>%s</b> antes de redefinir novamente."
+backup_reset_creator_only: "❌ Apenas o criador do grupo pode redefinir as configurações."
 backup_reset_confirm: |
-  <b>⚠️ Confirm Reset</b>
+  <b>⚠️ Confirmar Redefinição</b>
 
-  You are about to reset <b>%s modules</b>:
+  Você está prestes a redefinir <b>%s módulos</b>:
   %s
 
-  <b>This action cannot be undone!</b> Are you sure?
+  <b>Esta ação não pode ser desfeita!</b> Tem certeza?
 
-backup_reset_expired: "❌ Reset request has expired. Please start again with <code>/reset</code>."
-backup_reset_cancelled: "❌ Reset cancelled."
-backup_reset_failed: "❌ Reset failed: %s"
+backup_reset_expired: "❌ A solicitação de redefinição expirou. Por favor comece novamente com <code>/reset</code>."
+backup_reset_cancelled: "❌ Redefinição cancelada."
+backup_reset_failed: "❌ Falha na redefinição: %s"
 
-button_confirm_import: "✅ Confirm Import"
-button_cancel_import: "❌ Cancel"
-button_confirm_reset: "⚠️ Yes, Reset All"
-button_cancel_reset: "❌ Cancel"
+button_confirm_import: "✅ Confirmar Importação"
+button_cancel_import: "❌ Cancelar"
+button_confirm_reset: "⚠️ Sim, Redefinir Tudo"
+button_cancel_reset: "❌ Cancelar"
 
-backup_module_admin: "Admin Settings"
+backup_module_admin: "Configurações de Admin"
 backup_module_antiflood: "Antiflood"
-backup_module_blacklists: "Blacklists"
+backup_module_blacklists: "Listas Negras"
 backup_module_captcha: "Captcha"
-backup_module_connections: "Connections"
-backup_module_disabling: "Disabled Commands"
-backup_module_filters: "Filters"
-backup_module_greetings: "Greetings"
-backup_module_locks: "Locks"
-backup_module_notes: "Notes"
-backup_module_pins: "Pin Settings"
-backup_module_reports: "Reports"
-backup_module_rules: "Rules"
-backup_module_warns: "Warnings"
+backup_module_connections: "Conexões"
+backup_module_disabling: "Comandos Desativados"
+backup_module_filters: "Filtros"
+backup_module_greetings: "Saudações"
+backup_module_locks: "Bloqueios"
+backup_module_notes: "Notas"
+backup_module_pins: "Configurações de Fixar"
+backup_module_reports: "Denúncias"
+backup_module_rules: "Regras"
+backup_module_warns: "Avisos"

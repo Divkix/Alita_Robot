@@ -1253,7 +1253,7 @@ misc_user_username: "Nama pengguna: @%s"
 misc_user_link: "Tautan pengguna: %s"
 misc_owner_tag: "Dia adalah pemilik saya!"
 misc_dev_user_tag: "Dia adalah salah satu pengguna dev saya!"
-misc_pinging: "<code>Pinging</code>"
+misc_pinging: "<code>Menguji koneksi...</code>"
 misc_pinged_in: Ping dalam %d ms
 misc_ping_response: "🏓 Pong! <b>%dms</b>"
 misc_thread_id: "ID Thread: <code>%d</code>"
@@ -1696,8 +1696,8 @@ help_pm_intro: |
 
 # Captcha module strings
 captcha_settings_header: "<b>Pengaturan Captcha:</b>"
-captcha_settings_status: "Status: <code>%s</code>"
-captcha_settings_mode: "Mode: <code>%s</code>"
+captcha_settings_status: "Keadaan: <code>%s</code>"
+captcha_settings_mode: "Modus: <code>%s</code>"
 captcha_settings_timeout: "Batas Waktu: <code>%d menit</code>"
 captcha_settings_failure_action: "Tindakan Kegagalan: <code>%s</code>"
 captcha_settings_max_attempts: "Maks Percobaan: <code>%d</code>"
@@ -1738,9 +1738,9 @@ message_type_text: "teks"
 message_type_sticker: "stiker"
 message_type_document: "dokumen"
 message_type_photo: "foto"
-message_type_audio: "audio"
+message_type_audio: "berkas audio"
 message_type_voice: "suara"
-message_type_video: "video"
+message_type_video: "berkas video"
 message_type_video_note: "catatan video"
 message_type_unknown: "tidak diketahui"
 
@@ -2299,22 +2299,21 @@ common_settings_save_failed: "Gagal menyimpan pengaturan. Silakan coba lagi nant
 devs_chatlist_error: "Gagal membuat daftar obrolan. Silakan coba lagi."
 
 # Reactions module strings
-# TODO: Translate
 reactions_help_msg: |
-  <b>🎭 Auto-Reactions</b>
+  <b>🎭 Reaksi Otomatis</b>
 
-  Automatically react to messages with specific keywords!
+  Secara otomatis bereaksi terhadap pesan dengan emoji tertentu!
 
-  Setup automated emoji reactions that trigger when users send specific words.
+  Siapkan reaksi emoji otomatis yang dipicu ketika pengguna mengirim kata-kata tertentu.
 
-  <b>Admin Commands:</b>
-  • /addreaction <keyword> <emoji> - Add an auto-reaction
-  • /removereaction <keyword> - Remove a reaction
-  • /reactions - List configured reactions
-  • /resetreactions - Clear all reactions
+  <b>Perintah Admin:</b>
+  • /addreaction <kata_kunci> <emoji> - Tambahkan reaksi otomatis
+  • /removereaction <kata_kunci> - Hapus reaksi
+  • /reactions - Daftar reaksi yang dikonfigurasi
+  • /resetreactions - Hapus semua reaksi
 
-  <b>Example:</b>
-  • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
+  <b>Contoh:</b>
+  • /addreaction halo 👋 - Bot bereaksi dengan 👋 ketika seseorang mengatakan "halo"
 
 reactions_add_usage: "Penggunaan: /addreaction <kata_kunci> <emoji>"
 reactions_invalid_emoji: "Silakan berikan emoji yang valid."
@@ -2331,107 +2330,107 @@ reactions_reset_success: "Semua reaksi untuk chat ini telah direset."
 
 # Backup/Restore module strings
 backup_help_msg: |
-  <b>📦 Backup & Restore</b>
+  <b>📦 Cadangkan & Pulihkan</b>
 
-  Backup and restore your group settings using these commands:
+  Cadangkan dan pulihkan pengaturan grup Anda menggunakan perintah ini:
 
-  <b>User Commands:</b>
-  • /export - Export all group settings to a JSON file
-  • /export notes filters rules - Export specific modules only
+  <b>Perintah Pengguna:</b>
+  • /export - Ekspor semua pengaturan grup ke file JSON
+  • /export notes filters rules - Ekspor modul tertentu saja
 
-  <b>Creator Commands:</b>
-  • /import - Reply to a backup file to restore settings
-  • /import notes filters - Import only specific modules
-  • /reset - Reset all settings to default
-  • /reset warnings locks - Reset specific modules only
+  <b>Perintah Pembuat Grup:</b>
+  • /import - Balas ke file cadangan untuk memulihkan pengaturan
+  • /import notes filters - Impor modul tertentu saja
+  • /reset - Atur ulang semua pengaturan ke default
+  • /reset warnings locks - Atur ulang modul tertentu saja
 
-  <b>Rate Limits:</b>
-  • Export: 1 per 5 minutes
-  • Import: 1 per 10 minutes
-  • Reset: 1 per hour
+  <b>Batas Rate:</b>
+  • Ekspor: 1 per 5 menit
+  • Impor: 1 per 10 menit
+  • Atur Ulang: 1 per jam
 
-backup_export_button: "📤 Export"
-backup_import_button: "📥 Import"
+backup_export_button: "📤 Ekspor"
+backup_import_button: "📥 Impor"
 backup_export_success: |
-  <b>✅ Export Successful!</b>
+  <b>✅ Ekspor Berhasil!</b>
 
-  <b>Chat:</b> %s
-  <b>Modules exported:</b> %d
-  <b>Exported at:</b> %s
+  <b>Obrolan:</b> %s
+  <b>Modul diekspor:</b> %d
+  <b>Diekspor pada:</b> %s
 
-  <b>Modules:</b>
+  <b>Modul:</b>
   %s
 
-backup_export_success_text: "✅ Successfully exported %d modules. Download the backup file above."
-backup_export_rate_limited: "⏳ Please wait <b>%s</b> before exporting again."
-backup_export_no_modules: "❌ No exportable modules found for this chat."
-backup_export_failed: "❌ Failed to export settings. Please try again later."
+backup_export_success_text: "✅ Berhasil mengekspor %d modul. Unduh file cadangan di atas."
+backup_export_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengekspor lagi."
+backup_export_no_modules: "❌ Tidak ada modul yang dapat diekspor untuk obrolan ini."
+backup_export_failed: "❌ Gagal mengekspor pengaturan. Silakan coba lagi nanti."
 
 backup_import_success: |
-  <b>✅ Import Successful!</b>
+  <b>✅ Impor Berhasil!</b>
 
-  <b>Modules imported:</b> %d
+  <b>Modul diimpor:</b> %d
 
-  <b>Modules:</b>
+  <b>Modul:</b>
   %s
 
-backup_import_rate_limited: "⏳ Please wait <b>%s</b> before importing again."
-backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</code>."
-backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
-backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
-backup_import_download_failed: "❌ Failed to download backup file. Please try again."
-backup_import_version_mismatch: "⚠️ This backup was created with a different version. Some settings may not import correctly."
-backup_import_creator_only: "❌ Only the group creator can import settings."
+backup_import_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengimpor lagi."
+backup_import_no_reply: "❌ Silakan balas ke file cadangan dengan <code>/import</code>."
+backup_import_invalid_file: "❌ Format file cadangan tidak valid. Silakan kirim file cadangan JSON yang valid."
+backup_import_file_too_large: "❌ File cadangan terlalu besar. Ukuran maksimum adalah 10MB."
+backup_import_download_failed: "❌ Gagal mengunduh file cadangan. Silakan coba lagi."
+backup_import_version_mismatch: "⚠️ Cadangan ini dibuat dengan versi yang berbeda. Beberapa pengaturan mungkin tidak diimpor dengan benar."
+backup_import_creator_only: "❌ Hanya pembuat grup yang dapat mengimpor pengaturan."
 backup_import_confirm: |
-  <b>⚠️ Confirm Import</b>
+  <b>⚠️ Konfirmasi Impor</b>
 
-  You are about to import <b>%s modules</b>:
+  Anda akan mengimpor <b>%s modul</b>:
   %s
 
-  This will overwrite existing settings. Are you sure?
+  Ini akan menimpa pengaturan yang ada. Apakah Anda yakin?
 
-backup_import_expired: "❌ Import request has expired. Please start again with <code>/import</code>."
-backup_import_cancelled: "❌ Import cancelled."
-backup_import_failed: "❌ Import failed: %s"
+backup_import_expired: "❌ Permintaan impor telah kedaluwarsa. Silakan mulai lagi dengan <code>/import</code>."
+backup_import_cancelled: "❌ Impor dibatalkan."
+backup_import_failed: "❌ Impor gagal: %s"
 
 backup_reset_success: |
-  <b>✅ Reset Successful!</b>
+  <b>✅ Atur Ulang Berhasil!</b>
 
-  <b>Modules reset:</b> %d
+  <b>Modul diatur ulang:</b> %d
 
-  <b>Modules:</b>
+  <b>Modul:</b>
   %s
 
-backup_reset_rate_limited: "⏳ Please wait <b>%s</b> before resetting again."
-backup_reset_creator_only: "❌ Only the group creator can reset settings."
+backup_reset_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengatur ulang lagi."
+backup_reset_creator_only: "❌ Hanya pembuat grup yang dapat mengatur ulang pengaturan."
 backup_reset_confirm: |
-  <b>⚠️ Confirm Reset</b>
+  <b>⚠️ Konfirmasi Atur Ulang</b>
 
-  You are about to reset <b>%s modules</b>:
+  Anda akan mengatur ulang <b>%s modul</b>:
   %s
 
-  <b>This action cannot be undone!</b> Are you sure?
+  <b>Tindakan ini tidak dapat dibatalkan!</b> Apakah Anda yakin?
 
-backup_reset_expired: "❌ Reset request has expired. Please start again with <code>/reset</code>."
-backup_reset_cancelled: "❌ Reset cancelled."
-backup_reset_failed: "❌ Reset failed: %s"
+backup_reset_expired: "❌ Permintaan atur ulang telah kedaluwarsa. Silakan mulai lagi dengan <code>/reset</code>."
+backup_reset_cancelled: "❌ Atur ulang dibatalkan."
+backup_reset_failed: "❌ Atur ulang gagal: %s"
 
-button_confirm_import: "✅ Confirm Import"
-button_cancel_import: "❌ Cancel"
-button_confirm_reset: "⚠️ Yes, Reset All"
-button_cancel_reset: "❌ Cancel"
+button_confirm_import: "✅ Konfirmasi Impor"
+button_cancel_import: "❌ Batal"
+button_confirm_reset: "⚠️ Ya, Atur Ulang Semua"
+button_cancel_reset: "❌ Batal"
 
-backup_module_admin: "Admin Settings"
+backup_module_admin: "Pengaturan Admin"
 backup_module_antiflood: "Antiflood"
-backup_module_blacklists: "Blacklists"
+backup_module_blacklists: "Daftar Hitam"
 backup_module_captcha: "Captcha"
-backup_module_connections: "Connections"
-backup_module_disabling: "Disabled Commands"
-backup_module_filters: "Filters"
-backup_module_greetings: "Greetings"
-backup_module_locks: "Locks"
-backup_module_notes: "Notes"
-backup_module_pins: "Pin Settings"
-backup_module_reports: "Reports"
-backup_module_rules: "Rules"
-backup_module_warns: "Warnings"
+backup_module_connections: "Koneksi"
+backup_module_disabling: "Perintah yang Dinonaktifkan"
+backup_module_filters: "Filter"
+backup_module_greetings: "Sambutan"
+backup_module_locks: "Kunci"
+backup_module_notes: "Catatan"
+backup_module_pins: "Pengaturan Pin"
+backup_module_reports: "Laporan"
+backup_module_rules: "Aturan"
+backup_module_warns: "Peringatan"
