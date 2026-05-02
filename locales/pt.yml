@@ -2405,3 +2405,24 @@ backup_module_pins: "Configurações de Fixar"
 backup_module_reports: "Denúncias"
 backup_module_rules: "Regras"
 backup_module_warns: "Avisos"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Solicitação inválida."
+common_callback_message_unavailable: "Mensagem não está mais disponível."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Falha ao verificar o status do usuário."
+
+# Reactions module button strings
+reactions_button_add: "Adicionar Reação"
+reactions_button_remove: "Remover Reação"
+
+# Database default strings
+db_blacklist_default_reason: "Palavra na lista negra: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d segundos"
+duration_format_minutes_seconds: "%d minutos %d segundos"
+duration_format_minutes: "%d minutos"
+duration_format_hours_minutes: "%d horas %d minutos"
+duration_format_hours: "%d horas"

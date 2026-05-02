@@ -2065,3 +2065,24 @@ backup_module_pins: "पिन सेटिंग्स"
 backup_module_reports: "रिपोर्ट्स"
 backup_module_rules: "नियम"
 backup_module_warns: "चेतावनियां"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "अमान्य अनुरोध।"
+common_callback_message_unavailable: "संदेश अब उपलब्ध नहीं है।"
+
+# Admin module hardcoded strings
+admin_check_status_failed: "उपयोगकर्ता की स्थिति की जांच करने में विफल।"
+
+# Reactions module button strings
+reactions_button_add: "प्रतिक्रिया जोड़ें"
+reactions_button_remove: "प्रतिक्रिया हटाएं"
+
+# Database default strings
+db_blacklist_default_reason: "ब्लैकलिस्टेड शब्द: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d सेकंड"
+duration_format_minutes_seconds: "%d मिनट %d सेकंड"
+duration_format_minutes: "%d मिनट"
+duration_format_hours_minutes: "%d घंटे %d मिनट"
+duration_format_hours: "%d घंटे"

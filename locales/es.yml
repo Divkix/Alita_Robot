@@ -2446,3 +2446,24 @@ backup_no_data: "❌ No hay datos disponibles para exportar."
 backup_reset_button: "⚠️ Restablecer"
 backup_text_header: "📦 Copia de Seguridad y Restauración\n\nExporta o importa la configuración de tu grupo."
 backup_upload_prompt: "Por favor sube tu archivo de copia de seguridad o haz clic en Cancelar."
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Solicitud inválida."
+common_callback_message_unavailable: "Mensaje ya no disponible."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Error al verificar el estado del usuario."
+
+# Reactions module button strings
+reactions_button_add: "Añadir Reacción"
+reactions_button_remove: "Eliminar Reacción"
+
+# Database default strings
+db_blacklist_default_reason: "Palabra en lista negra: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d segundos"
+duration_format_minutes_seconds: "%d minutos %d segundos"
+duration_format_minutes: "%d minutos"
+duration_format_hours_minutes: "%d horas %d minutos"
+duration_format_hours: "%d horas"

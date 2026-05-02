@@ -2353,3 +2353,24 @@ backup_upload_prompt: "Veuillez télécharger votre fichier de sauvegarde ou cli
 backup_module_bans: "Bannissements et Restrictions"
 backup_module_purges: "Paramètres de Purge"
 backup_module_disabled: "Commandes Désactivées"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Demande invalide."
+common_callback_message_unavailable: "Message n'est plus disponible."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Échec de la vérification du statut de l'utilisateur."
+
+# Reactions module button strings
+reactions_button_add: "Ajouter Réaction"
+reactions_button_remove: "Supprimer Réaction"
+
+# Database default strings
+db_blacklist_default_reason: "Mot sur liste noire : '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d secondes"
+duration_format_minutes_seconds: "%d minutes %d secondes"
+duration_format_minutes: "%d minutes"
+duration_format_hours_minutes: "%d heures %d minutes"
+duration_format_hours: "%d heures"

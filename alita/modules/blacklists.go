@@ -501,7 +501,9 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if creatorAction == "" {
 		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 	var helpText string
@@ -511,7 +513,9 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		// Check if message is nil (may have been deleted)
 		if query.Message == nil {
 			log.Warn("[Blacklists] Cannot remove all blacklists: message was deleted")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Message no longer available."})
+			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			text, _ := tr.GetString("common_callback_message_unavailable")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
 		go func(chatId int64) {

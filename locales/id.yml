@@ -2434,3 +2434,24 @@ backup_module_pins: "Pengaturan Pin"
 backup_module_reports: "Laporan"
 backup_module_rules: "Aturan"
 backup_module_warns: "Peringatan"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Permintaan tidak valid."
+common_callback_message_unavailable: "Pesan tidak lagi tersedia."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Gagal memeriksa status pengguna."
+
+# Reactions module button strings
+reactions_button_add: "Tambah Reaksi"
+reactions_button_remove: "Hapus Reaksi"
+
+# Database default strings
+db_blacklist_default_reason: "Kata di daftar hitam: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d detik"
+duration_format_minutes_seconds: "%d menit %d detik"
+duration_format_minutes: "%d menit"
+duration_format_hours_minutes: "%d jam %d menit"
+duration_format_hours: "%d jam"

@@ -731,7 +731,8 @@ func (moduleStruct) adminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	userMember, err := chat.GetMember(b, user.Id, nil)
 	if err != nil {
 		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
-		_, _ = msg.Reply(b, "Failed to check user status.", helpers.Shtml())
+		errorText, _ := tr.GetString("admin_check_status_failed")
+		_, _ = msg.Reply(b, errorText, helpers.Shtml())
 		return ext.EndGroups
 	}
 	mem := userMember.MergeChatMember()

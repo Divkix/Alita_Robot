@@ -2449,3 +2449,24 @@ backup_module_pins: "Pin Settings"
 backup_module_reports: "Reports"
 backup_module_rules: "Rules"
 backup_module_warns: "Warnings"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Invalid request."
+common_callback_message_unavailable: "Message no longer available."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Failed to check user status."
+
+# Reactions module button strings
+reactions_button_add: "Add Reaction"
+reactions_button_remove: "Remove Reaction"
+
+# Database default strings
+db_blacklist_default_reason: "Blacklisted word: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d seconds"
+duration_format_minutes_seconds: "%d minutes %d seconds"
+duration_format_minutes: "%d minutes"
+duration_format_hours_minutes: "%d hours %d minutes"
+duration_format_hours: "%d hours"

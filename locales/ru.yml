@@ -2162,3 +2162,24 @@ backup_module_pins: "Настройки закрепления"
 backup_module_reports: "Отчёты"
 backup_module_rules: "Правила"
 backup_module_warns: "Предупреждения"
+
+# Callback validation strings (previously hardcoded)
+common_callback_invalid_request: "Неверный запрос."
+common_callback_message_unavailable: "Сообщение больше недоступно."
+
+# Admin module hardcoded strings
+admin_check_status_failed: "Не удалось проверить статус пользователя."
+
+# Reactions module button strings
+reactions_button_add: "Добавить Реакцию"
+reactions_button_remove: "Удалить Реакцию"
+
+# Database default strings
+db_blacklist_default_reason: "Слово в черном списке: '%s'"
+
+# Duration formatting strings
+duration_format_seconds: "%d секунд"
+duration_format_minutes_seconds: "%d минут %d секунд"
+duration_format_minutes: "%d минут"
+duration_format_hours_minutes: "%d часов %d минут"
+duration_format_hours: "%d часов"

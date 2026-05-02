@@ -114,6 +114,8 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	query := ctx.CallbackQuery
 	qmsg := query.Message
 
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+
 	chatIDRaw := ""
 	msgIDRaw := ""
 	if decoded, ok := decodeCallbackData(query.Data, "anon_admin"); ok {
@@ -135,26 +137,28 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if chatIDRaw == "" || msgIDRaw == "" {
 		log.Warnf("[BotUpdates] Invalid callback data format: %s", query.Data)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 	chatId, err := strconv.ParseInt(chatIDRaw, 10, 64)
 	if err != nil {
 		log.Warnf("[BotUpdates] Invalid callback chat ID: %s (%s)", query.Data, chatIDRaw)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
 	if err != nil {
 		log.Warnf("[BotUpdates] Invalid callback message ID: %s (%s)", query.Data, msgIDRaw)
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
 	// if non-admins try to press it
 	// using this func because it's the only one that can be called by taking chatId from callback query
 	if !chat_status.IsUserAdmin(b, chatId, query.From.Id) {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("bot_updates_need_admin")
 		_, err := query.Answer(b,
 			&gotgbot.AnswerCallbackQueryOpts{

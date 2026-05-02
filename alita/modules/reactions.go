@@ -77,12 +77,13 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			action = parts[1]
 		}
 	}
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	if action == "" {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	var helpText string
 	switch action {
 	case "add":
@@ -90,7 +91,8 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	case "remove":
 		helpText, _ = tr.GetString("reactions_remove_usage")
 	default:
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: "Invalid request."})
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
