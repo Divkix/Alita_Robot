@@ -262,19 +262,16 @@ func main() {
 		error_handling.SetOnErrorCallback(monitoring.GlobalRecordError)
 		tracing.SetOnProcessUpdateCallback(monitoring.GlobalRecordMessage)
 		statsCollector.Start()
-		defer statsCollector.Stop()
 	}
 
 	if config.AppConfig.EnablePerformanceMonitoring {
 		autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
 		autoRemediation.Start()
-		defer autoRemediation.Stop()
 	}
 
 	// Initialize activity monitoring for automatic group activity tracking
 	activityMonitor = monitoring.NewActivityMonitor()
 	activityMonitor.Start()
-	defer activityMonitor.Stop()
 
 	// Setup graceful shutdown
 	shutdownManager := shutdown.NewManager()
