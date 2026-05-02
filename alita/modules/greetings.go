@@ -1110,7 +1110,14 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
-	joinUserId, _ := strconv.ParseInt(joinUserIDRaw, 10, 64)
+	joinUserId, err := strconv.ParseInt(joinUserIDRaw, 10, 64)
+	if err != nil {
+		log.Errorf("[Greetings] Failed to parse join user ID '%s': %v", joinUserIDRaw, err)
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 	joinUser, err := b.GetChat(joinUserId, nil)
 	if err != nil {
 		log.Error(err)
