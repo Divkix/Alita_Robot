@@ -307,7 +307,6 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoConfig(t)
 
 	t.Run("zero config gets defaults", func(t *testing.T) {
@@ -429,7 +428,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 
 	t.Run("ClearCacheOnStartup defaults to true when not set", func(t *testing.T) {
-		t.Parallel()
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
 
 		cfg := &Config{}
