@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	log "github.com/sirupsen/logrus"
@@ -257,10 +256,8 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			return ext.EndGroups
 		}
 
-		go func() {
-			defer error_handling.RecoverFromPanic("ConnectId", "helpers")
-			db.ConnectId(user.Id, cochat.Id)
-		}()
+		// Synchronous DB write before user confirmation - fixes issue #694
+		db.ConnectId(user.Id, cochat.Id)
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
