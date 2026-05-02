@@ -441,7 +441,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 
 	t.Run("ClearCacheOnStartup respects explicit false", func(t *testing.T) {
-		t.Parallel()
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "false")
 
 		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "false"}.Bool()}
@@ -453,7 +452,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 
 	t.Run("ClearCacheOnStartup respects explicit true", func(t *testing.T) {
-		t.Parallel()
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "true")
 
 		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "true"}.Bool()}
