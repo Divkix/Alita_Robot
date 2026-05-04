@@ -5,6 +5,7 @@ import (
 	"html"
 	"math/rand"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -23,6 +24,23 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
+
+// IsCliModeActive returns true if the program is running with CLI flags
+// that should skip database initialization (--version, --health, -v).
+// This allows init() functions to return early without requiring DB connection.
+func IsCliModeActive() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-version", "-v", "--health", "-health":
+			return true
+		}
+	}
+	return false
+}
 
 // constants
 const (

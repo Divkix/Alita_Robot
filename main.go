@@ -63,7 +63,7 @@ func main() {
 	}
 
 	// Version check - print version and exit without requiring services
-	// Note: This only works if BOT_TOKEN is not set (otherwise db/cache init runs before main)
+	// Note: init() functions in config/db now detect CLI mode and skip heavy initialization
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
 		// Config always has BotVersion set (it's a hardcoded default in LoadConfig)
 		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check

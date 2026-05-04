@@ -21,6 +21,23 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
+// isCliModeActive returns true if the program is running with CLI flags
+// that should skip database initialization (--version, --health, -v).
+// This allows init() functions to return early without requiring DB connection.
+func isCliModeActive() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-version", "-v", "--health", "-health":
+			return true
+		}
+	}
+	return false
+}
+
 // Message type constants - maintain compatibility with existing code
 const (
 	// TEXT types of senders
@@ -609,6 +626,12 @@ var (
 
 // Initialize database connection and auto-migrate
 func init() {
+	// Skip DB initialization when running in CLI mode (--version, --health)
+	// This allows these flags to work without requiring database connection.
+	if isCliModeActive() {
+		return
+	}
+
 	// Skip DB initialization when no database URL is configured (e.g., unit tests without DB)
 	if os.Getenv("DATABASE_URL") == "" {
 		return
