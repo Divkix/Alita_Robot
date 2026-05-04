@@ -206,7 +206,8 @@ func main() {
 	// Initialize async processing system
 	if config.AppConfig.EnableAsyncProcessing {
 		async.InitializeAsyncProcessor()
-		defer async.StopAsyncProcessor()
+		// Note: defer async.StopAsyncProcessor() removed - shutdown happens via os.Exit()
+		// The stop is now handled by the shutdown manager registered below
 	}
 
 	// Create dispatcher with limited max routines and proper error recovery
@@ -275,6 +276,15 @@ func main() {
 
 	// Setup graceful shutdown
 	shutdownManager := shutdown.NewManager()
+
+	// Register async processor shutdown handler (if enabled)
+	if config.AppConfig.EnableAsyncProcessing {
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping async processor...")
+			async.StopAsyncProcessor()
+			return nil
+		})
+	}
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")
