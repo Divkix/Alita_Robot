@@ -12,6 +12,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// isCliModeActive returns true if the program is running with CLI flags
+// that should skip database initialization (--version, --health, -v).
+// This allows init() functions to return early without requiring DB connection.
+func isCliModeActive() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-version", "-v", "--health", "-health":
+			return true
+		}
+	}
+	return false
+}
+
 // getRedisAddress returns the Redis address from REDIS_ADDRESS or parses it from REDIS_URL.
 // REDIS_URL format: redis://user:password@host:port (standard Redis URL format)
 // Returns: host:port
@@ -537,6 +554,13 @@ func (cfg *Config) setDefaults() {
 // from environment variables, validates it, and sets up global variables for
 // backward compatibility. This function is called automatically at package import.
 func init() {
+	// Skip config validation when running in CLI mode (--version, --health)
+	// This allows these flags to work without requiring valid configuration.
+	if isCliModeActive() {
+		AppConfig = &Config{}
+		return
+	}
+
 	// set logger config
 	log.SetLevel(log.DebugLevel)
 	// SetReportCaller will be configured after debug mode is determined
