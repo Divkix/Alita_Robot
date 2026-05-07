@@ -698,6 +698,12 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 		}
 	}
 
+	// Convert rune offsets to byte offsets for compatibility with FindAllStringSubmatchIndex
+	for i := range blocks {
+		blocks[i].start = len(string(runes[:blocks[i].start]))
+		blocks[i].end = len(string(runes[:blocks[i].end]))
+	}
+
 	return blocks
 }
 
