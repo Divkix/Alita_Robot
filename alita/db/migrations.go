@@ -452,24 +452,59 @@ EXCEPTION
 END $$;`, typeName, enumValues)
 	})
 
-	// Make ALTER TABLE ADD CONSTRAINT idempotent
-	// Wrap in DO block with exception handling
-	// Use WHEN OTHERS to catch all error types (duplicate_object, index already associated, etc.)
+	// Make ALTER TABLE ADD CONSTRAINT idempotent — wrap in DO block.
+	// Skips ALTER TABLE statements already inside dollar-quoted blocks
+	// (e.g., hand-written DO $$ blocks in migration files) to avoid
+	// creating nested DO blocks that PostgreSQL cannot parse.
 	addConstraintPattern := regexp.MustCompile(`(?i)alter\s+table\s+(?:only\s+)?(["']?[^"'\s]+["']?)\s+add\s+constraint\s+(["']?[^"'\s]+["']?)\s+(.+?);`)
-	cleaned = addConstraintPattern.ReplaceAllStringFunc(cleaned, func(match string) string {
-		matches := addConstraintPattern.FindStringSubmatch(match)
-		if len(matches) < 4 {
-			return match
-		}
-		tableName := matches[1]
-		constraintName := matches[2]
-		constraintDef := strings.TrimSuffix(matches[3], ";")
-		return fmt.Sprintf(`DO $$ BEGIN
+
+	// Find dollar-quote block boundaries so we can skip matches inside them.
+	dollarBlocks := findDollarQuoteBlocks(cleaned)
+
+	allMatches := addConstraintPattern.FindAllStringSubmatchIndex(cleaned, -1)
+	if len(allMatches) > 0 {
+		var result strings.Builder
+		lastEnd := 0
+		for _, matchIdx := range allMatches {
+			matchStart := matchIdx[0]
+			matchEnd := matchIdx[1]
+
+			// Check if this match falls inside any dollar-quoted block.
+			insideBlock := false
+			for _, block := range dollarBlocks {
+				if matchStart >= block.start && matchEnd <= block.end {
+					insideBlock = true
+					break
+				}
+			}
+
+			// Copy text before this match.
+			result.WriteString(cleaned[lastEnd:matchStart])
+
+			if insideBlock {
+				// Already inside a DO/dollar-quoted block — leave unchanged.
+				result.WriteString(cleaned[matchStart:matchEnd])
+			} else {
+				// Wrap in a new DO block for idempotency.
+				submatches := addConstraintPattern.FindStringSubmatch(cleaned[matchStart:matchEnd])
+				if len(submatches) >= 4 {
+					tableName := submatches[1]
+					constraintName := submatches[2]
+					constraintDef := strings.TrimSuffix(submatches[3], ";")
+					fmt.Fprintf(&result, `DO $$ BEGIN
     ALTER TABLE %s ADD CONSTRAINT %s %s;
 EXCEPTION
     WHEN OTHERS THEN null;
 END $$;`, tableName, constraintName, constraintDef)
-	})
+				} else {
+					result.WriteString(cleaned[matchStart:matchEnd])
+				}
+			}
+			lastEnd = matchEnd
+		}
+		result.WriteString(cleaned[lastEnd:])
+		cleaned = result.String()
+	}
 
 	log.Debugf("[Migrations] SQL cleaning: Applied idempotency transformations")
 
@@ -546,6 +581,124 @@ END $$;`, tableName, constraintName, constraintDef)
 	}
 
 	return strings.Join(nonEmptyLines, "\n")
+}
+
+// dqBlock represents a dollar-quoted block boundary in a SQL string.
+type dqBlock struct {
+	start int // byte offset of opening $tag$
+	end   int // byte offset of closing $tag$ (inclusive of closing $)
+}
+
+// findDollarQuoteBlocks finds all dollar-quoted block boundaries in the given SQL.
+// It handles single quotes, double quotes, line comments, and block comments to
+// avoid false positives inside string literals or comments.
+//nolint:gocyclo // State machine parser with many states - complexity is inherent
+func findDollarQuoteBlocks(sql string) []dqBlock {
+	var blocks []dqBlock
+	runes := []rune(sql)
+	length := len(runes)
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	inDollarQuote := false
+	inLineComment := false
+	inBlockComment := false
+	dollarQuoteTag := ""
+	dollarQuoteStart := -1
+
+	for i := 0; i < length; i++ {
+		char := runes[i]
+		nextChar := rune(0)
+		if i+1 < length {
+			nextChar = runes[i+1]
+		}
+
+		// Handle line comments
+		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inBlockComment {
+			if char == '-' && nextChar == '-' {
+				inLineComment = true
+				continue
+			}
+		}
+
+		if inLineComment {
+			if char == '\n' {
+				inLineComment = false
+			}
+			continue
+		}
+
+		// Handle block comments
+		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inLineComment {
+			if char == '/' && nextChar == '*' {
+				inBlockComment = true
+				i++ // skip the '*'
+				continue
+			}
+		}
+
+		if inBlockComment {
+			if char == '*' && nextChar == '/' {
+				inBlockComment = false
+				i++ // skip the '/'
+			}
+			continue
+		}
+
+		// Handle dollar quotes
+		if !inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment {
+			if char == '$' {
+				tagEnd := i + 1
+				for tagEnd < length && runes[tagEnd] != '$' && runes[tagEnd] != ' ' && runes[tagEnd] != '\n' && runes[tagEnd] != ';' {
+					tagEnd++
+				}
+
+				if tagEnd < length && runes[tagEnd] == '$' {
+					tag := string(runes[i : tagEnd+1])
+					if inDollarQuote {
+						if tag == dollarQuoteTag {
+							blocks = append(blocks, dqBlock{
+								start: dollarQuoteStart,
+								end:   tagEnd,
+							})
+							inDollarQuote = false
+							dollarQuoteTag = ""
+						}
+					} else {
+						inDollarQuote = true
+						dollarQuoteTag = tag
+						dollarQuoteStart = i
+					}
+					i = tagEnd
+					continue
+				}
+			}
+		}
+
+		// Handle single quotes
+		if !inDoubleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
+			if char == '\'' {
+				if i+1 < length && runes[i+1] == '\'' {
+					i++ // skip escaped quote
+				} else {
+					inSingleQuote = !inSingleQuote
+				}
+			}
+		}
+
+		// Handle double quotes
+		if !inSingleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
+			if char == '"' {
+				if i+1 < length && runes[i+1] == '"' {
+					i++ // skip escaped quote
+				} else {
+					inDoubleQuote = !inDoubleQuote
+				}
+			}
+		}
+	}
+
+	return blocks
 }
 
 // logMigrationStatus logs the current migration status
