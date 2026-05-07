@@ -2,6 +2,7 @@
 title: Help Commands
 description: Complete guide to Help module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Help Commands
 
@@ -70,4 +71,3 @@ as a deep link:
 | `rules_` | `start=rules_-1001234` | Shows the group's rules |
 | `notes_` | `start=notes_-1001234` | Lists all notes in the group (admin-only notes hidden from non-admins) |
 | `note_` | `start=note_-1001234_welcome` | Shows a specific note (respects admin-only flag) |
-

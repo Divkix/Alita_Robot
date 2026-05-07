@@ -291,6 +291,11 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 	refDir := filepath.Join(outputPath, "api-reference")
 	refFile := filepath.Join(refDir, "environment.md")
 
+	if skipIfManuallyMaintained(refFile) {
+		log.Infof("Skipped: api-reference/environment.md (manually maintained)")
+		return nil
+	}
+
 	log.Debug("Generating environment reference")
 
 	var content strings.Builder
@@ -452,6 +457,11 @@ func generateEnvReference(envVars []EnvVar, outputPath string) error {
 func generateSchemaReference(tables []DBTable, outputPath string) error {
 	refDir := filepath.Join(outputPath, "api-reference")
 	refFile := filepath.Join(refDir, "database-schema.md")
+
+	if skipIfManuallyMaintained(refFile) {
+		log.Infof("Skipped: api-reference/database-schema.md (manually maintained)")
+		return nil
+	}
 
 	log.Debug("Generating database schema reference")
 

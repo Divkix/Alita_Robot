@@ -111,6 +111,7 @@ check-docs:
 	@echo "🔍 Checking docs generation for drift..."
 	@TMP=$$(mktemp -d /tmp/alita-docs-check.XXXXXX); \
 	ROOT=$$(pwd); \
+	cp -R docs/src/content/docs/. "$$TMP"/; \
 	echo "  Generating docs to temp directory..."; \
 	cd scripts/generate_docs && $(GO_CMD) run . -output "$$TMP"; \
 	cd "$$ROOT"; \

@@ -2,6 +2,7 @@
 title: Devs Commands
 description: Complete guide to Devs module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Devs Commands
 
@@ -70,4 +71,3 @@ For detailed command usage, refer to the commands table above.
 | `/teamusers` | **Any team member** — owner, dev, or sudo |
 
 Unauthorized users are silently ignored (`ext.ContinueGroups`). These commands are not visible in the public help menu.
-

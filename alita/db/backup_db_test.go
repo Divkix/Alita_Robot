@@ -43,52 +43,52 @@ func TestBackupTypes(t *testing.T) {
 			{
 				name: "missing version",
 				backup: &BackupFormat{
-					BotName:    "AlitaRobot",
-					ChatID:     12345,
-					Modules:    []string{"notes"},
-					Data:       make(map[string]interface{}),
+					BotName: "AlitaRobot",
+					ChatID:  12345,
+					Modules: []string{"notes"},
+					Data:    make(map[string]interface{}),
 				},
 				wantErr: true,
 			},
 			{
 				name: "missing bot name",
 				backup: &BackupFormat{
-					Version:    "1.0",
-					ChatID:     12345,
-					Modules:    []string{"notes"},
-					Data:       make(map[string]interface{}),
+					Version: "1.0",
+					ChatID:  12345,
+					Modules: []string{"notes"},
+					Data:    make(map[string]interface{}),
 				},
 				wantErr: true,
 			},
 			{
 				name: "missing chat ID",
 				backup: &BackupFormat{
-					Version:    "1.0",
-					BotName:    "AlitaRobot",
-					Modules:    []string{"notes"},
-					Data:       make(map[string]interface{}),
+					Version: "1.0",
+					BotName: "AlitaRobot",
+					Modules: []string{"notes"},
+					Data:    make(map[string]interface{}),
 				},
 				wantErr: true,
 			},
 			{
 				name: "empty modules",
 				backup: &BackupFormat{
-					Version:    "1.0",
-					BotName:    "AlitaRobot",
-					ChatID:     12345,
-					Modules:    []string{},
-					Data:       make(map[string]interface{}),
+					Version: "1.0",
+					BotName: "AlitaRobot",
+					ChatID:  12345,
+					Modules: []string{},
+					Data:    make(map[string]interface{}),
 				},
 				wantErr: true,
 			},
 			{
 				name: "nil data",
 				backup: &BackupFormat{
-					Version:    "1.0",
-					BotName:    "AlitaRobot",
-					ChatID:     12345,
-					Modules:    []string{"notes"},
-					Data:       nil,
+					Version: "1.0",
+					BotName: "AlitaRobot",
+					ChatID:  12345,
+					Modules: []string{"notes"},
+					Data:    nil,
 				},
 				wantErr: true,
 			},
@@ -193,6 +193,26 @@ func TestExportModuleData(t *testing.T) {
 		err := ClearModuleData(12345, "invalid_module")
 		assert.Error(t, err)
 	})
+}
+
+func TestClearModuleDataConnectionsDisablesAllowConnect(t *testing.T) {
+	t.Parallel()
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	require.NoError(t, EnsureChatInDb(chatID, "test_backup_connections_clear"))
+	t.Cleanup(func() {
+		DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{})
+		DB.Where("chat_id = ?", chatID).Delete(&Chat{})
+	})
+
+	_ = GetChatConnectionSetting(chatID)
+	ToggleAllowConnect(chatID, true)
+	require.True(t, GetChatConnectionSetting(chatID).AllowConnect)
+
+	require.NoError(t, ClearModuleData(chatID, BackupModuleConnections))
+
+	assert.False(t, GetChatConnectionSetting(chatID).AllowConnect)
 }
 
 func TestExportChatData(t *testing.T) {

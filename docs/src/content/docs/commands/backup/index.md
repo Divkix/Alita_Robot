@@ -2,6 +2,7 @@
 title: Backup Commands
 description: Complete guide to Backup module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Backup Commands
 
@@ -78,4 +79,3 @@ Both `/import` and `/reset` require explicit confirmation before executing:
 When importing a backup file, the bot compares the backup's version against the
 current bot version. If they differ, a **version mismatch warning** is prepended
 to the confirmation message. The import can still proceed after confirmation.
-

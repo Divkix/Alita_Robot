@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/eko/gocache/lib/v4/store"
@@ -498,11 +499,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		// Clean up any pending captcha attempts
 		go func(chatID int64) {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("panic", r).Error("Panic in captcha disable cleanup goroutine")
-				}
-			}()
+			defer error_handling.RecoverFromPanic("CaptchaDisableCleanup", "captcha")
 
 			// Add timeout context for cleanup operation
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -512,6 +509,8 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			done := make(chan struct{})
 			go func() {
 				defer close(done)
+				defer error_handling.RecoverFromPanic("CaptchaDisableDeleteAttempts", "captcha")
+
 				if err := db.DeleteAllCaptchaAttempts(chatID); err != nil {
 					log.Errorf("Failed to delete captcha attempts for chat %d: %v", chatID, err)
 				} else {
@@ -1858,11 +1857,16 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 			select {
 			case <-ticker.C:
 				func() {
+					defer error_handling.RecoverFromPanic("CaptchaCleanup", "captcha")
+
 					ctx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
 					defer cancel()
 
 					done := make(chan error, 1)
 					go func() {
+						defer close(done)
+						defer error_handling.RecoverFromPanic("CaptchaCleanupExpiredAttempts", "captcha")
+
 						// Get expired attempts with message IDs before cleanup
 						attempts, err := db.GetExpiredCaptchaAttempts()
 						if err != nil {
@@ -1950,68 +1954,74 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			if captchaBotRef == nil {
-				continue
-			}
+			func() {
+				defer error_handling.RecoverFromPanic("CaptchaUnmute", "captcha")
 
-			users, err := db.GetUsersToUnmute()
-			if err != nil {
-				log.Errorf("[CaptchaUnmute] Failed to get users to unmute: %v", err)
-				continue
-			}
-
-			if len(users) == 0 {
-				continue
-			}
-
-			log.Infof("[CaptchaUnmute] Processing %d users to unmute", len(users))
-
-			var unmuteIDs []uint
-			for _, user := range users {
-				// Unmute the user by granting standard member permissions (matching success unmute)
-				_, err := captchaBotRef.RestrictChatMember(user.ChatID, user.UserID, gotgbot.ChatPermissions{
-					CanSendMessages:       true,
-					CanSendAudios:         true,
-					CanSendDocuments:      true,
-					CanSendPhotos:         true,
-					CanSendVideos:         true,
-					CanSendVideoNotes:     true,
-					CanSendVoiceNotes:     true,
-					CanSendPolls:          true,
-					CanSendOtherMessages:  true,
-					CanAddWebPagePreviews: true,
-					CanChangeInfo:         false, // Match success unmute permissions
-					CanInviteUsers:        true,
-					CanPinMessages:        false, // Match success unmute permissions
-					CanManageTopics:       false, // Match success unmute permissions
-				}, nil)
-				if err != nil {
-					if isPermanentUnmuteError(err) {
-						// Permanent error - user left, chat deleted, etc. - remove from DB
-						log.Infof("[CaptchaUnmute] User %d no longer in chat %d, removing from muted list: %v",
-							user.UserID, user.ChatID, err)
-						unmuteIDs = append(unmuteIDs, user.ID)
-					} else {
-						// Transient error - will retry on next tick
-						log.Warnf("[CaptchaUnmute] Failed to unmute user %d in chat %d (will retry): %v",
-							user.UserID, user.ChatID, err)
-						// Don't add to unmuteIDs - will retry on next tick
-					}
-				} else {
-					// Success - add to cleanup list
-					unmuteIDs = append(unmuteIDs, user.ID)
+				if captchaBotRef == nil {
+					return
 				}
-			}
 
-			// Clean up DB records
-			if len(unmuteIDs) > 0 {
+				users, err := db.GetUsersToUnmute()
+				if err != nil {
+					log.Errorf("[CaptchaUnmute] Failed to get users to unmute: %v", err)
+					return
+				}
+
+				if len(users) == 0 {
+					return
+				}
+
+				log.Infof("[CaptchaUnmute] Processing %d users to unmute", len(users))
+
+				var unmuteIDs []uint
+				for _, user := range users {
+					// Unmute the user by granting standard member permissions (matching success unmute)
+					_, err := captchaBotRef.RestrictChatMember(user.ChatID, user.UserID, gotgbot.ChatPermissions{
+						CanSendMessages:       true,
+						CanSendAudios:         true,
+						CanSendDocuments:      true,
+						CanSendPhotos:         true,
+						CanSendVideos:         true,
+						CanSendVideoNotes:     true,
+						CanSendVoiceNotes:     true,
+						CanSendPolls:          true,
+						CanSendOtherMessages:  true,
+						CanAddWebPagePreviews: true,
+						CanChangeInfo:         false, // Match success unmute permissions
+						CanInviteUsers:        true,
+						CanPinMessages:        false, // Match success unmute permissions
+						CanManageTopics:       false, // Match success unmute permissions
+					}, nil)
+					if err != nil {
+						if isPermanentUnmuteError(err) {
+							// Permanent error - user left, chat deleted, etc. - remove from DB
+							log.Infof("[CaptchaUnmute] User %d no longer in chat %d, removing from muted list: %v",
+								user.UserID, user.ChatID, err)
+							unmuteIDs = append(unmuteIDs, user.ID)
+						} else {
+							// Transient error - will retry on next tick
+							log.Warnf("[CaptchaUnmute] Failed to unmute user %d in chat %d (will retry): %v",
+								user.UserID, user.ChatID, err)
+							// Don't add to unmuteIDs - will retry on next tick
+						}
+					} else {
+						// Success - add to cleanup list
+						unmuteIDs = append(unmuteIDs, user.ID)
+					}
+				}
+
+				// Clean up DB records
+				if len(unmuteIDs) == 0 {
+					return
+				}
+
 				count, err := db.DeleteMutedUsersByIDs(unmuteIDs)
 				if err != nil {
 					log.Errorf("[CaptchaUnmute] Failed to delete muted user records: %v", err)
 				} else {
 					log.Infof("[CaptchaUnmute] Unmuted %d users", count)
 				}
-			}
+			}()
 		}
 	}()
 }

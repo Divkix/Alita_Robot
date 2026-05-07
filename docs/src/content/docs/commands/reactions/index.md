@@ -2,6 +2,7 @@
 title: Reactions Commands
 description: Complete guide to Reactions module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Reactions Commands
 
@@ -73,4 +74,3 @@ usage for each command using `reactions_help` prefixed callback data:
 |--------|--------|
 | "Add Reaction" | Shows `/addreaction` usage via `reactions_help.add` |
 | "Remove Reaction" | Shows `/removereaction` usage via `reactions_help.remove` |
-

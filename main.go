@@ -431,6 +431,12 @@ func main() {
 		}
 		log.Info("[Polling] Removed Webhook!")
 
+		// Load modules before polling starts so incoming updates always have handlers.
+		alita.LoadModules(dispatcher)
+
+		// list modules from modules dir
+		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
+
 		// start the bot in polling mode
 		err = updater.StartPolling(b,
 			&ext.PollingOpts{
@@ -445,12 +451,6 @@ func main() {
 		}
 		log.Info("[Polling] Started Polling...!")
 		config.AppConfig.WorkingMode = "polling"
-
-		// Load modules
-		alita.LoadModules(dispatcher)
-
-		// list modules from modules dir
-		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
 
 		// Set Commands of Bot
 		log.Info("Setting Custom Commands for PM...!")

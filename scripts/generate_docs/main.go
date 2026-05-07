@@ -202,7 +202,7 @@ func main() {
 	log.Infof("📦 Built %d modules with commands", len(modules))
 
 	// Generate documentation
-	outputPath := filepath.Join(projectRoot, config.DocsOutputPath)
+	outputPath := resolveOutputPath(projectRoot, config.DocsOutputPath)
 
 	log.Info("📝 Generating documentation...")
 
@@ -245,6 +245,13 @@ func main() {
 
 	log.Info("✅ Documentation generation complete!")
 	log.Infof("   Output: %s", outputPath)
+}
+
+func resolveOutputPath(projectRoot, outputPath string) string {
+	if filepath.IsAbs(outputPath) {
+		return outputPath
+	}
+	return filepath.Join(projectRoot, outputPath)
 }
 
 // InventoryModule represents a module in the canonical inventory

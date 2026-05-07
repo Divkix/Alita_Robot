@@ -9,6 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 var (
@@ -22,25 +24,39 @@ func init() {
 
 // antiSpamCleanupLoop periodically removes expired entries to prevent memory leaks.
 func antiSpamCleanupLoop() {
+	defer error_handling.RecoverFromPanic("antiSpamCleanupLoop", "antispam")
+
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		antiSpamMutex.Lock()
-		now := time.Now()
-		for key, info := range antiSpamMap {
-			allExpired := true
-			for _, level := range info.Levels {
-				if now.Sub(level.CurrTime) < level.Expiry*2 {
-					allExpired = false
-					break
-				}
-			}
-			if allExpired {
-				delete(antiSpamMap, key)
+		func() {
+			defer error_handling.RecoverFromPanic("antiSpamCleanupTick", "antispam")
+			cleanupExpiredAntiSpam(time.Now())
+		}()
+	}
+}
+
+func cleanupExpiredAntiSpam(now time.Time) {
+	antiSpamMutex.Lock()
+	defer antiSpamMutex.Unlock()
+
+	for key, info := range antiSpamMap {
+		if info == nil {
+			delete(antiSpamMap, key)
+			continue
+		}
+
+		allExpired := true
+		for _, level := range info.Levels {
+			if now.Sub(level.CurrTime) < level.Expiry*2 {
+				allExpired = false
+				break
 			}
 		}
-		antiSpamMutex.Unlock()
+		if allExpired {
+			delete(antiSpamMap, key)
+		}
 	}
 }
 

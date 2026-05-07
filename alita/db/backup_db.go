@@ -278,22 +278,27 @@ func exportConnectionsData(chatID int64) (*ConnectionsBackup, error) {
 
 func exportDisablingData(chatID int64) (*DisablingBackup, error) {
 	commands := GetChatDisabledCMDs(chatID)
-	if len(commands) == 0 {
-		return &DisablingBackup{}, nil
+	deleteCommands := ShouldDel(chatID)
+
+	backup := &DisablingBackup{}
+	if deleteCommands {
+		backup.ChatSettings = &DisableChatSettings{
+			ChatId:         chatID,
+			DeleteCommands: deleteCommands,
+		}
 	}
 
 	disableSettings := make([]DisableSettings, len(commands))
 	for i, cmd := range commands {
 		disableSettings[i] = DisableSettings{
-			ChatId:  chatID,
-			Command: cmd,
+			ChatId:   chatID,
+			Command:  cmd,
+			Disabled: true,
 		}
 	}
+	backup.Commands = disableSettings
 
-	return &DisablingBackup{
-		ChatSettings: &DisableChatSettings{ChatId: chatID},
-		Commands:     disableSettings,
-	}, nil
+	return backup, nil
 }
 
 func exportFiltersData(chatID int64) (*FiltersBackup, error) {
@@ -530,8 +535,12 @@ func importConnectionsData(chatID int64, data interface{}) error {
 			return fmt.Errorf("failed to parse connection settings: %w", err)
 		}
 
-		// Connection settings are imported via UpdateRecord
-		if err := UpdateRecord(&ConnectionChatSettings{}, ConnectionChatSettings{ChatId: chatID}, settings); err != nil {
+		GetChatConnectionSetting(chatID)
+		if err := UpdateRecordWithZeroValues(
+			&ConnectionChatSettings{},
+			ConnectionChatSettings{ChatId: chatID},
+			map[string]any{"allow_connect": settings.AllowConnect},
+		); err != nil {
 			return err
 		}
 	}
@@ -545,11 +554,21 @@ func importDisablingData(chatID int64, data interface{}) error {
 		return fmt.Errorf("invalid disabling data format")
 	}
 
-	// Clear existing
-	existing := GetChatDisabledCMDs(chatID)
-	for _, cmd := range existing {
-		// Re-enable by removing from disable list - note would need proper function
-		_ = cmd
+	if err := clearDisabledCommands(chatID); err != nil {
+		return err
+	}
+
+	deleteCommands := false
+	if settingData, ok := backupData["chat_settings"]; ok {
+		settingJSON, _ := json.Marshal(settingData)
+		var settings DisableChatSettings
+		if err := json.Unmarshal(settingJSON, &settings); err != nil {
+			return fmt.Errorf("failed to parse disable chat settings: %w", err)
+		}
+		deleteCommands = settings.DeleteCommands
+	}
+	if err := ToggleDel(chatID, deleteCommands); err != nil {
+		return fmt.Errorf("failed to restore disabled command deletion setting: %w", err)
 	}
 
 	if commandsData, ok := backupData["commands"]; ok {
@@ -559,10 +578,11 @@ func importDisablingData(chatID int64, data interface{}) error {
 			return fmt.Errorf("failed to parse disabled commands: %w", err)
 		}
 
-		// Disable commands - note: actual disable logic needs the proper function
 		for _, cmd := range commands {
 			if cmd.Command != "" {
-				_ = DisableSettings{ChatId: chatID, Command: cmd.Command}
+				if err := DisableCMD(chatID, cmd.Command); err != nil {
+					return fmt.Errorf("failed to restore disabled command %q: %w", cmd.Command, err)
+				}
 			}
 		}
 	}
@@ -790,15 +810,27 @@ func clearCaptchaData(chatID int64) error {
 
 func clearConnectionsData(chatID int64) error {
 	// Reset connection settings
-	return UpdateRecord(&ConnectionChatSettings{}, ConnectionChatSettings{ChatId: chatID}, ConnectionChatSettings{ChatId: chatID, AllowConnect: false})
+	GetChatConnectionSetting(chatID)
+	return UpdateRecordWithZeroValues(
+		&ConnectionChatSettings{},
+		ConnectionChatSettings{ChatId: chatID},
+		map[string]any{"allow_connect": false},
+	)
 }
 
 func clearDisablingData(chatID int64) error {
-	// Re-enable all commands - iterate through disabled and remove them
+	if err := clearDisabledCommands(chatID); err != nil {
+		return err
+	}
+	return ToggleDel(chatID, false)
+}
+
+func clearDisabledCommands(chatID int64) error {
 	existing := GetChatDisabledCMDs(chatID)
 	for _, cmd := range existing {
-		// Note: Would need an EnableCommand function
-		_ = cmd
+		if err := EnableCMD(chatID, cmd); err != nil {
+			return fmt.Errorf("failed to enable command %q: %w", cmd, err)
+		}
 	}
 	return nil
 }

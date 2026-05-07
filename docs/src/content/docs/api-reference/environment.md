@@ -2,6 +2,7 @@
 title: Environment Variables
 description: Configuration reference for all environment variables
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # ⚙️ Environment Variables
 
