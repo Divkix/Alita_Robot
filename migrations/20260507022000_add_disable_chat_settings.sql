@@ -7,13 +7,6 @@ CREATE TABLE IF NOT EXISTS disable_chat_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'chats') THEN
-        ALTER TABLE disable_chat_settings
-        ADD CONSTRAINT fk_disable_chat_settings_chat
-        FOREIGN KEY (chat_id) REFERENCES chats(chat_id) ON DELETE CASCADE ON UPDATE CASCADE;
-    END IF;
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END $$;
+ALTER TABLE disable_chat_settings
+ADD CONSTRAINT fk_disable_chat_settings_chat
+FOREIGN KEY (chat_id) REFERENCES chats(chat_id) ON DELETE CASCADE ON UPDATE CASCADE;
