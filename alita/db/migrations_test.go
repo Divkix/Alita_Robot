@@ -173,6 +173,40 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 			},
 		},
 		{
+			name: "ALTER TABLE ADD CONSTRAINT inside existing DO block is NOT double-wrapped",
+			input: `DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'chats') THEN
+        ALTER TABLE disable_chat_settings
+        ADD CONSTRAINT fk_disable_chat_settings_chat
+        FOREIGN KEY (chat_id) REFERENCES chats(chat_id) ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;`,
+			wantParts: []string{
+				"DO $$",
+				"ALTER TABLE disable_chat_settings",
+				"ADD CONSTRAINT fk_disable_chat_settings_chat",
+				"EXCEPTION",
+				"WHEN duplicate_object THEN NULL",
+			},
+			wantGone: []string{
+				"DO $$ BEGIN\n    ALTER TABLE disable_chat_settings ADD CONSTRAINT fk_disable_chat_settings_chat", // must not inject inner DO block
+			},
+		},
+		{
+			name:  "standalone ALTER TABLE ADD CONSTRAINT still gets DO-wrapped",
+			input: `ALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id);`,
+			wantParts: []string{
+				"DO $$ BEGIN",
+				"ALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id);",
+				"EXCEPTION",
+				"WHEN OTHERS THEN null;",
+				"END $$;",
+			},
+		},
+		{
 			name: "Mixed GRANT and CREATE TABLE - GRANTs removed, CREATE TABLE preserved",
 			input: `GRANT SELECT ON users TO anon;
 CREATE TABLE profiles (id SERIAL PRIMARY KEY);
