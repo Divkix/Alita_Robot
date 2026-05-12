@@ -246,6 +246,8 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
         }
         if typedResult, ok := res.value.(T); ok {
             result = typedResult
+        } else {
+            return result, fmt.Errorf("cache: type assertion failed for key %v", res.key)
         }
         return result, nil
     case <-ctx.Done():

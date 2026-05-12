@@ -91,7 +91,7 @@ Example log output:
 
 ```
 [Migrations] Starting automatic database migration...
-[Migrations] Found 27 migration files
+[Migrations] Found 28 migration files
 [Migrations] Applying 20250805200527_initial_migration.sql...
 [Migrations] Successfully applied 20250805200527_initial_migration.sql
 [Migrations] Migration complete - Applied: 3, Skipped: 24

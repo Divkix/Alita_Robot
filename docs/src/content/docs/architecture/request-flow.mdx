@@ -45,7 +45,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
    
    ```go
-    if os.Args[1] == "--health" || os.Args[1] == "-health" {
+    if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
        // HTTP GET to /health, exit with status code
        os.Exit(0)
    }
@@ -56,7 +56,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    If the `--version`, `-version`, or `-v` flag is passed, the process prints the bot version and exits immediately without initializing any services.
    
    ```go
-   if os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v" {
+    if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
        fmt.Println(config.AppConfig.BotVersion)
        os.Exit(0)
    }
