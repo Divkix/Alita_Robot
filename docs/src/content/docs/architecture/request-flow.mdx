@@ -45,7 +45,7 @@ When the bot starts (`main.go`), it performs these steps in order:
    If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
    
    ```go
-   if os.Args[1] == "--health" {
+    if os.Args[1] == "--health" || os.Args[1] == "-health" {
        // HTTP GET to /health, exit with status code
        os.Exit(0)
    }
@@ -144,10 +144,10 @@ When the bot starts (`main.go`), it performs these steps in order:
 
 10. **Initial Checks** <Badge text="Validation" variant="note" />
     
-    Validates configuration, initializes cache, and performs startup health checks.
+    Validates configuration and performs startup health checks.
     
     ```go
-    alita.InitialChecks(b)  // Validates config, initializes cache
+    alita.InitialChecks(b)  // Validates config and performs startup health checks
     ```
 
 11. **Async Processor** <Badge text="Optional" variant="default" />
@@ -168,17 +168,22 @@ When the bot starts (`main.go`), it performs these steps in order:
     dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
         Error:       errorHandler,
         MaxRoutines: config.AppConfig.DispatcherMaxRoutines,
+        Processor:   tracing.TracingProcessor{},
     })
     ```
 
 13. **Monitoring Systems** <Badge text="Observability" variant="success" />
     
-    Three monitoring subsystems start: background stats collection (every 30s), auto-remediation (GC triggers on memory thresholds), and activity monitoring (per-chat and per-user tracking).
+    Monitoring systems are started based on configuration.
     
     ```go
-    statsCollector = monitoring.NewBackgroundStatsCollector()
-    autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
-    activityMonitor = monitoring.NewActivityMonitor()
+    if config.AppConfig.EnableBackgroundStats {
+        statsCollector = monitoring.NewBackgroundStatsCollector()
+    }
+    if config.AppConfig.EnablePerformanceMonitoring {
+        autoRemediation = monitoring.NewAutoRemediationManager(statsCollector)
+    }
+    activityMonitor = monitoring.NewActivityMonitor() // Always starts
     ```
 
 14. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
@@ -189,6 +194,10 @@ When the bot starts (`main.go`), it performs these steps in order:
     httpServer := httpserver.New(config.AppConfig.HTTPPort)
     httpServer.RegisterHealth()
     httpServer.RegisterMetrics()
+    httpServer.RegisterDBMetrics()
+    if config.AppConfig.EnablePPROF {
+        httpServer.RegisterPPROF()
+    }
     
     if config.AppConfig.UseWebhooks {
         httpServer.RegisterWebhook(b, dispatcher, secret, domain)

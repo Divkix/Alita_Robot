@@ -27,7 +27,7 @@ This document explains the directory structure of Alita Robot, helping developer
     - migrations.go Migration runner
     - \*_db.go Per-feature database operations
   - i18n/ **Internationalization**
-    - i18n.go Locale embed directive
+    - main.go (root) Locale embed directive
     - loader.go Locale file loader
     - manager.go Translation manager
     - translator.go Per-request translator
@@ -60,7 +60,6 @@ This document explains the directory structure of Alita Robot, helping developer
     - helpers/ General helper functions and decorators
     - httpserver/ Unified HTTP server
     - keyword_matcher/ Keyword matching utilities
-    - media/ Media handling utilities
     - monitoring/ Activity and resource monitoring
     - ratelimit/ Rate limiting utilities
     - shutdown/ Graceful shutdown manager
@@ -157,7 +156,7 @@ Application entry point handling:
 Module loading and initialization:
 - `LoadModules()` - Loads all feature modules in order
 - `ListModules()` - Returns list of loaded modules
-- `InitialChecks()` - Validates configuration, initializes cache
+- `InitialChecks()` - Validates configuration and performs startup health checks
 - `ResourceMonitor()` - Background resource tracking
 
 ### `alita/config/config.go`

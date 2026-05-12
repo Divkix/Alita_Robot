@@ -98,24 +98,6 @@ Custom Telegram Bot API server URL. Used with local telegram-bot-api server.
 | **Required** | No |
 | **Default** | `https://api.telegram.org` |
 
-### `TELEGRAM_API_ID`
-
-Telegram API ID for local telegram-bot-api server. Obtain from https://my.telegram.org/apps.
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-
-### `TELEGRAM_API_HASH`
-
-Telegram API hash for local telegram-bot-api server. Obtain from https://my.telegram.org/apps.
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-
 ### `DEBUG`
 
 Enables debug logging and disables automatic performance monitoring.
@@ -125,14 +107,6 @@ Enables debug logging and disables automatic performance monitoring.
 | **Type** | `boolean` |
 | **Required** | No |
 | **Default** | `false` |
-
-### `WORKING_MODE`
-
-| Property | Value |
-|----------|-------|
-| **Type** | `string` |
-| **Required** | No |
-| **Default** | `worker` |
 
 ## 📂 Database configuration
 
@@ -538,7 +512,7 @@ Required when `USE_WEBHOOKS=true`.
 
 ### `CLOUDFLARE_TUNNEL_TOKEN`
 
-Token for Cloudflare Tunnel (cloudflared) when using tunnel mode for webhooks.
+Token for Cloudflare Tunnel (cloudflared) when using tunnel mode for webhooks. Only consumed by the `cloudflared` sidecar in Docker Compose; the bot application does not read this variable directly.
 
 | Property | Value |
 |----------|-------|
@@ -664,11 +638,8 @@ RESOURCE_MAX_GOROUTINES=# max goroutines (default: 1000)
 RESOURCE_MAX_MEMORY_MB=# max memory in MB (default: 500)
 RESPONSE_CACHE_TTL=# response cache TTL in seconds (default: 30)
 STATS_COLLECTION_WORKERS=# (default: 2)
-TELEGRAM_API_HASH=# for local telegram-bot-api server
-TELEGRAM_API_ID=# for local telegram-bot-api server
 USE_WEBHOOKS=# enable webhook mode (default: false)
 WEBHOOK_DOMAIN=# required if USE_WEBHOOKS=true
 WEBHOOK_PORT=# deprecated, use HTTP_PORT (default: 8081)
 WEBHOOK_SECRET=# required if USE_WEBHOOKS=true
-WORKING_MODE=# (default: worker)
 ```

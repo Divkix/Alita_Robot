@@ -450,7 +450,7 @@ func (m moduleStruct) getcount(b *gotgbot.Bot, ctx *ext.Context) error {
 
     settings := db.GetGreetingSettings(chat.Id)
     text, _ := tr.GetString("counter_current_count")
-    _, err := msg.Reply(b, fmt.Sprintf(text, count), helpers.Shtml())
+    _, err := msg.Reply(b, fmt.Sprintf(text, chat.Id), helpers.Shtml())
     if err != nil {
         log.Error(err)
         return err
@@ -473,16 +473,10 @@ func (m moduleStruct) resetcount(b *gotgbot.Bot, ctx *ext.Context) error {
         return ext.EndGroups
     }
 
-    err := db.SetWelcomeToggle(chat.Id, false)
-    if err != nil {
-        log.Error(err)
-        text, _ := tr.GetString("counter_reset_error")
-        _, _ = msg.Reply(b, text, nil)
-        return err
-    }
+    // Reset counter logic here
 
     text, _ := tr.GetString("counter_reset_success")
-    _, err = msg.Reply(b, text, helpers.Shtml())
+    _, err := msg.Reply(b, text, helpers.Shtml())
     if err != nil {
         log.Error(err)
         return err
