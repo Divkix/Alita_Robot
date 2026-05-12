@@ -91,7 +91,7 @@ Example log output:
 
 ```
 [Migrations] Starting automatic database migration...
-[Migrations] Found 27 migration files
+[Migrations] Found 28 migration files
 [Migrations] Applying 20250805200527_initial_migration.sql...
 [Migrations] Successfully applied 20250805200527_initial_migration.sql
 [Migrations] Migration complete - Applied: 3, Skipped: 24
@@ -242,15 +242,7 @@ chat_id BIGINT NOT NULL UNIQUE  -- Ensures one row per chat
 
 ### Exception: Join Tables
 
-The `chat_users` join table uses a composite primary key:
-
-```sql
-CREATE TABLE chat_users (
-    chat_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    PRIMARY KEY (chat_id, user_id)
-);
-```
+Chat membership is managed via the JSONB `users` column on the `chats` table, not a physical join table. The `ChatUser` GORM model exists in code for type safety only.
 
 ## Database Tables
 
@@ -260,7 +252,6 @@ Alita Robot creates the following tables:
 |-------|---------|
 | `users` | Telegram user data |
 | `chats` | Chat/group information |
-| `chat_users` | User-chat membership |
 | `warns_settings` | Warning configuration per chat |
 | `warns_users` | User warning records |
 | `greetings` | Welcome/goodbye messages |

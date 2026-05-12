@@ -241,10 +241,15 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 
     select {
     case res := <-resultChan:
-        if typedResult, ok := res.value.(T); ok {
-            return result, nil
+        if res.err != nil {
+            return result, res.err
         }
-        return result, res.err
+        if typedResult, ok := res.value.(T); ok {
+            result = typedResult
+        } else {
+            return result, fmt.Errorf("cache: type assertion failed for key %v", res.key)
+        }
+        return result, nil
     case <-ctx.Done():
         cacheGroup.Forget(key)  // Cleanup on timeout
         return result, fmt.Errorf("cache load timeout for key %s", key)
@@ -317,6 +322,7 @@ Admin lists are cached specially for performance:
 type AdminCache struct {
     ChatId   int64
     UserInfo []gotgbot.MergedChatMember
+    UserMap  map[int64]gotgbot.MergedChatMember // O(1) lookup map
     Cached   bool
 }
 
@@ -330,13 +336,20 @@ func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
 
     // Build cache
     var memberList []gotgbot.MergedChatMember
+    userMap := make(map[int64]gotgbot.MergedChatMember, len(admins))
     for _, admin := range admins {
-        memberList = append(memberList, admin.MergeChatMember())
+        merged := admin.MergeChatMember()
+        memberList = append(memberList, merged)
+        user := admin.GetUser()
+        if user.Id != 0 {
+            userMap[user.Id] = merged
+        }
     }
 
     adminCache := AdminCache{
         ChatId:   chatID,
         UserInfo: memberList,
+        UserMap:  userMap,
         Cached:   true,
     }
 

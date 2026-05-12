@@ -15,6 +15,7 @@ This page documents every registered message watcher with its exact handler grou
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
 | -2 | Antispam | (inline closure) | `message.All` | `EndGroups` | Rate-limits spamming users; passes through if not spamming |
+| -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
 | 4 | Antiflood | `checkFlood` | `message.All` | `EndGroups` on flood, `ContinueGroups` otherwise | Flood control; skips anon admins and media groups |

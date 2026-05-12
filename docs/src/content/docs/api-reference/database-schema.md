@@ -10,11 +10,11 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Total Tables**: 27
+- **Total Tables**: 26
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
 - **Migration Tool**: Custom SQL migration runner (`alita/db/migrations.go`)
-- **Migrations**: 27 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
+- **Migrations**: 28 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
 
 ## Design Patterns
 
@@ -105,7 +105,7 @@ Stores blacklisted words and their actions per chat.
 
 #### Indexes
 
-- `idx_blacklist_chat_word` (composite: `chat_id`, `word`)
+- `idx_blacklists_chat_id` (on `chat_id`)
 
 #### Foreign Keys
 
@@ -129,8 +129,8 @@ Tracks active captcha verification attempts for users.
 | `message_id` | `BIGINT` | YES | — | — |
 | `refresh_count` | `INTEGER` | NO | `0` | — |
 | `expires_at` | `TIMESTAMP` | NO | — | CHECK (`expires_at > created_at`) |
-| `created_at` | `TIMESTAMP` | NO | `CURRENT_TIMESTAMP` | — |
-| `updated_at` | `TIMESTAMP` | NO | `CURRENT_TIMESTAMP` | — |
+| `created_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
+| `updated_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
@@ -157,7 +157,7 @@ Tracks users who failed captcha with mute action, for automatic un-mute scheduli
 | `user_id` | `BIGINT` | NO | — | — |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `unmute_at` | `TIMESTAMPTZ` | NO | — | — |
-| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
 #### Indexes
 
@@ -186,12 +186,8 @@ Stores captcha configuration per chat.
 | `timeout` | `INTEGER` | NO | `2` | CHECK (`timeout BETWEEN 1 AND 10`) |
 | `failure_action` | `VARCHAR(10)` | NO | `'kick'` | CHECK (`failure_action IN ('kick','ban','mute')`) |
 | `max_attempts` | `INTEGER` | NO | `3` | CHECK (`max_attempts BETWEEN 1 AND 10`) |
-| `created_at` | `TIMESTAMP` | NO | `CURRENT_TIMESTAMP` | — |
-| `updated_at` | `TIMESTAMP` | NO | `CURRENT_TIMESTAMP` | — |
-
-#### Indexes
-
-- `uk_captcha_settings_chat_id` (UNIQUE)
+| `created_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
+| `updated_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
 
 #### Foreign Keys
 
@@ -217,27 +213,11 @@ Stores channel metadata and linked channel relationships.
 
 #### Indexes
 
-- `idx_channels_chat_update`
 - `idx_channels_username`
 
 #### Foreign Keys
 
 > **Note:** All foreign key constraints on this table have been dropped by migrations (`20260117104821_fix_invalid_channels_fk_constraint.sql`, `20260117120000_drop_channels_chat_fk.sql`). The `chat_id` column stores the channel's own Telegram ID for identification.
-
----
-
-### `chat_users`
-
-Junction table for many-to-many relationship between chats and users.
-
-> **Note:** The physical `chat_users` table has been dropped by migration (`20250814100001_drop_unused_chat_users_table.sql`). Chat membership is now managed exclusively via the JSONB `users` column on the `chats` table. The `ChatUser` GORM model exists in code for type safety only.
-
-#### Columns
-
-| Column | Type | Nullable | Default | Constraints |
-|--------|------|----------|---------|-------------|
-| `chat_id` | `BIGINT` | NO | — | PRIMARY KEY (composite) |
-| `user_id` | `BIGINT` | NO | — | PRIMARY KEY (composite) |
 
 ---
 
@@ -261,10 +241,6 @@ Main table storing chat/group information.
 
 #### Indexes
 
-- `idx_chats_chat_id_active`
-- `idx_chats_covering`
-- `idx_chats_users_gin`
-- `idx_chats_inactive`
 - `idx_chats_last_activity`
 - `idx_chats_activity_status`
 
@@ -285,11 +261,6 @@ User-to-chat connection state.
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
-#### Indexes
-
-- `idx_connection_user_id`
-- `idx_connection_chat_id`
-
 #### Foreign Keys
 
 - `user_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
@@ -307,12 +278,9 @@ Chat-level connection configuration.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `enabled` | `BOOLEAN` | NO | `true` | — |
 | `allow_connect` | `BOOLEAN` | NO | `true` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
-
-> **Note:** The `enabled` column was dropped by migration `20251231131415` as duplicate of `allow_connect`. It remains defined in the GORM model but may not exist in the physical database schema.
 
 #### Foreign Keys
 
@@ -331,12 +299,9 @@ Bot developers and sudo users.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `is_dev` | `BOOLEAN` | NO | `false` | — |
-| `dev` | `BOOLEAN` | NO | `false` | — |
 | `sudo` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
-
-> **Note:** The `dev` column was dropped by migration `20260420120000` (consolidated into `is_dev`). It remains defined in the GORM model for backward compatibility but may not exist in the physical database schema.
 
 #### Foreign Keys
 
@@ -356,7 +321,6 @@ Per-command disable state for chats.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
 | `command` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
 | `disabled` | `BOOLEAN` | NO | `true` | — |
-| `delete_commands` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
@@ -401,10 +365,6 @@ Custom keyword filters per chat.
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
-#### Indexes
-
-- `idx_filters_chat_keyword` (composite: `chat_id`, `keyword`)
-
 #### Foreign Keys
 
 - `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
@@ -440,10 +400,6 @@ Welcome and goodbye message settings per chat.
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
-#### Indexes
-
-- `idx_greetings_chat_enabled`
-
 #### Foreign Keys
 
 - `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
@@ -464,11 +420,6 @@ Locked permissions per chat.
 | `locked` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
-
-#### Indexes
-
-- `idx_locks_chat_lock_lookup`
-- `idx_locks_covering`
 
 #### Foreign Keys
 
@@ -499,10 +450,6 @@ Saved notes/tags per chat.
 | `no_notif` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
-
-#### Indexes
-
-- `idx_notes_chat_name` (composite: `chat_id`, `note_name`)
 
 #### Foreign Keys
 
@@ -545,10 +492,6 @@ Pinned message settings per chat.
 | `anti_channel_pin` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
-
-#### Indexes
-
-- `idx_pins_chat`
 
 #### Foreign Keys
 
@@ -637,7 +580,7 @@ Stores messages sent by users before completing captcha verification.
 | `file_id` | `TEXT` | YES | — | — |
 | `caption` | `TEXT` | YES | — | — |
 | `attempt_id` | `BIGINT` | NO | — | — |
-| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
 #### Indexes
 
@@ -662,14 +605,13 @@ Main table storing user information.
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `username` | `TEXT` | YES | — | INDEXED |
 | `name` | `TEXT` | YES | — | — |
-| `language` | `TEXT` | NO | `'en'` | — |
+| `language` | `TEXT` | YES | `'en'` | — |
 | `last_activity` | `TIMESTAMP` | YES | — | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
 #### Indexes
 
-- `idx_users_user_id_active`
 - `idx_users_covering`
 - `idx_users_last_activity`
 
@@ -716,7 +658,6 @@ User warnings per chat.
 
 - `idx_warns_users_user_id`
 - `idx_warns_users_chat_id`
-- `idx_warns_users_composite`
 
 #### Foreign Keys
 

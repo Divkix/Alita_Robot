@@ -415,7 +415,7 @@ bans_unban_unbanned_user: "Unbanned %s!"
 Locale strings often use Markdown formatting but the bot sends messages in HTML parse mode. Use `tgmd2html.MD2HTMLV2()` to convert before sending. Forgetting this conversion results in raw Markdown symbols appearing in user messages.
 :::
 
-## Complete Example: Greeting Counter Module
+## Complete Example: Welcome Toggle Module
 
 Here's a complete example showing all patterns together:
 
@@ -436,10 +436,10 @@ import (
     "github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
-var counterModule = moduleStruct{moduleName: "Counter"}
+var welcomeModule = moduleStruct{moduleName: "Welcome"}
 
-// getcount shows the current greeting count
-func (m moduleStruct) getcount(b *gotgbot.Bot, ctx *ext.Context) error {
+// welcomestatus shows whether welcome messages are enabled
+func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
     msg := ctx.EffectiveMessage
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -449,8 +449,18 @@ func (m moduleStruct) getcount(b *gotgbot.Bot, ctx *ext.Context) error {
     }
 
     settings := db.GetGreetingSettings(chat.Id)
-    text, _ := tr.GetString("counter_current_count")
-    _, err := msg.Reply(b, fmt.Sprintf(text, count), helpers.Shtml())
+    enabled := false
+    if settings.WelcomeSettings != nil {
+        enabled = settings.WelcomeSettings.ShouldWelcome
+    }
+
+    var text string
+    if enabled {
+        text, _ = tr.GetString("welcome_status_enabled")
+    } else {
+        text, _ = tr.GetString("welcome_status_disabled")
+    }
+    _, err := msg.Reply(b, text, helpers.Shtml())
     if err != nil {
         log.Error(err)
         return err
@@ -459,8 +469,8 @@ func (m moduleStruct) getcount(b *gotgbot.Bot, ctx *ext.Context) error {
     return ext.EndGroups
 }
 
-// resetcount resets the greeting count (admin only)
-func (m moduleStruct) resetcount(b *gotgbot.Bot, ctx *ext.Context) error {
+// togglewelcome enables or disables welcome messages (admin only)
+func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
     user := ctx.EffectiveSender.User
     msg := ctx.EffectiveMessage
@@ -473,16 +483,24 @@ func (m moduleStruct) resetcount(b *gotgbot.Bot, ctx *ext.Context) error {
         return ext.EndGroups
     }
 
-    err := db.SetWelcomeToggle(chat.Id, false)
-    if err != nil {
+    settings := db.GetGreetingSettings(chat.Id)
+    current := false
+    if settings.WelcomeSettings != nil {
+        current = settings.WelcomeSettings.ShouldWelcome
+    }
+
+    if err := db.SetWelcomeToggle(chat.Id, !current); err != nil {
         log.Error(err)
-        text, _ := tr.GetString("counter_reset_error")
-        _, _ = msg.Reply(b, text, nil)
         return err
     }
 
-    text, _ := tr.GetString("counter_reset_success")
-    _, err = msg.Reply(b, text, helpers.Shtml())
+    var text string
+    if !current {
+        text, _ = tr.GetString("welcome_toggle_enabled")
+    } else {
+        text, _ = tr.GetString("welcome_toggle_disabled")
+    }
+    _, err := msg.Reply(b, text, helpers.Shtml())
     if err != nil {
         log.Error(err)
         return err
@@ -491,11 +509,11 @@ func (m moduleStruct) resetcount(b *gotgbot.Bot, ctx *ext.Context) error {
     return ext.EndGroups
 }
 
-func LoadCounter(dispatcher *ext.Dispatcher) {
-    HelpModule.AbleMap.Store(counterModule.moduleName, true)
+func LoadWelcome(dispatcher *ext.Dispatcher) {
+    HelpModule.AbleMap.Store(welcomeModule.moduleName, true)
 
-    dispatcher.AddHandler(handlers.NewCommand("getcount", counterModule.getcount))
-    dispatcher.AddHandler(handlers.NewCommand("resetcount", counterModule.resetcount))
+    dispatcher.AddHandler(handlers.NewCommand("welcomestatus", welcomeModule.welcomestatus))
+    dispatcher.AddHandler(handlers.NewCommand("togglewelcome", welcomeModule.togglewelcome))
 }
 ```
 
