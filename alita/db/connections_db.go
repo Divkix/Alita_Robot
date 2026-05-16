@@ -42,17 +42,14 @@ func GetChatConnectionSetting(chatID int64) (connectionSrc *ConnectionChatSettin
 }
 
 // getUserConnectionSetting retrieves connection settings for a user.
-// Creates default settings (not connected) if not found.
+// Returns default settings (not connected) if not found, without creating a record.
+// This avoids violating foreign key constraints when ChatId would be 0.
 func getUserConnectionSetting(userID int64) (connectionSrc *ConnectionSettings) {
 	connectionSrc = &ConnectionSettings{}
 	err := GetRecord(connectionSrc, ConnectionSettings{UserId: userID})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create default settings
+		// Return default settings without creating a record to avoid FK violation with ChatId=0
 		connectionSrc = &ConnectionSettings{UserId: userID, Connected: false}
-		err := CreateRecord(connectionSrc)
-		if err != nil {
-			log.Errorf("[Database] getUserConnectionSetting: %d - %v", userID, err)
-		}
 	} else if err != nil {
 		// Return default on error
 		connectionSrc = &ConnectionSettings{UserId: userID, Connected: false}
@@ -70,8 +67,17 @@ func Connection(UserID int64) *ConnectionSettings {
 
 // ConnectId connects a user to a specific chat.
 // Sets the user's connection status to true and associates them with the chat.
+// Uses FirstOrCreate to handle both new and existing users.
 func ConnectId(UserID, chatID int64) {
-	err := UpdateRecord(&ConnectionSettings{}, ConnectionSettings{UserId: UserID}, ConnectionSettings{Connected: true, ChatId: chatID})
+	if chatID <= 0 {
+		log.WithFields(log.Fields{
+			"userID": UserID,
+			"chatID": chatID,
+		}).Warning("[Database] ConnectId: Invalid chatID, skipping connection update")
+		return
+	}
+
+	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true, ChatId: chatID}).FirstOrCreate(&ConnectionSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] ConnectId: %v - %d", err, chatID)
 	}
@@ -79,8 +85,9 @@ func ConnectId(UserID, chatID int64) {
 
 // DisconnectId disconnects a user from their current chat connection.
 // Sets the user's connection status to false.
+// Uses FirstOrCreate to ensure record exists before updating.
 func DisconnectId(UserID int64) {
-	err := UpdateRecordWithZeroValues(&ConnectionSettings{}, ConnectionSettings{UserId: UserID}, map[string]any{"connected": false})
+	err := DB.Where("user_id = ?", UserID).Assign(map[string]any{"connected": false}).FirstOrCreate(&ConnectionSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 	}
@@ -88,8 +95,9 @@ func DisconnectId(UserID int64) {
 
 // ReconnectId reconnects a user to their previously connected chat.
 // Returns the chat ID the user was reconnected to, or 0 if an error occurs.
+// Uses FirstOrCreate to ensure record exists before updating.
 func ReconnectId(UserID int64) int64 {
-	err := UpdateRecord(&ConnectionSettings{}, ConnectionSettings{UserId: UserID}, ConnectionSettings{Connected: true})
+	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true}).FirstOrCreate(&ConnectionSettings{}).Error
 	if err != nil {
 		log.Errorf("[Database] ReconnectId: %v - %d", err, UserID)
 		return 0

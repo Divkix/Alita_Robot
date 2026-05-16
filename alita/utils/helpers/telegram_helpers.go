@@ -105,6 +105,9 @@ func IsExpectedTelegramError(err error) bool {
 		// Message deletion errors (expected for old messages or already deleted)
 		"message can't be deleted",
 		"message to delete not found",
+
+		// Forum topic errors (expected when topic is closed or deleted)
+		"TOPIC_CLOSED",
 	}
 
 	for _, expectedErr := range expectedErrors {
