@@ -712,20 +712,12 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	cache := keyword_matcher.GetGlobalCache()
 	matcher := cache.GetOrCreateMatcher(chat.Id, filterKeys)
 
-	// Check for any filter match first
-	if !matcher.HasMatch(matchText) {
+	// Find first matching filter using optimized path
+	firstPattern, found := matcher.FirstMatch(matchText)
+	if !found {
 		return ext.ContinueGroups
 	}
-
-	// Get all matches to handle them individually
-	matches := matcher.FindMatches(matchText)
-	if len(matches) == 0 {
-		return ext.ContinueGroups
-	}
-
-	// Process first match (same behavior as before)
-	firstMatch := matches[0]
-	i := firstMatch.Pattern
+	i := firstPattern
 
 	// Check for noformat pattern using simpler string matching
 	noformatPattern := i + " noformat"

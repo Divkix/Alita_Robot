@@ -30,25 +30,40 @@ func NewCache(ttl time.Duration) *Cache {
 	}
 }
 
-// GetOrCreateMatcher gets or creates a keyword matcher for the given chat
+// GetOrCreateMatcher gets or creates a keyword matcher for the given chat.
+// Uses RWMutex for concurrent read access and only takes write lock when
+// creating a new matcher or when patterns have changed.
 func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatcher {
+	// Fast path: read-only check with RLock
+	c.mu.RLock()
+	matcher, exists := c.matchers[chatID]
+	if exists {
+		// O(1) hash comparison avoids copying patterns
+		if matcher.patternHash == hashPatterns(patterns) {
+			c.lastUsed[chatID] = time.Now()
+			c.mu.RUnlock()
+			return matcher
+		}
+	}
+	c.mu.RUnlock()
+
+	// Slow path: need write lock to create or update
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Update last used time
-	c.lastUsed[chatID] = time.Now()
-
-	// Check if matcher exists
+	// Double-check after acquiring write lock
 	if matcher, exists := c.matchers[chatID]; exists {
-		// Check if patterns have changed
-		existingPatterns := matcher.GetPatterns()
-		if patternsEqual(existingPatterns, patterns) {
+		if matcher.patternHash == hashPatterns(patterns) {
+			c.lastUsed[chatID] = time.Now()
 			return matcher
 		}
 	}
 
+	// Update last used time
+	c.lastUsed[chatID] = time.Now()
+
 	// Create new matcher
-	matcher := NewKeywordMatcher(patterns)
+	matcher = NewKeywordMatcher(patterns)
 	c.matchers[chatID] = matcher
 
 	log.WithFields(log.Fields{
@@ -99,24 +114,17 @@ func (c *Cache) Stop() {
 	}
 }
 
-// patternsEqual checks if two pattern slices are equal
+// patternsEqual checks if two pattern slices are equal using O(n) direct comparison.
+// No allocations — compares lengths then elements in order.
 func patternsEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-
-	// Create maps for efficient comparison
-	aMap := make(map[string]bool)
-	for _, pattern := range a {
-		aMap[pattern] = true
-	}
-
-	for _, pattern := range b {
-		if !aMap[pattern] {
+	for i := range a {
+		if a[i] != b[i] {
 			return false
 		}
 	}
-
 	return true
 }
 

@@ -603,19 +603,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	cache := keyword_matcher.GetGlobalCache()
 	matcher := cache.GetOrCreateMatcher(chat.Id, triggers)
 
-	// Check for any blacklist match first
-	if !matcher.HasMatch(matchText) {
+	// Find first matching blacklist trigger using optimized path
+	firstPattern, found := matcher.FirstMatch(matchText)
+	if !found {
 		return ext.ContinueGroups
 	}
-
-	// Get first match to process
-	matches := matcher.FindMatches(matchText)
-	if len(matches) == 0 {
-		return ext.ContinueGroups
-	}
-
-	// Process first matched trigger
-	i := matches[0].Pattern
+	i := firstPattern
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 	var err error

@@ -24,6 +24,7 @@ var (
 	tracer         trace.Tracer
 	tracerProvider *sdktrace.TracerProvider
 	propagator     propagation.TextMapPropagator
+	enabled        bool
 )
 
 // InitTracing initializes the OpenTelemetry tracing provider.
@@ -106,6 +107,7 @@ func InitTracing() error {
 			propagation.Baggage{},
 		)
 		otel.SetTextMapPropagator(propagator)
+		enabled = false
 		return nil
 	}
 
@@ -129,6 +131,7 @@ func InitTracing() error {
 
 	// Create tracer instance
 	tracer = otel.Tracer(serviceName)
+	enabled = true
 
 	log.Infof("[Tracing] Initialized with service name: %s, sample rate: %.2f", serviceName, sampleRate)
 
@@ -151,6 +154,11 @@ func Shutdown(ctx context.Context) error {
 
 	log.Info("[Tracing] Tracer provider shut down successfully")
 	return nil
+}
+
+// IsEnabled returns whether tracing is currently enabled.
+func IsEnabled() bool {
+	return enabled
 }
 
 // GetTracer returns the global tracer instance.
@@ -182,6 +190,10 @@ func WorkingModeAttribute() attribute.KeyValue {
 
 // StartSpan starts a new span with the given name and options.
 // It uses the global tracer if available.
+// When tracing is disabled, returns the input context and a no-op span to avoid overhead.
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	if !enabled {
+		return ctx, trace.SpanFromContext(ctx)
+	}
 	return GetTracer().Start(ctx, name, opts...)
 }

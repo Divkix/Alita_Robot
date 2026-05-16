@@ -2,6 +2,7 @@ package keyword_matcher
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 	"sync"
 	"time"
@@ -12,10 +13,11 @@ import (
 
 // KeywordMatcher provides efficient multi-pattern matching using Aho-Corasick algorithm
 type KeywordMatcher struct {
-	matcher   *ahocorasick.Matcher
-	patterns  []string
-	mu        sync.Mutex
-	lastBuild time.Time
+	matcher     *ahocorasick.Matcher
+	patterns    []string
+	patternHash uint64
+	mu          sync.Mutex
+	lastBuild   time.Time
 }
 
 // MatchResult contains information about a matched pattern
@@ -25,10 +27,21 @@ type MatchResult struct {
 	End     int    // End position of match in text
 }
 
+// hashPatterns computes a hash of the pattern slice for fast comparison.
+func hashPatterns(patterns []string) uint64 {
+	h := fnv.New64a()
+	for _, p := range patterns {
+		h.Write([]byte(p))
+		h.Write([]byte{0}) // separator
+	}
+	return h.Sum64()
+}
+
 // NewKeywordMatcher creates a new keyword matcher with the given patterns
 func NewKeywordMatcher(patterns []string) *KeywordMatcher {
 	km := &KeywordMatcher{
-		patterns: make([]string, len(patterns)),
+		patterns:    make([]string, len(patterns)),
+		patternHash: hashPatterns(patterns),
 	}
 	copy(km.patterns, patterns)
 	km.build()
@@ -57,7 +70,33 @@ func (km *KeywordMatcher) build() {
 	}).Debug("Built Aho-Corasick matcher")
 }
 
-// FindMatches returns all matches in the given text
+// FirstMatch returns the first pattern that matches the given text.
+// This is optimized for the common case where only the first match is needed,
+// avoiding the expensive position-finding second scan used by FindMatches.
+func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
+	km.mu.Lock()
+	defer km.mu.Unlock()
+
+	if km.matcher == nil || len(km.patterns) == 0 {
+		return "", false
+	}
+
+	lowerText := strings.ToLower(text)
+	hits := km.matcher.Match([]byte(lowerText))
+	if len(hits) == 0 {
+		return "", false
+	}
+
+	firstIdx := hits[0]
+	if firstIdx >= 0 && firstIdx < len(km.patterns) {
+		return km.patterns[firstIdx], true
+	}
+	return "", false
+}
+
+// FindMatches returns all matches in the given text.
+// NOTE: This performs an expensive second scan to find match positions.
+// For performance-critical code that only needs the first match, use FirstMatch.
 func (km *KeywordMatcher) FindMatches(text string) []MatchResult {
 	km.mu.Lock()
 	defer km.mu.Unlock()
@@ -95,8 +134,8 @@ type matchInfo struct {
 	End          int
 }
 
-// findMatchesWithPositions finds all matches with their positions in the text
-// This implementation uses the Aho-Corasick matcher for efficient multi-pattern matching
+// findMatchesWithPositions finds all matches with their positions in the text.
+// Uses the Aho-Corasick matcher for efficient multi-pattern matching.
 func (km *KeywordMatcher) findMatchesWithPositions(text []byte) []matchInfo {
 	if len(text) == 0 || len(km.patterns) == 0 || km.matcher == nil {
 		return nil
@@ -109,36 +148,32 @@ func (km *KeywordMatcher) findMatchesWithPositions(text []byte) []matchInfo {
 	}
 
 	var allMatches []matchInfo
-	seen := make(map[string]bool)
+	seen := make(map[string]bool, len(hits))
 
-	// Convert hits to matchInfo
+	// Convert hits to matchInfo with positions
+	textStr := string(text)
 	for _, hit := range hits {
-		// hit contains the pattern index and end position
-		patternIdx := hit
-		if patternIdx >= len(km.patterns) {
+		if hit >= len(km.patterns) {
 			continue
 		}
 
-		pattern := strings.ToLower(km.patterns[patternIdx])
+		pattern := strings.ToLower(km.patterns[hit])
 		patternLen := len(pattern)
 
 		// Find all occurrences of this pattern in the text
-		textStr := string(text)
-		lowerTextStr := strings.ToLower(textStr)
 		searchStart := 0
-
 		for {
-			pos := strings.Index(lowerTextStr[searchStart:], pattern)
+			pos := strings.Index(textStr[searchStart:], pattern)
 			if pos == -1 {
 				break
 			}
 
 			actualPos := searchStart + pos
-			key := fmt.Sprintf("%d:%d", patternIdx, actualPos)
+			key := fmt.Sprintf("%d:%d", hit, actualPos)
 			if !seen[key] {
 				seen[key] = true
 				allMatches = append(allMatches, matchInfo{
-					PatternIndex: patternIdx,
+					PatternIndex: hit,
 					Start:        actualPos,
 					End:          actualPos + patternLen,
 				})
@@ -151,12 +186,12 @@ func (km *KeywordMatcher) findMatchesWithPositions(text []byte) []matchInfo {
 	return allMatches
 }
 
-// HasMatch returns true if any pattern matches the text
+// HasMatch returns true if any pattern matches the text.
 func (km *KeywordMatcher) HasMatch(text string) bool {
 	km.mu.Lock()
 	defer km.mu.Unlock()
 
-	if km.matcher == nil {
+	if km.matcher == nil || len(km.patterns) == 0 {
 		return false
 	}
 

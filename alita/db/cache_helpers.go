@@ -1,12 +1,12 @@
 package db
 
 import (
-	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
@@ -30,11 +30,24 @@ const (
 // Usage: CacheKey("chat_settings", chatID) → "alita:chat_settings:123"
 // Usage: CacheKey("lock", chatID, lockType) → "alita:lock:123:photos"
 func CacheKey(module string, ids ...any) string {
-	key := fmt.Sprintf("alita:%s", module)
+	var b strings.Builder
+	b.Grow(32 + len(ids)*20)
+	b.WriteString("alita:")
+	b.WriteString(module)
 	for _, id := range ids {
-		key = fmt.Sprintf("%s:%v", key, id)
+		b.WriteByte(':')
+		switch v := id.(type) {
+		case int64:
+			b.WriteString(strconv.FormatInt(v, 10))
+		case int:
+			b.WriteString(strconv.Itoa(v))
+		case string:
+			b.WriteString(v)
+		default:
+			b.WriteString(fmt.Sprint(id))
+		}
 	}
-	return key
+	return b.String()
 }
 
 // Singleflight group for preventing cache stampede
@@ -43,7 +56,7 @@ var (
 )
 
 // getFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.
-// Uses singleflight pattern with timeout to prevent cache stampede and goroutine accumulation.
+// Uses singleflight to deduplicate concurrent cache misses.
 func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var result T
 
@@ -59,71 +72,46 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 		return result, nil
 	}
 
-	// Cache miss, use singleflight with timeout to prevent stampede and goroutine accumulation
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create a channel to handle timeout and singleflight result
-	type sfResult struct {
-		value any
-		err   error
-	}
-	resultChan := make(chan sfResult, 1)
-
-	go func() {
-		defer error_handling.RecoverFromPanic("getFromCacheOrLoad", "cache_helpers")
-		v, err, _ := cacheGroup.Do(key, func() (any, error) {
-			// Load from database
-			data, loadErr := loader()
-			if loadErr != nil {
-				return data, loadErr
-			}
-
-			// Store in cache
-			cacheErr := cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
-			if cacheErr != nil {
-				log.Debugf("[Cache] Failed to set cache for key %s: %v", key, cacheErr)
-			}
-
-			return data, nil
-		})
-		resultChan <- sfResult{value: v, err: err}
-	}()
-
-	select {
-	case res := <-resultChan:
-		if res.err != nil {
-			return result, res.err
+	// Cache miss, use singleflight to prevent stampede
+	v, err, _ := cacheGroup.Do(key, func() (any, error) {
+		// Load from database
+		data, loadErr := loader()
+		if loadErr != nil {
+			return data, loadErr
 		}
 
-		// Type assert the result with panic recovery
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Errorf("[Cache] Panic during type assertion for key %s: %v", key, r)
-					// Set result to zero value on panic
-					var zero T
-					result = zero
-				}
-			}()
+		// Store in cache
+		cacheErr := cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
+		if cacheErr != nil {
+			log.Debugf("[Cache] Failed to set cache for key %s: %v", key, cacheErr)
+		}
 
-			if typedResult, ok := res.value.(T); ok {
-				result = typedResult
-			} else {
-				// Type assertion failed
-				log.Errorf("[Cache] Type assertion failed for key %s: expected %T, got %T", key, result, res.value)
+		return data, nil
+	})
+	if err != nil {
+		return result, err
+	}
+
+	// Type assert the result with panic recovery
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("[Cache] Panic during type assertion for key %s: %v", key, r)
 				var zero T
 				result = zero
 			}
 		}()
 
-		return result, nil
+		if typedResult, ok := v.(T); ok {
+			result = typedResult
+		} else {
+			log.Errorf("[Cache] Type assertion failed for key %s: expected %T, got %T", key, result, v)
+			var zero T
+			result = zero
+		}
+	}()
 
-	case <-ctx.Done():
-		// Timeout occurred, cleanup singleflight and return timeout error
-		cacheGroup.Forget(key)
-		return result, fmt.Errorf("cache load timeout for key %s: %w", key, ctx.Err())
-	}
+	return result, nil
 }
 
 // deleteCache is a helper to delete a value from cache.

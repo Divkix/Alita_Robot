@@ -205,7 +205,7 @@ func TestPatternsEqual(t *testing.T) {
 			name: "same elements different order",
 			a:    []string{"b", "a"},
 			b:    []string{"a", "b"},
-			want: true,
+			want: false,
 		},
 		{
 			name: "different lengths",
