@@ -13,7 +13,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestNewActivityMonitor(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because NewActivityMonitor reads global config.
 
 	am := NewActivityMonitor()
 	if am == nil {
@@ -21,7 +21,6 @@ func TestNewActivityMonitor(t *testing.T) {
 	}
 
 	t.Run("default check interval is 1h", func(t *testing.T) {
-		t.Parallel()
 		am2 := NewActivityMonitor()
 		if am2.checkInterval != 1*time.Hour {
 			t.Fatalf("expected checkInterval=1h, got %v", am2.checkInterval)
@@ -29,7 +28,6 @@ func TestNewActivityMonitor(t *testing.T) {
 	})
 
 	t.Run("default inactivity threshold is 30 days", func(t *testing.T) {
-		t.Parallel()
 		am2 := NewActivityMonitor()
 		expected := 30 * 24 * time.Hour
 		if am2.inactivityThreshold != expected {
@@ -38,7 +36,6 @@ func TestNewActivityMonitor(t *testing.T) {
 	})
 
 	t.Run("context and cancel are set", func(t *testing.T) {
-		t.Parallel()
 		am2 := NewActivityMonitor()
 		if am2.ctx == nil {
 			t.Fatal("expected ctx to be non-nil")
@@ -49,7 +46,6 @@ func TestNewActivityMonitor(t *testing.T) {
 	})
 
 	t.Run("stopOnce is zero value", func(t *testing.T) {
-		t.Parallel()
 		am2 := NewActivityMonitor()
 		// sync.Once has no exported state, but we can verify Stop() works twice
 		am2.Stop()
@@ -57,7 +53,6 @@ func TestNewActivityMonitor(t *testing.T) {
 	})
 
 	t.Run("metrics fields are zero value", func(t *testing.T) {
-		t.Parallel()
 		am2 := NewActivityMonitor()
 		if am2.lastMetrics != nil {
 			t.Fatalf("expected lastMetrics=nil initially, got %v", am2.lastMetrics)

@@ -207,10 +207,6 @@ func (m *memoryStore) GetType() string {
 func setupTestCache(t *testing.T) func() {
 	t.Helper()
 	orig := cache.Marshal
-	if cache.Marshal != nil {
-		// Already initialized (e.g., from TestMain); no need to swap.
-		return func() {}
-	}
 	mem := newMemoryStore()
 	cm := gocache.New[any](mem)
 	cache.Marshal = marshaler.New(cm)
@@ -357,7 +353,9 @@ func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
 	// Manually seed cache with a timestamp well in the past.
 	past := time.Now().Add(-DefaultExportCooldown - time.Second)
 	// marshaler stores time values via msgpack, so we must store via marshaler
-	_ = cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultExportCooldown))
+	if err := cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultExportCooldown)); err != nil {
+		t.Fatalf("failed to seed cache: %v", err)
+	}
 
 	allowed, remaining := limiter.CanExport(chatID)
 	if !allowed {
@@ -377,7 +375,9 @@ func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
 	cacheKey := importRatePrefix + fmt.Sprint(chatID)
 
 	past := time.Now().Add(-DefaultImportCooldown - time.Second)
-	_ = cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultImportCooldown))
+	if err := cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultImportCooldown)); err != nil {
+		t.Fatalf("failed to seed cache: %v", err)
+	}
 
 	allowed, remaining := limiter.CanImport(chatID)
 	if !allowed {
@@ -397,7 +397,9 @@ func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
 	cacheKey := resetRatePrefix + fmt.Sprint(chatID)
 
 	past := time.Now().Add(-DefaultResetCooldown - time.Second)
-	_ = cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultResetCooldown))
+	if err := cache.Marshal.Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultResetCooldown)); err != nil {
+		t.Fatalf("failed to seed cache: %v", err)
+	}
 
 	allowed, remaining := limiter.CanReset(chatID)
 	if !allowed {
@@ -436,7 +438,9 @@ func TestBackupRateLimiter_getLastOperation_CacheError(t *testing.T) {
 	cacheKey := exportRatePrefix + fmt.Sprint(chatID)
 
 	// Seed cache with non-time data so unmarshalling fails.
-	_ = cache.Marshal.Set(context.Background(), cacheKey, "not-a-time")
+	if err := cache.Marshal.Set(context.Background(), cacheKey, "not-a-time"); err != nil {
+		t.Fatalf("failed to seed cache: %v", err)
+	}
 
 	_, err := limiter.getLastOperation(cacheKey)
 	if err == nil {

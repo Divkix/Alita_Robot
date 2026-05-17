@@ -273,23 +273,57 @@ func TestBackupDataStructures(t *testing.T) {
 // cleanupChat removes all test data for a chatID across known backup-related tables.
 func cleanupBackupChat(t *testing.T, chatID int64) {
 	t.Helper()
-	_ = DB.Where("chat_id = ?", chatID).Delete(&AdminSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&BlacklistSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&DisableSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&DisableChatSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&ChatFilters{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&GreetingSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&LockSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&PinSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&ReportChatSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&WarnSettings{}).Error
-	_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	if err := DB.Where("chat_id = ?", chatID).Delete(&AdminSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting AdminSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting AntifloodSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&BlacklistSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting BlacklistSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting CaptchaSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting ConnectionChatSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&DisableSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting DisableSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&DisableChatSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting DisableChatSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&ChatFilters{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting ChatFilters: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&GreetingSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting GreetingSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&LockSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting LockSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting NotesSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting Notes: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&PinSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting PinSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&ReportChatSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting ReportChatSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting RulesSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&WarnSettings{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting WarnSettings: %v", err)
+	}
+	if err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error; err != nil {
+		t.Fatalf("cleanup failed deleting Chat: %v", err)
+	}
 }
 
 func TestExportAdminData(t *testing.T) {

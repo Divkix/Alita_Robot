@@ -23,8 +23,9 @@ func TestAddCmdToDisableable(t *testing.T) {
 	cmdsMu.Lock()
 	orig := make([]string, len(DisableCmds))
 	copy(orig, DisableCmds)
-	DisableCmds = append(DisableCmds, testCmd)
 	cmdsMu.Unlock()
+
+	AddCmdToDisableable(testCmd)
 
 	cmdsMu.Lock()
 	found := false

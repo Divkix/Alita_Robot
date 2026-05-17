@@ -13,14 +13,12 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestGCActionCanExecute(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it reads global config.AppConfig.
 
 	action := &GCAction{}
 	gcThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.6
 
 	t.Run("memory above 60% threshold returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			MemoryAllocMB: gcThreshold + 1,
 			GCPauseMs:     0,
@@ -31,8 +29,6 @@ func TestGCActionCanExecute(t *testing.T) {
 	})
 
 	t.Run("memory below threshold and GCPauseMs below 50 returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			MemoryAllocMB: gcThreshold - 1,
 			GCPauseMs:     10,
@@ -43,8 +39,6 @@ func TestGCActionCanExecute(t *testing.T) {
 	})
 
 	t.Run("GCPauseMs above 50 even with low memory returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			MemoryAllocMB: 0,
 			GCPauseMs:     51,
@@ -55,8 +49,6 @@ func TestGCActionCanExecute(t *testing.T) {
 	})
 
 	t.Run("zero-value SystemMetrics returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{}
 		if action.CanExecute(metrics) {
 			t.Fatal("expected CanExecute=false for zero-value SystemMetrics")
@@ -69,14 +61,12 @@ func TestGCActionCanExecute(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMemoryCleanupActionCanExecute(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it reads global config.AppConfig.
 
 	action := &MemoryCleanupAction{}
 	threshold := float64(config.AppConfig.ResourceGCThresholdMB)
 
 	t.Run("above ResourceGCThresholdMB returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{MemoryAllocMB: threshold + 1}
 		if !action.CanExecute(metrics) {
 			t.Fatalf("expected CanExecute=true when MemoryAllocMB %.1f > threshold %.1f", metrics.MemoryAllocMB, threshold)
@@ -84,8 +74,6 @@ func TestMemoryCleanupActionCanExecute(t *testing.T) {
 	})
 
 	t.Run("below ResourceGCThresholdMB returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{MemoryAllocMB: threshold - 1}
 		if action.CanExecute(metrics) {
 			t.Fatalf("expected CanExecute=false when MemoryAllocMB %.1f < threshold %.1f", metrics.MemoryAllocMB, threshold)
@@ -98,7 +86,7 @@ func TestMemoryCleanupActionCanExecute(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestThresholdBasedActionsCanExecute(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it reads global config.AppConfig.
 
 	cases := []struct {
 		name               string
@@ -122,7 +110,6 @@ func TestThresholdBasedActionsCanExecute(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name+"/goroutines above threshold returns true", func(t *testing.T) {
-			t.Parallel()
 			metrics := SystemMetrics{GoroutineCount: tc.goroutineThreshold + 1, MemoryAllocMB: 0}
 			if !tc.action.CanExecute(metrics) {
 				t.Fatalf("expected CanExecute=true when goroutines %d > threshold %d", metrics.GoroutineCount, tc.goroutineThreshold)
@@ -130,7 +117,6 @@ func TestThresholdBasedActionsCanExecute(t *testing.T) {
 		})
 
 		t.Run(tc.name+"/memory above threshold returns true", func(t *testing.T) {
-			t.Parallel()
 			metrics := SystemMetrics{GoroutineCount: 0, MemoryAllocMB: tc.memoryThreshold + 1}
 			if !tc.action.CanExecute(metrics) {
 				t.Fatalf("expected CanExecute=true when memory %.1f > threshold %.1f", metrics.MemoryAllocMB, tc.memoryThreshold)
@@ -138,7 +124,6 @@ func TestThresholdBasedActionsCanExecute(t *testing.T) {
 		})
 
 		t.Run(tc.name+"/both below thresholds returns false", func(t *testing.T) {
-			t.Parallel()
 			metrics := SystemMetrics{GoroutineCount: tc.goroutineThreshold - 1, MemoryAllocMB: tc.memoryThreshold - 1}
 			if tc.action.CanExecute(metrics) {
 				t.Fatal("expected CanExecute=false when both metrics are below thresholds")
@@ -239,15 +224,13 @@ func TestActionSeverityOrdering(t *testing.T) {
 // TestAggressiveGCAction_CanExecute tests RestartRecommendationAction which triggers
 // at 150% goroutine threshold or 160% memory threshold -- the most aggressive action.
 func TestAggressiveGCAction_CanExecute(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it reads global config.AppConfig.
 
 	action := &RestartRecommendationAction{}
 	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 1.5)
 	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 1.6
 
 	t.Run("metrics below 150% thresholds returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: goroutineThreshold - 1,
 			MemoryAllocMB:  memoryThreshold - 1,
@@ -259,8 +242,6 @@ func TestAggressiveGCAction_CanExecute(t *testing.T) {
 	})
 
 	t.Run("memory above 160% threshold returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: 0,
 			MemoryAllocMB:  memoryThreshold + 1,
@@ -272,8 +253,6 @@ func TestAggressiveGCAction_CanExecute(t *testing.T) {
 	})
 
 	t.Run("goroutines above 150% threshold returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: goroutineThreshold + 1,
 			MemoryAllocMB:  0,
@@ -285,8 +264,6 @@ func TestAggressiveGCAction_CanExecute(t *testing.T) {
 	})
 
 	t.Run("zero-value metrics returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{}
 		if action.CanExecute(metrics) {
 			t.Fatal("expected CanExecute=false for zero-value SystemMetrics")
@@ -301,15 +278,13 @@ func TestAggressiveGCAction_CanExecute(t *testing.T) {
 // TestWarningAction_CanExecute tests LogWarningAction which triggers at 80% goroutine
 // threshold or 50% memory threshold.
 func TestWarningAction_CanExecute(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it reads global config.AppConfig.
 
 	action := &LogWarningAction{}
 	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 0.8)
 	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.5
 
 	t.Run("metrics below 80% thresholds returns false", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: goroutineThreshold - 1,
 			MemoryAllocMB:  memoryThreshold - 1,
@@ -321,8 +296,6 @@ func TestWarningAction_CanExecute(t *testing.T) {
 	})
 
 	t.Run("memory above 50% ResourceMaxMemoryMB returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: 0,
 			MemoryAllocMB:  memoryThreshold + 1,
@@ -334,8 +307,6 @@ func TestWarningAction_CanExecute(t *testing.T) {
 	})
 
 	t.Run("goroutines above 80% ResourceMaxGoroutines returns true", func(t *testing.T) {
-		t.Parallel()
-
 		metrics := SystemMetrics{
 			GoroutineCount: goroutineThreshold + 1,
 			MemoryAllocMB:  0,

@@ -613,16 +613,18 @@ func TestStoreMessageForCaptchaAndGetStoredMessagesForUser(t *testing.T) {
 	if len(messages) != 3 {
 		t.Fatalf("GetStoredMessagesForUser() len = %d, want 3", len(messages))
 	}
-	for i, msg := range messages {
-		expected := fmt.Sprintf("content%d", i)
-		if msg.Content != expected {
-			t.Fatalf("messages[%d].Content = %q, want %q", i, msg.Content, expected)
+
+	// Compare deterministically as a set to avoid flaking on DB ordering.
+	expectedContents := map[string]bool{"content0": true, "content1": true, "content2": true}
+	for _, msg := range messages {
+		if !expectedContents[msg.Content] {
+			t.Fatalf("unexpected message content %q", msg.Content)
 		}
 		if msg.UserID != userID {
-			t.Fatalf("messages[%d].UserID = %d, want %d", i, msg.UserID, userID)
+			t.Fatalf("message.UserID = %d, want %d", msg.UserID, userID)
 		}
 		if msg.ChatID != chatID {
-			t.Fatalf("messages[%d].ChatID = %d, want %d", i, msg.ChatID, chatID)
+			t.Fatalf("message.ChatID = %d, want %d", msg.ChatID, chatID)
 		}
 	}
 }

@@ -8,6 +8,34 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
+// resetTracingState saves the current tracing globals, resets them to nil/false,
+// and registers a t.Cleanup to restore the original values.
+func resetTracingState(t *testing.T) {
+	t.Helper()
+	origTracerProvider := tracerProvider
+	origTracer := tracer
+	origPropagator := propagator
+	origEnabled := enabled
+	t.Cleanup(func() {
+		tracerProvider = origTracerProvider
+		tracer = origTracer
+		propagator = origPropagator
+		enabled = origEnabled
+	})
+	tracerProvider = nil
+	tracer = nil
+	propagator = nil
+	enabled = false
+}
+
+// ensureAppConfig initializes config.AppConfig if it is nil.
+func ensureAppConfig(t *testing.T) {
+	t.Helper()
+	if config.AppConfig == nil {
+		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
+	}
+}
+
 func TestIsEnabled_BeforeInit_ReturnsFalse(t *testing.T) {
 	if IsEnabled() {
 		t.Error("expected IsEnabled() to return false before InitTracing is called")
@@ -157,26 +185,8 @@ func TestInitTracing_NoEndpoint_NoConsoleExporter(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
 	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "")
 
-	// Ensure AppConfig is initialized (BotVersion is required for resource creation)
-	if config.AppConfig == nil {
-		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
-	}
-
-	// Reset package globals to known state before test
-	origTracerProvider := tracerProvider
-	origTracer := tracer
-	origPropagator := propagator
-	origEnabled := enabled
-	defer func() {
-		tracerProvider = origTracerProvider
-		tracer = origTracer
-		propagator = origPropagator
-		enabled = origEnabled
-	}()
-	tracerProvider = nil
-	tracer = nil
-	propagator = nil
-	enabled = false
+	ensureAppConfig(t)
+	resetTracingState(t)
 
 	err := InitTracing()
 	if err != nil {
@@ -198,24 +208,8 @@ func TestInitTracing_InvalidSampleRate(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
 	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "invalid")
 
-	if config.AppConfig == nil {
-		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
-	}
-
-	origTracerProvider := tracerProvider
-	origTracer := tracer
-	origPropagator := propagator
-	origEnabled := enabled
-	defer func() {
-		tracerProvider = origTracerProvider
-		tracer = origTracer
-		propagator = origPropagator
-		enabled = origEnabled
-	}()
-	tracerProvider = nil
-	tracer = nil
-	propagator = nil
-	enabled = false
+	ensureAppConfig(t)
+	resetTracingState(t)
 
 	err := InitTracing()
 	if err != nil {
@@ -231,24 +225,8 @@ func TestInitTracing_NegativeSampleRate(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
 	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "-0.5")
 
-	if config.AppConfig == nil {
-		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
-	}
-
-	origTracerProvider := tracerProvider
-	origTracer := tracer
-	origPropagator := propagator
-	origEnabled := enabled
-	defer func() {
-		tracerProvider = origTracerProvider
-		tracer = origTracer
-		propagator = origPropagator
-		enabled = origEnabled
-	}()
-	tracerProvider = nil
-	tracer = nil
-	propagator = nil
-	enabled = false
+	ensureAppConfig(t)
+	resetTracingState(t)
 
 	err := InitTracing()
 	if err != nil {
@@ -261,25 +239,8 @@ func TestInitTracing_NegativeSampleRate(t *testing.T) {
 
 func TestShutdown_AfterFailedInit_ReturnsNil(t *testing.T) {
 	// Simulate the state after a failed InitTracing: tracerProvider is nil.
-	if config.AppConfig == nil {
-		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
-	}
-
-	origTracerProvider := tracerProvider
-	origTracer := tracer
-	origPropagator := propagator
-	origEnabled := enabled
-	defer func() {
-		tracerProvider = origTracerProvider
-		tracer = origTracer
-		propagator = origPropagator
-		enabled = origEnabled
-	}()
-
-	tracerProvider = nil
-	tracer = nil
-	propagator = nil
-	enabled = false
+	ensureAppConfig(t)
+	resetTracingState(t)
 
 	// Shutdown should return nil when tracerProvider is nil.
 	err := Shutdown(context.Background())

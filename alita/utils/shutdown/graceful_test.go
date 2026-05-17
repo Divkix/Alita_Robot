@@ -117,7 +117,9 @@ func TestHandlersExecuteInLIFOOrder(t *testing.T) {
 
 	// Execute in reverse order (LIFO) as shutdown() does
 	for i := len(handlers) - 1; i >= 0; i-- {
-		_ = m.executeHandler(handlers[i], i)
+		if err := m.executeHandler(handlers[i], i); err != nil {
+			t.Fatalf("handler %d returned error: %v", i, err)
+		}
 	}
 
 	close(orderCh)

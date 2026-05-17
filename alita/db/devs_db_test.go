@@ -157,7 +157,9 @@ func TestGetTeamMembersEmpty(t *testing.T) {
 	skipIfNoDb(t)
 
 	// Ensure no leftover dev/sudo rows from other tests by deleting all DevSettings
-	DB.Where("1 = 1").Delete(&DevSettings{})
+	if err := DB.Where("1 = 1").Delete(&DevSettings{}).Error; err != nil {
+		t.Fatalf("failed to clean DevSettings: %v", err)
+	}
 
 	members := GetTeamMembers()
 	if members == nil {

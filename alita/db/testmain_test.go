@@ -12,7 +12,16 @@ import (
 
 func TestMain(m *testing.M) {
 	if DB == nil {
-		dbPath := os.TempDir() + "/alita_test.db?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+		dbFile, err := os.CreateTemp("", "alita_test_*.db")
+		if err != nil {
+			fmt.Printf("temp file creation failed: %v\n", err)
+			os.Exit(1)
+		}
+		if closeErr := dbFile.Close(); closeErr != nil {
+			fmt.Printf("temp file close failed: %v\n", closeErr)
+			os.Exit(1)
+		}
+		dbPath := dbFile.Name() + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
 		sqliteDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 			Logger: logger.Default.LogMode(logger.Silent),
 		})
@@ -21,6 +30,12 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 		DB = sqliteDB
+		// Remove temp file after all tests complete.
+		defer func() {
+			if rmErr := os.Remove(dbFile.Name()); rmErr != nil {
+				fmt.Printf("temp file remove failed: %v\n", rmErr)
+			}
+		}()
 	}
 
 	err := DB.AutoMigrate(

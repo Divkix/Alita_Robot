@@ -11,11 +11,15 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 	chatID := time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+			t.Fatalf("cleanup failed: %v", err)
+		}
 	})
 
 	// Set to true first
-	_ = SetFloodMsgDel(chatID, true)
+	if err := SetFloodMsgDel(chatID, true); err != nil {
+		t.Fatalf("SetFloodMsgDel(true) failed: %v", err)
+	}
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -26,7 +30,9 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 	}
 
 	// Now set to false — this was the bug: zero value was silently skipped
-	_ = SetFloodMsgDel(chatID, false)
+	if err := SetFloodMsgDel(chatID, false); err != nil {
+		t.Fatalf("SetFloodMsgDel(false) failed: %v", err)
+	}
 
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
 		t.Fatalf("query error after SetFloodMsgDel(false): %v", err)
@@ -42,11 +48,15 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 	chatID := time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+			t.Fatalf("cleanup failed: %v", err)
+		}
 	})
 
 	// Set limit to 5 (enable flood detection)
-	_ = SetFlood(chatID, 5)
+	if err := SetFlood(chatID, 5); err != nil {
+		t.Fatalf("SetFlood(5) failed: %v", err)
+	}
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -57,7 +67,9 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 	}
 
 	// Set limit to 0 (disable) — this was the bug: zero value was silently skipped
-	_ = SetFlood(chatID, 0)
+	if err := SetFlood(chatID, 0); err != nil {
+		t.Fatalf("SetFlood(0) failed: %v", err)
+	}
 
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
 		t.Fatalf("query error after SetFlood(0): %v", err)
@@ -73,11 +85,15 @@ func TestSetFloodMsgDelCreatesRecord(t *testing.T) {
 	chatID := time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+			t.Fatalf("cleanup failed: %v", err)
+		}
 	})
 
 	// First-time call on a fresh chat should create a record
-	_ = SetFloodMsgDel(chatID, true)
+	if err := SetFloodMsgDel(chatID, true); err != nil {
+		t.Fatalf("SetFloodMsgDel(true) failed: %v", err)
+	}
 
 	var settings AntifloodSettings
 	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -94,7 +110,9 @@ func TestSetFloodMode(t *testing.T) {
 	t.Run("creates record with valid mode", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		if err := SetFloodMode(chatID, "ban"); err != nil {
@@ -113,7 +131,9 @@ func TestSetFloodMode(t *testing.T) {
 	t.Run("updates existing record", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		if err := SetFloodMode(chatID, "kick"); err != nil {
@@ -135,7 +155,9 @@ func TestSetFloodMode(t *testing.T) {
 	t.Run("no-op when mode matches existing", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		if err := SetFloodMode(chatID, "tban"); err != nil {
@@ -157,7 +179,9 @@ func TestSetFloodMode(t *testing.T) {
 	t.Run("default mode no-op does not create record", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		// Default action is "mute"; on a fresh chat this should be a no-op
@@ -177,7 +201,9 @@ func TestSetFloodMode(t *testing.T) {
 	t.Run("rejects invalid mode", func(t *testing.T) {
 		chatID := time.Now().UnixNano()
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		err := SetFloodMode(chatID, "invalid")
@@ -192,7 +218,9 @@ func TestLoadAntifloodStats(t *testing.T) {
 
 	t.Run("empty table returns zero", func(t *testing.T) {
 		// Ensure table is empty for this assertion
-		_ = DB.Where("1 = 1").Delete(&AntifloodSettings{}).Error
+		if err := DB.Where("1 = 1").Delete(&AntifloodSettings{}).Error; err != nil {
+			t.Fatalf("cleanup failed: %v", err)
+		}
 
 		count := LoadAntifloodStats()
 		if count != 0 {
@@ -206,21 +234,37 @@ func TestLoadAntifloodStats(t *testing.T) {
 		chat3 := chat1 + 2
 
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id IN ?", []int64{chat1, chat2, chat3}).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id IN ?", []int64{chat1, chat2, chat3}).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		// chat1: enabled (limit > 0)
-		_ = SetFlood(chat1, 5)
-		_ = SetFloodMode(chat1, "ban")
+		if err := SetFlood(chat1, 5); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFloodMode(chat1, "ban"); err != nil {
+			t.Fatalf("SetFloodMode failed: %v", err)
+		}
 
 		// chat2: disabled (limit = 0) — must create record with non-zero limit first
-		_ = SetFlood(chat2, 5)
-		_ = SetFlood(chat2, 0)
-		_ = SetFloodMode(chat2, "mute")
+		if err := SetFlood(chat2, 5); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFlood(chat2, 0); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFloodMode(chat2, "mute"); err != nil {
+			t.Fatalf("SetFloodMode failed: %v", err)
+		}
 
 		// chat3: enabled (limit > 0)
-		_ = SetFlood(chat3, 10)
-		_ = SetFloodMode(chat3, "kick")
+		if err := SetFlood(chat3, 10); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFloodMode(chat3, "kick"); err != nil {
+			t.Fatalf("SetFloodMode failed: %v", err)
+		}
 
 		count := LoadAntifloodStats()
 		if count != 2 {
@@ -233,18 +277,32 @@ func TestLoadAntifloodStats(t *testing.T) {
 		chat2 := chat1 + 1
 
 		t.Cleanup(func() {
-			_ = DB.Where("chat_id IN ?", []int64{chat1, chat2}).Delete(&AntifloodSettings{}).Error
+			if err := DB.Where("chat_id IN ?", []int64{chat1, chat2}).Delete(&AntifloodSettings{}).Error; err != nil {
+				t.Fatalf("cleanup failed: %v", err)
+			}
 		})
 
 		// Create records with non-zero limit first, then set to 0.
 		// SetFlood(chat, 0) on a fresh chat is a no-op because the default limit is 0.
-		_ = SetFlood(chat1, 5)
-		_ = SetFlood(chat1, 0)
-		_ = SetFloodMode(chat1, "mute")
+		if err := SetFlood(chat1, 5); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFlood(chat1, 0); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFloodMode(chat1, "mute"); err != nil {
+			t.Fatalf("SetFloodMode failed: %v", err)
+		}
 
-		_ = SetFlood(chat2, 5)
-		_ = SetFlood(chat2, 0)
-		_ = SetFloodMode(chat2, "ban")
+		if err := SetFlood(chat2, 5); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFlood(chat2, 0); err != nil {
+			t.Fatalf("SetFlood failed: %v", err)
+		}
+		if err := SetFloodMode(chat2, "ban"); err != nil {
+			t.Fatalf("SetFloodMode failed: %v", err)
+		}
 
 		count := LoadAntifloodStats()
 		if count != 0 {

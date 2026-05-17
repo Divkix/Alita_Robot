@@ -183,6 +183,9 @@ func TestLoadUserActivityStats(t *testing.T) {
 		{UserId: now.UnixNano() + 3, UserName: "inactive_user", Name: "Inactive", LastActivity: now.Add(-45 * 24 * time.Hour)}, // none
 	}
 
+	// Capture baseline before inserting test users.
+	baseDau, baseWau, baseMau := LoadUserActivityStats()
+
 	for i := range users {
 		if err := DB.Create(&users[i]).Error; err != nil {
 			t.Fatalf("failed to create user: %v", err)
@@ -198,14 +201,14 @@ func TestLoadUserActivityStats(t *testing.T) {
 
 	dau, wau, mau := LoadUserActivityStats()
 
-	if dau != 1 {
-		t.Errorf("DAU = %d, want 1", dau)
+	if dau-baseDau != 1 {
+		t.Errorf("DAU delta = %d, want 1", dau-baseDau)
 	}
-	if wau != 2 {
-		t.Errorf("WAU = %d, want 2", wau)
+	if wau-baseWau != 2 {
+		t.Errorf("WAU delta = %d, want 2", wau-baseWau)
 	}
-	if mau != 3 {
-		t.Errorf("MAU = %d, want 3", mau)
+	if mau-baseMau != 3 {
+		t.Errorf("MAU delta = %d, want 3", mau-baseMau)
 	}
 }
 
