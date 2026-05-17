@@ -77,7 +77,7 @@ func ConnectId(UserID, chatID int64) {
 		return
 	}
 
-	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true, ChatId: chatID}).FirstOrCreate(&ConnectionSettings{}).Error
+	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true, ChatId: chatID}).FirstOrCreate(&ConnectionSettings{UserId: UserID}).Error
 	if err != nil {
 		log.Errorf("[Database] ConnectId: %v - %d", err, chatID)
 	}
@@ -87,7 +87,7 @@ func ConnectId(UserID, chatID int64) {
 // Sets the user's connection status to false.
 // Uses FirstOrCreate to ensure record exists before updating.
 func DisconnectId(UserID int64) {
-	err := DB.Where("user_id = ?", UserID).Assign(map[string]any{"connected": false}).FirstOrCreate(&ConnectionSettings{}).Error
+	err := DB.Where("user_id = ?", UserID).Assign(map[string]any{"connected": false}).FirstOrCreate(&ConnectionSettings{UserId: UserID}).Error
 	if err != nil {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 	}
@@ -97,7 +97,7 @@ func DisconnectId(UserID int64) {
 // Returns the chat ID the user was reconnected to, or 0 if an error occurs.
 // Uses FirstOrCreate to ensure record exists before updating.
 func ReconnectId(UserID int64) int64 {
-	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true}).FirstOrCreate(&ConnectionSettings{}).Error
+	err := DB.Where("user_id = ?", UserID).Assign(ConnectionSettings{Connected: true}).FirstOrCreate(&ConnectionSettings{UserId: UserID}).Error
 	if err != nil {
 		log.Errorf("[Database] ReconnectId: %v - %d", err, UserID)
 		return 0
