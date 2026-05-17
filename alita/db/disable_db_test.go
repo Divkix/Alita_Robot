@@ -8,7 +8,6 @@ import (
 )
 
 func TestDisableCommand(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -29,7 +28,6 @@ func TestDisableCommand(t *testing.T) {
 }
 
 func TestEnableCommand(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 1000
@@ -54,7 +52,6 @@ func TestEnableCommand(t *testing.T) {
 }
 
 func TestIsCommandDisabled(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 2000
@@ -78,7 +75,6 @@ func TestIsCommandDisabled(t *testing.T) {
 }
 
 func TestGetDisabledCommands(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 3000
@@ -113,7 +109,6 @@ func TestGetDisabledCommands(t *testing.T) {
 }
 
 func TestToggleDeleteEnabled_ZeroValueBoolean(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 4000
@@ -140,7 +135,6 @@ func TestToggleDeleteEnabled_ZeroValueBoolean(t *testing.T) {
 }
 
 func TestDisableNonExistentCommand(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 5000
@@ -161,7 +155,6 @@ func TestDisableNonExistentCommand(t *testing.T) {
 }
 
 func TestLoadDisableStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	disabledCmds, disableEnabledChats := LoadDisableStats()
@@ -174,7 +167,6 @@ func TestLoadDisableStats(t *testing.T) {
 }
 
 func TestGetDisableSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 6000
@@ -190,7 +182,6 @@ func TestGetDisableSettings_Defaults(t *testing.T) {
 }
 
 func TestConcurrentDisableEnable(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano() + 7000
@@ -221,7 +212,6 @@ func TestConcurrentDisableEnable(t *testing.T) {
 }
 
 func TestDisableSameCommandTwice(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 8000

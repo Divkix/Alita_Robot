@@ -1,7 +1,9 @@
 package monitoring
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 )
@@ -376,5 +378,201 @@ func TestGCAction_NameAndSeverity(t *testing.T) {
 				t.Fatalf("%T.Severity() = %d, must be >= 0", action, severity)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Execute methods — no panic, return nil
+// ---------------------------------------------------------------------------
+
+func TestGCAction_Execute(t *testing.T) {
+	t.Parallel()
+
+	action := &GCAction{}
+	if err := action.Execute(context.Background()); err != nil {
+		t.Fatalf("expected Execute to return nil, got %v", err)
+	}
+}
+
+func TestMemoryCleanupAction_Execute(t *testing.T) {
+	t.Parallel()
+
+	action := &MemoryCleanupAction{}
+	if err := action.Execute(context.Background()); err != nil {
+		t.Fatalf("expected Execute to return nil, got %v", err)
+	}
+}
+
+func TestLogWarningAction_Execute(t *testing.T) {
+	t.Parallel()
+
+	action := &LogWarningAction{}
+	if err := action.Execute(context.Background()); err != nil {
+		t.Fatalf("expected Execute to return nil, got %v", err)
+	}
+}
+
+func TestRestartRecommendationAction_Execute(t *testing.T) {
+	t.Parallel()
+
+	action := &RestartRecommendationAction{}
+	if err := action.Execute(context.Background()); err != nil {
+		t.Fatalf("expected Execute to return nil, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NewAutoRemediationManager — disabled monitoring
+// ---------------------------------------------------------------------------
+
+func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+	config.AppConfig.EnablePerformanceMonitoring = false
+	defer func() {
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	manager := NewAutoRemediationManager(collector)
+
+	if manager.enabled {
+		t.Fatal("expected manager.enabled to be false when EnablePerformanceMonitoring is false")
+	}
+
+	// Start() should return immediately without spawning goroutines
+	manager.Start()
+
+	// Stop should not deadlock even though Start() did nothing
+	manager.Stop()
+}
+
+// ---------------------------------------------------------------------------
+// NewAutoRemediationManager — with collector and metrics
+// ---------------------------------------------------------------------------
+
+func TestNewAutoRemediationManager_WithMetrics(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origMaxGoroutines := config.AppConfig.ResourceMaxGoroutines
+	origMaxMemoryMB := config.AppConfig.ResourceMaxMemoryMB
+	origGCThresholdMB := config.AppConfig.ResourceGCThresholdMB
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+
+	config.AppConfig.ResourceMaxGoroutines = 100
+	config.AppConfig.ResourceMaxMemoryMB = 500
+	config.AppConfig.ResourceGCThresholdMB = 400
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.ResourceMaxGoroutines = origMaxGoroutines
+		config.AppConfig.ResourceMaxMemoryMB = origMaxMemoryMB
+		config.AppConfig.ResourceGCThresholdMB = origGCThresholdMB
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	collector.RecordMessage()
+	collector.RecordError()
+	collector.RecordResponseTime(50 * time.Millisecond)
+
+	manager := NewAutoRemediationManager(collector)
+
+	if manager.collector != collector {
+		t.Fatal("expected manager.collector to be the same collector passed in")
+	}
+	if !manager.enabled {
+		t.Fatal("expected manager.enabled to be true when EnablePerformanceMonitoring is true")
+	}
+	if manager.thresholds.MaxGoroutines != 100 {
+		t.Errorf("expected MaxGoroutines=100, got %d", manager.thresholds.MaxGoroutines)
+	}
+	if manager.thresholds.MaxMemoryMB != 500 {
+		t.Errorf("expected MaxMemoryMB=500, got %f", manager.thresholds.MaxMemoryMB)
+	}
+	if manager.thresholds.CriticalGoroutines != 200 {
+		t.Errorf("expected CriticalGoroutines=200, got %d", manager.thresholds.CriticalGoroutines)
+	}
+	if manager.thresholds.CriticalMemoryMB != 1000 {
+		t.Errorf("expected CriticalMemoryMB=1000, got %f", manager.thresholds.CriticalMemoryMB)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AutoRemediationManager — getApplicableActions
+// ---------------------------------------------------------------------------
+
+func TestAutoRemediationManager_GetApplicableActions(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origMaxGoroutines := config.AppConfig.ResourceMaxGoroutines
+	origMaxMemoryMB := config.AppConfig.ResourceMaxMemoryMB
+	origGCThresholdMB := config.AppConfig.ResourceGCThresholdMB
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+
+	config.AppConfig.ResourceMaxGoroutines = 100
+	config.AppConfig.ResourceMaxMemoryMB = 500
+	config.AppConfig.ResourceGCThresholdMB = 400
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.ResourceMaxGoroutines = origMaxGoroutines
+		config.AppConfig.ResourceMaxMemoryMB = origMaxMemoryMB
+		config.AppConfig.ResourceGCThresholdMB = origGCThresholdMB
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	manager := NewAutoRemediationManager(collector)
+
+	// Metrics that trigger all applicable actions
+	metrics := SystemMetrics{
+		GoroutineCount:      200, // above all thresholds
+		MemoryAllocMB:       600, // above all thresholds
+		GCPauseMs:           60,
+		AverageResponseTime: 10 * time.Millisecond,
+	}
+
+	applicable := manager.getApplicableActions(metrics)
+	if len(applicable) == 0 {
+		t.Fatal("expected some applicable actions")
+	}
+
+	// Verify sorted by severity (ascending)
+	for i := 1; i < len(applicable); i++ {
+		if applicable[i].Severity() < applicable[i-1].Severity() {
+			t.Fatalf("actions not sorted by severity: %d at index %d < %d at index %d",
+				applicable[i].Severity(), i, applicable[i-1].Severity(), i-1)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// AutoRemediationManager — shouldExecuteAction cooldown
+// ---------------------------------------------------------------------------
+
+func TestAutoRemediationManager_ShouldExecuteAction_Cooldown(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	manager := NewAutoRemediationManager(collector)
+	action := &GCAction{}
+
+	// First execution should be allowed
+	if !manager.shouldExecuteAction(action) {
+		t.Fatal("expected shouldExecuteAction to be true on first call")
+	}
+
+	// Record execution
+	manager.markActionExecuted(action)
+
+	// Second execution should be blocked by cooldown
+	if manager.shouldExecuteAction(action) {
+		t.Fatal("expected shouldExecuteAction to be false immediately after execution")
 	}
 }

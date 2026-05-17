@@ -70,8 +70,56 @@ func TestRestrictedCacheKey_Format(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// restrictedProbeKey
+// ---------------------------------------------------------------------------
+
+func TestRestrictedProbeKey_Format(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		chatID   int64
+		expected string
+	}{
+		{-1001618764357, "alita:restricted_probe:-1001618764357"},
+		{123456789, "alita:restricted_probe:123456789"},
+		{0, "alita:restricted_probe:0"},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("chatID=%d", tc.chatID), func(t *testing.T) {
+			t.Parallel()
+			got := restrictedProbeKey(tc.chatID)
+			if got != tc.expected {
+				t.Errorf("restrictedProbeKey(%d) = %q, want %q", tc.chatID, got, tc.expected)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // GetRestrictedCacheStats — no Redis needed (atomic counters)
 // ---------------------------------------------------------------------------
+
+func TestGetRestrictedCacheStats_InitialZero(t *testing.T) {
+	// Save and restore counters to avoid side effects from other tests.
+	origHits := restrictedCacheHits.Load()
+	origMisses := restrictedCacheMisses.Load()
+	defer func() {
+		restrictedCacheHits.Store(origHits)
+		restrictedCacheMisses.Store(origMisses)
+	}()
+
+	restrictedCacheHits.Store(0)
+	restrictedCacheMisses.Store(0)
+
+	hits, misses := GetRestrictedCacheStats()
+	if hits != 0 {
+		t.Errorf("expected initial hits = 0, got %d", hits)
+	}
+	if misses != 0 {
+		t.Errorf("expected initial misses = 0, got %d", misses)
+	}
+}
 
 func TestGetRestrictedCacheStats_BothCounters(t *testing.T) {
 	skipIfNoCache(t)
@@ -272,19 +320,58 @@ func TestIsChatRestricted_StatsIncrementMiss(t *testing.T) {
 // Nil-safety: functions must not panic when Marshal is nil
 // ---------------------------------------------------------------------------
 
-func TestNilMarshal_NoOp(t *testing.T) {
+func TestRestrictedChatKey_NilSafe(t *testing.T) {
 	t.Parallel()
 
-	// Save and restore Marshal.
+	got := restrictedChatKey(12345)
+	want := "alita:restricted:12345"
+	if got != want {
+		t.Errorf("restrictedChatKey(12345) = %q, want %q", got, want)
+	}
+}
+
+func TestRestrictedProbeKey_NilSafe(t *testing.T) {
+	t.Parallel()
+
+	got := restrictedProbeKey(12345)
+	want := "alita:restricted_probe:12345"
+	if got != want {
+		t.Errorf("restrictedProbeKey(12345) = %q, want %q", got, want)
+	}
+}
+
+func TestGetRestrictedCacheStats_NilSafe(t *testing.T) {
+	hits, misses := GetRestrictedCacheStats()
+	if hits < 0 {
+		t.Errorf("hits should be non-negative, got %d", hits)
+	}
+	if misses < 0 {
+		t.Errorf("misses should be non-negative, got %d", misses)
+	}
+}
+
+func TestMarkChatRestricted_NilMarshal_NoPanic(t *testing.T) {
 	orig := Marshal
 	Marshal = nil
 	defer func() { Marshal = orig }()
 
-	// None of these should panic.
 	MarkChatRestricted(-999)
-	MarkChatNotRestricted(-999)
+}
+
+func TestIsChatRestricted_NilMarshal_ReturnsFalse(t *testing.T) {
+	orig := Marshal
+	Marshal = nil
+	defer func() { Marshal = orig }()
 
 	if IsChatRestricted(-999) {
 		t.Error("IsChatRestricted with nil Marshal should return false")
 	}
+}
+
+func TestMarkChatNotRestricted_NilMarshal_NoPanic(t *testing.T) {
+	orig := Marshal
+	Marshal = nil
+	defer func() { Marshal = orig }()
+
+	MarkChatNotRestricted(-999)
 }

@@ -75,12 +75,17 @@ func (ba *ButtonArray) Scan(value any) error {
 		return nil
 	}
 
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
+	var data []byte
+	switch v := value.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return errors.New("type assertion to []byte or string failed")
 	}
 
-	return json.Unmarshal(bytes, ba)
+	return json.Unmarshal(data, ba)
 }
 
 // Value implements the driver Valuer interface for database serialization of ButtonArray.
@@ -103,12 +108,17 @@ func (sa *StringArray) Scan(value any) error {
 		return nil
 	}
 
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
+	var data []byte
+	switch v := value.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return errors.New("type assertion to []byte or string failed")
 	}
 
-	return json.Unmarshal(bytes, sa)
+	return json.Unmarshal(data, sa)
 }
 
 // Value implements the driver Valuer interface for database serialization of StringArray.
@@ -131,12 +141,17 @@ func (ia *Int64Array) Scan(value any) error {
 		return nil
 	}
 
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
+	var data []byte
+	switch v := value.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return errors.New("type assertion to []byte or string failed")
 	}
 
-	return json.Unmarshal(bytes, ia)
+	return json.Unmarshal(data, ia)
 }
 
 // Value implements the driver Valuer interface for database serialization of Int64Array.

@@ -4,12 +4,23 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestMain(m *testing.M) {
 	if DB == nil {
-		fmt.Println("Skipping DB tests: PostgreSQL not available (DB == nil)")
-		os.Exit(0)
+		dbPath := os.TempDir() + "/alita_test.db?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+		sqliteDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err != nil {
+			fmt.Printf("SQLite init failed: %v\n", err)
+			os.Exit(1)
+		}
+		DB = sqliteDB
 	}
 
 	err := DB.AutoMigrate(
@@ -51,6 +62,6 @@ func TestMain(m *testing.M) {
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if DB == nil {
-		t.Skip("requires PostgreSQL connection")
+		t.Skip("requires database connection")
 	}
 }

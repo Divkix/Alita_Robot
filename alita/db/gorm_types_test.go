@@ -10,7 +10,6 @@ import (
 
 //nolint:dupl // Scan test patterns are intentionally similar across types
 func TestButtonArray_Scan(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name        string
@@ -46,10 +45,10 @@ func TestButtonArray_Scan(t *testing.T) {
 			},
 		},
 		{
-			name:        "string type returns type assertion error",
-			input:       "not bytes",
+			name:        "invalid JSON string returns unmarshal error",
+			input:       "not valid json",
 			wantErr:     true,
-			errContains: "type assertion",
+			errContains: "invalid character",
 		},
 		{
 			name:    "invalid JSON returns unmarshal error",
@@ -99,7 +98,6 @@ func TestButtonArray_Scan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			var ba ButtonArray
 			err := ba.Scan(tc.input)
@@ -135,7 +133,6 @@ func TestButtonArray_Scan(t *testing.T) {
 
 //nolint:dupl // Value test patterns are intentionally similar across types
 func TestButtonArray_Value(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name    string
@@ -171,7 +168,6 @@ func TestButtonArray_Value(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			val, err := tc.input.Value()
 
@@ -211,7 +207,6 @@ func TestButtonArray_Value(t *testing.T) {
 
 //nolint:dupl // Scan test patterns are intentionally similar across types
 func TestStringArray_Scan(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name        string
@@ -244,10 +239,10 @@ func TestStringArray_Scan(t *testing.T) {
 			},
 		},
 		{
-			name:        "string type returns type assertion error",
-			input:       "not bytes",
+			name:        "invalid JSON string returns unmarshal error",
+			input:       "not valid json",
 			wantErr:     true,
-			errContains: "type assertion",
+			errContains: "invalid character",
 		},
 		{
 			name:    "invalid JSON returns error",
@@ -294,7 +289,6 @@ func TestStringArray_Scan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			var sa StringArray
 			err := sa.Scan(tc.input)
@@ -330,7 +324,6 @@ func TestStringArray_Scan(t *testing.T) {
 
 //nolint:dupl // Value test patterns are intentionally similar across types
 func TestStringArray_Value(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name    string
@@ -366,7 +359,6 @@ func TestStringArray_Value(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			val, err := tc.input.Value()
 
@@ -405,7 +397,6 @@ func TestStringArray_Value(t *testing.T) {
 
 //nolint:dupl // Scan test patterns are intentionally similar across types
 func TestInt64Array_Scan(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name        string
@@ -435,10 +426,10 @@ func TestInt64Array_Scan(t *testing.T) {
 			},
 		},
 		{
-			name:        "string type returns type assertion error",
-			input:       "not bytes",
+			name:        "invalid JSON string returns unmarshal error",
+			input:       "not valid json",
 			wantErr:     true,
-			errContains: "type assertion",
+			errContains: "invalid character",
 		},
 		{
 			name:    "invalid JSON returns error",
@@ -503,7 +494,6 @@ func TestInt64Array_Scan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			var ia Int64Array
 			err := ia.Scan(tc.input)
@@ -539,7 +529,6 @@ func TestInt64Array_Scan(t *testing.T) {
 
 //nolint:dupl // Value test patterns are intentionally similar across types
 func TestInt64Array_Value(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name    string
@@ -575,7 +564,6 @@ func TestInt64Array_Value(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			val, err := tc.input.Value()
 
@@ -618,7 +606,6 @@ func TestInt64Array_Value(t *testing.T) {
 }
 
 func TestTableNames(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name      string
@@ -656,7 +643,6 @@ func TestTableNames(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			if got := tc.model.TableName(); got != tc.wantTable {
 				t.Fatalf("%s.TableName() = %q, want %q", tc.name, got, tc.wantTable)
 			}
@@ -665,7 +651,6 @@ func TestTableNames(t *testing.T) {
 }
 
 func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -714,7 +699,6 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := tc.slice.Triggers()
 
@@ -736,7 +720,6 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 }
 
 func TestBlacklistSettingsSlice_Action(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name       string
@@ -786,7 +769,6 @@ func TestBlacklistSettingsSlice_Action(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := tc.slice.Action()
 			if got != tc.wantAction {
@@ -797,7 +779,6 @@ func TestBlacklistSettingsSlice_Action(t *testing.T) {
 }
 
 func TestBlacklistSettingsSlice_Reason(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name       string
@@ -840,7 +821,6 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := tc.slice.Reason()
 			if got != tc.wantReason {
@@ -851,7 +831,6 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 }
 
 func TestGetSpanAttributes(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name          string
@@ -892,7 +871,6 @@ func TestGetSpanAttributes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			attrs := getSpanAttributes(tc.model)
 
@@ -911,7 +889,6 @@ func TestGetSpanAttributes(t *testing.T) {
 }
 
 func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name    string
@@ -932,7 +909,6 @@ func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			ns := &NotesSettings{Private: tc.private}
 			got := ns.PrivateNotesEnabled()

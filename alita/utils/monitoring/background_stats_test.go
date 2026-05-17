@@ -246,6 +246,90 @@ func TestRecordMessageAndError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// GetCurrentMetrics with recorded values
+// ---------------------------------------------------------------------------
+
+func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
+	t.Parallel()
+
+	c := NewBackgroundStatsCollector()
+	c.RecordMessage()
+	c.RecordMessage()
+	c.RecordMessage()
+	c.RecordError()
+	c.RecordResponseTime(100 * time.Millisecond)
+	c.RecordResponseTime(200 * time.Millisecond)
+
+	// collectSystemStats reads atomic counters and sends to channel
+	c.collectSystemStats()
+
+	select {
+	case metrics := <-c.systemStatsChan:
+		c.updateSystemMetrics(metrics)
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for system stats")
+	}
+
+	result := c.GetCurrentMetrics()
+
+	if result.ProcessedMessages != 3 {
+		t.Errorf("expected ProcessedMessages=3, got %d", result.ProcessedMessages)
+	}
+	if result.ErrorCount != 1 {
+		t.Errorf("expected ErrorCount=1, got %d", result.ErrorCount)
+	}
+	if result.AverageResponseTime != 150*time.Millisecond {
+		t.Errorf("expected AverageResponseTime=150ms, got %v", result.AverageResponseTime)
+	}
+	if result.UptimeSeconds < 0 {
+		t.Errorf("expected UptimeSeconds >= 0, got %d", result.UptimeSeconds)
+	}
+	if result.Timestamp.IsZero() {
+		t.Error("expected Timestamp to be set")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RecordResponseTime verifies AverageResponseTime in metrics
+// ---------------------------------------------------------------------------
+
+func TestRecordResponseTime_VerifiesAverageResponseTime(t *testing.T) {
+	t.Parallel()
+
+	c := NewBackgroundStatsCollector()
+
+	c.RecordResponseTime(50 * time.Millisecond)
+	c.RecordResponseTime(150 * time.Millisecond)
+	c.RecordResponseTime(100 * time.Millisecond)
+
+	c.collectSystemStats()
+
+	select {
+	case metrics := <-c.systemStatsChan:
+		c.updateSystemMetrics(metrics)
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for system stats")
+	}
+
+	result := c.GetCurrentMetrics()
+	expectedAvg := 100 * time.Millisecond // (50+150+100)/3 = 100ms
+	if result.AverageResponseTime != expectedAvg {
+		t.Errorf("expected AverageResponseTime=%v, got %v", expectedAvg, result.AverageResponseTime)
+	}
+
+	// responseTimeCount should be 3
+	if c.responseTimeCount != 3 {
+		t.Errorf("expected responseTimeCount=3, got %d", c.responseTimeCount)
+	}
+
+	// responseTimeSum should be 300ms
+	expectedSum := int64(300 * time.Millisecond)
+	if c.responseTimeSum != expectedSum {
+		t.Errorf("expected responseTimeSum=%d, got %d", expectedSum, c.responseTimeSum)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Global recorders (wiring tests for main.go callback setup)
 // ---------------------------------------------------------------------------
 

@@ -10,7 +10,6 @@ import (
 )
 
 func TestOptimizedLockQueries_NilDB(t *testing.T) {
-	t.Parallel()
 
 	q := &OptimizedLockQueries{db: nil}
 	_, err := q.GetLockStatus(123, "text")
@@ -23,7 +22,6 @@ func TestOptimizedLockQueries_NilDB(t *testing.T) {
 }
 
 func TestOptimizedLockQueries_GetLockStatus(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -59,7 +57,6 @@ func TestOptimizedLockQueries_GetLockStatus(t *testing.T) {
 }
 
 func TestOptimizedLockQueries_GetChatLocksOptimized(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -106,7 +103,6 @@ func TestOptimizedLockQueries_GetChatLocksOptimized(t *testing.T) {
 }
 
 func TestOptimizedUserQueries_NilDB(t *testing.T) {
-	t.Parallel()
 
 	q := &OptimizedUserQueries{db: nil}
 	_, err := q.GetUserBasicInfo(123)
@@ -119,7 +115,6 @@ func TestOptimizedUserQueries_NilDB(t *testing.T) {
 }
 
 func TestOptimizedUserQueries_GetUserBasicInfo(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -158,7 +153,6 @@ func TestOptimizedUserQueries_GetUserBasicInfo(t *testing.T) {
 }
 
 func TestOptimizedChatQueries_NilDB(t *testing.T) {
-	t.Parallel()
 
 	q := &OptimizedChatQueries{db: nil}
 	_, err := q.GetChatBasicInfo(123)
@@ -171,7 +165,6 @@ func TestOptimizedChatQueries_NilDB(t *testing.T) {
 }
 
 func TestGetOptimizedQueries_Singleton(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Call twice and verify same pointer is returned
@@ -190,7 +183,6 @@ func TestGetOptimizedQueries_Singleton(t *testing.T) {
 }
 
 func TestCacheKeyFormats(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -226,7 +218,6 @@ func TestCacheKeyFormats(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			got := tc.fn()
 			if got != tc.expected {
 				t.Fatalf("%s() = %q, want %q", tc.name, got, tc.expected)

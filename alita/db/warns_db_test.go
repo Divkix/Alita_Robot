@@ -7,7 +7,6 @@ import (
 )
 
 func TestCheckWarnSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -32,7 +31,6 @@ func TestCheckWarnSettings_Defaults(t *testing.T) {
 }
 
 func TestWarnUser(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -61,7 +59,6 @@ func TestWarnUser(t *testing.T) {
 }
 
 func TestWarnUserReachesLimit(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -98,7 +95,6 @@ func TestWarnUserReachesLimit(t *testing.T) {
 }
 
 func TestRemoveWarn(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -136,7 +132,6 @@ func TestRemoveWarn(t *testing.T) {
 }
 
 func TestResetWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -177,7 +172,6 @@ func TestResetWarns(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWarnLimit(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -202,7 +196,6 @@ func TestSetWarnLimit(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWarnMode(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -226,7 +219,6 @@ func TestSetWarnMode(t *testing.T) {
 }
 
 func TestWarnWithEmptyReason(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -256,7 +248,6 @@ func TestWarnWithEmptyReason(t *testing.T) {
 }
 
 func TestResetWarns_NoWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -280,7 +271,6 @@ func TestResetWarns_NoWarns(t *testing.T) {
 }
 
 func TestSequentialMultipleWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -311,7 +301,6 @@ func TestSequentialMultipleWarns(t *testing.T) {
 }
 
 func TestGetAllChatWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -338,7 +327,6 @@ func TestGetAllChatWarns(t *testing.T) {
 }
 
 func TestResetAllChatWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -370,7 +358,6 @@ func TestResetAllChatWarns(t *testing.T) {
 }
 
 func TestRemoveWarn_NoWarns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()

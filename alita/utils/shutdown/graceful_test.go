@@ -7,137 +7,155 @@ import (
 )
 
 func TestNewManager(t *testing.T) {
-	t.Parallel()
-
 	m := NewManager()
-
 	if m == nil {
 		t.Fatal("NewManager() returned nil")
 	}
-
-	m.mu.RLock()
-	handlers := m.handlers
-	m.mu.RUnlock()
-
-	if handlers == nil {
-		t.Fatal("handlers slice should be non-nil after NewManager()")
+	if m.handlers == nil {
+		t.Error("expected handlers slice to be initialized, got nil")
 	}
-
-	if len(handlers) != 0 {
-		t.Fatalf("handlers slice should be empty after NewManager(), got length %d", len(handlers))
+	if len(m.handlers) != 0 {
+		t.Errorf("expected empty handlers slice, got len=%d", len(m.handlers))
 	}
 }
 
 func TestRegisterHandler(t *testing.T) {
-	t.Parallel()
+	m := NewManager()
 
-	t.Run("single handler", func(t *testing.T) {
-		t.Parallel()
+	var callOrder []int
+	var mu sync.Mutex
 
-		m := NewManager()
-		m.RegisterHandler(func() error { return nil })
+	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 1); mu.Unlock(); return nil })
+	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 2); mu.Unlock(); return nil })
+	m.RegisterHandler(func() error { mu.Lock(); callOrder = append(callOrder, 3); mu.Unlock(); return nil })
 
-		m.mu.RLock()
-		length := len(m.handlers)
-		m.mu.RUnlock()
+	if len(m.handlers) != 3 {
+		t.Fatalf("expected 3 handlers, got %d", len(m.handlers))
+	}
 
-		if length != 1 {
-			t.Fatalf("expected 1 handler, got %d", length)
+	// Verify registration order (FIFO) by executing directly
+	for i, h := range m.handlers {
+		if err := h(); err != nil {
+			t.Fatalf("handler %d returned error: %v", i, err)
 		}
-	})
+	}
 
-	t.Run("multiple sequential handlers", func(t *testing.T) {
-		t.Parallel()
-
-		const n = 5
-		m := NewManager()
-
-		for i := 0; i < n; i++ {
-			m.RegisterHandler(func() error { return nil })
+	mu.Lock()
+	defer mu.Unlock()
+	if len(callOrder) != 3 {
+		t.Fatalf("expected 3 calls, got %d", len(callOrder))
+	}
+	for i, v := range callOrder {
+		if v != i+1 {
+			t.Errorf("expected callOrder[%d]=%d, got %d", i, i+1, v)
 		}
-
-		m.mu.RLock()
-		length := len(m.handlers)
-		m.mu.RUnlock()
-
-		if length != n {
-			t.Fatalf("expected %d handlers, got %d", n, length)
-		}
-	})
-
-	t.Run("concurrent 50 goroutines", func(t *testing.T) {
-		t.Parallel()
-
-		const count = 50
-		m := NewManager()
-
-		var wg sync.WaitGroup
-		wg.Add(count)
-
-		for i := 0; i < count; i++ {
-			go func() {
-				defer wg.Done()
-				m.RegisterHandler(func() error { return nil })
-			}()
-		}
-
-		wg.Wait()
-
-		m.mu.RLock()
-		length := len(m.handlers)
-		m.mu.RUnlock()
-
-		if length != count {
-			t.Fatalf("expected %d handlers after concurrent registration, got %d", count, length)
-		}
-	})
+	}
 }
 
 func TestExecuteHandler(t *testing.T) {
-	t.Parallel()
+	m := NewManager()
 
-	t.Run("handler returns nil", func(t *testing.T) {
-		t.Parallel()
+	// Test successful execution
+	executed := false
+	err := m.executeHandler(func() error {
+		executed = true
+		return nil
+	}, 0)
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if !executed {
+		t.Error("expected handler to be executed")
+	}
 
-		m := NewManager()
-		err := m.executeHandler(func() error { return nil }, 0)
-		if err != nil {
-			t.Fatalf("expected nil error, got %v", err)
+	// Test handler returning error
+	expectedErr := errors.New("handler error")
+	err = m.executeHandler(func() error {
+		return expectedErr
+	}, 1)
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestExecuteHandlerPanicRecovery(t *testing.T) {
+	m := NewManager()
+
+	// Test panic recovery - handler should not propagate panic
+	executed := false
+	err := m.executeHandler(func() error {
+		executed = true
+		panic("intentional panic")
+	}, 0)
+
+	if err != nil {
+		t.Errorf("expected nil error after panic recovery, got %v", err)
+	}
+	if !executed {
+		t.Error("expected handler to have started execution before panic")
+	}
+}
+
+func TestHandlersExecuteInLIFOOrder(t *testing.T) {
+	m := NewManager()
+
+	// Use a channel to record execution order
+	orderCh := make(chan int, 3)
+
+	m.RegisterHandler(func() error { orderCh <- 1; return nil })
+	m.RegisterHandler(func() error { orderCh <- 2; return nil })
+	m.RegisterHandler(func() error { orderCh <- 3; return nil })
+
+	// Simulate shutdown's reverse iteration without calling shutdown() directly
+	m.mu.RLock()
+	handlers := make([]func() error, len(m.handlers))
+	copy(handlers, m.handlers)
+	m.mu.RUnlock()
+
+	// Execute in reverse order (LIFO) as shutdown() does
+	for i := len(handlers) - 1; i >= 0; i-- {
+		_ = m.executeHandler(handlers[i], i)
+	}
+
+	close(orderCh)
+
+	var order []int
+	for v := range orderCh {
+		order = append(order, v)
+	}
+
+	if len(order) != 3 {
+		t.Fatalf("expected 3 executions, got %d", len(order))
+	}
+
+	// LIFO: last registered (3) should execute first
+	expected := []int{3, 2, 1}
+	for i, v := range expected {
+		if order[i] != v {
+			t.Errorf("expected execution order[%d]=%d (LIFO), got %d", i, v, order[i])
 		}
-	})
+	}
+}
 
-	t.Run("handler returns error", func(t *testing.T) {
-		t.Parallel()
+func TestRegisterHandlerConcurrency(t *testing.T) {
+	m := NewManager()
+	var wg sync.WaitGroup
+	numHandlers := 100
 
-		m := NewManager()
-		sentinel := errors.New("shutdown error")
-		err := m.executeHandler(func() error { return sentinel }, 1)
-		if !errors.Is(err, sentinel) {
-			t.Fatalf("expected sentinel error, got %v", err)
-		}
-	})
-
-	t.Run("handler panics — recovered, no propagation", func(t *testing.T) {
-		t.Parallel()
-
-		m := NewManager()
-
-		// executeHandler must recover from the panic internally; if it does not,
-		// the deferred recover below would catch it and we would explicitly fail.
-		var panicCaught bool
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicCaught = true
-				}
-			}()
-			_ = m.executeHandler(func() error {
-				panic("test panic")
-			}, 2)
+	for i := 0; i < numHandlers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			m.RegisterHandler(func() error { return nil })
 		}()
+	}
 
-		if panicCaught {
-			t.Fatal("panic escaped executeHandler — recovery is not working")
-		}
-	})
+	wg.Wait()
+
+	if len(m.handlers) != numHandlers {
+		t.Errorf("expected %d handlers, got %d", numHandlers, len(m.handlers))
+	}
 }

@@ -11,7 +11,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestEnsureChannelInDb(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	channelID := -(time.Now().UnixNano() % 1_000_000_000_000)
@@ -41,7 +40,6 @@ func TestEnsureChannelInDb(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetChannelIdByUserName(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	channelID := -(time.Now().UnixNano()%1_000_000_000_000 + 2000)
@@ -62,7 +60,6 @@ func TestGetChannelIdByUserName(t *testing.T) {
 }
 
 func TestGetChannelIdByUserName_NotFound(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	gotID := GetChannelIdByUserName("nonexistent_channel_xyzabc999")
@@ -72,7 +69,6 @@ func TestGetChannelIdByUserName_NotFound(t *testing.T) {
 }
 
 func TestGetChannelIdByUserName_Empty(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	gotID := GetChannelIdByUserName("")
@@ -86,7 +82,6 @@ func TestGetChannelIdByUserName_Empty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetChannelInfoById(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	channelID := -(time.Now().UnixNano()%1_000_000_000_000 + 3000)
@@ -114,7 +109,6 @@ func TestGetChannelInfoById(t *testing.T) {
 }
 
 func TestGetChannelInfoById_NotFound(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	_, _, found := GetChannelInfoById(-9999999999999)
@@ -128,7 +122,6 @@ func TestGetChannelInfoById_NotFound(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUpdateChannel(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	channelID := -(time.Now().UnixNano()%1_000_000_000_000 + 4000)
