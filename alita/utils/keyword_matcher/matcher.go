@@ -31,8 +31,8 @@ type MatchResult struct {
 func hashPatterns(patterns []string) uint64 {
 	h := fnv.New64a()
 	for _, p := range patterns {
-		h.Write([]byte(p))
-		h.Write([]byte{0}) // separator
+		_, _ = h.Write([]byte(p))
+		_, _ = h.Write([]byte{0}) // separator
 	}
 	return h.Sum64()
 }
