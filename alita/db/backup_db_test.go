@@ -202,8 +202,12 @@ func TestClearModuleDataConnectionsDisablesAllowConnect(t *testing.T) {
 	chatID := time.Now().UnixNano()
 	require.NoError(t, EnsureChatInDb(chatID, "test_backup_connections_clear"))
 	t.Cleanup(func() {
-		DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{})
-		DB.Where("chat_id = ?", chatID).Delete(&Chat{})
+		if err := DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(ConnectionChatSettings) error: %v", err)
+		}
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(Chat) error: %v", err)
+		}
 	})
 
 	_ = GetChatConnectionSetting(chatID)
@@ -1068,9 +1072,9 @@ func TestClearChatData_AllModules(t *testing.T) {
 	require.NoError(t, AddBlacklist(chatID, "bad"))
 	require.NoError(t, SetFlood(chatID, 5))
 	SetChatRules(chatID, "rules text")
-	_ = SetCaptchaEnabled(chatID, true)
+	require.NoError(t, SetCaptchaEnabled(chatID, true))
 	_ = GetPinData(chatID)
-	_ = SetAntiChannelPin(chatID, true)
+	require.NoError(t, SetAntiChannelPin(chatID, true))
 	_ = GetChatReportSettings(chatID)
 	_ = GetAdminSettings(chatID)
 

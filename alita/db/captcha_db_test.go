@@ -26,7 +26,9 @@ func TestDeleteCaptchaAttemptByIDAtomicSingleClaim(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	const workers = 20
@@ -206,7 +208,9 @@ func TestCaptchaAttempt_Lifecycle(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Read back by ID
@@ -240,7 +244,9 @@ func TestCaptchaAttempt_IncrementAttempts(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Initial Attempts == 0
@@ -317,8 +323,12 @@ func TestStoredMessages_CRUD(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DeleteStoredMessagesForAttempt(attempt.ID)
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
+			t.Fatalf("cleanup DeleteStoredMessagesForAttempt error: %v", err)
+		}
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Store 3 messages
@@ -409,7 +419,9 @@ func TestGetCaptchaAttempt_ExistingAndMissing(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Now it should be found
@@ -439,7 +451,9 @@ func TestGetCaptchaAttempt_Expired(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Backdate both created_at and expires_at so expires_at > created_at but both are in the past
@@ -484,7 +498,9 @@ func TestGetCaptchaAttemptByID_ExistingAndMissing(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", created.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Read back by ID
@@ -552,7 +568,9 @@ func TestDeleteAllCaptchaAttempts(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Verify all 3 exist
@@ -594,8 +612,12 @@ func TestStoreMessageForCaptchaAndGetStoredMessagesForUser(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DeleteStoredMessagesForAttempt(attempt.ID)
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
+			t.Fatalf("cleanup DeleteStoredMessagesForAttempt error: %v", err)
+		}
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Store 3 messages for this user/chat
@@ -616,6 +638,7 @@ func TestStoreMessageForCaptchaAndGetStoredMessagesForUser(t *testing.T) {
 
 	// Compare deterministically as a set to avoid flaking on DB ordering.
 	expectedContents := map[string]bool{"content0": true, "content1": true, "content2": true}
+	seen := 0
 	for _, msg := range messages {
 		if !expectedContents[msg.Content] {
 			t.Fatalf("unexpected message content %q", msg.Content)
@@ -626,6 +649,11 @@ func TestStoreMessageForCaptchaAndGetStoredMessagesForUser(t *testing.T) {
 		if msg.ChatID != chatID {
 			t.Fatalf("message.ChatID = %d, want %d", msg.ChatID, chatID)
 		}
+		seen++
+		delete(expectedContents, msg.Content)
+	}
+	if seen != 3 || len(expectedContents) != 0 {
+		t.Fatalf("expected 3 unique messages, got %d seen, %d missing", seen, len(expectedContents))
 	}
 }
 
@@ -645,7 +673,9 @@ func TestDeleteStoredMessagesForAttempt(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup Delete(CaptchaAttempts) error: %v", err)
+		}
 	})
 
 	// Store 2 messages

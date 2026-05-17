@@ -195,7 +195,10 @@ func TestLoadUserActivityStats(t *testing.T) {
 	// Cleanup
 	t.Cleanup(func() {
 		for _, u := range users {
-			DB.Where("user_id = ?", u.UserId).Delete(&User{})
+			res := DB.Where("user_id = ?", u.UserId).Delete(&User{})
+			if res.Error != nil {
+				t.Errorf("failed to delete test user %d: %v", u.UserId, res.Error)
+			}
 		}
 	})
 

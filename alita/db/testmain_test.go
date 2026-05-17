@@ -71,7 +71,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	exitCode := m.Run()
+	os.Exit(exitCode)
 }
 
 func skipIfNoDb(t *testing.T) {

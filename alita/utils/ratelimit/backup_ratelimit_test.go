@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestFormatCooldown(t *testing.T) {
@@ -53,36 +54,27 @@ func TestGetBackupRateLimiter_Singleton(t *testing.T) {
 	}
 }
 
-func TestBackupRateLimiter_CanExport_NilCache(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	allowed, remaining := limiter.CanExport(12345)
-	if !allowed {
-		t.Error("expected allowed=true when cache is nil")
+func TestBackupRateLimiter_CanMethods_NilCache(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(*BackupRateLimiter, int64) (bool, time.Duration)
+	}{
+		{"CanExport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanExport(id) }},
+		{"CanImport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanImport(id) }},
+		{"CanReset", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanReset(id) }},
 	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 when cache is nil, got %v", remaining)
-	}
-}
-
-func TestBackupRateLimiter_CanImport_NilCache(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	allowed, remaining := limiter.CanImport(12345)
-	if !allowed {
-		t.Error("expected allowed=true when cache is nil")
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 when cache is nil, got %v", remaining)
-	}
-}
-
-func TestBackupRateLimiter_CanReset_NilCache(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	allowed, remaining := limiter.CanReset(12345)
-	if !allowed {
-		t.Error("expected allowed=true when cache is nil")
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 when cache is nil, got %v", remaining)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			limiter := &BackupRateLimiter{}
+			allowed, remaining := tc.fn(limiter, 12345)
+			if !allowed {
+				t.Error("expected allowed=true when cache is nil")
+			}
+			if remaining != 0 {
+				t.Errorf("expected remaining=0 when cache is nil, got %v", remaining)
+			}
+		})
 	}
 }
 
@@ -90,19 +82,23 @@ func TestBackupRateLimiter_CanReset_NilCache(t *testing.T) {
 // Record methods with nil cache — must not panic
 // ---------------------------------------------------------------------------
 
-func TestBackupRateLimiter_RecordExport_NilCache_NoPanic(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	limiter.RecordExport(12345)
-}
-
-func TestBackupRateLimiter_RecordImport_NilCache_NoPanic(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	limiter.RecordImport(12345)
-}
-
-func TestBackupRateLimiter_RecordReset_NilCache_NoPanic(t *testing.T) {
-	limiter := &BackupRateLimiter{}
-	limiter.RecordReset(12345)
+func TestBackupRateLimiter_RecordMethods_NilCache_NoPanic(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(*BackupRateLimiter, int64)
+	}{
+		{"RecordExport", func(l *BackupRateLimiter, id int64) { l.RecordExport(id) }},
+		{"RecordImport", func(l *BackupRateLimiter, id int64) { l.RecordImport(id) }},
+		{"RecordReset", func(l *BackupRateLimiter, id int64) { l.RecordReset(id) }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			limiter := &BackupRateLimiter{}
+			// Must not panic
+			tc.fn(limiter, 12345)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

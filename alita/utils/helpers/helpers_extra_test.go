@@ -25,6 +25,12 @@ func TestAddCmdToDisableable(t *testing.T) {
 	copy(orig, DisableCmds)
 	cmdsMu.Unlock()
 
+	defer func() {
+		cmdsMu.Lock()
+		DisableCmds = orig
+		cmdsMu.Unlock()
+	}()
+
 	AddCmdToDisableable(testCmd)
 
 	cmdsMu.Lock()
@@ -40,10 +46,6 @@ func TestAddCmdToDisableable(t *testing.T) {
 	if !found {
 		t.Fatalf("expected %q in DisableCmds", testCmd)
 	}
-
-	cmdsMu.Lock()
-	DisableCmds = orig
-	cmdsMu.Unlock()
 }
 
 func TestAddCmdToDisableableThreadSafe(t *testing.T) {
@@ -107,7 +109,9 @@ func TestMultiCommand(t *testing.T) {
 			Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 5}},
 		},
 	}
-	_ = d.ProcessUpdate(b, u1, nil)
+	if err := d.ProcessUpdate(b, u1, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/cmda) unexpected error: %v", err)
+	}
 	if !called["multi"] {
 		t.Fatal("expected handler to be called for /cmda")
 	}
@@ -121,7 +125,9 @@ func TestMultiCommand(t *testing.T) {
 			Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 5}},
 		},
 	}
-	_ = d.ProcessUpdate(b, u2, nil)
+	if err := d.ProcessUpdate(b, u2, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/cmdb) unexpected error: %v", err)
+	}
 	if !called["multi"] {
 		t.Fatal("expected handler to be called for /cmdb")
 	}
@@ -135,7 +141,9 @@ func TestMultiCommand(t *testing.T) {
 			Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 5}},
 		},
 	}
-	_ = d.ProcessUpdate(b, u3, nil)
+	if err := d.ProcessUpdate(b, u3, nil); err != nil {
+		t.Fatalf("ProcessUpdate(/cmdc) unexpected error: %v", err)
+	}
 	if called["multi"] {
 		t.Fatal("expected handler NOT to be called for /cmdc")
 	}
@@ -247,96 +255,74 @@ func TestPreFixesEmptyTextWithFile(t *testing.T) {
 // setRawText
 // ---------------------------------------------------------------------------
 
-func TestSetRawTextDirectText(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{Text: "/note hello world"}
-	args := strings.Fields(msg.Text)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
-
-	if rawText != "hello world" {
-		t.Fatalf("expected %q, got %q", "hello world", rawText)
-	}
-}
-
-func TestSetRawTextDirectCaption(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{Caption: "/note hello cap"}
-	args := strings.Fields(msg.Caption)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
-
-	if rawText != "hello cap" {
-		t.Fatalf("expected %q, got %q", "hello cap", rawText)
-	}
-}
-
-func TestSetRawTextReplyText(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{
-		Text: "/note mykeyword",
-		ReplyToMessage: &gotgbot.Message{
-			Text: "reply text content",
+func TestSetRawText(t *testing.T) {
+	tests := []struct {
+		name      string
+		msg       *gotgbot.Message
+		want      string
+	}{
+		{
+			name: "direct text",
+			msg:  &gotgbot.Message{Text: "/note hello world"},
+			want: "hello world",
+		},
+		{
+			name: "direct caption",
+			msg:  &gotgbot.Message{Caption: "/note hello cap"},
+			want: "hello cap",
+		},
+		{
+			name: "reply text",
+			msg: &gotgbot.Message{
+				Text: "/note mykeyword",
+				ReplyToMessage: &gotgbot.Message{
+					Text: "reply text content",
+				},
+			},
+			want: "reply text content",
+		},
+		{
+			name: "reply caption",
+			msg: &gotgbot.Message{
+				Text: "/note mykeyword",
+				ReplyToMessage: &gotgbot.Message{
+					Caption: "reply caption content",
+				},
+			},
+			want: "reply caption content",
+		},
+		{
+			name: "reply with args",
+			msg: &gotgbot.Message{
+				Text: "/note arg1 extra content here",
+				ReplyToMessage: &gotgbot.Message{
+					Text: "reply text",
+				},
+			},
+			want: "extra content here",
+		},
+		{
+			name: "command only",
+			msg:  &gotgbot.Message{Text: "/note"},
+			want: "",
 		},
 	}
-	args := strings.Fields(msg.Text)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
 
-	if rawText != "reply text content" {
-		t.Fatalf("expected %q, got %q", "reply text content", rawText)
-	}
-}
-
-func TestSetRawTextReplyCaption(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{
-		Text: "/note mykeyword",
-		ReplyToMessage: &gotgbot.Message{
-			Caption: "reply caption content",
-		},
-	}
-	args := strings.Fields(msg.Text)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
-
-	if rawText != "reply caption content" {
-		t.Fatalf("expected %q, got %q", "reply caption content", rawText)
-	}
-}
-
-func TestSetRawTextReplyWithArgs(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{
-		Text: "/note arg1 extra content here",
-		ReplyToMessage: &gotgbot.Message{
-			Text: "reply text",
-		},
-	}
-	args := strings.Fields(msg.Text)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
-
-	if rawText != "extra content here" {
-		t.Fatalf("expected %q, got %q", "extra content here", rawText)
-	}
-}
-
-func TestSetRawTextOnlyCommand(t *testing.T) {
-	t.Parallel()
-
-	msg := &gotgbot.Message{Text: "/note"}
-	args := strings.Fields(msg.Text)[1:]
-	var rawText string
-	setRawText(msg, args, &rawText)
-
-	if rawText != "" {
-		t.Fatalf("expected empty rawText for command-only message, got %q", rawText)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var rawText string
+			var args []string
+			if tc.msg.Text != "" {
+				args = strings.Fields(tc.msg.Text)[1:]
+			} else if tc.msg.Caption != "" {
+				args = strings.Fields(tc.msg.Caption)[1:]
+			}
+			setRawText(tc.msg, args, &rawText)
+			if rawText != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, rawText)
+			}
+		})
 	}
 }
 
@@ -344,168 +330,99 @@ func TestSetRawTextOnlyCommand(t *testing.T) {
 // extractMediaFromReply
 // ---------------------------------------------------------------------------
 
-func TestExtractMediaFromReplyPhoto(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Photo: []gotgbot.PhotoSize{
-			{FileId: "small", Width: 100, Height: 100},
-			{FileId: "large_photo", Width: 800, Height: 600},
+func TestExtractMediaFromReply(t *testing.T) {
+	tests := []struct {
+		name     string
+		msg      *gotgbot.Message
+		wantFile string
+		wantType int
+	}{
+		{
+			name: "photo",
+			msg: &gotgbot.Message{
+				Photo: []gotgbot.PhotoSize{
+					{FileId: "small", Width: 100, Height: 100},
+					{FileId: "large_photo", Width: 800, Height: 600},
+				},
+			},
+			wantFile: "large_photo",
+			wantType: db.PHOTO,
+		},
+		{
+			name:     "video",
+			msg:      &gotgbot.Message{Video: &gotgbot.Video{FileId: "video_123"}},
+			wantFile: "video_123",
+			wantType: db.VIDEO,
+		},
+		{
+			name:     "audio",
+			msg:      &gotgbot.Message{Audio: &gotgbot.Audio{FileId: "audio_456"}},
+			wantFile: "audio_456",
+			wantType: db.AUDIO,
+		},
+		{
+			name:     "voice",
+			msg:      &gotgbot.Message{Voice: &gotgbot.Voice{FileId: "voice_789"}},
+			wantFile: "voice_789",
+			wantType: db.VOICE,
+		},
+		{
+			name:     "video note",
+			msg:      &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "vn_abc"}},
+			wantFile: "vn_abc",
+			wantType: db.VideoNote,
+		},
+		{
+			name:     "document",
+			msg:      &gotgbot.Message{Document: &gotgbot.Document{FileId: "doc_def"}},
+			wantFile: "doc_def",
+			wantType: db.DOCUMENT,
+		},
+		{
+			name:     "sticker",
+			msg:      &gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "sticker_ghi"}},
+			wantFile: "sticker_ghi",
+			wantType: db.STICKER,
+		},
+		{
+			name:     "animation",
+			msg:      &gotgbot.Message{Animation: &gotgbot.Animation{FileId: "anim_xyz"}},
+			wantFile: "anim_xyz",
+			wantType: db.DOCUMENT,
+		},
+		{
+			name:     "text only",
+			msg:      &gotgbot.Message{Text: "Hello world"},
+			wantFile: "",
+			wantType: -1,
+		},
+		{
+			name:     "nil message",
+			msg:      nil,
+			wantFile: "",
+			wantType: -1,
+		},
+		{
+			name: "sticker priority over document",
+			msg: &gotgbot.Message{
+				Sticker:  &gotgbot.Sticker{FileId: "sticker_prio"},
+				Document: &gotgbot.Document{FileId: "doc_other"},
+			},
+			wantFile: "sticker_prio",
+			wantType: db.STICKER,
 		},
 	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "large_photo" {
-		t.Fatalf("expected last photo file_id %q, got %q", "large_photo", fileID)
-	}
-	if dt != db.PHOTO {
-		t.Fatalf("expected dataType=%d (PHOTO), got %d", db.PHOTO, dt)
-	}
-}
 
-func TestExtractMediaFromReplyVideo(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Video: &gotgbot.Video{FileId: "video_123"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "video_123" {
-		t.Fatalf("expected file_id %q, got %q", "video_123", fileID)
-	}
-	if dt != db.VIDEO {
-		t.Fatalf("expected dataType=%d (VIDEO), got %d", db.VIDEO, dt)
-	}
-}
-
-func TestExtractMediaFromReplyAudio(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Audio: &gotgbot.Audio{FileId: "audio_456"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "audio_456" {
-		t.Fatalf("expected file_id %q, got %q", "audio_456", fileID)
-	}
-	if dt != db.AUDIO {
-		t.Fatalf("expected dataType=%d (AUDIO), got %d", db.AUDIO, dt)
-	}
-}
-
-func TestExtractMediaFromReplyVoice(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Voice: &gotgbot.Voice{FileId: "voice_789"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "voice_789" {
-		t.Fatalf("expected file_id %q, got %q", "voice_789", fileID)
-	}
-	if dt != db.VOICE {
-		t.Fatalf("expected dataType=%d (VOICE), got %d", db.VOICE, dt)
-	}
-}
-
-func TestExtractMediaFromReplyVideoNote(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		VideoNote: &gotgbot.VideoNote{FileId: "vn_abc"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "vn_abc" {
-		t.Fatalf("expected file_id %q, got %q", "vn_abc", fileID)
-	}
-	if dt != db.VideoNote {
-		t.Fatalf("expected dataType=%d (VideoNote), got %d", db.VideoNote, dt)
-	}
-}
-
-func TestExtractMediaFromReplyDocument(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Document: &gotgbot.Document{FileId: "doc_def"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "doc_def" {
-		t.Fatalf("expected file_id %q, got %q", "doc_def", fileID)
-	}
-	if dt != db.DOCUMENT {
-		t.Fatalf("expected dataType=%d (DOCUMENT), got %d", db.DOCUMENT, dt)
-	}
-}
-
-func TestExtractMediaFromReplySticker(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Sticker: &gotgbot.Sticker{FileId: "sticker_ghi"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "sticker_ghi" {
-		t.Fatalf("expected file_id %q, got %q", "sticker_ghi", fileID)
-	}
-	if dt != db.STICKER {
-		t.Fatalf("expected dataType=%d (STICKER), got %d", db.STICKER, dt)
-	}
-}
-
-func TestExtractMediaFromReplyAnimation(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Animation: &gotgbot.Animation{FileId: "anim_xyz"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "anim_xyz" {
-		t.Fatalf("expected file_id %q, got %q", "anim_xyz", fileID)
-	}
-	if dt != db.DOCUMENT {
-		t.Fatalf("expected dataType=%d (DOCUMENT), got %d", db.DOCUMENT, dt)
-	}
-}
-
-func TestExtractMediaFromReplyTextOnly(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Text: "Hello world",
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "" {
-		t.Fatalf("expected empty file_id for text-only message, got %q", fileID)
-	}
-	if dt != -1 {
-		t.Fatalf("expected dataType=-1 for text-only message, got %d", dt)
-	}
-}
-
-func TestExtractMediaFromReplyNil(t *testing.T) {
-	t.Parallel()
-
-	fileID, dt := extractMediaFromReply(nil)
-	if fileID != "" {
-		t.Fatalf("expected empty file_id for nil message, got %q", fileID)
-	}
-	if dt != -1 {
-		t.Fatalf("expected dataType=-1 for nil message, got %d", dt)
-	}
-}
-
-func TestExtractMediaFromReplyPriorityStickerOverDocument(t *testing.T) {
-	t.Parallel()
-
-	reply := &gotgbot.Message{
-		Sticker:  &gotgbot.Sticker{FileId: "sticker_prio"},
-		Document: &gotgbot.Document{FileId: "doc_other"},
-	}
-	fileID, dt := extractMediaFromReply(reply)
-	if fileID != "sticker_prio" {
-		t.Fatalf("expected sticker to win over document, got %q", fileID)
-	}
-	if dt != db.STICKER {
-		t.Fatalf("expected dataType=%d (STICKER), got %d", db.STICKER, dt)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fileID, dt := extractMediaFromReply(tc.msg)
+			if fileID != tc.wantFile {
+				t.Fatalf("expected file_id %q, got %q", tc.wantFile, fileID)
+			}
+			if dt != tc.wantType {
+				t.Fatalf("expected dataType=%d, got %d", tc.wantType, dt)
+			}
+		})
 	}
 }

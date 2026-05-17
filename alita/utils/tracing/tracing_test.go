@@ -162,10 +162,21 @@ func TestRunOnProcessUpdateCallback_NoCallback_DoesNotPanic(t *testing.T) {
 }
 
 func TestWorkingModeAttribute_ValueReflectsConfig(t *testing.T) {
-	// Save original value to restore after test
+	ensureAppConfig(t)
+
+	// Save original pointer to restore after test
+	origApp := config.AppConfig
+	defer func() {
+		config.AppConfig = origApp
+	}()
+	if config.AppConfig == nil {
+		config.AppConfig = &config.Config{}
+	}
 	origMode := config.AppConfig.WorkingMode
 	defer func() {
-		config.AppConfig.WorkingMode = origMode
+		if config.AppConfig != nil {
+			config.AppConfig.WorkingMode = origMode
+		}
 	}()
 
 	config.AppConfig.WorkingMode = "webhook"

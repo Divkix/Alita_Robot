@@ -136,8 +136,14 @@ func TestStart(t *testing.T) {
 	// calculateMetrics runs synchronously inside Start, so lastMetricsCalculated
 	// should be set immediately (or very shortly, since it spawns goroutines).
 	done := make(chan struct{})
+	quit := make(chan struct{})
 	go func() {
 		for {
+			select {
+			case <-quit:
+				return
+			default:
+			}
 			am.metricsLock.RLock()
 			calculated := !am.lastMetricsCalculated.IsZero()
 			am.metricsLock.RUnlock()
@@ -153,6 +159,7 @@ func TestStart(t *testing.T) {
 	case <-done:
 		// success
 	case <-time.After(5 * time.Second):
+		close(quit)
 		t.Fatal("timeout waiting for metrics calculation after Start()")
 	}
 }

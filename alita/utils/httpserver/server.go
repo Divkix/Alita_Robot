@@ -64,6 +64,10 @@ type HealthStatus struct {
 
 // checkDatabase checks if the database connection is healthy
 func checkDatabase() bool {
+	if db.DB == nil {
+		return false
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -77,6 +81,10 @@ func checkDatabase() bool {
 
 // checkRedis checks if the Redis connection is healthy
 func checkRedis() bool {
+	if cache.Manager == nil {
+		return false
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 

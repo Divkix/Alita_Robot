@@ -120,7 +120,9 @@ func TestGetTeamMembers(t *testing.T) {
 
 	t.Cleanup(func() {
 		for _, id := range []int64{devOnly, sudoOnly, bothDevAndSudo} {
-			DB.Where("user_id = ?", id).Delete(&DevSettings{})
+			if err := DB.Where("user_id = ?", id).Delete(&DevSettings{}).Error; err != nil {
+				t.Fatalf("cleanup Delete(DevSettings) for user %d error: %v", id, err)
+			}
 		}
 	})
 

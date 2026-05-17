@@ -356,39 +356,24 @@ func TestGCAction_NameAndSeverity(t *testing.T) {
 // Execute methods — no panic, return nil
 // ---------------------------------------------------------------------------
 
-func TestGCAction_Execute(t *testing.T) {
-	t.Parallel()
-
-	action := &GCAction{}
-	if err := action.Execute(context.Background()); err != nil {
-		t.Fatalf("expected Execute to return nil, got %v", err)
+func TestExecuteActions_TableDriven(t *testing.T) {
+	tests := []struct {
+		name     string
+		newAction func() RemediationAction
+	}{
+		{"GCAction", func() RemediationAction { return &GCAction{} }},
+		{"MemoryCleanupAction", func() RemediationAction { return &MemoryCleanupAction{} }},
+		{"LogWarningAction", func() RemediationAction { return &LogWarningAction{} }},
+		{"RestartRecommendationAction", func() RemediationAction { return &RestartRecommendationAction{} }},
 	}
-}
 
-func TestMemoryCleanupAction_Execute(t *testing.T) {
-	t.Parallel()
-
-	action := &MemoryCleanupAction{}
-	if err := action.Execute(context.Background()); err != nil {
-		t.Fatalf("expected Execute to return nil, got %v", err)
-	}
-}
-
-func TestLogWarningAction_Execute(t *testing.T) {
-	t.Parallel()
-
-	action := &LogWarningAction{}
-	if err := action.Execute(context.Background()); err != nil {
-		t.Fatalf("expected Execute to return nil, got %v", err)
-	}
-}
-
-func TestRestartRecommendationAction_Execute(t *testing.T) {
-	t.Parallel()
-
-	action := &RestartRecommendationAction{}
-	if err := action.Execute(context.Background()); err != nil {
-		t.Fatalf("expected Execute to return nil, got %v", err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if err := tc.newAction().Execute(context.Background()); err != nil {
+				t.Fatalf("expected Execute to return nil, got %v", err)
+			}
+		})
 	}
 }
 

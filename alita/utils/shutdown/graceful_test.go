@@ -53,31 +53,61 @@ func TestRegisterHandler(t *testing.T) {
 }
 
 func TestExecuteHandler(t *testing.T) {
-	m := NewManager()
+	tests := []struct {
+		name           string
+		handler        func() error
+		delay          int
+		wantExecuted   bool
+		wantErr        bool
+		wantErrIs      error
+	}{
+		{
+			name: "successful execution",
+			handler: func() error {
+				return nil
+			},
+			delay:        0,
+			wantExecuted: true,
+			wantErr:      false,
+		},
+		{
+			name: "handler returns error",
+			handler: func() error {
+				return errors.New("handler error")
+			},
+			delay:        1,
+			wantExecuted: false,
+			wantErr:      true,
+			wantErrIs:    errors.New("handler error"),
+		},
+	}
 
-	// Test successful execution
-	executed := false
-	err := m.executeHandler(func() error {
-		executed = true
-		return nil
-	}, 0)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if !executed {
-		t.Error("expected handler to be executed")
-	}
-
-	// Test handler returning error
-	expectedErr := errors.New("handler error")
-	err = m.executeHandler(func() error {
-		return expectedErr
-	}, 1)
-	if err == nil {
-		t.Error("expected error, got nil")
-	}
-	if !errors.Is(err, expectedErr) {
-		t.Errorf("expected error %v, got %v", expectedErr, err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			executed := false
+			wrapped := func() error {
+				executed = true
+				return tc.handler()
+			}
+			err := m.executeHandler(wrapped, tc.delay)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tc.wantErrIs != nil && err.Error() != tc.wantErrIs.Error() {
+					t.Errorf("expected error %v, got %v", tc.wantErrIs, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got %v", err)
+				}
+				if !executed {
+					t.Errorf("expected handler to be executed")
+				}
+			}
+		})
 	}
 }
 
