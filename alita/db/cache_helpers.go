@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
@@ -56,7 +57,7 @@ var (
 )
 
 // getFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.
-// Uses singleflight to deduplicate concurrent cache misses.
+// Uses singleflight with a 30-second timeout to prevent stampede and goroutine accumulation.
 func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var result T
 
@@ -72,46 +73,65 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 		return result, nil
 	}
 
-	// Cache miss, use singleflight to prevent stampede
-	v, err, _ := cacheGroup.Do(key, func() (any, error) {
-		// Load from database
-		data, loadErr := loader()
-		if loadErr != nil {
-			return data, loadErr
-		}
-
-		// Store in cache
-		cacheErr := cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
-		if cacheErr != nil {
-			log.Debugf("[Cache] Failed to set cache for key %s: %v", key, cacheErr)
-		}
-
-		return data, nil
-	})
-	if err != nil {
-		return result, err
+	// Cache miss, use singleflight with timeout to prevent stampede and goroutine accumulation
+	type sfResult struct {
+		value any
+		err   error
 	}
+	resCh := make(chan sfResult, 1)
 
-	// Type assert the result with panic recovery
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("[Cache] Panic during type assertion for key %s: %v", key, r)
+	go func() {
+		defer error_handling.RecoverFromPanic("getFromCacheOrLoad", "cache_helpers")
+		v, err, _ := cacheGroup.Do(key, func() (any, error) {
+			// Load from database
+			data, loadErr := loader()
+			if loadErr != nil {
+				return data, loadErr
+			}
+
+			// Store in cache
+			cacheErr := cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
+			if cacheErr != nil {
+				log.Debugf("[Cache] Failed to set cache for key %s: %v", key, cacheErr)
+			}
+
+			return data, nil
+		})
+		resCh <- sfResult{value: v, err: err}
+	}()
+
+	select {
+	case res := <-resCh:
+		if res.err != nil {
+			return result, res.err
+		}
+
+		// Type assert the result with panic recovery
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("[Cache] Panic during type assertion for key %s: %v", key, r)
+					var zero T
+					result = zero
+				}
+			}()
+
+			if typedResult, ok := res.value.(T); ok {
+				result = typedResult
+			} else {
+				log.Errorf("[Cache] Type assertion failed for key %s: expected %T, got %T", key, result, res.value)
 				var zero T
 				result = zero
 			}
 		}()
 
-		if typedResult, ok := v.(T); ok {
-			result = typedResult
-		} else {
-			log.Errorf("[Cache] Type assertion failed for key %s: expected %T, got %T", key, result, v)
-			var zero T
-			result = zero
-		}
-	}()
+		return result, nil
 
-	return result, nil
+	case <-time.After(30 * time.Second):
+		// Timeout occurred, cleanup singleflight and return timeout error
+		cacheGroup.Forget(key)
+		return result, fmt.Errorf("cache load timeout for key %s", key)
+	}
 }
 
 // deleteCache is a helper to delete a value from cache.

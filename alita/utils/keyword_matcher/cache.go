@@ -12,12 +12,13 @@ import (
 
 // Cache manages keyword matchers for different chats
 type Cache struct {
-	matchers map[int64]*KeywordMatcher
-	mu       sync.RWMutex
-	ttl      time.Duration
-	lastUsed map[int64]time.Time
-	stopChan chan struct{}
-	cancel   context.CancelFunc
+	matchers   map[int64]*KeywordMatcher
+	mu         sync.RWMutex
+	ttl        time.Duration
+	lastUsed   map[int64]time.Time
+	lastUsedMu sync.Mutex
+	stopChan   chan struct{}
+	cancel     context.CancelFunc
 }
 
 // NewCache creates a new keyword matcher cache
@@ -40,8 +41,8 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	if exists {
 		// O(1) hash comparison avoids copying patterns
 		if matcher.patternHash == hashPatterns(patterns) {
-			c.lastUsed[chatID] = time.Now()
 			c.mu.RUnlock()
+			c.touchLastUsed(chatID)
 			return matcher
 		}
 	}
@@ -49,22 +50,21 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 
 	// Slow path: need write lock to create or update
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	// Double-check after acquiring write lock
 	if matcher, exists := c.matchers[chatID]; exists {
 		if matcher.patternHash == hashPatterns(patterns) {
-			c.lastUsed[chatID] = time.Now()
+			c.mu.Unlock()
+			c.touchLastUsed(chatID)
 			return matcher
 		}
 	}
 
-	// Update last used time
-	c.lastUsed[chatID] = time.Now()
-
 	// Create new matcher
 	matcher = NewKeywordMatcher(patterns)
 	c.matchers[chatID] = matcher
+	c.mu.Unlock()
+	c.touchLastUsed(chatID)
 
 	log.WithFields(log.Fields{
 		"chatID":        chatID,
@@ -72,6 +72,15 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	}).Debug("Created/updated keyword matcher")
 
 	return matcher
+}
+
+// touchLastUsed records the current time for a chat under a separate mutex.
+// The lastUsed map is read by the cleanup goroutine but written by many
+// concurrent request handlers, so it needs its own lock.
+func (c *Cache) touchLastUsed(chatID int64) {
+	c.lastUsedMu.Lock()
+	c.lastUsed[chatID] = time.Now()
+	c.lastUsedMu.Unlock()
 }
 
 // CleanupExpired removes expired matchers based on TTL
@@ -112,20 +121,6 @@ func (c *Cache) Stop() {
 	if c.stopChan != nil {
 		close(c.stopChan)
 	}
-}
-
-// patternsEqual checks if two pattern slices are equal using O(n) direct comparison.
-// No allocations — compares lengths then elements in order.
-func patternsEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // Global cache instance

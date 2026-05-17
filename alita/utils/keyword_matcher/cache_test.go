@@ -186,6 +186,19 @@ func TestCleanupExpired(t *testing.T) {
 	})
 }
 
+// patternsEqual checks if two pattern slices are equal using O(n) direct comparison.
+func patternsEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestPatternsEqual(t *testing.T) {
 	t.Parallel()
 
