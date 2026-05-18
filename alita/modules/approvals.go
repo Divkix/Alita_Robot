@@ -493,8 +493,10 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 				"chatId": query.Message.GetChat().Id,
 				"error":  err,
 			}).Error("Failed to remove all approved users")
+			helpText = fmt.Sprintf("Failed to remove all approved users: %v", err)
+		} else {
+			helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
 		}
-		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
 	case "no":
 		if query.Message == nil {
 			log.Warn("[Approvals] Cannot cancel unapproveall: message was deleted")
@@ -502,6 +504,18 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
+		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
+	default:
+		if query.Message == nil {
+			log.Warnf("[Approvals] Unexpected action '%s' with nil message", action)
+			text, _ := tr.GetString("common_callback_message_unavailable")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
+		log.WithFields(log.Fields{
+			"action": action,
+			"chatId": query.Message.GetChat().Id,
+		}).Warn("[Approvals] Unexpected callback action")
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
 	}
 
@@ -533,7 +547,6 @@ func extractDisplayName(userID int64) string {
 	return strconv.FormatInt(userID, 10)
 }
 
-// LoadApprovals registers all approvals module handlers with the dispatcher.
 // LoadApprovals registers all approvals module handlers with the dispatcher.
 //
 //nolint:dupl // Pattern matches other LoadXxx functions
