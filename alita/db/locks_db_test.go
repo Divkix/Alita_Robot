@@ -13,7 +13,9 @@ func TestUpdateLockCreatesNewRecord(t *testing.T) {
 	perm := "sticker"
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
 	})
 
 	// First-time lock creation — this was the bug: silently did nothing
@@ -41,7 +43,9 @@ func TestUpdateLockHandlesZeroValueBoolean(t *testing.T) {
 	perm := "url"
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
 	})
 
 	// Create with Locked=true
@@ -77,7 +81,9 @@ func TestUpdateLockIdempotent(t *testing.T) {
 	perm := "forward"
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
 	})
 
 	// Call 3 times with same value
@@ -102,7 +108,9 @@ func TestUpdateLockConcurrentCreation(t *testing.T) {
 	perm := "photo"
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
 	})
 
 	const workers = 10
@@ -154,7 +162,9 @@ func TestIsPermLocked(t *testing.T) {
 	perm := "sticker"
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
 	})
 
 	// No record yet -> should be false
@@ -193,7 +203,9 @@ func TestGetChatLocks(t *testing.T) {
 
 	t.Cleanup(func() {
 		for _, lt := range lockTypes {
-			_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, lt).Delete(&LockSettings{}).Error
+			if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, lt).Delete(&LockSettings{}).Error; err != nil {
+				t.Fatalf("cleanup Delete error: %v", err)
+			}
 		}
 	})
 

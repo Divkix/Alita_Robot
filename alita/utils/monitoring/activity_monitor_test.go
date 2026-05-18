@@ -65,6 +65,10 @@ func TestNewActivityMonitor(t *testing.T) {
 
 func TestNewActivityMonitor_WithConfigOverrides(t *testing.T) {
 	// Cannot run in parallel because it mutates global config.
+	if config.AppConfig == nil {
+		config.AppConfig = &config.Config{}
+		defer func() { config.AppConfig = nil }()
+	}
 	origInterval := config.AppConfig.ActivityCheckInterval
 	origThreshold := config.AppConfig.InactivityThresholdDays
 	origCleanup := config.AppConfig.EnableAutoCleanup
@@ -93,6 +97,10 @@ func TestNewActivityMonitor_WithConfigOverrides(t *testing.T) {
 
 func TestNewActivityMonitor_ConfigZeroValues(t *testing.T) {
 	// Cannot run in parallel because it mutates global config.
+	if config.AppConfig == nil {
+		config.AppConfig = &config.Config{}
+		defer func() { config.AppConfig = nil }()
+	}
 	origInterval := config.AppConfig.ActivityCheckInterval
 	origThreshold := config.AppConfig.InactivityThresholdDays
 	origCleanup := config.AppConfig.EnableAutoCleanup
@@ -181,8 +189,6 @@ func TestStart_DoesNotPanic(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestStop_WithoutStart(t *testing.T) {
-	t.Parallel()
-
 	am := NewActivityMonitor()
 	// Should not panic even if Start() was never called.
 	am.Stop()
@@ -227,8 +233,6 @@ func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMonitorLoop_ExitsOnCancel(t *testing.T) {
-	t.Parallel()
-
 	am := NewActivityMonitor()
 	am.wg.Add(1)
 	go am.monitorLoop()
@@ -251,8 +255,6 @@ func TestMonitorLoop_ExitsOnCancel(t *testing.T) {
 }
 
 func TestMonitorLoop_ExitsViaStop(t *testing.T) {
-	t.Parallel()
-
 	am := NewActivityMonitor()
 	am.wg.Add(1)
 	go am.monitorLoop()

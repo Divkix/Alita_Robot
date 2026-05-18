@@ -341,8 +341,8 @@ func TestExportAdminData(t *testing.T) {
 	require.NoError(t, SetAnonAdminMode(chatID, true))
 	require.NoError(t, SetFlood(chatID, 7))
 	require.NoError(t, SetFloodMode(chatID, "ban"))
-	_ = SetCaptchaEnabled(chatID, true)
-	_ = SetCaptchaMode(chatID, "text")
+	require.NoError(t, SetCaptchaEnabled(chatID, true))
+	require.NoError(t, SetCaptchaMode(chatID, "text"))
 
 	backup, err := exportAdminData(chatID)
 	require.NoError(t, err)
@@ -661,7 +661,7 @@ func TestExportImportBlacklistsRoundTrip(t *testing.T) {
 
 	require.NoError(t, AddBlacklist(srcChat, "spam"))
 	require.NoError(t, AddBlacklist(srcChat, "scam"))
-	_ = SetBlacklistAction(srcChat, "ban")
+	require.NoError(t, SetBlacklistAction(srcChat, "ban"))
 
 	exported, err := exportBlacklistsData(srcChat)
 	require.NoError(t, err)
@@ -735,7 +735,6 @@ func TestExportImportConnectionsRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	_ = GetChatConnectionSetting(srcChat)
 	ToggleAllowConnect(srcChat, true)
 
 	exported, err := exportConnectionsData(srcChat)
@@ -769,10 +768,10 @@ func TestExportImportCaptchaRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	_ = SetCaptchaEnabled(srcChat, true)
-	_ = SetCaptchaMode(srcChat, "text")
-	_ = SetCaptchaTimeout(srcChat, 7)
-	_ = SetCaptchaMaxAttempts(srcChat, 5)
+	require.NoError(t, SetCaptchaEnabled(srcChat, true))
+	require.NoError(t, SetCaptchaMode(srcChat, "text"))
+	require.NoError(t, SetCaptchaTimeout(srcChat, 7))
+	require.NoError(t, SetCaptchaMaxAttempts(srcChat, 5))
 
 	exported, err := exportCaptchaData(srcChat)
 	require.NoError(t, err)
@@ -953,7 +952,7 @@ func TestExportImportReportsRoundTrip(t *testing.T) {
 	require.NotNil(t, exported.Settings)
 	assert.False(t, exported.Settings.Enabled)
 
-	// Ensure dst record exists before import
+	// Ensure dst record exists before import (create if missing)
 	_ = GetChatReportSettings(dstChat)
 
 	payload := map[string]interface{}{
@@ -1159,7 +1158,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 
 	// --- Reports ---
 	_ = GetChatReportSettings(chatID)
-	_ = SetChatReportStatus(chatID, false)
+	require.NoError(t, SetChatReportStatus(chatID, false))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleReports))
 	assert.True(t, GetChatReportSettings(chatID).Enabled)
 
@@ -1256,7 +1255,7 @@ func TestExportChatData_Full(t *testing.T) {
 	require.NoError(t, SetFlood(chatID, 4))
 	require.NoError(t, AddFilter(chatID, "hi", "hello", "", nil, TEXT))
 	SetChatRules(chatID, "Be kind")
-	_ = SetCaptchaEnabled(chatID, true)
+	require.NoError(t, SetCaptchaEnabled(chatID, true))
 
 	backup, err := ExportChatData(chatID, "Test Chat", 1, []string{
 		BackupModuleAdmin,

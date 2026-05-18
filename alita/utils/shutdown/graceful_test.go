@@ -76,7 +76,7 @@ func TestExecuteHandler(t *testing.T) {
 				return errors.New("handler error")
 			},
 			delay:        1,
-			wantExecuted: false,
+			wantExecuted: true,
 			wantErr:      true,
 			wantErrIs:    errors.New("handler error"),
 		},
@@ -103,9 +103,9 @@ func TestExecuteHandler(t *testing.T) {
 				if err != nil {
 					t.Errorf("expected no error, got %v", err)
 				}
-				if !executed {
-					t.Errorf("expected handler to be executed")
-				}
+			}
+			if executed != tc.wantExecuted {
+				t.Errorf("executed: got %v, want %v", executed, tc.wantExecuted)
 			}
 		})
 	}

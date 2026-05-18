@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 			fmt.Printf("temp file close failed: %v\n", closeErr)
 			os.Exit(1)
 		}
-		dbPath := dbFileName + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+		dbPath := dbFileName + "?_busy_timeout=10000&_journal_mode=WAL"
 		sqliteDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 			Logger: logger.Default.LogMode(logger.Silent),
 		})
