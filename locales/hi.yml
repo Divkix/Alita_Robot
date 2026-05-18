@@ -2119,6 +2119,7 @@ approvals_unapproveall_done: "सभी स्वीकृत उपयोगक
 approvals_unapproveall_cancel: "सभी को अस्वीकृत करना रद्द किया गया।"
 approvals_approve_error: "उपयोगकर्ता को स्वीकृत करने में विफल। कृपया फिर से प्रयास करें।"
 approvals_unapprove_error: "उपयोगकर्ता को स्वीकृत सूची से हटाने में विफल।"
+approvals_unapproveall_error: "सभी स्वीकृत उपयोगकर्ताओं को हटाने में विफल: {error}"
 approvals_reason: "\nकारण: %s"
 approvals_list_header: "स्वीकृत उपयोगकर्ता:\n"
 approvals_list_item: " - %s"

@@ -2216,6 +2216,7 @@ approvals_unapproveall_done: "Все одобренные пользовател
 approvals_unapproveall_cancel: "Удаление всех одобрений отменено."
 approvals_approve_error: "Не удалось одобрить пользователя. Пожалуйста, попробуйте снова."
 approvals_unapprove_error: "Не удалось удалить пользователя из списка одобренных."
+approvals_unapproveall_error: "Не удалось удалить всех одобренных пользователей: {error}"
 approvals_reason: "\nПричина: %s"
 approvals_list_header: "Одобренные пользователи:\n"
 approvals_list_item: " - %s"

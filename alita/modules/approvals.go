@@ -493,7 +493,7 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 				"chatId": query.Message.GetChat().Id,
 				"error":  err,
 			}).Error("Failed to remove all approved users")
-			helpText = fmt.Sprintf("Failed to remove all approved users: %v", err)
+			helpText, _ = tr.GetString(strings.ToLower(m.moduleName)+"_unapproveall_error", i18n.TranslationParams{"error": err.Error()})
 		} else {
 			helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
 		}

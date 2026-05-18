@@ -2407,6 +2407,7 @@ approvals_unapproveall_done: "Tous les utilisateurs approuvés ont été supprim
 approvals_unapproveall_cancel: "Suppression de toutes les approbations annulée."
 approvals_approve_error: "Échec de l'approbation de l'utilisateur. Veuillez réessayer."
 approvals_unapprove_error: "Échec de la suppression de l'utilisateur de la liste des approuvés."
+approvals_unapproveall_error: "Échec de la suppression de tous les utilisateurs approuvés : {error}"
 approvals_reason: "\nRaison : %s"
 approvals_list_header: "Utilisateurs approuvés :\n"
 approvals_list_item: " - %s"
