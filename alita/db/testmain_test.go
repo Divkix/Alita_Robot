@@ -61,6 +61,7 @@ func TestMain(m *testing.M) {
 		&CaptchaAttempts{},
 		&StoredMessages{},
 		&CaptchaMutedUsers{},
+		&ApprovedUsers{},
 	)
 	if err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)

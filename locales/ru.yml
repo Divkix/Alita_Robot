@@ -2183,3 +2183,43 @@ duration_format_minutes_seconds: "%d минут %d секунд"
 duration_format_minutes: "%d минут"
 duration_format_hours_minutes: "%d часов %d минут"
 duration_format_hours: "%d часов"
+
+approvals_help_msg: |
+  <b>👤 Одобрения</b>
+
+  Предоставьте доверенным участникам иммунитет от автоматических мер анти-спама, не делая их администраторами.
+
+  <b>Команды администратора:</b>
+
+  × /approve <code><reply/username/mention/userid></code> <code>[причина]</code>
+  × /unapprove <code><reply/username/mention/userid></code>
+  × /approval <code><reply/username/mention/userid></code>
+  × /approved: Список всех одобренных пользователей
+  × /unapproveall: Удалить все одобрения (только создатель)
+
+  Одобренные пользователи освобождаются от: antiflood, черных списков, блокировок, CAPTCHA и анти-спама.
+approvals_user_approved: "%s одобрен %s.%s"
+approvals_already_approved: "%s уже одобрен в этом чате."
+approvals_not_approved: "%s нет в списке одобренных."
+approvals_user_unapproved: "%s удалён из списка одобренных."
+approvals_check_not_approved: "%s не одобрен в этом чате."
+approvals_check_status: |
+  <b>Пользователь:</b> %s
+  <b>Одобрен:</b> %s
+  <b>Одобрил:</b> %s
+  %s
+approvals_none_approved: "В этом чате нет одобренных пользователей."
+approvals_approved_list_file_caption: "Список одобренных пользователей для %s"
+approvals_list_file_error: "Не удалось сформировать файл со списком одобренных пользователей."
+approvals_unapproveall_ask: "Вы уверены, что хотите удалить ВСЕХ одобренных пользователей?"
+approvals_unapproveall_done: "Все одобренные пользователи удалены."
+approvals_unapproveall_cancel: "Удаление всех одобрений отменено."
+approvals_approve_error: "Не удалось одобрить пользователя. Пожалуйста, попробуйте снова."
+approvals_unapprove_error: "Не удалось удалить пользователя из списка одобренных."
+approvals_unapproveall_error: "Не удалось удалить всех одобренных пользователей: {error}"
+approvals_reason: "\nПричина: %s"
+approvals_list_header: "Одобренные пользователи:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Одобренные пользователи чата %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (причина: %s)"

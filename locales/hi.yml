@@ -2086,3 +2086,43 @@ duration_format_minutes_seconds: "%d मिनट %d सेकंड"
 duration_format_minutes: "%d मिनट"
 duration_format_hours_minutes: "%d घंटे %d मिनट"
 duration_format_hours: "%d घंटे"
+
+approvals_help_msg: |
+  <b>👤 स्वीकृतियाँ</b>
+
+  विश्वसनीय सदस्यों को बिना एडमिन बनाए स्वचालित एंटी-स्पैम उपायों से छूट दें।
+
+  <b>एडमिन कमांड:</b>
+
+  × /approve <code><reply/username/mention/userid></code> <code>[reason]</code>
+  × /unapprove <code><reply/username/mention/userid></code>
+  × /approval <code><reply/username/mention/userid></code>
+  × /approved: सभी स्वीकृत उपयोगकर्ताओं की सूची
+  × /unapproveall: सभी स्वीकृतियाँ हटाएँ (केवल निर्माता)
+
+  स्वीकृत उपयोगकर्ताओं को छूट है: antiflood, blacklists, locks, CAPTCHA, और antispam से।
+approvals_user_approved: "%s को %s द्वारा स्वीकृत किया गया।%s"
+approvals_already_approved: "%s पहले से ही इस चैट में स्वीकृत है।"
+approvals_not_approved: "%s स्वीकृत सूची में नहीं है।"
+approvals_user_unapproved: "%s को स्वीकृत सूची से हटा दिया गया।"
+approvals_check_not_approved: "%s वर्तमान में इस चैट में स्वीकृत नहीं है।"
+approvals_check_status: |
+  <b>उपयोगकर्ता:</b> %s
+  <b>स्वीकृत तिथि:</b> %s
+  <b>स्वीकृत कर्ता:</b> %s
+  %s
+approvals_none_approved: "इस चैट में कोई स्वीकृत उपयोगकर्ता नहीं है।"
+approvals_approved_list_file_caption: "%s के लिए स्वीकृत उपयोगकर्ताओं की सूची"
+approvals_list_file_error: "स्वीकृत उपयोगकर्ताओं की फ़ाइल बनाने में विफल।"
+approvals_unapproveall_ask: "क्या आप वाकई सभी स्वीकृत उपयोगकर्ताओं को हटाना चाहते हैं?"
+approvals_unapproveall_done: "सभी स्वीकृत उपयोगकर्ताओं को हटा दिया गया है।"
+approvals_unapproveall_cancel: "सभी को अस्वीकृत करना रद्द किया गया।"
+approvals_approve_error: "उपयोगकर्ता को स्वीकृत करने में विफल। कृपया फिर से प्रयास करें।"
+approvals_unapprove_error: "उपयोगकर्ता को स्वीकृत सूची से हटाने में विफल।"
+approvals_unapproveall_error: "सभी स्वीकृत उपयोगकर्ताओं को हटाने में विफल: {error}"
+approvals_reason: "\nकारण: %s"
+approvals_list_header: "स्वीकृत उपयोगकर्ता:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "चैट %d के लिए स्वीकृत उपयोगकर्ता\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (कारण: %s)"

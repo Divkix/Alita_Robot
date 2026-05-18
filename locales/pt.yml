@@ -2426,3 +2426,43 @@ duration_format_minutes_seconds: "%d minutos %d segundos"
 duration_format_minutes: "%d minutos"
 duration_format_hours_minutes: "%d horas %d minutos"
 duration_format_hours: "%d horas"
+
+approvals_help_msg: |
+  <b>👤 Aprovações</b>
+
+  Conceda imunidade a membros confiáveis contra medidas anti-spam automáticas sem torná-los administradores.
+
+  <b>Comandos de Admin:</b>
+
+  × /approve <code><reply/username/mention/userid></code> <code>[motivo]</code>
+  × /unapprove <code><reply/username/mention/userid></code>
+  × /approval <code><reply/username/mention/userid></code>
+  × /approved: Listar todos os usuários aprovados
+  × /unapproveall: Remover todas as aprovações (apenas criador)
+
+  Usuários aprovados estão isentos de: antiflood, blacklists, locks, CAPTCHA e antispam.
+approvals_user_approved: "%s aprovado por %s.%s"
+approvals_already_approved: "%s já está aprovado neste chat."
+approvals_not_approved: "%s não está na lista de aprovados."
+approvals_user_unapproved: "%s removido da lista de aprovados."
+approvals_check_not_approved: "%s não está atualmente aprovado neste chat."
+approvals_check_status: |
+  <b>Usuário:</b> %s
+  <b>Aprovado em:</b> %s
+  <b>Aprovado por:</b> %s
+  %s
+approvals_none_approved: "Nenhum usuário aprovado neste chat."
+approvals_approved_list_file_caption: "Lista de usuários aprovados para %s"
+approvals_list_file_error: "Falha ao gerar o arquivo de usuários aprovados."
+approvals_unapproveall_ask: "Tem certeza de que deseja remover TODOS os usuários aprovados?"
+approvals_unapproveall_done: "Todos os usuários aprovados foram removidos."
+approvals_unapproveall_cancel: "Remoção de todos os aprovados cancelada."
+approvals_approve_error: "Falha ao aprovar o usuário. Tente novamente."
+approvals_unapprove_error: "Falha ao remover o usuário da lista de aprovados."
+approvals_unapproveall_error: "Falha ao remover todos os usuários aprovados: {error}"
+approvals_reason: "\nMotivo: %s"
+approvals_list_header: "Usuários aprovados:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Usuários aprovados do chat %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (motivo: %s)"

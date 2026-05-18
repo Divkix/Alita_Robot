@@ -2374,3 +2374,43 @@ duration_format_minutes_seconds: "%d minutes %d secondes"
 duration_format_minutes: "%d minutes"
 duration_format_hours_minutes: "%d heures %d minutes"
 duration_format_hours: "%d heures"
+
+approvals_help_msg: |
+  <b>👤 Approbations</b>
+
+  Accorde aux membres de confiance une immunité contre les mesures anti-spam automatisées sans les nommer administrateurs.
+
+  <b>Commandes Administrateur:</b>
+
+  × /approve <code><reply/username/mention/userid></code> <code>[reason]</code>
+  × /unapprove <code><reply/username/mention/userid></code>
+  × /approval <code><reply/username/mention/userid></code>
+  × /approved: Lister tous les utilisateurs approuvés
+  × /unapproveall: Supprimer toutes les approbations (créateur uniquement)
+
+  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous, CAPTCHA et antispam.
+approvals_user_approved: "Approuvé %s par %s.%s"
+approvals_already_approved: "%s est déjà approuvé dans ce chat."
+approvals_not_approved: "%s n'est pas dans la liste des approuvés."
+approvals_user_unapproved: "Supprimé %s de la liste des approuvés."
+approvals_check_not_approved: "%s n'est actuellement pas approuvé dans ce chat."
+approvals_check_status: |
+  <b>Utilisateur :</b> %s
+  <b>Approuvé le :</b> %s
+  <b>Approuvé par :</b> %s
+  %s
+approvals_none_approved: "Aucun utilisateur approuvé dans ce chat."
+approvals_approved_list_file_caption: "Liste des utilisateurs approuvés pour %s"
+approvals_list_file_error: "Échec de la génération du fichier des utilisateurs approuvés."
+approvals_unapproveall_ask: "Êtes-vous sûr de vouloir supprimer TOUS les utilisateurs approuvés ?"
+approvals_unapproveall_done: "Tous les utilisateurs approuvés ont été supprimés."
+approvals_unapproveall_cancel: "Suppression de toutes les approbations annulée."
+approvals_approve_error: "Échec de l'approbation de l'utilisateur. Veuillez réessayer."
+approvals_unapprove_error: "Échec de la suppression de l'utilisateur de la liste des approuvés."
+approvals_unapproveall_error: "Échec de la suppression de tous les utilisateurs approuvés : {error}"
+approvals_reason: "\nRaison : %s"
+approvals_list_header: "Utilisateurs approuvés :\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Utilisateurs approuvés pour le chat %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (raison : %s)"

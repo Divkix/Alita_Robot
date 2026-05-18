@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
@@ -126,6 +127,10 @@ func LoadAntispam(dispatcher *ext.Dispatcher) {
 			func(bot *gotgbot.Bot, ctx *ext.Context) error {
 				// Skip if no user (channel posts, etc.)
 				if ctx.EffectiveUser == nil {
+					return ext.ContinueGroups
+				}
+				// Skip approved users (immune to anti-spam)
+				if chat_status.IsApproved(bot, ctx.EffectiveChat.Id, ctx.EffectiveUser.Id) {
 					return ext.ContinueGroups
 				}
 

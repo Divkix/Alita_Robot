@@ -251,6 +251,11 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Check if user is approved (immune to anti-spam)
+	if chat_status.IsApproved(b, chatId, userId) {
+		return ext.ContinueGroups
+	}
+
 	// PERFORMANCE FIX: Update flood and get settings in one call to eliminate redundant DB query
 	// Previously this was calling db.GetFlood again after updateFlood, doubling the DB load
 	flooded, floodCrc, flood := antifloodModule.updateFlood(chatId, userId, msg.MessageId)

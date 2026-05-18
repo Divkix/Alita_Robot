@@ -5,6 +5,7 @@ db_default_goodbye: "Sad to see you leaving {first}"
 db_warn_no_reason: "No Reason"
 alt_names:
   Admin: [admins, promote, demote, title]
+  Approvals: [approval, approve, unapprove]
   Antiflood: [flood]
   Bans:
     [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban]

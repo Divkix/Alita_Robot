@@ -118,6 +118,7 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.LoadAntispam(dispatcher)
 	modules.LoadLanguage(dispatcher)
 	modules.LoadAdmin(dispatcher)
+	modules.LoadApprovals(dispatcher)
 	modules.LoadPin(dispatcher)
 	modules.LoadMisc(dispatcher)
 	modules.LoadBans(dispatcher)
