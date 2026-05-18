@@ -3,6 +3,7 @@ version: "2"
 
 run:
   timeout: 5m
+  build-tags: ["testtools"]
 
 # Linters to enable
 linters:
