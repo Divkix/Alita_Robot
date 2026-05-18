@@ -7,7 +7,6 @@ import (
 )
 
 func TestConnectChat(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -40,7 +39,6 @@ func TestConnectChat(t *testing.T) {
 }
 
 func TestDisconnectChat(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -71,7 +69,6 @@ func TestDisconnectChat(t *testing.T) {
 }
 
 func TestGetConnection(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -94,7 +91,6 @@ func TestGetConnection(t *testing.T) {
 }
 
 func TestReconnect(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -129,7 +125,6 @@ func TestReconnect(t *testing.T) {
 }
 
 func TestSetAllowConnect(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -165,7 +160,6 @@ func TestSetAllowConnect(t *testing.T) {
 }
 
 func TestGetConnectedChats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -196,7 +190,6 @@ func TestGetConnectedChats(t *testing.T) {
 }
 
 func TestLoadConnectionStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	connectedUsers, connectedChats := LoadConnectionStats()
@@ -211,7 +204,6 @@ func TestLoadConnectionStats(t *testing.T) {
 }
 
 func TestConcurrentConnect(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -242,7 +234,6 @@ func TestConcurrentConnect(t *testing.T) {
 }
 
 func TestConnectionForNewUser(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano() + 9000
@@ -265,7 +256,6 @@ func TestConnectionForNewUser(t *testing.T) {
 }
 
 func TestDisconnectId(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano() + 10000

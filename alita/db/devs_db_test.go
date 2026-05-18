@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -10,7 +11,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestAddDev(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -27,7 +27,6 @@ func TestAddDev(t *testing.T) {
 }
 
 func TestRemoveDev(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -52,7 +51,6 @@ func TestRemoveDev(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAddSudo(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -69,7 +67,6 @@ func TestAddSudo(t *testing.T) {
 }
 
 func TestRemoveSudo(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -94,7 +91,6 @@ func TestRemoveSudo(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetDevSettings(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Non-existent user should return defaults (not a dev)
@@ -108,6 +104,127 @@ func TestGetDevSettings(t *testing.T) {
 	}
 	if devrc.Sudo {
 		t.Errorf("GetTeamMemInfo(%d).Sudo = true for non-existent user, want false", nonExistentID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetTeamMembers
+// ---------------------------------------------------------------------------
+
+func TestGetTeamMembers(t *testing.T) {
+	skipIfNoDb(t)
+
+	devOnly := time.Now().UnixNano()
+	sudoOnly := devOnly + 1
+	bothDevAndSudo := devOnly + 2
+
+	t.Cleanup(func() {
+		for _, id := range []int64{devOnly, sudoOnly, bothDevAndSudo} {
+			if err := DB.Where("user_id = ?", id).Delete(&DevSettings{}).Error; err != nil {
+				t.Fatalf("cleanup Delete(DevSettings) for user %d error: %v", id, err)
+			}
+		}
+	})
+
+	if err := AddDev(devOnly); err != nil {
+		t.Fatalf("AddDev(%d) error = %v", devOnly, err)
+	}
+	if err := AddSudo(sudoOnly); err != nil {
+		t.Fatalf("AddSudo(%d) error = %v", sudoOnly, err)
+	}
+	if err := AddSudo(bothDevAndSudo); err != nil {
+		t.Fatalf("AddSudo(%d) error = %v", bothDevAndSudo, err)
+	}
+	if err := AddDev(bothDevAndSudo); err != nil {
+		t.Fatalf("AddDev(%d) error = %v", bothDevAndSudo, err)
+	}
+
+	members := GetTeamMembers()
+	if members == nil {
+		t.Fatal("GetTeamMembers() returned nil, want non-nil map")
+	}
+
+	if got, want := members[devOnly], "dev"; got != want {
+		t.Errorf("GetTeamMembers()[%d] = %q, want %q", devOnly, got, want)
+	}
+	if got, want := members[sudoOnly], "sudo"; got != want {
+		t.Errorf("GetTeamMembers()[%d] = %q, want %q", sudoOnly, got, want)
+	}
+	if got, want := members[bothDevAndSudo], "dev"; got != want {
+		t.Errorf("GetTeamMembers()[%d] = %q, want %q (dev takes precedence)", bothDevAndSudo, got, want)
+	}
+}
+
+func TestGetTeamMembersEmpty(t *testing.T) {
+	skipIfNoDb(t)
+
+	// Ensure no leftover dev/sudo rows from other tests by deleting all DevSettings
+	if err := DB.Where("1 = 1").Delete(&DevSettings{}).Error; err != nil {
+		t.Fatalf("failed to clean DevSettings: %v", err)
+	}
+
+	members := GetTeamMembers()
+	if members == nil {
+		t.Fatal("GetTeamMembers() returned nil, want empty map")
+	}
+	if len(members) != 0 {
+		t.Errorf("len(GetTeamMembers()) = %d, want 0", len(members))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// LoadAllStats
+// ---------------------------------------------------------------------------
+
+func TestLoadAllStats(t *testing.T) {
+	skipIfNoDb(t)
+
+	stats := LoadAllStats()
+	if stats == "" {
+		t.Fatal("LoadAllStats() returned empty string, want non-empty HTML stats")
+	}
+
+	// Verify expected sections are present
+	expectedSections := []string{
+		"Alita's Stats",
+		"Deployment Mode",
+		"Go Version",
+		"Goroutines",
+		"Antiflood",
+		"Users",
+		"Group Activity Metrics",
+		"Daily Active Groups",
+		"Weekly Active Groups",
+		"Monthly Active Groups",
+		"User Activity Metrics",
+		"Daily Active Users",
+		"Weekly Active Users",
+		"Monthly Active Users",
+		"Pins",
+		"CleanLinked Enabled",
+		"AntiChannelPin Enabled",
+		"Reports",
+		"Rules",
+		"Set",
+		"Private",
+		"Blacklists",
+		"Connections",
+		"Disabling",
+		"Filters",
+		"Greetings",
+		"Welcome Enabled",
+		"Goodbye Enabled",
+		"CleanService",
+		"CleanWelcome",
+		"CleanGoodbye",
+		"Notes",
+		"Channels Stored",
+	}
+
+	for _, section := range expectedSections {
+		if !strings.Contains(stats, section) {
+			t.Errorf("LoadAllStats() missing expected section %q", section)
+		}
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 )
 
 func TestGetPinData_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -34,7 +33,6 @@ func TestGetPinData_Defaults(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -67,7 +65,6 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -99,7 +96,6 @@ func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 }
 
 func TestGetPinData_IdempotentCreate(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -124,7 +120,6 @@ func TestGetPinData_IdempotentCreate(t *testing.T) {
 }
 
 func TestConcurrentPinSettings(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -177,7 +172,6 @@ func TestConcurrentPinSettings(t *testing.T) {
 }
 
 func TestLoadPinStats_Returns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Just verify the function executes without error and returns non-negative values

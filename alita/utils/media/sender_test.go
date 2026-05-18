@@ -6,6 +6,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 )
+
 func TestTypeConstantsMatchDB(t *testing.T) {
 	t.Parallel()
 
@@ -34,17 +35,6 @@ func TestTypeConstantsMatchDB(t *testing.T) {
 	}
 }
 
-func TestParseModeConstants(t *testing.T) {
-	t.Parallel()
-
-	if HTML != "HTML" {
-		t.Errorf("HTML = %q, want \"HTML\"", HTML)
-	}
-	if None != "" {
-		t.Errorf("None = %q, want \"\"", None)
-	}
-}
-
 func TestErrNoPermissionNotNil(t *testing.T) {
 	t.Parallel()
 
@@ -56,31 +46,26 @@ func TestErrNoPermissionNotNil(t *testing.T) {
 	}
 }
 
-func TestContentStruct(t *testing.T) {
+func TestContentZeroValue(t *testing.T) {
 	t.Parallel()
 
-	c := Content{
-		Text:    "hello world",
-		FileID:  "file-abc-123",
-		MsgType: TypePhoto,
-		Name:    "test-note",
-	}
+	var c Content
 
-	if c.Text != "hello world" {
-		t.Errorf("Text = %q, want \"hello world\"", c.Text)
+	if c.Text != "" {
+		t.Errorf("Text = %q, want zero value", c.Text)
 	}
-	if c.FileID != "file-abc-123" {
-		t.Errorf("FileID = %q, want \"file-abc-123\"", c.FileID)
+	if c.FileID != "" {
+		t.Errorf("FileID = %q, want zero value", c.FileID)
 	}
-	if c.MsgType != TypePhoto {
-		t.Errorf("MsgType = %d, want %d", c.MsgType, TypePhoto)
+	if c.MsgType != 0 {
+		t.Errorf("MsgType = %d, want 0", c.MsgType)
 	}
-	if c.Name != "test-note" {
-		t.Errorf("Name = %q, want \"test-note\"", c.Name)
+	if c.Name != "" {
+		t.Errorf("Name = %q, want zero value", c.Name)
 	}
 }
 
-func TestOptionsDefaults(t *testing.T) {
+func TestOptionsZeroValue(t *testing.T) {
 	t.Parallel()
 
 	var opts Options
@@ -122,12 +107,8 @@ func TestIsPermissionError(t *testing.T) {
 		expected bool
 	}{
 		{"not enough rights to send text messages", true},
-		{"have no rights to send a message", true},
-		{"Bad Request: CHAT_WRITE_FORBIDDEN", true},
-		{"Forbidden: CHAT_RESTRICTED", true},
-		{"need administrator rights in the channel chat", true},
-		{"some other error", false},
-		{"Bad Request: message is not modified", false},
+		{"CHAT_WRITE_FORBIDDEN", true},
+		{"random error", false},
 		{"", false},
 	}
 

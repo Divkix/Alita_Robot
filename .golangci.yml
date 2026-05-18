@@ -21,10 +21,11 @@ linters:
   # Exclusions for complexity checks
   exclusions:
     rules:
-      # Exclude gocyclo for test files (table-driven tests often have high complexity)
+      # Exclude gocyclo and dupl for test files (table-driven tests often have high complexity/similar patterns)
       - path: _test\.go
         linters:
           - gocyclo
+          - dupl
       # Exclude generated files
       - path: scripts/generate_docs/
         linters:

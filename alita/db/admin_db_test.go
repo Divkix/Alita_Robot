@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetAdminSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -28,7 +27,6 @@ func TestGetAdminSettings_Defaults(t *testing.T) {
 }
 
 func TestSetAnonAdmin(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 1000
@@ -60,7 +58,6 @@ func TestSetAnonAdmin(t *testing.T) {
 }
 
 func TestLoadAdminStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// LoadAdminStats does not exist in admin_db.go; GetAdminSettings is tested above.
@@ -79,7 +76,6 @@ func TestLoadAdminStats(t *testing.T) {
 }
 
 func TestSetAnonAdmin_Toggle(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano() + 3000

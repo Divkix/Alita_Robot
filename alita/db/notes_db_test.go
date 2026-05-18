@@ -7,7 +7,6 @@ import (
 )
 
 func TestGetNotesSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -29,7 +28,6 @@ func TestGetNotesSettings_Defaults(t *testing.T) {
 }
 
 func TestSaveNote(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -70,7 +68,6 @@ func TestSaveNote(t *testing.T) {
 }
 
 func TestGetAllNotes(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -107,7 +104,6 @@ func TestGetAllNotes(t *testing.T) {
 }
 
 func TestRemoveNote(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -140,7 +136,6 @@ func TestRemoveNote(t *testing.T) {
 }
 
 func TestToggleNotesPrivate(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -173,7 +168,6 @@ func TestToggleNotesPrivate(t *testing.T) {
 }
 
 func TestNoteUpsertBehavior(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -209,7 +203,6 @@ func TestNoteUpsertBehavior(t *testing.T) {
 }
 
 func TestGetAllNotes_EmptyChat(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -228,7 +221,6 @@ func TestGetAllNotes_EmptyChat(t *testing.T) {
 }
 
 func TestRemoveNonExistentNote(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -247,7 +239,6 @@ func TestRemoveNonExistentNote(t *testing.T) {
 }
 
 func TestDoesNoteExists(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -274,7 +265,6 @@ func TestDoesNoteExists(t *testing.T) {
 }
 
 func TestLoadNotesStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -323,7 +313,6 @@ func TestLoadNotesStats(t *testing.T) {
 }
 
 func TestRemoveAllNotes(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -353,7 +342,6 @@ func TestRemoveAllNotes(t *testing.T) {
 }
 
 func TestAddNoteWithAdminOnly(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -385,7 +373,6 @@ func TestAddNoteWithAdminOnly(t *testing.T) {
 }
 
 func TestSaveNoteTwice_Overwrites(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()

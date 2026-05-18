@@ -142,3 +142,82 @@ func TestUpdateLockConcurrentCreation(t *testing.T) {
 		t.Fatalf("expected Locked=true, got false")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// IsPermLocked (GetLockSetting equivalent)
+// ---------------------------------------------------------------------------
+
+func TestIsPermLocked(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	perm := "sticker"
+
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
+	})
+
+	// No record yet -> should be false
+	if IsPermLocked(chatID, perm) {
+		t.Fatal("IsPermLocked() = true for non-existent record, want false")
+	}
+
+	// Create locked record
+	if err := UpdateLock(chatID, perm, true); err != nil {
+		t.Fatalf("UpdateLock(true) error = %v", err)
+	}
+
+	if !IsPermLocked(chatID, perm) {
+		t.Fatal("IsPermLocked() = false after locking, want true")
+	}
+
+	// Unlock
+	if err := UpdateLock(chatID, perm, false); err != nil {
+		t.Fatalf("UpdateLock(false) error = %v", err)
+	}
+
+	if IsPermLocked(chatID, perm) {
+		t.Fatal("IsPermLocked() = true after unlocking, want false")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetChatLocks (GetAllLocks equivalent)
+// ---------------------------------------------------------------------------
+
+func TestGetChatLocks(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	lockTypes := []string{"text", "photo", "url"}
+
+	t.Cleanup(func() {
+		for _, lt := range lockTypes {
+			_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, lt).Delete(&LockSettings{}).Error
+		}
+	})
+
+	// No locks -> empty map
+	locks := GetChatLocks(chatID)
+	if len(locks) != 0 {
+		t.Fatalf("GetChatLocks() empty chat len = %d, want 0", len(locks))
+	}
+
+	// Create multiple locks
+	for _, lt := range lockTypes {
+		if err := UpdateLock(chatID, lt, true); err != nil {
+			t.Fatalf("UpdateLock(%q, true) error = %v", lt, err)
+		}
+	}
+
+	locks = GetChatLocks(chatID)
+	if len(locks) != len(lockTypes) {
+		t.Fatalf("GetChatLocks() len = %d, want %d", len(locks), len(lockTypes))
+	}
+
+	for _, lt := range lockTypes {
+		if !locks[lt] {
+			t.Fatalf("GetChatLocks()[%q] = false, want true", lt)
+		}
+	}
+}

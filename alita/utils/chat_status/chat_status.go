@@ -82,6 +82,9 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	if chat != nil {
 		return chat
 	}
+	if ctx == nil {
+		return nil
+	}
 	if ctx.CallbackQuery != nil && ctx.CallbackQuery.Message != nil {
 		chatValue := ctx.CallbackQuery.Message.GetChat()
 		return &chatValue
