@@ -81,9 +81,7 @@ func TestWorkingModeAttribute_ReturnsCorrectKeyAndValue(t *testing.T) {
 }
 
 func TestStartSpan_WhenDisabled_ReturnsSameContext(t *testing.T) {
-	if enabled {
-		t.Skip("skipping: tracing is enabled")
-	}
+	resetTracingState(t)
 
 	inputCtx := context.Background()
 	ctx, span := StartSpan(inputCtx, "test-span")
@@ -105,9 +103,7 @@ func TestStartSpan_WhenDisabled_ReturnsSameContext(t *testing.T) {
 }
 
 func TestShutdown_WhenProviderNil_ReturnsNil(t *testing.T) {
-	if tracerProvider != nil {
-		t.Skip("skipping: tracerProvider is non-nil")
-	}
+	resetTracingState(t)
 
 	err := Shutdown(context.Background())
 	if err != nil {

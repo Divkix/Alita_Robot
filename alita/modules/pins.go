@@ -977,6 +977,9 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 		} else if msg.ReplyToMessage.Document != nil {
 			fileid = msg.ReplyToMessage.Document.FileId
 			dataType = db.DOCUMENT
+		} else if msg.ReplyToMessage.Animation != nil {
+			fileid = msg.ReplyToMessage.Animation.FileId
+			dataType = db.DOCUMENT
 		} else if len(msg.ReplyToMessage.Photo) > 0 {
 			fileid = msg.ReplyToMessage.Photo[len(msg.ReplyToMessage.Photo)-1].FileId // using -1 index to get best photo quality
 			dataType = db.PHOTO

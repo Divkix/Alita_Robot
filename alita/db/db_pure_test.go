@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -305,8 +306,8 @@ func TestBackupFormat_ToJSON(t *testing.T) {
 	}
 
 	// Verify indent formatting (contains newlines for readability)
-	if len(data) < 100 {
-		t.Fatalf("JSON appears too short for indented output: len=%d", len(data))
+	if !strings.Contains(string(data), "\n") {
+		t.Fatalf("JSON missing indentation/newlines: got %q", string(data))
 	}
 }
 

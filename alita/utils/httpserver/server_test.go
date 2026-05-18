@@ -156,7 +156,7 @@ func TestRegisterHealth(t *testing.T) {
 	// We catch the panic and report it via Logf because the route still responds.
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Recovered from panic due to nil db/cache: %v", r)
+			t.Fatalf("recovered panic in /health handler: %v", r)
 		}
 	}()
 

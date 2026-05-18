@@ -137,6 +137,19 @@ func TestGetPinType(t *testing.T) {
 			wantButtons:  0,
 		},
 		{
+			name: "reply to animation",
+			msg: &gotgbot.Message{
+				Text: "/permapin",
+				ReplyToMessage: &gotgbot.Message{
+					Animation: &gotgbot.Animation{FileId: "anim_file_id"},
+				},
+			},
+			wantFileID:   "anim_file_id",
+			wantText:     "",
+			wantDataType: db.DOCUMENT,
+			wantButtons:  0,
+		},
+		{
 			name: "reply to unsupported returns -1",
 			msg: &gotgbot.Message{
 				Text: "/permapin",
