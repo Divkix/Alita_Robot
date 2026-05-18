@@ -1754,6 +1754,9 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 	if chat_status.IsUserAdmin(bot, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
+	if chat_status.IsApproved(bot, chat.Id, user.Id) {
+		return ext.ContinueGroups
+	}
 
 	// Check if user has a pending captcha attempt
 	attempt, err := db.GetCaptchaAttempt(user.Id, chat.Id)

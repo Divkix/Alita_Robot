@@ -391,6 +391,9 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
+	if chat_status.IsApproved(b, chat.Id, senderID) {
+		return ext.ContinueGroups
+	}
 
 	for restr, filter := range restrMap {
 		if !filter(msg) || !db.IsPermLocked(chat.Id, restr) || !chat_status.CanBotDelete(b, ctx, nil, true) {
@@ -438,6 +441,9 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
+	if chat_status.IsApproved(b, chat.Id, senderID) {
+		return ext.ContinueGroups
+	}
 
 	for perm, filter := range lockMap {
 		if !filter(msg) || !db.IsPermLocked(chat.Id, perm) || !chat_status.CanBotDelete(b, ctx, nil, true) {
@@ -477,6 +483,9 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Allow admins to add bots even when bots lock is enabled
 	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
+		return ext.ContinueGroups
+	}
+	 if chat_status.IsApproved(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 

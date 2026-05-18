@@ -163,6 +163,13 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 	return true
 }
 
+// IsApproved checks if a user is in the approved whitelist for a chat.
+// Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha, antispam).
+// This is a simple delegation to the DB layer for consistent usage in watcher handlers.
+func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
+	return db.IsUserApproved(chatID, userID)
+}
+
 // IsUserAdmin checks if a user has administrator privileges in a chat.
 // Uses caching system to avoid repeated API calls and handles special Telegram admin accounts.
 // Returns true if the user is an admin, creator, or special Telegram account.

@@ -579,6 +579,9 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
 		return ext.ContinueGroups
 	}
+	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsApproved(b, chat.Id, user.Id()) {
+		return ext.ContinueGroups
+	}
 
 	// Check if bot has admin permissions to take action
 	// This prevents wasted API calls when bot can't delete/restrict
