@@ -69,6 +69,16 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
+	// Close DB handle before removing temp file.
+	if DB != nil {
+		sqlDB, err := DB.DB()
+		if err != nil {
+			fmt.Printf("failed to get underlying DB: %v\n", err)
+		} else if closeErr := sqlDB.Close(); closeErr != nil {
+			fmt.Printf("DB close failed: %v\n", closeErr)
+		}
+	}
+
 	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
