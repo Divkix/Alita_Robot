@@ -283,12 +283,60 @@ func (o *OptimizedChannelQueries) GetChannelSettings(chatID int64) (*ChannelSett
 	return &settings, err
 }
 
+// OptimizedAntiRaidQueries provides optimized queries for anti-raid operations.
+type OptimizedAntiRaidQueries struct {
+	db *gorm.DB
+}
+
+// NewOptimizedAntiRaidQueries creates a new instance of OptimizedAntiRaidQueries.
+func NewOptimizedAntiRaidQueries() *OptimizedAntiRaidQueries {
+	if DB == nil {
+		log.Error("[OptimizedAntiRaidQueries] Database not initialized")
+		return &OptimizedAntiRaidQueries{db: nil}
+	}
+	return &OptimizedAntiRaidQueries{db: DB}
+}
+
+// GetAntiRaidSettings retrieves anti-raid settings with minimal column selection.
+func (o *OptimizedAntiRaidQueries) GetAntiRaidSettings(chatID int64) (*AntiRaidSettings, error) {
+	if o.db == nil {
+		return &AntiRaidSettings{
+			ChatID:                chatID,
+			RaidTime:              21600,
+			RaidActionTime:        3600,
+			AutoAntiRaidThreshold: 0,
+		}, errors.New("database not initialized")
+	}
+
+	var settings AntiRaidSettings
+	err := o.db.Model(&AntiRaidSettings{}).
+		Select("id, chat_id, raid_time, raid_action_time, auto_antiraid_threshold").
+		Where("chat_id = ?", chatID).
+		First(&settings).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &AntiRaidSettings{
+			ChatID:                chatID,
+			RaidTime:              21600,
+			RaidActionTime:        3600,
+			AutoAntiRaidThreshold: 0,
+		}, nil
+	}
+	if err != nil {
+		log.Errorf("[OptimizedAntiRaidQueries] GetAntiRaidSettings: %v", err)
+		return nil, err
+	}
+
+	return &settings, nil
+}
+
 // CachedOptimizedQueries provides caching layer for optimized queries
 type CachedOptimizedQueries struct {
 	lockQueries      *OptimizedLockQueries
 	userQueries      *OptimizedUserQueries
 	chatQueries      *OptimizedChatQueries
 	antifloodQueries *OptimizedAntifloodQueries
+	antiraidQueries  *OptimizedAntiRaidQueries
 	filterQueries    *OptimizedFilterQueries
 	blacklistQueries *OptimizedBlacklistQueries
 	channelQueries   *OptimizedChannelQueries
@@ -302,6 +350,7 @@ func NewCachedOptimizedQueries() *CachedOptimizedQueries {
 		userQueries:      NewOptimizedUserQueries(),
 		chatQueries:      NewOptimizedChatQueries(),
 		antifloodQueries: NewOptimizedAntifloodQueries(),
+		antiraidQueries:  NewOptimizedAntiRaidQueries(),
 		filterQueries:    NewOptimizedFilterQueries(),
 		blacklistQueries: NewOptimizedBlacklistQueries(),
 		channelQueries:   NewOptimizedChannelQueries(),
@@ -381,6 +430,25 @@ func (c *CachedOptimizedQueries) GetAntifloodSettingsCached(chatID int64) (*Anti
 	})
 	if err != nil {
 		return c.antifloodQueries.GetAntifloodSettings(chatID)
+	}
+
+	return cached, nil
+}
+
+// GetAntiRaidSettingsCached retrieves anti-raid settings with caching layer for improved performance.
+// Uses 1-hour cache TTL and falls back to direct query if cache fails.
+func (c *CachedOptimizedQueries) GetAntiRaidSettingsCached(chatID int64) (*AntiRaidSettings, error) {
+	if c == nil || c.antiraidQueries == nil {
+		return nil, errors.New("antiraid queries not initialized")
+	}
+
+	cacheKey := CacheKey("antiraid", chatID)
+
+	cached, err := getFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*AntiRaidSettings, error) {
+		return c.antiraidQueries.GetAntiRaidSettings(chatID)
+	})
+	if err != nil {
+		return c.antiraidQueries.GetAntiRaidSettings(chatID)
 	}
 
 	return cached, nil
@@ -479,6 +547,7 @@ func GetOptimizedQueries() *CachedOptimizedQueries {
 			userQueries:      &OptimizedUserQueries{db: nil},
 			chatQueries:      &OptimizedChatQueries{db: nil},
 			antifloodQueries: &OptimizedAntifloodQueries{db: nil},
+			antiraidQueries:  &OptimizedAntiRaidQueries{db: nil},
 			filterQueries:    &OptimizedFilterQueries{db: nil},
 			blacklistQueries: &OptimizedBlacklistQueries{db: nil},
 			channelQueries:   &OptimizedChannelQueries{db: nil},

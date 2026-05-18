@@ -2495,3 +2495,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "Pengguna yang disetujui untuk chat %d\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (alasan: %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Lindungi grup Anda dari serangan spam-join dengan AntiRaid.
+  *Perintah Admin:*
+  /antiraid: Tampilkan status saat ini + tombol aktifkan/nonaktifkan.
+  /antiraid on: Aktifkan mode raid untuk waktu yang dikonfigurasi.
+  /antiraid <duration>: Aktifkan untuk durasi kustom (mis. 3h, 30m).
+  /antiraid off: Nonaktifkan mode raid segera.
+  /raidtime <time>: Atur durasi raid (default: 6h).
+  /raidactiontime <time>: Atur durasi temp-ban (default: 1h).
+  /autoantiraid <N>: Aktifkan otomatis jika N+ bergabung/menit.
+  /autoantiraid off: Nonaktifkan pemicu otomatis.
+antiraid_active_status: "AntiRaid AKTIF | Kedaluwarsa: %s | Raid: %s | Tindakan: %s | Otomatis: %s"
+antiraid_inactive_status: "AntiRaid NONAKTIF | Raid: %s | Tindakan: %s | Otomatis: %s"
+antiraid_enabled: "AntiRaid diaktifkan untuk %s."
+antiraid_disabled: "AntiRaid dinonaktifkan."
+antiraid_already_active: "AntiRaid sudah aktif."
+antiraid_not_active: "AntiRaid tidak aktif."
+antiraid_invalid_duration: "Durasi tidak valid. Gunakan format seperti: 30m, 2h, 1d, 1m"
+antiraid_duration_must_be_positive: "Durasi harus positif."
+antiraid_raidtime_usage: "Penggunaan: /raidtime <duration> (mis., 6h)"
+antiraid_raidtime_no_change: "Waktu raid sudah %s."
+antiraid_raidtime_set: "Waktu raid diatur ke %s."
+antiraid_raidactiontime_usage: "Penggunaan: /raidactiontime <duration> (mis., 1h)"
+antiraid_raidactiontime_no_change: "Waktu tindakan raid sudah %s."
+antiraid_raidactiontime_set: "Waktu tindakan raid diatur ke %s."
+antiraid_auto_disabled: "Auto-AntiRaid dinonaktifkan."
+antiraid_auto_enabled: "Ambang Auto-AntiRaid: %d bergabung/menit."
+antiraid_invalid_threshold: "Ambang tidak valid. Berikan angka positif atau 'off'."
+antiraid_auto_triggered: "Raid otomatis dipicu! %s pengguna bergabung/menit — pendatang baru dilarang sementara."
+antiraid_btn_enable: "Aktifkan AntiRaid"
+antiraid_btn_disable: "Nonaktifkan AntiRaid"

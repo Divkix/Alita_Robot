@@ -2466,3 +2466,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "Usuários aprovados do chat %d\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (motivo: %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Proteja seu grupo de ataques de spam-join com o AntiRaid.
+  *Comandos de Admin:*
+  /antiraid: Mostra estado atual + botões ativar/desativar.
+  /antiraid on: Ativa modo raid pelo tempo configurado.
+  /antiraid <duration>: Ativa por duração personalizada (ex. 3h, 30m).
+  /antiraid off: Desativa modo raid imediatamente.
+  /raidtime <time>: Define duração do raid (padrão: 6h).
+  /raidactiontime <time>: Define duração do ban temporário (padrão: 1h).
+  /autoantiraid <N>: Ativação automática se N+ entradas/min.
+  /autoantiraid off: Desativa gatilho automático.
+antiraid_active_status: "AntiRaid ATIVO | Expira: %s | Raid: %s | Ação: %s | Auto: %s"
+antiraid_inactive_status: "AntiRaid INATIVO | Raid: %s | Ação: %s | Auto: %s"
+antiraid_enabled: "AntiRaid ativado por %s."
+antiraid_disabled: "AntiRaid desativado."
+antiraid_already_active: "AntiRaid já está ativo."
+antiraid_not_active: "AntiRaid não está ativo."
+antiraid_invalid_duration: "Duração inválida. Use um formato como: 30m, 2h, 1d, 1s"
+antiraid_duration_must_be_positive: "A duração deve ser positiva."
+antiraid_raidtime_usage: "Uso: /raidtime <duration> (ex., 6h)"
+antiraid_raidtime_no_change: "O tempo de raid já é %s."
+antiraid_raidtime_set: "Tempo de raid definido para %s."
+antiraid_raidactiontime_usage: "Uso: /raidactiontime <duration> (ex., 1h)"
+antiraid_raidactiontime_no_change: "O tempo de ação do raid já é %s."
+antiraid_raidactiontime_set: "Tempo de ação do raid definido para %s."
+antiraid_auto_disabled: "Auto-AntiRaid está desativado."
+antiraid_auto_enabled: "Limite do Auto-AntiRaid: %d entradas/min."
+antiraid_invalid_threshold: "Limite inválido. Dê um número positivo ou 'off'."
+antiraid_auto_triggered: "Raid automático ativado! %s usuários entraram/min — novos entrantes banidos temporariamente."
+antiraid_btn_enable: "Ativar AntiRaid"
+antiraid_btn_disable: "Desativar AntiRaid"

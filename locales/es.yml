@@ -2507,3 +2507,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "Usuarios aprobados del chat %d\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (motivo: %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Protege tu grupo de ataques de spam-join con AntiRaid.
+  *Comandos de Administrador:*
+  /antiraid: Muestra estado actual + botones para activar/desactivar.
+  /antiraid on: Activa el modo raid para el tiempo configurado.
+  /antiraid <duración>: Activa por duración personalizada (ej. 3h, 30m).
+  /antiraid off: Desactiva el modo raid inmediatamente.
+  /raidtime <tiempo>: Establece duración de raid (predeterminado: 6h).
+  /raidactiontime <tiempo>: Establece duración de ban temporal (predeterminado: 1h).
+  /autoantiraid <N>: Activación automática si N+ entradas/min.
+  /autoantiraid off: Desactiva activación automática.
+antiraid_active_status: "AntiRaid ACTIVO | Expira: %s | Raid: %s | Acción: %s | Auto: %s"
+antiraid_inactive_status: "AntiRaid INACTIVO | Raid: %s | Acción: %s | Auto: %s"
+antiraid_enabled: "AntiRaid activado por %s."
+antiraid_disabled: "AntiRaid desactivado."
+antiraid_already_active: "AntiRaid ya está activo."
+antiraid_not_active: "AntiRaid no está activo."
+antiraid_invalid_duration: "Duración inválida. Usa un formato como: 30m, 2h, 1d, 1w"
+antiraid_duration_must_be_positive: "La duración debe ser positiva."
+antiraid_raidtime_usage: "Uso: /raidtime <duración> (ej., 6h)"
+antiraid_raidtime_no_change: "El tiempo de raid ya es %s."
+antiraid_raidtime_set: "Tiempo de raid establecido en %s."
+antiraid_raidactiontime_usage: "Uso: /raidactiontime <duración> (ej., 1h)"
+antiraid_raidactiontime_no_change: "El tiempo de acción de raid ya es %s."
+antiraid_raidactiontime_set: "Tiempo de acción de raid establecido en %s."
+antiraid_auto_disabled: "Auto-AntiRaid está desactivado."
+antiraid_auto_enabled: "Umbral de Auto-AntiRaid: %d entradas/min."
+antiraid_invalid_threshold: "Umbral inválido. Da un número positivo o 'off'."
+antiraid_auto_triggered: "¡Raid automático activado! %s usuarios entraron/min — nuevos ingresos baneados temporalmente."
+antiraid_btn_enable: "Activar AntiRaid"
+antiraid_btn_disable: "Desactivar AntiRaid"

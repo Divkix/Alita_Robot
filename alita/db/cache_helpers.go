@@ -26,6 +26,7 @@ const (
 	CacheTTLDisabledCmds    = 30 * time.Minute
 	CacheTTLCaptchaSettings = 30 * time.Minute
 	CacheTTLApprovals       = 30 * time.Minute
+	CacheTTLAntiRaid        = 30 * time.Minute
 )
 
 // CacheKey generates a cache key with the alita prefix and any number of ID segments.

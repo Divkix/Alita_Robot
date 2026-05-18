@@ -2126,3 +2126,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "चैट %d के लिए स्वीकृत उपयोगकर्ता\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (कारण: %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  AntiRaid के साथ अपने समूह को स्पैम-ज्वाइन हमलों से बचाएं।
+  *एडमिन कमांड:*
+  /antiraid: वर्तमान स्थिति दिखाएं + सक्षम/अक्षम बटन।
+  /antiraid on: कॉन्फ़िगर किए गए समय के लिए रेड मोड सक्षम करें।
+  /antiraid <duration>: कस्टम अवधि के लिए सक्षम करें (उदा. 3h, 30m)।
+  /antiraid off: रेड मोड तुरंत अक्षम करें।
+  /raidtime <time>: रेड अवधि सेट करें (डिफ़ॉल्ट: 6h)।
+  /raidactiontime <time>: टेम्प-बैन अवधि सेट करें (डिफ़ॉल्ट: 1h)।
+  /autoantiraid <N>: यदि N+ जॉइन्स/मिन तो ऑटो-सक्षम करें।
+  /autoantiraid off: ऑटो-ट्रिगर अक्षम करें।
+antiraid_active_status: "AntiRaid सक्रिय | समाप्ति: %s | रेड: %s | कार्रवाई: %s | ऑटो: %s"
+antiraid_inactive_status: "AntiRaid निष्क्रिय | रेड: %s | कार्रवाई: %s | ऑटो: %s"
+antiraid_enabled: "AntiRaid %s के लिए सक्षम किया गया।"
+antiraid_disabled: "AntiRaid अक्षम किया गया।"
+antiraid_already_active: "AntiRaid पहले से ही सक्रिय है।"
+antiraid_not_active: "AntiRaid सक्रिय नहीं है।"
+antiraid_invalid_duration: "अमान्य अवधि। इस प्रारूप का उपयोग करें: 30m, 2h, 1d, 1w"
+antiraid_duration_must_be_positive: "अवधि सकारात्मक होनी चाहिए।"
+antiraid_raidtime_usage: "उपयोग: /raidtime <duration> (उदा., 6h)"
+antiraid_raidtime_no_change: "रेड समय पहले से ही %s है।"
+antiraid_raidtime_set: "रेड समय %s पर सेट किया गया।"
+antiraid_raidactiontime_usage: "उपयोग: /raidactiontime <duration> (उदा., 1h)"
+antiraid_raidactiontime_no_change: "रेड एक्शन समय पहले से ही %s है।"
+antiraid_raidactiontime_set: "रेड एक्शन समय %s पर सेट किया गया।"
+antiraid_auto_disabled: "ऑटो-AntiRaid अक्षम है।"
+antiraid_auto_enabled: "ऑटो-AntiRaid थ्रेशोल्ड: %d जॉइन्स/मिन।"
+antiraid_invalid_threshold: "अमान्य थ्रेशोल्ड। एक सकारात्मक संख्या या 'off' दें।"
+antiraid_auto_triggered: "ऑटो-रेड ट्रिगर हो गया! %s उपयोगकर्ता/मिन जुड़े — नए जॉइनर्स को टेम्प-बैन किया गया।"
+antiraid_btn_enable: "AntiRaid सक्षम करें"
+antiraid_btn_disable: "AntiRaid अक्षम करें"

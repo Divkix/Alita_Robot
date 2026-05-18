@@ -2223,3 +2223,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "Одобренные пользователи чата %d\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (причина: %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Защитите вашу группу от спам-атак с помощью AntiRaid.
+  *Команды администратора:*
+  /antiraid: Показать текущее состояние + кнопки включения/выключения.
+  /antiraid on: Включить режим рейда на настроенное время.
+  /antiraid <duration>: Включить на заданное время (например, 3ч, 30м).
+  /antiraid off: Немедленно отключить режим рейда.
+  /raidtime <time>: Установить длительность рейда (по умолчанию: 6ч).
+  /raidactiontime <time>: Установить длительность временного бана (по умолчанию: 1ч).
+  /autoantiraid <N>: Авто-включение при N+ входов/мин.
+  /autoantiraid off: Отключить авто-триггер.
+antiraid_active_status: "AntiRaid АКТИВЕН | Истекает: %s | Рейд: %s | Действие: %s | Авто: %s"
+antiraid_inactive_status: "AntiRaid НЕАКТИВЕН | Рейд: %s | Действие: %s | Авто: %s"
+antiraid_enabled: "AntiRaid включён на %s."
+antiraid_disabled: "AntiRaid отключён."
+antiraid_already_active: "AntiRaid уже активен."
+antiraid_not_active: "AntiRaid не активен."
+antiraid_invalid_duration: "Неверная длительность. Используйте формат: 30м, 2ч, 1д, 1н"
+antiraid_duration_must_be_positive: "Длительность должна быть положительной."
+antiraid_raidtime_usage: "Использование: /raidtime <длительность> (например, 6ч)"
+antiraid_raidtime_no_change: "Время рейда уже %s."
+antiraid_raidtime_set: "Время рейда установлено на %s."
+antiraid_raidactiontime_usage: "Использование: /raidactiontime <длительность> (например, 1ч)"
+antiraid_raidactiontime_no_change: "Время действия рейда уже %s."
+antiraid_raidactiontime_set: "Время действия рейда установлено на %s."
+antiraid_auto_disabled: "Auto-AntiRaid отключён."
+antiraid_auto_enabled: "Порог Auto-AntiRaid: %d входов/мин."
+antiraid_invalid_threshold: "Неверный порог. Укажите положительное число или 'off'."
+antiraid_auto_triggered: "Авто-рейд активирован! %s пользователей вошло/мин — новые участники временно забанены."
+antiraid_btn_enable: "Включить AntiRaid"
+antiraid_btn_disable: "Отключить AntiRaid"

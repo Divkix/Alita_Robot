@@ -98,3 +98,15 @@ func ClearAllCaches() error {
 	log.Info("[Cache] Successfully cleared all cache entries")
 	return nil
 }
+
+// GetRedisClient exposes the internal Redis client for modules that need
+// low-level Redis operations (e.g., sorted sets for rate-limiting).
+// Returns nil if cache has not been initialized.
+func GetRedisClient() *redis.Client {
+	return redisClient
+}
+
+// IsRedisAvailable returns whether the Redis client is initialized.
+func IsRedisAvailable() bool {
+	return redisClient != nil
+}
