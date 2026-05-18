@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -24,7 +23,6 @@ func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
 }
 
 func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -42,7 +40,6 @@ func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
 }
 
 func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -64,7 +61,6 @@ func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
 }
 
 func TestChangeUserLanguage_SetAndGet(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -86,7 +82,6 @@ func TestChangeUserLanguage_SetAndGet(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestChangeGroupLanguage_Update(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -111,7 +106,6 @@ func TestChangeGroupLanguage_Update(t *testing.T) {
 }
 
 func TestChangeUserLanguage_Update(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -136,7 +130,6 @@ func TestChangeUserLanguage_Update(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -159,7 +152,6 @@ func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
 }
 
 func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()

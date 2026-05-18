@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetChatReportSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -33,7 +32,6 @@ func TestGetChatReportSettings_Defaults(t *testing.T) {
 }
 
 func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -70,7 +68,6 @@ func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
 }
 
 func TestGetUserReportSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -89,7 +86,6 @@ func TestGetUserReportSettings_Defaults(t *testing.T) {
 }
 
 func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -121,7 +117,6 @@ func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
 }
 
 func TestGetBlockedReportsList_EmptyForNewChat(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -142,7 +137,6 @@ func TestGetBlockedReportsList_EmptyForNewChat(t *testing.T) {
 }
 
 func TestAddBlockedReport_AddAndVerify(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -180,7 +174,6 @@ func TestAddBlockedReport_AddAndVerify(t *testing.T) {
 }
 
 func TestRemoveBlockedReport_UnblockOneOfTwo(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -231,7 +224,6 @@ func TestRemoveBlockedReport_UnblockOneOfTwo(t *testing.T) {
 }
 
 func TestBlockReportUser_IdempotentAdd(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	base := time.Now().UnixNano()
@@ -272,7 +264,6 @@ func TestBlockReportUser_IdempotentAdd(t *testing.T) {
 }
 
 func TestLoadReportStats_Returns(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Just verify the function executes without error and returns non-negative values

@@ -11,7 +11,7 @@ import (
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	startTime := time.Now().Add(-time.Hour) // Use a distinct past time to verify it’s stored
+	startTime := time.Now().Add(-time.Hour)
 	s := New(8080, startTime)
 	if s == nil {
 		t.Fatal("expected non-nil server")
@@ -76,8 +76,6 @@ func TestValidateWebhookMissingHeader(t *testing.T) {
 	s.secret = "mysecret"
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", nil)
-	// No header set
-
 	if s.validateWebhook(req) {
 		t.Error("expected validateWebhook to return false when header is missing")
 	}
@@ -119,7 +117,6 @@ func TestWebhookHandlerUnauthorized(t *testing.T) {
 	s := New(9006, time.Now())
 	s.secret = "mysecret"
 
-	// POST with no secret header → reads body OK, then validateWebhook returns false → 401
 	body := strings.NewReader("{}")
 	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", body)
 	rr := httptest.NewRecorder()
@@ -131,11 +128,97 @@ func TestWebhookHandlerUnauthorized(t *testing.T) {
 	}
 }
 
+func TestPprofHandler(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)
+	rr := httptest.NewRecorder()
+
+	pprofHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "profile") && !strings.Contains(body, "Profiles") && !strings.Contains(body, "Types of profiles") {
+		t.Errorf("expected pprof content in response body, got: %s", body)
+	}
+}
+
+func TestRegisterHealth(t *testing.T) {
+	s := New(8080, time.Now())
+	s.RegisterHealth()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	// This test intentionally calls a handler that may panic with nil db/cache.
+	// We catch the panic and report it via Logf because the route still responds.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("recovered panic in /health handler: %v", r)
+		}
+	}()
+
+	s.mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK && rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected status 200 or 503, got %d", rr.Code)
+	}
+	ct := rr.Header().Get("Content-Type")
+	if ct != "" && !strings.Contains(ct, "application/json") {
+		t.Errorf("expected application/json content type, got %s", ct)
+	}
+}
+
+func TestRegisterMetrics(t *testing.T) {
+	s := New(8080, time.Now())
+	s.RegisterMetrics()
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rr := httptest.NewRecorder()
+	s.mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+	ct := rr.Header().Get("Content-Type")
+	if !strings.Contains(ct, "text/plain") {
+		t.Errorf("expected text/plain content type, got %s", ct)
+	}
+}
+
+func TestRegisterPPROF(t *testing.T) {
+	s := New(8080, time.Now())
+	s.RegisterPPROF()
+
+	paths := []string{
+		"/debug/pprof/",
+		"/debug/pprof/heap",
+		"/debug/pprof/goroutine",
+		"/debug/pprof/threadcreate",
+		"/debug/pprof/block",
+		"/debug/pprof/mutex",
+	}
+	for _, path := range paths {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected status 200 for %s, got %d", path, rr.Code)
+		}
+	}
+
+	if !s.pprofEnabled {
+		t.Error("expected pprofEnabled to be true after registration")
+	}
+}
+
 func TestStopWithNilServer(t *testing.T) {
 	t.Parallel()
 
 	s := New(9007, time.Now())
-	// s.server is nil — never called Start()
 
 	if err := s.Stop(); err != nil {
 		t.Errorf("expected nil error from Stop on unstarted server, got: %v", err)

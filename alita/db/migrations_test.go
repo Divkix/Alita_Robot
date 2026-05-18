@@ -18,7 +18,6 @@ func newTestRunner() *MigrationRunner {
 // ---------------------------------------------------------------------------
 
 func TestSchemaMigrationTableName(t *testing.T) {
-	t.Parallel()
 
 	got := SchemaMigration{}.TableName()
 	if got != "schema_migrations" {
@@ -31,7 +30,6 @@ func TestSchemaMigrationTableName(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCleanSupabaseSQL(t *testing.T) {
-	t.Parallel()
 
 	runner := newTestRunner()
 
@@ -103,7 +101,6 @@ func TestCleanSupabaseSQL(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := runner.cleanSupabaseSQL(tc.input)
 
@@ -123,7 +120,6 @@ func TestCleanSupabaseSQL(t *testing.T) {
 }
 
 func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
-	t.Parallel()
 
 	runner := newTestRunner()
 
@@ -224,7 +220,6 @@ GRANT INSERT ON profiles TO authenticated;`,
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := runner.cleanSupabaseSQL(tc.input)
 
@@ -248,7 +243,6 @@ GRANT INSERT ON profiles TO authenticated;`,
 // ---------------------------------------------------------------------------
 
 func TestSplitSQLStatements(t *testing.T) {
-	t.Parallel()
 
 	runner := newTestRunner()
 
@@ -321,7 +315,6 @@ SELECT 1;`,
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := runner.splitSQLStatements(tc.input)
 			if len(got) != tc.wantCount {
@@ -337,7 +330,6 @@ SELECT 1;`,
 }
 
 func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
-	t.Parallel()
 
 	runner := newTestRunner()
 
@@ -372,7 +364,6 @@ func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := runner.splitSQLStatements(tc.input)
 			if len(got) != tc.wantCount {
@@ -388,10 +379,8 @@ func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetMigrationFiles(t *testing.T) {
-	t.Parallel()
 
 	t.Run("empty directory returns empty slice no error", func(t *testing.T) {
-		t.Parallel()
 
 		dir := t.TempDir()
 		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
@@ -406,7 +395,6 @@ func TestGetMigrationFiles(t *testing.T) {
 	})
 
 	t.Run("directory with 3 sql files returns 3 sorted entries", func(t *testing.T) {
-		t.Parallel()
 
 		dir := t.TempDir()
 		names := []string{"003_c.sql", "001_a.sql", "002_b.sql"}
@@ -437,7 +425,6 @@ func TestGetMigrationFiles(t *testing.T) {
 	})
 
 	t.Run("non-existent path returns error", func(t *testing.T) {
-		t.Parallel()
 
 		runner := &MigrationRunner{db: nil, migrationsPath: "/tmp/nonexistent-migrations-dir-alita-test", cleanSQL: true}
 		_, err := runner.getMigrationFiles()
@@ -447,7 +434,6 @@ func TestGetMigrationFiles(t *testing.T) {
 	})
 
 	t.Run("mixed sql and txt files returns only sql files", func(t *testing.T) {
-		t.Parallel()
 
 		dir := t.TempDir()
 		sqlFiles := []string{"001_migration.sql", "002_migration.sql"}
@@ -478,4 +464,147 @@ func TestGetMigrationFiles(t *testing.T) {
 			}
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// findDollarQuoteBlocks
+// ---------------------------------------------------------------------------
+
+func TestFindDollarQuoteBlocks(t *testing.T) {
+
+	tests := []struct {
+		name      string
+		input     string
+		wantCount int
+		wantStart []int
+	}{
+		{
+			name:      "empty string returns empty",
+			input:     "",
+			wantCount: 0,
+		},
+		{
+			name:      "simple dollar-quoted block",
+			input:     `DO $$ BEGIN NULL; END $$;`,
+			wantCount: 1,
+			wantStart: []int{3},
+		},
+		{
+			name:      "multiple dollar-quoted blocks",
+			input:     `DO $$ a $$; DO $$ b $$;`,
+			wantCount: 2,
+			wantStart: []int{3, 15},
+		},
+		{
+			name:      "dollar quote inside single quotes is ignored",
+			input:     `SELECT '$$ not a block $$';`,
+			wantCount: 0,
+		},
+		{
+			name:      "dollar quote inside double quotes is ignored",
+			input:     `SELECT "$$ not a block $$";`,
+			wantCount: 0,
+		},
+		{
+			name:      "dollar quote inside line comment is ignored",
+			input:     `-- $$ not a block $$
+SELECT 1;`,
+			wantCount: 0,
+		},
+		{
+			name:      "dollar quote inside block comment is ignored",
+			input:     `/* $$ not a block $$ */ SELECT 1;`,
+			wantCount: 0,
+		},
+		{
+			name:      "tagged dollar-quoted block",
+			input:     `$func$ BEGIN RAISE NOTICE 'hello'; END $func$;`,
+			wantCount: 1,
+			wantStart: []int{0},
+		},
+		{
+			name:      "mismatched tags not closed",
+			input:     `$a$ content $b$;`,
+			wantCount: 0,
+		},
+		{
+			name:      "dollar quote after real block still works",
+			input:     `DO $$ BEGIN END $$; SELECT $$x$$;`,
+			wantCount: 2,
+		},
+		{
+			name:      "semicolon inside dollar block does not split",
+			input:     `DO $$ BEGIN; END $$; SELECT 1;`,
+			wantCount: 1,
+			wantStart: []int{3},
+		},
+		{
+			name:      "escaped single quote inside dollar block",
+			input:     `DO $$ BEGIN RAISE NOTICE ''it''''s''; END $$;`,
+			wantCount: 1,
+			wantStart: []int{3},
+		},
+		{
+			name:      "no closing tag returns empty",
+			input:     `DO $$ BEGIN NULL;`,
+			wantCount: 0,
+		},
+		{
+			name:      "plain SQL without dollar quotes returns empty",
+			input:     `SELECT 1; SELECT 2;`,
+			wantCount: 0,
+		},
+		{
+			name:      "nested-looking single and double quotes do not interfere",
+			input:     `SELECT "'$$'"; DO $$ x $$;`,
+			wantCount: 1,
+			wantStart: []int{18},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			got := findDollarQuoteBlocks(tc.input)
+			if len(got) != tc.wantCount {
+				t.Fatalf("findDollarQuoteBlocks(%q) returned %d blocks, want %d", tc.input, len(got), tc.wantCount)
+			}
+			for i := range got {
+				if tc.wantStart != nil && got[i].start != tc.wantStart[i] {
+					t.Errorf("block[%d].start = %d, want %d", i, got[i].start, tc.wantStart[i])
+				}
+				// Verify end > start and within input bounds
+				if got[i].end <= got[i].start {
+					t.Errorf("block[%d].end (%d) should be > start (%d)", i, got[i].end, got[i].start)
+				}
+				if got[i].end > len(tc.input) {
+					t.Errorf("block[%d].end (%d) should be <= len(input) (%d)", i, got[i].end, len(tc.input))
+				}
+			}
+		})
+	}
+}
+
+func TestFindDollarQuoteBlocks_ByteOffsets(t *testing.T) {
+
+	// Verify that byte offsets (not rune offsets) are returned for non-ASCII content.
+	input := `DO $$ 日本語 $$;`
+	got := findDollarQuoteBlocks(input)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(got))
+	}
+
+	// start should be byte offset of first '$' after "DO "
+	wantStart := 3 // byte offset of first '$'
+	if got[0].start != wantStart {
+		t.Errorf("start = %d, want %d", got[0].start, wantStart)
+	}
+
+	// Verify end > start and end <= len(input)
+	if got[0].end <= got[0].start {
+		t.Errorf("end (%d) should be > start (%d)", got[0].end, got[0].start)
+	}
+	if got[0].end > len(input) {
+		t.Errorf("end (%d) should be <= len(input) (%d)", got[0].end, len(input))
+	}
 }

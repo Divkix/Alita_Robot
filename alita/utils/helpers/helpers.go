@@ -747,9 +747,12 @@ func GetNoteAndFilterType(msg *gotgbot.Message, isFilter bool, language string) 
 }
 
 // extractMediaFromReply extracts media file ID and data type from a reply message.
-// Checks for sticker, document, photo, audio, voice, video, and video note in order.
+// Checks for sticker, document, photo, audio, voice, video, animation, and video note in order.
 // Returns empty fileid and -1 dataType if no media is found.
 func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
+	if replyMsg == nil {
+		return "", -1
+	}
 	if replyMsg.Sticker != nil {
 		return replyMsg.Sticker.FileId, db.STICKER
 	} else if replyMsg.Document != nil {
@@ -762,6 +765,8 @@ func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType i
 		return replyMsg.Voice.FileId, db.VOICE
 	} else if replyMsg.Video != nil {
 		return replyMsg.Video.FileId, db.VIDEO
+	} else if replyMsg.Animation != nil {
+		return replyMsg.Animation.FileId, db.DOCUMENT
 	} else if replyMsg.VideoNote != nil {
 		return replyMsg.VideoNote.FileId, db.VideoNote
 	}

@@ -7,7 +7,6 @@ import (
 
 func TestAddBlacklistTrigger(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -33,7 +32,6 @@ func TestAddBlacklistTrigger(t *testing.T) {
 
 func TestRemoveBlacklistTrigger(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -73,7 +71,6 @@ func TestRemoveBlacklistTrigger(t *testing.T) {
 
 func TestGetBlacklistSettings(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -93,7 +90,6 @@ func TestGetBlacklistSettings(t *testing.T) {
 
 func TestSetBlacklistAction(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -123,7 +119,6 @@ func TestSetBlacklistAction(t *testing.T) {
 
 func TestGetAllBlacklists(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -156,7 +151,6 @@ func TestGetAllBlacklists(t *testing.T) {
 
 func TestLoadBlacklistStats(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	triggers, chats := LoadBlacklistsStats()
 	if triggers < 0 {
@@ -169,7 +163,6 @@ func TestLoadBlacklistStats(t *testing.T) {
 
 func TestBlacklistTriggerLowercased(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 

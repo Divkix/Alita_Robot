@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetRules_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -34,7 +33,6 @@ func TestGetRules_Defaults(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetRules_SetAndGet(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -61,7 +59,6 @@ func TestSetRules_SetAndGet(t *testing.T) {
 }
 
 func TestSetRules_OverwriteWithNewValue(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -90,7 +87,6 @@ func TestSetRules_OverwriteWithNewValue(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetChatRulesButton_SetAndGet(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -117,7 +113,6 @@ func TestSetChatRulesButton_SetAndGet(t *testing.T) {
 }
 
 func TestTogglePrivateRules_ZeroValueBoolean(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -150,7 +145,6 @@ func TestTogglePrivateRules_ZeroValueBoolean(t *testing.T) {
 }
 
 func TestGetRulesSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -175,7 +169,6 @@ func TestGetRulesSettings_Defaults(t *testing.T) {
 }
 
 func TestLoadRulesStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Just verify the function executes without error and returns non-negative values
@@ -189,7 +182,6 @@ func TestLoadRulesStats(t *testing.T) {
 }
 
 func TestLoadRulesStats_ReflectsNewEntries(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -218,7 +210,6 @@ func TestLoadRulesStats_ReflectsNewEntries(t *testing.T) {
 }
 
 func TestSetRules_EmptyString(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -250,7 +241,6 @@ func TestSetRules_EmptyString(t *testing.T) {
 }
 
 func TestClearRules(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()

@@ -10,7 +10,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestCacheKey(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -64,7 +63,6 @@ func TestCacheKey(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			got := CacheKey(tc.module, tc.ids...)
 
@@ -89,7 +87,6 @@ func TestCacheKey(t *testing.T) {
 // TestCacheKeyUnique verifies that different module/ID combinations produce
 // distinct keys to prevent cache collisions.
 func TestCacheKeyUnique(t *testing.T) {
-	t.Parallel()
 
 	const id = int64(12345)
 
@@ -116,7 +113,6 @@ func TestCacheKeyUnique(t *testing.T) {
 // TestCacheKeyConsistency verifies that calling CacheKey multiple times
 // with the same arguments produces the same result.
 func TestCacheKeyConsistency(t *testing.T) {
-	t.Parallel()
 
 	// Call multiple times with same args
 	key1 := CacheKey("test", int64(123), "abc")

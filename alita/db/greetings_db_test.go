@@ -8,7 +8,6 @@ import (
 )
 
 func TestGetGreetingSettings_Defaults(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -43,7 +42,6 @@ func TestGetGreetingSettings_Defaults(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -76,7 +74,6 @@ func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
 }
 
 func TestSetWelcomeText(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -118,7 +115,6 @@ func TestSetWelcomeText(t *testing.T) {
 }
 
 func TestSetGoodbyeText(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -158,7 +154,6 @@ func TestSetGoodbyeText(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -192,7 +187,6 @@ func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetShouldCleanService(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -226,7 +220,6 @@ func TestSetShouldCleanService(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetShouldAutoApprove(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -260,7 +253,6 @@ func TestSetShouldAutoApprove(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanWelcomeSetting(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -293,7 +285,6 @@ func TestSetCleanWelcomeSetting(t *testing.T) {
 }
 
 func TestSetCleanMsgId(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	cases := []struct {
@@ -321,7 +312,6 @@ func TestSetCleanMsgId(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			chatID := time.Now().UnixNano()
 			if err := EnsureChatInDb(chatID, "test_greetings"); err != nil {
@@ -358,7 +348,6 @@ func TestSetCleanMsgId(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestSetCleanGoodbyeSetting(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -391,7 +380,6 @@ func TestSetCleanGoodbyeSetting(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestGetWelcomeButtons_Empty(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -414,7 +402,6 @@ func TestGetWelcomeButtons_Empty(t *testing.T) {
 
 //nolint:dupl // Test functions intentionally similar for clarity
 func TestGetGoodbyeButtons_Empty(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -436,7 +423,6 @@ func TestGetGoodbyeButtons_Empty(t *testing.T) {
 }
 
 func TestLoadGreetingsStats_EmptyDB(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Just verify the function returns without error and returns int64 values.
@@ -461,7 +447,6 @@ func TestLoadGreetingsStats_EmptyDB(t *testing.T) {
 }
 
 func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -524,7 +509,6 @@ func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
 // TestGetGreetingSettings_NonExistentChat verifies that GetGreetingSettings returns
 // default values for a chatID with no records (chat does not exist in DB).
 func TestGetGreetingSettings_NonExistentChat(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	// Use a large negative ID that will never exist (not a valid chat)
@@ -557,7 +541,6 @@ func TestGetGreetingSettings_NonExistentChat(t *testing.T) {
 // TestSetWelcomeText_EmptyText verifies that an empty welcome text is stored correctly
 // and round-trips through the DB without being replaced by the default.
 func TestSetWelcomeText_EmptyText(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -593,7 +576,6 @@ func TestSetWelcomeText_EmptyText(t *testing.T) {
 // TestWelcomeAndGoodbye_Independent verifies that setting welcome text doesn't
 // affect goodbye text and vice versa.
 func TestWelcomeAndGoodbye_Independent(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -654,7 +636,6 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 // TestResetWelcomeText verifies that setting the welcome text back to DefaultWelcome
 // works correctly.
 func TestResetWelcomeText(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()

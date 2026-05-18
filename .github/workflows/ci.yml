@@ -236,6 +236,7 @@ jobs:
       AUTO_MIGRATE: "false"
       USE_WEBHOOKS: "false"
       DEBUG: "false"
+      CGO_ENABLED: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -263,6 +264,11 @@ jobs:
           done
           echo "Redis did not become ready in time"
           exit 1
+
+      - name: Ensure C toolchain for CGO
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential
 
       - name: Run test suite
         run: |

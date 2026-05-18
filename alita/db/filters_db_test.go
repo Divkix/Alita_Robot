@@ -8,7 +8,6 @@ import (
 
 func TestAddAndGetFiltersList(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -41,7 +40,6 @@ func TestAddAndGetFiltersList(t *testing.T) {
 
 func TestDoesFilterExists(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -67,7 +65,6 @@ func TestDoesFilterExists(t *testing.T) {
 
 func TestRemoveFilter(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -93,7 +90,6 @@ func TestRemoveFilter(t *testing.T) {
 
 func TestRemoveAllFilters(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -111,7 +107,6 @@ func TestRemoveAllFilters(t *testing.T) {
 
 func TestCountFilters(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 
@@ -134,7 +129,6 @@ func TestCountFilters(t *testing.T) {
 
 func TestLoadFilterStats(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	// Just verify it returns non-negative values without panicking
 	total, chats := LoadFilterStats()
@@ -148,7 +142,6 @@ func TestLoadFilterStats(t *testing.T) {
 
 func TestAddFilterWithButtons(t *testing.T) {
 	skipIfNoDb(t)
-	t.Parallel()
 
 	chatID := -time.Now().UnixNano()
 

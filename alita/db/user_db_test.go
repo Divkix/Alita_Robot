@@ -12,7 +12,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestEnsureUserInDb(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -38,7 +37,6 @@ func TestEnsureUserInDb(t *testing.T) {
 }
 
 func TestEnsureUserInDb_Idempotent(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -63,7 +61,6 @@ func TestEnsureUserInDb_Idempotent(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUpdateUser(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -94,7 +91,6 @@ func TestUpdateUser(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetUserIdByUserName(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -112,7 +108,6 @@ func TestGetUserIdByUserName(t *testing.T) {
 }
 
 func TestGetUserIdByUserName_NotFound(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	gotID := GetUserIdByUserName("nonexistent_user_xyzabc123")
@@ -126,7 +121,6 @@ func TestGetUserIdByUserName_NotFound(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetUserInfoById(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
@@ -151,7 +145,6 @@ func TestGetUserInfoById(t *testing.T) {
 }
 
 func TestGetUserInfoById_NotFound(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	_, _, found := GetUserInfoById(9999999999999999)
@@ -165,12 +158,72 @@ func TestGetUserInfoById_NotFound(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestLoadUserStats(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
+	baseline := LoadUsersStats()
+
+	userID := time.Now().UnixNano()
+	if err := EnsureUserInDb(userID, "stat_user", "StatFirst"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&User{}).Error; err != nil {
+			t.Fatalf("cleanup delete error = %v", err)
+		}
+	})
+
 	count := LoadUsersStats()
-	if count < 0 {
-		t.Errorf("LoadUsersStats() = %d, want >= 0", count)
+	if count-baseline != 1 {
+		t.Errorf("LoadUsersStats() delta = %d, want 1 (baseline=%d, after=%d)", count-baseline, baseline, count)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// LoadUserActivityStats
+// ---------------------------------------------------------------------------
+
+func TestLoadUserActivityStats(t *testing.T) {
+	skipIfNoDb(t)
+
+	now := time.Now()
+
+	// Create users with different last_activity times
+	users := []User{
+		{UserId: now.UnixNano(), UserName: "daily_user", Name: "Daily", LastActivity: now.Add(-2 * time.Hour)},                 // DAU, WAU, MAU
+		{UserId: now.UnixNano() + 1, UserName: "weekly_user", Name: "Weekly", LastActivity: now.Add(-3 * 24 * time.Hour)},      // WAU, MAU
+		{UserId: now.UnixNano() + 2, UserName: "monthly_user", Name: "Monthly", LastActivity: now.Add(-15 * 24 * time.Hour)},   // MAU
+		{UserId: now.UnixNano() + 3, UserName: "inactive_user", Name: "Inactive", LastActivity: now.Add(-45 * 24 * time.Hour)}, // none
+	}
+
+	// Capture baseline before inserting test users.
+	baseDau, baseWau, baseMau := LoadUserActivityStats()
+
+	for i := range users {
+		if err := DB.Create(&users[i]).Error; err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+	}
+
+	// Cleanup
+	t.Cleanup(func() {
+		for _, u := range users {
+			res := DB.Where("user_id = ?", u.UserId).Delete(&User{})
+			if res.Error != nil {
+				t.Errorf("failed to delete test user %d: %v", u.UserId, res.Error)
+			}
+		}
+	})
+
+	dau, wau, mau := LoadUserActivityStats()
+
+	if dau-baseDau != 1 {
+		t.Errorf("DAU delta = %d, want 1", dau-baseDau)
+	}
+	if wau-baseWau != 2 {
+		t.Errorf("WAU delta = %d, want 2", wau-baseWau)
+	}
+	if mau-baseMau != 3 {
+		t.Errorf("MAU delta = %d, want 3", mau-baseMau)
 	}
 }
 
@@ -179,7 +232,6 @@ func TestLoadUserStats(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestConcurrentUserCreation(t *testing.T) {
-	t.Parallel()
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
