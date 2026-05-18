@@ -232,7 +232,7 @@ jobs:
       OWNER_ID: "1"
       MESSAGE_DUMP: "1"
       REDIS_ADDRESS: "localhost:6379"
-      DATABASE_URL: "*******************************************/alita_test?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable"
       AUTO_MIGRATE: "false"
       USE_WEBHOOKS: "false"
       DEBUG: "false"
