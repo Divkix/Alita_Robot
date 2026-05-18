@@ -166,7 +166,11 @@ func TestLoadUserStats(t *testing.T) {
 	if err := EnsureUserInDb(userID, "stat_user", "StatFirst"); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
-	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&User{}) })
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&User{}).Error; err != nil {
+			t.Fatalf("cleanup delete error = %v", err)
+		}
+	})
 
 	count := LoadUsersStats()
 	if count-baseline != 1 {
