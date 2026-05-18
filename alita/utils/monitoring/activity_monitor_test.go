@@ -234,17 +234,19 @@ func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
 
 func TestMonitorLoop_ExitsOnCancel(t *testing.T) {
 	am := NewActivityMonitor()
+	defer am.cancel() // ensure cancellation on timeout so goroutine unblocks
+
 	am.wg.Add(1)
 	go am.monitorLoop()
-
-	// cancel the context to trigger monitorLoop exit
-	am.cancel()
 
 	done := make(chan struct{})
 	go func() {
 		am.wg.Wait()
 		close(done)
 	}()
+
+	// cancel the context to trigger monitorLoop exit
+	am.cancel()
 
 	select {
 	case <-done:

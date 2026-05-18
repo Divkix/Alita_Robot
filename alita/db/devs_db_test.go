@@ -14,7 +14,11 @@ func TestAddDev(t *testing.T) {
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
-	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&DevSettings{}) })
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&DevSettings{}).Error; err != nil {
+			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
+		}
+	})
 
 	if err := AddDev(userID); err != nil {
 		t.Fatalf("AddDev() error = %v", err)
@@ -30,7 +34,11 @@ func TestRemoveDev(t *testing.T) {
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
-	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&DevSettings{}) })
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&DevSettings{}).Error; err != nil {
+			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
+		}
+	})
 
 	if err := AddDev(userID); err != nil {
 		t.Fatalf("AddDev() error = %v", err)
@@ -54,7 +62,11 @@ func TestAddSudo(t *testing.T) {
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
-	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&DevSettings{}) })
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&DevSettings{}).Error; err != nil {
+			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
+		}
+	})
 
 	if err := AddSudo(userID); err != nil {
 		t.Fatalf("AddSudo() error = %v", err)
@@ -70,7 +82,11 @@ func TestRemoveSudo(t *testing.T) {
 	skipIfNoDb(t)
 
 	userID := time.Now().UnixNano()
-	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&DevSettings{}) })
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&DevSettings{}).Error; err != nil {
+			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
+		}
+	})
 
 	if err := AddSudo(userID); err != nil {
 		t.Fatalf("AddSudo() error = %v", err)
@@ -227,5 +243,3 @@ func TestLoadAllStats(t *testing.T) {
 		}
 	}
 }
-
-

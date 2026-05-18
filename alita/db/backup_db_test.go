@@ -275,58 +275,60 @@ func TestBackupDataStructures(t *testing.T) {
 }
 
 // cleanupChat removes all test data for a chatID across known backup-related tables.
+// cleanupBackupChat removes all test data for a chatID across known backup-related tables.
+// Uses t.Errorf not t.Fatalf so a failure for one table still attempts the others.
 func cleanupBackupChat(t *testing.T, chatID int64) {
 	t.Helper()
 	if err := DB.Where("chat_id = ?", chatID).Delete(&AdminSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting AdminSettings: %v", err)
+		t.Errorf("cleanup failed deleting AdminSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting AntifloodSettings: %v", err)
+		t.Errorf("cleanup failed deleting AntifloodSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&BlacklistSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting BlacklistSettings: %v", err)
+		t.Errorf("cleanup failed deleting BlacklistSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting CaptchaSettings: %v", err)
+		t.Errorf("cleanup failed deleting CaptchaSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting ConnectionChatSettings: %v", err)
+		t.Errorf("cleanup failed deleting ConnectionChatSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&DisableSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting DisableSettings: %v", err)
+		t.Errorf("cleanup failed deleting DisableSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&DisableChatSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting DisableChatSettings: %v", err)
+		t.Errorf("cleanup failed deleting DisableChatSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&ChatFilters{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting ChatFilters: %v", err)
+		t.Errorf("cleanup failed deleting ChatFilters: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&GreetingSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting GreetingSettings: %v", err)
+		t.Errorf("cleanup failed deleting GreetingSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&LockSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting LockSettings: %v", err)
+		t.Errorf("cleanup failed deleting LockSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting NotesSettings: %v", err)
+		t.Errorf("cleanup failed deleting NotesSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting Notes: %v", err)
+		t.Errorf("cleanup failed deleting Notes: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&PinSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting PinSettings: %v", err)
+		t.Errorf("cleanup failed deleting PinSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&ReportChatSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting ReportChatSettings: %v", err)
+		t.Errorf("cleanup failed deleting ReportChatSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting RulesSettings: %v", err)
+		t.Errorf("cleanup failed deleting RulesSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&WarnSettings{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting WarnSettings: %v", err)
+		t.Errorf("cleanup failed deleting WarnSettings: %v", err)
 	}
 	if err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error; err != nil {
-		t.Fatalf("cleanup failed deleting Chat: %v", err)
+		t.Errorf("cleanup failed deleting Chat: %v", err)
 	}
 }
 
@@ -383,11 +385,11 @@ func TestImportAdminData(t *testing.T) {
 			"action":  "kick",
 		},
 		"captcha_settings": map[string]interface{}{
-			"chat_id":       float64(chatID),
-			"enabled":       true,
-			"captcha_mode":  "math",
-			"timeout":       float64(5),
-			"max_attempts":  float64(3),
+			"chat_id":        float64(chatID),
+			"enabled":        true,
+			"captcha_mode":   "math",
+			"timeout":        float64(5),
+			"max_attempts":   float64(3),
 			"failure_action": "ban",
 		},
 	}
@@ -830,9 +832,9 @@ func TestExportImportAntifloodRoundTrip(t *testing.T) {
 
 	payload := map[string]interface{}{
 		"settings": map[string]interface{}{
-			"chat_id":                   float64(dstChat),
-			"limit":                     float64(3),
-			"action":                    "mute",
+			"chat_id":                  float64(dstChat),
+			"limit":                    float64(3),
+			"action":                   "mute",
 			"delete_antiflood_message": true,
 		},
 	}

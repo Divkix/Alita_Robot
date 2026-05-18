@@ -39,14 +39,13 @@ func TestFormatCooldown(t *testing.T) {
 }
 
 func TestGetBackupRateLimiter_Singleton(t *testing.T) {
-	// Save original limiter for restoration.
+	// Save original limiter and once for restoration.
 	origBackupLimiter := backupLimiter
+	origOnce := once
 
-	// Restore after test; reset once to a fresh zero-value (equivalent to restoring
-	// singleton state) — we do not copy a non-zero sync.Once to avoid govet copylocks.
 	t.Cleanup(func() {
 		backupLimiter = origBackupLimiter
-		once = sync.Once{}
+		once = origOnce
 	})
 
 	// Reset the singleton state for a clean test.
@@ -117,9 +116,9 @@ func TestBackupRateLimiter_RecordMethods_NilCache_NoPanic(t *testing.T) {
 
 // memoryStore is a simple in-memory implementation of store.StoreInterface.
 type memoryStore struct {
-	mu    sync.RWMutex
-	data  map[string][]byte
-	ttls  map[string]time.Time
+	mu   sync.RWMutex
+	data map[string][]byte
+	ttls map[string]time.Time
 }
 
 func newMemoryStore() *memoryStore {
@@ -209,16 +208,17 @@ func (m *memoryStore) GetType() string {
 	return "memory"
 }
 
-// setupTestCache sets cache.Marshal to an in-memory marshaler and returns a cleanup func.
-func setupTestCache(t *testing.T) func() {
+// setupTestCache sets cache.Marshal to an in-memory marshaler and registers t.Cleanup
+// so the original value is always restored regardless of test exit path.
+func setupTestCache(t *testing.T) {
 	t.Helper()
 	orig := cache.Marshal
 	mem := newMemoryStore()
 	cm := gocache.New[any](mem)
 	cache.Marshal = marshaler.New(cm)
-	return func() {
+	t.Cleanup(func() {
 		cache.Marshal = orig
-	}
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +226,7 @@ func setupTestCache(t *testing.T) func() {
 // ---------------------------------------------------------------------------
 
 func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99901)
@@ -268,8 +267,7 @@ func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99902)
@@ -297,8 +295,7 @@ func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99903)
@@ -323,8 +320,7 @@ func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanReset_AllowedThenBlocked(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99904)
@@ -349,8 +345,7 @@ func TestBackupRateLimiter_CanReset_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99905)
@@ -373,8 +368,7 @@ func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99906)
@@ -395,8 +389,7 @@ func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99907)
@@ -417,8 +410,7 @@ func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	cacheKey := "backup:unknown:12345"
@@ -436,8 +428,7 @@ func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
 }
 
 func TestBackupRateLimiter_getLastOperation_CacheError(t *testing.T) {
-	cleanup := setupTestCache(t)
-	defer cleanup()
+	setupTestCache(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99908)

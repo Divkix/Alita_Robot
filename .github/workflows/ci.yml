@@ -265,6 +265,11 @@ jobs:
           echo "Redis did not become ready in time"
           exit 1
 
+      - name: Ensure C toolchain for CGO
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential
+
       - name: Run test suite
         run: |
           # Run tests and capture timing (capture exit status to track duration even on failure)

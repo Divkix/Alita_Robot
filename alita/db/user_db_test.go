@@ -160,9 +160,17 @@ func TestGetUserInfoById_NotFound(t *testing.T) {
 func TestLoadUserStats(t *testing.T) {
 	skipIfNoDb(t)
 
+	baseline := LoadUsersStats()
+
+	userID := time.Now().UnixNano()
+	if err := EnsureUserInDb(userID, "stat_user", "StatFirst"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+	t.Cleanup(func() { DB.Where("user_id = ?", userID).Delete(&User{}) })
+
 	count := LoadUsersStats()
-	if count < 0 {
-		t.Errorf("LoadUsersStats() = %d, want >= 0", count)
+	if count-baseline != 1 {
+		t.Errorf("LoadUsersStats() delta = %d, want 1 (baseline=%d, after=%d)", count-baseline, baseline, count)
 	}
 }
 
@@ -177,9 +185,9 @@ func TestLoadUserActivityStats(t *testing.T) {
 
 	// Create users with different last_activity times
 	users := []User{
-		{UserId: now.UnixNano(), UserName: "daily_user", Name: "Daily", LastActivity: now.Add(-2 * time.Hour)},     // DAU, WAU, MAU
-		{UserId: now.UnixNano() + 1, UserName: "weekly_user", Name: "Weekly", LastActivity: now.Add(-3 * 24 * time.Hour)}, // WAU, MAU
-		{UserId: now.UnixNano() + 2, UserName: "monthly_user", Name: "Monthly", LastActivity: now.Add(-15 * 24 * time.Hour)}, // MAU
+		{UserId: now.UnixNano(), UserName: "daily_user", Name: "Daily", LastActivity: now.Add(-2 * time.Hour)},                 // DAU, WAU, MAU
+		{UserId: now.UnixNano() + 1, UserName: "weekly_user", Name: "Weekly", LastActivity: now.Add(-3 * 24 * time.Hour)},      // WAU, MAU
+		{UserId: now.UnixNano() + 2, UserName: "monthly_user", Name: "Monthly", LastActivity: now.Add(-15 * 24 * time.Hour)},   // MAU
 		{UserId: now.UnixNano() + 3, UserName: "inactive_user", Name: "Inactive", LastActivity: now.Add(-45 * 24 * time.Hour)}, // none
 	}
 

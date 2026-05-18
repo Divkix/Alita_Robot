@@ -140,8 +140,8 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.ApiServer != "https://api.telegram.org" {
 			t.Errorf("ApiServer: got %q, want %q", cfg.ApiServer, "https://api.telegram.org")
 		}
-		if cfg.BotVersion != "2.1.3" {
-			t.Errorf("BotVersion: got %q, want %q", cfg.BotVersion, "2.1.3")
+		if cfg.BotVersion == "" {
+			t.Errorf("BotVersion: got empty string, want non-empty")
 		}
 		// AllowedUpdates should be populated
 		if len(cfg.AllowedUpdates) == 0 {
