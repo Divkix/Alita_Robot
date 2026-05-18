@@ -2376,34 +2376,40 @@ duration_format_hours_minutes: "%d heures %d minutes"
 duration_format_hours: "%d heures"
 
 approvals_help_msg: |
-  <b>👤 Approvals</b>
+  <b>👤 Approbations</b>
 
-  Grant trusted members immunity from automated anti-spam measures without making them admins.
+  Accorde aux membres de confiance une immunité contre les mesures anti-spam automatisées sans les nommer administrateurs.
 
-  <b>Admin Commands:</b>
+  <b>Commandes Administrateur:</b>
 
   × /approve <code><reply/username/mention/userid></code> <code>[reason]</code>
   × /unapprove <code><reply/username/mention/userid></code>
   × /approval <code><reply/username/mention/userid></code>
-  × /approved: List all approved users
-  × /unapproveall: Remove all approvals (creator only)
+  × /approved: Lister tous les utilisateurs approuvés
+  × /unapproveall: Supprimer toutes les approbations (créateur uniquement)
 
-  Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and antispam.
-approvals_user_approved: "Approved %s by %s.%s"
-approvals_already_approved: "%s is already approved in this chat."
-approvals_not_approved: "%s is not in the approved list."
-approvals_user_unapproved: "Removed %s from the approved list."
-approvals_check_not_approved: "%s is not currently approved in this chat."
+  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous, CAPTCHA et antispam.
+approvals_user_approved: "Approuvé %s par %s.%s"
+approvals_already_approved: "%s est déjà approuvé dans ce chat."
+approvals_not_approved: "%s n'est pas dans la liste des approuvés."
+approvals_user_unapproved: "Supprimé %s de la liste des approuvés."
+approvals_check_not_approved: "%s n'est actuellement pas approuvé dans ce chat."
 approvals_check_status: |
-  <b>User:</b> %s
-  <b>Approved On:</b> %s
-  <b>Approved By:</b> %s
+  <b>Utilisateur :</b> %s
+  <b>Approuvé le :</b> %s
+  <b>Approuvé par :</b> %s
   %s
-approvals_none_approved: "No approved users in this chat."
-approvals_approved_list_file_caption: "Approved users list for %s"
-approvals_list_file_error: "Failed to generate the approved users file."
-approvals_unapproveall_ask: "Are you sure you want to remove ALL approved users?"
-approvals_unapproveall_done: "All approved users have been removed."
-approvals_unapproveall_cancel: "Unapprove all cancelled."
-approvals_approve_error: "Failed to approve the user. Please try again."
-approvals_unapprove_error: "Failed to remove the user from the approved list."
+approvals_none_approved: "Aucun utilisateur approuvé dans ce chat."
+approvals_approved_list_file_caption: "Liste des utilisateurs approuvés pour %s"
+approvals_list_file_error: "Échec de la génération du fichier des utilisateurs approuvés."
+approvals_unapproveall_ask: "Êtes-vous sûr de vouloir supprimer TOUS les utilisateurs approuvés ?"
+approvals_unapproveall_done: "Tous les utilisateurs approuvés ont été supprimés."
+approvals_unapproveall_cancel: "Suppression de toutes les approbations annulée."
+approvals_approve_error: "Échec de l'approbation de l'utilisateur. Veuillez réessayer."
+approvals_unapprove_error: "Échec de la suppression de l'utilisateur de la liste des approuvés."
+approvals_reason: "\nRaison : %s"
+approvals_list_header: "Utilisateurs approuvés :\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Utilisateurs approuvés pour le chat %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (raison : %s)"

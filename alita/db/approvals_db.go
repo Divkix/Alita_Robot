@@ -57,9 +57,7 @@ func RemoveApprovedUser(chatID, userID int64) error {
 		return result.Error
 	}
 
-	if result.RowsAffected > 0 {
-		deleteCache(CacheKey("approvals", chatID))
-	}
+	deleteCache(CacheKey("approvals", chatID))
 	return nil
 }
 

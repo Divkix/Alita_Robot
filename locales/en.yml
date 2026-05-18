@@ -100,6 +100,12 @@ approvals_unapproveall_done: "All approved users have been removed."
 approvals_unapproveall_cancel: "Unapprove all cancelled."
 approvals_approve_error: "Failed to approve the user. Please try again."
 approvals_unapprove_error: "Failed to remove the user from the approved list."
+approvals_reason: "\nReason: %s"
+approvals_list_header: "Approved users:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Approved users for chat %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (reason: %s)"
 antiflood_checkflood_perform_action:
   Yeah, I don't like your flooding. %s has been
   %s!

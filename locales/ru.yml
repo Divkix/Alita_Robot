@@ -2185,34 +2185,40 @@ duration_format_hours_minutes: "%d часов %d минут"
 duration_format_hours: "%d часов"
 
 approvals_help_msg: |
-  <b>👤 Approvals</b>
+  <b>👤 Одобрения</b>
 
-  Grant trusted members immunity from automated anti-spam measures without making them admins.
+  Предоставьте доверенным участникам иммунитет от автоматических мер анти-спама, не делая их администраторами.
 
-  <b>Admin Commands:</b>
+  <b>Команды администратора:</b>
 
-  × /approve <code><reply/username/mention/userid></code> <code>[reason]</code>
+  × /approve <code><reply/username/mention/userid></code> <code>[причина]</code>
   × /unapprove <code><reply/username/mention/userid></code>
   × /approval <code><reply/username/mention/userid></code>
-  × /approved: List all approved users
-  × /unapproveall: Remove all approvals (creator only)
+  × /approved: Список всех одобренных пользователей
+  × /unapproveall: Удалить все одобрения (только создатель)
 
-  Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and antispam.
-approvals_user_approved: "Approved %s by %s.%s"
-approvals_already_approved: "%s is already approved in this chat."
-approvals_not_approved: "%s is not in the approved list."
-approvals_user_unapproved: "Removed %s from the approved list."
-approvals_check_not_approved: "%s is not currently approved in this chat."
+  Одобренные пользователи освобождаются от: antiflood, черных списков, блокировок, CAPTCHA и анти-спама.
+approvals_user_approved: "%s одобрен %s.%s"
+approvals_already_approved: "%s уже одобрен в этом чате."
+approvals_not_approved: "%s нет в списке одобренных."
+approvals_user_unapproved: "%s удалён из списка одобренных."
+approvals_check_not_approved: "%s не одобрен в этом чате."
 approvals_check_status: |
-  <b>User:</b> %s
-  <b>Approved On:</b> %s
-  <b>Approved By:</b> %s
+  <b>Пользователь:</b> %s
+  <b>Одобрен:</b> %s
+  <b>Одобрил:</b> %s
   %s
-approvals_none_approved: "No approved users in this chat."
-approvals_approved_list_file_caption: "Approved users list for %s"
-approvals_list_file_error: "Failed to generate the approved users file."
-approvals_unapproveall_ask: "Are you sure you want to remove ALL approved users?"
-approvals_unapproveall_done: "All approved users have been removed."
-approvals_unapproveall_cancel: "Unapprove all cancelled."
-approvals_approve_error: "Failed to approve the user. Please try again."
-approvals_unapprove_error: "Failed to remove the user from the approved list."
+approvals_none_approved: "В этом чате нет одобренных пользователей."
+approvals_approved_list_file_caption: "Список одобренных пользователей для %s"
+approvals_list_file_error: "Не удалось сформировать файл со списком одобренных пользователей."
+approvals_unapproveall_ask: "Вы уверены, что хотите удалить ВСЕХ одобренных пользователей?"
+approvals_unapproveall_done: "Все одобренные пользователи удалены."
+approvals_unapproveall_cancel: "Удаление всех одобрений отменено."
+approvals_approve_error: "Не удалось одобрить пользователя. Пожалуйста, попробуйте снова."
+approvals_unapprove_error: "Не удалось удалить пользователя из списка одобренных."
+approvals_reason: "\nПричина: %s"
+approvals_list_header: "Одобренные пользователи:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Одобренные пользователи чата %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (причина: %s)"

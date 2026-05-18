@@ -2457,34 +2457,40 @@ duration_format_hours_minutes: "%d jam %d menit"
 duration_format_hours: "%d jam"
 
 approvals_help_msg: |
-  <b>👤 Approvals</b>
+  <b>👤 Persetujuan</b>
 
-  Grant trusted members immunity from automated anti-spam measures without making them admins.
+  Berikan kekebalan kepada anggota tepercaya dari tindakan anti-spam otomatis tanpa menjadikan mereka admin.
 
-  <b>Admin Commands:</b>
+  <b>Perintah Admin:</b>
 
   × /approve <code><reply/username/mention/userid></code> <code>[reason]</code>
   × /unapprove <code><reply/username/mention/userid></code>
   × /approval <code><reply/username/mention/userid></code>
-  × /approved: List all approved users
-  × /unapproveall: Remove all approvals (creator only)
+  × /approved: Daftar semua pengguna yang disetujui
+  × /unapproveall: Hapus semua persetujuan (hanya pembuat)
 
-  Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and antispam.
-approvals_user_approved: "Approved %s by %s.%s"
-approvals_already_approved: "%s is already approved in this chat."
-approvals_not_approved: "%s is not in the approved list."
-approvals_user_unapproved: "Removed %s from the approved list."
-approvals_check_not_approved: "%s is not currently approved in this chat."
+  Pengguna yang disetujui dibebaskan dari: antiflood, blacklists, locks, CAPTCHA, dan antispam.
+approvals_user_approved: "%s disetujui oleh %s.%s"
+approvals_already_approved: "%s sudah disetujui di chat ini."
+approvals_not_approved: "%s tidak ada dalam daftar yang disetujui."
+approvals_user_unapproved: "%s dihapus dari daftar yang disetujui."
+approvals_check_not_approved: "%s saat ini tidak disetujui di chat ini."
 approvals_check_status: |
-  <b>User:</b> %s
-  <b>Approved On:</b> %s
-  <b>Approved By:</b> %s
+  <b>Pengguna:</b> %s
+  <b>Disetujui Pada:</b> %s
+  <b>Disetujui Oleh:</b> %s
   %s
-approvals_none_approved: "No approved users in this chat."
-approvals_approved_list_file_caption: "Approved users list for %s"
-approvals_list_file_error: "Failed to generate the approved users file."
-approvals_unapproveall_ask: "Are you sure you want to remove ALL approved users?"
-approvals_unapproveall_done: "All approved users have been removed."
-approvals_unapproveall_cancel: "Unapprove all cancelled."
-approvals_approve_error: "Failed to approve the user. Please try again."
-approvals_unapprove_error: "Failed to remove the user from the approved list."
+approvals_none_approved: "Tidak ada pengguna yang disetujui di chat ini."
+approvals_approved_list_file_caption: "Daftar pengguna yang disetujui untuk %s"
+approvals_list_file_error: "Gagal membuat file pengguna yang disetujui."
+approvals_unapproveall_ask: "Apakah Anda yakin ingin menghapus SEMUA pengguna yang disetujui?"
+approvals_unapproveall_done: "Semua pengguna yang disetujui telah dihapus."
+approvals_unapproveall_cancel: "Pembatalan penghapusan semua disetujui."
+approvals_approve_error: "Gagal menyetujui pengguna. Silakan coba lagi."
+approvals_unapprove_error: "Gagal menghapus pengguna dari daftar yang disetujui."
+approvals_reason: "\nAlasan: %s"
+approvals_list_header: "Pengguna yang disetujui:\n"
+approvals_list_item: " - %s"
+approvals_list_file_header: "Pengguna yang disetujui untuk chat %d\n"
+approvals_list_file_item: "%d. %s"
+approvals_list_reason: " (alasan: %s)"

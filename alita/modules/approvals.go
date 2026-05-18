@@ -95,17 +95,15 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_approved")
-	_, err := msg.Reply(b, fmt.Sprintf(
-		text,
-		html.EscapeString(helpers.MentionHtml(targetUserID, extractDisplayName(targetUserID))),
+	baseStr := fmt.Sprintf(text,
+		helpers.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 		html.EscapeString(approverName),
-		func() string {
-			if reason != "" {
-				return fmt.Sprintf("\nReason: %s", html.EscapeString(reason))
-			}
-			return ""
-		}(),
-	), helpers.Shtml())
+	)
+	if reason != "" {
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		baseStr += fmt.Sprintf(temp, html.EscapeString(reason))
+	}
+	_, err := msg.Reply(b, baseStr, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -256,17 +254,16 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_status")
 	dateStr := foundUser.CreatedAt.Format("2006-01-02")
-	_, err := msg.Reply(b, fmt.Sprintf(text,
+	baseStr := fmt.Sprintf(text,
 		html.EscapeString(targetName),
 		html.EscapeString(dateStr),
 		html.EscapeString(approverName),
-		func() string {
-			if foundUser.Reason != "" {
-				return fmt.Sprintf("\nReason: %s", html.EscapeString(foundUser.Reason))
-			}
-			return ""
-		}(),
-	), helpers.Shtml())
+	)
+	if foundUser.Reason != "" {
+		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
+		baseStr += fmt.Sprintf(temp, html.EscapeString(foundUser.Reason))
+	}
+	_, err := msg.Reply(b, baseStr, helpers.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -314,18 +311,21 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	// If the list is small, send it inline
 	if len(approvedUsers) <= approvedUsersInlineLimit {
+		listHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_header")
+		listItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_item")
+		listReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
 		var sb strings.Builder
-		sb.WriteString("Approved users:\n")
+		sb.WriteString(listHeader)
 		for _, a := range approvedUsers {
 			_, name, found := extraction.GetUserInfo(a.UserID)
 			if !found {
 				name = strconv.FormatInt(a.UserID, 10)
 			}
+			item := fmt.Sprintf(listItem, html.EscapeString(name))
 			if a.Reason != "" {
-				fmt.Fprintf(&sb, "\n - %s (reason: %s)", html.EscapeString(name), html.EscapeString(a.Reason))
-			} else {
-				fmt.Fprintf(&sb, "\n - %s", html.EscapeString(name))
+				item += fmt.Sprintf(listReason, html.EscapeString(a.Reason))
 			}
+			fmt.Fprintf(&sb, "\n%s", item)
 		}
 		_, err := msg.Reply(b, sb.String(), helpers.Shtml())
 		if err != nil {
@@ -346,19 +346,22 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
+	fileHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_header")
+	fileItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_file_item")
+	fileReason, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_reason")
 	var fileSb strings.Builder
-	fmt.Fprintf(&fileSb, "Approved users for chat %d\n", chat.Id)
-	fmt.Fprintf(&fileSb, "Generated: %s\n\n", time.Now().Format(time.RFC3339))
+	fmt.Fprintf(&fileSb, fileHeader, chat.Id)
+	fmt.Fprintf(&fileSb, "%s\n\n", time.Now().Format(time.RFC3339))
 	for i, a := range approvedUsers {
 		_, name, found := extraction.GetUserInfo(a.UserID)
 		if !found {
 			name = strconv.FormatInt(a.UserID, 10)
 		}
+		item := fmt.Sprintf(fileItem, i+1, name)
 		if a.Reason != "" {
-			fmt.Fprintf(&fileSb, "%d. %s (reason: %s)\n", i+1, name, a.Reason)
-		} else {
-			fmt.Fprintf(&fileSb, "%d. %s\n", i+1, name)
+			item += fmt.Sprintf(fileReason, a.Reason)
 		}
+		fmt.Fprintf(&fileSb, "%s\n", item)
 	}
 
 	if _, err := tmpFile.WriteString(fileSb.String()); err != nil {
@@ -484,17 +487,21 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		go func(chatId int64) {
-			defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
-			if err := db.RemoveAllApprovedUsers(chatId); err != nil {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"error":  err,
-				}).Error("Failed to remove all approved users")
-			}
-		}(query.Message.GetChat().Id)
+		defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
+		if err := db.RemoveAllApprovedUsers(query.Message.GetChat().Id); err != nil {
+			log.WithFields(log.Fields{
+				"chatId": query.Message.GetChat().Id,
+				"error":  err,
+			}).Error("Failed to remove all approved users")
+		}
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_done")
 	case "no":
+		if query.Message == nil {
+			log.Warn("[Approvals] Cannot cancel unapproveall: message was deleted")
+			text, _ := tr.GetString("common_callback_message_unavailable")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_unapproveall_cancel")
 	}
 
