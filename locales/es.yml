@@ -2442,10 +2442,6 @@ backup_module_purges: "Configuración de Purga"
 backup_module_reports: "Reportes"
 backup_module_rules: "Reglas"
 backup_module_warns: "Advertencias"
-backup_no_data: "❌ No hay datos disponibles para exportar."
-backup_reset_button: "⚠️ Restablecer"
-backup_text_header: "📦 Copia de Seguridad y Restauración\n\nExporta o importa la configuración de tu grupo."
-backup_upload_prompt: "Por favor sube tu archivo de copia de seguridad o haz clic en Cancelar."
 
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "Solicitud inválida."

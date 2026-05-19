@@ -2342,18 +2342,6 @@ backup_module_reports: "Signalements"
 backup_module_rules: "Règles"
 backup_module_warns: "Avertissements"
 
-# Additional backup keys mentioned in requirements
-backup_import_text_header: "📥 Importer les Paramètres\n\nTéléchargez un fichier de sauvegarde pour restaurer les paramètres."
-backup_invalid_file: "❌ Format de fichier invalide. Veuillez télécharger un fichier de sauvegarde JSON valide."
-backup_import_no_file: "❌ Veuillez télécharger un fichier de sauvegarde valide."
-backup_import_no_modules: "❌ Aucun module à importer trouvé dans le fichier de sauvegarde."
-backup_no_data: "❌ Aucune donnée disponible à exporter."
-backup_text_header: "📦 Sauvegarde & Restauration\n\nExportez ou importez les paramètres de votre groupe."
-backup_upload_prompt: "Veuillez télécharger votre fichier de sauvegarde ou cliquer sur Annuler."
-backup_module_bans: "Bannissements et Restrictions"
-backup_module_purges: "Paramètres de Purge"
-backup_module_disabled: "Commandes Désactivées"
-
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "Demande invalide."
 common_callback_message_unavailable: "Message n'est plus disponible."
