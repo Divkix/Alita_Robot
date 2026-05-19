@@ -137,6 +137,7 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 	modules.LoadWarns(dispatcher)
 	modules.LoadGreetings(dispatcher)
 	modules.LoadCaptcha(dispatcher)
+	modules.LoadAntiRaid(dispatcher)
 	modules.LoadBlacklists(dispatcher)
 	modules.LoadReactions(dispatcher)
 	modules.LoadMkdCmd(dispatcher)

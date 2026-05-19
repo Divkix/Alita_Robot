@@ -2509,3 +2509,36 @@ duration_format_minutes_seconds: "%d minutes %d seconds"
 duration_format_minutes: "%d minutes"
 duration_format_hours_minutes: "%d hours %d minutes"
 duration_format_hours: "%d hours"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Protect your group from spam-join attacks with AntiRaid.
+  *Admin Commands:*
+  /antiraid: Show current state + enable/disable buttons.
+  /antiraid on: Enable raid mode for configured time.
+  /antiraid <duration>: Enable for custom duration (e.g. 3h, 30m).
+  /antiraid off: Disable raid mode immediately.
+  /raidtime <time>: Set raid duration (default: 6h).
+  /raidactiontime <time>: Set temp-ban duration (default: 1h).
+  /autoantiraid <N>: Auto-enable if N+ joins/min.
+  /autoantiraid off: Disable auto-trigger.
+antiraid_active_status: "AntiRaid ACTIVE | Expires: %s | Raid: %s | Action: %s | Auto: %s"
+antiraid_inactive_status: "AntiRaid INACTIVE | Raid: %s | Action: %s | Auto: %s"
+antiraid_enabled: "AntiRaid enabled for %s."
+antiraid_disabled: "AntiRaid disabled."
+antiraid_already_active: "AntiRaid is already active."
+antiraid_not_active: "AntiRaid is not active."
+antiraid_invalid_duration: "Invalid duration. Use format like: 30m, 2h, 1d, 1w"
+antiraid_duration_must_be_positive: "Duration must be positive."
+antiraid_raidtime_usage: "Usage: /raidtime <duration> (e.g., 6h)"
+antiraid_raidtime_no_change: "Raid time is already %s."
+antiraid_raidtime_set: "Raid time set to %s."
+antiraid_raidactiontime_usage: "Usage: /raidactiontime <duration> (e.g., 1h)"
+antiraid_raidactiontime_no_change: "Raid action time is already %s."
+antiraid_raidactiontime_set: "Raid action time set to %s."
+antiraid_auto_disabled: "Auto-AntiRaid is disabled."
+antiraid_auto_enabled: "Auto-AntiRaid threshold: %d joins/min."
+antiraid_invalid_threshold: "Invalid threshold. Give a positive number or 'off'."
+antiraid_auto_triggered: "Auto-raid triggered! %s users joined/min — new joiners temp-banned."
+antiraid_btn_enable: "Enable AntiRaid"
+antiraid_btn_disable: "Disable AntiRaid"

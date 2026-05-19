@@ -2414,3 +2414,36 @@ approvals_list_item: " - %s"
 approvals_list_file_header: "Utilisateurs approuvés pour le chat %d\n"
 approvals_list_file_item: "%d. %s"
 approvals_list_reason: " (raison : %s)"
+
+# AntiRaid module strings
+antiraid_help_msg: |
+  Protégez votre groupe des attaques de spam-join avec AntiRaid.
+  *Commandes Admin :*
+  /antiraid: Affiche l'état actuel + boutons activer/désactiver.
+  /antiraid on: Active le mode raid pour la durée configurée.
+  /antiraid <durée>: Active pour une durée personnalisée (ex. 3h, 30m).
+  /antiraid off: Désactive immédiatement le mode raid.
+  /raidtime <temps>: Définit la durée du raid (défaut : 6h).
+  /raidactiontime <temps>: Définit la durée du ban temporaire (défaut : 1h).
+  /autoantiraid <N>: Activation auto si N+ joins/min.
+  /autoantiraid off: Désactive le déclenchement automatique.
+antiraid_active_status: "AntiRaid ACTIF | Expire : %s | Raid : %s | Action : %s | Auto : %s"
+antiraid_inactive_status: "AntiRaid INACTIF | Raid : %s | Action : %s | Auto : %s"
+antiraid_enabled: "AntiRaid activé pour %s."
+antiraid_disabled: "AntiRaid désactivé."
+antiraid_already_active: "AntiRaid est déjà actif."
+antiraid_not_active: "AntiRaid n'est pas actif."
+antiraid_invalid_duration: "Durée invalide. Utilisez un format comme : 30m, 2h, 1d, 1w"
+antiraid_duration_must_be_positive: "La durée doit être positive."
+antiraid_raidtime_usage: "Usage : /raidtime <durée> (ex., 6h)"
+antiraid_raidtime_no_change: "La durée du raid est déjà %s."
+antiraid_raidtime_set: "Durée du raid définie à %s."
+antiraid_raidactiontime_usage: "Usage : /raidactiontime <durée> (ex., 1h)"
+antiraid_raidactiontime_no_change: "La durée d'action du raid est déjà %s."
+antiraid_raidactiontime_set: "Durée d'action du raid définie à %s."
+antiraid_auto_disabled: "L'AntiRaid automatique est désactivé."
+antiraid_auto_enabled: "Seuil d'Auto-AntiRaid : %d joins/min."
+antiraid_invalid_threshold: "Seuil invalide. Donnez un nombre positif ou 'off'."
+antiraid_auto_triggered: "Raid auto déclenché ! %s utilisateurs ont rejoint/min — nouveaux joiners bannis temporairement."
+antiraid_btn_enable: "Activer AntiRaid"
+antiraid_btn_disable: "Désactiver AntiRaid"
