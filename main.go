@@ -70,7 +70,7 @@ func main() {
 		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.17.11" // Fallback to hardcoded version if config wasn't loaded
+			version = "v2.17.24" // Fallback to hardcoded version if config wasn't loaded
 		}
 		fmt.Println(version)
 		os.Exit(0)

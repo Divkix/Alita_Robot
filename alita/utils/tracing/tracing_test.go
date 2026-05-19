@@ -32,7 +32,7 @@ func resetTracingState(t *testing.T) {
 func ensureAppConfig(t *testing.T) {
 	t.Helper()
 	if config.AppConfig == nil {
-		config.AppConfig = &config.Config{BotVersion: "2.1.3"}
+		config.AppConfig = &config.Config{BotVersion: "2.17.24"}
 	}
 }
 
