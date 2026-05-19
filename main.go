@@ -21,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/utils/async"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -314,6 +315,13 @@ func main() {
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping keyword matcher cache...")
 		keyword_matcher.GetGlobalCache().Stop()
+		return nil
+	})
+
+	// Register anti-raid expiry poller shutdown handler
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Stopping anti-raid expiry poller...")
+		modules.StopAntiRaidExpiryPoller()
 		return nil
 	})
 

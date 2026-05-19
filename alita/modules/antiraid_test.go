@@ -130,7 +130,9 @@ func TestAntiRaidExtend(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	st.ExpiresAt = time.Now().Unix() + 7200
-	_ = setRaidState(chatID, st)
+	if err := setRaidState(chatID, st); err != nil {
+		t.Fatalf("setRaidState failed: %v", err)
+	}
 
 	st2 := getRaidState(chatID)
 	if st2.ExpiresAt <= originalExpiry {

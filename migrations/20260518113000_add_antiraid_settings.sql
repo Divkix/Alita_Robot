@@ -7,7 +7,10 @@ CREATE TABLE IF NOT EXISTS antiraid_settings (
     auto_antiraid_threshold INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(chat_id)
+    UNIQUE(chat_id),
+    CONSTRAINT chk_raid_time_nonnegative CHECK (raid_time >= 0),
+    CONSTRAINT chk_raid_action_time_nonnegative CHECK (raid_action_time >= 0),
+    CONSTRAINT chk_auto_antiraid_threshold_nonnegative CHECK (auto_antiraid_threshold >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS idx_antiraid_settings_chat_id ON antiraid_settings(chat_id);

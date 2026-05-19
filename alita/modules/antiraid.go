@@ -37,7 +37,9 @@ var (
 	antiRaidModule = antiRaidStruct{
 		moduleStruct: moduleStruct{moduleName: "AntiRaid", handlerGroup: -5},
 	}
-	antiRaidMu sync.Mutex // package-level mutex for state mutations
+	antiRaidMu     sync.Mutex // package-level mutex for state mutations
+	antiRaidCtx    context.Context
+	antiRaidCancel context.CancelFunc
 )
 
 type antiRaidStruct struct {
@@ -52,11 +54,29 @@ type raidState struct {
 	BannedUsers []int64 `json:"banned_users"` // user IDs banned during this raid
 }
 
-func init() {
+// StartAntiRaidExpiryPoller starts the background expiry poller after cache is available.
+func StartAntiRaidExpiryPoller() {
+	if !cache.IsRedisAvailable() {
+		log.Warn("[AntiRaid] Redis not available, skipping expiry poller start")
+		return
+	}
+	if antiRaidCancel != nil {
+		// Already started
+		return
+	}
+	antiRaidCtx, antiRaidCancel = context.WithCancel(context.Background())
 	go func() {
 		defer error_handling.RecoverFromPanic("antiRaidExpiryPoller", "antiraid")
-		antiRaidModule.expiryPoller(context.Background())
+		antiRaidModule.expiryPoller(antiRaidCtx)
 	}()
+}
+
+// StopAntiRaidExpiryPoller stops the background expiry poller.
+func StopAntiRaidExpiryPoller() {
+	if antiRaidCancel != nil {
+		antiRaidCancel()
+		antiRaidCancel = nil
+	}
 }
 
 func stateKey(chatID int64) string {
@@ -78,7 +98,10 @@ func trackJoin(chatID, userID int64) (count int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	_, _ = rdb.ZRemRangeByScore(ctx, joinsKey(chatID), "0", strconv.FormatInt(now-int64(antiraidJoinWindowSeconds), 10)).Result()
+	_, err = rdb.ZRemRangeByScore(ctx, joinsKey(chatID), "0", strconv.FormatInt(now-int64(antiraidJoinWindowSeconds), 10)).Result()
+	if err != nil {
+		log.WithError(err).Warnf("[AntiRaid] ZRemRangeByScore failed on joinsKey %d", chatID)
+	}
 	rawCount, err := rdb.ZCard(ctx, joinsKey(chatID)).Result()
 	return int(rawCount), err
 }
@@ -122,7 +145,7 @@ func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			a.checkExpiredRaids()
+			a.checkExpiredRaids(ctx)
 		case <-ctx.Done():
 			log.Info("AntiRaid expiry poller shutting down gracefully")
 			return
@@ -130,15 +153,15 @@ func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
 	}
 }
 
-func (a *antiRaidStruct) checkExpiredRaids() {
+func (a *antiRaidStruct) checkExpiredRaids(ctx context.Context) {
 	if !cache.IsRedisAvailable() {
 		return
 	}
-	ctx := cache.Context
 	rdb := cache.GetRedisClient()
 
-	keys := rdb.Keys(ctx, fmt.Sprintf("%s:*", antiraidStateKey)).Val()
-	for _, k := range keys {
+	iter := rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", antiraidStateKey), 0).Iterator()
+	for iter.Next(ctx) {
+		k := iter.Val()
 		parts := strings.Split(k, ":")
 		if len(parts) < 4 {
 			continue
@@ -154,6 +177,9 @@ func (a *antiRaidStruct) checkExpiredRaids() {
 			clearJoinTracking(chatID)
 			log.Infof("[AntiRaid] Raid expired for chat %d (auto-expiry)", chatID)
 		}
+	}
+	if err := iter.Err(); err != nil {
+		log.WithError(err).Warn("[AntiRaid] SCAN iteration failed in checkExpiredRaids")
 	}
 }
 
@@ -263,6 +289,12 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			})
 			if err != nil {
 				log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", member.Id, chat.Id)
+			} else {
+				antiRaidMu.Lock()
+				st := getRaidState(chat.Id)
+				st.BannedUsers = append(st.BannedUsers, member.Id)
+				_ = setRaidState(chat.Id, st)
+				antiRaidMu.Unlock()
 			}
 		}
 	}
@@ -529,14 +561,12 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	action := ""
 	data := query.Data
-	if decoded, ok := decodeCallbackData(data, "antiraid"); ok {
-		action, _ = decoded.Field("a")
-	} else {
-		args := strings.Split(data, ".")
-		if len(args) >= 2 {
-			action = args[1]
-		}
+	decoded, ok := decodeCallbackData(data, "antiraid")
+	if !ok {
+		log.Warnf("[AntiRaid] Ignoring malformed callback data: %s", data)
+		return ext.ContinueGroups
 	}
+	action, _ = decoded.Field("a")
 
 	msg := query.Message
 	if msg == nil {
@@ -647,4 +677,6 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("antiraid"), antiRaidModule.callbackHandler))
 
 	helpers.AddCmdToDisableable("antiraid")
+
+	StartAntiRaidExpiryPoller()
 }

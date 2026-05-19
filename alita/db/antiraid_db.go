@@ -38,10 +38,6 @@ func SetRaidTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid time must be non-negative, got %d", seconds)
 	}
-	settings := GetAntiRaidSettings(chatID)
-	if settings.RaidTime == seconds {
-		return nil
-	}
 
 	updates := map[string]any{
 		"chat_id":    chatID,
@@ -62,10 +58,6 @@ func SetRaidTime(chatID int64, seconds int) error {
 func SetRaidActionTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid action time must be non-negative, got %d", seconds)
-	}
-	settings := GetAntiRaidSettings(chatID)
-	if settings.RaidActionTime == seconds {
-		return nil
 	}
 
 	updates := map[string]any{
@@ -88,10 +80,6 @@ func SetRaidActionTime(chatID int64, seconds int) error {
 func SetAutoAntiRaidThreshold(chatID int64, threshold int) error {
 	if threshold < 0 {
 		return fmt.Errorf("threshold must be non-negative, got %d", threshold)
-	}
-	settings := GetAntiRaidSettings(chatID)
-	if settings.AutoAntiRaidThreshold == threshold {
-		return nil
 	}
 
 	updates := map[string]any{

@@ -3,6 +3,8 @@ package db
 import (
 	"testing"
 	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestSetRaidTime(t *testing.T) {
@@ -234,6 +236,9 @@ func TestSetAntiRaidThresholdNegativeRejection(t *testing.T) {
 
 func TestAntiRaidSettingsCacheInvalidation(t *testing.T) {
 	skipIfNoDb(t)
+	if !cache.IsRedisAvailable() {
+		t.Skip("requires Redis cache")
+	}
 
 	chatID := time.Now().UnixNano()
 	t.Cleanup(func() {
@@ -242,24 +247,36 @@ func TestAntiRaidSettingsCacheInvalidation(t *testing.T) {
 		}
 	})
 
-	// Create initial record
+	// Create initial record via setter (populates cache)
 	if err := SetRaidTime(chatID, 3600); err != nil {
 		t.Fatalf("SetRaidTime failed: %v", err)
 	}
 
-	// The cached version might be stale; subsequent SetRaidTime calls should invalidate.
-	// Direct DB update to simulate external change, then verify GetAntiRaidSettings reads fresh.
+	// Populate cache with the initial value
+	first := GetAntiRaidSettings(chatID)
+	if first.RaidTime != 3600 {
+		t.Fatalf("expected cached RaidTime=3600, got %d", first.RaidTime)
+	}
+
+	// Direct DB update to simulate external change; the cache is now stale
 	if err := DB.Model(&AntiRaidSettings{}).Where("chat_id = ?", chatID).Update("raid_time", 10800).Error; err != nil {
 		t.Fatalf("direct DB update failed: %v", err)
 	}
 
-	// Cache invalidation is tested by verifying the deleteCache call in the implementation.
-	// We mostly care that the function calls deleteCache. This test verifies the DB layer works.
-	var settings AntiRaidSettings
-	if err := DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
-		t.Fatalf("query error: %v", err)
+	// Stale cached value should still reflect 3600
+	stale := GetAntiRaidSettings(chatID)
+	if stale.RaidTime != 3600 {
+		t.Fatalf("expected stale cached RaidTime=3600, got %d", stale.RaidTime)
 	}
-	if settings.RaidTime != 10800 {
-		t.Fatalf("expected RaidTime=10800 after direct DB update, got %d", settings.RaidTime)
+
+	// Setter should invalidate cache and persist the new value
+	if err := SetRaidTime(chatID, 10800); err != nil {
+		t.Fatalf("SetRaidTime(10800) failed: %v", err)
+	}
+
+	// After cache invalidation, read should reflect the DB update (10800)
+	fresh := GetAntiRaidSettings(chatID)
+	if fresh.RaidTime != 10800 {
+		t.Fatalf("expected RaidTime=10800 after cache invalidation, got %d", fresh.RaidTime)
 	}
 }

@@ -444,7 +444,7 @@ func (c *CachedOptimizedQueries) GetAntiRaidSettingsCached(chatID int64) (*AntiR
 
 	cacheKey := CacheKey("antiraid", chatID)
 
-	cached, err := getFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*AntiRaidSettings, error) {
+	cached, err := getFromCacheOrLoad(cacheKey, CacheTTLAntiRaid, func() (*AntiRaidSettings, error) {
 		return c.antiraidQueries.GetAntiRaidSettings(chatID)
 	})
 	if err != nil {
