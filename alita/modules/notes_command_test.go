@@ -73,6 +73,11 @@ func TestPrivNoteTogglesNewChatSetting(t *testing.T) {
 	if db.GetNotes(chat.Id).PrivateNotesEnabled() {
 		t.Fatal("private notes stayed enabled")
 	}
+
+	invalidCtx := newModuleMessageContext(bot, chat, admin, "/privnote maybe")
+	if err := notesModule.privNote(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("privNote invalid option error = %v, want EndGroups", err)
+	}
 }
 
 func TestAddExistingNoteUsesOverwriteConfirmation(t *testing.T) {
@@ -159,6 +164,37 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	}
 	if notes := db.GetNotesList(chat.Id, true); len(notes) != 0 {
 		t.Fatalf("notes after clear all = %v, want none", notes)
+	}
+}
+
+func TestRemoveNoteAndClearAllValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, text := range []string{"/clear", "/clear missing"} {
+		ctx := newModuleMessageContext(bot, chat, admin, text)
+		if err := notesModule.rmNote(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("rmNote(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	emptyClearAllCtx := newModuleMessageContext(bot, chat, admin, "/clearall")
+	if err := notesModule.rmAllNotes(bot, emptyClearAllCtx); err != ext.EndGroups {
+		t.Fatalf("rmAllNotes empty error = %v, want EndGroups", err)
+	}
+
+	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+	memberClearAllCtx := newModuleMessageContext(bot, chat, member, "/clearall")
+	if err := notesModule.rmAllNotes(bot, memberClearAllCtx); err != ext.EndGroups {
+		t.Fatalf("rmAllNotes non-owner error = %v, want EndGroups", err)
+	}
+	if !db.DoesNoteExists(chat.Id, "rules") {
+		t.Fatal("non-owner clearall removed note")
 	}
 }
 
@@ -255,6 +291,89 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	}
 	if got := calls[0].Params["text"]; got != "be kind" {
 		t.Fatalf("note text = %q, want be kind", got)
+	}
+}
+
+func TestNotesWatcherPrivateAdminOnlyAndNoFormatBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	if err := db.AddNote(chat.Id, "secret", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(private) setup error = %v", err)
+	}
+	privateCtx := newModuleMessageContext(bot, chat, member, "#secret")
+	if err := notesModule.notesWatcher(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher private note error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 || calls[0].Params["reply_markup"] == nil {
+		t.Fatalf("private note calls = %+v, want click-through button", calls)
+	}
+
+	if err := db.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+		t.Fatalf("AddNote(admin) setup error = %v", err)
+	}
+	memberAdminCtx := newModuleMessageContext(bot, chat, member, "#admin")
+	if err := notesModule.notesWatcher(bot, memberAdminCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher admin-only member error = %v, want EndGroups", err)
+	}
+
+	adminNoFormatCtx := newModuleMessageContext(bot, chat, admin, "#admin noformat")
+	if err := notesModule.notesWatcher(bot, adminNoFormatCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher admin noformat error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want private redirect, admin denial, raw note", len(calls))
+	}
+	if text := calls[len(calls)-1].Params["text"].(string); !strings.Contains(text, "admin text") {
+		t.Fatalf("raw admin note text = %q, want stored note content", text)
+	}
+}
+
+func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, text := range []string{"/get", "/get missing"} {
+		ctx := newModuleMessageContext(bot, chat, member, text)
+		if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("getNotes(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	if err := db.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(private) setup error = %v", err)
+	}
+	privateCtx := newModuleMessageContext(bot, chat, member, "/get private")
+	if err := notesModule.getNotes(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("getNotes private note error = %v, want EndGroups", err)
+	}
+
+	if err := db.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(raw) setup error = %v", err)
+	}
+	memberNoFormatCtx := newModuleMessageContext(bot, chat, member, "/get raw noformat")
+	if err := notesModule.getNotes(bot, memberNoFormatCtx); err != ext.EndGroups {
+		t.Fatalf("getNotes member noformat error = %v, want EndGroups", err)
+	}
+
+	adminNoFormatCtx := newModuleMessageContext(bot, chat, admin, "/get raw noformat")
+	if err := notesModule.getNotes(bot, adminNoFormatCtx); err != ext.EndGroups {
+		t.Fatalf("getNotes admin noformat error = %v, want EndGroups", err)
+	}
+
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 5 {
+		t.Fatalf("sendMessage calls = %d, want validation, private redirect, noformat denial, raw note", len(calls))
+	}
+	if calls[2].Params["reply_markup"] == nil {
+		t.Fatal("private /get did not include click-through button")
 	}
 }
 
