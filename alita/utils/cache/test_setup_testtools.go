@@ -109,6 +109,25 @@ func (m *cacheMemoryStore) GetType() string {
 	return "cache-memory-test"
 }
 
+// InitTestMarshal installs an in-memory cache marshaler for package test suites.
+// The returned function restores the previous cache state.
+func InitTestMarshal() func() {
+	previousMarshal := GetMarshal()
+	previousManager := Manager
+	previousRedisClient := redisClient
+
+	manager := gocache.New[any](newCacheMemoryStore())
+	Manager = manager
+	SetMarshal(marshaler.New(manager))
+	redisClient = nil
+
+	return func() {
+		SetMarshal(previousMarshal)
+		Manager = previousManager
+		redisClient = previousRedisClient
+	}
+}
+
 // SetupTestMemoryMarshaler installs an in-memory cache marshaler for the duration of a test.
 func SetupTestMemoryMarshaler(t *testing.T) {
 	t.Helper()

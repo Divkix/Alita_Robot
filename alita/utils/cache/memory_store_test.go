@@ -106,6 +106,9 @@ func TestCacheMemoryStore_GetWithTTLAndLifecycle(t *testing.T) {
 	if err := mem.Set(ctx, key, []byte("payload"), store.WithExpiration(time.Minute)); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
+	if err := mem.Set(ctx, "unsupported", 123, nil); err == nil {
+		t.Fatal("Set(unsupported type) error = nil, want unsupported type error")
+	}
 
 	got, ttl, err := mem.GetWithTTL(ctx, key)
 	if err != nil {
@@ -116,6 +119,18 @@ func TestCacheMemoryStore_GetWithTTLAndLifecycle(t *testing.T) {
 	}
 	if ttl <= 0 {
 		t.Fatalf("GetWithTTL() ttl = %v, want positive duration", ttl)
+	}
+
+	const expiredKey = "expired-key"
+	if err := mem.Set(ctx, expiredKey, []byte("old"), store.WithExpiration(time.Millisecond)); err != nil {
+		t.Fatalf("Set(expired) error = %v", err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if _, _, err := mem.GetWithTTL(ctx, expiredKey); err == nil {
+		t.Fatal("GetWithTTL(expired) error = nil, want expired error")
+	}
+	if _, err := mem.Get(ctx, expiredKey); err == nil {
+		t.Fatal("Get(expired) error = nil, want expired error")
 	}
 
 	if err := mem.Invalidate(ctx); err != nil {
