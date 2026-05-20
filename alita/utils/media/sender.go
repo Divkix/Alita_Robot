@@ -1,7 +1,5 @@
 // Package media provides a unified interface for sending different types of Telegram media.
 // It consolidates the duplicate logic from NotesEnumFuncMap, GreetingsEnumFuncMap, and FiltersEnumFuncMap.
-//
-//nolint:dupl // Media sender functions follow same pattern by design
 package media
 
 import (
@@ -24,6 +22,29 @@ func isPermissionError(errStr string) bool {
 		strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
 		strings.Contains(errStr, "CHAT_RESTRICTED") ||
 		strings.Contains(errStr, "need administrator rights in the channel chat")
+}
+
+// resolveSendResult handles the shared error-handling path for all send methods.
+// It marks the chat as restricted on permission errors, clears it on success,
+// and wraps unhandled errors with context.
+func resolveSendResult[T any](result T, err error, chatID int64, mediaType string) (T, error) {
+	if err == nil {
+		cache.MarkChatNotRestricted(chatID)
+		return result, nil
+	}
+
+	errStr := err.Error()
+	if isPermissionError(errStr) {
+		cache.MarkChatRestricted(chatID)
+		log.WithFields(log.Fields{
+			"chat_id":    chatID,
+			"media_type": mediaType,
+			"error":      errStr,
+		}).Warningf("Bot lacks permission to send %s in this chat", mediaType)
+		var zero T
+		return zero, ErrNoPermission
+	}
+	return result, errors.Wrapf(err, "failed to send %s to chat %d", mediaType, chatID)
 }
 
 // Type constants matching db package for convenience
@@ -128,21 +149,7 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		errStr := err.Error()
-		// Check for expected permission-related errors
-		if isPermissionError(errStr) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   errStr,
-			}).Warning("Bot lacks permission to send messages in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send message to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
 // sendSticker sends a sticker or falls back to text if FileID is empty.
@@ -158,19 +165,7 @@ func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *got
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send sticker in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send sticker to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "sticker")
 }
 
 // sendDocument sends a document or falls back to text if FileID is empty.
@@ -188,19 +183,7 @@ func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode strin
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send document in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send document to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "document")
 }
 
 // sendPhoto sends a photo or falls back to text if FileID is empty.
@@ -218,19 +201,7 @@ func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send photo in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send photo to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "photo")
 }
 
 // sendAudio sends an audio file or falls back to text if FileID is empty.
@@ -248,19 +219,7 @@ func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send audio in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send audio to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "audio")
 }
 
 // sendVoice sends a voice message or falls back to text if FileID is empty.
@@ -278,19 +237,7 @@ func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send voice in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send voice to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "voice")
 }
 
 // sendVideo sends a video or falls back to text if FileID is empty.
@@ -308,19 +255,7 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send video in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send video to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
 // sendVideoNote sends a video note or falls back to text if FileID is empty.
@@ -336,19 +271,7 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 		DisableNotification: opts.NoNotif,
 		MessageThreadId:     opts.ThreadID,
 	})
-	if err != nil {
-		if isPermissionError(err.Error()) {
-			cache.MarkChatRestricted(opts.ChatID)
-			log.WithFields(log.Fields{
-				"chat_id": opts.ChatID,
-				"error":   err.Error(),
-			}).Warning("Bot lacks permission to send video note in this chat")
-			return nil, ErrNoPermission
-		}
-		return nil, errors.Wrapf(err, "failed to send video note to chat %d", opts.ChatID)
-	}
-	cache.MarkChatNotRestricted(opts.ChatID)
-	return msg, nil
+	return resolveSendResult(msg, err, opts.ChatID, "video note")
 }
 
 // SendNote is a convenience function for sending notes.

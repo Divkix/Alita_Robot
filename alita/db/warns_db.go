@@ -196,15 +196,32 @@ func ResetUserWarns(userId, chatId int64) (removed bool) {
 	if err != nil {
 		log.Errorf("[Database] ResetUserWarns: %v", err)
 		removed = false
+		return removed
 	}
+	deleteCache(CacheKey("warn_settings", chatId))
 	return removed
 }
 
 // GetWarns retrieves the current warning count and reasons for a user in a specific chat.
-// Returns 0 warnings and empty reasons if the user has no warnings.
+// Results are cached to avoid repeated database queries.
 func GetWarns(userId, chatId int64) (int, []string) {
-	warnrc := checkWarns(userId, chatId)
-	return warnrc.NumWarns, []string(warnrc.Reasons)
+	type warnCache struct {
+		NumWarns int
+		Reasons  []string
+	}
+	cached, err := getFromCacheOrLoad(
+		CacheKey("warns", userId, chatId),
+		CacheTTLLanguage,
+		func() (warnCache, error) {
+			w := checkWarns(userId, chatId)
+			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
+		},
+	)
+	if err != nil {
+		w := checkWarns(userId, chatId)
+		return w.NumWarns, []string(w.Reasons)
+	}
+	return cached.NumWarns, cached.Reasons
 }
 
 // SetWarnLimit updates the warning limit for a specific chat.
@@ -240,7 +257,17 @@ func SetWarnMode(chatId int64, warnMode string) error {
 // GetWarnSetting returns the warning settings for the specified chat.
 // This is the public interface to access warning configuration.
 func GetWarnSetting(chatId int64) *WarnSettings {
-	return checkWarnSettings(chatId)
+	cached, err := getFromCacheOrLoad(
+		CacheKey("warn_settings", chatId),
+		CacheTTLLanguage,
+		func() (*WarnSettings, error) {
+			return checkWarnSettings(chatId), nil
+		},
+	)
+	if err != nil {
+		return checkWarnSettings(chatId)
+	}
+	return cached
 }
 
 // GetAllChatWarns returns the total count of warned users in a specific chat.
@@ -263,5 +290,6 @@ func ResetAllChatWarns(chatId int64) bool {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return false
 	}
+	deleteCache(CacheKey("warn_settings", chatId))
 	return true
 }

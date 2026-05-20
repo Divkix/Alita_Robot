@@ -2,13 +2,11 @@ package helpers
 
 import (
 	"fmt"
-	"html"
 	"math/rand"
 	"net/url"
 	"os"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -17,11 +15,12 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
@@ -42,133 +41,46 @@ func IsCliModeActive() bool {
 	return false
 }
 
-// constants
+// Parse-mode and length-limit wrappers exported for backward compatibility.
 const (
-	Markdown             = "Markdown"
-	HTML                 = "HTML"
-	None                 = "None"
-	MaxMessageLength int = 4096
-)
-
-// Precompiled regexes and replacer for ReverseHTML2MD function
-var (
-	linkRegex = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
-	// htmlToMdReplacer efficiently replaces HTML tags with Markdown in a single pass
-	htmlToMdReplacer = strings.NewReplacer(
-		"<b>", "*",
-		"</b>", "*",
-		"<i>", "_",
-		"</i>", "_",
-		"<u>", "__",
-		"</u>", "__",
-		"<s>", "~",
-		"</s>", "~",
-		"<code>", "`",
-		"</code>", "`",
-		"<pre>", "```",
-		"</pre>", "```",
-	)
+	Markdown             = formatting.Markdown
+	HTML                 = formatting.HTML
+	None                 = formatting.None
+	MaxMessageLength int = formatting.MaxMessageLength
 )
 
 // Shtml returns SendMessageOpts configured with HTML parse mode, disabled link preview,
 // and reply parameters that allow sending without reply.
 func Shtml() *gotgbot.SendMessageOpts {
-	return &gotgbot.SendMessageOpts{
-		ParseMode: HTML,
-		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-			IsDisabled: true,
-		},
-		ReplyParameters: &gotgbot.ReplyParameters{
-			AllowSendingWithoutReply: true,
-		},
-	}
+	return formatting.Shtml()
 }
 
 // Smarkdown returns SendMessageOpts configured with Markdown parse mode, disabled link preview,
 // and reply parameters that allow sending without reply.
 func Smarkdown() *gotgbot.SendMessageOpts {
-	return &gotgbot.SendMessageOpts{
-		ParseMode: Markdown,
-		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-			IsDisabled: true,
-		},
-		ReplyParameters: &gotgbot.ReplyParameters{
-			AllowSendingWithoutReply: true,
-		},
-	}
+	return formatting.Smarkdown()
 }
 
 // SplitMessage splits a message into multiple messages if it exceeds MaxMessageLength.
 // It splits on newlines to preserve message structure when possible.
-// Uses utf8.RuneCountInString to correctly count UTF-8 characters instead of bytes.
 func SplitMessage(msg string) []string {
-	// Count UTF-8 characters (runes), not bytes
-	if utf8.RuneCountInString(msg) <= MaxMessageLength {
-		return []string{msg}
-	}
-
-	lines := strings.Split(msg, "\n")
-	// strings.Split produces a trailing empty string when msg ends with "\n".
-	// Remove it to avoid appending an extra newline during reconstruction.
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	smallMsg := ""
-	result := make([]string, 0)
-
-	for _, line := range lines {
-		// Check if adding this line would exceed the limit (in runes, not bytes)
-		potentialMsg := smallMsg + line + "\n"
-		if utf8.RuneCountInString(potentialMsg) <= MaxMessageLength {
-			smallMsg = potentialMsg
-		} else {
-			// If current line itself is too long, we need to split it
-			if utf8.RuneCountInString(line) > MaxMessageLength {
-				// Split the long line into chunks
-				if smallMsg != "" {
-					result = append(result, smallMsg)
-					smallMsg = ""
-				}
-				// Split line by runes, not bytes
-				runes := []rune(line)
-				for len(runes) > 0 {
-					chunkSize := min(MaxMessageLength, len(runes))
-					result = append(result, string(runes[:chunkSize]))
-					runes = runes[chunkSize:]
-				}
-			} else {
-				// Current accumulated message is full, save it and start new
-				if smallMsg != "" {
-					result = append(result, smallMsg)
-				}
-				smallMsg = line + "\n"
-			}
-		}
-	}
-
-	// Don't forget the last accumulated message
-	if smallMsg != "" {
-		result = append(result, smallMsg)
-	}
-
-	return result
+	return formatting.SplitMessage(msg)
 }
 
 // MentionHtml creates an HTML mention link for a user using their Telegram user ID.
 func MentionHtml(userId int64, name string) string {
-	return MentionUrl(fmt.Sprintf("tg://user?id=%d", userId), name)
+	return formatting.MentionHtml(userId, name)
 }
 
 // MentionUrl creates an HTML link with the given URL and display name.
-// The name is HTML-escaped for safety.
 func MentionUrl(url, name string) string {
-	return fmt.Sprintf("<a href=\"%s\">%s</a>", url, html.EscapeString(name))
+	return formatting.MentionUrl(url, name)
 }
 
 // HtmlEscape escapes special HTML characters in a string to prevent injection.
 // Used when inserting untrusted content into HTML-formatted messages.
 func HtmlEscape(s string) string {
-	return html.EscapeString(s)
+	return formatting.HtmlEscape(s)
 }
 
 // GetFullName combines first name and last name into a full name.
@@ -329,17 +241,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 // BuildKeyboard constructs an inline keyboard from a slice of database button objects.
 // Handles button grouping based on the SameLine property for proper layout.
 func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
-	keyb := make([][]gotgbot.InlineKeyboardButton, 0)
-	for _, btn := range buttons {
-		if btn.SameLine && len(keyb) > 0 {
-			keyb[len(keyb)-1] = append(keyb[len(keyb)-1], gotgbot.InlineKeyboardButton{Text: btn.Name, Url: btn.Url})
-		} else {
-			k := make([]gotgbot.InlineKeyboardButton, 1)
-			k[0] = gotgbot.InlineKeyboardButton{Text: btn.Name, Url: btn.Url}
-			keyb = append(keyb, k)
-		}
-	}
-	return keyb
+	return keyboard.BuildKeyboard(buttons)
 }
 
 // ConvertButtonV2ToDbButton converts markdown parser button format to database button format.
@@ -412,191 +314,37 @@ func InlineKeyboardMarkupToTgmd2htmlButtonV2(replyMarkup *gotgbot.InlineKeyboard
 // ChunkKeyboardSlices splits a slice of inline keyboard buttons into chunks of specified size.
 // Used for creating organized help menu keyboards with consistent row layouts.
 func ChunkKeyboardSlices(slice []gotgbot.InlineKeyboardButton, chunkSize int) (chunks [][]gotgbot.InlineKeyboardButton) {
-	for len(slice) > 0 {
-		if len(slice) < chunkSize {
-			chunkSize = len(slice)
-		}
-
-		chunks = append(chunks, slice[0:chunkSize])
-		slice = slice[chunkSize:]
-	}
-	return
+	return keyboard.ChunkKeyboardSlices(slice, chunkSize)
 }
 
 // MakeLanguageKeyboard creates an inline keyboard with all available language options.
 // Uses valid language codes from config and chunks them into 2-column layout.
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
-	var kb []gotgbot.InlineKeyboardButton
-
-	for _, langCode := range config.AppConfig.ValidLangCodes {
-		properLang := GetLangFormat(langCode)
-		if properLang == "" || properLang == " " {
-			continue
-		}
-
-		kb = append(
-			kb,
-			gotgbot.InlineKeyboardButton{
-				Text:         properLang,
-				CallbackData: callbackcodec.EncodeOrFallback("change_language", map[string]string{"l": langCode}, fmt.Sprintf("change_language.%s", langCode)),
-			},
-		)
-	}
-
-	return ChunkKeyboardSlices(kb, 2)
+	return keyboard.MakeLanguageKeyboard()
 }
 
 // GetLangFormat returns a formatted language display string with name and flag emoji.
 // Uses i18n system to get localized language name and flag for the given language code.
 func GetLangFormat(langCode string) string {
-	tr := i18n.MustNewTranslator(langCode)
-	langName, _ := tr.GetString("language_name")
-	langFlag, _ := tr.GetString("language_flag")
-	return langName + " " + langFlag
+	return keyboard.GetLangFormat(langCode)
 }
 
 // ReverseHTML2MD converts HTML-formatted text back to markdown format.
 // Handles common HTML tags like bold, italic, underline, strikethrough, code, pre, and links.
-// Uses a single-pass strings.Replacer for O(n) complexity instead of O(n×m) nested loops.
 func ReverseHTML2MD(text string) string {
-	// Handle link tags first (special case with href attribute)
-	if linkRegex.MatchString(text) {
-		matches := linkRegex.FindAllStringSubmatch(text, -1)
-		for _, match := range matches {
-			if len(match) >= 3 {
-				// match[0] = full match, match[1] = url, match[2] = link text
-				oldLink := match[0]
-				newLink := fmt.Sprintf("[%s](%s)", match[2], match[1])
-				text = strings.Replace(text, oldLink, newLink, 1)
-			}
-		}
-	}
-
-	// Apply all other HTML tag replacements in a single pass using precompiled replacer
-	return htmlToMdReplacer.Replace(text)
+	return formatting.ReverseHTML2MD(text)
 }
 
 // FormattingReplacer processes message text and replaces placeholders with actual user/chat data.
 // Handles variables like {first}, {last}, {username}, {mention}, {count}, {chatname}, {id}.
 // Also processes rules button insertion with various positioning options.
 func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
-	return FormattingReplacerWithLanguage(b, chat, user, oldMsg, buttons, "en")
+	return formatting.FormattingReplacer(b, chat, user, oldMsg, buttons)
 }
 
 // FormattingReplacerWithLanguage is like FormattingReplacer but accepts a language parameter for localization.
 func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button, language string) (res string, btns []db.Button) {
-	var (
-		firstName     string
-		fullName      string
-		username      string
-		userId        int64
-		rulesBtnRegex = `(?s){rules(:(same|up))?}`
-	)
-
-	// Handle nil user (anonymous/channel messages) with default values
-	if user == nil {
-		tr := i18n.MustNewTranslator(language)
-		personNoName, _ := tr.GetString("helpers_person_no_name")
-		if personNoName == "" {
-			personNoName = "PersonWithNoName" // fallback
-		}
-		firstName = personNoName
-		fullName = personNoName
-		username = personNoName
-		userId = 0
-	} else {
-		firstName = user.FirstName
-		if len(user.FirstName) <= 0 {
-			tr := i18n.MustNewTranslator(language)
-			personNoName, _ := tr.GetString("helpers_person_no_name")
-			if personNoName == "" {
-				personNoName = "PersonWithNoName" // fallback
-			}
-			firstName = personNoName
-		}
-
-		if user.LastName != "" {
-			fullName = firstName + " " + user.LastName
-		} else {
-			fullName = firstName
-		}
-		mention := MentionHtml(user.Id, firstName)
-
-		if user.Username != "" {
-			username = "@" + html.EscapeString(user.Username)
-		} else {
-			username = mention
-		}
-		userId = user.Id
-	}
-
-	// Only fetch member count if {count} placeholder is present
-	countStr := "0" // Default value to avoid empty replacement
-	if strings.Contains(oldMsg, "{count}") {
-		if count, err := chat.GetMemberCount(b, nil); err == nil {
-			countStr = strconv.Itoa(int(count))
-		}
-	}
-
-	r := strings.NewReplacer(
-		"{first}", html.EscapeString(firstName),
-		"{last}", html.EscapeString(""),
-		"{fullname}", html.EscapeString(fullName),
-		"{username}", username,
-		"{mention}", username,
-		"{count}", countStr,
-		"{chatname}", html.EscapeString(chat.Title),
-		"{id}", strconv.Itoa(int(userId)),
-	)
-	res = r.Replace(oldMsg)
-	btns = buttons // copies the buttons over to format rules btn
-
-	rulesDb := db.GetChatRulesInfo(chat.Id)
-	rulesBtnText := rulesDb.RulesBtn
-	if rulesBtnText == "" {
-		tr := i18n.MustNewTranslator(language)
-		defaultRulesText, _ := tr.GetString("button_rules_default")
-		if defaultRulesText == "" {
-			defaultRulesText = "Rules" // fallback
-		}
-		rulesBtnText = defaultRulesText
-	}
-
-	// only add rules btn when rules are added in chat
-	if rulesDb.Rules != "" {
-		pattern, err := regexp.Compile(rulesBtnRegex)
-		if err != nil {
-			log.Error(err)
-		}
-		if pattern.MatchString(res) {
-			response := pattern.FindStringSubmatch(res)
-
-			sameline := false
-			if response[2] == "same" {
-				sameline = true
-			}
-
-			rulesButton := db.Button{
-				Name:     rulesBtnText,
-				Url:      fmt.Sprintf("https://t.me/%s?start=rules_%d", b.Username, chat.Id),
-				SameLine: sameline,
-			}
-
-			if response[2] == "up" {
-				// this adds the button on top of all buttons
-				btns = []db.Button{rulesButton}
-				btns = append(btns, buttons...)
-			} else {
-				// this adds the button to bottom (default behaviour)
-				btns = buttons
-				btns = append(btns, rulesButton)
-
-			}
-			res = pattern.ReplaceAllString(res, "")
-		}
-	}
-
-	return res, btns
+	return formatting.FormattingReplacerWithLanguage(b, chat, user, oldMsg, buttons, language)
 }
 
 // ExtractJoinLeftStatusChange analyzes ChatMemberUpdated events to detect join/leave status changes.

@@ -284,9 +284,23 @@ func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
 	return result.(*gotgbot.Message), nil
 }
 
-// LoadBotUpdates registers bot event handlers for group management.
+type botUpdatesModule struct {
+	moduleStruct
+}
+
+// Name returns the module name.
+func (botUpdatesModule) Name() string {
+	return "BotUpdates"
+}
+
+// Priority returns the load priority. Negative values load before standard modules.
+func (botUpdatesModule) Priority() int {
+	return -10
+}
+
+// Load registers bot event handlers for group management.
 // Sets up handlers for bot joins, admin updates, and anonymous admin verification.
-func LoadBotUpdates(dispatcher *ext.Dispatcher) {
+func (m botUpdatesModule) Load(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMyChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
@@ -307,4 +321,14 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("anon_admin"), verifyAnonymousAdmin))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("alita:anonAdmin:"), verifyAnonymousAdmin))
+}
+
+func init() {
+	RegisterModule(botUpdatesModule{moduleStruct{moduleName: "BotUpdates"}})
+}
+
+// LoadBotUpdates is deprecated.
+// Registration and loading are now handled by the module registry via init().
+func LoadBotUpdates(dispatcher *ext.Dispatcher) {
+	// No-op: botUpdatesModule is registered in init() and loaded by LoadAllModules.
 }
