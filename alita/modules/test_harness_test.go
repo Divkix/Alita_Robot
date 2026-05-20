@@ -52,6 +52,13 @@ func newModuleBotClient() *moduleBotClient {
 			"sendMessage": json.RawMessage(
 				`{"message_id":9001,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
 			),
+			"editMessageText": json.RawMessage(
+				`{"message_id":9001,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+			),
+			"deleteMessage": json.RawMessage(`true`),
+			"getMe": json.RawMessage(
+				`{"id":999,"is_bot":true,"first_name":"Alita","username":"AlitaTestBot"}`,
+			),
 			"getChat": json.RawMessage(
 				`{"id":-1001,"type":"supergroup","title":"Test Chat"}`,
 			),
