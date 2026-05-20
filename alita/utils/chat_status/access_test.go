@@ -1,11 +1,62 @@
 package chat_status
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
+
+type chatStatusBotClient struct{}
+
+func (chatStatusBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	switch method {
+	case "getChatMember":
+		switch fmt.Sprint(params["user_id"]) {
+		case "10":
+			return json.RawMessage(`{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"},"can_change_info":true,"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
+		case "11":
+			return json.RawMessage(`{"status":"administrator","user":{"id":11,"is_bot":false,"first_name":"Limited Admin"},"can_change_info":false,"can_restrict_members":false,"can_promote_members":false,"can_pin_messages":false,"can_delete_messages":false,"can_invite_users":false}`), nil
+		case "12":
+			return json.RawMessage(`{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}`), nil
+		case "999":
+			return json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"},"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
+		case "998":
+			return json.RawMessage(`{"status":"administrator","user":{"id":998,"is_bot":true,"first_name":"Limited Bot"},"can_restrict_members":false,"can_promote_members":false,"can_pin_messages":false,"can_delete_messages":false,"can_invite_users":false}`), nil
+		default:
+			return json.RawMessage(`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`), nil
+		}
+	case "getChat":
+		return json.RawMessage(`{"id":-1001,"type":"supergroup","title":"Permission Chat"}`), nil
+	case "getChatAdministrators":
+		return json.RawMessage(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"}},{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"}},{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}]`), nil
+	case "sendMessage":
+		return json.RawMessage(`{"message_id":1,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Permission Chat"}}`), nil
+	case "answerCallbackQuery":
+		return json.RawMessage(`true`), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (chatStatusBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (chatStatusBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func newChatStatusBot(id int64) *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: chatStatusBotClient{},
+		User:      gotgbot.User{Id: id, IsBot: true, FirstName: "Bot"},
+	}
+}
 
 func makeCtxWithMessage(chatType string) *ext.Context {
 	msg := &gotgbot.Message{Chat: gotgbot.Chat{Type: chatType}}
@@ -141,6 +192,129 @@ func TestHasUserPermissionRejectsMissingContextOrChat(t *testing.T) {
 	)
 	if hasUserPermission(nil, emptyCtx, nil, 1, allow) {
 		t.Fatal("hasUserPermission() with no chat in context should be false")
+	}
+}
+
+func TestPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 10) }},
+		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 10) }},
+		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 10) }},
+		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 10) }},
+		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 10) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !tt.fn() {
+				t.Fatalf("%s permission = false, want true for full admin", tt.name)
+			}
+		})
+	}
+}
+
+func TestPermissionHelpersAllowCreatorWithoutSpecificFlags(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if !canUserRestrict(bot, ctx, chat, 12) {
+		t.Fatal("canUserRestrict() = false, want true for creator")
+	}
+	if !canUserDelete(bot, ctx, chat, 12) {
+		t.Fatal("canUserDelete() = false, want true for creator")
+	}
+	if !requireUserOwnerPure(bot, ctx, chat, 12) {
+		t.Fatal("requireUserOwnerPure() = false, want true for creator")
+	}
+}
+
+func TestPermissionHelpersRejectMissingMemberPermissions(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 11) }},
+		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 11) }},
+		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 11) }},
+		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 11) }},
+		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 11) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s permission = true, want false for limited admin", tt.name)
+			}
+		})
+	}
+}
+
+func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	fullBot := newChatStatusBot(999)
+	fullTests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "restrict", fn: func() bool { return canBotRestrict(fullBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return canBotPromote(fullBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return canBotPin(fullBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return canBotDelete(fullBot, ctx, chat) }},
+	}
+	for _, tt := range fullTests {
+		t.Run("full/"+tt.name, func(t *testing.T) {
+			if !tt.fn() {
+				t.Fatalf("%s bot permission = false, want true", tt.name)
+			}
+		})
+	}
+
+	limitedBot := newChatStatusBot(998)
+	limitedTests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "restrict", fn: func() bool { return canBotRestrict(limitedBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return canBotPromote(limitedBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return canBotPin(limitedBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return canBotDelete(limitedBot, ctx, chat) }},
+	}
+	for _, tt := range limitedTests {
+		t.Run("limited/"+tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s bot permission = true, want false", tt.name)
+			}
+		})
+	}
+}
+
+func TestRequireUserAdminPureUsesGotgbotAdminList(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if !requireUserAdminPure(bot, ctx, chat, 10) {
+		t.Fatal("requireUserAdminPure(full admin) = false, want true")
+	}
+	if !requireUserAdminPure(bot, ctx, chat, 777000) {
+		t.Fatal("requireUserAdminPure(Telegram service user) = false, want true")
+	}
+	if requireUserAdminPure(bot, ctx, chat, 42) {
+		t.Fatal("requireUserAdminPure(member) = true, want false")
 	}
 }
 

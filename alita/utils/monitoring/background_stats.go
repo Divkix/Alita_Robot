@@ -314,18 +314,18 @@ func (collector *BackgroundStatsCollector) reportStats() {
 	collector.metricsLock.RUnlock()
 
 	log.WithFields(log.Fields{
-		"goroutines":             metrics.GoroutineCount,
-		"memory_alloc_mb":        metrics.MemoryAllocMB,
-		"memory_sys_mb":          metrics.MemorySysMB,
-		"gc_pause_ms":            metrics.GCPauseMs,
-		"processed_messages":     metrics.ProcessedMessages,
-		"error_count":            metrics.ErrorCount,
-		"avg_response_time_ms":   metrics.AverageResponseTime.Milliseconds(),
-		"peak_memory_mb":         metrics.PeakMemoryUsageMB,
-		"uptime_hours":           metrics.UptimeSeconds / 3600,
-		"db_connections":         metrics.DatabaseConnections,
-		"cache_hit_rate":         metrics.CacheHitRate,
-		"restricted_cache_hits":  metrics.RestrictedChatHits,
+		"goroutines":              metrics.GoroutineCount,
+		"memory_alloc_mb":         metrics.MemoryAllocMB,
+		"memory_sys_mb":           metrics.MemorySysMB,
+		"gc_pause_ms":             metrics.GCPauseMs,
+		"processed_messages":      metrics.ProcessedMessages,
+		"error_count":             metrics.ErrorCount,
+		"avg_response_time_ms":    metrics.AverageResponseTime.Milliseconds(),
+		"peak_memory_mb":          metrics.PeakMemoryUsageMB,
+		"uptime_hours":            metrics.UptimeSeconds / 3600,
+		"db_connections":          metrics.DatabaseConnections,
+		"cache_hit_rate":          metrics.CacheHitRate,
+		"restricted_cache_hits":   metrics.RestrictedChatHits,
 		"restricted_cache_misses": metrics.RestrictedChatMisses,
 	}).Info("Background system statistics")
 }
@@ -405,13 +405,12 @@ func (collector *BackgroundStatsCollector) Stop() {
 
 		collector.cancel()
 
-		// Close channels FIRST to unblock workers waiting on channel operations
-		// This prevents workers from writing to closed channels during shutdown
+		// Wait for collectors and workers before closing channels. Closing first
+		// races with in-flight collectors that may still be publishing metrics.
+		collector.wg.Wait()
+
 		close(collector.systemStatsChan)
 		close(collector.databaseStatsChan)
-
-		// Then wait for all workers to finish
-		collector.wg.Wait()
 
 		// Log final statistics
 		collector.reportStats()

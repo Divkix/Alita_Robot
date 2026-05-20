@@ -140,6 +140,69 @@ func TestGetCurrentMetrics(t *testing.T) {
 	}
 }
 
+func TestBackgroundStatsCollectorStartStopWithShortIntervals(t *testing.T) {
+	setupMonitoringDB(t)
+
+	c := NewBackgroundStatsCollector()
+	c.systemStatsInterval = time.Millisecond
+	c.databaseStatsInterval = time.Millisecond
+	c.reportingInterval = time.Millisecond
+
+	c.Start()
+	time.Sleep(20 * time.Millisecond)
+	c.Stop()
+	c.Stop()
+
+	metrics := c.GetCurrentMetrics()
+	if metrics.Timestamp.IsZero() {
+		t.Fatal("collector did not process system metrics before Stop")
+	}
+}
+
+func TestCollectDatabaseStatsPublishesPoolMetrics(t *testing.T) {
+	setupMonitoringDB(t)
+
+	c := NewBackgroundStatsCollector()
+	c.collectDatabaseStats()
+
+	select {
+	case stats := <-c.databaseStatsChan:
+		if stats.Timestamp.IsZero() {
+			t.Fatal("database stats timestamp was not set")
+		}
+		if stats.ActiveConnections < 0 || stats.IdleConnections < 0 {
+			t.Fatalf("database connection stats must be non-negative: %#v", stats)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for database stats")
+	}
+}
+
+func TestUpdateDatabaseMetricsAndReportThresholdChecks(t *testing.T) {
+	c := NewBackgroundStatsCollector()
+	c.updateDatabaseMetrics(DatabaseStats{
+		ActiveConnections: 7,
+		TotalQueries:      11,
+		CacheHitRate:      0.75,
+	})
+	c.updateSystemMetrics(SystemMetrics{
+		GoroutineCount:      1001,
+		MemoryAllocMB:       501,
+		GCPauseMs:           101,
+		AverageResponseTime: 6 * time.Second,
+		Timestamp:           time.Now(),
+	})
+
+	metrics := c.GetCurrentMetrics()
+	if metrics.DatabaseConnections != 7 || metrics.DatabaseTotalQueries != 11 || metrics.CacheHitRate != 0.75 {
+		t.Fatalf("database metrics = connections %d total %d hit rate %.2f, want 7/11/0.75",
+			metrics.DatabaseConnections, metrics.DatabaseTotalQueries, metrics.CacheHitRate)
+	}
+
+	c.reportStats()
+	c.checkPerformanceThresholds()
+}
+
 // ---------------------------------------------------------------------------
 // ConcurrentRecordMessage
 // ---------------------------------------------------------------------------

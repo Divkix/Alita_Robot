@@ -310,6 +310,8 @@ func TestMain(m *testing.M) {
 		&db.GreetingSettings{},
 		&db.CaptchaSettings{},
 		&db.CaptchaAttempts{},
+		&db.StoredMessages{},
+		&db.CaptchaMutedUsers{},
 		&db.ApprovedUsers{},
 		&db.ChatFilters{},
 		&db.BlacklistSettings{},
