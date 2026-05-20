@@ -226,3 +226,49 @@ func TestStartHelpPrefixHandlerRoutesHelpDeepLink(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want help deep-link response", len(calls))
 	}
 }
+
+func TestStartHelpPrefixHandlerRejectsInvalidDeepLinks(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+
+	for _, arg := range []string{
+		"connect_bad",
+		"rules_bad",
+		"note_bad",
+		"note_123",
+	} {
+		t.Run(arg, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, user, "/start "+arg)
+			if err := startHelpPrefixHandler(bot, ctx, &user, arg); err != ext.EndGroups {
+				t.Fatalf("startHelpPrefixHandler(%q) error = %v, want EndGroups", arg, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one invalid-link reply per arg", len(calls))
+	}
+}
+
+func TestStartHelpPrefixHandlerSendsAboutAndDefaultHelp(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+
+	aboutCtx := newModuleMessageContext(bot, chat, user, "/start about")
+	if err := startHelpPrefixHandler(bot, aboutCtx, &user, "about"); err != ext.EndGroups {
+		t.Fatalf("startHelpPrefixHandler(about) error = %v, want EndGroups", err)
+	}
+
+	defaultCtx := newModuleMessageContext(bot, chat, user, "/start unknown")
+	if err := startHelpPrefixHandler(bot, defaultCtx, &user, "unknown"); err != ext.EndGroups {
+		t.Fatalf("startHelpPrefixHandler(default) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want about and default help messages", len(calls))
+	}
+}
