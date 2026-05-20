@@ -167,11 +167,30 @@ func RemoveAllNotes(chatID int64) error {
 	return nil
 }
 
+// ensureNotesSettingsRecord ensures a notes_settings row exists for the chat.
+func ensureNotesSettingsRecord(chatID int64) error {
+	noteSrc := &NotesSettings{}
+	err := GetRecord(noteSrc, NotesSettings{ChatId: chatID})
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if err := EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
+	return CreateRecord(&NotesSettings{ChatId: chatID, Private: false})
+}
+
 // TooglePrivateNote toggles the private notes setting for the specified chat.
 // When enabled, notes are sent privately to users instead of in the group.
 // Returns an error if the operation fails.
 func TooglePrivateNote(chatID int64, pref bool) error {
-	getNotesSettings(chatID)
+	if err := ensureNotesSettingsRecord(chatID); err != nil {
+		log.Errorf("[Database][TooglePrivateNote]: ensure settings %d - %v", chatID, err)
+		return err
+	}
 	err := UpdateRecordWithZeroValues(
 		&NotesSettings{},
 		NotesSettings{ChatId: chatID},
