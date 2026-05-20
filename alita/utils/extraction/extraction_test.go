@@ -412,6 +412,27 @@ func TestIdFromReply(t *testing.T) {
 		}
 	})
 
+	t.Run("reply with SenderChat and dummy From prefers chat ID", func(t *testing.T) {
+		t.Parallel()
+		const channelId int64 = -1001234567891
+		msg := &gotgbot.Message{
+			Text: "/ban channel spam",
+			ReplyToMessage: &gotgbot.Message{
+				Chat:       gotgbot.Chat{Id: -10044, Type: "supergroup", Title: "Group"},
+				From:       &gotgbot.User{Id: 136817688, IsBot: true, FirstName: "SendAsChannel"},
+				SenderChat: &gotgbot.Chat{Id: channelId, Type: "channel", Title: "Sender Channel"},
+			},
+		}
+
+		gotId, gotText := IdFromReply(msg)
+		if gotId != channelId {
+			t.Errorf("userId: got %d, want SenderChat ID %d", gotId, channelId)
+		}
+		if gotText != "channel spam" {
+			t.Errorf("text: got %q, want \"channel spam\"", gotText)
+		}
+	})
+
 	t.Run("reply with multiple spaces preserves full remaining text", func(t *testing.T) {
 		t.Parallel()
 		msg := &gotgbot.Message{

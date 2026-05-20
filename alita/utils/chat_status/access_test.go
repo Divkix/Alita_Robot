@@ -517,6 +517,35 @@ func TestRequireUserHandlesMissingAndPresentEffectiveSender(t *testing.T) {
 	}
 }
 
+func TestRequireUserFollowsGotgbotContextSenderShapes(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	callbackCtx := makeCtxWithCallbackQuery()
+	if got := RequireUser(bot, callbackCtx, false); got == nil || got.Id != 42 {
+		t.Fatalf("RequireUser(callback sender) = %#v, want callback user 42", got)
+	}
+
+	channelPost := &gotgbot.Message{
+		MessageId: 103,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Updates"},
+		SenderChat: &gotgbot.Chat{
+			Id:    -1001234567890,
+			Type:  "channel",
+			Title: "Updates",
+		},
+		Text: "broadcast",
+	}
+	channelCtx := ext.NewContext(bot, &gotgbot.Update{ChannelPost: channelPost}, nil)
+	if got := RequireUser(bot, channelCtx, true); got != nil {
+		t.Fatalf("RequireUser(channel post, justCheck) = %#v, want nil user", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none in justCheck mode", got)
+	}
+}
+
 func TestRequireGroupAndPrivateSendDenialMessages(t *testing.T) {
 	client := &recordingChatStatusClient{}
 	bot := newRecordingChatStatusBot(999, client)
