@@ -143,10 +143,14 @@ func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 // formattingHandler processes callback queries for formatting help navigation.
 // Updates help messages based on user selections from the formatting keyboard.
 func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
-	if query == nil {
+	if ctx == nil {
 		return ext.EndGroups
 	}
+	update := ctx.Update
+	if update == nil || update.CallbackQuery == nil {
+		return ext.EndGroups
+	}
+	query := update.CallbackQuery
 	msg := query.Message
 	if msg == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
