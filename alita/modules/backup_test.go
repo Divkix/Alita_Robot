@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -47,6 +48,7 @@ func testTranslator(t *testing.T) *i18n.Translator {
 backup_export_success: "Chat: {chat}, Modules: {modules}, Time: {time}, List: {list}"
 backup_import_file_too_large: "File is too large"
 backup_import_invalid_file: "Invalid backup file"
+backup_import_download_failed: "Download failed"
 backup_import_rate_limited: "Wait {time}"
 button_confirm_import: "Confirm Import"
 button_cancel_import: "Cancel Import"
@@ -130,6 +132,22 @@ func TestDownloadBackupFileRejectsInvalidDocumentBeforeNetwork(t *testing.T) {
 		assert.Nil(t, data)
 		assert.Equal(t, "File is too large", msg)
 	})
+}
+
+func TestDownloadBackupFileReportsGotgbotGetFileFailure(t *testing.T) {
+	tr := testTranslator(t)
+	client := newModuleBotClient()
+	client.errors["getFile"] = fmt.Errorf("telegram getFile failed")
+	bot := newModuleTestBot(client)
+
+	data, msg := downloadBackupFile(bot, &gotgbot.Document{
+		FileName: "backup.json",
+		FileId:   "backup-file-id",
+	}, tr)
+
+	assert.Nil(t, data)
+	assert.NotEmpty(t, msg)
+	assert.Len(t, client.callsFor("getFile"), 1)
 }
 
 func TestCheckImportRateLimitAllowsWhenCacheUnavailable(t *testing.T) {
@@ -260,6 +278,28 @@ func TestImportHandlerRequiresReplyDocument(t *testing.T) {
 	err := backupModule.importHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
+}
+
+func TestImportHandlerRejectsInvalidReplyDocument(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, owner, "/import")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 333,
+		Date:      1,
+		Chat:      chat,
+		Document: &gotgbot.Document{
+			FileId:   "not-json",
+			FileName: "backup.txt",
+		},
+	}
+
+	err := backupModule.importHandler(bot, ctx)
+	assert.Equal(t, ext.EndGroups, err)
+	assert.Len(t, client.callsFor("sendMessage"), 1)
+	assert.Empty(t, client.callsFor("getFile"))
 }
 
 func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {

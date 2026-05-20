@@ -8,6 +8,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db"
 )
 
 type chatStatusBotClient struct{}
@@ -87,6 +89,33 @@ func (c *recordingChatStatusClient) callsFor(method string) int {
 		}
 	}
 	return count
+}
+
+type paramRecordingChatStatusClient struct {
+	calls []struct {
+		method string
+		params map[string]any
+	}
+}
+
+func (c *paramRecordingChatStatusClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	copied := make(map[string]any, len(params))
+	for key, value := range params {
+		copied[key] = value
+	}
+	c.calls = append(c.calls, struct {
+		method string
+		params map[string]any
+	}{method: method, params: copied})
+	return chatStatusBotClient{}.RequestWithContext(context.Background(), "", method, params, nil)
+}
+
+func (c *paramRecordingChatStatusClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *paramRecordingChatStatusClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
 }
 
 func newRecordingChatStatusBot(id int64, client *recordingChatStatusClient) *gotgbot.Bot {
@@ -504,6 +533,92 @@ func TestRequireGroupAndPrivateSendDenialMessages(t *testing.T) {
 
 	if got := client.callsFor("sendMessage"); got != 2 {
 		t.Fatalf("sendMessage calls = %d, want two denial messages", got)
+	}
+}
+
+func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-999999999910001)
+	msg := &gotgbot.Message{
+		MessageId: 501,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+		Text:      "/kick 100",
+	}
+	t.Cleanup(func() {
+		_ = db.EnableCMD(chatID, "kick")
+		_ = db.ToggleDel(chatID, false)
+	})
+
+	privateMsg := *msg
+	privateMsg.Chat = gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
+	if CheckDisabledCmd(bot, &privateMsg, "kick") {
+		t.Fatal("CheckDisabledCmd(private) = true, want false")
+	}
+	if CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(enabled command) = true, want false")
+	}
+	if err := db.DisableCMD(chatID, "kick"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+
+	nilSenderMsg := *msg
+	nilSenderMsg.From = nil
+	if CheckDisabledCmd(bot, &nilSenderMsg, "kick") {
+		t.Fatal("CheckDisabledCmd(nil sender) = true, want false")
+	}
+	if !CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(disabled, no delete) = false, want true")
+	}
+	if got := client.callsFor("deleteMessage"); got != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none before delete setting", got)
+	}
+
+	if err := db.ToggleDel(chatID, true); err != nil {
+		t.Fatalf("ToggleDel(true) error = %v", err)
+	}
+	if !CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(disabled, delete) = false, want true")
+	}
+	if got := client.callsFor("deleteMessage"); got != 1 {
+		t.Fatalf("deleteMessage calls = %d, want one after delete setting", got)
+	}
+}
+
+func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456789, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 777,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+
+	isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, &gotgbot.Sender{
+		User: &gotgbot.User{Id: 42, FirstName: "Member"},
+	})
+	if isAdmin || shouldReturn {
+		t.Fatalf("checkAnonAdmin(non-anon) = (%v, %v), want false, false", isAdmin, shouldReturn)
+	}
+
+	if _, err := sendAnonAdminKeyboard(bot, msg, chat); err != nil {
+		t.Fatalf("sendAnonAdminKeyboard() error = %v", err)
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("recorded calls = %+v, want one sendMessage", client.calls)
+	}
+	if _, ok := client.calls[0].params["reply_markup"]; !ok {
+		t.Fatalf("sendMessage params = %+v, want reply_markup", client.calls[0].params)
 	}
 }
 
