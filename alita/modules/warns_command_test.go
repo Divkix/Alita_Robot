@@ -58,12 +58,73 @@ func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
 		t.Fatalf("warn mode = %q, want ban", got)
 	}
 
+	for _, mode := range []string{"kick", "mute"} {
+		modeCtx := newModuleMessageContext(bot, chat, admin, "/setwarnmode "+mode)
+		if err := warnsModule.setWarnMode(bot, modeCtx); err != ext.EndGroups {
+			t.Fatalf("setWarnMode(%s) error = %v, want EndGroups", mode, err)
+		}
+		if got := db.GetWarnSetting(chat.Id).WarnMode; got != mode {
+			t.Fatalf("warn mode = %q, want %q", got, mode)
+		}
+	}
+
+	missingLimitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit")
+	if err := warnsModule.setWarnLimit(bot, missingLimitCtx); err != ext.EndGroups {
+		t.Fatalf("setWarnLimit missing error = %v, want EndGroups", err)
+	}
+	badLimitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit nope")
+	if err := warnsModule.setWarnLimit(bot, badLimitCtx); err != ext.EndGroups {
+		t.Fatalf("setWarnLimit bad number error = %v, want EndGroups", err)
+	}
+	bigLimitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit 101")
+	if err := warnsModule.setWarnLimit(bot, bigLimitCtx); err != ext.EndGroups {
+		t.Fatalf("setWarnLimit range error = %v, want EndGroups", err)
+	}
+
+	missingModeCtx := newModuleMessageContext(bot, chat, admin, "/setwarnmode")
+	if err := warnsModule.setWarnMode(bot, missingModeCtx); err != ext.EndGroups {
+		t.Fatalf("setWarnMode missing error = %v, want EndGroups", err)
+	}
+	unknownModeCtx := newModuleMessageContext(bot, chat, admin, "/setwarnmode freeze")
+	if err := warnsModule.setWarnMode(bot, unknownModeCtx); err != ext.EndGroups {
+		t.Fatalf("setWarnMode unknown error = %v, want EndGroups", err)
+	}
+
 	displayCtx := newModuleMessageContext(bot, chat, admin, "/warnings")
 	if err := warnsModule.warnings(bot, displayCtx); err != ext.EndGroups {
 		t.Fatalf("warnings() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) < 4 {
 		t.Fatalf("sendMessage calls = %d, want at least 4", len(calls))
+	}
+}
+
+func TestWarnsCommandHandlesNoWarningsAndMissingTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	noWarnsCtx := newModuleMessageContext(bot, chat, admin, "/warns 42")
+	if err := warnsModule.warns(bot, noWarnsCtx); err != ext.EndGroups {
+		t.Fatalf("warns no-warning error = %v, want EndGroups", err)
+	}
+
+	missingWarnCtx := newModuleMessageContext(bot, chat, admin, "/warn")
+	if err := warnsModule.warnUser(bot, missingWarnCtx); err != ext.EndGroups {
+		t.Fatalf("warn missing target error = %v, want EndGroups", err)
+	}
+	missingSWarnCtx := newModuleMessageContext(bot, chat, admin, "/swarn")
+	if err := warnsModule.sWarnUser(bot, missingSWarnCtx); err != ext.EndGroups {
+		t.Fatalf("swarn missing target error = %v, want EndGroups", err)
+	}
+	missingDWarnCtx := newModuleMessageContext(bot, chat, admin, "/dwarn")
+	if err := warnsModule.dWarnUser(bot, missingDWarnCtx); err != ext.EndGroups {
+		t.Fatalf("dwarn missing target error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) < 4 {
+		t.Fatalf("sendMessage calls = %d, want replies for no warns and missing targets", len(calls))
 	}
 }
 
@@ -122,6 +183,43 @@ func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
 	}
 	if numWarns, _ := db.GetWarns(target.Id, chat.Id); numWarns != 0 {
 		t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
+	}
+}
+
+func TestWarnLimitKickAndMuteModes(t *testing.T) {
+	tests := []struct {
+		mode       string
+		wantMethod string
+	}{
+		{mode: "kick", wantMethod: "banChatMember"},
+		{mode: "mute", wantMethod: "restrictChatMember"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.mode, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			if err := db.SetWarnLimit(chat.Id, 1); err != nil {
+				t.Fatalf("SetWarnLimit() error = %v", err)
+			}
+			if err := db.SetWarnMode(chat.Id, tc.mode); err != nil {
+				t.Fatalf("SetWarnMode() error = %v", err)
+			}
+
+			warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn limit reached")
+			if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
+				t.Fatalf("warnUser() error = %v, want EndGroups", err)
+			}
+			if calls := client.callsFor(tc.wantMethod); len(calls) != 1 {
+				t.Fatalf("%s calls = %d, want 1", tc.wantMethod, len(calls))
+			}
+			if numWarns, _ := db.GetWarns(target.Id, chat.Id); numWarns != 0 {
+				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
+			}
+		})
 	}
 }
 
@@ -196,6 +294,15 @@ func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 	if numWarns, _ := db.GetWarns(target.Id, chat.Id); numWarns != 0 {
 		t.Fatalf("numWarns after reset = %d, want 0", numWarns)
 	}
+
+	removeMissingCtx := newModuleMessageContext(bot, chat, admin, "/rmwarn 43")
+	if err := warnsModule.removeWarn(bot, removeMissingCtx); err != ext.EndGroups {
+		t.Fatalf("removeWarn missing warning error = %v, want EndGroups", err)
+	}
+	resetMissingCtx := newModuleMessageContext(bot, chat, admin, "/resetwarns")
+	if err := warnsModule.resetWarns(bot, resetMissingCtx); err != ext.EndGroups {
+		t.Fatalf("resetWarns missing target error = %v, want EndGroups", err)
+	}
 }
 
 func TestRmWarnButtonRemovesWarning(t *testing.T) {
@@ -245,5 +352,35 @@ func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 	}
 	if got := db.GetAllChatWarns(chat.Id); got != 0 {
 		t.Fatalf("GetAllChatWarns() = %d, want 0 after reset all", got)
+	}
+}
+
+func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	emptyCtx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
+	if err := warnsModule.resetAllWarns(bot, emptyCtx); err != nil {
+		t.Fatalf("resetAllWarns empty error = %v, want nil", err)
+	}
+
+	db.WarnUser(42, chat.Id, "first")
+	cancelCtx := newModuleCallbackContext(bot, chat, admin, "rmAllChatWarns.no")
+	if err := warnsModule.warnsButtonHandler(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("warnsButtonHandler cancel error = %v, want EndGroups", err)
+	}
+	if got := db.GetAllChatWarns(chat.Id); got != 1 {
+		t.Fatalf("GetAllChatWarns() = %d, want warning retained after cancel", got)
+	}
+
+	invalidCtx := newModuleCallbackContext(bot, chat, admin, "rmAllChatWarns")
+	if err := warnsModule.warnsButtonHandler(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("warnsButtonHandler invalid error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid answers", len(calls))
 	}
 }
