@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/lib/v4/store"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -93,6 +97,94 @@ func setupHTTPServerDB(t *testing.T) {
 	}
 }
 
+type httpServerMemoryStore struct {
+	mu   sync.RWMutex
+	data map[string]any
+	ttls map[string]time.Time
+}
+
+func newHTTPServerMemoryStore() *httpServerMemoryStore {
+	return &httpServerMemoryStore{
+		data: make(map[string]any),
+		ttls: make(map[string]time.Time),
+	}
+}
+
+func (m *httpServerMemoryStore) Get(_ context.Context, key any) (any, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	k := fmt.Sprint(key)
+	if expiry, ok := m.ttls[k]; ok && time.Now().After(expiry) {
+		return nil, fmt.Errorf("key expired")
+	}
+	value, ok := m.data[k]
+	if !ok {
+		return nil, fmt.Errorf("key not found")
+	}
+	return value, nil
+}
+
+func (m *httpServerMemoryStore) GetWithTTL(_ context.Context, key any) (any, time.Duration, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	k := fmt.Sprint(key)
+	value, ok := m.data[k]
+	if !ok {
+		return nil, 0, fmt.Errorf("key not found")
+	}
+	if expiry, ok := m.ttls[k]; ok {
+		ttl := time.Until(expiry)
+		if ttl < 0 {
+			return nil, 0, fmt.Errorf("key expired")
+		}
+		return value, ttl, nil
+	}
+	return value, 0, nil
+}
+
+func (m *httpServerMemoryStore) Set(_ context.Context, key, value any, options ...store.Option) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	k := fmt.Sprint(key)
+	m.data[k] = value
+	if expiration := store.ApplyOptions(options...).Expiration; expiration > 0 {
+		m.ttls[k] = time.Now().Add(expiration)
+	} else {
+		delete(m.ttls, k)
+	}
+	return nil
+}
+
+func (m *httpServerMemoryStore) Delete(_ context.Context, key any) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	k := fmt.Sprint(key)
+	delete(m.data, k)
+	delete(m.ttls, k)
+	return nil
+}
+
+func (m *httpServerMemoryStore) Invalidate(context.Context, ...store.InvalidateOption) error {
+	return nil
+}
+
+func (m *httpServerMemoryStore) Clear(context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.data = make(map[string]any)
+	m.ttls = make(map[string]time.Time)
+	return nil
+}
+
+func (m *httpServerMemoryStore) GetType() string {
+	return "httpserver-memory-test"
+}
+
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
@@ -109,6 +201,31 @@ func TestNewServer(t *testing.T) {
 	}
 	if !s.startTime.Equal(startTime) {
 		t.Errorf("expected startTime %v, got %v", startTime, s.startTime)
+	}
+}
+
+func TestCheckDatabaseWithHealthyConnection(t *testing.T) {
+	setupHTTPServerDB(t)
+
+	if !checkDatabase() {
+		t.Fatal("checkDatabase() = false, want true with configured test DB")
+	}
+}
+
+func TestCheckRedisWithNilAndHealthyManagers(t *testing.T) {
+	previousManager := cache.Manager
+	cache.Manager = nil
+	t.Cleanup(func() {
+		cache.Manager = previousManager
+	})
+
+	if checkRedis() {
+		t.Fatal("checkRedis() = true, want false with nil manager")
+	}
+
+	cache.Manager = gocache.New[any](newHTTPServerMemoryStore())
+	if !checkRedis() {
+		t.Fatal("checkRedis() = false, want true with memory manager")
 	}
 }
 
