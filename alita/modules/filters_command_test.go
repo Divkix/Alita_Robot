@@ -65,6 +65,111 @@ func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 	}
 }
 
+func TestFilterCommandValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	replyWithoutKeyword := newModuleMessageContext(bot, chat, admin, "/filter")
+	replyWithoutKeyword.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 222,
+		Date:      1,
+		Chat:      chat,
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+		Text:      "reply text",
+	}
+	if err := filtersModule.addFilter(bot, replyWithoutKeyword); err != ext.EndGroups {
+		t.Fatalf("addFilter reply without keyword error = %v, want EndGroups", err)
+	}
+
+	for _, text := range []string{
+		"/filter",
+		"/filter " + strings.Repeat("x", 101) + " value",
+	} {
+		ctx := newModuleMessageContext(bot, chat, admin, text)
+		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("addFilter(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	if err := db.AddFilter(chat.Id, "dupe", "old", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter setup error = %v", err)
+	}
+	overwriteCtx := newModuleMessageContext(bot, chat, admin, "/filter dupe new")
+	if err := filtersModule.addFilter(bot, overwriteCtx); err != ext.EndGroups {
+		t.Fatalf("addFilter duplicate error = %v, want EndGroups", err)
+	}
+	lastCall := client.callsFor("sendMessage")[len(client.callsFor("sendMessage"))-1]
+	if lastCall.Params["reply_markup"] == nil {
+		t.Fatal("duplicate filter prompt did not include overwrite buttons")
+	}
+}
+
+func TestRemoveAndListFilterValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, text := range []string{"/stop", "/stop missing"} {
+		ctx := newModuleMessageContext(bot, chat, admin, text)
+		if err := filtersModule.rmFilter(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("rmFilter(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	listCtx := newModuleMessageContext(bot, chat, admin, "/filters")
+	listCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 303,
+		Date:      1,
+		Chat:      chat,
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+		Text:      "thread source",
+	}
+	if err := filtersModule.filtersList(bot, listCtx); err != ext.EndGroups {
+		t.Fatalf("filtersList empty with reply error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want remove missing and empty list replies", len(calls))
+	}
+	if calls[len(calls)-1].Params["reply_parameters"] == nil {
+		t.Fatal("filtersList did not anchor reply to replied message")
+	}
+}
+
+func TestFiltersWatcherNoFormatPathRequiresAdmin(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := db.AddFilter(chat.Id, "raw", "<b>Raw</b>", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter setup error = %v", err)
+	}
+
+	memberCtx := newModuleMessageContext(bot, chat, member, "raw noformat")
+	if err := filtersModule.filtersWatcher(bot, memberCtx); err != ext.EndGroups {
+		t.Fatalf("filtersWatcher member noformat error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want admin denial", len(calls))
+	}
+
+	adminCtx := newModuleMessageContext(bot, chat, admin, "raw noformat")
+	if err := filtersModule.filtersWatcher(bot, adminCtx); err != ext.ContinueGroups {
+		t.Fatalf("filtersWatcher admin noformat error = %v, want ContinueGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want denial plus raw filter reply", len(calls))
+	}
+	if text := calls[len(calls)-1].Params["text"].(string); !strings.Contains(text, "Raw") {
+		t.Fatalf("raw filter reply = %q, want stored content", text)
+	}
+}
+
 func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -105,6 +210,31 @@ func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
 	}
 }
 
+func TestFilterOverwriteCallbackCancelAndExpired(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	cancelCtx := newModuleCallbackContext(bot, chat, admin, "filters_overwrite.cancel")
+	if err := filtersModule.filterOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("filterOverWriteHandler cancel error = %v, want EndGroups", err)
+	}
+
+	expiredData := encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "missing"}, "filters_overwrite.old")
+	expiredCtx := newModuleCallbackContext(bot, chat, admin, expiredData)
+	if err := filtersModule.filterOverWriteHandler(bot, expiredCtx); err != ext.EndGroups {
+		t.Fatalf("filterOverWriteHandler expired error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("editMessageText"); len(calls) != 2 {
+		t.Fatalf("editMessageText calls = %d, want one edit per callback", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want one answer per callback", len(calls))
+	}
+}
+
 func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -134,4 +264,35 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 	waitForModuleCondition(t, func() bool {
 		return len(db.GetFiltersList(chat.Id)) == 0
 	})
+}
+
+func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	emptyCtx := newModuleMessageContext(bot, chat, owner, "/stopall")
+	if err := filtersModule.rmAllFilters(bot, emptyCtx); err != ext.EndGroups {
+		t.Fatalf("rmAllFilters empty error = %v, want EndGroups", err)
+	}
+
+	if err := db.AddFilter(chat.Id, "keep", "reply", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter setup error = %v", err)
+	}
+	cancelCtx := newModuleCallbackContext(bot, chat, owner, "rmAllFilters.no")
+	if err := filtersModule.filtersButtonHandler(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("filtersButtonHandler cancel error = %v, want EndGroups", err)
+	}
+	if !db.DoesFilterExists(chat.Id, "keep") {
+		t.Fatal("filter was removed after cancel callback")
+	}
+
+	invalidCtx := newModuleCallbackContext(bot, chat, owner, "rmAllFilters")
+	if err := filtersModule.filtersButtonHandler(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("filtersButtonHandler invalid error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid acknowledgements", len(calls))
+	}
 }
