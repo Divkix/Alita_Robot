@@ -131,6 +131,24 @@ func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
 	}
 }
 
+func TestPurgeRejectsOverLimitRange(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newPurgeReplyContext(bot, chat, admin, "/purge", 2005, 1)
+	if err := purgesModule.purge(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("purge over limit error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for over-limit purge", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want limit message", len(calls))
+	}
+}
+
 func TestDelCommandDeletesReplyAndCommandMessage(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -180,6 +198,47 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) < 6 {
 		t.Fatalf("deleteMessage calls = %d, want marker, range, and command deletions", len(calls))
+	}
+}
+
+func TestPurgeFromToValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	delMsgs.Delete(chat.Id)
+
+	noFromReplyCtx := newModuleMessageContext(bot, chat, admin, "/purgefrom")
+	if err := purgesModule.purgeFrom(bot, noFromReplyCtx); err != ext.EndGroups {
+		t.Fatalf("purgeFrom no reply error = %v, want EndGroups", err)
+	}
+
+	noToReplyCtx := newModuleMessageContext(bot, chat, admin, "/purgeto")
+	if err := purgesModule.purgeTo(bot, noToReplyCtx); err != ext.EndGroups {
+		t.Fatalf("purgeTo no reply error = %v, want EndGroups", err)
+	}
+
+	delMsgs.Store(chat.Id, int64(300))
+	sameMessageCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 310, 300)
+	if err := purgesModule.purgeTo(bot, sameMessageCtx); err != ext.EndGroups {
+		t.Fatalf("purgeTo same message error = %v, want EndGroups", err)
+	}
+
+	delMsgs.Store(chat.Id, int64(1))
+	overLimitCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto", 2100, 1002)
+	if err := purgesModule.purgeTo(bot, overLimitCtx); err != ext.EndGroups {
+		t.Fatalf("purgeTo over limit error = %v, want EndGroups", err)
+	}
+	if _, ok := delMsgs.Load(chat.Id); !ok {
+		t.Fatal("purge marker was deleted for rejected over-limit purgeto")
+	}
+	delMsgs.Delete(chat.Id)
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one validation reply per branch", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want no deletion for validation branches", len(calls))
 	}
 }
 
