@@ -391,7 +391,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	if chat_status.IsApproved(b, chat.Id, senderID) {
+	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -441,7 +441,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	if chat_status.IsApproved(b, chat.Id, senderID) {
+	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -485,7 +485,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	if chat_status.IsApproved(b, chat.Id, senderID) {
+	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 

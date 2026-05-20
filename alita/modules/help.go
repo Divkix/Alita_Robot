@@ -148,7 +148,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 func NewHelpRegistry() *moduleStruct {
 	return &moduleStruct{
 		moduleName:     "Help",
-		AbleMap:        moduleEnabled{},
+		AbleMap:        moduleEnabled{modules: make(map[string]bool)},
 		AltHelpOptions: make(map[string][]string),
 		helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
 	}

@@ -83,7 +83,6 @@ func TestListModules(t *testing.T) {
 	t.Parallel()
 
 	helpRegistry := NewHelpRegistry()
-	helpRegistry.AbleMap.Init()
 	helpRegistry.AbleMap.Store("admin", true)
 	helpRegistry.AbleMap.Store("filters", true)
 	helpRegistry.AbleMap.Store("help", true)

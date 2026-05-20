@@ -232,8 +232,8 @@ func TestModuleLoadersAreRegisteredWithRegistry(t *testing.T) {
 		t.Fatalf("failed to list module files: %v", err)
 	}
 
-	loaderPattern := regexp.MustCompile(`func\s+(Load[A-Z][A-Za-z0-9_]*)\s*\(\s*dispatcher\s+\*ext\.Dispatcher\s*\)`)
-	registrationPattern := regexp.MustCompile(`RegisterLegacyModule\(\s*"[^"]+"\s*,\s*\d+\s*,\s*(Load[A-Z][A-Za-z0-9_]*)\s*\)`)
+	loaderPattern := regexp.MustCompile(`func\s+(Load[A-Z][A-Za-z0-9_]*)\s*\(\s*(?:[A-Za-z_][A-Za-z0-9_]*\s+)?\*ext\.Dispatcher\s*\)`)
+	registrationPattern := regexp.MustCompile(`RegisterLegacyModule\(\s*"[^"]+"\s*,\s*[^,]+\s*,\s*(Load[A-Z][A-Za-z0-9_]*)\s*\)`)
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") ||
 			strings.HasSuffix(file, string(filepath.Separator)+"registry.go") ||
@@ -273,5 +273,26 @@ func TestHelpRegistryDoesNotExposeGlobalMutableSingleton(t *testing.T) {
 	}
 	if !strings.Contains(source, "func NewHelpRegistry() *moduleStruct") {
 		t.Fatal("help registry must expose a constructor for isolated tests")
+	}
+}
+
+func TestBotLockApprovedBypassRequiresPositiveSenderID(t *testing.T) {
+	t.Parallel()
+
+	source := readRepoFile(t, "alita", "modules", "locks.go")
+	start := strings.Index(source, "func (moduleStruct) botLockHandler")
+	if start == -1 {
+		t.Fatal("botLockHandler function is missing")
+	}
+
+	body := source[start:]
+	end := strings.Index(body, "\n}\n")
+	if end == -1 {
+		t.Fatal("botLockHandler body is malformed")
+	}
+	body = body[:end]
+
+	if !strings.Contains(body, "senderID > 0 && chat_status.IsApproved") {
+		t.Fatal("botLockHandler must not call IsApproved unless senderID is positive")
 	}
 }
