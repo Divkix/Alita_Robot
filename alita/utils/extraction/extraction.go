@@ -1,6 +1,7 @@
 package extraction
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -17,6 +18,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+)
+
+var (
+	errNoTimeSpecified   = errors.New("no time specified")
+	errInvalidTimeAmount = errors.New("invalid time amount")
+	errInvalidTimeType   = errors.New("invalid time type")
+	errTimeLimitExceeded = errors.New("time limit exceeded")
 )
 
 // ExtractChat extracts and validates a chat from command arguments.
@@ -310,12 +318,14 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 	timeNow := time.Now().Unix()
-	yearTime := timeNow + int64(365*24*60*60)
 
-	args := strings.Fields(inputVal)
+	banTime, timeStr, reason, err := parseTemporaryDuration(inputVal, timeNow)
+	if err == nil {
+		return banTime, timeStr, reason
+	}
 
-	// Guard against empty input
-	if len(args) == 0 {
+	switch {
+	case errors.Is(err, errNoTimeSpecified):
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_no_time_specified")
 		_, err := msg.Reply(b, text, nil)
@@ -323,73 +333,76 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 			log.Errorf("[Extraction] Failed to reply with no time specified: %v", err)
 		}
 		return -1, "", ""
+	case errors.Is(err, errInvalidTimeAmount):
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("extraction_invalid_time_amount")
+		_, err := msg.Reply(b, text, nil)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with invalid time amount: %v", err)
+		}
+		return -1, "", ""
+	case errors.Is(err, errTimeLimitExceeded):
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("extraction_time_limit_exceeded")
+		_, err := msg.Reply(b, text, nil)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with time limit exceeded: %v", err)
+		}
+		return -1, "", ""
+	default:
+		timeVal := ""
+		if args := strings.Fields(inputVal); len(args) > 0 {
+			timeVal = args[0]
+		}
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
+		_, err := msg.Reply(b, text, nil)
+		if err != nil {
+			log.Errorf("[Extraction] Failed to reply with invalid time type: %v", err)
+		}
+		return -1, "", ""
+	}
+}
+
+func parseTemporaryDuration(inputVal string, now int64) (banTime int64, timeStr, reason string, err error) {
+	args := strings.Fields(inputVal)
+	if len(args) == 0 {
+		return -1, "", "", errNoTimeSpecified
 	}
 
-	timeVal := args[0] // first word will be the time specification
+	timeVal := args[0]
 	if len(args) >= 2 {
 		reason = strings.Join(args[1:], " ")
 	}
 
-	// Check if timeVal ends with a valid time unit (m, h, d, w)
-	if len(timeVal) > 0 {
-		lastChar := timeVal[len(timeVal)-1]
-		if lastChar == 'm' || lastChar == 'h' || lastChar == 'd' || lastChar == 'w' {
-			t := timeVal[:len(timeVal)-1]
-			timeNum, err := strconv.Atoi(t)
-			if err != nil {
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-				text, _ := tr.GetString("extraction_invalid_time_amount")
-				_, err := msg.Reply(b, text, nil)
-				if err != nil {
-					log.Errorf("[Extraction] Failed to reply with invalid time amount: %v", err)
-				}
-				return -1, "", ""
-			}
-
-			switch string(timeVal[len(timeVal)-1]) {
-			case "m":
-				banTime = timeNow + int64(timeNum*60)
-				timeStr = fmt.Sprintf("%d minutes", timeNum)
-			case "h":
-				banTime = timeNow + int64(timeNum*60*60)
-				timeStr = fmt.Sprintf("%d hours", timeNum)
-			case "d":
-				banTime = timeNow + int64(timeNum*24*60*60)
-				timeStr = fmt.Sprintf("%d days", timeNum)
-			case "w":
-				banTime = timeNow + int64(timeNum*7*24*60*60)
-				timeStr = fmt.Sprintf("%d weeks", timeNum)
-			default:
-				return -1, "", ""
-			}
-
-			if banTime >= yearTime {
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-				text, _ := tr.GetString("extraction_time_limit_exceeded")
-				_, err := msg.Reply(b, text, nil)
-				if err != nil {
-					log.Errorf("[Extraction] Failed to reply with time limit exceeded: %v", err)
-				}
-				return -1, "", ""
-			}
-
-			return banTime, timeStr, reason
-		} else {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
-			_, err := msg.Reply(b, text, nil)
-			if err != nil {
-				log.Errorf("[Extraction] Failed to reply with invalid time type: %v", err)
-			}
-			return -1, "", ""
-		}
-	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("extraction_invalid_time_format")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Errorf("[Extraction] Failed to reply with invalid time format: %v", err)
-		}
-		return -1, "", ""
+	lastChar := timeVal[len(timeVal)-1]
+	if lastChar != 'm' && lastChar != 'h' && lastChar != 'd' && lastChar != 'w' {
+		return -1, "", "", errInvalidTimeType
 	}
+
+	timeNum, err := strconv.Atoi(timeVal[:len(timeVal)-1])
+	if err != nil {
+		return -1, "", "", errInvalidTimeAmount
+	}
+
+	switch lastChar {
+	case 'm':
+		banTime = now + int64(timeNum*60)
+		timeStr = fmt.Sprintf("%d minutes", timeNum)
+	case 'h':
+		banTime = now + int64(timeNum*60*60)
+		timeStr = fmt.Sprintf("%d hours", timeNum)
+	case 'd':
+		banTime = now + int64(timeNum*24*60*60)
+		timeStr = fmt.Sprintf("%d days", timeNum)
+	case 'w':
+		banTime = now + int64(timeNum*7*24*60*60)
+		timeStr = fmt.Sprintf("%d weeks", timeNum)
+	}
+
+	if banTime >= now+int64(365*24*60*60) {
+		return -1, "", "", errTimeLimitExceeded
+	}
+
+	return banTime, timeStr, reason, nil
 }

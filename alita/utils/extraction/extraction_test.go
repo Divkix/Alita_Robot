@@ -1,6 +1,7 @@
 package extraction
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -416,10 +417,10 @@ func TestIdFromReply_TextSplitVariations(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		text         string
-		wantUserId   int64
-		wantText     string
+		name       string
+		text       string
+		wantUserId int64
+		wantText   string
 	}{
 		{
 			name:       "text with single space split",
@@ -519,6 +520,100 @@ func TestExtractQuotes_UnicodeContent(t *testing.T) {
 			}
 			if gotAfter != tc.wantAfter {
 				t.Errorf("afterWord: got %q, want %q", gotAfter, tc.wantAfter)
+			}
+		})
+	}
+}
+
+func TestParseTemporaryDuration(t *testing.T) {
+	t.Parallel()
+
+	const now int64 = 1_700_000_000
+
+	tests := []struct {
+		name        string
+		input       string
+		wantBanTime int64
+		wantTimeStr string
+		wantReason  string
+		wantErr     error
+	}{
+		{
+			name:        "minutes with reason",
+			input:       "15m repeated spam",
+			wantBanTime: now + 15*60,
+			wantTimeStr: "15 minutes",
+			wantReason:  "repeated spam",
+		},
+		{
+			name:        "hours without reason",
+			input:       "2h",
+			wantBanTime: now + 2*60*60,
+			wantTimeStr: "2 hours",
+		},
+		{
+			name:        "days joins multi word reason",
+			input:       "3d raid cleanup needed",
+			wantBanTime: now + 3*24*60*60,
+			wantTimeStr: "3 days",
+			wantReason:  "raid cleanup needed",
+		},
+		{
+			name:        "weeks",
+			input:       "4w long cooldown",
+			wantBanTime: now + 4*7*24*60*60,
+			wantTimeStr: "4 weeks",
+			wantReason:  "long cooldown",
+		},
+		{
+			name:    "empty input",
+			input:   " \t\n ",
+			wantErr: errNoTimeSpecified,
+		},
+		{
+			name:    "invalid amount",
+			input:   "xw bad amount",
+			wantErr: errInvalidTimeAmount,
+		},
+		{
+			name:    "invalid type",
+			input:   "10y bad unit",
+			wantErr: errInvalidTimeType,
+		},
+		{
+			name:    "one year exactly exceeds limit",
+			input:   "365d too long",
+			wantErr: errTimeLimitExceeded,
+		},
+		{
+			name:        "negative amount preserves existing behavior",
+			input:       "-1h already elapsed",
+			wantBanTime: now - 60*60,
+			wantTimeStr: "-1 hours",
+			wantReason:  "already elapsed",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotBanTime, gotTimeStr, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
+			if !errors.Is(gotErr, tc.wantErr) {
+				t.Fatalf("parseTemporaryDuration() err = %v, want %v", gotErr, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				return
+			}
+			if gotBanTime != tc.wantBanTime {
+				t.Fatalf("banTime = %d, want %d", gotBanTime, tc.wantBanTime)
+			}
+			if gotTimeStr != tc.wantTimeStr {
+				t.Fatalf("timeStr = %q, want %q", gotTimeStr, tc.wantTimeStr)
+			}
+			if gotReason != tc.wantReason {
+				t.Fatalf("reason = %q, want %q", gotReason, tc.wantReason)
 			}
 		})
 	}
