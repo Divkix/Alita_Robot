@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -213,4 +214,206 @@ func TestLoadConfig(t *testing.T) {
 			t.Errorf("EnablePPROF: got false, want true")
 		}
 	})
+}
+
+func TestValidateConfigPure(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(*Config)
+		wantErr string
+	}{
+		{name: "valid base config", setup: func(_ *Config) {}},
+		{
+			name:    "missing bot token",
+			setup:   func(c *Config) { c.BotToken = "" },
+			wantErr: "BOT_TOKEN is required",
+		},
+		{
+			name:    "missing owner",
+			setup:   func(c *Config) { c.OwnerId = 0 },
+			wantErr: "OWNER_ID is required",
+		},
+		{
+			name:    "missing message dump",
+			setup:   func(c *Config) { c.MessageDump = 0 },
+			wantErr: "MESSAGE_DUMP is required",
+		},
+		{
+			name:    "missing database URL",
+			setup:   func(c *Config) { c.DatabaseURL = "" },
+			wantErr: "DATABASE_URL is required",
+		},
+		{
+			name:    "missing redis address",
+			setup:   func(c *Config) { c.RedisAddress = "" },
+			wantErr: "REDIS_ADDRESS or REDIS_URL is required",
+		},
+		{
+			name: "webhook requires domain",
+			setup: func(c *Config) {
+				c.UseWebhooks = true
+				c.WebhookDomain = ""
+				c.WebhookSecret = "secret"
+			},
+			wantErr: "WEBHOOK_DOMAIN is required",
+		},
+		{
+			name: "webhook requires secret",
+			setup: func(c *Config) {
+				c.UseWebhooks = true
+				c.WebhookDomain = "https://example.com"
+				c.WebhookSecret = ""
+			},
+			wantErr: "WEBHOOK_SECRET is required",
+		},
+		{
+			name:    "invalid HTTP port",
+			setup:   func(c *Config) { c.HTTPPort = 70000 },
+			wantErr: "HTTP_PORT must be between 1 and 65535",
+		},
+		{
+			name:    "invalid chat validation workers",
+			setup:   func(c *Config) { c.ChatValidationWorkers = 101 },
+			wantErr: "CHAT_VALIDATION_WORKERS must be between 1 and 100",
+		},
+		{
+			name:    "invalid database workers",
+			setup:   func(c *Config) { c.DatabaseWorkers = 51 },
+			wantErr: "DATABASE_WORKERS must be between 1 and 50",
+		},
+		{
+			name:    "invalid message pipeline workers",
+			setup:   func(c *Config) { c.MessagePipelineWorkers = 51 },
+			wantErr: "MESSAGE_PIPELINE_WORKERS must be between 1 and 50",
+		},
+		{
+			name:    "invalid bulk workers",
+			setup:   func(c *Config) { c.BulkOperationWorkers = 21 },
+			wantErr: "BULK_OPERATION_WORKERS must be between 1 and 20",
+		},
+		{
+			name:    "invalid cache workers",
+			setup:   func(c *Config) { c.CacheWorkers = 21 },
+			wantErr: "CACHE_WORKERS must be between 1 and 20",
+		},
+		{
+			name:    "invalid stats workers",
+			setup:   func(c *Config) { c.StatsCollectionWorkers = 11 },
+			wantErr: "STATS_COLLECTION_WORKERS must be between 1 and 10",
+		},
+		{
+			name:    "invalid max concurrent operations",
+			setup:   func(c *Config) { c.MaxConcurrentOperations = 1001 },
+			wantErr: "MAX_CONCURRENT_OPERATIONS must be between 1 and 1000",
+		},
+		{
+			name:    "invalid operation timeout",
+			setup:   func(c *Config) { c.OperationTimeoutSeconds = 301 },
+			wantErr: "OPERATION_TIMEOUT_SECONDS must be between 1 and 300",
+		},
+		{
+			name:    "invalid dispatcher routines",
+			setup:   func(c *Config) { c.DispatcherMaxRoutines = 1001 },
+			wantErr: "DISPATCHER_MAX_ROUTINES must be between 1 and 1000",
+		},
+		{
+			name:    "invalid idle connections",
+			setup:   func(c *Config) { c.DBMaxIdleConns = 101 },
+			wantErr: "DB_MAX_IDLE_CONNS must be between 1 and 100",
+		},
+		{
+			name:    "invalid open connections",
+			setup:   func(c *Config) { c.DBMaxOpenConns = 1001 },
+			wantErr: "DB_MAX_OPEN_CONNS must be between 1 and 1000",
+		},
+		{
+			name:    "invalid connection lifetime",
+			setup:   func(c *Config) { c.DBConnMaxLifetimeMin = 1441 },
+			wantErr: "DB_CONN_MAX_LIFETIME_MIN must be between 1 and 1440 minutes",
+		},
+		{
+			name:    "invalid idle time",
+			setup:   func(c *Config) { c.DBConnMaxIdleTimeMin = 61 },
+			wantErr: "DB_CONN_MAX_IDLE_TIME_MIN must be between 1 and 60 minutes",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := validBaseConfig()
+			cfg.DispatcherMaxRoutines = 200
+			cfg.DBMaxIdleConns = 50
+			cfg.DBMaxOpenConns = 200
+			cfg.DBConnMaxLifetimeMin = 240
+			cfg.DBConnMaxIdleTimeMin = 60
+			tc.setup(cfg)
+
+			err := ValidateConfig(cfg)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ValidateConfig() error = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("ValidateConfig() error = nil, want %q", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("ValidateConfig() error = %q, want substring %q", err.Error(), tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestRedisEnvParsingPure(t *testing.T) {
+	tests := []struct {
+		name         string
+		redisAddr    string
+		redisPass    string
+		redisURL     string
+		wantAddr     string
+		wantPassword string
+	}{
+		{
+			name:         "explicit address and password take precedence",
+			redisAddr:    "redis.internal:6379",
+			redisPass:    "direct-password",
+			redisURL:     "redis://:url-password@example.com:6380",
+			wantAddr:     "redis.internal:6379",
+			wantPassword: "direct-password",
+		},
+		{
+			name:         "url supplies host and password",
+			redisURL:     "redis://:secret@example.com:6380/1",
+			wantAddr:     "example.com:6380",
+			wantPassword: "secret",
+		},
+		{
+			name:     "invalid url returns empty values",
+			redisURL: "://bad-url",
+		},
+		{
+			name: "empty env returns empty values",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("REDIS_ADDRESS", tc.redisAddr)
+			t.Setenv("REDIS_PASSWORD", tc.redisPass)
+			t.Setenv("REDIS_URL", tc.redisURL)
+
+			if got := getRedisAddress(); got != tc.wantAddr {
+				t.Fatalf("getRedisAddress() = %q, want %q", got, tc.wantAddr)
+			}
+			if got := getRedisPassword(); got != tc.wantPassword {
+				t.Fatalf("getRedisPassword() = %q, want %q", got, tc.wantPassword)
+			}
+		})
+	}
 }
