@@ -682,3 +682,56 @@ func TestTranslator_GetStringSlice_NilManager(t *testing.T) {
 		t.Fatalf("expected ErrManagerNotInit, got: %v", err)
 	}
 }
+
+func TestTranslator_GetStringSlice_ExistingAndMissingKeys(t *testing.T) {
+	t.Parallel()
+
+	const yamlContent = `
+items:
+  - one
+  - two
+`
+	tr := newTestTranslator(t, yamlContent)
+
+	items, err := tr.GetStringSlice("items")
+	if err != nil {
+		t.Fatalf("GetStringSlice(items) error = %v", err)
+	}
+	if len(items) != 2 || items[0] != "one" || items[1] != "two" {
+		t.Fatalf("GetStringSlice(items) = %v, want [one two]", items)
+	}
+
+	_, err = tr.GetStringSlice("missing")
+	if err == nil {
+		t.Fatal("GetStringSlice(missing) error = nil, want ErrKeyNotFound")
+	}
+	if !errors.Is(err, ErrKeyNotFound) {
+		t.Fatalf("GetStringSlice(missing) error = %v, want ErrKeyNotFound", err)
+	}
+}
+
+func TestTranslator_GetStringSlice_FallsBackToDefaultLanguage(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultManagerConfig()
+	cfg.Cache.EnableCache = false
+	cfg.Loader.DefaultLanguage = "en"
+	cfg.Loader.StrictMode = true
+
+	lm := newTestLocaleManager()
+	if err := lm.Initialize(&testLocaleFS, "testdata/locales", cfg); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	tr, err := lm.GetTranslator("es")
+	if err != nil {
+		t.Fatalf("GetTranslator(es) error = %v", err)
+	}
+
+	items, err := tr.GetStringSlice("items")
+	if err != nil {
+		t.Fatalf("GetStringSlice(items fallback) error = %v", err)
+	}
+	if len(items) != 2 || items[0] != "one" || items[1] != "two" {
+		t.Fatalf("GetStringSlice(items fallback) = %v, want [one two]", items)
+	}
+}
