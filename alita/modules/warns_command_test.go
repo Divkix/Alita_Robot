@@ -128,6 +128,40 @@ func TestWarnsCommandHandlesNoWarningsAndMissingTargets(t *testing.T) {
 	}
 }
 
+func TestWarnCommandsRejectChannelTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "warn channel", text: "/warn -1001234567890 spam", run: warnsModule.warnUser},
+		{name: "swarn channel", text: "/swarn -1001234567890", run: warnsModule.sWarnUser},
+		{name: "dwarn channel", text: "/dwarn -1001234567890", run: warnsModule.dWarnUser},
+		{name: "warns channel", text: "/warns -1001234567890", run: warnsModule.warns},
+		{name: "remove channel", text: "/rmwarn -1001234567890", run: warnsModule.removeWarn},
+		{name: "reset channel", text: "/resetwarns -1001234567890", run: warnsModule.resetWarns},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := tt.run(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for rejected channel targets", len(calls))
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want none for rejected channel targets", len(calls))
+	}
+}
+
 func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -158,6 +192,30 @@ func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
 	lastText := calls[len(calls)-1].Params["text"].(string)
 	if !strings.Contains(lastText, "too noisy") {
 		t.Fatalf("warn list text = %q, want reason", lastText)
+	}
+}
+
+func TestWarnsListsCountWhenReasonsAreEmpty(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	if err := db.DB.Create(&db.Warns{
+		UserId:   42,
+		ChatId:   chat.Id,
+		NumWarns: 2,
+		Reasons:  db.StringArray{},
+	}).Error; err != nil {
+		t.Fatalf("create warns fixture: %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/warns 42")
+	if err := warnsModule.warns(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("warns() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want warning count reply", len(calls))
 	}
 }
 
@@ -326,6 +384,26 @@ func TestRmWarnButtonRemovesWarning(t *testing.T) {
 	}
 }
 
+func TestRmWarnButtonRejectsMalformedAndInvalidUserCallbacks(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, data := range []string{"rmWarn", "rmWarn.not-a-number"} {
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+		if err := warnsModule.rmWarnButton(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("rmWarnButton(%q) error = %v, want EndGroups", data, err)
+		}
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want malformed and invalid answers", len(calls))
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
+		t.Fatalf("editMessageText calls = %d, want none for invalid callbacks", len(calls))
+	}
+}
+
 func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -382,5 +460,14 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid answers", len(calls))
+	}
+}
+
+func TestLoadWarnsRegistersHelpAndHandlers(t *testing.T) {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadWarns(dispatcher)
+
+	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(warnsModule.moduleName); moduleName != warnsModule.moduleName || !enabled {
+		t.Fatalf("warns help registration = (%q, %v), want enabled", moduleName, enabled)
 	}
 }
