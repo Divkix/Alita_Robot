@@ -308,9 +308,33 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.antichannelpin(bot, antiCurrentCtx); err != ext.EndGroups {
 		t.Fatalf("antichannelpin current error = %v, want EndGroups", err)
 	}
+	antiOffCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin off")
+	if err := pinsModule.antichannelpin(bot, antiOffCtx); err != ext.EndGroups {
+		t.Fatalf("antichannelpin off error = %v, want EndGroups", err)
+	}
+	if db.GetPinData(chatID).AntiChannelPin {
+		t.Fatal("AntiChannelPin stayed enabled")
+	}
+	antiCurrentDisabledCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
+	if err := pinsModule.antichannelpin(bot, antiCurrentDisabledCtx); err != ext.EndGroups {
+		t.Fatalf("antichannelpin current disabled error = %v, want EndGroups", err)
+	}
+
+	cleanEnabledCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked on")
+	if err := pinsModule.cleanlinked(bot, cleanEnabledCurrentCtx); err != ext.EndGroups {
+		t.Fatalf("cleanlinked re-enable error = %v, want EndGroups", err)
+	}
+	cleanCurrentEnabledCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
+	if err := pinsModule.cleanlinked(bot, cleanCurrentEnabledCtx); err != ext.EndGroups {
+		t.Fatalf("cleanlinked current enabled error = %v, want EndGroups", err)
+	}
 	cleanInvalidCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked maybe")
 	if err := pinsModule.cleanlinked(bot, cleanInvalidCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked invalid error = %v, want EndGroups", err)
+	}
+	cleanOffAgainCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked off")
+	if err := pinsModule.cleanlinked(bot, cleanOffAgainCtx); err != ext.EndGroups {
+		t.Fatalf("cleanlinked off again error = %v, want EndGroups", err)
 	}
 	cleanCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
 	if err := pinsModule.cleanlinked(bot, cleanCurrentCtx); err != ext.EndGroups {
@@ -344,6 +368,18 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	}
 	if calls := client.callsFor("unpinChatMessage"); len(calls) != 1 {
 		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
+	}
+
+	noopChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	noopCtx := newModuleMessageContext(bot, noopChat, user, "linked message")
+	if err := pinsModule.checkPinned(bot, noopCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkPinned noop error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want unchanged after noop", len(calls))
+	}
+	if calls := client.callsFor("unpinChatMessage"); len(calls) != 1 {
+		t.Fatalf("unpinChatMessage calls = %d, want unchanged after noop", len(calls))
 	}
 }
 

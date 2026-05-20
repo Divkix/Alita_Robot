@@ -622,6 +622,53 @@ func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
 	}
 }
 
+func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456790, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 778,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+	anonSender := &gotgbot.Sender{
+		Chat:   chat,
+		ChatId: chat.Id,
+	}
+	t.Cleanup(func() {
+		_ = db.SetAnonAdminMode(chat.Id, false)
+	})
+
+	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
+	}
+	isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, anonSender)
+	if !isAdmin || !shouldReturn {
+		t.Fatalf("checkAnonAdmin(enabled) = (%v, %v), want true, true", isAdmin, shouldReturn)
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("calls with anon bypass enabled = %+v, want none", client.calls)
+	}
+
+	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
+	}
+	isAdmin, shouldReturn = checkAnonAdmin(bot, chat, msg, anonSender)
+	if isAdmin || !shouldReturn {
+		t.Fatalf("checkAnonAdmin(verify) = (%v, %v), want false, true", isAdmin, shouldReturn)
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("calls with anon verification = %+v, want one sendMessage", client.calls)
+	}
+}
+
 func TestMembershipAndProtectionHelpers(t *testing.T) {
 	bot := newChatStatusBot(999)
 	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}

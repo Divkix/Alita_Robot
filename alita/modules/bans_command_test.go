@@ -129,6 +129,21 @@ func TestSilentBanDeletesCommandMessage(t *testing.T) {
 	}
 }
 
+func TestSilentBanRejectsBotTarget(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/sban 999")
+	if err := bansModule.sBan(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("sBan(bot itself) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for bot target", len(calls))
+	}
+}
+
 func TestSilentAndDeleteBanRejectInvalidTargets(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -264,6 +279,52 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestDeleteKickDeletesReplyThenKicks(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newBanReplyContext(bot, chat, admin, target, "/dkick clean this")
+	if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("dkick() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want kick ban", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want kick confirmation", len(calls))
+	}
+}
+
+func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/dkick")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 404,
+		Date:      1,
+		Chat:      chat,
+		Text:      "senderless message",
+	}
+
+	if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("dkick(senderless reply) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for unidentifiable sender", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for unidentifiable sender", len(calls))
 	}
 }
 

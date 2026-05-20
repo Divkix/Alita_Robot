@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -306,6 +307,44 @@ func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
 	}
 }
 
+func TestAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	t.Cleanup(func() {
+		antiRaidModule.disableRaid(chat.Id)
+	})
+
+	offInactiveCtx := newModuleMessageContext(bot, chat, user, "/antiraid off")
+	if err := antiRaidModule.antiraid(bot, offInactiveCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(off inactive) error = %v, want EndGroups", err)
+	}
+
+	invalidCtx := newModuleMessageContext(bot, chat, user, "/antiraid nope")
+	if err := antiRaidModule.antiraid(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(invalid duration) error = %v, want EndGroups", err)
+	}
+
+	onCtx := newModuleMessageContext(bot, chat, user, "/antiraid on")
+	if err := antiRaidModule.antiraid(bot, onCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(on) error = %v, want EndGroups", err)
+	}
+	onAgainCtx := newModuleMessageContext(bot, chat, user, "/antiraid on")
+	if err := antiRaidModule.antiraid(bot, onAgainCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(on already active) error = %v, want EndGroups", err)
+	}
+
+	activeStatusCtx := newModuleMessageContext(bot, chat, user, "/antiraid")
+	if err := antiRaidModule.antiraid(bot, activeStatusCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(active status) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) < 5 {
+		t.Fatalf("sendMessage calls = %d, want command replies", len(calls))
+	}
+}
+
 func TestAntiRaidTimeCommandsPersistSettings(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -326,6 +365,47 @@ func TestAntiRaidTimeCommandsPersistSettings(t *testing.T) {
 	}
 	if got := db.GetAntiRaidSettings(chat.Id).RaidActionTime; got != 30*60 {
 		t.Fatalf("RaidActionTime = %d, want 1800", got)
+	}
+}
+
+func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, text := range []string{
+		"/raidtime",
+		"/raidtime nope",
+		"/raidtime 0",
+		"/raidactiontime",
+		"/raidactiontime nope",
+		"/raidactiontime 0",
+	} {
+		ctx := newModuleMessageContext(bot, chat, user, text)
+		if err := antiRaidModule.raidTimeSetter(bot, ctx, strings.HasPrefix(text, "/raidtime")); err != ext.EndGroups {
+			t.Fatalf("raidTimeSetter(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	if err := db.SetRaidTime(chat.Id, 60); err != nil {
+		t.Fatalf("SetRaidTime setup error = %v", err)
+	}
+	noChangeRaidCtx := newModuleMessageContext(bot, chat, user, "/raidtime 1m")
+	if err := antiRaidModule.raidTime(bot, noChangeRaidCtx); err != ext.EndGroups {
+		t.Fatalf("raidTime(no change) error = %v, want EndGroups", err)
+	}
+
+	if err := db.SetRaidActionTime(chat.Id, 120); err != nil {
+		t.Fatalf("SetRaidActionTime setup error = %v", err)
+	}
+	noChangeActionCtx := newModuleMessageContext(bot, chat, user, "/raidactiontime 2m")
+	if err := antiRaidModule.raidActionTime(bot, noChangeActionCtx); err != ext.EndGroups {
+		t.Fatalf("raidActionTime(no change) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 8 {
+		t.Fatalf("sendMessage calls = %d, want validation and no-change replies", len(calls))
 	}
 }
 
@@ -354,6 +434,36 @@ func TestAutoAntiRaidCommandPersistsThreshold(t *testing.T) {
 	}
 	if got := db.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 0 {
 		t.Fatalf("AutoAntiRaidThreshold = %d, want 0 after off", got)
+	}
+}
+
+func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, text := range []string{
+		"/autoantiraid off",
+		"/autoantiraid nope",
+		"/autoantiraid -1",
+	} {
+		ctx := newModuleMessageContext(bot, chat, user, text)
+		if err := antiRaidModule.autoAntiRaid(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("autoAntiRaid(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+
+	if err := db.SetAutoAntiRaidThreshold(chat.Id, 3); err != nil {
+		t.Fatalf("SetAutoAntiRaidThreshold setup error = %v", err)
+	}
+	noChangeCtx := newModuleMessageContext(bot, chat, user, "/autoantiraid 3")
+	if err := antiRaidModule.autoAntiRaid(bot, noChangeCtx); err != ext.EndGroups {
+		t.Fatalf("autoAntiRaid(no change) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want validation and no-change replies", len(calls))
 	}
 }
 
@@ -396,6 +506,39 @@ func TestAntiRaidCallbackTogglesState(t *testing.T) {
 	}
 }
 
+func TestAntiRaidCallbackRejectsInvalidAndUnknownActions(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	tests := []struct {
+		name string
+		data string
+		want error
+	}{
+		{
+			name: "malformed",
+			data: "antiraid.bad.extra",
+			want: ext.ContinueGroups,
+		},
+		{
+			name: "unknown action",
+			data: encodeCallbackData("antiraid", map[string]string{"a": "later"}, "antiraid.later"),
+			want: ext.EndGroups,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleCallbackContext(bot, chat, user, tt.data)
+			if err := antiRaidModule.callbackHandler(bot, ctx); err != tt.want {
+				t.Fatalf("callbackHandler(%q) error = %v, want %v", tt.data, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestAntiRaidOnJoinBansDuringActiveRaid(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -422,5 +565,46 @@ func TestAntiRaidOnJoinBansDuringActiveRaid(t *testing.T) {
 	}
 	if st := getRaidState(chat.Id); len(st.BannedUsers) != 1 || st.BannedUsers[0] != user.Id {
 		t.Fatalf("BannedUsers = %+v, want [%d]", st.BannedUsers, user.Id)
+	}
+}
+
+func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	member := gotgbot.User{Id: 4250, FirstName: "Member"}
+
+	noChatCtx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 301}, nil)
+	if err := antiRaidModule.onJoin(bot, noChatCtx); err != ext.ContinueGroups {
+		t.Fatalf("onJoin(no chat) error = %v, want ContinueGroups", err)
+	}
+
+	privateChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", Title: "Private"}
+	privateCtx := newModuleMessageContext(bot, privateChat, member, "joined")
+	privateCtx.EffectiveMessage.NewChatMembers = []gotgbot.User{member}
+	if err := antiRaidModule.onJoin(bot, privateCtx); err != ext.ContinueGroups {
+		t.Fatalf("onJoin(private) error = %v, want ContinueGroups", err)
+	}
+
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+	if err := db.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
+		t.Fatalf("AddApprovedUser setup error = %v", err)
+	}
+	msg := &gotgbot.Message{
+		MessageId: 302,
+		Date:      1,
+		Chat:      chat,
+		From:      &member,
+		NewChatMembers: []gotgbot.User{
+			{Id: bot.Id, FirstName: "Alita"},
+			member,
+			{Id: 777000, FirstName: "Telegram"},
+		},
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 302, Message: msg}, nil)
+	if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("onJoin(skip members) error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want no bans for skipped members", len(calls))
 	}
 }

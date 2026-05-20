@@ -183,6 +183,95 @@ func TestBlacklistWatcherAppliesBanWarnAndNoneActions(t *testing.T) {
 	}
 }
 
+func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+	if err := db.SetBlacklistAction(chat.Id, "kick"); err != nil {
+		t.Fatalf("SetBlacklistAction(kick) setup error = %v", err)
+	}
+
+	kickCtx := newModuleMessageContext(bot, chat, member, "this has spam inside")
+	if err := blacklistsModule.blacklistWatcher(bot, kickCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(kick) error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want kick action", len(calls))
+	}
+
+	if err := db.SetBlacklistAction(chat.Id, "ban"); err != nil {
+		t.Fatalf("SetBlacklistAction(ban) setup error = %v", err)
+	}
+	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
+	channelCtx := newModuleMessageContext(bot, chat, member, "channel says spam")
+	channelCtx.EffectiveMessage.From = nil
+	channelCtx.EffectiveMessage.SenderChat = &channel
+	channelCtx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: chat.Id}
+	if err := blacklistsModule.blacklistWatcher(bot, channelCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(channel ban) error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatSenderChat"); len(calls) != 1 {
+		t.Fatalf("banChatSenderChat calls = %d, want anonymous channel ban", len(calls))
+	}
+}
+
+func TestBlacklistWatcherSkipsSenderAndContentNoopBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+	if err := db.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
+		t.Fatalf("AddApprovedUser setup error = %v", err)
+	}
+
+	nilSenderCtx := newModuleMessageContext(bot, chat, member, "spam")
+	nilSenderCtx.EffectiveSender = nil
+	if err := blacklistsModule.blacklistWatcher(bot, nilSenderCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(nil sender) error = %v, want ContinueGroups", err)
+	}
+
+	anonAdminChat := gotgbot.Chat{Id: chat.Id, Type: "supergroup", Title: "Anon Admin"}
+	anonAdminCtx := newModuleMessageContext(bot, chat, member, "spam")
+	anonAdminCtx.EffectiveSender = &gotgbot.Sender{Chat: &anonAdminChat, ChatId: chat.Id}
+	if err := blacklistsModule.blacklistWatcher(bot, anonAdminCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(anonymous admin) error = %v, want ContinueGroups", err)
+	}
+
+	adminCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, "spam")
+	if err := blacklistsModule.blacklistWatcher(bot, adminCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(admin) error = %v, want ContinueGroups", err)
+	}
+
+	approvedCtx := newModuleMessageContext(bot, chat, member, "spam")
+	if err := blacklistsModule.blacklistWatcher(bot, approvedCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(approved) error = %v, want ContinueGroups", err)
+	}
+
+	emptyTextCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 43, FirstName: "Other"}, "")
+	if err := blacklistsModule.blacklistWatcher(bot, emptyTextCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(empty text) error = %v, want ContinueGroups", err)
+	}
+
+	noMatchCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 44, FirstName: "Clean"}, "clean message")
+	if err := blacklistsModule.blacklistWatcher(bot, noMatchCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(no match) error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want no moderation side effects", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want no moderation side effects", len(calls))
+	}
+}
+
 func TestRemoveAllBlacklistsConfirmationAndCallback(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
