@@ -61,11 +61,16 @@ func newModuleBotClient() *moduleBotClient {
 			"restrictChatMember":     json.RawMessage(`true`),
 			"unbanChatMember":        json.RawMessage(`true`),
 			"unbanChatSenderChat":    json.RawMessage(`true`),
+			"leaveChat":              json.RawMessage(`true`),
 			"approveChatJoinRequest": json.RawMessage(`true`),
 			"declineChatJoinRequest": json.RawMessage(`true`),
 			"pinChatMessage":         json.RawMessage(`true`),
 			"unpinChatMessage":       json.RawMessage(`true`),
 			"unpinAllChatMessages":   json.RawMessage(`true`),
+			"getChatMemberCount":     json.RawMessage(`17`),
+			"sendDocument": json.RawMessage(
+				`{"message_id":9002,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"},"document":{"file_id":"doc-1","file_unique_id":"doc-u1","file_name":"chatlist.txt"}}`,
+			),
 			"getMe": json.RawMessage(
 				`{"id":999,"is_bot":true,"first_name":"Alita","username":"AlitaTestBot"}`,
 			),
@@ -312,7 +317,9 @@ func TestMain(m *testing.M) {
 		&db.ChannelSettings{},
 		&db.ReportChatSettings{},
 		&db.ReportUserSettings{},
+		&db.AntifloodSettings{},
 		&db.AntiRaidSettings{},
+		&db.DevSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

@@ -5,6 +5,7 @@ package modules
 import (
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,57 @@ func TestGenFormattingKbCallbackData(t *testing.T) {
 			require.True(t, ok)
 			assert.Equal(t, tc.want, module)
 		})
+	}
+}
+
+func TestMarkdownHelpRepliesInPrivateAndGroup(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
+
+	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Formatter"}
+	privateCtx := newModuleMessageContext(bot, privateChat, user, "/markdownhelp")
+	if err := formattingModule.markdownHelp(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("markdownHelp private error = %v, want EndGroups", err)
+	}
+
+	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
+	groupCtx := newModuleMessageContext(bot, groupChat, user, "/markdownhelp")
+	if err := formattingModule.markdownHelp(bot, groupCtx); err != ext.EndGroups {
+		t.Fatalf("markdownHelp group error = %v, want EndGroups", err)
+	}
+
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want private and group help replies", len(calls))
+	}
+	for i, call := range calls {
+		if call.Params["reply_markup"] == nil {
+			t.Fatalf("sendMessage call %d missing reply_markup", i)
+		}
+	}
+}
+
+func TestFormattingHandlerEditsMessageAndAnswersCallback(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
+	data := encodeCallbackData(
+		"formatting",
+		map[string]string{"m": "md_formatting"},
+		"formatting.md_formatting",
+	)
+
+	ctx := newModuleCallbackContext(bot, chat, user, data)
+	if err := formattingModule.formattingHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("formattingHandler() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+		t.Fatalf("editMessageText calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 	}
 }
 
