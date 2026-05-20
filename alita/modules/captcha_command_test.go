@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -76,6 +75,70 @@ func TestCaptchaCommandRejectsUnknownOption(t *testing.T) {
 	}
 }
 
+func TestRunOrphanedCaptchaRecoveryAppliesMuteAction(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	now := time.Now()
+
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&db.CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup captcha attempts error = %v", err)
+		}
+	})
+
+	if err := db.SetCaptchaFailureAction(chatID, "mute"); err != nil {
+		t.Fatalf("SetCaptchaFailureAction(mute) error = %v", err)
+	}
+
+	attempt := db.CaptchaAttempts{
+		UserID:    7010,
+		ChatID:    chatID,
+		Answer:    "9",
+		MessageID: 8110,
+		CreatedAt: now.Add(-2 * time.Hour),
+		ExpiresAt: now.Add(-time.Hour),
+	}
+	if err := db.DB.Create(&attempt).Error; err != nil {
+		t.Fatalf("create captcha attempt error = %v", err)
+	}
+
+	runOrphanedCaptchaRecovery(bot)
+
+	var remaining int64
+	if err := db.DB.Model(&db.CaptchaAttempts{}).Where("chat_id = ?", chatID).Count(&remaining).Error; err != nil {
+		t.Fatalf("count captcha attempts error = %v", err)
+	}
+	if remaining != 0 {
+		t.Fatalf("remaining captcha attempts = %d, want 0", remaining)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for mute action", len(calls))
+	}
+}
+
+func TestRunOrphanedCaptchaRecoveryNoPendingAttempts(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+
+	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
+		t.Fatalf("captcha attempt cleanup setup error = %v", err)
+	}
+
+	runOrphanedCaptchaRecovery(bot)
+
+	var remainingAttempts int64
+	if err := db.DB.Model(&db.CaptchaAttempts{}).Count(&remainingAttempts).Error; err != nil {
+		t.Fatalf("count captcha attempts error = %v", err)
+	}
+	if remainingAttempts != 0 {
+		t.Fatalf("remaining captcha attempts = %d, want 0", remainingAttempts)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none without pending attempts", len(calls))
+	}
+}
+
 func TestRecoverOrphanedCaptchasCleansPendingAttempts(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -132,11 +195,7 @@ func TestRecoverOrphanedCaptchasCleansPendingAttempts(t *testing.T) {
 		}
 	}
 
-	captchaRecoveryOnce = sync.Once{}
-	t.Cleanup(func() {
-		captchaRecoveryOnce = sync.Once{}
-	})
-	recoverOrphanedCaptchas(bot)
+	runOrphanedCaptchaRecovery(bot)
 
 	var remainingAttempts int64
 	if err := db.DB.Model(&db.CaptchaAttempts{}).Count(&remainingAttempts).Error; err != nil {

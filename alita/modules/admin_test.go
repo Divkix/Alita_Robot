@@ -536,6 +536,23 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 }
 
+func TestClearAdminCacheNilMarshal(t *testing.T) {
+	withNilCacheMarshal(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, user, "/clearadmincache")
+
+	if err := adminModule.clearAdminCache(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("clearAdminCache(nil marshal) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want none when cache marshal is nil", len(calls))
+	}
+}
+
 func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	memberClient := newModuleBotClient()
 	memberBot := newModuleTestBot(memberClient)

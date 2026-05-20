@@ -223,6 +223,49 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 	}
 }
 
+func TestReactionCommandsHandleNilMarshal(t *testing.T) {
+	orig := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(orig)
+	})
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
+	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
+		t.Fatalf("addReaction(nil marshal) error = %v, want EndGroups", err)
+	}
+
+	removeCtx := newModuleMessageContext(bot, chat, admin, "/removereaction hello")
+	if err := reactionsModule.removeReaction(bot, removeCtx); err != ext.EndGroups {
+		t.Fatalf("removeReaction(nil marshal) error = %v, want EndGroups", err)
+	}
+
+	listCtx := newModuleMessageContext(bot, chat, admin, "/reactions")
+	if err := reactionsModule.listReactions(bot, listCtx); err != ext.EndGroups {
+		t.Fatalf("listReactions(nil marshal) error = %v, want EndGroups", err)
+	}
+
+	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetreactions")
+	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
+		t.Fatalf("resetReactions(nil marshal) error = %v, want EndGroups", err)
+	}
+
+	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
+	checkCtx := newModuleMessageContext(bot, chat, admin, "hello")
+	if err := reactionsModule.checkReactions(bot, checkCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkReactions(nil marshal) error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want add/remove/list error replies", len(calls))
+	}
+}
+
 func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadReactions(dispatcher)
