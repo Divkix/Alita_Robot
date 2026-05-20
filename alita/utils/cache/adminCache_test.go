@@ -11,10 +11,10 @@ import (
 )
 
 func TestAdminCacheHelpersHandleNilMarshal(t *testing.T) {
-	originalMarshal := Marshal
-	Marshal = nil
+	originalMarshal := GetMarshal()
+	SetMarshal(nil)
 	t.Cleanup(func() {
-		Marshal = originalMarshal
+		SetMarshal(originalMarshal)
 	})
 
 	found, adminCache := GetAdminCacheList(-100123)

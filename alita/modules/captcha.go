@@ -1884,7 +1884,10 @@ func cleanupExpiredCaptchaAttempts(ctx context.Context) error {
 		}
 
 		// Delete stored messages for this attempt
-		_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
+		if err := db.DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
+			log.Errorf("[CaptchaCleanup] Failed to delete stored messages for attempt %d: %v", attempt.ID, err)
+			continue
+		}
 		cleanedIDs = append(cleanedIDs, attempt.ID)
 	}
 

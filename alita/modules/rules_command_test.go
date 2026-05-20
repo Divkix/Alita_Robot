@@ -1,9 +1,10 @@
 package modules
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -12,7 +13,12 @@ import (
 )
 
 func uniqueModuleChatID() int64 {
-	return -1000000000000 - time.Now().UnixNano()%1_000_000_000
+	var buf [8]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		panic("uniqueModuleChatID: crypto/rand failed: " + err.Error())
+	}
+	n := int64(binary.BigEndian.Uint64(buf[:]) & 0x7fffffffffffffff)
+	return -1000000000000 - n
 }
 
 func TestSetRulesStoresCommandTextAndReplies(t *testing.T) {

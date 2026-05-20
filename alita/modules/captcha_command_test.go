@@ -133,6 +133,9 @@ func TestRecoverOrphanedCaptchasCleansPendingAttempts(t *testing.T) {
 	}
 
 	captchaRecoveryOnce = sync.Once{}
+	t.Cleanup(func() {
+		captchaRecoveryOnce = sync.Once{}
+	})
 	recoverOrphanedCaptchas(bot)
 
 	var remainingAttempts int64

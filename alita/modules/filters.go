@@ -495,6 +495,9 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 	user := query.From
 	chat := ctx.EffectiveChat
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
@@ -565,6 +568,9 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 	user := query.From
 	chat := ctx.EffectiveChat
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	// permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
@@ -582,9 +588,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	// Handle cancel case first - no cache lookup needed
 	if action == "cancel" {
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
-		_, _, editErr := query.Message.EditText(b, helpText, nil)
-		if editErr != nil {
-			log.Error(editErr)
+		if query.Message != nil {
+			_, _, editErr := query.Message.EditText(b, helpText, nil)
+			if editErr != nil {
+				log.Error(editErr)
+			}
 		}
 		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		if answerErr != nil {
@@ -605,9 +613,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
 		helpText, _ = tr.GetString("filters_overwrite_expired")
-		_, _, editErr := query.Message.EditText(b, helpText, nil)
-		if editErr != nil {
-			log.Error(editErr)
+		if query.Message != nil {
+			_, _, editErr := query.Message.EditText(b, helpText, nil)
+			if editErr != nil {
+				log.Error(editErr)
+			}
 		}
 		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		if answerErr != nil {
@@ -617,7 +627,9 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 	if filterData.ChatID != 0 && filterData.ChatID != chat.Id {
 		helpText, _ = tr.GetString("filters_overwrite_expired")
-		_, _, _ = query.Message.EditText(b, helpText, nil)
+		if query.Message != nil {
+			_, _, _ = query.Message.EditText(b, helpText, nil)
+		}
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		return ext.EndGroups
 	}

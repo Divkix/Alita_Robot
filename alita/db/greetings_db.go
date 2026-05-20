@@ -6,6 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+
+	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
 // checkGreetingSettings retrieves or creates default greeting settings for a chat.
@@ -170,7 +172,7 @@ func defaultGreetingSettingsAttrs(chatID int64) map[string]any {
 func upsertGreetingSettings(chatID int64, updates map[string]any) error {
 	if !ChatExists(chatID) {
 		if err := EnsureChatInDb(chatID, ""); err != nil {
-			return err
+			return alitaerrors.Wrapf(err, "ensure chat %d in db", chatID)
 		}
 	}
 	updates["updated_at"] = time.Now()
@@ -178,11 +180,14 @@ func upsertGreetingSettings(chatID int64, updates map[string]any) error {
 	if err := DB.Where("chat_id = ?", chatID).
 		Attrs(defaultGreetingSettingsAttrs(chatID)).
 		FirstOrCreate(&settings).Error; err != nil {
-		return err
+		return alitaerrors.Wrapf(err, "first-or-create greeting settings for chat %d", chatID)
 	}
-	return DB.Model(&GreetingSettings{}).
+	if err := DB.Model(&GreetingSettings{}).
 		Where("chat_id = ?", chatID).
-		Updates(updates).Error
+		Updates(updates).Error; err != nil {
+		return alitaerrors.Wrapf(err, "update greeting settings for chat %d", chatID)
+	}
+	return nil
 }
 
 // SetWelcomeText updates the welcome message text, file ID, buttons, and type for a chat.

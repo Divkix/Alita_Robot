@@ -35,8 +35,9 @@ var backupModule = moduleStruct{
 // Pending imports storage (in-memory, per chat)
 var (
 	pendingMu        sync.RWMutex
-	pendingImports   = make(map[int64]*db.BackupFormat)
-	pendingModules   = make(map[int64][]string)
+	pendingImports        = make(map[int64]*db.BackupFormat)
+	pendingImportModules  = make(map[int64][]string)
+	pendingResetModules   = make(map[int64][]string)
 	errNoValidModule = errors.New("no valid modules in arguments")
 
 	backupDownloadBaseURL    = "https://api.telegram.org/file/bot"
@@ -47,7 +48,7 @@ func storePendingImport(chatID int64, backup *db.BackupFormat, modules []string)
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 	pendingImports[chatID] = backup
-	pendingModules[chatID] = modules
+	pendingImportModules[chatID] = modules
 }
 
 func getPendingImport(chatID int64) (*db.BackupFormat, []string, bool) {
@@ -57,33 +58,33 @@ func getPendingImport(chatID int64) (*db.BackupFormat, []string, bool) {
 	if !ok {
 		return nil, nil, false
 	}
-	return backup, pendingModules[chatID], true
+	return backup, pendingImportModules[chatID], true
 }
 
 func clearPendingImport(chatID int64) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 	delete(pendingImports, chatID)
-	delete(pendingModules, chatID)
+	delete(pendingImportModules, chatID)
 }
 
 func storePendingReset(chatID int64, modules []string) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
-	pendingModules[chatID] = modules
+	pendingResetModules[chatID] = modules
 }
 
 func getPendingReset(chatID int64) ([]string, bool) {
 	pendingMu.RLock()
 	defer pendingMu.RUnlock()
-	modules, ok := pendingModules[chatID]
+	modules, ok := pendingResetModules[chatID]
 	return modules, ok
 }
 
 func clearPendingReset(chatID int64) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
-	delete(pendingModules, chatID)
+	delete(pendingResetModules, chatID)
 }
 
 // exportHandler handles the /export command

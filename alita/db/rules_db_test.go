@@ -150,8 +150,12 @@ func TestSetPrivateRulesCreatesMissingSettings(t *testing.T) {
 	chatID := time.Now().UnixNano() + 500
 
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&RulesSettings{}).Error; err != nil {
+			t.Fatalf("cleanup RulesSettings failed: %v", err)
+		}
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error; err != nil {
+			t.Fatalf("cleanup Chat failed: %v", err)
+		}
 	})
 
 	SetPrivateRules(chatID, true)

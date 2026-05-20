@@ -26,9 +26,17 @@ func TestShouldUpdateRateLimitsByID(t *testing.T) {
 }
 
 func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
+	oldUserUpdateCache := userUpdateCache
+	oldChatUpdateCache := chatUpdateCache
+	oldChannelUpdateCache := channelUpdateCache
 	userUpdateCache = &sync.Map{}
 	chatUpdateCache = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
+	t.Cleanup(func() {
+		userUpdateCache = oldUserUpdateCache
+		chatUpdateCache = oldChatUpdateCache
+		channelUpdateCache = oldChannelUpdateCache
+	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -55,9 +63,17 @@ func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
 }
 
 func TestLogUsersPersistsAnonymousChannelSender(t *testing.T) {
+	oldUserUpdateCache := userUpdateCache
+	oldChatUpdateCache := chatUpdateCache
+	oldChannelUpdateCache := channelUpdateCache
 	userUpdateCache = &sync.Map{}
 	chatUpdateCache = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
+	t.Cleanup(func() {
+		userUpdateCache = oldUserUpdateCache
+		chatUpdateCache = oldChatUpdateCache
+		channelUpdateCache = oldChannelUpdateCache
+	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

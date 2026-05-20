@@ -263,8 +263,7 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 	t.Cleanup(func() {
 		backupDownloadBaseURL = oldBaseURL
 		backupDownloadHTTPClient = oldHTTPClient
-		delete(pendingImports, chat.Id)
-		delete(pendingModules, chat.Id)
+		clearPendingImport(chat.Id)
 	})
 
 	client := newModuleBotClient()
@@ -286,10 +285,11 @@ func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 	err = backupModule.importHandler(bot, ctx)
 
 	require.Equal(t, ext.EndGroups, err)
-	require.Contains(t, pendingImports, chat.Id)
-	assert.Equal(t, []string{"rules"}, pendingModules[chat.Id])
-	assert.Equal(t, backup.Version, pendingImports[chat.Id].Version)
-	assert.Contains(t, pendingImports[chat.Id].Data, "notes")
+	gotBackup, gotModules, ok := getPendingImport(chat.Id)
+	require.True(t, ok)
+	assert.Equal(t, []string{"rules"}, gotModules)
+	assert.Equal(t, backup.Version, gotBackup.Version)
+	assert.Contains(t, gotBackup.Data, "notes")
 	assert.Len(t, client.callsFor("getFile"), 1)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
@@ -389,7 +389,8 @@ func TestPendingImportsMaps(t *testing.T) {
 	t.Run("pending imports maps exist", func(t *testing.T) {
 		// Just verify the maps are initialized
 		assert.NotNil(t, pendingImports)
-		assert.NotNil(t, pendingModules)
+		assert.NotNil(t, pendingImportModules)
+		assert.NotNil(t, pendingResetModules)
 	})
 }
 
@@ -500,12 +501,14 @@ func TestResetHandlerStoresPendingModulesAndRepliesWithConfirmation(t *testing.T
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, owner, "/reset rules notes invalid rules")
 	t.Cleanup(func() {
-		delete(pendingModules, chat.Id)
+		clearPendingReset(chat.Id)
 	})
 
 	err := backupModule.resetHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.Equal(t, []string{"rules", "notes"}, pendingModules[chat.Id])
+	gotModules, ok := getPendingReset(chat.Id)
+	assert.True(t, ok)
+	assert.Equal(t, []string{"rules", "notes"}, gotModules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
 
@@ -525,11 +528,9 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 			"private":   true,
 		},
 	}
-	pendingImports[chat.Id] = backup
-	pendingModules[chat.Id] = []string{"rules"}
+	storePendingImport(chat.Id, backup, []string{"rules"})
 	t.Cleanup(func() {
-		delete(pendingImports, chat.Id)
-		delete(pendingModules, chat.Id)
+		clearPendingImport(chat.Id)
 	})
 
 	callback := encodeCallbackData(
@@ -540,8 +541,8 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.NotContains(t, pendingImports, chat.Id)
-	assert.NotContains(t, pendingModules, chat.Id)
+	_, _, ok := getPendingImport(chat.Id)
+	assert.False(t, ok)
 	assert.Equal(t, "imported rules", db.GetChatRulesInfo(chat.Id).Rules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
@@ -553,9 +554,9 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
 	db.SetChatRules(chat.Id, "rules before reset")
-	pendingModules[chat.Id] = []string{"rules"}
+	storePendingReset(chat.Id, []string{"rules"})
 	t.Cleanup(func() {
-		delete(pendingModules, chat.Id)
+		clearPendingReset(chat.Id)
 	})
 
 	callback := encodeCallbackData(
@@ -566,7 +567,8 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.NotContains(t, pendingModules, chat.Id)
+	_, ok := getPendingReset(chat.Id)
+	assert.False(t, ok)
 	assert.Empty(t, db.GetChatRulesInfo(chat.Id).Rules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
@@ -576,9 +578,9 @@ func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	pendingModules[chat.Id] = []string{"rules"}
+	storePendingReset(chat.Id, []string{"rules"})
 	t.Cleanup(func() {
-		delete(pendingModules, chat.Id)
+		clearPendingReset(chat.Id)
 	})
 
 	callback := encodeCallbackData(
@@ -589,7 +591,8 @@ func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.Contains(t, pendingModules, chat.Id)
+	_, ok := getPendingReset(chat.Id)
+	assert.True(t, ok)
 	assert.Empty(t, client.callsFor("sendMessage"))
 }
 
@@ -613,8 +616,8 @@ func TestBackupConfirmHandlersReportExpiredState(t *testing.T) {
 	tr := testTranslator(t)
 	ctx := &ext.Context{}
 	t.Cleanup(func() {
-		delete(pendingImports, chat.Id)
-		delete(pendingModules, chat.Id)
+		clearPendingImport(chat.Id)
+		clearPendingReset(chat.Id)
 	})
 
 	err := backupModule.handleConfirmImport(bot, ctx, tr, chat)
@@ -632,8 +635,7 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	pendingImports[chat.Id] = db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"})
-	pendingModules[chat.Id] = []string{"rules"}
+	storePendingImport(chat.Id, db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"}), []string{"rules"})
 	cancelImport := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "cancel_import", "c": strconv.FormatInt(chat.Id, 10)},
@@ -642,10 +644,10 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	importCtx := newModuleCallbackContext(bot, chat, owner, cancelImport)
 	err := backupModule.handleCancelImport(bot, importCtx, testTranslator(t), importCtx.CallbackQuery)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.NotContains(t, pendingImports, chat.Id)
-	assert.NotContains(t, pendingModules, chat.Id)
+	_, _, ok := getPendingImport(chat.Id)
+	assert.False(t, ok)
 
-	pendingModules[chat.Id] = []string{"rules"}
+	storePendingReset(chat.Id, []string{"rules"})
 	cancelReset := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "cancel_reset", "c": strconv.FormatInt(chat.Id, 10)},
@@ -654,7 +656,8 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	resetCtx := newModuleCallbackContext(bot, chat, owner, cancelReset)
 	err = backupModule.handleCancelReset(bot, resetCtx, testTranslator(t), resetCtx.CallbackQuery)
 	assert.Equal(t, ext.EndGroups, err)
-	assert.NotContains(t, pendingModules, chat.Id)
+	_, ok = getPendingReset(chat.Id)
+	assert.False(t, ok)
 
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 2)
 }

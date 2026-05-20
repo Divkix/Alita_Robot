@@ -52,7 +52,9 @@ func TestReactionCommandsManageCache(t *testing.T) {
 		t.Fatal("reaction cache remained after removing final reaction")
 	}
 
-	_ = cache.Marshal.Set(cache.Context, key, map[string]string{"bye": "ok"})
+	if err := cache.Marshal.Set(cache.Context, key, map[string]string{"bye": "ok"}); err != nil {
+		t.Fatalf("cache.Marshal.Set() error = %v", err)
+	}
 	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetreactions")
 	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetReactions() error = %v, want EndGroups", err)

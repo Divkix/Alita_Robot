@@ -463,7 +463,9 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	t.Cleanup(func() {
-		_ = db.SetAnonAdminMode(chat.Id, false)
+		if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+			t.Fatalf("cleanup SetAnonAdminMode(false) error = %v", err)
+		}
 	})
 
 	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
