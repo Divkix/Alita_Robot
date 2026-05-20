@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,24 @@ func TestDeleteCacheNilMarshal(t *testing.T) {
 	})
 
 	deleteCache("alita:test:delete-nil-marshal")
+}
+
+func TestCacheKeyDefaultTypeSegment(t *testing.T) {
+	got := CacheKey("module", float64(42.5))
+	if got != "alita:module:42.5" {
+		t.Fatalf("CacheKey(float64) = %q, want alita:module:42.5", got)
+	}
+}
+
+func TestGetFromCacheOrLoadPropagatesLoaderError(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	_, err := getFromCacheOrLoad("alita:test:loader-error", time.Minute, func() (string, error) {
+		return "", fmt.Errorf("loader failed")
+	})
+	if err == nil || !strings.Contains(err.Error(), "loader failed") {
+		t.Fatalf("getFromCacheOrLoad() error = %v, want loader failed", err)
+	}
 }
 
 func TestGetFromCacheOrLoadUsesMemoryCache(t *testing.T) {

@@ -121,6 +121,80 @@ func TestRunOrphanedCaptchaRecoveryAppliesMuteAction(t *testing.T) {
 	}
 }
 
+func TestRunOrphanedCaptchaRecoverySkipsMessageDeleteWhenMessageIDZero(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	now := time.Now()
+
+	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
+		t.Fatalf("captcha attempt cleanup setup error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&db.CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup captcha attempts error = %v", err)
+		}
+	})
+
+	attempt := db.CaptchaAttempts{
+		UserID:    7011,
+		ChatID:    chatID,
+		Answer:    "0",
+		MessageID: 0,
+		CreatedAt: now.Add(-2 * time.Hour),
+		ExpiresAt: now.Add(-time.Hour),
+	}
+	if err := db.DB.Create(&attempt).Error; err != nil {
+		t.Fatalf("create captcha attempt error = %v", err)
+	}
+
+	runOrphanedCaptchaRecovery(bot)
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none when MessageID is zero", len(calls))
+	}
+}
+
+func TestRunOrphanedCaptchaRecoveryUsesDefaultKickAction(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	now := time.Now()
+
+	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
+		t.Fatalf("captcha attempt cleanup setup error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&db.CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup captcha attempts error = %v", err)
+		}
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&db.CaptchaSettings{}).Error; err != nil {
+			t.Fatalf("cleanup captcha settings error = %v", err)
+		}
+	})
+
+	attempt := db.CaptchaAttempts{
+		UserID:    7012,
+		ChatID:    chatID,
+		Answer:    "7",
+		MessageID: 8112,
+		CreatedAt: now.Add(-2 * time.Hour),
+		ExpiresAt: now.Add(-time.Hour),
+	}
+	if err := db.DB.Create(&attempt).Error; err != nil {
+		t.Fatalf("create captcha attempt error = %v", err)
+	}
+
+	runOrphanedCaptchaRecovery(bot)
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want default kick action", len(calls))
+	}
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want kick follow-up unban", len(calls))
+	}
+}
+
 func TestRunOrphanedCaptchaRecoveryNoPendingAttempts(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
