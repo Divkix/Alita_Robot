@@ -56,6 +56,11 @@ func newModuleBotClient() *moduleBotClient {
 				`{"message_id":9001,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
 			),
 			"deleteMessage":        json.RawMessage(`true`),
+			"banChatMember":        json.RawMessage(`true`),
+			"banChatSenderChat":    json.RawMessage(`true`),
+			"restrictChatMember":   json.RawMessage(`true`),
+			"unbanChatMember":      json.RawMessage(`true`),
+			"unbanChatSenderChat":  json.RawMessage(`true`),
 			"pinChatMessage":       json.RawMessage(`true`),
 			"unpinChatMessage":     json.RawMessage(`true`),
 			"unpinAllChatMessages": json.RawMessage(`true`),
@@ -290,6 +295,10 @@ func TestMain(m *testing.M) {
 		&db.DisableChatSettings{},
 		&db.RulesSettings{},
 		&db.PinSettings{},
+		&db.WarnSettings{},
+		&db.Warns{},
+		&db.NotesSettings{},
+		&db.Notes{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)
