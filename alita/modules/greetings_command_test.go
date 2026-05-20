@@ -115,6 +115,97 @@ func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
 	}
 }
 
+func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		run     func(*gotgbot.Bot, *ext.Context) error
+		verify  func(int64) bool
+	}{
+		{
+			name:    "clean welcome off",
+			command: "/cleanwelcome off",
+			run:     greetingsModule.cleanWelcome,
+			verify: func(chatID int64) bool {
+				return !db.GetGreetingSettings(chatID).WelcomeSettings.CleanWelcome
+			},
+		},
+		{
+			name:    "clean goodbye off",
+			command: "/cleangoodbye no",
+			run:     greetingsModule.cleanGoodbye,
+			verify: func(chatID int64) bool {
+				return !db.GetGreetingSettings(chatID).GoodbyeSettings.CleanGoodbye
+			},
+		},
+		{
+			name:    "clean service off",
+			command: "/cleanservice off",
+			run:     greetingsModule.delJoined,
+			verify: func(chatID int64) bool {
+				return !db.GetGreetingSettings(chatID).ShouldCleanService
+			},
+		},
+		{
+			name:    "auto approve off",
+			command: "/autoapprove no",
+			run:     greetingsModule.autoApprove,
+			verify: func(chatID int64) bool {
+				return !db.GetGreetingSettings(chatID).ShouldAutoApprove
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			ctx := newGreetingMessageContext(bot, chat, admin, tt.command)
+			if err := tt.run(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.name, err)
+			}
+			if !tt.verify(chat.Id) {
+				t.Fatalf("%s did not persist expected disabled state", tt.name)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want command response", len(calls))
+			}
+		})
+	}
+
+	t.Run("status and invalid options reply without mutating settings", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+		for _, step := range []struct {
+			command string
+			run     func(*gotgbot.Bot, *ext.Context) error
+		}{
+			{command: "/cleanwelcome", run: greetingsModule.cleanWelcome},
+			{command: "/cleanwelcome maybe", run: greetingsModule.cleanWelcome},
+			{command: "/cleangoodbye", run: greetingsModule.cleanGoodbye},
+			{command: "/cleangoodbye maybe", run: greetingsModule.cleanGoodbye},
+			{command: "/cleanservice", run: greetingsModule.delJoined},
+			{command: "/cleanservice maybe", run: greetingsModule.delJoined},
+			{command: "/autoapprove", run: greetingsModule.autoApprove},
+			{command: "/autoapprove maybe", run: greetingsModule.autoApprove},
+		} {
+			ctx := newGreetingMessageContext(bot, chat, admin, step.command)
+			if err := step.run(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", step.command, err)
+			}
+		}
+
+		if calls := client.callsFor("sendMessage"); len(calls) != 8 {
+			t.Fatalf("sendMessage calls = %d, want one reply per status/invalid command", len(calls))
+		}
+	})
+}
+
 func TestWelcomeDisplaySendsStatusAndGreeting(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -265,6 +356,37 @@ func TestCleanServiceProcessesJoinAndDeletesServiceMessage(t *testing.T) {
 	}
 }
 
+func TestCleanServiceProcessesMultipleNewMembersWithoutCaptcha(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	members := []gotgbot.User{
+		{Id: 4441, FirstName: "One"},
+		{Id: 4442, FirstName: "Two"},
+	}
+	if err := db.SetWelcomeText(chat.Id, "Hello {first}", "", nil, db.TEXT); err != nil {
+		t.Fatalf("SetWelcomeText setup error = %v", err)
+	}
+	if err := db.SetShouldCleanService(chat.Id, true); err != nil {
+		t.Fatalf("SetShouldCleanService setup error = %v", err)
+	}
+	for _, member := range members {
+		clearRecentJoinProcessing(chat.Id, member.Id)
+	}
+
+	ctx := newServiceJoinContext(bot, chat, admin, members)
+	if err := greetingsModule.cleanService(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("cleanService multiple members error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != len(members) {
+		t.Fatalf("sendMessage calls = %d, want one welcome per new member", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want service cleanup", len(calls))
+	}
+}
+
 func TestPendingJoinRequestAndCallbacks(t *testing.T) {
 	client := newModuleBotClient()
 	client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
@@ -296,6 +418,95 @@ func TestPendingJoinRequestAndCallbacks(t *testing.T) {
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 	}
+}
+
+func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        string
+		wantApprove int
+		wantDecline int
+		wantBan     int
+	}{
+		{
+			name:        "legacy decline",
+			data:        "join_request.decline.7171",
+			wantDecline: 1,
+		},
+		{
+			name:        "encoded ban",
+			data:        encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "7171"}, "join_request.ban.7171"),
+			wantDecline: 1,
+			wantBan:     1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(`{"id":7171,"type":"private","first_name":"Applicant"}`)
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+			ctx := newModuleCallbackContext(bot, chat, admin, tt.data)
+			if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("joinRequestHandler error = %v, want EndGroups", err)
+			}
+			if calls := client.callsFor("approveChatJoinRequest"); len(calls) != tt.wantApprove {
+				t.Fatalf("approveChatJoinRequest calls = %d, want %d", len(calls), tt.wantApprove)
+			}
+			if calls := client.callsFor("declineChatJoinRequest"); len(calls) != tt.wantDecline {
+				t.Fatalf("declineChatJoinRequest calls = %d, want %d", len(calls), tt.wantDecline)
+			}
+			if calls := client.callsFor("banChatMember"); len(calls) != tt.wantBan {
+				t.Fatalf("banChatMember calls = %d, want %d", len(calls), tt.wantBan)
+			}
+			if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+				t.Fatalf("editMessageText calls = %d, want callback message update", len(calls))
+			}
+			if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+				t.Fatalf("answerCallbackQuery calls = %d, want callback acknowledgement", len(calls))
+			}
+		})
+	}
+
+	t.Run("invalid callback data is answered without lookup", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+		ctx := newModuleCallbackContext(bot, chat, admin, "join_request.invalid")
+		if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("joinRequestHandler invalid data error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("getChat"); len(calls) != 0 {
+			t.Fatalf("getChat calls = %d, want no user lookup for invalid data", len(calls))
+		}
+		if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+			t.Fatalf("answerCallbackQuery calls = %d, want invalid request acknowledgement", len(calls))
+		}
+	})
+
+	t.Run("invalid join user id is answered without lookup", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+		data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "nan"}, "join_request.accept.nan")
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+		if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("joinRequestHandler invalid user error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("getChat"); len(calls) != 0 {
+			t.Fatalf("getChat calls = %d, want no user lookup for invalid user id", len(calls))
+		}
+		if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+			t.Fatalf("answerCallbackQuery calls = %d, want invalid request acknowledgement", len(calls))
+		}
+	})
 }
 
 func TestAutoApproveJoinRequestSkipsAdminNotice(t *testing.T) {
