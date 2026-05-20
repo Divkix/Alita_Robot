@@ -218,6 +218,65 @@ func TestDownloadBackupFileReportsHTTPStatusFailure(t *testing.T) {
 	assert.Len(t, client.callsFor("getFile"), 1)
 }
 
+func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	backup := db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "notes"})
+	backup.Data["rules"] = map[string]interface{}{
+		"settings": map[string]interface{}{"rules": "imported rules"},
+	}
+	backup.Data["notes"] = map[string]interface{}{
+		"notes": []interface{}{
+			map[string]interface{}{"keyword": "welcome", "reply": "hello"},
+		},
+	}
+	backupData, err := backup.ToJSON()
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/file/bot999:test/backups/chat.json", r.URL.Path)
+		_, _ = w.Write(backupData)
+	}))
+	t.Cleanup(server.Close)
+
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+		delete(pendingImports, chat.Id)
+		delete(pendingModules, chat.Id)
+	})
+
+	client := newModuleBotClient()
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"backup-file-id","file_path":"backups/chat.json"}`,
+	)
+	bot := newModuleTestBot(client)
+	ctx := newModuleMessageContext(bot, chat, owner, "/import rules invalid rules")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 333,
+		Date:      1,
+		Chat:      chat,
+		Document: &gotgbot.Document{
+			FileId:   "backup-file-id",
+			FileName: "backup.json",
+		},
+	}
+
+	err = backupModule.importHandler(bot, ctx)
+
+	require.Equal(t, ext.EndGroups, err)
+	require.Contains(t, pendingImports, chat.Id)
+	assert.Equal(t, []string{"rules"}, pendingModules[chat.Id])
+	assert.Equal(t, backup.Version, pendingImports[chat.Id].Version)
+	assert.Contains(t, pendingImports[chat.Id].Data, "notes")
+	assert.Len(t, client.callsFor("getFile"), 1)
+	assert.Len(t, client.callsFor("sendMessage"), 1)
+}
+
 func TestCheckImportRateLimitAllowsWhenCacheUnavailable(t *testing.T) {
 	t.Parallel()
 
