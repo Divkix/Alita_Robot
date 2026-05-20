@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -25,6 +26,83 @@ func newPurgeReplyContext(
 		Text:      "message to purge",
 	}
 	return ctx
+}
+
+func TestPurgeMsgsConcurrentHandlesDeleteBoundariesAndErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		pFrom      bool
+		msgID      int64
+		deleteTo   int64
+		deleteErr  error
+		wantOK     bool
+		wantSends  int
+		wantDelete int
+	}{
+		{
+			name:       "empty range skips deletion when purging from marker",
+			pFrom:      true,
+			msgID:      10,
+			deleteTo:   9,
+			wantOK:     true,
+			wantDelete: 0,
+		},
+		{
+			name:       "old starting message sends explanation and continues",
+			msgID:      10,
+			deleteTo:   10,
+			deleteErr:  fmt.Errorf("Bad Request: message can't be deleted"),
+			wantOK:     true,
+			wantSends:  1,
+			wantDelete: 2,
+		},
+		{
+			name:       "missing starting message is ignored",
+			msgID:      10,
+			deleteTo:   10,
+			deleteErr:  fmt.Errorf("Bad Request: message to delete not found"),
+			wantOK:     true,
+			wantDelete: 2,
+		},
+		{
+			name:       "unexpected starting delete error fails purge",
+			msgID:      10,
+			deleteTo:   10,
+			deleteErr:  fmt.Errorf("Internal Server Error"),
+			wantOK:     false,
+			wantDelete: 1,
+		},
+		{
+			name:       "large ranges use worker deletion path",
+			pFrom:      true,
+			msgID:      1,
+			deleteTo:   12,
+			wantOK:     true,
+			wantDelete: 12,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
+			if tt.deleteErr != nil {
+				client.errors["deleteMessage"] = tt.deleteErr
+			}
+
+			got := purgesModule.purgeMsgsConcurrent(bot, &chat, tt.pFrom, tt.msgID, tt.deleteTo)
+			if got != tt.wantOK {
+				t.Fatalf("purgeMsgsConcurrent() = %v, want %v", got, tt.wantOK)
+			}
+			if calls := client.callsFor("deleteMessage"); len(calls) != tt.wantDelete {
+				t.Fatalf("deleteMessage calls = %d, want %d", len(calls), tt.wantDelete)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != tt.wantSends {
+				t.Fatalf("sendMessage calls = %d, want %d", len(calls), tt.wantSends)
+			}
+		})
+	}
 }
 
 func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
