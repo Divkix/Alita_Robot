@@ -542,3 +542,30 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	rmAllCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes"),
+	)
+	rmAllCtx.EffectiveChat = nil
+	if err := filtersModule.filtersButtonHandler(bot, rmAllCtx); err != ext.EndGroups {
+		t.Fatalf("filtersButtonHandler(no chat) error = %v, want EndGroups", err)
+	}
+
+	overwriteCtx := newModuleCallbackContext(bot, chat, admin, "filters_overwrite.cancel")
+	overwriteCtx.EffectiveChat = nil
+	if err := filtersModule.filterOverWriteHandler(bot, overwriteCtx); err != ext.EndGroups {
+		t.Fatalf("filterOverWriteHandler(no chat) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none when chat is missing", len(calls))
+	}
+}

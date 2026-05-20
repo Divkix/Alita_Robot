@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -996,6 +997,74 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			err := tt.run(bot, tt.build(bot, chat))
 			if !errors.Is(err, requestErr) {
 				t.Fatalf("%s returned error %v, want request error", tt.name, err)
+			}
+		})
+	}
+}
+
+func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
+	expectedErr := fmt.Errorf("Forbidden: bot is not a member of the supergroup chat")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	applicant := gotgbot.User{Id: 5151, FirstName: "Applicant"}
+
+	for _, tt := range []struct {
+		name       string
+		method     string
+		data       string
+		autoApprove bool
+		want       error
+	}{
+		{
+			name:   "join callback approve",
+			method: "approveChatJoinRequest",
+			data: encodeCallbackData(
+				"join_request",
+				map[string]string{"a": "accept", "u": "5151"},
+				"join_request.accept.5151",
+			),
+			want: ext.EndGroups,
+		},
+		{
+			name:   "join callback decline",
+			method: "declineChatJoinRequest",
+			data: encodeCallbackData(
+				"join_request",
+				map[string]string{"a": "decline", "u": "5151"},
+				"join_request.decline.5151",
+			),
+			want: ext.EndGroups,
+		},
+		{
+			name:        "auto approve join request",
+			method:      "approveChatJoinRequest",
+			autoApprove: true,
+			want:        ext.ContinueGroups,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = expectedErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+
+			var (
+				ctx *ext.Context
+				err error
+			)
+			if tt.autoApprove {
+				if err := db.SetShouldAutoApprove(chat.Id, true); err != nil {
+					t.Fatalf("SetShouldAutoApprove() error = %v", err)
+				}
+				ctx = newJoinRequestContext(bot, chat, applicant)
+				err = greetingsModule.pendingJoins(bot, ctx)
+			} else {
+				ctx = newModuleCallbackContext(bot, chat, admin, tt.data)
+				err = greetingsModule.joinRequestHandler(bot, ctx)
+			}
+
+			if err != tt.want {
+				t.Fatalf("%s error = %v, want %v", tt.name, err, tt.want)
 			}
 		})
 	}
