@@ -1,12 +1,30 @@
 package modules
 
 import (
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func withMiscHTTPClient(t *testing.T, client *http.Client) {
+	t.Helper()
+	previous := httpClient
+	httpClient = client
+	t.Cleanup(func() {
+		httpClient = previous
+	})
+}
 
 func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
 	client := newModuleBotClient()
@@ -120,6 +138,88 @@ func TestTranslateMissingInputReplies(t *testing.T) {
 	}
 }
 
+func TestParseTranslateResponseHandlesShapes(t *testing.T) {
+	detected, translated, err := parseTranslateResponse([]byte(`[["hola","en"]]`))
+	if err != nil {
+		t.Fatalf("parseTranslateResponse valid error = %v", err)
+	}
+	if detected != "en" || translated != "hola" {
+		t.Fatalf("parseTranslateResponse = (%q, %q), want (en, hola)", detected, translated)
+	}
+
+	for _, body := range [][]byte{
+		[]byte(`not-json`),
+		[]byte(`[]`),
+		[]byte(`[[]]`),
+		[]byte(`[[null,"en"]]`),
+		[]byte(`[["hola",null]]`),
+	} {
+		if _, _, err := parseTranslateResponse(body); err == nil {
+			t.Fatalf("parseTranslateResponse(%s) error = nil, want error", body)
+		}
+	}
+}
+
+func TestTranslateHandlesReplyAndHTTPBranches(t *testing.T) {
+	tests := []struct {
+		name       string
+		text       string
+		replyText  string
+		replyCap   string
+		body       string
+		wantCalls  int
+		wantTarget string
+	}{
+		{name: "missing direct text", text: "/tr es", wantCalls: 1},
+		{name: "reply without text", text: "/tr es", wantCalls: 1},
+		{name: "reply text defaults target", text: "/tr", replyText: "hello", body: `[["hola","en"]]`, wantCalls: 1, wantTarget: "en"},
+		{name: "reply caption target", text: "/tr hi", replyCap: "hello", body: `[["namaste","en"]]`, wantCalls: 1, wantTarget: "hi"},
+		{name: "parse error", text: "/tr es hello", body: `[[]]`, wantCalls: 1, wantTarget: "es"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+			user := gotgbot.User{Id: 42, FirstName: "Member"}
+			var seenURL string
+			withMiscHTTPClient(t, &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					seenURL = req.URL.String()
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+						Header:     make(http.Header),
+					}, nil
+				}),
+			})
+
+			ctx := newModuleMessageContext(bot, chat, user, tc.text)
+			if tc.replyText != "" || tc.replyCap != "" || tc.name == "reply without text" {
+				ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+					MessageId: 55,
+					Date:      1,
+					Chat:      chat,
+					From:      &gotgbot.User{Id: 88, FirstName: "Target"},
+					Text:      tc.replyText,
+					Caption:   tc.replyCap,
+				}
+			}
+
+			if err := miscModule.translate(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("translate() error = %v, want EndGroups", err)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != tc.wantCalls {
+				t.Fatalf("sendMessage calls = %d, want %d", len(calls), tc.wantCalls)
+			}
+			if tc.wantTarget != "" && !strings.Contains(seenURL, "tl="+tc.wantTarget) {
+				t.Fatalf("translate URL = %q, want target %q", seenURL, tc.wantTarget)
+			}
+		})
+	}
+}
+
 func TestGetIdRepliesForCurrentGroupUserAndReply(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -149,6 +249,44 @@ func TestGetIdRepliesForCurrentGroupUserAndReply(t *testing.T) {
 	}
 }
 
+func TestGetIdHandlesPrivateAnonymousAndMediaReply(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
+	privateCtx := newModuleMessageContext(bot, privateChat, user, "/id")
+	if err := miscModule.getId(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("getId private error = %v, want EndGroups", err)
+	}
+
+	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	anonymousCtx := newModuleMessageContext(bot, groupChat, user, "/id")
+	anonymousCtx.EffectiveMessage.From = nil
+	if err := miscModule.getId(bot, anonymousCtx); err != ext.EndGroups {
+		t.Fatalf("getId anonymous error = %v, want EndGroups", err)
+	}
+
+	replyCtx := newModuleMessageContext(bot, groupChat, user, "/id")
+	replyCtx.EffectiveMessage.IsTopicMessage = true
+	replyCtx.EffectiveMessage.MessageThreadId = 77
+	replyCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 55,
+		Date:      1,
+		Chat:      groupChat,
+		From:      &gotgbot.User{Id: 88, FirstName: "Target"},
+		Text:      "target",
+		Animation: &gotgbot.Animation{FileId: "gif-file-id"},
+	}
+	if err := miscModule.getId(bot, replyCtx); err != ext.EndGroups {
+		t.Fatalf("getId media reply error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want 3", len(calls))
+	}
+}
+
 func TestInfoRepliesForUnknownNumericUser(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -161,5 +299,14 @@ func TestInfoRepliesForUnknownNumericUser(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestLoadMiscRegistersHelpAndHandlers(t *testing.T) {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadMisc(dispatcher)
+
+	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(miscModule.moduleName); moduleName != miscModule.moduleName || !enabled {
+		t.Fatalf("misc help registration = (%q, %v), want enabled", moduleName, enabled)
 	}
 }
