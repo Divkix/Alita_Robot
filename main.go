@@ -355,6 +355,8 @@ func main() {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
+		postInit(b, dispatcher, botUsername, "webhook")
+
 		// Start the unified HTTP server
 		if err := httpServer.Start(); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
@@ -368,51 +370,6 @@ func main() {
 			log.Info("[Shutdown] Stopping HTTP server...")
 			return httpServer.Stop()
 		})
-
-		// Load modules
-		alita.LoadModules(dispatcher)
-
-		// list modules from modules dir
-		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
-
-		// Set Commands of Bot
-		log.Info("Setting Custom Commands for PM...!")
-		// Get translator for bot commands (use English for bot commands)
-		tr := i18n.MustNewTranslator("en")
-		startDesc, _ := tr.GetString("main_bot_command_start")
-		helpDesc, _ := tr.GetString("main_bot_command_help")
-		_, err = b.SetMyCommands(
-			[]gotgbot.BotCommand{
-				{Command: "start", Description: startDesc},
-				{Command: "help", Description: helpDesc},
-			},
-			&gotgbot.SetMyCommandsOpts{
-				Scope:        gotgbot.BotCommandScopeAllPrivateChats{},
-				LanguageCode: "en",
-			},
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// send message to log group
-		_, err = b.SendMessage(config.AppConfig.MessageDump,
-			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.AppConfig.WorkingMode, alita.ListModules()),
-			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
-			},
-		)
-		if err != nil {
-			log.Errorf("[Bot] Failed to send startup message to log group: %v", err)
-			log.Warn("[Bot] Continuing without log channel notifications")
-		}
-
-		// Log the message that bot started
-		if botUsername == "" {
-			log.Infof("[Bot] Bot has been started in webhook mode...")
-		} else {
-			log.Infof("[Bot] %s has been started in webhook mode...", botUsername)
-		}
 
 		// Wait for shutdown signal (blocking)
 		select {}
@@ -439,11 +396,7 @@ func main() {
 		}
 		log.Info("[Polling] Removed Webhook!")
 
-		// Load modules before polling starts so incoming updates always have handlers.
-		alita.LoadModules(dispatcher)
-
-		// list modules from modules dir
-		log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
+		postInit(b, dispatcher, botUsername, "polling")
 
 		// start the bot in polling mode
 		err = updater.StartPolling(b,
@@ -458,46 +411,6 @@ func main() {
 			log.Fatalf("[Polling] Failed to start polling: %v", err)
 		}
 		log.Info("[Polling] Started Polling...!")
-		config.AppConfig.WorkingMode = "polling"
-
-		// Set Commands of Bot
-		log.Info("Setting Custom Commands for PM...!")
-		// Get translator for bot commands (use English for bot commands)
-		tr := i18n.MustNewTranslator("en")
-		startDesc, _ := tr.GetString("main_bot_command_start")
-		helpDesc, _ := tr.GetString("main_bot_command_help")
-		_, err = b.SetMyCommands(
-			[]gotgbot.BotCommand{
-				{Command: "start", Description: startDesc},
-				{Command: "help", Description: helpDesc},
-			},
-			&gotgbot.SetMyCommandsOpts{
-				Scope:        gotgbot.BotCommandScopeAllPrivateChats{},
-				LanguageCode: "en",
-			},
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// send message to log group
-		_, err = b.SendMessage(config.AppConfig.MessageDump,
-			fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", config.AppConfig.WorkingMode, alita.ListModules()),
-			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
-			},
-		)
-		if err != nil {
-			log.Errorf("[Bot] Failed to send startup message to log group: %v", err)
-			log.Warn("[Bot] Continuing without log channel notifications")
-		}
-
-		// Log the message that bot started
-		if botUsername == "" {
-			log.Infof("[Bot] Bot has been started in polling mode...")
-		} else {
-			log.Infof("[Bot] %s has been started in polling mode...", botUsername)
-		}
 
 		// Register handler to stop the updater on shutdown
 		shutdownManager.RegisterHandler(func() error {
@@ -547,6 +460,53 @@ func (t *apiServerRewriteTransport) RoundTrip(req *http.Request) (*http.Response
 		return t.base.RoundTrip(&newReq)
 	}
 	return t.base.RoundTrip(req)
+}
+
+// postInit runs shared initialization steps after the server has started
+// for both webhook and polling modes. It loads modules, sets bot commands,
+// and sends the startup notification message.
+func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
+	alita.LoadModules(d)
+	log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
+
+	config.AppConfig.WorkingMode = mode
+
+	// Set Commands of Bot (use English for bot commands)
+	tr := i18n.MustNewTranslator("en")
+	startDesc, _ := tr.GetString("main_bot_command_start")
+	helpDesc, _ := tr.GetString("main_bot_command_help")
+	_, err := b.SetMyCommands(
+		[]gotgbot.BotCommand{
+			{Command: "start", Description: startDesc},
+			{Command: "help", Description: helpDesc},
+		},
+		&gotgbot.SetMyCommandsOpts{
+			Scope:        gotgbot.BotCommandScopeAllPrivateChats{},
+			LanguageCode: "en",
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info("Custom bot commands set for private chats")
+
+	// send startup message to log group
+	_, err = b.SendMessage(config.AppConfig.MessageDump,
+		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
+		&gotgbot.SendMessageOpts{
+			ParseMode: helpers.HTML,
+		},
+	)
+	if err != nil {
+		log.Errorf("[Bot] Failed to send startup message to log group: %v", err)
+		log.Warn("[Bot] Continuing without log channel notifications")
+	}
+
+	if username == "" {
+		log.Infof("[Bot] Bot has been started in %s mode...", mode)
+	} else {
+		log.Infof("[Bot] %s has been started in %s mode...", username, mode)
+	}
 }
 
 // closeDBConnections closes all database connections gracefully during shutdown.

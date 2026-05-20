@@ -131,6 +131,7 @@ func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason strin
 	}
 
 	// Invalidate cache after successful transaction
+	deleteCache(CacheKey("warns", userId, chatId))
 	deleteCache(CacheKey("warn_settings", chatId))
 
 	return numWarns, reasons
@@ -182,6 +183,7 @@ func RemoveWarnWithContext(ctx context.Context, userId, chatId int64) bool {
 
 	// Invalidate cache after successful transaction
 	if removed {
+		deleteCache(CacheKey("warns", userId, chatId))
 		deleteCache(CacheKey("warn_settings", chatId))
 	}
 
@@ -196,15 +198,33 @@ func ResetUserWarns(userId, chatId int64) (removed bool) {
 	if err != nil {
 		log.Errorf("[Database] ResetUserWarns: %v", err)
 		removed = false
+		return removed
 	}
+	deleteCache(CacheKey("warns", userId, chatId))
+	deleteCache(CacheKey("warn_settings", chatId))
 	return removed
 }
 
 // GetWarns retrieves the current warning count and reasons for a user in a specific chat.
-// Returns 0 warnings and empty reasons if the user has no warnings.
+// Results are cached to avoid repeated database queries.
 func GetWarns(userId, chatId int64) (int, []string) {
-	warnrc := checkWarns(userId, chatId)
-	return warnrc.NumWarns, []string(warnrc.Reasons)
+	type warnCache struct {
+		NumWarns int
+		Reasons  []string
+	}
+	cached, err := getFromCacheOrLoad(
+		CacheKey("warns", userId, chatId),
+		CacheTTLLanguage,
+		func() (warnCache, error) {
+			w := checkWarns(userId, chatId)
+			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
+		},
+	)
+	if err != nil {
+		w := checkWarns(userId, chatId)
+		return w.NumWarns, []string(w.Reasons)
+	}
+	return cached.NumWarns, cached.Reasons
 }
 
 // SetWarnLimit updates the warning limit for a specific chat.
@@ -240,7 +260,17 @@ func SetWarnMode(chatId int64, warnMode string) error {
 // GetWarnSetting returns the warning settings for the specified chat.
 // This is the public interface to access warning configuration.
 func GetWarnSetting(chatId int64) *WarnSettings {
-	return checkWarnSettings(chatId)
+	cached, err := getFromCacheOrLoad(
+		CacheKey("warn_settings", chatId),
+		CacheTTLLanguage,
+		func() (*WarnSettings, error) {
+			return checkWarnSettings(chatId), nil
+		},
+	)
+	if err != nil {
+		return checkWarnSettings(chatId)
+	}
+	return cached
 }
 
 // GetAllChatWarns returns the total count of warned users in a specific chat.
@@ -258,10 +288,21 @@ func GetAllChatWarns(chatId int64) int {
 // ResetAllChatWarns removes all warning records for all users in a specific chat.
 // Returns true if the operation was successful, false on error.
 func ResetAllChatWarns(chatId int64) bool {
+	// Collect user IDs before deletion so we can invalidate per-user caches
+	var userIds []int64
+	if err := DB.Model(&Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
+		log.Errorf("[Database] ResetAllChatWarns: %v", err)
+		return false
+	}
+
 	err := DB.Where("chat_id = ?", chatId).Delete(&Warns{}).Error
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return false
 	}
+	for _, userId := range userIds {
+		deleteCache(CacheKey("warns", userId, chatId))
+	}
+	deleteCache(CacheKey("warn_settings", chatId))
 	return true
 }

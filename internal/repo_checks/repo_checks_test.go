@@ -121,27 +121,46 @@ func TestPollingLoadsModulesBeforeStartingPolling(t *testing.T) {
 	t.Parallel()
 
 	source := readRepoFile(t, "main.go")
-	start := strings.Index(source, "// Use polling mode")
-	if start == -1 {
+
+	// Find the polling branch in main().
+	pollingStart := strings.Index(source, "// Use polling mode")
+	if pollingStart == -1 {
 		t.Fatal("polling branch marker is missing")
 	}
-	end := strings.Index(source[start:], "// Set Commands of Bot")
-	if end == -1 {
-		t.Fatal("polling startup region marker is missing")
-	}
 
-	pollingBranch := source[start : start+end]
-	loadModules := strings.Index(pollingBranch, "alita.LoadModules(dispatcher)")
-	startPolling := strings.Index(pollingBranch, "updater.StartPolling")
-
-	if loadModules == -1 {
-		t.Fatal("polling branch does not load modules")
+	// The polling block in main() calls postInit(...) then updater.StartPolling(...).
+	// postInit itself (defined after main()) calls alita.LoadModules(dispatcher).
+	// Check execution order by verifying the call site in the polling branch.
+	pollingEnd := strings.Index(source[pollingStart:], "\n}")
+	if pollingEnd == -1 {
+		t.Fatal("could not find end of polling branch")
 	}
-	if startPolling == -1 {
+	pollingBranch := source[pollingStart : pollingStart+pollingEnd]
+
+	postInitCall := strings.Index(pollingBranch, "postInit(b, dispatcher")
+	startPollingCall := strings.Index(pollingBranch, "updater.StartPolling")
+
+	if postInitCall == -1 {
+		t.Fatal("polling branch does not call postInit")
+	}
+	if startPollingCall == -1 {
 		t.Fatal("polling branch does not start polling")
 	}
-	if loadModules > startPolling {
-		t.Fatal("polling branch starts polling before loading modules")
+	if postInitCall > startPollingCall {
+		t.Fatal("polling branch starts polling before calling postInit")
+	}
+
+	// Verify that postInit itself calls alita.LoadModules before returning.
+	sourceAfterPolling := source[pollingStart+pollingEnd:]
+	postInitFunc := strings.Index(sourceAfterPolling, "func postInit(")
+	if postInitFunc == -1 {
+		t.Fatal("postInit function definition is missing")
+	}
+	postInitBody := sourceAfterPolling[postInitFunc:]
+	loadModules := strings.Index(postInitBody, "alita.LoadModules(")
+	postInitEnd := strings.Index(postInitBody, "\n}\n")
+	if loadModules == -1 || (postInitEnd != -1 && loadModules > postInitEnd) {
+		t.Fatal("postInit must call alita.LoadModules")
 	}
 }
 
