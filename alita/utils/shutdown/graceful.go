@@ -19,6 +19,13 @@ type Manager struct {
 	once     sync.Once
 }
 
+var (
+	notifySignals   = signal.Notify
+	stopSignals     = signal.Stop
+	exitProcess     = os.Exit
+	shutdownTimeout = 60 * time.Second
+)
+
 // NewManager creates a new shutdown manager
 func NewManager() *Manager {
 	return &Manager{
@@ -36,14 +43,14 @@ func (m *Manager) RegisterHandler(handler func() error) {
 // WaitForShutdown waits for shutdown signals and executes handlers
 func (m *Manager) WaitForShutdown() {
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	notifySignals(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
 	// Wait for signal
 	sig := <-sigChan
 	log.Infof("[Shutdown] Received signal: %v", sig)
 
 	// Stop receiving signals - prevents duplicate shutdown calls
-	signal.Stop(sigChan)
+	stopSignals(sigChan)
 	close(sigChan)
 
 	m.shutdown()
@@ -69,7 +76,7 @@ func (m *Manager) shutdown() {
 
 		// Create context with timeout for shutdown
 		// Use 60 seconds to allow time for database connections and large cleanup tasks
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
 		// Execute shutdown handlers in reverse order
@@ -83,7 +90,7 @@ func (m *Manager) shutdown() {
 			select {
 			case <-ctx.Done():
 				log.Warn("[Shutdown] Timeout reached, forcing exit")
-				os.Exit(1)
+				exitProcess(1)
 			default:
 				if err := m.executeHandler(handlers[i], i); err != nil {
 					log.Errorf("[Shutdown] Handler error: %v", err)
@@ -92,6 +99,6 @@ func (m *Manager) shutdown() {
 		}
 
 		log.Info("[Shutdown] Graceful shutdown completed")
-		os.Exit(0)
+		exitProcess(0)
 	})
 }
