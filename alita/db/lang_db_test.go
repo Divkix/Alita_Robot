@@ -3,6 +3,9 @@ package db
 import (
 	"testing"
 	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
 func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
@@ -15,7 +18,7 @@ func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
 		deleteCache(CacheKey("chat_lang", chatID))
 	})
 
-	// No chat record → should return "en"
+	// No chat record -> should return "en"
 	lang := getGroupLanguage(chatID)
 	if lang != "en" {
 		t.Fatalf("expected default language 'en', got %q", lang)
@@ -32,7 +35,7 @@ func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
 		deleteCache(CacheKey("user_lang", userID))
 	})
 
-	// No user record → should return "en"
+	// No user record -> should return "en"
 	lang := getUserLanguage(userID)
 	if lang != "en" {
 		t.Fatalf("expected default language 'en', got %q", lang)
@@ -169,5 +172,62 @@ func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
 	lang := getUserLanguage(userID)
 	if lang != "fr" {
 		t.Fatalf("expected language 'fr', got %q", lang)
+	}
+}
+
+func TestGetLanguageFromPrivateAndGroupContexts(t *testing.T) {
+	skipIfNoDb(t)
+
+	userID := int64(901001)
+	groupID := int64(-100901001)
+
+	if got := GetLanguage(nil); got != "en" {
+		t.Fatalf("GetLanguage(nil) = %q, want en", got)
+	}
+	if got := GetLanguage(&ext.Context{}); got != "en" {
+		t.Fatalf("GetLanguage(empty context) = %q, want en", got)
+	}
+
+	if err := ChangeUserLanguage(userID, "es"); err != nil {
+		t.Fatalf("ChangeUserLanguage() error = %v", err)
+	}
+	privateCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 999, IsBot: true}},
+		&gotgbot.Update{
+			Message: &gotgbot.Message{
+				Chat: gotgbot.Chat{Id: userID, Type: "private", FirstName: "Tester"},
+				From: &gotgbot.User{Id: userID, FirstName: "Tester"},
+			},
+		},
+		nil,
+	)
+	if got := GetLanguage(privateCtx); got != "es" {
+		t.Fatalf("GetLanguage(private) = %q, want es", got)
+	}
+
+	noSenderCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 999, IsBot: true}},
+		&gotgbot.Update{Message: &gotgbot.Message{
+			Chat: gotgbot.Chat{Id: userID + 1, Type: "private", FirstName: "No Sender"},
+		}},
+		nil,
+	)
+	if got := GetLanguage(noSenderCtx); got != "en" {
+		t.Fatalf("GetLanguage(private without sender) = %q, want en", got)
+	}
+
+	if err := ChangeGroupLanguage(groupID, "fr"); err != nil {
+		t.Fatalf("ChangeGroupLanguage() error = %v", err)
+	}
+	groupCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 999, IsBot: true}},
+		&gotgbot.Update{Message: &gotgbot.Message{
+			Chat: gotgbot.Chat{Id: groupID, Type: "supergroup", Title: "Lang Group"},
+			From: &gotgbot.User{Id: userID, FirstName: "Tester"},
+		}},
+		nil,
+	)
+	if got := GetLanguage(groupCtx); got != "fr" {
+		t.Fatalf("GetLanguage(group) = %q, want fr", got)
 	}
 }
