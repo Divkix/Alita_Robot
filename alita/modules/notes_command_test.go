@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -136,6 +137,103 @@ func TestAddNoteValidationAndPrivateFlagConflict(t *testing.T) {
 	}
 }
 
+func TestNoteCommandsPropagateGotgbotReplyErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name  string
+		text  string
+		setup func(t *testing.T)
+		run   func(*gotgbot.Bot, *ext.Context) error
+		user  gotgbot.User
+	}{
+		{
+			name: "add note validation reply",
+			text: "/save",
+			run:  notesModule.addNote,
+			user: admin,
+		},
+		{
+			name: "add note success reply",
+			text: "/save rules Be kind",
+			run:  notesModule.addNote,
+			user: admin,
+		},
+		{
+			name: "remove note missing keyword reply",
+			text: "/clear",
+			run:  notesModule.rmNote,
+			user: admin,
+		},
+		{
+			name: "remove note missing note reply",
+			text: "/clear missing",
+			run:  notesModule.rmNote,
+			user: admin,
+		},
+		{
+			name: "remove note success reply",
+			text: "/clear cleanup",
+			setup: func(t *testing.T) {
+				t.Helper()
+				if err := db.AddNote(chat.Id, "cleanup", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+					t.Fatalf("AddNote setup error = %v", err)
+				}
+			},
+			run:  notesModule.rmNote,
+			user: admin,
+		},
+		{
+			name: "private note reply",
+			text: "/privnote maybe",
+			run:  notesModule.privNote,
+			user: admin,
+		},
+		{
+			name: "notes empty list reply",
+			text: "/notes",
+			run:  notesModule.notesList,
+			user: member,
+		},
+		{
+			name: "notes populated list reply",
+			text: "/notes",
+			setup: func(t *testing.T) {
+				t.Helper()
+				if err := db.AddNote(chat.Id, "listed", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+					t.Fatalf("AddNote setup error = %v", err)
+				}
+			},
+			run:  notesModule.notesList,
+			user: member,
+		},
+		{
+			name: "clear all empty reply",
+			text: "/clearall",
+			run:  notesModule.rmAllNotes,
+			user: admin,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors["sendMessage"] = requestErr
+			if tt.setup != nil {
+				tt.setup(t)
+			}
+			ctx := newModuleMessageContext(bot, chat, tt.user, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
 func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -230,6 +328,51 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 	}
 }
 
+func TestNotesButtonHandlerSkipsMissingCallbackAndPropagatesRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	noCallbackClient := newModuleBotClient()
+	noCallbackBot := newModuleTestBot(noCallbackClient)
+	noCallbackCtx := newModuleMessageContext(noCallbackBot, chat, admin, "/clearall")
+	if err := notesModule.notesButtonHandler(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
+		t.Fatalf("notesButtonHandler(no callback) error = %v, want EndGroups", err)
+	}
+	if calls := noCallbackClient.callsFor("answerCallbackQuery"); len(calls) != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none without callback query", len(calls))
+	}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+		data   string
+	}{
+		{
+			name:   "edit failure",
+			method: "editMessageText",
+			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+		},
+		{
+			name:   "answer failure",
+			method: "answerCallbackQuery",
+			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			ctx := newModuleCallbackContext(bot, chat, admin, tt.data)
+
+			err := notesModule.notesButtonHandler(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("notesButtonHandler() error = %v, want request error", err)
+			}
+		})
+	}
+}
+
 func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -270,6 +413,78 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "new" {
 		t.Fatalf("legacy overwrite content = %q, want new", got)
 	}
+}
+
+func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote setup error = %v", err)
+	}
+
+	noCallbackClient := newModuleBotClient()
+	noCallbackBot := newModuleTestBot(noCallbackClient)
+	noCallbackCtx := newModuleMessageContext(noCallbackBot, chat, admin, "/save rules new")
+	if err := notesModule.noteOverWriteHandler(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
+		t.Fatalf("noteOverWriteHandler(no callback) error = %v, want EndGroups", err)
+	}
+
+	for _, data := range []string{
+		"notes.overwrite",
+		"notes.overwrite.maybe." + strconv.FormatInt(chat.Id, 10) + "_rules",
+		"notes.overwrite.yes.not-a-chat_rules",
+		encodeCallbackData("notes.overwrite", map[string]string{"a": "yes", "t": "missing-token"}, "notes.overwrite.yes"),
+	} {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+		if err := notesModule.noteOverWriteHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("noteOverWriteHandler(%q) error = %v, want EndGroups", data, err)
+		}
+	}
+
+	t.Run("edit failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["editMessageText"] = requestErr
+		token := "edit-failure-note-token"
+		notesOverwriteMap.Store(token, overwriteNote{
+			overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
+		})
+		ctx := newModuleCallbackContext(
+			bot,
+			chat,
+			admin,
+			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}, "notes.overwrite.no"),
+		)
+
+		err := notesModule.noteOverWriteHandler(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("noteOverWriteHandler edit failure error = %v, want request error", err)
+		}
+	})
+
+	t.Run("answer failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["answerCallbackQuery"] = requestErr
+		token := "answer-failure-note-token"
+		notesOverwriteMap.Store(token, overwriteNote{
+			overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
+		})
+		ctx := newModuleCallbackContext(
+			bot,
+			chat,
+			admin,
+			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}, "notes.overwrite.no"),
+		)
+
+		err := notesModule.noteOverWriteHandler(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("noteOverWriteHandler answer failure error = %v, want request error", err)
+		}
+	})
 }
 
 func TestNotesWatcherSendsMatchingNote(t *testing.T) {
@@ -374,6 +589,57 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 	}
 	if calls[2].Params["reply_markup"] == nil {
 		t.Fatal("private /get did not include click-through button")
+	}
+}
+
+func TestGetNotesAndWatcherPropagateGotgbotSendErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(rules) setup error = %v", err)
+	}
+	if err := db.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(private) setup error = %v", err)
+	}
+	if err := db.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+		t.Fatalf("AddNote(admin) setup error = %v", err)
+	}
+	if err := db.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(broken) setup error = %v", err)
+	}
+
+	for _, tt := range []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+		user gotgbot.User
+	}{
+		{name: "get missing args", text: "/get", run: notesModule.getNotes, user: member},
+		{name: "get missing note", text: "/get missing", run: notesModule.getNotes, user: member},
+		{name: "get broken note", text: "/get broken", run: notesModule.getNotes, user: member},
+		{name: "get admin-only denial", text: "/get admin", run: notesModule.getNotes, user: member},
+		{name: "get private redirect", text: "/get private", run: notesModule.getNotes, user: member},
+		{name: "get normal note", text: "/get rules", run: notesModule.getNotes, user: member},
+		{name: "get raw noformat", text: "/get rules noformat", run: notesModule.getNotes, user: admin},
+		{name: "watcher broken note", text: "#broken", run: notesModule.notesWatcher, user: member},
+		{name: "watcher admin-only denial", text: "#admin", run: notesModule.notesWatcher, user: member},
+		{name: "watcher private redirect", text: "#private", run: notesModule.notesWatcher, user: member},
+		{name: "watcher normal note", text: "#rules", run: notesModule.notesWatcher, user: member},
+		{name: "watcher raw noformat", text: "#rules noformat", run: notesModule.notesWatcher, user: admin},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors["sendMessage"] = requestErr
+			ctx := newModuleMessageContext(bot, chat, tt.user, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
 	}
 }
 

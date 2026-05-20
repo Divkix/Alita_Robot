@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -363,6 +364,106 @@ func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 	}
 }
 
+func TestWarnCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name  string
+		text  string
+		setup func(t *testing.T, chat gotgbot.Chat)
+		run   func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "set warn mode help reply", text: "/setwarnmode", run: warnsModule.setWarnMode},
+		{name: "set warn limit help reply", text: "/setwarnlimit", run: warnsModule.setWarnLimit},
+		{name: "warnings display reply", text: "/warnings", run: warnsModule.warnings},
+		{name: "warn missing target reply", text: "/warn", run: warnsModule.warnUser},
+		{name: "silent warn missing target reply", text: "/swarn", run: warnsModule.sWarnUser},
+		{name: "delete warn missing target reply", text: "/dwarn", run: warnsModule.dWarnUser},
+		{name: "warns no warnings reply", text: "/warns 42", run: warnsModule.warns},
+		{name: "remove warn missing target reply", text: "/rmwarn", run: warnsModule.removeWarn},
+		{name: "remove warn no warnings reply", text: "/rmwarn 42", run: warnsModule.removeWarn},
+		{name: "reset warns missing target reply", text: "/resetwarns", run: warnsModule.resetWarns},
+		{name: "reset warns success reply", text: "/resetwarns 42", run: warnsModule.resetWarns},
+		{
+			name: "reset all empty reply",
+			text: "/resetallwarns",
+			run:  warnsModule.resetAllWarns,
+		},
+		{
+			name: "reset all confirmation reply",
+			text: "/resetallwarns",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				db.WarnUser(target.Id, chat.Id, "first")
+			},
+			run: warnsModule.resetAllWarns,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors["sendMessage"] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			if tt.setup != nil {
+				tt.setup(t, chat)
+			}
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
+func TestWarnThisUserPropagatesGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name         string
+		method       string
+		mode         string
+		callWarnThis bool
+	}{
+		{name: "member lookup failure", method: "getChatMember", callWarnThis: true},
+		{name: "warning reply failure", method: "sendMessage"},
+		{name: "ban limit failure", method: "banChatMember", mode: "ban"},
+		{name: "kick limit failure", method: "banChatMember", mode: "kick"},
+		{name: "mute limit failure", method: "restrictChatMember", mode: "mute"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			if tt.mode != "" {
+				if err := db.SetWarnLimit(chat.Id, 1); err != nil {
+					t.Fatalf("SetWarnLimit() error = %v", err)
+				}
+				if err := db.SetWarnMode(chat.Id, tt.mode); err != nil {
+					t.Fatalf("SetWarnMode() error = %v", err)
+				}
+			}
+			ctx := newWarnReplyContext(bot, chat, admin, target, "/warn too noisy")
+
+			var err error
+			if tt.callWarnThis {
+				err = warnsModule.warnThisUser(bot, ctx, target.Id, "too noisy", "warn")
+			} else {
+				err = warnsModule.warnUser(bot, ctx)
+			}
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("warnUser() error = %v, want request error", err)
+			}
+		})
+	}
+}
+
 func TestRmWarnButtonRemovesWarning(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -401,6 +502,79 @@ func TestRmWarnButtonRejectsMalformedAndInvalidUserCallbacks(t *testing.T) {
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
 		t.Fatalf("editMessageText calls = %d, want none for invalid callbacks", len(calls))
+	}
+}
+
+func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	t.Run("remove warn edit failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["editMessageText"] = requestErr
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+		db.WarnUser(target.Id, chat.Id, "button")
+		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"}, "rmWarn.42")
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+		err := warnsModule.rmWarnButton(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("rmWarnButton() error = %v, want edit request error", err)
+		}
+	})
+
+	t.Run("remove warn answer failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["answerCallbackQuery"] = requestErr
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+		db.WarnUser(target.Id, chat.Id, "button")
+		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"}, "rmWarn.42")
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+		err := warnsModule.rmWarnButton(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("rmWarnButton() error = %v, want answer request error", err)
+		}
+	})
+
+	t.Run("reset all missing callback", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+		ctx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
+
+		if err := warnsModule.warnsButtonHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("warnsButtonHandler(no callback) error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
+			t.Fatalf("answerCallbackQuery calls = %d, want none without callback", len(calls))
+		}
+	})
+
+	for _, tt := range []struct {
+		name   string
+		method string
+	}{
+		{name: "reset all edit failure", method: "editMessageText"},
+		{name: "reset all answer failure", method: "answerCallbackQuery"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			db.WarnUser(target.Id, chat.Id, "first")
+			data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}, "rmAllChatWarns.yes")
+			ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+			err := warnsModule.warnsButtonHandler(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("warnsButtonHandler() error = %v, want request error", err)
+			}
+		})
 	}
 }
 
