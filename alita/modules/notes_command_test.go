@@ -129,3 +129,69 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 		t.Fatalf("notes after clear all = %v, want none", notes)
 	}
 }
+
+func TestNotesWatcherSendsMatchingNote(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "#rules")
+	if err := notesModule.notesWatcher(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want note response", len(calls))
+	}
+	if got := calls[0].Params["text"]; got != "be kind" {
+		t.Fatalf("note text = %q, want be kind", got)
+	}
+}
+
+func TestNotesWatcherPrivateOnlyNoteSendsDeepLinkInGroup(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := db.AddNote(chat.Id, "secret", "private", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "#secret")
+	if err := notesModule.notesWatcher(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want private-note deep link", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatal("private-note response did not include reply markup")
+	}
+}
+
+func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/get raw noformat")
+	if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("getNotes(noformat) error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want raw note response", len(calls))
+	}
+	if got := calls[0].Params["text"]; got == "<b>raw</b>" {
+		t.Fatalf("raw note text was not reversed from HTML markdown: %q", got)
+	}
+}
