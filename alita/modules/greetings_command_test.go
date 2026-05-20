@@ -1008,11 +1008,11 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 	applicant := gotgbot.User{Id: 5151, FirstName: "Applicant"}
 
 	for _, tt := range []struct {
-		name       string
-		method     string
-		data       string
+		name        string
+		method      string
+		data        string
 		autoApprove bool
-		want       error
+		want        error
 	}{
 		{
 			name:   "join callback approve",
