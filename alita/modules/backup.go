@@ -79,12 +79,7 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
 		if len(args) > 1 {
-			// User specified specific modules
-			for _, arg := range args[1:] {
-				if db.IsValidModule(strings.ToLower(arg)) {
-					modules = append(modules, strings.ToLower(arg))
-				}
-			}
+			modules = parseModuleArgs(args[1:], db.IsValidModule)
 		}
 	}
 
@@ -256,19 +251,35 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 
 // parseImportModules parses module arguments from command text
 func parseImportModules(text string, backupData map[string]interface{}) []string {
-	var importModules []string
 	if text != "" {
 		args := strings.Fields(text)
 		if len(args) > 1 {
-			for _, arg := range args[1:] {
-				module := strings.ToLower(arg)
+			return parseModuleArgs(args[1:], func(module string) bool {
 				if _, ok := backupData[module]; ok {
-					importModules = append(importModules, module)
+					return true
 				}
-			}
+				return false
+			})
 		}
 	}
-	return importModules
+	return nil
+}
+
+func parseModuleArgs(args []string, valid func(string) bool) []string {
+	modules := make([]string, 0, len(args))
+	seen := make(map[string]struct{}, len(args))
+	for _, arg := range args {
+		module := strings.ToLower(arg)
+		if module == "" || !valid(module) {
+			continue
+		}
+		if _, ok := seen[module]; ok {
+			continue
+		}
+		seen[module] = struct{}{}
+		modules = append(modules, module)
+	}
+	return modules
 }
 
 // importHandler handles the /import command
@@ -403,12 +414,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
 		if len(args) > 1 {
-			// User specified specific modules to reset
-			for _, arg := range args[1:] {
-				if db.IsValidModule(strings.ToLower(arg)) {
-					resetModules = append(resetModules, strings.ToLower(arg))
-				}
-			}
+			resetModules = parseModuleArgs(args[1:], db.IsValidModule)
 		}
 	}
 

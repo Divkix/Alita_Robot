@@ -5,6 +5,7 @@ package modules
 import (
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -41,6 +42,8 @@ func TestBuildModuleList(t *testing.T) {
 func testTranslator(t *testing.T) *i18n.Translator {
 	yaml := `
 backup_export_success: "Chat: {chat}, Modules: {modules}, Time: {time}, List: {list}"
+backup_import_file_too_large: "File is too large"
+backup_import_invalid_file: "Invalid backup file"
 button_confirm_import: "Confirm Import"
 button_cancel_import: "Cancel Import"
 button_confirm_reset: "Confirm Reset"
@@ -83,8 +86,45 @@ func TestParseImportModules(t *testing.T) {
 		assert.Equal(t, []string{"notes"}, got)
 	})
 
+	t.Run("deduplicates valid module args while preserving first occurrence", func(t *testing.T) {
+		got := parseImportModules("/import notes filters NOTES rules filters", backupData)
+		assert.Equal(t, []string{"notes", "filters", "rules"}, got)
+	})
+
 	t.Run("all invalid returns empty", func(t *testing.T) {
 		assert.Empty(t, parseImportModules("/import foo bar", backupData))
+	})
+}
+
+func TestParseModuleArgs(t *testing.T) {
+	t.Parallel()
+
+	valid := func(module string) bool {
+		return module == "notes" || module == "filters"
+	}
+
+	got := parseModuleArgs([]string{"NOTES", "invalid", "filters", "notes", ""}, valid)
+	assert.Equal(t, []string{"notes", "filters"}, got)
+}
+
+func TestDownloadBackupFileRejectsInvalidDocumentBeforeNetwork(t *testing.T) {
+	t.Parallel()
+
+	tr := testTranslator(t)
+
+	t.Run("non-json file", func(t *testing.T) {
+		data, msg := downloadBackupFile(nil, &gotgbot.Document{FileName: "backup.txt"}, tr)
+		assert.Nil(t, data)
+		assert.Equal(t, "Invalid backup file", msg)
+	})
+
+	t.Run("file larger than ten megabytes", func(t *testing.T) {
+		data, msg := downloadBackupFile(nil, &gotgbot.Document{
+			FileName: "backup.json",
+			FileSize: 10*1024*1024 + 1,
+		}, tr)
+		assert.Nil(t, data)
+		assert.Equal(t, "File is too large", msg)
 	})
 }
 
