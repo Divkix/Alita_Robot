@@ -875,3 +875,109 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	restrictData := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"}, "restrict.mute.42")
+	unrestrictData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"}, "unrestrict.unmute.42")
+	unbanData := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"}, "unrestrict.unban.42")
+
+	for _, tt := range []struct {
+		name   string
+		method string
+		ctx    func(*gotgbot.Bot) *ext.Context
+		run    func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{
+			name:   "restrict command send failure",
+			method: "sendMessage",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/restrict 42") },
+			run:    bansModule.restrict,
+		},
+		{
+			name:   "unrestrict command send failure",
+			method: "sendMessage",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newModuleMessageContext(bot, chat, admin, "/unrestrict 42")
+			},
+			run: bansModule.unrestrict,
+		},
+		{
+			name:   "restrict callback get chat failure",
+			method: "getChat",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, restrictData) },
+			run:    bansModule.restrictButtonHandler,
+		},
+		{
+			name:   "restrict callback mute failure",
+			method: "restrictChatMember",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, restrictData) },
+			run:    bansModule.restrictButtonHandler,
+		},
+		{
+			name:   "restrict callback ban failure",
+			method: "banChatMember",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				data := encodeCallbackData("restrict", map[string]string{"a": "ban", "u": "42"}, "restrict.ban.42")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: bansModule.restrictButtonHandler,
+		},
+		{
+			name:   "restrict callback edit failure",
+			method: "editMessageText",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, restrictData) },
+			run:    bansModule.restrictButtonHandler,
+		},
+		{
+			name:   "restrict callback answer failure",
+			method: "answerCallbackQuery",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, restrictData) },
+			run:    bansModule.restrictButtonHandler,
+		},
+		{
+			name:   "unrestrict callback get chat failure",
+			method: "getChat",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, unrestrictData) },
+			run:    bansModule.unrestrictButtonHandler,
+		},
+		{
+			name:   "unrestrict callback unmute failure",
+			method: "restrictChatMember",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, unrestrictData) },
+			run:    bansModule.unrestrictButtonHandler,
+		},
+		{
+			name:   "unrestrict callback unban failure",
+			method: "unbanChatMember",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, unbanData) },
+			run:    bansModule.unrestrictButtonHandler,
+		},
+		{
+			name:   "unrestrict callback edit failure",
+			method: "editMessageText",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, unbanData) },
+			run:    bansModule.unrestrictButtonHandler,
+		},
+		{
+			name:   "unrestrict callback answer failure",
+			method: "answerCallbackQuery",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleCallbackContext(bot, chat, admin, unbanData) },
+			run:    bansModule.unrestrictButtonHandler,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+
+			err := tt.run(bot, tt.ctx(bot))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.name, err)
+			}
+		})
+	}
+}
