@@ -97,6 +97,7 @@ func TestRegisterLegacyModuleAdaptsLoader(t *testing.T) {
 
 type recordingHandler struct {
 	name   string
+	err    error
 	record func(string)
 }
 
@@ -106,7 +107,7 @@ func (h recordingHandler) CheckUpdate(_ *gotgbot.Bot, _ *ext.Context) bool {
 
 func (h recordingHandler) HandleUpdate(_ *gotgbot.Bot, _ *ext.Context) error {
 	h.record(h.name)
-	return nil
+	return h.err
 }
 
 func (h recordingHandler) Name() string {
@@ -138,6 +139,38 @@ func TestRegisteredModulesInstallGotgbotHandlerGroups(t *testing.T) {
 	want := []string{"group-10", "group-20"}
 	if !reflect.DeepEqual(handled, want) {
 		t.Fatalf("gotgbot handler execution order = %v, want %v", handled, want)
+	}
+}
+
+func TestRegisteredModulesRespectGotgbotDefaultGroupSemantics(t *testing.T) {
+	withIsolatedRegistry(t)
+
+	var handled []string
+	record := func(name string) {
+		handled = append(handled, name)
+	}
+
+	RegisterLegacyModule("handlers", 10, func(dispatcher *ext.Dispatcher) {
+		dispatcher.AddHandlerToGroup(recordingHandler{
+			name:   "early",
+			err:    ext.ContinueGroups,
+			record: record,
+		}, -1)
+		dispatcher.AddHandlerToGroup(recordingHandler{name: "early-second", record: record}, -1)
+		dispatcher.AddHandler(recordingHandler{name: "default", record: record})
+		dispatcher.AddHandlerToGroup(recordingHandler{name: "late", record: record}, 1)
+	})
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAllModules(dispatcher)
+
+	if err := dispatcher.ProcessUpdate(&gotgbot.Bot{}, &gotgbot.Update{}, nil); err != nil {
+		t.Fatalf("ProcessUpdate returned error: %v", err)
+	}
+
+	want := []string{"early", "early-second", "default", "late"}
+	if !reflect.DeepEqual(handled, want) {
+		t.Fatalf("gotgbot default group semantics = %v, want %v", handled, want)
 	}
 }
 

@@ -1,0 +1,4 @@
+hello: "Hello, {user}!"
+items:
+  - "one"
+  - "two"
