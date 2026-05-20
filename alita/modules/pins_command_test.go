@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -468,5 +469,116 @@ func TestLoadPinRegistersHelpAndHandlers(t *testing.T) {
 
 	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(pinsModule.moduleName); moduleName != pinsModule.moduleName || !enabled {
 		t.Fatalf("pins help registration = (%q, %v), want enabled", moduleName, enabled)
+	}
+}
+
+func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name    string
+		text    string
+		method  string
+		prepare func(*moduleBotClient, *ext.Context)
+		run     func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "check pinned delete", text: "linked message", method: "deleteMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
+			if err := db.SetCleanLinked(ctx.EffectiveChat.Id, true); err != nil {
+				t.Fatalf("SetCleanLinked() error = %v", err)
+			}
+		}, run: pinsModule.checkPinned},
+		{name: "check pinned unpin", text: "linked message", method: "unpinChatMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
+			if err := db.SetAntiChannelPin(ctx.EffectiveChat.Id, true); err != nil {
+				t.Fatalf("SetAntiChannelPin() error = %v", err)
+			}
+		}, run: pinsModule.checkPinned},
+		{name: "unpin latest request", text: "/unpin", method: "unpinChatMessage", run: pinsModule.unpin},
+		{name: "unpin reply result", text: "/unpin", method: "sendMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
+			ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+				MessageId:     77,
+				Date:          1,
+				Chat:          *ctx.EffectiveChat,
+				Text:          "pinned",
+				PinnedMessage: &gotgbot.Message{MessageId: 77, Date: 1, Chat: *ctx.EffectiveChat},
+			}
+		}, run: pinsModule.unpin},
+		{name: "unpin all confirmation", text: "/unpinall", method: "sendMessage", run: pinsModule.unpinAll},
+		{name: "permapin missing target reply", text: "/permapin", method: "sendMessage", run: pinsModule.permaPin},
+		{name: "permapin send request", text: "/permapin keep pinned", method: "sendMessage", run: pinsModule.permaPin},
+		{name: "permapin pin request", text: "/permapin keep pinned", method: "pinChatMessage", run: pinsModule.permaPin},
+		{name: "pin missing reply", text: "/pin", method: "sendMessage", run: pinsModule.pin},
+		{name: "pin request", text: "/pin", method: "pinChatMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
+			ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+				MessageId: 88,
+				Date:      1,
+				Chat:      *ctx.EffectiveChat,
+				Text:      "pin me",
+			}
+		}, run: pinsModule.pin},
+		{name: "pin confirmation reply", text: "/pin", method: "sendMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
+			ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+				MessageId: 88,
+				Date:      1,
+				Chat:      *ctx.EffectiveChat,
+				Text:      "pin me",
+			}
+		}, run: pinsModule.pin},
+		{name: "anti channel pin status reply", text: "/antichannelpin", method: "sendMessage", run: pinsModule.antichannelpin},
+		{name: "anti channel pin toggle reply", text: "/antichannelpin on", method: "sendMessage", run: pinsModule.antichannelpin},
+		{name: "clean linked status reply", text: "/cleanlinked", method: "sendMessage", run: pinsModule.cleanlinked},
+		{name: "clean linked toggle reply", text: "/cleanlinked on", method: "sendMessage", run: pinsModule.cleanlinked},
+		{name: "pinned get chat request", text: "/pinned", method: "getChat", run: pinsModule.pinned},
+		{name: "pinned missing message reply", text: "/pinned", method: "sendMessage", run: pinsModule.pinned},
+		{name: "pinned result reply", text: "/pinned", method: "sendMessage", prepare: func(client *moduleBotClient, _ *ext.Context) {
+			client.responses["getChat"] = []byte(
+				`{"id":-1001,"type":"supergroup","title":"Pin Chat","pinned_message":{"message_id":77,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"},"text":"pinned"}}`,
+			)
+		}, run: pinsModule.pinned},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+			ctx := newModuleMessageContext(bot, chat, user, tt.text)
+			if tt.prepare != nil {
+				tt.prepare(client, ctx)
+			}
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
+func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"}, "unpinallbtn(yes)")
+	for _, tt := range []struct {
+		name   string
+		data   string
+		method string
+	}{
+		{name: "unpin all request", data: yesData, method: "unpinAllChatMessages"},
+		{name: "unpin all edit", data: yesData, method: "editMessageText"},
+		{name: "unpin all cancel edit", data: "unpinallbtn(no)", method: "editMessageText"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+			ctx := newModuleCallbackContext(bot, chat, user, tt.data)
+
+			err := pinsModule.unpinallCallback(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("unpinallCallback returned error %v, want request error", err)
+			}
+		})
 	}
 }

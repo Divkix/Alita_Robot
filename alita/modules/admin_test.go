@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 
@@ -391,6 +392,83 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 	if found, _ := cache.GetAdminCacheList(clearChat.Id); found {
 		t.Fatal("admin cache entry remained after /clearadmincache")
+	}
+}
+
+func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	adminMemberResponse := []byte(
+		`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"custom_title":"Captain","can_promote_members":true}`,
+	)
+	adminListResponse := []byte(
+		`[` +
+			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
+			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"custom_title":"Captain","can_promote_members":true}` +
+			`]`,
+	)
+
+	for _, tt := range []struct {
+		name      string
+		text      string
+		method    string
+		setup     func(*moduleBotClient)
+		withReply bool
+		run       func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "admin list reply", text: "/adminlist", method: "sendMessage", run: adminModule.adminlist},
+		{name: "promote missing target reply", text: "/promote", method: "sendMessage", run: adminModule.promote},
+		{
+			name:   "promote request",
+			text:   "/promote 42 Captain",
+			method: "promoteChatMember",
+			run:    adminModule.promote,
+		},
+		{name: "demote missing target reply", text: "/demote", method: "sendMessage", run: adminModule.demote},
+		{
+			name:   "demote not-admin reply",
+			text:   "/demote 42",
+			method: "sendMessage",
+			run:    adminModule.demote,
+		},
+		{name: "title missing target reply", text: "/title", method: "sendMessage", run: adminModule.setTitle},
+		{
+			name:   "title request",
+			text:   "/title Captain",
+			method: "setChatAdministratorCustomTitle",
+			setup: func(client *moduleBotClient) {
+				client.responses["getChatMember"] = adminMemberResponse
+				client.responses["getChatAdministrators"] = adminListResponse
+			},
+			withReply: true,
+			run:       adminModule.setTitle,
+		},
+		{name: "anon admin status reply", text: "/anonadmin", method: "sendMessage", run: adminModule.anonAdmin},
+		{name: "admin cache success reply", text: "/admincache", method: "sendMessage", run: adminModule.adminCache},
+		{name: "clear admin cache reply", text: "/clearadmincache", method: "sendMessage", run: adminModule.clearAdminCache},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			if tt.setup != nil {
+				tt.setup(client)
+			}
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+			var ctx *ext.Context
+			if tt.withReply {
+				ctx = newBanReplyContext(bot, chat, admin, target, tt.text)
+			} else {
+				ctx = newModuleMessageContext(bot, chat, admin, tt.text)
+			}
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
 	}
 }
 
