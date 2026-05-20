@@ -53,6 +53,76 @@ func TestReportRequiresReplyAndSendsAdminReport(t *testing.T) {
 	}
 }
 
+func TestReportRejectsInvalidReplyTargetsAndDisabledChats(t *testing.T) {
+	tests := []struct {
+		name       string
+		reporter   gotgbot.User
+		target     *gotgbot.User
+		disable    bool
+		wantReplies int
+	}{
+		{
+			name:       "channel post target",
+			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:     nil,
+			wantReplies: 1,
+		},
+		{
+			name:       "self report",
+			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:     &gotgbot.User{Id: 42, FirstName: "Reporter"},
+			wantReplies: 1,
+		},
+		{
+			name:       "special reporter",
+			reporter:   gotgbot.User{Id: 777000, FirstName: "Telegram"},
+			target:     &gotgbot.User{Id: 43, FirstName: "Target"},
+			wantReplies: 1,
+		},
+		{
+			name:       "special target",
+			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:     &gotgbot.User{Id: 777000, FirstName: "Telegram"},
+			wantReplies: 1,
+		},
+		{
+			name:       "disabled chat stays silent",
+			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:     &gotgbot.User{Id: 43, FirstName: "Target"},
+			disable:    true,
+			wantReplies: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+			if tt.disable {
+				if err := db.SetChatReportStatus(chat.Id, false); err != nil {
+					t.Fatalf("SetChatReportStatus setup error = %v", err)
+				}
+			}
+			ctx := newModuleMessageContext(bot, chat, tt.reporter, "/report")
+			ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+				MessageId: 505,
+				Date:      1,
+				Chat:      chat,
+				From:      tt.target,
+				Text:      "reported message",
+			}
+
+			if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("report error = %v, want EndGroups", err)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != tt.wantReplies {
+				t.Fatalf("sendMessage calls = %d, want %d", len(calls), tt.wantReplies)
+			}
+		})
+	}
+}
+
 func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -95,6 +165,66 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	}
 	if got := db.GetChatReportSettings(chat.Id).BlockedList; len(got) != 0 {
 		t.Fatalf("blocked list after unblock = %v, want empty", got)
+	}
+}
+
+func TestReportsSettingsPrivateAndValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	privateChat := gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"}
+	connectedChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connected Report Chat"}
+	client.responses["getChat"] = []byte(`{"id":-100777,"type":"supergroup","title":"Connected Report Chat"}`)
+	db.ConnectId(admin.Id, connectedChat.Id)
+	t.Cleanup(func() {
+		db.DisconnectId(admin.Id)
+	})
+
+	privateOnCtx := newModuleMessageContext(bot, privateChat, admin, "/reports on")
+	if err := reportsModule.reports(bot, privateOnCtx); err != ext.EndGroups {
+		t.Fatalf("private reports on error = %v, want EndGroups", err)
+	}
+	if !db.GetUserReportSettings(admin.Id).Status {
+		t.Fatal("private report setting did not enable")
+	}
+
+	privateOffCtx := newModuleMessageContext(bot, privateChat, admin, "/reports off")
+	if err := reportsModule.reports(bot, privateOffCtx); err != ext.EndGroups {
+		t.Fatalf("private reports off error = %v, want EndGroups", err)
+	}
+	if db.GetUserReportSettings(admin.Id).Status {
+		t.Fatal("private report setting did not disable")
+	}
+
+	for _, text := range []string{
+		"/reports",
+		"/reports maybe",
+		"/reports block",
+		"/reports unblock",
+		"/reports showblocklist",
+	} {
+		ctx := newModuleMessageContext(bot, privateChat, admin, text)
+		if err := reportsModule.reports(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("%s error = %v, want EndGroups", text, err)
+		}
+	}
+
+	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	for _, text := range []string{"/reports block", "/reports unblock", "/reports unknown"} {
+		ctx := newModuleMessageContext(bot, groupChat, admin, text)
+		if err := reportsModule.reports(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("%s group error = %v, want EndGroups", text, err)
+		}
+	}
+
+	nilTargetCtx := newModuleMessageContext(bot, groupChat, admin, "/reports block")
+	nilTargetCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{MessageId: 505, Chat: groupChat}
+	if err := reportsModule.reports(bot, nilTargetCtx); err != ext.EndGroups {
+		t.Fatalf("block nil target error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 11 {
+		t.Fatalf("sendMessage calls = %d, want one response per settings command", len(calls))
 	}
 }
 
@@ -144,5 +274,41 @@ func TestReportActionCallbacksBanDeleteAndResolve(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want one answer per callback", len(calls))
+	}
+}
+
+func TestReportActionCallbacksKickAndInvalidData(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	kickCtx := newModuleCallbackContext(bot, chat, admin, "report.kick=42=505")
+	if err := reportsModule.markResolvedButtonHandler(bot, kickCtx); err != ext.EndGroups {
+		t.Fatalf("report kick callback error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want kick ban action", len(calls))
+	}
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want kick unban action", len(calls))
+	}
+
+	for _, data := range []string{
+		"report.invalid",
+		encodeCallbackData("report", map[string]string{"a": "ban", "u": "nan", "m": "505"}, "report.ban=nan=505"),
+		encodeCallbackData("report", map[string]string{"a": "ban", "u": "42", "m": "nan"}, "report.ban=42=nan"),
+	} {
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+		if err := reportsModule.markResolvedButtonHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report invalid callback %q error = %v, want EndGroups", data, err)
+		}
+	}
+
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+		t.Fatalf("editMessageText calls = %d, want only valid kick edit", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 4 {
+		t.Fatalf("answerCallbackQuery calls = %d, want kick plus three invalid acknowledgements", len(calls))
 	}
 }
