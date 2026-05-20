@@ -10,7 +10,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 type chatStatusBotClient struct{}
@@ -661,11 +660,6 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
 		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
 	}
-	originalMarshal := cache.Marshal
-	cache.Marshal = nil
-	t.Cleanup(func() {
-		cache.Marshal = originalMarshal
-	})
 	isAdmin, shouldReturn = checkAnonAdmin(bot, chat, msg, anonSender)
 	if isAdmin || !shouldReturn {
 		t.Fatalf("checkAnonAdmin(verify) = (%v, %v), want false, true", isAdmin, shouldReturn)
@@ -675,21 +669,8 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 	}
 }
 
-func TestSetAnonAdminCacheSkipsWhenCacheMarshalIsUnavailable(t *testing.T) {
-	originalMarshal := cache.Marshal
-	cache.Marshal = nil
-	t.Cleanup(func() {
-		cache.Marshal = originalMarshal
-	})
-
-	msg := &gotgbot.Message{
-		MessageId: 779,
-		Date:      1,
-		Chat:      gotgbot.Chat{Id: -100123456791, Type: "supergroup", Title: "Anon Chat"},
-		Text:      "/ban 42",
-	}
-
-	setAnonAdminCache(msg.Chat.Id, msg)
+func TestSetAnonAdminCacheSkipsNilMessages(t *testing.T) {
+	setAnonAdminCache(-100123456791, nil)
 }
 
 func TestMembershipAndProtectionHelpers(t *testing.T) {
