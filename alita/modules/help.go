@@ -145,11 +145,19 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-var HelpModule = moduleStruct{
-	moduleName:     "Help",
-	AbleMap:        moduleEnabled{},
-	AltHelpOptions: make(map[string][]string),
-	helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
+func NewHelpRegistry() *moduleStruct {
+	return &moduleStruct{
+		moduleName:     "Help",
+		AbleMap:        moduleEnabled{},
+		AltHelpOptions: make(map[string][]string),
+		helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
+	}
+}
+
+var defaultHelpRegistry = NewHelpRegistry()
+
+func DefaultHelpRegistry() *moduleStruct {
+	return defaultHelpRegistry
 }
 
 type moduleEnabled struct {
@@ -684,12 +692,12 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadHelp registers all help-related command and callback handlers.
 // Sets up the help system including start, about, donate, and configuration commands.
 func LoadHelp(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("start", HelpModule.start))
-	dispatcher.AddHandler(handlers.NewCommand("help", HelpModule.help))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), HelpModule.helpButtonHandler))
-	dispatcher.AddHandler(handlers.NewCommand("donate", HelpModule.donate))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), HelpModule.botConfig))
-	dispatcher.AddHandler(handlers.NewCommand("about", HelpModule.about))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), HelpModule.about))
+	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
+	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), DefaultHelpRegistry().helpButtonHandler))
+	dispatcher.AddHandler(handlers.NewCommand("donate", DefaultHelpRegistry().donate))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))
+	dispatcher.AddHandler(handlers.NewCommand("about", DefaultHelpRegistry().about))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), DefaultHelpRegistry().about))
 	initHelpButtons()
 }

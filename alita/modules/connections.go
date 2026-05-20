@@ -429,7 +429,7 @@ func (moduleStruct) userCmdConnString() string {
 // LoadConnections registers all connection module handlers with the dispatcher.
 // Sets up commands for managing remote chat connections and their callbacks.
 func LoadConnections(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(ConnectionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(ConnectionsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("connect", ConnectionsModule.connect))
 	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))
@@ -437,4 +437,8 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
 	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
+}
+
+func init() {
+	RegisterLegacyModule("Connections", 170, LoadConnections)
 }

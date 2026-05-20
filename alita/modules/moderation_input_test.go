@@ -61,8 +61,8 @@ func TestExtractEntityURLs(t *testing.T) {
 			want:     nil,
 		},
 		{
-			name:   "empty entities",
-			source: "hello",
+			name:     "empty entities",
+			source:   "hello",
 			entities: []gotgbot.MessageEntity{},
 			want:     nil,
 		},

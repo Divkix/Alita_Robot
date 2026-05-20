@@ -93,8 +93,12 @@ var markup gotgbot.InlineKeyboardMarkup
 // listModules returns a sorted slice of all currently enabled bot modules.
 // Provides an alphabetically ordered list of active modules for help menu generation.
 func listModules() []string {
+	return listModulesFrom(DefaultHelpRegistry())
+}
+
+func listModulesFrom(registry *moduleStruct) []string {
 	// sort the modules alphabetically
-	modules := HelpModule.AbleMap.LoadModules()
+	modules := registry.AbleMap.LoadModules()
 	slices.Sort(modules) // Sort the modules
 	return modules
 }
@@ -151,7 +155,7 @@ func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgb
 
 	replyMarkup = gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: append(
-			HelpModule.helpableKb[ModName],
+			DefaultHelpRegistry().helpableKb[ModName],
 			backBtnSuffix,
 		),
 	}

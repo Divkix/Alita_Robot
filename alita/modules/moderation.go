@@ -54,6 +54,7 @@ func standardModGates(c *moderationCtx) bool {
 
 // deleteModGates extends standardModGates with delete permissions.
 // Used by purge-like commands.
+//
 //nolint:unused
 func deleteModGates(c *moderationCtx) bool {
 	if !standardModGates(c) {
@@ -110,6 +111,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 }
 
 // extractFromReply resolves the target from the replied-to message.
+//
 //nolint:unused
 func extractFromReply(c *moderationCtx) (target, error) {
 	if c.Msg.ReplyToMessage == nil {
@@ -145,7 +147,9 @@ type validateTargetFn func(c *moderationCtx, t *target) error
 //  1. user is in chat
 //  2. user is not ban-protected
 //  3. user is not the bot itself
+//
 // defaultTargetValidation checks the resolved target before executing the action.
+//
 //nolint:unused
 func defaultTargetValidation(c *moderationCtx, t *target) error {
 	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
@@ -196,16 +200,17 @@ type actionFn func(c *moderationCtx, t *target) error
 type replyFn func(c *moderationCtx, t *target) error
 
 // moderationCommand wires the fixed-order pipeline for a moderation handler:
-//   RequireUser -> gates -> extractTarget -> validate -> execute -> reply.
+//
+//	RequireUser -> gates -> extractTarget -> validate -> execute -> reply.
 //
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
-	gates     []gateFn
-	extract   func(*moderationCtx) (target, error)
-	validate  validateTargetFn
-	execute   actionFn
-	reply     replyFn
-	module    *moduleStruct
+	gates    []gateFn
+	extract  func(*moderationCtx) (target, error)
+	validate validateTargetFn
+	execute  actionFn
+	reply    replyFn
+	module   *moduleStruct
 }
 
 // buildModerationCtx creates the common decomposed context from a gotgbot update.
@@ -270,6 +275,7 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // MentionHtml is a local alias to avoid importing helpers in every moderation handler file.
 // _mentionHtml is a local wrapper.
+//
 //nolint:unused
 func _mentionHtml(userId int64, name string) string {
 	return helpers.MentionHtml(userId, name)
@@ -281,4 +287,3 @@ var (
 	errAdminTarget   = fmt.Errorf("target is a protected admin")
 	errTargetIsBot   = fmt.Errorf("target is the bot itself")
 )
-

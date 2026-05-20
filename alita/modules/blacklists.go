@@ -737,7 +737,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadBlacklists registers all blacklist module handlers with the dispatcher.
 // Sets up commands for managing blacklists and the message watcher for enforcement.
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(blacklistsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(blacklistsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("blacklists", blacklistsModule.listBlacklists))
 	helpers.AddCmdToDisableable("blacklists")
@@ -751,4 +751,8 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""
 	}, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)
+}
+
+func init() {
+	RegisterLegacyModule("Blacklists", 240, LoadBlacklists)
 }

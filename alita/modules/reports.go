@@ -559,7 +559,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 // LoadReports registers all reports module handlers with the dispatcher,
 // including report commands and @admin mention monitoring.
 func LoadReports(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(reportsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(reportsModule.moduleName, true)
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
@@ -574,4 +574,8 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
+}
+
+func init() {
+	RegisterLegacyModule("Reports", 110, LoadReports)
 }

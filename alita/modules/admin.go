@@ -766,7 +766,7 @@ func (moduleStruct) adminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadAdmin registers all admin module command handlers with the dispatcher.
 // Sets up commands for promotion, demotion, title setting, and admin management.
 func LoadAdmin(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store("Admin", true)
+	DefaultHelpRegistry().AbleMap.Store("Admin", true)
 
 	dispatcher.AddHandler(handlers.NewCommand("promote", adminModule.promote))
 	dispatcher.AddHandler(handlers.NewCommand("demote", adminModule.demote))
@@ -817,4 +817,8 @@ func (moduleStruct) clearAdminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	return ext.EndGroups
+}
+
+func init() {
+	RegisterLegacyModule("Admin", 30, LoadAdmin)
 }

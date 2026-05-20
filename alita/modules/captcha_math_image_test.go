@@ -288,9 +288,9 @@ func TestNewMathImageCaptchaDriver(t *testing.T) {
 
 func TestFormatMathQuestion(t *testing.T) {
 	tests := []struct {
-		a, b      int
-		op        string
-		want      string
+		a, b int
+		op   string
+		want string
 	}{
 		{5, 3, "+", "5 + 3"},
 		{10, 4, "-", "10 - 4"},

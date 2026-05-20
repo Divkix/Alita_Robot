@@ -1827,7 +1827,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 
 // LoadCaptcha registers all captcha module handlers with the dispatcher.
 func LoadCaptcha(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(captchaModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(captchaModule.moduleName, true)
 
 	// Message handler for users with pending captcha (high priority to intercept early)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
@@ -2027,4 +2027,8 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 			}()
 		}
 	}()
+}
+
+func init() {
+	RegisterLegacyModule("Captcha", 220, LoadCaptcha)
 }

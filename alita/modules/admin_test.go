@@ -15,8 +15,6 @@ func (e *testError) Error() string {
 	return e.msg
 }
 
-
-
 // TestDemoteErrorHandling verifies error handling patterns in demote logic
 func TestDemoteErrorHandling(t *testing.T) {
 	// simulateGetMemberResult simulates the return values of GetMember,

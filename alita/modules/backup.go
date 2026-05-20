@@ -689,10 +689,10 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 // LoadBackup registers all backup module handlers with the dispatcher.
 func LoadBackup(dispatcher *ext.Dispatcher) {
 	// Register module in enabled map
-	HelpModule.AbleMap.Store(backupModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(backupModule.moduleName, true)
 
 	// Add help keyboard buttons
-	HelpModule.helpableKb[backupModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[backupModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text: func() string {
@@ -733,5 +733,6 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 
 // init function to handle unused import
 func init() {
+	RegisterLegacyModule("Backup", 270, LoadBackup)
 	_ = json.Marshal
 }

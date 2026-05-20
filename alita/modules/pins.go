@@ -1004,7 +1004,7 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 // LoadPin registers all pins module handlers with the dispatcher,
 // including pin management commands and channel message monitoring.
 func LoadPin(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(pinsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(pinsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("unpin", pinsModule.unpin))
 	dispatcher.AddHandler(handlers.NewCommand("unpinall", pinsModule.unpinAll))
@@ -1023,4 +1023,8 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 	)
 	dispatcher.AddHandler(handlers.NewCommand("permapin", pinsModule.permaPin))
 	dispatcher.AddHandler(handlers.NewCommand("cleanlinked", pinsModule.cleanlinked))
+}
+
+func init() {
+	RegisterLegacyModule("Pins", 50, LoadPin)
 }

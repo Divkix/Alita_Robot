@@ -485,7 +485,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	 if chat_status.IsApproved(b, chat.Id, senderID) {
+	if chat_status.IsApproved(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -532,7 +532,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadLocks registers all locks module handlers with the dispatcher,
 // including commands and message filters for lock enforcement.
 func LoadLocks(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(locksModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(locksModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("lock", locksModule.lockPerm))
 	dispatcher.AddHandler(handlers.NewCommand("unlock", locksModule.unlockPerm))
@@ -552,4 +552,8 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 			locksModule.botLockHandler,
 		),
 	)
+}
+
+func init() {
+	RegisterLegacyModule("Locks", 130, LoadLocks)
 }

@@ -11,10 +11,10 @@ func TestParseDuration(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		input    string
-		wantSec  int
-		wantOk   bool
+		name    string
+		input   string
+		wantSec int
+		wantOk  bool
 	}{
 		{"minutes", "30m", 30 * 60, true},
 		{"hours", "2h", 2 * 60 * 60, true},

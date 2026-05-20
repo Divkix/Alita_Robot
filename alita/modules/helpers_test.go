@@ -79,19 +79,16 @@ func TestModuleEnabled_LoadModules(t *testing.T) {
 	})
 }
 
-// TestListModules modifies package-level HelpModule state -- do NOT use t.Parallel().
 func TestListModules(t *testing.T) {
-	// Re-initialize HelpModule.AbleMap before and after to avoid contaminating other tests.
-	t.Cleanup(func() {
-		HelpModule.AbleMap.Init()
-	})
+	t.Parallel()
 
-	HelpModule.AbleMap.Init()
-	HelpModule.AbleMap.Store("admin", true)
-	HelpModule.AbleMap.Store("filters", true)
-	HelpModule.AbleMap.Store("help", true)
+	helpRegistry := NewHelpRegistry()
+	helpRegistry.AbleMap.Init()
+	helpRegistry.AbleMap.Store("admin", true)
+	helpRegistry.AbleMap.Store("filters", true)
+	helpRegistry.AbleMap.Store("help", true)
 
-	result := listModules()
+	result := listModulesFrom(helpRegistry)
 
 	if len(result) != 3 {
 		t.Fatalf("listModules() = %v (len %d), want 3 elements", result, len(result))

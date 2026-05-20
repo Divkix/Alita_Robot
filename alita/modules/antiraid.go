@@ -30,7 +30,7 @@ const (
 	antiraidJoinWindowSeconds = 60
 	antiraidPollInterval      = 30 * time.Second
 	antiraidStateKey          = "alita:antiraid:state" // format: state:chat_id
-	antiraidJoinsKey          = "alita:antiraid:joins"  // format: joins:chat_id (sorted set)
+	antiraidJoinsKey          = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
 )
 
 var (
@@ -135,8 +135,6 @@ func setRaidState(chatID int64, st *raidState) error {
 	}
 	return cache.Marshal.Set(cache.Context, stateKey(chatID), st, store.WithExpiration(24*time.Hour))
 }
-
-
 
 func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
 	ticker := time.NewTicker(antiraidPollInterval)
@@ -658,7 +656,7 @@ func formatDuration(seconds int) string {
 }
 
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(antiRaidModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(antiRaidModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("antiraid", antiRaidModule.antiraid))
 	dispatcher.AddHandler(handlers.NewCommand("raidtime", antiRaidModule.raidTime))
@@ -679,4 +677,8 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	helpers.AddCmdToDisableable("antiraid")
 
 	StartAntiRaidExpiryPoller()
+}
+
+func init() {
+	RegisterLegacyModule("AntiRaid", 230, LoadAntiRaid)
 }

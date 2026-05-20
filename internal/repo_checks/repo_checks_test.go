@@ -194,3 +194,84 @@ func TestCaptchaBackgroundGoroutinesRecoverFromPanics(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadModulesDelegatesToRegistryOnly(t *testing.T) {
+	t.Parallel()
+
+	source := readRepoFile(t, "alita", "main.go")
+	start := strings.Index(source, "func LoadModules(")
+	if start == -1 {
+		t.Fatal("LoadModules function is missing")
+	}
+
+	body := source[start:]
+	end := strings.Index(body, "\n}\n")
+	if end == -1 {
+		t.Fatal("LoadModules body is malformed")
+	}
+	body = body[:end]
+
+	if !strings.Contains(body, "modules.LoadAllModules(dispatcher)") {
+		t.Fatal("LoadModules must delegate module startup to modules.LoadAllModules")
+	}
+
+	explicitLoader := regexp.MustCompile(`modules\.(Load[A-Z][A-Za-z0-9_]*)\s*\(`)
+	for _, match := range explicitLoader.FindAllStringSubmatch(body, -1) {
+		if match[1] == "LoadAllModules" || match[1] == "LoadHelp" {
+			continue
+		}
+		t.Fatalf("LoadModules must not call individual module loaders directly; found %s", match[0])
+	}
+}
+
+func TestModuleLoadersAreRegisteredWithRegistry(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob(filepath.Join("..", "..", "alita", "modules", "*.go"))
+	if err != nil {
+		t.Fatalf("failed to list module files: %v", err)
+	}
+
+	loaderPattern := regexp.MustCompile(`func\s+(Load[A-Z][A-Za-z0-9_]*)\s*\(\s*dispatcher\s+\*ext\.Dispatcher\s*\)`)
+	registrationPattern := regexp.MustCompile(`RegisterLegacyModule\(\s*"[^"]+"\s*,\s*\d+\s*,\s*(Load[A-Z][A-Za-z0-9_]*)\s*\)`)
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") ||
+			strings.HasSuffix(file, string(filepath.Separator)+"registry.go") ||
+			strings.HasSuffix(file, string(filepath.Separator)+"help.go") {
+			continue
+		}
+
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("failed to read module file %s: %v", file, err)
+		}
+		source := string(data)
+		registeredLoaders := make(map[string]bool)
+		for _, match := range registrationPattern.FindAllStringSubmatch(source, -1) {
+			registeredLoaders[match[1]] = true
+		}
+
+		for _, match := range loaderPattern.FindAllStringSubmatch(source, -1) {
+			loaderName := match[1]
+			if loaderName == "LoadAllModules" || loaderName == "LoadHelp" || loaderName == "LoadBotUpdates" {
+				continue
+			}
+
+			if !registeredLoaders[loaderName] {
+				t.Fatalf("%s defines %s but does not register it with RegisterLegacyModule", file, loaderName)
+			}
+		}
+	}
+}
+
+func TestHelpRegistryDoesNotExposeGlobalMutableSingleton(t *testing.T) {
+	t.Parallel()
+
+	source := readRepoFile(t, "alita", "modules", "help.go")
+	if regexp.MustCompile(`(?m)^var\s+HelpModule\b`).MatchString(source) {
+		t.Fatal("help registry must not expose a package-level HelpModule singleton")
+	}
+	if !strings.Contains(source, "func NewHelpRegistry() *moduleStruct") {
+		t.Fatal("help registry must expose a constructor for isolated tests")
+	}
+}

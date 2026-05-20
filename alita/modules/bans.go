@@ -1395,7 +1395,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 // LoadBans registers all ban-related command handlers with the dispatcher.
 // Sets up ban, kick, restrict commands and their associated callback handlers.
 func LoadBans(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(bansModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(bansModule.moduleName, true)
 
 	// ban cmds
 	dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
@@ -1414,4 +1414,8 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict"), bansModule.restrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("unrestrict", bansModule.unrestrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
+}
+
+func init() {
+	RegisterLegacyModule("Bans", 70, LoadBans)
 }

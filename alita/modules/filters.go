@@ -777,9 +777,9 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadFilters registers all filter-related handlers with the dispatcher.
 // Sets up commands for managing filters and the message watcher for automatic responses.
 func LoadFilters(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(filtersModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(filtersModule.moduleName, true)
 
-	HelpModule.helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text: func() string {
@@ -804,4 +804,8 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""
 	}, filtersModule.filtersWatcher), filtersModule.handlerGroup)
+}
+
+func init() {
+	RegisterLegacyModule("Filters", 140, LoadFilters)
 }

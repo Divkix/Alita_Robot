@@ -977,9 +977,9 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 // LoadNotes registers all notes module handlers with the dispatcher,
 // including note management commands and the notes watcher.
 func LoadNotes(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(notesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(notesModule.moduleName, true)
 
-	HelpModule.helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
@@ -1009,4 +1009,8 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
 	dispatcher.AddHandler(handlers.NewCommand("get", notesModule.getNotes))
 	helpers.AddCmdToDisableable("get")
+}
+
+func init() {
+	RegisterLegacyModule("Notes", 160, LoadNotes)
 }
