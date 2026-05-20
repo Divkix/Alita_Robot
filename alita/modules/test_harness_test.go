@@ -309,6 +309,8 @@ func TestMain(m *testing.M) {
 		&db.BlacklistSettings{},
 		&db.LockSettings{},
 		&db.ChannelSettings{},
+		&db.ReportChatSettings{},
+		&db.ReportUserSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)
