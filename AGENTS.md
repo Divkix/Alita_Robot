@@ -104,7 +104,7 @@ import (
 - **Cache invalidation on writes**: every update must invalidate corresponding cache key
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
 - Use `singleflight` protection for cache stampede prevention
-- Operations: Use `cache.Marshal.Get/Set/Delete` for direct cache access; use `getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
+- Operations: Use `cache.GetMarshal().Get/Set/Delete` for direct cache access; use `getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
 
 ### Module System
 - Create `LoadXxx(dispatcher)` function per module
@@ -210,7 +210,7 @@ Redis-only via gocache library. Stampede protection via `singleflight` in the
 DB caching layer (`alita/db/cache_helpers.go`).
 
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
-- Operations: `cache.Marshal.Get/Set/Delete` with context
+- Operations: `cache.GetMarshal().Get/Set/Delete` with context (mutex-protected; do not bypass accessors)
 - `ClearAllCaches()` — FLUSHDB on startup when `ClearCacheOnStartup` is configured
 - Admin cache specialized in `alita/utils/cache/adminCache.go`
 - **Cache must be invalidated on writes** — every DB update function that

@@ -99,7 +99,7 @@ func newExtractionContext(bot *gotgbot.Bot, text string) *ext.Context {
 }
 
 func TestMain(m *testing.M) {
-	cache.Marshal = nil
+	cache.SetMarshal(nil)
 
 	dbFile, err := os.CreateTemp("", "alita_extraction_test_*.db")
 	if err != nil {

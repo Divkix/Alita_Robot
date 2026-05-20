@@ -23,7 +23,7 @@ import (
 
 var (
     Context     = context.Background()
-    Marshal     *marshaler.Marshaler
+    marshal     *marshaler.Marshaler  // unexported
     Manager     *cache.Cache[any]
     redisClient *redis.Client
 )
@@ -53,7 +53,7 @@ func InitCache() error {
     // Initialize cache manager
     redisStore := redis_store.NewRedis(redisClient)
     cacheManager := cache.New[any](redisStore)
-    Marshal = marshaler.New(cacheManager)
+    SetMarshal(marshaler.New(cacheManager))
     Manager = cacheManager
 
     return nil
@@ -131,12 +131,12 @@ All cache keys use the `alita:` prefix for namespace isolation:
 When an anonymous admin uses a command, the bot:
 1. Stores the original message in cache with key `alita:anonAdmin:{chatId}:{msgId}`
 2. Sends a verification button to the chat
-3. When clicked, the callback handler retrieves the original message from cache via `cache.Marshal.Get`
+3. When clicked, the callback handler retrieves the original message from cache via `cache.GetMarshal().Get`
 4. The bot verifies the user is an admin and executes the original command
 
 ```go
 // Store original message for anonymous admin
-cache.Marshal.Set(
+cache.GetMarshal().Set(
     cache.Context,
     fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
     originalMessage,
@@ -145,7 +145,7 @@ cache.Marshal.Set(
 
 // Retrieve when verification button is clicked
 var originalMsg gotgbot.Message
-_, err := cache.Marshal.Get(
+_, err := cache.GetMarshal().Get(
     cache.Context,
     fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId),
     &originalMsg,
@@ -204,12 +204,13 @@ var cacheGroup singleflight.Group
 func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
     var result T
 
-    if cache.Marshal == nil {
+    m := cache.GetMarshal()
+    if m == nil {
         return loader()  // Cache not initialized
     }
 
     // Try cache first
-    _, err := cache.Marshal.Get(cache.Context, key, &result)
+    _, err := m.Get(cache.Context, key, &result)
     if err == nil {
         return result, nil  // Cache hit
     }
@@ -232,7 +233,7 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
             }
 
             // Store in cache
-            cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
+            m.Set(cache.Context, key, data, store.WithExpiration(ttl))
             return data, nil
         })
 
@@ -285,11 +286,12 @@ When data changes, invalidate the cache:
 
 ```go
 func deleteCache(key string) {
-    if cache.Marshal == nil {
+    m := cache.GetMarshal()
+    if m == nil {
         return
     }
 
-    err := cache.Marshal.Delete(cache.Context, key)
+    err := m.Delete(cache.Context, key)
     if err != nil {
         log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
     }
@@ -353,8 +355,8 @@ func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
         Cached:   true,
     }
 
-    // Store in Redis via cache.Marshal.Set
-    cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:adminCache:%d", chatID),
+    // Store in Redis via cache.GetMarshal().Set
+    cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:adminCache:%d", chatID),
         adminCache, store.WithExpiration(30*time.Minute))
 
     return adminCache
@@ -549,7 +551,7 @@ redis-cli MEMORY USAGE "alita:chat_settings:123456789"
 ```
 
 :::tip[Cache operations]
-Use `cache.Marshal.Get/Set/Delete` for direct cache operations, and prefer
+Use `cache.GetMarshal().Get/Set/Delete` for direct cache operations, and prefer
 `getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
 with singleflight protection to prevent cache stampedes.
 :::

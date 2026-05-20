@@ -77,11 +77,11 @@ func recentJoinProcessingKey(chatID, userID int64) string {
 func claimRecentJoinProcessing(chatID, userID int64) bool {
 	key := recentJoinProcessingKey(chatID, userID)
 
-	if cache.Marshal != nil {
-		if exists, _ := cache.Marshal.Get(cache.Context, key, new(bool)); exists != nil {
+	if m := cache.GetMarshal(); m != nil {
+		if exists, _ := m.Get(cache.Context, key, new(bool)); exists != nil {
 			return false
 		}
-		if err := cache.Marshal.Set(cache.Context, key, true, store.WithExpiration(recentJoinProcessTTL)); err == nil {
+		if err := m.Set(cache.Context, key, true, store.WithExpiration(recentJoinProcessTTL)); err == nil {
 			return true
 		}
 		log.Debugf("[Greetings] Shared cache unavailable for join dedupe key %s, falling back to in-memory claim", key)
@@ -101,8 +101,8 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 func clearRecentJoinProcessing(chatID, userID int64) {
 	key := recentJoinProcessingKey(chatID, userID)
 
-	if cache.Marshal != nil {
-		if err := cache.Marshal.Delete(cache.Context, key); err != nil {
+	if m := cache.GetMarshal(); m != nil {
+		if err := m.Delete(cache.Context, key); err != nil {
 			log.Debugf("[Greetings] Failed to clear shared join dedupe key %s: %v", key, err)
 		}
 	}
@@ -1152,7 +1152,9 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 		helpText, _ = tr.GetString("greetings_join_request_accepted")
-		_ = cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chat.Id, joinUser.Id))
+		if m := cache.GetMarshal(); m != nil {
+			_ = m.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chat.Id, joinUser.Id))
+		}
 	case "decline":
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
 			if helpers.IsExpectedTelegramError(err) {
@@ -1287,10 +1289,11 @@ func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 // loadPendingJoins checks if a join request notification has already been sent for a user.
 // Prevents duplicate join request messages by checking cache for recent requests.
 func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
-	if cache.Marshal == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return false
 	}
-	alreadyAsked, err := cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), new(bool))
+	alreadyAsked, err := m.Get(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), new(bool))
 	if err != nil || alreadyAsked == nil {
 		return false
 	}
@@ -1304,10 +1307,11 @@ func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
 // setPendingJoins marks a join request as processed in cache with expiration.
 // Stores request info for 5 minutes to prevent duplicate approval notifications.
 func (moduleStruct) setPendingJoins(chatId, userId int64) {
-	if cache.Marshal == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return
 	}
-	_ = cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), true, store.WithExpiration(5*time.Minute))
+	_ = m.Set(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), true, store.WithExpiration(5*time.Minute))
 }
 
 // LoadGreetings registers all greeting-related handlers with the dispatcher.

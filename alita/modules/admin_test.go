@@ -512,10 +512,11 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 
 	clearChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	if cache.Marshal == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		t.Skip("cache not initialized")
 	}
-	if err := cache.Marshal.Set(cache.Context, "alita:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
+	if err := m.Set(cache.Context, "alita:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
 		ChatId: clearChat.Id,
 		UserInfo: []gotgbot.MergedChatMember{
 			{
@@ -533,6 +534,23 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 	if found, _ := cache.GetAdminCacheList(clearChat.Id); found {
 		t.Fatal("admin cache entry remained after /clearadmincache")
+	}
+}
+
+func TestClearAdminCacheNilMarshal(t *testing.T) {
+	withNilCacheMarshal(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, user, "/clearadmincache")
+
+	if err := adminModule.clearAdminCache(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("clearAdminCache(nil marshal) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want none when cache marshal is nil", len(calls))
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 
 var (
 	Context     = context.Background()
-	Marshal     *marshaler.Marshaler
+	marshal     *marshaler.Marshaler
 	Manager     *cache.Cache[any]
 	redisClient *redis.Client
 	marshalMu   sync.RWMutex
@@ -27,14 +27,14 @@ var (
 func GetMarshal() *marshaler.Marshaler {
 	marshalMu.RLock()
 	defer marshalMu.RUnlock()
-	return Marshal
+	return marshal
 }
 
 // SetMarshal updates the active cache marshaler.
 func SetMarshal(m *marshaler.Marshaler) {
 	marshalMu.Lock()
 	defer marshalMu.Unlock()
-	Marshal = m
+	marshal = m
 }
 
 

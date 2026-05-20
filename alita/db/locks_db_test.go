@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestUpdateLockCreatesNewRecord(t *testing.T) {
@@ -233,3 +235,46 @@ func TestGetChatLocks(t *testing.T) {
 		}
 	}
 }
+
+func TestGetChatLocksUsesMemoryCache(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	perm := "video"
+
+	t.Cleanup(func() {
+		if err := DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
+	})
+
+	if err := UpdateLock(chatID, perm, true); err != nil {
+		t.Fatalf("UpdateLock(true) error = %v", err)
+	}
+
+	locks := GetChatLocks(chatID)
+	if !locks[perm] {
+		t.Fatalf("GetChatLocks() = %v, want locked video", locks)
+	}
+
+	if err := UpdateLock(chatID, perm, false); err != nil {
+		t.Fatalf("UpdateLock(false) error = %v", err)
+	}
+
+	locks = GetChatLocks(chatID)
+	if locks[perm] {
+		t.Fatalf("GetChatLocks() after unlock = %v, want unlocked video", locks)
+	}
+}
+
+func TestInvalidateLockCacheNilMarshal(t *testing.T) {
+	orig := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(orig)
+	})
+
+	InvalidateLockCache(-100123, "sticker")
+}
+

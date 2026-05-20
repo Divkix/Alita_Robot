@@ -1,8 +1,12 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 // ---------------------------------------------------------------------------
@@ -122,4 +126,79 @@ func TestCacheKeyConsistency(t *testing.T) {
 	if key1 != key2 || key2 != key3 {
 		t.Errorf("CacheKey not consistent: %q, %q, %q", key1, key2, key3)
 	}
+}
+
+func TestGetFromCacheOrLoadNilMarshal(t *testing.T) {
+	orig := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(orig)
+	})
+
+	got, err := getFromCacheOrLoad("alita:test:nil-marshal", time.Minute, func() (string, error) {
+		return "loaded-direct", nil
+	})
+	if err != nil {
+		t.Fatalf("getFromCacheOrLoad() error = %v", err)
+	}
+	if got != "loaded-direct" {
+		t.Fatalf("getFromCacheOrLoad() = %q, want loaded-direct", got)
+	}
+}
+
+func TestDeleteCacheNilMarshal(t *testing.T) {
+	orig := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(orig)
+	})
+
+	deleteCache("alita:test:delete-nil-marshal")
+}
+
+func TestCacheKeyDefaultTypeSegment(t *testing.T) {
+	got := CacheKey("module", float64(42.5))
+	if got != "alita:module:42.5" {
+		t.Fatalf("CacheKey(float64) = %q, want alita:module:42.5", got)
+	}
+}
+
+func TestGetFromCacheOrLoadPropagatesLoaderError(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	_, err := getFromCacheOrLoad("alita:test:loader-error", time.Minute, func() (string, error) {
+		return "", fmt.Errorf("loader failed")
+	})
+	if err == nil || !strings.Contains(err.Error(), "loader failed") {
+		t.Fatalf("getFromCacheOrLoad() error = %v, want loader failed", err)
+	}
+}
+
+func TestGetFromCacheOrLoadUsesMemoryCache(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	const key = "alita:test:cache-hit"
+	loads := 0
+	loader := func() (string, error) {
+		loads++
+		return "cached-value", nil
+	}
+
+	got, err := getFromCacheOrLoad(key, time.Minute, loader)
+	if err != nil {
+		t.Fatalf("first getFromCacheOrLoad() error = %v", err)
+	}
+	if got != "cached-value" || loads != 1 {
+		t.Fatalf("first load = (%q, loads=%d), want (cached-value, 1)", got, loads)
+	}
+
+	got, err = getFromCacheOrLoad(key, time.Minute, loader)
+	if err != nil {
+		t.Fatalf("second getFromCacheOrLoad() error = %v", err)
+	}
+	if got != "cached-value" || loads != 1 {
+		t.Fatalf("cache hit = (%q, loads=%d), want (cached-value, 1)", got, loads)
+	}
+
+	deleteCache(key)
 }
