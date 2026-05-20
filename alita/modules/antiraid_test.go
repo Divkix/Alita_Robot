@@ -131,6 +131,41 @@ func TestStopAntiRaidExpiryPollerCancelsExistingContext(t *testing.T) {
 	}
 }
 
+func TestStartAntiRaidExpiryPollerSkipsWhenRedisUnavailable(t *testing.T) {
+	antiRaidCancel = nil
+	antiRaidCtx = nil
+	t.Cleanup(func() {
+		StopAntiRaidExpiryPoller()
+		antiRaidCtx = nil
+	})
+
+	StartAntiRaidExpiryPoller()
+	if antiRaidCancel != nil {
+		t.Fatal("StartAntiRaidExpiryPoller created cancel func without Redis")
+	}
+}
+
+func TestAntiRaidPollerReturnsOnCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		antiRaidModule.expiryPoller(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("expiryPoller did not return after context cancellation")
+	}
+}
+
+func TestAntiRaidCheckExpiredRaidsNoRedisIsNoop(t *testing.T) {
+	antiRaidModule.checkExpiredRaids(context.Background())
+}
+
 func TestAntiRaidStateMachine(t *testing.T) {
 	if cache.Marshal == nil {
 		t.Skip("requires Redis cache")
@@ -204,6 +239,32 @@ func TestAntiRaidExtend(t *testing.T) {
 	}
 
 	antiRaidModule.disableRaid(chatID)
+}
+
+func TestAntiRaidExpiredStoredStateIsMarkedInactive(t *testing.T) {
+	if cache.Marshal == nil {
+		t.Skip("requires cache marshal")
+	}
+
+	chatID := time.Now().UnixNano() + 3
+	if err := setRaidState(chatID, &raidState{
+		Active:    true,
+		StartedAt: time.Now().Add(-2 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("setRaidState() error = %v", err)
+	}
+
+	st := getRaidState(chatID)
+	if st.Active {
+		t.Fatalf("getRaidState() Active = true for expired state: %+v", st)
+	}
+	if antiRaidModule.isRaidActive(chatID) {
+		t.Fatal("isRaidActive() = true for expired stored state")
+	}
+	if antiRaidModule.disableRaid(chatID) {
+		t.Fatal("disableRaid() = true for already expired inactive state")
+	}
 }
 
 func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
