@@ -3,7 +3,9 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -69,6 +71,87 @@ func TestCaptchaCommandRejectsUnknownOption(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want usage reply", len(calls))
+	}
+}
+
+func TestRecoverOrphanedCaptchasCleansPendingAttempts(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	now := time.Now()
+	kickChat := uniqueModuleChatID()
+	banChat := uniqueModuleChatID()
+	validChat := uniqueModuleChatID()
+
+	if err := db.DB.Where("1 = 1").Delete(&db.StoredMessages{}).Error; err != nil {
+		t.Fatalf("stored message cleanup setup error = %v", err)
+	}
+	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
+		t.Fatalf("captcha attempt cleanup setup error = %v", err)
+	}
+	if err := db.SetCaptchaFailureAction(kickChat, "kick"); err != nil {
+		t.Fatalf("SetCaptchaFailureAction(kick) error = %v", err)
+	}
+	if err := db.SetCaptchaFailureAction(banChat, "ban"); err != nil {
+		t.Fatalf("SetCaptchaFailureAction(ban) error = %v", err)
+	}
+
+	attempts := []db.CaptchaAttempts{
+		{
+			UserID:    7001,
+			ChatID:    kickChat,
+			Answer:    "1",
+			MessageID: 8101,
+			CreatedAt: now.Add(-2 * time.Hour),
+			ExpiresAt: now.Add(-time.Hour),
+		},
+		{
+			UserID:    7002,
+			ChatID:    banChat,
+			Answer:    "2",
+			MessageID: 8102,
+			CreatedAt: now.Add(-2 * time.Hour),
+			ExpiresAt: now.Add(-time.Hour),
+		},
+		{
+			UserID:    7003,
+			ChatID:    validChat,
+			Answer:    "3",
+			MessageID: 8103,
+			CreatedAt: now,
+			ExpiresAt: now.Add(time.Hour),
+		},
+	}
+	for i := range attempts {
+		if err := db.DB.Create(&attempts[i]).Error; err != nil {
+			t.Fatalf("captcha attempt %d setup error = %v", i, err)
+		}
+		if err := db.StoreMessageForCaptcha(attempts[i].UserID, attempts[i].ChatID, attempts[i].ID, db.TEXT, "pending", "", ""); err != nil {
+			t.Fatalf("stored message %d setup error = %v", i, err)
+		}
+	}
+
+	captchaRecoveryOnce = sync.Once{}
+	recoverOrphanedCaptchas(bot)
+
+	var remainingAttempts int64
+	if err := db.DB.Model(&db.CaptchaAttempts{}).Count(&remainingAttempts).Error; err != nil {
+		t.Fatalf("count captcha attempts error = %v", err)
+	}
+	if remainingAttempts != 0 {
+		t.Fatalf("remaining captcha attempts = %d, want 0", remainingAttempts)
+	}
+	var remainingMessages int64
+	if err := db.DB.Model(&db.StoredMessages{}).Count(&remainingMessages).Error; err != nil {
+		t.Fatalf("count stored messages error = %v", err)
+	}
+	if remainingMessages != 0 {
+		t.Fatalf("remaining stored messages = %d, want 0", remainingMessages)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != len(attempts) {
+		t.Fatalf("deleteMessage calls = %d, want one per attempt", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 2 {
+		t.Fatalf("banChatMember calls = %d, want kick and ban actions", len(calls))
 	}
 }
 
