@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -54,6 +55,33 @@ func TestExtractFromArgsWithNumericUserAndReason(t *testing.T) {
 	}
 }
 
+func TestExtractFromArgsRejectsMissingAndChannelTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+	}{
+		{name: "missing target", text: "/ban"},
+		{name: "channel id", text: "/ban -1001234567890"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
+
+			if _, err := extractFromArgs(mc); err == nil {
+				t.Fatalf("extractFromArgs(%s) error = nil, want rejection", tt.name)
+			}
+		})
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want one reply per rejected arg target", len(calls))
+	}
+}
+
 func TestExtractFromReplyUsesReplySender(t *testing.T) {
 	t.Parallel()
 
@@ -71,6 +99,35 @@ func TestExtractFromReplyUsesReplySender(t *testing.T) {
 	}
 	if got.reason != "" {
 		t.Fatalf("extractFromReply() reason = %q, want empty", got.reason)
+	}
+}
+
+func TestExtractFromReplyRejectsMissingReplyAndNilSender(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/dkick")
+	noReplyMC := newModerationCtxForTest(bot, noReplyCtx, &moduleStruct{moduleName: "Bans"})
+	if _, err := extractFromReply(noReplyMC); err == nil {
+		t.Fatal("extractFromReply(no reply) error = nil, want rejection")
+	}
+
+	nilSenderCtx := newModuleMessageContext(bot, chat, admin, "/dkick")
+	nilSenderCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 33,
+		Date:      1,
+		Chat:      chat,
+		Text:      "channel-style message",
+	}
+	nilSenderMC := newModerationCtxForTest(bot, nilSenderCtx, &moduleStruct{moduleName: "Bans"})
+	if _, err := extractFromReply(nilSenderMC); err == nil {
+		t.Fatal("extractFromReply(nil sender) error = nil, want rejection")
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want one reply per rejected reply target", len(calls))
 	}
 }
 
@@ -196,6 +253,28 @@ func TestDefaultTargetValidationRejectsBotAndAllowsMember(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want one self-target error reply", len(calls))
+	}
+}
+
+func TestDefaultTargetValidationRejectsMissingMemberAndProtectedAdmin(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
+	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
+
+	client.errors["getChatMember"] = fmt.Errorf("Bad Request: user not found")
+	if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
+		t.Fatal("defaultTargetValidation(missing member) error = nil, want rejection")
+	}
+	delete(client.errors, "getChatMember")
+
+	if err := defaultTargetValidation(mc, &target{userID: 777000}); err == nil {
+		t.Fatal("defaultTargetValidation(protected admin) error = nil, want rejection")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want missing-member and admin-target replies", len(calls))
 	}
 }
 
