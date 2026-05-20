@@ -35,17 +35,8 @@ jobs:
           go-version: stable
           cache: true
 
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.26.1
-        with:
-          args: -no-fail -fmt sarif -out gosec.sarif ./...
-
-      - name: Upload Gosec SARIF
-        if: hashFiles('gosec.sarif') != ''
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: gosec.sarif
+      # Gosec SARIF uploads run in ci.yml (pull_request + main) so Code Scanning
+      # can compare PR deltas. This job only runs on tags / workflow_dispatch.
 
       - name: Run vulnerability check
         continue-on-error: true
