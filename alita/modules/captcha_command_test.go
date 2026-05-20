@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -204,6 +205,168 @@ func TestCaptchaPendingMessageCommandsValidateArguments(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
 		t.Fatalf("sendMessage calls = %d, want one reply per validation case", len(calls))
+	}
+}
+
+func TestHandlePendingCaptchaMessageStoresAndDeletesUserMessages(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	tests := []struct {
+		name        string
+		build       func(*ext.Context)
+		wantType    int
+		wantContent string
+		wantFileID  string
+		wantCaption string
+	}{
+		{
+			name:        "text",
+			build:       func(ctx *ext.Context) {},
+			wantType:    db.TEXT,
+			wantContent: "pending text",
+		},
+		{
+			name: "photo",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Photo = []gotgbot.PhotoSize{
+					{FileId: "small-photo", FileUniqueId: "small", Width: 10, Height: 10},
+					{FileId: "large-photo", FileUniqueId: "large", Width: 100, Height: 100},
+				}
+				ctx.EffectiveMessage.Caption = "photo caption"
+			},
+			wantType:    db.PHOTO,
+			wantFileID:  "large-photo",
+			wantCaption: "photo caption",
+		},
+		{
+			name: "unsupported",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+			},
+			wantType:    db.TEXT,
+			wantContent: "[Unsupported message type]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+			if err != nil {
+				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+			}
+
+			ctx := newModuleMessageContext(bot, chat, member, "pending text")
+			tt.build(ctx)
+			if err := captchaModule.handlePendingCaptchaMessage(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("handlePendingCaptchaMessage() error = %v, want EndGroups", err)
+			}
+
+			messages, err := db.GetStoredMessagesForAttempt(attempt.ID)
+			if err != nil {
+				t.Fatalf("GetStoredMessagesForAttempt() error = %v", err)
+			}
+			if len(messages) != 1 {
+				t.Fatalf("stored messages = %d, want 1", len(messages))
+			}
+			if messages[0].MessageType != tt.wantType {
+				t.Fatalf("MessageType = %d, want %d", messages[0].MessageType, tt.wantType)
+			}
+			if messages[0].Content != tt.wantContent {
+				t.Fatalf("Content = %q, want %q", messages[0].Content, tt.wantContent)
+			}
+			if messages[0].FileID != tt.wantFileID {
+				t.Fatalf("FileID = %q, want %q", messages[0].FileID, tt.wantFileID)
+			}
+			if messages[0].Caption != tt.wantCaption {
+				t.Fatalf("Caption = %q, want %q", messages[0].Caption, tt.wantCaption)
+			}
+		})
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != len(tests) {
+		t.Fatalf("deleteMessage calls = %d, want one per pending message", len(calls))
+	}
+}
+
+func TestHandlePendingCaptchaMessageContinuesWithoutPendingAttempt(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, chat, member, "normal text")
+
+	if err := captchaModule.handlePendingCaptchaMessage(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("handlePendingCaptchaMessage() error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want 0", len(calls))
+	}
+}
+
+func TestSendCaptchaCreatesAttemptAndSendsChallenge(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	ctx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 777000, FirstName: "Telegram"}, "join")
+	if err := db.SetCaptchaEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+
+	if err := SendCaptcha(bot, ctx, 42, "Member"); err != nil {
+		t.Fatalf("SendCaptcha() error = %v", err)
+	}
+
+	attempt, err := db.GetCaptchaAttempt(42, chat.Id)
+	if err != nil {
+		t.Fatalf("GetCaptchaAttempt() error = %v", err)
+	}
+	if attempt == nil {
+		t.Fatal("captcha attempt was not created")
+	}
+	if attempt.MessageID == 0 {
+		t.Fatal("captcha attempt MessageID = 0, want sent message id")
+	}
+	if len(client.callsFor("sendPhoto"))+len(client.callsFor("sendMessage")) == 0 {
+		t.Fatal("SendCaptcha did not send a challenge message")
+	}
+}
+
+func TestCaptchaVerifyCallbackWrongAnswerIncrementsAttempts(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	if err := db.UpdateCaptchaAttemptMessageID(attempt.ID, 123); err != nil {
+		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+	}
+
+	data := encodeCallbackData(
+		"captcha_verify",
+		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"},
+		fmt.Sprintf("captcha_verify.%d.42.8", attempt.ID),
+	)
+	ctx := newModuleCallbackContext(bot, chat, member, data)
+	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
+		t.Fatalf("captchaVerifyCallback() error = %v", err)
+	}
+
+	updated, err := db.GetCaptchaAttempt(member.Id, chat.Id)
+	if err != nil {
+		t.Fatalf("GetCaptchaAttempt() error = %v", err)
+	}
+	if updated == nil || updated.Attempts != 1 {
+		t.Fatalf("Attempts = %#v, want 1", updated)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 	}
 }
 
