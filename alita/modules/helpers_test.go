@@ -101,3 +101,47 @@ func TestListModules(t *testing.T) {
 		}
 	}
 }
+
+func TestGetAltNamesOfModuleIncludesLowercaseModuleName(t *testing.T) {
+	t.Parallel()
+
+	got := getAltNamesOfModule("DefinitelyNotInConfig")
+	if len(got) == 0 {
+		t.Fatal("getAltNamesOfModule() returned empty slice")
+	}
+	if got[len(got)-1] != "definitelynotinconfig" {
+		t.Fatalf("last alias = %q, want lowercase module name", got[len(got)-1])
+	}
+}
+
+func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
+	registry := DefaultHelpRegistry()
+	previousAbleMap := registry.AbleMap
+	previousMarkup := markup
+	registry.AbleMap.Init()
+	t.Cleanup(func() {
+		registry.AbleMap = previousAbleMap
+		markup = previousMarkup
+	})
+
+	registry.AbleMap.Store("Warns", true)
+	registry.AbleMap.Store("Admin", true)
+	registry.AbleMap.Store("Filters", true)
+
+	initHelpButtons()
+	if len(markup.InlineKeyboard) == 0 {
+		t.Fatal("initHelpButtons() produced no rows")
+	}
+	firstRow := markup.InlineKeyboard[0]
+	if len(firstRow) != 3 {
+		t.Fatalf("first keyboard row len = %d, want 3", len(firstRow))
+	}
+	if firstRow[0].Text != "Admin" || firstRow[1].Text != "Filters" || firstRow[2].Text != "Warns" {
+		t.Fatalf("first keyboard row = %#v, want Admin/Filters/Warns sorted", firstRow)
+	}
+	for _, button := range firstRow {
+		if button.CallbackData == "" {
+			t.Fatalf("button %q has empty callback data", button.Text)
+		}
+	}
+}
