@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 // skipIfNoCache skips the current test when the cache is not initialized.
 func skipIfNoCache(t *testing.T) {
 	t.Helper()
-	if Marshal == nil {
+	if GetMarshal() == nil {
 		t.Skip("requires Redis connection")
 	}
 }
@@ -199,7 +199,7 @@ func TestIsChatRestricted_WithinProbeTTL(t *testing.T) {
 	const chatID = int64(-10099921)
 	defer MarkChatNotRestricted(chatID)
 
-	err := Marshal.Set(
+	err := GetMarshal().Set(
 		Context,
 		restrictedChatKey(chatID),
 		time.Now().Add(-(constants.RestrictedProbeInterval / 2)).Format(time.RFC3339),
@@ -220,7 +220,7 @@ func TestIsChatRestricted_AfterProbeTTL(t *testing.T) {
 	const chatID = int64(-10099922)
 	defer MarkChatNotRestricted(chatID)
 
-	err := Marshal.Set(
+	err := GetMarshal().Set(
 		Context,
 		restrictedChatKey(chatID),
 		time.Now().Add(-constants.RestrictedProbeInterval-time.Second).Format(time.RFC3339),
@@ -241,7 +241,7 @@ func TestIsChatRestricted_ProbeSingleFlight(t *testing.T) {
 	const chatID = int64(-10099923)
 	defer MarkChatNotRestricted(chatID)
 
-	err := Marshal.Set(
+	err := GetMarshal().Set(
 		Context,
 		restrictedChatKey(chatID),
 		time.Now().Add(-constants.RestrictedProbeInterval-time.Second).Format(time.RFC3339),
@@ -351,27 +351,27 @@ func TestGetRestrictedCacheStats_NilSafe(t *testing.T) {
 }
 
 func TestMarkChatRestricted_NilMarshal_NoPanic(t *testing.T) {
-	orig := Marshal
-	Marshal = nil
-	defer func() { Marshal = orig }()
+	orig := GetMarshal()
+	SetMarshal(nil)
+	defer func() { SetMarshal(orig) }()
 
 	MarkChatRestricted(-999)
 }
 
 func TestIsChatRestricted_NilMarshal_ReturnsFalse(t *testing.T) {
-	orig := Marshal
-	Marshal = nil
-	defer func() { Marshal = orig }()
+	orig := GetMarshal()
+	SetMarshal(nil)
+	defer func() { SetMarshal(orig) }()
 
 	if IsChatRestricted(-999) {
-		t.Error("IsChatRestricted with nil Marshal should return false")
+		t.Error("IsChatRestricted with nil marshaler should return false")
 	}
 }
 
 func TestMarkChatNotRestricted_NilMarshal_NoPanic(t *testing.T) {
-	orig := Marshal
-	Marshal = nil
-	defer func() { Marshal = orig }()
+	orig := GetMarshal()
+	SetMarshal(nil)
+	defer func() { SetMarshal(orig) }()
 
 	MarkChatNotRestricted(-999)
 }

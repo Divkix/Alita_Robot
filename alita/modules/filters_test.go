@@ -54,7 +54,7 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 }
 
 func TestFilterOverwriteCacheRoundTripsCurrentAndLegacyData(t *testing.T) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("requires cache marshal")
 	}
 
@@ -85,7 +85,7 @@ func TestFilterOverwriteCacheRoundTripsCurrentAndLegacyData(t *testing.T) {
 		Text:     "legacy text",
 		DataType: db.TEXT,
 	}}
-	if err := cache.Marshal.Set(cache.Context, legacyFilterOverwriteCacheKey("legacy", -100123), legacy); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, legacyFilterOverwriteCacheKey("legacy", -100123), legacy); err != nil {
 		t.Fatalf("legacy cache set error = %v", err)
 	}
 	gotLegacy, err := getLegacyFilterOverwriteCache("legacy", -100123)

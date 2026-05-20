@@ -308,7 +308,7 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 			Text:      "/unknown",
 		}
 		key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
-		if err := cache.Marshal.Set(cache.Context, key, cached); err != nil {
+		if err := cache.GetMarshal().Set(cache.Context, key, cached); err != nil {
 			t.Fatalf("cache set: %v", err)
 		}
 		data := encodeCallbackData("anon_admin", map[string]string{
@@ -341,7 +341,7 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 		Text: "/unknown",
 	}
 	key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
-	if err := cache.Marshal.Set(cache.Context, key, cached); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, key, cached); err != nil {
 		t.Fatalf("cache set: %v", err)
 	}
 	data := encodeCallbackData("anon_admin", map[string]string{

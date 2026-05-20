@@ -512,10 +512,10 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 
 	clearChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("cache not initialized")
 	}
-	if err := cache.Marshal.Set(cache.Context, "alita:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
+	if err := cache.GetMarshal().Set(cache.Context, "alita:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
 		ChatId: clearChat.Id,
 		UserInfo: []gotgbot.MergedChatMember{
 			{

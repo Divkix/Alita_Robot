@@ -24,14 +24,14 @@ func TestReactionCommandsManageCache(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = cache.Marshal.Delete(cache.Context, key)
+		_ = cache.GetMarshal().Delete(cache.Context, key)
 	})
 
 	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
 	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addReaction() error = %v, want EndGroups", err)
 	}
-	existing, err := cache.Marshal.Get(cache.Context, key, new(map[string]string))
+	existing, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string))
 	if err != nil {
 		t.Fatalf("cached reactions missing after add: %v", err)
 	}
@@ -48,18 +48,18 @@ func TestReactionCommandsManageCache(t *testing.T) {
 	if err := reactionsModule.removeReaction(bot, removeCtx); err != ext.EndGroups {
 		t.Fatalf("removeReaction() error = %v, want EndGroups", err)
 	}
-	if _, err := cache.Marshal.Get(cache.Context, key, new(map[string]string)); err == nil {
+	if _, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string)); err == nil {
 		t.Fatal("reaction cache remained after removing final reaction")
 	}
 
-	if err := cache.Marshal.Set(cache.Context, key, map[string]string{"bye": "ok"}); err != nil {
-		t.Fatalf("cache.Marshal.Set() error = %v", err)
+	if err := cache.GetMarshal().Set(cache.Context, key, map[string]string{"bye": "ok"}); err != nil {
+		t.Fatalf("cache.GetMarshal().Set() error = %v", err)
 	}
 	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetreactions")
 	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetReactions() error = %v, want EndGroups", err)
 	}
-	if _, err := cache.Marshal.Get(cache.Context, key, new(map[string]string)); err == nil {
+	if _, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string)); err == nil {
 		t.Fatal("reaction cache remained after reset")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
@@ -74,7 +74,7 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = cache.Marshal.Delete(cache.Context, key)
+		_ = cache.GetMarshal().Delete(cache.Context, key)
 	})
 
 	for _, tt := range []struct {
@@ -95,7 +95,7 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 		})
 	}
 
-	if err := cache.Marshal.Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
 		t.Fatalf("seed reaction cache: %v", err)
 	}
 	missingKeywordCtx := newModuleMessageContext(bot, chat, admin, "/removereaction absent")
@@ -165,11 +165,11 @@ func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
 	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = cache.Marshal.Delete(cache.Context, key)
+		_ = cache.GetMarshal().Delete(cache.Context, key)
 	})
 
 	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
-	if err := cache.Marshal.Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
 		t.Fatalf("seed reaction cache: %v", err)
 	}
 
@@ -189,7 +189,7 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
 	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = cache.Marshal.Delete(cache.Context, key)
+		_ = cache.GetMarshal().Delete(cache.Context, key)
 	})
 
 	emptyTextCtx := newModuleMessageContext(bot, chat, user, "")
@@ -210,7 +210,7 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 	}
 
 	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
-	if err := cache.Marshal.Set(cache.Context, key, map[string]string{}); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, key, map[string]string{}); err != nil {
 		t.Fatalf("seed empty reaction cache: %v", err)
 	}
 	emptyCacheCtx := newModuleMessageContext(bot, chat, user, "hello")

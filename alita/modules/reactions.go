@@ -187,7 +187,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	key := reactionKey(chat.Id)
 
 	// Get existing reactions
-	existing, err := cache.Marshal.Get(cache.Context, key, new(map[string]string))
+	existing, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string))
 	if err != nil {
 		// Create new map if doesn't exist
 		existing = &map[string]string{}
@@ -202,7 +202,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	reactionsMap[keyword] = emoji
 
 	// Save back to cache
-	if err := cache.Marshal.Set(cache.Context, key, reactionsMap); err != nil {
+	if err := cache.GetMarshal().Set(cache.Context, key, reactionsMap); err != nil {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_error")
@@ -260,7 +260,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	key := reactionKey(chat.Id)
 
 	// Get existing reactions
-	existing, err := cache.Marshal.Get(cache.Context, key, new(map[string]string))
+	existing, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string))
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_not_found")
@@ -291,11 +291,11 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Save back to cache (or delete if empty)
 	if len(reactionsMap) == 0 {
-		if err := cache.Marshal.Delete(cache.Context, key); err != nil {
+		if err := cache.GetMarshal().Delete(cache.Context, key); err != nil {
 			log.Errorf("[Reactions] Failed to delete empty reactions: %v", err)
 		}
 	} else {
-		if err := cache.Marshal.Set(cache.Context, key, reactionsMap); err != nil {
+		if err := cache.GetMarshal().Set(cache.Context, key, reactionsMap); err != nil {
 			log.Errorf("[Reactions] Failed to update reactions: %v", err)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("reactions_remove_error")
@@ -331,7 +331,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	key := reactionKey(chat.Id)
 
 	// Get existing reactions
-	existing, err := cache.Marshal.Get(cache.Context, key, new(map[string]string))
+	existing, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string))
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
@@ -389,7 +389,7 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	key := reactionKey(chat.Id)
 
 	// Delete all reactions
-	if err := cache.Marshal.Delete(cache.Context, key); err != nil {
+	if err := cache.GetMarshal().Delete(cache.Context, key); err != nil {
 		log.Debugf("[Reactions] Failed to delete reactions (may not exist): %v", err)
 	}
 
@@ -430,7 +430,7 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Get reactions for this chat
 	key := reactionKey(chat.Id)
-	existing, err := cache.Marshal.Get(cache.Context, key, new(map[string]string))
+	existing, err := cache.GetMarshal().Get(cache.Context, key, new(map[string]string))
 	if err != nil {
 		// No reactions configured, continue silently
 		return ext.ContinueGroups

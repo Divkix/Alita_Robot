@@ -802,7 +802,7 @@ func (moduleStruct) clearAdminCache(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	err := cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:adminCache:%d", chat.Id))
+	err := cache.GetMarshal().Delete(cache.Context, fmt.Sprintf("alita:adminCache:%d", chat.Id))
 	if err != nil {
 		log.Error(err)
 		return err

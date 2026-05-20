@@ -113,17 +113,17 @@ func (m *cacheMemoryStore) GetType() string {
 func withMemoryMarshaler(t *testing.T) {
 	t.Helper()
 
-	previousMarshal := Marshal
+	previousMarshal := GetMarshal()
 	previousManager := Manager
 	previousRedisClient := redisClient
 
 	manager := gocache.New[any](newCacheMemoryStore())
 	Manager = manager
-	Marshal = marshaler.New(manager)
+	SetMarshal(marshaler.New(manager))
 	redisClient = nil
 
 	t.Cleanup(func() {
-		Marshal = previousMarshal
+		SetMarshal(previousMarshal)
 		Manager = previousManager
 		redisClient = previousRedisClient
 	})
@@ -148,7 +148,7 @@ func TestAdminCacheRoundTripWithMemoryStore(t *testing.T) {
 		Cached:   true,
 	}
 
-	if err := Marshal.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatID), adminCache); err != nil {
+	if err := GetMarshal().Set(Context, fmt.Sprintf("alita:adminCache:%d", chatID), adminCache); err != nil {
 		t.Fatalf("cache set: %v", err)
 	}
 
@@ -211,7 +211,7 @@ func TestIsChatRestrictedAllowsMalformedAndStaleEntriesWithMemoryStore(t *testin
 	withMemoryMarshaler(t)
 
 	const malformedChatID = int64(-100457)
-	if err := Marshal.Set(Context, restrictedChatKey(malformedChatID), "not-a-timestamp"); err != nil {
+	if err := GetMarshal().Set(Context, restrictedChatKey(malformedChatID), "not-a-timestamp"); err != nil {
 		t.Fatalf("cache set malformed: %v", err)
 	}
 	if IsChatRestricted(malformedChatID) {
@@ -220,7 +220,7 @@ func TestIsChatRestrictedAllowsMalformedAndStaleEntriesWithMemoryStore(t *testin
 
 	const staleChatID = int64(-100458)
 	stale := time.Now().Add(-constants.RestrictedProbeInterval - time.Second).Format(time.RFC3339)
-	if err := Marshal.Set(Context, restrictedChatKey(staleChatID), stale); err != nil {
+	if err := GetMarshal().Set(Context, restrictedChatKey(staleChatID), stale); err != nil {
 		t.Fatalf("cache set stale: %v", err)
 	}
 	if IsChatRestricted(staleChatID) {

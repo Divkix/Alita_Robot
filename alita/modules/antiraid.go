@@ -116,11 +116,11 @@ func clearJoinTracking(chatID int64) {
 }
 
 func getRaidState(chatID int64) *raidState {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return &raidState{Active: false}
 	}
 	var st raidState
-	if _, err := cache.Marshal.Get(cache.Context, stateKey(chatID), &st); err != nil {
+	if _, err := cache.GetMarshal().Get(cache.Context, stateKey(chatID), &st); err != nil {
 		return &raidState{Active: false}
 	}
 	if st.Active && time.Now().Unix() > st.ExpiresAt {
@@ -130,10 +130,10 @@ func getRaidState(chatID int64) *raidState {
 }
 
 func setRaidState(chatID int64, st *raidState) error {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return fmt.Errorf("cache not initialized")
 	}
-	return cache.Marshal.Set(cache.Context, stateKey(chatID), st, store.WithExpiration(24*time.Hour))
+	return cache.GetMarshal().Set(cache.Context, stateKey(chatID), st, store.WithExpiration(24*time.Hour))
 }
 
 func (a *antiRaidStruct) expiryPoller(ctx context.Context) {

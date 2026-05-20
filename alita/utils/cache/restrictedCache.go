@@ -31,10 +31,11 @@ func restrictedProbeKey(chatID int64) string {
 // MarkChatRestricted marks a chat as restricted (bot can't send messages).
 // The restriction expires after RestrictedCacheTTL (30 min).
 func MarkChatRestricted(chatID int64) {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return
 	}
-	err := Marshal.Set(
+	err := m.Set(
 		Context,
 		restrictedChatKey(chatID),
 		time.Now().Format(time.RFC3339),
@@ -52,11 +53,12 @@ func MarkChatRestricted(chatID int64) {
 // A periodic probe window allows retries so stale restrictions don't block sends
 // for the full key TTL.
 func IsChatRestricted(chatID int64) bool {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return false
 	}
 	var ts string
-	_, err := Marshal.Get(Context, restrictedChatKey(chatID), &ts)
+	_, err := m.Get(Context, restrictedChatKey(chatID), &ts)
 	if err != nil {
 		restrictedCacheMisses.Add(1)
 		return false
@@ -120,15 +122,16 @@ func IsChatRestricted(chatID int64) bool {
 // MarkChatNotRestricted removes the restricted flag for a chat.
 // Called when the bot's permissions are upgraded (e.g., admin cache load detects bot is admin).
 func MarkChatNotRestricted(chatID int64) {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return
 	}
-	if err := Marshal.Delete(Context, restrictedChatKey(chatID)); err != nil {
+	if err := m.Delete(Context, restrictedChatKey(chatID)); err != nil {
 		log.WithField("chat_id", chatID).Debugf("[RestrictedCache] Failed to clear restricted flag: %v", err)
 	} else {
 		log.WithField("chat_id", chatID).Info("[RestrictedCache] Cleared restricted flag — bot can now send")
 	}
-	if err := Marshal.Delete(Context, restrictedProbeKey(chatID)); err != nil {
+	if err := m.Delete(Context, restrictedProbeKey(chatID)); err != nil {
 		log.WithField("chat_id", chatID).Debugf("[RestrictedCache] Failed to clear restricted probe lock: %v", err)
 	}
 }

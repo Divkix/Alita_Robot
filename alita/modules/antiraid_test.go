@@ -166,7 +166,7 @@ func TestAntiRaidCheckExpiredRaidsNoRedisIsNoop(t *testing.T) {
 }
 
 func TestAntiRaidStateMachine(t *testing.T) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("requires Redis cache")
 	}
 
@@ -198,7 +198,7 @@ func TestAntiRaidStateMachine(t *testing.T) {
 }
 
 func TestAntiRaidAutoExpiry(t *testing.T) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("requires Redis cache")
 	}
 
@@ -216,7 +216,7 @@ func TestAntiRaidAutoExpiry(t *testing.T) {
 }
 
 func TestAntiRaidExtend(t *testing.T) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("requires Redis cache")
 	}
 
@@ -241,7 +241,7 @@ func TestAntiRaidExtend(t *testing.T) {
 }
 
 func TestAntiRaidExpiredStoredStateIsMarkedInactive(t *testing.T) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		t.Skip("requires cache marshal")
 	}
 

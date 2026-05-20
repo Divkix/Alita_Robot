@@ -120,13 +120,13 @@ func (r *BackupRateLimiter) getLastOperation(cacheKey string) (time.Time, error)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return time.Time{}, fmt.Errorf("cache not initialized")
 	}
 
 	// Try to get from cache
 	var timestamp time.Time
-	_, err := cache.Marshal.Get(context.Background(), cacheKey, &timestamp)
+	_, err := cache.GetMarshal().Get(context.Background(), cacheKey, &timestamp)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("no record found: %w", err)
 	}
@@ -139,7 +139,7 @@ func (r *BackupRateLimiter) recordOperation(cacheKey string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return
 	}
 
@@ -156,7 +156,7 @@ func (r *BackupRateLimiter) recordOperation(cacheKey string) {
 		ttl = 1 * time.Hour
 	}
 
-	_ = cache.Marshal.Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(ttl))
+	_ = cache.GetMarshal().Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(ttl))
 }
 
 // FormatCooldown formats a duration as a human-readable string

@@ -55,23 +55,23 @@ func newOverwriteToken() (string, error) {
 
 // setFilterOverwriteCache stores filter overwrite data in cache with TTL.
 func setFilterOverwriteCache(token string, data overwriteFilter) error {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return fmt.Errorf("cache not initialized")
 	}
 
 	key := filterOverwriteCacheKey(token)
-	return cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(filterOverwriteCacheTTL))
+	return cache.GetMarshal().Set(cache.Context, key, data, store.WithExpiration(filterOverwriteCacheTTL))
 }
 
 // getFilterOverwriteCache retrieves filter overwrite data from cache.
 func getFilterOverwriteCache(token string) (*overwriteFilter, error) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return nil, fmt.Errorf("cache not initialized")
 	}
 
 	key := filterOverwriteCacheKey(token)
 	var data overwriteFilter
-	_, err := cache.Marshal.Get(cache.Context, key, &data)
+	_, err := cache.GetMarshal().Get(cache.Context, key, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +81,12 @@ func getFilterOverwriteCache(token string) (*overwriteFilter, error) {
 
 // deleteFilterOverwriteCache removes filter overwrite data from cache.
 func deleteFilterOverwriteCache(token string) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return
 	}
 
 	key := filterOverwriteCacheKey(token)
-	err := cache.Marshal.Delete(cache.Context, key)
+	err := cache.GetMarshal().Delete(cache.Context, key)
 	if err != nil {
 		log.Debugf("[Filters] Failed to delete cache for key %s: %v", key, err)
 	}
@@ -97,12 +97,12 @@ func legacyFilterOverwriteCacheKey(filterWord string, chatID int64) string {
 }
 
 func getLegacyFilterOverwriteCache(filterWord string, chatID int64) (*overwriteFilter, error) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return nil, fmt.Errorf("cache not initialized")
 	}
 	key := legacyFilterOverwriteCacheKey(filterWord, chatID)
 	var data overwriteFilter
-	_, err := cache.Marshal.Get(cache.Context, key, &data)
+	_, err := cache.GetMarshal().Get(cache.Context, key, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +110,11 @@ func getLegacyFilterOverwriteCache(filterWord string, chatID int64) (*overwriteF
 }
 
 func deleteLegacyFilterOverwriteCache(filterWord string, chatID int64) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return
 	}
 	key := legacyFilterOverwriteCacheKey(filterWord, chatID)
-	if err := cache.Marshal.Delete(cache.Context, key); err != nil {
+	if err := cache.GetMarshal().Delete(cache.Context, key); err != nil {
 		log.Debugf("[Filters] Failed to delete legacy cache for key %s: %v", key, err)
 	}
 }

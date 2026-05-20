@@ -63,13 +63,13 @@ var (
 func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var result T
 
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		// Cache not initialized, load directly
 		return loader()
 	}
 
 	// Try to get from cache
-	_, err := cache.Marshal.Get(cache.Context, key, &result)
+	_, err := cache.GetMarshal().Get(cache.Context, key, &result)
 	if err == nil {
 		// Cache hit
 		return result, nil
@@ -92,7 +92,7 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 			}
 
 			// Store in cache
-			cacheErr := cache.Marshal.Set(cache.Context, key, data, store.WithExpiration(ttl))
+			cacheErr := cache.GetMarshal().Set(cache.Context, key, data, store.WithExpiration(ttl))
 			if cacheErr != nil {
 				log.Debugf("[Cache] Failed to set cache for key %s: %v", key, cacheErr)
 			}
@@ -139,11 +139,11 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 // deleteCache is a helper to delete a value from cache.
 // Logs debug information if deletion fails but does not return errors.
 func deleteCache(key string) {
-	if cache.Marshal == nil {
+	if cache.GetMarshal() == nil {
 		return
 	}
 
-	err := cache.Marshal.Delete(cache.Context, key)
+	err := cache.GetMarshal().Delete(cache.Context, key)
 	if err != nil {
 		log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
 	}

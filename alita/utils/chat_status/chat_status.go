@@ -977,11 +977,11 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 // Used to track anonymous admin verification requests with expiration.
 // Logs errors but doesn't fail since cache is non-critical.
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
-	if cache.Marshal == nil || msg == nil {
+	if cache.GetMarshal() == nil || msg == nil {
 		log.Debug("Skipping anonymous admin cache set: cache unavailable or message nil")
 		return
 	}
-	err := cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
+	err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
 	if err != nil {
 		// Log error but don't fail the operation since cache is not critical
 		log.Errorf("Failed to set anonymous admin cache: %v", err)

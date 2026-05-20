@@ -22,7 +22,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-// withNilCacheMarshal clears cache.Marshal for the duration of a test.
+// withNilCacheMarshal clears the cache marshaler for the duration of a test.
 func withNilCacheMarshal(t *testing.T) {
 	t.Helper()
 

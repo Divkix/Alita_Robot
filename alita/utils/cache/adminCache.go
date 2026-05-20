@@ -159,10 +159,11 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 // GetAdminCacheList retrieves the cached administrator list for a specific chat.
 // Returns true and the AdminCache if found in cache, false and empty AdminCache if cache miss.
 func GetAdminCacheList(chatId int64) (bool, AdminCache) {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return false, AdminCache{}
 	}
-	gotAdminlist, err := Marshal.Get(
+	gotAdminlist, err := m.Get(
 		Context,
 		fmt.Sprintf("alita:adminCache:%d", chatId),
 		new(AdminCache),
@@ -187,11 +188,12 @@ func GetAdminCacheList(chatId int64) (bool, AdminCache) {
 // Returns true and the MergedChatMember if the user is found as an admin,
 // false and empty MergedChatMember if not found or cache miss.
 func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
 	// Use consistent string key format matching LoadAdminCache
-	adminList, err := Marshal.Get(Context, fmt.Sprintf("alita:adminCache:%d", chatId), new(AdminCache))
+	adminList, err := m.Get(Context, fmt.Sprintf("alita:adminCache:%d", chatId), new(AdminCache))
 	if err != nil || adminList == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
@@ -220,11 +222,12 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 // InvalidateAdminCache removes the cached admin list for a chat.
 // Should be called when admins are promoted/demoted to ensure fresh data.
 func InvalidateAdminCache(chatId int64) {
-	if Marshal == nil {
+	m := GetMarshal()
+	if m == nil {
 		return
 	}
 	cacheKey := fmt.Sprintf("alita:adminCache:%d", chatId)
-	if err := Marshal.Delete(Context, cacheKey); err != nil {
+	if err := m.Delete(Context, cacheKey); err != nil {
 		log.Debugf("[AdminCache] Failed to invalidate cache for chat %d: %v", chatId, err)
 	} else {
 		log.Debugf("[AdminCache] Invalidated admin cache for chat %d", chatId)
