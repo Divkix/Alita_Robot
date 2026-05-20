@@ -293,6 +293,7 @@ func TestMain(m *testing.M) {
 		&db.Chat{},
 		&db.ConnectionSettings{},
 		&db.ConnectionChatSettings{},
+		&db.AdminSettings{},
 		&db.DisableSettings{},
 		&db.DisableChatSettings{},
 		&db.RulesSettings{},
@@ -311,6 +312,7 @@ func TestMain(m *testing.M) {
 		&db.ChannelSettings{},
 		&db.ReportChatSettings{},
 		&db.ReportUserSettings{},
+		&db.AntiRaidSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

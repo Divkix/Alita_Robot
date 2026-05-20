@@ -161,6 +161,101 @@ func TestConnectionReportsConnectedChat(t *testing.T) {
 	}
 }
 
+func TestConnectInGroupRepliesWithDeepLinkButton(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connections Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, user, "/connect")
+
+	if err := ConnectionsModule.connect(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("connect() error = %v, want EndGroups", err)
+	}
+	if db.Connection(user.Id).Connected {
+		t.Fatal("group /connect should not create a direct DB connection")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestReconnectPrivateRestoresPreviousChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4245, FirstName: "Member"}
+	chatID := uniqueModuleChatID()
+	db.ConnectId(user.Id, chatID)
+	db.DisconnectId(user.Id)
+
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, privateChat, user, "/reconnect")
+	if err := ConnectionsModule.reconnect(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("reconnect() error = %v, want EndGroups", err)
+	}
+	if !db.Connection(user.Id).Connected {
+		t.Fatal("user was not reconnected to previous chat")
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestReconnectInGroupPromptsForPrivateChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connections Chat"}
+	user := gotgbot.User{Id: 4246, FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, chat, user, "/reconnect")
+
+	if err := ConnectionsModule.reconnect(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("reconnect() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestConnectionButtonsRenderAdminCommandsAndAnswerCallback(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4247, FirstName: "Member"}
+	chatID := uniqueModuleChatID()
+	db.ConnectId(user.Id, chatID)
+
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	ctx := newModuleCallbackContext(bot, privateChat, user, "connbtns.Admin")
+	if err := ConnectionsModule.connectionButtons(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("connectionButtons() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+		t.Fatalf("editMessageText calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
+	}
+}
+
+func TestConnectionButtonsRejectInvalidData(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4248, FirstName: "Member"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	ctx := newModuleCallbackContext(bot, privateChat, user, "connbtns")
+
+	if err := ConnectionsModule.connectionButtons(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("connectionButtons() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
+		t.Fatalf("editMessageText calls = %d, want 0 for invalid data", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
+	}
+}
+
 func TestConnectionCommandStringsIncludeRegisteredCommands(t *testing.T) {
 	originalAdminCmds := helpers.AdminCmds
 	originalUserCmds := helpers.UserCmds
