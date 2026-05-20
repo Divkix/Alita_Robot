@@ -1736,7 +1736,9 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 
 	// Set cooldown
 	if m := cache.GetMarshal(); m != nil {
-		_ = m.Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second))
+		if err := m.Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second)); err != nil {
+			log.Errorf("[CaptchaRefresh] Failed to set refresh cooldown for chat %d user %d: %v", chat.Id, targetUserID, err)
+		}
 	}
 
 	tr = i18n.MustNewTranslator(db.GetLanguage(ctx))
