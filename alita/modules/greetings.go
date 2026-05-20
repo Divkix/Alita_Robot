@@ -1023,7 +1023,10 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		// auto approve join requests
 		if db.GetGreetingSettings(chat.Id).ShouldAutoApprove {
-			_, _ = bot.ApproveChatJoinRequest(chat.Id, user.Id, nil)
+			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
+				log.Error(err)
+				return err
+			}
 			return ext.ContinueGroups
 		}
 
@@ -1131,15 +1134,27 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch response {
 	case "accept":
-		_, _ = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			log.Error(err)
+			return err
+		}
 		helpText, _ = tr.GetString("greetings_join_request_accepted")
 		_ = cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chat.Id, joinUser.Id))
 	case "decline":
-		_, _ = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			log.Error(err)
+			return err
+		}
 		helpText, _ = tr.GetString("greetings_join_request_declined")
 	case "ban":
-		_, _ = chat.BanMember(b, joinUser.Id, nil)
-		_, _ = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = chat.BanMember(b, joinUser.Id, nil); err != nil {
+			log.Error(err)
+			return err
+		}
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			log.Error(err)
+			return err
+		}
 		helpText, _ = tr.GetString("greetings_join_request_banned")
 	}
 

@@ -630,3 +630,141 @@ func TestAutoApproveJoinRequestSkipsAdminNotice(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want no admin notice", len(calls))
 	}
 }
+
+func TestGreetingCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "welcome status", text: "/welcome", run: greetingsModule.welcome},
+		{name: "welcome toggle", text: "/welcome on", run: greetingsModule.welcome},
+		{name: "set welcome", text: "/setwelcome Hello", run: greetingsModule.setWelcome},
+		{name: "reset welcome", text: "/resetwelcome", run: greetingsModule.resetWelcome},
+		{name: "goodbye status", text: "/goodbye", run: greetingsModule.goodbye},
+		{name: "goodbye toggle", text: "/goodbye on", run: greetingsModule.goodbye},
+		{name: "set goodbye", text: "/setgoodbye Bye", run: greetingsModule.setGoodbye},
+		{name: "reset goodbye", text: "/resetgoodbye", run: greetingsModule.resetGoodbye},
+		{name: "clean welcome", text: "/cleanwelcome", run: greetingsModule.cleanWelcome},
+		{name: "clean goodbye", text: "/cleangoodbye", run: greetingsModule.cleanGoodbye},
+		{name: "clean service", text: "/cleanservice", run: greetingsModule.delJoined},
+		{name: "auto approve", text: "/autoapprove", run: greetingsModule.autoApprove},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors["sendMessage"] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+			ctx := newGreetingMessageContext(bot, chat, admin, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
+func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	applicant := gotgbot.User{Id: 5151, FirstName: "Applicant"}
+
+	for _, tt := range []struct {
+		name    string
+		method  string
+		build   func(*gotgbot.Bot, gotgbot.Chat) *ext.Context
+		run     func(*gotgbot.Bot, *ext.Context) error
+		wantErr bool
+	}{
+		{
+			name:   "pending join notice",
+			method: "sendMessage",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				return newJoinRequestContext(bot, chat, applicant)
+			},
+			run: greetingsModule.pendingJoins,
+		},
+		{
+			name:   "auto approve join request",
+			method: "approveChatJoinRequest",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				if err := db.SetShouldAutoApprove(chat.Id, true); err != nil {
+					t.Fatalf("SetShouldAutoApprove() error = %v", err)
+				}
+				return newJoinRequestContext(bot, chat, applicant)
+			},
+			run: greetingsModule.pendingJoins,
+		},
+		{
+			name:   "join callback lookup",
+			method: "getChat",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+		{
+			name:   "join callback approve",
+			method: "approveChatJoinRequest",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+		{
+			name:   "join callback decline",
+			method: "declineChatJoinRequest",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "decline", "u": "5151"}, "join_request.decline.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+		{
+			name:   "join callback ban",
+			method: "banChatMember",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "5151"}, "join_request.ban.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+		{
+			name:   "join callback edit",
+			method: "editMessageText",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+		{
+			name:   "join callback answer",
+			method: "answerCallbackQuery",
+			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				return newModuleCallbackContext(bot, chat, admin, data)
+			},
+			run: greetingsModule.joinRequestHandler,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+
+			err := tt.run(bot, tt.build(bot, chat))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.name, err)
+			}
+		})
+	}
+}
