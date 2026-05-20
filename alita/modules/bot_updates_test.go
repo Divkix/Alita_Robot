@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -87,5 +88,112 @@ func TestGetAnonAdminCacheReportsMissingCache(t *testing.T) {
 
 	if msg, err := getAnonAdminCache(-100123, 99); err == nil || msg != nil {
 		t.Fatalf("getAnonAdminCache() = (%#v, %v), want nil message and error", msg, err)
+	}
+}
+
+func TestVerifyAnonymousAdminRejectsMalformedCallbackData(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleCallbackContext(bot, chat, admin, "anon_admin|v1|broken")
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want invalid-request answer", len(calls))
+	}
+}
+
+func TestVerifyAnonymousAdminRejectsNonAdmin(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmt.Sprint(chat.Id),
+		"m": "101",
+	}, "")
+	ctx := newModuleCallbackContext(bot, chat, member, data)
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("getChatMember"); len(calls) != 1 {
+		t.Fatalf("getChatMember calls = %d, want admin check", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want non-admin answer", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for rejected callback", len(calls))
+	}
+}
+
+func TestVerifyAnonymousAdminEditsExpiredButton(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmt.Sprint(chat.Id),
+		"m": "202",
+	}, "")
+	ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
+		t.Fatalf("editMessageText calls = %d, want expired-button edit", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none when cached command is missing", len(calls))
+	}
+}
+
+func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	cached := &gotgbot.Message{
+		MessageId: 303,
+		Date:      1,
+		Chat:      chat,
+		SenderChat: &gotgbot.Chat{
+			Id:    chat.Id,
+			Type:  "supergroup",
+			Title: chat.Title,
+		},
+		Text: "/unknown",
+	}
+	key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
+	if err := cache.Marshal.Set(cache.Context, key, cached); err != nil {
+		t.Fatalf("cache set: %v", err)
+	}
+	data := encodeCallbackData("anon_admin", map[string]string{
+		"c": fmt.Sprint(chat.Id),
+		"m": fmt.Sprint(cached.MessageId),
+	}, "")
+	ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want callback message deleted", len(calls))
+	}
+	if ctx.CallbackQuery != nil {
+		t.Fatal("CallbackQuery was not cleared after restoring cached command")
+	}
+	if ctx.EffectiveMessage == nil ||
+		ctx.EffectiveMessage.MessageId != cached.MessageId ||
+		ctx.EffectiveMessage.Text != cached.Text {
+		t.Fatalf("EffectiveMessage = %#v, want cached command message", ctx.EffectiveMessage)
+	}
+	if ctx.EffectiveMessage.SenderChat != nil {
+		t.Fatal("SenderChat was not cleared before command replay")
 	}
 }
