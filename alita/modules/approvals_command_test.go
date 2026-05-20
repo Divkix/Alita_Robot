@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -196,5 +197,154 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 2 {
 		t.Fatalf("editMessageText calls = %d, want cancel and default edits", len(calls))
+	}
+}
+
+func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name   string
+		text   string
+		method string
+		setup  func(t *testing.T, chat gotgbot.Chat)
+		run    func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "approve missing target reply", text: "/approve", method: "sendMessage", run: approvalsModule.approveUser},
+		{name: "approve success reply", text: "/approve 42 trusted", method: "sendMessage", run: approvalsModule.approveUser},
+		{
+			name:   "approve duplicate reply",
+			text:   "/approve 42 again",
+			method: "sendMessage",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
+					t.Fatalf("AddApprovedUser setup error = %v", err)
+				}
+			},
+			run: approvalsModule.approveUser,
+		},
+		{name: "unapprove missing target reply", text: "/unapprove", method: "sendMessage", run: approvalsModule.unapproveUser},
+		{name: "unapprove not approved reply", text: "/unapprove 42", method: "sendMessage", run: approvalsModule.unapproveUser},
+		{
+			name:   "unapprove success reply",
+			text:   "/unapprove 42",
+			method: "sendMessage",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+					t.Fatalf("AddApprovedUser setup error = %v", err)
+				}
+			},
+			run: approvalsModule.unapproveUser,
+		},
+		{name: "approval missing target reply", text: "/approval", method: "sendMessage", run: approvalsModule.checkApprovalStatus},
+		{name: "approval not approved reply", text: "/approval 42", method: "sendMessage", run: approvalsModule.checkApprovalStatus},
+		{
+			name:   "approval status reply",
+			text:   "/approval 42",
+			method: "sendMessage",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+					t.Fatalf("AddApprovedUser setup error = %v", err)
+				}
+			},
+			run: approvalsModule.checkApprovalStatus,
+		},
+		{name: "approved empty list reply", text: "/approved", method: "sendMessage", run: approvalsModule.listApprovedUsers},
+		{
+			name:   "approved inline list reply",
+			text:   "/approved",
+			method: "sendMessage",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+					t.Fatalf("AddApprovedUser setup error = %v", err)
+				}
+			},
+			run: approvalsModule.listApprovedUsers,
+		},
+		{
+			name:   "approved large list document",
+			text:   "/approved",
+			method: "sendDocument",
+			setup: func(t *testing.T, chat gotgbot.Chat) {
+				t.Helper()
+				for i := 0; i < approvedUsersInlineLimit+1; i++ {
+					if err := db.AddApprovedUser(chat.Id, int64(10_000+i), admin.Id, "bulk"); err != nil {
+						t.Fatalf("AddApprovedUser setup error = %v", err)
+					}
+				}
+			},
+			run: approvalsModule.listApprovedUsers,
+		},
+		{name: "unapprove all confirmation reply", text: "/unapproveall", method: "sendMessage", run: approvalsModule.unapproveAllHandler},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
+			if tt.setup != nil {
+				tt.setup(t, chat)
+			}
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
+func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	noCallbackClient := newModuleBotClient()
+	noCallbackBot := newModuleTestBot(noCallbackClient)
+	noCallbackChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
+	noCallbackCtx := newModuleMessageContext(noCallbackBot, noCallbackChat, owner, "/unapproveall")
+	if err := approvalsModule.unapproveAllCallback(noCallbackBot, noCallbackCtx); err != ext.EndGroups {
+		t.Fatalf("unapproveAllCallback(no callback) error = %v, want EndGroups", err)
+	}
+	if calls := noCallbackClient.callsFor("answerCallbackQuery"); len(calls) != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none without callback", len(calls))
+	}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+		data   string
+	}{
+		{
+			name:   "edit failure",
+			method: "editMessageText",
+			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}, "rmAllApprovals.yes"),
+		},
+		{
+			name:   "answer failure",
+			method: "answerCallbackQuery",
+			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}, "rmAllApprovals.no"),
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
+			if err := db.AddApprovedUser(chat.Id, 42, owner.Id, "trusted"); err != nil {
+				t.Fatalf("AddApprovedUser setup error = %v", err)
+			}
+			ctx := newModuleCallbackContext(bot, chat, owner, tt.data)
+
+			err := approvalsModule.unapproveAllCallback(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("unapproveAllCallback() error = %v, want request error", err)
+			}
+		})
 	}
 }

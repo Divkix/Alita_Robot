@@ -391,7 +391,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	)
 	if err != nil {
 		log.Errorf("[Approvals] Failed to send document: %v", err)
-		return ext.EndGroups
+		return err
 	}
 
 	return ext.EndGroups
