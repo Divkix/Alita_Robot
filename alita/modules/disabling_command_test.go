@@ -13,12 +13,7 @@ import (
 
 func withDisableCommands(t *testing.T, cmds ...string) {
 	t.Helper()
-
-	original := append([]string(nil), helpers.DisableCmds...)
-	helpers.DisableCmds = append([]string(nil), cmds...)
-	t.Cleanup(func() {
-		helpers.DisableCmds = original
-	})
+	helpers.SetDisableCmdsForTest(t, cmds)
 }
 
 func TestDisableEnableTogglesKnownCommandsAndReportsUnknown(t *testing.T) {

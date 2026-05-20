@@ -127,12 +127,13 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	// Cache the admin list with retry on failure in background
 	go func() {
 		defer error_handling.RecoverFromPanic("LoadAdminCache.cacheRoutine", "adminCache")
-		if Marshal == nil {
+		m := GetMarshal()
+		if m == nil {
 			return
 		}
 		maxRetries := 3
 		for i := range maxRetries {
-			if err := Marshal.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
+			if err := m.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chatId,
 					"error":  err,

@@ -156,11 +156,7 @@ func TestAdminCacheAutoUpdateReloadsAdminList(t *testing.T) {
 }
 
 func TestGetAnonAdminCacheReportsMissingCache(t *testing.T) {
-	previousMarshal := cache.Marshal
-	cache.Marshal = nil
-	t.Cleanup(func() {
-		cache.Marshal = previousMarshal
-	})
+	withNilCacheMarshal(t)
 
 	if msg, err := getAnonAdminCache(-100123, 99); err == nil || msg != nil {
 		t.Fatalf("getAnonAdminCache() = (%#v, %v), want nil message and error", msg, err)

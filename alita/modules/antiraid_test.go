@@ -74,11 +74,7 @@ func TestFormatDuration(t *testing.T) {
 }
 
 func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
-	originalMarshal := cache.Marshal
-	cache.Marshal = nil
-	t.Cleanup(func() {
-		cache.Marshal = originalMarshal
-	})
+	withNilCacheMarshal(t)
 
 	chatID := int64(-1001234567890)
 	if got := stateKey(chatID); got != "alita:antiraid:state:-1001234567890" {

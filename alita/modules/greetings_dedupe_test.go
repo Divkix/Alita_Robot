@@ -2,15 +2,11 @@ package modules
 
 import (
 	"testing"
-
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestRecentJoinProcessingNoCacheFallback(t *testing.T) {
-	originalMarshal := cache.Marshal
-	cache.Marshal = nil
+	withNilCacheMarshal(t)
 	t.Cleanup(func() {
-		cache.Marshal = originalMarshal
 		clearRecentJoinProcessing(-100123, 456)
 	})
 

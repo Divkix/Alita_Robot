@@ -30,11 +30,7 @@ func TestFilterOverwriteCacheKeysAndToken(t *testing.T) {
 }
 
 func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
-	originalMarshal := cache.Marshal
-	cache.Marshal = nil
-	t.Cleanup(func() {
-		cache.Marshal = originalMarshal
-	})
+	withNilCacheMarshal(t)
 
 	data := overwriteFilter{overwriteBase: overwriteBase{
 		ChatID:   -100123,

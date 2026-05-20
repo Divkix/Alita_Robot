@@ -22,6 +22,17 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
+// withNilCacheMarshal clears cache.Marshal for the duration of a test.
+func withNilCacheMarshal(t *testing.T) {
+	t.Helper()
+
+	previousMarshal := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(previousMarshal)
+	})
+}
+
 type moduleBotCall struct {
 	Method string
 	Params map[string]any
@@ -284,7 +295,7 @@ func (m *moduleMemoryStore) GetType() string {
 
 func TestMain(m *testing.M) {
 	var dbFileName string
-	cache.Marshal = marshaler.New(gocache.New[any](newModuleMemoryStore()))
+	cache.SetMarshal(marshaler.New(gocache.New[any](newModuleMemoryStore())))
 	if db.DB == nil {
 		dbFile, err := os.CreateTemp("", "alita_modules_test_*.db")
 		if err != nil {

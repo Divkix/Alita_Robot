@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -19,7 +20,23 @@ var (
 	Marshal     *marshaler.Marshaler
 	Manager     *cache.Cache[any]
 	redisClient *redis.Client
+	marshalMu   sync.RWMutex
 )
+
+// GetMarshal returns the active cache marshaler when initialized.
+func GetMarshal() *marshaler.Marshaler {
+	marshalMu.RLock()
+	defer marshalMu.RUnlock()
+	return Marshal
+}
+
+// SetMarshal updates the active cache marshaler.
+func SetMarshal(m *marshaler.Marshaler) {
+	marshalMu.Lock()
+	defer marshalMu.Unlock()
+	Marshal = m
+}
+
 
 type AdminCache struct {
 	ChatId   int64
@@ -73,7 +90,7 @@ func InitCache() error {
 	cacheManager := cache.New[any](redisStore)
 
 	// Initializes marshaler
-	Marshal = marshaler.New(cacheManager)
+	SetMarshal(marshaler.New(cacheManager))
 	Manager = cacheManager
 
 	return nil
