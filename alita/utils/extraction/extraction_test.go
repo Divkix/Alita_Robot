@@ -548,6 +548,99 @@ func TestGetUserIdUsesDatabaseBeforeTelegramFallback(t *testing.T) {
 	}
 }
 
+func TestExtractUserAndTextFromGotgbotMessageShapes(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+
+	if err := db.DB.Create(&db.User{UserId: 777123, UserName: "extractuser", Name: "Extract"}).Error; err != nil {
+		t.Fatalf("Create extract user failed: %v", err)
+	}
+
+	t.Run("reply without args uses replied sender", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban")
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			From: &gotgbot.User{Id: 1234, FirstName: "Reply Target"},
+		}
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 1234 || gotText != "" {
+			t.Fatalf("ExtractUserAndText(reply) = (%d, %q), want (1234, \"\")", gotID, gotText)
+		}
+	})
+
+	t.Run("numeric argument preserves reason text", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban 555123 repeated spam")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 555123 || gotText != "repeated spam" {
+			t.Fatalf("ExtractUserAndText(numeric) = (%d, %q), want (555123, repeated spam)", gotID, gotText)
+		}
+	})
+
+	t.Run("channel id argument is accepted as id", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban -1001234567890 channel raid")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != -1001234567890 || gotText != "channel raid" {
+			t.Fatalf("ExtractUserAndText(channel) = (%d, %q), want channel id and reason", gotID, gotText)
+		}
+	})
+
+	t.Run("username argument uses database lookup before API fallback", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban @extractuser cached reason")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 777123 || gotText != "cached reason" {
+			t.Fatalf("ExtractUserAndText(username) = (%d, %q), want DB user and reason", gotID, gotText)
+		}
+	})
+
+	t.Run("text mention entity uses embedded user id", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban Alice entity reason")
+		ctx.EffectiveMessage.Entities = []gotgbot.MessageEntity{
+			{
+				Type:   "text_mention",
+				Offset: 5,
+				Length: 5,
+				User:   &gotgbot.User{Id: 888999, FirstName: "Alice"},
+			},
+		}
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 888999 || gotText != " entity reason" {
+			t.Fatalf("ExtractUserAndText(text mention) = (%d, %q), want mention id and suffix", gotID, gotText)
+		}
+	})
+}
+
+func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
+	if err := db.DB.Create(&db.User{UserId: 888123, UserName: "infouser", Name: "Info User"}).Error; err != nil {
+		t.Fatalf("Create info user failed: %v", err)
+	}
+	if err := db.DB.Create(&db.ChannelSettings{
+		ChatId:      -1001234567891,
+		Username:    "infochannel",
+		ChannelName: "Info Channel",
+	}).Error; err != nil {
+		t.Fatalf("Create info channel failed: %v", err)
+	}
+
+	username, name, found := GetUserInfo(888123)
+	if !found || username != "infouser" || name != "Info User" {
+		t.Fatalf("GetUserInfo(user) = (%q, %q, %v), want infouser/Info User/true", username, name, found)
+	}
+
+	username, name, found = GetUserInfo(-1001234567891)
+	if !found || username != "infochannel" || name != "Info Channel" {
+		t.Fatalf("GetUserInfo(channel) = (%q, %q, %v), want infochannel/Info Channel/true", username, name, found)
+	}
+
+	username, name, found = GetUserInfo(404404)
+	if found || username != "" || name != "" {
+		t.Fatalf("GetUserInfo(missing) = (%q, %q, %v), want empty/empty/false", username, name, found)
+	}
+}
+
 func TestExtractTimeParsesValidInputAndRepliesForErrors(t *testing.T) {
 	client := &extractionBotClient{}
 	bot := newExtractionBot(client)

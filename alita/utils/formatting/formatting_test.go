@@ -1,14 +1,36 @@
 package formatting
 
 import (
+	"context"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 )
+
+type formattingBotClient struct{}
+
+func (formattingBotClient) RequestWithContext(_ context.Context, _ string, method string, _ map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatMemberCount" {
+		return json.RawMessage(`42`), nil
+	}
+	return json.RawMessage(`true`), nil
+}
+
+func (formattingBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL
+}
+
+func (formattingBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL + "/file/bot" + token + "/" + path
+}
 
 func TestFormattingReplacerWithoutRulesDoesNotRequireDatabase(t *testing.T) {
 	t.Parallel()
@@ -33,6 +55,101 @@ func TestFormattingReplacerWithoutRulesDoesNotRequireDatabase(t *testing.T) {
 	}
 	if len(buttons) != 0 {
 		t.Fatalf("FormattingReplacerWithLanguage() buttons = %#v, want none", buttons)
+	}
+}
+
+func TestFormattingReplacerHandlesNilUserAndMemberCount(t *testing.T) {
+	originalDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = originalDB })
+
+	bot := &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: formattingBotClient{},
+		User:      gotgbot.User{Id: 123, IsBot: true, Username: "FormatBot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123, Type: "supergroup", Title: "Format Chat"}
+
+	got, buttons := FormattingReplacerWithLanguage(
+		bot,
+		chat,
+		nil,
+		"{first}|{fullname}|{username}|{mention}|{count}|{id}",
+		nil,
+		"en",
+	)
+	want := "PersonWithNoName|PersonWithNoName|PersonWithNoName|PersonWithNoName|42|0"
+	if got != want {
+		t.Fatalf("FormattingReplacerWithLanguage(nil user) = %q, want %q", got, want)
+	}
+	if len(buttons) != 0 {
+		t.Fatalf("buttons = %#v, want none", buttons)
+	}
+}
+
+func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
+	originalDB := db.DB
+	sqliteDB, err := gorm.Open(sqlite.Open("file:formatting_rules?mode=memory&cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	db.DB = sqliteDB
+	t.Cleanup(func() {
+		if sqlDB, sqlErr := db.DB.DB(); sqlErr == nil {
+			_ = sqlDB.Close()
+		}
+		db.DB = originalDB
+	})
+	if err := db.DB.AutoMigrate(&db.Chat{}, &db.RulesSettings{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+
+	bot := &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: formattingBotClient{},
+		User:      gotgbot.User{Id: 123, IsBot: true, Username: "FormatBot"},
+	}
+	bot.Username = "FormatBot"
+	chat := &gotgbot.Chat{Id: -100777, Type: "supergroup", Title: "Rules Chat"}
+	db.SetChatRules(chat.Id, "Keep it tidy.")
+	db.SetChatRulesButton(chat.Id, "Read Rules")
+
+	got, buttons := FormattingReplacerWithLanguage(
+		bot,
+		chat,
+		&gotgbot.User{Id: 5, FirstName: "Ada"},
+		"before {rules:up} after",
+		[]db.Button{{Name: "Existing", Url: "https://example.com"}},
+		"en",
+	)
+	if got != "before  after" {
+		t.Fatalf("result = %q, want rules placeholder removed", got)
+	}
+	if len(buttons) != 2 {
+		t.Fatalf("buttons = %#v, want rules plus existing", buttons)
+	}
+	if buttons[0].Name != "Read Rules" || buttons[0].SameLine {
+		t.Fatalf("rules button = %#v, want first non-sameline Read Rules button", buttons[0])
+	}
+	if buttons[0].Url != "https://t.me/FormatBot?start=rules_-100777" {
+		t.Fatalf("rules URL = %q", buttons[0].Url)
+	}
+
+	got, buttons = FormattingReplacerWithLanguage(
+		bot,
+		chat,
+		&gotgbot.User{Id: 5, FirstName: "Ada"},
+		"show {rules:same}",
+		nil,
+		"en",
+	)
+	if got != "show " {
+		t.Fatalf("same-line result = %q, want placeholder removed", got)
+	}
+	if len(buttons) != 1 || !buttons[0].SameLine {
+		t.Fatalf("same-line buttons = %#v, want one same-line rules button", buttons)
 	}
 }
 
