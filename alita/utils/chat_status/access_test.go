@@ -589,6 +589,39 @@ func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-999999999910002)
+	msg := &gotgbot.Message{
+		MessageId: 502,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
+		From:      &gotgbot.User{Id: tgUserId, FirstName: "Telegram"},
+		Text:      "/kick 100",
+	}
+	t.Cleanup(func() {
+		_ = db.EnableCMD(chatID, "kick")
+		_ = db.ToggleDel(chatID, false)
+	})
+
+	if err := db.DisableCMD(chatID, "kick"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+	if err := db.ToggleDel(chatID, true); err != nil {
+		t.Fatalf("ToggleDel(true) error = %v", err)
+	}
+
+	if CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(Telegram service admin) = true, want false")
+	}
+	if got := client.callsFor("deleteMessage"); got != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for Telegram service admin", got)
+	}
+}
+
 func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
 	client := &paramRecordingChatStatusClient{}
 	bot := &gotgbot.Bot{
@@ -619,6 +652,73 @@ func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
 	}
 	if _, ok := client.calls[0].params["reply_markup"]; !ok {
 		t.Fatalf("sendMessage params = %+v, want reply_markup", client.calls[0].params)
+	}
+}
+
+func TestCheckAnonAdminFollowsGotgbotSenderClassification(t *testing.T) {
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456789, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 779,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+
+	tests := []struct {
+		name   string
+		sender *gotgbot.Sender
+	}{
+		{
+			name:   "nil sender",
+			sender: nil,
+		},
+		{
+			name: "channel post in same channel",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: chat.Id, Type: "channel", Title: "Channel"},
+				ChatId: chat.Id,
+			},
+		},
+		{
+			name: "anonymous channel in group",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: -100987654321, Type: "channel", Title: "Channel"},
+				ChatId: chat.Id,
+			},
+		},
+		{
+			name: "linked channel in group",
+			sender: &gotgbot.Sender{
+				Chat:               &gotgbot.Chat{Id: -100987654322, Type: "channel", Title: "Linked"},
+				ChatId:             chat.Id,
+				IsAutomaticForward: true,
+			},
+		},
+		{
+			name: "different group sender chat",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: -100987654323, Type: "supergroup", Title: "Other Group"},
+				ChatId: chat.Id,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, tt.sender)
+			if isAdmin || shouldReturn {
+				t.Fatalf("checkAnonAdmin(%s) = (%v, %v), want false, false", tt.name, isAdmin, shouldReturn)
+			}
+		})
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("calls = %+v, want none for non-anonymous-admin senders", client.calls)
 	}
 }
 
