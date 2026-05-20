@@ -297,21 +297,29 @@ func TestBotLockApprovedBypassRequiresPositiveSenderID(t *testing.T) {
 	}
 }
 
-func TestCallbackHandlersUseSafeContextAccessor(t *testing.T) {
+func TestCodeUsesSafeCallbackQueryAccessor(t *testing.T) {
 	t.Parallel()
 
-	files, err := filepath.Glob(filepath.Join("..", "..", "alita", "modules", "*.go"))
+	var files []string
+	root := filepath.Join("..", "..", "alita")
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("failed to list module files: %v", err)
+		t.Fatalf("failed to list Go files: %v", err)
 	}
 
 	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
 		data, err := os.ReadFile(file)
 		if err != nil {
-			t.Fatalf("failed to read module file %s: %v", file, err)
+			t.Fatalf("failed to read Go file %s: %v", file, err)
 		}
 		for lineNumber, line := range strings.Split(string(data), "\n") {
 			if !strings.Contains(line, "ctx.CallbackQuery") {
@@ -320,7 +328,7 @@ func TestCallbackHandlersUseSafeContextAccessor(t *testing.T) {
 			if strings.Contains(line, "ctx.CallbackQuery =") {
 				continue
 			}
-			t.Fatalf("%s:%d reads ctx.CallbackQuery directly; use callbackQueryFromContext", file, lineNumber+1)
+			t.Fatalf("%s:%d reads ctx.CallbackQuery directly; use a safe accessor", file, lineNumber+1)
 		}
 	}
 }
