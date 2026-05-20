@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -51,6 +53,98 @@ func TestHelpCommandRepliesInPrivateAndGroup(t *testing.T) {
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want 2", len(calls))
+	}
+}
+
+func TestHelpCommandRoutesSpecificModuleInPrivateAndGroup(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	previousMarkup := markup
+	defaultHelpRegistry = NewHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		markup = previousMarkup
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap.Store("Admin", true)
+	registry.AltHelpOptions["Admin"] = []string{"admin"}
+	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
+	initHelpButtons()
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4310, FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Help Chat"}
+
+	privateCtx := newModuleMessageContext(bot, privateChat, user, "/help admin")
+	if err := DefaultHelpRegistry().help(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("help(private module) error = %v, want EndGroups", err)
+	}
+
+	groupCtx := newModuleMessageContext(bot, groupChat, user, "/help admin")
+	groupCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 88,
+		Date:      1,
+		Chat:      groupChat,
+		From:      &user,
+		Text:      "question",
+	}
+	if err := DefaultHelpRegistry().help(bot, groupCtx); err != ext.EndGroups {
+		t.Fatalf("help(group module) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want private module and group PM link replies", len(calls))
+	}
+}
+
+func TestStartCommandHandlesDeepLinkAndUnexpectedArgCount(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4311, FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+
+	deepLinkCtx := newModuleMessageContext(bot, privateChat, user, "/start rules_test")
+	if err := DefaultHelpRegistry().start(bot, deepLinkCtx); err != ext.EndGroups {
+		t.Fatalf("start(deep link) error = %v, want EndGroups", err)
+	}
+
+	unexpectedCtx := newModuleMessageContext(bot, privateChat, user, "/start a b")
+	if err := DefaultHelpRegistry().start(bot, unexpectedCtx); err != ext.EndGroups {
+		t.Fatalf("start(unexpected args) error = %v, want EndGroups", err)
+	}
+}
+
+func TestHelpAndStartPropagateSendFailures(t *testing.T) {
+	requestErr := errors.New("telegram unavailable")
+	user := gotgbot.User{Id: 4312, FirstName: "Helper"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "start private", text: "/start", run: DefaultHelpRegistry().start},
+		{name: "start group", text: "/start", run: DefaultHelpRegistry().start},
+		{name: "help private", text: "/help", run: DefaultHelpRegistry().help},
+		{name: "help group", text: "/help", run: DefaultHelpRegistry().help},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.errors["sendMessage"] = requestErr
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+			if strings.Contains(tt.name, "group") {
+				chat = gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Help Chat"}
+			}
+			ctx := newModuleMessageContext(bot, chat, user, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s error = %v, want request error", tt.name, err)
+			}
+		})
 	}
 }
 

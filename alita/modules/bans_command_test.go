@@ -261,6 +261,59 @@ func TestKickUsesBanThenReply(t *testing.T) {
 	}
 }
 
+func TestKickRejectsInvalidAndProtectedTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+	}{
+		{name: "missing target", text: "/kick"},
+		{name: "anonymous channel", text: "/kick -1001234567890"},
+		{name: "telegram service admin", text: "/kick 777000"},
+		{name: "bot itself", text: "/kick 999"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("kick(%s) error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for rejected kick targets", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
+	}
+}
+
+func TestKickRejectsTargetNotInChat(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChatMember"] = []byte(
+		`{"status":"left","user":{"id":42,"is_bot":false,"first_name":"Gone"}}`,
+	)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/kick 42")
+	if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("kick(user left) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for target outside chat", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want user-not-in-chat denial", len(calls))
+	}
+}
+
 func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -326,6 +379,40 @@ func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
 	}
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want none for unidentifiable sender", len(calls))
+	}
+}
+
+func TestDeleteKickRejectsInvalidReplyTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	tests := []struct {
+		name   string
+		target gotgbot.User
+	}{
+		{name: "anonymous channel", target: gotgbot.User{Id: -1001234567890, FirstName: "Channel"}},
+		{name: "zero user id", target: gotgbot.User{Id: 0, FirstName: "Unknown"}},
+		{name: "left user", target: gotgbot.User{Id: 13, FirstName: "Left"}},
+		{name: "protected admin", target: gotgbot.User{Id: 777000, FirstName: "Telegram"}},
+		{name: "bot itself", target: gotgbot.User{Id: bot.Id, FirstName: "Alita"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newBanReplyContext(bot, chat, admin, tt.target, "/dkick cleanup")
+			if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("dkick(%s) error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for rejected dkick targets", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
+		t.Fatalf("sendMessage calls = %d, want one denial per rejected dkick target", len(calls))
 	}
 }
 
@@ -398,6 +485,32 @@ func TestKickMeBansRequesterAndReplies(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestKickMePropagatesGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+	}{
+		{name: "kickme ban failure", method: "banChatMember"},
+		{name: "kickme reply failure", method: "sendMessage"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			ctx := newModuleMessageContext(bot, chat, target, "/kickme")
+
+			err := bansModule.kickme(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("kickme returned error %v, want request error", err)
+			}
+		})
 	}
 }
 
@@ -737,6 +850,27 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		run    func(*gotgbot.Bot, *ext.Context) error
 	}{
 		{
+			name:   "kick member failure",
+			method: "banChatMember",
+			text:   "/kick spam",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/kick spam") },
+			run:    bansModule.kick,
+		},
+		{
+			name:   "kick get chat failure",
+			method: "getChat",
+			text:   "/kick spam",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/kick spam") },
+			run:    bansModule.kick,
+		},
+		{
+			name:   "kick send failure",
+			method: "sendMessage",
+			text:   "/kick spam",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/kick spam") },
+			run:    bansModule.kick,
+		},
+		{
 			name:   "ban member failure",
 			method: "banChatMember",
 			text:   "/ban spam",
@@ -874,6 +1008,84 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestModerationHelpersValidateExtractionAndTargets(t *testing.T) {
+	t.Run("extract from reply validation branches", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		ctx := newModuleMessageContext(bot, chat, admin, "/dkick")
+		mc, err := buildModerationCtx(&bansModule, bot, ctx)
+		if err != nil {
+			t.Fatalf("buildModerationCtx() error = %v", err)
+		}
+
+		if _, err := extractFromReply(mc); err == nil {
+			t.Fatal("extractFromReply(no reply) error = nil, want validation error")
+		}
+
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			MessageId: 404,
+			Date:      1,
+			Chat:      chat,
+			Text:      "senderless",
+		}
+		if _, err := extractFromReply(mc); err == nil {
+			t.Fatal("extractFromReply(nil sender) error = nil, want validation error")
+		}
+
+		if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+			t.Fatalf("sendMessage calls = %d, want one reply per extraction failure", len(calls))
+		}
+	})
+
+	t.Run("default target validation rejects missing and protected users", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
+		mc, err := buildModerationCtx(&bansModule, bot, ctx)
+		if err != nil {
+			t.Fatalf("buildModerationCtx() error = %v", err)
+		}
+
+		client.responses["getChatMember"] = []byte(
+			`{"status":"left","user":{"id":42,"is_bot":false,"first_name":"Gone"}}`,
+		)
+		if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
+			t.Fatal("defaultTargetValidation(left user) error = nil, want validation error")
+		}
+
+		protectedClient := newModuleBotClient()
+		protectedClient.responses["getChatMember"] = []byte(
+			`{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Admin"},"can_restrict_members":true}`,
+		)
+		protectedClient.responses["getChatAdministrators"] = []byte(
+			`[
+				{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},
+				{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Admin"}}
+			]`,
+		)
+		protectedBot := newModuleTestBot(protectedClient)
+		protectedCtx := newModuleMessageContext(protectedBot, chat, admin, "/ban 4242")
+		protectedMC, err := buildModerationCtx(&bansModule, protectedBot, protectedCtx)
+		if err != nil {
+			t.Fatalf("buildModerationCtx(protected) error = %v", err)
+		}
+		if err := defaultTargetValidation(protectedMC, &target{userID: 4242}); err == nil {
+			t.Fatal("defaultTargetValidation(admin user) error = nil, want validation error")
+		}
+
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("left-user sendMessage calls = %d, want 1", len(calls))
+		}
+		if calls := protectedClient.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("protected-user sendMessage calls = %d, want 1", len(calls))
+		}
+	})
 }
 
 func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T) {

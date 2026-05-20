@@ -115,6 +115,16 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 			`{"status":"creator","user":{"id":777000,"is_bot":false,"first_name":"Telegram"}}`,
 		), nil
 	}
+	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "13" {
+		return json.RawMessage(
+			`{"status":"left","user":{"id":13,"is_bot":false,"first_name":"Left User"}}`,
+		), nil
+	}
+	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "14" {
+		return json.RawMessage(
+			`{"status":"kicked","user":{"id":14,"is_bot":false,"first_name":"Kicked User"}}`,
+		), nil
+	}
 	if response, ok := c.responses[method]; ok {
 		return response, nil
 	}

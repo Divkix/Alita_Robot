@@ -233,6 +233,33 @@ func TestDeleteModGatesRequireRestrictAndDeletePermissions(t *testing.T) {
 	}
 }
 
+func TestStandardModGatesRejectsPrivateChatsAndNonAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	privateCtx := newModuleMessageContext(
+		bot,
+		gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"},
+		admin,
+		"/ban 42",
+	)
+	if standardModGates(newModerationCtxForTest(bot, privateCtx, &moduleStruct{moduleName: "Bans"})) {
+		t.Fatal("standardModGates(private) = true, want false")
+	}
+
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	memberCtx := newModuleMessageContext(
+		bot,
+		group,
+		gotgbot.User{Id: 42, FirstName: "Member"},
+		"/ban 13",
+	)
+	if standardModGates(newModerationCtxForTest(bot, memberCtx, &moduleStruct{moduleName: "Bans"})) {
+		t.Fatal("standardModGates(non-admin user) = true, want false")
+	}
+}
+
 func TestDefaultTargetValidationRejectsBotAndAllowsMember(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -275,6 +302,21 @@ func TestDefaultTargetValidationRejectsMissingMemberAndProtectedAdmin(t *testing
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want missing-member and admin-target replies", len(calls))
+	}
+}
+
+func TestDefaultTargetValidationReturnsReplyError(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
+	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
+
+	client.errors["getChatMember"] = fmt.Errorf("Bad Request: user not found")
+	client.errors["sendMessage"] = fmt.Errorf("reply failed")
+	if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
+		t.Fatal("defaultTargetValidation(reply failure) error = nil, want reply error")
 	}
 }
 

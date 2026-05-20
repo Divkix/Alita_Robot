@@ -118,32 +118,9 @@ func main() {
 	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
 
-	httpTransport := &http.Transport{
-		MaxIdleConns:          maxIdleConns,                                            // Configurable maximum idle connections across all hosts
-		MaxIdleConnsPerHost:   maxIdleConnsPerHost,                                     // Configurable connections per host (api.telegram.org)
-		MaxConnsPerHost:       maxIdleConnsPerHost + constants.MaxIdleConnsExtraBuffer, // Allow some extra connections for burst traffic
-		IdleConnTimeout:       constants.VeryLongTimeout,                               // Keep connections alive longer for better reuse
-		DisableCompression:    false,                                                   // Enable compression for smaller payloads
-		ForceAttemptHTTP2:     true,                                                    // Enable HTTP/2 for multiplexing
-		DisableKeepAlives:     false,                                                   // Explicitly enable keep-alive for connection reuse
-		TLSHandshakeTimeout:   constants.DefaultTimeout,                                // Timeout for TLS handshake
-		ResponseHeaderTimeout: constants.DefaultTimeout,                                // Timeout waiting for response headers
-		ExpectContinueTimeout: constants.ShortTimeout,                                  // Timeout for Expect: 100-continue
-	}
+	transport := newBotAPITransport(maxIdleConns, maxIdleConnsPerHost, config.AppConfig.ApiServer)
 
 	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
-
-	// If a custom API server is configured (e.g., local Bot API server),
-	// wrap the transport to rewrite requests from api.telegram.org to the configured server.
-	var transport http.RoundTripper = httpTransport
-	if config.AppConfig.ApiServer != "" && config.AppConfig.ApiServer != "https://api.telegram.org" {
-		if parsed, err := url.Parse(config.AppConfig.ApiServer); err == nil && parsed.Host != "" {
-			transport = &apiServerRewriteTransport{base: httpTransport, target: parsed}
-			log.Infof("[Main] Using custom Bot API server: %s", parsed.String())
-		} else {
-			log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", config.AppConfig.ApiServer)
-		}
-	}
 
 	// Create bot with optimized HTTP client using BaseBotClient
 	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
@@ -165,15 +142,7 @@ func main() {
 	log.Infof("[Main] Bot initialized with optimized connection pooling (MaxIdleConns: %d, MaxIdleConnsPerHost: %d, HTTP/2 enabled)", maxIdleConns, maxIdleConnsPerHost)
 
 	// Retrieve bot identity early for logging and downstream components that reference username
-	var botUsername string
-	if me, errMe := b.GetMe(nil); errMe == nil && me != nil {
-		botUsername = me.Username
-		if botUsername == "" {
-			log.Warn("[Main] Bot username is empty after GetMe; deep links may not work until resolved")
-		}
-	} else if errMe != nil {
-		log.Warnf("[Main] GetMe failed during bootstrap: %v", errMe)
-	}
+	botUsername := resolveBotUsername(b)
 
 	// Pre-warm connections to Telegram API for faster initial responses
 	go func() {
@@ -212,46 +181,7 @@ func main() {
 	}
 
 	// Create dispatcher with limited max routines and proper error recovery
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
-		// Use TracingProcessor to inject trace context into every update
-		Processor: tracing.TracingProcessor{},
-		// Enhanced error handler with recovery and structured logging
-		Error: func(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
-			// Recover from any panics in error handler
-			defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
-
-			// Extract stack trace if it's a wrapped error
-			logFields := log.Fields{
-				"update_id": func() int64 {
-					if ctx != nil && ctx.UpdateId != 0 {
-						return ctx.UpdateId
-					}
-					return -1
-				}(),
-				"error_type": fmt.Sprintf("%T", err),
-			}
-
-			// Check if it's our wrapped error with stack info
-			if wrappedErr, ok := err.(*errors.WrappedError); ok {
-				logFields["file"] = wrappedErr.File
-				logFields["line"] = wrappedErr.Line
-				logFields["function"] = wrappedErr.Function
-			}
-
-			// Check if this is an expected Telegram API error
-			if helpers.IsExpectedTelegramError(err) {
-				log.WithFields(logFields).Warnf("Expected Telegram API error: %v", err)
-				return ext.DispatcherActionNoop
-			}
-
-			// Log the error with context information
-			log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
-
-			// Continue processing other updates
-			return ext.DispatcherActionNoop
-		},
-		MaxRoutines: config.AppConfig.DispatcherMaxRoutines, // Configurable max concurrent goroutines
-	})
+	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
 
 	// Initialize monitoring systems
 	var statsCollector *monitoring.BackgroundStatsCollector
@@ -437,6 +367,32 @@ type apiServerRewriteTransport struct {
 	target *url.URL
 }
 
+func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int, apiServer string) http.RoundTripper {
+	httpTransport := &http.Transport{
+		MaxIdleConns:          maxIdleConns,
+		MaxIdleConnsPerHost:   maxIdleConnsPerHost,
+		MaxConnsPerHost:       maxIdleConnsPerHost + constants.MaxIdleConnsExtraBuffer,
+		IdleConnTimeout:       constants.VeryLongTimeout,
+		DisableCompression:    false,
+		ForceAttemptHTTP2:     true,
+		DisableKeepAlives:     false,
+		TLSHandshakeTimeout:   constants.DefaultTimeout,
+		ResponseHeaderTimeout: constants.DefaultTimeout,
+		ExpectContinueTimeout: constants.ShortTimeout,
+	}
+
+	if apiServer == "" || apiServer == "https://api.telegram.org" {
+		return httpTransport
+	}
+	parsed, err := url.Parse(apiServer)
+	if err != nil || parsed.Host == "" {
+		log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", apiServer)
+		return httpTransport
+	}
+	log.Infof("[Main] Using custom Bot API server: %s", parsed.String())
+	return &apiServerRewriteTransport{base: httpTransport, target: parsed}
+}
+
 func (t *apiServerRewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Only rewrite Telegram Bot API host
 	if req.URL != nil && strings.EqualFold(req.URL.Host, "api.telegram.org") && t.target != nil {
@@ -460,6 +416,56 @@ func (t *apiServerRewriteTransport) RoundTrip(req *http.Request) (*http.Response
 		return t.base.RoundTrip(&newReq)
 	}
 	return t.base.RoundTrip(req)
+}
+
+func resolveBotUsername(b *gotgbot.Bot) string {
+	if me, errMe := b.GetMe(nil); errMe == nil && me != nil {
+		if me.Username == "" {
+			log.Warn("[Main] Bot username is empty after GetMe; deep links may not work until resolved")
+		}
+		return me.Username
+	} else if errMe != nil {
+		log.Warnf("[Main] GetMe failed during bootstrap: %v", errMe)
+	}
+	return ""
+}
+
+func newConfiguredDispatcher(maxRoutines int) *ext.Dispatcher {
+	return ext.NewDispatcher(&ext.DispatcherOpts{
+		// Use TracingProcessor to inject trace context into every update.
+		Processor: tracing.TracingProcessor{},
+		Error:     dispatcherErrorHandler,
+		// Configurable max concurrent goroutines.
+		MaxRoutines: maxRoutines,
+	})
+}
+
+func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
+	defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
+
+	logFields := log.Fields{
+		"update_id": func() int64 {
+			if ctx != nil && ctx.UpdateId != 0 {
+				return ctx.UpdateId
+			}
+			return -1
+		}(),
+		"error_type": fmt.Sprintf("%T", err),
+	}
+
+	if wrappedErr, ok := err.(*errors.WrappedError); ok {
+		logFields["file"] = wrappedErr.File
+		logFields["line"] = wrappedErr.Line
+		logFields["function"] = wrappedErr.Function
+	}
+
+	if helpers.IsExpectedTelegramError(err) {
+		log.WithFields(logFields).Warnf("Expected Telegram API error: %v", err)
+		return ext.DispatcherActionNoop
+	}
+
+	log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
+	return ext.DispatcherActionNoop
 }
 
 // postInit runs shared initialization steps after the server has started

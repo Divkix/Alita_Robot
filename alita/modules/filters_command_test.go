@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -105,6 +106,43 @@ func TestFilterCommandValidationBranches(t *testing.T) {
 	if lastCall.Params["reply_markup"] == nil {
 		t.Fatal("duplicate filter prompt did not include overwrite buttons")
 	}
+}
+
+func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
+	t.Run("limit exceeded", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		for i := 0; i < 150; i++ {
+			if err := db.AddFilter(chat.Id, "word"+strconv.Itoa(i), "reply", "", nil, db.TEXT); err != nil {
+				t.Fatalf("AddFilter setup %d error = %v", i, err)
+			}
+		}
+
+		ctx := newModuleMessageContext(bot, chat, admin, "/filter overflow nope")
+		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("addFilter limit error = %v, want EndGroups", err)
+		}
+		if db.DoesFilterExists(chat.Id, "overflow") {
+			t.Fatal("filter was stored despite limit")
+		}
+	})
+
+	t.Run("non admin", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+		member := gotgbot.User{Id: 42, FirstName: "Member"}
+		ctx := newModuleMessageContext(bot, chat, member, "/filter hello nope")
+
+		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("addFilter non-admin error = %v, want EndGroups", err)
+		}
+		if db.DoesFilterExists(chat.Id, "hello") {
+			t.Fatal("filter was stored by non-admin")
+		}
+	})
 }
 
 func TestRemoveAndListFilterValidationBranches(t *testing.T) {

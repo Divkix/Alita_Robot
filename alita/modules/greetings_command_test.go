@@ -84,6 +84,43 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	}
 }
 
+func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {
+	client := newModuleBotClient()
+	client.errors["sendPhoto"] = errors.New("photo send failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.SetWelcomeText(chat.Id, "Welcome with photo", "photo-file", nil, db.PHOTO); err != nil {
+		t.Fatalf("SetWelcomeText setup error = %v", err)
+	}
+
+	ctx := newGreetingMessageContext(bot, chat, admin, "/welcome noformat")
+	if err := greetingsModule.welcome(bot, ctx); err == nil {
+		t.Fatal("welcome noformat media error = nil, want sendPhoto error")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want status reply before media send", len(calls))
+	}
+	if calls := client.callsFor("sendPhoto"); len(calls) != 1 {
+		t.Fatalf("sendPhoto calls = %d, want greeting media send", len(calls))
+	}
+}
+
+func TestGreetingToggleRejectsNonAdminUsers(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newGreetingMessageContext(bot, chat, member, "/welcome off")
+	if err := greetingsModule.welcome(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("welcome off by non-admin error = %v, want EndGroups", err)
+	}
+	if !db.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
+		t.Fatal("welcome toggle changed after non-admin command")
+	}
+}
+
 func TestSetAndResetGreetingTextCommands(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -565,11 +602,11 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 
 func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 	for _, tt := range []struct {
-		name          string
+		name         string
 		sendPhotoErr bool
-		wantRestrict  int
-		wantPhoto     int
-		wantWelcome   int
+		wantRestrict int
+		wantPhoto    int
+		wantWelcome  int
 	}{
 		{
 			name:         "captcha sent",
@@ -577,11 +614,11 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 			wantPhoto:    1,
 		},
 		{
-			name:          "captcha send fails",
+			name:         "captcha send fails",
 			sendPhotoErr: true,
-			wantRestrict:  2,
-			wantPhoto:     1,
-			wantWelcome:   1,
+			wantRestrict: 2,
+			wantPhoto:    1,
+			wantWelcome:  1,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

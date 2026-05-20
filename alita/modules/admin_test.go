@@ -91,6 +91,27 @@ func TestAdminListLoadsAndRepliesWithVisibleAdmins(t *testing.T) {
 	}
 }
 
+func TestAdminListReportsWhenOnlyBotsAreVisible(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChatAdministrators"] = []byte(
+		`[` +
+			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
+			`{"status":"administrator","user":{"id":1087968824,"is_bot":false,"first_name":"Group Anonymous Bot"},"is_anonymous":true}` +
+			`]`,
+	)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, user, "/adminlist")
+
+	if err := adminModule.adminlist(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("adminlist(no visible admins) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want no-visible-admins response", len(calls))
+	}
+}
+
 func TestPromoteReplyPromotesTargetAndSetsTitle(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -144,6 +165,51 @@ func TestPromoteRejectsInvalidAndProtectedTargets(t *testing.T) {
 	if calls := client.callsFor("setChatAdministratorCustomTitle"); len(calls) != 0 {
 		t.Fatalf("setChatAdministratorCustomTitle calls = %d, want none", len(calls))
 	}
+}
+
+func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
+	t.Run("target already admin", func(t *testing.T) {
+		client := newModuleBotClient()
+		client.responses["getChatMember"] = []byte(
+			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`,
+		)
+		client.responses["getChatAdministrators"] = []byte(
+			`[` +
+				`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
+				`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}` +
+				`]`,
+		)
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
+
+		if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("promote(existing admin) error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
+			t.Fatalf("promoteChatMember calls = %d, want none for existing admin", len(calls))
+		}
+	})
+
+	t.Run("empty admin cache", func(t *testing.T) {
+		client := newModuleBotClient()
+		client.responses["getChatAdministrators"] = []byte(`[]`)
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
+
+		if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("promote(empty admin cache) error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
+			t.Fatalf("promoteChatMember calls = %d, want none without admin cache", len(calls))
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want admin-cache failure reply", len(calls))
+		}
+	})
 }
 
 func TestDemoteReplyDemotesAdminTarget(t *testing.T) {
@@ -207,6 +273,25 @@ func TestDemoteValidationBranches(t *testing.T) {
 
 	if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
 		t.Fatalf("promoteChatMember calls = %d, want none for rejected demotions", len(calls))
+	}
+}
+
+func TestDemoteRejectsMissingAdminCache(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChatAdministrators"] = []byte(`[]`)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/demote 42")
+
+	if err := adminModule.demote(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("demote(empty admin cache) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
+		t.Fatalf("promoteChatMember calls = %d, want none without admin cache", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want admin-cache failure reply", len(calls))
 	}
 }
 
@@ -328,6 +413,22 @@ func TestGetInviteLinkFetchesPrivateInviteLink(t *testing.T) {
 	}
 }
 
+func TestGetInviteLinkHandlesPrivateLookupFailure(t *testing.T) {
+	client := newModuleBotClient()
+	client.errors["getChat"] = errors.New("telegram unavailable")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
+
+	if err := adminModule.getinvitelink(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("getinvitelink(lookup failure) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want lookup-error reply", len(calls))
+	}
+}
+
 func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -353,6 +454,41 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	}
 	if db.GetAdminSettings(chat.Id).AnonAdmin {
 		t.Fatal("AnonAdmin stayed enabled after false")
+	}
+}
+
+func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	t.Cleanup(func() {
+		_ = db.SetAnonAdminMode(chat.Id, false)
+	})
+
+	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
+	}
+	onAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin yes")
+	if err := adminModule.anonAdmin(bot, onAgainCtx); err != ext.EndGroups {
+		t.Fatalf("anonAdmin(already on) error = %v, want EndGroups", err)
+	}
+
+	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
+	}
+	offAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin off")
+	if err := adminModule.anonAdmin(bot, offAgainCtx); err != ext.EndGroups {
+		t.Fatalf("anonAdmin(already off) error = %v, want EndGroups", err)
+	}
+
+	invalidCtx := newModuleMessageContext(bot, chat, user, "/anonadmin maybe")
+	if err := adminModule.anonAdmin(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("anonAdmin(invalid) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want one response per anonadmin branch", len(calls))
 	}
 }
 
@@ -392,6 +528,32 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	}
 	if found, _ := cache.GetAdminCacheList(clearChat.Id); found {
 		t.Fatal("admin cache entry remained after /clearadmincache")
+	}
+}
+
+func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
+	memberClient := newModuleBotClient()
+	memberBot := newModuleTestBot(memberClient)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	memberCtx := newModuleMessageContext(memberBot, chat, member, "/admincache")
+	if err := adminModule.adminCache(memberBot, memberCtx); err != ext.EndGroups {
+		t.Fatalf("adminCache(member) error = %v, want EndGroups", err)
+	}
+	if calls := memberClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want non-admin denial", len(calls))
+	}
+
+	errorClient := newModuleBotClient()
+	errorClient.errors["getChatMember"] = errors.New("telegram unavailable")
+	errorBot := newModuleTestBot(errorClient)
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	errorCtx := newModuleMessageContext(errorBot, chat, admin, "/admincache")
+	if err := adminModule.adminCache(errorBot, errorCtx); err != ext.EndGroups {
+		t.Fatalf("adminCache(lookup failure) error = %v, want EndGroups", err)
+	}
+	if calls := errorClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want lookup-failure denial", len(calls))
 	}
 }
 

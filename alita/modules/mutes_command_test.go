@@ -123,6 +123,37 @@ func TestTemporaryMuteRejectsInvalidDurationAndProtectedTarget(t *testing.T) {
 	}
 }
 
+func TestTemporaryMuteRejectsMissingChannelSelfAndAbsentTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+	}{
+		{name: "missing target", text: "/tmute"},
+		{name: "channel id", text: "/tmute -1001234567890 1h"},
+		{name: "left user", text: "/tmute 13 1h"},
+		{name: "bot itself", text: "/tmute 999 1h"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := mutesModule.tMute(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("tMute(%s) error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want none for rejected targets", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
+	}
+}
+
 func TestSilentMuteDeletesCommandMessage(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -174,6 +205,39 @@ func TestSilentAndDeleteMuteRejectInvalidTargets(t *testing.T) {
 	}
 }
 
+func TestSilentMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+	}{
+		{name: "left user", text: "/smute 13"},
+		{name: "protected admin", text: "/smute 777000"},
+		{name: "bot itself", text: "/smute 999"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := mutesModule.sMute(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("sMute(%s) error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want none for rejected targets", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want no command deletion for rejected targets", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
+	}
+}
+
 func TestDeleteMuteDeletesReplyThenRestricts(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -216,6 +280,39 @@ func TestDeleteMuteRejectsValidTargetWithoutReply(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want reply-required message", len(calls))
+	}
+}
+
+func TestDeleteMuteRejectsProtectedAbsentAndSelfTargets(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name string
+		text string
+	}{
+		{name: "left user", text: "/dmute 13 reason"},
+		{name: "protected admin", text: "/dmute 777000 reason"},
+		{name: "bot itself", text: "/dmute 999 reason"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := mutesModule.dMute(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("dMute(%s) error = %v, want EndGroups", tt.name, err)
+			}
+		})
+	}
+
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want none for rejected targets", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want no replied-message deletion for rejected targets", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
 	}
 }
 
@@ -264,6 +361,24 @@ func TestUnmuteRejectsMissingChannelAndSelfTargets(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
+	}
+}
+
+func TestUnmuteRejectsAbsentTarget(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/unmute 13")
+	if err := mutesModule.unmute(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unmute(absent target) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want none for absent target", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want user-not-in-chat denial", len(calls))
 	}
 }
 
@@ -317,6 +432,24 @@ func TestMuteCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			run: mutesModule.tMute,
 		},
 		{
+			name:   "temporary mute get chat failure",
+			method: "getChat",
+			text:   "/tmute 1h noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/tmute 1h noisy")
+			},
+			run: mutesModule.tMute,
+		},
+		{
+			name:   "temporary mute send failure",
+			method: "sendMessage",
+			text:   "/tmute 1h noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/tmute 1h noisy")
+			},
+			run: mutesModule.tMute,
+		},
+		{
 			name:   "silent mute restrict failure",
 			method: "restrictChatMember",
 			text:   "/smute",
@@ -335,6 +468,24 @@ func TestMuteCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		{
 			name:   "delete mute restrict failure",
 			method: "restrictChatMember",
+			text:   "/dmute cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/dmute cleanup")
+			},
+			run: mutesModule.dMute,
+		},
+		{
+			name:   "delete mute get chat failure",
+			method: "getChat",
+			text:   "/dmute cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/dmute cleanup")
+			},
+			run: mutesModule.dMute,
+		},
+		{
+			name:   "delete mute send failure",
+			method: "sendMessage",
 			text:   "/dmute cleanup",
 			ctx: func(bot *gotgbot.Bot) *ext.Context {
 				return newMuteReplyContext(bot, chat, admin, target, "/dmute cleanup")

@@ -447,6 +447,22 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 	assert.Empty(t, client.callsFor("sendMessage"))
 }
 
+func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
+	client := newModuleBotClient()
+	client.errors["sendDocument"] = fmt.Errorf("document upload failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, db.AddNote(chat.Id, "fallback", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/export notes")
+	err := backupModule.exportHandler(bot, ctx)
+	assert.Equal(t, ext.EndGroups, err)
+	assert.Len(t, client.callsFor("sendDocument"), 1)
+	assert.Len(t, client.callsFor("sendMessage"), 1)
+}
+
 func TestValidateImportRequestRejectsNonOwner(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

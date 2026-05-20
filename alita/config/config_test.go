@@ -307,8 +307,6 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaults(t *testing.T) {
-	skipIfNoConfig(t)
-
 	t.Run("zero config gets defaults", func(t *testing.T) {
 		t.Parallel()
 
@@ -478,8 +476,6 @@ func TestSetDefaults(t *testing.T) {
 // TestClearCacheOnStartupEnvVar tests that CLEAR_CACHE_ON_STARTUP env var is respected.
 // These tests do NOT call t.Parallel() because t.Setenv() is incompatible with parallel execution.
 func TestClearCacheOnStartupEnvVar(t *testing.T) {
-	skipIfNoConfig(t)
-
 	t.Run("defaults to true when env var not set", func(t *testing.T) {
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
 
@@ -518,8 +514,6 @@ func TestClearCacheOnStartupEnvVar(t *testing.T) {
 // NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
 // parallel execution at the enclosing level — Go enforces this at runtime.
 func TestGetRedisAddress(t *testing.T) {
-	skipIfNoConfig(t)
-
 	t.Run("REDIS_ADDRESS set returns it directly", func(t *testing.T) {
 		t.Setenv("REDIS_ADDRESS", "myhost:1234")
 		t.Setenv("REDIS_URL", "")
@@ -580,8 +574,6 @@ func TestGetRedisAddress(t *testing.T) {
 // NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
 // parallel execution at the enclosing level — Go enforces this at runtime.
 func TestGetRedisPassword(t *testing.T) {
-	skipIfNoConfig(t)
-
 	t.Run("REDIS_PASSWORD set returns it directly", func(t *testing.T) {
 		t.Setenv("REDIS_PASSWORD", "secret")
 		t.Setenv("REDIS_URL", "")

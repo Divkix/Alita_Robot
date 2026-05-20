@@ -345,6 +345,16 @@ func (m moduleStruct) isConnected(b *gotgbot.Bot, ctx *ext.Context, userId int64
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+	if query, ok := callbackQueryFromContext(ctx); ok && query != nil {
+		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		if err != nil {
+			log.Error(err)
+		}
+		return 0
+	}
+	if ctx == nil || ctx.EffectiveMessage == nil {
+		return 0
+	}
 	_, err := ctx.EffectiveMessage.Reply(b, text, nil)
 	if err != nil {
 		log.Error(err)

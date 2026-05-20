@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -18,6 +19,84 @@ func withOwnerID(t *testing.T, ownerID int64) {
 	t.Cleanup(func() {
 		config.AppConfig.OwnerId = previousOwnerID
 	})
+}
+
+func TestDevLeaveChatHandlesMissingArgsAndRequestErrors(t *testing.T) {
+	withOwnerID(t, 777000)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	missingClient := newModuleBotClient()
+	missingBot := newModuleTestBot(missingClient)
+	missingCtx := newModuleMessageContext(missingBot, chat, owner, "/leavechat")
+	if err := devsModule.leaveChat(missingBot, missingCtx); err != ext.ContinueGroups {
+		t.Fatalf("leaveChat(missing args) error = %v, want ContinueGroups", err)
+	}
+	if calls := missingClient.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want missing-arg reply", len(calls))
+	}
+
+	requestClient := newModuleBotClient()
+	requestClient.errors["leaveChat"] = errors.New("leave failed")
+	requestBot := newModuleTestBot(requestClient)
+	requestCtx := newModuleMessageContext(requestBot, chat, owner, "/leavechat -100123")
+	if err := devsModule.leaveChat(requestBot, requestCtx); err == nil {
+		t.Fatal("leaveChat(request error) = nil, want error")
+	}
+}
+
+func TestDevTeamRoleCommandsHandleNoopAndAuthorizationBranches(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+	guest := gotgbot.User{Id: 55, FirstName: "Guest"}
+
+	guestCtx := newModuleMessageContext(bot, chat, guest, "/addsudo 42")
+	if err := devsModule.addSudo(bot, guestCtx); err != ext.ContinueGroups {
+		t.Fatalf("addSudo(guest) error = %v, want ContinueGroups", err)
+	}
+
+	channelCtx := newModuleMessageContext(bot, chat, owner, "/addsudo -1001234567890")
+	if err := devsModule.addSudo(bot, channelCtx); err != ext.ContinueGroups {
+		t.Fatalf("addSudo(channel id) error = %v, want ContinueGroups", err)
+	}
+
+	if err := db.AddSudo(42); err != nil {
+		t.Fatalf("AddSudo setup error = %v", err)
+	}
+	alreadySudoCtx := newModuleMessageContext(bot, chat, owner, "/addsudo 42")
+	if err := devsModule.addSudo(bot, alreadySudoCtx); err != ext.ContinueGroups {
+		t.Fatalf("addSudo(already sudo) error = %v, want ContinueGroups", err)
+	}
+
+	notDevCtx := newModuleMessageContext(bot, chat, owner, "/remdev 43")
+	if err := devsModule.remDev(bot, notDevCtx); err != ext.ContinueGroups {
+		t.Fatalf("remDev(not dev) error = %v, want ContinueGroups", err)
+	}
+}
+
+func TestDevStatsPropagatesSendAndEditErrors(t *testing.T) {
+	withOwnerID(t, 777000)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	sendClient := newModuleBotClient()
+	sendClient.errors["sendMessage"] = errors.New("send failed")
+	sendBot := newModuleTestBot(sendClient)
+	sendCtx := newModuleMessageContext(sendBot, chat, owner, "/stats")
+	if err := devsModule.getStats(sendBot, sendCtx); err == nil {
+		t.Fatal("getStats(send error) = nil, want error")
+	}
+
+	editClient := newModuleBotClient()
+	editClient.errors["editMessageText"] = errors.New("edit failed")
+	editBot := newModuleTestBot(editClient)
+	editCtx := newModuleMessageContext(editBot, chat, owner, "/stats")
+	if err := devsModule.getStats(editBot, editCtx); err == nil {
+		t.Fatal("getStats(edit error) = nil, want error")
+	}
 }
 
 func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {

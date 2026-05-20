@@ -426,6 +426,38 @@ func TestExportedPermissionWrappersSendDenialMessages(t *testing.T) {
 	}
 }
 
+func TestExportedPermissionWrappersAnswerCallbackDenials(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "user change info", fn: func() bool { return CanUserChangeInfo(bot, ctx, chat, 11, false) }},
+		{name: "user restrict", fn: func() bool { return CanUserRestrict(bot, ctx, chat, 11, false) }},
+		{name: "bot restrict", fn: func() bool { return CanBotRestrict(bot, ctx, chat, false) }},
+		{name: "user promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 11, false) }},
+		{name: "user delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 11, false) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s returned true, want callback denial", tt.name)
+			}
+		})
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != len(tests) {
+		t.Fatalf("answerCallbackQuery calls = %d, want %d callback denials", got, len(tests))
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want callback denials without chat messages", got)
+	}
+}
+
 func TestRequireBotAdminJustCheckAndSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -651,6 +683,34 @@ func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
 	}
 }
 
+func TestGetChatRequestsTelegramAPI(t *testing.T) {
+	bot := newChatStatusBot(999)
+
+	chat, err := GetChat(bot, "-1001")
+	if err != nil {
+		t.Fatalf("GetChat() error = %v", err)
+	}
+	if chat.Id != -1001 || chat.Type != "supergroup" {
+		t.Fatalf("GetChat() = %+v, want Permission Chat supergroup", chat)
+	}
+}
+
+func TestIsUserAdminLoadsTelegramAdminList(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-1001)
+
+	if !IsUserAdmin(bot, chatID, 10) {
+		t.Fatal("IsUserAdmin(full admin) = false, want true")
+	}
+	if IsUserAdmin(bot, chatID, 42) {
+		t.Fatal("IsUserAdmin(member) = true, want false")
+	}
+	if got := client.callsFor("getChatAdministrators"); got != 2 {
+		t.Fatalf("getChatAdministrators calls = %d, want one lookup per non-service user", got)
+	}
+}
+
 func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
 	client := &paramRecordingChatStatusClient{}
 	bot := &gotgbot.Bot{
@@ -854,6 +914,43 @@ func TestCanInvitePublicAndPrivatePermissionBranches(t *testing.T) {
 	}
 	if got := client.callsFor("sendMessage"); got != 1 {
 		t.Fatalf("sendMessage calls = %d, want one user denial", got)
+	}
+}
+
+func TestCanInviteRejectsMissingSenderAndLimitedBot(t *testing.T) {
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+
+	fullClient := &recordingChatStatusClient{}
+	fullBot := newRecordingChatStatusBot(999, fullClient)
+	nilSenderMsg := &gotgbot.Message{
+		MessageId: 202,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/invite",
+	}
+	nilSenderCtx := ext.NewContext(fullBot, &gotgbot.Update{Message: nilSenderMsg}, nil)
+	if Caninvite(fullBot, nilSenderCtx, chat, nilSenderMsg, false) {
+		t.Fatal("Caninvite(nil sender) = true, want false")
+	}
+	if got := fullClient.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("full bot sendMessage calls = %d, want none for nil sender", got)
+	}
+
+	limitedClient := &recordingChatStatusClient{}
+	limitedBot := newRecordingChatStatusBot(998, limitedClient)
+	limitedMsg := &gotgbot.Message{
+		MessageId: 203,
+		Date:      1,
+		Chat:      *chat,
+		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
+		Text:      "/invite",
+	}
+	limitedCtx := ext.NewContext(limitedBot, &gotgbot.Update{Message: limitedMsg}, nil)
+	if Caninvite(limitedBot, limitedCtx, chat, limitedMsg, false) {
+		t.Fatal("Caninvite(limited bot) = true, want false")
+	}
+	if got := limitedClient.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("limited bot sendMessage calls = %d, want one bot-permission denial", got)
 	}
 }
 

@@ -55,41 +55,41 @@ func TestReportRequiresReplyAndSendsAdminReport(t *testing.T) {
 
 func TestReportRejectsInvalidReplyTargetsAndDisabledChats(t *testing.T) {
 	tests := []struct {
-		name       string
-		reporter   gotgbot.User
-		target     *gotgbot.User
-		disable    bool
+		name        string
+		reporter    gotgbot.User
+		target      *gotgbot.User
+		disable     bool
 		wantReplies int
 	}{
 		{
-			name:       "channel post target",
-			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
-			target:     nil,
+			name:        "channel post target",
+			reporter:    gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:      nil,
 			wantReplies: 1,
 		},
 		{
-			name:       "self report",
-			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
-			target:     &gotgbot.User{Id: 42, FirstName: "Reporter"},
+			name:        "self report",
+			reporter:    gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:      &gotgbot.User{Id: 42, FirstName: "Reporter"},
 			wantReplies: 1,
 		},
 		{
-			name:       "special reporter",
-			reporter:   gotgbot.User{Id: 777000, FirstName: "Telegram"},
-			target:     &gotgbot.User{Id: 43, FirstName: "Target"},
+			name:        "special reporter",
+			reporter:    gotgbot.User{Id: 777000, FirstName: "Telegram"},
+			target:      &gotgbot.User{Id: 43, FirstName: "Target"},
 			wantReplies: 1,
 		},
 		{
-			name:       "special target",
-			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
-			target:     &gotgbot.User{Id: 777000, FirstName: "Telegram"},
+			name:        "special target",
+			reporter:    gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:      &gotgbot.User{Id: 777000, FirstName: "Telegram"},
 			wantReplies: 1,
 		},
 		{
-			name:       "disabled chat stays silent",
-			reporter:   gotgbot.User{Id: 42, FirstName: "Reporter"},
-			target:     &gotgbot.User{Id: 43, FirstName: "Target"},
-			disable:    true,
+			name:        "disabled chat stays silent",
+			reporter:    gotgbot.User{Id: 42, FirstName: "Reporter"},
+			target:      &gotgbot.User{Id: 43, FirstName: "Target"},
+			disable:     true,
 			wantReplies: 0,
 		},
 	}
@@ -118,6 +118,72 @@ func TestReportRejectsInvalidReplyTargetsAndDisabledChats(t *testing.T) {
 			}
 			if calls := client.callsFor("sendMessage"); len(calls) != tt.wantReplies {
 				t.Fatalf("sendMessage calls = %d, want %d", len(calls), tt.wantReplies)
+			}
+		})
+	}
+}
+
+func TestReportSkipsBlockedAdminBotAndAdminTargets(t *testing.T) {
+	t.Run("blocked reporter command is deleted", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+		target := gotgbot.User{Id: 43, FirstName: "Target"}
+		if err := db.BlockReportUser(chat.Id, reporter.Id); err != nil {
+			t.Fatalf("BlockReportUser setup error = %v", err)
+		}
+
+		ctx := newReportReplyContext(bot, chat, reporter, target, "/report")
+		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report(blocked) error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+			t.Fatalf("deleteMessage calls = %d, want blocked report command deletion", len(calls))
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want blocked reporter to stay silent", len(calls))
+		}
+	})
+
+	t.Run("admin reporter", func(t *testing.T) {
+		client := newModuleBotClient()
+		client.responses["getChatMember"] = []byte(
+			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Reporter"},"can_delete_messages":true}`,
+		)
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+		target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+		ctx := newReportReplyContext(bot, chat, reporter, target, "/report")
+		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report(admin reporter) error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+			t.Fatalf("sendMessage calls = %d, want admin reporter warning", len(calls))
+		}
+	})
+
+	for _, tt := range []struct {
+		name   string
+		target gotgbot.User
+	}{
+		{name: "bot target", target: gotgbot.User{Id: 999, FirstName: "Alita", IsBot: true}},
+		{name: "admin target", target: gotgbot.User{Id: 777000, FirstName: "Telegram"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+			reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+
+			ctx := newReportReplyContext(bot, chat, reporter, tt.target, "/report")
+			if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("report(%s) error = %v, want EndGroups", tt.name, err)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want target warning", len(calls))
 			}
 		})
 	}

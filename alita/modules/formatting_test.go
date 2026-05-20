@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -76,21 +77,66 @@ func TestFormattingHandlerEditsMessageAndAnswersCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
-	data := encodeCallbackData(
-		"formatting",
-		map[string]string{"m": "md_formatting"},
-		"formatting.md_formatting",
-	)
 
-	ctx := newModuleCallbackContext(bot, chat, user, data)
-	if err := formattingModule.formattingHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("formattingHandler() error = %v, want EndGroups", err)
+	for _, data := range []string{
+		encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}, "formatting.md_formatting"),
+		"formatting.fillings",
+		"formatting.random",
+	} {
+		ctx := newModuleCallbackContext(bot, chat, user, data)
+		if err := formattingModule.formattingHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("formattingHandler(%s) error = %v, want EndGroups", data, err)
+		}
 	}
-	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
-		t.Fatalf("editMessageText calls = %d, want 1", len(calls))
+	if calls := client.callsFor("editMessageText"); len(calls) != 3 {
+		t.Fatalf("editMessageText calls = %d, want 3", len(calls))
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 3", len(calls))
+	}
+}
+
+func TestFormattingHandlerRejectsInvalidCallbackMessages(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
+
+	missingMessage := newModuleCallbackContext(bot, chat, user, "formatting.md_formatting")
+	missingMessage.CallbackQuery.Message = nil
+	if err := formattingModule.formattingHandler(bot, missingMessage); err != ext.EndGroups {
+		t.Fatalf("formattingHandler(nil message) error = %v, want EndGroups", err)
+	}
+
+	invalidData := newModuleCallbackContext(bot, chat, user, "formatting")
+	if err := formattingModule.formattingHandler(bot, invalidData); err != ext.EndGroups {
+		t.Fatalf("formattingHandler(invalid data) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want invalid callback answers", len(calls))
+	}
+}
+
+func TestFormattingHandlerPropagatesEditAndAnswerErrors(t *testing.T) {
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
+	data := "formatting.random"
+
+	editClient := newModuleBotClient()
+	editClient.errors["editMessageText"] = errors.New("edit failed")
+	editBot := newModuleTestBot(editClient)
+	editCtx := newModuleCallbackContext(editBot, chat, user, data)
+	if err := formattingModule.formattingHandler(editBot, editCtx); err == nil {
+		t.Fatal("formattingHandler(edit error) = nil, want error")
+	}
+
+	answerClient := newModuleBotClient()
+	answerClient.errors["answerCallbackQuery"] = errors.New("answer failed")
+	answerBot := newModuleTestBot(answerClient)
+	answerCtx := newModuleCallbackContext(answerBot, chat, user, data)
+	if err := formattingModule.formattingHandler(answerBot, answerCtx); err == nil {
+		t.Fatal("formattingHandler(answer error) = nil, want error")
 	}
 }
 

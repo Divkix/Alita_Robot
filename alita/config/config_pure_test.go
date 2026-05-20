@@ -73,8 +73,6 @@ func TestIsCliModeActive(t *testing.T) {
 // TestLoadConfig tests the LoadConfig helper. The top-level test does NOT call
 // t.Parallel() because t.Setenv() is incompatible with parallel execution.
 func TestLoadConfig(t *testing.T) {
-	skipIfNoConfig(t)
-
 	t.Run("returns error when required fields missing", func(t *testing.T) {
 		// Ensure required env vars are empty
 		t.Setenv("BOT_TOKEN", "")
