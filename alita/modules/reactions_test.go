@@ -179,8 +179,10 @@ func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
 	key := reactionKey(chat.Id)
+	_, prevEnabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
 	t.Cleanup(func() {
 		_ = m.Delete(cache.Context, key)
+		DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, prevEnabled)
 	})
 
 	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)

@@ -277,6 +277,11 @@ func TestVerifyAnonymousAdminEditsExpiredButton(t *testing.T) {
 }
 
 func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
+	m := cache.GetMarshal()
+	if m == nil {
+		t.Skip("requires initialized cache marshaler")
+	}
+
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
@@ -308,9 +313,12 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 			Text:      "/unknown",
 		}
 		key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
-		if err := cache.GetMarshal().Set(cache.Context, key, cached); err != nil {
+		if err := m.Set(cache.Context, key, cached); err != nil {
 			t.Fatalf("cache set: %v", err)
 		}
+		t.Cleanup(func() {
+			_ = m.Delete(cache.Context, key)
+		})
 		data := encodeCallbackData("anon_admin", map[string]string{
 			"c": fmt.Sprint(chat.Id),
 			"m": fmt.Sprint(cached.MessageId),
@@ -325,6 +333,11 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 }
 
 func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T) {
+	m := cache.GetMarshal()
+	if m == nil {
+		t.Skip("requires initialized cache marshaler")
+	}
+
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
@@ -341,9 +354,12 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 		Text: "/unknown",
 	}
 	key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
-	if err := cache.GetMarshal().Set(cache.Context, key, cached); err != nil {
+	if err := m.Set(cache.Context, key, cached); err != nil {
 		t.Fatalf("cache set: %v", err)
 	}
+	t.Cleanup(func() {
+		_ = m.Delete(cache.Context, key)
+	})
 	data := encodeCallbackData("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": fmt.Sprint(cached.MessageId),
