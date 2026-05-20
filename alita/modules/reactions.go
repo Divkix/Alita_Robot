@@ -63,7 +63,10 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 
 // reactionsHelpHandler handles inline help callbacks for reaction commands.
 func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}

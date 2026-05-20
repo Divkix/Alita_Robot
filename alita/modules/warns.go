@@ -549,7 +549,10 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 // rmWarnButton processes callback queries from remove warning buttons
 // to remove the latest warning from a user, requiring admin permissions.
 func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
 		return ext.EndGroups
@@ -794,7 +797,10 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 // warnsButtonHandler processes callback queries for the reset all warnings
 // confirmation dialog, restricted to chat owners.
 func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 

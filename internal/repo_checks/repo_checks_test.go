@@ -296,3 +296,31 @@ func TestBotLockApprovedBypassRequiresPositiveSenderID(t *testing.T) {
 		t.Fatal("botLockHandler must not call IsApproved unless senderID is positive")
 	}
 }
+
+func TestCallbackHandlersUseSafeContextAccessor(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob(filepath.Join("..", "..", "alita", "modules", "*.go"))
+	if err != nil {
+		t.Fatalf("failed to list module files: %v", err)
+	}
+
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("failed to read module file %s: %v", file, err)
+		}
+		for lineNumber, line := range strings.Split(string(data), "\n") {
+			if !strings.Contains(line, "ctx.CallbackQuery") {
+				continue
+			}
+			if strings.Contains(line, "ctx.CallbackQuery =") {
+				continue
+			}
+			t.Fatalf("%s:%d reads ctx.CallbackQuery directly; use callbackQueryFromContext", file, lineNumber+1)
+		}
+	}
+}

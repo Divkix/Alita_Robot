@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -216,6 +217,25 @@ func TestPendingImportsMaps(t *testing.T) {
 		assert.NotNil(t, pendingImports)
 		assert.NotNil(t, pendingModules)
 	})
+}
+
+func TestBackupCallbackHandlerNilCallbackQuery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		ctx  *ext.Context
+	}{
+		{name: "nil context", ctx: nil},
+		{name: "nil update", ctx: &ext.Context{}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := backupModule.backupCallbackHandler(nil, tc.ctx)
+			assert.Equal(t, ext.EndGroups, err)
+		})
+	}
 }
 
 func TestModuleNames(t *testing.T) {

@@ -435,7 +435,10 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 // markResolvedButtonHandler processes callback queries from report action buttons
 // to kick, ban, delete messages, or mark reports as resolved.
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {

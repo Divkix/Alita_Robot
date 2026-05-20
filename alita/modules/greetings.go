@@ -1081,7 +1081,10 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 // joinRequestHandler processes admin responses to join request approval buttons.
 // Handles accept, decline, and ban actions for pending chat join requests.
 func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
 	msg := query.Message

@@ -490,7 +490,10 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 // filtersButtonHandler handles callback queries for filter-related button interactions.
 // Processes confirmation dialogs for removing all filters from a chat.
 func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
 
@@ -556,7 +559,10 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 // filterOverWriteHandler handles callback queries for filter overwrite confirmations.
 // Processes admin decisions when attempting to overwrite existing filter keywords.
 func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
 

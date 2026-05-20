@@ -261,7 +261,10 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 // deleteButtonHandler processes callback queries from delete buttons
 // to remove specific messages, requiring admin permissions.
 func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {

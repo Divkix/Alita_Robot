@@ -111,7 +111,10 @@ func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 // 2. Retrieves the original command from cache
 // 3. Executes the appropriate command handler with restored context
 func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	qmsg := query.Message
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))

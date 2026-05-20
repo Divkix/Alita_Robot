@@ -1023,7 +1023,10 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 // restrictButtonHandler processes inline keyboard callbacks for restriction actions.
 // Handles ban, kick, and mute actions triggered from the restrict command keyboard.
 func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
@@ -1271,7 +1274,10 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 // unrestrictButtonHandler processes inline keyboard callbacks for unrestriction actions.
 // Handles unban and unmute actions triggered from the unrestrict command keyboard.
 func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {

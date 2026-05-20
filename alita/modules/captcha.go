@@ -1292,7 +1292,10 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 // captchaVerifyCallback handles captcha answer button clicks.
 // Verifies if the selected answer is correct and takes appropriate action.
 func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := query.From
 
@@ -1533,7 +1536,10 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 // Generates a new captcha image when users can't read the current one.
 // Uses send-first pattern for atomic refresh to prevent stuck states.
 func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := query.From
 

@@ -83,7 +83,10 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 // langBtnHandler processes language selection callback queries from the language menu.
 // Updates user or group language preferences based on admin permissions and context.
 func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}

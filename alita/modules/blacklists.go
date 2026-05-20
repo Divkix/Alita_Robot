@@ -481,7 +481,10 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 // buttonHandler processes confirmation callbacks for removing all blacklists.
 // Handles the yes/no confirmation when owners attempt to clear all blacklisted words.
 func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 

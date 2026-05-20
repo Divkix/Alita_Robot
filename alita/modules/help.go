@@ -207,7 +207,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		currKb   gotgbot.InlineKeyboardMarkup
 	)
 
-	if query := ctx.CallbackQuery; query != nil {
+	if query, ok := callbackQueryFromContext(ctx); ok {
 		if query.Message == nil {
 			text, _ := tr.GetString("common_callback_invalid_request")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -323,7 +323,10 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 // helpButtonHandler processes callback queries from help menu button interactions.
 // Navigates between help sections and displays appropriate help content for modules.
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}
@@ -482,7 +485,10 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 // botConfig provides step-by-step configuration guidance for new users.
 // Walks users through adding the bot to chats and basic setup procedures.
 func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}

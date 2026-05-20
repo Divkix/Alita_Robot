@@ -202,7 +202,10 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 // connectionButtons handles inline keyboard callbacks for connection management.
 // Processes admin and user command list requests from connection interface.
 func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	msg := query.Message
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))

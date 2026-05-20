@@ -453,7 +453,10 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 // unapproveAllCallback processes the confirmation callback for /unapproveall.
 func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 

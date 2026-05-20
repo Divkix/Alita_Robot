@@ -498,7 +498,10 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 // - v1 codec: notes.overwrite|v1|a={yes/no}&t={token}
 // - legacy: notes.overwrite.{action}.{chatId}_{noteWord}
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 
 	// permission checks
@@ -633,7 +636,10 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 // notesButtonHandler processes callback queries for the remove all notes
 // confirmation dialog, restricted to chat owners.
 func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 
 	// permission checks

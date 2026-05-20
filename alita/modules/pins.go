@@ -139,7 +139,10 @@ func (moduleStruct) unpin(b *gotgbot.Bot, ctx *ext.Context) error {
 // unpinallCallback processes callback queries for the unpin all confirmation
 // dialog, handling the user's yes/no response.
 func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}

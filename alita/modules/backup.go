@@ -447,7 +447,10 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // backupCallbackHandler handles callback queries for backup operations
 func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
 
