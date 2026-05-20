@@ -21,17 +21,18 @@ type RemediationAction interface {
 
 // AutoRemediationManager handles automatic remediation of performance issues
 type AutoRemediationManager struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	wg             sync.WaitGroup
-	stopOnce       sync.Once
-	actions        []RemediationAction
-	enabled        bool
-	lastActionTime map[string]time.Time
-	actionCooldown time.Duration
-	mu             sync.RWMutex
-	collector      *BackgroundStatsCollector
-	thresholds     RemediationThresholds
+	ctx             context.Context
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
+	stopOnce        sync.Once
+	actions         []RemediationAction
+	enabled         bool
+	lastActionTime  map[string]time.Time
+	actionCooldown  time.Duration
+	monitorInterval time.Duration
+	mu              sync.RWMutex
+	collector       *BackgroundStatsCollector
+	thresholds      RemediationThresholds
 }
 
 // RemediationThresholds defines when remediation actions should be triggered
@@ -50,12 +51,13 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 
 	manager := &AutoRemediationManager{
-		ctx:            ctx,
-		cancel:         cancel,
-		enabled:        config.AppConfig.EnablePerformanceMonitoring,
-		lastActionTime: make(map[string]time.Time),
-		actionCooldown: 5 * time.Minute, // Minimum time between same actions
-		collector:      collector,
+		ctx:             ctx,
+		cancel:          cancel,
+		enabled:         config.AppConfig.EnablePerformanceMonitoring,
+		lastActionTime:  make(map[string]time.Time),
+		actionCooldown:  5 * time.Minute, // Minimum time between same actions
+		monitorInterval: 1 * time.Minute,
+		collector:       collector,
 		thresholds: RemediationThresholds{
 			MaxGoroutines:      config.AppConfig.ResourceMaxGoroutines,
 			MaxMemoryMB:        float64(config.AppConfig.ResourceMaxMemoryMB),
@@ -104,7 +106,7 @@ func (m *AutoRemediationManager) Start() {
 func (m *AutoRemediationManager) monitorAndRemediate() {
 	defer m.wg.Done()
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(m.monitorInterval)
 	defer ticker.Stop()
 
 	for {

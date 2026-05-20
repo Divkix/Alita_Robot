@@ -405,6 +405,46 @@ func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 	manager.Stop()
 }
 
+func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	collector.updateSystemMetrics(SystemMetrics{
+		GoroutineCount:      200,
+		MemoryAllocMB:       600,
+		GCPauseMs:           75,
+		AverageResponseTime: 25 * time.Millisecond,
+	})
+
+	manager := NewAutoRemediationManager(collector)
+	action := &testRemediationAction{name: "fast-loop", severity: 1}
+	manager.actions = []RemediationAction{action}
+	manager.actionCooldown = 0
+	manager.monitorInterval = time.Millisecond
+
+	manager.Start()
+	t.Cleanup(manager.Stop)
+
+	deadline := time.After(500 * time.Millisecond)
+	for {
+		if atomic.LoadInt32(&action.executed) > 0 {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatal("expected Start monitor loop to execute applicable action")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // NewAutoRemediationManager — with collector and metrics
 // ---------------------------------------------------------------------------
