@@ -131,6 +131,7 @@ func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason strin
 	}
 
 	// Invalidate cache after successful transaction
+	deleteCache(CacheKey("warns", userId, chatId))
 	deleteCache(CacheKey("warn_settings", chatId))
 
 	return numWarns, reasons
@@ -182,6 +183,7 @@ func RemoveWarnWithContext(ctx context.Context, userId, chatId int64) bool {
 
 	// Invalidate cache after successful transaction
 	if removed {
+		deleteCache(CacheKey("warns", userId, chatId))
 		deleteCache(CacheKey("warn_settings", chatId))
 	}
 

@@ -355,6 +355,8 @@ func main() {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
+		postInit(b, dispatcher, botUsername, "webhook")
+
 		// Start the unified HTTP server
 		if err := httpServer.Start(); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
@@ -369,7 +371,6 @@ func main() {
 			return httpServer.Stop()
 		})
 
-		postInit(b, dispatcher, botUsername, "webhook")
 		// Wait for shutdown signal (blocking)
 		select {}
 	} else {

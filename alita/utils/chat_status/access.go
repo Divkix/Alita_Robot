@@ -14,6 +14,9 @@ func hasUserPermission(
 	userId int64,
 	requiredField func(*gotgbot.MergedChatMember) bool,
 ) bool {
+	if ctx == nil {
+		return false
+	}
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false

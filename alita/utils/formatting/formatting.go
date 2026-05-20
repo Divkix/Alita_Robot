@@ -247,6 +247,7 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 		pattern, err := regexp.Compile(rulesBtnRegex)
 		if err != nil {
 			log.Error(err)
+			return res, btns
 		}
 		if pattern.MatchString(res) {
 			response := pattern.FindStringSubmatch(res)

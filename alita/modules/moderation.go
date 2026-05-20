@@ -89,7 +89,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_anonymous_user_error")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, nil)
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -117,7 +117,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_no_reply_to_message")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, nil)
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -126,7 +126,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 	}
 	if c.Msg.ReplyToMessage.From == nil {
 		text, _ := c.Tr.GetString("bans_cannot_identify_user")
-		_, err := c.Msg.Reply(c.Bot, text, nil)
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
