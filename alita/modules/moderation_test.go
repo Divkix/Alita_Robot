@@ -3,10 +3,14 @@
 package modules
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func TestBuildModerationCtxRequiresEffectiveUser(t *testing.T) {
@@ -159,6 +163,52 @@ func TestModerationCommandRunExecutesPipelineInOrder(t *testing.T) {
 	}
 }
 
+func TestDeleteModGatesRequireRestrictAndDeletePermissions(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/purge")
+	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
+
+	if !deleteModGates(mc) {
+		t.Fatal("deleteModGates() = false, want true for creator with bot admin permissions")
+	}
+}
+
+func TestDefaultTargetValidationRejectsBotAndAllowsMember(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
+	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
+
+	if err := defaultTargetValidation(mc, &target{userID: 42}); err != nil {
+		t.Fatalf("defaultTargetValidation(member) error = %v, want nil", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no error reply for valid member", len(calls))
+	}
+
+	if err := defaultTargetValidation(mc, &target{userID: bot.Id}); err == nil {
+		t.Fatal("defaultTargetValidation(bot) error = nil, want self-target error")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want one self-target error reply", len(calls))
+	}
+}
+
+func TestMentionHtmlWrapperEscapesName(t *testing.T) {
+	got := _mentionHtml(42, "A < B")
+	if !strings.Contains(got, "tg://user?id=42") {
+		t.Fatalf("_mentionHtml() = %q, want user mention link", got)
+	}
+	if strings.Contains(got, "A < B") {
+		t.Fatalf("_mentionHtml() = %q, want escaped display name", got)
+	}
+}
+
 func moderationTestContext() *ext.Context {
 	msg := &gotgbot.Message{
 		MessageId: 10,
@@ -171,4 +221,16 @@ func moderationTestContext() *ext.Context {
 		&gotgbot.Update{Message: msg},
 		nil,
 	)
+}
+
+func newModerationCtxForTest(bot *gotgbot.Bot, ctx *ext.Context, module *moduleStruct) *moderationCtx {
+	return &moderationCtx{
+		Bot:    bot,
+		Chat:   ctx.EffectiveChat,
+		Msg:    ctx.EffectiveMessage,
+		User:   ctx.EffectiveUser,
+		Ctx:    ctx,
+		Tr:     i18n.MustNewTranslator(db.GetLanguage(ctx)),
+		Module: module,
+	}
 }
