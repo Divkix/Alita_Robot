@@ -58,6 +58,50 @@ func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
 	}
 }
 
+func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
+	resetAntifloodState(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	tests := []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "show disabled flood", text: "/flood", run: antifloodModule.flood},
+		{name: "set missing limit", text: "/setflood", run: antifloodModule.setFlood},
+		{name: "set non integer", text: "/setflood nope", run: antifloodModule.setFlood},
+		{name: "set below range", text: "/setflood 2", run: antifloodModule.setFlood},
+		{name: "disable flood", text: "/setflood off", run: antifloodModule.setFlood},
+		{name: "mode missing", text: "/setfloodmode", run: antifloodModule.setFloodMode},
+		{name: "mode invalid", text: "/setfloodmode warn", run: antifloodModule.setFloodMode},
+		{name: "deleter current disabled", text: "/delflood", run: antifloodModule.setFloodDeleter},
+		{name: "deleter invalid", text: "/delflood maybe", run: antifloodModule.setFloodDeleter},
+		{name: "deleter off", text: "/delflood off", run: antifloodModule.setFloodDeleter},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := tt.run(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s error = %v, want EndGroups", tt.text, err)
+			}
+		})
+	}
+	settings := db.GetFlood(chat.Id)
+	if settings.Limit != 0 {
+		t.Fatalf("flood limit = %d, want disabled", settings.Limit)
+	}
+	if settings.DeleteAntifloodMessage {
+		t.Fatal("DeleteAntifloodMessage = true, want false after /delflood off")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
+		t.Fatalf("sendMessage calls = %d, want one reply per validation branch", len(calls))
+	}
+}
+
 func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	resetAntifloodState(t)
 	chatID := uniqueModuleChatID()
