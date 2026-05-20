@@ -49,6 +49,28 @@ func TestCaptchaCommandTogglesAndDisplaysSettings(t *testing.T) {
 	}
 }
 
+func TestCaptchaCommandRejectsUnknownOption(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/captcha maybe")
+
+	if err := captchaModule.captchaCommand(bot, ctx); err != nil {
+		t.Fatalf("captchaCommand(unknown) error = %v", err)
+	}
+	settings, err := db.GetCaptchaSettings(chat.Id)
+	if err != nil {
+		t.Fatalf("GetCaptchaSettings() error = %v", err)
+	}
+	if settings.Enabled {
+		t.Fatal("captcha enabled = true after invalid option, want false")
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want usage reply", len(calls))
+	}
+}
+
 func TestCaptchaSubcommandsCreateSettingsWithDefaults(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -95,6 +117,39 @@ func TestCaptchaSubcommandsCreateSettingsWithDefaults(t *testing.T) {
 			}
 			assertCaptchaSettings(t, chat.Id, tt.want)
 		})
+	}
+}
+
+func TestCaptchaSubcommandsRequireArgumentsOrShowCurrentSettings(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.SetCaptchaMaxAttempts(chat.Id, 6); err != nil {
+		t.Fatalf("SetCaptchaMaxAttempts() setup error = %v", err)
+	}
+
+	tests := []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "mode missing", text: "/captchamode", run: captchaModule.captchaModeCommand},
+		{name: "timeout missing", text: "/captchatime", run: captchaModule.captchaTimeCommand},
+		{name: "action missing", text: "/captchaaction", run: captchaModule.captchaActionCommand},
+		{name: "max attempts current", text: "/captchamaxattempts", run: captchaModule.captchaMaxAttemptsCommand},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+			if err := tt.run(bot, ctx); err != nil {
+				t.Fatalf("%s error = %v", tt.text, err)
+			}
+		})
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
+		t.Fatalf("sendMessage calls = %d, want one reply per command", len(calls))
 	}
 }
 
