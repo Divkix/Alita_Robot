@@ -246,8 +246,10 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 func TestReactionCommandsHandleNilMarshal(t *testing.T) {
 	orig := cache.GetMarshal()
 	cache.SetMarshal(nil)
+	_, prevEnabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
 	t.Cleanup(func() {
 		cache.SetMarshal(orig)
+		DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, prevEnabled)
 	})
 
 	client := newModuleBotClient()
@@ -281,8 +283,8 @@ func TestReactionCommandsHandleNilMarshal(t *testing.T) {
 		t.Fatalf("checkReactions(nil marshal) error = %v, want ContinueGroups", err)
 	}
 
-	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
-		t.Fatalf("sendMessage calls = %d, want add/remove/list error replies", len(calls))
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want add/remove/list/reset error replies", len(calls))
 	}
 }
 

@@ -81,6 +81,10 @@ func TestRunOrphanedCaptchaRecoveryAppliesMuteAction(t *testing.T) {
 	chatID := uniqueModuleChatID()
 	now := time.Now()
 
+	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
+		t.Fatalf("captcha attempt cleanup setup error = %v", err)
+	}
+
 	t.Cleanup(func() {
 		if err := db.DB.Where("chat_id = ?", chatID).Delete(&db.CaptchaAttempts{}).Error; err != nil {
 			t.Fatalf("cleanup captcha attempts error = %v", err)

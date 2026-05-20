@@ -410,6 +410,9 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	key := reactionKey(chat.Id)
 	cm := cache.GetMarshal()
 	if cm == nil {
+		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		text, _ := tr.GetString("reactions_remove_error")
+		_, _ = msg.Reply(b, text, helpers.Shtml())
 		return ext.EndGroups
 	}
 
