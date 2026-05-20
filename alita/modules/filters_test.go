@@ -3,6 +3,7 @@ package modules
 import (
 	"testing"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -54,4 +55,52 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 
 	deleteFilterOverwriteCache("token")
 	deleteLegacyFilterOverwriteCache("hello", -100123)
+}
+
+func TestFilterOverwriteCacheRoundTripsCurrentAndLegacyData(t *testing.T) {
+	if cache.Marshal == nil {
+		t.Skip("requires cache marshal")
+	}
+
+	current := overwriteFilter{overwriteBase: overwriteBase{
+		ChatID:   -100123,
+		ItemName: "hello",
+		Text:     "current",
+		DataType: db.TEXT,
+	}}
+	if err := setFilterOverwriteCache("token-current", current); err != nil {
+		t.Fatalf("setFilterOverwriteCache() error = %v", err)
+	}
+	got, err := getFilterOverwriteCache("token-current")
+	if err != nil {
+		t.Fatalf("getFilterOverwriteCache() error = %v", err)
+	}
+	if got.ChatID != current.ChatID || got.ItemName != current.ItemName || got.Text != current.Text {
+		t.Fatalf("getFilterOverwriteCache() = %+v, want %+v", got, current)
+	}
+	deleteFilterOverwriteCache("token-current")
+	if _, err := getFilterOverwriteCache("token-current"); err == nil {
+		t.Fatal("getFilterOverwriteCache(deleted) error = nil, want cache miss")
+	}
+
+	legacy := overwriteFilter{overwriteBase: overwriteBase{
+		ChatID:   -100123,
+		ItemName: "legacy",
+		Text:     "legacy text",
+		DataType: db.TEXT,
+	}}
+	if err := cache.Marshal.Set(cache.Context, legacyFilterOverwriteCacheKey("legacy", -100123), legacy); err != nil {
+		t.Fatalf("legacy cache set error = %v", err)
+	}
+	gotLegacy, err := getLegacyFilterOverwriteCache("legacy", -100123)
+	if err != nil {
+		t.Fatalf("getLegacyFilterOverwriteCache() error = %v", err)
+	}
+	if gotLegacy.ItemName != legacy.ItemName || gotLegacy.Text != legacy.Text {
+		t.Fatalf("getLegacyFilterOverwriteCache() = %+v, want %+v", gotLegacy, legacy)
+	}
+	deleteLegacyFilterOverwriteCache("legacy", -100123)
+	if _, err := getLegacyFilterOverwriteCache("legacy", -100123); err == nil {
+		t.Fatal("getLegacyFilterOverwriteCache(deleted) error = nil, want cache miss")
+	}
 }
