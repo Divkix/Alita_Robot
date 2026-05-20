@@ -1,6 +1,7 @@
 package keyboard
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -44,21 +45,41 @@ func TestChunkKeyboardSlices(t *testing.T) {
 		{Text: "five"},
 	}
 
-	got := ChunkKeyboardSlices(buttons, 2)
-	if len(got) != 3 {
-		t.Fatalf("chunk count = %d, want 3", len(got))
+	tests := []struct {
+		name       string
+		chunkSize  int
+		wantCounts []int
+		wantNil    bool
+	}{
+		{name: "chunks buttons by valid size", chunkSize: 2, wantCounts: []int{2, 2, 1}},
+		{name: "zero chunk size returns nil", chunkSize: 0, wantNil: true},
+		{name: "negative chunk size returns nil", chunkSize: -1, wantNil: true},
 	}
-	if len(got[0]) != 2 || len(got[1]) != 2 || len(got[2]) != 1 {
-		t.Fatalf("chunk sizes = %d,%d,%d; want 2,2,1", len(got[0]), len(got[1]), len(got[2]))
-	}
-	if got[2][0].Text != "five" {
-		t.Fatalf("last button text = %q, want five", got[2][0].Text)
-	}
-	if got := ChunkKeyboardSlices(buttons, 0); got != nil {
-		t.Fatalf("chunkSize 0 = %#v, want nil", got)
-	}
-	if got := ChunkKeyboardSlices(buttons, -1); got != nil {
-		t.Fatalf("negative chunkSize = %#v, want nil", got)
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := ChunkKeyboardSlices(buttons, tc.chunkSize)
+			if tc.wantNil {
+				if got != nil {
+					t.Fatalf("ChunkKeyboardSlices() = %#v, want nil", got)
+				}
+				return
+			}
+
+			var counts []int
+			for _, row := range got {
+				counts = append(counts, len(row))
+			}
+			if !reflect.DeepEqual(counts, tc.wantCounts) {
+				t.Fatalf("chunk sizes = %v, want %v", counts, tc.wantCounts)
+			}
+			if got[len(got)-1][0].Text != "five" {
+				t.Fatalf("last button text = %q, want five", got[len(got)-1][0].Text)
+			}
+		})
 	}
 }
 

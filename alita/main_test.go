@@ -8,9 +8,22 @@ import (
 	"github.com/divkix/Alita_Robot/alita/modules"
 )
 
-func TestListModulesSortsEnabledModuleNames(t *testing.T) {
+func resetHelpRegistryForTest(t *testing.T) {
+	t.Helper()
+
 	registry := modules.DefaultHelpRegistry()
 	registry.AbleMap.Init()
+	registry.AltHelpOptions = make(map[string][]string)
+	t.Cleanup(func() {
+		registry.AbleMap.Init()
+		registry.AltHelpOptions = make(map[string][]string)
+	})
+}
+
+func TestListModulesSortsEnabledModuleNames(t *testing.T) {
+	resetHelpRegistryForTest(t)
+
+	registry := modules.DefaultHelpRegistry()
 
 	registry.AbleMap.Store("Warns", true)
 	registry.AbleMap.Store("Admin", true)
@@ -22,6 +35,8 @@ func TestListModulesSortsEnabledModuleNames(t *testing.T) {
 }
 
 func TestLoadModulesLoadsRegistryAndHelp(t *testing.T) {
+	resetHelpRegistryForTest(t)
+
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadModules(dispatcher)
 

@@ -1,9 +1,9 @@
 package formatting
 
 import (
+	"reflect"
 	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 func TestSendMessageOptionBuilders(t *testing.T) {
@@ -59,47 +59,42 @@ func TestSendMessageOptionBuilders(t *testing.T) {
 func TestSplitMessage(t *testing.T) {
 	t.Parallel()
 
-	t.Run("short message is returned unchanged", func(t *testing.T) {
-		t.Parallel()
+	longSingleLine := strings.Repeat("x", MaxMessageLength+7)
+	firstLine := strings.Repeat("a", MaxMessageLength-2)
+	secondLine := "bb"
 
-		got := SplitMessage("hello")
-		if len(got) != 1 || got[0] != "hello" {
-			t.Fatalf("SplitMessage short = %#v, want [hello]", got)
-		}
-	})
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "short message is returned unchanged",
+			input: "hello",
+			want:  []string{"hello"},
+		},
+		{
+			name:  "splits long single line by rune limit",
+			input: longSingleLine,
+			want:  []string{strings.Repeat("x", MaxMessageLength), strings.Repeat("x", 7)},
+		},
+		{
+			name:  "groups newline separated lines without exceeding limit",
+			input: firstLine + "\n" + secondLine,
+			want:  []string{firstLine + "\n", secondLine + "\n"},
+		},
+	}
 
-	t.Run("splits long single line by rune limit", func(t *testing.T) {
-		t.Parallel()
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		msg := strings.Repeat("x", MaxMessageLength+7)
-		got := SplitMessage(msg)
-		if len(got) != 2 {
-			t.Fatalf("chunk count = %d, want 2", len(got))
-		}
-		if utf8.RuneCountInString(got[0]) != MaxMessageLength {
-			t.Fatalf("first chunk runes = %d, want %d", utf8.RuneCountInString(got[0]), MaxMessageLength)
-		}
-		if got[1] != strings.Repeat("x", 7) {
-			t.Fatalf("second chunk = %q, want seven x characters", got[1])
-		}
-	})
-
-	t.Run("groups newline separated lines without exceeding limit", func(t *testing.T) {
-		t.Parallel()
-
-		firstLine := strings.Repeat("a", MaxMessageLength-2)
-		secondLine := "bb"
-		got := SplitMessage(firstLine + "\n" + secondLine)
-		if len(got) != 2 {
-			t.Fatalf("chunk count = %d, want 2", len(got))
-		}
-		if got[0] != firstLine+"\n" {
-			t.Fatalf("first chunk = %q, want first line with newline", got[0])
-		}
-		if got[1] != secondLine+"\n" {
-			t.Fatalf("second chunk = %q, want second line with newline", got[1])
-		}
-	})
+			if got := SplitMessage(tc.input); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("SplitMessage() = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestHTMLHelpersEscapeUntrustedText(t *testing.T) {

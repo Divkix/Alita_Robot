@@ -196,24 +196,34 @@ func TestDefaultRegistryLoadsRuntimeModules(t *testing.T) {
 	LoadAllModules(dispatcher)
 
 	loadedModules := defaultHelpRegistry.AbleMap.LoadModules()
-	if len(loadedModules) < 24 {
-		t.Fatalf("loaded module count = %d, want at least 24", len(loadedModules))
-	}
-
-	for _, moduleName := range []string{
+	slices.Sort(loadedModules)
+	want := []string{
 		"Admin",
+		"AntiRaid",
 		"Antiflood",
+		"Approvals",
+		"Backup",
+		"Bans",
 		"Blacklists",
 		"Captcha",
+		"Connections",
+		"Disabling",
 		"Filters",
+		"Formatting",
 		"Greetings",
+		"Languages",
 		"Locks",
+		"Misc",
+		"Mutes",
 		"Notes",
+		"Pins",
+		"Purges",
+		"Reactions",
+		"Reports",
+		"Rules",
 		"Warns",
-	} {
-		_, enabled := defaultHelpRegistry.AbleMap.Load(moduleName)
-		if !enabled {
-			t.Fatalf("%s was not enabled after LoadAllModules", moduleName)
-		}
+	}
+	if !reflect.DeepEqual(loadedModules, want) {
+		t.Fatalf("loaded modules = %v, want %v", loadedModules, want)
 	}
 }
