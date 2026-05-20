@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestUpdateLockCreatesNewRecord(t *testing.T) {
@@ -232,4 +234,14 @@ func TestGetChatLocks(t *testing.T) {
 			t.Fatalf("GetChatLocks()[%q] = false, want true", lt)
 		}
 	}
+}
+
+func TestInvalidateLockCacheNilMarshal(t *testing.T) {
+	orig := cache.GetMarshal()
+	cache.SetMarshal(nil)
+	t.Cleanup(func() {
+		cache.SetMarshal(orig)
+	})
+
+	InvalidateLockCache(-100123, "sticker")
 }
