@@ -3,7 +3,10 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -147,6 +150,71 @@ func TestDownloadBackupFileReportsGotgbotGetFileFailure(t *testing.T) {
 
 	assert.Nil(t, data)
 	assert.NotEmpty(t, msg)
+	assert.Len(t, client.callsFor("getFile"), 1)
+}
+
+func TestDownloadBackupFileDownloadsGetFilePath(t *testing.T) {
+	tr := testTranslator(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/file/bot999:test/backups/chat.json", r.URL.Path)
+		_, _ = w.Write([]byte(`{"version":"1.0.0"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+	})
+
+	client := newModuleBotClient()
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"backup-file-id","file_path":"backups/chat.json"}`,
+	)
+	bot := newModuleTestBot(client)
+
+	data, msg := downloadBackupFile(bot, &gotgbot.Document{
+		FileName: "backup.json",
+		FileId:   "backup-file-id",
+	}, tr)
+
+	assert.Equal(t, `{"version":"1.0.0"}`, string(data))
+	assert.Empty(t, msg)
+	assert.Len(t, client.callsFor("getFile"), 1)
+}
+
+func TestDownloadBackupFileReportsHTTPStatusFailure(t *testing.T) {
+	tr := testTranslator(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upstream failed", http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+	})
+
+	client := newModuleBotClient()
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"backup-file-id","file_path":"backups/chat.json"}`,
+	)
+	bot := newModuleTestBot(client)
+
+	data, msg := downloadBackupFile(bot, &gotgbot.Document{
+		FileName: "backup.json",
+		FileId:   "backup-file-id",
+	}, tr)
+
+	assert.Nil(t, data)
+	assert.Equal(t, "Download failed", msg)
 	assert.Len(t, client.callsFor("getFile"), 1)
 }
 

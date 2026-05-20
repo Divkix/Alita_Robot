@@ -34,6 +34,9 @@ var backupModule = moduleStruct{
 var (
 	pendingImports = make(map[int64]*db.BackupFormat)
 	pendingModules = make(map[int64][]string)
+
+	backupDownloadBaseURL    = "https://api.telegram.org/file/bot"
+	backupDownloadHTTPClient = &http.Client{}
 )
 
 // exportHandler handles the /export command
@@ -206,15 +209,19 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 	}
 
 	// Download file content
-	downloadURL, err := url.Parse(
-		fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.Token, file.FilePath),
-	)
+	baseURL, err := url.Parse(backupDownloadBaseURL)
+	if err != nil {
+		log.Errorf("[Backup] Failed to parse download base URL: %v", err)
+		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
+	downloadURL, err := url.Parse(fmt.Sprintf("%s%s/%s", backupDownloadBaseURL, b.Token, file.FilePath))
 	if err != nil {
 		log.Errorf("[Backup] Failed to parse download URL: %v", err)
 		text, _ := tr.GetString("backup_import_download_failed")
 		return nil, text
 	}
-	if downloadURL.Scheme != "https" || downloadURL.Host != "api.telegram.org" {
+	if downloadURL.Scheme != baseURL.Scheme || downloadURL.Host != baseURL.Host {
 		log.Errorf("[Backup] Unexpected download URL host: %s", downloadURL.Host)
 		text, _ := tr.GetString("backup_import_download_failed")
 		return nil, text
@@ -230,14 +237,19 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 		return nil, text
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := backupDownloadHTTPClient.Do(req)
 	if err != nil {
 		log.Errorf("[Backup] Failed to download file: %v", err)
 		text, _ := tr.GetString("backup_import_download_failed")
 		return nil, text
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		log.Errorf("[Backup] Failed to download file: status %d", resp.StatusCode)
+		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
 
 	fileData, err := io.ReadAll(resp.Body)
 	if err != nil {
