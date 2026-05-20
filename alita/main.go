@@ -114,5 +114,35 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 	// Load this at last because it loads all the modules
 	defer modules.LoadHelp(dispatcher)
 
+	// Core modules — bot_updates registers via the new registry system
 	modules.LoadAllModules(dispatcher)
+
+	// All other modules — explicit load order matters for dependencies
+	modules.LoadAntispam(dispatcher)
+	modules.LoadLanguage(dispatcher)
+	modules.LoadAdmin(dispatcher)
+	modules.LoadApprovals(dispatcher)
+	modules.LoadPin(dispatcher)
+	modules.LoadMisc(dispatcher)
+	modules.LoadBans(dispatcher)
+	modules.LoadMutes(dispatcher)
+	modules.LoadPurges(dispatcher)
+	modules.LoadUsers(dispatcher)
+	modules.LoadReports(dispatcher)
+	modules.LoadDev(dispatcher)
+	modules.LoadLocks(dispatcher)
+	modules.LoadFilters(dispatcher)
+	modules.LoadAntiflood(dispatcher)
+	modules.LoadNotes(dispatcher)
+	modules.LoadConnections(dispatcher)
+	modules.LoadDisabling(dispatcher)
+	modules.LoadRules(dispatcher)
+	modules.LoadWarns(dispatcher)
+	modules.LoadGreetings(dispatcher)
+	modules.LoadCaptcha(dispatcher)
+	modules.LoadAntiRaid(dispatcher)
+	modules.LoadBlacklists(dispatcher)
+	modules.LoadReactions(dispatcher)
+	modules.LoadMkdCmd(dispatcher)
+	modules.LoadBackup(dispatcher)
 }
