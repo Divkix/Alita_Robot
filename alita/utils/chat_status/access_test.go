@@ -462,6 +462,32 @@ func TestRequireUserOwnerCallbackAnswersWithoutChatMessage(t *testing.T) {
 	}
 }
 
+func TestRequireUserHandlesMissingAndPresentEffectiveSender(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	nilCtx := makeCtxWithMessage("supergroup")
+	nilCtx.EffectiveSender = nil
+	if got := RequireUser(bot, nilCtx, true); got != nil {
+		t.Fatalf("RequireUser(nil sender, justCheck) = %#v, want nil", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none in justCheck mode", got)
+	}
+	if got := RequireUser(bot, nilCtx, false); got != nil {
+		t.Fatalf("RequireUser(nil sender) = %#v, want nil", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+
+	userCtx := makeCtxWithMessage("supergroup")
+	userCtx.EffectiveSender = &gotgbot.Sender{User: &gotgbot.User{Id: 42, FirstName: "Member"}}
+	if got := RequireUser(bot, userCtx, false); got == nil || got.Id != 42 {
+		t.Fatalf("RequireUser(user sender) = %#v, want user 42", got)
+	}
+}
+
 func TestRequireGroupAndPrivateSendDenialMessages(t *testing.T) {
 	client := &recordingChatStatusClient{}
 	bot := newRecordingChatStatusBot(999, client)

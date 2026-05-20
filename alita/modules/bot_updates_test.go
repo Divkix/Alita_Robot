@@ -46,6 +46,24 @@ func TestBotJoinedGroupLeavesBasicGroupAfterMigrationNotice(t *testing.T) {
 	}
 }
 
+func TestBotJoinedGroupLeavesChannelWithoutMigrationNotice(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Broadcast"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, chat, user, "bot joined")
+
+	if err := botJoinedGroup(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("botJoinedGroup() error = %v, want EndGroups for channel", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no migration notice for channel", len(calls))
+	}
+	if calls := client.callsFor("leaveChat"); len(calls) != 1 {
+		t.Fatalf("leaveChat calls = %d, want bot to leave channel", len(calls))
+	}
+}
+
 func TestBotJoinedSupergroupSendsWelcome(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -61,6 +79,19 @@ func TestBotJoinedSupergroupSendsWelcome(t *testing.T) {
 	}
 	if calls := client.callsFor("leaveChat"); len(calls) != 0 {
 		t.Fatalf("leaveChat calls = %d, want none for supergroup", len(calls))
+	}
+}
+
+func TestAdminCacheAutoUpdateSkipsMissingEffectiveChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 99}, nil)
+
+	if err := adminCacheAutoUpdate(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("adminCacheAutoUpdate() error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("getChatAdministrators"); len(calls) != 0 {
+		t.Fatalf("getChatAdministrators calls = %d, want none for missing chat", len(calls))
 	}
 }
 
@@ -88,6 +119,42 @@ func TestGetAnonAdminCacheReportsMissingCache(t *testing.T) {
 
 	if msg, err := getAnonAdminCache(-100123, 99); err == nil || msg != nil {
 		t.Fatalf("getAnonAdminCache() = (%#v, %v), want nil message and error", msg, err)
+	}
+}
+
+func TestVerifyAnonymousAdminRejectsLegacyCallbackWithBadChatID(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleCallbackContext(bot, chat, admin, "alita:anonAdmin:not-a-chat:101")
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want invalid-request answer", len(calls))
+	}
+	if calls := client.callsFor("getChatMember"); len(calls) != 0 {
+		t.Fatalf("getChatMember calls = %d, want none before valid chat ID", len(calls))
+	}
+}
+
+func TestVerifyAnonymousAdminRejectsDottedCallbackWithBadMessageID(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleCallbackContext(bot, chat, admin, fmt.Sprintf("legacy.%d.not-a-message", chat.Id))
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want invalid-request answer", len(calls))
+	}
+	if calls := client.callsFor("getChatMember"); len(calls) != 0 {
+		t.Fatalf("getChatMember calls = %d, want none before valid message ID", len(calls))
 	}
 }
 
