@@ -40,6 +40,9 @@ func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 // ChunkKeyboardSlices splits a slice of inline keyboard buttons into chunks of specified size.
 // Used for creating organized help menu keyboards with consistent row layouts.
 func ChunkKeyboardSlices(slice []gotgbot.InlineKeyboardButton, chunkSize int) (chunks [][]gotgbot.InlineKeyboardButton) {
+	if chunkSize <= 0 {
+		return nil
+	}
 	for len(slice) > 0 {
 		if len(slice) < chunkSize {
 			chunkSize = len(slice)

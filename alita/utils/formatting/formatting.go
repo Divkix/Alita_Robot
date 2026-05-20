@@ -129,9 +129,9 @@ func MentionHtml(userId int64, name string) string {
 }
 
 // MentionUrl creates an HTML link with the given URL and display name.
-// The name is HTML-escaped for safety.
+// Both the URL and name are HTML-escaped for safety.
 func MentionUrl(url, name string) string {
-	return fmt.Sprintf("<a href=\"%s\">%s</a>", url, html.EscapeString(name))
+	return fmt.Sprintf("<a href=\"%s\">%s</a>", html.EscapeString(url), html.EscapeString(name))
 }
 
 // HtmlEscape escapes special HTML characters in a string to prevent injection.
@@ -168,6 +168,7 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button, language string) (res string, btns []db.Button) {
 	var (
 		firstName     string
+		lastName      string
 		fullName      string
 		username      string
 		userId        int64
@@ -195,6 +196,7 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 			firstName = personNoName
 		}
 
+		lastName = user.LastName
 		if user.LastName != "" {
 			fullName = firstName + " " + user.LastName
 		} else {
@@ -219,7 +221,7 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 
 	r := strings.NewReplacer(
 		"{first}", html.EscapeString(firstName),
-		"{last}", html.EscapeString(""),
+		"{last}", html.EscapeString(lastName),
 		"{fullname}", html.EscapeString(fullName),
 		"{username}", username,
 		"{mention}", username,

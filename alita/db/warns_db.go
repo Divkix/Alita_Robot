@@ -198,6 +198,7 @@ func ResetUserWarns(userId, chatId int64) (removed bool) {
 		removed = false
 		return removed
 	}
+	deleteCache(CacheKey("warns", userId, chatId))
 	deleteCache(CacheKey("warn_settings", chatId))
 	return removed
 }
@@ -285,10 +286,20 @@ func GetAllChatWarns(chatId int64) int {
 // ResetAllChatWarns removes all warning records for all users in a specific chat.
 // Returns true if the operation was successful, false on error.
 func ResetAllChatWarns(chatId int64) bool {
+	// Collect user IDs before deletion so we can invalidate per-user caches
+	var userIds []int64
+	if err := DB.Model(&Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
+		log.Errorf("[Database] ResetAllChatWarns: %v", err)
+		return false
+	}
+
 	err := DB.Where("chat_id = ?", chatId).Delete(&Warns{}).Error
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return false
+	}
+	for _, userId := range userIds {
+		deleteCache(CacheKey("warns", userId, chatId))
 	}
 	deleteCache(CacheKey("warn_settings", chatId))
 	return true

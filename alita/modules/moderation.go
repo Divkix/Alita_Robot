@@ -98,9 +98,6 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 	}
 	if uid == 0 {
 		noUserKey := "common_no_user_specified"
-		if c.Module != nil && strings.ToLower(c.Module.moduleName) == "mutes" {
-			noUserKey = "common_no_user_specified"
-		}
 		text, _ := c.Tr.GetString(noUserKey)
 		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
@@ -264,7 +261,8 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Build and send the success reply.
 	if cmd.reply != nil {
 		if err := cmd.reply(mc, &tgt); err != nil {
-			return ext.EndGroups
+			log.Error(err)
+			return err
 		}
 	}
 	return ext.EndGroups

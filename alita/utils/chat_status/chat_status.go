@@ -336,7 +336,7 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -380,7 +380,7 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -424,7 +424,7 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -468,7 +468,7 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -512,7 +512,7 @@ func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChe
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -544,7 +544,7 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -576,7 +576,7 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck b
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -681,7 +681,7 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -717,7 +717,7 @@ func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -743,7 +743,7 @@ func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justC
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -802,7 +802,7 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -860,7 +860,7 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -898,7 +898,7 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -932,7 +932,7 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 	}
 
 	chat = extractChatFromContext(ctx, chat)
-	if chat == nil {
+	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 

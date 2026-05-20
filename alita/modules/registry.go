@@ -20,7 +20,14 @@ var registry []Module
 
 // RegisterModule adds a module to the global registry.
 // Modules are sorted by priority at load time, not at registration.
+// Duplicate registrations are silently ignored to prevent double-loading handlers.
 func RegisterModule(m Module) {
+	for _, existing := range registry {
+		if existing.Name() == m.Name() {
+			log.Debugf("Duplicate module registration ignored: %s", m.Name())
+			return
+		}
+	}
 	registry = append(registry, m)
 	log.Debugf("Registered module: %s (priority=%d)", m.Name(), m.Priority())
 }

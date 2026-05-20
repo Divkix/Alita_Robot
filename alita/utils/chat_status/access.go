@@ -71,6 +71,9 @@ func canUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 
 // canBotRestrict reports whether the bot can restrict members.
 func canBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
@@ -85,6 +88,9 @@ func canBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 
 // canBotPromote reports whether the bot can promote/demote members.
 func canBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
@@ -99,6 +105,9 @@ func canBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 
 // canBotPin reports whether the bot can pin messages.
 func canBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
@@ -113,6 +122,9 @@ func canBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 
 // canBotDelete reports whether the bot can delete messages.
 func canBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
