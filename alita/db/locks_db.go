@@ -50,12 +50,13 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 // InvalidateLockCache removes the cached lock status for a specific chat and lock type.
 // Should be called after updating a lock to ensure immediate enforcement.
 func InvalidateLockCache(chatID int64, lockType string) {
-	if cache.GetMarshal() == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return
 	}
 
 	cacheKey := fmt.Sprintf("alita:lock:%d:%s", chatID, lockType)
-	err := cache.GetMarshal().Delete(cache.Context, cacheKey)
+	err := m.Delete(cache.Context, cacheKey)
 	if err != nil {
 		log.Debugf("[Cache] Failed to invalidate lock cache for key %s: %v", cacheKey, err)
 	}

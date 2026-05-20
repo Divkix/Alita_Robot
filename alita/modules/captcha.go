@@ -1593,8 +1593,8 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 
 	// Cooldown: block rapid refreshes per user+chat
 	cooldownKey := fmt.Sprintf("alita:captcha:refresh:cooldown:%d:%d", chat.Id, targetUserID)
-	if cache.GetMarshal() != nil {
-		if exists, _ := cache.GetMarshal().Get(cache.Context, cooldownKey, new(bool)); exists != nil {
+	if m := cache.GetMarshal(); m != nil {
+		if exists, _ := m.Get(cache.Context, cooldownKey, new(bool)); exists != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_wait_refresh")
 			_, err := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -1735,8 +1735,8 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	}(chat.Id, oldMessageID)
 
 	// Set cooldown
-	if cache.GetMarshal() != nil {
-		_ = cache.GetMarshal().Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second))
+	if m := cache.GetMarshal(); m != nil {
+		_ = m.Set(cache.Context, cooldownKey, true, store.WithExpiration(time.Duration(captchaRefreshCooldownS)*time.Second))
 	}
 
 	tr = i18n.MustNewTranslator(db.GetLanguage(ctx))

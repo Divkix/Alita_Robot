@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/eko/gocache/lib/v4/store"
+	log "github.com/sirupsen/logrus"
 )
 
 // BackupRateLimiter provides rate limiting for backup operations
@@ -120,13 +121,14 @@ func (r *BackupRateLimiter) getLastOperation(cacheKey string) (time.Time, error)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if cache.GetMarshal() == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return time.Time{}, fmt.Errorf("cache not initialized")
 	}
 
 	// Try to get from cache
 	var timestamp time.Time
-	_, err := cache.GetMarshal().Get(context.Background(), cacheKey, &timestamp)
+	_, err := m.Get(context.Background(), cacheKey, &timestamp)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("no record found: %w", err)
 	}
@@ -139,7 +141,8 @@ func (r *BackupRateLimiter) recordOperation(cacheKey string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if cache.GetMarshal() == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return
 	}
 
@@ -156,7 +159,9 @@ func (r *BackupRateLimiter) recordOperation(cacheKey string) {
 		ttl = 1 * time.Hour
 	}
 
-	_ = cache.GetMarshal().Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(ttl))
+	if err := m.Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(ttl)); err != nil {
+		log.Debugf("[BackupRateLimit] Failed to record operation for key %s: %v", cacheKey, err)
+	}
 }
 
 // FormatCooldown formats a duration as a human-readable string
