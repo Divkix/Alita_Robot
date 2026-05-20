@@ -728,3 +728,168 @@ func TestIncrementCaptchaAttempts_NoActiveCaptcha(t *testing.T) {
 		t.Fatalf("expected nil result, got %+v", updated)
 	}
 }
+
+func TestCaptchaAttempt_MessageIDAndRefreshLifecycle(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	userID := base + 1400
+	chatID := base + 1401
+
+	attempt, err := CreateCaptchaAttemptPreMessage(userID, chatID, "old", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+	})
+
+	if err := UpdateCaptchaAttemptMessageID(attempt.ID, 98765); err != nil {
+		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
+	}
+	got, err := GetCaptchaAttemptByID(attempt.ID)
+	if err != nil {
+		t.Fatalf("GetCaptchaAttemptByID() error = %v", err)
+	}
+	if got.MessageID != 98765 {
+		t.Fatalf("MessageID = %d, want 98765", got.MessageID)
+	}
+
+	refreshed, err := UpdateCaptchaAttemptOnRefreshByID(attempt.ID, "new", 12345)
+	if err != nil {
+		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID() error = %v", err)
+	}
+	if refreshed == nil {
+		t.Fatal("UpdateCaptchaAttemptOnRefreshByID() returned nil, want attempt")
+	}
+	if refreshed.Answer != "new" {
+		t.Fatalf("Answer = %q, want new", refreshed.Answer)
+	}
+	if refreshed.MessageID != 12345 {
+		t.Fatalf("MessageID = %d, want 12345", refreshed.MessageID)
+	}
+	if refreshed.RefreshCount != 1 {
+		t.Fatalf("RefreshCount = %d, want 1", refreshed.RefreshCount)
+	}
+
+	missing, err := UpdateCaptchaAttemptOnRefreshByID(attempt.ID+999_999, "missing", 1)
+	if err != nil {
+		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID(missing) error = %v", err)
+	}
+	if missing != nil {
+		t.Fatalf("UpdateCaptchaAttemptOnRefreshByID(missing) = %+v, want nil", missing)
+	}
+}
+
+func TestCaptchaAttempt_BulkAndExpiryQueries(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	chatID := base + 1501
+
+	expired, err := CreateCaptchaAttemptPreMessage(base+1502, chatID, "expired", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage(expired) error = %v", err)
+	}
+	active, err := CreateCaptchaAttemptPreMessage(base+1503, chatID, "active", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage(active) error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("id IN ?", []uint{expired.ID, active.ID}).Delete(&CaptchaAttempts{}).Error
+	})
+
+	past := time.Now().Add(-10 * time.Minute)
+	if err := DB.Model(&CaptchaAttempts{}).Where("id = ?", expired.ID).Updates(map[string]any{
+		"created_at": past,
+		"expires_at": past.Add(time.Minute),
+	}).Error; err != nil {
+		t.Fatalf("failed to expire attempt: %v", err)
+	}
+
+	expiredAttempts, err := GetExpiredCaptchaAttempts()
+	if err != nil {
+		t.Fatalf("GetExpiredCaptchaAttempts() error = %v", err)
+	}
+	if !containsCaptchaAttemptID(expiredAttempts, expired.ID) {
+		t.Fatalf("GetExpiredCaptchaAttempts() did not include expired attempt %d", expired.ID)
+	}
+	if containsCaptchaAttemptID(expiredAttempts, active.ID) {
+		t.Fatalf("GetExpiredCaptchaAttempts() included active attempt %d", active.ID)
+	}
+
+	allAttempts, err := GetAllPendingCaptchaAttempts()
+	if err != nil {
+		t.Fatalf("GetAllPendingCaptchaAttempts() error = %v", err)
+	}
+	if !containsCaptchaAttemptID(allAttempts, expired.ID) || !containsCaptchaAttemptID(allAttempts, active.ID) {
+		t.Fatalf("GetAllPendingCaptchaAttempts() missing expected attempts")
+	}
+
+	deleted, err := DeleteCaptchaAttemptsByIDs([]uint{})
+	if err != nil {
+		t.Fatalf("DeleteCaptchaAttemptsByIDs(empty) error = %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("DeleteCaptchaAttemptsByIDs(empty) deleted = %d, want 0", deleted)
+	}
+
+	deleted, err = DeleteCaptchaAttemptsByIDs([]uint{expired.ID, active.ID})
+	if err != nil {
+		t.Fatalf("DeleteCaptchaAttemptsByIDs() error = %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("DeleteCaptchaAttemptsByIDs() deleted = %d, want 2", deleted)
+	}
+}
+
+func TestStoredMessages_CountAndDeleteByUser(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	userID := base + 1600
+	chatID := base + 1601
+
+	attempt, err := CreateCaptchaAttemptPreMessage(userID, chatID, "answer", 5)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DeleteStoredMessagesForAttempt(attempt.ID)
+		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+	})
+
+	for i := 0; i < 3; i++ {
+		if err := StoreMessageForCaptcha(userID, chatID, attempt.ID, 1, fmt.Sprintf("msg-%d", i), "", ""); err != nil {
+			t.Fatalf("StoreMessageForCaptcha(%d) error = %v", i, err)
+		}
+	}
+
+	count, err := CountStoredMessagesForAttempt(attempt.ID)
+	if err != nil {
+		t.Fatalf("CountStoredMessagesForAttempt() error = %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("CountStoredMessagesForAttempt() = %d, want 3", count)
+	}
+
+	if err := DeleteStoredMessagesForUser(userID, chatID); err != nil {
+		t.Fatalf("DeleteStoredMessagesForUser() error = %v", err)
+	}
+	count, err = CountStoredMessagesForAttempt(attempt.ID)
+	if err != nil {
+		t.Fatalf("CountStoredMessagesForAttempt(after delete) error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("CountStoredMessagesForAttempt(after delete) = %d, want 0", count)
+	}
+}
+
+func containsCaptchaAttemptID(attempts []*CaptchaAttempts, id uint) bool {
+	for _, attempt := range attempts {
+		if attempt.ID == id {
+			return true
+		}
+	}
+	return false
+}
