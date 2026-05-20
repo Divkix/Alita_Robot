@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
@@ -107,6 +108,62 @@ func TestTracingProcessor_SkipsSpanForWebhookContext(t *testing.T) {
 	raw := ctx.Data[ContextDataKey]
 	if raw != webhookCtx {
 		t.Fatal("webhook context must not be replaced")
+	}
+}
+
+func TestTracingProcessorProcessUpdateInjectsContext(t *testing.T) {
+	ctx := &ext.Context{}
+	processor := TracingProcessor{}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, ctx); err != nil {
+		t.Fatalf("ProcessUpdate() error = %v", err)
+	}
+
+	raw, ok := ctx.Data[ContextDataKey]
+	if !ok {
+		t.Fatal("ProcessUpdate() did not inject tracing context")
+	}
+	if _, ok := raw.(context.Context); !ok {
+		t.Fatalf("ProcessUpdate() context entry type = %T, want context.Context", raw)
+	}
+}
+
+func TestTracingProcessorProcessUpdatePreservesExistingContext(t *testing.T) {
+	existingCtx := context.WithValue(context.Background(), contextTestKey("existing"), "true")
+	ctx := &ext.Context{
+		Data: map[string]any{
+			ContextDataKey: existingCtx,
+		},
+	}
+	processor := TracingProcessor{}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, ctx); err != nil {
+		t.Fatalf("ProcessUpdate() error = %v", err)
+	}
+
+	if got := ctx.Data[ContextDataKey]; got != existingCtx {
+		t.Fatalf("ProcessUpdate() replaced existing context: got %v, want %v", got, existingCtx)
+	}
+}
+
+func TestTracingProcessorProcessUpdateRunsCallback(t *testing.T) {
+	// Do not use t.Parallel() - tests global state.
+	var called atomic.Int32
+	SetOnProcessUpdateCallback(func() {
+		called.Add(1)
+	})
+	defer SetOnProcessUpdateCallback(nil)
+
+	processor := TracingProcessor{}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, &ext.Context{}); err != nil {
+		t.Fatalf("ProcessUpdate() error = %v", err)
+	}
+	if called.Load() != 1 {
+		t.Fatalf("ProcessUpdate() callback calls = %d, want 1", called.Load())
 	}
 }
 
