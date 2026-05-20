@@ -55,7 +55,10 @@ func newModuleBotClient() *moduleBotClient {
 			"editMessageText": json.RawMessage(
 				`{"message_id":9001,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
 			),
-			"deleteMessage": json.RawMessage(`true`),
+			"deleteMessage":        json.RawMessage(`true`),
+			"pinChatMessage":       json.RawMessage(`true`),
+			"unpinChatMessage":     json.RawMessage(`true`),
+			"unpinAllChatMessages": json.RawMessage(`true`),
 			"getMe": json.RawMessage(
 				`{"id":999,"is_bot":true,"first_name":"Alita","username":"AlitaTestBot"}`,
 			),
@@ -88,7 +91,12 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 	}
 	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "999" {
 		return json.RawMessage(
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`,
+			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_pin_messages":true,"can_delete_messages":true,"can_restrict_members":true,"can_promote_members":true,"can_change_info":true,"can_invite_users":true,"can_manage_chat":true}`,
+		), nil
+	}
+	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "777000" {
+		return json.RawMessage(
+			`{"status":"creator","user":{"id":777000,"is_bot":false,"first_name":"Telegram"}}`,
 		), nil
 	}
 	if response, ok := c.responses[method]; ok {
@@ -127,6 +135,29 @@ func newModuleMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.U
 		Text:      text,
 	}
 	return ext.NewContext(bot, &gotgbot.Update{UpdateId: 1, Message: msg}, nil)
+}
+
+func newModuleCallbackContext(
+	bot *gotgbot.Bot,
+	chat gotgbot.Chat,
+	from gotgbot.User,
+	data string,
+) *ext.Context {
+	msg := &gotgbot.Message{
+		MessageId: 102,
+		Date:      1,
+		Chat:      chat,
+		From:      &from,
+		Text:      "callback source",
+	}
+	query := &gotgbot.CallbackQuery{
+		Id:           "callback-1",
+		From:         from,
+		Message:      msg,
+		Data:         data,
+		ChatInstance: "test-chat-instance",
+	}
+	return ext.NewContext(bot, &gotgbot.Update{UpdateId: 2, CallbackQuery: query}, nil)
 }
 
 type moduleMemoryStore struct {
@@ -258,6 +289,7 @@ func TestMain(m *testing.M) {
 		&db.DisableSettings{},
 		&db.DisableChatSettings{},
 		&db.RulesSettings{},
+		&db.PinSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)
