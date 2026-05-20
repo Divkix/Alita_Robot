@@ -3,12 +3,16 @@ package modules
 import (
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -299,6 +303,72 @@ func TestInfoRepliesForUnknownNumericUser(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestInfoRepliesForKnownUserWithRoles(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	requireUserID := time.Now().UnixNano()
+
+	if err := db.EnsureUserInDb(requireUserID, "knownuser", "Known User"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+	if err := db.AddDev(requireUserID); err != nil {
+		t.Fatalf("AddDev() error = %v", err)
+	}
+	previousOwnerID := config.AppConfig.OwnerId
+	config.AppConfig.OwnerId = requireUserID
+	t.Cleanup(func() {
+		config.AppConfig.OwnerId = previousOwnerID
+		_ = db.RemDev(requireUserID)
+	})
+
+	ctx := newModuleMessageContext(bot, chat, user, "/info "+strconv.FormatInt(requireUserID, 10))
+
+	if err := miscModule.info(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("info() error = %v, want EndGroups", err)
+	}
+
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	text := calls[0].Params["text"].(string)
+	for _, want := range []string{"knownuser", "Known User", strconv.FormatInt(requireUserID, 10)} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("info text %q missing %q", text, want)
+		}
+	}
+}
+
+func TestInfoRepliesForKnownChannel(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	channelID := int64(-1001234567890)
+	if err := db.UpdateChannel(channelID, "News Channel", "newsroom"); err != nil {
+		t.Fatalf("UpdateChannel() error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, user, "/info "+strconv.FormatInt(channelID, 10))
+
+	if err := miscModule.info(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("info() error = %v, want EndGroups", err)
+	}
+
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	text := calls[0].Params["text"].(string)
+	for _, want := range []string{"News Channel", "newsroom", strconv.FormatInt(channelID, 10)} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("info text %q missing %q", text, want)
+		}
 	}
 }
 
