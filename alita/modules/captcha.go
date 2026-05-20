@@ -1398,7 +1398,9 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			log.Errorf("Failed to unmute user %d: %v", targetUserID, err)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_failed_verify")
-			_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			if _, answerErr := query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text}); answerErr != nil {
+				return errors.Join(err, answerErr)
+			}
 			return err
 		}
 
@@ -1708,8 +1710,10 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	if sendErr != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_failed_send")
-		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return err
+		if _, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text}); err != nil {
+			return errors.Join(sendErr, err)
+		}
+		return sendErr
 	}
 
 	// Step 2: Update DB with new answer and message ID

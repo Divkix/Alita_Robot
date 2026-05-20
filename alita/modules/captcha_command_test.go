@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -751,6 +752,147 @@ func TestCaptchaRefreshCallbackSendsNewChallengeAndUpdatesAttempt(t *testing.T) 
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want refresh success answer", len(calls))
+	}
+}
+
+func TestCaptchaCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name   string
+		text   string
+		method string
+		run    func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "captcha status", text: "/captcha", method: "sendMessage", run: captchaModule.captchaCommand},
+		{name: "captcha enable", text: "/captcha on", method: "sendMessage", run: captchaModule.captchaCommand},
+		{name: "captcha mode", text: "/captchamode text", method: "sendMessage", run: captchaModule.captchaModeCommand},
+		{name: "captcha timeout", text: "/captchatime 5", method: "sendMessage", run: captchaModule.captchaTimeCommand},
+		{name: "captcha action", text: "/captchaaction ban", method: "sendMessage", run: captchaModule.captchaActionCommand},
+		{name: "captcha max attempts", text: "/captchamaxattempts 4", method: "sendMessage", run: captchaModule.captchaMaxAttemptsCommand},
+		{name: "captcha pending empty", text: "/captchapending 424242", method: "sendMessage", run: captchaModule.viewPendingMessages},
+		{name: "captcha clear empty", text: "/captchaclear 424242", method: "sendMessage", run: captchaModule.clearPendingMessages},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
+func TestSendCaptchaPropagatesGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+	}{
+		{name: "user validation", method: "getChatMember"},
+		{name: "challenge send", method: "sendPhoto"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			if err := db.SetCaptchaEnabled(chat.Id, true); err != nil {
+				t.Fatalf("SetCaptchaEnabled() error = %v", err)
+			}
+			ctx := newModuleMessageContext(bot, chat, admin, "join")
+
+			err := SendCaptcha(bot, ctx, 42, "Member")
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("SendCaptcha returned error %v, want request error", err)
+			}
+		})
+	}
+}
+
+func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name    string
+		method  string
+		build   func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context
+		wantErr error
+		run     func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{
+			name:   "verify wrong answer response",
+			method: "answerCallbackQuery",
+			build: func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				t.Helper()
+				attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+				if err != nil {
+					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_verify.%d.42.8", attempt.ID))
+			},
+			run: captchaModule.captchaVerifyCallback,
+		},
+		{
+			name:   "verify unmute request",
+			method: "restrictChatMember",
+			build: func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				t.Helper()
+				attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+				if err != nil {
+					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_verify.%d.42.7", attempt.ID))
+			},
+			run: captchaModule.captchaVerifyCallback,
+		},
+		{
+			name:   "refresh challenge send",
+			method: "sendPhoto",
+			build: func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				t.Helper()
+				attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+				if err != nil {
+					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_refresh.%d.42", attempt.ID))
+			},
+			run: captchaModule.captchaRefreshCallback,
+		},
+		{
+			name:   "refresh success response",
+			method: "answerCallbackQuery",
+			build: func(t *testing.T, bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
+				t.Helper()
+				attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+				if err != nil {
+					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+				}
+				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_refresh.%d.42", attempt.ID))
+			},
+			run: captchaModule.captchaRefreshCallback,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+
+			err := tt.run(bot, tt.build(t, bot, chat))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.name, err)
+			}
+		})
 	}
 }
 
