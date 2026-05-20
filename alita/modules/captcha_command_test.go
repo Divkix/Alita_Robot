@@ -476,6 +476,85 @@ func TestCaptchaVerifyCallbackFinalWrongAnswerAppliesFailureAction(t *testing.T)
 	}
 }
 
+func TestHandleCaptchaTimeoutAppliesKickMuteAndSkipsStaleAttempts(t *testing.T) {
+	tests := []struct {
+		name           string
+		action         string
+		wantBan        int
+		wantUnban      int
+		wantRestrict   int
+		withStoredText bool
+	}{
+		{name: "kick", action: "kick", wantBan: 1, wantUnban: 1},
+		{name: "mute with stored messages", action: "mute", wantRestrict: 1, withStoredText: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			member := gotgbot.User{Id: 42, FirstName: "Member"}
+			attempt, err := db.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+			if err != nil {
+				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+			}
+			if tt.withStoredText {
+				if err := db.StoreMessageForCaptcha(member.Id, chat.Id, attempt.ID, db.TEXT, "blocked", "", ""); err != nil {
+					t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+				}
+			}
+
+			handleCaptchaTimeout(bot, chat.Id, member.Id, attempt.ID, 456, tt.action)
+
+			if current, err := db.GetCaptchaAttempt(member.Id, chat.Id); err != nil || current != nil {
+				t.Fatalf("GetCaptchaAttempt() after timeout = %#v, %v; want nil, nil", current, err)
+			}
+			if calls := client.callsFor("banChatMember"); len(calls) != tt.wantBan {
+				t.Fatalf("banChatMember calls = %d, want %d", len(calls), tt.wantBan)
+			}
+			if calls := client.callsFor("unbanChatMember"); len(calls) != tt.wantUnban {
+				t.Fatalf("unbanChatMember calls = %d, want %d", len(calls), tt.wantUnban)
+			}
+			if calls := client.callsFor("restrictChatMember"); len(calls) != tt.wantRestrict {
+				t.Fatalf("restrictChatMember calls = %d, want %d", len(calls), tt.wantRestrict)
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want timeout notice", len(calls))
+			}
+			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+				t.Fatalf("deleteMessage calls = %d, want captcha message cleanup", len(calls))
+			}
+		})
+	}
+
+	t.Run("missing attempt", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		handleCaptchaTimeout(bot, uniqueModuleChatID(), 42, 999999, 456, "kick")
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want none for missing attempt", len(calls))
+		}
+	})
+
+	t.Run("identity mismatch", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+		attempt, err := db.CreateCaptchaAttemptPreMessage(42, chat.Id, "7", 2)
+		if err != nil {
+			t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+		}
+		handleCaptchaTimeout(bot, chat.Id, 43, attempt.ID, 456, "kick")
+		if current, err := db.GetCaptchaAttemptByID(attempt.ID); err != nil || current == nil {
+			t.Fatalf("GetCaptchaAttemptByID() after mismatch = %#v, %v; want retained attempt", current, err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want none for identity mismatch", len(calls))
+		}
+	})
+}
+
 func TestCaptchaRefreshCallbackValidationBranches(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
