@@ -21,14 +21,12 @@ func setupMonitoringDB(t *testing.T) {
 	t.Helper()
 
 	monitoringDBOnce.Do(func() {
-		if db.DB == nil {
-			db.DB, monitoringDBErr = gorm.Open(
-				sqlite.Open("file:monitoring_test?mode=memory&cache=shared"),
-				&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},
-			)
-			if monitoringDBErr != nil {
-				return
-			}
+		db.DB, monitoringDBErr = gorm.Open(
+			sqlite.Open("file:monitoring_test?mode=memory&cache=shared"),
+			&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},
+		)
+		if monitoringDBErr != nil {
+			return
 		}
 		monitoringDBErr = db.DB.AutoMigrate(&db.Chat{}, &db.User{})
 	})
