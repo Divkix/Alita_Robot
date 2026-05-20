@@ -1,11 +1,108 @@
 package db
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
 )
+
+// ---------------------------------------------------------------------------
+// EnsureBotInDb
+// ---------------------------------------------------------------------------
+
+type fakeBotClient struct {
+	response json.RawMessage
+	err      error
+}
+
+func (f fakeBotClient) RequestWithContext(context.Context, string, string, map[string]any, *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.response, nil
+}
+
+func (f fakeBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (f fakeBotClient) FileURL(token string, tgFilePath string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + tgFilePath
+}
+
+func TestEnsureBotInDbUsesGetMeResponse(t *testing.T) {
+	skipIfNoDb(t)
+
+	botID := time.Now().UnixNano()
+	bot := &gotgbot.Bot{
+		Token: "123:test",
+		User: gotgbot.User{
+			Id:        botID,
+			Username:  "stale_bot",
+			FirstName: "Stale",
+		},
+		BotClient: fakeBotClient{response: json.RawMessage(fmt.Sprintf(
+			`{"id":%d,"is_bot":true,"first_name":"Fresh","username":"fresh_bot"}`,
+			botID,
+		))},
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("user_id = ?", botID).Delete(&User{}).Error
+	})
+
+	if err := EnsureBotInDb(bot); err != nil {
+		t.Fatalf("EnsureBotInDb() error = %v", err)
+	}
+
+	var user User
+	if err := DB.Where("user_id = ?", botID).First(&user).Error; err != nil {
+		t.Fatalf("expected bot user record: %v", err)
+	}
+	if user.UserName != "fresh_bot" {
+		t.Fatalf("UserName = %q, want fresh_bot", user.UserName)
+	}
+	if user.Name != "Fresh" {
+		t.Fatalf("Name = %q, want Fresh", user.Name)
+	}
+}
+
+func TestEnsureBotInDbFallsBackToEmbeddedBotOnGetMeError(t *testing.T) {
+	skipIfNoDb(t)
+
+	botID := time.Now().UnixNano()
+	bot := &gotgbot.Bot{
+		Token: "123:test",
+		User: gotgbot.User{
+			Id:        botID,
+			Username:  "fallback_bot",
+			FirstName: "Fallback",
+		},
+		BotClient: fakeBotClient{err: fmt.Errorf("telegram unavailable")},
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("user_id = ?", botID).Delete(&User{}).Error
+	})
+
+	if err := EnsureBotInDb(bot); err != nil {
+		t.Fatalf("EnsureBotInDb() error = %v", err)
+	}
+
+	var user User
+	if err := DB.Where("user_id = ?", botID).First(&user).Error; err != nil {
+		t.Fatalf("expected fallback bot user record: %v", err)
+	}
+	if user.UserName != "fallback_bot" {
+		t.Fatalf("UserName = %q, want fallback_bot", user.UserName)
+	}
+	if user.Name != "Fallback" {
+		t.Fatalf("Name = %q, want Fallback", user.Name)
+	}
+}
 
 // ---------------------------------------------------------------------------
 // EnsureUserInDb
