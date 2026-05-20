@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -703,5 +704,174 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 	LoadBans(dispatcher)
 	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(bansModule.moduleName); moduleName != bansModule.moduleName || !enabled {
 		t.Fatalf("bans help registration = (%q, %v), want enabled", moduleName, enabled)
+	}
+}
+
+func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
+	channelReplyContext := func(bot *gotgbot.Bot, text string) *ext.Context {
+		ctx := newModuleMessageContext(bot, chat, admin, text)
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			MessageId: 304,
+			Date:      1,
+			Chat:      chat,
+			SenderChat: &gotgbot.Chat{
+				Id:    channel.Id,
+				Type:  channel.Type,
+				Title: channel.Title,
+			},
+			Text: "channel post",
+		}
+		return ctx
+	}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+		text   string
+		ctx    func(*gotgbot.Bot) *ext.Context
+		run    func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{
+			name:   "ban member failure",
+			method: "banChatMember",
+			text:   "/ban spam",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/ban spam") },
+			run:    bansModule.ban,
+		},
+		{
+			name:   "ban anonymous sender failure",
+			method: "banChatSenderChat",
+			text:   "/ban -1001234567890",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return channelReplyContext(bot, "/ban -1001234567890") },
+			run:    bansModule.ban,
+		},
+		{
+			name:   "ban send failure",
+			method: "sendMessage",
+			text:   "/ban spam",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/ban spam") },
+			run:    bansModule.ban,
+		},
+		{
+			name:   "temporary ban failure",
+			method: "banChatMember",
+			text:   "/tban 1h spam",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/tban 1h spam")
+			},
+			run: bansModule.tBan,
+		},
+		{
+			name:   "temporary ban get chat failure",
+			method: "getChat",
+			text:   "/tban 1h spam",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/tban 1h spam")
+			},
+			run: bansModule.tBan,
+		},
+		{
+			name:   "silent ban member failure",
+			method: "banChatMember",
+			text:   "/sban",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/sban") },
+			run:    bansModule.sBan,
+		},
+		{
+			name:   "silent ban delete failure",
+			method: "deleteMessage",
+			text:   "/sban",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/sban") },
+			run:    bansModule.sBan,
+		},
+		{
+			name:   "delete ban delete failure",
+			method: "deleteMessage",
+			text:   "/dban bad post",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/dban bad post")
+			},
+			run: bansModule.dBan,
+		},
+		{
+			name:   "delete ban member failure",
+			method: "banChatMember",
+			text:   "/dban bad post",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/dban bad post")
+			},
+			run: bansModule.dBan,
+		},
+		{
+			name:   "delete ban get chat failure",
+			method: "getChat",
+			text:   "/dban bad post",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/dban bad post")
+			},
+			run: bansModule.dBan,
+		},
+		{
+			name:   "delete kick member failure",
+			method: "banChatMember",
+			text:   "/dkick cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")
+			},
+			run: bansModule.dkick,
+		},
+		{
+			name:   "delete kick get chat failure",
+			method: "getChat",
+			text:   "/dkick cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")
+			},
+			run: bansModule.dkick,
+		},
+		{
+			name:   "unban member failure",
+			method: "unbanChatMember",
+			text:   "/unban 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unban 42") },
+			run:    bansModule.unban,
+		},
+		{
+			name:   "unban get chat failure",
+			method: "getChat",
+			text:   "/unban 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unban 42") },
+			run:    bansModule.unban,
+		},
+		{
+			name:   "unban anonymous sender failure",
+			method: "unbanChatSenderChat",
+			text:   "/unban -1001234567890",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return channelReplyContext(bot, "/unban -1001234567890") },
+			run:    bansModule.unban,
+		},
+		{
+			name:   "unban send failure",
+			method: "sendMessage",
+			text:   "/unban 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unban 42") },
+			run:    bansModule.unban,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+
+			err := tt.run(bot, tt.ctx(bot))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -263,5 +264,114 @@ func TestUnmuteRejectsMissingChannelAndSelfTargets(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
 		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
+	}
+}
+
+func TestMuteCommandsPropagateGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Mute Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+		text   string
+		ctx    func(*gotgbot.Bot) *ext.Context
+		run    func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{
+			name:   "mute restrict failure",
+			method: "restrictChatMember",
+			text:   "/mute noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/mute noisy")
+			},
+			run: mutesModule.mute,
+		},
+		{
+			name:   "mute get chat failure",
+			method: "getChat",
+			text:   "/mute noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/mute noisy")
+			},
+			run: mutesModule.mute,
+		},
+		{
+			name:   "mute send failure",
+			method: "sendMessage",
+			text:   "/mute noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/mute noisy")
+			},
+			run: mutesModule.mute,
+		},
+		{
+			name:   "temporary mute restrict failure",
+			method: "restrictChatMember",
+			text:   "/tmute 1h noisy",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/tmute 1h noisy")
+			},
+			run: mutesModule.tMute,
+		},
+		{
+			name:   "silent mute restrict failure",
+			method: "restrictChatMember",
+			text:   "/smute",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newMuteReplyContext(bot, chat, admin, target, "/smute") },
+			run:    mutesModule.sMute,
+		},
+		{
+			name:   "delete mute delete failure",
+			method: "deleteMessage",
+			text:   "/dmute cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/dmute cleanup")
+			},
+			run: mutesModule.dMute,
+		},
+		{
+			name:   "delete mute restrict failure",
+			method: "restrictChatMember",
+			text:   "/dmute cleanup",
+			ctx: func(bot *gotgbot.Bot) *ext.Context {
+				return newMuteReplyContext(bot, chat, admin, target, "/dmute cleanup")
+			},
+			run: mutesModule.dMute,
+		},
+		{
+			name:   "unmute chat lookup failure",
+			method: "getChat",
+			text:   "/unmute 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unmute 42") },
+			run:    mutesModule.unmute,
+		},
+		{
+			name:   "unmute restrict failure",
+			method: "restrictChatMember",
+			text:   "/unmute 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unmute 42") },
+			run:    mutesModule.unmute,
+		},
+		{
+			name:   "unmute send failure",
+			method: "sendMessage",
+			text:   "/unmute 42",
+			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newModuleMessageContext(bot, chat, admin, "/unmute 42") },
+			run:    mutesModule.unmute,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+
+			err := tt.run(bot, tt.ctx(bot))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
 	}
 }
