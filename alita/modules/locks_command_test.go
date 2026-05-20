@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -92,6 +93,68 @@ func TestLockCommandsRejectMissingAndInvalidTypes(t *testing.T) {
 	}
 }
 
+func TestLockCommandsSkipMissingSenderAndPropagateReplyErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.UpdateLock(chat.Id, "url", true); err != nil {
+		t.Fatalf("UpdateLock setup error = %v", err)
+	}
+
+	t.Run("lock missing sender", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newModuleMessageContext(bot, chat, admin, "/lock url")
+		ctx.EffectiveSender = nil
+		if err := locksModule.lockPerm(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("lockPerm missing sender error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want none without sender", len(calls))
+		}
+	})
+
+	t.Run("unlock missing sender", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ctx := newModuleMessageContext(bot, chat, admin, "/unlock url")
+		ctx.EffectiveSender = nil
+		if err := locksModule.unlockPerm(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("unlockPerm missing sender error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want none without sender", len(calls))
+		}
+	})
+
+	for _, tt := range []struct {
+		name string
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "locktypes reply failure", text: "/locktypes", run: locksModule.locktypes},
+		{name: "locks reply failure", text: "/locks", run: locksModule.locks},
+		{name: "lock missing args reply failure", text: "/lock", run: locksModule.lockPerm},
+		{name: "lock invalid type reply failure", text: "/lock nope", run: locksModule.lockPerm},
+		{name: "lock success reply failure", text: "/lock url", run: locksModule.lockPerm},
+		{name: "unlock missing args reply failure", text: "/unlock", run: locksModule.unlockPerm},
+		{name: "unlock invalid type reply failure", text: "/unlock nope", run: locksModule.unlockPerm},
+		{name: "unlock success reply failure", text: "/unlock url", run: locksModule.unlockPerm},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors["sendMessage"] = requestErr
+			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
+
+			err := tt.run(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("%s returned error %v, want request error", tt.text, err)
+			}
+		})
+	}
+}
+
 func TestLockWatchersDeleteLockedContent(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -149,5 +212,85 @@ func TestBotLockHandlerBansNonAdminAddedBot(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want bot lock notice", len(calls))
+	}
+}
+
+func newBotLockContext(
+	bot *gotgbot.Bot,
+	chat gotgbot.Chat,
+	adder gotgbot.User,
+	addedBot gotgbot.User,
+) *ext.Context {
+	update := &gotgbot.Update{
+		UpdateId: 3,
+		ChatMember: &gotgbot.ChatMemberUpdated{
+			Chat:          chat,
+			From:          adder,
+			OldChatMember: gotgbot.ChatMemberLeft{User: addedBot},
+			NewChatMember: gotgbot.ChatMemberMember{User: addedBot},
+		},
+	}
+	ctx := ext.NewContext(bot, update, nil)
+	ctx.EffectiveSender = &gotgbot.Sender{User: &adder, ChatId: chat.Id}
+	return ctx
+}
+
+func TestBotLockHandlerSkipsUnlockedChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	unlockedChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Unlocked Lock Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
+
+	unlockedCtx := newBotLockContext(bot, unlockedChat, member, addedBot)
+	if err := locksModule.botLockHandler(bot, unlockedCtx); err != ext.ContinueGroups {
+		t.Fatalf("botLockHandler unlocked error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d, want none for unlocked bot lock", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want none for unlocked bot lock", len(calls))
+	}
+}
+
+func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
+
+	for _, tt := range []struct {
+		name   string
+		method string
+	}{
+		{name: "bot admin lookup failure reports missing permission", method: "getChatMember"},
+		{name: "ban failure", method: "banChatMember"},
+		{name: "notice send failure", method: "sendMessage"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+			if err := db.UpdateLock(chat.Id, "bots", true); err != nil {
+				t.Fatalf("UpdateLock bots setup error = %v", err)
+			}
+			ctx := newBotLockContext(bot, chat, member, addedBot)
+
+			err := locksModule.botLockHandler(bot, ctx)
+			if tt.method == "getChatMember" {
+				if err != ext.ContinueGroups {
+					t.Fatalf("botLockHandler() error = %v, want ContinueGroups for permission notice", err)
+				}
+				if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+					t.Fatalf("sendMessage calls = %d, want no-permission notice", len(calls))
+				}
+				return
+			}
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("botLockHandler() error = %v, want request error", err)
+			}
+		})
 	}
 }

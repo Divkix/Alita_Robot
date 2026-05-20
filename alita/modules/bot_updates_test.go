@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -79,6 +80,50 @@ func TestBotJoinedSupergroupSendsWelcome(t *testing.T) {
 	}
 	if calls := client.callsFor("leaveChat"); len(calls) != 0 {
 		t.Fatalf("leaveChat calls = %d, want none for supergroup", len(calls))
+	}
+}
+
+func TestBotJoinedGroupPropagatesGotgbotRequestErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	for _, tt := range []struct {
+		name   string
+		chat   gotgbot.Chat
+		method string
+	}{
+		{
+			name:   "basic group migration notice",
+			chat:   gotgbot.Chat{Id: uniqueModuleChatID(), Type: "group", Title: "Basic Group"},
+			method: "sendMessage",
+		},
+		{
+			name:   "basic group leave",
+			chat:   gotgbot.Chat{Id: uniqueModuleChatID(), Type: "group", Title: "Basic Group"},
+			method: "leaveChat",
+		},
+		{
+			name:   "channel leave",
+			chat:   gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Broadcast"},
+			method: "leaveChat",
+		},
+		{
+			name:   "supergroup welcome",
+			chat:   gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Super Group"},
+			method: "sendMessage",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tt.method] = requestErr
+			ctx := newModuleMessageContext(bot, tt.chat, user, "bot joined")
+
+			err := botJoinedGroup(bot, ctx)
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("botJoinedGroup() error = %v, want request error", err)
+			}
+		})
 	}
 }
 
@@ -173,6 +218,21 @@ func TestVerifyAnonymousAdminRejectsMalformedCallbackData(t *testing.T) {
 	}
 }
 
+func TestVerifyAnonymousAdminSkipsMissingCallbackQuery(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
+
+	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none without callback query", len(calls))
+	}
+}
+
 func TestVerifyAnonymousAdminRejectsNonAdmin(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -220,6 +280,54 @@ func TestVerifyAnonymousAdminEditsExpiredButton(t *testing.T) {
 	}
 }
 
+func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	t.Run("expired button edit failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["editMessageText"] = requestErr
+		data := encodeCallbackData("anon_admin", map[string]string{
+			"c": fmt.Sprint(chat.Id),
+			"m": "202",
+		}, "")
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+		err := verifyAnonymousAdmin(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("verifyAnonymousAdmin() error = %v, want edit request error", err)
+		}
+	})
+
+	t.Run("cached command delete failure", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		client.errors["deleteMessage"] = requestErr
+		cached := &gotgbot.Message{
+			MessageId: 404,
+			Date:      1,
+			Chat:      chat,
+			Text:      "/unknown",
+		}
+		key := fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, cached.MessageId)
+		if err := cache.Marshal.Set(cache.Context, key, cached); err != nil {
+			t.Fatalf("cache set: %v", err)
+		}
+		data := encodeCallbackData("anon_admin", map[string]string{
+			"c": fmt.Sprint(chat.Id),
+			"m": fmt.Sprint(cached.MessageId),
+		}, "")
+		ctx := newModuleCallbackContext(bot, chat, admin, data)
+
+		err := verifyAnonymousAdmin(bot, ctx)
+		if !errors.Is(err, requestErr) {
+			t.Fatalf("verifyAnonymousAdmin() error = %v, want delete request error", err)
+		}
+	})
+}
+
 func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -262,5 +370,22 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 	}
 	if ctx.EffectiveMessage.SenderChat != nil {
 		t.Fatal("SenderChat was not cleared before command replay")
+	}
+}
+
+func TestBotUpdatesLoadersRegisterExpectedHandlers(t *testing.T) {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBotUpdates(dispatcher)
+	if removed := dispatcher.RemoveGroup(-1); removed {
+		t.Fatal("LoadBotUpdates should be a deprecated no-op")
+	}
+
+	moduleDispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	botUpdatesModule{}.Load(moduleDispatcher)
+	if removed := moduleDispatcher.RemoveGroup(-1); !removed {
+		t.Fatal("botUpdatesModule.Load did not register join handler in group -1")
+	}
+	if removed := moduleDispatcher.RemoveGroup(0); !removed {
+		t.Fatal("botUpdatesModule.Load did not register standard handlers in group 0")
 	}
 }
