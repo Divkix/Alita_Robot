@@ -245,10 +245,12 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) {
 			if settingsErr != nil {
 				log.Warnf("[CaptchaRecovery] Failed to load captcha settings for chat %d: %v", attempt.ChatID, settingsErr)
 				failedCount++
+				continue
 			}
 			if settings == nil {
 				settings = &db.CaptchaSettings{FailureAction: "kick"}
 			}
+
 
 			// Apply failure action
 			switch settings.FailureAction {

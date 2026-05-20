@@ -1,4 +1,7 @@
+//go:build testtools
+
 package cache
+
 
 import (
 	"sync"

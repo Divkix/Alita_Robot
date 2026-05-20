@@ -204,12 +204,13 @@ var cacheGroup singleflight.Group
 func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
     var result T
 
-    if cache.GetMarshal() == nil {
+    m := cache.GetMarshal()
+    if m == nil {
         return loader()  // Cache not initialized
     }
 
     // Try cache first
-    _, err := cache.GetMarshal().Get(cache.Context, key, &result)
+    _, err := m.Get(cache.Context, key, &result)
     if err == nil {
         return result, nil  // Cache hit
     }
@@ -232,7 +233,7 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
             }
 
             // Store in cache
-            cache.GetMarshal().Set(cache.Context, key, data, store.WithExpiration(ttl))
+            m.Set(cache.Context, key, data, store.WithExpiration(ttl))
             return data, nil
         })
 
@@ -285,11 +286,12 @@ When data changes, invalidate the cache:
 
 ```go
 func deleteCache(key string) {
-    if cache.GetMarshal() == nil {
+    m := cache.GetMarshal()
+    if m == nil {
         return
     }
 
-    err := cache.GetMarshal().Delete(cache.Context, key)
+    err := m.Delete(cache.Context, key)
     if err != nil {
         log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
     }
