@@ -4,7 +4,37 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/db"
 )
+
+func TestFormattingReplacerWithoutRulesDoesNotRequireDatabase(t *testing.T) {
+	t.Parallel()
+
+	originalDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = originalDB })
+
+	chat := &gotgbot.Chat{Id: -1001234567890, Title: `<Group & Co>`}
+	user := &gotgbot.User{
+		Id:        42,
+		FirstName: `<Ada>`,
+		LastName:  `Lovelace & Byron`,
+		Username:  `ada<&>`,
+	}
+	input := `{first}|{last}|{fullname}|{username}|{mention}|{chatname}|{id}`
+
+	got, buttons := FormattingReplacerWithLanguage(nil, chat, user, input, nil, "en")
+	want := `&lt;Ada&gt;|Lovelace &amp; Byron|&lt;Ada&gt; Lovelace &amp; Byron|@ada&lt;&amp;&gt;|@ada&lt;&amp;&gt;|&lt;Group &amp; Co&gt;|42`
+	if got != want {
+		t.Fatalf("FormattingReplacerWithLanguage() = %q, want %q", got, want)
+	}
+	if len(buttons) != 0 {
+		t.Fatalf("FormattingReplacerWithLanguage() buttons = %#v, want none", buttons)
+	}
+}
 
 func TestSendMessageOptionBuilders(t *testing.T) {
 	t.Parallel()

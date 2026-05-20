@@ -232,6 +232,15 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 	res = r.Replace(oldMsg)
 	btns = buttons
 
+	pattern, err := regexp.Compile(rulesBtnRegex)
+	if err != nil {
+		log.Error(err)
+		return res, btns
+	}
+	if !pattern.MatchString(res) {
+		return res, btns
+	}
+
 	rulesDb := db.GetChatRulesInfo(chat.Id)
 	rulesBtnText := rulesDb.RulesBtn
 	if rulesBtnText == "" {
@@ -244,34 +253,27 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 	}
 
 	if rulesDb.Rules != "" {
-		pattern, err := regexp.Compile(rulesBtnRegex)
-		if err != nil {
-			log.Error(err)
-			return res, btns
+		response := pattern.FindStringSubmatch(res)
+
+		sameline := false
+		if response[2] == "same" {
+			sameline = true
 		}
-		if pattern.MatchString(res) {
-			response := pattern.FindStringSubmatch(res)
 
-			sameline := false
-			if response[2] == "same" {
-				sameline = true
-			}
-
-			rulesButton := db.Button{
-				Name:     rulesBtnText,
-				Url:      fmt.Sprintf("https://t.me/%s?start=rules_%d", b.Username, chat.Id),
-				SameLine: sameline,
-			}
-
-			if response[2] == "up" {
-				btns = []db.Button{rulesButton}
-				btns = append(btns, buttons...)
-			} else {
-				btns = buttons
-				btns = append(btns, rulesButton)
-			}
-			res = pattern.ReplaceAllString(res, "")
+		rulesButton := db.Button{
+			Name:     rulesBtnText,
+			Url:      fmt.Sprintf("https://t.me/%s?start=rules_%d", b.Username, chat.Id),
+			SameLine: sameline,
 		}
+
+		if response[2] == "up" {
+			btns = []db.Button{rulesButton}
+			btns = append(btns, buttons...)
+		} else {
+			btns = buttons
+			btns = append(btns, rulesButton)
+		}
+		res = pattern.ReplaceAllString(res, "")
 	}
 
 	return res, btns
