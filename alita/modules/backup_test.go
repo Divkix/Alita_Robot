@@ -53,6 +53,9 @@ backup_import_file_too_large: "File is too large"
 backup_import_invalid_file: "Invalid backup file"
 backup_import_download_failed: "Download failed"
 backup_import_rate_limited: "Wait {time}"
+backup_import_expired: "Import expired"
+backup_reset_expired: "Reset expired"
+common_callback_invalid_request: "Invalid callback"
 button_confirm_import: "Confirm Import"
 button_cancel_import: "Cancel Import"
 button_confirm_reset: "Confirm Reset"
@@ -558,6 +561,39 @@ func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
 	assert.Equal(t, ext.EndGroups, err)
 	assert.Contains(t, pendingModules, chat.Id)
 	assert.Empty(t, client.callsFor("sendMessage"))
+}
+
+func TestBackupCallbackHandlerRejectsInvalidCallbackData(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	ctx := newModuleCallbackContext(bot, chat, owner, "not-a-backup-callback")
+
+	err := backupModule.backupCallbackHandler(bot, ctx)
+
+	assert.Equal(t, ext.EndGroups, err)
+	assert.Len(t, client.callsFor("answerCallbackQuery"), 1)
+}
+
+func TestBackupConfirmHandlersReportExpiredState(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := &gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+	tr := testTranslator(t)
+	ctx := &ext.Context{}
+	t.Cleanup(func() {
+		delete(pendingImports, chat.Id)
+		delete(pendingModules, chat.Id)
+	})
+
+	err := backupModule.handleConfirmImport(bot, ctx, tr, chat)
+	assert.Equal(t, ext.EndGroups, err)
+	assert.Len(t, client.callsFor("sendMessage"), 1)
+
+	err = backupModule.handleConfirmReset(bot, ctx, tr, chat)
+	assert.Equal(t, ext.EndGroups, err)
+	assert.Len(t, client.callsFor("sendMessage"), 2)
 }
 
 func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
