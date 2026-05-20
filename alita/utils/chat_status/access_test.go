@@ -13,6 +13,72 @@ func makeCtxWithMessage(chatType string) *ext.Context {
 	return ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
 }
 
+func TestExtractChatFromContext(t *testing.T) {
+	t.Parallel()
+
+	explicit := &gotgbot.Chat{Id: 10, Type: "supergroup"}
+	if got := extractChatFromContext(nil, explicit); got != explicit {
+		t.Fatal("extractChatFromContext() should prefer explicit chat")
+	}
+
+	messageCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{Message: &gotgbot.Message{Chat: gotgbot.Chat{Id: 20, Type: "group"}}},
+		nil,
+	)
+	if got := extractChatFromContext(messageCtx, nil); got == nil || got.Id != 20 {
+		t.Fatalf("extractChatFromContext(message) = %#v, want chat id 20", got)
+	}
+
+	callbackCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			CallbackQuery: &gotgbot.CallbackQuery{
+				Message: gotgbot.Message{Chat: gotgbot.Chat{Id: 30, Type: "group"}},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(callbackCtx, nil); got == nil || got.Id != 30 {
+		t.Fatalf("extractChatFromContext(callback) = %#v, want chat id 30", got)
+	}
+
+	myChatMemberCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			MyChatMember: &gotgbot.ChatMemberUpdated{
+				Chat: gotgbot.Chat{Id: 40, Type: "channel"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(myChatMemberCtx, nil); got == nil || got.Id != 40 {
+		t.Fatalf("extractChatFromContext(my_chat_member) = %#v, want chat id 40", got)
+	}
+
+	if got := extractChatFromContext(nil, nil); got != nil {
+		t.Fatalf("extractChatFromContext(nil, nil) = %#v, want nil", got)
+	}
+}
+
+func TestHasUserPermissionRejectsMissingContextOrChat(t *testing.T) {
+	t.Parallel()
+
+	allow := func(*gotgbot.MergedChatMember) bool { return true }
+	if hasUserPermission(nil, nil, &gotgbot.Chat{Id: 1, Type: "group"}, 1, allow) {
+		t.Fatal("hasUserPermission() with nil context should be false")
+	}
+
+	emptyCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{},
+		nil,
+	)
+	if hasUserPermission(nil, emptyCtx, nil, 1, allow) {
+		t.Fatal("hasUserPermission() with no chat in context should be false")
+	}
+}
+
 func TestRequireGroupPure(t *testing.T) {
 	tests := []struct {
 		name     string
