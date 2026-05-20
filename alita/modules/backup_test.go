@@ -4,6 +4,7 @@ package modules
 
 import (
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -45,6 +46,7 @@ func testTranslator(t *testing.T) *i18n.Translator {
 backup_export_success: "Chat: {chat}, Modules: {modules}, Time: {time}, List: {list}"
 backup_import_file_too_large: "File is too large"
 backup_import_invalid_file: "Invalid backup file"
+backup_import_rate_limited: "Wait {time}"
 button_confirm_import: "Confirm Import"
 button_cancel_import: "Cancel Import"
 button_confirm_reset: "Confirm Reset"
@@ -127,6 +129,15 @@ func TestDownloadBackupFileRejectsInvalidDocumentBeforeNetwork(t *testing.T) {
 		assert.Nil(t, data)
 		assert.Equal(t, "File is too large", msg)
 	})
+}
+
+func TestCheckImportRateLimitAllowsWhenCacheUnavailable(t *testing.T) {
+	t.Parallel()
+
+	tr := testTranslator(t)
+	allowed, text := checkImportRateLimit(time.Now().UnixNano(), tr)
+	assert.True(t, allowed)
+	assert.Empty(t, text)
 }
 
 func TestBuildExportCaption(t *testing.T) {

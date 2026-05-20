@@ -5,6 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gorm.io/gorm"
+
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 // newTestRunner returns a MigrationRunner with nil db suitable for testing
@@ -467,6 +471,157 @@ func TestGetMigrationFiles(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// RunMigrations and applyMigration
+// ---------------------------------------------------------------------------
+
+func TestRunMigrations_RecordsAndSkipsAppliedFiles(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	migrationPath := filepath.Join(dir, "001_create_test_table.sql")
+	if err := os.WriteFile(migrationPath, []byte(`
+CREATE TABLE migration_runner_test_items (
+	id INTEGER PRIMARY KEY,
+	name TEXT
+);
+INSERT INTO migration_runner_test_items (id, name) VALUES (1, 'first');
+`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: DB, migrationsPath: dir, cleanSQL: true}
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() first run error = %v", err)
+	}
+
+	var itemCount int64
+	if err := DB.Table("migration_runner_test_items").Count(&itemCount).Error; err != nil {
+		t.Fatalf("failed to count migrated rows: %v", err)
+	}
+	if itemCount != 1 {
+		t.Fatalf("migrated row count = %d, want 1", itemCount)
+	}
+
+	if !runner.isMigrationApplied(filepath.Base(migrationPath)) {
+		t.Fatalf("migration %s was not recorded as applied", filepath.Base(migrationPath))
+	}
+
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() second run error = %v", err)
+	}
+	if err := DB.Table("migration_runner_test_items").Count(&itemCount).Error; err != nil {
+		t.Fatalf("failed to count migrated rows after second run: %v", err)
+	}
+	if itemCount != 1 {
+		t.Fatalf("migrated row count after skipped run = %d, want 1", itemCount)
+	}
+
+	t.Cleanup(func() {
+		_ = DB.Exec("DROP TABLE IF EXISTS migration_runner_test_items").Error
+		_ = DB.Where("version = ?", filepath.Base(migrationPath)).Delete(&SchemaMigration{}).Error
+	})
+}
+
+func TestApplyMigration_EmptyFileDoesNotRecordVersion(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "002_empty.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte("   \n\t  "), 0o600); err != nil {
+		t.Fatalf("failed to write empty migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: DB, migrationsPath: dir, cleanSQL: true}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err != nil {
+		t.Fatalf("applyMigration(empty) error = %v", err)
+	}
+	if runner.isMigrationApplied(version) {
+		t.Fatalf("empty migration %s was recorded as applied", version)
+	}
+}
+
+func TestApplyMigration_RollsBackFailedStatement(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "003_rollback.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte(`
+CREATE TABLE migration_runner_rollback_items (
+	id INTEGER PRIMARY KEY
+);
+INSERT INTO migration_runner_missing_table (id) VALUES (1);
+`), 0o600); err != nil {
+		t.Fatalf("failed to write rollback migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: DB, migrationsPath: dir, cleanSQL: true}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	err := runner.applyMigration(migrationPath, version)
+	if err == nil {
+		t.Fatal("applyMigration(failing) error = nil, want statement failure")
+	}
+	if !strings.Contains(err.Error(), "Statement preview") {
+		t.Fatalf("applyMigration(failing) error %q missing statement preview", err)
+	}
+	if runner.isMigrationApplied(version) {
+		t.Fatalf("failing migration %s was recorded as applied", version)
+	}
+	if DB.Migrator().HasTable("migration_runner_rollback_items") {
+		t.Fatalf("failed migration left migration_runner_rollback_items table behind")
+	}
+}
+
+func TestApplyMigration_RejectsUnsafePath(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	runner := &MigrationRunner{db: DB, migrationsPath: dir, cleanSQL: true}
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "outside directory", path: filepath.Join(t.TempDir(), "001_outside.sql")},
+		{name: "parent directory segment", path: dir + "/../001_parent.sql"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := runner.applyMigration(tc.path, filepath.Base(tc.path))
+			if err == nil {
+				t.Fatal("applyMigration() error = nil, want unsafe path rejection")
+			}
+			if !strings.Contains(err.Error(), "migration file path") {
+				t.Fatalf("applyMigration() error = %q, want path validation error", err)
+			}
+		})
+	}
+}
+
+func TestNewMigrationRunnerUsesConfiguredPath(t *testing.T) {
+	previousConfig := config.AppConfig
+	t.Cleanup(func() {
+		config.AppConfig = previousConfig
+	})
+	config.AppConfig = &config.Config{MigrationsPath: "custom-migrations"}
+
+	runner := NewMigrationRunner(&gorm.DB{})
+	if runner.migrationsPath != "custom-migrations" {
+		t.Fatalf("migrationsPath = %q, want custom-migrations", runner.migrationsPath)
+	}
+	if !runner.cleanSQL {
+		t.Fatal("cleanSQL = false, want true")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // findDollarQuoteBlocks
 // ---------------------------------------------------------------------------
 
@@ -506,8 +661,8 @@ func TestFindDollarQuoteBlocks(t *testing.T) {
 			wantCount: 0,
 		},
 		{
-			name:      "dollar quote inside line comment is ignored",
-			input:     `-- $$ not a block $$
+			name: "dollar quote inside line comment is ignored",
+			input: `-- $$ not a block $$
 SELECT 1;`,
 			wantCount: 0,
 		},

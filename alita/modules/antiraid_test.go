@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -64,6 +65,65 @@ func TestFormatDuration(t *testing.T) {
 				t.Errorf("formatDuration(%d) = %q, want %q", tc.input, got, tc.expected)
 			}
 		})
+	}
+}
+
+func TestAntiRaidKeysAndNoCacheFallbacks(t *testing.T) {
+	originalMarshal := cache.Marshal
+	cache.Marshal = nil
+	t.Cleanup(func() {
+		cache.Marshal = originalMarshal
+	})
+
+	chatID := int64(-1001234567890)
+	if got := stateKey(chatID); got != "alita:antiraid:state:-1001234567890" {
+		t.Fatalf("stateKey() = %q", got)
+	}
+	if got := joinsKey(chatID); got != "alita:antiraid:joins:-1001234567890" {
+		t.Fatalf("joinsKey() = %q", got)
+	}
+
+	count, err := trackJoin(chatID, 42)
+	if err == nil {
+		t.Fatal("trackJoin() error = nil, want cache not initialized")
+	}
+	if count != 0 {
+		t.Fatalf("trackJoin() count = %d, want 0", count)
+	}
+
+	clearJoinTracking(chatID)
+
+	state := getRaidState(chatID)
+	if state == nil {
+		t.Fatal("getRaidState() = nil, want inactive state")
+	}
+	if state.Active {
+		t.Fatalf("getRaidState() Active = true, want false")
+	}
+
+	if err := setRaidState(chatID, &raidState{Active: true}); err == nil {
+		t.Fatal("setRaidState() error = nil, want cache not initialized")
+	}
+}
+
+func TestStopAntiRaidExpiryPollerCancelsExistingContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	antiRaidCtx = ctx
+	antiRaidCancel = cancel
+	t.Cleanup(func() {
+		antiRaidCancel = nil
+		antiRaidCtx = nil
+	})
+
+	StopAntiRaidExpiryPoller()
+	if antiRaidCancel != nil {
+		t.Fatal("antiRaidCancel was not cleared")
+	}
+
+	select {
+	case <-ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("anti-raid context was not cancelled")
 	}
 }
 
