@@ -183,3 +183,37 @@ func TestDefaultRegistryIncludesEveryRuntimeModule(t *testing.T) {
 		t.Fatalf("default registry modules = %v, want %v", got, want)
 	}
 }
+
+func TestDefaultRegistryLoadsRuntimeModules(t *testing.T) {
+	originalHelpRegistry := defaultHelpRegistry
+	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry.AbleMap.Init()
+	t.Cleanup(func() {
+		defaultHelpRegistry = originalHelpRegistry
+	})
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAllModules(dispatcher)
+
+	loadedModules := defaultHelpRegistry.AbleMap.LoadModules()
+	if len(loadedModules) < 24 {
+		t.Fatalf("loaded module count = %d, want at least 24", len(loadedModules))
+	}
+
+	for _, moduleName := range []string{
+		"Admin",
+		"Antiflood",
+		"Blacklists",
+		"Captcha",
+		"Filters",
+		"Greetings",
+		"Locks",
+		"Notes",
+		"Warns",
+	} {
+		_, enabled := defaultHelpRegistry.AbleMap.Load(moduleName)
+		if !enabled {
+			t.Fatalf("%s was not enabled after LoadAllModules", moduleName)
+		}
+	}
+}
