@@ -233,12 +233,19 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) {
 		}
 
 		// Delete stored messages
-		_ = db.DeleteStoredMessagesForAttempt(attempt.ID)
+		if err := db.DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
+			log.Warnf("[CaptchaRecovery] Failed to delete stored messages for attempt %d: %v", attempt.ID, err)
+			failedCount++
+		}
 
 		// Get settings to apply failure action for expired attempts
 		if time.Now().After(attempt.ExpiresAt) {
 			// Expired - apply failure action
-			settings, _ := db.GetCaptchaSettings(attempt.ChatID)
+			settings, settingsErr := db.GetCaptchaSettings(attempt.ChatID)
+			if settingsErr != nil {
+				log.Warnf("[CaptchaRecovery] Failed to load captcha settings for chat %d: %v", attempt.ChatID, settingsErr)
+				failedCount++
+			}
 			if settings == nil {
 				settings = &db.CaptchaSettings{FailureAction: "kick"}
 			}

@@ -41,7 +41,8 @@ func TestPendingJoinsCacheNilMarshal(t *testing.T) {
 }
 
 func TestPendingJoinsCacheRoundTrip(t *testing.T) {
-	if cache.GetMarshal() == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		t.Skip("requires cache marshal")
 	}
 
@@ -49,7 +50,7 @@ func TestPendingJoinsCacheRoundTrip(t *testing.T) {
 	const userID int64 = 456789
 	key := fmt.Sprintf("alita:pendingJoins:%d:%d", chatID, userID)
 	t.Cleanup(func() {
-		_ = cache.GetMarshal().Delete(cache.Context, key)
+		_ = m.Delete(cache.Context, key)
 	})
 
 	greetingsModule.setPendingJoins(chatID, userID)

@@ -85,8 +85,8 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = DB.Where("chat_id = ?", chatID).Delete(&CaptchaSettings{}).Error
-		if cache.GetMarshal() != nil {
-			_ = cache.GetMarshal().Delete(cache.Context, CacheKey("captcha_settings", chatID))
+		if m := cache.GetMarshal(); m != nil {
+			_ = m.Delete(cache.Context, CacheKey("captcha_settings", chatID))
 		}
 	})
 
@@ -108,9 +108,9 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 	}
 
 	// If cache is available, verify the old default is no longer served
-	if cache.GetMarshal() != nil {
+	if m := cache.GetMarshal(); m != nil {
 		var cached CaptchaSettings
-		_, cacheErr := cache.GetMarshal().Get(cache.Context, CacheKey("captcha_settings", chatID), &cached)
+		_, cacheErr := m.Get(cache.Context, CacheKey("captcha_settings", chatID), &cached)
 		if cacheErr == nil && !cached.Enabled {
 			t.Fatalf("cache was not invalidated after SetCaptchaEnabled(true)")
 		}
