@@ -193,6 +193,20 @@ func TestRestrictedCacheUsesMemoryStoreWithoutRedis(t *testing.T) {
 	}
 }
 
+func TestRedisAccessorsWhenRedisIsNotInitialized(t *testing.T) {
+	withMemoryMarshaler(t)
+
+	if IsRedisAvailable() {
+		t.Fatal("IsRedisAvailable() = true, want false without Redis client")
+	}
+	if got := GetRedisClient(); got != nil {
+		t.Fatalf("GetRedisClient() = %#v, want nil", got)
+	}
+	if err := ClearAllCaches(); err == nil {
+		t.Fatal("ClearAllCaches() error = nil, want redis client not initialized")
+	}
+}
+
 func TestIsChatRestrictedAllowsMalformedAndStaleEntriesWithMemoryStore(t *testing.T) {
 	withMemoryMarshaler(t)
 
