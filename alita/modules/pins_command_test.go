@@ -51,6 +51,33 @@ func TestUnpinReplyWithoutPinnedMessageDoesNotCallTelegramUnpin(t *testing.T) {
 	}
 }
 
+func TestUnpinReplyWithPinnedMessageUnpinsReply(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, user, "/unpin")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId:      77,
+		Date:           1,
+		Chat:           chat,
+		Text:           "pinned",
+		PinnedMessage:  &gotgbot.Message{MessageId: 77, Date: 1, Chat: chat, Text: "pinned"},
+		ReplyToMessage: nil,
+	}
+	if err := pinsModule.unpin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unpin(pinned reply) error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("unpinChatMessage")
+	if len(calls) != 1 {
+		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
+	}
+	if got, ok := calls[0].Params["message_id"].(*int64); !ok || got == nil || *got != int64(77) {
+		t.Fatalf("unpinChatMessage message_id = %#v, want pointer to 77", calls[0].Params["message_id"])
+	}
+}
+
 func TestUnpinAllSendsConfirmationButtons(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -94,6 +121,21 @@ func TestUnpinAllCallbackExecutesAndCancels(t *testing.T) {
 	}
 }
 
+func TestUnpinAllCallbackRejectsInvalidAction(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleCallbackContext(bot, chat, user, "unpinallbtn(maybe)")
+	if err := pinsModule.unpinallCallback(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unpinallCallback invalid error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want invalid callback answer", len(calls))
+	}
+}
+
 func TestPinReplyPinsMessageWithNotificationOption(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -134,6 +176,35 @@ func TestPinWithoutReplyAsksForReply(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestPermaPinValidationBranches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	missingCtx := newModuleMessageContext(bot, chat, user, "/permapin")
+	if err := pinsModule.permaPin(bot, missingCtx); err != ext.EndGroups {
+		t.Fatalf("permaPin missing error = %v, want EndGroups", err)
+	}
+
+	unsupportedCtx := newModuleMessageContext(bot, chat, user, "/permapin")
+	unsupportedCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 44,
+		Date:      1,
+		Chat:      chat,
+	}
+	if err := pinsModule.permaPin(bot, unsupportedCtx); err != ext.EndGroups {
+		t.Fatalf("permaPin unsupported error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want validation replies", len(calls))
+	}
+	if calls := client.callsFor("pinChatMessage"); len(calls) != 0 {
+		t.Fatalf("pinChatMessage calls = %d, want none for validation branches", len(calls))
 	}
 }
 
@@ -232,6 +303,19 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if db.GetPinData(chatID).CleanLinked {
 		t.Fatal("CleanLinked stayed enabled")
 	}
+
+	antiCurrentCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
+	if err := pinsModule.antichannelpin(bot, antiCurrentCtx); err != ext.EndGroups {
+		t.Fatalf("antichannelpin current error = %v, want EndGroups", err)
+	}
+	cleanInvalidCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked maybe")
+	if err := pinsModule.cleanlinked(bot, cleanInvalidCtx); err != ext.EndGroups {
+		t.Fatalf("cleanlinked invalid error = %v, want EndGroups", err)
+	}
+	cleanCurrentCtx := newModuleMessageContext(bot, chat, user, "/cleanlinked")
+	if err := pinsModule.cleanlinked(bot, cleanCurrentCtx); err != ext.EndGroups {
+		t.Fatalf("cleanlinked current error = %v, want EndGroups", err)
+	}
 }
 
 func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
@@ -260,5 +344,93 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	}
 	if calls := client.callsFor("unpinChatMessage"); len(calls) != 1 {
 		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
+	client := newModuleBotClient()
+	genericMessage := []byte(
+		`{"message_id":9010,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"}}`,
+	)
+	for _, method := range []string{
+		"sendSticker",
+		"sendAudio",
+		"sendVoice",
+		"sendVideo",
+		"sendVideoNote",
+	} {
+		client.responses[method] = genericMessage
+	}
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, chat, user, "/permapin media")
+	keyboard := &gotgbot.InlineKeyboardMarkup{}
+
+	tests := []struct {
+		name       string
+		dataType   int
+		fileID     string
+		wantMethod string
+	}{
+		{name: "text", dataType: db.TEXT, wantMethod: "sendMessage"},
+		{name: "sticker fallback", dataType: db.STICKER, wantMethod: "sendMessage"},
+		{name: "sticker", dataType: db.STICKER, fileID: "sticker-file", wantMethod: "sendSticker"},
+		{name: "document fallback", dataType: db.DOCUMENT, wantMethod: "sendMessage"},
+		{name: "document", dataType: db.DOCUMENT, fileID: "doc-file", wantMethod: "sendDocument"},
+		{name: "photo fallback", dataType: db.PHOTO, wantMethod: "sendMessage"},
+		{name: "photo", dataType: db.PHOTO, fileID: "photo-file", wantMethod: "sendPhoto"},
+		{name: "audio", dataType: db.AUDIO, fileID: "audio-file", wantMethod: "sendAudio"},
+		{name: "voice", dataType: db.VOICE, fileID: "voice-file", wantMethod: "sendVoice"},
+		{name: "video", dataType: db.VIDEO, fileID: "video-file", wantMethod: "sendVideo"},
+		{name: "video note", dataType: db.VideoNote, fileID: "video-note-file", wantMethod: "sendVideoNote"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			before := len(client.callsFor(tc.wantMethod))
+			sendFn := PinsEnumFuncMap[tc.dataType]
+			if _, err := sendFn(bot, ctx, pinType{MsgText: "hello", FileID: tc.fileID}, keyboard, 44); err != nil {
+				t.Fatalf("PinsEnumFuncMap[%d]() error = %v", tc.dataType, err)
+			}
+			if calls := client.callsFor(tc.wantMethod); len(calls) != before+1 {
+				t.Fatalf("%s calls = %d, want %d", tc.wantMethod, len(calls), before+1)
+			}
+		})
+	}
+
+	extractCases := []struct {
+		name     string
+		reply    *gotgbot.Message
+		wantType int
+		wantID   string
+	}{
+		{name: "sticker", reply: &gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "sticker-file"}}, wantType: db.STICKER, wantID: "sticker-file"},
+		{name: "document", reply: &gotgbot.Message{Document: &gotgbot.Document{FileId: "doc-file"}}, wantType: db.DOCUMENT, wantID: "doc-file"},
+		{name: "animation", reply: &gotgbot.Message{Animation: &gotgbot.Animation{FileId: "anim-file"}}, wantType: db.DOCUMENT, wantID: "anim-file"},
+		{name: "photo", reply: &gotgbot.Message{Photo: []gotgbot.PhotoSize{{FileId: "small"}, {FileId: "large"}}}, wantType: db.PHOTO, wantID: "large"},
+		{name: "audio", reply: &gotgbot.Message{Audio: &gotgbot.Audio{FileId: "audio-file"}}, wantType: db.AUDIO, wantID: "audio-file"},
+		{name: "voice", reply: &gotgbot.Message{Voice: &gotgbot.Voice{FileId: "voice-file"}}, wantType: db.VOICE, wantID: "voice-file"},
+		{name: "video", reply: &gotgbot.Message{Video: &gotgbot.Video{FileId: "video-file"}}, wantType: db.VIDEO, wantID: "video-file"},
+		{name: "video note", reply: &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "video-note-file"}}, wantType: db.VideoNote, wantID: "video-note-file"},
+	}
+	for _, tc := range extractCases {
+		t.Run("extract "+tc.name, func(t *testing.T) {
+			msg := &gotgbot.Message{Text: "/permapin", ReplyToMessage: tc.reply}
+			tc.reply.Chat = chat
+			fileID, _, dataType, _ := pinsModule.GetPinType(msg)
+			if dataType != tc.wantType || fileID != tc.wantID {
+				t.Fatalf("GetPinType() = (%q, %d), want (%q, %d)", fileID, dataType, tc.wantID, tc.wantType)
+			}
+		})
+	}
+}
+
+func TestLoadPinRegistersHelpAndHandlers(t *testing.T) {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadPin(dispatcher)
+
+	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(pinsModule.moduleName); moduleName != pinsModule.moduleName || !enabled {
+		t.Fatalf("pins help registration = (%q, %v), want enabled", moduleName, enabled)
 	}
 }
