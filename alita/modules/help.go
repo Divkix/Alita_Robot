@@ -145,11 +145,19 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-var HelpModule = moduleStruct{
-	moduleName:     "Help",
-	AbleMap:        moduleEnabled{},
-	AltHelpOptions: make(map[string][]string),
-	helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
+func NewHelpRegistry() *moduleStruct {
+	return &moduleStruct{
+		moduleName:     "Help",
+		AbleMap:        moduleEnabled{modules: make(map[string]bool)},
+		AltHelpOptions: make(map[string][]string),
+		helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
+	}
+}
+
+var defaultHelpRegistry = NewHelpRegistry()
+
+func DefaultHelpRegistry() *moduleStruct {
+	return defaultHelpRegistry
 }
 
 type moduleEnabled struct {
@@ -199,7 +207,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		currKb   gotgbot.InlineKeyboardMarkup
 	)
 
-	if query := ctx.CallbackQuery; query != nil {
+	if query, ok := callbackQueryFromContext(ctx); ok {
 		if query.Message == nil {
 			text, _ := tr.GetString("common_callback_invalid_request")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -315,7 +323,10 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 // helpButtonHandler processes callback queries from help menu button interactions.
 // Navigates between help sections and displays appropriate help content for modules.
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}
@@ -474,7 +485,10 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 // botConfig provides step-by-step configuration guidance for new users.
 // Walks users through adding the bot to chats and basic setup procedures.
 func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}
@@ -684,12 +698,12 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadHelp registers all help-related command and callback handlers.
 // Sets up the help system including start, about, donate, and configuration commands.
 func LoadHelp(dispatcher *ext.Dispatcher) {
-	dispatcher.AddHandler(handlers.NewCommand("start", HelpModule.start))
-	dispatcher.AddHandler(handlers.NewCommand("help", HelpModule.help))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), HelpModule.helpButtonHandler))
-	dispatcher.AddHandler(handlers.NewCommand("donate", HelpModule.donate))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), HelpModule.botConfig))
-	dispatcher.AddHandler(handlers.NewCommand("about", HelpModule.about))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), HelpModule.about))
+	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
+	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), DefaultHelpRegistry().helpButtonHandler))
+	dispatcher.AddHandler(handlers.NewCommand("donate", DefaultHelpRegistry().donate))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))
+	dispatcher.AddHandler(handlers.NewCommand("about", DefaultHelpRegistry().about))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), DefaultHelpRegistry().about))
 	initHelpButtons()
 }

@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"gorm.io/gorm"
 )
 
 type OrphanReport struct {
@@ -24,17 +27,13 @@ type orphanCheck struct {
 }
 
 func main() {
-	// Database initialization happens in db package init.
-	if db.DB == nil {
-		log.Fatal("[Validation] Database not initialized. Set DATABASE_URL environment variable.")
-	}
+	os.Exit(runOrphanValidation(db.DB, os.Stdout))
+}
 
-	fmt.Println("🔍 Database Orphaned Data Validation")
-	fmt.Println(strings.Repeat("=", 37))
-
+func defaultOrphanChecks() []orphanCheck {
 	// Keep this list in sync with STEP 1 orphan cleanup in
 	// migrations/20250805204145_add_foreign_key_relations.sql.
-	checks := []orphanCheck{
+	return []orphanCheck{
 		{
 			table:     "admin",
 			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
@@ -169,13 +168,15 @@ func main() {
 				"OR user_id NOT IN (SELECT user_id FROM users);",
 		},
 	}
+}
 
+func findOrphanReports(database *gorm.DB, checks []orphanCheck) ([]OrphanReport, error) {
 	reports := make([]OrphanReport, 0, len(checks))
 	for _, check := range checks {
 		var count int64
-		err := db.DB.Table(check.table).Where(check.condition).Count(&count).Error
+		err := database.Table(check.table).Where(check.condition).Count(&count).Error
 		if err != nil {
-			log.Fatalf("[Validation] Failed to query %s: %v", check.table, err)
+			return nil, fmt.Errorf("failed to query %s: %w", check.table, err)
 		}
 		if count == 0 {
 			continue
@@ -188,35 +189,77 @@ func main() {
 			SQL:   check.cleanup,
 		})
 	}
+	return reports, nil
+}
+
+func runOrphanValidation(database *gorm.DB, out io.Writer) int {
+	// Database initialization happens in db package init.
+	if database == nil {
+		log.Print("[Validation] Database not initialized. Set DATABASE_URL environment variable.")
+		return 1
+	}
+
+	reports, err := findOrphanReports(database, defaultOrphanChecks())
+	if err != nil {
+		log.Printf("[Validation] %v", err)
+		return 1
+	}
+
+	if _, err := fmt.Fprint(out, formatOrphanReport(reports)); err != nil {
+		log.Printf("[Validation] Failed to write report: %v", err)
+		return 1
+	}
 
 	// Display results
 	if len(reports) == 0 {
-		fmt.Println("✅ No orphaned records found - database is clean!")
-		os.Exit(0)
+		return 0
 	}
 
-	fmt.Printf("\n❌ Found %d types of orphaned records:\n\n", len(reports))
+	return 1
+}
+
+func formatOrphanReport(reports []OrphanReport) string {
+	var builder strings.Builder
+	builder.WriteString("🔍 Database Orphaned Data Validation\n")
+	builder.WriteString(strings.Repeat("=", 37))
+	builder.WriteString("\n")
+
+	if len(reports) == 0 {
+		builder.WriteString("✅ No orphaned records found - database is clean!\n")
+		return builder.String()
+	}
+
+	builder.WriteString("\n❌ Found ")
+	builder.WriteString(strconv.Itoa(len(reports)))
+	builder.WriteString(" types of orphaned records:\n\n")
 	for i, report := range reports {
-		fmt.Printf("%d. Table: %s\n", i+1, report.Table)
-		fmt.Printf("   Orphaned Records: %d\n", report.Count)
-		fmt.Printf("   Issue: %s\n", report.Issue)
-		fmt.Printf("   Cleanup SQL:\n   %s\n\n", report.SQL)
+		builder.WriteString(strconv.Itoa(i + 1))
+		builder.WriteString(". Table: ")
+		builder.WriteString(report.Table)
+		builder.WriteString("\n   Orphaned Records: ")
+		builder.WriteString(strconv.FormatInt(report.Count, 10))
+		builder.WriteString("\n   Issue: ")
+		builder.WriteString(report.Issue)
+		builder.WriteString("\n   Cleanup SQL:\n   ")
+		builder.WriteString(report.SQL)
+		builder.WriteString("\n\n")
 	}
 
-	fmt.Println("⚠️  WARNING: Orphaned records detected!")
-	fmt.Println("   Before deploying foreign key constraints, you must:")
-	fmt.Println("   1. Review the orphaned records above")
-	fmt.Println("   2. Run the cleanup SQL in a transaction")
-	fmt.Println("   3. Re-run this validation script to confirm")
-	fmt.Println("\n   ⚠️  CRITICAL: Always run cleanup in transactions for safety!")
-	fmt.Println("\n   Example cleanup transaction:")
-	fmt.Println("   psql \"$DATABASE_URL\" << 'EOF'")
-	fmt.Println("   BEGIN;")
+	builder.WriteString("⚠️  WARNING: Orphaned records detected!\n")
+	builder.WriteString("   Before deploying foreign key constraints, you must:\n")
+	builder.WriteString("   1. Review the orphaned records above\n")
+	builder.WriteString("   2. Run the cleanup SQL in a transaction\n")
+	builder.WriteString("   3. Re-run this validation script to confirm\n")
+	builder.WriteString("\n   ⚠️  CRITICAL: Always run cleanup in transactions for safety!\n")
+	builder.WriteString("\n   Example cleanup transaction:\n")
+	builder.WriteString("   psql \"$DATABASE_URL\" << 'EOF'\n")
+	builder.WriteString("   BEGIN;\n")
 	for _, report := range reports {
-		fmt.Printf("   %s\n", report.SQL)
+		builder.WriteString("   ")
+		builder.WriteString(report.SQL)
+		builder.WriteString("\n")
 	}
-	fmt.Println("   COMMIT;")
-	fmt.Println("   EOF")
-
-	os.Exit(1)
+	builder.WriteString("   COMMIT;\n")
+	builder.WriteString("   EOF\n")
+	return builder.String()
 }

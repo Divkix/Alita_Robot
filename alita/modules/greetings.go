@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
@@ -1015,6 +1016,8 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 // pendingJoins handles chat join requests and creates approval buttons for admins.
 // Auto-approves if enabled, otherwise presents approve/decline/ban options to admins.
 func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
+	defer error_handling.RecoverFromPanic("Greetings", "pendingJoins")
+
 	chat := ctx.ChatJoinRequest.Chat
 	user := ctx.ChatJoinRequest.From
 	joinReqStr := "join_request"
@@ -1023,7 +1026,14 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		// auto approve join requests
 		if db.GetGreetingSettings(chat.Id).ShouldAutoApprove {
-			_, _ = bot.ApproveChatJoinRequest(chat.Id, user.Id, nil)
+			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
+				if helpers.IsExpectedTelegramError(err) {
+					log.Debugf("[Greetings] Expected error auto-approving join for user %d in chat %d: %v", user.Id, chat.Id, err)
+				} else {
+					log.Error(err)
+					return err
+				}
+			}
 			return ext.ContinueGroups
 		}
 
@@ -1081,7 +1091,12 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 // joinRequestHandler processes admin responses to join request approval buttons.
 // Handles accept, decline, and ban actions for pending chat join requests.
 func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	defer error_handling.RecoverFromPanic("Greetings", "joinRequestHandler")
+
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
 	msg := query.Message
@@ -1128,15 +1143,43 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch response {
 	case "accept":
-		_, _ = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			if helpers.IsExpectedTelegramError(err) {
+				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+			} else {
+				log.Error(err)
+				return err
+			}
+		}
 		helpText, _ = tr.GetString("greetings_join_request_accepted")
 		_ = cache.Marshal.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chat.Id, joinUser.Id))
 	case "decline":
-		_, _ = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			if helpers.IsExpectedTelegramError(err) {
+				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+			} else {
+				log.Error(err)
+				return err
+			}
+		}
 		helpText, _ = tr.GetString("greetings_join_request_declined")
 	case "ban":
-		_, _ = chat.BanMember(b, joinUser.Id, nil)
-		_, _ = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil)
+		if _, err = chat.BanMember(b, joinUser.Id, nil); err != nil {
+			if helpers.IsExpectedTelegramError(err) {
+				log.Debugf("[Greetings] Expected error banning user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+			} else {
+				log.Error(err)
+				return err
+			}
+		}
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+			if helpers.IsExpectedTelegramError(err) {
+				log.Debugf("[Greetings] Expected error declining join after ban for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
+			} else {
+				log.Error(err)
+				return err
+			}
+		}
 		helpText, _ = tr.GetString("greetings_join_request_banned")
 	}
 
@@ -1270,10 +1313,10 @@ func (moduleStruct) setPendingJoins(chatId, userId int64) {
 // LoadGreetings registers all greeting-related handlers with the dispatcher.
 // Sets up welcome/goodbye messages, join requests, and service message cleanup.
 func LoadGreetings(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(greetingsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(greetingsModule.moduleName, true)
 
 	// Adds Formatting kb button to Greetings Menu
-	HelpModule.helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
@@ -1332,4 +1375,8 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("cleanservice", greetingsModule.delJoined))
 	dispatcher.AddHandler(handlers.NewCommand("autoapprove", greetingsModule.autoApprove))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("join_request"), greetingsModule.joinRequestHandler))
+}
+
+func init() {
+	RegisterLegacyModule("Greetings", 210, LoadGreetings)
 }

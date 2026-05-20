@@ -143,8 +143,8 @@ func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 // formattingHandler processes callback queries for formatting help navigation.
 // Updates help messages based on user selections from the formatting keyboard.
 func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
-	if query == nil {
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
 		return ext.EndGroups
 	}
 	msg := query.Message
@@ -206,8 +206,12 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 // LoadMkdCmd registers markdown and formatting command handlers with the dispatcher.
 // Sets up help commands and callback handlers for formatting assistance.
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(formattingModule.moduleName, true)
-	HelpModule.helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
+	DefaultHelpRegistry().AbleMap.Store(formattingModule.moduleName, true)
+	DefaultHelpRegistry().helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
 	helpers.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting"), formattingModule.formattingHandler))
+}
+
+func init() {
+	RegisterLegacyModule("Formatting", 260, LoadMkdCmd)
 }

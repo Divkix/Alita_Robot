@@ -174,3 +174,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 func LoadUsers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, usersModule.logUsers), usersModule.handlerGroup)
 }
+
+func init() {
+	RegisterLegacyModule("Users", 100, LoadUsers)
+}

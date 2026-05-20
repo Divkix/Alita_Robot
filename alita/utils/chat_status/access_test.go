@@ -1,16 +1,973 @@
 package chat_status
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db"
 )
 
+type chatStatusBotClient struct{}
+
+func (chatStatusBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	switch method {
+	case "getChatMember":
+		switch fmt.Sprint(params["user_id"]) {
+		case "10":
+			return json.RawMessage(`{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"},"can_change_info":true,"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
+		case "11":
+			return json.RawMessage(`{"status":"administrator","user":{"id":11,"is_bot":false,"first_name":"Limited Admin"},"can_change_info":false,"can_restrict_members":false,"can_promote_members":false,"can_pin_messages":false,"can_delete_messages":false,"can_invite_users":false}`), nil
+		case "12":
+			return json.RawMessage(`{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}`), nil
+		case "999":
+			return json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"},"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
+		case "998":
+			return json.RawMessage(`{"status":"administrator","user":{"id":998,"is_bot":true,"first_name":"Limited Bot"},"can_restrict_members":false,"can_promote_members":false,"can_pin_messages":false,"can_delete_messages":false,"can_invite_users":false}`), nil
+		case "13":
+			return json.RawMessage(`{"status":"left","user":{"id":13,"is_bot":false,"first_name":"Left User"}}`), nil
+		case "14":
+			return json.RawMessage(`{"status":"kicked","user":{"id":14,"is_bot":false,"first_name":"Kicked User"}}`), nil
+		default:
+			return json.RawMessage(`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`), nil
+		}
+	case "getChat":
+		return json.RawMessage(`{"id":-1001,"type":"supergroup","title":"Permission Chat"}`), nil
+	case "getChatAdministrators":
+		return json.RawMessage(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"}},{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"}},{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}]`), nil
+	case "sendMessage":
+		return json.RawMessage(`{"message_id":1,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Permission Chat"}}`), nil
+	case "answerCallbackQuery":
+		return json.RawMessage(`true`), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (chatStatusBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (chatStatusBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func newChatStatusBot(id int64) *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: chatStatusBotClient{},
+		User:      gotgbot.User{Id: id, IsBot: true, FirstName: "Bot"},
+	}
+}
+
+type recordingChatStatusClient struct {
+	calls []string
+}
+
+func (c *recordingChatStatusClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	c.calls = append(c.calls, method)
+	return chatStatusBotClient{}.RequestWithContext(context.Background(), "", method, params, nil)
+}
+
+func (c *recordingChatStatusClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *recordingChatStatusClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func (c *recordingChatStatusClient) callsFor(method string) int {
+	count := 0
+	for _, call := range c.calls {
+		if call == method {
+			count++
+		}
+	}
+	return count
+}
+
+type paramRecordingChatStatusClient struct {
+	calls []struct {
+		method string
+		params map[string]any
+	}
+}
+
+func (c *paramRecordingChatStatusClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	copied := make(map[string]any, len(params))
+	for key, value := range params {
+		copied[key] = value
+	}
+	c.calls = append(c.calls, struct {
+		method string
+		params map[string]any
+	}{method: method, params: copied})
+	return chatStatusBotClient{}.RequestWithContext(context.Background(), "", method, params, nil)
+}
+
+func (c *paramRecordingChatStatusClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *paramRecordingChatStatusClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func newRecordingChatStatusBot(id int64, client *recordingChatStatusClient) *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: id, IsBot: true, FirstName: "Bot"},
+	}
+}
+
 func makeCtxWithMessage(chatType string) *ext.Context {
-	msg := &gotgbot.Message{Chat: gotgbot.Chat{Type: chatType}}
+	msg := &gotgbot.Message{
+		MessageId: 101,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001, Type: chatType, Title: "Permission Chat"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+	}
 	bot := &gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}}
 	return ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+}
+
+func makeCtxWithCallbackQuery() *ext.Context {
+	msg := gotgbot.Message{
+		MessageId: 102,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+	}
+	query := &gotgbot.CallbackQuery{
+		Id:      "permission-callback",
+		From:    gotgbot.User{Id: 42, FirstName: "Member"},
+		Message: msg,
+	}
+	bot := &gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}}
+	return ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
+}
+
+func TestExtractChatFromContext(t *testing.T) {
+	t.Parallel()
+
+	explicit := &gotgbot.Chat{Id: 10, Type: "supergroup"}
+	if got := extractChatFromContext(nil, explicit); got != explicit {
+		t.Fatal("extractChatFromContext() should prefer explicit chat")
+	}
+
+	messageCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{Message: &gotgbot.Message{Chat: gotgbot.Chat{Id: 20, Type: "group"}}},
+		nil,
+	)
+	if got := extractChatFromContext(messageCtx, nil); got == nil || got.Id != 20 {
+		t.Fatalf("extractChatFromContext(message) = %#v, want chat id 20", got)
+	}
+
+	callbackCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			CallbackQuery: &gotgbot.CallbackQuery{
+				Message: gotgbot.Message{Chat: gotgbot.Chat{Id: 30, Type: "group"}},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(callbackCtx, nil); got == nil || got.Id != 30 {
+		t.Fatalf("extractChatFromContext(callback) = %#v, want chat id 30", got)
+	}
+
+	myChatMemberCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			MyChatMember: &gotgbot.ChatMemberUpdated{
+				Chat: gotgbot.Chat{Id: 40, Type: "channel"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(myChatMemberCtx, nil); got == nil || got.Id != 40 {
+		t.Fatalf("extractChatFromContext(my_chat_member) = %#v, want chat id 40", got)
+	}
+
+	chatMemberCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat: gotgbot.Chat{Id: 50, Type: "supergroup"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(chatMemberCtx, nil); got == nil || got.Id != 50 {
+		t.Fatalf("extractChatFromContext(chat_member) = %#v, want chat id 50", got)
+	}
+
+	joinRequestCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			ChatJoinRequest: &gotgbot.ChatJoinRequest{
+				Chat: gotgbot.Chat{Id: 60, Type: "supergroup"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(joinRequestCtx, nil); got == nil || got.Id != 60 {
+		t.Fatalf("extractChatFromContext(chat_join_request) = %#v, want chat id 60", got)
+	}
+
+	if got := extractChatFromContext(nil, nil); got != nil {
+		t.Fatalf("extractChatFromContext(nil, nil) = %#v, want nil", got)
+	}
+
+	if got := extractChatFromContext(&ext.Context{}, nil); got != nil {
+		t.Fatalf("extractChatFromContext(ctx with nil update, nil) = %#v, want nil", got)
+	}
+}
+
+func TestCallbackQueryFromContext(t *testing.T) {
+	t.Parallel()
+
+	query := &gotgbot.CallbackQuery{Id: "callback-id"}
+
+	tests := []struct {
+		name string
+		ctx  *ext.Context
+		want *gotgbot.CallbackQuery
+		ok   bool
+	}{
+		{name: "nil context", ctx: nil, ok: false},
+		{name: "nil update", ctx: &ext.Context{}, ok: false},
+		{name: "nil callback query", ctx: &ext.Context{Update: &gotgbot.Update{}}, ok: false},
+		{
+			name: "callback query present",
+			ctx:  &ext.Context{Update: &gotgbot.Update{CallbackQuery: query}},
+			want: query,
+			ok:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := callbackQueryFromContext(tc.ctx)
+			if ok != tc.ok {
+				t.Fatalf("callbackQueryFromContext() ok = %v, want %v", ok, tc.ok)
+			}
+			if got != tc.want {
+				t.Fatalf("callbackQueryFromContext() query = %p, want %p", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHasUserPermissionRejectsMissingContextOrChat(t *testing.T) {
+	t.Parallel()
+
+	allow := func(*gotgbot.MergedChatMember) bool { return true }
+	if hasUserPermission(nil, nil, &gotgbot.Chat{Id: 1, Type: "group"}, 1, allow) {
+		t.Fatal("hasUserPermission() with nil context should be false")
+	}
+
+	emptyCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{},
+		nil,
+	)
+	if hasUserPermission(nil, emptyCtx, nil, 1, allow) {
+		t.Fatal("hasUserPermission() with no chat in context should be false")
+	}
+}
+
+func TestPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 10) }},
+		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 10) }},
+		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 10) }},
+		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 10) }},
+		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 10) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !tt.fn() {
+				t.Fatalf("%s permission = false, want true for full admin", tt.name)
+			}
+		})
+	}
+}
+
+func TestPermissionHelpersAllowCreatorWithoutSpecificFlags(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if !canUserRestrict(bot, ctx, chat, 12) {
+		t.Fatal("canUserRestrict() = false, want true for creator")
+	}
+	if !canUserDelete(bot, ctx, chat, 12) {
+		t.Fatal("canUserDelete() = false, want true for creator")
+	}
+	if !requireUserOwnerPure(bot, ctx, chat, 12) {
+		t.Fatal("requireUserOwnerPure() = false, want true for creator")
+	}
+}
+
+func TestPermissionHelpersRejectMissingMemberPermissions(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 11) }},
+		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 11) }},
+		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 11) }},
+		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 11) }},
+		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 11) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s permission = true, want false for limited admin", tt.name)
+			}
+		})
+	}
+}
+
+func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	fullBot := newChatStatusBot(999)
+	fullTests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "restrict", fn: func() bool { return canBotRestrict(fullBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return canBotPromote(fullBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return canBotPin(fullBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return canBotDelete(fullBot, ctx, chat) }},
+	}
+	for _, tt := range fullTests {
+		t.Run("full/"+tt.name, func(t *testing.T) {
+			if !tt.fn() {
+				t.Fatalf("%s bot permission = false, want true", tt.name)
+			}
+		})
+	}
+
+	limitedBot := newChatStatusBot(998)
+	limitedTests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "restrict", fn: func() bool { return canBotRestrict(limitedBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return canBotPromote(limitedBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return canBotPin(limitedBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return canBotDelete(limitedBot, ctx, chat) }},
+	}
+	for _, tt := range limitedTests {
+		t.Run("limited/"+tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s bot permission = true, want false", tt.name)
+			}
+		})
+	}
+}
+
+func TestExportedPermissionWrappersSendDenialMessages(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "user change info", fn: func() bool { return CanUserChangeInfo(bot, ctx, chat, 11, false) }},
+		{name: "user restrict", fn: func() bool { return CanUserRestrict(bot, ctx, chat, 11, false) }},
+		{name: "bot restrict", fn: func() bool { return CanBotRestrict(bot, ctx, chat, false) }},
+		{name: "user promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 11, false) }},
+		{name: "bot promote", fn: func() bool { return CanBotPromote(bot, ctx, chat, false) }},
+		{name: "user pin", fn: func() bool { return CanUserPin(bot, ctx, chat, 11, false) }},
+		{name: "bot pin", fn: func() bool { return CanBotPin(bot, ctx, chat, false) }},
+		{name: "user delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 11, false) }},
+		{name: "bot delete", fn: func() bool { return CanBotDelete(bot, ctx, chat, false) }},
+		{name: "user admin", fn: func() bool { return RequireUserAdmin(bot, ctx, chat, 42, false) }},
+		{name: "user owner", fn: func() bool { return RequireUserOwner(bot, ctx, chat, 10, false) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s returned true, want denial", tt.name)
+			}
+		})
+	}
+	if got := client.callsFor("sendMessage"); got != len(tests) {
+		t.Fatalf("sendMessage calls = %d, want %d denial messages", got, len(tests))
+	}
+}
+
+func TestExportedPermissionWrappersAnswerCallbackDenials(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	tests := []struct {
+		name string
+		fn   func() bool
+	}{
+		{name: "user change info", fn: func() bool { return CanUserChangeInfo(bot, ctx, chat, 11, false) }},
+		{name: "user restrict", fn: func() bool { return CanUserRestrict(bot, ctx, chat, 11, false) }},
+		{name: "bot restrict", fn: func() bool { return CanBotRestrict(bot, ctx, chat, false) }},
+		{name: "user promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 11, false) }},
+		{name: "user delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 11, false) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.fn() {
+				t.Fatalf("%s returned true, want callback denial", tt.name)
+			}
+		})
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != len(tests) {
+		t.Fatalf("answerCallbackQuery calls = %d, want %d callback denials", got, len(tests))
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want callback denials without chat messages", got)
+	}
+}
+
+func TestRequireBotAdminJustCheckAndSuccess(t *testing.T) {
+	t.Parallel()
+
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	memberClient := &recordingChatStatusClient{}
+	memberBot := newRecordingChatStatusBot(42, memberClient)
+	if RequireBotAdmin(memberBot, ctx, chat, true) {
+		t.Fatal("RequireBotAdmin(member bot, justCheck) = true, want false")
+	}
+	if got := memberClient.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want no denial messages in justCheck mode", got)
+	}
+	if RequireBotAdmin(memberBot, ctx, chat, false) {
+		t.Fatal("RequireBotAdmin(member bot) = true, want false")
+	}
+	if got := memberClient.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+
+	fullClient := &recordingChatStatusClient{}
+	fullBot := newRecordingChatStatusBot(999, fullClient)
+	if !RequireBotAdmin(fullBot, ctx, chat, false) {
+		t.Fatal("RequireBotAdmin(full bot) = false, want true")
+	}
+	if got := fullClient.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want no denial messages on success", got)
+	}
+}
+
+func TestRequireUserAdminCallbackAnswersWithoutChatMessage(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	if RequireUserAdmin(bot, ctx, chat, 42, false) {
+		t.Fatal("RequireUserAdmin(callback member) = true, want false")
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want callback denial without chat message", got)
+	}
+}
+
+func TestRequireUserOwnerCallbackAnswersWithoutChatMessage(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	if RequireUserOwner(bot, ctx, chat, 10, false) {
+		t.Fatal("RequireUserOwner(callback non-owner) = true, want false")
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want callback denial without chat message", got)
+	}
+}
+
+func TestRequireUserHandlesMissingAndPresentEffectiveSender(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	nilCtx := makeCtxWithMessage("supergroup")
+	nilCtx.EffectiveSender = nil
+	if got := RequireUser(bot, nilCtx, true); got != nil {
+		t.Fatalf("RequireUser(nil sender, justCheck) = %#v, want nil", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none in justCheck mode", got)
+	}
+	if got := RequireUser(bot, nilCtx, false); got != nil {
+		t.Fatalf("RequireUser(nil sender) = %#v, want nil", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+
+	userCtx := makeCtxWithMessage("supergroup")
+	userCtx.EffectiveSender = &gotgbot.Sender{User: &gotgbot.User{Id: 42, FirstName: "Member"}}
+	if got := RequireUser(bot, userCtx, false); got == nil || got.Id != 42 {
+		t.Fatalf("RequireUser(user sender) = %#v, want user 42", got)
+	}
+}
+
+func TestRequireUserFollowsGotgbotContextSenderShapes(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	callbackCtx := makeCtxWithCallbackQuery()
+	if got := RequireUser(bot, callbackCtx, false); got == nil || got.Id != 42 {
+		t.Fatalf("RequireUser(callback sender) = %#v, want callback user 42", got)
+	}
+
+	channelPost := &gotgbot.Message{
+		MessageId: 103,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Updates"},
+		SenderChat: &gotgbot.Chat{
+			Id:    -1001234567890,
+			Type:  "channel",
+			Title: "Updates",
+		},
+		Text: "broadcast",
+	}
+	channelCtx := ext.NewContext(bot, &gotgbot.Update{ChannelPost: channelPost}, nil)
+	if got := RequireUser(bot, channelCtx, true); got != nil {
+		t.Fatalf("RequireUser(channel post, justCheck) = %#v, want nil user", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none in justCheck mode", got)
+	}
+}
+
+func TestRequireGroupAndPrivateSendDenialMessages(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	privateCtx := makeCtxWithMessage("private")
+	if RequireGroup(bot, privateCtx, nil, false) {
+		t.Fatal("RequireGroup(private) = true, want false")
+	}
+
+	groupCtx := makeCtxWithMessage("supergroup")
+	if RequirePrivate(bot, groupCtx, nil, false) {
+		t.Fatal("RequirePrivate(group) = true, want false")
+	}
+
+	if got := client.callsFor("sendMessage"); got != 2 {
+		t.Fatalf("sendMessage calls = %d, want two denial messages", got)
+	}
+}
+
+func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-999999999910001)
+	msg := &gotgbot.Message{
+		MessageId: 501,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+		Text:      "/kick 100",
+	}
+	t.Cleanup(func() {
+		_ = db.EnableCMD(chatID, "kick")
+		_ = db.ToggleDel(chatID, false)
+	})
+
+	privateMsg := *msg
+	privateMsg.Chat = gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
+	if CheckDisabledCmd(bot, &privateMsg, "kick") {
+		t.Fatal("CheckDisabledCmd(private) = true, want false")
+	}
+	if CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(enabled command) = true, want false")
+	}
+	if err := db.DisableCMD(chatID, "kick"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+
+	nilSenderMsg := *msg
+	nilSenderMsg.From = nil
+	if CheckDisabledCmd(bot, &nilSenderMsg, "kick") {
+		t.Fatal("CheckDisabledCmd(nil sender) = true, want false")
+	}
+	if !CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(disabled, no delete) = false, want true")
+	}
+	if got := client.callsFor("deleteMessage"); got != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none before delete setting", got)
+	}
+
+	if err := db.ToggleDel(chatID, true); err != nil {
+		t.Fatalf("ToggleDel(true) error = %v", err)
+	}
+	if !CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(disabled, delete) = false, want true")
+	}
+	if got := client.callsFor("deleteMessage"); got != 1 {
+		t.Fatalf("deleteMessage calls = %d, want one after delete setting", got)
+	}
+}
+
+func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-999999999910002)
+	msg := &gotgbot.Message{
+		MessageId: 502,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Disabled Chat"},
+		From:      &gotgbot.User{Id: tgUserId, FirstName: "Telegram"},
+		Text:      "/kick 100",
+	}
+	t.Cleanup(func() {
+		_ = db.EnableCMD(chatID, "kick")
+		_ = db.ToggleDel(chatID, false)
+	})
+
+	if err := db.DisableCMD(chatID, "kick"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+	if err := db.ToggleDel(chatID, true); err != nil {
+		t.Fatalf("ToggleDel(true) error = %v", err)
+	}
+
+	if CheckDisabledCmd(bot, msg, "kick") {
+		t.Fatal("CheckDisabledCmd(Telegram service admin) = true, want false")
+	}
+	if got := client.callsFor("deleteMessage"); got != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for Telegram service admin", got)
+	}
+}
+
+func TestGetChatRequestsTelegramAPI(t *testing.T) {
+	bot := newChatStatusBot(999)
+
+	chat, err := GetChat(bot, "-1001")
+	if err != nil {
+		t.Fatalf("GetChat() error = %v", err)
+	}
+	if chat.Id != -1001 || chat.Type != "supergroup" {
+		t.Fatalf("GetChat() = %+v, want Permission Chat supergroup", chat)
+	}
+}
+
+func TestIsUserAdminLoadsTelegramAdminList(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chatID := int64(-1001)
+
+	if !IsUserAdmin(bot, chatID, 10) {
+		t.Fatal("IsUserAdmin(full admin) = false, want true")
+	}
+	if IsUserAdmin(bot, chatID, 42) {
+		t.Fatal("IsUserAdmin(member) = true, want false")
+	}
+	if got := client.callsFor("getChatAdministrators"); got != 2 {
+		t.Fatalf("getChatAdministrators calls = %d, want one lookup per non-service user", got)
+	}
+}
+
+func TestAnonymousAdminHelpersUseGotgbotSenderAndReplyMarkup(t *testing.T) {
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456789, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 777,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+
+	isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, &gotgbot.Sender{
+		User: &gotgbot.User{Id: 42, FirstName: "Member"},
+	})
+	if isAdmin || shouldReturn {
+		t.Fatalf("checkAnonAdmin(non-anon) = (%v, %v), want false, false", isAdmin, shouldReturn)
+	}
+
+	if _, err := sendAnonAdminKeyboard(bot, msg, chat); err != nil {
+		t.Fatalf("sendAnonAdminKeyboard() error = %v", err)
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("recorded calls = %+v, want one sendMessage", client.calls)
+	}
+	if _, ok := client.calls[0].params["reply_markup"]; !ok {
+		t.Fatalf("sendMessage params = %+v, want reply_markup", client.calls[0].params)
+	}
+}
+
+func TestCheckAnonAdminFollowsGotgbotSenderClassification(t *testing.T) {
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456789, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 779,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+
+	tests := []struct {
+		name   string
+		sender *gotgbot.Sender
+	}{
+		{
+			name:   "nil sender",
+			sender: nil,
+		},
+		{
+			name: "channel post in same channel",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: chat.Id, Type: "channel", Title: "Channel"},
+				ChatId: chat.Id,
+			},
+		},
+		{
+			name: "anonymous channel in group",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: -100987654321, Type: "channel", Title: "Channel"},
+				ChatId: chat.Id,
+			},
+		},
+		{
+			name: "linked channel in group",
+			sender: &gotgbot.Sender{
+				Chat:               &gotgbot.Chat{Id: -100987654322, Type: "channel", Title: "Linked"},
+				ChatId:             chat.Id,
+				IsAutomaticForward: true,
+			},
+		},
+		{
+			name: "different group sender chat",
+			sender: &gotgbot.Sender{
+				Chat:   &gotgbot.Chat{Id: -100987654323, Type: "supergroup", Title: "Other Group"},
+				ChatId: chat.Id,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, tt.sender)
+			if isAdmin || shouldReturn {
+				t.Fatalf("checkAnonAdmin(%s) = (%v, %v), want false, false", tt.name, isAdmin, shouldReturn)
+			}
+		})
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("calls = %+v, want none for non-anonymous-admin senders", client.calls)
+	}
+}
+
+func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
+	skipIfNoDb(t)
+
+	client := &paramRecordingChatStatusClient{}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Bot"},
+	}
+	chat := &gotgbot.Chat{Id: -100123456790, Type: "supergroup", Title: "Anon Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 778,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/ban 42",
+	}
+	anonSender := &gotgbot.Sender{
+		Chat:   chat,
+		ChatId: chat.Id,
+	}
+	t.Cleanup(func() {
+		_ = db.SetAnonAdminMode(chat.Id, false)
+	})
+
+	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
+	}
+	isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, anonSender)
+	if !isAdmin || !shouldReturn {
+		t.Fatalf("checkAnonAdmin(enabled) = (%v, %v), want true, true", isAdmin, shouldReturn)
+	}
+	if len(client.calls) != 0 {
+		t.Fatalf("calls with anon bypass enabled = %+v, want none", client.calls)
+	}
+
+	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
+	}
+	isAdmin, shouldReturn = checkAnonAdmin(bot, chat, msg, anonSender)
+	if isAdmin || !shouldReturn {
+		t.Fatalf("checkAnonAdmin(verify) = (%v, %v), want false, true", isAdmin, shouldReturn)
+	}
+	if len(client.calls) != 1 || client.calls[0].method != "sendMessage" {
+		t.Fatalf("calls with anon verification = %+v, want one sendMessage", client.calls)
+	}
+}
+
+func TestSetAnonAdminCacheSkipsNilMessages(t *testing.T) {
+	setAnonAdminCache(-100123456791, nil)
+}
+
+func TestMembershipAndProtectionHelpers(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if !IsUserInChat(bot, chat, 42) {
+		t.Fatal("IsUserInChat(member) = false, want true")
+	}
+	if IsUserInChat(bot, chat, 777000) {
+		t.Fatal("IsUserInChat(Telegram service user) = true, want false")
+	}
+	if IsUserInChat(bot, chat, 13) {
+		t.Fatal("IsUserInChat(left user) = true, want false")
+	}
+	if IsUserInChat(bot, chat, 14) {
+		t.Fatal("IsUserInChat(kicked user) = true, want false")
+	}
+	if !IsUserBanProtected(bot, makeCtxWithMessage("private"), nil, 42) {
+		t.Fatal("IsUserBanProtected(private) = false, want true")
+	}
+	if !IsUserBanProtected(bot, ctx, chat, 10) {
+		t.Fatal("IsUserBanProtected(admin) = false, want true")
+	}
+}
+
+func TestCanInvitePublicAndPrivatePermissionBranches(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	msg := &gotgbot.Message{
+		MessageId: 201,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"},
+		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+
+	publicChat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat", Username: "publicchat"}
+	if !Caninvite(bot, ctx, publicChat, msg, false) {
+		t.Fatal("Caninvite(public chat) = false, want true")
+	}
+
+	privateChat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	if !Caninvite(bot, ctx, privateChat, msg, false) {
+		t.Fatal("Caninvite(full admin private chat) = false, want true")
+	}
+
+	msg.From = &gotgbot.User{Id: 11, FirstName: "Limited Admin"}
+	if Caninvite(bot, ctx, privateChat, msg, false) {
+		t.Fatal("Caninvite(limited user) = true, want false")
+	}
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one user denial", got)
+	}
+}
+
+func TestCanInviteRejectsMissingSenderAndLimitedBot(t *testing.T) {
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+
+	fullClient := &recordingChatStatusClient{}
+	fullBot := newRecordingChatStatusBot(999, fullClient)
+	nilSenderMsg := &gotgbot.Message{
+		MessageId: 202,
+		Date:      1,
+		Chat:      *chat,
+		Text:      "/invite",
+	}
+	nilSenderCtx := ext.NewContext(fullBot, &gotgbot.Update{Message: nilSenderMsg}, nil)
+	if Caninvite(fullBot, nilSenderCtx, chat, nilSenderMsg, false) {
+		t.Fatal("Caninvite(nil sender) = true, want false")
+	}
+	if got := fullClient.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("full bot sendMessage calls = %d, want none for nil sender", got)
+	}
+
+	limitedClient := &recordingChatStatusClient{}
+	limitedBot := newRecordingChatStatusBot(998, limitedClient)
+	limitedMsg := &gotgbot.Message{
+		MessageId: 203,
+		Date:      1,
+		Chat:      *chat,
+		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
+		Text:      "/invite",
+	}
+	limitedCtx := ext.NewContext(limitedBot, &gotgbot.Update{Message: limitedMsg}, nil)
+	if Caninvite(limitedBot, limitedCtx, chat, limitedMsg, false) {
+		t.Fatal("Caninvite(limited bot) = true, want false")
+	}
+	if got := limitedClient.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("limited bot sendMessage calls = %d, want one bot-permission denial", got)
+	}
+}
+
+func TestRequireUserAdminPureUsesGotgbotAdminList(t *testing.T) {
+	bot := newChatStatusBot(999)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if !requireUserAdminPure(bot, ctx, chat, 10) {
+		t.Fatal("requireUserAdminPure(full admin) = false, want true")
+	}
+	if !requireUserAdminPure(bot, ctx, chat, 777000) {
+		t.Fatal("requireUserAdminPure(Telegram service user) = false, want true")
+	}
+	if requireUserAdminPure(bot, ctx, chat, 42) {
+		t.Fatal("requireUserAdminPure(member) = true, want false")
+	}
 }
 
 func TestRequireGroupPure(t *testing.T) {

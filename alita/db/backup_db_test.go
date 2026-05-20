@@ -196,6 +196,18 @@ func TestExportModuleData(t *testing.T) {
 	})
 }
 
+func TestImportModuleDataRejectsMalformedPayloadForEveryModule(t *testing.T) {
+	for _, module := range AllExportableModules() {
+		t.Run(module, func(t *testing.T) {
+			err := ImportModuleData(12345, module, "not a backup object")
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid")
+			assert.Contains(t, err.Error(), "data format")
+		})
+	}
+}
+
 func TestClearModuleDataConnectionsDisablesAllowConnect(t *testing.T) {
 	skipIfNoDb(t)
 

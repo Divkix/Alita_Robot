@@ -2,8 +2,10 @@ package shutdown
 
 import (
 	"errors"
+	"os"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestNewManager(t *testing.T) {
@@ -54,12 +56,12 @@ func TestRegisterHandler(t *testing.T) {
 
 func TestExecuteHandler(t *testing.T) {
 	tests := []struct {
-		name           string
-		handler        func() error
-		delay          int
-		wantExecuted   bool
-		wantErr        bool
-		wantErrIs      error
+		name         string
+		handler      func() error
+		delay        int
+		wantExecuted bool
+		wantErr      bool
+		wantErrIs    error
 	}{
 		{
 			name: "successful execution",
@@ -189,5 +191,101 @@ func TestRegisterHandlerConcurrency(t *testing.T) {
 
 	if len(m.handlers) != numHandlers {
 		t.Errorf("expected %d handlers, got %d", numHandlers, len(m.handlers))
+	}
+}
+
+func TestShutdownExecutesHandlersInLIFOOrderAndExitsOnce(t *testing.T) {
+	oldExit := exitProcess
+	oldTimeout := shutdownTimeout
+	defer func() {
+		exitProcess = oldExit
+		shutdownTimeout = oldTimeout
+	}()
+
+	var exitCodes []int
+	exitProcess = func(code int) {
+		exitCodes = append(exitCodes, code)
+	}
+	shutdownTimeout = time.Second
+
+	m := NewManager()
+	var order []int
+	m.RegisterHandler(func() error {
+		order = append(order, 1)
+		return nil
+	})
+	m.RegisterHandler(func() error {
+		order = append(order, 2)
+		return errors.New("second handler failed")
+	})
+	m.RegisterHandler(func() error {
+		order = append(order, 3)
+		return nil
+	})
+
+	m.shutdown()
+	m.shutdown()
+
+	expectedOrder := []int{3, 2, 1}
+	if len(order) != len(expectedOrder) {
+		t.Fatalf("expected order %v, got %v", expectedOrder, order)
+	}
+	for i, want := range expectedOrder {
+		if order[i] != want {
+			t.Fatalf("expected order %v, got %v", expectedOrder, order)
+		}
+	}
+	if len(exitCodes) != 1 || exitCodes[0] != 0 {
+		t.Fatalf("expected one successful exit, got %v", exitCodes)
+	}
+}
+
+func TestWaitForShutdownUsesSignalHooks(t *testing.T) {
+	oldExit := exitProcess
+	oldNotify := notifySignals
+	oldStop := stopSignals
+	oldTimeout := shutdownTimeout
+	defer func() {
+		exitProcess = oldExit
+		notifySignals = oldNotify
+		stopSignals = oldStop
+		shutdownTimeout = oldTimeout
+	}()
+
+	var notifiedSignals []os.Signal
+	var stopCalled bool
+	var exitCodes []int
+	notifySignals = func(ch chan<- os.Signal, sig ...os.Signal) {
+		notifiedSignals = append(notifiedSignals, sig...)
+		ch <- os.Interrupt
+	}
+	stopSignals = func(_ chan<- os.Signal) {
+		stopCalled = true
+	}
+	exitProcess = func(code int) {
+		exitCodes = append(exitCodes, code)
+	}
+	shutdownTimeout = time.Second
+
+	m := NewManager()
+	var handlerCalled bool
+	m.RegisterHandler(func() error {
+		handlerCalled = true
+		return nil
+	})
+
+	m.WaitForShutdown()
+
+	if len(notifiedSignals) != 3 {
+		t.Fatalf("expected three registered signals, got %d", len(notifiedSignals))
+	}
+	if !stopCalled {
+		t.Fatal("expected signal stop hook to be called")
+	}
+	if !handlerCalled {
+		t.Fatal("expected shutdown handler to run")
+	}
+	if len(exitCodes) != 1 || exitCodes[0] != 0 {
+		t.Fatalf("expected one successful exit, got %v", exitCodes)
 	}
 }

@@ -16,18 +16,18 @@ func GetChatReportSettings(chatID int64) (reportsrc *ReportChatSettings) {
 		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
 		if err := EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatReportSettings: Failed to ensure chat exists for %d: %v", chatID, err)
-			return &ReportChatSettings{ChatId: chatID, Enabled: true}
+			return &ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
 		}
 
 		// Create default settings
-		reportsrc = &ReportChatSettings{ChatId: chatID, Enabled: true}
+		reportsrc = &ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
 		err := CreateRecord(reportsrc)
 		if err != nil {
 			log.Error(err)
 		}
 	} else if err != nil {
 		// Return default on error
-		reportsrc = &ReportChatSettings{ChatId: chatID, Enabled: true}
+		reportsrc = &ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
 		log.Error(err)
 	}
 	return
@@ -36,7 +36,11 @@ func GetChatReportSettings(chatID int64) (reportsrc *ReportChatSettings) {
 // SetChatReportStatus updates the report feature status for the specified chat.
 // When disabled, users cannot report messages in this chat.
 func SetChatReportStatus(chatID int64, pref bool) error {
-	err := UpdateRecordWithZeroValues(&ReportChatSettings{}, ReportChatSettings{ChatId: chatID}, map[string]any{"enabled": pref})
+	GetChatReportSettings(chatID)
+	err := UpdateRecordWithZeroValues(&ReportChatSettings{}, ReportChatSettings{ChatId: chatID}, map[string]any{
+		"enabled": pref,
+		"status":  pref,
+	})
 	if err != nil {
 		log.Errorf("[Database] SetChatReportStatus: %v", err)
 	}
@@ -78,7 +82,9 @@ func UnblockReportUser(chatId, userId int64) error {
 		}
 	}
 
-	err := UpdateRecord(&ReportChatSettings{}, ReportChatSettings{ChatId: chatId}, ReportChatSettings{BlockedList: newBlockedList})
+	err := UpdateRecordWithZeroValues(&ReportChatSettings{}, ReportChatSettings{ChatId: chatId}, map[string]any{
+		"blocked_list": newBlockedList,
+	})
 	if err != nil {
 		log.Errorf("[Database] UnblockReportUser: %v", err)
 	}
@@ -92,14 +98,14 @@ func GetUserReportSettings(userId int64) (reportsrc *ReportUserSettings) {
 	err := GetRecord(reportsrc, ReportUserSettings{UserId: userId})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Create default settings
-		reportsrc = &ReportUserSettings{UserId: userId, Enabled: true}
+		reportsrc = &ReportUserSettings{UserId: userId, Enabled: true, Status: true}
 		err := CreateRecord(reportsrc)
 		if err != nil {
 			log.Error(err)
 		}
 	} else if err != nil {
 		// Return default on error
-		reportsrc = &ReportUserSettings{UserId: userId, Enabled: true}
+		reportsrc = &ReportUserSettings{UserId: userId, Enabled: true, Status: true}
 		log.Error(err)
 	}
 
@@ -109,7 +115,11 @@ func GetUserReportSettings(userId int64) (reportsrc *ReportUserSettings) {
 // SetUserReportSettings updates the global report preference for the specified user.
 // When disabled, the user won't receive any report notifications.
 func SetUserReportSettings(userID int64, pref bool) error {
-	err := UpdateRecordWithZeroValues(&ReportUserSettings{}, ReportUserSettings{UserId: userID}, map[string]any{"enabled": pref})
+	GetUserReportSettings(userID)
+	err := UpdateRecordWithZeroValues(&ReportUserSettings{}, ReportUserSettings{UserId: userID}, map[string]any{
+		"enabled": pref,
+		"status":  pref,
+	})
 	if err != nil {
 		log.Errorf("[Database] SetUserReportSettings: %v", err)
 	}

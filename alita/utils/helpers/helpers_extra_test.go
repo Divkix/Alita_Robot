@@ -257,9 +257,9 @@ func TestPreFixesEmptyTextWithFile(t *testing.T) {
 
 func TestSetRawText(t *testing.T) {
 	tests := []struct {
-		name      string
-		msg       *gotgbot.Message
-		want      string
+		name string
+		msg  *gotgbot.Message
+		want string
 	}{
 		{
 			name: "direct text",
@@ -424,5 +424,20 @@ func TestExtractMediaFromReply(t *testing.T) {
 				t.Fatalf("expected dataType=%d, got %d", tc.wantType, dt)
 			}
 		})
+	}
+}
+
+func TestFormattingReplacerWrapperWithoutRules(t *testing.T) {
+	t.Parallel()
+
+	chat := &gotgbot.Chat{Id: -1001234567890, Title: "Test Chat"}
+	user := &gotgbot.User{Id: 42, FirstName: "Ada", LastName: "Lovelace"}
+
+	got, buttons := FormattingReplacer(nil, chat, user, "Hi {fullname} in {chatname}", nil)
+	if got != "Hi Ada Lovelace in Test Chat" {
+		t.Fatalf("FormattingReplacer() = %q", got)
+	}
+	if len(buttons) != 0 {
+		t.Fatalf("FormattingReplacer() buttons = %#v, want none", buttons)
 	}
 }

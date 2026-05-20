@@ -461,7 +461,7 @@ func (c *CachedOptimizedQueries) GetChatFiltersCached(chatID int64) ([]*ChatFilt
 		return nil, errors.New("filter queries not initialized")
 	}
 
-	cacheKey := CacheKey("filter_list", chatID)
+	cacheKey := optimizedFilterCacheKey(chatID)
 
 	cached, err := getFromCacheOrLoad(cacheKey, 15*time.Minute, func() ([]*ChatFilters, error) {
 		return c.filterQueries.GetChatFiltersOptimized(chatID)

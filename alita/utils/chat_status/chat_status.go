@@ -48,6 +48,17 @@ func IsChannelId(id int64) bool {
 	return id < -1000000000000
 }
 
+func callbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
+	if ctx == nil {
+		return nil, false
+	}
+	update := ctx.Update
+	if update == nil || update.CallbackQuery == nil {
+		return nil, false
+	}
+	return update.CallbackQuery, true
+}
+
 // checkAnonAdmin handles anonymous admin checks.
 // Returns true if user should be treated as admin (anon bypass enabled),
 // false if anon keyboard was sent, and a bool indicating if caller should return immediately.
@@ -85,15 +96,25 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	if ctx == nil {
 		return nil
 	}
-	if ctx.CallbackQuery != nil && ctx.CallbackQuery.Message != nil {
-		chatValue := ctx.CallbackQuery.Message.GetChat()
+	update := ctx.Update
+	if update == nil {
+		return nil
+	}
+	if query := update.CallbackQuery; query != nil && query.Message != nil {
+		chatValue := query.Message.GetChat()
 		return &chatValue
 	}
-	if ctx.Message != nil {
-		return &ctx.Message.Chat
+	if update.Message != nil {
+		return &update.Message.Chat
 	}
-	if ctx.MyChatMember != nil {
-		return &ctx.MyChatMember.Chat
+	if update.MyChatMember != nil {
+		return &update.MyChatMember.Chat
+	}
+	if update.ChatMember != nil {
+		return &update.ChatMember.Chat
+	}
+	if update.ChatJoinRequest != nil {
+		return &update.ChatJoinRequest.Chat
 	}
 	return nil
 }
@@ -340,7 +361,7 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 		return false
 	}
 
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_change_info_button_error")
@@ -384,7 +405,7 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 		return false
 	}
 
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_restrict_button_error")
@@ -428,7 +449,7 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 		return false
 	}
 
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_bot_restrict_error")
@@ -472,7 +493,7 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 		return false
 	}
 
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_promote_button_error")
@@ -686,7 +707,7 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 	}
 
 	msg := ctx.EffectiveMessage
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_delete_button_error")
@@ -807,7 +828,7 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 	}
 
 	msg := ctx.EffectiveMessage
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_user_admin_button_error")
@@ -865,7 +886,7 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 	}
 
 	msg := ctx.EffectiveMessage
-	query := ctx.CallbackQuery
+	query, _ := callbackQueryFromContext(ctx)
 	if query != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("chat_status_owner_button_error")
@@ -956,6 +977,10 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 // Used to track anonymous admin verification requests with expiration.
 // Logs errors but doesn't fail since cache is non-critical.
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
+	if cache.Marshal == nil || msg == nil {
+		log.Debug("Skipping anonymous admin cache set: cache unavailable or message nil")
+		return
+	}
 	err := cache.Marshal.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
 	if err != nil {
 		// Log error but don't fail the operation since cache is not critical

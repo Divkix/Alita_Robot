@@ -5,12 +5,25 @@ import (
 	"gorm.io/gorm"
 )
 
+func filterListCacheKey(chatID int64) string {
+	return CacheKey("filter_list", chatID)
+}
+
+func optimizedFilterCacheKey(chatID int64) string {
+	return CacheKey("filters_optimized", chatID)
+}
+
+func invalidateFilterCaches(chatID int64) {
+	deleteCache(filterListCacheKey(chatID))
+	deleteCache(optimizedFilterCacheKey(chatID))
+}
+
 // GetFiltersList retrieves a list of all filter keywords for a specific chat ID.
 // Uses caching to improve performance for frequently accessed data.
 // Returns an empty slice if no filters are found or an error occurs.
 func GetFiltersList(chatID int64) (allFilterWords []string) {
 	// Try to get from cache first
-	cacheKey := CacheKey("filter_list", chatID)
+	cacheKey := filterListCacheKey(chatID)
 	result, err := getFromCacheOrLoad(cacheKey, CacheTTLFilterList, func() ([]string, error) {
 		var results []*ChatFilters
 		err := GetRecords(&results, map[string]any{"chat_id": chatID})
@@ -83,7 +96,7 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []Button
 	}
 
 	// Invalidate cache after adding filter
-	deleteCache(CacheKey("filter_list", chatID))
+	invalidateFilterCaches(chatID)
 	return nil
 }
 
@@ -100,7 +113,7 @@ func RemoveFilter(chatID int64, keyWord string) error {
 
 	// Invalidate cache after removing filter
 	if result.RowsAffected > 0 {
-		deleteCache(CacheKey("filter_list", chatID))
+		invalidateFilterCaches(chatID)
 	}
 	return nil
 }
@@ -114,7 +127,7 @@ func RemoveAllFilters(chatID int64) {
 	}
 
 	// Invalidate cache after removing all filters
-	deleteCache(CacheKey("filter_list", chatID))
+	invalidateFilterCaches(chatID)
 }
 
 // CountFilters returns the total number of filters configured for the specified chat ID.

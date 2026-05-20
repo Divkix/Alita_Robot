@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -25,6 +26,10 @@ import (
 // that should skip database initialization (--version, --health, -v).
 // This allows init() functions to return early without requiring DB connection.
 func isCliModeActive() bool {
+	if strings.HasSuffix(os.Args[0], ".test") {
+		return true
+	}
+
 	if len(os.Args) < 2 {
 		return false
 	}

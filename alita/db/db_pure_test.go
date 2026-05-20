@@ -6,6 +6,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -79,6 +83,66 @@ func TestIsCliModeActive(t *testing.T) {
 				t.Fatalf("isCliModeActive() = %v, want %v (args=%v)", got, tc.expected, tc.args)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Close
+// ---------------------------------------------------------------------------
+
+func TestCloseHandlesNilDatabase(t *testing.T) {
+	originalDB := DB
+	originalStop := dbMonitoringStop
+	DB = nil
+	dbMonitoringStop = nil
+	t.Cleanup(func() {
+		DB = originalDB
+		dbMonitoringStop = originalStop
+	})
+
+	if err := Close(); err != nil {
+		t.Fatalf("Close() with nil DB error = %v", err)
+	}
+}
+
+func TestCloseClosesCurrentDatabaseAndClearsMonitoringStop(t *testing.T) {
+	originalDB := DB
+	originalStop := dbMonitoringStop
+	dbFile, err := os.CreateTemp("", "alita_close_test_*.db")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	dbPath := dbFile.Name()
+	if err := dbFile.Close(); err != nil {
+		t.Fatalf("temp DB close error = %v", err)
+	}
+	t.Cleanup(func() {
+		DB = originalDB
+		dbMonitoringStop = originalStop
+		_ = os.Remove(dbPath)
+	})
+
+	tempDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open() error = %v", err)
+	}
+
+	stopCalled := false
+	DB = tempDB
+	dbMonitoringStop = func() {
+		stopCalled = true
+	}
+
+	if err := Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if !stopCalled {
+		t.Fatal("Close() did not call dbMonitoringStop")
+	}
+	if dbMonitoringStop != nil {
+		t.Fatal("Close() did not clear dbMonitoringStop")
 	}
 }
 

@@ -38,6 +38,29 @@ func TestConnectChat(t *testing.T) {
 	}
 }
 
+func TestConnectIdAcceptsTelegramGroupIDs(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	userID := base + 5
+	chatID := -1000000000000 - base%1_000_000
+
+	t.Cleanup(func() {
+		DB.Where("user_id = ?", userID).Delete(&ConnectionSettings{})
+		DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{})
+	})
+
+	ConnectId(userID, chatID)
+
+	got := Connection(userID)
+	if got == nil || !got.Connected {
+		t.Fatalf("Connection(%d) = %+v, want connected for negative Telegram group ID", userID, got)
+	}
+	if got.ChatId != chatID {
+		t.Fatalf("ChatId = %d, want %d", got.ChatId, chatID)
+	}
+}
+
 func TestDisconnectChat(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -156,6 +179,26 @@ func TestSetAllowConnect(t *testing.T) {
 	settings = GetChatConnectionSetting(chatID)
 	if settings.AllowConnect {
 		t.Fatal("expected AllowConnect=false after ToggleAllowConnect(false)")
+	}
+}
+
+func TestToggleAllowConnectCreatesMissingSettings(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano() + 45
+	t.Cleanup(func() {
+		DB.Where("chat_id = ?", chatID).Delete(&ConnectionChatSettings{})
+		DB.Where("chat_id = ?", chatID).Delete(&Chat{})
+	})
+
+	ToggleAllowConnect(chatID, true)
+
+	settings := GetChatConnectionSetting(chatID)
+	if settings == nil {
+		t.Fatal("GetChatConnectionSetting() returned nil")
+	}
+	if !settings.AllowConnect {
+		t.Fatal("AllowConnect = false, want true after toggling missing settings row")
 	}
 }
 

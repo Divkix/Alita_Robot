@@ -137,6 +137,61 @@ func TestFindMatches(t *testing.T) {
 	}
 }
 
+func TestFirstMatch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		patterns    []string
+		text        string
+		wantPattern string
+		wantOK      bool
+	}{
+		{
+			name:        "first matching pattern returned",
+			patterns:    []string{"alpha", "beta", "gamma"},
+			text:        "xx beta gamma",
+			wantPattern: "beta",
+			wantOK:      true,
+		},
+		{
+			name:        "case insensitive first match preserves original pattern",
+			patterns:    []string{"HeLLo"},
+			text:        "say hello",
+			wantPattern: "HeLLo",
+			wantOK:      true,
+		},
+		{
+			name:     "no match",
+			patterns: []string{"alpha"},
+			text:     "omega",
+			wantOK:   false,
+		},
+		{
+			name:     "empty patterns",
+			patterns: nil,
+			text:     "alpha",
+			wantOK:   false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			km := NewKeywordMatcher(tc.patterns)
+			gotPattern, gotOK := km.FirstMatch(tc.text)
+			if gotOK != tc.wantOK {
+				t.Fatalf("FirstMatch() ok = %v, want %v", gotOK, tc.wantOK)
+			}
+			if gotPattern != tc.wantPattern {
+				t.Fatalf("FirstMatch() pattern = %q, want %q", gotPattern, tc.wantPattern)
+			}
+		})
+	}
+}
+
 func TestHasMatch(t *testing.T) {
 	t.Parallel()
 

@@ -63,6 +63,7 @@ var antifloodModule = antifloodStruct{
 
 // init starts cleanup goroutine for antiflood cache
 func init() {
+	RegisterLegacyModule("Antiflood", 150, LoadAntiflood)
 	go func() {
 		defer error_handling.RecoverFromPanic("cleanupLoop", "antiflood")
 		antifloodModule.cleanupLoop(context.Background())
@@ -619,7 +620,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadAntiflood registers all antiflood module handlers with the dispatcher.
 // Sets up flood detection commands and message monitoring handlers.
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(antifloodModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(antifloodModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))

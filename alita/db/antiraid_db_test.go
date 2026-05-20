@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -132,6 +133,51 @@ func TestSetAutoAntiRaidThreshold(t *testing.T) {
 	}
 }
 
+func TestDefaultAntiRaidSettings(t *testing.T) {
+	t.Parallel()
+
+	settings := defaultAntiRaidSettings(-100123)
+	if settings.ChatID != -100123 {
+		t.Fatalf("ChatID = %d, want -100123", settings.ChatID)
+	}
+	if settings.RaidTime != 21600 {
+		t.Fatalf("RaidTime = %d, want 21600", settings.RaidTime)
+	}
+	if settings.RaidActionTime != 3600 {
+		t.Fatalf("RaidActionTime = %d, want 3600", settings.RaidActionTime)
+	}
+	if settings.AutoAntiRaidThreshold != 0 {
+		t.Fatalf("AutoAntiRaidThreshold = %d, want 0", settings.AutoAntiRaidThreshold)
+	}
+}
+
+func TestAntiRaidSettersRejectNegativeValues(t *testing.T) {
+	t.Parallel()
+
+	chatID := time.Now().UnixNano()
+	tests := []struct {
+		name                 string
+		call                 func() error
+		expectedErrMessage   string
+	}{
+		{name: "raid time", call: func() error { return SetRaidTime(chatID, -1) }, expectedErrMessage: "raid time must be non-negative"},
+		{name: "raid action time", call: func() error { return SetRaidActionTime(chatID, -1) }, expectedErrMessage: "raid action time must be non-negative"},
+		{name: "auto threshold", call: func() error { return SetAutoAntiRaidThreshold(chatID, -1) }, expectedErrMessage: "threshold must be non-negative"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			if err == nil {
+				t.Fatal("expected negative value error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.expectedErrMessage) {
+				t.Fatalf("error = %v, want substring %q", err, tc.expectedErrMessage)
+			}
+		})
+	}
+}
+
 func TestSetAutoAntiRaidThresholdZeroValue(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -194,10 +240,10 @@ func TestGetAntiRaidSettingsWithRecord(t *testing.T) {
 
 	// Use FirstOrCreate to set custom values
 	updates := map[string]any{
-		"chat_id":                  chatID,
-		"raid_time":                7200,
-		"raid_action_time":         1800,
-		"auto_antiraid_threshold":  3,
+		"chat_id":                 chatID,
+		"raid_time":               7200,
+		"raid_action_time":        1800,
+		"auto_antiraid_threshold": 3,
 	}
 	if err := DB.Where("chat_id = ?", chatID).Assign(updates).FirstOrCreate(&AntiRaidSettings{}).Error; err != nil {
 		t.Fatalf("setup failed: %v", err)

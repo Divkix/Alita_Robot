@@ -481,7 +481,10 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 // buttonHandler processes confirmation callbacks for removing all blacklists.
 // Handles the yes/no confirmation when owners attempt to clear all blacklisted words.
 func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -518,16 +521,15 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		go func(chatId int64) {
-			defer error_handling.RecoverFromPanic("rmAllBlacklists", "blacklists")
-
-			if err := db.RemoveAllBlacklist(chatId); err != nil {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"error":  err,
-				}).Error("Failed to remove all blacklists")
-			}
-		}(query.Message.GetChat().Id)
+		chatID := query.Message.GetChat().Id
+		if err := db.RemoveAllBlacklist(chatID); err != nil {
+			log.WithFields(log.Fields{
+				"chatId": chatID,
+				"error":  err,
+			}).Error("Failed to remove all blacklists")
+			helpText, _ = tr.GetString("common_settings_save_failed")
+			break
+		}
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
 	case "no":
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_no")
@@ -737,7 +739,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadBlacklists registers all blacklist module handlers with the dispatcher.
 // Sets up commands for managing blacklists and the message watcher for enforcement.
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(blacklistsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(blacklistsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("blacklists", blacklistsModule.listBlacklists))
 	helpers.AddCmdToDisableable("blacklists")
@@ -751,4 +753,8 @@ func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""
 	}, blacklistsModule.blacklistWatcher), blacklistsModule.handlerGroup)
+}
+
+func init() {
+	RegisterLegacyModule("Blacklists", 240, LoadBlacklists)
 }

@@ -1023,7 +1023,10 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 // restrictButtonHandler processes inline keyboard callbacks for restriction actions.
 // Handles ban, kick, and mute actions triggered from the restrict command keyboard.
 func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
@@ -1271,7 +1274,10 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 // unrestrictButtonHandler processes inline keyboard callbacks for unrestriction actions.
 // Handles unban and unmute actions triggered from the unrestrict command keyboard.
 func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
@@ -1395,7 +1401,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 // LoadBans registers all ban-related command handlers with the dispatcher.
 // Sets up ban, kick, restrict commands and their associated callback handlers.
 func LoadBans(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(bansModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(bansModule.moduleName, true)
 
 	// ban cmds
 	dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
@@ -1414,4 +1420,8 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict"), bansModule.restrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("unrestrict", bansModule.unrestrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
+}
+
+func init() {
+	RegisterLegacyModule("Bans", 70, LoadBans)
 }

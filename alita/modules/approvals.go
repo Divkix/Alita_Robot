@@ -391,7 +391,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	)
 	if err != nil {
 		log.Errorf("[Approvals] Failed to send document: %v", err)
-		return ext.EndGroups
+		return err
 	}
 
 	return ext.EndGroups
@@ -453,7 +453,10 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 // unapproveAllCallback processes the confirmation callback for /unapproveall.
 func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -551,7 +554,7 @@ func extractDisplayName(userID int64) string {
 //
 //nolint:dupl // Pattern matches other LoadXxx functions
 func LoadApprovals(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(approvalsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(approvalsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("approve", approvalsModule.approveUser))
 	dispatcher.AddHandler(handlers.NewCommand("unapprove", approvalsModule.unapproveUser))
@@ -560,4 +563,8 @@ func LoadApprovals(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("unapproveall", approvalsModule.unapproveAllHandler))
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllApprovals"), approvalsModule.unapproveAllCallback))
+}
+
+func init() {
+	RegisterLegacyModule("Approvals", 40, LoadApprovals)
 }

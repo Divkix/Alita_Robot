@@ -16,7 +16,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -225,12 +224,12 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		// Store in cache instead of in-memory map
 		err := setFilterOverwriteCache(token, overwriteFilter{
 			overwriteBase: overwriteBase{
-				chatID:   chat.Id,
-				itemName: filterWord,
-				text:     text,
-				fileID:   fileid,
-				buttons:  buttons,
-				dataType: dataType,
+				ChatID:   chat.Id,
+				ItemName: filterWord,
+				Text:     text,
+				FileID:   fileid,
+				Buttons:  buttons,
+				DataType: dataType,
 			},
 		})
 		if err != nil {
@@ -490,9 +489,15 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 // filtersButtonHandler handles callback queries for filter-related button interactions.
 // Processes confirmation dialogs for removing all filters from a chat.
 func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
@@ -520,14 +525,15 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	switch response {
 	case "yes":
-		// Fire-and-forget goroutine for DB operation with error handling and panic recovery
-		go func(chatId int64) {
-			defer error_handling.RecoverFromPanic("filtersButtonHandler", "filters")
-			db.RemoveAllFilters(chatId)
-		}(chat.Id)
+		db.RemoveAllFilters(chat.Id)
 		helpText, _ = tr.GetString("filters_clear_all_success")
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
+	}
+
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(b,
@@ -556,9 +562,15 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 // filterOverWriteHandler handles callback queries for filter overwrite confirmations.
 // Processes admin decisions when attempting to overwrite existing filter keywords.
 func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	chat := ctx.EffectiveChat
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	// permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
@@ -576,9 +588,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	// Handle cancel case first - no cache lookup needed
 	if action == "cancel" {
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
-		_, _, editErr := query.Message.EditText(b, helpText, nil)
-		if editErr != nil {
-			log.Error(editErr)
+		if query.Message != nil {
+			_, _, editErr := query.Message.EditText(b, helpText, nil)
+			if editErr != nil {
+				log.Error(editErr)
+			}
 		}
 		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		if answerErr != nil {
@@ -599,9 +613,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
 		helpText, _ = tr.GetString("filters_overwrite_expired")
-		_, _, editErr := query.Message.EditText(b, helpText, nil)
-		if editErr != nil {
-			log.Error(editErr)
+		if query.Message != nil {
+			_, _, editErr := query.Message.EditText(b, helpText, nil)
+			if editErr != nil {
+				log.Error(editErr)
+			}
 		}
 		_, answerErr := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		if answerErr != nil {
@@ -609,18 +625,20 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		}
 		return ext.EndGroups
 	}
-	if filterData.chatID != 0 && filterData.chatID != chat.Id {
+	if filterData.ChatID != 0 && filterData.ChatID != chat.Id {
 		helpText, _ = tr.GetString("filters_overwrite_expired")
-		_, _, _ = query.Message.EditText(b, helpText, nil)
+		if query.Message != nil {
+			_, _, _ = query.Message.EditText(b, helpText, nil)
+		}
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		return ext.EndGroups
 	}
 
-	if db.DoesFilterExists(chat.Id, filterData.itemName) {
-		if err := db.RemoveFilter(chat.Id, filterData.itemName); err != nil {
+	if db.DoesFilterExists(chat.Id, filterData.ItemName) {
+		if err := db.RemoveFilter(chat.Id, filterData.ItemName); err != nil {
 			log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else if err := db.AddFilter(chat.Id, filterData.itemName, filterData.text, filterData.fileID, filterData.buttons, filterData.dataType); err != nil {
+		} else if err := db.AddFilter(chat.Id, filterData.ItemName, filterData.Text, filterData.FileID, filterData.Buttons, filterData.DataType); err != nil {
 			log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
 		} else {
@@ -777,9 +795,9 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadFilters registers all filter-related handlers with the dispatcher.
 // Sets up commands for managing filters and the message watcher for automatic responses.
 func LoadFilters(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(filtersModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(filtersModule.moduleName, true)
 
-	HelpModule.helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text: func() string {
@@ -804,4 +822,8 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(func(msg *gotgbot.Message) bool {
 		return msg.Text != "" || msg.Caption != ""
 	}, filtersModule.filtersWatcher), filtersModule.handlerGroup)
+}
+
+func init() {
+	RegisterLegacyModule("Filters", 140, LoadFilters)
 }

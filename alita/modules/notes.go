@@ -115,12 +115,12 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		notesOverwriteMap.Store(token, overwriteNote{
 			overwriteBase: overwriteBase{
-				chatID:   chat.Id,
-				itemName: noteWord,
-				text:     text,
-				fileID:   fileid,
-				buttons:  buttons,
-				dataType: dataType,
+				ChatID:   chat.Id,
+				ItemName: noteWord,
+				Text:     text,
+				FileID:   fileid,
+				Buttons:  buttons,
+				DataType: dataType,
 			},
 			pvtOnly:     pvtOnly,
 			grpOnly:     grpOnly,
@@ -498,7 +498,10 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 // - v1 codec: notes.overwrite|v1|a={yes/no}&t={token}
 // - legacy: notes.overwrite.{action}.{chatId}_{noteWord}
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 
 	// permission checks
@@ -545,10 +548,14 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 				helpText, _ = tr.GetString("notes_overwrite_cancelled")
 				break
 			}
-			chatId = noteData.chatID
-			noteWord = noteData.itemName
+			chatId = noteData.ChatID
+			noteWord = noteData.ItemName
 			if chatId == 0 {
-				chatId = query.Message.GetChat().Id
+				if query.Message != nil {
+					chatId = query.Message.GetChat().Id
+				} else if ctx.EffectiveChat != nil {
+					chatId = ctx.EffectiveChat.Id
+				}
 			}
 		} else {
 			dataSplit = strings.SplitN(legacyNoteWordMapKey, "_", 2)
@@ -577,7 +584,13 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			break
 		}
 
-		if noteData.chatID != 0 && noteData.chatID != query.Message.GetChat().Id {
+		callbackChatID := int64(0)
+		if query.Message != nil {
+			callbackChatID = query.Message.GetChat().Id
+		} else if ctx.EffectiveChat != nil {
+			callbackChatID = ctx.EffectiveChat.Id
+		}
+		if noteData.ChatID != 0 && callbackChatID != 0 && noteData.ChatID != callbackChatID {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
@@ -587,7 +600,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			if err := db.RemoveNote(chatId, noteWord); err != nil {
 				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
 			}
-			if err := db.AddNote(chatId, noteData.itemName, noteData.text, noteData.fileID, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
+			if err := db.AddNote(chatId, noteData.ItemName, noteData.Text, noteData.FileID, noteData.Buttons, noteData.DataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
 				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
 				helpText, _ = tr.GetString("notes_save_failed")
 				break
@@ -604,6 +617,14 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		}
 	default:
 		log.WithField("action", action).Warn("Unknown note overwrite action")
+		return ext.EndGroups
+	}
+
+	if query.Message == nil {
+		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText}); err != nil {
+			log.Error(err)
+			return err
+		}
 		return ext.EndGroups
 	}
 
@@ -633,7 +654,10 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 // notesButtonHandler processes callback queries for the remove all notes
 // confirmation dialog, restricted to chat owners.
 func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 
 	// permission checks
@@ -660,10 +684,15 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var helpText string
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
 		// Fix Issue 4: Add error handling for RemoveAllNotes
-		if err := db.RemoveAllNotes(query.Message.GetChat().Id); err != nil {
+		if chat == nil {
+			helpText, _ = tr.GetString("error_generic")
+			break
+		}
+		if err := db.RemoveAllNotes(chat.Id); err != nil {
 			log.Errorf("[Notes] Failed to remove all notes: %v", err)
 			helpText, _ = tr.GetString("error_generic")
 		} else {
@@ -671,6 +700,14 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	case "no":
 		helpText, _ = tr.GetString("notes_clear_all_cancelled")
+	}
+
+	if query.Message == nil {
+		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText}); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(
@@ -977,9 +1014,9 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 // LoadNotes registers all notes module handlers with the dispatcher,
 // including note management commands and the notes watcher.
 func LoadNotes(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(notesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(notesModule.moduleName, true)
 
-	HelpModule.helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
@@ -1009,4 +1046,8 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
 	dispatcher.AddHandler(handlers.NewCommand("get", notesModule.getNotes))
 	helpers.AddCmdToDisableable("get")
+}
+
+func init() {
+	RegisterLegacyModule("Notes", 160, LoadNotes)
 }

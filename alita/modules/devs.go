@@ -468,3 +468,7 @@ func LoadDev(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("chatlist", devsModule.chatList))
 	dispatcher.AddHandler(handlers.NewCommand("leavechat", devsModule.leaveChat))
 }
+
+func init() {
+	RegisterLegacyModule("Dev", 120, LoadDev)
+}

@@ -111,7 +111,10 @@ func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 // 2. Retrieves the original command from cache
 // 3. Executes the appropriate command handler with restored context
 func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	qmsg := query.Message
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -274,10 +277,11 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 // getAnonAdminCache retrieves cached message data for anonymous admin verification.
 // Returns the original message context stored during anonymous admin command execution.
 func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
-	if cache.Marshal == nil {
+	m := cache.GetMarshal()
+	if m == nil {
 		return nil, fmt.Errorf("cache not initialized")
 	}
-	result, err := cache.Marshal.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
+	result, err := m.Get(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msgId), new(gotgbot.Message))
 	if err != nil {
 		return nil, err
 	}

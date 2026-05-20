@@ -83,7 +83,10 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 // langBtnHandler processes language selection callback queries from the language menu.
 // Updates user or group language preferences based on admin permissions and context.
 func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}
@@ -184,9 +187,13 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadLanguage registers language-related command and callback handlers.
 // Sets up language selection commands and keyboard navigation for internationalization.
 func LoadLanguage(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(languagesModule.moduleName, true)
-	HelpModule.helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()
+	DefaultHelpRegistry().AbleMap.Store(languagesModule.moduleName, true)
+	DefaultHelpRegistry().helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languagesModule.changeLanguage))
+}
+
+func init() {
+	RegisterLegacyModule("Languages", 20, LoadLanguage)
 }

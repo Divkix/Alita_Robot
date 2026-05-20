@@ -1,10 +1,139 @@
 package extraction
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
+
+type extractionBotCall struct {
+	method string
+	params map[string]any
+}
+
+type extractionBotClient struct {
+	calls  []extractionBotCall
+	errors map[string]error
+}
+
+func (c *extractionBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	copied := make(map[string]any, len(params))
+	for key, value := range params {
+		copied[key] = value
+	}
+	c.calls = append(c.calls, extractionBotCall{method: method, params: copied})
+
+	if err := c.errors[method]; err != nil {
+		return nil, err
+	}
+	switch method {
+	case "getChat":
+		return json.RawMessage(
+			`{"id":555123,"type":"private","first_name":"Fetched","username":"fallbackuser"}`,
+		), nil
+	case "sendMessage":
+		return json.RawMessage(
+			`{"message_id":42,"date":1,"chat":{"id":42,"type":"private","first_name":"Tester"}}`,
+		), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (c *extractionBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL
+}
+
+func (c *extractionBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL + "/file/bot" + token + "/" + path
+}
+
+func (c *extractionBotClient) callsFor(method string) []extractionBotCall {
+	var calls []extractionBotCall
+	for _, call := range c.calls {
+		if call.method == method {
+			calls = append(calls, call)
+		}
+	}
+	return calls
+}
+
+func newExtractionBot(client *extractionBotClient) *gotgbot.Bot {
+	if client.errors == nil {
+		client.errors = make(map[string]error)
+	}
+	return &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: client,
+		User: gotgbot.User{
+			Id:       123,
+			IsBot:    true,
+			Username: "ExtractionBot",
+		},
+	}
+}
+
+func newExtractionContext(bot *gotgbot.Bot, text string) *ext.Context {
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+	chat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"}
+	msg := &gotgbot.Message{
+		MessageId: 99,
+		Date:      1,
+		Chat:      chat,
+		From:      &user,
+		Text:      text,
+	}
+	return ext.NewContext(bot, &gotgbot.Update{UpdateId: 1, Message: msg}, nil)
+}
+
+func TestMain(m *testing.M) {
+	cache.Marshal = nil
+
+	dbFile, err := os.CreateTemp("", "alita_extraction_test_*.db")
+	if err != nil {
+		fmt.Printf("temp file creation failed: %v\n", err)
+		os.Exit(1)
+	}
+	dbFileName := dbFile.Name()
+	if closeErr := dbFile.Close(); closeErr != nil {
+		fmt.Printf("temp file close failed: %v\n", closeErr)
+		os.Exit(1)
+	}
+
+	sqliteDB, err := gorm.Open(sqlite.Open(dbFileName), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		fmt.Printf("SQLite init failed: %v\n", err)
+		os.Exit(1)
+	}
+	db.DB = sqliteDB
+
+	if err := db.DB.AutoMigrate(&db.User{}, &db.Chat{}, &db.ChannelSettings{}); err != nil {
+		fmt.Printf("AutoMigrate failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+
+	if sqlDB, err := db.DB.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+	_ = os.Remove(dbFileName)
+	os.Exit(exitCode)
+}
 
 func TestExtractQuotes(t *testing.T) {
 	t.Parallel()
@@ -283,6 +412,27 @@ func TestIdFromReply(t *testing.T) {
 		}
 	})
 
+	t.Run("reply with SenderChat and dummy From prefers chat ID", func(t *testing.T) {
+		t.Parallel()
+		const channelId int64 = -1001234567891
+		msg := &gotgbot.Message{
+			Text: "/ban channel spam",
+			ReplyToMessage: &gotgbot.Message{
+				Chat:       gotgbot.Chat{Id: -10044, Type: "supergroup", Title: "Group"},
+				From:       &gotgbot.User{Id: 136817688, IsBot: true, FirstName: "SendAsChannel"},
+				SenderChat: &gotgbot.Chat{Id: channelId, Type: "channel", Title: "Sender Channel"},
+			},
+		}
+
+		gotId, gotText := IdFromReply(msg)
+		if gotId != channelId {
+			t.Errorf("userId: got %d, want SenderChat ID %d", gotId, channelId)
+		}
+		if gotText != "channel spam" {
+			t.Errorf("text: got %q, want \"channel spam\"", gotText)
+		}
+	})
+
 	t.Run("reply with multiple spaces preserves full remaining text", func(t *testing.T) {
 		t.Parallel()
 		msg := &gotgbot.Message{
@@ -374,6 +524,221 @@ func TestExtractQuotes_AdditionalEdgeCases(t *testing.T) {
 	}
 }
 
+func TestExtractChatUsesGotgbotGetChatForNumericId(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/chat 555123")
+
+	chat := ExtractChat(bot, ctx)
+	if chat == nil {
+		t.Fatal("ExtractChat() returned nil, want fetched chat")
+	}
+	if chat.Id != 555123 {
+		t.Fatalf("chat.Id = %d, want 555123", chat.Id)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+}
+
+func TestExtractChatRepliesWhenNumericChatLookupFails(t *testing.T) {
+	client := &extractionBotClient{errors: map[string]error{"getChat": errors.New("chat not found")}}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect 555123")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat() = %#v, want nil on lookup failure", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want chat-not-found reply", len(calls))
+	}
+}
+
+func TestExtractChatUsesUsernameLookup(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect @fallbackuser")
+
+	chat := ExtractChat(bot, ctx)
+	if chat == nil {
+		t.Fatal("ExtractChat(username) returned nil, want fetched chat")
+	}
+	if chat.Id != 555123 {
+		t.Fatalf("ExtractChat(username) chat id = %d, want 555123", chat.Id)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+}
+
+func TestExtractChatRepliesWhenUsernameLookupFails(t *testing.T) {
+	client := &extractionBotClient{errors: map[string]error{"getChat": errors.New("chat not found")}}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect @missing")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat(username missing) = %#v, want nil", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want chat-not-found reply", len(calls))
+	}
+}
+
+func TestExtractChatWithoutArgumentReplies(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/chat")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat() = %#v, want nil without argument", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want missing chat id reply", len(calls))
+	}
+}
+
+func TestGetUserIdUsesDatabaseBeforeTelegramFallback(t *testing.T) {
+	if err := db.DB.Create(&db.User{UserId: 987654, UserName: "knownuser", Name: "Known"}).Error; err != nil {
+		t.Fatalf("Create known user failed: %v", err)
+	}
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+
+	if got := GetUserId(bot, "@knownuser"); got != 987654 {
+		t.Fatalf("GetUserId(@knownuser) = %d, want 987654", got)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 0 {
+		t.Fatalf("getChat calls = %d, want DB hit without Telegram fallback", len(calls))
+	}
+
+	if got := GetUserId(bot, "@fallbackuser"); got != 555123 {
+		t.Fatalf("GetUserId(@fallbackuser) = %d, want Telegram fallback id 555123", got)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want one Telegram fallback", len(calls))
+	}
+}
+
+func TestExtractUserAndTextFromGotgbotMessageShapes(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+
+	if err := db.DB.Create(&db.User{UserId: 777123, UserName: "extractuser", Name: "Extract"}).Error; err != nil {
+		t.Fatalf("Create extract user failed: %v", err)
+	}
+
+	t.Run("reply without args uses replied sender", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban")
+		ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+			From: &gotgbot.User{Id: 1234, FirstName: "Reply Target"},
+		}
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 1234 || gotText != "" {
+			t.Fatalf("ExtractUserAndText(reply) = (%d, %q), want (1234, \"\")", gotID, gotText)
+		}
+	})
+
+	t.Run("numeric argument preserves reason text", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban 555123 repeated spam")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 555123 || gotText != "repeated spam" {
+			t.Fatalf("ExtractUserAndText(numeric) = (%d, %q), want (555123, repeated spam)", gotID, gotText)
+		}
+	})
+
+	t.Run("channel id argument is accepted as id", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban -1001234567890 channel raid")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != -1001234567890 || gotText != "channel raid" {
+			t.Fatalf("ExtractUserAndText(channel) = (%d, %q), want channel id and reason", gotID, gotText)
+		}
+	})
+
+	t.Run("username argument uses database lookup before API fallback", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban @extractuser cached reason")
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 777123 || gotText != "cached reason" {
+			t.Fatalf("ExtractUserAndText(username) = (%d, %q), want DB user and reason", gotID, gotText)
+		}
+	})
+
+	t.Run("text mention entity uses embedded user id", func(t *testing.T) {
+		ctx := newExtractionContext(bot, "/ban Alice entity reason")
+		ctx.EffectiveMessage.Entities = []gotgbot.MessageEntity{
+			{
+				Type:   "text_mention",
+				Offset: 5,
+				Length: 5,
+				User:   &gotgbot.User{Id: 888999, FirstName: "Alice"},
+			},
+		}
+
+		gotID, gotText := ExtractUserAndText(bot, ctx)
+		if gotID != 888999 || gotText != " entity reason" {
+			t.Fatalf("ExtractUserAndText(text mention) = (%d, %q), want mention id and suffix", gotID, gotText)
+		}
+	})
+}
+
+func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
+	if err := db.DB.Create(&db.User{UserId: 888123, UserName: "infouser", Name: "Info User"}).Error; err != nil {
+		t.Fatalf("Create info user failed: %v", err)
+	}
+	if err := db.DB.Create(&db.ChannelSettings{
+		ChatId:      -1001234567891,
+		Username:    "infochannel",
+		ChannelName: "Info Channel",
+	}).Error; err != nil {
+		t.Fatalf("Create info channel failed: %v", err)
+	}
+
+	username, name, found := GetUserInfo(888123)
+	if !found || username != "infouser" || name != "Info User" {
+		t.Fatalf("GetUserInfo(user) = (%q, %q, %v), want infouser/Info User/true", username, name, found)
+	}
+
+	username, name, found = GetUserInfo(-1001234567891)
+	if !found || username != "infochannel" || name != "Info Channel" {
+		t.Fatalf("GetUserInfo(channel) = (%q, %q, %v), want infochannel/Info Channel/true", username, name, found)
+	}
+
+	username, name, found = GetUserInfo(404404)
+	if found || username != "" || name != "" {
+		t.Fatalf("GetUserInfo(missing) = (%q, %q, %v), want empty/empty/false", username, name, found)
+	}
+}
+
+func TestExtractTimeParsesValidInputAndRepliesForErrors(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/tban 2h reason")
+
+	banTime, timeStr, reason := ExtractTime(bot, ctx, "2h reason")
+	if banTime <= 0 {
+		t.Fatalf("banTime = %d, want future unix timestamp", banTime)
+	}
+	if timeStr != "2 hours" {
+		t.Fatalf("timeStr = %q, want 2 hours", timeStr)
+	}
+	if reason != "reason" {
+		t.Fatalf("reason = %q, want reason", reason)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no error reply for valid time", len(calls))
+	}
+
+	for _, input := range []string{"", "xh", "2y", "53w"} {
+		ExtractTime(bot, ctx, input)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one reply per invalid duration", len(calls))
+	}
+}
+
 func TestIdFromReply_NilReply(t *testing.T) {
 	t.Parallel()
 
@@ -416,10 +781,10 @@ func TestIdFromReply_TextSplitVariations(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		text         string
-		wantUserId   int64
-		wantText     string
+		name       string
+		text       string
+		wantUserId int64
+		wantText   string
 	}{
 		{
 			name:       "text with single space split",
@@ -519,6 +884,100 @@ func TestExtractQuotes_UnicodeContent(t *testing.T) {
 			}
 			if gotAfter != tc.wantAfter {
 				t.Errorf("afterWord: got %q, want %q", gotAfter, tc.wantAfter)
+			}
+		})
+	}
+}
+
+func TestParseTemporaryDuration(t *testing.T) {
+	t.Parallel()
+
+	const now int64 = 1_700_000_000
+
+	tests := []struct {
+		name        string
+		input       string
+		wantBanTime int64
+		wantTimeStr string
+		wantReason  string
+		wantErr     error
+	}{
+		{
+			name:        "minutes with reason",
+			input:       "15m repeated spam",
+			wantBanTime: now + 15*60,
+			wantTimeStr: "15 minutes",
+			wantReason:  "repeated spam",
+		},
+		{
+			name:        "hours without reason",
+			input:       "2h",
+			wantBanTime: now + 2*60*60,
+			wantTimeStr: "2 hours",
+		},
+		{
+			name:        "days joins multi word reason",
+			input:       "3d raid cleanup needed",
+			wantBanTime: now + 3*24*60*60,
+			wantTimeStr: "3 days",
+			wantReason:  "raid cleanup needed",
+		},
+		{
+			name:        "weeks",
+			input:       "4w long cooldown",
+			wantBanTime: now + 4*7*24*60*60,
+			wantTimeStr: "4 weeks",
+			wantReason:  "long cooldown",
+		},
+		{
+			name:    "empty input",
+			input:   " \t\n ",
+			wantErr: errNoTimeSpecified,
+		},
+		{
+			name:    "invalid amount",
+			input:   "xw bad amount",
+			wantErr: errInvalidTimeAmount,
+		},
+		{
+			name:    "invalid type",
+			input:   "10y bad unit",
+			wantErr: errInvalidTimeType,
+		},
+		{
+			name:    "one year exactly exceeds limit",
+			input:   "365d too long",
+			wantErr: errTimeLimitExceeded,
+		},
+		{
+			name:        "negative amount preserves existing behavior",
+			input:       "-1h already elapsed",
+			wantBanTime: now - 60*60,
+			wantTimeStr: "-1 hours",
+			wantReason:  "already elapsed",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotBanTime, gotTimeStr, gotReason, gotErr := parseTemporaryDuration(tc.input, now)
+			if !errors.Is(gotErr, tc.wantErr) {
+				t.Fatalf("parseTemporaryDuration() err = %v, want %v", gotErr, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				return
+			}
+			if gotBanTime != tc.wantBanTime {
+				t.Fatalf("banTime = %d, want %d", gotBanTime, tc.wantBanTime)
+			}
+			if gotTimeStr != tc.wantTimeStr {
+				t.Fatalf("timeStr = %q, want %q", gotTimeStr, tc.wantTimeStr)
+			}
+			if gotReason != tc.wantReason {
+				t.Fatalf("reason = %q, want %q", gotReason, tc.wantReason)
 			}
 		})
 	}

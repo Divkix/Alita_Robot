@@ -135,6 +135,27 @@ func TestRemoveNote(t *testing.T) {
 	}
 }
 
+func TestTogglePrivateNoteCreatesSettingsWhenMissing(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	if err := EnsureChatInDb(chatID, "test-toggle-no-settings-row"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	if err := TooglePrivateNote(chatID, true); err != nil {
+		t.Fatalf("TooglePrivateNote(true) without prior settings error = %v", err)
+	}
+	settings := GetNotes(chatID)
+	if settings == nil || !settings.Private {
+		t.Fatalf("expected Private=true after toggle, got %+v", settings)
+	}
+}
+
 func TestToggleNotesPrivate(t *testing.T) {
 	skipIfNoDb(t)
 

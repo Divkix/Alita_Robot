@@ -244,6 +244,45 @@ func TestInitTracing_NegativeSampleRate(t *testing.T) {
 	}
 }
 
+func TestInitTracingConsoleExporterEnablesTracingAndShutdown(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	t.Setenv("OTEL_EXPORTER_CONSOLE", "true")
+	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "2.0")
+	t.Setenv("OTEL_SERVICE_NAME", "alita-test")
+
+	ensureAppConfig(t)
+	resetTracingState(t)
+
+	if err := InitTracing(); err != nil {
+		t.Fatalf("InitTracing() error = %v", err)
+	}
+	if !enabled {
+		t.Fatal("enabled = false, want true with console exporter")
+	}
+	if tracerProvider == nil {
+		t.Fatal("tracerProvider = nil, want initialized provider")
+	}
+	if tracer == nil {
+		t.Fatal("tracer = nil, want initialized tracer")
+	}
+	if propagator == nil {
+		t.Fatal("propagator = nil, want initialized propagator")
+	}
+
+	ctx, span := StartSpan(context.Background(), "console-exporter-test")
+	if ctx == nil {
+		t.Fatal("StartSpan() returned nil context")
+	}
+	if !span.SpanContext().IsValid() {
+		t.Fatal("StartSpan() returned invalid span context while tracing enabled")
+	}
+	span.End()
+
+	if err := Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+}
+
 func TestShutdown_AfterFailedInit_ReturnsNil(t *testing.T) {
 	// Simulate the state after a failed InitTracing: tracerProvider is nil.
 	ensureAppConfig(t)

@@ -20,6 +20,7 @@ var (
 )
 
 func init() {
+	RegisterLegacyModule("Antispam", 10, LoadAntispam)
 	go antiSpamCleanupLoop()
 }
 

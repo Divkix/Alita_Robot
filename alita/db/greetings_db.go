@@ -6,6 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+
+	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
 // checkGreetingSettings retrieves or creates default greeting settings for a chat.
@@ -151,21 +153,56 @@ func GetGoodbyeButtons(chatId int64) []Button {
 	return []Button{}
 }
 
+func defaultGreetingSettingsAttrs(chatID int64) map[string]any {
+	return map[string]any{
+		"chat_id":                chatID,
+		"clean_service_settings": false,
+		"welcome_enabled":        true,
+		"welcome_text":           DefaultWelcome,
+		"welcome_type":           TEXT,
+		"welcome_btns":           ButtonArray{},
+		"goodbye_enabled":        false,
+		"goodbye_text":           DefaultGoodbye,
+		"goodbye_type":           TEXT,
+		"goodbye_btns":           ButtonArray{},
+		"auto_approve":           false,
+	}
+}
+
+func upsertGreetingSettings(chatID int64, updates map[string]any) error {
+	if !ChatExists(chatID) {
+		if err := EnsureChatInDb(chatID, ""); err != nil {
+			return alitaerrors.Wrapf(err, "ensure chat %d in db", chatID)
+		}
+	}
+	updates["updated_at"] = time.Now()
+	settings := GreetingSettings{}
+	if err := DB.Where("chat_id = ?", chatID).
+		Attrs(defaultGreetingSettingsAttrs(chatID)).
+		FirstOrCreate(&settings).Error; err != nil {
+		return alitaerrors.Wrapf(err, "first-or-create greeting settings for chat %d", chatID)
+	}
+	if err := DB.Model(&GreetingSettings{}).
+		Where("chat_id = ?", chatID).
+		Updates(updates).Error; err != nil {
+		return alitaerrors.Wrapf(err, "update greeting settings for chat %d", chatID)
+	}
+	return nil
+}
+
 // SetWelcomeText updates the welcome message text, file ID, buttons, and type for a chat.
 // Creates default greeting settings if they don't exist.
 //
 //nolint:dupl // SetGoodbyeText has similar structure but different struct fields
 func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []Button, welcType int) error {
-	welcomeSrc := checkGreetingSettings(chatID)
-	if welcomeSrc.WelcomeSettings == nil {
-		welcomeSrc.WelcomeSettings = &WelcomeSettings{}
+	updates := map[string]any{
+		"welcome_text":    welcometxt,
+		"welcome_btns":    ButtonArray(buttons),
+		"welcome_type":    welcType,
+		"welcome_file_id": fileId,
 	}
-	welcomeSrc.WelcomeSettings.WelcomeText = welcometxt
-	welcomeSrc.WelcomeSettings.Button = ButtonArray(buttons)
-	welcomeSrc.WelcomeSettings.WelcomeType = welcType
-	welcomeSrc.WelcomeSettings.FileID = fileId
 
-	err := UpdateRecord(&GreetingSettings{}, map[string]any{"chat_id": chatID}, welcomeSrc)
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetWelcomeText]: %v", err)
 		return err
@@ -179,19 +216,11 @@ func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []Button, w
 // SetWelcomeToggle enables or disables welcome messages for the specified chat.
 // Creates default greeting settings if they don't exist.
 func SetWelcomeToggle(chatID int64, pref bool) error {
-	welcomeSrc := checkGreetingSettings(chatID)
-	if welcomeSrc.WelcomeSettings == nil {
-		welcomeSrc.WelcomeSettings = &WelcomeSettings{}
-	}
-	welcomeSrc.WelcomeSettings.ShouldWelcome = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"welcome_enabled": pref,
-		"updated_at":      time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetWelcomeToggle]: %v", err)
 		return err
@@ -207,16 +236,14 @@ func SetWelcomeToggle(chatID int64, pref bool) error {
 //
 //nolint:dupl // SetGoodbyeText has similar structure to SetWelcomeText but different struct fields
 func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []Button, goodbyeType int) error {
-	goodbyeSrc := checkGreetingSettings(chatID)
-	if goodbyeSrc.GoodbyeSettings == nil {
-		goodbyeSrc.GoodbyeSettings = &GoodbyeSettings{}
+	updates := map[string]any{
+		"goodbye_text":    goodbyetext,
+		"goodbye_btns":    ButtonArray(buttons),
+		"goodbye_type":    goodbyeType,
+		"goodbye_file_id": fileId,
 	}
-	goodbyeSrc.GoodbyeSettings.GoodbyeText = goodbyetext
-	goodbyeSrc.GoodbyeSettings.Button = ButtonArray(buttons)
-	goodbyeSrc.GoodbyeSettings.GoodbyeType = goodbyeType
-	goodbyeSrc.GoodbyeSettings.FileID = fileId
 
-	err := UpdateRecord(&GreetingSettings{}, map[string]any{"chat_id": chatID}, goodbyeSrc)
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetGoodbyeText]: %v", err)
 		return err
@@ -230,19 +257,11 @@ func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []Button, 
 // SetGoodbyeToggle enables or disables goodbye messages for the specified chat.
 // Creates default greeting settings if they don't exist.
 func SetGoodbyeToggle(chatID int64, pref bool) error {
-	goodbyeSrc := checkGreetingSettings(chatID)
-	if goodbyeSrc.GoodbyeSettings == nil {
-		goodbyeSrc.GoodbyeSettings = &GoodbyeSettings{}
-	}
-	goodbyeSrc.GoodbyeSettings.ShouldGoodbye = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"goodbye_enabled": pref,
-		"updated_at":      time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetGoodbyeToggle]: %v", err)
 		return err
@@ -256,16 +275,11 @@ func SetGoodbyeToggle(chatID int64, pref bool) error {
 // SetShouldCleanService sets whether service messages should be automatically cleaned in the chat.
 // Creates default greeting settings if they don't exist.
 func SetShouldCleanService(chatID int64, pref bool) error {
-	cleanServiceSrc := checkGreetingSettings(chatID)
-	cleanServiceSrc.ShouldCleanService = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"clean_service_settings": pref,
-		"updated_at":             time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetShouldCleanService]: %v", err)
 		return err
@@ -279,16 +293,11 @@ func SetShouldCleanService(chatID int64, pref bool) error {
 // SetShouldAutoApprove sets whether new members should be automatically approved in the chat.
 // Creates default greeting settings if they don't exist.
 func SetShouldAutoApprove(chatID int64, pref bool) error {
-	autoApproveSrc := checkGreetingSettings(chatID)
-	autoApproveSrc.ShouldAutoApprove = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"auto_approve": pref,
-		"updated_at":   time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetShouldAutoApprove]: %v", err)
 		return err
@@ -302,19 +311,11 @@ func SetShouldAutoApprove(chatID int64, pref bool) error {
 // SetCleanWelcomeSetting sets whether old welcome messages should be automatically cleaned.
 // Creates default greeting settings if they don't exist.
 func SetCleanWelcomeSetting(chatID int64, pref bool) error {
-	cleanWelcomeSrc := checkGreetingSettings(chatID)
-	if cleanWelcomeSrc.WelcomeSettings == nil {
-		cleanWelcomeSrc.WelcomeSettings = &WelcomeSettings{}
-	}
-	cleanWelcomeSrc.WelcomeSettings.CleanWelcome = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"welcome_clean_old": pref,
-		"updated_at":        time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetCleanWelcomeSetting]: %v", err)
 		return err
@@ -328,14 +329,11 @@ func SetCleanWelcomeSetting(chatID int64, pref bool) error {
 // SetCleanWelcomeMsgId updates the message ID of the last welcome message for cleanup purposes.
 // Creates default greeting settings if they don't exist.
 func SetCleanWelcomeMsgId(chatId, msgId int64) error {
-	_ = checkGreetingSettings(chatId) // ensure record exists
-
 	updates := map[string]any{
 		"welcome_last_msg_id": msgId,
-		"updated_at":          time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatId).Updates(updates).Error
+	err := upsertGreetingSettings(chatId, updates)
 	if err != nil {
 		log.Errorf("[Database][SetCleanWelcomeMsgId]: %v", err)
 		return err
@@ -349,19 +347,11 @@ func SetCleanWelcomeMsgId(chatId, msgId int64) error {
 // SetCleanGoodbyeSetting sets whether old goodbye messages should be automatically cleaned.
 // Creates default greeting settings if they don't exist.
 func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
-	cleanGoodbyeSrc := checkGreetingSettings(chatID)
-	if cleanGoodbyeSrc.GoodbyeSettings == nil {
-		cleanGoodbyeSrc.GoodbyeSettings = &GoodbyeSettings{}
-	}
-	cleanGoodbyeSrc.GoodbyeSettings.CleanGoodbye = pref
-
-	// Use map to ensure zero values (false) are properly updated
 	updates := map[string]any{
 		"goodbye_clean_old": pref,
-		"updated_at":        time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatID).Updates(updates).Error
+	err := upsertGreetingSettings(chatID, updates)
 	if err != nil {
 		log.Errorf("[Database][SetCleanGoodbyeSetting]: %v", err)
 		return err
@@ -375,14 +365,11 @@ func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
 // SetCleanGoodbyeMsgId updates the message ID of the last goodbye message for cleanup purposes.
 // Creates default greeting settings if they don't exist.
 func SetCleanGoodbyeMsgId(chatId, msgId int64) error {
-	_ = checkGreetingSettings(chatId) // ensure record exists
-
 	updates := map[string]any{
 		"goodbye_last_msg_id": msgId,
-		"updated_at":          time.Now(),
 	}
 
-	err := DB.Model(&GreetingSettings{}).Where("chat_id = ?", chatId).Updates(updates).Error
+	err := upsertGreetingSettings(chatId, updates)
 	if err != nil {
 		log.Errorf("[Database][SetCleanGoodbyeMsgId]: %v", err)
 		return err

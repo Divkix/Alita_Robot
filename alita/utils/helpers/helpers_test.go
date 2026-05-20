@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +14,40 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
+
+type helpersBotClient struct{}
+
+func (helpersBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	switch method {
+	case "getChat":
+		return json.RawMessage(`{"id":-1001,"type":"supergroup","title":"Helper Chat"}`), nil
+	case "getChatAdministrators":
+		return json.RawMessage(`[{"status":"administrator","user":{"id":777000,"is_bot":false,"first_name":"Telegram"}},{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Helper Bot"}}]`), nil
+	case "getChatMember":
+		if fmt.Sprint(params["user_id"]) == "999" {
+			return json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Helper Bot"},"can_invite_users":true}`), nil
+		}
+		return json.RawMessage(`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (helpersBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL
+}
+
+func (helpersBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL + "/file/bot" + token + "/" + path
+}
+
+func newHelpersBot() *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: helpersBotClient{},
+		User:      gotgbot.User{Id: 999, IsBot: true, Username: "HelperBot"},
+	}
+}
 
 // ---------------------------------------------------------------------------
 // SplitMessage
@@ -175,6 +211,40 @@ func TestGetFullNameNoLastName(t *testing.T) {
 	name := GetFullName("Alice", "")
 	if name != "Alice" {
 		t.Fatalf("expected 'Alice', got %q", name)
+	}
+}
+
+func TestInitButtonsReflectsAdminStatus(t *testing.T) {
+	bot := newHelpersBot()
+
+	adminKb := InitButtons(bot, -1001, 777000)
+	if len(adminKb.InlineKeyboard) != 2 {
+		t.Fatalf("InitButtons(admin) rows = %d, want admin and user rows", len(adminKb.InlineKeyboard))
+	}
+	if adminKb.InlineKeyboard[0][0].Text == "" || adminKb.InlineKeyboard[1][0].Text == "" {
+		t.Fatalf("InitButtons(admin) has empty button text: %#v", adminKb.InlineKeyboard)
+	}
+
+	userKb := InitButtonsWithLanguage(bot, -1001, 42, "en")
+	if len(userKb.InlineKeyboard) != 1 {
+		t.Fatalf("InitButtons(user) rows = %d, want only user row", len(userKb.InlineKeyboard))
+	}
+}
+
+func TestFormattingReplacerWithLanguageWrapper(t *testing.T) {
+	originalDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = originalDB })
+
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Helper Chat"}
+	user := &gotgbot.User{Id: 42, FirstName: "Ada", LastName: "Lovelace"}
+
+	got, buttons := FormattingReplacerWithLanguage(nil, chat, user, "{fullname} in {chatname}", nil, "en")
+	if got != "Ada Lovelace in Helper Chat" {
+		t.Fatalf("FormattingReplacerWithLanguage() = %q", got)
+	}
+	if len(buttons) != 0 {
+		t.Fatalf("buttons = %#v, want none", buttons)
 	}
 }
 
@@ -960,6 +1030,86 @@ func TestInlineKeyboardMarkupToTgmd2htmlButtonV2EmptyMarkup(t *testing.T) {
 	}
 }
 
+func TestGetNoteAndFilterTypeParsesDirectText(t *testing.T) {
+	msg := &gotgbot.Message{
+		MessageId: 1,
+		Text:      "/save rules Read this {private}{admin}{preview}{protect}{nonotif}",
+	}
+
+	keyword, fileID, text, dataType, buttons, privateOnly, groupOnly, adminOnly, webPreview, protected, noNotif, errText := GetNoteAndFilterType(msg, false, "en")
+	if keyword != "rules" {
+		t.Fatalf("keyword = %q, want rules", keyword)
+	}
+	if fileID != "" || dataType != db.TEXT {
+		t.Fatalf("fileID/dataType = %q/%d, want text note", fileID, dataType)
+	}
+	if text != "Read this {private}{admin}{preview}{protect}{nonotif}" {
+		t.Fatalf("text = %q, want stored note body with option tags preserved", text)
+	}
+	if len(buttons) != 0 {
+		t.Fatalf("buttons = %#v, want none", buttons)
+	}
+	if !privateOnly || groupOnly || !adminOnly || !webPreview || !protected || !noNotif {
+		t.Fatalf("flags = private:%v group:%v admin:%v preview:%v protect:%v nonotif:%v", privateOnly, groupOnly, adminOnly, webPreview, protected, noNotif)
+	}
+	if errText == "" {
+		t.Fatal("error text should retain localized fallback for invalid-note use")
+	}
+}
+
+func TestGetNoteAndFilterTypeParsesReplyMedia(t *testing.T) {
+	msg := &gotgbot.Message{
+		MessageId: 2,
+		Text:      "/save photo-key",
+		ReplyToMessage: &gotgbot.Message{
+			Photo: []gotgbot.PhotoSize{
+				{FileId: "small-photo", Width: 10, Height: 10},
+				{FileId: "large-photo", Width: 100, Height: 100},
+			},
+		},
+	}
+
+	keyword, fileID, _, dataType, _, _, _, _, _, _, _, _ := GetNoteAndFilterType(msg, false, "en")
+	if keyword != "photo-key" || fileID != "large-photo" || dataType != db.PHOTO {
+		t.Fatalf("reply media = keyword %q file %q type %d, want photo-key/large-photo/PHOTO", keyword, fileID, dataType)
+	}
+}
+
+func TestGetNoteAndFilterTypeParsesFilterText(t *testing.T) {
+	msg := &gotgbot.Message{
+		MessageId: 3,
+		Text:      "/filter spam Stop posting links",
+	}
+
+	keyword, _, text, dataType, _, privateOnly, _, adminOnly, _, _, _, _ := GetNoteAndFilterType(msg, true, "en")
+	if keyword != "spam" || text != "Stop posting links" || dataType != db.TEXT {
+		t.Fatalf("filter = keyword %q text %q type %d, want spam text", keyword, text, dataType)
+	}
+	if privateOnly || adminOnly {
+		t.Fatal("filter parsing should not apply note-only flags")
+	}
+}
+
+func TestGetWelcomeTypeParsesTextAndReplyDocument(t *testing.T) {
+	textMsg := &gotgbot.Message{MessageId: 4, Text: "/setwelcome Welcome {first}"}
+	text, dataType, fileID, buttons, errText := GetWelcomeType(textMsg, "welcome", "en")
+	if text != "Welcome {first}" || dataType != db.TEXT || fileID != "" || len(buttons) != 0 || errText == "" {
+		t.Fatalf("welcome text = (%q, %d, %q, %#v, %q)", text, dataType, fileID, buttons, errText)
+	}
+
+	docMsg := &gotgbot.Message{
+		MessageId: 5,
+		Text:      "/setwelcome",
+		ReplyToMessage: &gotgbot.Message{
+			Document: &gotgbot.Document{FileId: "doc-file", FileName: "rules.pdf"},
+		},
+	}
+	_, dataType, fileID, _, _ = GetWelcomeType(docMsg, "welcome", "en")
+	if dataType != db.DOCUMENT || fileID != "doc-file" {
+		t.Fatalf("welcome document = type %d file %q, want DOCUMENT/doc-file", dataType, fileID)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // IsPermissionError
 // ---------------------------------------------------------------------------
@@ -1002,4 +1152,3 @@ func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
 		t.Fatalf("IsExpectedTelegramError(media.ErrNoPermission) expected true (ErrNoPermission should be suppressed); got false for %q", media.ErrNoPermission.Error())
 	}
 }
-

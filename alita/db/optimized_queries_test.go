@@ -164,6 +164,226 @@ func TestOptimizedChatQueries_NilDB(t *testing.T) {
 	}
 }
 
+func TestOptimizedChatQueries_GetChatBasicInfo(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+	})
+
+	if err := EnsureChatInDb(chatID, "Optimized Chat"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+
+	q := NewOptimizedChatQueries()
+	chat, err := q.GetChatBasicInfo(chatID)
+	if err != nil {
+		t.Fatalf("GetChatBasicInfo() error = %v", err)
+	}
+	if chat.ChatId != chatID {
+		t.Fatalf("GetChatBasicInfo() ChatId = %d, want %d", chat.ChatId, chatID)
+	}
+
+	_, err = q.GetChatBasicInfo(chatID + 999999)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("GetChatBasicInfo() missing error = %v, want gorm.ErrRecordNotFound", err)
+	}
+}
+
+func TestOptimizedAntifloodQueries_DefaultAndRecord(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&AntifloodSettings{}).Error
+	})
+
+	q := NewOptimizedAntifloodQueries()
+	defaults, err := q.GetAntifloodSettings(chatID)
+	if err != nil {
+		t.Fatalf("GetAntifloodSettings(default) error = %v", err)
+	}
+	if defaults.ChatId != chatID || defaults.Limit != 0 || defaults.Action != "mute" {
+		t.Fatalf("default antiflood settings = %+v, want chat %d disabled mute", defaults, chatID)
+	}
+
+	if err := DB.Create(&AntifloodSettings{
+		ChatId:                 chatID,
+		Limit:                  7,
+		Action:                 "ban",
+		DeleteAntifloodMessage: true,
+	}).Error; err != nil {
+		t.Fatalf("DB.Create() antiflood error = %v", err)
+	}
+
+	got, err := q.GetAntifloodSettings(chatID)
+	if err != nil {
+		t.Fatalf("GetAntifloodSettings(record) error = %v", err)
+	}
+	if got.Limit != 7 || got.Action != "ban" || !got.DeleteAntifloodMessage {
+		t.Fatalf("antiflood settings = %+v, want limit 7 ban delete", got)
+	}
+}
+
+func TestOptimizedFilterQueries_GetChatFiltersOptimized(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&ChatFilters{}).Error
+	})
+
+	filters := []*ChatFilters{
+		{ChatId: chatID, KeyWord: "hello", FilterReply: "world", MsgType: 1, FileID: "file-1", NoNotif: true},
+		{ChatId: chatID, KeyWord: "bye", FilterReply: "later", MsgType: 2, FileID: "file-2"},
+	}
+	for _, filter := range filters {
+		if err := DB.Create(filter).Error; err != nil {
+			t.Fatalf("DB.Create() filter %q error = %v", filter.KeyWord, err)
+		}
+	}
+
+	q := NewOptimizedFilterQueries()
+	got, err := q.GetChatFiltersOptimized(chatID)
+	if err != nil {
+		t.Fatalf("GetChatFiltersOptimized() error = %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("GetChatFiltersOptimized() len = %d, want 2", len(got))
+	}
+	keywords := map[string]bool{}
+	for _, filter := range got {
+		keywords[filter.KeyWord] = true
+	}
+	if !keywords["hello"] || !keywords["bye"] {
+		t.Fatalf("GetChatFiltersOptimized() keywords = %v, want hello and bye", keywords)
+	}
+
+	empty, err := q.GetChatFiltersOptimized(chatID + 1)
+	if err != nil {
+		t.Fatalf("GetChatFiltersOptimized(empty) error = %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("GetChatFiltersOptimized(empty) len = %d, want 0", len(empty))
+	}
+}
+
+func TestOptimizedChannelQueries_GetChannelSettings(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&ChannelSettings{}).Error
+	})
+
+	if err := DB.Create(&ChannelSettings{
+		ChatId:      chatID,
+		ChannelId:   chatID + 10,
+		ChannelName: "News",
+		Username:    "news_channel",
+	}).Error; err != nil {
+		t.Fatalf("DB.Create() channel error = %v", err)
+	}
+
+	q := NewOptimizedChannelQueries()
+	got, err := q.GetChannelSettings(chatID)
+	if err != nil {
+		t.Fatalf("GetChannelSettings() error = %v", err)
+	}
+	if got.ChannelId != chatID+10 || got.ChannelName != "News" || got.Username != "news_channel" {
+		t.Fatalf("GetChannelSettings() = %+v, want inserted channel fields", got)
+	}
+
+	_, err = q.GetChannelSettings(chatID + 999999)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("GetChannelSettings(missing) error = %v, want gorm.ErrRecordNotFound", err)
+	}
+}
+
+func TestOptimizedQueriesNilDatabaseConstructors(t *testing.T) {
+	originalDB := DB
+	DB = nil
+	t.Cleanup(func() {
+		DB = originalDB
+		optimizedQueriesMu.Lock()
+		optimizedQueries = nil
+		optimizedQueriesMu.Unlock()
+	})
+
+	if NewOptimizedLockQueries().db != nil {
+		t.Fatal("NewOptimizedLockQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedUserQueries().db != nil {
+		t.Fatal("NewOptimizedUserQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedChatQueries().db != nil {
+		t.Fatal("NewOptimizedChatQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedAntifloodQueries().db != nil {
+		t.Fatal("NewOptimizedAntifloodQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedFilterQueries().db != nil {
+		t.Fatal("NewOptimizedFilterQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedBlacklistQueries().db != nil {
+		t.Fatal("NewOptimizedBlacklistQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedChannelQueries().db != nil {
+		t.Fatal("NewOptimizedChannelQueries() with nil DB returned non-nil db")
+	}
+	if NewOptimizedAntiRaidQueries().db != nil {
+		t.Fatal("NewOptimizedAntiRaidQueries() with nil DB returned non-nil db")
+	}
+	if isOptimizedQueriesValid() {
+		t.Fatal("isOptimizedQueriesValid() with nil DB = true, want false")
+	}
+}
+
+func TestCachedOptimizedQueriesRejectsMissingQueryAdapters(t *testing.T) {
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{name: "lock", call: func() error {
+			_, err := (*CachedOptimizedQueries)(nil).GetLockStatusCached(1, "text")
+			return err
+		}},
+		{name: "user", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetUserBasicInfoCached(1)
+			return err
+		}},
+		{name: "chat", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetChatBasicInfoCached(1)
+			return err
+		}},
+		{name: "antiflood", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetAntifloodSettingsCached(1)
+			return err
+		}},
+		{name: "antiraid", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetAntiRaidSettingsCached(1)
+			return err
+		}},
+		{name: "filter", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetChatFiltersCached(1)
+			return err
+		}},
+		{name: "channel", call: func() error {
+			_, err := (&CachedOptimizedQueries{}).GetChannelSettingsCached(1)
+			return err
+		}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.call(); err == nil {
+				t.Fatal("cached query error = nil, want missing adapter error")
+			}
+		})
+	}
+}
+
 func TestGetOptimizedQueries_Singleton(t *testing.T) {
 	skipIfNoDb(t)
 

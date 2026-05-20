@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -358,7 +359,7 @@ func TestGCAction_NameAndSeverity(t *testing.T) {
 
 func TestExecuteActions_TableDriven(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		newAction func() RemediationAction
 	}{
 		{"GCAction", func() RemediationAction { return &GCAction{} }},
@@ -402,6 +403,46 @@ func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 
 	// Stop should not deadlock even though Start() did nothing
 	manager.Stop()
+}
+
+func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state
+
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	collector.updateSystemMetrics(SystemMetrics{
+		GoroutineCount:      200,
+		MemoryAllocMB:       600,
+		GCPauseMs:           75,
+		AverageResponseTime: 25 * time.Millisecond,
+	})
+
+	manager := NewAutoRemediationManager(collector)
+	action := &testRemediationAction{name: "fast-loop", severity: 1}
+	manager.actions = []RemediationAction{action}
+	manager.actionCooldown = 0
+	manager.monitorInterval = time.Millisecond
+
+	manager.Start()
+	t.Cleanup(manager.Stop)
+
+	deadline := time.After(500 * time.Millisecond)
+	for {
+		if atomic.LoadInt32(&action.executed) > 0 {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatal("expected Start monitor loop to execute applicable action")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -531,4 +572,59 @@ func TestAutoRemediationManager_ShouldExecuteAction_Cooldown(t *testing.T) {
 	if manager.shouldExecuteAction(action) {
 		t.Fatal("expected shouldExecuteAction to be false immediately after execution")
 	}
+}
+
+type testRemediationAction struct {
+	name     string
+	severity int
+	executed int32
+}
+
+func (a *testRemediationAction) Name() string {
+	return a.name
+}
+
+func (a *testRemediationAction) Severity() int {
+	return a.severity
+}
+
+func (a *testRemediationAction) CanExecute(SystemMetrics) bool {
+	return true
+}
+
+func (a *testRemediationAction) Execute(context.Context) error {
+	atomic.AddInt32(&a.executed, 1)
+	return nil
+}
+
+func TestAutoRemediationManagerCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
+	collector := NewBackgroundStatsCollector()
+	collector.updateSystemMetrics(SystemMetrics{
+		GoroutineCount:      200,
+		MemoryAllocMB:       600,
+		GCPauseMs:           75,
+		AverageResponseTime: 25 * time.Millisecond,
+	})
+
+	manager := NewAutoRemediationManager(collector)
+	low := &testRemediationAction{name: "low", severity: 1}
+	high := &testRemediationAction{name: "high", severity: 5}
+	manager.actions = []RemediationAction{high, low}
+
+	manager.checkAndRemediate()
+
+	if atomic.LoadInt32(&low.executed) != 1 {
+		t.Fatalf("low severity action executions = %d, want 1", low.executed)
+	}
+	if atomic.LoadInt32(&high.executed) != 0 {
+		t.Fatalf("high severity action executions = %d, want 0 because one action executes per cycle", high.executed)
+	}
+	if manager.shouldExecuteAction(low) {
+		t.Fatal("executed action was not put on cooldown")
+	}
+}
+
+func TestAutoRemediationManagerCheckAndRemediateHandlesNilCollector(t *testing.T) {
+	manager := NewAutoRemediationManager(nil)
+	manager.checkAndRemediate()
 }

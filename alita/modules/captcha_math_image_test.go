@@ -230,6 +230,58 @@ func TestGenerateMathCaptcha(t *testing.T) {
 	}
 }
 
+func TestGenerateTextCaptcha(t *testing.T) {
+	answer, imageBytes, options, err := generateTextCaptcha()
+	if err != nil {
+		t.Fatalf("generateTextCaptcha() error = %v", err)
+	}
+	assertCaptchaChallenge(t, answer, imageBytes, options, false)
+}
+
+func TestGenerateMathImageCaptcha(t *testing.T) {
+	answer, imageBytes, options, err := generateMathImageCaptcha()
+	if err != nil {
+		t.Fatalf("generateMathImageCaptcha() error = %v", err)
+	}
+	assertCaptchaChallenge(t, answer, imageBytes, options, true)
+}
+
+func assertCaptchaChallenge(t *testing.T, answer string, imageBytes []byte, options []string, numeric bool) {
+	t.Helper()
+
+	if answer == "" {
+		t.Fatal("expected non-empty answer")
+	}
+	if len(imageBytes) == 0 {
+		t.Fatal("expected non-empty image bytes")
+	}
+	if len(imageBytes) < 8 || string(imageBytes[:8]) != "\x89PNG\r\n\x1a\n" {
+		t.Fatalf("expected PNG image bytes, got prefix %q", string(imageBytes[:min(len(imageBytes), 8)]))
+	}
+	if len(options) != 4 {
+		t.Fatalf("expected exactly 4 answer options, got %d: %v", len(options), options)
+	}
+	if !slices.Contains(options, answer) {
+		t.Fatalf("answer %q not present in options %v", answer, options)
+	}
+
+	seen := make(map[string]struct{}, len(options))
+	for _, option := range options {
+		if option == "" {
+			t.Fatalf("empty option in %v", options)
+		}
+		if _, ok := seen[option]; ok {
+			t.Fatalf("duplicate option %q in %v", option, options)
+		}
+		seen[option] = struct{}{}
+		if numeric {
+			if _, err := strconv.Atoi(option); err != nil {
+				t.Fatalf("numeric captcha option %q is not an integer: %v", option, err)
+			}
+		}
+	}
+}
+
 // ---- noopCaptchaStore ----
 
 func TestNoopCaptchaStore(t *testing.T) {
@@ -288,9 +340,9 @@ func TestNewMathImageCaptchaDriver(t *testing.T) {
 
 func TestFormatMathQuestion(t *testing.T) {
 	tests := []struct {
-		a, b      int
-		op        string
-		want      string
+		a, b int
+		op   string
+		want string
 	}{
 		{5, 3, "+", "5 + 3"},
 		{10, 4, "-", "10 - 4"},

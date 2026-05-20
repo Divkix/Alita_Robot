@@ -9,6 +9,7 @@ import (
 
 // ToggleAllowConnect enables or disables connection functionality for a chat.
 func ToggleAllowConnect(chatID int64, pref bool) {
+	GetChatConnectionSetting(chatID)
 	err := UpdateRecordWithZeroValues(&ConnectionChatSettings{}, ConnectionChatSettings{ChatId: chatID}, map[string]any{"allow_connect": pref})
 	if err != nil {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
@@ -69,7 +70,7 @@ func Connection(UserID int64) *ConnectionSettings {
 // Sets the user's connection status to true and associates them with the chat.
 // Uses FirstOrCreate to handle both new and existing users.
 func ConnectId(UserID, chatID int64) {
-	if chatID <= 0 {
+	if chatID == 0 {
 		log.WithFields(log.Fields{
 			"userID": UserID,
 			"chatID": chatID,

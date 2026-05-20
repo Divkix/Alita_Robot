@@ -261,7 +261,10 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 // deleteButtonHandler processes callback queries from delete buttons
 // to remove specific messages, requiring admin permissions.
 func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
@@ -271,14 +274,14 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	msgIDRaw := ""
-	if decoded, ok := decodeCallbackData(query.Data, "deleteMsg"); ok {
-		msgIDRaw, _ = decoded.Field("m")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			msgIDRaw = args[1]
-		}
+	decoded, ok := decodeCallbackData(query.Data, "deleteMsg")
+	if !ok {
+		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
+		errText, _ := tr.GetString("purges_invalid_button_data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
+		return ext.EndGroups
 	}
+	msgIDRaw, _ = decoded.Field("m")
 	if msgIDRaw == "" {
 		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
 		errText, _ := tr.GetString("purges_invalid_button_data")
@@ -518,11 +521,15 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 // LoadPurges registers all purges module handlers with the dispatcher,
 // including message deletion commands and callback handlers.
 func LoadPurges(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(purgesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(purgesModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("del", purgesModule.delCmd))
 	dispatcher.AddHandler(handlers.NewCommand("purge", purgesModule.purge))
 	dispatcher.AddHandler(handlers.NewCommand("purgefrom", purgesModule.purgeFrom))
 	dispatcher.AddHandler(handlers.NewCommand("purgeto", purgesModule.purgeTo))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("deleteMsg"), purgesModule.deleteButtonHandler))
+}
+
+func init() {
+	RegisterLegacyModule("Purges", 90, LoadPurges)
 }

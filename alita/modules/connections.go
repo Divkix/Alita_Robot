@@ -202,7 +202,10 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 // connectionButtons handles inline keyboard callbacks for connection management.
 // Processes admin and user command list requests from connection interface.
 func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	msg := query.Message
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -342,6 +345,16 @@ func (m moduleStruct) isConnected(b *gotgbot.Bot, ctx *ext.Context, userId int64
 	}
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+	if query, ok := callbackQueryFromContext(ctx); ok && query != nil {
+		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		if err != nil {
+			log.Error(err)
+		}
+		return 0
+	}
+	if ctx == nil || ctx.EffectiveMessage == nil {
+		return 0
+	}
 	_, err := ctx.EffectiveMessage.Reply(b, text, nil)
 	if err != nil {
 		log.Error(err)
@@ -429,7 +442,7 @@ func (moduleStruct) userCmdConnString() string {
 // LoadConnections registers all connection module handlers with the dispatcher.
 // Sets up commands for managing remote chat connections and their callbacks.
 func LoadConnections(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(ConnectionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(ConnectionsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("connect", ConnectionsModule.connect))
 	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))
@@ -437,4 +450,8 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
 	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
+}
+
+func init() {
+	RegisterLegacyModule("Connections", 170, LoadConnections)
 }

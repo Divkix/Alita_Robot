@@ -549,7 +549,10 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 // rmWarnButton processes callback queries from remove warning buttons
 // to remove the latest warning from a user, requiring admin permissions.
 func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := chat_status.RequireUser(b, ctx, false)
 	if user == nil {
 		return ext.EndGroups
@@ -595,6 +598,11 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText = fmt.Sprintf(temp, helpers.MentionHtml(user.Id, user.FirstName))
 	} else {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")
+	}
+
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: replyText})
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(
@@ -794,7 +802,10 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 // warnsButtonHandler processes callback queries for the reset all warnings
 // confirmation dialog, restricted to chat owners.
 func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	user := query.From
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
@@ -821,14 +832,25 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var replyText string
 
+	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
-		db.ResetAllChatWarns(query.Message.GetChat().Id)
+		if chat == nil {
+			helpText, _ = tr.GetString("error_generic")
+			replyText = helpText
+			break
+		}
+		db.ResetAllChatWarns(chat.Id)
 		helpText, _ = tr.GetString("warns_reset_all_success")
 		replyText, _ = tr.GetString("warns_reset_all_final")
 	case "no":
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")
 		replyText = helpText
+	}
+
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(
@@ -916,7 +938,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadWarns registers all warns module handlers with the dispatcher,
 // including warning commands and callback handlers.
 func LoadWarns(dispatcher *ext.Dispatcher) {
-	HelpModule.AbleMap.Store(warnsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(warnsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("warn", warnsModule.warnUser))
 	dispatcher.AddHandler(handlers.NewCommand("swarn", warnsModule.sWarnUser))
@@ -935,4 +957,8 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns"), warnsModule.warnsButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("warnings", warnsModule.warnings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmWarn"), warnsModule.rmWarnButton))
+}
+
+func init() {
+	RegisterLegacyModule("Warns", 200, LoadWarns)
 }

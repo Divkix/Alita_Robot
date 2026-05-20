@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +9,9 @@ import (
 
 	"github.com/spf13/viper"
 )
+
+//go:embed testdata/locales/* testdata/locales/nested/* testdata/badlocales/* testdata/nodefault/*
+var testLocaleFS embed.FS
 
 // ---- Loader utilities ----
 
@@ -473,6 +477,120 @@ func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 	}
 }
 
+func newTestLocaleManager() *LocaleManager {
+	return &LocaleManager{
+		defaultLang: "en",
+		viperCache:  make(map[string]*viper.Viper),
+		localeData:  make(map[string][]byte),
+	}
+}
+
+func TestLocaleManagerInitializeLoadsEmbeddedLocales(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultManagerConfig()
+	cfg.Cache.EnableCache = false
+	cfg.Loader.DefaultLanguage = "en"
+	cfg.Loader.StrictMode = true
+
+	lm := newTestLocaleManager()
+	if err := lm.Initialize(&testLocaleFS, "testdata/locales", cfg); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+
+	langs := lm.GetAvailableLanguages()
+	langSet := make(map[string]bool, len(langs))
+	for _, lang := range langs {
+		langSet[lang] = true
+	}
+	for _, want := range []string{"en", "es"} {
+		if !langSet[want] {
+			t.Fatalf("Initialize() languages = %v, want %q", langs, want)
+		}
+	}
+	if langSet["ignored"] || langSet["skipped"] {
+		t.Fatalf("Initialize() loaded non-locale entries: %v", langs)
+	}
+
+	es, err := lm.GetTranslator("es")
+	if err != nil {
+		t.Fatalf("GetTranslator(es) error = %v", err)
+	}
+	got, err := es.GetString("hello", TranslationParams{"user": "Ada"})
+	if err != nil {
+		t.Fatalf("GetString(hello) error = %v", err)
+	}
+	if got != "Hola, Ada!" {
+		t.Fatalf("GetString(hello) = %q, want %q", got, "Hola, Ada!")
+	}
+
+	fallback, err := lm.GetTranslator("missing")
+	if err != nil {
+		t.Fatalf("GetTranslator(missing) error = %v", err)
+	}
+	if fallback.langCode != "en" {
+		t.Fatalf("fallback translator langCode = %q, want %q", fallback.langCode, "en")
+	}
+
+	items, err := fallback.GetStringSlice("items")
+	if err != nil {
+		t.Fatalf("GetStringSlice(items) error = %v", err)
+	}
+	if len(items) != 2 || items[0] != "one" || items[1] != "two" {
+		t.Fatalf("GetStringSlice(items) = %v, want [one two]", items)
+	}
+
+	if err := lm.Initialize(&testLocaleFS, "testdata/locales", cfg); err == nil {
+		t.Fatal("second Initialize() call returned nil, want already initialized error")
+	}
+}
+
+func TestLocaleManagerInitializeStrictModeReturnsLoadError(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultManagerConfig()
+	cfg.Cache.EnableCache = false
+	cfg.Loader.DefaultLanguage = "en"
+	cfg.Loader.StrictMode = true
+
+	lm := newTestLocaleManager()
+	err := lm.Initialize(&testLocaleFS, "testdata/badlocales", cfg)
+	if err == nil {
+		t.Fatal("Initialize() with invalid locale returned nil error")
+	}
+	if !strings.Contains(err.Error(), "failed to load locale files") {
+		t.Fatalf("Initialize() error = %v, want load failure", err)
+	}
+}
+
+func TestLocaleManagerInitializeNonStrictStillRequiresDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultManagerConfig()
+	cfg.Cache.EnableCache = false
+	cfg.Loader.DefaultLanguage = "en"
+	cfg.Loader.StrictMode = false
+
+	lm := newTestLocaleManager()
+	err := lm.Initialize(&testLocaleFS, "testdata/nodefault", cfg)
+	if err == nil {
+		t.Fatal("Initialize() without default language returned nil error")
+	}
+	if !errors.Is(err, ErrLocaleNotFound) {
+		t.Fatalf("Initialize() error = %v, want ErrLocaleNotFound", err)
+	}
+}
+
+func TestLocaleManagerLoadLocaleFilesRejectsInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	lm := newTestLocaleManager()
+	err := lm.loadLocaleFiles()
+	if err == nil {
+		t.Fatal("loadLocaleFiles() with nil filesystem returned nil error")
+	}
+}
+
 // ---- New expanded tests ----
 
 func TestTranslator_GetString_NilManager(t *testing.T) {
@@ -562,5 +680,58 @@ func TestTranslator_GetStringSlice_NilManager(t *testing.T) {
 	}
 	if !errors.Is(err, ErrManagerNotInit) {
 		t.Fatalf("expected ErrManagerNotInit, got: %v", err)
+	}
+}
+
+func TestTranslator_GetStringSlice_ExistingAndMissingKeys(t *testing.T) {
+	t.Parallel()
+
+	const yamlContent = `
+items:
+  - one
+  - two
+`
+	tr := newTestTranslator(t, yamlContent)
+
+	items, err := tr.GetStringSlice("items")
+	if err != nil {
+		t.Fatalf("GetStringSlice(items) error = %v", err)
+	}
+	if len(items) != 2 || items[0] != "one" || items[1] != "two" {
+		t.Fatalf("GetStringSlice(items) = %v, want [one two]", items)
+	}
+
+	_, err = tr.GetStringSlice("missing")
+	if err == nil {
+		t.Fatal("GetStringSlice(missing) error = nil, want ErrKeyNotFound")
+	}
+	if !errors.Is(err, ErrKeyNotFound) {
+		t.Fatalf("GetStringSlice(missing) error = %v, want ErrKeyNotFound", err)
+	}
+}
+
+func TestTranslator_GetStringSlice_FallsBackToDefaultLanguage(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultManagerConfig()
+	cfg.Cache.EnableCache = false
+	cfg.Loader.DefaultLanguage = "en"
+	cfg.Loader.StrictMode = true
+
+	lm := newTestLocaleManager()
+	if err := lm.Initialize(&testLocaleFS, "testdata/locales", cfg); err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	tr, err := lm.GetTranslator("es")
+	if err != nil {
+		t.Fatalf("GetTranslator(es) error = %v", err)
+	}
+
+	items, err := tr.GetStringSlice("items")
+	if err != nil {
+		t.Fatalf("GetStringSlice(items fallback) error = %v", err)
+	}
+	if len(items) != 2 || items[0] != "one" || items[1] != "two" {
+		t.Fatalf("GetStringSlice(items fallback) = %v, want [one two]", items)
 	}
 }

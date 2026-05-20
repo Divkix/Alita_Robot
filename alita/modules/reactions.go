@@ -41,11 +41,11 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
 
 	// Register module as disableable
-	HelpModule.AbleMap.Store(reactionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
 
 	// Add help text
-	HelpModule.AltHelpOptions["Reactions"] = []string{"reaction"}
-	HelpModule.helpableKb["Reactions"] = [][]gotgbot.InlineKeyboardButton{
+	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
+	DefaultHelpRegistry().helpableKb["Reactions"] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text:         "Add Reaction",
@@ -63,7 +63,10 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 
 // reactionsHelpHandler handles inline help callbacks for reaction commands.
 func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) error {
-	query := ctx.CallbackQuery
+	query, ok := callbackQueryFromContext(ctx)
+	if !ok {
+		return ext.EndGroups
+	}
 	if query == nil {
 		return ext.EndGroups
 	}
@@ -420,7 +423,7 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Skip if module is disabled for this chat
-	_, enabled := HelpModule.AbleMap.Load(reactionsModule.moduleName)
+	_, enabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
 	if !enabled {
 		return ext.ContinueGroups
 	}
@@ -465,4 +468,8 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	return ext.ContinueGroups
+}
+
+func init() {
+	RegisterLegacyModule("Reactions", 250, LoadReactions)
 }

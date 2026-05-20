@@ -49,10 +49,10 @@ func ResourceMonitor() {
 }
 
 // ListModules returns a formatted string containing all loaded bot modules.
-// It retrieves the module names from the HelpModule.AbleMap, sorts them alphabetically,
+// It retrieves the module names from the default help registry, sorts them alphabetically,
 // and returns them as a comma-separated list wrapped in square brackets.
 func ListModules() string {
-	modSlice := modules.HelpModule.AbleMap.LoadModules()
+	modSlice := modules.DefaultHelpRegistry().AbleMap.LoadModules()
 	slices.Sort(modSlice)
 	return fmt.Sprintf("[%s]", strings.Join(modSlice, ", "))
 }
@@ -83,7 +83,7 @@ func InitialChecks(b *gotgbot.Bot) error {
 func checkDuplicateAliases() {
 	var althelp []string
 
-	for _, i := range modules.HelpModule.AltHelpOptions {
+	for _, i := range modules.DefaultHelpRegistry().AltHelpOptions {
 		althelp = append(althelp, i...)
 	}
 
@@ -109,40 +109,12 @@ func checkDuplicateAliases() {
 // and ensures the help module is loaded last to register all available commands.
 func LoadModules(dispatcher *ext.Dispatcher) {
 	// Initialize Inner Map
-	modules.HelpModule.AbleMap.Init()
+	modules.DefaultHelpRegistry().AbleMap.Init()
 
 	// Load this at last because it loads all the modules
 	defer modules.LoadHelp(dispatcher)
 
-	// Core modules — bot_updates registers via the new registry system
+	// Registered modules are loaded by priority. Help is deferred above so it
+	// can render metadata collected by module loaders.
 	modules.LoadAllModules(dispatcher)
-
-	// All other modules — explicit load order matters for dependencies
-	modules.LoadAntispam(dispatcher)
-	modules.LoadLanguage(dispatcher)
-	modules.LoadAdmin(dispatcher)
-	modules.LoadApprovals(dispatcher)
-	modules.LoadPin(dispatcher)
-	modules.LoadMisc(dispatcher)
-	modules.LoadBans(dispatcher)
-	modules.LoadMutes(dispatcher)
-	modules.LoadPurges(dispatcher)
-	modules.LoadUsers(dispatcher)
-	modules.LoadReports(dispatcher)
-	modules.LoadDev(dispatcher)
-	modules.LoadLocks(dispatcher)
-	modules.LoadFilters(dispatcher)
-	modules.LoadAntiflood(dispatcher)
-	modules.LoadNotes(dispatcher)
-	modules.LoadConnections(dispatcher)
-	modules.LoadDisabling(dispatcher)
-	modules.LoadRules(dispatcher)
-	modules.LoadWarns(dispatcher)
-	modules.LoadGreetings(dispatcher)
-	modules.LoadCaptcha(dispatcher)
-	modules.LoadAntiRaid(dispatcher)
-	modules.LoadBlacklists(dispatcher)
-	modules.LoadReactions(dispatcher)
-	modules.LoadMkdCmd(dispatcher)
-	modules.LoadBackup(dispatcher)
 }

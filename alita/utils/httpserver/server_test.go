@@ -1,12 +1,189 @@
 package httpserver
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/lib/v4/store"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+type httpServerBotClient struct {
+	mu      sync.Mutex
+	methods []string
+}
+
+func (c *httpServerBotClient) RequestWithContext(_ context.Context, _ string, method string, _ map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	c.mu.Lock()
+	c.methods = append(c.methods, method)
+	c.mu.Unlock()
+
+	switch method {
+	case "setWebhook", "deleteWebhook":
+		return json.RawMessage(`true`), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (c *httpServerBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *httpServerBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+func (c *httpServerBotClient) called(method string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, got := range c.methods {
+		if got == method {
+			return true
+		}
+	}
+	return false
+}
+
+func newHTTPServerTestBot(client *httpServerBotClient) *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User: gotgbot.User{
+			Id:       999,
+			IsBot:    true,
+			Username: "AlitaTestBot",
+		},
+	}
+}
+
+var (
+	httpServerDBOnce sync.Once
+	httpServerDBErr  error
+)
+
+func setupHTTPServerDB(t *testing.T) {
+	t.Helper()
+
+	httpServerDBOnce.Do(func() {
+		if db.DB == nil {
+			db.DB, httpServerDBErr = gorm.Open(
+				sqlite.Open("file:httpserver_test?mode=memory&cache=shared"),
+				&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},
+			)
+			if httpServerDBErr != nil {
+				return
+			}
+		}
+		httpServerDBErr = db.DB.AutoMigrate(&db.Chat{}, &db.User{})
+	})
+	if httpServerDBErr != nil {
+		t.Fatalf("setup HTTP server DB: %v", httpServerDBErr)
+	}
+}
+
+type httpServerMemoryStore struct {
+	mu   sync.RWMutex
+	data map[string]any
+	ttls map[string]time.Time
+}
+
+func newHTTPServerMemoryStore() *httpServerMemoryStore {
+	return &httpServerMemoryStore{
+		data: make(map[string]any),
+		ttls: make(map[string]time.Time),
+	}
+}
+
+func (m *httpServerMemoryStore) Get(_ context.Context, key any) (any, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	k := fmt.Sprint(key)
+	if expiry, ok := m.ttls[k]; ok && time.Now().After(expiry) {
+		return nil, fmt.Errorf("key expired")
+	}
+	value, ok := m.data[k]
+	if !ok {
+		return nil, fmt.Errorf("key not found")
+	}
+	return value, nil
+}
+
+func (m *httpServerMemoryStore) GetWithTTL(_ context.Context, key any) (any, time.Duration, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	k := fmt.Sprint(key)
+	value, ok := m.data[k]
+	if !ok {
+		return nil, 0, fmt.Errorf("key not found")
+	}
+	if expiry, ok := m.ttls[k]; ok {
+		ttl := time.Until(expiry)
+		if ttl < 0 {
+			return nil, 0, fmt.Errorf("key expired")
+		}
+		return value, ttl, nil
+	}
+	return value, 0, nil
+}
+
+func (m *httpServerMemoryStore) Set(_ context.Context, key, value any, options ...store.Option) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	k := fmt.Sprint(key)
+	m.data[k] = value
+	if expiration := store.ApplyOptions(options...).Expiration; expiration > 0 {
+		m.ttls[k] = time.Now().Add(expiration)
+	} else {
+		delete(m.ttls, k)
+	}
+	return nil
+}
+
+func (m *httpServerMemoryStore) Delete(_ context.Context, key any) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	k := fmt.Sprint(key)
+	delete(m.data, k)
+	delete(m.ttls, k)
+	return nil
+}
+
+func (m *httpServerMemoryStore) Invalidate(context.Context, ...store.InvalidateOption) error {
+	return nil
+}
+
+func (m *httpServerMemoryStore) Clear(context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.data = make(map[string]any)
+	m.ttls = make(map[string]time.Time)
+	return nil
+}
+
+func (m *httpServerMemoryStore) GetType() string {
+	return "httpserver-memory-test"
+}
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()
@@ -24,6 +201,31 @@ func TestNewServer(t *testing.T) {
 	}
 	if !s.startTime.Equal(startTime) {
 		t.Errorf("expected startTime %v, got %v", startTime, s.startTime)
+	}
+}
+
+func TestCheckDatabaseWithHealthyConnection(t *testing.T) {
+	setupHTTPServerDB(t)
+
+	if !checkDatabase() {
+		t.Fatal("checkDatabase() = false, want true with configured test DB")
+	}
+}
+
+func TestCheckRedisWithNilAndHealthyManagers(t *testing.T) {
+	previousManager := cache.Manager
+	cache.Manager = nil
+	t.Cleanup(func() {
+		cache.Manager = previousManager
+	})
+
+	if checkRedis() {
+		t.Fatal("checkRedis() = true, want false with nil manager")
+	}
+
+	cache.Manager = gocache.New[any](newHTTPServerMemoryStore())
+	if !checkRedis() {
+		t.Fatal("checkRedis() = false, want true with memory manager")
 	}
 }
 
@@ -128,6 +330,62 @@ func TestWebhookHandlerUnauthorized(t *testing.T) {
 	}
 }
 
+func TestWebhookHandlerRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	s := New(9006, time.Now())
+	s.secret = "mysecret"
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", strings.NewReader("{"))
+	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "mysecret")
+	rr := httptest.NewRecorder()
+
+	s.webhookHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
+func TestWebhookHandlerRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	s := New(9006, time.Now())
+	s.secret = "mysecret"
+	body := strings.NewReader(strings.Repeat("x", maxRequestBodySize+1))
+	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", body)
+	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "mysecret")
+	rr := httptest.NewRecorder()
+
+	s.webhookHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
+func TestWebhookHandlerAcceptsAuthorizedTelegramUpdate(t *testing.T) {
+	client := &httpServerBotClient{}
+	s := New(9006, time.Now())
+	s.secret = "mysecret"
+	s.bot = newHTTPServerTestBot(client)
+	s.dispatcher = ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	body := `{"update_id":1,"message":{"message_id":2,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Webhook Chat"},"from":{"id":42,"is_bot":false,"first_name":"Member"},"text":"hello"}}`
+	req := httptest.NewRequest(http.MethodPost, "/webhook/mysecret", strings.NewReader(body))
+	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "mysecret")
+	rr := httptest.NewRecorder()
+
+	s.webhookHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+	if strings.TrimSpace(rr.Body.String()) != "OK" {
+		t.Errorf("expected OK response body, got %q", rr.Body.String())
+	}
+}
+
 func TestPprofHandler(t *testing.T) {
 	t.Parallel()
 
@@ -188,6 +446,27 @@ func TestRegisterMetrics(t *testing.T) {
 	}
 }
 
+func TestRegisterDBMetrics(t *testing.T) {
+	setupHTTPServerDB(t)
+
+	s := New(8080, time.Now())
+	s.RegisterDBMetrics()
+
+	req := httptest.NewRequest(http.MethodGet, "/db_metrics", nil)
+	rr := httptest.NewRecorder()
+	s.mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("expected application/json content type, got %s", ct)
+	}
+	if !strings.Contains(rr.Body.String(), "open_connections") {
+		t.Errorf("expected database metrics JSON, got %s", rr.Body.String())
+	}
+}
+
 func TestRegisterPPROF(t *testing.T) {
 	s := New(8080, time.Now())
 	s.RegisterPPROF()
@@ -212,6 +491,54 @@ func TestRegisterPPROF(t *testing.T) {
 
 	if !s.pprofEnabled {
 		t.Error("expected pprofEnabled to be true after registration")
+	}
+}
+
+func TestRegisterWebhookConfiguresTelegramWebhook(t *testing.T) {
+	client := &httpServerBotClient{}
+	bot := newHTTPServerTestBot(client)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	s := New(8080, time.Now())
+
+	err := s.RegisterWebhook(bot, dispatcher, "secret-token", "https://example.test")
+	if err != nil {
+		t.Fatalf("RegisterWebhook() error = %v", err)
+	}
+	if !s.webhookEnabled {
+		t.Fatal("webhookEnabled = false, want true")
+	}
+	if s.secret != "secret-token" {
+		t.Fatalf("secret = %q, want secret-token", s.secret)
+	}
+	if !client.called("setWebhook") {
+		t.Fatal("setWebhook was not called")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/webhook/secret-token", nil)
+	rr := httptest.NewRecorder()
+	s.mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("registered webhook route status = %d, want 405 for GET", rr.Code)
+	}
+}
+
+func TestStartAndStopEphemeralServer(t *testing.T) {
+	client := &httpServerBotClient{}
+	s := New(0, time.Now())
+	s.bot = newHTTPServerTestBot(client)
+	s.webhookEnabled = true
+
+	if err := s.Start(); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if s.server == nil {
+		t.Fatal("server was not initialized by Start")
+	}
+	if err := s.Stop(); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+	if !client.called("deleteWebhook") {
+		t.Fatal("deleteWebhook was not called on Stop for webhook-enabled server")
 	}
 }
 
