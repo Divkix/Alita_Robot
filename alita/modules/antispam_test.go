@@ -3,6 +3,9 @@ package modules
 import (
 	"testing"
 	"time"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
 func resetAntiSpamMapForTest(t *testing.T) {
@@ -111,5 +114,55 @@ func TestSpamCheckUsesDefaultThreshold(t *testing.T) {
 	}
 	if !spamCheck(key) {
 		t.Fatal("spamCheck() did not mark eighteenth message as spam")
+	}
+}
+
+func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
+	resetAntiSpamMapForTest(t)
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAntispam(dispatcher)
+	bot := newModuleTestBot(newModuleBotClient())
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Spam Chat"}
+
+	channelPost := &gotgbot.Update{
+		UpdateId: 1,
+		Message: &gotgbot.Message{
+			MessageId: 1,
+			Date:      1,
+			Chat:      chat,
+			Text:      "channel post",
+		},
+	}
+	if err := dispatcher.ProcessUpdate(bot, channelPost, nil); err != nil {
+		t.Fatalf("ProcessUpdate(channel post) error = %v", err)
+	}
+
+	user := &gotgbot.User{Id: 42, FirstName: "Member"}
+	for i := 0; i < 18; i++ {
+		update := &gotgbot.Update{
+			UpdateId: int64(i + 2),
+			Message: &gotgbot.Message{
+				MessageId: int64(i + 2),
+				Date:      1,
+				Chat:      chat,
+				From:      user,
+				Text:      "spam",
+			},
+		}
+		if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+			t.Fatalf("ProcessUpdate(user spam #%d) error = %v", i+1, err)
+		}
+	}
+
+	key := spamKey{chatId: chat.Id, userId: user.Id}
+	antiSpamMutex.Lock()
+	info := antiSpamMap[key]
+	antiSpamMutex.Unlock()
+	if info == nil || len(info.Levels) != 1 {
+		t.Fatalf("antiSpamMap[%+v] = %#v, want one spam level", key, info)
+	}
+	if !info.Levels[0].Spammed {
+		t.Fatal("antispam dispatcher handler did not mark user as spammed at threshold")
 	}
 }
