@@ -302,7 +302,7 @@ jobs:
             exit 1
           fi
 
-          THRESHOLD=10
+          THRESHOLD=80
           COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
 
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY

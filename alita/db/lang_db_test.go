@@ -178,8 +178,21 @@ func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
 func TestGetLanguageFromPrivateAndGroupContexts(t *testing.T) {
 	skipIfNoDb(t)
 
-	userID := int64(901001)
-	groupID := int64(-100901001)
+	base := time.Now().UnixNano()
+	userID := base + 901001
+	groupID := -1000000000000 - (base % 1000000)
+	privateChatID := userID + 1
+
+	t.Cleanup(func() {
+		if err := DB.Where("user_id = ?", userID).Delete(&User{}).Error; err != nil {
+			t.Fatalf("cleanup user language: %v", err)
+		}
+		deleteCache(CacheKey("user_lang", userID))
+		if err := DB.Where("chat_id = ?", groupID).Delete(&Chat{}).Error; err != nil {
+			t.Fatalf("cleanup group language: %v", err)
+		}
+		deleteCache(CacheKey("chat_lang", groupID))
+	})
 
 	if got := GetLanguage(nil); got != "en" {
 		t.Fatalf("GetLanguage(nil) = %q, want en", got)
@@ -208,7 +221,7 @@ func TestGetLanguageFromPrivateAndGroupContexts(t *testing.T) {
 	noSenderCtx := ext.NewContext(
 		&gotgbot.Bot{User: gotgbot.User{Id: 999, IsBot: true}},
 		&gotgbot.Update{Message: &gotgbot.Message{
-			Chat: gotgbot.Chat{Id: userID + 1, Type: "private", FirstName: "No Sender"},
+			Chat: gotgbot.Chat{Id: privateChatID, Type: "private", FirstName: "No Sender"},
 		}},
 		nil,
 	)

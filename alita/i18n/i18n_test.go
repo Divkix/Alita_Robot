@@ -508,7 +508,7 @@ func TestLocaleManagerInitializeLoadsEmbeddedLocales(t *testing.T) {
 			t.Fatalf("Initialize() languages = %v, want %q", langs, want)
 		}
 	}
-	if langSet["ignored"] || langSet["nested"] {
+	if langSet["ignored"] || langSet["skipped"] {
 		t.Fatalf("Initialize() loaded non-locale entries: %v", langs)
 	}
 

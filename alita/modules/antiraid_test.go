@@ -135,7 +135,9 @@ func TestStopAntiRaidExpiryPollerCancelsExistingContext(t *testing.T) {
 func TestStartAntiRaidExpiryPollerSkipsWhenRedisUnavailable(t *testing.T) {
 	antiRaidCancel = nil
 	antiRaidCtx = nil
+	restoreRedis := cache.DisableRedisForTest()
 	t.Cleanup(func() {
+		restoreRedis()
 		StopAntiRaidExpiryPoller()
 		antiRaidCtx = nil
 	})

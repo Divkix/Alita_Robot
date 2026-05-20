@@ -52,7 +52,9 @@ func TestEnsureBotInDbUsesGetMeResponse(t *testing.T) {
 		))},
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("user_id = ?", botID).Delete(&User{}).Error
+		if err := DB.Where("user_id = ?", botID).Delete(&User{}).Error; err != nil {
+			t.Fatalf("cleanup user: %v", err)
+		}
 	})
 
 	if err := EnsureBotInDb(bot); err != nil {
@@ -85,7 +87,9 @@ func TestEnsureBotInDbFallsBackToEmbeddedBotOnGetMeError(t *testing.T) {
 		BotClient: fakeBotClient{err: fmt.Errorf("telegram unavailable")},
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("user_id = ?", botID).Delete(&User{}).Error
+		if err := DB.Where("user_id = ?", botID).Delete(&User{}).Error; err != nil {
+			t.Fatalf("cleanup user: %v", err)
+		}
 	})
 
 	if err := EnsureBotInDb(bot); err != nil {

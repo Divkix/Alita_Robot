@@ -274,14 +274,14 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	msgIDRaw := ""
-	if decoded, ok := decodeCallbackData(query.Data, "deleteMsg"); ok {
-		msgIDRaw, _ = decoded.Field("m")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			msgIDRaw = args[1]
-		}
+	decoded, ok := decodeCallbackData(query.Data, "deleteMsg")
+	if !ok {
+		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
+		errText, _ := tr.GetString("purges_invalid_button_data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
+		return ext.EndGroups
 	}
+	msgIDRaw, _ = decoded.Field("m")
 	if msgIDRaw == "" {
 		log.Warnf("[Purges] Invalid callback data format: %s", query.Data)
 		errText, _ := tr.GetString("purges_invalid_button_data")

@@ -518,5 +518,5 @@ func LoadMisc(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterLegacyModule("Misc", 60, LoadMisc)
+	RegisterLegacyModule(miscModule.moduleName, 60, LoadMisc)
 }

@@ -110,3 +110,12 @@ func GetRedisClient() *redis.Client {
 func IsRedisAvailable() bool {
 	return redisClient != nil
 }
+
+// DisableRedisForTest clears the Redis client until restore is called.
+func DisableRedisForTest() (restore func()) {
+	previous := redisClient
+	redisClient = nil
+	return func() {
+		redisClient = previous
+	}
+}

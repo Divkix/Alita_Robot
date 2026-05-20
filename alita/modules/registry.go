@@ -30,6 +30,9 @@ func (m legacyModule) Priority() int {
 }
 
 func (m legacyModule) Load(dispatcher *ext.Dispatcher) {
+	if m.load == nil {
+		return
+	}
 	m.load(dispatcher)
 }
 

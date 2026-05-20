@@ -600,6 +600,11 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString("warns_no_warns_to_remove")
 	}
 
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: replyText})
+		return ext.EndGroups
+	}
+
 	_, _, err := query.Message.EditText(
 		b,
 		replyText,
@@ -827,14 +832,25 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var replyText string
 
+	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
-		db.ResetAllChatWarns(query.Message.GetChat().Id)
+		if chat == nil {
+			helpText, _ = tr.GetString("error_generic")
+			replyText = helpText
+			break
+		}
+		db.ResetAllChatWarns(chat.Id)
 		helpText, _ = tr.GetString("warns_reset_all_success")
 		replyText, _ = tr.GetString("warns_reset_all_final")
 	case "no":
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")
 		replyText = helpText
+	}
+
+	if query.Message == nil {
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(

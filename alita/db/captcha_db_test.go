@@ -741,7 +741,9 @@ func TestCaptchaAttempt_MessageIDAndRefreshLifecycle(t *testing.T) {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup CaptchaAttempts: %v", err)
+		}
 	})
 
 	if err := UpdateCaptchaAttemptMessageID(attempt.ID, 98765); err != nil {
@@ -796,7 +798,9 @@ func TestCaptchaAttempt_BulkAndExpiryQueries(t *testing.T) {
 		t.Fatalf("CreateCaptchaAttemptPreMessage(active) error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("id IN ?", []uint{expired.ID, active.ID}).Delete(&CaptchaAttempts{}).Error
+		if err := DB.Where("id IN ?", []uint{expired.ID, active.ID}).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup CaptchaAttempts: %v", err)
+		}
 	})
 
 	past := time.Now().Add(-10 * time.Minute)
@@ -855,8 +859,12 @@ func TestStoredMessages_CountAndDeleteByUser(t *testing.T) {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DeleteStoredMessagesForAttempt(attempt.ID)
-		_ = DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error
+		if err := DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
+			t.Fatalf("cleanup stored messages: %v", err)
+		}
+		if err := DB.Where("id = ?", attempt.ID).Delete(&CaptchaAttempts{}).Error; err != nil {
+			t.Fatalf("cleanup CaptchaAttempts: %v", err)
+		}
 	})
 
 	for i := 0; i < 3; i++ {

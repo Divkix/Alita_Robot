@@ -76,35 +76,45 @@ func TestParseImportModules(t *testing.T) {
 	}
 
 	t.Run("empty text returns empty slice", func(t *testing.T) {
-		assert.Empty(t, parseImportModules("", backupData))
+		got, err := parseImportModules("", backupData)
+		require.NoError(t, err)
+		assert.Empty(t, got)
 	})
 
 	t.Run("no args returns empty slice", func(t *testing.T) {
-		assert.Empty(t, parseImportModules("/import", backupData))
+		got, err := parseImportModules("/import", backupData)
+		require.NoError(t, err)
+		assert.Empty(t, got)
 	})
 
 	t.Run("valid modules only", func(t *testing.T) {
-		got := parseImportModules("/import notes filters", backupData)
+		got, err := parseImportModules("/import notes filters", backupData)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"notes", "filters"}, got)
 	})
 
 	t.Run("invalid modules skipped", func(t *testing.T) {
-		got := parseImportModules("/import notes invalid rules", backupData)
+		got, err := parseImportModules("/import notes invalid rules", backupData)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"notes", "rules"}, got)
 	})
 
 	t.Run("case insensitive", func(t *testing.T) {
-		got := parseImportModules("/import NOTES", backupData)
+		got, err := parseImportModules("/import NOTES", backupData)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"notes"}, got)
 	})
 
 	t.Run("deduplicates valid module args while preserving first occurrence", func(t *testing.T) {
-		got := parseImportModules("/import notes filters NOTES rules filters", backupData)
+		got, err := parseImportModules("/import notes filters NOTES rules filters", backupData)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"notes", "filters", "rules"}, got)
 	})
 
-	t.Run("all invalid returns empty", func(t *testing.T) {
-		assert.Empty(t, parseImportModules("/import foo bar", backupData))
+	t.Run("all invalid returns error", func(t *testing.T) {
+		got, err := parseImportModules("/import foo bar", backupData)
+		require.ErrorIs(t, err, errNoValidModule)
+		assert.Nil(t, got)
 	})
 }
 
@@ -115,8 +125,12 @@ func TestParseModuleArgs(t *testing.T) {
 		return module == "notes" || module == "filters"
 	}
 
-	got := parseModuleArgs([]string{"NOTES", "invalid", "filters", "notes", ""}, valid)
+	got, err := parseModuleArgs([]string{"NOTES", "invalid", "filters", "notes", ""}, valid)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"notes", "filters"}, got)
+
+	_, err = parseModuleArgs([]string{"invalid", ""}, valid)
+	require.ErrorIs(t, err, errNoValidModule)
 }
 
 func TestDownloadBackupFileRejectsInvalidDocumentBeforeNetwork(t *testing.T) {

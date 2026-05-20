@@ -489,6 +489,16 @@ INSERT INTO migration_runner_test_items (id, name) VALUES (1, 'first');
 		t.Fatalf("failed to write migration file: %v", err)
 	}
 
+	version := filepath.Base(migrationPath)
+	t.Cleanup(func() {
+		if err := DB.Exec("DROP TABLE IF EXISTS migration_runner_test_items").Error; err != nil {
+			t.Fatalf("cleanup migration_runner_test_items: %v", err)
+		}
+		if err := DB.Where("version = ?", version).Delete(&SchemaMigration{}).Error; err != nil {
+			t.Fatalf("cleanup schema migration record: %v", err)
+		}
+	})
+
 	runner := &MigrationRunner{db: DB, migrationsPath: dir, cleanSQL: true}
 	if err := runner.RunMigrations(); err != nil {
 		t.Fatalf("RunMigrations() first run error = %v", err)
@@ -515,11 +525,6 @@ INSERT INTO migration_runner_test_items (id, name) VALUES (1, 'first');
 	if itemCount != 1 {
 		t.Fatalf("migrated row count after skipped run = %d, want 1", itemCount)
 	}
-
-	t.Cleanup(func() {
-		_ = DB.Exec("DROP TABLE IF EXISTS migration_runner_test_items").Error
-		_ = DB.Where("version = ?", filepath.Base(migrationPath)).Delete(&SchemaMigration{}).Error
-	})
 }
 
 func TestApplyMigration_EmptyFileDoesNotRecordVersion(t *testing.T) {

@@ -85,10 +85,9 @@ func TestRemoveBotKeyboardSendsKeyboardRemoval(t *testing.T) {
 		t.Fatalf("reply_markup = %#v, want ReplyKeyboardRemove", calls[0].Params["reply_markup"])
 	}
 
-	time.Sleep(1100 * time.Millisecond)
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls after timer = %d, want 1", len(calls))
-	}
+	waitForModuleCondition(t, func() bool {
+		return len(client.callsFor("deleteMessage")) == 1
+	})
 }
 
 func TestEchoMessageRequiresReplyAndContent(t *testing.T) {

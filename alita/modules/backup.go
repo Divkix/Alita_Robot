@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -32,12 +34,57 @@ var backupModule = moduleStruct{
 
 // Pending imports storage (in-memory, per chat)
 var (
-	pendingImports = make(map[int64]*db.BackupFormat)
-	pendingModules = make(map[int64][]string)
+	pendingMu        sync.RWMutex
+	pendingImports   = make(map[int64]*db.BackupFormat)
+	pendingModules   = make(map[int64][]string)
+	errNoValidModule = errors.New("no valid modules in arguments")
 
 	backupDownloadBaseURL    = "https://api.telegram.org/file/bot"
 	backupDownloadHTTPClient = &http.Client{}
 )
+
+func storePendingImport(chatID int64, backup *db.BackupFormat, modules []string) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pendingImports[chatID] = backup
+	pendingModules[chatID] = modules
+}
+
+func getPendingImport(chatID int64) (*db.BackupFormat, []string, bool) {
+	pendingMu.RLock()
+	defer pendingMu.RUnlock()
+	backup, ok := pendingImports[chatID]
+	if !ok {
+		return nil, nil, false
+	}
+	return backup, pendingModules[chatID], true
+}
+
+func clearPendingImport(chatID int64) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	delete(pendingImports, chatID)
+	delete(pendingModules, chatID)
+}
+
+func storePendingReset(chatID int64, modules []string) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pendingModules[chatID] = modules
+}
+
+func getPendingReset(chatID int64) ([]string, bool) {
+	pendingMu.RLock()
+	defer pendingMu.RUnlock()
+	modules, ok := pendingModules[chatID]
+	return modules, ok
+}
+
+func clearPendingReset(chatID int64) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	delete(pendingModules, chatID)
+}
 
 // exportHandler handles the /export command
 func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -82,7 +129,13 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
 		if len(args) > 1 {
-			modules = parseModuleArgs(args[1:], db.IsValidModule)
+			var parseErr error
+			modules, parseErr = parseModuleArgs(args[1:], db.IsValidModule)
+			if parseErr != nil {
+				text, _ := tr.GetString("backup_export_no_modules")
+				_, _ = msg.Reply(b, text, helpers.Shtml())
+				return ext.EndGroups
+			}
 		}
 	}
 
@@ -261,23 +314,24 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 	return fileData, ""
 }
 
-// parseImportModules parses module arguments from command text
-func parseImportModules(text string, backupData map[string]interface{}) []string {
+// parseImportModules parses module arguments from command text.
+func parseImportModules(text string, backupData map[string]interface{}) ([]string, error) {
 	if text != "" {
 		args := strings.Fields(text)
 		if len(args) > 1 {
 			return parseModuleArgs(args[1:], func(module string) bool {
-				if _, ok := backupData[module]; ok {
-					return true
-				}
-				return false
+				_, ok := backupData[module]
+				return ok
 			})
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func parseModuleArgs(args []string, valid func(string) bool) []string {
+func parseModuleArgs(args []string, valid func(string) bool) ([]string, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
 	modules := make([]string, 0, len(args))
 	seen := make(map[string]struct{}, len(args))
 	for _, arg := range args {
@@ -291,7 +345,10 @@ func parseModuleArgs(args []string, valid func(string) bool) []string {
 		seen[module] = struct{}{}
 		modules = append(modules, module)
 	}
-	return modules
+	if len(modules) == 0 {
+		return nil, errNoValidModule
+	}
+	return modules, nil
 }
 
 // importHandler handles the /import command
@@ -347,7 +404,12 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Parse module arguments
-	importModules := parseImportModules(msg.Text, backup.Data)
+	importModules, parseErr := parseImportModules(msg.Text, backup.Data)
+	if parseErr != nil {
+		text, _ := tr.GetString("backup_import_invalid_file")
+		_, _ = msg.Reply(b, text, helpers.Shtml())
+		return ext.EndGroups
+	}
 
 	// If no modules specified, use all from backup
 	if len(importModules) == 0 {
@@ -355,8 +417,7 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Store pending import
-	pendingImports[chat.Id] = backup
-	pendingModules[chat.Id] = importModules
+	storePendingImport(chat.Id, backup, importModules)
 
 	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_import_confirm", i18n.TranslationParams{
@@ -426,7 +487,13 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
 		if len(args) > 1 {
-			resetModules = parseModuleArgs(args[1:], db.IsValidModule)
+			var parseErr error
+			resetModules, parseErr = parseModuleArgs(args[1:], db.IsValidModule)
+			if parseErr != nil {
+				text, _ := tr.GetString("backup_export_no_modules")
+				_, _ = msg.Reply(b, text, helpers.Shtml())
+				return ext.EndGroups
+			}
 		}
 	}
 
@@ -436,7 +503,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Store pending reset (using same maps for simplicity)
-	pendingModules[chat.Id] = resetModules
+	storePendingReset(chat.Id, resetModules)
 
 	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_reset_confirm", i18n.TranslationParams{
@@ -513,7 +580,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 
 func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) error {
 	// Get pending import
-	backup, ok := pendingImports[chat.Id]
+	backup, modules, ok := getPendingImport(chat.Id)
 	if !ok {
 		text, _ := tr.GetString("backup_import_expired")
 		_, err := b.SendMessage(chat.Id, text, helpers.Shtml())
@@ -522,8 +589,6 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		}
 		return ext.EndGroups
 	}
-
-	modules := pendingModules[chat.Id]
 
 	// Perform import
 	if err := db.ImportChatData(chat.Id, backup, modules); err != nil {
@@ -540,8 +605,7 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	limiter.RecordImport(chat.Id)
 
 	// Clean up
-	delete(pendingImports, chat.Id)
-	delete(pendingModules, chat.Id)
+	clearPendingImport(chat.Id)
 
 	// Success message
 	text, _ := tr.GetString("backup_import_success", i18n.TranslationParams{
@@ -561,8 +625,7 @@ func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i
 	chat := ctx.EffectiveChat
 
 	// Clean up
-	delete(pendingImports, chat.Id)
-	delete(pendingModules, chat.Id)
+	clearPendingImport(chat.Id)
 
 	text, _ := tr.GetString("backup_import_cancelled")
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -580,8 +643,8 @@ func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i
 }
 
 func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) error {
-	modules := pendingModules[chat.Id]
-	if len(modules) == 0 {
+	modules, ok := getPendingReset(chat.Id)
+	if !ok || len(modules) == 0 {
 		text, _ := tr.GetString("backup_reset_expired")
 		_, _ = b.SendMessage(chat.Id, text, helpers.Shtml())
 		return ext.EndGroups
@@ -602,7 +665,7 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 	limiter.RecordReset(chat.Id)
 
 	// Clean up
-	delete(pendingModules, chat.Id)
+	clearPendingReset(chat.Id)
 
 	// Success message
 	text, _ := tr.GetString("backup_reset_success", i18n.TranslationParams{
@@ -622,7 +685,7 @@ func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i1
 	chat := ctx.EffectiveChat
 
 	// Clean up
-	delete(pendingModules, chat.Id)
+	clearPendingReset(chat.Id)
 
 	text, _ := tr.GetString("backup_reset_cancelled")
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{

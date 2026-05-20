@@ -168,6 +168,9 @@ func defaultGreetingSettingsAttrs(chatID int64) map[string]any {
 }
 
 func upsertGreetingSettings(chatID int64, updates map[string]any) error {
+	if !ChatExists(chatID) {
+		return gorm.ErrRecordNotFound
+	}
 	updates["updated_at"] = time.Now()
 	settings := GreetingSettings{}
 	if err := DB.Where("chat_id = ?", chatID).
