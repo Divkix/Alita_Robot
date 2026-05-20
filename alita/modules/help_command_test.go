@@ -121,6 +121,85 @@ func TestBotConfigCallbackStepsEditAndAnswer(t *testing.T) {
 	}
 }
 
+func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	previousMarkup := markup
+	defaultHelpRegistry = NewHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		markup = previousMarkup
+		cachedBotUsername = ""
+	})
+
+	registry := DefaultHelpRegistry()
+	registry.AbleMap.Store("Admin", true)
+	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "Admin", CallbackData: "admin-test"}},
+	}
+	initHelpButtons()
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4306, FirstName: "Helper"}
+	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+
+	for _, data := range []string{
+		encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
+		"helpq.BackStart",
+		encodeCallbackData("helpq", map[string]string{"m": "Admin"}, "helpq.Admin"),
+	} {
+		ctx := newModuleCallbackContext(bot, chat, user, data)
+		if err := DefaultHelpRegistry().helpButtonHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("helpButtonHandler(%s) error = %v, want EndGroups", data, err)
+		}
+	}
+
+	if calls := client.callsFor("editMessageText"); len(calls) != 3 {
+		t.Fatalf("editMessageText calls = %d, want 3", len(calls))
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 3", len(calls))
+	}
+}
+
+func TestHelpButtonAndConfigCallbacksRejectInvalidMessages(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4307, FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Help Chat"}
+
+	invalidHelp := newModuleCallbackContext(bot, privateChat, user, "helpq")
+	if err := DefaultHelpRegistry().helpButtonHandler(bot, invalidHelp); err != ext.EndGroups {
+		t.Fatalf("helpButtonHandler(invalid) error = %v, want EndGroups", err)
+	}
+
+	missingMessage := newModuleCallbackContext(bot, privateChat, user, "helpq.Help")
+	missingMessage.CallbackQuery.Message = nil
+	if err := DefaultHelpRegistry().helpButtonHandler(bot, missingMessage); err != ext.EndGroups {
+		t.Fatalf("helpButtonHandler(nil message) error = %v, want EndGroups", err)
+	}
+
+	groupConfig := newModuleCallbackContext(bot, groupChat, user, "configuration.step1")
+	if err := DefaultHelpRegistry().botConfig(bot, groupConfig); err != ext.EndGroups {
+		t.Fatalf("botConfig(group) error = %v, want EndGroups", err)
+	}
+
+	invalidConfig := newModuleCallbackContext(bot, privateChat, user, "configuration")
+	if err := DefaultHelpRegistry().botConfig(bot, invalidConfig); err != ext.EndGroups {
+		t.Fatalf("botConfig(invalid) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) < 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want at least invalid callbacks answered", len(calls))
+	}
+}
+
+func TestLoadHelpRegistersHandlers(t *testing.T) {
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadHelp(dispatcher)
+}
+
 func TestDonateSendsMessage(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

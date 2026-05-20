@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -99,6 +100,37 @@ func TestAddExistingNoteUsesOverwriteConfirmation(t *testing.T) {
 	}
 }
 
+func TestAddNoteValidationAndPrivateFlagConflict(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	missingKeywordCtx := newModuleMessageContext(bot, chat, admin, "/save")
+	if err := notesModule.addNote(bot, missingKeywordCtx); err != ext.EndGroups {
+		t.Fatalf("addNote(missing content) error = %v, want EndGroups", err)
+	}
+
+	replyMissingKeywordCtx := newModuleMessageContext(bot, chat, admin, "/save")
+	replyMissingKeywordCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{Text: "reply content"}
+	if err := notesModule.addNote(bot, replyMissingKeywordCtx); err != ext.EndGroups {
+		t.Fatalf("addNote(reply missing keyword) error = %v, want EndGroups", err)
+	}
+
+	conflictCtx := newModuleMessageContext(bot, chat, admin, "/save conflict visible {private}{noprivate}")
+	if err := notesModule.addNote(bot, conflictCtx); err != ext.EndGroups {
+		t.Fatalf("addNote(conflict flags) error = %v, want EndGroups", err)
+	}
+	note := db.GetNote(chat.Id, "conflict")
+	if note.PrivateOnly || note.GroupOnly {
+		t.Fatalf("conflicting privacy flags were not normalized: private=%v group=%v", note.PrivateOnly, note.GroupOnly)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want validation replies plus save reply", len(calls))
+	}
+}
+
 func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -130,6 +162,80 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	}
 }
 
+func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	cancelCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+	)
+	if err := notesModule.notesButtonHandler(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("notesButtonHandler(cancel) error = %v, want EndGroups", err)
+	}
+	if !db.DoesNoteExists(chat.Id, "rules") {
+		t.Fatal("note was removed by cancel callback")
+	}
+
+	invalidCtx := newModuleCallbackContext(bot, chat, admin, "rmAllNotes")
+	if err := notesModule.notesButtonHandler(bot, invalidCtx); err != ext.EndGroups {
+		t.Fatalf("notesButtonHandler(invalid) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid callback answers", len(calls))
+	}
+}
+
+func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	cancelToken := "cancel-note-token"
+	notesOverwriteMap.Store(cancelToken, overwriteNote{
+		overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "cancelled", DataType: db.TEXT},
+	})
+	cancelCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": cancelToken}, "notes.overwrite.no"),
+	)
+	if err := notesModule.noteOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
+		t.Fatalf("noteOverWriteHandler(cancel) error = %v, want EndGroups", err)
+	}
+	if _, ok := notesOverwriteMap.Load(cancelToken); ok {
+		t.Fatal("cancelled overwrite token remained in map")
+	}
+	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "old" {
+		t.Fatalf("cancel changed note content to %q", got)
+	}
+
+	legacyKey := strconv.FormatInt(chat.Id, 10) + "_rules"
+	notesOverwriteMap.Store(legacyKey, overwriteNote{
+		overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
+	})
+	legacyCtx := newModuleCallbackContext(bot, chat, admin, "notes.overwrite.yes."+legacyKey)
+	if err := notesModule.noteOverWriteHandler(bot, legacyCtx); err != ext.EndGroups {
+		t.Fatalf("noteOverWriteHandler(legacy yes) error = %v, want EndGroups", err)
+	}
+	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "new" {
+		t.Fatalf("legacy overwrite content = %q, want new", got)
+	}
+}
+
 func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -152,6 +258,39 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	}
 }
 
+func TestNotesWatcherAdminOnlyAndMalformedNotes(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "admin", "admin-only", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+		t.Fatalf("AddNote(admin) setup error = %v", err)
+	}
+	if err := db.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(broken) setup error = %v", err)
+	}
+
+	memberCtx := newModuleMessageContext(bot, chat, member, "#admin")
+	if err := notesModule.notesWatcher(bot, memberCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher(admin-only/member) error = %v, want EndGroups", err)
+	}
+
+	adminCtx := newModuleMessageContext(bot, chat, admin, "#admin")
+	if err := notesModule.notesWatcher(bot, adminCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher(admin-only/admin) error = %v, want EndGroups", err)
+	}
+
+	brokenCtx := newModuleMessageContext(bot, chat, member, "#broken")
+	if err := notesModule.notesWatcher(bot, brokenCtx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher(broken) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
+		t.Fatalf("sendMessage calls = %d, want denial, admin note, and parsing error", len(calls))
+	}
+}
+
 func TestNotesWatcherPrivateOnlyNoteSendsDeepLinkInGroup(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -171,6 +310,35 @@ func TestNotesWatcherPrivateOnlyNoteSendsDeepLinkInGroup(t *testing.T) {
 	}
 	if calls[0].Params["reply_markup"] == nil {
 		t.Fatal("private-note response did not include reply markup")
+	}
+}
+
+func TestNotesListPrivateAndPrivateNotesButton(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	if err := db.TooglePrivateNote(chat.Id, true); err != nil {
+		t.Fatalf("TooglePrivateNote() error = %v", err)
+	}
+	groupCtx := newModuleMessageContext(bot, chat, admin, "/notes")
+	if err := notesModule.notesList(bot, groupCtx); err != ext.EndGroups {
+		t.Fatalf("notesList(group private enabled) error = %v, want EndGroups", err)
+	}
+
+	privateChat := gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"}
+	privateCtx := newModuleMessageContext(bot, privateChat, admin, "/notes")
+	privateCtx.EffectiveChat = &chat
+	if err := notesModule.notesList(bot, privateCtx); err != ext.EndGroups {
+		t.Fatalf("notesList(private connected chat) error = %v, want EndGroups", err)
+	}
+
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want group button and private note list", len(calls))
 	}
 }
 
