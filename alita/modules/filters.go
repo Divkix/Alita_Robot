@@ -225,12 +225,12 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		// Store in cache instead of in-memory map
 		err := setFilterOverwriteCache(token, overwriteFilter{
 			overwriteBase: overwriteBase{
-				chatID:   chat.Id,
-				itemName: filterWord,
-				text:     text,
-				fileID:   fileid,
-				buttons:  buttons,
-				dataType: dataType,
+				ChatID:   chat.Id,
+				ItemName: filterWord,
+				Text:     text,
+				FileID:   fileid,
+				Buttons:  buttons,
+				DataType: dataType,
 			},
 		})
 		if err != nil {
@@ -615,18 +615,18 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		}
 		return ext.EndGroups
 	}
-	if filterData.chatID != 0 && filterData.chatID != chat.Id {
+	if filterData.ChatID != 0 && filterData.ChatID != chat.Id {
 		helpText, _ = tr.GetString("filters_overwrite_expired")
 		_, _, _ = query.Message.EditText(b, helpText, nil)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
 		return ext.EndGroups
 	}
 
-	if db.DoesFilterExists(chat.Id, filterData.itemName) {
-		if err := db.RemoveFilter(chat.Id, filterData.itemName); err != nil {
+	if db.DoesFilterExists(chat.Id, filterData.ItemName) {
+		if err := db.RemoveFilter(chat.Id, filterData.ItemName); err != nil {
 			log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else if err := db.AddFilter(chat.Id, filterData.itemName, filterData.text, filterData.fileID, filterData.buttons, filterData.dataType); err != nil {
+		} else if err := db.AddFilter(chat.Id, filterData.ItemName, filterData.Text, filterData.FileID, filterData.Buttons, filterData.DataType); err != nil {
 			log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
 		} else {

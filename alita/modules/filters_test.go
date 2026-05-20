@@ -36,10 +36,10 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 	})
 
 	data := overwriteFilter{overwriteBase: overwriteBase{
-		chatID:   -100123,
-		itemName: "hello",
-		text:     "world",
-		dataType: 1,
+		ChatID:   -100123,
+		ItemName: "hello",
+		Text:     "world",
+		DataType: 1,
 	}}
 
 	if err := setFilterOverwriteCache("token", data); err == nil {

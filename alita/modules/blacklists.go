@@ -521,16 +521,15 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		go func(chatId int64) {
-			defer error_handling.RecoverFromPanic("rmAllBlacklists", "blacklists")
-
-			if err := db.RemoveAllBlacklist(chatId); err != nil {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"error":  err,
-				}).Error("Failed to remove all blacklists")
-			}
-		}(query.Message.GetChat().Id)
+		chatID := query.Message.GetChat().Id
+		if err := db.RemoveAllBlacklist(chatID); err != nil {
+			log.WithFields(log.Fields{
+				"chatId": chatID,
+				"error":  err,
+			}).Error("Failed to remove all blacklists")
+			helpText, _ = tr.GetString("common_settings_save_failed")
+			break
+		}
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
 	case "no":
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_no")

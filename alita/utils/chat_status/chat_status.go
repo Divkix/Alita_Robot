@@ -110,6 +110,12 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	if update.MyChatMember != nil {
 		return &update.MyChatMember.Chat
 	}
+	if update.ChatMember != nil {
+		return &update.ChatMember.Chat
+	}
+	if update.ChatJoinRequest != nil {
+		return &update.ChatJoinRequest.Chat
+	}
 	return nil
 }
 

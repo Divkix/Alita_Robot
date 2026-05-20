@@ -40,12 +40,12 @@ var notesOverwriteMap sync.Map
 
 // overwriteBase holds common fields for temporary state storage during command flows.
 type overwriteBase struct {
-	chatID   int64
-	itemName string // filterWord or noteWord
-	text     string
-	fileID   string
-	buttons  []db.Button
-	dataType int
+	ChatID   int64
+	ItemName string // filterWord or noteWord
+	Text     string
+	FileID   string
+	Buttons  []db.Button
+	DataType int
 }
 
 // struct for filters module

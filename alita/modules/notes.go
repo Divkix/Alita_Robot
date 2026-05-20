@@ -115,12 +115,12 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		notesOverwriteMap.Store(token, overwriteNote{
 			overwriteBase: overwriteBase{
-				chatID:   chat.Id,
-				itemName: noteWord,
-				text:     text,
-				fileID:   fileid,
-				buttons:  buttons,
-				dataType: dataType,
+				ChatID:   chat.Id,
+				ItemName: noteWord,
+				Text:     text,
+				FileID:   fileid,
+				Buttons:  buttons,
+				DataType: dataType,
 			},
 			pvtOnly:     pvtOnly,
 			grpOnly:     grpOnly,
@@ -548,8 +548,8 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 				helpText, _ = tr.GetString("notes_overwrite_cancelled")
 				break
 			}
-			chatId = noteData.chatID
-			noteWord = noteData.itemName
+			chatId = noteData.ChatID
+			noteWord = noteData.ItemName
 			if chatId == 0 {
 				chatId = query.Message.GetChat().Id
 			}
@@ -580,7 +580,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			break
 		}
 
-		if noteData.chatID != 0 && noteData.chatID != query.Message.GetChat().Id {
+		if noteData.ChatID != 0 && noteData.ChatID != query.Message.GetChat().Id {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
@@ -590,7 +590,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			if err := db.RemoveNote(chatId, noteWord); err != nil {
 				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
 			}
-			if err := db.AddNote(chatId, noteData.itemName, noteData.text, noteData.fileID, noteData.buttons, noteData.dataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
+			if err := db.AddNote(chatId, noteData.ItemName, noteData.Text, noteData.FileID, noteData.Buttons, noteData.DataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
 				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
 				helpText, _ = tr.GetString("notes_save_failed")
 				break

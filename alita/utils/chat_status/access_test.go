@@ -56,6 +56,32 @@ func TestExtractChatFromContext(t *testing.T) {
 		t.Fatalf("extractChatFromContext(my_chat_member) = %#v, want chat id 40", got)
 	}
 
+	chatMemberCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			ChatMember: &gotgbot.ChatMemberUpdated{
+				Chat: gotgbot.Chat{Id: 50, Type: "supergroup"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(chatMemberCtx, nil); got == nil || got.Id != 50 {
+		t.Fatalf("extractChatFromContext(chat_member) = %#v, want chat id 50", got)
+	}
+
+	joinRequestCtx := ext.NewContext(
+		&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}},
+		&gotgbot.Update{
+			ChatJoinRequest: &gotgbot.ChatJoinRequest{
+				Chat: gotgbot.Chat{Id: 60, Type: "supergroup"},
+			},
+		},
+		nil,
+	)
+	if got := extractChatFromContext(joinRequestCtx, nil); got == nil || got.Id != 60 {
+		t.Fatalf("extractChatFromContext(chat_join_request) = %#v, want chat id 60", got)
+	}
+
 	if got := extractChatFromContext(nil, nil); got != nil {
 		t.Fatalf("extractChatFromContext(nil, nil) = %#v, want nil", got)
 	}

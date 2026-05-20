@@ -305,6 +305,10 @@ func TestMain(m *testing.M) {
 		&db.CaptchaSettings{},
 		&db.CaptchaAttempts{},
 		&db.ApprovedUsers{},
+		&db.ChatFilters{},
+		&db.BlacklistSettings{},
+		&db.LockSettings{},
+		&db.ChannelSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)
