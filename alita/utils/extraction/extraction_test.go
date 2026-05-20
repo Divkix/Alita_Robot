@@ -1,11 +1,132 @@
 package extraction
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
+
+type extractionBotCall struct {
+	method string
+	params map[string]any
+}
+
+type extractionBotClient struct {
+	calls []extractionBotCall
+}
+
+func (c *extractionBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	copied := make(map[string]any, len(params))
+	for key, value := range params {
+		copied[key] = value
+	}
+	c.calls = append(c.calls, extractionBotCall{method: method, params: copied})
+
+	switch method {
+	case "getChat":
+		return json.RawMessage(
+			`{"id":555123,"type":"private","first_name":"Fetched","username":"fallbackuser"}`,
+		), nil
+	case "sendMessage":
+		return json.RawMessage(
+			`{"message_id":42,"date":1,"chat":{"id":42,"type":"private","first_name":"Tester"}}`,
+		), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (c *extractionBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL
+}
+
+func (c *extractionBotClient) FileURL(token string, path string, _ *gotgbot.RequestOpts) string {
+	return gotgbot.DefaultAPIURL + "/file/bot" + token + "/" + path
+}
+
+func (c *extractionBotClient) callsFor(method string) []extractionBotCall {
+	var calls []extractionBotCall
+	for _, call := range c.calls {
+		if call.method == method {
+			calls = append(calls, call)
+		}
+	}
+	return calls
+}
+
+func newExtractionBot(client *extractionBotClient) *gotgbot.Bot {
+	return &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: client,
+		User: gotgbot.User{
+			Id:       123,
+			IsBot:    true,
+			Username: "ExtractionBot",
+		},
+	}
+}
+
+func newExtractionContext(bot *gotgbot.Bot, text string) *ext.Context {
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+	chat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"}
+	msg := &gotgbot.Message{
+		MessageId: 99,
+		Date:      1,
+		Chat:      chat,
+		From:      &user,
+		Text:      text,
+	}
+	return ext.NewContext(bot, &gotgbot.Update{UpdateId: 1, Message: msg}, nil)
+}
+
+func TestMain(m *testing.M) {
+	cache.Marshal = nil
+
+	dbFile, err := os.CreateTemp("", "alita_extraction_test_*.db")
+	if err != nil {
+		fmt.Printf("temp file creation failed: %v\n", err)
+		os.Exit(1)
+	}
+	dbFileName := dbFile.Name()
+	if closeErr := dbFile.Close(); closeErr != nil {
+		fmt.Printf("temp file close failed: %v\n", closeErr)
+		os.Exit(1)
+	}
+
+	sqliteDB, err := gorm.Open(sqlite.Open(dbFileName), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		fmt.Printf("SQLite init failed: %v\n", err)
+		os.Exit(1)
+	}
+	db.DB = sqliteDB
+
+	if err := db.DB.AutoMigrate(&db.User{}, &db.Chat{}, &db.ChannelSettings{}); err != nil {
+		fmt.Printf("AutoMigrate failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+
+	if sqlDB, err := db.DB.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+	_ = os.Remove(dbFileName)
+	os.Exit(exitCode)
+}
 
 func TestExtractQuotes(t *testing.T) {
 	t.Parallel()
@@ -372,6 +493,85 @@ func TestExtractQuotes_AdditionalEdgeCases(t *testing.T) {
 				t.Errorf("afterWord: got %q, want %q", gotAfter, tc.wantAfter)
 			}
 		})
+	}
+}
+
+func TestExtractChatUsesGotgbotGetChatForNumericId(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/chat 555123")
+
+	chat := ExtractChat(bot, ctx)
+	if chat == nil {
+		t.Fatal("ExtractChat() returned nil, want fetched chat")
+	}
+	if chat.Id != 555123 {
+		t.Fatalf("chat.Id = %d, want 555123", chat.Id)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+}
+
+func TestExtractChatWithoutArgumentReplies(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/chat")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat() = %#v, want nil without argument", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want missing chat id reply", len(calls))
+	}
+}
+
+func TestGetUserIdUsesDatabaseBeforeTelegramFallback(t *testing.T) {
+	if err := db.DB.Create(&db.User{UserId: 987654, UserName: "knownuser", Name: "Known"}).Error; err != nil {
+		t.Fatalf("Create known user failed: %v", err)
+	}
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+
+	if got := GetUserId(bot, "@knownuser"); got != 987654 {
+		t.Fatalf("GetUserId(@knownuser) = %d, want 987654", got)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 0 {
+		t.Fatalf("getChat calls = %d, want DB hit without Telegram fallback", len(calls))
+	}
+
+	if got := GetUserId(bot, "@fallbackuser"); got != 555123 {
+		t.Fatalf("GetUserId(@fallbackuser) = %d, want Telegram fallback id 555123", got)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want one Telegram fallback", len(calls))
+	}
+}
+
+func TestExtractTimeParsesValidInputAndRepliesForErrors(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/tban 2h reason")
+
+	banTime, timeStr, reason := ExtractTime(bot, ctx, "2h reason")
+	if banTime <= 0 {
+		t.Fatalf("banTime = %d, want future unix timestamp", banTime)
+	}
+	if timeStr != "2 hours" {
+		t.Fatalf("timeStr = %q, want 2 hours", timeStr)
+	}
+	if reason != "reason" {
+		t.Fatalf("reason = %q, want reason", reason)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want no error reply for valid time", len(calls))
+	}
+
+	for _, input := range []string{"", "xh", "2y", "53w"} {
+		ExtractTime(bot, ctx, input)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
+		t.Fatalf("sendMessage calls = %d, want one reply per invalid duration", len(calls))
 	}
 }
 

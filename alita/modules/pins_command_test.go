@@ -137,6 +137,66 @@ func TestPinWithoutReplyAsksForReply(t *testing.T) {
 	}
 }
 
+func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, user, "/permapin keep this pinned")
+	if err := pinsModule.permaPin(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("permaPin() error = %v, want EndGroups", err)
+	}
+	sendCalls := client.callsFor("sendMessage")
+	if len(sendCalls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want pin message and confirmation", len(sendCalls))
+	}
+	pinCalls := client.callsFor("pinChatMessage")
+	if len(pinCalls) != 1 {
+		t.Fatalf("pinChatMessage calls = %d, want 1", len(pinCalls))
+	}
+	if got := pinCalls[0].Params["message_id"]; got != int64(9001) {
+		t.Fatalf("pinned message_id = %v, want sent message 9001", got)
+	}
+}
+
+func TestPinnedCommandLinksLatestPinnedMessage(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChat"] = []byte(
+		`{"id":-1001,"type":"supergroup","title":"Pin Chat","pinned_message":{"message_id":77,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"},"text":"pinned"}}`,
+	)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
+	if err := pinsModule.pinned(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("pinned() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want pinned link reply", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatal("pinned reply did not include link button markup")
+	}
+}
+
+func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
+	if err := pinsModule.pinned(bot, ctx); err != nil {
+		t.Fatalf("pinned() error = %v, want nil for missing pinned message reply", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want missing pinned message reply", len(calls))
+	}
+}
+
 func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

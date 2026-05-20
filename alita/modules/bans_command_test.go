@@ -106,6 +106,76 @@ func TestKickUsesBanThenReply(t *testing.T) {
 	}
 }
 
+func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")
+	if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("dkick() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestDeleteBanDeletesReplyBeforeBan(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newBanReplyContext(bot, chat, admin, target, "/dban bad post")
+	if err := bansModule.dBan(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("dBan() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatal("dban reply did not include unban button markup")
+	}
+}
+
+func TestKickMeBansRequesterAndReplies(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newModuleMessageContext(bot, chat, target, "/kickme")
+	if err := bansModule.kickme(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("kickme() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("banChatMember")
+	if len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	}
+	if got := calls[0].Params["user_id"]; got != int64(42) {
+		t.Fatalf("banChatMember user_id = %v, want 42", got)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
 func TestUnbanCommandUnbansUser(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

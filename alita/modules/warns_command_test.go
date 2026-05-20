@@ -125,6 +125,52 @@ func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
 	}
 }
 
+func TestSilentWarnDeletesCommandAndStoresReason(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newWarnReplyContext(bot, chat, admin, target, "/swarn quiet reason")
+	if err := warnsModule.sWarnUser(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("sWarnUser() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want command deletion", len(calls))
+	}
+	numWarns, reasons := db.GetWarns(target.Id, chat.Id)
+	if numWarns != 1 {
+		t.Fatalf("numWarns = %d, want 1", numWarns)
+	}
+	if len(reasons) != 1 || reasons[0] != "quiet reason" {
+		t.Fatalf("reasons = %v, want [quiet reason]", reasons)
+	}
+}
+
+func TestDeleteWarnDeletesReplyAndStoresReason(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newWarnReplyContext(bot, chat, admin, target, "/dwarn remove this")
+	if err := warnsModule.dWarnUser(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("dWarnUser() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
+	}
+	numWarns, reasons := db.GetWarns(target.Id, chat.Id)
+	if numWarns != 1 {
+		t.Fatalf("numWarns = %d, want 1", numWarns)
+	}
+	if len(reasons) != 1 || reasons[0] != "remove this" {
+		t.Fatalf("reasons = %v, want [remove this]", reasons)
+	}
+}
+
 func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

@@ -2,7 +2,13 @@ package modules
 
 import (
 	"slices"
+	"strings"
 	"testing"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 func TestModuleEnabled_StoreAndLoad(t *testing.T) {
@@ -143,5 +149,80 @@ func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
 		if button.CallbackData == "" {
 			t.Fatalf("button %q has empty callback data", button.Text)
 		}
+	}
+}
+
+func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	previousMarkup := markup
+	defaultHelpRegistry = NewHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		markup = previousMarkup
+	})
+
+	registry := DefaultHelpRegistry()
+	registry.AbleMap.Store("Admin", true)
+	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "Admin", CallbackData: "admin-test"}},
+	}
+	initHelpButtons()
+
+	if got := getModuleNameFromAltName("admin"); got != "Admin" {
+		t.Fatalf("getModuleNameFromAltName() = %q, want Admin", got)
+	}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+	ctx := newModuleMessageContext(bot, chat, user, "/help admin")
+
+	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin")
+	if parseMode != helpers.HTML {
+		t.Fatalf("parseMode = %q, want HTML", parseMode)
+	}
+	if !strings.Contains(helpText, "Admin") {
+		t.Fatalf("helpText = %q, want Admin header", helpText)
+	}
+	if len(kb.InlineKeyboard) < 2 {
+		t.Fatalf("inline keyboard rows = %d, want module row plus navigation", len(kb.InlineKeyboard))
+	}
+
+	if _, err := sendHelpkb(bot, ctx, "admin"); err != nil {
+		t.Fatalf("sendHelpkb() error = %v", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestStartHelpPrefixHandlerRoutesHelpDeepLink(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	previousMarkup := markup
+	defaultHelpRegistry = NewHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		markup = previousMarkup
+	})
+
+	registry := DefaultHelpRegistry()
+	registry.AbleMap.Store("Admin", true)
+	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "Admin", CallbackData: "admin-test"}},
+	}
+	initHelpButtons()
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+	ctx := newModuleMessageContext(bot, chat, user, "/start help_admin")
+
+	if err := startHelpPrefixHandler(bot, ctx, &user, "help_admin"); err != ext.EndGroups {
+		t.Fatalf("startHelpPrefixHandler() error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want help deep-link response", len(calls))
 	}
 }
