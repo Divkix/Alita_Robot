@@ -228,6 +228,26 @@ func TestHandlePendingCaptchaMessageStoresAndDeletesUserMessages(t *testing.T) {
 			wantContent: "pending text",
 		},
 		{
+			name: "sticker",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Sticker = &gotgbot.Sticker{FileId: "sticker-file"}
+			},
+			wantType:   db.STICKER,
+			wantFileID: "sticker-file",
+		},
+		{
+			name: "document",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Document = &gotgbot.Document{FileId: "document-file"}
+				ctx.EffectiveMessage.Caption = "document caption"
+			},
+			wantType:    db.DOCUMENT,
+			wantFileID:  "document-file",
+			wantCaption: "document caption",
+		},
+		{
 			name: "photo",
 			build: func(ctx *ext.Context) {
 				ctx.EffectiveMessage.Text = ""
@@ -240,6 +260,48 @@ func TestHandlePendingCaptchaMessageStoresAndDeletesUserMessages(t *testing.T) {
 			wantType:    db.PHOTO,
 			wantFileID:  "large-photo",
 			wantCaption: "photo caption",
+		},
+		{
+			name: "audio",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Audio = &gotgbot.Audio{FileId: "audio-file"}
+				ctx.EffectiveMessage.Caption = "audio caption"
+			},
+			wantType:    db.AUDIO,
+			wantFileID:  "audio-file",
+			wantCaption: "audio caption",
+		},
+		{
+			name: "voice",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Voice = &gotgbot.Voice{FileId: "voice-file"}
+				ctx.EffectiveMessage.Caption = "voice caption"
+			},
+			wantType:    db.VOICE,
+			wantFileID:  "voice-file",
+			wantCaption: "voice caption",
+		},
+		{
+			name: "video",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.Video = &gotgbot.Video{FileId: "video-file"}
+				ctx.EffectiveMessage.Caption = "video caption"
+			},
+			wantType:    db.VIDEO,
+			wantFileID:  "video-file",
+			wantCaption: "video caption",
+		},
+		{
+			name: "video note",
+			build: func(ctx *ext.Context) {
+				ctx.EffectiveMessage.Text = ""
+				ctx.EffectiveMessage.VideoNote = &gotgbot.VideoNote{FileId: "video-note-file"}
+			},
+			wantType:   db.VideoNote,
+			wantFileID: "video-note-file",
 		},
 		{
 			name: "unsupported",
