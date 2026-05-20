@@ -24,7 +24,8 @@ type extractionBotCall struct {
 }
 
 type extractionBotClient struct {
-	calls []extractionBotCall
+	calls  []extractionBotCall
+	errors map[string]error
 }
 
 func (c *extractionBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
@@ -34,6 +35,9 @@ func (c *extractionBotClient) RequestWithContext(_ context.Context, _ string, me
 	}
 	c.calls = append(c.calls, extractionBotCall{method: method, params: copied})
 
+	if err := c.errors[method]; err != nil {
+		return nil, err
+	}
 	switch method {
 	case "getChat":
 		return json.RawMessage(
@@ -67,6 +71,9 @@ func (c *extractionBotClient) callsFor(method string) []extractionBotCall {
 }
 
 func newExtractionBot(client *extractionBotClient) *gotgbot.Bot {
+	if client.errors == nil {
+		client.errors = make(map[string]error)
+	}
 	return &gotgbot.Bot{
 		Token:     "123:test",
 		BotClient: client,
@@ -510,6 +517,49 @@ func TestExtractChatUsesGotgbotGetChatForNumericId(t *testing.T) {
 	}
 	if calls := client.callsFor("getChat"); len(calls) != 1 {
 		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+}
+
+func TestExtractChatRepliesWhenNumericChatLookupFails(t *testing.T) {
+	client := &extractionBotClient{errors: map[string]error{"getChat": errors.New("chat not found")}}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect 555123")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat() = %#v, want nil on lookup failure", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want chat-not-found reply", len(calls))
+	}
+}
+
+func TestExtractChatUsesUsernameLookup(t *testing.T) {
+	client := &extractionBotClient{}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect @fallbackuser")
+
+	chat := ExtractChat(bot, ctx)
+	if chat == nil {
+		t.Fatal("ExtractChat(username) returned nil, want fetched chat")
+	}
+	if chat.Id != 555123 {
+		t.Fatalf("ExtractChat(username) chat id = %d, want 555123", chat.Id)
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 1 {
+		t.Fatalf("getChat calls = %d, want 1", len(calls))
+	}
+}
+
+func TestExtractChatRepliesWhenUsernameLookupFails(t *testing.T) {
+	client := &extractionBotClient{errors: map[string]error{"getChat": errors.New("chat not found")}}
+	bot := newExtractionBot(client)
+	ctx := newExtractionContext(bot, "/connect @missing")
+
+	if chat := ExtractChat(bot, ctx); chat != nil {
+		t.Fatalf("ExtractChat(username missing) = %#v, want nil", chat)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want chat-not-found reply", len(calls))
 	}
 }
 
