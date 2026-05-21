@@ -346,8 +346,6 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 // CanUserChangeInfo checks if a user has permission to change chat information.
 // Handles anonymous admins and validates the CanChangeInfo permission.
 // If justCheck is false, sends error messages to user.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	if canUserChangeInfo(b, ctx, chat, userId) {
 		return true
@@ -355,43 +353,15 @@ func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, use
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_change_info_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_change_info_cmd_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_change_info_cmd_error",
+		"chat_status_change_info_button_error",
 	)
-	if err != nil {
-		log.Errorf("[CanUserChangeInfo] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // CanUserRestrict checks if a user has permission to restrict other members.
 // Handles anonymous admins and validates the CanRestrictMembers permission.
 // If justCheck is false, sends error messages to user.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	if canUserRestrict(b, ctx, chat, userId) {
 		return true
@@ -399,43 +369,15 @@ func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userI
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_restrict_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_restrict_cmd_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_restrict_cmd_error",
+		"chat_status_restrict_button_error",
 	)
-	if err != nil {
-		log.Errorf("[CanUserRestrict] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // CanBotRestrict checks if the bot has permission to restrict members in the chat.
 // Validates the bot's CanRestrictMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	if canBotRestrict(b, ctx, chat) {
 		return true
@@ -443,43 +385,15 @@ func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_bot_restrict_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_bot_restrict_group_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_bot_restrict_group_error",
+		"chat_status_bot_restrict_error",
 	)
-	if err != nil {
-		log.Errorf("[CanBotRestrict] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // CanUserPromote checks if a user has permission to promote/demote other members.
 // Handles anonymous admins and validates the CanPromoteMembers permission.
 // If justCheck is false, sends error messages to user.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
 	if canUserPromote(b, ctx, chat, userId) {
 		return true
@@ -487,43 +401,15 @@ func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_promote_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_promote_cmd_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_promote_cmd_error",
+		"chat_status_promote_button_error",
 	)
-	if err != nil {
-		log.Errorf("[CanUserPromote] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // CanBotPromote checks if the bot has permission to promote/demote members in the chat.
 // Validates the bot's CanPromoteMembers permission.
 // If justCheck is false, sends error messages explaining the missing permission.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	if canBotPromote(b, ctx, chat) {
 		return true
@@ -531,26 +417,10 @@ func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChe
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_bot_promote_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_bot_promote_error",
+		"",
 	)
-	if err != nil {
-		log.Errorf("[CanBotPromote] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // CanUserPin checks if a user has permission to pin messages in the chat.
@@ -563,31 +433,15 @@ func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_pin_user_error")
-	_, err := b.SendMessage(chat.Id, text, &gotgbot.SendMessageOpts{
-		ReplyParameters: &gotgbot.ReplyParameters{
-			MessageId:                ctx.EffectiveMessage.MessageId,
-			AllowSendingWithoutReply: true,
-		},
-	})
-	if err != nil {
-		log.Errorf("[CanUserPin] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_pin_user_error",
+		"",
+	)
 }
 
 // CanBotPin checks if the bot has permission to pin messages in the chat.
 // Validates the bot's CanPinMessages permission.
 // If justCheck is false, sends error messages explaining the missing permission.
-//
-//nolint:dupl // Permission check functions follow same pattern by design
 func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
 	if canBotPin(b, ctx, chat) {
 		return true
@@ -595,26 +449,10 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck b
 	if justCheck {
 		return false
 	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_pin_bot_error")
-	_, err := b.SendMessage(chat.Id, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                ctx.EffectiveMessage.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		},
+	return NewPermissionResponder(b).Respond(ctx,
+		"chat_status_pin_bot_error",
+		"",
 	)
-	if err != nil {
-		log.Errorf("[CanBotPin] SendMessage failed for chat %d: %v", chat.Id, err)
-	}
-	return false
 }
 
 // Caninvite checks if the bot and user have permissions to generate invite links.
