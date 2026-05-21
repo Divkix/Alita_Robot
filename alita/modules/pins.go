@@ -934,6 +934,7 @@ var (
 			helpers.RequireUserAdmin(),
 			helpers.RequireBotAdmin(),
 			helpers.CanBotPin(),
+			helpers.CanUserPin(),
 		},
 	}
 	pinDesc = helpers.CommandDescriptor{
