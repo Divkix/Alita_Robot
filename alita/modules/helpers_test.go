@@ -447,22 +447,24 @@ func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 	localRegistry.AbleMap.Store("Filters", true)
 	localRegistry.AbleMap.Store("Admin", true)
 
-	// "admin" is an alt-name (lowercase) of the Admin module
-	got := getModuleNameFromAltName("admin", localRegistry)
-	if got != "Admin" {
-		t.Fatalf("getModuleNameFromAltName(admin) = %q, want Admin", got)
+	cases := []struct {
+		name     string
+		altName  string
+		expected string
+	}{
+		{"admin -> Admin", "admin", "Admin"},
+		{"filters -> Filters", "filters", "Filters"},
+		{"unknown -> empty", "unknown", ""},
 	}
 
-	// "filters" is the module itself, lowercased.
-	got = getModuleNameFromAltName("filters", localRegistry)
-	if got != "Filters" {
-		t.Fatalf("getModuleNameFromAltName(filters) = %q, want Filters", got)
-	}
-
-	// unknown module should resolve to empty
-	got = getModuleNameFromAltName("unknown", localRegistry)
-	if got != "" {
-		t.Fatalf("getModuleNameFromAltName(unknown) = %q, want empty", got)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := getModuleNameFromAltName(tc.altName, localRegistry)
+			if got != tc.expected {
+				t.Fatalf("getModuleNameFromAltName(%q) = %q, want %q", tc.altName, got, tc.expected)
+			}
+		})
 	}
 }
 
@@ -485,37 +487,45 @@ func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
 
-	// Case 1: module present in registry gives custom keyboard.
-	ctx := newModuleMessageContext(bot, chat, user, "/help admin")
-	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin", localRegistry)
-	if parseMode != helpers.HTML {
-		t.Fatalf("parseMode = %q, want HTML", parseMode)
-	}
-	if !strings.Contains(helpText, "Admin") {
-		t.Fatalf("helpText = %q, want Admin header", helpText)
-	}
-	if len(kb.InlineKeyboard) < 2 {
-		t.Fatalf("inline keyboard rows = %d, want at least module row + navigation", len(kb.InlineKeyboard))
-	}
-	if kb.InlineKeyboard[0][0].Text != "CustomAdmin" {
-		t.Fatalf("button[0][0].Text = %q, want CustomAdmin (from local registry)", kb.InlineKeyboard[0][0].Text)
+	cases := []struct {
+		name          string
+		moduleName    string
+		wantContains  string
+		wantBtn       string
+		wantMinRows   int
+		forbiddenBtns []string
+	}{
+		{"admin present in local registry", "admin", "Admin", "CustomAdmin", 2, nil},
+		{"warns missing in local registry", "warns", "", "", 0, []string{"Warns", "CustomWarns"}},
 	}
 
-	// Case 2: module not in local registry falls back to main help (global markup).
-	// The fallback keyboard is the global `markup` variable; since initHelpButtons
-	// was never called in this isolated test, it may legitimately be zero-length.
-	ctxWarns := newModuleMessageContext(bot, chat, user, "/help warns")
-	_, kb2, parseMode2 := getHelpTextAndMarkup(ctxWarns, "warns", localRegistry)
-	if parseMode2 != helpers.HTML {
-		t.Fatalf("parseMode for warns = %q, want HTML", parseMode2)
-	}
-	// It should not use local registry keys for "warns" because warns is not in AbleMap.
-	for _, row := range kb2.InlineKeyboard {
-		for _, btn := range row {
-			if btn.Text == "Warns" || btn.Text == "CustomWarns" {
-				t.Fatalf("fallback kb contains local-only %q button", btn.Text)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, chat, user, "/help "+tc.moduleName)
+			helpText, kb, parseMode := getHelpTextAndMarkup(ctx, tc.moduleName, localRegistry)
+			if parseMode != helpers.HTML {
+				t.Fatalf("parseMode = %q, want HTML", parseMode)
 			}
-		}
+			if tc.wantContains != "" && !strings.Contains(helpText, tc.wantContains) {
+				t.Fatalf("helpText = %q, want %q header", helpText, tc.wantContains)
+			}
+			if tc.wantMinRows > 0 && len(kb.InlineKeyboard) < tc.wantMinRows {
+				t.Fatalf("inline keyboard rows = %d, want at least %d", len(kb.InlineKeyboard), tc.wantMinRows)
+			}
+			if tc.wantBtn != "" && kb.InlineKeyboard[0][0].Text != tc.wantBtn {
+				t.Fatalf("button[0][0].Text = %q, want %q", kb.InlineKeyboard[0][0].Text, tc.wantBtn)
+			}
+			for _, forbidden := range tc.forbiddenBtns {
+				for _, row := range kb.InlineKeyboard {
+					for _, btn := range row {
+						if btn.Text == forbidden {
+							t.Fatalf("fallback kb contains local-only %q button", btn.Text)
+						}
+					}
+				}
+			}
+		})
 	}
 }
 
