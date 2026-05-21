@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -159,16 +155,12 @@ func TestUpdateChannel(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestLoadChannelStats_ErrorBranch(t *testing.T) {
-	originalDB := DB
-	t.Cleanup(func() { DB = originalDB })
+	skipIfNoDb(t)
 
-	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+	DB.Migrator().DropTable(&ChannelSettings{})
+	t.Cleanup(func() {
+		DB.AutoMigrate(&ChannelSettings{})
 	})
-	if err != nil {
-		t.Fatalf("gorm.Open error: %v", err)
-	}
-	DB = tempDB
 
 	count := LoadChannelStats()
 	if count != 0 {

@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -111,6 +112,8 @@ func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 // 2. Retrieves the original command from cache
 // 3. Executes the appropriate command handler with restored context
 func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	defer error_handling.RecoverFromPanic("bot_updates", "verifyAnonymousAdmin")
+
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups

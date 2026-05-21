@@ -509,13 +509,19 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	}
 
 	statusCtx := newModuleMessageContext(bot, chat, user, "/anonadmin")
-	cmdCtx, _ = helpers.BuildCommandContext(bot, statusCtx)
+	cmdCtx, err = helpers.BuildCommandContext(bot, statusCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(status) error = %v, want EndGroups", err)
 	}
 
 	offCtx := newModuleMessageContext(bot, chat, user, "/anonadmin false")
-	cmdCtx, _ = helpers.BuildCommandContext(bot, offCtx)
+	cmdCtx, err = helpers.BuildCommandContext(bot, offCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(off) error = %v, want EndGroups", err)
 	}
@@ -612,7 +618,10 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 		t.Fatalf("seed admin cache: %v", err)
 	}
 	clearCtx := newModuleMessageContext(bot, clearChat, user, "/clearadmincache")
-	cmdCtx, _ = helpers.BuildCommandContext(bot, clearCtx)
+	cmdCtx, err = helpers.BuildCommandContext(bot, clearCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := adminModule.clearAdminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("clearAdminCache() error = %v, want EndGroups", err)
 	}

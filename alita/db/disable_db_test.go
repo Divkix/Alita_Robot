@@ -5,10 +5,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 func TestDisableCommand(t *testing.T) {
@@ -171,16 +167,12 @@ func TestLoadDisableStats(t *testing.T) {
 }
 
 func TestLoadDisableStatsErrorBranch(t *testing.T) {
-	originalDB := DB
-	t.Cleanup(func() { DB = originalDB })
+	skipIfNoDb(t)
 
-	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+	DB.Migrator().DropTable(&DisableSettings{})
+	t.Cleanup(func() {
+		DB.AutoMigrate(&DisableSettings{})
 	})
-	if err != nil {
-		t.Fatalf("gorm.Open error: %v", err)
-	}
-	DB = tempDB
 
 	cmds, chats := LoadDisableStats()
 	if cmds != 0 || chats != 0 {

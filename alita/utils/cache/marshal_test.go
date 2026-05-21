@@ -52,7 +52,7 @@ func TestGetMarshalSetMarshalConcurrentAccess(t *testing.T) {
 }
 
 func TestInitTestMarshalSetsAndRestores(t *testing.T) {
-	// Capture pre-call state
+	// TestInitTestMarshalSetsAndRestores captures pre-call state.
 	before := GetMarshal()
 
 	restore := InitTestMarshal()

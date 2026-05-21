@@ -54,17 +54,22 @@ func TestNewPermissionResponder(t *testing.T) {
 	}
 }
 
-func TestPermissionRespondReturnsFalseOnNilCtx(t *testing.T) {
-	r := NewPermissionResponder(&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}})
-	if r.Respond(nil, "key", "btn") != false {
-		t.Fatal("Respond(nil) should return false")
+// TestPermissionResponderRespondNegativeCases verifies that Respond returns false for nil context or nil EffectiveMessage.
+func TestPermissionResponderRespondNegativeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		ctx  *ext.Context
+	}{
+		{name: "nil ctx", ctx: nil},
+		{name: "nil EffectiveMessage", ctx: &ext.Context{}},
 	}
-}
 
-func TestPermissionRespondReturnsFalseOnNilMsg(t *testing.T) {
-	r := NewPermissionResponder(&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}})
-	ctx := &ext.Context{} // empty context with nil EffectiveMessage
-	if r.Respond(ctx, "key", "btn") != false {
-		t.Fatal("Respond(ctx with nil EffectiveMessage) should return false")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewPermissionResponder(&gotgbot.Bot{User: gotgbot.User{Id: 1, IsBot: true}})
+			if r.Respond(tt.ctx, "key", "btn") != false {
+				t.Fatalf("Respond(%s) should return false", tt.name)
+			}
+		})
 	}
 }
