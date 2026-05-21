@@ -6,6 +6,10 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestGetNotesSettings_Defaults(t *testing.T) {
@@ -408,6 +412,24 @@ func TestLoadNotesStats(t *testing.T) {
 	}
 	if chatsAfter < 1 {
 		t.Fatalf("expected chatsUsingNotes to be >= 1 after AddNote, got %d", chatsAfter)
+	}
+}
+
+func TestLoadNotesStatsErrorBranch(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open error: %v", err)
+	}
+	DB = tempDB
+
+	notes, chats := LoadNotesStats()
+	if notes != 0 || chats != 0 {
+		t.Fatalf("LoadNotesStats() = (%d, %d), want (0, 0) on error", notes, chats)
 	}
 }
 

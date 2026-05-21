@@ -51,3 +51,18 @@ func TestGetMarshalSetMarshalConcurrentAccess(t *testing.T) {
 		t.Fatal("GetMarshal() = nil after concurrent SetMarshal calls")
 	}
 }
+
+func TestInitTestMarshalSetsAndRestores(t *testing.T) {
+	// Capture pre-call state
+	before := GetMarshal()
+
+	restore := InitTestMarshal()
+	if GetMarshal() == nil {
+		t.Fatal("GetMarshal() = nil after InitTestMarshal")
+	}
+
+	restore()
+	if GetMarshal() != before {
+		t.Fatal("GetMarshal() did not restore original marshaler")
+	}
+}

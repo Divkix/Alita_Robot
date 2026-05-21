@@ -4,6 +4,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestConnectChat(t *testing.T) {
@@ -243,6 +247,24 @@ func TestLoadConnectionStats(t *testing.T) {
 	}
 	if connectedChats < 0 {
 		t.Fatalf("LoadConnectionStats() connectedChats=%d, want >= 0", connectedChats)
+	}
+}
+
+func TestLoadConnectionStatsErrorBranch(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open error: %v", err)
+	}
+	DB = tempDB
+
+	users, chats := LoadConnectionStats()
+	if users != 0 || chats != 0 {
+		t.Fatalf("LoadConnectionStats() = (%d, %d), want (0, 0) on error", users, chats)
 	}
 }
 

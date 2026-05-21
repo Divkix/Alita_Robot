@@ -9,6 +9,10 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -282,6 +286,24 @@ func TestLoadUserStats(t *testing.T) {
 // ---------------------------------------------------------------------------
 // LoadUserActivityStats
 // ---------------------------------------------------------------------------
+
+func TestLoadUsersStatsErrorBranch(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open error: %v", err)
+	}
+	DB = tempDB
+
+	count := LoadUsersStats()
+	if count != 0 {
+		t.Fatalf("LoadUsersStats() = %d, want 0 on error", count)
+	}
+}
 
 func TestLoadUserActivityStats(t *testing.T) {
 	skipIfNoDb(t)

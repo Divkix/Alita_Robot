@@ -3,6 +3,10 @@ package db
 import (
 	"testing"
 	"time"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestAddBlacklistTrigger(t *testing.T) {
@@ -158,6 +162,24 @@ func TestLoadBlacklistStats(t *testing.T) {
 	}
 	if chats < 0 {
 		t.Errorf("LoadBlacklistsStats chats = %d, want >= 0", chats)
+	}
+}
+
+func TestLoadBlacklistStatsErrorBranch(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open error: %v", err)
+	}
+	DB = tempDB
+
+	triggers, chats := LoadBlacklistsStats()
+	if triggers != 0 || chats != 0 {
+		t.Fatalf("LoadBlacklistsStats() = (%d, %d), want (0, 0) on error", triggers, chats)
 	}
 }
 

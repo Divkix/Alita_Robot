@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestAddAndGetFiltersList(t *testing.T) {
@@ -137,6 +141,24 @@ func TestLoadFilterStats(t *testing.T) {
 	}
 	if chats < 0 {
 		t.Errorf("LoadFilterStats chats = %d, want >= 0", chats)
+	}
+}
+
+func TestLoadFilterStatsErrorBranch(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	tempDB, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("gorm.Open error: %v", err)
+	}
+	DB = tempDB
+
+	total, chats := LoadFilterStats()
+	if total != 0 || chats != 0 {
+		t.Fatalf("LoadFilterStats() = (%d, %d), want (0, 0) on error", total, chats)
 	}
 }
 

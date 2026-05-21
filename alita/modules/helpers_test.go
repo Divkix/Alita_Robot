@@ -110,6 +110,31 @@ func TestListModules(t *testing.T) {
 	}
 }
 
+func TestListModulesViaDefaultRegistry(t *testing.T) {
+	t.Parallel()
+
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry.AbleMap.Store("Bans", true)
+	defaultHelpRegistry.AbleMap.Store("Admin", true)
+	defaultHelpRegistry.AbleMap.Store("Filters", true)
+	defer func() {
+		defaultHelpRegistry = previousRegistry
+	}()
+
+	result := listModules()
+	if len(result) != 3 {
+		t.Fatalf("listModules() = %v (len %d), want 3 elements", result, len(result))
+	}
+
+	expected := []string{"Admin", "Bans", "Filters"}
+	for i, name := range expected {
+		if result[i] != name {
+			t.Fatalf("listModules()[%d] = %q, want %q; full result: %v", i, result[i], name, result)
+		}
+	}
+}
+
 func TestGetAltNamesOfModuleIncludesLowercaseModuleName(t *testing.T) {
 	t.Parallel()
 
