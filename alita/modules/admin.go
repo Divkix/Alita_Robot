@@ -385,15 +385,30 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 		log.Error(err)
 		return err
 	}
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
+		log.Error(err)
+		return err
+	}
 
 	promoterMember, err := c.Chat.GetMember(c.Bot, c.User.Id, nil)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+	if promoterMember == nil {
+		err := fmt.Errorf("GetMember returned nil for promoterId %d", c.User.Id)
+		log.Error(err)
+		return err
+	}
 
 	botMember, err := c.Chat.GetMember(c.Bot, c.Bot.Id, nil)
 	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if botMember == nil {
+		err := fmt.Errorf("GetMember returned nil for botId %d", c.Bot.Id)
 		log.Error(err)
 		return err
 	}
@@ -529,6 +544,11 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 
 	userMember, err := chat.GetMember(c.Bot, userId, nil)
 	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if userMember == nil {
+		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
 		log.Error(err)
 		return err
 	}

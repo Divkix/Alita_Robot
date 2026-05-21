@@ -142,6 +142,9 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.RequireBotAdmin(b, ctx, chat, false) {
 		return ext.EndGroups
 	}
+	if !chat_status.CanUserPin(b, ctx, chat, user.Id, false) {
+		return ext.EndGroups
+	}
 	if !chat_status.CanBotPin(b, ctx, chat, false) {
 		return ext.EndGroups
 	}
