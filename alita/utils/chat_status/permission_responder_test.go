@@ -7,29 +7,39 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
-func TestWithReplySetsUseReply(t *testing.T) {
-	var cfg respondCfg
-	opt := WithReply()
-	opt(&cfg)
-
-	if !cfg.useReply {
-		t.Fatal("WithReply() should set useReply to true")
+func TestWithReplyOptions(t *testing.T) {
+	tests := []struct {
+		name                  string
+		opt                   func(*respondCfg)
+		wantUseReply          bool
+		wantFallbackToSendMsg bool
+	}{
+		{
+			name:                  "WithReply",
+			opt:                   WithReply(),
+			wantUseReply:          true,
+			wantFallbackToSendMsg: false,
+		},
+		{
+			name:                  "WithReplyFallback",
+			opt:                   WithReplyFallback(),
+			wantUseReply:          true,
+			wantFallbackToSendMsg: true,
+		},
 	}
-	if cfg.fallbackToSendMessage {
-		t.Fatal("WithReply() should leave fallbackToSendMessage as false")
-	}
-}
 
-func TestWithReplyFallbackSetsBoth(t *testing.T) {
-	var cfg respondCfg
-	opt := WithReplyFallback()
-	opt(&cfg)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cfg respondCfg
+			tt.opt(&cfg)
 
-	if !cfg.useReply {
-		t.Fatal("WithReplyFallback() should set useReply to true")
-	}
-	if !cfg.fallbackToSendMessage {
-		t.Fatal("WithReplyFallback() should set fallbackToSendMessage to true")
+			if cfg.useReply != tt.wantUseReply {
+				t.Fatalf("useReply = %v, want %v", cfg.useReply, tt.wantUseReply)
+			}
+			if cfg.fallbackToSendMessage != tt.wantFallbackToSendMsg {
+				t.Fatalf("fallbackToSendMessage = %v, want %v", cfg.fallbackToSendMessage, tt.wantFallbackToSendMsg)
+			}
+		})
 	}
 }
 

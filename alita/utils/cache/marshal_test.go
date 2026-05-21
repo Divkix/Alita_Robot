@@ -2,7 +2,6 @@
 
 package cache
 
-
 import (
 	"sync"
 	"testing"
@@ -57,7 +56,6 @@ func TestInitTestMarshalSetsAndRestores(t *testing.T) {
 	before := GetMarshal()
 
 	restore := InitTestMarshal()
-	t.Cleanup(restore)
 	if GetMarshal() == nil {
 		t.Fatal("GetMarshal() = nil after InitTestMarshal")
 	}

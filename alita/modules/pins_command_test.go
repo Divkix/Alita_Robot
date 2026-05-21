@@ -18,7 +18,10 @@ func TestUnpinWithoutReplyUnpinsLatestMessage(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpin")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.unpin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpin() error = %v, want EndGroups", err)
 	}
@@ -43,7 +46,10 @@ func TestUnpinReplyWithoutPinnedMessageDoesNotCallTelegramUnpin(t *testing.T) {
 		Chat:      chat,
 		Text:      "not pinned",
 	}
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.unpin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpin() error = %v, want EndGroups", err)
 	}
@@ -70,7 +76,10 @@ func TestUnpinReplyWithPinnedMessageUnpinsReply(t *testing.T) {
 		PinnedMessage:  &gotgbot.Message{MessageId: 77, Date: 1, Chat: chat, Text: "pinned"},
 		ReplyToMessage: nil,
 	}
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.unpin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpin(pinned reply) error = %v, want EndGroups", err)
 	}
@@ -90,7 +99,10 @@ func TestUnpinAllSendsConfirmationButtons(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/unpinall")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.unpinAll(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpinAll() error = %v, want EndGroups", err)
 	}
@@ -155,7 +167,10 @@ func TestPinReplyPinsMessageWithNotificationOption(t *testing.T) {
 		Chat:      chat,
 		Text:      "pin me",
 	}
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.pin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("pin() error = %v, want EndGroups", err)
 	}
@@ -175,7 +190,10 @@ func TestPinWithoutReplyAsksForReply(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pin")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.pin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("pin() error = %v, want EndGroups", err)
 	}
@@ -194,7 +212,10 @@ func TestPermaPinValidationBranches(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	missingCtx := newModuleMessageContext(bot, chat, user, "/permapin")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, missingCtx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, missingCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.permaPin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("permaPin missing error = %v, want EndGroups", err)
 	}
@@ -205,7 +226,10 @@ func TestPermaPinValidationBranches(t *testing.T) {
 		Date:      1,
 		Chat:      chat,
 	}
-	cmdCtx2, _ := helpers.BuildCommandContext(bot, unsupportedCtx)
+	cmdCtx2, err := helpers.BuildCommandContext(bot, unsupportedCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.permaPin(cmdCtx2); err != ext.EndGroups {
 		t.Fatalf("permaPin unsupported error = %v, want EndGroups", err)
 	}
@@ -225,7 +249,10 @@ func TestPermaPinSendsNewMessageThenPinsIt(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/permapin keep this pinned")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.permaPin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("permaPin() error = %v, want EndGroups", err)
 	}
@@ -252,7 +279,10 @@ func TestPinnedCommandLinksLatestPinnedMessage(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.pinned(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("pinned() error = %v, want EndGroups", err)
 	}
@@ -272,7 +302,10 @@ func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
-	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 	if err := pinsModule.pinned(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("pinned() error = %v, want EndGroups for missing pinned message reply", err)
 	}
@@ -506,7 +539,10 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			}
 		}, run: pinsModule.checkPinned},
 		{name: "unpin latest request", text: "/unpin", method: "unpinChatMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.unpin(cmdCtx)
 		}},
 		{name: "unpin reply result", text: "/unpin", method: "sendMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
@@ -518,27 +554,45 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 				PinnedMessage: &gotgbot.Message{MessageId: 77, Date: 1, Chat: *ctx.EffectiveChat},
 			}
 		}, run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.unpin(cmdCtx)
 		}},
 		{name: "unpin all confirmation", text: "/unpinall", method: "sendMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.unpinAll(cmdCtx)
 		}},
 		{name: "permapin missing target reply", text: "/permapin", method: "sendMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.permaPin(cmdCtx)
 		}},
 		{name: "permapin send request", text: "/permapin keep pinned", method: "sendMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.permaPin(cmdCtx)
 		}},
 		{name: "permapin pin request", text: "/permapin keep pinned", method: "pinChatMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.permaPin(cmdCtx)
 		}},
 		{name: "pin missing reply", text: "/pin", method: "sendMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pin(cmdCtx)
 		}},
 		{name: "pin request", text: "/pin", method: "pinChatMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
@@ -549,7 +603,10 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 				Text:      "pin me",
 			}
 		}, run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pin(cmdCtx)
 		}},
 		{name: "pin confirmation reply", text: "/pin", method: "sendMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
@@ -560,7 +617,10 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 				Text:      "pin me",
 			}
 		}, run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pin(cmdCtx)
 		}},
 		{name: "anti channel pin status reply", text: "/antichannelpin", method: "sendMessage", run: pinsModule.antichannelpin},
@@ -568,11 +628,17 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		{name: "clean linked status reply", text: "/cleanlinked", method: "sendMessage", run: pinsModule.cleanlinked},
 		{name: "clean linked toggle reply", text: "/cleanlinked on", method: "sendMessage", run: pinsModule.cleanlinked},
 		{name: "pinned get chat request", text: "/pinned", method: "getChat", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pinned(cmdCtx)
 		}},
 		{name: "pinned missing message reply", text: "/pinned", method: "sendMessage", run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pinned(cmdCtx)
 		}},
 		{name: "pinned result reply", text: "/pinned", method: "sendMessage", prepare: func(client *moduleBotClient, _ *ext.Context) {
@@ -580,7 +646,10 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 				`{"id":-1001,"type":"supergroup","title":"Pin Chat","pinned_message":{"message_id":77,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"},"text":"pinned"}}`,
 			)
 		}, run: func(bot *gotgbot.Bot, ctx *ext.Context) error {
-			cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
 			return pinsModule.pinned(cmdCtx)
 		}},
 	} {
