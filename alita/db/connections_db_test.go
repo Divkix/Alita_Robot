@@ -246,6 +246,20 @@ func TestLoadConnectionStats(t *testing.T) {
 	}
 }
 
+func TestLoadConnectionStatsErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&ConnectionChatSettings{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&ConnectionChatSettings{})
+	})
+
+	users, chats := LoadConnectionStats()
+	if users != 0 || chats != 0 {
+		t.Fatalf("LoadConnectionStats() = (%d, %d), want (0, 0) on error", users, chats)
+	}
+}
+
 func TestConcurrentConnect(t *testing.T) {
 	skipIfNoDb(t)
 

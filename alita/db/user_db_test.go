@@ -283,6 +283,20 @@ func TestLoadUserStats(t *testing.T) {
 // LoadUserActivityStats
 // ---------------------------------------------------------------------------
 
+func TestLoadUsersStatsErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&User{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&User{})
+	})
+
+	count := LoadUsersStats()
+	if count != 0 {
+		t.Fatalf("LoadUsersStats() = %d, want 0 on error", count)
+	}
+}
+
 func TestLoadUserActivityStats(t *testing.T) {
 	skipIfNoDb(t)
 

@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -111,6 +112,8 @@ func adminCacheAutoUpdate(b *gotgbot.Bot, ctx *ext.Context) error {
 // 2. Retrieves the original command from cache
 // 3. Executes the appropriate command handler with restored context
 func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	defer error_handling.RecoverFromPanic("bot_updates", "verifyAnonymousAdmin")
+
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
 		return ext.EndGroups
@@ -210,13 +213,20 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch command {
 
-	// admin
-	case "promote":
-		return adminModule.promote(b, ctx)
-	case "demote":
-		return adminModule.demote(b, ctx)
-	case "title":
-		return adminModule.setTitle(b, ctx)
+	// admin (re-mapped via anonymous admin magic; need raw CommandContext)
+	case "promote", "demote", "title":
+		c, err := helpers.BuildCommandContext(b, ctx)
+		if err != nil {
+			return ext.EndGroups
+		}
+		switch command {
+		case "promote":
+			return adminModule.promote(c)
+		case "demote":
+			return adminModule.demote(c)
+		case "title":
+			return adminModule.setTitle(c)
+		}
 
 	// bans (restrictions)
 	case "ban":
@@ -247,14 +257,21 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return mutesModule.unmute(b, ctx)
 
 	// pins
-	case "pin":
-		return pinsModule.pin(b, ctx)
-	case "unpin":
-		return pinsModule.unpin(b, ctx)
-	case "permapin":
-		return pinsModule.permaPin(b, ctx)
-	case "unpinall":
-		return pinsModule.unpinAll(b, ctx)
+	case "pin", "unpin", "permapin", "unpinall":
+		c, err := helpers.BuildCommandContext(b, ctx)
+		if err != nil {
+			return ext.EndGroups
+		}
+		switch command {
+		case "pin":
+			return pinsModule.pin(c)
+		case "unpin":
+			return pinsModule.unpin(c)
+		case "permapin":
+			return pinsModule.permaPin(c)
+		case "unpinall":
+			return pinsModule.unpinAll(c)
+		}
 
 	// purges
 	case "purge":

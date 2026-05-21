@@ -140,6 +140,20 @@ func TestLoadFilterStats(t *testing.T) {
 	}
 }
 
+func TestLoadFilterStatsErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&ChatFilters{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&ChatFilters{})
+	})
+
+	total, chats := LoadFilterStats()
+	if total != 0 || chats != 0 {
+		t.Fatalf("LoadFilterStats() = (%d, %d), want (0, 0) on error", total, chats)
+	}
+}
+
 func TestAddFilterWithButtons(t *testing.T) {
 	skipIfNoDb(t)
 

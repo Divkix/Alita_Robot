@@ -161,6 +161,20 @@ func TestLoadBlacklistStats(t *testing.T) {
 	}
 }
 
+func TestLoadBlacklistStatsErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&BlacklistSettings{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&BlacklistSettings{})
+	})
+
+	triggers, chats := LoadBlacklistsStats()
+	if triggers != 0 || chats != 0 {
+		t.Fatalf("LoadBlacklistsStats() = (%d, %d), want (0, 0) on error", triggers, chats)
+	}
+}
+
 func TestBlacklistTriggerLowercased(t *testing.T) {
 	skipIfNoDb(t)
 

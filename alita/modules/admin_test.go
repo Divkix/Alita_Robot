@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // testError is a simple error implementation for testing
@@ -80,7 +81,11 @@ func TestAdminListLoadsAndRepliesWithVisibleAdmins(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/adminlist")
 
-	if err := adminModule.adminlist(bot, ctx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminlist(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminlist() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("getChatAdministrators"); len(calls) != 1 {
@@ -104,7 +109,11 @@ func TestAdminListReportsWhenOnlyBotsAreVisible(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/adminlist")
 
-	if err := adminModule.adminlist(bot, ctx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminlist(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminlist(no visible admins) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -120,7 +129,11 @@ func TestPromoteReplyPromotesTargetAndSetsTitle(t *testing.T) {
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/promote VeryLongCustomAdminTitle")
 
-	if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("promote() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("promoteChatMember"); len(calls) != 1 {
@@ -153,7 +166,11 @@ func TestPromoteRejectsInvalidAndProtectedTargets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
-			if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
+			if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
 				t.Fatalf("promote(%s) error = %v, want EndGroups", tt.name, err)
 			}
 		})
@@ -183,8 +200,12 @@ func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
+		cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+		if err != nil {
+			t.Fatalf("BuildCommandContext failed: %v", err)
+		}
 
-		if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+		if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
 			t.Fatalf("promote(existing admin) error = %v, want EndGroups", err)
 		}
 		if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
@@ -199,8 +220,12 @@ func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
+		cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+		if err != nil {
+			t.Fatalf("BuildCommandContext failed: %v", err)
+		}
 
-		if err := adminModule.promote(bot, ctx); err != ext.EndGroups {
+		if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
 			t.Fatalf("promote(empty admin cache) error = %v, want EndGroups", err)
 		}
 		if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
@@ -228,8 +253,12 @@ func TestDemoteReplyDemotesAdminTarget(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/demote")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.demote(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.demote(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("demote() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("promoteChatMember"); len(calls) != 1 {
@@ -265,7 +294,11 @@ func TestDemoteValidationBranches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
-			if err := adminModule.demote(bot, ctx); err != ext.EndGroups {
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
+			if err := adminModule.demote(cmdCtx); err != ext.EndGroups {
 				t.Fatalf("demote(%s) error = %v, want EndGroups", tt.name, err)
 			}
 		})
@@ -283,8 +316,12 @@ func TestDemoteRejectsMissingAdminCache(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, admin, "/demote 42")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.demote(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.demote(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("demote(empty admin cache) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("promoteChatMember"); len(calls) != 0 {
@@ -311,8 +348,12 @@ func TestSetTitleReplyUpdatesAdminTitle(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/title Captain")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.setTitle(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("setTitle() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("setChatAdministratorCustomTitle"); len(calls) != 1 {
@@ -349,14 +390,22 @@ func TestSetTitleValidationAndTruncation(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
-			if err := adminModule.setTitle(bot, ctx); err != ext.EndGroups {
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
+			if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
 				t.Fatalf("setTitle(%s) error = %v, want EndGroups", tt.name, err)
 			}
 		})
 	}
 
 	longTitleCtx := newModuleMessageContext(bot, chat, admin, "/title 42 VeryLongCustomAdminTitle")
-	if err := adminModule.setTitle(bot, longTitleCtx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, longTitleCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("setTitle(long title) error = %v, want EndGroups", err)
 	}
 
@@ -380,8 +429,12 @@ func TestGetInviteLinkUsesPublicUsernameWithoutFetchingChat(t *testing.T) {
 	}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.getinvitelink(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.getinvitelink(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("getinvitelink() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("getChat"); len(calls) != 0 {
@@ -401,8 +454,12 @@ func TestGetInviteLinkFetchesPrivateInviteLink(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.getinvitelink(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.getinvitelink(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("getinvitelink(private) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("getChat"); len(calls) != 1 {
@@ -420,8 +477,12 @@ func TestGetInviteLinkHandlesPrivateLookupFailure(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.getinvitelink(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.getinvitelink(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("getinvitelink(lookup failure) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -436,7 +497,11 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	onCtx := newModuleMessageContext(bot, chat, user, "/anonadmin on")
-	if err := adminModule.anonAdmin(bot, onCtx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, onCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(on) error = %v, want EndGroups", err)
 	}
 	if !db.GetAdminSettings(chat.Id).AnonAdmin {
@@ -444,12 +509,20 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	}
 
 	statusCtx := newModuleMessageContext(bot, chat, user, "/anonadmin")
-	if err := adminModule.anonAdmin(bot, statusCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(bot, statusCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(status) error = %v, want EndGroups", err)
 	}
 
 	offCtx := newModuleMessageContext(bot, chat, user, "/anonadmin false")
-	if err := adminModule.anonAdmin(bot, offCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(bot, offCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(off) error = %v, want EndGroups", err)
 	}
 	if db.GetAdminSettings(chat.Id).AnonAdmin {
@@ -472,7 +545,11 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
 	}
 	onAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin yes")
-	if err := adminModule.anonAdmin(bot, onAgainCtx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, onAgainCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(already on) error = %v, want EndGroups", err)
 	}
 
@@ -480,12 +557,20 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
 	}
 	offAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin off")
-	if err := adminModule.anonAdmin(bot, offAgainCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(bot, offAgainCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(already off) error = %v, want EndGroups", err)
 	}
 
 	invalidCtx := newModuleMessageContext(bot, chat, user, "/anonadmin maybe")
-	if err := adminModule.anonAdmin(bot, invalidCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(bot, invalidCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(invalid) error = %v, want EndGroups", err)
 	}
 
@@ -504,7 +589,11 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	refreshCtx := newModuleMessageContext(bot, chat, user, "/admincache")
-	if err := adminModule.adminCache(bot, refreshCtx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(bot, refreshCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminCache() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("getChatAdministrators"); len(calls) != 1 {
@@ -529,7 +618,11 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 		t.Fatalf("seed admin cache: %v", err)
 	}
 	clearCtx := newModuleMessageContext(bot, clearChat, user, "/clearadmincache")
-	if err := adminModule.clearAdminCache(bot, clearCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(bot, clearCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.clearAdminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("clearAdminCache() error = %v, want EndGroups", err)
 	}
 	if found, _ := cache.GetAdminCacheList(clearChat.Id); found {
@@ -545,8 +638,12 @@ func TestClearAdminCacheNilMarshal(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/clearadmincache")
+	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
 
-	if err := adminModule.clearAdminCache(bot, ctx); err != ext.EndGroups {
+	if err := adminModule.clearAdminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("clearAdminCache(nil marshal) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
@@ -560,7 +657,11 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	memberCtx := newModuleMessageContext(memberBot, chat, member, "/admincache")
-	if err := adminModule.adminCache(memberBot, memberCtx); err != ext.EndGroups {
+	cmdCtx, err := helpers.BuildCommandContext(memberBot, memberCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminCache(member) error = %v, want EndGroups", err)
 	}
 	if calls := memberClient.callsFor("sendMessage"); len(calls) != 1 {
@@ -572,7 +673,11 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	errorBot := newModuleTestBot(errorClient)
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	errorCtx := newModuleMessageContext(errorBot, chat, admin, "/admincache")
-	if err := adminModule.adminCache(errorBot, errorCtx); err != ext.EndGroups {
+	cmdCtx, err = helpers.BuildCommandContext(errorBot, errorCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminCache(lookup failure) error = %v, want EndGroups", err)
 	}
 	if calls := errorClient.callsFor("sendMessage"); len(calls) != 1 {
@@ -601,7 +706,7 @@ func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		method    string
 		setup     func(*moduleBotClient)
 		withReply bool
-		run       func(*gotgbot.Bot, *ext.Context) error
+		run       func(*helpers.CommandContext) error
 	}{
 		{name: "admin list reply", text: "/adminlist", method: "sendMessage", run: adminModule.adminlist},
 		{name: "promote missing target reply", text: "/promote", method: "sendMessage", run: adminModule.promote},
@@ -649,7 +754,11 @@ func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 				ctx = newModuleMessageContext(bot, chat, admin, tt.text)
 			}
 
-			err := tt.run(bot, ctx)
+			cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
+			if err != nil {
+				t.Fatalf("BuildCommandContext failed: %v", err)
+			}
+			err = tt.run(cmdCtx)
 			if !errors.Is(err, requestErr) {
 				t.Fatalf("%s returned error %v, want request error", tt.text, err)
 			}

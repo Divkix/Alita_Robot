@@ -411,6 +411,20 @@ func TestLoadNotesStats(t *testing.T) {
 	}
 }
 
+func TestLoadNotesStatsErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&Notes{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&Notes{})
+	})
+
+	notes, chats := LoadNotesStats()
+	if notes != 0 || chats != 0 {
+		t.Fatalf("LoadNotesStats() = (%d, %d), want (0, 0) on error", notes, chats)
+	}
+}
+
 func TestRemoveAllNotes(t *testing.T) {
 	skipIfNoDb(t)
 

@@ -149,3 +149,21 @@ func TestUpdateChannel(t *testing.T) {
 		t.Errorf("channel name = %q, want %q", ch.ChannelName, updatedName)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// LoadChannelStats
+// ---------------------------------------------------------------------------
+
+func TestLoadChannelStats_ErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	_ = DB.Migrator().DropTable(&ChannelSettings{})
+	t.Cleanup(func() {
+		_ = DB.AutoMigrate(&ChannelSettings{})
+	})
+
+	count := LoadChannelStats()
+	if count != 0 {
+		t.Fatalf("LoadChannelStats() = %d, want 0 on error", count)
+	}
+}

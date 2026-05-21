@@ -2,7 +2,6 @@
 
 package cache
 
-
 import (
 	"sync"
 	"testing"
@@ -49,5 +48,21 @@ func TestGetMarshalSetMarshalConcurrentAccess(t *testing.T) {
 
 	if GetMarshal() == nil {
 		t.Fatal("GetMarshal() = nil after concurrent SetMarshal calls")
+	}
+}
+
+func TestInitTestMarshalSetsAndRestores(t *testing.T) {
+	// TestInitTestMarshalSetsAndRestores captures pre-call state.
+	before := GetMarshal()
+
+	restore := InitTestMarshal()
+	t.Cleanup(restore)
+	if GetMarshal() == nil {
+		t.Fatal("GetMarshal() = nil after InitTestMarshal")
+	}
+
+	restore()
+	if GetMarshal() != before {
+		t.Fatal("GetMarshal() did not restore original marshaler")
 	}
 }
