@@ -273,8 +273,8 @@ func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
 
 	ctx := newModuleMessageContext(bot, chat, user, "/pinned")
 	cmdCtx, _ := helpers.BuildCommandContext(bot, ctx)
-	if err := pinsModule.pinned(cmdCtx); err != nil {
-		t.Fatalf("pinned() error = %v, want nil for missing pinned message reply", err)
+	if err := pinsModule.pinned(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("pinned() error = %v, want EndGroups for missing pinned message reply", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want missing pinned message reply", len(calls))

@@ -111,8 +111,6 @@ func TestListModules(t *testing.T) {
 }
 
 func TestListModulesViaDefaultRegistry(t *testing.T) {
-	t.Parallel()
-
 	previousRegistry := defaultHelpRegistry
 	defaultHelpRegistry = NewHelpRegistry()
 	defaultHelpRegistry.AbleMap.Store("Bans", true)

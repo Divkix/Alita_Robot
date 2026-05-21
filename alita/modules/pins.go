@@ -161,9 +161,13 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	switch action {
 	case "yes":
 		status, err := b.UnpinAllChatMessages(chat.Id, nil)
-		if !status && err != nil {
-			log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
-			return err
+		if !status {
+			if err != nil {
+				log.Errorf("[Pin] UnpinAllChatMessages for chat %d: %v", chat.Id, err)
+				return err
+			}
+			log.Errorf("[Pin] UnpinAllChatMessages returned false for chat %d", chat.Id)
+			return fmt.Errorf("UnpinAllChatMessages failed for chat %d", chat.Id)
 		}
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_success")
@@ -264,7 +268,11 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		log.Errorf("Invalid or missing pin type: %d, cannot send permapin", pinT.DataType)
 		text, _ := c.Tr.GetString("pins_permapin_unsupported")
 		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
-		return err
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
 	}
 
 	ppmsg, err := pinFunc(c.Bot, c.Ctx, pinT, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}, 0)
@@ -549,7 +557,7 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 			log.Error(err)
 			return err
 		}
-		return err
+		return ext.EndGroups
 	}
 
 	pinLink = helpers.GetMessageLinkFromMessageId(chat, pinnedMsg.MessageId)

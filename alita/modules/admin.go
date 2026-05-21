@@ -15,6 +15,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
 
@@ -506,11 +507,12 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 			return err
 		}
 		return ext.EndGroups
-	} else if len(customTitle) > 16 {
+	} else if len([]rune(customTitle)) > 16 {
 		// trim title to 16 characters (telegram restriction) and notify user
+		runes := []rune(customTitle)
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_truncated")
-		extraText = fmt.Sprintf(temp, len(customTitle))
-		customTitle = customTitle[0:16]
+		extraText = fmt.Sprintf(temp, len(runes))
+		customTitle = string(runes[:16])
 	}
 
 	_, err := chat.SetAdministratorCustomTitle(c.Bot,
@@ -749,6 +751,7 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	// adminCache uses custom permission checking (direct member status lookup),
 	// so it remains a raw handler.
 	dispatcher.AddHandler(handlers.NewCommand("admincache", func(b *gotgbot.Bot, ctx *ext.Context) error {
+		defer error_handling.RecoverFromPanic("admincache", "admin")
 		c, err := helpers.BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
