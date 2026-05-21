@@ -143,9 +143,9 @@ func TestLoadFilterStats(t *testing.T) {
 func TestLoadFilterStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&ChatFilters{})
+	_ = DB.Migrator().DropTable(&ChatFilters{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&ChatFilters{})
+		_ = DB.AutoMigrate(&ChatFilters{})
 	})
 
 	total, chats := LoadFilterStats()

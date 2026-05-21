@@ -169,9 +169,9 @@ func TestLoadDisableStats(t *testing.T) {
 func TestLoadDisableStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&DisableSettings{})
+	_ = DB.Migrator().DropTable(&DisableSettings{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&DisableSettings{})
+		_ = DB.AutoMigrate(&DisableSettings{})
 	})
 
 	cmds, chats := LoadDisableStats()

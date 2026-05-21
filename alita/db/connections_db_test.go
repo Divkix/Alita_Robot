@@ -249,9 +249,9 @@ func TestLoadConnectionStats(t *testing.T) {
 func TestLoadConnectionStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&ConnectionChatSettings{})
+	_ = DB.Migrator().DropTable(&ConnectionChatSettings{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&ConnectionChatSettings{})
+		_ = DB.AutoMigrate(&ConnectionChatSettings{})
 	})
 
 	users, chats := LoadConnectionStats()

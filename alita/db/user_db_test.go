@@ -286,9 +286,9 @@ func TestLoadUserStats(t *testing.T) {
 func TestLoadUsersStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&User{})
+	_ = DB.Migrator().DropTable(&User{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&User{})
+		_ = DB.AutoMigrate(&User{})
 	})
 
 	count := LoadUsersStats()

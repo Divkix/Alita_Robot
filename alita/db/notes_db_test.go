@@ -414,9 +414,9 @@ func TestLoadNotesStats(t *testing.T) {
 func TestLoadNotesStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&Notes{})
+	_ = DB.Migrator().DropTable(&Notes{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&Notes{})
+		_ = DB.AutoMigrate(&Notes{})
 	})
 
 	notes, chats := LoadNotesStats()

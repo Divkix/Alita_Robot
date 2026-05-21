@@ -157,9 +157,9 @@ func TestUpdateChannel(t *testing.T) {
 func TestLoadChannelStats_ErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	DB.Migrator().DropTable(&ChannelSettings{})
+	_ = DB.Migrator().DropTable(&ChannelSettings{})
 	t.Cleanup(func() {
-		DB.AutoMigrate(&ChannelSettings{})
+		_ = DB.AutoMigrate(&ChannelSettings{})
 	})
 
 	count := LoadChannelStats()
