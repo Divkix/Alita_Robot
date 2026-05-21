@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -87,84 +86,87 @@ connection = true, true
 
 Bot can only Demote people it promoted! */
 
-// demote handles the /demote command to remove admin privileges from a user.
-// The bot can only demote users it has previously promoted.
-func (m moduleStruct) demote(c *helpers.CommandContext) error {
-	chat := c.Chat
-	msg := c.Msg
-	tr := c.Tr
-
-	// Validate admin cache before proceeding
-	adminsAvail, admins := cache.GetAdminCacheList(chat.Id)
+// loadAdminCacheOrFail returns the cached admin list, or loads it from
+// Telegram. If the cache is empty after loading, it replies with an error
+// and returns a nil pointer so the caller can early-return.
+func (m moduleStruct) loadAdminCacheOrFail(c *helpers.CommandContext) *cache.AdminCache {
+	adminsAvail, admins := cache.GetAdminCacheList(c.Chat.Id)
 	if !adminsAvail {
-		admins = cache.LoadAdminCache(c.Bot, chat.Id)
+		admins = cache.LoadAdminCache(c.Bot, c.Chat.Id)
 	}
-
-	// If we still can't get admin list, inform user and abort
 	if len(admins.UserInfo) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
-		_, err := msg.Reply(c.Bot, text, nil)
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
+		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
 		}
-		return ext.EndGroups
+		return nil
 	}
+	return &admins
+}
 
+// validateDemotionTarget checks the extracted user ID for demotion.
+// It returns the validated user ID and an error sentinel if the target is
+// invalid (the caller should return ext.EndGroups).
+func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, error) {
 	userId := extraction.ExtractUser(c.Bot, c.Ctx)
 	if userId == -1 {
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(c.Bot, text, nil)
+		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString("common_no_user_specified")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	}
 
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId, true) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_owner")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_owner")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	}
 	if userId == c.Bot.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_bot_itself")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_bot_itself")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	}
 	// Using IsUserAdmin (not RequireUserAdmin) because we need a custom error message
-	// specific to the demote context rather than the generic permission error
-	if !chat_status.IsUserAdmin(c.Bot, chat.Id, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_not_admin")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+	// specific to the demote context rather than the generic permission error.
+	if !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, userId) {
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_not_admin")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-
-		return ext.EndGroups
+		return 0, ext.EndGroups
 	}
 
-	bb, err := chat.PromoteMember(c.Bot,
+	return userId, nil
+}
+
+// performDemotion removes admin privileges from the target user and sends
+// a success confirmation.
+func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) error {
+	bb, err := c.Chat.PromoteMember(c.Bot,
 		userId,
 		&gotgbot.PromoteChatMemberOpts{
 			CanPostMessages:     false,
@@ -177,28 +179,24 @@ func (m moduleStruct) demote(c *helpers.CommandContext) error {
 			CanManageTopics:     false,
 		},
 	)
-
 	if err != nil || !bb {
 		log.Error(err)
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_demote")
-		_, err = msg.Reply(c.Bot, text, nil)
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_demote")
+		_, err = c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-
 		return ext.EndGroups
 	}
 
-	// Invalidate admin cache immediately after successful demotion
-	cache.InvalidateAdminCache(chat.Id)
+	cache.InvalidateAdminCache(c.Chat.Id)
 
-	userMember, err := chat.GetMember(c.Bot, userId, nil)
+	userMember, err := c.Chat.GetMember(c.Bot, userId, nil)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	// Nil check to prevent panic when GetMember returns nil
 	if userMember == nil {
 		err := fmt.Errorf("GetMember returned nil for userId %d", userId)
 		log.Error(err)
@@ -206,9 +204,9 @@ func (m moduleStruct) demote(c *helpers.CommandContext) error {
 	}
 
 	mem := userMember.MergeChatMember().User
-	_, err = msg.Reply(c.Bot,
+	_, err = c.Msg.Reply(c.Bot,
 		func() string {
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_demote_success_demote")
+			temp, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_success_demote")
 			return fmt.Sprintf(temp, helpers.MentionHtml(mem.Id, mem.FirstName))
 		}(),
 		helpers.Shtml(),
@@ -217,8 +215,23 @@ func (m moduleStruct) demote(c *helpers.CommandContext) error {
 		log.Error(err)
 		return err
 	}
-
 	return ext.EndGroups
+}
+
+// demote handles the /demote command to remove admin privileges from a user.
+// The bot can only demote users it has previously promoted.
+func (m moduleStruct) demote(c *helpers.CommandContext) error {
+	admins := m.loadAdminCacheOrFail(c)
+	if admins == nil {
+		return ext.EndGroups
+	}
+
+	userId, err := m.validateDemotionTarget(c)
+	if err != nil {
+		return err
+	}
+
+	return m.performDemotion(c, userId)
 }
 
 /* Used to Promote a member in chat
@@ -227,161 +240,107 @@ connection = true, true
 
 Bot will give promoted user permissions of bot*/
 
-// promote handles the /promote command to grant admin privileges to a user.
-// The bot grants permissions based on its own capabilities and the promoter's status.
-func (m moduleStruct) promote(c *helpers.CommandContext) error {
-	chat := c.Chat
-	msg := c.Msg
-	user := c.User
-	tr := c.Tr
-
-	extraText := ""
-
-	// Validate admin cache before proceeding
-	adminsAvail, admins := cache.GetAdminCacheList(chat.Id)
-	if !adminsAvail {
-		admins = cache.LoadAdminCache(c.Bot, chat.Id)
-	}
-
-	// If we still can't get admin list, inform user and abort
-	if len(admins.UserInfo) == 0 {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_admin_cache_failed")
-		_, err := msg.Reply(c.Bot, text, nil)
-		if err != nil {
-			log.Error(err)
-		}
-		return ext.EndGroups
-	}
-
+// validatePromotionTarget extracts and validates the target user for promotion.
+// It returns the user ID, custom title, and an error sentinel (ext.EndGroups) on failure.
+func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64, string, error) {
 	userId, customTitle := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 	if userId == -1 {
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(c.Bot, text, nil)
+		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		_, err := c.Msg.Reply(c.Bot, text, nil)
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, "", err
 		}
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString("common_no_user_specified")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, "", err
 		}
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	}
-
 	if userId == c.Bot.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_bot_itself")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_bot_itself")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, "", err
 		}
-
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	}
-
-	// checks if user being promoted is already admin or owner
 	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId, true) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_owner")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_owner")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, "", err
 		}
-
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	}
-	if chat_status.IsUserAdmin(c.Bot, chat.Id, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_admin")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+	if chat_status.IsUserAdmin(c.Bot, c.Chat.Id, userId) {
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_admin")
+		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
 			log.Error(err)
-			return err
+			return 0, "", err
 		}
-
-		return ext.EndGroups
+		return 0, "", ext.EndGroups
 	}
+	return userId, customTitle, nil
+}
 
-	userMember, err := chat.GetMember(c.Bot, userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+// canGrantPerm returns whether the bot can grant a specific permission,
+// considering both the bot's own capability and the promoter privileges.
+func canGrantPerm(botHas, promoterHas, bypass bool) bool {
+	return botHas && (promoterHas || bypass)
+}
 
-	promoterMember, err := chat.GetMember(c.Bot, user.Id, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	botMember, err := chat.GetMember(c.Bot, c.Bot.Id, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	// makes code short
+// buildPromoteOpts constructs the permission options for PromoteMember
+// based on bot and promoter capabilities.
+func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbot.User, c *helpers.CommandContext) *gotgbot.PromoteChatMemberOpts {
 	bMem := botMember.MergeChatMember()
 	pMem := promoterMember.MergeChatMember()
 
 	teamMem := db.GetTeamMemInfo(user.Id)
 	teamMemInfo := teamMem.Sudo || teamMem.IsDev
 	isPromoterOwner := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id, true)
-
-	// Privilege Escalation Behavior (Intentional):
-	// - Group owners and sudo/dev team members can grant full bot-level permissions
-	// - Regular admins can only grant permissions they themselves have
-	// This is by design: trusted users (owners, sudo, dev) bypass the permission mirroring
-	// that normally prevents admins from granting permissions they don't have.
 	checkCommonPerms := isPromoterOwner || teamMemInfo
 
-	status, err := chat.PromoteMember(c.Bot,
-		userId,
-		&gotgbot.PromoteChatMemberOpts{
-			CanPostMessages:     bMem.CanPostMessages && (pMem.CanPostMessages || checkCommonPerms),
-			CanDeleteMessages:   bMem.CanDeleteMessages && (pMem.CanDeleteMessages || checkCommonPerms),
-			CanRestrictMembers:  bMem.CanRestrictMembers && (pMem.CanRestrictMembers || checkCommonPerms),
-			CanChangeInfo:       bMem.CanChangeInfo && (pMem.CanChangeInfo || checkCommonPerms),
-			CanInviteUsers:      bMem.CanInviteUsers && (pMem.CanInviteUsers || checkCommonPerms),
-			CanPinMessages:      bMem.CanPinMessages && (pMem.CanPinMessages || checkCommonPerms),
-			CanManageVideoChats: bMem.CanManageVideoChats && (pMem.CanManageVideoChats || checkCommonPerms),
-			CanManageChat:       bMem.CanManageChat && (pMem.CanManageChat || checkCommonPerms),
-			CanManageTopics:     bMem.CanManageTopics && (pMem.CanManageTopics || checkCommonPerms),
-		},
-	)
-	if err != nil || !status {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_promote")
-		_, _ = msg.Reply(c.Bot, text, helpers.Shtml())
-		if err == nil {
-			err = fmt.Errorf("promote member returned false status")
-		}
-		return err
+	return &gotgbot.PromoteChatMemberOpts{
+		CanPostMessages:     canGrantPerm(bMem.CanPostMessages, pMem.CanPostMessages, checkCommonPerms),
+		CanDeleteMessages:   canGrantPerm(bMem.CanDeleteMessages, pMem.CanDeleteMessages, checkCommonPerms),
+		CanRestrictMembers:  canGrantPerm(bMem.CanRestrictMembers, pMem.CanRestrictMembers, checkCommonPerms),
+		CanChangeInfo:       canGrantPerm(bMem.CanChangeInfo, pMem.CanChangeInfo, checkCommonPerms),
+		CanInviteUsers:      canGrantPerm(bMem.CanInviteUsers, pMem.CanInviteUsers, checkCommonPerms),
+		CanPinMessages:      canGrantPerm(bMem.CanPinMessages, pMem.CanPinMessages, checkCommonPerms),
+		CanManageVideoChats: canGrantPerm(bMem.CanManageVideoChats, pMem.CanManageVideoChats, checkCommonPerms),
+		CanManageChat:       canGrantPerm(bMem.CanManageChat, pMem.CanManageChat, checkCommonPerms),
+		CanManageTopics:     canGrantPerm(bMem.CanManageTopics, pMem.CanManageTopics, checkCommonPerms),
 	}
+}
 
-	// Invalidate admin cache immediately after successful promotion
-	cache.InvalidateAdminCache(chat.Id)
+// handlePromotionSuccess sends the success reply after a promotion,
+// optionally setting a custom title and truncating it if needed.
+func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId int64, customTitle string, userMember gotgbot.ChatMember) error {
+	tr := c.Tr
+	msg := c.Msg
 
+	cache.InvalidateAdminCache(c.Chat.Id)
+
+	extraText := ""
 	titleRunes := []rune(customTitle)
 	if len(titleRunes) > 16 {
-		// trim title to 16 characters (telegram restriction)
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_admin_title_truncated")
 		extraText += fmt.Sprintf(temp, len(titleRunes))
 		customTitle = string(titleRunes[0:16])
 	}
 
-	// set the custom title
 	if customTitle != "" {
-		_, err = chat.SetAdministratorCustomTitle(
-			c.Bot,
-			userId,
-			customTitle,
-			nil,
-		)
+		_, err := c.Chat.SetAdministratorCustomTitle(c.Bot, userId, customTitle, nil)
 		if err != nil {
 			text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_set_title")
 			_, err = msg.Reply(c.Bot, text, nil)
@@ -393,7 +352,7 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 	}
 
 	mem := userMember.MergeChatMember().User
-	_, err = msg.Reply(c.Bot,
+	_, err := msg.Reply(c.Bot,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_promote_success_promote")
 			return fmt.Sprintf(temp, helpers.MentionHtml(mem.Id, mem.FirstName))
@@ -404,8 +363,53 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 		log.Error(err)
 		return err
 	}
-
 	return ext.EndGroups
+}
+
+// promote handles the /promote command to grant admin privileges to a user.
+// The bot grants permissions based on its own capabilities and the promoter's status.
+func (m moduleStruct) promote(c *helpers.CommandContext) error {
+	admins := m.loadAdminCacheOrFail(c)
+	if admins == nil {
+		return ext.EndGroups
+	}
+
+	userId, customTitle, err := m.validatePromotionTarget(c)
+	if err != nil {
+		return err
+	}
+
+	userMember, err := c.Chat.GetMember(c.Bot, userId, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	promoterMember, err := c.Chat.GetMember(c.Bot, c.User.Id, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	botMember, err := c.Chat.GetMember(c.Bot, c.Bot.Id, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	opts := buildPromoteOpts(botMember, promoterMember, c.User, c)
+
+	status, err := c.Chat.PromoteMember(c.Bot, userId, opts)
+	if err != nil || !status {
+		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_errors_err_cannot_promote")
+		_, _ = c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		if err == nil {
+			err = fmt.Errorf("promote member returned false status")
+		}
+		return err
+	}
+
+	return m.handlePromotionSuccess(c, userId, customTitle, userMember)
 }
 
 // getinvitelink handles the /invitelink command to retrieve the chat's invite link.
@@ -628,19 +632,17 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(c.Ctx))
-
 	// permission checks
 	userMember, err := chat.GetMember(b, user.Id, nil)
 	if err != nil {
 		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
-		errorText, _ := tr.GetString("admin_check_status_failed")
+		errorText, _ := c.Tr.GetString("admin_check_status_failed")
 		_, _ = msg.Reply(b, errorText, helpers.Shtml())
 		return ext.EndGroups
 	}
 	mem := userMember.MergeChatMember()
 	if mem.Status == "member" {
-		errorText, _ := tr.GetString("admin_need_admin")
+		errorText, _ := c.Tr.GetString("admin_need_admin")
 		_, err = msg.Reply(b, errorText, nil)
 		if err != nil {
 			log.Error(err)
@@ -656,7 +658,7 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	cache.LoadAdminCache(b, chat.Id)
 
-	k, _ := tr.GetString("commonstrings_admin_cache_cache_reloaded")
+	k, _ := c.Tr.GetString("commonstrings_admin_cache_cache_reloaded")
 	_, err = msg.Reply(b, k, helpers.Shtml())
 	if err != nil {
 		log.Error(err)

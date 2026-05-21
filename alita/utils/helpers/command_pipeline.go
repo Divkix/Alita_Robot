@@ -8,11 +8,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-// A module extension of this struct is just going to be set in the struct, since it may have things like
-// `moduleCmds` or `defaultRulesBtn`.
-// -- We don't want to `SetType` to the type, but allow by closures / methods.
+// CommandPipeline provides declarative command registration with pre-flight permission checks.
 
 // CommandContext holds the decomposed context for a command handler.
 // It provides pre-extracted common objects so that permission checks and
@@ -73,6 +72,7 @@ func WrapCommand(
 	handler func(c *CommandContext) error,
 ) {
 	h := func(b *gotgbot.Bot, ctx *ext.Context) error {
+		defer error_handling.RecoverFromPanic("command_pipeline", "WrapCommand")
 		c, err := BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
@@ -100,6 +100,7 @@ func WrapCommandRaw(
 	handler func(b *gotgbot.Bot, ctx *ext.Context) error,
 ) {
 	h := func(b *gotgbot.Bot, ctx *ext.Context) error {
+		defer error_handling.RecoverFromPanic("command_pipeline", "WrapCommandRaw")
 		c, err := BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
