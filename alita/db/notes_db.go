@@ -10,29 +10,37 @@ import (
 // getNotesSettings retrieves or creates default notes settings for a chat.
 // Used internally before performing any notes-related operation.
 // Returns default settings if the chat doesn't exist in the database.
-func getNotesSettings(chatID int64) (noteSrc *NotesSettings) {
-	noteSrc = &NotesSettings{}
-	err := GetRecord(noteSrc, NotesSettings{ChatId: chatID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Ensure chat exists before creating notes settings
-		if !ChatExists(chatID) {
-			// Chat doesn't exist, return default settings without creating record
-			log.Warnf("[Database][getNotesSettings]: Chat %d doesn't exist, returning default settings", chatID)
-			return &NotesSettings{ChatId: chatID, Private: false}
-		}
+// Results are cached with stampede protection for performance.
+func getNotesSettings(chatID int64) *NotesSettings {
+	settings, err := getFromCacheOrLoad(CacheKey("notes_settings", chatID), CacheTTLNotesSettings, func() (*NotesSettings, error) {
+		noteSrc := &NotesSettings{}
+		err := GetRecord(noteSrc, NotesSettings{ChatId: chatID})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Ensure chat exists before creating notes settings
+			if !ChatExists(chatID) {
+				// Chat doesn't exist, return default settings without creating record
+				log.Warnf("[Database][getNotesSettings]: Chat %d doesn't exist, returning default settings", chatID)
+				return &NotesSettings{ChatId: chatID, Private: false}, nil
+			}
 
-		// Create default settings only if chat exists
-		noteSrc = &NotesSettings{ChatId: chatID, Private: false}
-		err := CreateRecord(noteSrc)
-		if err != nil {
-			log.Errorf("[Database][getNotesSettings]: %d - %v", chatID, err)
+			// Create default settings only if chat exists
+			noteSrc = &NotesSettings{ChatId: chatID, Private: false}
+			err := CreateRecord(noteSrc)
+			if err != nil {
+				log.Errorf("[Database][getNotesSettings]: %d - %v", chatID, err)
+			}
+		} else if err != nil {
+			// Return default on error
+			log.Errorf("[Database] getNotesSettings: %v - %d", err, chatID)
+			return &NotesSettings{ChatId: chatID, Private: false}, nil
 		}
-	} else if err != nil {
-		// Return default on error
-		noteSrc = &NotesSettings{ChatId: chatID, Private: false}
-		log.Errorf("[Database] getNotesSettings: %v - %d", err, chatID)
+		return noteSrc, nil
+	})
+	if err != nil {
+		log.Errorf("[Database][getNotesSettings]: cache load error %d - %v", chatID, err)
+		return &NotesSettings{ChatId: chatID, Private: false}
 	}
-	return
+	return settings
 }
 
 // getAllChatNotes retrieves all notes for a specific chat ID from the database.
@@ -200,6 +208,9 @@ func TooglePrivateNote(chatID int64, pref bool) error {
 		log.Errorf("[Database][TooglePrivateNote]: %d - %v", chatID, err)
 		return err
 	}
+
+	// Invalidate cache after update
+	deleteCache(CacheKey("notes_settings", chatID))
 	return nil
 }
 

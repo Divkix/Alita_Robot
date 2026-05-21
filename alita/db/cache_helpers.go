@@ -21,6 +21,7 @@ const (
 	CacheTTLBlacklist       = 30 * time.Minute
 	CacheTTLGreetings       = 30 * time.Minute
 	CacheTTLNotesList       = 30 * time.Minute
+	CacheTTLNotesSettings   = 30 * time.Minute
 	CacheTTLWarnSettings    = 30 * time.Minute
 	CacheTTLAntiflood       = 30 * time.Minute
 	CacheTTLDisabledCmds    = 30 * time.Minute
