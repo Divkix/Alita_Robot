@@ -372,7 +372,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		// For all remaining modules
-		helpText, replyKb, parsemode = getHelpTextAndMarkup(ctx, strings.ToLower(module))
+		helpText, replyKb, parsemode = getHelpTextAndMarkup(ctx, strings.ToLower(module), DefaultHelpRegistry())
 	}
 
 	// Edit the main message, the main querymessage
@@ -633,7 +633,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else if len(args) == 2 {
 			module := strings.ToLower(args[1])
-			helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module)
+			helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module, DefaultHelpRegistry())
 			_, err := b.SendMessage(
 				chat.Id,
 				helpText,
@@ -658,7 +658,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(args) == 2 {
 			helpModName := args[1]
 			lowerModName = strings.ToLower(helpModName)
-			originalModuleName := getModuleNameFromAltName(lowerModName)
+			originalModuleName := getModuleNameFromAltName(lowerModName, DefaultHelpRegistry())
 			if originalModuleName != "" && slices.Contains(getAltNamesOfModule(originalModuleName), lowerModName) {
 				contactPmText, _ := tr.GetString("help_contact_pm")
 				moduleHelpString = strings.Replace(contactPmText, "for help!", fmt.Sprintf("for help regarding <code>%s</code>!", originalModuleName), 1)

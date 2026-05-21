@@ -170,7 +170,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	}
 	initHelpButtons()
 
-	if got := getModuleNameFromAltName("admin"); got != "Admin" {
+	if got := getModuleNameFromAltName("admin", DefaultHelpRegistry()); got != "Admin" {
 		t.Fatalf("getModuleNameFromAltName() = %q, want Admin", got)
 	}
 
@@ -180,7 +180,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
 	ctx := newModuleMessageContext(bot, chat, user, "/help admin")
 
-	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin")
+	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin", DefaultHelpRegistry())
 	if parseMode != helpers.HTML {
 		t.Fatalf("parseMode = %q, want HTML", parseMode)
 	}
@@ -191,7 +191,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 		t.Fatalf("inline keyboard rows = %d, want module row plus navigation", len(kb.InlineKeyboard))
 	}
 
-	if _, err := sendHelpkb(bot, ctx, "admin"); err != nil {
+	if _, err := sendHelpkb(bot, ctx, "admin", DefaultHelpRegistry()); err != nil {
 		t.Fatalf("sendHelpkb() error = %v", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -393,6 +393,129 @@ func TestStartHelpPrefixHandlerSendsAboutAndDefaultHelp(t *testing.T) {
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want about and default help messages", len(calls))
+	}
+}
+
+// TestGetModuleHelpAndKb_UsesPassedRegistry proves that getModuleHelpAndKb honors
+// the passed *moduleStruct registry instead of reaching for the global HelpModule.
+func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
+	localRegistry := NewHelpRegistry()
+	localRegistry.AbleMap.Store("Admin", true)
+	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "FakeAdminBtn", CallbackData: "test-admin"}},
+		{{Text: "FakeAdminBtn2", CallbackData: "test-admin2"}},
+	}
+
+	// HelpModule has no "Admin" buttons, or different ones.
+	_, kb := getModuleHelpAndKb("admin", "en", localRegistry)
+	if len(kb.InlineKeyboard) < 2 {
+		t.Fatalf("inline keyboard rows = %d, want at least module row + navigation", len(kb.InlineKeyboard))
+	}
+
+	// Verify the first row comes from the local registry.
+	firstRow := kb.InlineKeyboard[0]
+	if len(firstRow) != 1 {
+		t.Fatalf("first module row len = %d, want 1", len(firstRow))
+	}
+	if firstRow[0].Text != "FakeAdminBtn" {
+		t.Fatalf("button[0].Text = %q, want FakeAdminBtn (from local registry)", firstRow[0].Text)
+	}
+	if firstRow[0].CallbackData != "test-admin" {
+		t.Fatalf("button[0].CallbackData = %q, want test-admin", firstRow[0].CallbackData)
+	}
+
+	// Verify the second module row.
+	secondRow := kb.InlineKeyboard[1]
+	if len(secondRow) != 1 {
+		t.Fatalf("second module row len = %d, want 1", len(secondRow))
+	}
+	if secondRow[0].Text != "FakeAdminBtn2" {
+		t.Fatalf("button[1].Text = %q, want FakeAdminBtn2", secondRow[0].Text)
+	}
+
+	// Verify that back + home navigation buttons are present in last row.
+	lastRow := kb.InlineKeyboard[len(kb.InlineKeyboard)-1]
+	if len(lastRow) != 2 {
+		t.Fatalf("last row len = %d, want 2 (back + home)", len(lastRow))
+	}
+}
+
+// TestGetModuleNameFromAltName_UsesPassedRegistry proves getModuleNameFromAltName
+// resolves against the registry passed as parameter rather than the global HelpModule.
+func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
+	localRegistry := NewHelpRegistry()
+	localRegistry.AbleMap.Store("Filters", true)
+	localRegistry.AbleMap.Store("Admin", true)
+
+	// "admin" is an alt-name (lowercase) of the Admin module
+	got := getModuleNameFromAltName("admin", localRegistry)
+	if got != "Admin" {
+		t.Fatalf("getModuleNameFromAltName(admin) = %q, want Admin", got)
+	}
+
+	// "filters" is the module itself, lowercased.
+	got = getModuleNameFromAltName("filters", localRegistry)
+	if got != "Filters" {
+		t.Fatalf("getModuleNameFromAltName(filters) = %q, want Filters", got)
+	}
+
+	// unknown module should resolve to empty
+	got = getModuleNameFromAltName("unknown", localRegistry)
+	if got != "" {
+		t.Fatalf("getModuleNameFromAltName(unknown) = %q, want empty", got)
+	}
+}
+
+// TestGetHelpTextAndMarkup_UsesPassedRegistry proves getHelpTextAndMarkup resolves
+// the module list and keyboard from the passed registry, not from the global.
+func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
+	localRegistry := NewHelpRegistry()
+	localRegistry.AbleMap.Store("Admin", true)
+	localRegistry.AbleMap.Store("Filters", true)
+	// Do NOT store "Warns" — querying "warns" should miss in local registry.
+	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "CustomAdmin", CallbackData: "custom-admin"}},
+	}
+	localRegistry.helpableKb["Filters"] = [][]gotgbot.InlineKeyboardButton{
+		{{Text: "CustomFilters", CallbackData: "custom-filters"}},
+	}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
+	user := gotgbot.User{Id: 42, FirstName: "Tester"}
+
+	// Case 1: module present in registry gives custom keyboard.
+	ctx := newModuleMessageContext(bot, chat, user, "/help admin")
+	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin", localRegistry)
+	if parseMode != helpers.HTML {
+		t.Fatalf("parseMode = %q, want HTML", parseMode)
+	}
+	if !strings.Contains(helpText, "Admin") {
+		t.Fatalf("helpText = %q, want Admin header", helpText)
+	}
+	if len(kb.InlineKeyboard) < 2 {
+		t.Fatalf("inline keyboard rows = %d, want at least module row + navigation", len(kb.InlineKeyboard))
+	}
+	if kb.InlineKeyboard[0][0].Text != "CustomAdmin" {
+		t.Fatalf("button[0][0].Text = %q, want CustomAdmin (from local registry)", kb.InlineKeyboard[0][0].Text)
+	}
+
+	// Case 2: module not in local registry falls back to main help (global markup).
+	// The fallback keyboard is the global `markup` variable; since initHelpButtons
+	// was never called in this isolated test, it may legitimately be zero-length.
+	ctxWarns := newModuleMessageContext(bot, chat, user, "/help warns")
+	_, kb2, parseMode2 := getHelpTextAndMarkup(ctxWarns, "warns", localRegistry)
+	if parseMode2 != helpers.HTML {
+		t.Fatalf("parseMode for warns = %q, want HTML", parseMode2)
+	}
+	// It should not use local registry keys for "warns" because warns is not in AbleMap.
+	for _, row := range kb2.InlineKeyboard {
+		for _, btn := range row {
+			if btn.Text == "Warns" || btn.Text == "CustomWarns" {
+				t.Fatalf("fallback kb contains local-only %q button", btn.Text)
+			}
+		}
 	}
 }
 

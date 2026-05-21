@@ -130,7 +130,7 @@ func initHelpButtons() {
 // getModuleHelpAndKb retrieves help text and keyboard for a specific module.
 // Returns localized help content and navigation buttons for the requested module.
 // Note: Help messages in locales use Markdown formatting, which is converted to HTML here.
-func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
+func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
 	ModName := cases.Title(language.English).String(module)
 	tr := i18n.MustNewTranslator(lang)
 	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
@@ -155,7 +155,7 @@ func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgb
 
 	replyMarkup = gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: append(
-			DefaultHelpRegistry().helpableKb[ModName],
+			registry.helpableKb[ModName],
 			backBtnSuffix,
 		),
 	}
@@ -164,7 +164,7 @@ func getModuleHelpAndKb(module, lang string) (helpText string, replyMarkup gotgb
 
 // sendHelpkb sends help information for a specific module with navigation keyboard.
 // Displays module-specific help content or main help menu based on the requested module.
-func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string) (msg *gotgbot.Message, err error) {
+func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *moduleStruct) (msg *gotgbot.Message, err error) {
 	module = strings.ToLower(module)
 	if module == "help" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
@@ -179,7 +179,7 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string) (msg *gotgbot.M
 		)
 		return
 	}
-	helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module)
+	helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module, registry)
 
 	msg, err = b.SendMessage(
 		ctx.EffectiveChat.Id,
@@ -193,9 +193,9 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string) (msg *gotgbot.M
 }
 
 // getModuleNameFromAltName resolves alternative module names to their canonical form.
-// Searches through module aliases to find the actual module name for help lookups.
-func getModuleNameFromAltName(altName string) string {
-	for _, modName := range listModules() {
+// Searches through module aliases in the provided registry to find the actual module name for help lookups.
+func getModuleNameFromAltName(altName string, registry *moduleStruct) string {
+	for _, modName := range listModulesFrom(registry) {
 		tr := i18n.MustNewTranslator("config")
 		altNamesFromConfig, _ := tr.GetStringSlice(fmt.Sprintf("alt_names.%s", modName))
 		altNames := append(altNamesFromConfig, strings.ToLower(modName))
@@ -223,7 +223,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			return ext.EndGroups
 		}
 		helpModule := parts[1]
-		_, err := sendHelpkb(b, ctx, helpModule)
+		_, err := sendHelpkb(b, ctx, helpModule, DefaultHelpRegistry())
 		if err != nil {
 			log.Errorf("[Start]: %v", err)
 			return err
@@ -467,11 +467,11 @@ func getAltNamesOfModule(moduleName string) []string {
 
 // getHelpTextAndMarkup generates help content and keyboard for a module or main help.
 // Returns appropriate help text, navigation markup, and parse mode based on module request.
-func getHelpTextAndMarkup(ctx *ext.Context, module string) (helpText string, kbmarkup gotgbot.InlineKeyboardMarkup, _parsemode string) {
+func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruct) (helpText string, kbmarkup gotgbot.InlineKeyboardMarkup, _parsemode string) {
 	var moduleName string
 	userOrGroupLanguage := db.GetLanguage(ctx)
 
-	for _, ModName := range listModules() {
+	for _, ModName := range listModulesFrom(registry) {
 		// add key as well to this array
 		altnames := getAltNamesOfModule(ModName)
 
@@ -484,7 +484,7 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string) (helpText string, kbm
 	// compare and check if module name is not empty
 	if moduleName != "" {
 		_parsemode = helpers.HTML
-		helpText, kbmarkup = getModuleHelpAndKb(moduleName, userOrGroupLanguage)
+		helpText, kbmarkup = getModuleHelpAndKb(moduleName, userOrGroupLanguage, registry)
 	} else {
 		_parsemode = helpers.HTML
 		tr := i18n.MustNewTranslator(userOrGroupLanguage)
