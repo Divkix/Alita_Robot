@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestGetNotesSettings_Defaults(t *testing.T) {
@@ -436,5 +438,107 @@ func TestSaveNoteTwice_Overwrites(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 entry for 'my-note', got %d; list: %v", count, list)
+	}
+}
+
+func TestNotesSettingsCacheInvalidation(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	if err := EnsureChatInDb(chatID, "test-cache-invalidation"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+		if m := cache.GetMarshal(); m != nil {
+			_ = m.Delete(cache.Context, CacheKey("notes_settings", chatID))
+		}
+	})
+
+	// Establish baseline: default settings (Private=false) are read from DB
+	// and cached by getFromCacheOrLoad.
+	settings := GetNotes(chatID)
+	if settings == nil {
+		t.Fatalf("GetNotes() returned nil")
+	}
+	if settings.Private {
+		t.Fatalf("expected default Private=false")
+	}
+
+	// Corrupt the cache with a stale value.
+	// If TooglePrivateNote forgets to invalidate cache, the next GetNotes
+	// will serve this stale false instead of the DB truth.
+	stale := &NotesSettings{ChatId: chatID, Private: false}
+	if err := cache.GetMarshal().Set(cache.Context, CacheKey("notes_settings", chatID), stale); err != nil {
+		t.Fatalf("failed to seed stale cache: %v", err)
+	}
+
+	// Toggle private notes on — must invalidate cache.
+	if err := TooglePrivateNote(chatID, true); err != nil {
+		t.Fatalf("TooglePrivateNote(true) error = %v", err)
+	}
+
+	// Verify the stale cache entry was evicted.
+	var cached NotesSettings
+	_, cacheErr := cache.GetMarshal().Get(cache.Context, CacheKey("notes_settings", chatID), &cached)
+	if cacheErr == nil && !cached.Private {
+		t.Fatalf("cache was not invalidated after TooglePrivateNote(true)")
+	}
+
+	// GetNotes must reflect the toggled value, not a stale cache entry.
+	settings = GetNotes(chatID)
+	if settings == nil || !settings.Private {
+		t.Fatalf("expected Private=true after toggle, got %+v", settings)
+	}
+
+	// Corrupt cache again to test toggle(false) invalidation.
+	stale = &NotesSettings{ChatId: chatID, Private: true}
+	if err := cache.GetMarshal().Set(cache.Context, CacheKey("notes_settings", chatID), stale); err != nil {
+		t.Fatalf("failed to seed stale cache for false toggle: %v", err)
+	}
+
+	// Toggle back to false.
+	if err := TooglePrivateNote(chatID, false); err != nil {
+		t.Fatalf("TooglePrivateNote(false) error = %v", err)
+	}
+
+	_, cacheErr = cache.GetMarshal().Get(cache.Context, CacheKey("notes_settings", chatID), &cached)
+	if cacheErr == nil && cached.Private {
+		t.Fatalf("cache was not invalidated after TooglePrivateNote(false)")
+	}
+
+	settings = GetNotes(chatID)
+	if settings == nil || settings.Private {
+		t.Fatalf("expected Private=false after toggle back, got %+v", settings)
+	}
+}
+
+func TestNotesSettingsCacheDefaultsForMissingChat(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	// Do NOT create the chat — chat does not exist.
+	t.Cleanup(func() {
+		_ = DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
+		if m := cache.GetMarshal(); m != nil {
+			_ = m.Delete(cache.Context, CacheKey("notes_settings", chatID))
+		}
+	})
+
+	settings := GetNotes(chatID)
+	if settings == nil {
+		t.Fatalf("GetNotes() returned nil")
+	}
+	if settings.Private {
+		t.Fatalf("expected default Private=false for non-existent chat")
+	}
+
+	// Ensure the call was safe even when chat does not exist.
+	if settings.ChatId != chatID {
+		t.Fatalf("expected ChatId=%d, got %d", chatID, settings.ChatId)
 	}
 }
