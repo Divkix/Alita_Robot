@@ -107,9 +107,14 @@ func listModulesFrom(registry *moduleStruct) []string {
 // initHelpButtons initializes the help menu keyboard with all enabled modules.
 // Creates a chunked inline keyboard layout for easy module navigation in help system.
 func initHelpButtons() {
+	markup = initHelpButtonsFrom(DefaultHelpRegistry())
+}
+
+// initHelpButtonsFrom builds a help menu keyboard from the given registry.
+func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 	var kb []gotgbot.InlineKeyboardButton
 
-	for _, i := range listModules() {
+	for _, i := range listModulesFrom(registry) {
 		kb = append(kb, gotgbot.InlineKeyboardButton{
 			Text: i,
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": i},
@@ -124,7 +129,7 @@ func initHelpButtons() {
 		Text:         backText,
 		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
 	}})
-	markup = gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
+	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
 }
 
 // getModuleHelpAndKb retrieves help text and keyboard for a specific module.
@@ -489,7 +494,7 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruc
 		_parsemode = helpers.HTML
 		tr := i18n.MustNewTranslator(userOrGroupLanguage)
 		helpText = getMainHelp(tr, html.EscapeString(ctx.EffectiveUser.FirstName))
-		kbmarkup = markup
+		kbmarkup = initHelpButtonsFrom(registry)
 	}
 
 	return
