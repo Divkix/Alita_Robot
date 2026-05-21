@@ -43,7 +43,9 @@ func TestSaveNote(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -89,7 +91,9 @@ func TestGetAllNotes(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -131,7 +135,9 @@ func TestRemoveNote(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -234,7 +240,9 @@ func TestNoteUpsertBehavior(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -275,7 +283,9 @@ func TestGetAllNotes_EmptyChat(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
 		if err != nil {
 			t.Fatalf("cleanup Chat failed: %v", err)
@@ -296,7 +306,9 @@ func TestRemoveNonExistentNote(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&Chat{}).Error
 		if err != nil {
 			t.Fatalf("cleanup Chat failed: %v", err)
@@ -317,7 +329,9 @@ func TestDoesNoteExists(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -349,7 +363,9 @@ func TestLoadNotesStats(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -403,7 +419,9 @@ func TestRemoveAllNotes(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -438,7 +456,9 @@ func TestAddNoteWithAdminOnly(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
@@ -475,7 +495,9 @@ func TestSaveNoteTwice_Overwrites(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error
+		if err := DB.Where("chat_id = ?", chatID).Delete(&Notes{}).Error; err != nil {
+			t.Fatalf("cleanup Notes failed: %v", err)
+		}
 		err := DB.Where("chat_id = ?", chatID).Delete(&NotesSettings{}).Error
 		if err != nil {
 			t.Fatalf("cleanup NotesSettings failed: %v", err)
