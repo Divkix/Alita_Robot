@@ -1377,7 +1377,7 @@ notes_extended_docs: |
   • <code>{private}</code> - हमेशा निजी तौर पर भेजें
   • <code>{noprivate}</code> - हमेशा ग्रुप में भेजें
 
-  <b>रॉ नोट (बिна फॉर्मेटिंग के):</b>
+  <b>रॉ नोट (बिना फॉर्मेटिंग के):</b>
   किसी नोट की रॉ सामग्री को बिना फॉर्मेटिंग के देखने के लिए (संपादन के लिए):
   <code>/get notename noformat</code>
 notes_permissions_docs: |
