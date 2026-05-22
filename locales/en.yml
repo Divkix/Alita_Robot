@@ -1107,6 +1107,9 @@ common_anonymous_ban_error: This command cannot be used on anonymous user, these
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
 common_user_not_in_chat: This user is not in this chat, how can I restrict them?
+common_cannot_target_admin: "I cannot perform this action on group administrators."
+common_cannot_target_self: "I cannot perform this action on myself."
+common_no_reply_to_message: "You need to reply to a user's message to perform this action."
 
 # Common action verbs (for dynamic error messages)
 common_action_ban: "ban"

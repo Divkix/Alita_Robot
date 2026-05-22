@@ -1059,6 +1059,9 @@ common_anonymous_ban_error: Perintah ini tidak dapat digunakan pada pengguna ano
 common_cannot_identify_user: Tidak dapat mengidentifikasi pengguna. Perintah ini tidak dapat digunakan oleh kanal.
 common_no_user_specified: Saya tidak tahu siapa yang Anda maksud, Anda perlu menentukan pengguna...!
 common_user_not_in_chat: Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa membatasi mereka?
+common_cannot_target_admin: "Saya tidak dapat melakukan tindakan ini pada admin grup."
+common_cannot_target_self: "Saya tidak dapat melakukan tindakan ini pada diri saya sendiri."
+common_no_reply_to_message: "Anda perlu membalas pesan pengguna untuk melakukan tindakan ini."
 
 # Common action verbs (for dynamic error messages)
 common_action_ban: "blokir"

@@ -826,6 +826,9 @@ common_anonymous_ban_error: Эта команда не может использ
 common_cannot_identify_user: Невозможно идентифицировать пользователя. Эта команда не может использоваться каналами.
 common_no_user_specified: Я не знаю, о ком вы говорите, вам нужно указать пользователя...!
 common_user_not_in_chat: Этот пользователь не в этом чате, как я могу его ограничить?
+common_cannot_target_admin: "Я не могу выполнить это действие по отношению к администраторам группы."
+common_cannot_target_self: "Я не могу выполнить это действие по отношению к себе."
+common_no_reply_to_message: "Вам нужно ответить на сообщение пользователя, чтобы выполнить это действие."
 
 # Common action verbs (for dynamic error messages)
 common_action_ban: "забанить"
