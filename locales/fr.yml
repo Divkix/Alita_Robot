@@ -77,6 +77,9 @@ common_anonymous_ban_error: Cette commande ne peut pas être utilisée sur un ut
 common_cannot_identify_user: Impossible d'identifier l'utilisateur. Cette commande ne peut pas être utilisée par les chaînes.
 common_no_user_specified: Je ne sais pas de qui vous parlez, vous allez devoir spécifier un utilisateur... !
 common_user_not_in_chat: Cet utilisateur n'est pas dans ce chat, comment puis-je le restreindre ?
+common_cannot_target_admin: "Je ne peux pas effectuer cette action sur les administrateurs du groupe."
+common_cannot_target_self: "Je ne peux pas effectuer cette action sur moi-même."
+common_no_reply_to_message: "Vous devez répondre au message d'un utilisateur pour effectuer cette action."
 
 # Common action verbs (for dynamic error messages)
 common_action_ban: "bannir"
