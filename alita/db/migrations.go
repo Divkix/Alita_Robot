@@ -134,6 +134,10 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 		return nil, err
 	}
 
+	files = slices.DeleteFunc(files, func(file string) bool {
+		return strings.HasSuffix(filepath.Base(file), ".rollback.sql")
+	})
+
 	// Sort files to ensure consistent order
 	slices.Sort(files)
 	return files, nil
