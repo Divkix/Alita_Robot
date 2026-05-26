@@ -805,7 +805,7 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 					CanChangeInfo:         false,
 					CanInviteUsers:        true,
 					CanPinMessages:        false,
-					CanManageTopics:       false,
+					CanManageTopics:       helpers.Ptr(false),
 					CanSendPolls:          true,
 					CanSendOtherMessages:  true,
 				}, nil)
@@ -927,7 +927,7 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 					CanChangeInfo:         false,
 					CanInviteUsers:        true,
 					CanPinMessages:        false,
-					CanManageTopics:       false,
+					CanManageTopics:       helpers.Ptr(false),
 					CanSendPolls:          true,
 					CanSendOtherMessages:  true,
 				}, nil)

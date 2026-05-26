@@ -6,6 +6,14 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
+// derefBool safely dereferences a *bool, returning defaultVal if nil.
+func derefBool(ptr *bool, defaultVal bool) bool {
+	if ptr == nil {
+		return defaultVal
+	}
+	return *ptr
+}
+
 func TestDefaultUnmutePermissions(t *testing.T) {
 	t.Parallel()
 
@@ -44,7 +52,7 @@ func TestDefaultUnmutePermissions(t *testing.T) {
 	if perms.CanPinMessages {
 		t.Errorf("CanPinMessages = true, want false")
 	}
-	if perms.CanManageTopics {
+	if derefBool(perms.CanManageTopics, false) {
 		t.Errorf("CanManageTopics = true, want false")
 	}
 	if !perms.CanSendPolls {
@@ -140,8 +148,8 @@ func TestResolveUnmutePermissions(t *testing.T) {
 			if got.CanPinMessages != tc.wantPerm.CanPinMessages {
 				t.Errorf("CanPinMessages = %v, want %v", got.CanPinMessages, tc.wantPerm.CanPinMessages)
 			}
-			if got.CanManageTopics != tc.wantPerm.CanManageTopics {
-				t.Errorf("CanManageTopics = %v, want %v", got.CanManageTopics, tc.wantPerm.CanManageTopics)
+			if derefBool(got.CanManageTopics, false) != derefBool(tc.wantPerm.CanManageTopics, false) {
+				t.Errorf("CanManageTopics = %v, want %v", derefBool(got.CanManageTopics, false), derefBool(tc.wantPerm.CanManageTopics, false))
 			}
 			if got.CanSendPolls != tc.wantPerm.CanSendPolls {
 				t.Errorf("CanSendPolls = %v, want %v", got.CanSendPolls, tc.wantPerm.CanSendPolls)
