@@ -1,6 +1,10 @@
 package modules
 
-import "github.com/PaulSonOfLars/gotgbot/v2"
+import (
+	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+)
 
 // MutedPermissions represents a fully restricted user - all sending capabilities disabled
 var MutedPermissions = gotgbot.ChatPermissions{
@@ -15,7 +19,7 @@ var MutedPermissions = gotgbot.ChatPermissions{
 	CanChangeInfo:         false,
 	CanInviteUsers:        false,
 	CanPinMessages:        false,
-	CanManageTopics:       false,
+	CanManageTopics:       helpers.Ptr(false),
 	CanSendPolls:          false,
 	CanSendOtherMessages:  false,
 }
@@ -34,7 +38,7 @@ func defaultUnmutePermissions() gotgbot.ChatPermissions {
 		CanChangeInfo:         false,
 		CanInviteUsers:        true,
 		CanPinMessages:        false,
-		CanManageTopics:       false,
+		CanManageTopics:       helpers.Ptr(false),
 		CanSendPolls:          true,
 		CanSendOtherMessages:  true,
 	}

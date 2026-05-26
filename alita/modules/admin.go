@@ -172,7 +172,7 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 		&gotgbot.PromoteChatMemberOpts{
 			CanPostMessages:     false,
 			CanDeleteMessages:   false,
-			CanRestrictMembers:  false,
+			CanRestrictMembers:  helpers.Ptr(false),
 			CanChangeInfo:       false,
 			CanInviteUsers:      false,
 			CanPinMessages:      false,
@@ -314,7 +314,7 @@ func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbo
 	return &gotgbot.PromoteChatMemberOpts{
 		CanPostMessages:     canGrantPerm(bMem.CanPostMessages, pMem.CanPostMessages, checkCommonPerms),
 		CanDeleteMessages:   canGrantPerm(bMem.CanDeleteMessages, pMem.CanDeleteMessages, checkCommonPerms),
-		CanRestrictMembers:  canGrantPerm(bMem.CanRestrictMembers, pMem.CanRestrictMembers, checkCommonPerms),
+		CanRestrictMembers:  helpers.Ptr(canGrantPerm(bMem.CanRestrictMembers, pMem.CanRestrictMembers, checkCommonPerms)),
 		CanChangeInfo:       canGrantPerm(bMem.CanChangeInfo, pMem.CanChangeInfo, checkCommonPerms),
 		CanInviteUsers:      canGrantPerm(bMem.CanInviteUsers, pMem.CanInviteUsers, checkCommonPerms),
 		CanPinMessages:      canGrantPerm(bMem.CanPinMessages, pMem.CanPinMessages, checkCommonPerms),

@@ -1402,7 +1402,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 			CanChangeInfo:         false,
 			CanInviteUsers:        true,
 			CanPinMessages:        false,
-			CanManageTopics:       false,
+			CanManageTopics:       helpers.Ptr(false),
 			CanSendPolls:          true,
 			CanSendOtherMessages:  true,
 		}, nil)
@@ -1980,7 +1980,7 @@ func unmuteExpiredCaptchaUsers() {
 			CanChangeInfo:         false, // Match success unmute permissions
 			CanInviteUsers:        true,
 			CanPinMessages:        false, // Match success unmute permissions
-			CanManageTopics:       false, // Match success unmute permissions
+			CanManageTopics:       helpers.Ptr(false), // Match success unmute permissions
 		}, nil)
 		if err != nil {
 			if isPermanentUnmuteError(err) {
