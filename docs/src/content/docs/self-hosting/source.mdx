@@ -88,7 +88,7 @@ go run main.go
 1. **Install GoReleaser**
 
    ```bash
-   go install github.com/goreleaser/goreleaser@latest
+   go install github.com/goreleaser/goreleaser/v2@latest
    ```
 
 2. **Build release binaries**
@@ -186,6 +186,8 @@ Alita_Robot/
 ├── .goreleaser.yaml     # GoReleaser configuration
 ├── sample.env           # Example environment file
 ├── docker-compose.yml   # Docker Compose configuration
+├── .dockerignore          # Docker ignore rules
+├── debug.docker-compose.yml # Debug compose configuration
 ├── alita/               # Main application code
 │   ├── config/          # Configuration loading
 │   ├── db/              # Database models and operations
@@ -238,6 +240,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
 ```
 
 ### Build Output

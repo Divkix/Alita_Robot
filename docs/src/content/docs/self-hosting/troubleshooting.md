@@ -48,7 +48,7 @@ BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
    sudo systemctl status postgresql
 
    # Docker
-   docker-compose ps postgres
+   docker compose ps postgres
    ```
 
 2. **Verify connection string:**
@@ -412,13 +412,13 @@ DEBUG=true
 
 ```bash
 # Docker
-docker-compose logs alita 2>&1 | grep -i error
+docker compose logs alita 2>&1 | grep -i error
 
 # Systemd
 journalctl -u alita-robot | grep -i error
 
 # Last 100 errors
-docker-compose logs --tail=1000 alita 2>&1 | grep -i error | tail -100
+docker compose logs --tail=1000 alita 2>&1 | grep -i error | tail -100
 ```
 
 ### Log Levels
@@ -437,10 +437,10 @@ docker-compose logs --tail=1000 alita 2>&1 | grep -i error | tail -100
 
 ```bash
 # Check exit code
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs alita
+docker compose logs alita
 
 # Check for OOM kill
 docker inspect alita-robot | grep -i oom
@@ -450,7 +450,7 @@ docker inspect alita-robot | grep -i oom
 
 ```bash
 # Test health endpoint manually
-docker-compose exec alita /app/alita_robot --health
+docker compose exec alita /app/alita_robot --health
 
 # Or from host
 curl http://localhost:8080/health

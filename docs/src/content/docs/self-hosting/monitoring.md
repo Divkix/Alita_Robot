@@ -242,12 +242,13 @@ GET /db_metrics
 
 ```json
 {
-  "open_connections": 12,
-  "idle_connections": 38,
+  "open": 12,
+  "idle": 38,
   "in_use": 7,
-  "max_open_connections": 200,
   "wait_count": 0,
-  "wait_duration": "0s"
+  "wait_duration": "0s",
+  "max_idle_closed": 0,
+  "max_lifetime_closed": 0
 }
 ```
 
@@ -270,7 +271,7 @@ ENABLE_DB_MONITORING=true
 When enabled, the monitoring goroutine logs pool stats at one-minute intervals:
 
 ```
-[DB] Pool stats - Open: 50, Idle: 38, InUse: 12, MaxOpen: 200, WaitCount: 0
+[DB] Pool stats - Open: 50, Idle: 38, InUse: 12, WaitCount: 0
 ```
 
 If `InUse` exceeds 80% of `MaxOpen`, a warning is logged to signal potential pool exhaustion.
@@ -330,7 +331,6 @@ Structured log entries include:
 | `WARN` | Expected issues (e.g., user blocked bot) |
 | `ERROR` | Unexpected errors |
 | `FATAL` | Critical errors that stop the bot |
-| `PANIC` | Unrecoverable errors |
 
 ## Alerting
 

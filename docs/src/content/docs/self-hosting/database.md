@@ -13,7 +13,7 @@ Alita Robot uses PostgreSQL as its primary database with GORM as the ORM layer. 
 PostgreSQL is the only supported database engine. MySQL, SQLite, and other databases are not supported.
 :::
 
-- **PostgreSQL** 14 or higher
+- **PostgreSQL** 17 or higher
 - UTF-8 encoding support
 - Minimum 512MB RAM for the database
 
@@ -145,15 +145,8 @@ Output:
 ```
           version                                              |        executed_at
 -------------------------------------------------------+----------------------------
- 20260420120000_consolidate_duplicate_fields.sql        | 2026-04-20 12:00:00.000000
- 20260412000000_add_missing_check_constraints.sql       | 2026-04-12 00:00:00.000000
- 20260117120000_drop_channels_chat_fk.sql               | 2026-01-17 12:00:00.000000
- 20251215000000_add_captcha_muted_users.sql             | 2025-12-15 00:00:00.000000
- 20250815000000_add_stored_messages_table.sql           | 2025-08-15 00:00:00.000000
- 20250807103246_add_captcha_tables.sql                  | 2025-08-07 10:32:46.000000
- 20250806100000_critical_performance_indexes.sql        | 2025-08-06 10:00:00.000000
- 20250805204145_add_foreign_key_relations.sql           | 2025-08-05 20:41:45.000000
- 20250805200527_initial_migration.sql                   | 2025-08-05 20:05:27.000000
+  20250805200527_initial_migration.sql                   | 2025-08-05 20:05:27.000000
+  ...
 ```
 
 ### Reset Database (DANGEROUS)

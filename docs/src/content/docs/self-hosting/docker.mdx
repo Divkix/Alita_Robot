@@ -12,7 +12,7 @@ Docker is the recommended way to deploy Alita Robot. The provided `docker-compos
 ## Prerequisites
 
 - **Docker** 20.10 or higher
-- **docker-compose** v2 (comes with Docker Desktop)
+- **docker compose** v2 (comes with Docker Desktop)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
 - Your Telegram user ID (get it from [@userinfobot](https://t.me/userinfobot))
 
@@ -151,6 +151,10 @@ The main Telegram bot service.
 The health check uses the built-in `--health` flag, which is ideal for distroless container images that lack curl or wget. No additional tooling is needed inside the container.
 :::
 
+:::tip[Debug Compose]
+For development, use `debug.docker-compose.yml` which builds from local source with a debug Dockerfile.
+:::
+
 ### postgres (Database)
 
 PostgreSQL 17 with Alpine Linux for a minimal footprint.
@@ -218,13 +222,13 @@ deploy:
 1. **Pull the latest images**
 
    ```bash
-   docker-compose pull
+   docker compose pull
    ```
 
 2. **Recreate containers with new images**
 
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Optional: Remove old images**
@@ -239,24 +243,24 @@ deploy:
 
 <Tabs>
   <TabItem label="All Services">
-    ```bash
-    docker-compose logs -f
-    ```
+   ```bash
+   docker compose logs -f
+   ```
   </TabItem>
   <TabItem label="Bot Only">
-    ```bash
-    docker-compose logs -f alita
-    ```
+   ```bash
+   docker compose logs -f alita
+   ```
   </TabItem>
   <TabItem label="Last 100 Lines">
-    ```bash
-    docker-compose logs --tail=100 alita
-    ```
+   ```bash
+   docker compose logs --tail=100 alita
+   ```
   </TabItem>
   <TabItem label="PostgreSQL">
-    ```bash
-    docker-compose logs -f postgres
-    ```
+     ```bash
+     docker compose logs -f postgres
+     ```
   </TabItem>
 </Tabs>
 
@@ -265,13 +269,13 @@ deploy:
 ### Restart the bot
 
 ```bash
-docker-compose restart alita
+docker compose restart alita
 ```
 
 ### Stop all services
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Stop and remove volumes
@@ -281,19 +285,19 @@ This command deletes all data including the PostgreSQL database. Make sure you h
 :::
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Access PostgreSQL shell
 
 ```bash
-docker-compose exec postgres psql -U alita -d alita
+docker compose exec postgres psql -U alita -d alita
 ```
 
 ### Access Redis CLI
 
 ```bash
-docker-compose exec redis redis-cli -a redis
+docker compose exec redis redis-cli -a redis
 ```
 
 ## Health Checks
@@ -321,7 +325,7 @@ The bot includes built-in health checks accessible at `http://localhost:8080/hea
 Check the logs for error messages:
 
 ```bash
-docker-compose logs alita
+docker compose logs alita
 ```
 
 Common issues:
@@ -334,7 +338,7 @@ Common issues:
 Ensure postgres is healthy before alita starts:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 The postgres container should show `healthy` status.
