@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-Alita Robot is a Telegram group management bot built with Go 1.25+ and the
+Alita Robot is a Telegram group management bot built with Go 1.26+ and the
 gotgbot library. Features include user management, filters, greetings,
-anti-spam, captcha verification, and multi-language support (en, es, fr, hi).
+anti-spam, captcha verification, and multi-language support (en, es, fr, hi, ru, pt, id).
 
 ## Project Structure & Module Organization
 
@@ -26,7 +26,7 @@ make build              # Multi-platform release build via GoReleaser
 
 # Code quality (run before commits)
 make lint               # golangci-lint code quality checks (run before commits)
-make test               # Run all tests with race detection, coverage
+make test               # Run all tests with race detection, coverage (tags: testtools)
 make tidy               # go mod tidy
 make vendor             # go mod vendor
 
@@ -39,11 +39,21 @@ go test -v -count=1 -timeout 10m ./alita/db      # Run all tests in package
 make check-translations # Detect missing translation keys across locales
 make generate-docs      # Generate documentation site content
 make docs-dev           # Start Astro docs dev server (uses bun)
+make check-docs         # Verify docs build integrity
+make check-duplicates   # Detect duplicate translation keys
 
 # Database migrations (requires PSQL_DB_* env vars)
+make psql-prepare       # Auto-clean Supabase-specific SQL before migrations
 make psql-migrate       # Apply pending migrations
 make psql-status        # Check migration status
+make psql-rollback      # Rollback last migration
+make psql-verify        # Verify migration checksums
 make psql-reset         # DROP ALL TABLES — destructive, requires confirmation
+
+# Other
+make inventory          # List all modules and their priorities
+make validate-db        # Validate database schema integrity
+make backup-db          # Export chat data per module
 ```
 
 **Auto-migration on startup:** set `AUTO_MIGRATE=true`. Supabase-specific SQL
@@ -71,6 +81,7 @@ import (
 
 ### Formatting
 - **gofmt**: `gofmt -l -w` enforced via pre-commit hooks
+- **golangci-lint**: Configured in `.golangci.yml` (v2 format). Enabled linters: `godox`, `dupl`, `gocyclo` (min-complexity: 20)
 - Line length: keep under 100 chars where reasonable
 - Comments: full sentences with period, start with `// FunctionName`
 
@@ -86,6 +97,7 @@ import (
 - Use surrogate keys: auto-increment `id` as PK, external IDs as unique constraints
 - Custom GORM types implement `Scan(value any) error` and `Value() (driver.Value, error)`
 - JSONB arrays: define as custom types with driver interface implementations
+- GORM uses `PrepareStmt: true` for prepared statement caching
 
 ### Error Handling
 - **Never ignore DB errors with `_`** — nil returns cause panics
@@ -102,13 +114,14 @@ import (
 
 ### Database & Cache
 - **Cache invalidation on writes**: every update must invalidate corresponding cache key
-- Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
-- Use `singleflight` protection for cache stampede prevention
+- Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`). `CacheKey` accepts variadic `...any` for multi-segment keys (`alita:lock:123:photos`)
+- Use `singleflight` protection for cache stampede prevention (30-second timeout with `Forget(key)` on timeout)
 - Operations: Use `cache.GetMarshal().Get/Set/Delete` for direct cache access; use `getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
+- `cache.GetMarshal()` nil checks: `if m := cache.GetMarshal(); m != nil { ... }` is standard
 
 ### Module System
-- Create `LoadXxx(dispatcher)` function per module
-- Register in `alita/main.go:LoadModules()` — load order matters
+- Modules self-register via `init()` using `RegisterLegacyModule()` or `RegisterModule()`
+- `LoadModules()` in `alita/main.go` calls `LoadAllModules()` (priority-sorted) and defers `LoadHelp()`
 - Help module loads last to collect all registered modules
 - Add translation keys to ALL locale files in `locales/`
 
@@ -122,7 +135,7 @@ import (
 
 **Framework:** Standard Go testing with `testing` package
 
-**Coverage:** Run `make test` for full coverage report. Aim to maintain current coverage levels.
+**Coverage:** Run `make test` for full coverage report. CI enforces **78%** coverage threshold.
 
 **Test Naming:**
 - Test functions: `TestXxx` (e.g., `TestGetUser`)
@@ -133,6 +146,7 @@ import (
 - Use table-driven tests for multiple scenarios
 - Database tests use test fixtures in `alita/db/testmain_test.go`
 - Race detection enabled by default in test suite
+- Build tag: `testtools` used in Makefile test target
 
 ## Architecture Overview
 
@@ -149,15 +163,17 @@ import (
 9. Graceful shutdown manager (LIFO handler execution, 60s timeout)
 10. Unified HTTP server (health + metrics + pprof + webhook on single port)
 11. Mode selection: webhook or polling
-12. Module loading via `alita.LoadModules(dispatcher)`
+12. Module loading via `alita.LoadModules(dispatcher)` — `LoadAllModules()` loads priority-sorted registered modules, `LoadHelp()` deferred last
 
 ### Module System
 
-Modules live in `alita/modules/`. Most modules expose a `LoadXxx(dispatcher)`
-function called explicitly from `alita/main.go:LoadModules()`. Note:
-`antiflood` and `antispam` modules also use Go `init()` functions for
-background goroutine startup. Load order matters; help module loads last to
-collect all registered modules.
+Modules live in `alita/modules/`. All modules self-register in `init()` via the
+registry system (`alita/modules/registry.go`).
+
+**Registration patterns:**
+- **Legacy**: `RegisterLegacyModule(name, priority, loadFunc)` in `init()` — wraps existing `LoadXxx(dispatcher)` functions
+- **New interface**: `RegisterModule(m Module)` where `Module` implements `Name()`, `Priority()`, `Load(dispatcher)`
+- `bot_updates.go` is the only module using the new `Module` interface directly; all others use `RegisterLegacyModule`
 
 **Non-module files in `alita/modules/`:** `helpers.go` (defines `moduleStruct`,
 shared help utilities), `moderation_input.go` (text extraction for
@@ -182,11 +198,17 @@ formatting for rules).
 - Help keyboard buttons stored separately in `HelpModule.helpableKb`
   (`map[string][][]gotgbot.InlineKeyboardButton`)
 
+**New command registration (preferred):**
+- `helpers.WrapCommand(dispatcher, desc, handler)` — declarative pipeline with `CommandDescriptor`
+- `helpers.WrapCommandRaw(dispatcher, desc, handler)` — raw handler variant
+- `CommandDescriptor` fields: `Name`, `Aliases`, `Group`, `RequiredChecks`, `Disableable`
+- Pre-built `CheckFunc` builders: `RequireGroup()`, `RequireBotAdmin()`, `RequireUserAdmin()`, `CanUserRestrict()`, `CanBotRestrict()`, etc.
+
 **Adding a new module:**
 1. Create DB operations in `alita/db/*_db.go`
 2. Implement handlers in `alita/modules/your_module.go`
 3. Create `LoadYourModule(dispatcher)` function
-4. Call it from `LoadModules()` in `alita/main.go`
+4. Register in `init()`: `RegisterLegacyModule("YourModule", priority, LoadYourModule)`
 5. Add translation keys to ALL locale files in `locales/`
 
 ### Database Layer
@@ -197,12 +219,20 @@ formatting for rules).
 IDs (`user_id`, `chat_id`) have unique constraints but aren't primary keys.
 
 **File organization:**
-- `alita/db/db.go` — GORM models, connection setup, pool config
+- `alita/db/db.go` — GORM models, connection setup, pool config, OTel-traced DB wrappers (`CreateRecordWithContext`, `UpdateRecordWithContext`, etc.)
 - `alita/db/*_db.go` — Domain-specific operations (`Get*`, `Add*`, `Update*`, `Delete*`)
-- `alita/db/cache_helpers.go` — TTL management, cache invalidation
-- `alita/db/optimized_queries.go` — Optimized SELECT queries with minimal column selection, singleflight-protected caching via `getFromCacheOrLoad`, thread-safe singleton query instances
-- `alita/db/migrations.go` — Runtime migration engine
+- `alita/db/cache_helpers.go` — TTL management, cache invalidation, `CacheKey()` helper, `getFromCacheOrLoad()`
+- `alita/db/optimized_queries.go` — Optimized SELECT queries with minimal column selection, singleflight-protected caching via `getFromCacheOrLoad`, thread-safe singleton query instances (double-checked locking with `sync.RWMutex`)
+- `alita/db/migrations.go` — Runtime migration engine (custom SQL runner, not GORM AutoMigrate)
+- `alita/db/monitoring.go` — Database pool metrics collection (`StartMonitoring`, `DatabaseMetrics`)
+- `alita/db/backup_db.go` — Export/import/clear chat data per module (13 modules supported)
+- `alita/db/backup_types.go` — Backup format structs and validation (`BackupFormat`, `BackupFormatVersion = "1.0"`)
 - `migrations/*.sql` — Source of truth for schema (timestamped filenames)
+
+**Advanced patterns:**
+- `clause.OnConflict` for atomic upserts (e.g., `locks_db.go`)
+- `getFromCacheOrLoad` returns `loader()` directly if `cache.GetMarshal() == nil`
+- `PrepareStmt: true` in GORM config for prepared statement caching
 
 ### Cache Layer
 
@@ -210,9 +240,11 @@ Redis-only via gocache library. Stampede protection via `singleflight` in the
 DB caching layer (`alita/db/cache_helpers.go`).
 
 - Key format: `alita:{module}:{identifier}` (e.g., `alita:adminCache:123`)
+- `CacheKey(module, ids...)` generates multi-segment keys from variadic `any` args
 - Operations: `cache.GetMarshal().Get/Set/Delete` with context (mutex-protected; do not bypass accessors)
 - `ClearAllCaches()` — FLUSHDB on startup when `ClearCacheOnStartup` is configured
 - Admin cache specialized in `alita/utils/cache/adminCache.go`
+- Restricted chat cache: `alita/utils/cache/restrictedCache.go` — `MarkChatRestricted()`, `IsChatRestricted()`, `MarkChatNotRestricted()` (prevents spamming chats where bot lacks rights)
 - **Cache must be invalidated on writes** — every DB update function that
   modifies cached data must call the corresponding invalidation
 
@@ -221,13 +253,19 @@ DB caching layer (`alita/db/cache_helpers.go`).
 - `RequireGroup()` / `RequirePrivate()` — chat type guards
 - `RequireBotAdmin()` / `RequireUserAdmin()` / `RequireUserOwner()` — permission guards (send error messages on failure)
 - `IsBotAdmin()` / `IsUserAdmin()` — bool checks (no error messages)
+- `IsUserAdmin` returns false for channel IDs (negative numbers < -1000000000000)
 - `RequireUser()` / `GetEffectiveUser()` — safe user extraction (nil for channels)
 - `IsValidUserId()` / `IsChannelId()` — ID validation
 - `IsUserInChat()` / `IsUserBanProtected()` — membership/protection checks
-- `CanUserChangeInfo()`, `CanUserRestrict()`, `CanBotRestrict()`, `CanUserPromote()`, `CanBotPromote()`, `CanUserPin()`, `CanBotPin()`, `CanUserDelete()`, `CanBotDelete()` — granular permission checks
+- `IsApproved()` — DB delegation for anti-spam whitelist
+- `CanUserChangeInfo()`, `CanUserRestrict()`, `CanBotRestrict()`, `CanUserPromote()`, `CanBotPromote()`, `CanUserPin()`, `CanBotPin()`, `CanUserDelete()`, `CanBotDelete()`, `CanInvite()` — granular permission checks
 - `CheckDisabledCmd()` — checks if command is disabled for chat
 - Anonymous admin detection with keyboard fallback
 - Results cached to reduce Telegram API calls
+
+**PermissionResponder** (`alita/utils/chat_status/permission_responder.go`):
+- Centralizes permission-failure messaging: `NewPermissionResponder()`, `Respond()`, `WithReply()`, `WithReplyFallback()`
+- Handles callback-query answers vs. chat replies with fallback paths
 
 ### Internationalization (`alita/i18n/`)
 
@@ -243,6 +281,10 @@ Expected Telegram API errors (bot not admin, chat closed) are filtered via
 `helpers.IsExpectedTelegramError()`. Custom error wrapping with file/line/function
 metadata via `alita/utils/errors/` (`Wrap()`/`Wrapf()` using `runtime.Caller`).
 
+**New error handling utilities:**
+- `SendMessageWithErrorHandling()` / `DeleteMessageWithErrorHandling()` — wrappers that mark chats as restricted on permission failures
+- `IsPermissionError()` — substring matcher for bot-send permission errors
+
 ### Graceful Shutdown (`alita/utils/shutdown/`)
 
 Central coordinator. Handlers registered during setup, executed in LIFO order
@@ -253,6 +295,7 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 - **Activity monitor**: Tracks `last_activity` per chat AND per user (daily/weekly/monthly active users), marks inactive after threshold
 - **Auto-remediation**: 4-tier system — warning logs at 80% threshold, GC trigger at 60% memory, aggressive memory cleanup (multiple GC cycles), restart recommendation at 150%+ threshold
 - **Background stats**: System stats collected every 30s, DB stats every 1m, summary reported every 5 minutes
+- **Database metrics**: `alita/db/monitoring.go` collects pool metrics via `DatabaseMetrics` / `GetCurrentMetrics`
 
 ### Additional Utility Packages
 
@@ -263,8 +306,12 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 - `alita/utils/httpserver/` — unified HTTP server (health + metrics + pprof + webhook)
 - `alita/utils/async/` — async processing with enable flag
 - `alita/utils/constants/` — centralized time/duration constants (cache TTLs, timeouts, intervals)
-- `alita/utils/callbackcodec/` — versioned callback data encoding/decoding
-- `alita/utils/helpers/decorators.go` — command decorators: MultiCommand (aliases) and AddCmdToDisableable
+- `alita/utils/callbackcodec/` — versioned callback data encoding/decoding (`Encode`, `Decode`, `EncodeOrFallback`)
+- `alita/utils/helpers/decorators.go` — command decorators: `MultiCommand` (aliases) and `AddCmdToDisableable`
+- `alita/utils/helpers/command_pipeline.go` — `WrapCommand` / `WrapCommandRaw` declarative command registration with `CommandDescriptor` and `CheckFunc`
+- `alita/utils/formatting/` — `Shtml()`, `Smarkdown()`, `SplitMessage()`, `MentionHtml()`, `ReverseHTML2MD()`, `FormattingReplacer()`
+- `alita/utils/keyboard/` — `BuildKeyboard()`, `ChunkKeyboardSlices()`, `MakeLanguageKeyboard()`
+- `alita/utils/ratelimit/` — `BackupRateLimiter` with `CanExport/CanImport/CanReset` and cooldown tracking
 
 ## Commit & Pull Request Guidelines
 
@@ -290,6 +337,7 @@ perf: optimize critical loops for 60-95% performance gains
 - Pre-commit hooks run automatically: `golangci-lint`, `gofmt`, `go mod tidy`
 - Install: `pip install pre-commit && pre-commit install`
 - Checks include: trailing whitespace, YAML validation, large file detection
+- `.golangci.yml` (v2 format) configures: `godox`, `dupl`, `gocyclo` (min-complexity: 20)
 
 **Pull Request Requirements:**
 - Link related issues in PR description
@@ -312,7 +360,7 @@ These are hard-won patterns from past bugs. Violating them causes real issues.
 ### Handler Patterns
 - **Handler groups**: Negative numbers (e.g., -1) for early interception, positive numbers (4-10) for message watchers/monitors. Default group (0) for standard command handlers
 - **Return values**: `ext.EndGroups` stops propagation, `ext.ContinueGroups` continues
-- **Callback data**: Use versioned codec (`alita/utils/callbackcodec/`): `Encode(namespace, fields)` produces `<namespace>|v1|<url-encoded fields>`. Use `Decode(data)` to parse. Legacy dot-notation fallback exists for backward compatibility. Avoid raw `strings.Split(data, ".")` — use the codec
+- **Callback data**: Use versioned codec (`alita/utils/callbackcodec/`): `Encode(namespace, fields)` produces `<namespace>|v1|<url-encoded fields>`. Use `Decode(data)` to parse. Legacy dot-notation fallback exists for backward compatibility. Avoid raw `strings.Split(data, ".")` — use the codec. Use `EncodeOrFallback` for graceful fallback encoding.
 - **Double-answer bug**: `RequireUserAdmin` with `justCheck=false` already answers the callback — don't answer again
 - **`IsUserConnected()`**: After calling, use the returned `connectedChat` value for the effective chat
 - **Entity completeness**: Check both `msg.Entities` AND `msg.CaptionEntities` for URL/mention detection
@@ -328,6 +376,8 @@ These are hard-won patterns from past bugs. Violating them causes real issues.
 - **Cache invalidation on writes**: Every update function must invalidate the corresponding cache key
 - **Surrogate keys**: Always use auto-increment `id` as PK, external IDs as unique constraints
 - **Composite indexes**: Add for frequent query patterns on `(user_id, chat_id)`
+- **Upserts**: Use `clause.OnConflict` for atomic upserts where appropriate
+- **Nil cache safety**: `getFromCacheOrLoad` returns `loader()` directly when `cache.GetMarshal() == nil`
 
 ### Boolean Logic
 - **Filter functions**: `IsAnonymousChannel() || !IsLinkedChannel()` matches almost everything. Test filter logic with multiple message types before shipping
@@ -356,6 +406,17 @@ See `sample.env` for all variables. Critical ones:
 - `ENABLE_PPROF` — enables `/debug/pprof/*` endpoints (dangerous in production)
 - `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE` — OpenTelemetry tracing (set via environment, not in `sample.env`)
 
+**Additional configuration sections:**
+- Connection pool tuning: `DB_MAX_IDLE_CONNS`, `DB_MAX_OPEN_CONNS`, `DB_CONN_MAX_LIFETIME_MIN`, `DB_CONN_MAX_IDLE_TIME_MIN`
+- Redis alternatives: `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_URL`
+- Worker pools: `CHAT_VALIDATION_WORKERS`, `DATABASE_WORKERS`, `MESSAGE_PIPELINE_WORKERS`, `BULK_OPERATION_WORKERS`, `CACHE_WORKERS`, `STATS_COLLECTION_WORKERS`, `MAX_CONCURRENT_OPERATIONS`, `OPERATION_TIMEOUT_SECONDS`, `DISPATCHER_MAX_ROUTINES`
+- Monitoring toggles: `ENABLE_PERFORMANCE_MONITORING`, `ENABLE_BACKGROUND_STATS`, `ENABLE_DB_MONITORING`
+- Activity monitoring: `INACTIVITY_THRESHOLD_DAYS`, `ACTIVITY_CHECK_INTERVAL`, `ENABLE_AUTO_CLEANUP`
+- Performance optimizations: `ENABLE_QUERY_PREFETCHING`, `ENABLE_CACHE_PREWARMING`, `ENABLE_ASYNC_PROCESSING`, `ENABLE_RESPONSE_CACHING`, `RESPONSE_CACHE_TTL`, `ENABLE_BATCH_REQUESTS`, `BATCH_REQUEST_TIMEOUT_MS`, `ENABLE_HTTP_CONNECTION_POOLING`, `HTTP_MAX_IDLE_CONNS`, `HTTP_MAX_IDLE_CONNS_PER_HOST`
+- Resource limits: `RESOURCE_MAX_GOROUTINES`, `RESOURCE_MAX_MEMORY_MB`, `RESOURCE_GC_THRESHOLD_MB`
+- Migration settings: `AUTO_MIGRATE_SILENT_FAIL`, `MIGRATIONS_PATH`
+- Other: `CLOUDFLARE_TUNNEL_TOKEN`, `ENABLED_LOCALES`, `DROP_PENDING_UPDATES`, `API_SERVER`
+
 ## Deployment
 
 **Polling mode** (default): Simple, no external config. Higher latency.
@@ -364,6 +425,12 @@ See `sample.env` for all variables. Critical ones:
 Docker: Multi-stage build → distroless image. Health check via `--health` flag.
 CI/CD: GitHub Actions with gosec, govulncheck, golangci-lint, multi-arch Docker.
 Releases: GoReleaser to `ghcr.io/divkix/alita_robot`.
+
+**CI/CD workflows:**
+- `ci.yml` — lint, test (coverage threshold 78%), build, Docker verify/publish
+- `release.yml` — GoReleaser artifact attestation, post-release Trivy scan
+- `docs.yml` — Build Astro docs and deploy to Cloudflare Workers
+- `dependabot-native-merge.yml` — Auto-approve/merge Dependabot patch/minor updates
 
 ## Security Best Practices
 
