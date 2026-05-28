@@ -337,7 +337,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteKeys := db.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id, true))
+	noteKeys := db.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	info, _ := tr.GetString("notes_none_in_chat")
 
@@ -737,7 +737,7 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, true)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.ContinueGroups
 	}

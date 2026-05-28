@@ -83,7 +83,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// don't let blocked users report
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
-		if chat_status.CanBotDelete(b, ctx, nil, true) {
+		if chat_status.CanBotDelete(b, ctx, nil) {
 			_, err := msg.Delete(b, nil)
 			if err != nil {
 				log.Error(err)

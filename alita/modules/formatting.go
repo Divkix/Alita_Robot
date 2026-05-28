@@ -25,7 +25,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check of group or pm
-	if !chat_status.RequirePrivate(b, ctx, nil, true) {
+	if !chat_status.RequirePrivate(b, ctx, nil) {
 		reply := msg.Reply
 		if msg.ReplyToMessage != nil {
 			reply = msg.ReplyToMessage.Reply

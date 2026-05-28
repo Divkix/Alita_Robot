@@ -266,7 +266,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// No need to call db.GetFlood again - we already have the settings from updateFlood
 	if flood.Action == "mute" || flood.Action == "kick" || flood.Action == "ban" {
-		if !chat_status.CanBotRestrict(b, ctx, chat, true) {
+		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
 				"chatId": chatId,
 			}).Warn("Antiflood action skipped: bot lacks restrict permissions")

@@ -706,7 +706,7 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if matchText == "" {
 		return ext.ContinueGroups
 	}
-	user := chat_status.RequireUser(b, ctx, true)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.ContinueGroups
 	}

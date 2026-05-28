@@ -396,7 +396,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	for restr, filter := range restrMap {
-		if !filter(msg) || !db.IsPermLocked(chat.Id, restr) || !chat_status.CanBotDelete(b, ctx, nil, true) {
+		if !filter(msg) || !db.IsPermLocked(chat.Id, restr) || !chat_status.CanBotDelete(b, ctx, nil) {
 			continue
 		}
 
@@ -446,7 +446,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	for perm, filter := range lockMap {
-		if !filter(msg) || !db.IsPermLocked(chat.Id, perm) || !chat_status.CanBotDelete(b, ctx, nil, true) {
+		if !filter(msg) || !db.IsPermLocked(chat.Id, perm) || !chat_status.CanBotDelete(b, ctx, nil) {
 			continue
 		}
 
@@ -500,7 +500,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.ContinueGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, true) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("locks_bot_lock_no_ban_permission")
 		_, err := b.SendMessage(chat.Id, text, helpers.Shtml())

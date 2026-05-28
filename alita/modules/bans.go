@@ -514,7 +514,7 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, true) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotRestrict(b, ctx, nil, false) {

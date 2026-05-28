@@ -535,7 +535,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	chat := ctx.EffectiveChat
 
 	// Only creator can confirm import/reset
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, true) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{

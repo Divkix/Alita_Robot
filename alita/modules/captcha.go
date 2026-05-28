@@ -1765,7 +1765,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, true)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.ContinueGroups
 	}

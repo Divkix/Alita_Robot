@@ -131,7 +131,7 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 		return 0, ext.EndGroups
 	}
 
-	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId, true) {
+	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
 		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_is_owner")
 		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
@@ -273,7 +273,7 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 		}
 		return 0, "", ext.EndGroups
 	}
-	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId, true) {
+	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
 		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_promote_is_owner")
 		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {
@@ -308,7 +308,7 @@ func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbo
 
 	teamMem := db.GetTeamMemInfo(user.Id)
 	teamMemInfo := teamMem.Sudo || teamMem.IsDev
-	isPromoterOwner := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id, true)
+	isPromoterOwner := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id)
 	checkCommonPerms := isPromoterOwner || teamMemInfo
 
 	return &gotgbot.PromoteChatMemberOpts{
@@ -482,7 +482,7 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId, true) {
+	if chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, userId) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_is_owner")
 		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
 		if err != nil {

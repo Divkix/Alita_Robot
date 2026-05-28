@@ -90,7 +90,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			// Don't add user to chat entry
-			if chat_status.RequireGroup(bot, ctx, chat, true) {
+			if chat_status.RequireGroup(bot, ctx, chat) {
 				// Update user in chat collection with rate limiting
 				if shouldUpdate(chatUpdateCache, chat.Id, chatUpdateInterval) {
 					go asyncUpdateChat(
