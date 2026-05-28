@@ -232,7 +232,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.IsBotAdmin(bot, ctx, chat) {
 		return ext.ContinueGroups
 	}
-	if !chat_status.CanBotRestrict(bot, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(bot, ctx, chat) {
 		return ext.ContinueGroups
 	}
 
@@ -305,18 +305,18 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -423,17 +423,17 @@ func (a *antiRaidStruct) raidActionTime(bot *gotgbot.Bot, ctx *ext.Context) erro
 func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRaidTime bool) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -497,17 +497,17 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
 		return ext.EndGroups
 	}
 

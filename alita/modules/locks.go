@@ -215,10 +215,10 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id(), false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id()) {
 		return ext.EndGroups
 	}
 
@@ -304,10 +304,10 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id(), false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, sender.Id()) {
 		return ext.EndGroups
 	}
 

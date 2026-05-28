@@ -71,7 +71,7 @@ The Bot, Kicker should be admin with ban permissions in order to use this */
 // Removes the replied-to message and kicks the user from the group.
 func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -79,25 +79,25 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserDelete(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 	if msg.ReplyToMessage == nil {
@@ -295,7 +295,7 @@ The Bot should be admin with ban permissions in order to use this
 // Only works for non-admin users who want to leave the group.
 func (m moduleStruct) kickme(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -303,10 +303,10 @@ func (m moduleStruct) kickme(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -379,7 +379,7 @@ The Bot, Kick should be admin with ban permissions in order to use this */
 // Bans a user for a specified time period with optional reason.
 func (m moduleStruct) tBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -387,19 +387,19 @@ func (m moduleStruct) tBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -495,7 +495,7 @@ The Bot, Banner should be admin with ban permissions in order to use this */
 // Supports both regular users and anonymous channels with inline unban button.
 func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -505,19 +505,19 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
 	var sendMsgOptns *gotgbot.SendMessageOpts
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -620,7 +620,7 @@ The Bot, Banner should be admin with ban permissions in order to use this */
 // Bans the user and deletes the command message without notification.
 func (m moduleStruct) sBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -628,22 +628,22 @@ func (m moduleStruct) sBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -703,7 +703,7 @@ The Bot, Banner should be admin with ban permissions in order to use this */
 // Removes the replied-to message and permanently bans the user.
 func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -711,25 +711,25 @@ func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -830,7 +830,7 @@ The Bot, Unbanner should be admin with ban permissions in order to use this */
 // Supports both regular users and anonymous channels.
 func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -839,19 +839,19 @@ func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -925,20 +925,20 @@ Shows an inline keyboard menu which shows options to kick, ban and mute */
 // Displays an inline keyboard with ban, kick, and mute options for a user.
 func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, chat, false) {
+	if !chat_status.RequireGroup(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(b, ctx, chat) {
 		return ext.EndGroups
 	}
 
@@ -1028,14 +1028,14 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permissions check
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -1178,7 +1178,7 @@ Shows an inline keyboard menu which shows options to unban and unmute */
 // Displays an inline keyboard with unban and unmute options for a user.
 func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -1186,13 +1186,13 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, chat, false) {
+	if !chat_status.RequireGroup(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(b, ctx, chat) {
 		return ext.EndGroups
 	}
 
@@ -1279,7 +1279,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -1287,7 +1287,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permissions check
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 

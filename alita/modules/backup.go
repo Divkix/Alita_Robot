@@ -91,24 +91,24 @@ func clearPendingReset(chatID int64) {
 func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
 	// Check if user is admin
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -199,26 +199,26 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, *gotgbot.Chat, *gotgbot.User, *i18n.Translator, bool) {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return nil, nil, nil, nil, false
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return nil, nil, nil, nil, false
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return nil, nil, nil, nil, false
 	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check if user is the group creator
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = msg.Reply(b, text, helpers.Shtml())
 		return nil, nil, nil, nil, false
@@ -447,26 +447,26 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check if user is the group creator
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		text, _ := tr.GetString("backup_reset_creator_only")
 		_, _ = msg.Reply(b, text, helpers.Shtml())
 		return ext.EndGroups

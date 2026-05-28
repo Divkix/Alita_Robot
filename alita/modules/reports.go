@@ -282,10 +282,10 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText string
 	)
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -440,7 +440,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -448,9 +448,8 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	var replyQuery, replyText string
 
 	// permissions check
-	// Note: RequireUserAdmin with justCheck=false answers the callback when permission is denied
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
-		// Callback already answered by RequireUserAdmin with error message
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		// Callback answered by PermissionResponder
 		return ext.EndGroups
 	}
 

@@ -44,14 +44,14 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -126,14 +126,14 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -195,14 +195,14 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -287,14 +287,14 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -407,7 +407,7 @@ Only chat creator can use this command with a confirmation button.
 //nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
 func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -415,10 +415,10 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -461,7 +461,7 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 

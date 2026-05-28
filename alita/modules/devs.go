@@ -25,7 +25,7 @@ var devsModule = moduleStruct{moduleName: "Dev"}
 // chatInfo retrieves and displays detailed information about a specific chat.
 // Only accessible by bot owner and dev users. Returns chat name, ID, member count, and invite link.
 func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -73,7 +73,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 // chatList generates and sends a document containing all active chats the bot is in.
 // Only accessible by bot owner and dev users. Creates a temporary file with chat IDs and names.
 func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -157,7 +157,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 // leaveChat makes the bot leave a specified chat.
 // Only accessible by bot owner and dev users. Requires chat ID as argument.
 func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -222,7 +222,7 @@ type teamRoleConfig struct {
 // manageTeamRole handles adding/removing team roles (sudo/dev).
 // Only accessible by bot owner.
 func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamRoleConfig) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -337,7 +337,7 @@ Can only be used by existing team members
 // listTeam displays all current team members including developers and sudo users.
 // Only accessible by existing team members. Shows user mentions organized by permission level.
 func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -414,7 +414,7 @@ Can only be used by OWNER
 // getStats retrieves and displays bot statistics including user counts, chat counts, and other metrics.
 // Only accessible by bot owner and dev users. Shows comprehensive bot usage statistics.
 func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}

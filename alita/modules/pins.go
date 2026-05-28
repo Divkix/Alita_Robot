@@ -133,19 +133,19 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Re-check permissions in callback to prevent non-admin users from executing
 	// an action from a forwarded/stale confirmation button.
-	if !chat_status.RequireGroup(b, ctx, chat, false) {
+	if !chat_status.RequireGroup(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, chat, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserPin(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserPin(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotPin(b, ctx, chat, false) {
+	if !chat_status.CanBotPin(b, ctx, chat) {
 		return ext.EndGroups
 	}
 

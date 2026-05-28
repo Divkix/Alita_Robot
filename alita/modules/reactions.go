@@ -146,13 +146,13 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check permission - only admins can add reactions
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -241,13 +241,13 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check permission
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -397,13 +397,13 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check permission
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		return ext.EndGroups
 	}
 

@@ -319,13 +319,13 @@ func secureShuffleStrings(values []string) {
 func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check admin permissions
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -390,13 +390,13 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check admin permissions
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -441,20 +441,20 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
 		return ext.EndGroups
 	}
 
@@ -558,17 +558,17 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -619,17 +619,17 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -675,17 +675,17 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
 
@@ -730,20 +730,20 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
 		return ext.EndGroups
 	}
 
