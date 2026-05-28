@@ -26,7 +26,7 @@ GET /health
     "database": true,
     "redis": true
   },
-  "version": "1.0.0",
+  "version": "2.17.24",
   "uptime": "24h30m15s"
 }
 ```
@@ -335,7 +335,7 @@ Structured log entries include:
 ## Alerting
 
 :::tip
-At minimum, set up alerts for `AlitaUnhealthy` and `DatabaseConnectionFailed` to catch critical outages early.
+At minimum, set up alerts for `AlitaUnhealthy` and monitor the `/health` endpoint with an external HTTP check (e.g., blackbox exporter) to catch critical outages early.
 :::
 
 ### Prometheus Alerting Rules
@@ -362,11 +362,15 @@ groups:
         annotations:
           summary: "High memory usage detected"
 
-      - alert: DatabaseConnectionFailed
-        expr: alita_health_database == 0
-        for: 1m
+      - alert: HighGoroutineCount
+        expr: go_goroutines > 1000
+        for: 5m
         labels:
-          severity: critical
+          severity: warning
         annotations:
-          summary: "Database connection failed"
+          summary: "High goroutine count detected"
 ```
+
+### Database Health
+
+The `/health` endpoint returns a 503 status code when the database or Redis connection is unhealthy. Because the health check is a JSON API (not a Prometheus metric), monitor it with an external HTTP health check such as the Prometheus Blackbox Exporter or your uptime monitoring tool.
