@@ -134,18 +134,23 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Re-check permissions in callback to prevent non-admin users from executing
 	// an action from a forwarded/stale confirmation button.
 	if !chat_status.RequireGroup(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireBotAdmin(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.CanUserPin(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_pin_user_error", "")
 		return ext.EndGroups
 	}
 	if !chat_status.CanBotPin(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_pin_bot_error", "")
 		return ext.EndGroups
 	}
 
@@ -916,8 +921,8 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 
 var (
 	unpinDesc = helpers.CommandDescriptor{
-		Name:    "unpin",
-		Group:   pinsModule.handlerGroup,
+		Name:  "unpin",
+		Group: pinsModule.handlerGroup,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
@@ -927,8 +932,8 @@ var (
 		},
 	}
 	unpinAllDesc = helpers.CommandDescriptor{
-		Name:    "unpinall",
-		Group:   pinsModule.handlerGroup,
+		Name:  "unpinall",
+		Group: pinsModule.handlerGroup,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
@@ -938,8 +943,8 @@ var (
 		},
 	}
 	pinDesc = helpers.CommandDescriptor{
-		Name:    "pin",
-		Group:   pinsModule.handlerGroup,
+		Name:  "pin",
+		Group: pinsModule.handlerGroup,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
@@ -949,8 +954,8 @@ var (
 		},
 	}
 	permaPinDesc = helpers.CommandDescriptor{
-		Name:    "permapin",
-		Group:   pinsModule.handlerGroup,
+		Name:  "permapin",
+		Group: pinsModule.handlerGroup,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireGroup(),
 			helpers.RequireUserAdmin(),
@@ -960,8 +965,8 @@ var (
 		},
 	}
 	pinnedDesc = helpers.CommandDescriptor{
-		Name:    "pinned",
-		Group:   pinsModule.handlerGroup,
+		Name:  "pinned",
+		Group: pinsModule.handlerGroup,
 		RequiredChecks: []helpers.CheckFunc{
 			helpers.RequireGroup(),
 			helpers.RequireBotAdmin(),

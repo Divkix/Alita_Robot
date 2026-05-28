@@ -39,6 +39,7 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// permission checks
 	if !chat_status.RequirePrivate(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

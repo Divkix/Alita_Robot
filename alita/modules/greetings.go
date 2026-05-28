@@ -211,6 +211,7 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 
 	} else if len(args) >= 1 {
 		if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+			chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 		var err error
@@ -295,6 +296,7 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -344,6 +346,7 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -411,6 +414,7 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -467,6 +471,7 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -558,6 +563,7 @@ func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -649,6 +655,7 @@ func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -1103,6 +1110,7 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -1231,6 +1239,7 @@ func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 

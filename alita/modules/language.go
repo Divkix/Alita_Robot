@@ -57,6 +57,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		// language won't be changed if user is not admin
 		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 
@@ -122,7 +123,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat.Type != "private" {
 		// Permission denied - callback answer is handled by PermissionResponder
 		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-			// No need to answer again, just return early
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 	}

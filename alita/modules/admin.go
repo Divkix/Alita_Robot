@@ -594,6 +594,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	} else {
 		// only need owner if you want to change value
 		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id) {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 			return ext.EndGroups
 		}
 		switch args[1] {
@@ -672,9 +673,11 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 	if !chat_status.RequireBotAdmin(b, c.Ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireGroup(b, c.Ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

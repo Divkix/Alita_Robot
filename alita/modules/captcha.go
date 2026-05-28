@@ -251,7 +251,6 @@ func runOrphanedCaptchaRecovery(bot *gotgbot.Bot) {
 				settings = &db.CaptchaSettings{FailureAction: "kick"}
 			}
 
-
 			// Apply failure action
 			switch settings.FailureAction {
 			case "kick":
@@ -326,6 +325,7 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 
 	// Check admin permissions
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -397,6 +397,7 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	// Check admin permissions
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -449,12 +450,15 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Check permissions
 	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -566,9 +570,11 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	// Check permissions
 	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -627,9 +633,11 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	// Check permissions
 	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -683,9 +691,11 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	// Check permissions
 	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -738,12 +748,15 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 
 	// Check permissions
 	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -1979,7 +1992,7 @@ func unmuteExpiredCaptchaUsers() {
 			CanAddWebPagePreviews: true,
 			CanChangeInfo:         false, // Match success unmute permissions
 			CanInviteUsers:        true,
-			CanPinMessages:        false, // Match success unmute permissions
+			CanPinMessages:        false,              // Match success unmute permissions
 			CanManageTopics:       helpers.Ptr(false), // Match success unmute permissions
 		}, nil)
 		if err != nil {
