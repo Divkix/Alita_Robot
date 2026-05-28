@@ -233,7 +233,9 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 	if !chat_status.CanBotRestrict(bot, ctx, chat) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		log.WithFields(log.Fields{
+			"chatId": chat.Id,
+		}).Warn("Antiraid action skipped: bot lacks restrict permissions")
 		return ext.ContinueGroups
 	}
 

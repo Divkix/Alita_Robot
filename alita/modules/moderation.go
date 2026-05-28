@@ -35,25 +35,25 @@ type gateFn func(c *moderationCtx) bool
 // RequireGroup -> RequireUserAdmin -> RequireBotAdmin -> CanUserRestrict -> CanBotRestrict
 func standardModGates(c *moderationCtx) bool {
 	if !chat_status.RequireGroup(c.Bot, c.Ctx, nil) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		return false
+	}
 	if !chat_status.RequireUserAdmin(c.Bot, c.Ctx, nil, c.User.Id) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		return false
+	}
 	if !chat_status.RequireBotAdmin(c.Bot, c.Ctx, nil) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+		return false
+	}
 	if !chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+		return false
+	}
 	if !chat_status.CanBotRestrict(c.Bot, c.Ctx, nil) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		return false
+	}
 	return true
 }
 
@@ -66,13 +66,13 @@ func deleteModGates(c *moderationCtx) bool {
 		return false
 	}
 	if !chat_status.CanBotDelete(c.Bot, c.Ctx, nil) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
+		return false
+	}
 	if !chat_status.CanUserDelete(c.Bot, c.Ctx, c.Chat, c.User.Id) {
-    chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-    return false
-}
+		chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+		return false
+	}
 	return true
 }
 
@@ -224,6 +224,7 @@ type moderationCommand struct {
 func buildModerationCtx(m *moduleStruct, b *gotgbot.Bot, ctx *ext.Context) (*moderationCtx, error) {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return nil, ext.EndGroups //nolint:goerr113 // EndGroups is not a real error
 	}
 	return &moderationCtx{

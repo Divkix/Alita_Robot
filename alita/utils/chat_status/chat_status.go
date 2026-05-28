@@ -385,13 +385,13 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return canBotPin(b, ctx, chat)
 }
 
-// Caninvite checks if the bot and user have permissions to generate invite links.
+// CanInvite checks if the bot and user have permissions to generate invite links.
 // Returns true immediately if the chat has a public username.
 // Validates both bot and user permissions for invite link generation.
-func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
+func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		log.Error("Caninvite: No chat information available in context")
+		log.Error("CanInvite: No chat information available in context")
 		return false
 	}
 	if chat.Username != "" {
@@ -399,7 +399,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
 	if err != nil {
-		log.Errorf("[Caninvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		log.Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
 		return false
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
@@ -417,7 +417,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 
 	userid := msg.From.Id
-	userMember, ok := getUserMemberWithCache(b, chat, userid, "Caninvite")
+	userMember, ok := getUserMemberWithCache(b, chat, userid, "CanInvite")
 	if !ok {
 		return false
 	}

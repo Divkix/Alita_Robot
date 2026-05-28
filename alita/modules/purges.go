@@ -133,6 +133,7 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -222,6 +223,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -278,6 +280,7 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "", "common_cannot_identify_user")
 		return ext.EndGroups
 	}
 
@@ -334,6 +337,7 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -423,6 +427,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

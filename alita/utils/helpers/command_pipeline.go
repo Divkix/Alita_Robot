@@ -331,7 +331,7 @@ func CanInvite() CheckFunc {
 		if c.Msg == nil {
 			return false
 		}
-		result := chat_status.Caninvite(c.Bot, c.Ctx, nil, c.Msg)
+		result := chat_status.CanInvite(c.Bot, c.Ctx, nil, c.Msg)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_invite_link_bot_error", "")
 		}

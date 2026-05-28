@@ -23,6 +23,7 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
@@ -148,6 +149,7 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
@@ -275,6 +277,7 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
@@ -370,6 +373,7 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
@@ -519,6 +523,7 @@ func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
