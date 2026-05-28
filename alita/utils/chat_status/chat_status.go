@@ -520,24 +520,7 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_delete_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_delete_cmd_error")
-	_, err := msg.Reply(b, text, nil)
-	if err != nil {
-		log.Error(err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", WithReply())
 }
 
 // CanBotDelete checks if the bot has permission to delete messages in the chat.
@@ -556,14 +539,7 @@ func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_bot_delete_error")
-	_, err := msg.Reply(b, text, nil)
-	if err != nil {
-		log.Error(err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", WithReply())
 }
 
 // RequireBotAdmin ensures the bot has administrator privileges in the chat.
@@ -582,14 +558,7 @@ func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justC
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_bot_not_admin")
-	_, err := msg.Reply(b, text, nil)
-	if err != nil {
-		log.Errorf("[RequireBotAdmin] Reply failed for chat %d: %v", chat.Id, err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", WithReply())
 }
 
 // IsUserInChat checks if a user is currently a member of the specified chat.
@@ -641,46 +610,7 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_user_admin_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_user_admin_cmd_error")
-
-	// Try to send error message with retry and fallback
-	_, err := msg.Reply(b, text, nil)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"chatId": chat.Id,
-			"userId": userId,
-			"error":  err,
-		}).Warning("RequireUserAdmin: Reply failed, trying SendMessage fallback")
-
-		// Fallback to SendMessage if Reply fails
-		_, fallbackErr := b.SendMessage(chat.Id, text, &gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId:                msg.MessageId,
-				AllowSendingWithoutReply: true,
-			},
-		})
-		if fallbackErr != nil {
-			log.WithFields(log.Fields{
-				"chatId":        chat.Id,
-				"userId":        userId,
-				"replyError":    err,
-				"fallbackError": fallbackErr,
-			}).Error("RequireUserAdmin: Both Reply and SendMessage failed")
-		}
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", WithReplyFallback())
 }
 
 // RequireUserOwner ensures a user is the chat creator/owner.
@@ -699,24 +629,7 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	query, _ := callbackQueryFromContext(ctx)
-	if query != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-		text, _ := tr.GetString("chat_status_owner_button_error")
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return false
-	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_owner_cmd_error")
-	_, err := msg.Reply(b, text, nil)
-	if err != nil {
-		log.Errorf("[RequireUserOwner] Reply failed for chat %d: %v", chat.Id, err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", WithReply())
 }
 
 // RequirePrivate ensures the command is being used in a private chat.
@@ -737,20 +650,7 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_pm_only_error")
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId: msg.MessageId,
-			},
-		},
-	)
-	if err != nil {
-		log.Errorf("[RequirePrivate] Reply failed for chat %d: %v", chat.Id, err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", WithReply())
 }
 
 // RequireGroup ensures the command is being used in a group chat.
@@ -771,20 +671,7 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 		return false
 	}
 
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	text, _ := tr.GetString("chat_status_group_only_error")
-	_, err := msg.Reply(b, text,
-		&gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{
-				MessageId: msg.MessageId,
-			},
-		},
-	)
-	if err != nil {
-		log.Errorf("[RequireGroup] Reply failed for chat %d: %v", chat.Id, err)
-	}
-	return false
+	return NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", WithReply())
 }
 
 // setAnonAdminCache stores anonymous admin message information in cache.
@@ -819,9 +706,7 @@ func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
 	user := GetEffectiveUser(ctx)
 	if user == nil {
 		if !justCheck && ctx != nil && ctx.EffectiveMessage != nil {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("common_cannot_identify_user")
-			_, _ = ctx.EffectiveMessage.Reply(b, text, nil)
+			NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", WithReply())
 		}
 		return nil
 	}
