@@ -10,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 23
+- **Total Functions**: 25
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -30,6 +30,7 @@ This page documents all permission checking functions in Alita Robot.
 | `RequirePrivate` | `bool` | RequirePrivate ensures the command is being used in a pri... |
 | `RequireUserAdmin` | `bool` | RequireUserAdmin ensures a user has administrator privile... |
 | `RequireUserOwner` | `bool` | RequireUserOwner ensures a user is the chat creator/owner... |
+| `RequireUser` | `*gotgbot.User` | RequireUser extracts the effective user from the update context safely... |
 | `CanInvite` | `bool` | CanInvite checks if the bot and user have permissions to ... |
 | `CanUserChangeInfo` | `bool` | CanUserChangeInfo checks if a user has permission to chan... |
 | `CanUserDelete` | `bool` | CanUserDelete checks if a user has permission to delete m... |
@@ -39,6 +40,7 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserAdmin` | `bool` | IsUserAdmin checks if a user has administrator privileges... |
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
+| `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts the user from the context without nil panics... |
 | `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
 
 ## Functions by Category
@@ -218,6 +220,18 @@ RequireUserOwner ensures a user is the chat creator/owner. Checks for "creator" 
 - `chat`
 - `userId`
 
+#### `RequireUser`
+
+```go
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User
+```
+
+RequireUser extracts the effective user from the update context. Returns nil for channel messages where `ctx.EffectiveSender` is nil. Always check the return value before accessing fields.
+
+**Parameters:**
+- `b`
+- `ctx`
+
 ### 👮 User Permission Checks
 
 #### `CanInvite`
@@ -345,6 +359,17 @@ IsUserInChat checks if a user is currently a member of the specified chat. Retur
 - `b`
 - `chat`
 - `userId`
+
+#### `GetEffectiveUser`
+
+```go
+func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
+```
+
+GetEffectiveUser safely extracts the user from the context without nil panics. Returns nil for channel messages where `ctx.EffectiveSender` is nil. Use this instead of direct `ctx.EffectiveSender.User` access to avoid nil pointer dereferences.
+
+**Parameters:**
+- `ctx`
 
 ### 🔧 Utility Functions
 

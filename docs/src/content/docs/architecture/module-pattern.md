@@ -101,7 +101,7 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadExample registers all handlers for this module
 func LoadExample(dispatcher *ext.Dispatcher) {
     // Register in help system
-    HelpModule.AbleMap.Store(exampleModule.moduleName, true)
+    DefaultHelpRegistry().AbleMap.Store(exampleModule.moduleName, true)
 
     // Register command handlers
     dispatcher.AddHandler(handlers.NewCommand("example", exampleModule.exampleCommand))
@@ -111,6 +111,11 @@ func LoadExample(dispatcher *ext.Dispatcher) {
         callbackquery.Prefix("example"),
         exampleModule.exampleCallback,
     ))
+}
+
+// Register the module in init() so LoadAllModules picks it up
+func init() {
+    RegisterLegacyModule("Example", 100, LoadExample)
 }
 ```
 
@@ -269,20 +274,25 @@ You must add keys to ALL locale files, not just `en.yml`. Missing keys cause run
 
 ### Step 5: Register Module
 
-Add to `alita/main.go` in `LoadModules`:
+Modules self-register via `init()` using the registry system. The `LoadAllModules` function in `alita/main.go` loads all registered modules in priority order:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.HelpModule.AbleMap.Init()
+    modules.DefaultHelpRegistry().AbleMap.Init()
     defer modules.LoadHelp(dispatcher)
 
-    // ... existing modules ...
-    modules.LoadExample(dispatcher)  // Add your module
+    // Loads all modules registered via RegisterLegacyModule / RegisterModule
+    modules.LoadAllModules(dispatcher)
 }
 ```
 
+There are two registration patterns:
+
+- **Legacy** (most modules): `RegisterLegacyModule(name, priority, loadFunc)` in `init()` — wraps existing `LoadXxx(dispatcher)` functions.
+- **New interface**: `RegisterModule(m Module)` where `Module` implements `Name()`, `Priority()`, `Load(dispatcher)`.
+
 :::note[Load order matters]
-Place your module after any modules it depends on (e.g., after `LoadUsers` if you need user lookups) and before `LoadHelp` (which is deferred and always loads last).
+Priority determines load order (lower numbers load first). Place your module at a priority after any modules it depends on (e.g., after `Users` if you need user lookups). `LoadHelp` is deferred and always loads last.
 :::
 
 ## Permission Check Functions
@@ -516,10 +526,14 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadWelcome(dispatcher *ext.Dispatcher) {
-    HelpModule.AbleMap.Store(welcomeModule.moduleName, true)
+    DefaultHelpRegistry().AbleMap.Store(welcomeModule.moduleName, true)
 
     dispatcher.AddHandler(handlers.NewCommand("welcomestatus", welcomeModule.welcomestatus))
     dispatcher.AddHandler(handlers.NewCommand("togglewelcome", welcomeModule.togglewelcome))
+}
+
+func init() {
+    RegisterLegacyModule("Welcome", 210, LoadWelcome)
 }
 ```
 
@@ -638,8 +652,8 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Create migration file if needed
 - [ ] Add cache helpers if needed
 - [ ] Add translations to all locale files
-- [ ] Register module in `LoadModules`
-- [ ] Store module in help system with `HelpModule.AbleMap.Store`
+- [ ] Register module in `init()` with `RegisterLegacyModule` or `RegisterModule`
+- [ ] Store module in help system with `DefaultHelpRegistry().AbleMap.Store`
 - [ ] Test in development environment
 
 ## Next Steps

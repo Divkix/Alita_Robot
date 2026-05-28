@@ -79,6 +79,8 @@ Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
 | `CacheTTLWarnSettings` | 30 minutes | Warning configuration |
 | `CacheTTLAntiflood` | 30 minutes | Flood protection settings |
 | `CacheTTLDisabledCmds` | 30 minutes | Disabled commands list |
+| `CacheTTLAntiRaid` | 30 minutes | Anti-raid settings |
+| `CacheTTLApprovals` | 30 minutes | Approved users list |
 | `CacheTTLCaptchaSettings` | 30 minutes | Captcha verification settings |
 
 ```go
@@ -92,6 +94,8 @@ const (
     CacheTTLWarnSettings    = 30 * time.Minute
     CacheTTLAntiflood       = 30 * time.Minute
     CacheTTLDisabledCmds    = 30 * time.Minute
+    CacheTTLAntiRaid        = 30 * time.Minute
+    CacheTTLApprovals       = 30 * time.Minute
     CacheTTLCaptchaSettings = 30 * time.Minute
 )
 ```
@@ -120,6 +124,9 @@ All cache keys use the `alita:` prefix for namespace isolation:
 | `alita:anonAdmin:{chatId}:{msgId}` | Anonymous admin verification (20s TTL) |
 | `alita:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
 | `alita:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
+| `alita:approvals:{chatId}` | Approved users list (30 min TTL) |
+| `alita:antiraid:state:{chatId}` | Anti-raid settings (30 min TTL) |
+| `alita:antiraid:joins:{chatId}` | Anti-raid join tracking (30 min TTL) |
 | `alita:lock:{chatId}:{lockType}` | Lock status (1 hour TTL, from optimized queries) |
 | `alita:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |
 | `alita:chat:{chatId}` | Chat basic info (30 min TTL, from optimized queries) |

@@ -10,8 +10,8 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 25
-- **Modules with Callbacks**: 16
+- **Total Callbacks**: 27
+- **Modules with Callbacks**: 18
 
 ## Callback Data Format
 
@@ -41,6 +41,8 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 | Blacklists | `rmAllBlacklist` | buttonHandler |
 | Bot Updates | `alita:anonAdmin:` | verifyAnonymousAdmin |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
+| AntiRaid | `antiraid` | callbackHandler |
+| Approvals | `rmAllApprovals` | unapproveAllCallback |
 | Captcha | `captcha_refresh` | captchaRefreshCallback |
 | Captcha | `captcha_verify` | captchaVerifyCallback |
 | Connections | `connbtns` | connectionButtons |
@@ -107,6 +109,24 @@ Matches patterns like `alita.anonAdmin.<chat_id>.<msg_id>`.
 - **Source**: `bot_updates.go`
 
 Handles anonymous admin verification callbacks for channel messages.
+
+### AntiRaid
+
+#### `antiraid`
+
+- **Handler**: `callbackHandler`
+- **Source**: `antiraid.go`
+
+Handles anti-raid mode toggle callbacks (enable/disable raid protection).
+
+### Approvals
+
+#### `rmAllApprovals`
+
+- **Handler**: `unapproveAllCallback`
+- **Source**: `approvals.go`
+
+Handles confirmation callback for removing all approved users.
 
 ### Captcha
 

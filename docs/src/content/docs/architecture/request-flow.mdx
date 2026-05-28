@@ -215,38 +215,17 @@ After dispatcher creation, modules are loaded via `alita/main.go`:
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
     // Initialize help system first
-    modules.HelpModule.AbleMap.Init()
+    modules.DefaultHelpRegistry().AbleMap.Init()
 
     // Load help LAST (deferred) to collect all commands
     defer modules.LoadHelp(dispatcher)
 
-    // Core modules (order matters for handler priority)
-    modules.LoadBotUpdates(dispatcher)   // Bot status tracking
-    modules.LoadAntispam(dispatcher)     // Spam protection
-    modules.LoadLanguage(dispatcher)     // Language settings
-    modules.LoadAdmin(dispatcher)        // Admin commands
-    modules.LoadPin(dispatcher)          // Pin management
-    modules.LoadMisc(dispatcher)         // Misc utilities
-    modules.LoadBans(dispatcher)         // Ban/kick commands
-    modules.LoadMutes(dispatcher)        // Mute commands
-    modules.LoadPurges(dispatcher)       // Message purging
-    modules.LoadUsers(dispatcher)        // User tracking
-    modules.LoadReports(dispatcher)      // Report system
-    modules.LoadDev(dispatcher)          // Developer tools
-    modules.LoadLocks(dispatcher)        // Chat locks
-    modules.LoadFilters(dispatcher)      // Message filters
-    modules.LoadAntiflood(dispatcher)    // Flood protection
-    modules.LoadNotes(dispatcher)        // Notes system
-    modules.LoadConnections(dispatcher)  // Chat connections
-    modules.LoadDisabling(dispatcher)    // Command disabling
-    modules.LoadRules(dispatcher)        // Rules management
-    modules.LoadWarns(dispatcher)        // Warning system
-    modules.LoadGreetings(dispatcher)    // Welcome messages
-    modules.LoadCaptcha(dispatcher)      // CAPTCHA verification
-    modules.LoadBlacklists(dispatcher)   // Blacklist system
-    modules.LoadBackup(dispatcher)       // Backup/export commands (load last)
+    // Loads all registered modules in priority order
+    modules.LoadAllModules(dispatcher)
 }
 ```
+
+Registered modules include: BotUpdates, Antispam, Language, Admin, Approvals, Pin, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, AntiRaid, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, Blacklists, Reactions, Backup.
 
 ## Handler Registration Pattern
 
@@ -255,7 +234,7 @@ Each module registers handlers using gotgbot's handler system:
 ```go
 func LoadBans(dispatcher *ext.Dispatcher) {
     // Register module in help system
-    HelpModule.AbleMap.Store(bansModule.moduleName, true)
+    DefaultHelpRegistry().AbleMap.Store(bansModule.moduleName, true)
 
     // Command handlers
     dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
@@ -295,7 +274,7 @@ dispatcher.AddHandlerToGroup(handler, 10)
 ```
 
 :::tip[Handler group conventions]
-- **Negative groups**: Early interception — captcha (-10), antispam (-2), user logging (-1)
+- **Negative groups**: Early interception — captcha (-10), antiraid (-5), antispam (-2), user logging (-1)
 - **Group 0**: Standard command handlers (default)
 - **Positive groups (4-10)**: Message watchers — antiflood (4), locks (5-6), blacklists (7), reports (8), filters (9), pins (10)
 
@@ -313,27 +292,27 @@ func (m moduleStruct) ban(b *gotgbot.Bot, ctx *ext.Context) error {
     msg := ctx.EffectiveMessage
 
     // 1. Require group chat (not private)
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
 
     // 2. Require user to be admin
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 
     // 3. Require bot to be admin
-    if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+    if !chat_status.RequireBotAdmin(b, ctx, nil) {
         return ext.EndGroups
     }
 
     // 4. Check specific permission (restrict members)
-    if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+    if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 
     // 5. Check bot has same permission
-    if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+    if !chat_status.CanBotRestrict(b, ctx, nil) {
         return ext.EndGroups
     }
 

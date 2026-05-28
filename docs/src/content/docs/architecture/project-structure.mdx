@@ -44,6 +44,9 @@ This document explains the directory structure of Alita Robot, helping developer
     - greetings.go Welcome/goodbye messages
     - warns.go Warning system
     - captcha.go CAPTCHA verification
+    - antiraid.go Anti-raid protection
+    - approvals.go User approval system
+    - registry.go Module registration system
     - ...
   - utils/ **Utility packages**
     - async/ Async processing utilities
@@ -92,12 +95,12 @@ Central permission validation:
 
 ```go
 // Key functions available:
-chat_status.RequireUserAdmin(b, ctx, chat, userId, justCheck)
-chat_status.RequireBotAdmin(b, ctx, chat, justCheck)
-chat_status.CanUserRestrict(b, ctx, chat, userId, justCheck)
-chat_status.CanBotRestrict(b, ctx, chat, justCheck)
-chat_status.CanUserDelete(b, ctx, chat, userId, justCheck)
-chat_status.CanBotDelete(b, ctx, chat, justCheck)
+chat_status.RequireUserAdmin(b, ctx, chat, userId)
+chat_status.RequireBotAdmin(b, ctx, chat)
+chat_status.CanUserRestrict(b, ctx, chat, userId)
+chat_status.CanBotRestrict(b, ctx, chat)
+chat_status.CanUserDelete(b, ctx, chat, userId)
+chat_status.CanBotDelete(b, ctx, chat)
 chat_status.IsUserAdmin(b, chatId, userId)
 chat_status.IsUserInChat(b, chat, userId)
 chat_status.IsUserBanProtected(b, ctx, chat, userId)
@@ -180,41 +183,17 @@ Modules are loaded in a specific order in `alita/main.go`:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.HelpModule.AbleMap.Init()
+    modules.DefaultHelpRegistry().AbleMap.Init()
     defer modules.LoadHelp(dispatcher)  // Help loaded LAST
 
-    modules.LoadBotUpdates(dispatcher)
-    modules.LoadAntispam(dispatcher)
-    modules.LoadLanguage(dispatcher)
-    modules.LoadAdmin(dispatcher)
-    modules.LoadPin(dispatcher)
-    modules.LoadMisc(dispatcher)
-    modules.LoadBans(dispatcher)
-    modules.LoadMutes(dispatcher)
-    modules.LoadPurges(dispatcher)
-    modules.LoadUsers(dispatcher)
-    modules.LoadReports(dispatcher)
-    modules.LoadDev(dispatcher)
-    modules.LoadLocks(dispatcher)
-    modules.LoadFilters(dispatcher)
-    modules.LoadAntiflood(dispatcher)
-    modules.LoadNotes(dispatcher)
-    modules.LoadConnections(dispatcher)
-    modules.LoadDisabling(dispatcher)
-    modules.LoadRules(dispatcher)
-    modules.LoadWarns(dispatcher)
-    modules.LoadGreetings(dispatcher)
-    modules.LoadCaptcha(dispatcher)
-    modules.LoadBlacklists(dispatcher)
-    modules.LoadReactions(dispatcher)
-    modules.LoadMkdCmd(dispatcher)
-    modules.LoadBackup(dispatcher)
+    // Loads all modules registered via RegisterLegacyModule / RegisterModule
+    modules.LoadAllModules(dispatcher)
 }
 ```
 
 :::note[Why order matters]
-- **Handler priority**: First registered wins for same trigger
-- **Dependency resolution**: Users module before bans (user lookup required)
+- **Priority-based loading**: Modules self-register in `init()` with a priority; `LoadAllModules` sorts them before loading
+- **Dependency resolution**: Lower priority numbers load first (e.g., Users at 100 before Bans at 70)
 - **Help module**: Loads last via `defer` to collect all registered commands from every module
 :::
 
