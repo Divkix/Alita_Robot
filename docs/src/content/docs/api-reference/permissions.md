@@ -377,12 +377,12 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     user := ctx.EffectiveSender.User
     
     // Check if user is admin
-    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
         return ext.EndGroups
     }
     
     // Check if bot can restrict
-    if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+    if !chat_status.CanBotRestrict(b, ctx, chat) {
         return ext.EndGroups
     }
     

@@ -2,6 +2,7 @@
 title: Approvals Commands
 description: Complete guide to Approvals module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Approvals Commands
 
@@ -32,17 +33,17 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/approval` | No description available | ❌ |
-| `/approve` | List all approved users | ❌ |
+| `/approval` | Show approval status or help for approvals | ❌ |
+| `/approve` | Approve a user | ❌ |
 | `/approved` | List all approved users | ❌ |
-| `/unapprove` | Remove all approvals (creator only) | ❌ |
+| `/unapprove` | Remove approval for a specified user | ❌ |
 | `/unapproveall` | Remove all approvals (creator only) | ❌ |
 
 ## Usage Examples
 
 ### Basic Usage
 
-```
+```text
 /approval
 /approve
 /approved
@@ -52,5 +53,5 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Commands in this module require administrator or admin-level permissions.
 

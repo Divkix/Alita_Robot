@@ -829,8 +829,17 @@ func formatHelpText(text string) string {
 // extractCommandDescription attempts to extract description for a command from help text
 func extractCommandDescription(cmdName, helpText string) string {
 	for line := range strings.SplitSeq(helpText, "\n") {
-		if !strings.Contains(strings.ToLower(line), "/"+strings.ToLower(cmdName)) {
+		idx := strings.Index(strings.ToLower(line), "/"+strings.ToLower(cmdName))
+		if idx == -1 {
 			continue
+		}
+		// Ensure the character after cmdName is not a letter or number to prevent substring matching
+		afterIdx := idx + 1 + len(cmdName)
+		if afterIdx < len(line) {
+			nextChar := line[afterIdx]
+			if (nextChar >= 'a' && nextChar <= 'z') || (nextChar >= 'A' && nextChar <= 'Z') || (nextChar >= '0' && nextChar <= '9') {
+				continue
+			}
 		}
 		for _, sep := range []string{": ", " - "} {
 			parts := strings.SplitN(line, sep, 2)
@@ -857,7 +866,7 @@ func generateUsageExamples(module Module) string {
 		// Show first few commands as examples
 		limit := min(3, len(module.Commands))
 
-		content.WriteString("```\n")
+		content.WriteString("```text\n")
 		for i := range limit {
 			fmt.Fprintf(&content, "/%s\n", module.Commands[i].Name)
 		}

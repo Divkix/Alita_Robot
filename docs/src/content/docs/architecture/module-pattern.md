@@ -40,10 +40,10 @@ func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
     // Permission checks
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 
@@ -323,23 +323,23 @@ if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 
 ```go
 // Admin-only command
-if !chat_status.RequireGroup(b, ctx, nil, false) {
+if !chat_status.RequireGroup(b, ctx, nil) {
     return ext.EndGroups
 }
-if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
     return ext.EndGroups
 }
 
 // Command requiring bot to have restrict permissions
-if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+if !chat_status.RequireBotAdmin(b, ctx, nil) {
     return ext.EndGroups
 }
-if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+if !chat_status.CanBotRestrict(b, ctx, nil) {
     return ext.EndGroups
 }
 
 // Owner-only command
-if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
     return ext.EndGroups
 }
 ```
@@ -450,7 +450,7 @@ func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
     msg := ctx.EffectiveMessage
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
 
@@ -482,10 +482,10 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
     msg := ctx.EffectiveMessage
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 

@@ -2,11 +2,12 @@
 title: Antiraid Commands
 description: Complete guide to Antiraid module commands and features
 ---
+<!-- MANUALLY MAINTAINED: do not regenerate -->
 
 # 📦 Antiraid Commands
 
 Protect your group from spam-join attacks with AntiRaid.
-### Admin Commands:
+## Admin Commands:
 /antiraid: Show current state + enable/disable buttons.
 /antiraid on: Enable raid mode for configured time.
 /antiraid <duration>: Enable for custom duration (e.g. 3h, 30m).
@@ -30,7 +31,7 @@ Protect your group from spam-join attacks with AntiRaid.
 
 ### Basic Usage
 
-```
+```text
 /antiraid
 /autoantiraid
 /raidactiontime
@@ -40,5 +41,5 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Commands in this module are available to all users unless otherwise specified.
+Commands in this module require **admin permissions** in the group.
 
