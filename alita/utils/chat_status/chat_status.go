@@ -515,11 +515,6 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 		return false
 	}
 
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
 	return NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", WithReply())
 }
 
@@ -534,11 +529,6 @@ func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 		return false
 	}
 
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
 	return NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", WithReply())
 }
 
@@ -550,11 +540,6 @@ func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justC
 		return true
 	}
 	if justCheck {
-		return false
-	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -605,11 +590,6 @@ func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 		return false
 	}
 
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
 	return NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", WithReplyFallback())
 }
 
@@ -621,11 +601,6 @@ func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, user
 		return true
 	}
 	if justCheck {
-		return false
-	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 
@@ -645,11 +620,6 @@ func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCh
 		return false
 	}
 
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
-		return false
-	}
-
 	return NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", WithReply())
 }
 
@@ -663,11 +633,6 @@ func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justChec
 		return true
 	}
 	if justCheck {
-		return false
-	}
-
-	chat = extractChatFromContext(ctx, chat)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
 		return false
 	}
 

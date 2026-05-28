@@ -1163,6 +1163,64 @@ func TestCanInviteSendsBotDenialMessage(t *testing.T) {
 	}
 }
 
+func TestCanInviteAnswersCallbackDenialBotPath(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 204,
+		Date:      1,
+		Chat:      *chat,
+		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
+		Text:      "/invite",
+	}
+	query := &gotgbot.CallbackQuery{
+		Id:      "caninvite-bot-callback",
+		From:    gotgbot.User{Id: 10, FirstName: "Full Admin"},
+		Message: *msg,
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
+
+	if Caninvite(bot, ctx, chat, msg, false) {
+		t.Fatal("Caninvite(callback, limited bot) = true, want false")
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none", got)
+	}
+}
+
+func TestCanInviteAnswersCallbackDenialUserPath(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 205,
+		Date:      1,
+		Chat:      *chat,
+		From:      &gotgbot.User{Id: 11, FirstName: "Limited Admin"},
+		Text:      "/invite",
+	}
+	query := &gotgbot.CallbackQuery{
+		Id:      "caninvite-user-callback",
+		From:    gotgbot.User{Id: 11, FirstName: "Limited Admin"},
+		Message: *msg,
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
+
+	if Caninvite(bot, ctx, chat, msg, false) {
+		t.Fatal("Caninvite(callback, limited user) = true, want false")
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+	}
+	if got := client.callsFor("sendMessage"); got != 0 {
+		t.Fatalf("sendMessage calls = %d, want none", got)
+	}
+}
+
 func TestCanBotDeleteSendsDenialMessage(t *testing.T) {
 	client := &recordingChatStatusClient{}
 	bot := newRecordingChatStatusBot(998, client)
