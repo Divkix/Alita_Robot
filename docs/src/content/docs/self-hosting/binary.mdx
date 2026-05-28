@@ -11,14 +11,18 @@ Pre-built binaries are available for all major platforms, making it easy to depl
 
 ## Available Platforms
 
-| Platform | Architecture | Binary Name |
+| Platform | Architecture | Archive Name |
 |----------|-------------|-------------|
-| Linux | amd64 | `alita_robot_linux_amd64` |
-| Linux | arm64 | `alita_robot_linux_arm64` |
-| macOS | amd64 (Intel) | `alita_robot_macOS_amd64` |
-| macOS | arm64 (Apple Silicon) | `alita_robot_macOS_arm64` |
-| Windows | amd64 | `alita_robot_windows_amd64.exe` |
-| Windows | arm64 | `alita_robot_windows_arm64.exe` |
+| Linux | amd64 | `alita_robot_linux_amd64.tar.gz` |
+| Linux | arm64 | `alita_robot_linux_arm64.tar.gz` |
+| macOS | amd64 (Intel) | `alita_robot_macOS_amd64.tar.gz` |
+| macOS | arm64 (Apple Silicon) | `alita_robot_macOS_arm64.tar.gz` |
+| Windows | amd64 | `alita_robot_windows_amd64.zip` |
+| Windows | arm64 | `alita_robot_windows_arm64.zip` |
+
+:::note[Binary Name]
+The binary inside every archive is named `alita_robot` (or `alita_robot.exe` on Windows). This is consistent across all platforms.
+:::
 
 :::caution[Platform Selection]
 Make sure you download the correct binary for your platform and architecture. Running the wrong binary will result in an "exec format error" or similar failure.
@@ -266,16 +270,24 @@ Always set restrictive permissions on the `.env` file since it contains sensitiv
 <Tabs>
   <TabItem label="Apple Silicon">
     ```bash
-    curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_macOS_arm64.tar.gz"
-    tar -xzf alita_robot_macOS_arm64.tar.gz
+    # Get the latest release version
+    VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
+
+    # Download and extract
+    curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/alita_robot_${VERSION}_macOS_arm64.tar.gz"
+    tar -xzf alita_robot_${VERSION}_macOS_arm64.tar.gz
     chmod +x alita_robot
     ./alita_robot
     ```
   </TabItem>
   <TabItem label="Intel">
     ```bash
-    curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_macOS_amd64.tar.gz"
-    tar -xzf alita_robot_macOS_amd64.tar.gz
+    # Get the latest release version
+    VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
+
+    # Download and extract
+    curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/alita_robot_${VERSION}_macOS_amd64.tar.gz"
+    tar -xzf alita_robot_${VERSION}_macOS_amd64.tar.gz
     chmod +x alita_robot
     ./alita_robot
     ```
@@ -361,8 +373,9 @@ nssm start AlitaRobot
 2. **Download the new binary**
 
    ```bash
-   curl -LO "https://github.com/divkix/Alita_Robot/releases/latest/download/alita_robot_linux_amd64.tar.gz"
-   tar -xzf alita_robot_linux_amd64.tar.gz
+   VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
+   curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/alita_robot_${VERSION}_linux_amd64.tar.gz"
+   tar -xzf alita_robot_${VERSION}_linux_amd64.tar.gz
    ```
 
 3. **Replace the existing binary**

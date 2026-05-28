@@ -450,7 +450,7 @@ docker inspect alita-robot | grep -i oom
 
 ```bash
 # Test health endpoint manually
-docker-compose exec alita /alita_robot --health
+docker-compose exec alita /app/alita_robot --health
 
 # Or from host
 curl http://localhost:8080/health

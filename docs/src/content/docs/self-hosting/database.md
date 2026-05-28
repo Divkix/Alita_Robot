@@ -272,6 +272,8 @@ Alita Robot creates the following tables:
 | `report_user_settings` | User report preferences |
 | `devs` | Developer settings |
 | `channels` | Linked channels |
+| `approved_users` | Approved users immune to anti-spam |
+| `antiraid_settings` | Anti-raid configuration |
 | `captcha_settings` | Captcha configuration |
 | `captcha_attempts` | Active captcha attempts |
 | `captcha_muted_users` | Users muted due to captcha failure |

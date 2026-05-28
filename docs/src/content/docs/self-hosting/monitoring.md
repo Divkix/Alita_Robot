@@ -68,7 +68,7 @@ Both checks must pass for `healthy` status.
 curl http://localhost:8080/health
 
 # Docker health check (built-in)
-/alita_robot --health
+/app/alita_robot --health
 
 # Kubernetes liveness probe
 livenessProbe:
