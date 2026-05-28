@@ -14,6 +14,7 @@ This page documents every registered message watcher with its exact handler grou
 | Group | Module | Handler | Filter | Return on Match | Notes |
 |-------|--------|---------|--------|-----------------|-------|
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
+| -5 | AntiRaid | `antiRaidJoinHandler` | ChatMember (user joined) | `EndGroups` | Intercepts new member joins during raid mode; auto-restricts or bans joiners |
 | -2 | Antispam | (inline closure) | `message.All` | `EndGroups` | Rate-limits spamming users; passes through if not spamming |
 | -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
@@ -32,7 +33,8 @@ This page documents every registered message watcher with its exact handler grou
 :::caution[Critical propagation rules]
 Understanding these rules is essential for debugging why a message did or did not trigger a particular watcher.
 
-- **Captcha is first (group -10).** Any message from a user with a pending captcha is intercepted, stored for delivery after verification, and deleted. The message never reaches antiflood, blacklists, or filters.
+- **Captcha is first (group -10).** Any message from a user with a pending captcha is intercepted, stored for delivery after verification, and deleted. The message never reaches antiraid, antispam, antiflood, blacklists, or filters.
+- **AntiRaid intercepts joins (group -5).** During raid mode, new member joins are intercepted and auto-restricted before reaching downstream handlers.
 - **Antispam EndGroups stops all further processing.** When antispam (group -2) returns `EndGroups` for a rate-limited user, every downstream handler is skipped. A rate-limited message never reaches any other watcher.
 - **Blacklists and Filters use ContinueGroups.** Both take their configured action (warn, mute, ban for blacklists; send reply for filters) but do not block downstream watchers. A message matching a blacklist word still gets checked by filters.
 :::
@@ -48,24 +50,26 @@ Understanding these rules is essential for debugging why a message did or did no
 ### Scenario 2: User sends a flood of messages
 
 1. Captcha (group -10) passes through (no pending captcha).
-2. Antispam (group -2) passes through (not yet rate-limited).
-3. Users (group -1) logs activity, continues.
-4. Commands (group 0) fire normally for earlier messages.
-5. **Antiflood (group 4)** triggers after the flood threshold is reached, returns `EndGroups`.
-6. Locks, blacklists, filters, and pins are all skipped for that message.
+2. AntiRaid (group -5) passes through (raid mode not active).
+3. Antispam (group -2) passes through (not yet rate-limited).
+4. Users (group -1) logs activity, continues.
+5. Commands (group 0) fire normally for earlier messages.
+6. **Antiflood (group 4)** triggers after the flood threshold is reached, returns `EndGroups`.
+7. Locks, blacklists, filters, and pins are all skipped for that message.
 
 ### Scenario 3: Message matches both a blacklist word and a filter
 
 1. Captcha (group -10) passes through.
-2. Antispam (group -2) passes through.
-3. Users (group -1) logs activity, continues.
-4. Commands (group 0) — not a command, passes.
-5. Antiflood (group 4) — not flooding, continues.
-6. **Locks (groups 5-6)** check permissions. Message passes (no lock violation).
-7. **Blacklists (group 7)** matches the word, takes configured action (e.g., warn user), returns `ContinueGroups`.
-8. Reports (group 8) tracks the message.
-9. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
-10. Pins (group 10) checks for anti-channel-pin conditions.
+2. AntiRaid (group -5) passes through (raid mode not active).
+3. Antispam (group -2) passes through.
+4. Users (group -1) logs activity, continues.
+5. Commands (group 0) — not a command, passes.
+6. Antiflood (group 4) — not flooding, continues.
+7. **Locks (groups 5-6)** check permissions. Message passes (no lock violation).
+8. **Blacklists (group 7)** matches the word, takes configured action (e.g., warn user), returns `ContinueGroups`.
+9. Reports (group 8) tracks the message.
+10. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
+11. Pins (group 10) checks for anti-channel-pin conditions.
 
 Both the blacklist action and the filter response are triggered for the same message.
 

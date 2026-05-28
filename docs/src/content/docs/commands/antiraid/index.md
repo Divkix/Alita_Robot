@@ -10,10 +10,10 @@ Protect your group from spam-join attacks with AntiRaid.
 ## Admin Commands:
 /antiraid: Show current state + enable/disable buttons.
 /antiraid on: Enable raid mode for configured time.
-/antiraid <duration>: Enable for custom duration (e.g. 3h, 30m).
+/antiraid <duration>: Enable for custom duration (e.g. 3h, 30m, 1w, or raw seconds).
 /antiraid off: Disable raid mode immediately.
-/raidtime <time>: Set raid duration (default: 6h).
-/raidactiontime <time>: Set temp-ban duration (default: 1h).
+/raidtime <time>: Set raid duration (default: 6h). Supports m, h, d, w, and raw seconds.
+/raidactiontime <time>: Set temp-ban duration (default: 1h). Supports m, h, d, w, and raw seconds.
 /autoantiraid <N>: Auto-enable if N+ joins/min.
 /autoantiraid off: Disable auto-trigger.
 

@@ -37,7 +37,7 @@ Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redi
     cd Alita_Robot
     cp sample.env .env
     # Edit .env with your configuration
-    docker-compose up -d
+    docker compose up -d
     ```
 
     [Full Docker Guide →](/self-hosting/docker/)
@@ -95,8 +95,8 @@ Alita uses PostgreSQL with automatic migrations:
 # Enable auto-migration
 AUTO_MIGRATE=true
 
-# Or run manually
-make psql-migrate
+    # Or run manually (requires PSQL_DB_* env vars to be set)
+    make psql-migrate
 ```
 
 <LinkCard title="Database Guide" href="/self-hosting/database/" description="Database setup, migrations, connection pooling, and schema design." />

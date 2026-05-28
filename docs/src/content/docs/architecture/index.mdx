@@ -175,7 +175,8 @@ Each feature module follows a consistent pattern:
 1. Define a `moduleStruct` with module name
 2. Implement handler functions as methods
 3. Register handlers in a `LoadModule` function
-4. Module loaded via `alita/main.go` in specific order
+4. Self-register in `init()` via `RegisterLegacyModule(name, priority, loadFunc)` or `RegisterModule(m Module)`
+5. Loaded collectively via `modules.LoadAllModules(dispatcher)` in priority order
 
 ### Cache Layer
 
@@ -203,7 +204,12 @@ Comprehensive monitoring subsystems:
 MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 
 // Worker pools use bounded parallelism
-workerPool := NewWorkerPool(config.AppConfig.WorkerPoolSize)
+chatWorkers := make(chan struct{}, config.AppConfig.ChatValidationWorkers)   // CHAT_VALIDATION_WORKERS
+dbWorkers := make(chan struct{}, config.AppConfig.DatabaseWorkers)             // DATABASE_WORKERS
+msgWorkers := make(chan struct{}, config.AppConfig.MessagePipelineWorkers)     // MESSAGE_PIPELINE_WORKERS
+bulkWorkers := make(chan struct{}, config.AppConfig.BulkOperationWorkers)      // BULK_OPERATION_WORKERS
+cacheWorkers := make(chan struct{}, config.AppConfig.CacheWorkers)             // CACHE_WORKERS
+statsWorkers := make(chan struct{}, config.AppConfig.StatsCollectionWorkers)   // STATS_COLLECTION_WORKERS
 ```
 
 ### Singleflight for Cache

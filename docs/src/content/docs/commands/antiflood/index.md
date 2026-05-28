@@ -12,7 +12,7 @@ Antiflood allows you to take action on users that send more than x messages in a
 
 *Admin commands*:
 × /flood: Get the current antiflood settings.
-× /setflood `<number/off/no>`: Set the number of messages after which to take action on a user. Valid range is **3-100**. Set to '0', 'off', or 'no' to disable.
+× /setflood `<number/off/no>`: Set the number of messages after which to take action on a user. Valid range is **3-100**. Set to '0', 'off', 'no', or 'false' to disable.
 × /setfloodmode `<action type>`: Choose which action to take on a user who has been flooding. Options: ban/kick/mute
 × /delflood `<yes/no/on/off>`: If you want bot to delete messages flooded by user.
 

@@ -16,7 +16,7 @@ Ban/kick users from your chat, and unban them later on if they're behaving thems
 × /ban <userhandle>: bans a user. (via handle, or reply)
 × /sban <userhandle>: bans a user silently, does not send message to group and also deletes your command. (via handle, or reply)
 × /dban <userhandle>: bans a user and delete the replied message. (via handle, or reply)
-× /tban <userhandle> x(m/h/d): bans a user for `x` time. (via handle, or reply). m = minutes, h = hours, d = days.
+× /tban <userhandle> x(m/h/d/w): bans a user for `x` time. (via handle, or reply). m = minutes, h = hours, d = days, w = weeks.
 × /unban <userhandle>: unbans a user. (via handle, or reply)
 
 *Kick Commands* (Admin only):
