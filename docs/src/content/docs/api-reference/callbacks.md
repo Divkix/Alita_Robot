@@ -274,6 +274,16 @@ action, _ := decoded.Field("a") // "ban"
 uid, _ := decoded.Field("uid")  // "123456789"
 ```
 
+### EncodeOrFallback
+
+```go
+data := callbackcodec.EncodeOrFallback("restrict", map[string]string{
+    "a": "ban",
+}, "fallback_data")
+```
+
+Encodes callback data with graceful fallback. If encoding fails, returns the fallback string instead of an error.
+
 ### Registering a Callback Handler
 
 ```go

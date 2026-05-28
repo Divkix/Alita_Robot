@@ -10,7 +10,7 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 29 (28 user-facing + 1 internal)
+- **Total Modules**: 29 (27 user-facing + 2 internal)
 - **Total Commands**: 158
 
 ## Commands by Module
@@ -487,3 +487,72 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/warnings` | Warns | Show warnings for a user | Everyone |
 | `/warns` | Warns | Show current warn settings | Everyone |
 | `/welcome` | Greetings | Show current welcome settings | Admin |
+
+## Command Registration System
+
+### Legacy Registration
+
+Most modules use `RegisterLegacyModule` in their `init()` function:
+
+```go
+func init() {
+    modules.RegisterLegacyModule("Bans", 70, LoadBans)
+}
+```
+
+### New Interface Registration
+
+The `BotUpdates` module uses the new `Module` interface:
+
+```go
+func init() {
+    modules.RegisterModule(botUpdatesModule{moduleStruct{moduleName: "BotUpdates"}})
+}
+```
+
+### Declarative Command Pipeline
+
+The preferred modern approach uses `WrapCommand` with `CommandDescriptor`:
+
+```go
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name:        "pin",
+    Aliases:     []string{"permapin"},
+    Group:       0,
+    RequiredChecks: []helpers.CheckFunc{
+        chat_status.RequireGroup(),
+        chat_status.RequireBotAdmin(),
+        chat_status.RequireUserAdmin(),
+    },
+    Disableable: true,
+}, handler)
+```
+
+**Key types** (from `alita/utils/helpers/command_pipeline.go`):
+
+| Type | Description |
+|------|-------------|
+| `CommandDescriptor` | Declarative command configuration (Name, Aliases, Group, RequiredChecks, Disableable) |
+| `CommandContext` | Context passed through the command pipeline |
+| `CheckFunc` | Permission check function signature |
+| `WrapCommand` | Main pipeline builder with automatic check execution |
+| `WrapCommandRaw` | Raw handler variant without automatic checks |
+
+**Pre-built CheckFunc builders**:
+
+| Function | Description |
+|----------|-------------|
+| `RequireGroup()` | Ensures command is used in a group |
+| `RequirePrivate()` | Ensures command is used in private chat |
+| `RequireBotAdmin()` | Ensures bot is admin |
+| `RequireUserAdmin()` | Ensures user is admin |
+| `RequireUserOwner()` | Ensures user is group owner |
+| `CanUserRestrict()` | Checks user can restrict members |
+| `CanBotRestrict()` | Checks bot can restrict members |
+| `CanUserDelete()` | Checks user can delete messages |
+| `CanBotDelete()` | Checks bot can delete messages |
+| `CanUserPromote()` | Checks user can promote members |
+| `CanBotPromote()` | Checks bot can promote members |
+| `CanUserPin()` | Checks user can pin messages |
+| `CanBotPin()` | Checks bot can pin messages |
+

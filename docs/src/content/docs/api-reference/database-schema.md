@@ -10,11 +10,11 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Total Tables**: 26
+- **Total Tables**: 28
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
 - **Migration Tool**: Custom SQL migration runner (`alita/db/migrations.go`)
-- **Migrations**: 28 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
+- **Migrations**: 29 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
 
 ## Design Patterns
 
@@ -614,6 +614,56 @@ Main table storing user information.
 
 - `idx_users_covering`
 - `idx_users_last_activity`
+
+---
+
+### `approved_users`
+
+Users approved for a chat (immune to anti-spam).
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | — |
+| `user_id` | `BIGINT` | NO | — | — |
+| `created_at` | `TIMESTAMP` | YES | — | — |
+| `updated_at` | `TIMESTAMP` | YES | — | — |
+
+#### Indexes
+
+- `idx_approved_users_chat_id`
+- `idx_approved_users_user_id`
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE
+- `user_id` → `users(user_id)` ON DELETE CASCADE
+
+---
+
+### `antiraid_settings`
+
+Anti-raid configuration per chat.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE |
+| `enabled` | `BOOLEAN` | NO | `false` | — |
+| `action` | `TEXT` | NO | `'ban'` | — |
+| `time` | `BIGINT` | NO | `0` | — |
+| `action_time` | `BIGINT` | NO | `0` | — |
+| `auto_raid` | `BIGINT` | NO | `0` | — |
+| `created_at` | `TIMESTAMP` | YES | — | — |
+| `updated_at` | `TIMESTAMP` | YES | — | — |
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE
 
 ---
 

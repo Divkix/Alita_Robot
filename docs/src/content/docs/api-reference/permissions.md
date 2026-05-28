@@ -10,8 +10,8 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 25
-- **Location**: `alita/utils/chat_status/chat_status.go`
+- **Total Functions**: 30+
+- **Location**: `alita/utils/chat_status/ (chat_status.go, access.go, permission_responder.go)`
 
 ## Function Summary
 
@@ -41,6 +41,7 @@ This page documents all permission checking functions in Alita Robot.
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
 | `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts the user from the context without nil panics... |
+| `GetChat` | `*gotgbot.Chat` | GetChat safely retrieves a chat by ID with caching... |
 | `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
 
 ## Functions by Category
@@ -111,6 +112,35 @@ IsBotAdmin checks if the bot has administrator privileges in the specified chat.
 - `b`
 - `ctx`
 - `chat`
+
+### PermissionResponder
+
+Located in `alita/utils/chat_status/permission_responder.go`.
+
+Centralizes permission-failure messaging with support for callback-query answers and chat replies.
+
+```go
+// Create a responder
+responder := chat_status.NewPermissionResponder(b, ctx)
+
+// Respond with default message
+responder.Respond()
+
+// Respond with a reply to the original message
+responder.WithReply()
+
+// Respond with fallback if reply fails
+responder.WithReplyFallback()
+```
+
+**Functions**:
+
+| Function | Description |
+|----------|-------------|
+| `NewPermissionResponder()` | Creates a new responder instance |
+| `Respond()` | Sends permission failure message |
+| `WithReply()` | Sends as a reply to the original message |
+| `WithReplyFallback()` | Sends as reply, falls back to regular message if reply fails |
 
 ### 🔢 ID Validation
 
@@ -392,7 +422,7 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 |----|-------------|
 | `1087968824` | Anonymous Admin Bot (GroupAnonymousBot) |
 | `777000` | Telegram System Account |
-| `136817688` | Channel Bot (deprecated) |
+| `136817688` | SendAsChannel Bot (for users sending messages as channel) |
 
 ## Usage Example
 
