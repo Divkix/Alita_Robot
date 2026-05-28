@@ -10,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 30+
+- **Total Functions**: 26
 - **Location**: `alita/utils/chat_status/ (chat_status.go, access.go, permission_responder.go)`
 
 ## Function Summary

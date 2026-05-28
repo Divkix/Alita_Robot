@@ -13,7 +13,7 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
   <TabItem label="Go Runtime">
     | Component | Technology | Purpose |
     |-----------|------------|---------|
-    | **Language** | <Badge text="Go 1.25+" variant="note" /> | Core application runtime |
+    | **Language** | <Badge text="Go 1.26+" variant="note" /> | Core application runtime |
     | **Telegram Library** | <Badge text="gotgbot v2" variant="note" /> | Telegram Bot API wrapper |
     | **Build System** | <Badge text="GoReleaser" variant="default" /> | Multi-platform builds and releases |
   </TabItem>
@@ -54,7 +54,7 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
     Feature modules in `alita/modules/` follow a consistent pattern: `moduleStruct`, handler methods, `LoadModule` registration. Help module loads last to collect all commands.
   </Card>
   <Card title="Cache Layer" icon="star">
-    Redis caching with singleflight stampede protection. Per-type TTLs, automatic invalidation on writes, and traced operations via OpenTelemetry.
+    Redis caching with singleflight stampede protection. Per-type TTLs, automatic invalidation on writes, and distributed cache with namespace isolation.
   </Card>
   <Card title="Permission System" icon="approve-check">
     Centralized permission validation in `alita/utils/chat_status/`. Checks are cached to reduce Telegram API calls. Supports anonymous admin detection.
@@ -218,10 +218,19 @@ statsWorkers := make(chan struct{}, config.AppConfig.StatsCollectionWorkers)   /
 // Prevents multiple goroutines from rebuilding same cache entry
 var cacheGroup singleflight.Group
 
-result, err, _ := cacheGroup.Do(cacheKey, func() (any, error) {
-    // Only one goroutine executes this
+// 30-second timeout with automatic cleanup
+resultCh := cacheGroup.DoChan(cacheKey, func() (any, error) {
     return loadFromDatabase()
 })
+
+select {
+case res := <-resultCh:
+    result = res.Val
+    err = res.Err
+case <-time.After(30 * time.Second):
+    cacheGroup.Forget(cacheKey) // Prevent goroutine accumulation
+    err = errors.New("cache load timeout")
+}
 ```
 
 ### Graceful Shutdown

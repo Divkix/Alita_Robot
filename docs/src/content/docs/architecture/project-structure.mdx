@@ -26,6 +26,10 @@ This document explains the directory structure of Alita Robot, helping developer
     - cache_helpers.go Cache key patterns and TTLs
     - migrations.go Migration runner
     - \*_db.go Per-feature database operations
+    - monitoring.go Database pool metrics
+    - optimized_queries.go Cached optimized queries
+    - backup_db.go Export/import chat data
+    - backup_types.go Backup format types
   - (Locale embed directive is declared in `main.go` at repository root)
   - i18n/ **Internationalization**
     - loader.go Locale file loader
@@ -46,6 +50,15 @@ This document explains the directory structure of Alita Robot, helping developer
     - captcha.go CAPTCHA verification
     - antiraid.go Anti-raid protection
     - approvals.go User approval system
+    - purges.go Message purge commands
+    - antispam.go Background antispam watcher
+    - bot_updates.go Bot join/leave event handler
+    - rules_format.go HTML formatting for rules
+    - connections_auth.go Connection auth helper
+    - callback_codec.go Callback data encoding
+    - callback_parse_overwrite.go Callback parsing
+    - chat_permissions.go Permission helpers
+    - moderation_input.go Text extraction for moderation
     - registry.go Module registration system
     - ...
   - utils/ **Utility packages**
@@ -53,20 +66,35 @@ This document explains the directory structure of Alita Robot, helping developer
     - cache/
       - cache.go Cache client setup
       - adminCache.go Admin cache operations
+      - restrictedCache.go Restricted chat cache
     - callbackcodec/ Versioned callback data encoding/decoding
     - chat_status/
       - chat_status.go Admin/permission checks
+      - permission_responder.go Permission failure messaging
     - constants/ Application constants
+      - time.go Time constants
     - error_handling/ Panic recovery and logging
-    - errors/ Custom error types
+    - errors/ Custom error types with stack traces
     - extraction/ User/text extraction
     - helpers/ General helper functions and decorators
+    - command_pipeline.go Declarative command pipeline
     - httpserver/ Unified HTTP server
+      - server.go HTTP server
     - keyword_matcher/ Keyword matching utilities
+      - matcher.go Pattern matching
     - monitoring/ Activity and resource monitoring
+      - activity_monitor.go Activity tracking
+      - auto_remediation.go Auto-remediation
+      - background_stats.go Background statistics
     - ratelimit/ Rate limiting utilities
+      - backup_ratelimit.go Backup rate limiting
     - shutdown/ Graceful shutdown manager
+      - graceful.go Graceful shutdown
     - tracing/ OpenTelemetry distributed tracing
+    - media/ Media sending utilities
+      - sender.go Unified media sender
+    - keyboard/ Keyboard building utilities
+    - formatting/ HTML/Markdown formatting utilities
 - migrations/ **SQL migration files**
   - 20250805200527_initial_migration.sql
   - ...
@@ -79,10 +107,10 @@ This document explains the directory structure of Alita Robot, helping developer
   - pt.yml Portuguese translations
   - ru.yml Russian translations
 - docker/ Docker-related files
-  - alpine/ Alpine-based Dockerfile
-  - alpine.debug/ Debug variant
-  - goreleaser/ GoReleaser configuration
-  - pr-build/ PR build scripts
+  - alpine Alpine-based Dockerfile
+  - alpine.debug Debug variant Dockerfile
+  - goreleaser GoReleaser configuration
+  - pr-build PR build scripts
 - docs/ **Documentation site (Starlight)**
   - astro.config.mjs Astro configuration
   - src/content/docs/ Documentation pages
@@ -165,7 +193,7 @@ Module loading and initialization:
 ### `alita/config/config.go`
 
 Environment variable parsing:
-- Required: `BOT_TOKEN`, `DATABASE_URL`, `REDIS_ADDRESS`
+- Required: `BOT_TOKEN`, `DATABASE_URL`, `REDIS_ADDRESS`, `MESSAGE_DUMP`, `OWNER_ID`
 - Optional: Performance tuning, monitoring, webhooks
 - Validation and default values
 

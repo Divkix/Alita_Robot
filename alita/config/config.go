@@ -454,6 +454,9 @@ func (cfg *Config) setDefaults() {
 		cfg.ActivityCheckInterval = 1 // Check every hour
 	}
 	// EnableAutoCleanup defaults to true unless explicitly set to false
+	if os.Getenv("ENABLE_AUTO_CLEANUP") == "" {
+		cfg.EnableAutoCleanup = true
+	}
 
 	// Set database connection pool defaults (optimized for performance)
 	if cfg.DBMaxIdleConns == 0 {

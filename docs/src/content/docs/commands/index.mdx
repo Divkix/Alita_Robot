@@ -9,7 +9,7 @@ import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
 
-**Total Modules**: 27 | **Total Commands**: 149
+**Total Modules**: 29 | **Total Commands**: 158
 
 ## Administration
 
@@ -42,12 +42,28 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
     <LinkCard title="View Antispam Details" href="/commands/antispam/" />
   </Card>
 
+  <Card title="AntiRaid" icon="shield">
+    Automatic raid protection with configurable duration and action. Detects rapid join events and acts automatically.
+
+    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View AntiRaid Commands" href="/commands/antiraid/" />
+  </Card>
+
   <Card title="Bans" icon="close">
     Ban, kick, and restrict users. Supports silent bans, delete-bans, and temporary bans with time limits.
 
     <Badge text="10 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
 
     <LinkCard title="View Bans Commands" href="/commands/bans/" />
+  </Card>
+
+  <Card title="Approvals" icon="approve-check">
+    Manage approved users who are immune to anti-spam measures. Auto-approve, list, and remove approvals.
+
+    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
+
+    <LinkCard title="View Approvals Commands" href="/commands/approvals/" />
   </Card>
 
   <Card title="Blacklists" icon="list-format">
