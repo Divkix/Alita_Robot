@@ -193,7 +193,7 @@ func LoadModules(dispatcher *ext.Dispatcher) {
 
 :::note[Why order matters]
 - **Priority-based loading**: Modules self-register in `init()` with a priority; `LoadAllModules` sorts them before loading
-- **Dependency resolution**: Lower priority numbers load first (e.g., Users at 100 before Bans at 70)
+- **Dependency resolution**: Lower priority numbers load first (e.g., Bans at 70 before Users at 100)
 - **Help module**: Loads last via `defer` to collect all registered commands from every module
 :::
 

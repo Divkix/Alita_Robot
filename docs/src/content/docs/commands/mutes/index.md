@@ -19,7 +19,8 @@ Sometimes users can be annoying and you might want to restrict them from sending
 - `h` = hours (e.g., `2h`)
 - `d` = days (e.g., `1d`)
 - `w` = weeks (e.g., `1w`)
-- Raw seconds (e.g., `3600`)
+
+A unit suffix is required. Valid examples: `30m`, `1h`, `7d`, `2w`.
 
 **Mute Variants:**
 - `/mute` - Standard mute with optional reason
