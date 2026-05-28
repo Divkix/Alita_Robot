@@ -474,19 +474,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
 		if !justCheck {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("chat_status_invite_link_bot_error")
-			_, err := b.SendMessage(chat.Id, text,
-				&gotgbot.SendMessageOpts{
-					ReplyParameters: &gotgbot.ReplyParameters{
-						MessageId:                ctx.EffectiveMessage.MessageId,
-						AllowSendingWithoutReply: true,
-					},
-				},
-			)
-			if err != nil {
-				log.Errorf("[Caninvite] SendMessage failed for chat %d: %v", chat.Id, err)
-			}
+			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_bot_error", "chat_status_invite_link_btn_error")
 		}
 		return false
 	}
@@ -509,19 +497,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
 		if !justCheck {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-			text, _ := tr.GetString("chat_status_invite_link_user_error")
-			_, err := b.SendMessage(chat.Id, text,
-				&gotgbot.SendMessageOpts{
-					ReplyParameters: &gotgbot.ReplyParameters{
-						MessageId:                ctx.EffectiveMessage.MessageId,
-						AllowSendingWithoutReply: true,
-					},
-				},
-			)
-			if err != nil {
-				log.Errorf("[Caninvite] SendMessage failed for chat %d: %v", chat.Id, err)
-			}
+			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_user_error", "chat_status_invite_link_btn_error")
 		}
 		return false
 	}
