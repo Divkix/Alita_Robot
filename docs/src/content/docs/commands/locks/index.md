@@ -6,9 +6,11 @@ description: Complete guide to Locks module commands and features
 
 # 🔒 Locks Commands
 
-*Admin only*:
+*Admin only:*
 × /lock `<permission>`: Lock Chat permission..
 × /unlock `<permission>`: Unlock Chat permission.
+
+*Available to all users:*
 × /locks: View Chat permission.
 × /locktypes: Check available lock types!
 

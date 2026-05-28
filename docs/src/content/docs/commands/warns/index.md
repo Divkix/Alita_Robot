@@ -63,7 +63,7 @@ This module can be accessed using the following aliases:
 | `/swarn` | Warn a user silently and delete your command | ❌ |
 | `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
 | `/warn` | Warn a user | ❌ |
-| `/warnings` | Show warning count for a user | ❌ |
+| `/warnings` | Get the chat's warning settings | ❌ |
 | `/warns` | Show warning count for a user | ✅ |
 
 ## Usage Examples

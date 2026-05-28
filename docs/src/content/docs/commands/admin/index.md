@@ -84,7 +84,6 @@ Most commands in this module require **admin permissions** in the group.
 
 - Promote new admins
 - Invite users via link
-- Delete messages
 
 ## Technical Notes
 
