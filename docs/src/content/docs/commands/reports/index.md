@@ -12,14 +12,14 @@ We're all busy people who don't have time to monitor our groups 24/7. But how do
 - @admin: same as /report but not a command.
 
 *Admins Only:*
-× /reports `<on/off/yes/no>`: change report setting, or view current status.
+× /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
 - If done in PM, toggles your status.
 - If in a group, toggles that group's status.
 × /reports `block` (via reply only): Block a user from using /report or @admin.
 × /reports `unblock` (via reply only): Unblock a user from using /report or @admin.
 × /reports `showblocklist`: Check all the blocked users who cannot use /report or @admin.
 
-To report a user, simply reply to his message with @admin or /report; Natalie will then reply with a message stating that admins have been notified.
+To report a user, simply reply to his message with @admin or /report; Alita will then reply with a message stating that admins have been notified.
 You MUST reply to a message to report a user; you can't just use @admin to tag admins for no reason!
 
 *NOTE:* Neither of these will get triggered if used by admins.

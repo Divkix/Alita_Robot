@@ -306,7 +306,7 @@ telegram: Bad Request: can't restrict chat owner
 - `/promote @username` fails even though the user exists
 - Commands work when replying but not when using usernames
 
-**Resolved in v1.x:** Previously, admin commands required users to exist in the bot's local database. The bot now queries Telegram's API as a fallback when username lookup fails locally, allowing admin commands to work on any valid Telegram user.
+    **Resolved in recent versions:** Previously, admin commands required users to exist in the bot's local database. The bot now queries Telegram's API as a fallback when username lookup fails locally, allowing admin commands to work on any valid Telegram user.
 
 If you're running an older version, upgrade to get this fix.
 

@@ -12,7 +12,7 @@ All the pin-related commands can be found here; keep your chat up to date on the
 × /pinned: Get the current pinned message.
 
 *Admin commands:*
-× /pin: Pin the message you replied to. Add 'loud' or 'notify' to send a notification to group members.
+× /pin: Pin the message you replied to. Add 'loud', 'notify', or 'violent' to send a notification to group members.
 × /pinned: Gets the latest pinned message in the current Chat.
 × /permapin <text>: Pin a custom message through the bot. This message can contain markdown, buttons, and all the other cool features.
 × /unpin: Unpin the current pinned message. If used as a reply, unpins the replied-to message.
