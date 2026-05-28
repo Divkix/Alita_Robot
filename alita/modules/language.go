@@ -39,7 +39,7 @@ func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 // changeLanguage displays the language selection menu for users or groups.
 // Shows current language and allows users/admins to select a different interface language.
 func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -56,7 +56,8 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 
 		// language won't be changed if user is not admin
-		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 
@@ -120,10 +121,9 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// For group chats, check admin permissions first before any language operations
 	if chat.Type != "private" {
-		// RequireUserAdmin with justCheck=false already answers the callback with error
-		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
-			// Permission denied - RequireUserAdmin already showed error via callback answer
-			// No need to edit the message or answer again, just return early
+		// Permission denied - callback answer is handled by PermissionResponder
+		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 	}

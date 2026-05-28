@@ -169,3 +169,12 @@ func TestExtractCommandDescription_NoMatch(t *testing.T) {
 		t.Errorf("extractCommandDescription(\"unknown\", ...) = %q, want %q", got, want)
 	}
 }
+
+func TestExtractCommandDescription_FalsePositivePrefix(t *testing.T) {
+	helpText := "• /banall is a command, or use /ban - Ban a user"
+	got := extractCommandDescription("ban", helpText)
+	want := "Ban a user"
+	if got != want {
+		t.Errorf("extractCommandDescription(\"ban\", ...) = %q, want %q", got, want)
+	}
+}

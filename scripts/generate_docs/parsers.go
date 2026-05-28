@@ -1093,7 +1093,7 @@ func categorizePermissionFunc(name string) string {
 		return "User Status Checks"
 	case strings.HasPrefix(name, "IsBotAdmin") || strings.HasPrefix(name, "CanBot"):
 		return "Bot Permission Checks"
-	case strings.HasPrefix(name, "CanUser") || name == "Caninvite":
+	case strings.HasPrefix(name, "CanUser") || name == "CanInvite":
 		return "User Permission Checks"
 	case strings.HasPrefix(name, "Require"):
 		return "Requirement Checks"

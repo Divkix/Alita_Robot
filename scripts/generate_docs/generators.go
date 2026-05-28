@@ -828,10 +828,41 @@ func formatHelpText(text string) string {
 
 // extractCommandDescription attempts to extract description for a command from help text
 func extractCommandDescription(cmdName, helpText string) string {
+	lowerCmdName := "/" + strings.ToLower(cmdName)
 	for line := range strings.SplitSeq(helpText, "\n") {
-		if !strings.Contains(strings.ToLower(line), "/"+strings.ToLower(cmdName)) {
+		lowerLine := strings.ToLower(line)
+		start := 0
+		matched := false
+		for {
+			idx := strings.Index(lowerLine[start:], lowerCmdName)
+			if idx == -1 {
+				break
+			}
+			idx += start
+
+			// Ensure the character after cmdName is not a letter or number to prevent substring matching
+			afterIdx := idx + len(lowerCmdName)
+			isValidBoundary := true
+			if afterIdx < len(line) {
+				nextChar := line[afterIdx]
+				if (nextChar >= 'a' && nextChar <= 'z') || (nextChar >= 'A' && nextChar <= 'Z') || (nextChar >= '0' && nextChar <= '9') {
+					isValidBoundary = false
+				}
+			}
+
+			if isValidBoundary {
+				matched = true
+				break
+			}
+
+			// Prefix false-positive: advance start past this occurrence
+			start = idx + len(lowerCmdName)
+		}
+
+		if !matched {
 			continue
 		}
+
 		for _, sep := range []string{": ", " - "} {
 			parts := strings.SplitN(line, sep, 2)
 			if len(parts) == 2 {
@@ -857,7 +888,7 @@ func generateUsageExamples(module Module) string {
 		// Show first few commands as examples
 		limit := min(3, len(module.Commands))
 
-		content.WriteString("```\n")
+		content.WriteString("```text\n")
 		for i := range limit {
 			fmt.Fprintf(&content, "/%s\n", module.Commands[i].Name)
 		}

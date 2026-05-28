@@ -31,14 +31,15 @@ well.
 // Shows current connected chat and provides keyboard with available commands.
 func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
-	if !chat_status.RequirePrivate(b, ctx, nil, false) {
+	if !chat_status.RequirePrivate(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -83,7 +84,7 @@ Also, if no word is given, you will get your current setting.
 func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -139,7 +140,7 @@ Admins and Users both can use this.
 func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -299,7 +300,7 @@ Used to disconnect from currently connected chat
 // Removes the user's connection to allow connecting to different chats.
 func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -379,7 +380,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 
 	if ctx.Message.Chat.Type == "private" {
-		user := chat_status.RequireUser(b, ctx, false)
+		user := chat_status.RequireUser(b, ctx)
 		if user == nil {
 			return ext.EndGroups
 		}

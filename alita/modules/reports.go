@@ -83,7 +83,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// don't let blocked users report
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
-		if chat_status.CanBotDelete(b, ctx, nil, true) {
+		if chat_status.CanBotDelete(b, ctx, nil) {
 			_, err := msg.Delete(b, nil)
 			if err != nil {
 				log.Error(err)
@@ -282,10 +282,12 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText string
 	)
 
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -440,7 +442,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -448,9 +450,8 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	var replyQuery, replyText string
 
 	// permissions check
-	// Note: RequireUserAdmin with justCheck=false answers the callback when permission is denied
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
-		// Callback already answered by RequireUserAdmin with error message
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 

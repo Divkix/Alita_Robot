@@ -36,8 +36,8 @@ func WithReplyFallback() respondOpt {
 }
 
 // PermissionResponder centralises the response choreography for failed
-// permission checks. Callers perform the pure check; when it fails and
-// justCheck is false they delegate error messaging to Respond.
+// permission checks. Callers perform the pure check; when it fails they
+// delegate error messaging to Respond.
 type PermissionResponder struct {
 	bot *gotgbot.Bot
 }

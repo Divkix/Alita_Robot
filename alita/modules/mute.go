@@ -21,27 +21,33 @@ var mutesModule = moduleStruct{moduleName: "Mutes"}
 // with a specified time duration, requiring admin permissions.
 func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 
@@ -141,27 +147,33 @@ func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // from the group, requiring admin permissions.
 func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 
@@ -263,30 +275,37 @@ func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 // and delete the command message, requiring admin permissions.
 func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -352,30 +371,37 @@ func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // the replied message, requiring admin permissions.
 func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -495,27 +521,33 @@ func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 // to a previously muted user, requiring admin permissions.
 func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+	if !chat_status.CanBotRestrict(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 

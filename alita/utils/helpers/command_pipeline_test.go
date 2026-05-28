@@ -185,11 +185,19 @@ func (cpBotClient) RequestWithContext(_ context.Context, _ string, method string
 			return json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"},"can_change_info":true,"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
 		case "998":
 			return json.RawMessage(`{"status":"administrator","user":{"id":998,"is_bot":true,"first_name":"Limited Bot"},"can_change_info":false,"can_restrict_members":false,"can_promote_members":false,"can_pin_messages":false,"can_delete_messages":false,"can_invite_users":false}`), nil
+		case "10":
+			return json.RawMessage(`{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"},"can_change_info":true,"can_restrict_members":true,"can_promote_members":true,"can_pin_messages":true,"can_delete_messages":true,"can_invite_users":true}`), nil
+		case "12":
+			return json.RawMessage(`{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}`), nil
 		default:
 			return json.RawMessage(`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`), nil
 		}
 	case "sendMessage":
 		return json.RawMessage(`{"message_id":1,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test"}}`), nil
+	case "getChat":
+		return json.RawMessage(`{"id":-1001,"type":"supergroup","title":"Test Chat"}`), nil
+	case "getChatAdministrators":
+		return json.RawMessage(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Bot"}},{"status":"administrator","user":{"id":10,"is_bot":false,"first_name":"Full Admin"}},{"status":"creator","user":{"id":12,"is_bot":false,"first_name":"Owner"}}]`), nil
 	default:
 		return json.RawMessage(`true`), nil
 	}
@@ -214,6 +222,16 @@ func makeCpContext(chatType string) *ext.Context {
 		Date:      1,
 		Chat:      gotgbot.Chat{Id: -1001, Type: chatType, Title: "Test Chat"},
 		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+	}
+	return ext.NewContext(newCpBot(999), &gotgbot.Update{Message: msg}, nil)
+}
+
+func makeCpContextWithUser(chatType string, userId int64) *ext.Context {
+	msg := &gotgbot.Message{
+		MessageId: 1,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001, Type: chatType, Title: "Test Chat"},
+		From:      &gotgbot.User{Id: userId, FirstName: "Tester"},
 	}
 	return ext.NewContext(newCpBot(999), &gotgbot.Update{Message: msg}, nil)
 }
@@ -274,6 +292,61 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name:  "RequireUserAdmin when user is admin",
+			check: RequireUserAdmin(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "RequireUserOwner when user is owner",
+			check: RequireUserOwner(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 12), User: &gotgbot.User{Id: 12}},
+			want:  true,
+		},
+		{
+			name:  "CanUserPromote when user has permission",
+			check: CanUserPromote(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "CanUserRestrict when user has permission",
+			check: CanUserRestrict(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "CanUserPin when user has permission",
+			check: CanUserPin(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "CanUserChangeInfo when user has permission",
+			check: CanUserChangeInfo(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "CanUserDelete when user has permission",
+			check: CanUserDelete(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
+			want:  true,
+		},
+		{
+			name:  "CanInvite when user and bot have invite permission",
+			check: CanInvite(),
+			c: &CommandContext{
+				Bot: newCpBot(999),
+				Ctx: makeCpContextWithUser("supergroup", 10),
+				Msg: &gotgbot.Message{
+					From: &gotgbot.User{Id: 10},
+					Chat: gotgbot.Chat{Id: -1001, Type: "supergroup"},
+				},
+			},
+			want: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -282,6 +355,96 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			t.Parallel()
 			if got := tc.check(tc.c); got != tc.want {
 				t.Fatalf("%s returned %v, want %v", tc.name, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckFuncFalseBranches(t *testing.T) {
+	tests := []struct {
+		name  string
+		check CheckFunc
+		c     *CommandContext
+	}{
+		{
+			name:  "RequireUserAdmin when user is NOT admin",
+			check: RequireUserAdmin(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}},
+		},
+		{
+			name:  "RequireUserOwner when user is NOT owner",
+			check: RequireUserOwner(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}},
+		},
+		{
+			name:  "CanUserPromote when user lacks permission",
+			check: CanUserPromote(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
+		},
+		{
+			name:  "CanUserRestrict when user lacks permission",
+			check: CanUserRestrict(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
+		},
+		{
+			name:  "CanUserPin when user lacks permission",
+			check: CanUserPin(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
+		},
+		{
+			name:  "CanUserChangeInfo when user lacks permission",
+			check: CanUserChangeInfo(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
+		},
+		{
+			name:  "CanUserDelete when user lacks permission",
+			check: CanUserDelete(),
+			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
+		},
+		{
+			name:  "CanInvite when user lacks invite permission",
+			check: CanInvite(),
+			c: &CommandContext{
+				Bot: newCpBot(999),
+				Ctx: makeCpContextWithUser("supergroup", 998),
+				Msg: &gotgbot.Message{
+					From: &gotgbot.User{Id: 998},
+					Chat: gotgbot.Chat{Id: -1001, Type: "supergroup"},
+				},
+			},
+		},
+		{
+			name:  "RequireBotAdmin when bot lacks permission",
+			check: RequireBotAdmin(),
+			c:     &CommandContext{Bot: newCpBot(997), Ctx: makeCpContext("supergroup")},
+		},
+		{
+			name:  "CanBotPromote when bot lacks permission",
+			check: CanBotPromote(),
+			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
+		},
+		{
+			name:  "CanBotRestrict when bot lacks permission",
+			check: CanBotRestrict(),
+			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
+		},
+		{
+			name:  "CanBotPin when bot lacks permission",
+			check: CanBotPin(),
+			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
+		},
+		{
+			name:  "CanBotDelete when bot lacks permission",
+			check: CanBotDelete(),
+			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.check(tc.c); got != false {
+				t.Fatalf("%s returned %v, want false", tc.name, got)
 			}
 		})
 	}

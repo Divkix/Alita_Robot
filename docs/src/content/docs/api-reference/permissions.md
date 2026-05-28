@@ -10,7 +10,7 @@ This page documents all permission checking functions in Alita Robot.
 
 ## Overview
 
-- **Total Functions**: 25
+- **Total Functions**: 23
 - **Location**: `alita/utils/chat_status/chat_status.go`
 
 ## Function Summary
@@ -24,24 +24,22 @@ This page documents all permission checking functions in Alita Robot.
 | `IsBotAdmin` | `bool` | IsBotAdmin checks if the bot has administrator privileges... |
 | `IsChannelId` | `bool` | IsChannelId checks if an ID represents a Telegram channel... |
 | `IsValidUserId` | `bool` | IsValidUserId checks if an ID represents a valid Telegram... |
+| `IsApproved` | `bool` | IsApproved checks if a user is in the approved whitelist ... |
 | `RequireBotAdmin` | `bool` | RequireBotAdmin ensures the bot has administrator privile... |
 | `RequireGroup` | `bool` | RequireGroup ensures the command is being used in a group... |
 | `RequirePrivate` | `bool` | RequirePrivate ensures the command is being used in a pri... |
 | `RequireUserAdmin` | `bool` | RequireUserAdmin ensures a user has administrator privile... |
 | `RequireUserOwner` | `bool` | RequireUserOwner ensures a user is the chat creator/owner... |
+| `CanInvite` | `bool` | CanInvite checks if the bot and user have permissions to ... |
 | `CanUserChangeInfo` | `bool` | CanUserChangeInfo checks if a user has permission to chan... |
 | `CanUserDelete` | `bool` | CanUserDelete checks if a user has permission to delete m... |
 | `CanUserPin` | `bool` | CanUserPin checks if a user has permission to pin message... |
 | `CanUserPromote` | `bool` | CanUserPromote checks if a user has permission to promote... |
 | `CanUserRestrict` | `bool` | CanUserRestrict checks if a user has permission to restri... |
-| `Caninvite` | `bool` | Caninvite checks if the bot and user have permissions to ... |
-| `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
-| `GetChat` | `*gotgbot.Chat` | GetChat retrieves a chat by its ID (or username) directly... |
-| `GetEffectiveUser` | `*gotgbot.User` | GetEffectiveUser safely extracts the user from a context;... |
 | `IsUserAdmin` | `bool` | IsUserAdmin checks if a user has administrator privileges... |
 | `IsUserBanProtected` | `bool` | IsUserBanProtected checks if a user is protected from bei... |
 | `IsUserInChat` | `bool` | IsUserInChat checks if a user is currently a member of th... |
-| `RequireUser` | `*gotgbot.User` | RequireUser ensures a valid user exists in the context; r... |
+| `CheckDisabledCmd` | `bool` | CheckDisabledCmd checks if a command is disabled in the c... |
 
 ## Functions by Category
 
@@ -50,58 +48,54 @@ This page documents all permission checking functions in Alita Robot.
 #### `CanBotDelete`
 
 ```go
-func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-CanBotDelete checks if the bot has permission to delete messages in the chat. Validates the bot's CanDeleteMessages permission. If justCheck is false, sends error messages explaining the missing permission.
+CanBotDelete checks if the bot has permission to delete messages in the chat. Validates the bot's CanDeleteMessages permission.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `CanBotPin`
 
 ```go
-func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-CanBotPin checks if the bot has permission to pin messages in the chat. Validates the bot's CanPinMessages permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
+CanBotPin checks if the bot has permission to pin messages in the chat. Validates the bot's CanPinMessages permission.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `CanBotPromote`
 
 ```go
-func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-CanBotPromote checks if the bot has permission to promote/demote members in the chat. Validates the bot's CanPromoteMembers permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
+CanBotPromote checks if the bot has permission to promote/demote members in the chat. Validates the bot's CanPromoteMembers permission.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `CanBotRestrict`
 
 ```go
-func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-CanBotRestrict checks if the bot has permission to restrict members in the chat. Validates the bot's CanRestrictMembers permission. If justCheck is false, sends error messages explaining the missing permission.  nolint:dupl // Permission check functions follow same pattern by design
+CanBotRestrict checks if the bot has permission to restrict members in the chat. Validates the bot's CanRestrictMembers permission.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `IsBotAdmin`
 
@@ -140,171 +134,175 @@ IsValidUserId checks if an ID represents a valid Telegram user. User IDs are alw
 **Parameters:**
 - `id`
 
+### 📋 Other
+
+#### `IsApproved`
+
+```go
+func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool
+```
+
+IsApproved checks if a user is in the approved whitelist for a chat. Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha, antispam). This is a simple delegation to the DB layer for consistent usage in watcher handlers.
+
+**Parameters:**
+- `b`
+- `chatID`
+- `userID`
+
 ### ✅ Requirement Checks
 
 #### `RequireBotAdmin`
 
 ```go
-func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-RequireBotAdmin ensures the bot has administrator privileges in the chat. Uses IsBotAdmin internally to perform the check. If justCheck is false, sends error messages when bot is not admin.
+RequireBotAdmin ensures the bot has administrator privileges in the chat. Uses IsBotAdmin internally to perform the check.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `RequireGroup`
 
 ```go
-func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-RequireGroup ensures the command is being used in a group chat. Returns false for private chats. If justCheck is false, sends error messages explaining the command is for group use only.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+RequireGroup ensures the command is being used in a group chat. Returns false for private chats.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `RequirePrivate`
 
 ```go
-func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool
+func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups. If justCheck is false, sends error messages explaining the command is for private use only.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
-- `justCheck`
 
 #### `RequireUserAdmin`
 
 ```go
-func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
+func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
 ```
 
-RequireUserAdmin ensures a user has administrator privileges in the chat. Uses IsUserAdmin internally to perform the check. If justCheck is false, sends error messages when user is not admin.
+RequireUserAdmin ensures a user has administrator privileges in the chat. Uses IsUserAdmin internally to perform the check.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
 - `userId`
-- `justCheck`
 
 #### `RequireUserOwner`
 
 ```go
-func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
+func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
 ```
 
-RequireUserOwner ensures a user is the chat creator/owner. Checks for "creator" status specifically, not just administrator. If justCheck is false, sends error messages when user is not the creator.
+RequireUserOwner ensures a user is the chat creator/owner. Checks for "creator" status specifically, not just administrator.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
 - `userId`
-- `justCheck`
 
 ### 👮 User Permission Checks
 
-#### `CanUserChangeInfo`
+#### `CanInvite`
 
 ```go
-func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
+func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool
 ```
 
-CanUserChangeInfo checks if a user has permission to change chat information. Handles anonymous admins and validates the CanChangeInfo permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
-
-**Parameters:**
-- `b`
-- `ctx`
-- `chat`
-- `userId`
-- `justCheck`
-
-#### `CanUserDelete`
-
-```go
-func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
-```
-
-CanUserDelete checks if a user has permission to delete messages in the chat. Handles anonymous admins and validates the CanDeleteMessages permission. If justCheck is false, sends error messages to user.
-
-**Parameters:**
-- `b`
-- `ctx`
-- `chat`
-- `userId`
-- `justCheck`
-
-#### `CanUserPin`
-
-```go
-func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
-```
-
-CanUserPin checks if a user has permission to pin messages in the chat. Handles anonymous admins and validates the CanPinMessages permission. If justCheck is false, sends error messages to user.
-
-**Parameters:**
-- `b`
-- `ctx`
-- `chat`
-- `userId`
-- `justCheck`
-
-#### `CanUserPromote`
-
-```go
-func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
-```
-
-CanUserPromote checks if a user has permission to promote/demote other members. Handles anonymous admins and validates the CanPromoteMembers permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
-
-**Parameters:**
-- `b`
-- `ctx`
-- `chat`
-- `userId`
-- `justCheck`
-
-#### `CanUserRestrict`
-
-```go
-func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool
-```
-
-CanUserRestrict checks if a user has permission to restrict other members. Handles anonymous admins and validates the CanRestrictMembers permission. If justCheck is false, sends error messages to user.  nolint:dupl // Permission check functions follow same pattern by design
-
-**Parameters:**
-- `b`
-- `ctx`
-- `chat`
-- `userId`
-- `justCheck`
-
-#### `Caninvite`
-
-```go
-func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message, justCheck bool) bool
-```
-
-Caninvite checks if the bot and user have permissions to generate invite links. Returns true immediately if the chat has a public username. Validates both bot and user permissions for invite link generation.
+CanInvite checks if the bot and user have permissions to generate invite links. Returns true immediately if the chat has a public username. Validates both bot and user permissions for invite link generation.
 
 **Parameters:**
 - `b`
 - `ctx`
 - `chat`
 - `msg`
-- `justCheck`
+
+#### `CanUserChangeInfo`
+
+```go
+func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
+```
+
+CanUserChangeInfo checks if a user has permission to change chat information. Handles anonymous admins and validates the CanChangeInfo permission.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `userId`
+
+#### `CanUserDelete`
+
+```go
+func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
+```
+
+CanUserDelete checks if a user has permission to delete messages in the chat. Handles anonymous admins and validates the CanDeleteMessages permission.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `userId`
+
+#### `CanUserPin`
+
+```go
+func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
+```
+
+CanUserPin checks if a user has permission to pin messages in the chat. Handles anonymous admins and validates the CanPinMessages permission.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `userId`
+
+#### `CanUserPromote`
+
+```go
+func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
+```
+
+CanUserPromote checks if a user has permission to promote/demote other members. Handles anonymous admins and validates the CanPromoteMembers permission.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `userId`
+
+#### `CanUserRestrict`
+
+```go
+func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool
+```
+
+CanUserRestrict checks if a user has permission to restrict other members. Handles anonymous admins and validates the CanRestrictMembers permission.
+
+**Parameters:**
+- `b`
+- `ctx`
+- `chat`
+- `userId`
 
 ### 👤 User Status Checks
 
@@ -363,42 +361,6 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 - `msg`
 - `cmd`
 
-#### `GetChat`
-
-```go
-func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error)
-```
-
-GetChat retrieves a chat by its ID or username directly via the Telegram API. Makes a single API request without caching. Returns the Chat object and any error encountered.
-
-**Parameters:**
-- `bot`
-- `chatId`
-
-#### `GetEffectiveUser`
-
-```go
-func GetEffectiveUser(ctx *ext.Context) *gotgbot.User
-```
-
-GetEffectiveUser safely extracts the user from a given context. Returns the user from `ctx.EffectiveSender.User`, or nil if the context has no effective sender (e.g., channel posts).
-
-**Parameters:**
-- `ctx`
-
-#### `RequireUser`
-
-```go
-func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User
-```
-
-RequireUser ensures a valid user exists in the current context. Wraps GetEffectiveUser and sends an error message if the user is nil and `justCheck` is false. Returns the user if present, nil otherwise.
-
-**Parameters:**
-- `b`
-- `ctx`
-- `justCheck`
-
 ## Special Telegram IDs
 
 | ID | Description |
@@ -415,12 +377,12 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     user := ctx.EffectiveSender.User
     
     // Check if user is admin
-    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
         return ext.EndGroups
     }
     
     // Check if bot can restrict
-    if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+    if !chat_status.CanBotRestrict(b, ctx, chat) {
         return ext.EndGroups
     }
     

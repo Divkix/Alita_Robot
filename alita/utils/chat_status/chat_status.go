@@ -345,123 +345,53 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 
 // CanUserChangeInfo checks if a user has permission to change chat information.
 // Handles anonymous admins and validates the CanChangeInfo permission.
-// If justCheck is false, sends error messages to user.
-func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if canUserChangeInfo(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_change_info_cmd_error",
-		"chat_status_change_info_button_error",
-	)
+func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return canUserChangeInfo(b, ctx, chat, userId)
 }
 
 // CanUserRestrict checks if a user has permission to restrict other members.
 // Handles anonymous admins and validates the CanRestrictMembers permission.
-// If justCheck is false, sends error messages to user.
-func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if canUserRestrict(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_restrict_cmd_error",
-		"chat_status_restrict_button_error",
-	)
+func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return canUserRestrict(b, ctx, chat, userId)
 }
 
 // CanBotRestrict checks if the bot has permission to restrict members in the chat.
 // Validates the bot's CanRestrictMembers permission.
-// If justCheck is false, sends error messages explaining the missing permission.
-func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if canBotRestrict(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_bot_restrict_group_error",
-		"chat_status_bot_restrict_error",
-	)
+func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return canBotRestrict(b, ctx, chat)
 }
 
 // CanUserPromote checks if a user has permission to promote/demote other members.
 // Handles anonymous admins and validates the CanPromoteMembers permission.
-// If justCheck is false, sends error messages to user.
-func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if canUserPromote(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_promote_cmd_error",
-		"chat_status_promote_button_error",
-	)
+func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return canUserPromote(b, ctx, chat, userId)
 }
 
 // CanBotPromote checks if the bot has permission to promote/demote members in the chat.
 // Validates the bot's CanPromoteMembers permission.
-// If justCheck is false, sends error messages explaining the missing permission.
-func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if canBotPromote(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_bot_promote_error",
-		"",
-	)
+func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return canBotPromote(b, ctx, chat)
 }
 
 // CanUserPin checks if a user has permission to pin messages in the chat.
 // Handles anonymous admins and validates the CanPinMessages permission.
-// If justCheck is false, sends error messages to user.
-func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if canUserPin(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_pin_user_error",
-		"",
-	)
+func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return canUserPin(b, ctx, chat, userId)
 }
 
 // CanBotPin checks if the bot has permission to pin messages in the chat.
 // Validates the bot's CanPinMessages permission.
-// If justCheck is false, sends error messages explaining the missing permission.
-func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if canBotPin(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-	return NewPermissionResponder(b).Respond(ctx,
-		"chat_status_pin_bot_error",
-		"",
-	)
+func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return canBotPin(b, ctx, chat)
 }
 
-// Caninvite checks if the bot and user have permissions to generate invite links.
+// CanInvite checks if the bot and user have permissions to generate invite links.
 // Returns true immediately if the chat has a public username.
 // Validates both bot and user permissions for invite link generation.
-func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message, justCheck bool) bool {
+func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
-		log.Error("Caninvite: No chat information available in context")
+		log.Error("CanInvite: No chat information available in context")
 		return false
 	}
 	if chat.Username != "" {
@@ -469,13 +399,10 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
 	if err != nil {
-		log.Errorf("[Caninvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
+		log.Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
 		return false
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
-		if !justCheck {
-			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_bot_error", "")
-		}
 		return false
 	}
 	sender := ctx.EffectiveSender
@@ -490,15 +417,12 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 
 	userid := msg.From.Id
-	userMember, ok := getUserMemberWithCache(b, chat, userid, "Caninvite")
+	userMember, ok := getUserMemberWithCache(b, chat, userid, "CanInvite")
 	if !ok {
 		return false
 	}
 
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
-		if !justCheck {
-			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_user_error", "")
-		}
 		return false
 	}
 	return true
@@ -506,44 +430,20 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 
 // CanUserDelete checks if a user has permission to delete messages in the chat.
 // Handles anonymous admins and validates the CanDeleteMessages permission.
-// If justCheck is false, sends error messages to user.
-func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if canUserDelete(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", WithReply())
+func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return canUserDelete(b, ctx, chat, userId)
 }
 
 // CanBotDelete checks if the bot has permission to delete messages in the chat.
 // Validates the bot's CanDeleteMessages permission.
-// If justCheck is false, sends error messages explaining the missing permission.
-func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if canBotDelete(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", WithReply())
+func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return canBotDelete(b, ctx, chat)
 }
 
 // RequireBotAdmin ensures the bot has administrator privileges in the chat.
 // Uses IsBotAdmin internally to perform the check.
-// If justCheck is false, sends error messages when bot is not admin.
-func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if requireBotAdminPure(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", WithReply())
+func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return requireBotAdminPure(b, ctx, chat)
 }
 
 // IsUserInChat checks if a user is currently a member of the specified chat.
@@ -581,62 +481,30 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 
 // RequireUserAdmin ensures a user has administrator privileges in the chat.
 // Uses IsUserAdmin internally to perform the check.
-// If justCheck is false, sends error messages when user is not admin.
-func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if requireUserAdminPure(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", WithReplyFallback())
+func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return requireUserAdminPure(b, ctx, chat, userId)
 }
 
 // RequireUserOwner ensures a user is the chat creator/owner.
 // Checks for "creator" status specifically, not just administrator.
-// If justCheck is false, sends error messages when user is not the creator.
-func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64, justCheck bool) bool {
-	if requireUserOwnerPure(b, ctx, chat, userId) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", WithReply())
+func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return requireUserOwnerPure(b, ctx, chat, userId)
 }
 
 // RequirePrivate ensures the command is being used in a private chat.
 // Returns false for group chats and supergroups.
-// If justCheck is false, sends error messages explaining the command is for private use only.
 //
 //nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
-func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if requirePrivatePure(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_pm_only_error", "", WithReply())
+func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return requirePrivatePure(b, ctx, chat)
 }
 
 // RequireGroup ensures the command is being used in a group chat.
 // Returns false for private chats.
-// If justCheck is false, sends error messages explaining the command is for group use only.
 //
 //nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
-func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, justCheck bool) bool {
-	if requireGroupPure(b, ctx, chat) {
-		return true
-	}
-	if justCheck {
-		return false
-	}
-
-	return NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", WithReply())
+func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	return requireGroupPure(b, ctx, chat)
 }
 
 // setAnonAdminCache stores anonymous admin message information in cache.
@@ -665,17 +533,9 @@ func GetEffectiveUser(ctx *ext.Context) *gotgbot.User {
 }
 
 // RequireUser ensures a valid user exists in context.
-// If justCheck is false and user is unavailable, sends error message.
 // Returns the user or nil.
-func RequireUser(b *gotgbot.Bot, ctx *ext.Context, justCheck bool) *gotgbot.User {
-	user := GetEffectiveUser(ctx)
-	if user == nil {
-		if !justCheck && ctx != nil && ctx.EffectiveMessage != nil {
-			NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", WithReply())
-		}
-		return nil
-	}
-	return user
+func RequireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User {
+	return GetEffectiveUser(ctx)
 }
 
 // sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.

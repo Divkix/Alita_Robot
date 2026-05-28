@@ -405,7 +405,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // start handles the /start command and displays welcome message with navigation options.
 // Shows different content in private vs group chats and handles start parameters.
 func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}

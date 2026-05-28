@@ -34,11 +34,11 @@ var backupModule = moduleStruct{
 
 // Pending imports storage (in-memory, per chat)
 var (
-	pendingMu        sync.RWMutex
-	pendingImports        = make(map[int64]*db.BackupFormat)
-	pendingImportModules  = make(map[int64][]string)
-	pendingResetModules   = make(map[int64][]string)
-	errNoValidModule = errors.New("no valid modules in arguments")
+	pendingMu            sync.RWMutex
+	pendingImports       = make(map[int64]*db.BackupFormat)
+	pendingImportModules = make(map[int64][]string)
+	pendingResetModules  = make(map[int64][]string)
+	errNoValidModule     = errors.New("no valid modules in arguments")
 
 	backupDownloadBaseURL    = "https://api.telegram.org/file/bot"
 	backupDownloadHTTPClient = &http.Client{}
@@ -91,24 +91,27 @@ func clearPendingReset(chatID int64) {
 func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Check if user is admin
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -199,26 +202,28 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, *gotgbot.Chat, *gotgbot.User, *i18n.Translator, bool) {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return nil, nil, nil, nil, false
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return nil, nil, nil, nil, false
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return nil, nil, nil, nil, false
 	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check if user is the group creator
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = msg.Reply(b, text, helpers.Shtml())
 		return nil, nil, nil, nil, false
@@ -447,28 +452,29 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 
 	if user == nil {
 		return ext.EndGroups
 	}
 
 	// Check if in a group
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Check if bot is admin
-	if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// Check if user is the group creator
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
-		text, _ := tr.GetString("backup_reset_creator_only")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -535,7 +541,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	chat := ctx.EffectiveChat
 
 	// Only creator can confirm import/reset
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, true) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{

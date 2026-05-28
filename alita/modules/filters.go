@@ -148,14 +148,15 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()
 
 	// check permission
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -316,14 +317,15 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 
 	// check permission
-	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
@@ -439,7 +441,7 @@ Only owner can remove all filters from the chat
 //nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -458,7 +460,7 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if chat_status.RequireUserOwner(b, ctx, chat, user.Id, false) {
+	if chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		confirmText, _ := tr.GetString("filters_clear_all_confirm")
 		yesText, _ := tr.GetString("common_yes")
@@ -505,7 +507,8 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	// permission checks
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -578,7 +581,8 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 
 	// permission checks
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
@@ -706,7 +710,7 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if matchText == "" {
 		return ext.ContinueGroups
 	}
-	user := chat_status.RequireUser(b, ctx, true)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.ContinueGroups
 	}
@@ -754,7 +758,8 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if noformatMatch {
 		// check if user is admin or not
-		if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+		if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 

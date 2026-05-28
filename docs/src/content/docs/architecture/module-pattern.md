@@ -40,10 +40,10 @@ func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
     // Permission checks
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 
@@ -291,52 +291,55 @@ Use these functions to validate permissions before executing commands:
 
 | Function | Description | Returns |
 |----------|-------------|---------|
-| `RequireGroup(b, ctx, chat, justCheck)` | Ensures command is in group | `bool` |
-| `RequirePrivate(b, ctx, chat, justCheck)` | Ensures command is in PM | `bool` |
-| `RequireUserAdmin(b, ctx, chat, userId, justCheck)` | User must be admin | `bool` |
-| `RequireBotAdmin(b, ctx, chat, justCheck)` | Bot must be admin | `bool` |
-| `RequireUserOwner(b, ctx, chat, userId, justCheck)` | User must be creator | `bool` |
-| `CanUserRestrict(b, ctx, chat, userId, justCheck)` | User can ban/mute | `bool` |
-| `CanBotRestrict(b, ctx, chat, justCheck)` | Bot can ban/mute | `bool` |
-| `CanUserDelete(b, ctx, chat, userId, justCheck)` | User can delete messages | `bool` |
-| `CanBotDelete(b, ctx, chat, justCheck)` | Bot can delete messages | `bool` |
-| `CanUserPin(b, ctx, chat, userId, justCheck)` | User can pin messages | `bool` |
-| `CanBotPin(b, ctx, chat, justCheck)` | Bot can pin messages | `bool` |
-| `CanUserPromote(b, ctx, chat, userId, justCheck)` | User can promote/demote | `bool` |
-| `CanBotPromote(b, ctx, chat, justCheck)` | Bot can promote/demote | `bool` |
-| `CanUserChangeInfo(b, ctx, chat, userId, justCheck)` | User can change chat info | `bool` |
-| `Caninvite(b, ctx, chat, msg, justCheck)` | Can generate invite links | `bool` |
+| `RequireGroup(b, ctx, chat)` | Ensures command is in group | `bool` |
+| `RequirePrivate(b, ctx, chat)` | Ensures command is in PM | `bool` |
+| `RequireUserAdmin(b, ctx, chat, userId)` | User must be admin | `bool` |
+| `RequireBotAdmin(b, ctx, chat)` | Bot must be admin | `bool` |
+| `RequireUserOwner(b, ctx, chat, userId)` | User must be creator | `bool` |
+| `CanUserRestrict(b, ctx, chat, userId)` | User can ban/mute | `bool` |
+| `CanBotRestrict(b, ctx, chat)` | Bot can ban/mute | `bool` |
+| `CanUserDelete(b, ctx, chat, userId)` | User can delete messages | `bool` |
+| `CanBotDelete(b, ctx, chat)` | Bot can delete messages | `bool` |
+| `CanUserPin(b, ctx, chat, userId)` | User can pin messages | `bool` |
+| `CanBotPin(b, ctx, chat)` | Bot can pin messages | `bool` |
+| `CanUserPromote(b, ctx, chat, userId)` | User can promote/demote | `bool` |
+| `CanBotPromote(b, ctx, chat)` | Bot can promote/demote | `bool` |
+| `CanUserChangeInfo(b, ctx, chat, userId)` | User can change chat info | `bool` |
+| `CanInvite(b, ctx, chat, msg)` | Can generate invite links | `bool` |
 
-### justCheck Parameter
+### Permission Error Handling
 
-- `justCheck = false`: Sends error message to user if check fails
-- `justCheck = true`: Silently returns false without messaging
+Permission checking functions are pure and return only boolean values without sending any error messages to users. When error messaging is desired on failure, the caller must explicitly call `PermissionResponder` to send the response.
 
-:::caution[Double-answer bug with callbacks]
-When using `RequireUserAdmin` with `justCheck=false` in a callback handler, the function already answers the callback query on failure. Do NOT call `query.Answer()` again, or you will get a "callback query already answered" error from Telegram.
-:::
+Example usage:
+```go
+if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+	chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+	return ext.EndGroups
+}
+```
 
 ### Common Permission Patterns
 
 ```go
 // Admin-only command
-if !chat_status.RequireGroup(b, ctx, nil, false) {
+if !chat_status.RequireGroup(b, ctx, nil) {
     return ext.EndGroups
 }
-if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
     return ext.EndGroups
 }
 
 // Command requiring bot to have restrict permissions
-if !chat_status.RequireBotAdmin(b, ctx, nil, false) {
+if !chat_status.RequireBotAdmin(b, ctx, nil) {
     return ext.EndGroups
 }
-if !chat_status.CanBotRestrict(b, ctx, nil, false) {
+if !chat_status.CanBotRestrict(b, ctx, nil) {
     return ext.EndGroups
 }
 
 // Owner-only command
-if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
     return ext.EndGroups
 }
 ```
@@ -447,7 +450,7 @@ func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
     msg := ctx.EffectiveMessage
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
 
@@ -479,10 +482,10 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
     msg := ctx.EffectiveMessage
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil, false) {
+    if !chat_status.RequireGroup(b, ctx, nil) {
         return ext.EndGroups
     }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id, false) {
+    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
         return ext.EndGroups
     }
 

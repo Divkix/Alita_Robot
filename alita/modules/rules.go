@@ -136,7 +136,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		Text, _ = tr.GetString("rules_no_rules_set")
 	}
 
-	if chat_status.RequireGroup(bot, ctx, nil, true) && rules.Private {
+	if chat_status.RequireGroup(bot, ctx, nil) && rules.Private {
 		Text, _ = tr.GetString("rules_click_for_rules")
 		rulesKb = gotgbot.InlineKeyboardMarkup{
 			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -226,7 +226,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}

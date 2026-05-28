@@ -131,25 +131,31 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 // purge handles the /purge command to delete all messages from a replied
 // message up to the command message, requiring admin permissions.
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
+	if !chat_status.CanBotDelete(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -215,25 +221,31 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 // delCmd handles the /del command to delete a specific replied message
 // along with the command message, requiring admin permissions.
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
+	if !chat_status.CanBotDelete(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -266,8 +278,9 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "", "common_cannot_identify_user")
 		return ext.EndGroups
 	}
 
@@ -299,10 +312,12 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	// permissions check
-	if !chat_status.CanUserDelete(b, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(b, ctx, nil, false) {
+	if !chat_status.CanBotDelete(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -320,25 +335,31 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 // purgeFrom handles the /purgefrom command to mark a starting message
 // for range deletion, requiring admin permissions.
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
+	if !chat_status.CanBotDelete(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -404,25 +425,31 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 // purgeTo handles the /purgeto command to complete range deletion
 // from a previously marked message, requiring admin permissions.
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
 	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotDelete(bot, ctx, nil, false) {
+	if !chat_status.CanBotDelete(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id, false) {
+	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

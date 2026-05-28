@@ -46,7 +46,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -65,10 +65,12 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.IsBotAdmin(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 
@@ -224,7 +226,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -240,10 +242,12 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.IsBotAdmin(b, ctx, chat) {
 		return ext.EndGroups
 	}
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 
@@ -375,7 +379,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -385,10 +389,12 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	var rMsg string
 
 	// Permission Checks
-	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id, false) {
+	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
 	}
-	if !chat_status.CanBotRestrict(b, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
 		return ext.EndGroups
 	}
 
@@ -433,7 +439,7 @@ Only chat creator can use this command to remove all blacklists aat once from th
 // Only chat owners can use this command with confirmation via inline keyboard.
 func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
@@ -441,10 +447,12 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -489,7 +497,8 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
 	// permission checks
-	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 

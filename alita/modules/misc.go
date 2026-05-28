@@ -71,7 +71,8 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 
-	if !chat_status.RequireGroup(b, ctx, nil, false) {
+	if !chat_status.RequireGroup(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	if msg.From == nil || !chat_status.IsUserAdmin(b, msg.Chat.Id, msg.From.Id) {
@@ -481,7 +482,8 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	if !chat_status.RequireGroup(b, ctx, chat, false) {
+	if !chat_status.RequireGroup(b, ctx, chat) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 	// if command is disabled, return

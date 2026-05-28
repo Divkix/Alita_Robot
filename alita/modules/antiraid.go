@@ -232,7 +232,10 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.IsBotAdmin(bot, ctx, chat) {
 		return ext.ContinueGroups
 	}
-	if !chat_status.CanBotRestrict(bot, ctx, chat, false) {
+	if !chat_status.CanBotRestrict(bot, ctx, chat) {
+		log.WithFields(log.Fields{
+			"chatId": chat.Id,
+		}).Warn("Antiraid action skipped: bot lacks restrict permissions")
 		return ext.ContinueGroups
 	}
 
@@ -305,18 +308,21 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
 
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -423,17 +429,20 @@ func (a *antiRaidStruct) raidActionTime(bot *gotgbot.Bot, ctx *ext.Context) erro
 func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRaidTime bool) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
@@ -497,17 +506,20 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx, false)
+	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil, false) {
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id, false) {
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil, false) {
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
