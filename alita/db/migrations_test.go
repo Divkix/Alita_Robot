@@ -468,6 +468,34 @@ func TestGetMigrationFiles(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("rollback sql files are ignored", func(t *testing.T) {
+		dir := t.TempDir()
+		names := []string{
+			"001_create_table.sql",
+			"001_create_table.rollback.sql",
+			"002_add_column.sql",
+		}
+		for _, name := range names {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte("SELECT 1;"), 0o600); err != nil {
+				t.Fatalf("failed to create test file: %v", err)
+			}
+		}
+
+		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
+		files, err := runner.getMigrationFiles()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(files) != 2 {
+			t.Fatalf("expected 2 executable migration files, got %d: %v", len(files), files)
+		}
+		for _, f := range files {
+			if strings.HasSuffix(filepath.Base(f), ".rollback.sql") {
+				t.Fatalf("rollback migration should not be executable: %s", f)
+			}
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
