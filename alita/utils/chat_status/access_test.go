@@ -1163,63 +1163,68 @@ func TestCanInviteSendsBotDenialMessage(t *testing.T) {
 	}
 }
 
-func TestCanInviteAnswersCallbackDenialBotPath(t *testing.T) {
-	client := &recordingChatStatusClient{}
-	bot := newRecordingChatStatusBot(998, client)
-	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
-	msg := &gotgbot.Message{
-		MessageId: 204,
-		Date:      1,
-		Chat:      *chat,
-		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
-		Text:      "/invite",
+func TestCanInviteAnswersCallbackDenial(t *testing.T) {
+	tests := []struct {
+		name      string
+		botID     int64
+		msgID     int64
+		userID    int64
+		userName  string
+		queryID   string
+		expectMsg string
+	}{
+		{
+			name:      "BotPath",
+			botID:     998,
+			msgID:     204,
+			userID:    10,
+			userName:  "Full Admin",
+			queryID:   "caninvite-bot-callback",
+			expectMsg: "Caninvite(callback, limited bot) = true, want false",
+		},
+		{
+			name:      "UserPath",
+			botID:     999,
+			msgID:     205,
+			userID:    11,
+			userName:  "Limited Admin",
+			queryID:   "caninvite-user-callback",
+			expectMsg: "Caninvite(callback, limited user) = true, want false",
+		},
 	}
-	query := &gotgbot.CallbackQuery{
-		Id:      "caninvite-bot-callback",
-		From:    gotgbot.User{Id: 10, FirstName: "Full Admin"},
-		Message: *msg,
-	}
-	ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
 
-	if Caninvite(bot, ctx, chat, msg, false) {
-		t.Fatal("Caninvite(callback, limited bot) = true, want false")
-	}
-	if got := client.callsFor("answerCallbackQuery"); got != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
-	}
-	if got := client.callsFor("sendMessage"); got != 0 {
-		t.Fatalf("sendMessage calls = %d, want none", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &recordingChatStatusClient{}
+			bot := newRecordingChatStatusBot(tc.botID, client)
+			chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+			msg := &gotgbot.Message{
+				MessageId: tc.msgID,
+				Date:      1,
+				Chat:      *chat,
+				From:      &gotgbot.User{Id: tc.userID, FirstName: tc.userName},
+				Text:      "/invite",
+			}
+			query := &gotgbot.CallbackQuery{
+				Id:      tc.queryID,
+				From:    gotgbot.User{Id: tc.userID, FirstName: tc.userName},
+				Message: *msg,
+			}
+			ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
+
+			if Caninvite(bot, ctx, chat, msg, false) {
+				t.Fatal(tc.expectMsg)
+			}
+			if got := client.callsFor("answerCallbackQuery"); got != 1 {
+				t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+			}
+			if got := client.callsFor("sendMessage"); got != 0 {
+				t.Fatalf("sendMessage calls = %d, want none", got)
+			}
+		})
 	}
 }
 
-func TestCanInviteAnswersCallbackDenialUserPath(t *testing.T) {
-	client := &recordingChatStatusClient{}
-	bot := newRecordingChatStatusBot(999, client)
-	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
-	msg := &gotgbot.Message{
-		MessageId: 205,
-		Date:      1,
-		Chat:      *chat,
-		From:      &gotgbot.User{Id: 11, FirstName: "Limited Admin"},
-		Text:      "/invite",
-	}
-	query := &gotgbot.CallbackQuery{
-		Id:      "caninvite-user-callback",
-		From:    gotgbot.User{Id: 11, FirstName: "Limited Admin"},
-		Message: *msg,
-	}
-	ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
-
-	if Caninvite(bot, ctx, chat, msg, false) {
-		t.Fatal("Caninvite(callback, limited user) = true, want false")
-	}
-	if got := client.callsFor("answerCallbackQuery"); got != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
-	}
-	if got := client.callsFor("sendMessage"); got != 0 {
-		t.Fatalf("sendMessage calls = %d, want none", got)
-	}
-}
 
 func TestCanBotDeleteSendsDenialMessage(t *testing.T) {
 	client := &recordingChatStatusClient{}
