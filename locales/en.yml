@@ -1562,6 +1562,7 @@ chat_status_pin_user_error: "You can't pin messages here! Make sure you're admin
 chat_status_pin_bot_error: "I can't pin messages here! Make sure I'm admin and can pin messages."
 chat_status_invite_link_bot_error: "I don't have access to invite links! Make sure I'm admin and can invite users."
 chat_status_invite_link_user_error: "You don't have access to invite links; You need to be admin to get this!"
+chat_status_invite_link_btn_error: "You don't have access to invite links!"
 chat_status_delete_button_error: "You don't have permissions to delete messages!!"
 chat_status_delete_cmd_error: "You don't have Permissions to Delete Messages!"
 chat_status_bot_delete_error: "I don't have Permissions to Delete Messages!"

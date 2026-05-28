@@ -1480,6 +1480,7 @@ chat_status_pin_user_error: "Você não pode fixar mensagens aqui! Certifique-se
 chat_status_pin_bot_error: "Eu não posso fixar mensagens aqui! Certifique-se de que sou admin e posso fixar mensagens."
 chat_status_invite_link_bot_error: "Eu não tenho acesso a links de convite! Certifique-se de que sou admin e posso convidar usuários."
 chat_status_invite_link_user_error: "Você não tem acesso a links de convite; Você precisa ser admin para obter isso!"
+chat_status_invite_link_btn_error: "Você não tem acesso a links de convite!"
 chat_status_delete_button_error: "Você não tem permissões para deletar mensagens!!"
 chat_status_delete_cmd_error: "Você não tem Permissões para Deletar Mensagens!"
 chat_status_bot_delete_error: "Eu não tenho Permissões para Deletar Mensagens!"
