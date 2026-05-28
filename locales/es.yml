@@ -1515,7 +1515,6 @@ chat_status_pin_user_error: "¡No puedes anclar mensajes aquí! Asegúrate de se
 chat_status_pin_bot_error: "¡No puedo anclar mensajes aquí! Asegúrate de que soy administrador y puedo anclar mensajes."
 chat_status_invite_link_bot_error: "¡No tengo acceso a enlaces de invitación! Asegúrate de que soy administrador y puedo invitar usuarios."
 chat_status_invite_link_user_error: "No tienes acceso a enlaces de invitación; ¡Necesitas ser administrador para obtener esto!"
-chat_status_invite_link_btn_error: "¡No tienes acceso a enlaces de invitación!"
 chat_status_delete_button_error: "¡¡No tienes permisos para eliminar mensajes!!"
 chat_status_delete_cmd_error: "¡No tienes Permisos para Eliminar Mensajes!"
 chat_status_bot_delete_error: "¡No tengo Permisos para Eliminar Mensajes!"

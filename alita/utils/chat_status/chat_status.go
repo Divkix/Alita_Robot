@@ -474,7 +474,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
 		if !justCheck {
-			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_bot_error", "chat_status_invite_link_btn_error")
+			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_bot_error", "")
 		}
 		return false
 	}
@@ -497,7 +497,7 @@ func Caninvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
 		if !justCheck {
-			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_user_error", "chat_status_invite_link_btn_error")
+			return NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_user_error", "")
 		}
 		return false
 	}

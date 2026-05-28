@@ -1163,7 +1163,7 @@ func TestCanInviteSendsBotDenialMessage(t *testing.T) {
 	}
 }
 
-func TestCanInviteAnswersCallbackDenial(t *testing.T) {
+func TestCanInviteSendsChatMessageOnCallbackDenial(t *testing.T) {
 	tests := []struct {
 		name      string
 		botID     int64
@@ -1215,11 +1215,11 @@ func TestCanInviteAnswersCallbackDenial(t *testing.T) {
 			if Caninvite(bot, ctx, chat, msg, false) {
 				t.Fatal(tc.expectMsg)
 			}
-			if got := client.callsFor("answerCallbackQuery"); got != 1 {
-				t.Fatalf("answerCallbackQuery calls = %d, want one callback answer", got)
+			if got := client.callsFor("answerCallbackQuery"); got != 0 {
+				t.Fatalf("answerCallbackQuery calls = %d, want none", got)
 			}
-			if got := client.callsFor("sendMessage"); got != 0 {
-				t.Fatalf("sendMessage calls = %d, want none", got)
+			if got := client.callsFor("sendMessage"); got != 1 {
+				t.Fatalf("sendMessage calls = %d, want one chat message", got)
 			}
 		})
 	}

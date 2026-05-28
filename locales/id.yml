@@ -1511,7 +1511,6 @@ chat_status_pin_user_error: "Anda tidak dapat menyematkan pesan di sini! Pastika
 chat_status_pin_bot_error: "Saya tidak dapat menyematkan pesan di sini! Pastikan saya admin dan dapat menyematkan pesan."
 chat_status_invite_link_bot_error: "Saya tidak memiliki akses ke tautan undangan! Pastikan saya admin dan dapat mengundang pengguna."
 chat_status_invite_link_user_error: "Anda tidak memiliki akses ke tautan undangan; Anda perlu menjadi admin untuk mendapatkan ini!"
-chat_status_invite_link_btn_error: "Anda tidak memiliki akses ke tautan undangan!"
 chat_status_delete_button_error: "Anda tidak memiliki izin untuk menghapus pesan!!"
 chat_status_delete_cmd_error: "Anda tidak memiliki Izin untuk Menghapus Pesan!"
 chat_status_bot_delete_error: "Saya tidak memiliki Izin untuk Menghapus Pesan!"
