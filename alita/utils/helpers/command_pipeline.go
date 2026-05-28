@@ -30,8 +30,11 @@ type CommandContext struct {
 // and returns the populated struct. If user extraction fails, an error sentinel
 // is returned so the wrapper can return ext.EndGroups without invoking checks.
 func BuildCommandContext(b *gotgbot.Bot, ctx *ext.Context) (*CommandContext, error) {
-	user := chat_status.RequireUser(b, ctx, false)
+	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		if ctx != nil && ctx.EffectiveMessage != nil {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
+		}
 		return nil, ext.EndGroups
 	}
 	return &CommandContext{
@@ -131,7 +134,9 @@ func register(dispatcher *ext.Dispatcher, desc CommandDescriptor, h handlers.Res
 }
 
 // --- pre-built check function builders ---
-// All wrappers use justCheck=false to enable automatic error messaging.
+// All wrappers call pure permission checks and explicitly invoke
+// PermissionResponder when checks fail. This absorbs the messaging
+// responsibility so module handlers using the pipeline need no changes.
 
 // CheckDisabled returns a CheckFunc that blocks the command when
 // chat_status.CheckDisabledCmd reports it disabled in the current chat.
@@ -148,7 +153,11 @@ func CheckDisabled(cmdName string) CheckFunc {
 // (not private). If the check fails, an error message is sent automatically.
 func RequireGroup() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.RequireGroup(c.Bot, c.Ctx, nil, false)
+		result := chat_status.RequireGroup(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		}
+		return result
 	}
 }
 
@@ -156,7 +165,11 @@ func RequireGroup() CheckFunc {
 // privileges in the chat.
 func RequireBotAdmin() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.RequireBotAdmin(c.Bot, c.Ctx, nil, false)
+		result := chat_status.RequireBotAdmin(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+		}
+		return result
 	}
 }
 
@@ -167,7 +180,11 @@ func RequireUserAdmin() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.RequireUserAdmin(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.RequireUserAdmin(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		}
+		return result
 	}
 }
 
@@ -178,7 +195,11 @@ func RequireUserOwner() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+		}
+		return result
 	}
 }
 
@@ -189,7 +210,11 @@ func CanUserPromote() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.CanUserPromote(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.CanUserPromote(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
+		}
+		return result
 	}
 }
 
@@ -197,7 +222,11 @@ func CanUserPromote() CheckFunc {
 // members.
 func CanBotPromote() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.CanBotPromote(c.Bot, c.Ctx, nil, false)
+		result := chat_status.CanBotPromote(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_promote_error", "")
+		}
+		return result
 	}
 }
 
@@ -208,7 +237,11 @@ func CanUserRestrict() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+		}
+		return result
 	}
 }
 
@@ -216,7 +249,11 @@ func CanUserRestrict() CheckFunc {
 // members.
 func CanBotRestrict() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.CanBotRestrict(c.Bot, c.Ctx, nil, false)
+		result := chat_status.CanBotRestrict(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		}
+		return result
 	}
 }
 
@@ -227,14 +264,22 @@ func CanUserPin() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.CanUserPin(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.CanUserPin(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_user_error", "")
+		}
+		return result
 	}
 }
 
 // CanBotPin returns a CheckFunc that ensures the bot can pin messages.
 func CanBotPin() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.CanBotPin(c.Bot, c.Ctx, nil, false)
+		result := chat_status.CanBotPin(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_bot_error", "")
+		}
+		return result
 	}
 }
 
@@ -245,14 +290,22 @@ func CanUserChangeInfo() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
+		}
+		return result
 	}
 }
 
 // CanBotDelete returns a CheckFunc that ensures the bot can delete messages.
 func CanBotDelete() CheckFunc {
 	return func(c *CommandContext) bool {
-		return chat_status.CanBotDelete(c.Bot, c.Ctx, nil, false)
+		result := chat_status.CanBotDelete(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
+		}
+		return result
 	}
 }
 
@@ -263,7 +316,11 @@ func CanUserDelete() CheckFunc {
 		if c.User == nil {
 			return false
 		}
-		return chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id, false)
+		result := chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+		}
+		return result
 	}
 }
 
@@ -274,7 +331,11 @@ func CanInvite() CheckFunc {
 		if c.Msg == nil {
 			return false
 		}
-		return chat_status.Caninvite(c.Bot, c.Ctx, nil, c.Msg, false)
+		result := chat_status.Caninvite(c.Bot, c.Ctx, nil, c.Msg)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_invite_link_bot_error", "")
+		}
+		return result
 	}
 }
 
