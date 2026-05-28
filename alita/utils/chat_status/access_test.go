@@ -1141,3 +1141,142 @@ func TestIsChannelId(t *testing.T) {
 		t.Fatal("IsChannelId(1) should be false")
 	}
 }
+
+func TestCanInviteSendsBotDenialMessage(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	msg := &gotgbot.Message{
+		MessageId: 204,
+		Date:      1,
+		Chat:      *chat,
+		From:      &gotgbot.User{Id: 10, FirstName: "Full Admin"},
+		Text:      "/invite",
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
+
+	if Caninvite(bot, ctx, chat, msg, false) {
+		t.Fatal("Caninvite(limited bot) = true, want false")
+	}
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one bot-permission denial", got)
+	}
+}
+
+func TestCanBotDeleteSendsDenialMessage(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithMessage("supergroup")
+
+	if CanBotDelete(bot, ctx, chat, false) {
+		t.Fatal("CanBotDelete(limited bot) = true, want false")
+	}
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one bot-permission denial", got)
+	}
+}
+
+func TestCanBotDeleteAnswersCallbackDenial(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(998, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	if CanBotDelete(bot, ctx, chat, false) {
+		t.Fatal("CanBotDelete(callback, limited bot) = true, want false")
+	}
+	// Current behavior: CanBotDelete does NOT handle callbacks specially,
+	// it uses msg.Reply even in callback context. After migration with
+	// empty btnKey and WithReply(), PermissionResponder will also use
+	// msg.Reply, preserving behavior.
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message (not callback answer)", got)
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none (current behavior doesn't handle callbacks)", got)
+	}
+}
+
+func TestRequireBotAdminAnswersCallbackDenial(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(42, client)
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+	ctx := makeCtxWithCallbackQuery()
+
+	if RequireBotAdmin(bot, ctx, chat, false) {
+		t.Fatal("RequireBotAdmin(callback, member bot) = true, want false")
+	}
+	// Current behavior: RequireBotAdmin does NOT handle callbacks specially
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none", got)
+	}
+}
+
+func TestRequireGroupAnswersCallbackDenial(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+
+	// Callback query with a private chat (RequireGroup should deny)
+	msg := gotgbot.Message{
+		MessageId: 102,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+	}
+	query := &gotgbot.CallbackQuery{
+		Id:      "permission-callback",
+		From:    gotgbot.User{Id: 42, FirstName: "Member"},
+		Message: msg,
+	}
+	ctx := ext.NewContext(bot, &gotgbot.Update{CallbackQuery: query}, nil)
+
+	if RequireGroup(bot, ctx, nil, false) {
+		t.Fatal("RequireGroup(callback, private) = true, want false")
+	}
+	// Current behavior: RequireGroup does NOT handle callbacks specially
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none", got)
+	}
+}
+
+func TestRequirePrivateAnswersCallbackDenial(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	ctx := makeCtxWithCallbackQuery()
+
+	if RequirePrivate(bot, ctx, nil, false) {
+		t.Fatal("RequirePrivate(callback, group) = true, want false")
+	}
+	// Current behavior: RequirePrivate does NOT handle callbacks specially
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none", got)
+	}
+}
+
+func TestRequireUserAnswersCallbackDenial(t *testing.T) {
+	client := &recordingChatStatusClient{}
+	bot := newRecordingChatStatusBot(999, client)
+	ctx := makeCtxWithCallbackQuery()
+	ctx.EffectiveSender = nil
+
+	if got := RequireUser(bot, ctx, false); got != nil {
+		t.Fatalf("RequireUser(callback, nil sender) = %#v, want nil", got)
+	}
+	// Current behavior: RequireUser does NOT handle callbacks specially
+	if got := client.callsFor("sendMessage"); got != 1 {
+		t.Fatalf("sendMessage calls = %d, want one denial message", got)
+	}
+	if got := client.callsFor("answerCallbackQuery"); got != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want none", got)
+	}
+}
