@@ -9,6 +9,7 @@ import (
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -51,7 +52,7 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 
 	// Check for nil message to prevent panic
 	if msg == nil {
-		result.ErrorMsg, _ = tr.GetString("helpers_invalid_message")
+		result.ErrorMsg, _ = tr.GetString("content_invalid_message")
 		if result.ErrorMsg == "" {
 			result.ErrorMsg = "Invalid message: message is nil" // fallback
 		}
@@ -59,12 +60,12 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	}
 
 	if isFilter {
-		result.ErrorMsg, _ = tr.GetString("helpers_need_filter_content")
+		result.ErrorMsg, _ = tr.GetString("content_need_filter_content")
 		if result.ErrorMsg == "" {
 			result.ErrorMsg = "You need to give the filter some content!" // fallback
 		}
 	} else {
-		result.ErrorMsg, _ = tr.GetString("helpers_need_note_content")
+		result.ErrorMsg, _ = tr.GetString("content_need_note_content")
 		if result.ErrorMsg == "" {
 			result.ErrorMsg = "You need to give the note some content!" // fallback
 		}
@@ -155,7 +156,7 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
-	template, _ := tr.GetString("helpers_need_content")
+	template, _ := tr.GetString("content_need_content")
 	if template == "" {
 		template = "You need to give me some content to %s users!" // fallback
 	}
@@ -198,12 +199,36 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 // Detects {private}, {noprivate}, {admin}, {preview}, {protect}, {nonotif} tags.
 // Returns boolean flags for each option and the text with tags removed.
 func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif bool, sentBack string) {
-	pvtOnly, _ = regexp.MatchString(`({private})`, sent)
-	grpOnly, _ = regexp.MatchString(`({noprivate})`, sent)
-	adminOnly, _ = regexp.MatchString(`({admin})`, sent)
-	webPrev, _ = regexp.MatchString(`({preview})`, sent)
-	protectedContent, _ = regexp.MatchString(`({protect})`, sent)
-	noNotif, _ = regexp.MatchString(`({nonotif})`, sent)
+	pvtOnly, err := regexp.MatchString(`({private})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	grpOnly, err = regexp.MatchString(`({noprivate})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	adminOnly, err = regexp.MatchString(`({admin})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	webPrev, err = regexp.MatchString(`({preview})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	protectedContent, err = regexp.MatchString(`({protect})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	noNotif, err = regexp.MatchString(`({nonotif})`, sent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	sent = strings.NewReplacer(
 		"{private}", "",
@@ -228,11 +253,11 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 
 	if *dataType == db.TEXT && textRuneCount > 4096 {
 		*dataType = -1
-		template, _ := tr.GetString("helpers_text_too_long")
+		template, _ := tr.GetString("content_text_too_long")
 		*errorMsg = fmt.Sprintf(template, textRuneCount)
 	} else if *dataType != db.TEXT && textRuneCount > 1024 {
 		*dataType = -1
-		template, _ := tr.GetString("helpers_caption_too_long")
+		template, _ := tr.GetString("content_caption_too_long")
 		*errorMsg = fmt.Sprintf(template, textRuneCount)
 	} else {
 		for i, button := range buttons {
