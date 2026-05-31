@@ -15,7 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 var reactionsModule = moduleStruct{
@@ -109,7 +109,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		b,
 		helpText,
 		&gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
@@ -161,7 +161,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) < 3 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_usage")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -176,7 +176,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if emoji == "" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_invalid_emoji")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -190,7 +190,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cm == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_error")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -214,7 +214,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_error")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -223,7 +223,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		"keyword": keyword,
 		"emoji":   emoji,
 	})
-	_, err = msg.Reply(b, text, helpers.Shtml())
+	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -257,7 +257,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_usage")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -271,7 +271,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cm == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_error")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -280,7 +280,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_not_found")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -288,7 +288,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if reactionsMap == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_not_found")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -298,7 +298,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ := tr.GetString("reactions_keyword_not_found", i18n.TranslationParams{
 			"keyword": keyword,
 		})
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -315,7 +315,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Reactions] Failed to update reactions: %v", err)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("reactions_remove_error")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 	}
@@ -324,7 +324,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("reactions_remove_success", i18n.TranslationParams{
 		"keyword": keyword,
 	})
-	_, err = msg.Reply(b, text, helpers.Shtml())
+	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -349,7 +349,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cm == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -358,7 +358,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -366,7 +366,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(reactionsMap) == 0 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -380,7 +380,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("reactions_list_header", i18n.TranslationParams{
 		"list": sb.String(),
 	})
-	_, err = msg.Reply(b, text, helpers.Shtml())
+	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -415,7 +415,7 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	if cm == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_error")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -426,7 +426,7 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_reset_success")
-	_, err := msg.Reply(b, text, helpers.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err

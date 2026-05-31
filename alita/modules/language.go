@@ -13,7 +13,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
@@ -21,7 +22,7 @@ var languagesModule = moduleStruct{moduleName: "Languages"}
 // genFullLanguageKb generates the complete language selection keyboard.
 // Creates inline buttons for all available languages plus a translation contribution link.
 func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
-	keyboard := helpers.MakeLanguageKeyboard()
+	keyboard := keyboard.MakeLanguageKeyboard()
 	tr := i18n.MustNewTranslator("en")
 	helpTranslateText, _ := tr.GetString("language_help_translate")
 	keyboard = append(
@@ -52,7 +53,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(cLang)
 
 	if ctx.Message.Chat.Type == "private" {
-		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": helpers.GetLangFormat(cLang)})
+		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
 
 		// language won't be changed if user is not admin
@@ -61,7 +62,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": helpers.GetLangFormat(cLang)})
+		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	}
 
 	_, err := msg.Reply(
@@ -139,7 +140,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 			return ext.EndGroups
 		}
-		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
+		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
 		// User is admin (already verified above)
 		if err := db.ChangeGroupLanguage(chat.Id, language); err != nil {
@@ -148,7 +149,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
 			return ext.EndGroups
 		}
-		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": helpers.GetLangFormat(language)})
+		replyString, _ = tr.GetString("language_changed_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	}
 
 	if query.Message == nil {
@@ -170,7 +171,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		b,
 		replyString,
 		&gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},

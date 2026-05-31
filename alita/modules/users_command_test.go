@@ -85,11 +85,11 @@ func TestLogUsersPersistsAnonymousChannelSender(t *testing.T) {
 		Username: "news_channel",
 	}
 	msg := &gotgbot.Message{
-		MessageId: 101,
-		Date:      1,
-		Chat:      chat,
+		MessageId:  101,
+		Date:       1,
+		Chat:       chat,
 		SenderChat: &channel,
-		Text:      "channel post",
+		Text:       "channel post",
 	}
 	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 4, Message: msg}, nil)
 

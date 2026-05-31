@@ -11,7 +11,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -254,7 +254,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 			},
 		)
 		if err != nil {
@@ -304,7 +304,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			b,
 			currText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
@@ -358,7 +358,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Sort the module names
 	if slices.Contains([]string{"BackStart", "Help"}, module) {
-		parsemode = helpers.HTML
+		parsemode = formatting.HTML
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		switch module {
 		case "Help":
@@ -420,7 +420,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err := msg.Reply(b,
 				startHelpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode: helpers.HTML,
+					ParseMode: formatting.HTML,
 					LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 						IsDisabled: true,
 					},
@@ -443,7 +443,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("help_pm_questions")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -465,7 +465,7 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 			return text
 		}(),
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
@@ -582,7 +582,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		b,
 		text,
 		&gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
@@ -623,7 +623,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, err := b.SendMessage(chat.Id,
 				mainHelpText,
 				&gotgbot.SendMessageOpts{
-					ParseMode:   helpers.HTML,
+					ParseMode:   formatting.HTML,
 					ReplyMarkup: &markup,
 				},
 			)
@@ -673,7 +673,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := msg.Reply(b,
 			moduleHelpString,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				ReplyParameters: &gotgbot.ReplyParameters{
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,

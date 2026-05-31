@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -30,7 +31,7 @@ var rulesModule = moduleStruct{
 func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -39,7 +40,7 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	db.SetChatRules(chat.Id, "")
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_cleared_successfully")
-	_, err := msg.Reply(bot, text, helpers.Shtml())
+	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -53,7 +54,7 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -84,7 +85,7 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(bot, text, helpers.Shtml())
+	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -102,7 +103,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, false, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -157,7 +158,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 				MessageId:                replyMsgId,
 				AllowSendingWithoutReply: true,
 			},
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		},
 	)
 	if err != nil {
@@ -173,7 +174,7 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -195,7 +196,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				// No text provided after command - show error
 				text, _ = tr.GetString("rules_need_text")
-				_, err := msg.Reply(bot, text, helpers.Shtml())
+				_, err := msg.Reply(bot, text, formatting.Shtml())
 				if err != nil {
 					log.Error(err)
 					return err
@@ -207,7 +208,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString("rules_set_successfully")
 	}
 
-	_, err := msg.Reply(bot, text, helpers.Shtml())
+	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -221,7 +222,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -259,7 +260,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err = msg.Reply(bot, text, helpers.Shtml())
+	_, err = msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -275,7 +276,7 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(bot, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -284,7 +285,7 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	db.SetChatRulesButton(chat.Id, "")
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_button_cleared")
-	_, err := msg.Reply(bot, text, helpers.Shtml())
+	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err

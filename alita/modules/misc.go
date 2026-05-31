@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 
 	log "github.com/sirupsen/logrus"
 
@@ -97,7 +98,7 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 				ReplyParameters: &gotgbot.ReplyParameters{
 					MessageId: replyMsg.MessageId,
 				},
-				ParseMode: helpers.Shtml().ParseMode,
+				ParseMode: formatting.Shtml().ParseMode,
 			},
 		)
 		if err != nil {
@@ -206,7 +207,7 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err := msg.Reply(b,
 		builder.String(),
-		helpers.Shtml(),
+		formatting.Shtml(),
 	)
 	if err != nil {
 		log.Error(err)
@@ -231,7 +232,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	pingingText, _ := tr.GetString("misc_pinging")
 	sendStart := time.Now()
 	sentMsg, err := msg.Reply(b, pingingText, &gotgbot.SendMessageOpts{
-		ParseMode: helpers.HTML,
+		ParseMode: formatting.HTML,
 	})
 	sendLatency := time.Since(sendStart)
 	if err != nil {
@@ -262,7 +263,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		userId = msg.From.Id
 	}
 	_, _, err = sentMsg.EditText(b, text, &gotgbot.EditMessageTextOpts{
-		ParseMode: helpers.HTML,
+		ParseMode: formatting.HTML,
 	})
 	if err != nil {
 		log.WithError(err).Error("[Ping] Failed to edit ping response")
@@ -335,7 +336,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 				text += fmt.Sprintf("\n"+usernameTemplate, user.Username)
 			}
 			linkTemplate, _ := tr.GetString("misc_user_link")
-			text += fmt.Sprintf("\n"+linkTemplate, helpers.MentionHtml(user.Id, "link"))
+			text += fmt.Sprintf("\n"+linkTemplate, formatting.MentionHtml(user.Id, "link"))
 			if user.Id == config.AppConfig.OwnerId {
 				ownerText, _ := tr.GetString("misc_owner_info")
 				text += "\n" + ownerText
@@ -347,7 +348,7 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(b, text, helpers.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -375,7 +376,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 && msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("misc_need_text_and_lang")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -391,7 +392,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("misc_no_text_to_translate")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if len(args) == 0 {
@@ -404,7 +405,7 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(args[1:]) < 1 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("misc_provide_text_translate")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		// args[0] is the language code
@@ -441,12 +442,12 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			"response":    string(all),
 		}).Warn("[Misc] Failed to parse translation response")
 		text, _ := tr.GetString("misc_translate_parse_error")
-		_, _ = msg.Reply(b, text, helpers.Shtml())
+		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	textTemplate, _ := tr.GetString("misc_translate_result")
 	text := fmt.Sprintf(textTemplate, detectedLang, translatedText)
-	_, _ = msg.Reply(b, text, helpers.Shtml())
+	_, _ = msg.Reply(b, text, formatting.Shtml())
 	return ext.EndGroups
 }
 

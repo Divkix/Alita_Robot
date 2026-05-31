@@ -10,7 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 func TestModuleEnabled_StoreAndLoad(t *testing.T) {
@@ -204,7 +204,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	ctx := newModuleMessageContext(bot, chat, user, "/help admin")
 
 	helpText, kb, parseMode := getHelpTextAndMarkup(ctx, "admin", DefaultHelpRegistry())
-	if parseMode != helpers.HTML {
+	if parseMode != formatting.HTML {
 		t.Fatalf("parseMode = %q, want HTML", parseMode)
 	}
 	if !strings.Contains(helpText, "Admin") {
@@ -527,7 +527,7 @@ func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, user, "/help "+tc.moduleName)
 			helpText, kb, parseMode := getHelpTextAndMarkup(ctx, tc.moduleName, localRegistry)
-			if parseMode != helpers.HTML {
+			if parseMode != formatting.HTML {
 				t.Fatalf("parseMode = %q, want HTML", parseMode)
 			}
 			if tc.wantContains != "" && !strings.Contains(helpText, tc.wantContains) {

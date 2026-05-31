@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -48,7 +49,7 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 					convertHowto,
 					"https://telegra.ph/Convert-group-to-Supergroup-07-29",
 				),
-				helpers.Shtml(),
+				formatting.Shtml(),
 			)
 			if err != nil {
 				log.Error(err)
@@ -325,7 +326,7 @@ func (m botUpdatesModule) Load(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMyChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
-				wasMember, isMember := helpers.ExtractJoinLeftStatusChange(u)
+				wasMember, isMember := chat_status.ExtractJoinLeftStatusChange(u)
 				return !wasMember && isMember
 			},
 			botJoinedGroup,
@@ -335,7 +336,7 @@ func (m botUpdatesModule) Load(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandler(
 		handlers.NewChatMember(
-			helpers.ExtractAdminUpdateStatusChange,
+			chat_status.ExtractAdminUpdateStatusChange,
 			adminCacheAutoUpdate,
 		),
 	)

@@ -284,7 +284,7 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			want:  true,
 		},
 		{
-			name: "CheckDisabled in private chat (always false)",
+			name:  "CheckDisabled in private chat (always false)",
 			check: CheckDisabled("kick"),
 			c: &CommandContext{
 				Bot: newCpBot(999),
@@ -494,7 +494,7 @@ func TestWrapCommandRawShortCircuitsOnCheckFailure(t *testing.T) {
 		return nil
 	}
 
-	 WrapCommandRaw(d, CommandDescriptor{
+	WrapCommandRaw(d, CommandDescriptor{
 		Name:           "testrawfail",
 		RequiredChecks: []CheckFunc{RequireGroup()},
 	}, handler)

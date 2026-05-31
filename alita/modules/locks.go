@@ -17,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -152,7 +153,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, false, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -161,7 +162,7 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	header, _ := tr.GetString("locks_locktypes_header")
-	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), helpers.Shtml())
+	_, err := msg.Reply(b, header+strings.Join(_locktypes, "\n - "), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -179,13 +180,13 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	chat := helpers.IsUserConnected(b, ctx, true, true)
+	chat := chat_status.IsUserConnected(b, ctx, true, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
 	ctx.EffectiveChat = chat
 
-	_, err := msg.Reply(b, m.buildLockTypesMessage(chat.Id), helpers.Shtml())
+	_, err := msg.Reply(b, m.buildLockTypesMessage(chat.Id), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -201,7 +202,7 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -227,7 +228,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("locks_what_to_lock")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -242,7 +243,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
 			text := fmt.Sprintf(temp, perm)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -266,7 +267,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(failedLocks) > 0 {
 		// Some locks failed
 		text, _ := tr.GetString("locks_lock_failed")
-		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), helpers.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -275,7 +276,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		// All locks succeeded
 		temp, _ := tr.GetString("locks_locked_successfully")
 		text := fmt.Sprintf(temp, strings.Join(toLock, "\n - "))
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -292,7 +293,7 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -318,7 +319,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("locks_what_to_unlock")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -333,7 +334,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("locks_invalid_lock_type")
 			text := fmt.Sprintf(temp, perm)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -357,7 +358,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(failedLocks) > 0 {
 		// Some unlocks failed
 		text, _ := tr.GetString("locks_unlock_failed")
-		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), helpers.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -366,7 +367,7 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		// All unlocks succeeded
 		temp, _ := tr.GetString("locks_unlocked_successfully")
 		text := fmt.Sprintf(temp, strings.Join(toUnlock, "\n - "))
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -497,7 +498,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !chat_status.IsBotAdmin(b, ctx, nil) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("locks_bot_lock_no_permission")
-		_, err := b.SendMessage(chat.Id, text, helpers.Shtml())
+		_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -518,7 +519,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
 	text, _ := tr.GetString("locks_bot_only_admins")
-	_, err = b.SendMessage(chat.Id, text, helpers.Shtml())
+	_, err = b.SendMessage(chat.Id, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err

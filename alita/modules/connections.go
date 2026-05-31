@@ -15,7 +15,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 var ConnectionsModule = moduleStruct{moduleName: "Connections"}
@@ -56,12 +58,12 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 	_text := fmt.Sprintf(temp, chat.Title)
-	connKeyboard := helpers.InitButtons(b, chat.Id, user.Id)
+	connKeyboard := keyboard.InitButtons(b, chat.Id, user.Id)
 	_, err = msg.Reply(b,
 		_text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: connKeyboard,
-			ParseMode:   helpers.HTML,
+			ParseMode:   formatting.HTML,
 		},
 	)
 	if err != nil {
@@ -119,7 +121,7 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(b, text, helpers.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -160,7 +162,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			db.ConnectId(user.Id, chat.Id)
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
 			text = fmt.Sprintf(temp, chat.Title)
-			replyMarkup = helpers.InitButtons(b, chat.Id, user.Id)
+			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
 		}
 	} else {
 		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
@@ -188,7 +190,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 		text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: replyMarkup,
-			ParseMode:   helpers.HTML,
+			ParseMode:   formatting.HTML,
 		},
 	)
 	if err != nil {
@@ -267,14 +269,14 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 		replyText = fmt.Sprintf(temp, pchat.Title)
-		replyKb = helpers.InitButtons(b, pchat.Id, user.Id)
+		replyKb = keyboard.InitButtons(b, pchat.Id, user.Id)
 	}
 
 	_, _, err := msg.EditText(b,
 		replyText,
 		&gotgbot.EditMessageTextOpts{
 			ReplyMarkup: replyKb,
-			ParseMode:   helpers.HTML,
+			ParseMode:   formatting.HTML,
 		},
 	)
 	if err != nil {
@@ -321,7 +323,7 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_need_pm")
 	}
 
-	_, err := msg.Reply(b, text, helpers.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -402,14 +404,14 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
 			text = fmt.Sprintf(temp, gchat.Title)
-			connKeyboard = helpers.InitButtons(b, gchat.Id, user.Id)
+			connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
 		} else {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")
 		}
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
 				ReplyMarkup: connKeyboard,
-				ParseMode:   helpers.HTML,
+				ParseMode:   formatting.HTML,
 			},
 		)
 		if err != nil {
@@ -419,7 +421,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	} else {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_need_pm")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err

@@ -10,6 +10,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
 // GetLangFormat returns a formatted language display string with name and flag emoji.
@@ -75,4 +76,52 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 	}
 
 	return ChunkKeyboardSlices(kb, 2)
+}
+
+// InitButtons creates an inline keyboard markup for the connection menu.
+// Shows admin commands button if the user is an admin, otherwise shows only user commands.
+func InitButtons(b *gotgbot.Bot, chatId, userId int64) gotgbot.InlineKeyboardMarkup {
+	return InitButtonsWithLanguage(b, chatId, userId, "en")
+}
+
+// InitButtonsWithLanguage creates an inline keyboard markup with localized button text.
+func InitButtonsWithLanguage(b *gotgbot.Bot, chatId, userId int64, language string) gotgbot.InlineKeyboardMarkup {
+	tr := i18n.MustNewTranslator(language)
+	adminText, _ := tr.GetString("helpers_admin_commands")
+	if adminText == "" {
+		adminText = "Admin commands" // fallback
+	}
+	userText, _ := tr.GetString("helpers_user_commands")
+	if userText == "" {
+		userText = "User commands" // fallback
+	}
+
+	var connButtons [][]gotgbot.InlineKeyboardButton
+	if chat_status.IsUserAdmin(b, chatId, userId) {
+		connButtons = [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         adminText,
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "Admin"}, "connbtns.Admin"),
+				},
+			},
+			{
+				{
+					Text:         userText,
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "User"}, "connbtns.User"),
+				},
+			},
+		}
+	} else {
+		connButtons = [][]gotgbot.InlineKeyboardButton{
+			{
+				{
+					Text:         userText,
+					CallbackData: callbackcodec.EncodeOrFallback("connbtns", map[string]string{"t": "User"}, "connbtns.User"),
+				},
+			},
+		}
+	}
+	connKeyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: connButtons}
+	return connKeyboard
 }

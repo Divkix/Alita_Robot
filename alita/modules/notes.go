@@ -19,7 +19,9 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
@@ -42,7 +44,7 @@ func newNotesOverwriteToken() (string, error) {
 //nolint:dupl // addNote shares validation logic with filters module by design
 func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -67,7 +69,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.ReplyToMessage != nil && len(args) <= 1 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_keyword_required")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -76,7 +78,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if len(args) <= 2 && msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_invalid")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -84,9 +86,10 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteWord, fileid, text, dataType, buttons, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif, errorMsg := helpers.GetNoteAndFilterType(msg, false, db.GetLanguage(ctx))
+	result := content.ExtractNoteAndFilter(msg, false, db.GetLanguage(ctx))
+	noteWord, fileid, text, dataType, buttons, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif, errorMsg := result.KeyWord, result.FileID, result.Text, result.DataType, result.Buttons, result.PvtOnly, result.GrpOnly, result.AdminOnly, result.WebPreview, result.IsProtected, result.NoNotif, result.ErrorMsg
 	if dataType == -1 && errorMsg != "" {
-		_, err := msg.Reply(b, errorMsg, helpers.Shtml())
+		_, err := msg.Reply(b, errorMsg, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -111,7 +114,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Notes] Failed to generate overwrite token: %v", tokenErr)
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			errorText, _ := tr.GetString("notes_overwrite_token_failed")
-			_, _ = msg.Reply(b, errorText, helpers.Shtml())
+			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
 		notesOverwriteMap.Store(token, overwriteNote{
@@ -137,7 +140,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err := msg.Reply(b,
 			overwriteText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 						{
@@ -172,7 +175,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Errorf("[Notes] Failed to add note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		errorText, _ := tr.GetString("notes_save_failed")
-		_, err := msg.Reply(b, errorText, helpers.Shtml())
+		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -180,7 +183,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := msg.Reply(b, fmt.Sprintf(noteString, noteWord, noteWord, noteWord), helpers.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(noteString, noteWord, noteWord, noteWord), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -194,7 +197,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -209,7 +212,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 1 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_remove_keyword_required")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -234,7 +237,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -248,7 +251,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		errorText, _ := tr.GetString("error_generic")
-		_, err := msg.Reply(b, errorText, helpers.Shtml())
+		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -258,7 +261,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("notes_removed_success")
-	_, err := msg.Reply(b, fmt.Sprintf(text, noteWord), helpers.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(text, noteWord), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -312,7 +315,7 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			txt, _ = tr.GetString("notes_private_status_off")
 		}
 	}
-	_, err := msg.Reply(b, txt, helpers.Smarkdown())
+	_, err := msg.Reply(b, txt, formatting.Smarkdown())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -329,7 +332,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, false, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -345,7 +348,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	info, _ := tr.GetString("notes_none_in_chat")
 
 	if len(noteKeys) == 0 {
-		_, err := msg.Reply(b, info, helpers.Shtml())
+		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -367,7 +370,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 				b.Username, chat.Id, note, note)
 		}
 		info += sb.String()
-		_, err := msg.Reply(b, info, helpers.Shtml())
+		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -410,7 +413,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info += sb.String()
 		instructionText, _ := tr.GetString("notes_get_instruction")
 		info += instructionText
-		_, err := msg.Reply(b, info, helpers.Shtml())
+		_, err := msg.Reply(b, info, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -442,7 +445,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(noteKeys) == 0 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_none_in_chat")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -486,7 +489,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_creator_only")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -773,7 +776,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_parsing_error")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -787,7 +790,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("notes_admin_only")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -810,7 +813,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		// send private note if private notes is enabled or note is private, and it is not group note
 		if privateNoteOnly {
 			if ctx.Message.Chat.Type == "private" {
-				_, err = helpers.SendNote(b, chat, ctx, noteData, replyMsgId)
+				_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
 			} else {
 				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 				clickForPrivateText, _ := tr.GetString("notes_click_for_private")
@@ -831,12 +834,12 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 								},
 							},
 						},
-						ParseMode: helpers.Markdown,
+						ParseMode: formatting.Markdown,
 					},
 				)
 			}
 		} else {
-			_, err = helpers.SendNote(b, chat, ctx, noteData, replyMsgId)
+			_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
 		}
 	}
 
@@ -857,7 +860,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, false, false)
+	connectedChat := chat_status.IsUserConnected(b, ctx, false, false)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -869,7 +872,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_get_insufficient_args")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -895,7 +898,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_does_not_exist")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -909,7 +912,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	if noteData.NoteContent == "" && noteData.FileID == "" {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_parsing_error_support")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -923,7 +926,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("notes_admin_only_access")
-			_, err = msg.Reply(b, text, helpers.Shtml())
+			_, err = msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -952,7 +955,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 							},
 						},
 					},
-					ParseMode: helpers.Markdown,
+					ParseMode: formatting.Markdown,
 					ReplyParameters: &gotgbot.ReplyParameters{
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
@@ -960,7 +963,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			)
 		} else {
-			_, err = helpers.SendNote(b, chat, ctx, noteData, replyMsgId)
+			_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
 		}
 	}
 
@@ -988,10 +991,10 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 	}
 
 	// Reverse notedata
-	noteData.NoteContent = helpers.ReverseHTML2MD(noteData.NoteContent)
+	noteData.NoteContent = formatting.ReverseHTML2MD(noteData.NoteContent)
 
 	// show the buttons back as text
-	noteData.NoteContent += helpers.RevertButtons(noteData.Buttons)
+	noteData.NoteContent += content.RevertButtons(noteData.Buttons)
 
 	// Send note using the new media package
 	// raw note does not need webpreview

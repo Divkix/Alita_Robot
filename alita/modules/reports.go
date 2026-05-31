@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -109,7 +110,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_admin_report")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -137,7 +138,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if reportedUser.Id == b.Id {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_why_report_myself")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -147,7 +148,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	if slices.Contains(adminArray, reportedUser.Id) {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_why_report_admin")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -159,22 +160,22 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
 		reportTemplate,
-		helpers.MentionHtml(user.Id, user.FirstName),
-		helpers.MentionHtml(reportedUser.Id, reportedUser.FirstName),
+		formatting.MentionHtml(user.Id, user.FirstName),
+		formatting.MentionHtml(reportedUser.Id, reportedUser.FirstName),
 	)
 	var sb strings.Builder
 	for _, adminUserId := range adminArray {
 		if !db.GetUserReportSettings(adminUserId).Status {
 			continue
 		}
-		sb.WriteString(helpers.MentionHtml(adminUserId, "\u2063"))
+		sb.WriteString(formatting.MentionHtml(adminUserId, "\u2063"))
 	}
 	reported += sb.String()
 
 	_, err = msg.Reply(b,
 		reported,
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			ReplyParameters: &gotgbot.ReplyParameters{
 				MessageId:                replyMsgId,
 				AllowSendingWithoutReply: true,
@@ -188,7 +189,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								t, _ := tr.GetString("reports_button_message")
 								return t
 							}(),
-							Url: helpers.GetMessageLinkFromMessageId(chat, reportedMsgId),
+							Url: chat_status.GetMessageLinkFromMessageId(chat, reportedMsgId),
 						},
 					},
 					{
@@ -263,7 +264,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 //nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -344,7 +345,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 							replyText, _ = tr.GetString("common_settings_save_failed")
 						} else {
 							replyText, _ = tr.GetString("reports_user_blocked", i18n.TranslationParams{
-								"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+								"s": formatting.MentionHtml(bUser.Id, bUser.FirstName),
 							})
 						}
 					}
@@ -368,7 +369,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 							replyText, _ = tr.GetString("common_settings_save_failed")
 						} else {
 							replyText, _ = tr.GetString("reports_user_unblocked", i18n.TranslationParams{
-								"s": helpers.MentionHtml(bUser.Id, bUser.FirstName),
+								"s": formatting.MentionHtml(bUser.Id, bUser.FirstName),
 							})
 						}
 					}
@@ -396,7 +397,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 							continue
 						}
 						builder.WriteString("\n - ")
-						builder.WriteString(helpers.MentionHtml(blockUserId, bUser.FirstName))
+						builder.WriteString(formatting.MentionHtml(blockUserId, bUser.FirstName))
 					}
 					replyText = builder.String()
 				}
@@ -426,7 +427,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText += hintText
 	}
 
-	_, err = msg.Reply(b, replyText, helpers.Shtml())
+	_, err = msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -497,7 +498,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	case "kick":
 		replyQuery, _ = tr.GetString("reports_success_kick")
 		kickedText, _ := tr.GetString("reports_user_kicked")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
+		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
 		_, err := chat.BanMember(b, userId, nil)
 		if err != nil {
@@ -515,7 +516,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	case "ban":
 		replyQuery, _ = tr.GetString("reports_success_ban")
 		bannedText, _ := tr.GetString("reports_user_banned")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
+		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", bannedText, actionBy)
 		_, err := chat.BanMember(b, userId, nil)
 		if err != nil {
@@ -526,12 +527,12 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	case "delete":
 		replyQuery, _ = tr.GetString("reports_success_delete")
 		deletedText, _ := tr.GetString("reports_message_deleted")
-		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
+		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
 		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId)
 	default:
 		replyQuery, _ = tr.GetString("reports_resolved_success")
-		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": helpers.MentionHtml(user.Id, user.FirstName)})
+		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 
 	}
 	_, _, err = msg.EditText(
@@ -539,7 +540,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyText,
 		&gotgbot.EditMessageTextOpts{
 			ChatId:    chat.Id,
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		},
 	)
 	if err != nil {

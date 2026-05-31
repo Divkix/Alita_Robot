@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -43,7 +44,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg := ctx.EffectiveMessage
 		// connection status
-		connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+		connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 		if connectedChat == nil {
 			return ext.EndGroups
 		}
@@ -75,7 +76,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 
 		if len(args) == 0 {
 			text, _ := tr.GetString(cfg.emptyArgsMsgKey)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -117,7 +118,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		if len(successCmds) > 0 {
 			temp, _ := tr.GetString(cfg.successMsgKey)
 			text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
-			_, err := msg.Reply(b, text, helpers.Smarkdown())
+			_, err := msg.Reply(b, text, formatting.Smarkdown())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -169,7 +170,7 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	text += sb.String()
 
-	_, err := msg.Reply(b, text, helpers.Smarkdown())
+	_, err := msg.Reply(b, text, formatting.Smarkdown())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -194,7 +195,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, false, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -235,7 +236,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 			fmt.Fprintf(&sb, "\n - `%s`", cmds)
 		}
 		text += sb.String()
-		_, err := msg.Reply(b, text, helpers.Smarkdown())
+		_, err := msg.Reply(b, text, formatting.Smarkdown())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -258,7 +259,7 @@ or not to. If no argument is given, the current chat setting is returned
 func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -300,7 +301,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(b, text, helpers.Smarkdown())
+	_, err := msg.Reply(b, text, formatting.Smarkdown())
 	if err != nil {
 		log.Error(err)
 		return err
