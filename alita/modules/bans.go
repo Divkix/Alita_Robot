@@ -239,6 +239,45 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 	}
 }
 
+// banReplyWithButton builds and sends the success reply for ban commands
+// with an inline unban button.
+func banReplyWithButton(c *moderationCtx, t *target) error {
+	banUser, err := c.Bot.GetChat(t.userID, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
+	if t.reason != "" {
+		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
+		baseStr += fmt.Sprintf(temp, t.reason)
+	}
+
+	text := fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName))
+
+	_, err = c.Msg.Reply(c.Bot, text,
+		&gotgbot.SendMessageOpts{
+			ParseMode: formatting.HTML,
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{
+						{
+							Text:         func() string { t, _ := c.Tr.GetString("bans_unban_button"); return t }(),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}, fmt.Sprintf("unrestrict.unban.%d", t.userID)),
+						},
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
 // moderationBan is the shared moderationCommand definition for /ban.
 // Handles both regular users and anonymous channels with inline unban button.
 func moderationBan(m *moduleStruct) *moderationCommand {
@@ -293,31 +332,8 @@ func moderationBan(m *moduleStruct) *moderationCommand {
 				}
 				sendMsgOptns = formatting.Shtml()
 			} else {
-				_, name, _ := extraction.GetUserInfo(t.userID)
-
-				baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_normal_ban")
-				if t.reason != "" {
-					temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
-					baseStr += fmt.Sprintf(temp, t.reason)
-				}
-
-				text = fmt.Sprintf(baseStr, formatting.MentionHtml(t.userID, name))
-
-				sendMsgOptns = &gotgbot.SendMessageOpts{
-					ParseMode: formatting.HTML,
-					ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-						InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-							{
-								{
-									Text:         func() string { t, _ := c.Tr.GetString("bans_unban_button"); return t }(),
-									CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}, fmt.Sprintf("unrestrict.unban.%d", t.userID)),
-								},
-							},
-						},
-					},
-				}
+				return banReplyWithButton(c, t)
 			}
-
 			_, err := c.Msg.Reply(c.Bot, text, sendMsgOptns)
 			if err != nil {
 				log.Error(err)
@@ -347,96 +363,227 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 	}
 }
 
+// moderationKickme is the shared moderationCommand definition for /kickme.
+func moderationKickme(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module: m,
+		gates: []gateFn{
+			func(c *moderationCtx) bool {
+				if !chat_status.RequireGroup(c.Bot, c.Ctx, nil) {
+					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+					return false
+				}
+				if !chat_status.CanBotRestrict(c.Bot, c.Ctx, nil) {
+					chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+					return false
+				}
+				return true
+			},
+		},
+		extract: func(c *moderationCtx) (target, error) {
+			// Don't allow admins to use the command
+			if chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id) {
+				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_is_admin")
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return target{}, err
+				}
+				return target{}, fmt.Errorf("user is admin")
+			}
+			return target{userID: c.User.Id}, nil
+		},
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
+			if err != nil {
+				return err
+			}
+			// Use non-blocking approach with goroutine for delayed unban with timeout
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.WithField("panic", r).Error("Panic in delayed kickme unban goroutine")
+					}
+				}()
+
+				// Create context with timeout to prevent goroutine from hanging indefinitely
+				timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				timer := time.NewTimer(2 * time.Second)
+				defer timer.Stop()
+
+				select {
+				case <-timer.C:
+					_, unbanErr := c.Chat.UnbanMember(c.Bot, t.userID, nil)
+					if unbanErr != nil {
+						log.WithFields(log.Fields{
+							"chatId": c.Chat.Id,
+							"userId": t.userID,
+							"error":  unbanErr,
+						}).Error("Failed to unban user after kickme")
+					}
+				case <-timeoutCtx.Done():
+					log.WithFields(log.Fields{
+						"chatId": c.Chat.Id,
+						"userId": t.userID,
+					}).Warn("Kickme unban operation timed out")
+				}
+			}()
+			return nil
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_ok_out")
+			_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+// moderationSban is the shared moderationCommand definition for /sban.
+func moderationSban(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:   m,
+		gates:    []gateFn{standardModGates, deleteModGates},
+		extract:  extractUserOnly,
+		validate: banTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
+			if err != nil {
+				return err
+			}
+			_, err = c.Msg.Delete(c.Bot, nil)
+			return err
+		},
+		reply: nil,
+	}
+}
+
+// moderationDban is the shared moderationCommand definition for /dban.
+func moderationDban(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:  m,
+		gates:   []gateFn{standardModGates, deleteModGates},
+		extract: extractFromArgs,
+		validate: func(c *moderationCtx, t *target) error {
+			if c.Msg.ReplyToMessage == nil {
+				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_dban_no_reply")
+				if text == "" {
+					text, _ = c.Tr.GetString("common_no_reply_to_message")
+				}
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return fmt.Errorf("no reply")
+			}
+			return banTargetValidation(c, t)
+		},
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
+			return err
+		},
+		reply: banReplyWithButton,
+	}
+}
+
+// moderationUnban is the shared moderationCommand definition for /unban.
+// Supports both regular users and anonymous channels.
+func moderationUnban(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module: m,
+		gates:  []gateFn{standardModGates},
+		extract: func(c *moderationCtx) (target, error) {
+			uid := extraction.ExtractUser(c.Bot, c.Ctx)
+			if uid == -1 {
+				return target{}, fmt.Errorf("extraction failed")
+			}
+			if uid == 0 {
+				noUserKey := "common_no_user_specified"
+				text, _ := c.Tr.GetString(noUserKey)
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return target{}, err
+				}
+				return target{}, fmt.Errorf("no user")
+			}
+			return target{userID: uid, isChannel: chat_status.IsChannelId(uid)}, nil
+		},
+		validate: func(c *moderationCtx, t *target) error {
+			if t.userID == c.Bot.Id {
+				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_unban_is_bot_itself")
+				if text == "" {
+					text, _ = c.Tr.GetString("common_cannot_target_self")
+				}
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return errTargetIsBot
+			}
+			return nil
+		},
+		execute: func(c *moderationCtx, t *target) error {
+			if t.isChannel {
+				if c.Msg.ReplyToMessage != nil {
+					t.userID = c.Msg.ReplyToMessage.GetSender().Id()
+					_, err := c.Bot.UnbanChatSenderChat(c.Chat.Id, t.userID, nil)
+					return err
+				}
+				return nil
+			}
+			_, err := c.Chat.UnbanMember(c.Bot, t.userID, nil)
+			return err
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			var text string
+			if t.isChannel {
+				if c.Msg.ReplyToMessage != nil {
+					temp, _ := c.Tr.GetString("bans_anonymous_unban_user")
+					text = fmt.Sprintf(temp, formatting.MentionHtml(t.userID, c.Msg.ReplyToMessage.GetSender().Name()))
+				} else {
+					text, _ = c.Tr.GetString("bans_anonymous_unban_reply_only")
+				}
+			} else {
+				banUser, err := c.Bot.GetChat(t.userID, nil)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_unban_unbanned_user")
+				text = fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName))
+			}
+			_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		},
+	}
+}
+
 // kick delegates to the shared moderationKick command template.
 func (m moduleStruct) kick(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationKick(&m).run(b, ctx)
 }
 
-/*
-	Used to kick a user from group
-
-The Bot should be admin with ban permissions in order to use this
-*/
 // kickme handles the /kickme command allowing users to remove themselves.
 // Only works for non-admin users who want to leave the group.
 func (m moduleStruct) kickme(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	// Don't allow admins to use the command
-	if chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kickme_is_admin")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// kick the member using ban+unban sequence
-	_, err := chat.BanMember(b, user.Id, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	// Use non-blocking approach with goroutine for delayed unban with timeout
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.WithField("panic", r).Error("Panic in delayed kickme unban goroutine")
-			}
-		}()
-
-		// Create context with timeout to prevent goroutine from hanging indefinitely
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		timer := time.NewTimer(2 * time.Second)
-		defer timer.Stop()
-
-		select {
-		case <-timer.C:
-			_, unbanErr := chat.UnbanMember(b, user.Id, nil)
-			if unbanErr != nil {
-				log.WithFields(log.Fields{
-					"chatId": chat.Id,
-					"userId": user.Id,
-					"error":  unbanErr,
-				}).Error("Failed to unban user after kickme")
-			}
-		case <-timeoutCtx.Done():
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"userId": user.Id,
-			}).Warn("Kickme unban operation timed out")
-		}
-	}()
-
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kickme_ok_out")
-	_, err = msg.Reply(b, text, formatting.Shtml())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+	return moderationKickme(&m).run(b, ctx)
 }
 
 /* Used to temporarily ban a user from chat
@@ -468,321 +615,19 @@ The Bot, Banner should be admin with ban permissions in order to use this */
 // sBan handles the /sban command to silently ban a user.
 // Bans the user and deletes the command message without notification.
 func (m moduleStruct) sBan(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("bans_anonymous_ban_only_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_is_admin")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, err := chat.BanMember(b, userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	_, err = msg.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+	return moderationSban(&m).run(b, ctx)
 }
-
-/* Used to Ban a user from group and delete their message
-
-This deletes the message of replied user
-
-The Bot, Banner should be admin with ban permissions in order to use this */
 
 // dBan handles the /dban command to delete a message and ban the sender.
 // Removes the replied-to message and permanently bans the user.
 func (m moduleStruct) dBan(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("bans_anonymous_ban_only_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_is_admin")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if msg.ReplyToMessage == nil {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_dban_no_reply")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, err := msg.ReplyToMessage.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	_, err = chat.BanMember(b, userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	banUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	baseStr, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_normal_ban")
-	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_ban_reason")
-		baseStr += fmt.Sprintf(temp, reason)
-	}
-
-	_, err = msg.Reply(b,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(banUser.Id, banUser.FirstName)),
-		&gotgbot.SendMessageOpts{
-			ParseMode: formatting.HTML,
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         func() string { t, _ := tr.GetString("bans_unban_button"); return t }(),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unban.%d", userId)),
-						},
-					},
-				},
-			},
-		},
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+	return moderationDban(&m).run(b, ctx)
 }
-
-/* Used to Unban a user from group
-
-The Bot, Unbanner should be admin with ban permissions in order to use this */
 
 // unban handles the /unban command to remove a ban from a user.
 // Supports both regular users and anonymous channels.
 func (m moduleStruct) unban(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-	var text string
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId := extraction.ExtractUser(b, ctx)
-	switch userId {
-	case -1:
-		return ext.EndGroups
-	case 0:
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if userId == b.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unban_is_bot_itself")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsChannelId(userId) {
-		if msg.ReplyToMessage != nil {
-			userId = msg.ReplyToMessage.GetSender().Id()
-			_, err := b.UnbanChatSenderChat(chat.Id, userId, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			temp, _ := tr.GetString("bans_anonymous_unban_user")
-			text = fmt.Sprintf(temp, formatting.MentionHtml(userId, msg.ReplyToMessage.GetSender().Name()))
-		} else {
-			text, _ = tr.GetString("bans_anonymous_unban_reply_only")
-		}
-	} else {
-		_, err := chat.UnbanMember(b, userId, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		banUser, err := b.GetChat(userId, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unban_unbanned_user")
-		text = fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName))
-	}
-
-	_, err := msg.Reply(b, text, formatting.Shtml())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+	return moderationUnban(&m).run(b, ctx)
 }
 
 /* Used to Restrict members from a chat
