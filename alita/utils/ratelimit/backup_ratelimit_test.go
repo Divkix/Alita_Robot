@@ -1,3 +1,5 @@
+//go:build testtools
+
 package ratelimit
 
 import (
@@ -7,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	gocache "github.com/eko/gocache/lib/v4/cache"
-	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -49,7 +49,7 @@ func TestGetBackupRateLimiter_Singleton(t *testing.T) {
 	})
 
 	// Reset the singleton state for a clean test.
-	once = sync.Once{}
+	once = &sync.Once{}
 	backupLimiter = nil
 
 	first := GetBackupRateLimiter()
@@ -111,122 +111,11 @@ func TestBackupRateLimiter_RecordMethods_NilCache_NoPanic(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// In-memory mock store for cache-backed tests
-// ---------------------------------------------------------------------------
-
-// memoryStore is a simple in-memory implementation of store.StoreInterface.
-type memoryStore struct {
-	mu   sync.RWMutex
-	data map[string][]byte
-	ttls map[string]time.Time
-}
-
-func newMemoryStore() *memoryStore {
-	return &memoryStore{
-		data: make(map[string][]byte),
-		ttls: make(map[string]time.Time),
-	}
-}
-
-func (m *memoryStore) Get(_ context.Context, key any) (any, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	k := fmt.Sprint(key)
-	if expiry, ok := m.ttls[k]; ok && time.Now().After(expiry) {
-		return nil, fmt.Errorf("key expired")
-	}
-	v, ok := m.data[k]
-	if !ok {
-		return nil, fmt.Errorf("key not found")
-	}
-	return v, nil
-}
-
-func (m *memoryStore) GetWithTTL(_ context.Context, key any) (any, time.Duration, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	k := fmt.Sprint(key)
-	v, ok := m.data[k]
-	if !ok {
-		return nil, 0, fmt.Errorf("key not found")
-	}
-	var ttl time.Duration
-	if expiry, ok := m.ttls[k]; ok {
-		ttl = time.Until(expiry)
-		if ttl < 0 {
-			return nil, 0, fmt.Errorf("key expired")
-		}
-	}
-	return v, ttl, nil
-}
-
-func (m *memoryStore) Set(_ context.Context, key, value any, options ...store.Option) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	k := fmt.Sprint(key)
-	opts := store.ApplyOptions(options...)
-	var data []byte
-	switch v := value.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return fmt.Errorf("unsupported value type %T", value)
-	}
-	m.data[k] = data
-	if opts.Expiration > 0 {
-		m.ttls[k] = time.Now().Add(opts.Expiration)
-	} else {
-		delete(m.ttls, k)
-	}
-	return nil
-}
-
-func (m *memoryStore) Delete(_ context.Context, key any) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	k := fmt.Sprint(key)
-	delete(m.data, k)
-	delete(m.ttls, k)
-	return nil
-}
-
-func (m *memoryStore) Invalidate(_ context.Context, _ ...store.InvalidateOption) error {
-	return nil
-}
-
-func (m *memoryStore) Clear(_ context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.data = make(map[string][]byte)
-	m.ttls = make(map[string]time.Time)
-	return nil
-}
-
-func (m *memoryStore) GetType() string {
-	return "memory"
-}
-
-// setupTestCache sets an in-memory marshaler via cache.SetMarshal and registers t.Cleanup
-// so the original value is always restored regardless of test exit path.
-func setupTestCache(t *testing.T) {
-	t.Helper()
-	orig := cache.GetMarshal()
-	mem := newMemoryStore()
-	cm := gocache.New[any](mem)
-	cache.SetMarshal(marshaler.New(cm))
-	t.Cleanup(func() {
-		cache.SetMarshal(orig)
-	})
-}
-
-// ---------------------------------------------------------------------------
 // recordOperation / getLastOperation with in-memory cache
 // ---------------------------------------------------------------------------
 
 func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99901)
@@ -267,7 +156,7 @@ func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99902)
@@ -295,7 +184,7 @@ func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99903)
@@ -320,7 +209,7 @@ func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanReset_AllowedThenBlocked(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99904)
@@ -345,7 +234,7 @@ func TestBackupRateLimiter_CanReset_AllowedThenBlocked(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99905)
@@ -368,7 +257,7 @@ func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99906)
@@ -389,7 +278,7 @@ func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99907)
@@ -410,7 +299,7 @@ func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
 }
 
 func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	cacheKey := "backup:unknown:12345"
@@ -428,7 +317,7 @@ func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
 }
 
 func TestBackupRateLimiter_getLastOperation_CacheError(t *testing.T) {
-	setupTestCache(t)
+	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99908)
