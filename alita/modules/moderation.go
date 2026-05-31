@@ -78,8 +78,9 @@ func deleteModGates(c *moderationCtx) bool {
 
 // target holds the resolved target user and optional reason text.
 type target struct {
-	userID int64
-	reason string
+	userID  int64
+	reason  string
+	timeVal string // used by time-based commands (e.g., tban)
 }
 
 // extractFromArgs resolves the target from command arguments using ExtractUserAndText.
@@ -142,7 +143,31 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		}
 		return target{}, fmt.Errorf("nil from")
 	}
-	return target{userID: c.Msg.ReplyToMessage.From.Id}, nil
+	uid := c.Msg.ReplyToMessage.From.Id
+	if chat_status.IsChannelId(uid) {
+		anonKey := "bans_anonymous_ban_only_error"
+		text, _ := c.Tr.GetString(anonKey)
+		if text == "" {
+			text, _ = c.Tr.GetString("common_anonymous_user_error")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return target{}, err
+		}
+		return target{}, fmt.Errorf("anonymous user")
+	}
+	if uid == 0 {
+		noUserKey := "common_no_user_specified"
+		text, _ := c.Tr.GetString(noUserKey)
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return target{}, err
+		}
+		return target{}, fmt.Errorf("no user")
+	}
+	return target{userID: uid}, nil
 }
 
 // validateTargetFn checks the resolved target before executing the action.

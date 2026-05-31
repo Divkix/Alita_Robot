@@ -142,6 +142,36 @@ func kickReply(c *moderationCtx, t *target) error {
 	return nil
 }
 
+// banTargetValidation validates the target for ban commands.
+// Checks: not ban-protected, not the bot itself.
+func banTargetValidation(c *moderationCtx, t *target) error {
+	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
+		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_is_admin")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_admin")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return errAdminTarget
+	}
+	if t.userID == c.Bot.Id {
+		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_is_bot_itself")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_self")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return errTargetIsBot
+	}
+	return nil
+}
+
 // moderationDkick is the shared moderationCommand definition for /dkick.
 // It deletes the replied message and kicks the user.
 func moderationDkick(m *moduleStruct) *moderationCommand {
@@ -163,6 +193,49 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 			return err
 		},
 		reply: kickReply,
+	}
+}
+
+// moderationTban is the shared moderationCommand definition for /tban.
+func moderationTban(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:   m,
+		gates:    []gateFn{standardModGates},
+		extract:  extractFromArgs,
+		validate: banTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
+			if _time == -1 {
+				return ext.EndGroups
+			}
+			t.timeVal = timeVal
+			t.reason = reason
+			_, err := c.Chat.BanMember(c.Bot, t.userID, &gotgbot.BanChatMemberOpts{UntilDate: _time})
+			return err
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			banUser, err := c.Bot.GetChat(t.userID, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_tban")
+			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName), t.timeVal)
+			if t.reason != "" {
+				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_ban_reason")
+				if temp != "" {
+					baseStr += fmt.Sprintf(temp, t.reason)
+				}
+			}
+
+			_, err = c.Msg.Reply(c.Bot, baseStr, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		},
 	}
 }
 
@@ -284,118 +357,7 @@ The Bot, Kick should be admin with ban permissions in order to use this */
 // tBan handles the /tban command to temporarily ban a user.
 // Bans a user for a specified time period with optional reason.
 func (m moduleStruct) tBan(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("bans_anonymous_ban_only_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_is_admin")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if userId == b.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_is_bot_itself")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// Extract Time
-	_time, timeVal, reason := extraction.ExtractTime(b, ctx, reason)
-	if _time == -1 {
-		return ext.EndGroups
-	}
-
-	_, err := chat.BanMember(b,
-		userId,
-		&gotgbot.BanChatMemberOpts{
-			UntilDate: _time,
-		},
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	banUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_tban")
-	baseStr := fmt.Sprintf(temp, formatting.MentionHtml(banUser.Id, banUser.FirstName), timeVal)
-	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_ban_ban_reason")
-		baseStr += fmt.Sprintf(temp, reason)
-	}
-
-	_, err = msg.Reply(
-		b,
-		baseStr,
-		formatting.Shtml(),
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+	return moderationTban(&m).run(b, ctx)
 }
 
 /* Used to indefinitely ban a user from group
