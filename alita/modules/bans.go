@@ -398,38 +398,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 			if err != nil {
 				return err
 			}
-			// Use non-blocking approach with goroutine for delayed unban with timeout
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.WithField("panic", r).Error("Panic in delayed kickme unban goroutine")
-					}
-				}()
-
-				// Create context with timeout to prevent goroutine from hanging indefinitely
-				timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-
-				timer := time.NewTimer(2 * time.Second)
-				defer timer.Stop()
-
-				select {
-				case <-timer.C:
-					_, unbanErr := c.Chat.UnbanMember(c.Bot, t.userID, nil)
-					if unbanErr != nil {
-						log.WithFields(log.Fields{
-							"chatId": c.Chat.Id,
-							"userId": t.userID,
-							"error":  unbanErr,
-						}).Error("Failed to unban user after kickme")
-					}
-				case <-timeoutCtx.Done():
-					log.WithFields(log.Fields{
-						"chatId": c.Chat.Id,
-						"userId": t.userID,
-					}).Warn("Kickme unban operation timed out")
-				}
-			}()
+			delayedUnban(c.Chat, c.Bot, t.userID, "kickme")
 			return nil
 		},
 		reply: func(c *moderationCtx, t *target) error {
@@ -448,7 +417,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 func moderationSban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:   m,
-		gates:    []gateFn{standardModGates, deleteModGates},
+		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -467,7 +436,7 @@ func moderationSban(m *moduleStruct) *moderationCommand {
 func moderationDban(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:  m,
-		gates:   []gateFn{standardModGates, deleteModGates},
+		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
 			if c.Msg.ReplyToMessage == nil {

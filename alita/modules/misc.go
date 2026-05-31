@@ -134,18 +134,21 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("misc_chat_id")
 			text := fmt.Sprintf(temp, msg.Chat.Id)
-			builder.WriteString(text + "\n")
+			builder.WriteString(text)
+			builder.WriteString("\n")
 			if msg.IsTopicMessage {
 				temp2, _ := tr.GetString("misc_thread_id")
 				text = fmt.Sprintf(temp2, msg.MessageThreadId)
-				builder.WriteString(text + "\n")
+				builder.WriteString(text)
+				builder.WriteString("\n")
 			}
 			if msg.ReplyToMessage.From != nil {
 				originalId := msg.ReplyToMessage.From.Id
 				_, user1Name, _ := extraction.GetUserInfo(originalId)
 				temp3, _ := tr.GetString("misc_user_id")
 				text = fmt.Sprintf(temp3, user1Name, originalId)
-				builder.WriteString(text + "\n")
+				builder.WriteString(text)
+				builder.WriteString("\n")
 			}
 
 			if rpm := msg.ReplyToMessage; rpm != nil {
@@ -158,13 +161,15 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 							_, user1Name, _ := extraction.GetUserInfo(user1Id)
 							temp4, _ := tr.GetString("misc_forwarded_from_user")
 							text = fmt.Sprintf(temp4, user1Name, user1Id)
-							builder.WriteString(text + "\n")
+							builder.WriteString(text)
+							builder.WriteString("\n")
 						}
 
 						if fwdc := fwdd.Chat; fwdc != nil {
 							temp5, _ := tr.GetString("misc_forwarded_from_chat")
 							text = fmt.Sprintf(temp5, fwdc.Title, fwdc.Id)
-							builder.WriteString(text + "\n")
+							builder.WriteString(text)
+							builder.WriteString("\n")
 						}
 					}
 				}
@@ -172,12 +177,14 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 			if msg.ReplyToMessage.Animation != nil {
 				temp6, _ := tr.GetString("misc_gif_id")
 				text = fmt.Sprintf(temp6, msg.ReplyToMessage.Animation.FileId)
-				builder.WriteString(text + "\n")
+				builder.WriteString(text)
+				builder.WriteString("\n")
 			}
 			if msg.ReplyToMessage.Sticker != nil {
 				temp7, _ := tr.GetString("misc_sticker_id")
 				text = fmt.Sprintf(temp7, msg.ReplyToMessage.Sticker.FileId)
-				builder.WriteString(text + "\n")
+				builder.WriteString(text)
+				builder.WriteString("\n")
 			}
 		} else {
 			_, name, _ := extraction.GetUserInfo(userId)

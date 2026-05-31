@@ -1223,7 +1223,8 @@ func generatePermissionsReference(permissions []PermissionFunc, outputPath strin
 
 		fmt.Fprintf(&content, "#### `%s`\n\n", perm.Name)
 		content.WriteString("```go\n")
-		content.WriteString(perm.Signature + "\n")
+		content.WriteString(perm.Signature)
+		content.WriteString("\n")
 		content.WriteString("```\n\n")
 
 		if perm.Description != "" {

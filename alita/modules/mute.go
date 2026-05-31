@@ -102,7 +102,7 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 	}
 	if chat_status.IsChannelId(uid) {
 		text, _ := c.Tr.GetString("common_anonymous_user_error")
-		_, err := c.Msg.Reply(c.Bot, text, nil)
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -184,7 +184,7 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 func moderationSmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:    m,
-		gates:     []gateFn{standardModGates, deleteModGates},
+		gates:     []gateFn{deleteModGates},
 		extract:   extractUserOnly,
 		validate:  muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
@@ -202,7 +202,7 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 func moderationDmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:  m,
-		gates:   []gateFn{standardModGates, deleteModGates},
+		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
 		validate: func(c *moderationCtx, t *target) error {
 			if c.Msg.ReplyToMessage == nil {
