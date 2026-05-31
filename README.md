@@ -139,13 +139,13 @@ REDIS_ADDRESS=redis:6379
 ### Step 3: Run with Docker
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 That's it! Your bot should now be running. Check the logs:
 
 ```bash
-docker-compose logs -f alita
+docker compose logs -f alita
 ```
 
 ### Interact with Your Bot
@@ -184,13 +184,13 @@ cp sample.env .env
 # Edit .env with your settings
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f alita
+docker compose logs -f alita
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 Note: Database migrations run automatically in Docker (AUTO_MIGRATE=true).
@@ -250,7 +250,7 @@ chmod +x alita_robot
 
 #### Prerequisites
 
-- Go 1.25 or higher
+- Go 1.26 or higher
 - PostgreSQL 14+
 - Redis 6+
 - Make (optional)
@@ -422,7 +422,7 @@ curl -X POST "https://api.telegram.org/botYOUR_BOT_TOKEN/setWebhook" \
 #### Step 6: Deploy
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 #### Verify Setup
@@ -457,49 +457,61 @@ USE_WEBHOOKS=false
 
 ## 🤖 Bot Commands
 
-### Admin Commands
+Alita provides **158+ commands** organized into modules. Use `/help` in your group for the full list.
 
-- `/promote` - Promote user to admin
-- `/demote` - Demote admin to user
-- `/ban` - Ban a user
-- `/unban` - Unban a user
-- `/mute` - Mute a user
-- `/unmute` - Unmute a user
-- `/kick` - Kick a user
-- `/warn` - Warn a user
-- `/unwarn` - Remove warnings
-- `/setwarnlimit` - Set warning limit
-- `/lock` - Lock message types
-- `/unlock` - Unlock message types
+### 👑 Administration
 
-### User Commands
+- `/promote` `/demote` — Manage admins
+- `/title` — Set custom admin title
+- `/adminlist` — List chat admins
+- `/anonadmin` — Toggle anonymous admin verification
 
-- `/start` - Start the bot
-- `/help` - Get help
-- `/info` - User information
-- `/id` - Get IDs
-- `/ping` - Check bot response
+### 🛡️ Moderation
 
-### Content Management
+- `/ban` `/unban` `/sban` `/dban` `/tban` — Ban users
+- `/kick` `/dkick` `/kickme` — Kick users
+- `/mute` `/unmute` `/smute` `/dmute` `/tmute` — Mute users
+- `/warn` `/dwarn` `/swarn` `/unwarn` `/rmwarn` — Warn users
+- `/setwarnlimit` `/setwarnmode` — Configure warn settings
+- `/tban` `/tmute` — Temporary bans and mutes
+- `/restrict` `/unrestrict` — Restriction menu
+- `/lock` `/unlock` — Lock message types
+- `/setflood` — Configure antiflood
+- `/captcha` `/captchamode` `/captchatime` — CAPTCHA settings
+- `/antiraid` — Raid protection
 
-- `/filter` - Add keyword filter
-- `/filters` - List filters
-- `/stop` - Remove filter
-- `/save` - Save a note
-- `/get` - Get a note
-- `/notes` - List notes
-- `/clear` - Delete a note
+### 💬 Content Management
 
-### Group Settings
+- `/filter` `/filters` `/stop` — Keyword filters
+- `/save` `/get` `/notes` `/clear` — Notes
+- `/setwelcome` `/setgoodbye` `/resetwelcome` `/resetgoodbye` — Greetings
+- `/cleanwelcome` `/cleanservice` — Auto-delete messages
+- `/setrules` `/rules` `/privaterules` — Group rules
+- `/reaction` `/reactions` — Auto-reactions
+- `/blacklist` `/blacklists` `/blacklistmode` — Word filtering
 
-- `/setwelcome` - Set welcome message
-- `/setgoodbye` - Set goodbye message
-- `/resetwelcome` - Reset welcome
-- `/resetgoodbye` - Reset goodbye
-- `/cleanwelcome` - Auto-delete welcomes
-- `/cleanservice` - Auto-delete service messages
-- `/setflood` - Configure antiflood
-- `/blacklist` - Add blacklisted words
+### 🔧 Group Tools
+
+- `/pin` `/unpin` `/permapin` `/unpinall` — Pin management
+- `/purge` `/del` — Message deletion
+- `/invitelink` — Get invite link
+- `/reports` `/report` — Report system
+- `/approve` `/unapprove` `/approval` — Anti-spam approvals
+- `/backup` `/restore` `/reset` — Data backup
+- `/disable` `/enable` — Disable commands
+- `/language` — Change bot language
+
+### 🛠️ User & Misc
+
+- `/start` `/help` `/info` `/id` `/ping` — Basic commands
+- `/tr` `/translate` — Translation
+- `/stats` `/msgstats` — Statistics
+- `/formatting` — Formatting guide
+- `/connect` `/disconnect` — Chat connections
+
+### 🚀 Developer
+
+- `/stats` `/reload` `/restart` `/debug` `/eval` — Dev commands (owner only)
 
 ## 📖 Documentation
 
@@ -507,7 +519,7 @@ USE_WEBHOOKS=false
   the Go codebase
 - **GoDoc Compatible**: Documentation follows Go standards for automatic
   documentation generation
-- **Developer Guide**: See [CLAUDE.md](CLAUDE.md) for detailed architecture and
+- **Developer Guide**: See [AGENTS.md](AGENTS.md) for detailed architecture and
   development guidelines
 - **API Reference**: Run `go doc` or visit
   [pkg.go.dev](https://pkg.go.dev/github.com/divkix/Alita_Robot) for API
@@ -525,8 +537,10 @@ Alita_Robot/
 │   ├── modules/        # Command handlers
 │   ├── utils/          # Utility packages
 │   └── i18n/           # Internationalization
+├── internal/           # Internal packages
 ├── migrations/         # Database migration SQL files
 ├── locales/            # Language files
+├── scripts/            # Support scripts (translation checks, docs generation)
 ├── supabase/           # Supabase CLI configuration
 ├── docs/               # Documentation site (Astro/Starlight)
 └── docker/             # Docker configurations
@@ -534,14 +548,14 @@ Alita_Robot/
 
 ### Development Setup
 
-1. **Install Go 1.25+**
+1. **Install Go 1.26+**
    ```bash
    # macOS
    brew install go
 
    # Linux
-   wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
-   sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+   wget https://go.dev/dl/go1.26.0.linux-amd64.tar.gz
+   sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
    ```
 
 2. **Setup PostgreSQL and Redis**
@@ -711,7 +725,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 - Join our [Support Group](https://t.me/DivideSupport)
 - Check [existing issues](https://github.com/divkix/Alita_Robot/issues)
-- Read the [CLAUDE.md](CLAUDE.md) for codebase details
+- Read the [AGENTS.md](AGENTS.md) for codebase details
 
 ## 🌟 Acknowledgments
 
