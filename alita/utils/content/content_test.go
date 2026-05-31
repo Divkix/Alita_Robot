@@ -1,6 +1,9 @@
+//go:build testtools
+
 package content
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 
@@ -555,6 +558,55 @@ func TestInlineKeyboardToDbButtons(t *testing.T) {
 	if buttons[1].Name != "Single" || buttons[1].SameLine != false {
 		t.Fatal("second button mismatch")
 	}
+}
+
+// InlineKeyboardToDbButtons converts Telegram inline keyboard directly to database button format.
+// Filters out non-URL buttons, validates URLs, and handles same-line button positioning.
+// This is a test helper - not used in production code.
+func InlineKeyboardToDbButtons(replyMarkup *gotgbot.InlineKeyboardMarkup) []db.Button {
+	if replyMarkup == nil {
+		return nil
+	}
+
+	btns := make([]db.Button, 0)
+	for _, inlineKeyboard := range replyMarkup.InlineKeyboard {
+		if len(inlineKeyboard) > 1 {
+			for i, button := range inlineKeyboard {
+				if button.Url == "" {
+					continue
+				}
+				u, err := url.Parse(button.Url)
+				if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+					continue
+				}
+
+				sameline := true
+				if i == 0 {
+					sameline = false
+				}
+				btns = append(btns, db.Button{
+					Name:     button.Text,
+					Url:      button.Url,
+					SameLine: sameline,
+				})
+			}
+		} else if len(inlineKeyboard) > 0 {
+			button := inlineKeyboard[0]
+			if button.Url == "" {
+				continue
+			}
+			u, err := url.Parse(button.Url)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+				continue
+			}
+			btns = append(btns, db.Button{
+				Name:     button.Text,
+				Url:      button.Url,
+				SameLine: false,
+			})
+		}
+	}
+	return btns
 }
 
 func TestInlineKeyboardToDbButtonsNil(t *testing.T) {
