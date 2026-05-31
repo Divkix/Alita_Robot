@@ -745,13 +745,13 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 			greetPrefs.WelcomeSettings.WelcomeText,
 			buttons,
 		)
-		keyboard := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
+		kb := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
 
 		var threadID int64
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, keyboard, threadID)
+		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, kb, threadID)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -876,12 +876,12 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if greetPrefs.GoodbyeSettings.ShouldGoodbye {
 		buttons := db.GetGoodbyeButtons(chat.Id)
 		res, buttons := formatting.FormattingReplacer(bot, chat, &leftMember, greetPrefs.GoodbyeSettings.GoodbyeText, buttons)
-		keyboard := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
+		kb := &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyboard.BuildKeyboard(buttons)}
 		var threadID int64
 		if ctx.EffectiveMessage != nil {
 			threadID = ctx.EffectiveMessage.MessageThreadId
 		}
-		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, keyboard, threadID)
+		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, kb, threadID)
 		if err != nil {
 			log.Error(err)
 			return err

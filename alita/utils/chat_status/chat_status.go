@@ -471,6 +471,10 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	user := ctx.EffectiveUser
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
+	if msg == nil || user == nil {
+		return nil
+	}
+
 	if msg.Chat.Type == "private" {
 		conn := db.Connection(user.Id)
 		if conn.Connected && conn.ChatId != 0 {
@@ -617,6 +621,12 @@ func RequireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User {
 // NOTE: msg.GetLink() only works for supergroups/channels. This custom implementation
 // also handles private groups and non-supergroups by constructing the link manually.
 func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLink string) {
+	// This function expects group/supergroup/channel chats (negative IDs).
+	// For user chats or invalid contexts, return empty string.
+	if chat == nil || chat.Id >= 0 {
+		return ""
+	}
+
 	messageLink = "https://t.me/"
 	chatIdStr := fmt.Sprint(chat.Id)
 	if chat.Username == "" {
