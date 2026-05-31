@@ -3,11 +3,14 @@ package helpers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
 type telegramHelperBotClient struct {
@@ -158,5 +161,144 @@ func TestIsExpectedTelegramErrorClassifiesNilExpectedAndUnexpected(t *testing.T)
 	}
 	if IsExpectedTelegramError(fmt.Errorf("database connection failed")) {
 		t.Fatal("IsExpectedTelegramError(unexpected) = true, want false")
+	}
+}
+
+func TestIsExpectedTelegramErrorKnown(t *testing.T) {
+	t.Parallel()
+
+	knownErrors := []string{
+		"bot was kicked from the group",
+		"bot was blocked by the user",
+		"chat not found",
+		"message can't be deleted",
+		"message to delete not found",
+		"group chat was deactivated",
+		"not enough rights to restrict/unrestrict chat member",
+		"context deadline exceeded",
+		"message thread not found",
+	}
+	for _, msg := range knownErrors {
+		t.Run(msg, func(t *testing.T) {
+			t.Parallel()
+			err := fmt.Errorf("%s", msg)
+			if !IsExpectedTelegramError(err) {
+				t.Fatalf("IsExpectedTelegramError(%q) expected true", msg)
+			}
+		})
+	}
+}
+
+func TestIsExpectedTelegramErrorUnknown(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("some unknown telegram error xyz")
+	if IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError for unknown error expected false")
+	}
+}
+
+func TestIsExpectedTelegramErrorAllStrings(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		errMsg string
+	}{
+		{"CHAT_RESTRICTED", "CHAT_RESTRICTED"},
+		{"bot was kicked from the", "bot was kicked from the group"},
+		{"bot was blocked by the user", "bot was blocked by the user"},
+		{"Forbidden: bot was kicked", "Forbidden: bot was kicked"},
+		{"Forbidden: bot is not a member", "Forbidden: bot is not a member"},
+		{"message thread not found", "message thread not found"},
+		{"thread not found", "thread not found"},
+		{"group chat was deactivated", "group chat was deactivated"},
+		{"chat not found", "chat not found"},
+		{"group chat was upgraded to a supergroup", "group chat was upgraded to a supergroup"},
+		{"timeout awaiting response headers", "timeout awaiting response headers"},
+		{"http2: timeout", "http2: timeout"},
+		{"context deadline exceeded", "context deadline exceeded"},
+		{"not enough rights to restrict/unrestrict chat member", "not enough rights to restrict/unrestrict chat member"},
+		{"not enough rights to send text messages", "not enough rights to send text messages"},
+		{"not enough rights to", "not enough rights to pin"},
+		{"message can't be deleted", "message can't be deleted"},
+		{"message to delete not found", "message to delete not found"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := errors.New(tc.errMsg)
+			if !IsExpectedTelegramError(err) {
+				t.Fatalf("IsExpectedTelegramError(%q) expected true", tc.errMsg)
+			}
+		})
+	}
+}
+
+func TestIsExpectedTelegramErrorSubstring(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("failed: bot was kicked from the group chat")
+	if !IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError with extra context expected true, got false")
+	}
+}
+
+func TestIsExpectedTelegramErrorWrapped(t *testing.T) {
+	t.Parallel()
+
+	err := fmt.Errorf("wrap: %w", errors.New("chat not found"))
+	if !IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError with wrapped error expected true, got false")
+	}
+}
+
+func TestIsExpectedTelegramErrorEmptyError(t *testing.T) {
+	t.Parallel()
+
+	err := errors.New("")
+	if IsExpectedTelegramError(err) {
+		t.Fatalf("IsExpectedTelegramError(\"\") expected false")
+	}
+}
+
+func TestIsPermissionError(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		errStr   string
+		expected bool
+	}{
+		{"not enough rights to send text messages", true},
+		{"have no rights to send a message", true},
+		{"Bad Request: CHAT_WRITE_FORBIDDEN", true},
+		{"Forbidden: CHAT_RESTRICTED", true},
+		{"need administrator rights in the channel chat", true},
+		{"some other error", false},
+		{"Bad Request: message is not modified", false},
+		{"", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.errStr, func(t *testing.T) {
+			t.Parallel()
+			got := IsPermissionError(tc.errStr)
+			if got != tc.expected {
+				t.Errorf("IsPermissionError(%q) = %v, want %v", tc.errStr, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestIsExpectedTelegramError_ErrNoPermission verifies that the ErrNoPermission
+// sentinel value from the media package is classified as an expected Telegram error
+// so the dispatcher logs it at Warn instead of Error.
+func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
+	t.Parallel()
+
+	if !IsExpectedTelegramError(media.ErrNoPermission) {
+		t.Fatalf("IsExpectedTelegramError(media.ErrNoPermission) expected true (ErrNoPermission should be suppressed); got false for %q", media.ErrNoPermission.Error())
 	}
 }

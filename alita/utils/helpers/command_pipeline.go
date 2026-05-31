@@ -338,5 +338,3 @@ func CanInvite() CheckFunc {
 		return result
 	}
 }
-
-

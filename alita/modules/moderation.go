@@ -12,7 +12,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // moderationCtx holds the decomposed context for a moderation command.
@@ -97,7 +97,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_anonymous_user_error")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -107,7 +107,7 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 	if uid == 0 {
 		noUserKey := "common_no_user_specified"
 		text, _ := c.Tr.GetString(noUserKey)
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -126,7 +126,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_no_reply_to_message")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -135,7 +135,7 @@ func extractFromReply(c *moderationCtx) (target, error) {
 	}
 	if c.Msg.ReplyToMessage.From == nil {
 		text, _ := c.Tr.GetString("bans_cannot_identify_user")
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return target{}, err
@@ -164,7 +164,7 @@ func defaultTargetValidation(c *moderationCtx, t *target) error {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_user_not_in_chat")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -176,7 +176,7 @@ func defaultTargetValidation(c *moderationCtx, t *target) error {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_cannot_target_admin")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -188,7 +188,7 @@ func defaultTargetValidation(c *moderationCtx, t *target) error {
 		if text == "" {
 			text, _ = c.Tr.GetString("common_cannot_target_self")
 		}
-		_, err := c.Msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -286,7 +286,7 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 //
 //nolint:unused
 func _mentionHtml(userId int64, name string) string {
-	return helpers.MentionHtml(userId, name)
+	return formatting.MentionHtml(userId, name)
 }
 
 // Sentinel errors used by moderation command templates.

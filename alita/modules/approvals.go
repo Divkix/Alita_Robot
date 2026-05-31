@@ -19,7 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 var approvalsModule = moduleStruct{
@@ -39,7 +39,7 @@ Admin can approve a user in the chat
 func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -62,7 +62,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -73,7 +73,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Check if already approved
 	if db.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, helpers.MentionHtml(targetUserID, "")), helpers.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -97,14 +97,14 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_approved")
 	baseStr := fmt.Sprintf(text,
-		helpers.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
+		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
 		html.EscapeString(approverName),
 	)
 	if reason != "" {
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
 		baseStr += fmt.Sprintf(temp, html.EscapeString(reason))
 	}
-	_, err := msg.Reply(b, baseStr, helpers.Shtml())
+	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -122,7 +122,7 @@ Admin can unapprove a user in the chat
 func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -145,7 +145,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -156,7 +156,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Check if actually approved
 	if !db.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
-		_, err := msg.Reply(b, fmt.Sprintf(text, helpers.MentionHtml(targetUserID, "")), helpers.Shtml())
+		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -173,8 +173,8 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_user_unapproved")
 	_, err := msg.Reply(b, fmt.Sprintf(text,
-		helpers.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
-	), helpers.Shtml())
+		formatting.MentionHtml(targetUserID, extractDisplayName(targetUserID)),
+	), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -192,7 +192,7 @@ Admin can check a user's approval status in the chat
 func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -215,7 +215,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	case 0:
 		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -236,7 +236,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_check_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text,
 			html.EscapeString(extractDisplayName(targetUserID)),
-		), helpers.Shtml())
+		), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -266,7 +266,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reason")
 		baseStr += fmt.Sprintf(temp, html.EscapeString(foundUser.Reason))
 	}
-	_, err := msg.Reply(b, baseStr, helpers.Shtml())
+	_, err := msg.Reply(b, baseStr, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -285,7 +285,7 @@ Admin can list all approved users in the chat
 func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -305,7 +305,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	approvedUsers := db.GetApprovedUsers(chat.Id)
 	if len(approvedUsers) == 0 {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
-		_, err := msg.Reply(b, text, helpers.Shtml())
+		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -331,7 +331,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 			}
 			fmt.Fprintf(&sb, "\n%s", item)
 		}
-		_, err := msg.Reply(b, sb.String(), helpers.Shtml())
+		_, err := msg.Reply(b, sb.String(), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -531,7 +531,7 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 
 	_, _, err := query.Message.EditText(b,
 		helpText,
-		&gotgbot.EditMessageTextOpts{ParseMode: helpers.HTML},
+		&gotgbot.EditMessageTextOpts{ParseMode: formatting.HTML},
 	)
 	if err != nil {
 		log.Error(err)

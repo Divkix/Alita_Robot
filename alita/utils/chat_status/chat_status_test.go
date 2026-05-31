@@ -1,6 +1,7 @@
 package chat_status
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -191,4 +192,158 @@ func TestOtherExportedFunctions(t *testing.T) {
 	}
 }
 
+func TestGetMessageLinkFromMessageId(t *testing.T) {
+	t.Parallel()
 
+	t.Run("supergroup without username", func(t *testing.T) {
+		t.Parallel()
+		chat := &gotgbot.Chat{
+			Id:       -1001234567890,
+			Username: "",
+		}
+		link := GetMessageLinkFromMessageId(chat, 42)
+		expected := "https://t.me/c/1234567890/42"
+		if link != expected {
+			t.Fatalf("expected %q, got %q", expected, link)
+		}
+	})
+
+	t.Run("supergroup with username", func(t *testing.T) {
+		t.Parallel()
+		chat := &gotgbot.Chat{
+			Id:       -1001234567890,
+			Username: "mychannel",
+		}
+		link := GetMessageLinkFromMessageId(chat, 10)
+		expected := "https://t.me/mychannel/10"
+		if link != expected {
+			t.Fatalf("expected %q, got %q", expected, link)
+		}
+	})
+
+	t.Run("messageID 0 produces valid link", func(t *testing.T) {
+		t.Parallel()
+		chat := &gotgbot.Chat{
+			Id:       -1001234567890,
+			Username: "",
+		}
+		link := GetMessageLinkFromMessageId(chat, 0)
+		if !strings.HasPrefix(link, "https://t.me/c/") {
+			t.Fatalf("expected link starting with 'https://t.me/c/', got %q", link)
+		}
+	})
+}
+
+func TestExtractJoinLeftStatusChange(t *testing.T) {
+	t.Parallel()
+
+	t.Run("join event — left to member", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberLeft{},
+			NewChatMember: gotgbot.ChatMemberMember{},
+		}
+		wasMember, isMember := ExtractJoinLeftStatusChange(u)
+		if wasMember {
+			t.Fatal("expected wasMember=false for left->member transition")
+		}
+		if !isMember {
+			t.Fatal("expected isMember=true for left->member transition")
+		}
+	})
+
+	t.Run("left event — member to left", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberMember{},
+			NewChatMember: gotgbot.ChatMemberLeft{},
+		}
+		wasMember, isMember := ExtractJoinLeftStatusChange(u)
+		if !wasMember {
+			t.Fatal("expected wasMember=true for member->left transition")
+		}
+		if isMember {
+			t.Fatal("expected isMember=false for member->left transition")
+		}
+	})
+
+	t.Run("channel — returns false,false", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "channel"},
+			OldChatMember: gotgbot.ChatMemberLeft{},
+			NewChatMember: gotgbot.ChatMemberMember{},
+		}
+		wasMember, isMember := ExtractJoinLeftStatusChange(u)
+		if wasMember || isMember {
+			t.Fatal("expected (false,false) for channel updates")
+		}
+	})
+
+	t.Run("no status change — same status", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberMember{},
+			NewChatMember: gotgbot.ChatMemberMember{},
+		}
+		wasMember, isMember := ExtractJoinLeftStatusChange(u)
+		if wasMember || isMember {
+			t.Fatal("expected (false,false) when status does not change")
+		}
+	})
+}
+
+func TestExtractAdminUpdateStatusChange(t *testing.T) {
+	t.Parallel()
+
+	t.Run("promotion — member to administrator", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberMember{},
+			NewChatMember: gotgbot.ChatMemberAdministrator{},
+		}
+		if !ExtractAdminUpdateStatusChange(u) {
+			t.Fatal("expected true for member->administrator promotion")
+		}
+	})
+
+	t.Run("demotion — administrator to member", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberAdministrator{},
+			NewChatMember: gotgbot.ChatMemberMember{},
+		}
+		if !ExtractAdminUpdateStatusChange(u) {
+			t.Fatal("expected true for administrator->member demotion")
+		}
+	})
+
+	t.Run("channel — returns false", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "channel"},
+			OldChatMember: gotgbot.ChatMemberMember{},
+			NewChatMember: gotgbot.ChatMemberAdministrator{},
+		}
+		if ExtractAdminUpdateStatusChange(u) {
+			t.Fatal("expected false for channel admin updates")
+		}
+	})
+
+	t.Run("no admin change — member to left", func(t *testing.T) {
+		t.Parallel()
+		u := &gotgbot.ChatMemberUpdated{
+			Chat:          gotgbot.Chat{Type: "supergroup"},
+			OldChatMember: gotgbot.ChatMemberMember{},
+			NewChatMember: gotgbot.ChatMemberLeft{},
+		}
+		if ExtractAdminUpdateStatusChange(u) {
+			t.Fatal("expected false for member->left — no admin change")
+		}
+	})
+}

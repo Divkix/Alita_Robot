@@ -17,7 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 var devsModule = moduleStruct{moduleName: "Dev"}
@@ -61,7 +61,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText = fmt.Sprintf(textTemplate, chat.Title, chat.Id, con, chat.InviteLink)
 	}
 
-	_, err := msg.Reply(b, replyText, helpers.Shtml())
+	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -174,7 +174,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		replyText, _ := tr.GetString("devs_specify_user")
-		_, err := msg.Reply(b, replyText, helpers.Shtml())
+		_, err := msg.Reply(b, replyText, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -192,7 +192,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 	text, _ := tr.GetString("devs_left_chat")
-	_, err = msg.Reply(b, text, helpers.Shtml())
+	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -261,11 +261,11 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 			txt, _ = tr.GetString(cfg.failMsgKey)
 		} else {
 			textTemplate, _ := tr.GetString(cfg.successMsgKey)
-			txt = fmt.Sprintf(textTemplate, helpers.MentionHtml(reqUser.Id, reqUser.FirstName))
+			txt = fmt.Sprintf(textTemplate, formatting.MentionHtml(reqUser.Id, reqUser.FirstName))
 		}
 	}
 
-	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
+	_, err = msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -375,7 +375,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 
-			userMentioned := helpers.MentionHtml(reqUser.Id, helpers.GetFullName(reqUser.FirstName, reqUser.LastName))
+			userMentioned := formatting.MentionHtml(reqUser.Id, formatting.GetFullName(reqUser.FirstName, reqUser.LastName))
 			switch uPerm {
 			case "dev":
 				devUsers = append(devUsers, fmt.Sprintf("• %s", userMentioned))
@@ -397,7 +397,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 		txt = dev + "\n\n" + sudo
 	}
 
-	_, err := msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: helpers.HTML})
+	_, err := msg.Reply(b, txt, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -432,7 +432,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 		b,
 		text,
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		},
 	)
 	if err != nil {
@@ -445,7 +445,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 		b,
 		stats,
 		&gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		},
 	)
 	if err != nil {

@@ -15,7 +15,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
+	"github.com/divkix/Alita_Robot/alita/utils/media"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/cases"
@@ -122,7 +124,7 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 			),
 		})
 	}
-	zb := helpers.ChunkKeyboardSlices(kb, 3)
+	zb := keyboard.ChunkKeyboardSlices(kb, 3)
 	tr := i18n.MustNewTranslator("en") // Default to English for help system
 	backText, _ := tr.GetString("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{
@@ -178,7 +180,7 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *modul
 			ctx.EffectiveMessage.Chat.Id,
 			helpText,
 			&gotgbot.SendMessageOpts{
-				ParseMode:   helpers.HTML,
+				ParseMode:   formatting.HTML,
 				ReplyMarkup: &markup,
 			},
 		)
@@ -224,7 +226,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if len(parts) < 2 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		helpModule := parts[1]
@@ -238,7 +240,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if len(parts) < 2 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -246,7 +248,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -254,14 +256,14 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil || cochat == nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_chat_not_found")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
 		if allowed, denyKey := canUserConnectToChat(b, cochat.Id, user.Id); !allowed {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString(denyKey)
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -270,7 +272,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 
 		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 		Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
-		connKeyboard := helpers.InitButtons(b, cochat.Id, user.Id)
+		connKeyboard := keyboard.InitButtons(b, cochat.Id, user.Id)
 
 		_, err = ctx.EffectiveMessage.Reply(b, Text,
 			&gotgbot.SendMessageOpts{
@@ -286,7 +288,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if len(parts) < 2 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -294,7 +296,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -302,7 +304,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil || chatinfo == nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_chat_not_found")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -312,7 +314,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if normalizedRules == "" {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("rules_not_set")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -325,7 +327,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			"first":  html.EscapeString(chatinfo.Title),
 			"second": normalizedRules,
 		})
-		_, err = msg.Reply(b, text, helpers.Shtml())
+		_, err = msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -337,7 +339,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if len(nArgs) < 2 {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -345,7 +347,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_invalid_deep_link")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -353,7 +355,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		if err != nil || chatinfo == nil {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("helpers_chat_not_found")
-			_, _ = msg.Reply(b, text, helpers.Shtml())
+			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 
@@ -372,7 +374,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 				info += sb.String()
 			}
 
-			_, err := msg.Reply(b, info, helpers.Shtml())
+			_, err := msg.Reply(b, info, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -382,7 +384,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			if len(nArgs) < 3 {
 				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 				text, _ := tr.GetString("helpers_invalid_deep_link")
-				_, _ = msg.Reply(b, text, helpers.Shtml())
+				_, _ = msg.Reply(b, text, formatting.Shtml())
 				return ext.EndGroups
 			}
 
@@ -391,7 +393,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			if noteData == nil {
 				text, _ := tr.GetString("helpers_note_not_exist")
-				_, err := msg.Reply(b, text, helpers.Shtml())
+				_, err := msg.Reply(b, text, formatting.Shtml())
 				if err != nil {
 					log.Error(err)
 					return err
@@ -401,7 +403,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 			if noteData.AdminOnly {
 				if !chat_status.IsUserAdmin(b, int64(chatID), user.Id) {
 					text, _ := tr.GetString("helpers_note_admin_only")
-					_, err := msg.Reply(b, text, helpers.Shtml())
+					_, err := msg.Reply(b, text, formatting.Shtml())
 					if err != nil {
 						log.Error(err)
 						return err
@@ -410,7 +412,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 				}
 			}
 			_chat := chatinfo.ToChat() // need to convert to chat
-			_, err := helpers.SendNote(b, &_chat, ctx, noteData, msg.MessageId)
+			_, err := media.SendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -423,7 +425,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		_, err := b.SendMessage(chat.Id,
 			aboutText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
@@ -446,7 +448,7 @@ func startHelpPrefixHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		_, err := b.SendMessage(chat.Id,
 			startHelpText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
@@ -488,10 +490,10 @@ func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruc
 
 	// compare and check if module name is not empty
 	if moduleName != "" {
-		_parsemode = helpers.HTML
+		_parsemode = formatting.HTML
 		helpText, kbmarkup = getModuleHelpAndKb(moduleName, userOrGroupLanguage, registry)
 	} else {
-		_parsemode = helpers.HTML
+		_parsemode = formatting.HTML
 		tr := i18n.MustNewTranslator(userOrGroupLanguage)
 		helpText = getMainHelp(tr, html.EscapeString(ctx.EffectiveUser.FirstName))
 		kbmarkup = initHelpButtonsFrom(registry)

@@ -4,14 +4,19 @@ package media
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 // isPermissionError reports whether the Telegram error string indicates that the
@@ -274,40 +279,94 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 	return resolveSendResult(msg, err, opts.ChatID, "video note")
 }
 
-// SendNote is a convenience function for sending notes.
-func SendNote(b *gotgbot.Bot, chatID int64, note *db.Notes, keyboard *gotgbot.InlineKeyboardMarkup, replyMsgID, threadID int64) (*gotgbot.Message, error) {
+// SendNote sends a note with full preprocessing (randomization, formatting, keyboard, options).
+// The chat parameter provides the group context for formatting placeholders like {chatname};
+// ctx.EffectiveChat is used as the actual send target.
+func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Notes, replyMsgID, threadID int64) (*gotgbot.Message, error) {
+	var (
+		buttons []db.Button
+		sent    string
+	)
+
+	// copy just in case
+	buttons = note.Buttons
+
+	// Random data selection
+	rstrings := strings.Split(note.NoteContent, "%%%")
+	if len(rstrings) == 1 {
+		sent = rstrings[0]
+	} else {
+		n := rand.Intn(len(rstrings)) // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
+		sent = rstrings[n]
+	}
+
+	// Avoid mutating the original note
+	noteCopy := *note
+	noteCopy.NoteContent, buttons = formatting.FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
+	_, _, _, _, _, _, noteCopy.NoteContent = content.NotesParser(noteCopy.NoteContent)
+
+	keyb := keyboard.BuildKeyboard(buttons)
+	keyboardMarkup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
+
 	return Send(b, Content{
-		Text:    note.NoteContent,
-		FileID:  note.FileID,
-		MsgType: note.MsgType,
-		Name:    note.NoteName,
+		Text:    noteCopy.NoteContent,
+		FileID:  noteCopy.FileID,
+		MsgType: noteCopy.MsgType,
+		Name:    noteCopy.NoteName,
 	}, Options{
-		ChatID:            chatID,
+		ChatID:            ctx.EffectiveChat.Id,
 		ReplyMsgID:        replyMsgID,
 		ThreadID:          threadID,
-		Keyboard:          keyboard,
+		Keyboard:          &keyboardMarkup,
 		NoFormat:          false, // Notes use formatting by default
-		NoNotif:           note.NoNotif,
-		WebPreview:        note.WebPreview,
-		IsProtected:       note.IsProtected,
+		NoNotif:           noteCopy.NoNotif,
+		WebPreview:        noteCopy.WebPreview,
+		IsProtected:       noteCopy.IsProtected,
 		AllowWithoutReply: true,
 	})
 }
 
-// SendFilter is a convenience function for sending filters.
-func SendFilter(b *gotgbot.Bot, chatID int64, filter *db.ChatFilters, keyboard *gotgbot.InlineKeyboardMarkup, replyMsgID, threadID int64) (*gotgbot.Message, error) {
+// SendFilter sends a filter with full preprocessing (randomization, formatting, keyboard).
+func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filter *db.ChatFilters, replyMsgID int64) (*gotgbot.Message, error) {
+	if filter == nil {
+		return nil, fmt.Errorf("filter data is nil")
+	}
+
+	chat := ctx.EffectiveChat
+
+	var (
+		buttons       []db.Button
+		sent          string
+		tmpfilterData db.ChatFilters
+	)
+	tmpfilterData = *filter
+	buttons = tmpfilterData.Buttons
+
+	// Random data selection
+	rstrings := strings.Split(tmpfilterData.FilterReply, "%%%")
+	if len(rstrings) == 1 {
+		sent = rstrings[0]
+	} else {
+		n := rand.Intn(len(rstrings)) // #nosec G404 - Non-cryptographic random is sufficient for selecting messages
+		sent = rstrings[n]
+	}
+
+	tmpfilterData.FilterReply, buttons = formatting.FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
+	keyb := keyboard.BuildKeyboard(buttons)
+	keyboardMarkup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
+
 	return Send(b, Content{
-		Text:    filter.FilterReply,
-		FileID:  filter.FileID,
-		MsgType: filter.MsgType,
-		Name:    filter.KeyWord,
+		Text:    tmpfilterData.FilterReply,
+		FileID:  tmpfilterData.FileID,
+		MsgType: tmpfilterData.MsgType,
+		Name:    tmpfilterData.KeyWord,
 	}, Options{
-		ChatID:            chatID,
+		ChatID:            chat.Id,
 		ReplyMsgID:        replyMsgID,
-		ThreadID:          threadID,
-		Keyboard:          keyboard,
+		ThreadID:          ctx.Message.MessageThreadId,
+		Keyboard:          &keyboardMarkup,
 		NoFormat:          false, // Filters use formatting by default
-		NoNotif:           filter.NoNotif,
+		NoNotif:           tmpfilterData.NoNotif,
 		WebPreview:        false, // Filters disable web preview by default
 		IsProtected:       false, // Filters don't support protection
 		AllowWithoutReply: true,

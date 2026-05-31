@@ -14,7 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // asyncUpdateUser wraps db.UpdateUser for async execution with error logging.
@@ -157,7 +157,7 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 				go asyncUpdateUser(
 					forwarded.SenderUser.Id,
 					forwarded.SenderUser.Username,
-					helpers.GetFullName(
+					formatting.GetFullName(
 						forwarded.SenderUser.FirstName,
 						forwarded.SenderUser.LastName,
 					),

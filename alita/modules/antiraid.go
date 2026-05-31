@@ -23,6 +23,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -285,7 +286,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
-			_, _ = chat.SendMessage(bot, text, helpers.Shtml())
+			_, _ = chat.SendMessage(bot, text, formatting.Shtml())
 
 			_, err := chat.BanMember(bot, member.Id, &gotgbot.BanChatMemberOpts{
 				UntilDate: time.Now().Unix() + int64(settings.RaidActionTime),
@@ -365,7 +366,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		_, _ = msg.Reply(bot, text, &gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
@@ -379,28 +380,28 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	case "on":
 		if a.isRaidActive(chat.Id) {
 			text, _ := tr.GetString("antiraid_already_active")
-			_, _ = msg.Reply(bot, text, helpers.Shtml())
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		settings := db.GetAntiRaidSettings(chat.Id)
 		a.enableRaid(chat.Id, settings.RaidTime)
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 
 	case "off":
 		if !a.disableRaid(chat.Id) {
 			text, _ := tr.GetString("antiraid_not_active")
-			_, _ = msg.Reply(bot, text, helpers.Shtml())
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		text, _ := tr.GetString("antiraid_disabled")
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 
 	default:
 		dur, ok := parseDuration(arg)
 		if !ok {
 			text, _ := tr.GetString("antiraid_invalid_duration")
-			_, _ = msg.Reply(bot, text, helpers.Shtml())
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		if a.isRaidActive(chat.Id) {
@@ -411,7 +412,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			a.enableRaid(chat.Id, dur)
 		}
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(dur)})
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 	}
 
 	return ext.EndGroups
@@ -455,19 +456,19 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		} else {
 			text, _ = tr.GetString("antiraid_raidactiontime_usage")
 		}
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	dur, ok := parseDuration(args[0])
 	if !ok {
 		text, _ := tr.GetString("antiraid_invalid_duration")
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	if dur == 0 {
 		text, _ := tr.GetString("antiraid_duration_must_be_positive")
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -476,7 +477,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		settings := db.GetAntiRaidSettings(chat.Id)
 		if settings.RaidTime == dur {
 			text, _ = tr.GetString("antiraid_raidtime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
-			_, _ = msg.Reply(bot, text, helpers.Shtml())
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		err := db.SetRaidTime(chat.Id, dur)
@@ -489,7 +490,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		settings := db.GetAntiRaidSettings(chat.Id)
 		if settings.RaidActionTime == dur {
 			text, _ = tr.GetString("antiraid_raidactiontime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
-			_, _ = msg.Reply(bot, text, helpers.Shtml())
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		err := db.SetRaidActionTime(chat.Id, dur)
@@ -499,7 +500,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		}
 		text, _ = tr.GetString("antiraid_raidactiontime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
 	}
-	_, _ = msg.Reply(bot, text, helpers.Shtml())
+	_, _ = msg.Reply(bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
 
@@ -533,7 +534,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		} else {
 			text, _ = tr.GetString("antiraid_auto_disabled")
 		}
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -545,14 +546,14 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 			return ext.EndGroups
 		}
 		text, _ := tr.GetString("antiraid_auto_disabled")
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
 	threshold, err := strconv.Atoi(arg)
 	if err != nil || threshold <= 0 {
 		text, _ := tr.GetString("antiraid_invalid_threshold")
-		_, _ = msg.Reply(bot, text, helpers.Shtml())
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 	if err := db.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
@@ -561,7 +562,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	text, _ := tr.GetString("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(threshold)})
-	_, _ = msg.Reply(bot, text, helpers.Shtml())
+	_, _ = msg.Reply(bot, text, formatting.Shtml())
 	return ext.EndGroups
 }
 
@@ -609,7 +610,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		})
 	case "off":
 		if !a.disableRaid(chatID) {
@@ -620,7 +621,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		text, _ := tr.GetString("antiraid_disabled")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		})
 	}
 

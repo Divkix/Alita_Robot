@@ -273,3 +273,23 @@ func TestReverseHTML2MD(t *testing.T) {
 		t.Fatalf("ReverseHTML2MD = %q, want %q", got, want)
 	}
 }
+
+func TestGetFullName(t *testing.T) {
+	t.Parallel()
+
+	t.Run("with last name", func(t *testing.T) {
+		t.Parallel()
+		name := GetFullName("John", "Doe")
+		if name != "John Doe" {
+			t.Fatalf("expected 'John Doe', got %q", name)
+		}
+	})
+
+	t.Run("without last name", func(t *testing.T) {
+		t.Parallel()
+		name := GetFullName("Alice", "")
+		if name != "Alice" {
+			t.Fatalf("expected 'Alice', got %q", name)
+		}
+	})
+}

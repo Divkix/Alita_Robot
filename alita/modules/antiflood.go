@@ -17,6 +17,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -401,10 +402,10 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
-			return fmt.Sprintf(temp, helpers.MentionHtml(userId, user.Name()), fmode)
+			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), fmode)
 		}(),
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: keyboard,
 			},
@@ -423,7 +424,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -441,7 +442,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetFlood(chat.Id, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_setflood_disabled")
@@ -456,7 +457,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 					if err := db.SetFlood(chat.Id, num); err != nil {
 						log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 						errText, _ := tr.GetString("common_settings_save_failed")
-						_, _ = msg.Reply(b, errText, helpers.Shtml())
+						_, _ = msg.Reply(b, errText, formatting.Shtml())
 						return ext.EndGroups
 					}
 					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setflood_success")
@@ -466,7 +467,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err := msg.Reply(b, replyText, helpers.Shtml())
+	_, err := msg.Reply(b, replyText, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -486,7 +487,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, false, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -511,7 +512,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_flood_show_settings")
 		text = fmt.Sprintf(temp, flood.Limit, mode)
 	}
-	_, err := msg.Reply(b, text, helpers.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		return err
 	}
@@ -523,7 +524,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -538,25 +539,25 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetFloodMode(chat.Id, selectedMode); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_success")
-			_, err := msg.Reply(b, fmt.Sprintf(temp, selectedMode), helpers.Shtml())
+			_, err := msg.Reply(b, fmt.Sprintf(temp, selectedMode), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 			}
 			return ext.EndGroups
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_unknown_type")
-			_, err := msg.Reply(b, fmt.Sprintf(temp, args[0]), helpers.Shtml())
+			_, err := msg.Reply(b, fmt.Sprintf(temp, args[0]), formatting.Shtml())
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_setfloodmode_specify_action")
-		_, err := msg.Reply(b, text, helpers.Smarkdown())
+		_, err := msg.Reply(b, text, formatting.Smarkdown())
 		if err != nil {
 			return err
 		}
@@ -569,7 +570,7 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -586,7 +587,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetFloodMsgDel(chat.Id, true); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
@@ -594,7 +595,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetFloodMsgDel(chat.Id, false); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_disabled")
@@ -609,7 +610,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_already_disabled")
 		}
 	}
-	_, err := msg.Reply(b, text, helpers.Smarkdown())
+	_, err := msg.Reply(b, text, formatting.Smarkdown())
 	if err != nil {
 		return err
 	}

@@ -278,3 +278,12 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 
 	return res, btns
 }
+
+// GetFullName combines first name and last name into a full name.
+// If last name is empty, returns only the first name.
+func GetFullName(firstName, lastName string) string {
+	if lastName != "" {
+		return firstName + " " + lastName
+	}
+	return firstName
+}

@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // 1087968824 - Group Anonymous Bot (For anonymous users)
@@ -462,6 +463,79 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 	return !slices.Contains([]string{"left", "kicked"}, userStatus)
 }
 
+// IsUserConnected checks if a user is connected to a chat and validates permissions.
+// Handles both private messages (with connection system) and group messages.
+// Returns the effective chat if all checks pass, nil otherwise.
+func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool) (chat *gotgbot.Chat) {
+	msg := ctx.EffectiveMessage
+	user := ctx.EffectiveUser
+	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+
+	if msg.Chat.Type == "private" {
+		conn := db.Connection(user.Id)
+		if conn.Connected && conn.ChatId != 0 {
+			chatFullInfo, err := b.GetChat(conn.ChatId, nil)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"userId": user.Id,
+					"chatId": conn.ChatId,
+					"error":  err,
+				}).Warn("Stale connection detected - chat no longer accessible")
+				// Provide user feedback about stale connection
+				text, _ := tr.GetString("connections_stale_connection")
+				_, _ = msg.Reply(b, text, nil)
+				return nil
+			}
+			_chat := chatFullInfo.ToChat() // need to convert to Chat type
+			chat = &_chat
+		} else {
+			text, _ := tr.GetString("connections_is_user_connected_need_group")
+			_, err := msg.Reply(b,
+				text,
+				&gotgbot.SendMessageOpts{
+					ReplyParameters: &gotgbot.ReplyParameters{
+						MessageId:                msg.MessageId,
+						AllowSendingWithoutReply: true,
+					},
+				},
+			)
+			if err != nil {
+				log.Error(err)
+				return nil
+			}
+
+			return nil
+		}
+	} else {
+		chat = ctx.EffectiveChat
+	}
+	if botAdmin {
+		if !IsUserAdmin(b, chat.Id, b.Id) {
+			text, _ := tr.GetString("connections_is_user_connected_bot_not_admin")
+			_, err := msg.Reply(b, text, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return nil
+			}
+
+			return nil
+		}
+	}
+	if chatAdmin {
+		if !IsUserAdmin(b, chat.Id, user.Id) {
+			text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
+			_, err := msg.Reply(b, text, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return nil
+			}
+
+			return nil
+		}
+	}
+	return chat
+}
+
 // IsUserBanProtected checks if a user is protected from being banned.
 // Returns true for private chats, admins, and special Telegram accounts.
 // Used to prevent banning of administrators and system accounts.
@@ -536,6 +610,94 @@ func GetEffectiveUser(ctx *ext.Context) *gotgbot.User {
 // Returns the user or nil.
 func RequireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User {
 	return GetEffectiveUser(ctx)
+}
+
+// GetMessageLinkFromMessageId generates a Telegram message link from chat and message ID.
+// Handles both public groups (with username) and private groups (without username).
+// NOTE: msg.GetLink() only works for supergroups/channels. This custom implementation
+// also handles private groups and non-supergroups by constructing the link manually.
+func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLink string) {
+	messageLink = "https://t.me/"
+	chatIdStr := fmt.Sprint(chat.Id)
+	if chat.Username == "" {
+		var linkId string
+		if IsChannelId(chat.Id) {
+			linkId = strings.ReplaceAll(chatIdStr, "-100", "")
+		} else if strings.HasPrefix(chatIdStr, "-") && !IsChannelId(chat.Id) {
+			// this is for non-supergroups
+			linkId = strings.ReplaceAll(chatIdStr, "-", "")
+		}
+		messageLink += fmt.Sprintf("c/%s/%d", linkId, messageId)
+	} else {
+		messageLink += fmt.Sprintf("%s/%d", chat.Username, messageId)
+	}
+	return
+}
+
+// ExtractJoinLeftStatusChange analyzes ChatMemberUpdated events to detect join/leave status changes.
+// Returns (was_member, is_member) booleans indicating membership status transition.
+// Returns (false, false) for channels or if no status change occurred.
+func ExtractJoinLeftStatusChange(u *gotgbot.ChatMemberUpdated) (bool, bool) {
+	// return false for channels
+	if u.Chat.Type == "channel" {
+		return false, false
+	}
+
+	oldMemberStatus := u.OldChatMember.MergeChatMember().Status
+	newMemberStatus := u.NewChatMember.MergeChatMember().Status
+	oldIsMember := u.OldChatMember.MergeChatMember().IsMember
+	newIsMember := u.NewChatMember.MergeChatMember().IsMember
+
+	if oldMemberStatus == newMemberStatus {
+		return false, false
+	}
+
+	wasMember := slices.Contains(
+		[]string{"member", "administrator", "creator"},
+		oldMemberStatus,
+	) || (oldMemberStatus == "restricted" && oldIsMember)
+
+	isMember := slices.Contains(
+		[]string{"member", "administrator", "creator"},
+		newMemberStatus,
+	) || (newMemberStatus == "restricted" && newIsMember)
+
+	return wasMember, isMember
+}
+
+// ExtractAdminUpdateStatusChange detects admin status changes from ChatMemberUpdated events.
+// Returns true if there was a transition to/from administrator or creator status.
+// Returns false for channels or if no admin status change occurred.
+func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
+	// return false for channels
+	if u.Chat.Type == "channel" {
+		return false
+	}
+
+	oldMemberStatus := u.OldChatMember.MergeChatMember().Status
+	newMemberStatus := u.NewChatMember.MergeChatMember().Status
+
+	// status remains same
+	if oldMemberStatus == newMemberStatus {
+		return false
+	}
+
+	adminStatusChanged := (slices.Contains(
+		[]string{"administrator", "creator"},
+		oldMemberStatus,
+	) && !slices.Contains(
+		[]string{"administrator", "creator"},
+		newMemberStatus,
+	)) ||
+		(slices.Contains(
+			[]string{"administrator", "creator"},
+			newMemberStatus,
+		) && !slices.Contains(
+			[]string{"administrator", "creator"},
+			oldMemberStatus,
+		))
+
+	return adminStatusChanged
 }
 
 // sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.

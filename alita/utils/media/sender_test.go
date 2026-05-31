@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 )
@@ -41,6 +42,18 @@ func newRecordingBot(client *recordingBotClient) *gotgbot.Bot {
 		Token:     "123:test",
 		BotClient: client,
 	}
+}
+
+func newTestContext(chatID, userID int64, threadID int) *ext.Context {
+	msg := &gotgbot.Message{
+		MessageId:       1,
+		Date:            1,
+		Chat:            gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Test Chat"},
+		From:            &gotgbot.User{Id: userID, FirstName: "Test"},
+		MessageThreadId: int64(threadID),
+	}
+	bot := newRecordingBot(&recordingBotClient{})
+	return ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
 }
 
 func TestTypeConstantsMatchDB(t *testing.T) {
@@ -358,13 +371,13 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		send      func(*gotgbot.Bot, *gotgbot.InlineKeyboardMarkup) (*gotgbot.Message, error)
+		send      func(*gotgbot.Bot) (*gotgbot.Message, error)
 		want      textSendWant
 		noReplyID bool
 	}{
 		{
 			name: "note",
-			send: func(bot *gotgbot.Bot, keyboard *gotgbot.InlineKeyboardMarkup) (*gotgbot.Message, error) {
+			send: func(bot *gotgbot.Bot) (*gotgbot.Message, error) {
 				note := &db.Notes{
 					NoteName:    "rules",
 					NoteContent: "note text",
@@ -373,7 +386,8 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 					WebPreview:  true,
 					IsProtected: true,
 				}
-				return SendNote(bot, -100, note, keyboard, 111, 222)
+				ctx := newTestContext(-100, 1, 222)
+				return SendNote(bot, ctx, ctx.EffectiveChat, note, 111, 222)
 			},
 			want: textSendWant{
 				text:           "note text",
@@ -387,14 +401,15 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 		},
 		{
 			name: "filter",
-			send: func(bot *gotgbot.Bot, keyboard *gotgbot.InlineKeyboardMarkup) (*gotgbot.Message, error) {
+			send: func(bot *gotgbot.Bot) (*gotgbot.Message, error) {
 				filter := &db.ChatFilters{
 					KeyWord:     "hello",
 					FilterReply: "filter text",
 					MsgType:     TypeText,
 					NoNotif:     true,
 				}
-				return SendFilter(bot, -200, filter, keyboard, 333, 444)
+				ctx := newTestContext(-200, 1, 444)
+				return SendFilter(bot, ctx, filter, 333)
 			},
 			want: textSendWant{
 				text:           "filter text",
@@ -406,8 +421,8 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 		},
 		{
 			name: "greeting",
-			send: func(bot *gotgbot.Bot, keyboard *gotgbot.InlineKeyboardMarkup) (*gotgbot.Message, error) {
-				return SendGreeting(bot, -300, "welcome", "", TypeText, keyboard, 555)
+			send: func(bot *gotgbot.Bot) (*gotgbot.Message, error) {
+				return SendGreeting(bot, -300, "welcome", "", TypeText, &gotgbot.InlineKeyboardMarkup{}, 555)
 			},
 			want: textSendWant{
 				text:           "welcome",
@@ -425,8 +440,7 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 
 			client := &recordingBotClient{}
 			bot := newRecordingBot(client)
-			keyboard := &gotgbot.InlineKeyboardMarkup{}
-			if _, err := tc.send(bot, keyboard); err != nil {
+			if _, err := tc.send(bot); err != nil {
 				t.Fatalf("%s send error = %v", tc.name, err)
 			}
 			assertTextSendParams(t, client, tc.want)
@@ -436,6 +450,266 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSendNoteRandomization(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	note := &db.Notes{
+		NoteName:    "test",
+		NoteContent: "option1%%%option2%%%option3",
+		MsgType:     TypeText,
+	}
+
+	// Call many times to verify all options are possible outcomes.
+	seen := make(map[string]bool)
+	for i := 0; i < 50; i++ {
+		_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
+		if err != nil {
+			t.Fatalf("send error = %v", err)
+		}
+		text := client.params["text"].(string)
+		seen[text] = true
+	}
+
+	want := []string{"option1", "option2", "option3"}
+	for _, opt := range want {
+		if !seen[opt] {
+			t.Fatalf("option %q never seen in 50 sends; got %v", opt, seen)
+		}
+	}
+}
+
+func TestSendNoteFormattingReplacement(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 42, 0)
+
+	note := &db.Notes{
+		NoteName:    "test",
+		NoteContent: "Hello {first}",
+		MsgType:     TypeText,
+	}
+
+	_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	if got := client.params["text"]; got != "Hello Test" {
+		t.Fatalf("text = %q, want %q", got, "Hello Test")
+	}
+}
+
+func TestSendNoteKeyboardBuilding(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	note := &db.Notes{
+		NoteName:    "test",
+		NoteContent: "note text",
+		MsgType:     TypeText,
+		Buttons: []db.Button{
+			{Name: "A", Url: "https://example.com/a"},
+			{Name: "B", Url: "https://example.com/b", SameLine: true},
+		},
+	}
+
+	_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	keyboard, ok := client.params["reply_markup"].(*gotgbot.InlineKeyboardMarkup)
+	if !ok {
+		t.Fatalf("reply_markup = %#v, want *gotgbot.InlineKeyboardMarkup", client.params["reply_markup"])
+	}
+	if len(keyboard.InlineKeyboard) != 1 {
+		t.Fatalf("keyboard rows = %d, want 1", len(keyboard.InlineKeyboard))
+	}
+	if len(keyboard.InlineKeyboard[0]) != 2 {
+		t.Fatalf("buttons in row = %d, want 2", len(keyboard.InlineKeyboard[0]))
+	}
+}
+
+func TestSendNoteNotesParserStripsTags(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	note := &db.Notes{
+		NoteName:    "test",
+		NoteContent: "{private}{admin}{preview}Hello",
+		MsgType:     TypeText,
+	}
+
+	_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	if got := client.params["text"]; got != "Hello" {
+		t.Fatalf("text = %q, want %q", got, "Hello")
+	}
+}
+
+func TestSendNoteUsesChatForFormattingButCtxForSendTarget(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+
+	// Simulate a deep-link scenario: ctx.EffectiveChat is the user's private chat,
+	// but the chat passed to SendNote is the group chat where the note is defined.
+	privateChatID := int64(123456789)
+	groupChatID := int64(-1009876543210)
+	groupTitle := "Test Group"
+
+	msg := &gotgbot.Message{
+		MessageId:       1,
+		Date:            1,
+		Chat:            gotgbot.Chat{Id: privateChatID, Type: "private"},
+		From:            &gotgbot.User{Id: 1, FirstName: "Test"},
+		MessageThreadId: 0,
+	}
+	botForCtx := newRecordingBot(&recordingBotClient{})
+	ctx := ext.NewContext(botForCtx, &gotgbot.Update{Message: msg}, nil)
+
+	groupChat := &gotgbot.Chat{Id: groupChatID, Type: "supergroup", Title: groupTitle}
+
+	note := &db.Notes{
+		NoteName:    "rules",
+		NoteContent: "Welcome to {chatname}!",
+		MsgType:     TypeText,
+	}
+
+	_, err := SendNote(bot, ctx, groupChat, note, 0, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	// Verify formatting used the group chat title
+	if got := client.params["text"]; got != "Welcome to "+groupTitle+"!" {
+		t.Fatalf("formatted text = %q, want %q", got, "Welcome to "+groupTitle+"!")
+	}
+
+	// Verify the message was sent to the private chat (ctx.EffectiveChat)
+	if got := client.params["chat_id"]; got != privateChatID {
+		t.Fatalf("chat_id = %v, want %d", got, privateChatID)
+	}
+}
+
+func TestSendFilterRandomization(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	filter := &db.ChatFilters{
+		KeyWord:     "test",
+		FilterReply: "a%%%b%%%c",
+		MsgType:     TypeText,
+	}
+
+	seen := make(map[string]bool)
+	for i := 0; i < 50; i++ {
+		_, err := SendFilter(bot, ctx, filter, 0)
+		if err != nil {
+			t.Fatalf("send error = %v", err)
+		}
+		text := client.params["text"].(string)
+		seen[text] = true
+	}
+
+	for _, opt := range []string{"a", "b", "c"} {
+		if !seen[opt] {
+			t.Fatalf("option %q never seen in 50 sends; got %v", opt, seen)
+		}
+	}
+}
+
+func TestSendFilterFormattingReplacement(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 42, 0)
+
+	filter := &db.ChatFilters{
+		KeyWord:     "test",
+		FilterReply: "User: {first}",
+		MsgType:     TypeText,
+	}
+
+	_, err := SendFilter(bot, ctx, filter, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	if got := client.params["text"]; got != "User: Test" {
+		t.Fatalf("text = %q, want %q", got, "User: Test")
+	}
+}
+
+func TestSendFilterKeyboardBuilding(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	filter := &db.ChatFilters{
+		KeyWord:     "test",
+		FilterReply: "filter text",
+		MsgType:     TypeText,
+		Buttons: []db.Button{
+			{Name: "X", Url: "https://example.com/x"},
+		},
+	}
+
+	_, err := SendFilter(bot, ctx, filter, 0)
+	if err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+
+	keyboard, ok := client.params["reply_markup"].(*gotgbot.InlineKeyboardMarkup)
+	if !ok {
+		t.Fatalf("reply_markup = %#v, want *gotgbot.InlineKeyboardMarkup", client.params["reply_markup"])
+	}
+	if len(keyboard.InlineKeyboard) != 1 {
+		t.Fatalf("keyboard rows = %d, want 1", len(keyboard.InlineKeyboard))
+	}
+	if len(keyboard.InlineKeyboard[0]) != 1 {
+		t.Fatalf("buttons in row = %d, want 1", len(keyboard.InlineKeyboard[0]))
+	}
+}
+
+func TestSendFilterNilReturnsError(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingBotClient{}
+	bot := newRecordingBot(client)
+	ctx := newTestContext(-100, 1, 0)
+
+	_, err := SendFilter(bot, ctx, nil, 0)
+	if err == nil {
+		t.Fatal("expected error for nil filter, got nil")
+	}
+	if !strings.Contains(err.Error(), "filter data is nil") {
+		t.Fatalf("error = %q, want 'filter data is nil'", err.Error())
 	}
 }
 

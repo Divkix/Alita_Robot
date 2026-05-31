@@ -10,14 +10,16 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/content"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
 var pinsModule = moduleStruct{
@@ -243,7 +245,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	// if command is empty (i.e. Without Arguments) not replied to a message, return and end group
 	if len(args) == 1 && msg.ReplyToMessage == nil {
 		text, _ := c.Tr.GetString("pins_permapin_reply_or_text")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -259,7 +261,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	pinT.FileID, pinT.MsgText, pinT.DataType, buttons = m.GetPinType(msg)
 	if pinT.DataType == -1 {
 		text, _ := c.Tr.GetString("pins_permapin_unsupported")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -267,7 +269,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	keyb := helpers.BuildKeyboard(helpers.ConvertButtonV2ToDbButton(buttons))
+	keyb := keyboard.BuildKeyboard(content.ConvertButtonV2ToDbButton(buttons))
 
 	// Validate that enum function exists before calling to prevent panic from invalid dataType
 	// This protects against database corruption or invalid message types
@@ -275,7 +277,7 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	if !exists || pinFunc == nil {
 		log.Errorf("Invalid or missing pin type: %d, cannot send permapin", pinT.DataType)
 		text, _ := c.Tr.GetString("pins_permapin_unsupported")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -297,12 +299,12 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	}
 
 	if pin {
-		pinLink := helpers.GetMessageLinkFromMessageId(chat, msgToPin)
+		pinLink := chat_status.GetMessageLinkFromMessageId(chat, msgToPin)
 		temp, _ := c.Tr.GetString("pins_pinned_message")
 		text := fmt.Sprintf(temp, pinLink)
 		_, err = msg.Reply(c.Bot, text,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				ReplyParameters: &gotgbot.ReplyParameters{
 					MessageId:                msgToPin,
 					AllowSendingWithoutReply: true,
@@ -331,7 +333,7 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 
 	if msg.ReplyToMessage == nil {
 		text, _ := c.Tr.GetString("pins_reply_to_pin")
-		_, err := msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -361,9 +363,9 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 	}
 
 	if pin {
-		pinLink := helpers.GetMessageLinkFromMessageId(chat, prevMessage.MessageId)
+		pinLink := chat_status.GetMessageLinkFromMessageId(chat, prevMessage.MessageId)
 		text := fmt.Sprintf(pinMsg, pinLink)
-		_, err = prevMessage.Reply(c.Bot, text, helpers.Shtml())
+		_, err = prevMessage.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -380,7 +382,7 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -395,11 +397,11 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetAntiChannelPin(chat.Id, true); err != nil {
 				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ := tr.GetString("pins_antichannelpin_enabled")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -409,11 +411,11 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetAntiChannelPin(chat.Id, false); err != nil {
 				log.Errorf("[Pins] SetAntiChannelPin failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ := tr.GetString("pins_antichannelpin_disabled")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -421,7 +423,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 		default:
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_input_not_recognized")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -433,7 +435,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_antichannelpin_current_enabled")
 			text := fmt.Sprintf(temp, chat.Title)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -442,7 +444,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_antichannelpin_current_disabled")
 			text := fmt.Sprintf(temp, chat.Title)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -460,7 +462,7 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := helpers.IsUserConnected(b, ctx, true, true)
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -475,11 +477,11 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetCleanLinked(chat.Id, true); err != nil {
 				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ := tr.GetString("pins_cleanlinked_enabled")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -489,11 +491,11 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 			if err := db.SetCleanLinked(chat.Id, false); err != nil {
 				log.Errorf("[Pins] SetCleanLinked failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, helpers.Shtml())
+				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			text, _ := tr.GetString("pins_cleanlinked_disabled")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -501,7 +503,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 		default:
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			text, _ := tr.GetString("pins_input_not_recognized")
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -513,7 +515,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_cleanlinked_current_enabled")
 			text := fmt.Sprintf(temp, chat.Title)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -522,7 +524,7 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 			temp, _ := tr.GetString("pins_cleanlinked_current_disabled")
 			text := fmt.Sprintf(temp, chat.Title)
-			_, err := msg.Reply(b, text, helpers.Shtml())
+			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
@@ -560,7 +562,7 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 
 	if pinnedMsg == nil {
 		text, _ := c.Tr.GetString("pins_no_pinned_message")
-		_, err = msg.Reply(c.Bot, text, helpers.Shtml())
+		_, err = msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
@@ -568,14 +570,14 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	pinLink = helpers.GetMessageLinkFromMessageId(chat, pinnedMsg.MessageId)
+	pinLink = chat_status.GetMessageLinkFromMessageId(chat, pinnedMsg.MessageId)
 
 	temp, _ := c.Tr.GetString("pins_here_is_pinned")
 	text := fmt.Sprintf(temp, pinLink)
 	buttonText, _ := c.Tr.GetString("pins_pinned_message_button")
 	_, err = msg.Reply(c.Bot, text,
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
@@ -610,7 +612,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 			ctx.EffectiveChat.Id,
 			pinT.MsgText,
 			&gotgbot.SendMessageOpts{
-				ParseMode: helpers.HTML,
+				ParseMode: formatting.HTML,
 				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 					IsDisabled: true,
 				},
@@ -635,7 +637,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -666,7 +668,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -680,7 +682,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ParseMode:       helpers.HTML,
+				ParseMode:       formatting.HTML,
 				ReplyMarkup:     keyb,
 				Caption:         pinT.MsgText,
 				MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
@@ -699,7 +701,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -713,7 +715,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ParseMode:       helpers.HTML,
+				ParseMode:       formatting.HTML,
 				ReplyMarkup:     keyb,
 				Caption:         pinT.MsgText,
 				MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
@@ -732,7 +734,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -746,7 +748,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ParseMode:       helpers.HTML,
+				ParseMode:       formatting.HTML,
 				ReplyMarkup:     keyb,
 				Caption:         pinT.MsgText,
 				MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
@@ -765,7 +767,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -779,7 +781,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ParseMode:       helpers.HTML,
+				ParseMode:       formatting.HTML,
 				ReplyMarkup:     keyb,
 				Caption:         pinT.MsgText,
 				MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
@@ -798,7 +800,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},
@@ -812,7 +814,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 					MessageId:                replyMsgId,
 					AllowSendingWithoutReply: true,
 				},
-				ParseMode:       helpers.HTML,
+				ParseMode:       formatting.HTML,
 				ReplyMarkup:     keyb,
 				Caption:         pinT.MsgText,
 				MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
@@ -831,7 +833,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 						MessageId:                replyMsgId,
 						AllowSendingWithoutReply: true,
 					},
-					ParseMode:       helpers.HTML,
+					ParseMode:       formatting.HTML,
 					ReplyMarkup:     keyb,
 					MessageThreadId: ctx.EffectiveMessage.MessageThreadId,
 				},

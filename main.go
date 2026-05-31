@@ -26,6 +26,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
@@ -500,7 +501,7 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	_, err = b.SendMessage(config.AppConfig.MessageDump,
 		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
 		&gotgbot.SendMessageOpts{
-			ParseMode: helpers.HTML,
+			ParseMode: formatting.HTML,
 		},
 	)
 	if err != nil {
