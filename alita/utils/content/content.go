@@ -3,13 +3,11 @@ package content
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -199,36 +197,12 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 // Detects {private}, {noprivate}, {admin}, {preview}, {protect}, {nonotif} tags.
 // Returns boolean flags for each option and the text with tags removed.
 func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif bool, sentBack string) {
-	pvtOnly, err := regexp.MatchString(`({private})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	grpOnly, err = regexp.MatchString(`({noprivate})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	adminOnly, err = regexp.MatchString(`({admin})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	webPrev, err = regexp.MatchString(`({preview})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	protectedContent, err = regexp.MatchString(`({protect})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	noNotif, err = regexp.MatchString(`({nonotif})`, sent)
-	if err != nil {
-		log.Error(err)
-		return
-	}
+	pvtOnly = strings.Contains(sent, "{private}")
+	grpOnly = strings.Contains(sent, "{noprivate}")
+	adminOnly = strings.Contains(sent, "{admin}")
+	webPrev = strings.Contains(sent, "{preview}")
+	protectedContent = strings.Contains(sent, "{protect}")
+	noNotif = strings.Contains(sent, "{nonotif}")
 
 	sent = strings.NewReplacer(
 		"{private}", "",
@@ -376,7 +350,7 @@ func inlineKeyboardToButtonV2(replyMarkup *gotgbot.InlineKeyboardMarkup) (btns [
 					},
 				)
 			}
-		} else {
+		} else if len(inlineKeyboard) > 0 && inlineKeyboard[0].Url != "" {
 			btns = append(btns,
 				tgmd2html.ButtonV2{
 					Name:     inlineKeyboard[0].Text,
@@ -418,7 +392,7 @@ func InlineKeyboardToDbButtons(replyMarkup *gotgbot.InlineKeyboardMarkup) []db.B
 					SameLine: sameline,
 				})
 			}
-		} else {
+		} else if len(inlineKeyboard) > 0 {
 			button := inlineKeyboard[0]
 			if button.Url == "" {
 				continue
