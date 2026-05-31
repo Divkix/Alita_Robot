@@ -78,9 +78,10 @@ func deleteModGates(c *moderationCtx) bool {
 
 // target holds the resolved target user and optional reason text.
 type target struct {
-	userID  int64
-	reason  string
-	timeVal string // used by time-based commands (e.g., tban)
+	userID    int64
+	reason    string
+	timeVal   string // used by time-based commands (e.g., tban)
+	isChannel bool   // true if original target was a channel ID
 }
 
 // extractFromArgs resolves the target from command arguments using ExtractUserAndText.
