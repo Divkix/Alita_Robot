@@ -40,7 +40,7 @@
 ## Next Steps Required
 ### Immediate Actions Needed
 1. **Start Database Server**:
-   - Option A: Start Docker and run `docker-compose up -d` (if using docker-compose)
+   - Option A: Start Docker and run `docker compose up -d` (if using Docker Compose)
    - Option B: Start local PostgreSQL server
    - Option C: Verify remote database connectivity if using cloud database
 

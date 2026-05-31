@@ -75,6 +75,17 @@ These locks control specific types of media content:
 - **`sticker`**: Blocks sticker messages
 - **`videonote`**: Blocks video note messages (round videos)
 
+## Content Behavior Locks
+
+These locks control how content behaves:
+
+- **`forward`**: Blocks forwarded messages
+- **`url`**: Blocks messages containing URLs
+- **`previews`**: Blocks messages with URL previews
+- **`rtl`**: Blocks messages containing right-to-left (Arabic) text
+- **`anonchannel`**: Blocks messages from anonymous channels and linked channel posts
+- **`comments`**: Blocks messages from non-members (discussion comments)
+
 ## Special Locks
 
 ### `bots`
