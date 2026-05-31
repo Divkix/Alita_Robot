@@ -48,7 +48,7 @@ func CacheKey(module string, ids ...any) string {
 		case string:
 			b.WriteString(v)
 		default:
-			b.WriteString(fmt.Sprint(id))
+			fmt.Fprint(&b, id)
 		}
 	}
 	return b.String()

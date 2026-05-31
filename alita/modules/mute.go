@@ -8,8 +8,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -18,618 +16,311 @@ import (
 
 var mutesModule = moduleStruct{moduleName: "Mutes"}
 
-// tMute handles the /tmute command to temporarily mute a user
-// with a specified time duration, requiring admin permissions.
-func (moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
+// muteTargetValidation validates the target for mute commands.
+// Checks: user is in chat, not ban-protected, not the bot itself.
+func muteTargetValidation(c *moderationCtx, t *target) error {
+	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
+		text, _ := c.Tr.GetString("common_user_not_in_chat")
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		return errUserNotInChat
+	}
+	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
+		text, _ := c.Tr.GetString("mutes_mute_admin_error")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_admin")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
+		return errAdminTarget
 	}
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+	if t.userID == c.Bot.Id {
+		text, _ := c.Tr.GetString("mutes_restrict_self_error")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_self")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
+		return errTargetIsBot
 	}
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString("mutes_mute_admin_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
+	return nil
+}
+
+// muteReplyWithButton builds and sends the success reply for mute commands
+// with an inline unmute button.
+func muteReplyWithButton(c *moderationCtx, t *target) error {
+	muteUser, err := c.Bot.GetChat(t.userID, nil)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
-	if userId == b.Id {
-		text, _ := tr.GetString("mutes_restrict_self_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
+	baseStr, _ := c.Tr.GetString("mutes_mute_message")
+	if t.reason != "" {
+		temp, _ := c.Tr.GetString("mutes_reason_suffix")
+		baseStr += fmt.Sprintf(temp, t.reason)
 	}
 
-	// Extract Time
-	_time, timeVal, reason := extraction.ExtractTime(b, ctx, reason)
-	if _time == -1 {
-		return ext.EndGroups
-	}
-
-	_, err := chat.RestrictMember(b, userId, MutedPermissions,
-		&gotgbot.RestrictChatMemberOpts{
-			UntilDate: _time,
+	_, err = c.Msg.Reply(c.Bot,
+		fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
+		&gotgbot.SendMessageOpts{
+			ParseMode: formatting.HTML,
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{
+						{
+							Text:         func() string { t, _ := c.Tr.GetString("mutes_unmute_button"); return t }(),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(t.userID)}, fmt.Sprintf("unrestrict.unmute.%d", t.userID)),
+						},
+					},
+				},
+			},
 		},
 	)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+	return nil
+}
 
-	muteUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
+// extractUserOnly resolves the target from command arguments using ExtractUser.
+// It rejects channel IDs and validates the user ID.
+func extractUserOnly(c *moderationCtx) (target, error) {
+	uid := extraction.ExtractUser(c.Bot, c.Ctx)
+	if uid == -1 {
+		return target{}, fmt.Errorf("extraction failed")
 	}
-
-	temp, _ := tr.GetString("mutes_tmute_message")
-	baseStr := fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName), timeVal)
-	if reason != "" {
-		temp, _ := tr.GetString("mutes_reason_suffix")
-		baseStr += fmt.Sprintf(temp, reason)
+	if chat_status.IsChannelId(uid) {
+		text, _ := c.Tr.GetString("common_anonymous_user_error")
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return target{}, err
+		}
+		return target{}, fmt.Errorf("anonymous user")
 	}
-
-	_, err = msg.Reply(b,
-		baseStr,
-		formatting.Shtml(),
-	)
-	if err != nil {
-		log.Error(err)
-		return err
+	if uid == 0 {
+		noUserKey := "common_no_user_specified"
+		text, _ := c.Tr.GetString(noUserKey)
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return target{}, err
+		}
+		return target{}, fmt.Errorf("no user")
 	}
+	return target{userID: uid}, nil
+}
 
-	return ext.EndGroups
+// moderationTmute is the shared moderationCommand definition for /tmute.
+func moderationTmute(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:   m,
+		gates:    []gateFn{standardModGates},
+		extract:  extractFromArgs,
+		validate: muteTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
+			if _time == -1 {
+				return ext.EndGroups
+			}
+			t.timeVal = timeVal
+			t.reason = reason
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions,
+				&gotgbot.RestrictChatMemberOpts{UntilDate: _time},
+			)
+			return err
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			muteUser, err := c.Bot.GetChat(t.userID, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			temp, _ := c.Tr.GetString("mutes_tmute_message")
+			baseStr := fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName), t.timeVal)
+			if t.reason != "" {
+				temp, _ := c.Tr.GetString("mutes_reason_suffix")
+				baseStr += fmt.Sprintf(temp, t.reason)
+			}
+
+			_, err = c.Msg.Reply(c.Bot, baseStr, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+// moderationMute is the shared moderationCommand definition for /mute.
+func moderationMute(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:   m,
+		gates:    []gateFn{standardModGates},
+		extract:  extractFromArgs,
+		validate: muteTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			return err
+		},
+		reply: muteReplyWithButton,
+	}
+}
+
+// moderationSmute is the shared moderationCommand definition for /smute.
+func moderationSmute(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:    m,
+		gates:     []gateFn{deleteModGates},
+		extract:   extractUserOnly,
+		validate:  muteTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			return err
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			_ = helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.MessageId)
+			return nil
+		},
+	}
+}
+
+// moderationDmute is the shared moderationCommand definition for /dmute.
+func moderationDmute(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:  m,
+		gates:   []gateFn{deleteModGates},
+		extract: extractFromArgs,
+		validate: func(c *moderationCtx, t *target) error {
+			if c.Msg.ReplyToMessage == nil {
+				text, _ := c.Tr.GetString("mute_reply_to_dmute")
+				if text == "" {
+					text, _ = c.Tr.GetString("common_no_reply_to_message")
+				}
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return fmt.Errorf("no reply")
+			}
+			return muteTargetValidation(c, t)
+		},
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			_, err = c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
+			return err
+		},
+		reply: muteReplyWithButton,
+	}
+}
+
+// moderationUnmute is the shared moderationCommand definition for /unmute.
+func moderationUnmute(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:  m,
+		gates:   []gateFn{standardModGates},
+		extract: extractUserOnly,
+		validate: func(c *moderationCtx, t *target) error {
+			if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
+				text, _ := c.Tr.GetString("common_user_not_in_chat")
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return errUserNotInChat
+			}
+			if t.userID == c.Bot.Id {
+				text, _ := c.Tr.GetString("mutes_restrict_self_error")
+				if text == "" {
+					text, _ = c.Tr.GetString("common_cannot_target_self")
+				}
+				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				return errTargetIsBot
+			}
+			return nil
+		},
+		execute: func(c *moderationCtx, t *target) error {
+			chat, err := c.Bot.GetChat(c.Chat.Id, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			unmutePermissions := resolveUnmutePermissions(chat)
+			_, err = c.Chat.RestrictMember(c.Bot, t.userID, unmutePermissions, nil)
+			return err
+		},
+		reply: func(c *moderationCtx, t *target) error {
+			muteUser, err := c.Bot.GetChat(t.userID, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			temp, _ := c.Tr.GetString("mutes_unmute_message")
+			_, err = c.Msg.Reply(c.Bot,
+				fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
+				formatting.Shtml(),
+			)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+// tMute handles the /tmute command to temporarily mute a user
+// with a specified time duration, requiring admin permissions.
+func (m moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
+	return moderationTmute(&m).run(b, ctx)
 }
 
 // mute handles the /mute command to permanently mute a user
 // from the group, requiring admin permissions.
-func (moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString("mutes_mute_admin_polite_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if userId == b.Id {
-		text, _ := tr.GetString("mutes_restrict_self_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, err := chat.RestrictMember(b, userId, MutedPermissions, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	muteUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	temp, _ := tr.GetString("mutes_mute_message")
-	baseStr := temp
-	if reason != "" {
-		temp, _ := tr.GetString("mutes_reason_suffix")
-		baseStr += fmt.Sprintf(temp, reason)
-	}
-
-	_, err = msg.Reply(b,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
-		&gotgbot.SendMessageOpts{
-			ParseMode: formatting.HTML,
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         func() string { t, _ := tr.GetString("mutes_unmute_button"); return t }(),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
-						},
-					},
-				},
-			},
-		},
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
+	return moderationMute(&m).run(b, ctx)
 }
 
 // sMute handles the /smute command to silently mute a user
 // and delete the command message, requiring admin permissions.
-func (moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString("mutes_mute_admin_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// Check if trying to mute the bot itself (silent return since this is smute)
-	if userId == b.Id {
-		return ext.EndGroups
-	}
-
-	_, err := chat.RestrictMember(b, userId, MutedPermissions, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-
-	return ext.EndGroups
+func (m moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
+	return moderationSmute(&m).run(b, ctx)
 }
 
 // dMute handles the /dmute command to mute a user and delete
 // the replied message, requiring admin permissions.
-func (moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString("mutes_mute_admin_polite_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// Check if trying to mute the bot itself
-	if userId == b.Id {
-		text, _ := tr.GetString("mutes_restrict_self_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if msg.ReplyToMessage == nil {
-		text, _ := tr.GetString("mute_reply_to_dmute")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, err := msg.ReplyToMessage.Delete(b, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	_, err = chat.RestrictMember(b, userId, MutedPermissions, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	muteUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	temp, _ := tr.GetString("mutes_mute_message")
-	baseStr := temp
-	if reason != "" {
-		temp, _ := tr.GetString("mutes_reason_suffix")
-		baseStr += fmt.Sprintf(temp, reason)
-	}
-
-	_, err = msg.Reply(b,
-		fmt.Sprintf(baseStr, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
-		&gotgbot.SendMessageOpts{
-			ParseMode: formatting.HTML,
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-					{
-						{
-							Text:         func() string { t, _ := tr.GetString("mutes_unmute_button"); return t }(),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
-						},
-					},
-				},
-			},
-		},
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
+	return moderationDmute(&m).run(b, ctx)
 }
 
 // unmute handles the /unmute command to restore chat permissions
 // to a previously muted user, requiring admin permissions.
-func (moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
-
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId := extraction.ExtractUser(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if userId == b.Id {
-		text, _ := tr.GetString("mutes_restrict_self_error")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	c, err := b.GetChat(chat.Id, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	unmutePermissions := resolveUnmutePermissions(c)
-
-	// should give the current chat permissions to the users who is unmuted
-	_, err = chat.RestrictMember(
-		b,
-		userId,
-		unmutePermissions,
-		nil,
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	muteUser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	temp, _ := tr.GetString("mutes_unmute_message")
-	_, err = msg.Reply(b,
-		fmt.Sprintf(temp, formatting.MentionHtml(muteUser.Id, muteUser.FirstName)),
-		formatting.Shtml(),
-	)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
+	return moderationUnmute(&m).run(b, ctx)
 }
 
 // LoadMutes registers all mute module handlers with the dispatcher,

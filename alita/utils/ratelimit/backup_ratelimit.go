@@ -21,7 +21,7 @@ type BackupRateLimiter struct {
 var (
 	// Singleton instance
 	backupLimiter *BackupRateLimiter
-	once          sync.Once
+	once          = &sync.Once{}
 )
 
 // GetBackupRateLimiter returns the singleton rate limiter instance
