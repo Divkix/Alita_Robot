@@ -70,132 +70,68 @@ The Bot, Kicker should be admin with ban permissions in order to use this */
 // dkick handles the /dkick command to delete a message and kick the sender.
 // Removes the replied-to message and kicks the user from the group.
 func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	return moderationDkick(&m).run(b, ctx)
+}
 
-	// Permission checks
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if msg.ReplyToMessage == nil {
-		text, _ := tr.GetString("bans_dkick_no_reply")
-		_, _ = msg.Reply(b, text, nil)
-		return ext.EndGroups
-	}
-
-	// Check if From is nil (channel posts, deleted users, etc.)
-	if msg.ReplyToMessage.From == nil {
-		text, _ := tr.GetString("bans_cannot_identify_user")
-		_, _ = msg.Reply(b, text, nil)
-		return ext.EndGroups
-	}
-
-	_, reason := extraction.ExtractUserAndText(b, ctx)
-	userId := msg.ReplyToMessage.From.Id
-	if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("bans_anonymous_ban_only_error")
-		_, err := msg.Reply(b, text, nil)
+// kickTargetValidation validates the target for kick commands.
+// Checks: user in chat, not ban-protected, not the bot itself.
+func kickTargetValidation(c *moderationCtx, t *target) error {
+	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
+		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_user_not_in_chat")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_user_not_in_chat")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+		return errUserNotInChat
+	}
+	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
+		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_cannot_kick_admin")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_admin")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
+		return errAdminTarget
 	}
-
-	_, _ = msg.ReplyToMessage.Delete(b, nil)
-
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kick_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
+	if t.userID == c.Bot.Id {
+		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_is_bot_itself")
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_self")
+		}
+		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
+		return errTargetIsBot
 	}
-	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kick_cannot_kick_admin")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
+	return nil
+}
 
-	if userId == b.Id {
-		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kick_is_bot_itself")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	_, err := chat.BanMember(b, userId, nil)
+// kickReply builds and sends the success reply for kick commands.
+func kickReply(c *moderationCtx, t *target) error {
+	kickuser, err := c.Bot.GetChat(t.userID, nil)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	// Use non-blocking approach with goroutine for delayed unban with timeout
-	delayedUnban(chat, b, userId, "dkick")
-
-	// Continue immediately without blocking
-
-	kickuser, err := b.GetChat(userId, nil)
-	if err != nil {
-		log.Error(err)
-		return err
+	baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
+	if t.reason != "" {
+		temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
+		if temp != "" {
+			baseStr += fmt.Sprintf(temp, t.reason)
+		}
 	}
 
-	baseStr, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kick_kicked_user")
-	if reason != "" {
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_kick_kicked_reason")
-		baseStr += fmt.Sprintf(temp, reason)
-	}
-
-	_, err = msg.Reply(b,
+	_, err = c.Msg.Reply(c.Bot,
 		fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName)),
 		formatting.Shtml(),
 	)
@@ -203,56 +139,41 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
+	return nil
+}
 
-	return ext.EndGroups
+// moderationDkick is the shared moderationCommand definition for /dkick.
+// It deletes the replied message and kicks the user.
+func moderationDkick(m *moduleStruct) *moderationCommand {
+	return &moderationCommand{
+		module:   m,
+		gates:    []gateFn{deleteModGates},
+		extract:  extractFromReply,
+		validate: kickTargetValidation,
+		execute: func(c *moderationCtx, t *target) error {
+			_, err := c.Msg.ReplyToMessage.Delete(c.Bot, nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
+			if err == nil {
+				delayedUnban(c.Chat, c.Bot, t.userID, "dkick")
+			}
+			return err
+		},
+		reply: kickReply,
+	}
 }
 
 // moderationKick is the shared moderationCommand definition for /kick.
 // It is reused by both the direct handler and any aliases.
 func moderationKick(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module:  m,
-		gates:   []gateFn{standardModGates},
-		extract: extractFromArgs,
-		validate: func(c *moderationCtx, t *target) error {
-			if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
-				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_user_not_in_chat")
-				if text == "" {
-					text, _ = c.Tr.GetString("common_user_not_in_chat")
-				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return errUserNotInChat
-			}
-			if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
-				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_cannot_kick_admin")
-				if text == "" {
-					text, _ = c.Tr.GetString("common_cannot_target_admin")
-				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return errAdminTarget
-			}
-			if t.userID == c.Bot.Id {
-				text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_is_bot_itself")
-				if text == "" {
-					text, _ = c.Tr.GetString("common_cannot_target_self")
-				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return errTargetIsBot
-			}
-			return nil
-		},
+		module:   m,
+		gates:    []gateFn{standardModGates},
+		extract:  extractFromArgs,
+		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
 			if err == nil {
@@ -260,31 +181,7 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 			}
 			return err
 		},
-		reply: func(c *moderationCtx, t *target) error {
-			kickuser, err := c.Bot.GetChat(t.userID, nil)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-
-			baseStr, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_user")
-			if t.reason != "" {
-				temp, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_kicked_reason")
-				if temp != "" {
-					baseStr += fmt.Sprintf(temp, t.reason)
-				}
-			}
-
-			_, err = c.Msg.Reply(c.Bot,
-				fmt.Sprintf(baseStr, formatting.MentionHtml(kickuser.Id, kickuser.FirstName)),
-				formatting.Shtml(),
-			)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			return nil
-		},
+		reply: kickReply,
 	}
 }
 
