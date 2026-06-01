@@ -767,7 +767,7 @@ func TestHandlePendingCaptchaMessageStoresAndDeletesUserMessages(t *testing.T) {
 				ctx.EffectiveMessage.Text = ""
 				ctx.EffectiveMessage.VideoNote = &gotgbot.VideoNote{FileId: "video-note-file"}
 			},
-			wantType:   db.VideoNote,
+			wantType:   db.VIDEO_NOTE,
 			wantFileID: "video-note-file",
 		},
 		{

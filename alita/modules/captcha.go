@@ -100,7 +100,7 @@ func messageTypeToString(tr *i18n.Translator, messageType int) string {
 		key = "message_type_voice"
 	case db.VIDEO:
 		key = "message_type_video"
-	case db.VideoNote:
+	case db.VIDEO_NOTE:
 		key = "message_type_video_note"
 	default:
 		key = "message_type_unknown"
@@ -1847,7 +1847,7 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		fileID = msg.Video.FileId
 		caption = msg.Caption
 	case msg.VideoNote != nil:
-		messageType = db.VideoNote
+		messageType = db.VIDEO_NOTE
 		fileID = msg.VideoNote.FileId
 	default:
 		// Unknown message type, skip storing but still delete

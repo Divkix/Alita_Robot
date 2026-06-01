@@ -142,7 +142,7 @@ func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType i
 	} else if replyMsg.Animation != nil {
 		return replyMsg.Animation.FileId, db.DOCUMENT
 	} else if replyMsg.VideoNote != nil {
-		return replyMsg.VideoNote.FileId, db.VideoNote
+		return replyMsg.VideoNote.FileId, db.VIDEO_NOTE
 	}
 	return "", -1
 }

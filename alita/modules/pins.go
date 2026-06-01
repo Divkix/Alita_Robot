@@ -823,7 +823,7 @@ var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinTyp
 			},
 		)
 	},
-	db.VideoNote: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
+	db.VIDEO_NOTE: func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
 		// Validate FileID is not empty to prevent API errors
 		if pinT.FileID == "" {
 			log.Warnf("Empty FileID for VideoNote type in chat %d, falling back to text message", ctx.EffectiveChat.Id)
@@ -916,7 +916,7 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 			dataType = db.VIDEO
 		} else if msg.ReplyToMessage.VideoNote != nil {
 			fileid = msg.ReplyToMessage.VideoNote.FileId
-			dataType = db.VideoNote
+			dataType = db.VIDEO_NOTE
 		}
 	}
 

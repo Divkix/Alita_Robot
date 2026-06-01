@@ -99,7 +99,7 @@ const (
 	AUDIO     int = 5
 	VOICE     int = 6
 	VIDEO     int = 7
-	VideoNote int = 8
+	VIDEO_NOTE int = 8
 )
 
 // Default greeting messages used when no custom greetings are configured.

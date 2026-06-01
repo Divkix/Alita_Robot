@@ -71,7 +71,7 @@ func TestTypeConstantsMatchDB(t *testing.T) {
 		{name: "TypeAudio", got: TypeAudio, want: db.AUDIO},
 		{name: "TypeVoice", got: TypeVoice, want: db.VOICE},
 		{name: "TypeVideo", got: TypeVideo, want: db.VIDEO},
-		{name: "TypeVideoNote", got: TypeVideoNote, want: db.VideoNote},
+		{name: "TypeVideoNote", got: TypeVideoNote, want: db.VIDEO_NOTE},
 	}
 
 	for _, tc := range tests {

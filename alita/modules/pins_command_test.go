@@ -466,7 +466,7 @@ func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
 		{name: "audio", dataType: db.AUDIO, fileID: "audio-file", wantMethod: "sendAudio"},
 		{name: "voice", dataType: db.VOICE, fileID: "voice-file", wantMethod: "sendVoice"},
 		{name: "video", dataType: db.VIDEO, fileID: "video-file", wantMethod: "sendVideo"},
-		{name: "video note", dataType: db.VideoNote, fileID: "video-note-file", wantMethod: "sendVideoNote"},
+		{name: "video note", dataType: db.VIDEO_NOTE, fileID: "video-note-file", wantMethod: "sendVideoNote"},
 	}
 
 	for _, tc := range tests {
@@ -495,7 +495,7 @@ func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
 		{name: "audio", reply: &gotgbot.Message{Audio: &gotgbot.Audio{FileId: "audio-file"}}, wantType: db.AUDIO, wantID: "audio-file"},
 		{name: "voice", reply: &gotgbot.Message{Voice: &gotgbot.Voice{FileId: "voice-file"}}, wantType: db.VOICE, wantID: "voice-file"},
 		{name: "video", reply: &gotgbot.Message{Video: &gotgbot.Video{FileId: "video-file"}}, wantType: db.VIDEO, wantID: "video-file"},
-		{name: "video note", reply: &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "video-note-file"}}, wantType: db.VideoNote, wantID: "video-note-file"},
+		{name: "video note", reply: &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "video-note-file"}}, wantType: db.VIDEO_NOTE, wantID: "video-note-file"},
 	}
 	for _, tc := range extractCases {
 		t.Run("extract "+tc.name, func(t *testing.T) {
