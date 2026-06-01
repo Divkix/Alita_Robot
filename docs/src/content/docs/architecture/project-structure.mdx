@@ -28,8 +28,9 @@ This document explains the directory structure of Alita Robot, helping developer
     - \*_db.go Per-feature database operations
     - monitoring.go Database pool metrics
     - optimized_queries.go Cached optimized queries
-    - backup_db.go Export/import chat data
-    - backup_types.go Backup format types
+    - backup/ Export/import chat data
+      - backup.go Module export/import/clear operations
+      - types.go Backup format structs and validation
   - (Locale embed directive is declared in `main.go` at repository root)
   - i18n/ **Internationalization**
     - loader.go Locale file loader

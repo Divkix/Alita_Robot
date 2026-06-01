@@ -11,7 +11,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -37,7 +38,7 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// permission checks
 	if !chat_status.RequirePrivate(b, ctx, nil) {
@@ -52,7 +53,7 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	chat, err := b.GetChat(chatId, nil)
 	if err != nil {
-		db.DisconnectId(user.Id)
+		connections.DisconnectId(user.Id)
 		log.Error(err)
 		return err
 	}
@@ -91,7 +92,7 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var text string
 
@@ -105,15 +106,15 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch toogleOption {
 		case "on", "true", "yes":
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
-			db.ToggleAllowConnect(chat.Id, true)
+			connections.ToggleAllowConnect(chat.Id, true)
 		case "off", "false", "no":
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
-			db.ToggleAllowConnect(chat.Id, false)
+			connections.ToggleAllowConnect(chat.Id, false)
 		default:
 			text, _ = tr.GetString("connections_invalid_option")
 		}
 	} else {
-		currSetting := db.GetChatConnectionSetting(chat.Id).AllowConnect
+		currSetting := connections.GetChatConnectionSetting(chat.Id).AllowConnect
 		if currSetting {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_currently_on")
 		} else {
@@ -146,7 +147,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
 	var replyMarkup gotgbot.ReplyMarkup
 
@@ -159,7 +160,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
 			text, _ = tr.GetString(denyKey)
 		} else {
-			db.ConnectId(user.Id, chat.Id)
+			connections.ConnectId(user.Id, chat.Id)
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
 			text = fmt.Sprintf(temp, chat.Title)
 			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
@@ -174,7 +175,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text: func() string {
-								tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+								tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 								t, _ := tr.GetString("connections_button_connect")
 								return t
 							}(),
@@ -211,7 +212,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	user := query.From
 	msg := query.Message
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	userType := ""
 	if decoded, ok := decodeCallbackData(query.Data, "connbtns"); ok {
@@ -306,7 +307,7 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var text string
 
@@ -316,7 +317,7 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		db.DisconnectId(user.Id)
+		connections.DisconnectId(user.Id)
 
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
 	} else {
@@ -340,8 +341,8 @@ If user is connected, chatId is returned else 0
 // isConnected checks if a user has an active connection to any chat.
 // Returns the connected chat ID or 0 if no connection exists.
 func (m moduleStruct) isConnected(b *gotgbot.Bot, ctx *ext.Context, userId int64) int64 {
-	conn := db.Connection(userId)
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	conn := connections.Connection(userId)
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if conn.Connected {
 		return conn.ChatId
@@ -375,7 +376,7 @@ Both user and admin can use this command to connect to the previous chat
 // Reconnects users to their last connected chat if they're still a member.
 func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var (
 		connKeyboard gotgbot.InlineKeyboardMarkup
 		text         string
@@ -386,7 +387,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		if user == nil {
 			return ext.EndGroups
 		}
-		chatId := db.ReconnectId(user.Id)
+		chatId := connections.ReconnectId(user.Id)
 
 		if chatId != 0 {
 			gchat, err := b.GetChat(chatId, nil)

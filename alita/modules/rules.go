@@ -12,7 +12,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -37,8 +38,8 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := connectedChat
 
-	db.SetChatRules(chat.Id, "")
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	rules.SetChatRules(chat.Id, "")
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_cleared_successfully")
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {
@@ -60,23 +61,23 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := connectedChat
 	args := ctx.Args()
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
 
 	if len(args) >= 2 {
 		switch strings.ToLower(args[1]) {
 		case "on", "yes", "true":
-			db.SetPrivateRules(chat.Id, true)
+			rules.SetPrivateRules(chat.Id, true)
 			text, _ = tr.GetString("rules_private_pm_usage")
 		case "off", "no", "false":
-			db.SetPrivateRules(chat.Id, false)
+			rules.SetPrivateRules(chat.Id, false)
 			temp, _ := tr.GetString("rules_private_group_usage")
 			text = fmt.Sprintf(temp, html.EscapeString(chat.Title))
 		default:
 			text, _ = tr.GetString("pins_input_not_recognized")
 		}
 	} else {
-		rulesprefs := db.GetChatRulesInfo(chat.Id)
+		rulesprefs := rules.GetChatRulesInfo(chat.Id)
 		if rulesprefs.Private {
 			text, _ = tr.GetString("rules_private_current_pm")
 		} else {
@@ -122,13 +123,13 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	rules := db.GetChatRulesInfo(chat.Id)
+	rules := rules.GetChatRulesInfo(chat.Id)
 	rulesBtn = rules.RulesBtn
 	if rulesBtn == "" {
 		rulesBtn = m.defaultRulesBtn
 	}
 	normalizedRules := normalizeRulesForHTML(rules.Rules)
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if normalizedRules != "" {
 		temp, _ := tr.GetString("rules_for_chat_header")
 		Text += fmt.Sprintf(temp, html.EscapeString(chat.Title)) + "\n\n"
@@ -180,7 +181,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := connectedChat
 	args := ctx.Args()
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var text string
 
 	if len(args) == 1 && msg.ReplyToMessage == nil {
@@ -204,7 +205,7 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.EndGroups
 			}
 		}
-		db.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text))
+		rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text))
 		text, _ = tr.GetString("rules_set_successfully")
 	}
 
@@ -239,18 +240,18 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if len(args) >= 2 {
 		rulesBtnCustomText := strings.Join(args[1:], " ")
 		if len(rulesBtnCustomText) > 30 {
 			text, _ = tr.GetString("rules_button_too_long")
 		} else {
-			db.SetChatRulesButton(chat.Id, rulesBtnCustomText)
+			rules.SetChatRulesButton(chat.Id, rulesBtnCustomText)
 			temp3, _ := tr.GetString("rules_button_set_successfully")
 			text = fmt.Sprintf(temp3, rulesBtnCustomText)
 		}
 	} else {
-		customRulesBtn := db.GetChatRulesInfo(chat.Id).RulesBtn
+		customRulesBtn := rules.GetChatRulesInfo(chat.Id).RulesBtn
 		if customRulesBtn == "" {
 			temp4, _ := tr.GetString("rules_button_not_set")
 			text = fmt.Sprintf(temp4, m.defaultRulesBtn)
@@ -282,8 +283,8 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := connectedChat
 
-	db.SetChatRulesButton(chat.Id, "")
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	rules.SetChatRulesButton(chat.Id, "")
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("rules_button_cleared")
 	_, err := msg.Reply(bot, text, formatting.Shtml())
 	if err != nil {

@@ -8,11 +8,11 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
@@ -23,7 +23,7 @@ var formattingModule = moduleStruct{moduleName: "Formatting"}
 // Shows formatting options in private messages or sends a button to open help in PM.
 func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check of group or pm
 	if !chat_status.RequirePrivate(b, ctx, nil) {
@@ -59,7 +59,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 		backText, _ := tr.GetString("common_back")
 
 		// Keyboard for markdown help menu
-		Mkdkb := append(m.genFormattingKb(db.GetLanguage(ctx)),
+		Mkdkb := append(m.genFormattingKb(lang.GetLanguage(ctx)),
 			[]gotgbot.InlineKeyboardButton{
 				{
 					Text:         backText,
@@ -150,12 +150,12 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	msg := query.Message
 	if msg == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	module := ""
 	if decoded, ok := decodeCallbackData(query.Data, "formatting"); ok {

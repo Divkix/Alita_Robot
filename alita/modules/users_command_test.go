@@ -9,6 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 func TestShouldUpdateRateLimitsByID(t *testing.T) {
@@ -56,8 +58,8 @@ func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
 		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		_, _, senderFound := db.GetUserInfoById(sender.Id)
-		_, _, replyFound := db.GetUserInfoById(replyUser.Id)
+		_, _, senderFound := user.GetUserInfoById(sender.Id)
+		_, _, replyFound := user.GetUserInfoById(replyUser.Id)
 		return senderFound && replyFound && db.ChatExists(chat.Id)
 	})
 }
@@ -97,7 +99,7 @@ func TestLogUsersPersistsAnonymousChannelSender(t *testing.T) {
 		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		channelSettings := db.GetChannelSettings(channel.Id)
+		channelSettings := channels.GetChannelSettings(channel.Id)
 		return channelSettings != nil &&
 			channelSettings.ChannelId == channel.Id &&
 			channelSettings.ChannelName == channel.Title &&

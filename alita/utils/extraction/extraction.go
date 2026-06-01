@@ -15,7 +15,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/google/uuid"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
@@ -38,7 +40,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 			chatId, _ := strconv.Atoi(args[0])
 			chat, err := b.GetChat(int64(chatId), nil)
 			if err != nil {
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				text, _ := tr.GetString("extraction_chat_not_found")
 				_, err := msg.Reply(b, text, nil)
 				if err != nil {
@@ -52,7 +54,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 		} else {
 			chat, err := chat_status.GetChat(b, args[0])
 			if err != nil {
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				text, _ := tr.GetString("extraction_chat_not_found")
 				_, err := msg.Reply(b, text, nil)
 				if err != nil {
@@ -64,7 +66,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 			return chat
 		}
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("extraction_need_chat_id")
 	_, err := msg.Reply(b, text, nil)
 	if err != nil {
@@ -130,7 +132,7 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		user := args[1]
 		userId = GetUserId(b, user)
 		if userId == 0 {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("extraction_user_not_found")
 			_, err := msg.Reply(b, text, nil)
 			if err != nil {
@@ -198,12 +200,12 @@ func GetUserId(b *gotgbot.Bot, username string) int64 {
 	}
 
 	// Try local database first for performance
-	user := db.GetUserIdByUserName(username)
+	user := user.GetUserIdByUserName(username)
 	if user != 0 {
 		return user
 	}
 
-	channel := db.GetChannelIdByUserName(username)
+	channel := channels.GetChannelIdByUserName(username)
 	if channel != 0 {
 		return channel
 	}
@@ -230,12 +232,12 @@ func GetUserId(b *gotgbot.Bot, username string) int64 {
 // Searches both user and channel databases for the ID.
 // Returns username, display name, and whether the user was found.
 func GetUserInfo(userId int64) (username, name string, found bool) {
-	username, name, found = db.GetUserInfoById(userId)
+	username, name, found = user.GetUserInfoById(userId)
 	if found {
 		return username, name, found
 	}
 
-	username, name, found = db.GetChannelInfoById(userId)
+	username, name, found = channels.GetChannelInfoById(userId)
 	if found {
 		return username, name, found
 	}
@@ -326,7 +328,7 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 
 	switch {
 	case errors.Is(err, errNoTimeSpecified):
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_no_time_specified")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -334,7 +336,7 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 		}
 		return -1, "", ""
 	case errors.Is(err, errInvalidTimeAmount):
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_invalid_time_amount")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -342,7 +344,7 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 		}
 		return -1, "", ""
 	case errors.Is(err, errTimeLimitExceeded):
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_time_limit_exceeded")
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {
@@ -354,7 +356,7 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 		if args := strings.Fields(inputVal); len(args) > 0 {
 			timeVal = args[0]
 		}
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("extraction_invalid_time_type", i18n.TranslationParams{"0": timeVal})
 		_, err := msg.Reply(b, text, nil)
 		if err != nil {

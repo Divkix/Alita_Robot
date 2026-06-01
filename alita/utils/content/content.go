@@ -362,5 +362,3 @@ func inlineKeyboardToButtonV2(replyMarkup *gotgbot.InlineKeyboardMarkup) (btns [
 	}
 	return
 }
-
-

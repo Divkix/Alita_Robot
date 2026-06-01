@@ -225,8 +225,8 @@ IDs (`user_id`, `chat_id`) have unique constraints but aren't primary keys.
 - `alita/db/optimized_queries.go` — Optimized SELECT queries with minimal column selection, singleflight-protected caching via `getFromCacheOrLoad`, thread-safe singleton query instances (double-checked locking with `sync.RWMutex`)
 - `alita/db/migrations.go` — Runtime migration engine (custom SQL runner, not GORM AutoMigrate)
 - `alita/db/monitoring.go` — Database pool metrics collection (`StartMonitoring`, `DatabaseMetrics`)
-- `alita/db/backup_db.go` — Export/import/clear chat data per module (13 modules supported)
-- `alita/db/backup_types.go` — Backup format structs and validation (`BackupFormat`, `BackupFormatVersion = "1.0"`)
+- `alita/db/backup/backup.go` — Export/import/clear chat data per module (13 modules supported)
+- `alita/db/backup/types.go` — Backup format structs and validation (`BackupFormat`, `BackupFormatVersion = "1.0"`)
 - `migrations/*.sql` — Source of truth for schema (timestamped filenames)
 
 **Advanced patterns:**

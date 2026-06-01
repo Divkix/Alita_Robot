@@ -17,6 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/backup"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -238,7 +242,7 @@ func TestDownloadBackupFileReportsHTTPStatusFailure(t *testing.T) {
 func TestImportHandlerStoresDownloadedBackupForConfirmation(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	backup := db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "notes"})
+	backup := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules", "notes"})
 	backup.Data["rules"] = map[string]interface{}{
 		"settings": map[string]interface{}{"rules": "imported rules"},
 	}
@@ -307,7 +311,7 @@ func TestBuildExportCaption(t *testing.T) {
 	t.Parallel()
 
 	tr := testTranslator(t)
-	backup := db.NewBackupFormat(12345, "Test Chat", 67890, []string{"notes", "filters"})
+	backup := backup.NewBackupFormat(12345, "Test Chat", 67890, []string{"notes", "filters"})
 	backup.Data["notes"] = map[string]interface{}{"test": "data"}
 	backup.Data["filters"] = map[string]interface{}{"test": "data"}
 	backup.ExportedAt = backup.ExportedAt.UTC()
@@ -452,8 +456,8 @@ func TestExportHandlerSendsRequestedModuleBackupDocument(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
-	require.NoError(t, db.AddNote(chat.Id, "welcome", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, notes.AddNote(chat.Id, "welcome", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
 	ctx := newModuleMessageContext(bot, chat, owner, "/export notes invalid notes")
 	err := backupModule.exportHandler(bot, ctx)
@@ -468,8 +472,8 @@ func TestExportHandlerFallsBackToTextWhenDocumentSendFails(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
-	require.NoError(t, db.AddNote(chat.Id, "fallback", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, notes.AddNote(chat.Id, "fallback", "hello", "", nil, db.TEXT, false, false, false, true, false, false))
 
 	ctx := newModuleMessageContext(bot, chat, owner, "/export notes")
 	err := backupModule.exportHandler(bot, ctx)
@@ -517,9 +521,9 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
 
-	backup := db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"})
+	backup := backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"})
 	backup.Data["rules"] = map[string]interface{}{
 		"settings": map[string]interface{}{
 			"chat_id":   chat.Id,
@@ -543,7 +547,7 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 	assert.Equal(t, ext.EndGroups, err)
 	_, _, ok := getPendingImport(chat.Id)
 	assert.False(t, ok)
-	assert.Equal(t, "imported rules", db.GetChatRulesInfo(chat.Id).Rules)
+	assert.Equal(t, "imported rules", rules.GetChatRulesInfo(chat.Id).Rules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
 
@@ -552,8 +556,8 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	require.NoError(t, db.EnsureChatInDb(chat.Id, chat.Title))
-	db.SetChatRules(chat.Id, "rules before reset")
+	require.NoError(t, chats.EnsureChatInDb(chat.Id, chat.Title))
+	rules.SetChatRules(chat.Id, "rules before reset")
 	storePendingReset(chat.Id, []string{"rules"})
 	t.Cleanup(func() {
 		clearPendingReset(chat.Id)
@@ -569,7 +573,7 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	assert.Equal(t, ext.EndGroups, err)
 	_, ok := getPendingReset(chat.Id)
 	assert.False(t, ok)
-	assert.Empty(t, db.GetChatRulesInfo(chat.Id).Rules)
+	assert.Empty(t, rules.GetChatRulesInfo(chat.Id).Rules)
 	assert.Len(t, client.callsFor("sendMessage"), 1)
 }
 
@@ -635,7 +639,7 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	storePendingImport(chat.Id, db.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"}), []string{"rules"})
+	storePendingImport(chat.Id, backup.NewBackupFormat(chat.Id, chat.Title, owner.Id, []string{"rules"}), []string{"rules"})
 	cancelImport := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "cancel_import", "c": strconv.FormatInt(chat.Id, 10)},
@@ -665,20 +669,20 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 func TestModuleNames(t *testing.T) {
 	t.Run("all module names are lowercase", func(t *testing.T) {
 		modules := []string{
-			db.BackupModuleAdmin,
-			db.BackupModuleAntiflood,
-			db.BackupModuleBlacklists,
-			db.BackupModuleCaptcha,
-			db.BackupModuleConnections,
-			db.BackupModuleDisabling,
-			db.BackupModuleFilters,
-			db.BackupModuleGreetings,
-			db.BackupModuleLocks,
-			db.BackupModuleNotes,
-			db.BackupModulePins,
-			db.BackupModuleReports,
-			db.BackupModuleRules,
-			db.BackupModuleWarns,
+			backup.BackupModuleAdmin,
+			backup.BackupModuleAntiflood,
+			backup.BackupModuleBlacklists,
+			backup.BackupModuleCaptcha,
+			backup.BackupModuleConnections,
+			backup.BackupModuleDisabling,
+			backup.BackupModuleFilters,
+			backup.BackupModuleGreetings,
+			backup.BackupModuleLocks,
+			backup.BackupModuleNotes,
+			backup.BackupModulePins,
+			backup.BackupModuleReports,
+			backup.BackupModuleRules,
+			backup.BackupModuleWarns,
 		}
 
 		for _, module := range modules {

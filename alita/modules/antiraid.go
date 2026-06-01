@@ -18,7 +18,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -240,7 +241,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	settings := db.GetAntiRaidSettings(chat.Id)
+	settings := antiraid.GetAntiRaidSettings(chat.Id)
 	isActive := a.isRaidActive(chat.Id)
 
 	for _, member := range msg.NewChatMembers {
@@ -284,7 +285,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			a.enableRaid(chat.Id, settings.RaidTime)
 			log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
 
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
 			_, _ = chat.SendMessage(bot, text, formatting.Shtml())
 
@@ -327,11 +328,11 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		settings := db.GetAntiRaidSettings(chat.Id)
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
 		isActive := a.isRaidActive(chat.Id)
 		st := getRaidState(chat.Id)
 		var text string
@@ -383,7 +384,7 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		settings := db.GetAntiRaidSettings(chat.Id)
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
 		a.enableRaid(chat.Id, settings.RaidTime)
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
@@ -447,7 +448,7 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
 		text := ""
@@ -474,26 +475,26 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 
 	text := ""
 	if isRaidTime {
-		settings := db.GetAntiRaidSettings(chat.Id)
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
 		if settings.RaidTime == dur {
 			text, _ = tr.GetString("antiraid_raidtime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := db.SetRaidTime(chat.Id, dur)
+		err := antiraid.SetRaidTime(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidTime failed for chat %d", chat.Id)
 			return ext.EndGroups
 		}
 		text, _ = tr.GetString("antiraid_raidtime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
 	} else {
-		settings := db.GetAntiRaidSettings(chat.Id)
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
 		if settings.RaidActionTime == dur {
 			text, _ = tr.GetString("antiraid_raidactiontime_no_change", i18n.TranslationParams{"duration": formatDuration(dur)})
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		err := db.SetRaidActionTime(chat.Id, dur)
+		err := antiraid.SetRaidActionTime(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidActionTime failed for chat %d", chat.Id)
 			return ext.EndGroups
@@ -524,10 +525,10 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
-		settings := db.GetAntiRaidSettings(chat.Id)
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
 		var text string
 		if settings.AutoAntiRaidThreshold > 0 {
 			text, _ = tr.GetString("antiraid_auto_enabled", i18n.TranslationParams{"threshold": strconv.Itoa(settings.AutoAntiRaidThreshold)})
@@ -540,7 +541,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 
 	arg := strings.ToLower(args[0])
 	if arg == "off" {
-		err := db.SetAutoAntiRaidThreshold(chat.Id, 0)
+		err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 0)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(0) failed for chat %d", chat.Id)
 			return ext.EndGroups
@@ -556,7 +557,7 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-	if err := db.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
+	if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
 		log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(%d) failed for chat %d", threshold, chat.Id)
 		return ext.EndGroups
 	}
@@ -597,7 +598,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	switch action {
 	case "on":
 		if a.isRaidActive(chatID) {
@@ -605,7 +606,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		settings := db.GetAntiRaidSettings(chatID)
+		settings := antiraid.GetAntiRaidSettings(chatID)
 		a.enableRaid(chatID, settings.RaidTime)
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})

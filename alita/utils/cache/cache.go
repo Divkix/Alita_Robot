@@ -37,7 +37,6 @@ func SetMarshal(m *marshaler.Marshaler) {
 	marshal = m
 }
 
-
 type AdminCache struct {
 	ChatId   int64
 	UserInfo []gotgbot.MergedChatMember

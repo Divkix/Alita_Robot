@@ -15,7 +15,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/blacklists"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -52,7 +53,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var (
 		alreadyBlacklisted, newBlacklist []string
@@ -84,7 +85,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if len(args) >= 1 {
-		allBlWords := db.GetBlacklistSettings(chat.Id).Triggers()
+		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
 
 		// OPTIMIZATION: Convert blacklist slice to map for O(1) lookups
 		blWordSet := make(map[string]struct{}, len(allBlWords))
@@ -132,7 +133,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 						defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
 						defer wg.Done()
 
-						if err := db.AddBlacklist(chatId, word); err != nil {
+						if err := blacklists.AddBlacklist(chatId, word); err != nil {
 							log.WithFields(log.Fields{
 								"chatId": chatId,
 								"word":   word,
@@ -165,7 +166,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 					resultChan <- result{word: word, isAlreadyListed: isListed}
 
 					if !isListed {
-						if err := db.AddBlacklist(chat.Id, word); err != nil {
+						if err := blacklists.AddBlacklist(chat.Id, word); err != nil {
 							log.WithFields(log.Fields{
 								"chatId": chat.Id,
 								"word":   word,
@@ -232,7 +233,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var removedBlacklists []string
 
@@ -261,14 +262,14 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else {
-		allBlWords := db.GetBlacklistSettings(chat.Id).Triggers()
+		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
 		for _, blWord := range args {
 			if slices.Contains(allBlWords, blWord) {
 				removedBlacklists = append(removedBlacklists, blWord)
 				go func(chatId int64, word string) {
 					defer error_handling.RecoverFromPanic("removeBlacklist", "blacklists")
 
-					if err := db.RemoveBlacklist(chatId, word); err != nil {
+					if err := blacklists.RemoveBlacklist(chatId, word); err != nil {
 						log.WithFields(log.Fields{
 							"chatId": chatId,
 							"word":   word,
@@ -306,7 +307,7 @@ Anyone can view blacklists in group
 // listBlacklists handles the /blacklists command to display all blacklisted words.
 // Shows a sorted list of all currently blacklisted words in the group.
 func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	msg := ctx.EffectiveMessage
 	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "blacklists") {
@@ -330,7 +331,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	blSrc := db.GetBlacklistSettings(chat.Id)
+	blSrc := blacklists.GetBlacklistSettings(chat.Id)
 	slices.Sort(blSrc.Triggers())
 	var sb strings.Builder
 	for _, i := range blSrc.Triggers() {
@@ -385,7 +386,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var rMsg string
 
@@ -400,13 +401,13 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	if len(args) == 0 {
-		currAction := db.GetBlacklistSettings(chat.Id).Action()
+		currAction := blacklists.GetBlacklistSettings(chat.Id).Action()
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_current_mode")
 		rMsg = fmt.Sprintf(temp, currAction)
 	} else if len(args) == 1 {
 		action := strings.ToLower(args[0])
 		if slices.Contains([]string{"mute", "kick", "warn", "ban", "none"}, action) {
-			if err := db.SetBlacklistAction(chat.Id, action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chat.Id,
 					"action": action,
@@ -445,7 +446,7 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// permission checks
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -495,7 +496,7 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	user := query.From
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
@@ -514,7 +515,7 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if creatorAction == "" {
 		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
@@ -526,13 +527,13 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		// Check if message is nil (may have been deleted)
 		if query.Message == nil {
 			log.Warn("[Blacklists] Cannot remove all blacklists: message was deleted")
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("common_callback_message_unavailable")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
 		chatID := query.Message.GetChat().Id
-		if err := db.RemoveAllBlacklist(chatID); err != nil {
+		if err := blacklists.RemoveAllBlacklist(chatID); err != nil {
 			log.WithFields(log.Fields{
 				"chatId": chatID,
 				"error":  err,
@@ -606,8 +607,8 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if matchText == "" {
 		return ext.ContinueGroups
 	}
-	blSettings := db.GetBlacklistSettings(chat.Id)
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	blSettings := blacklists.GetBlacklistSettings(chat.Id)
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	triggers := blSettings.Triggers()
 	if len(triggers) == 0 {

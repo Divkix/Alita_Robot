@@ -13,7 +13,11 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
@@ -67,7 +71,7 @@ func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, se
 	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
 	}
-	if db.GetAdminSettings(chat.Id).AnonAdmin {
+	if admin.GetAdminSettings(chat.Id).AnonAdmin {
 		return true, true
 	}
 	setAnonAdminCache(chat.Id, msg)
@@ -158,7 +162,7 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 	}
 
 	// Check if command is disabled in this chat
-	if !db.IsCommandDisabled(msg.Chat.Id, cmd) {
+	if !disabling.IsCommandDisabled(msg.Chat.Id, cmd) {
 		return false
 	}
 
@@ -174,7 +178,7 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 
 	// Command is disabled and user is not admin - block the command
 	// Optionally delete the message if chat has deletion enabled
-	if db.ShouldDel(msg.Chat.Id) {
+	if disabling.ShouldDel(msg.Chat.Id) {
 		_, err := msg.Delete(bot, nil)
 		if err != nil {
 			log.Errorf("[CheckDisabledCmd] Failed to delete message for disabled command '%s' in chat %d: %v", cmd, msg.Chat.Id, err)
@@ -189,7 +193,7 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 // Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha, antispam).
 // This is a simple delegation to the DB layer for consistent usage in watcher handlers.
 func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
-	return db.IsUserApproved(chatID, userID)
+	return approvals.IsUserApproved(chatID, userID)
 }
 
 // IsUserAdmin checks if a user has administrator privileges in a chat.
@@ -469,14 +473,14 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool) (chat *gotgbot.Chat) {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if msg == nil || user == nil {
 		return nil
 	}
 
 	if msg.Chat.Type == "private" {
-		conn := db.Connection(user.Id)
+		conn := connections.Connection(user.Id)
 		if conn.Connected && conn.ChatId != 0 {
 			chatFullInfo, err := b.GetChat(conn.ChatId, nil)
 			if err != nil {
@@ -718,7 +722,7 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 		EffectiveMessage: msg,
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	mainText, _ := tr.GetString("chat_status_anon_confirm")
 	buttonText, _ := tr.GetString("chat_status_anon_prove_admin")
 

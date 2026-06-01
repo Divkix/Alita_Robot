@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/utils/async"
@@ -188,6 +189,13 @@ func main() {
 	var statsCollector *monitoring.BackgroundStatsCollector
 	var autoRemediation *monitoring.AutoRemediationManager
 	var activityMonitor *monitoring.ActivityMonitor
+	var dbMonitoringCancel context.CancelFunc
+
+	if config.AppConfig.EnableDBMonitoring {
+		var ctx context.Context
+		ctx, dbMonitoringCancel = context.WithCancel(context.Background())
+		dbmonitoring.StartMonitoring(ctx, time.Minute)
+	}
 
 	if config.AppConfig.EnableBackgroundStats {
 		statsCollector = monitoring.NewBackgroundStatsCollector()
@@ -214,6 +222,15 @@ func main() {
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Stopping async processor...")
 			async.StopAsyncProcessor()
+			return nil
+		})
+	}
+
+	// Register DB monitoring shutdown handler
+	if dbMonitoringCancel != nil {
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping database monitoring...")
+			dbMonitoringCancel()
 			return nil
 		})
 	}

@@ -14,6 +14,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -29,7 +32,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	memStatus := db.GetTeamMemInfo(user.Id)
+	memStatus := devs.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
@@ -42,7 +45,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 
 	if len(args) < 2 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		replyText, _ = tr.GetString("devs_specify_user")
 	} else {
 		_chatId := args[1]
@@ -56,7 +59,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		_chat := chat.ToChat()
 		gChat := &_chat
 		con, _ := gChat.GetMemberCount(b, nil)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		textTemplate, _ := tr.GetString("devs_chat_info")
 		replyText = fmt.Sprintf(textTemplate, chat.Title, chat.Id, con, chat.InviteLink)
 	}
@@ -77,7 +80,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	memStatus := db.GetTeamMemInfo(user.Id)
+	memStatus := devs.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
@@ -87,7 +90,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("devs_getting_chat_list")
 	rMsg, err := msg.Reply(
 		b,
@@ -107,7 +110,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	allChats := db.GetAllChats()
+	allChats := chats.GetAllChats()
 
 	var sb strings.Builder
 	for chatId, v := range allChats {
@@ -161,7 +164,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	memStatus := db.GetTeamMemInfo(user.Id)
+	memStatus := devs.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
@@ -172,7 +175,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 
 	if len(args) < 2 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		replyText, _ := tr.GetString("devs_specify_user")
 		_, err := msg.Reply(b, replyText, formatting.Shtml())
 		if err != nil {
@@ -190,7 +193,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("devs_left_chat")
 	_, err = msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
@@ -243,9 +246,9 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 		log.Error(err)
 		return err
 	}
-	memStatus := db.GetTeamMemInfo(userId)
+	memStatus := devs.GetTeamMemInfo(userId)
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var txt string
 
 	// Check if operation is valid based on current role status
@@ -283,7 +286,7 @@ func (m moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 		alreadyMsgKey: "devs_user_already_sudo",
 		failMsgKey:    "devs_failed_to_add_sudo",
 		successMsgKey: "devs_added_to_sudo",
-		dbOp:          db.AddSudo,
+		dbOp:          devs.AddSudo,
 	})
 }
 
@@ -297,7 +300,7 @@ func (m moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 		alreadyMsgKey: "devs_user_already_dev",
 		failMsgKey:    "devs_failed_to_add_dev",
 		successMsgKey: "devs_added_to_dev",
-		dbOp:          db.AddDev,
+		dbOp:          devs.AddDev,
 	})
 }
 
@@ -311,7 +314,7 @@ func (m moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 		notRoleMsgKey: "devs_user_not_sudo",
 		failMsgKey:    "devs_failed_to_remove_sudo",
 		successMsgKey: "devs_removed_from_sudo",
-		dbOp:          db.RemSudo,
+		dbOp:          devs.RemSudo,
 	})
 }
 
@@ -325,7 +328,7 @@ func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 		notRoleMsgKey: "devs_user_not_dev",
 		failMsgKey:    "devs_failed_to_remove_dev",
 		successMsgKey: "devs_removed_from_dev",
-		dbOp:          db.RemDev,
+		dbOp:          devs.RemDev,
 	})
 }
 
@@ -342,7 +345,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	teamUsers := db.GetTeamMembers()
+	teamUsers := devs.GetTeamMembers()
 	var teamint64Slice []int64
 	for k := range teamUsers {
 		teamint64Slice = append(teamint64Slice, k)
@@ -353,7 +356,7 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	devHeader, _ := tr.GetString("devs_dev_users_header")
 	sudoHeader, _ := tr.GetString("devs_sudo_users_header")
 	var (
@@ -418,7 +421,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	memStatus := db.GetTeamMemInfo(user.Id)
+	memStatus := devs.GetTeamMemInfo(user.Id)
 
 	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
@@ -426,7 +429,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("devs_fetching_stats")
 	edits, err := msg.Reply(
 		b,
@@ -440,7 +443,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	stats := db.LoadAllStats()
+	stats := devs.LoadAllStats()
 	_, _, err = edits.EditText(
 		b,
 		stats,

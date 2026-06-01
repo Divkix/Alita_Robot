@@ -8,7 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -259,7 +259,7 @@ func buildModerationCtx(m *moduleStruct, b *gotgbot.Bot, ctx *ext.Context) (*mod
 		Msg:    ctx.EffectiveMessage,
 		User:   user,
 		Ctx:    ctx,
-		Tr:     i18n.MustNewTranslator(db.GetLanguage(ctx)),
+		Tr:     i18n.MustNewTranslator(lang.GetLanguage(ctx)),
 		Module: m,
 	}, nil
 }

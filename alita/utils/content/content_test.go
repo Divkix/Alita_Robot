@@ -476,8 +476,8 @@ func TestNotesParserNone(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-	// ConvertButtonV2ToDbButton
-	// ---------------------------------------------------------------------------
+// ConvertButtonV2ToDbButton
+// ---------------------------------------------------------------------------
 
 func TestConvertButtonV2ToDbButton(t *testing.T) {
 	t.Parallel()

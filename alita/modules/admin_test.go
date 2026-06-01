@@ -8,7 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -504,7 +504,7 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(on) error = %v, want EndGroups", err)
 	}
-	if !db.GetAdminSettings(chat.Id).AnonAdmin {
+	if !admin.GetAdminSettings(chat.Id).AnonAdmin {
 		t.Fatal("AnonAdmin was not enabled")
 	}
 
@@ -525,7 +525,7 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("anonAdmin(off) error = %v, want EndGroups", err)
 	}
-	if db.GetAdminSettings(chat.Id).AnonAdmin {
+	if admin.GetAdminSettings(chat.Id).AnonAdmin {
 		t.Fatal("AnonAdmin stayed enabled after false")
 	}
 }
@@ -536,12 +536,12 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	t.Cleanup(func() {
-		if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+		if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 			t.Fatalf("cleanup SetAnonAdminMode(false) error = %v", err)
 		}
 	})
 
-	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+	if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
 		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
 	}
 	onAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin yes")
@@ -553,7 +553,7 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 		t.Fatalf("anonAdmin(already on) error = %v, want EndGroups", err)
 	}
 
-	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+	if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
 	}
 	offAgainCtx := newModuleMessageContext(bot, chat, user, "/anonadmin off")

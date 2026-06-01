@@ -11,7 +11,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -51,7 +52,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 		ctx.EffectiveChat = connectedChat
 		chat := ctx.EffectiveChat
 		args := ctx.Args()[1:]
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 		var cfg toggleCmdConfig
 		if enable {
@@ -60,7 +61,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 				noCmdMsgKey:      "disabling_no_command_reenable",
 				successMsgKey:    "disabling_enabled_successfully",
 				unknownCmdMsgKey: "disabling_unknown_reenable",
-				dbOp:             db.EnableCMD,
+				dbOp:             disabling.EnableCMD,
 				actionName:       "enable",
 			}
 		} else {
@@ -69,7 +70,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 				noCmdMsgKey:      "disabling_no_command_specified",
 				successMsgKey:    "disabling_disabled_successfully",
 				unknownCmdMsgKey: "disabling_unknown_command",
-				dbOp:             db.DisableCMD,
+				dbOp:             disabling.DisableCMD,
 				actionName:       "disable",
 			}
 		}
@@ -162,7 +163,7 @@ Anyone can use this command to check the disableable commands
 func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("disabling_disableable_commands")
 	var sb strings.Builder
 	for _, cmds := range helpers.DisableCmds {
@@ -210,10 +211,10 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	disabled := db.GetChatDisabledCMDs(chat.Id)
+	disabled := disabling.GetChatDisabledCMDs(chat.Id)
 
 	if len(disabled) == 0 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("disabling_no_disabled_commands")
 		_, err := msg.Reply(b, text,
 			&gotgbot.SendMessageOpts{
@@ -228,7 +229,7 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("disabling_disabled_commands")
 		slices.Sort(disabled)
 		var sb strings.Builder
@@ -266,7 +267,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var text string
 
@@ -275,7 +276,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		switch param {
 		case "on", "true", "yes":
 			// Execute DB operation synchronously before sending confirmation
-			if err := db.ToggleDel(chat.Id, true); err != nil {
+			if err := disabling.ToggleDel(chat.Id, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
 				text = "Failed to update setting. Please try again."
 			} else {
@@ -283,7 +284,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		case "off", "false", "no":
 			// Execute DB operation synchronously before sending confirmation
-			if err := db.ToggleDel(chat.Id, false); err != nil {
+			if err := disabling.ToggleDel(chat.Id, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
 				text = "Failed to update setting. Please try again."
 			} else {
@@ -293,7 +294,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("disabling_invalid_option")
 		}
 	} else {
-		currStatus := db.ShouldDel(chat.Id)
+		currStatus := disabling.ShouldDel(chat.Id)
 		if currStatus {
 			text, _ = tr.GetString("disabling_delete_current_enabled")
 		} else {

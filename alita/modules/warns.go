@@ -10,7 +10,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
@@ -39,7 +41,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// permissions check
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
@@ -56,7 +58,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		switch strings.ToLower(args[0]) {
 		case "ban":
-			if err := db.SetWarnMode(chat.Id, "ban"); err != nil {
+			if err := warns.SetWarnMode(chat.Id, "ban"); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -64,7 +66,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			replyText, _ = tr.GetString("warns_mode_updated_ban")
 		case "kick":
-			if err := db.SetWarnMode(chat.Id, "kick"); err != nil {
+			if err := warns.SetWarnMode(chat.Id, "kick"); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -72,7 +74,7 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			replyText, _ = tr.GetString("warns_mode_updated_kick")
 		case "mute":
-			if err := db.SetWarnMode(chat.Id, "mute"); err != nil {
+			if err := warns.SetWarnMode(chat.Id, "mute"); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -105,7 +107,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Get translated button texts
 	removeWarnText, _ := tr.GetString("warns_remove_button")
@@ -137,8 +139,8 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	}
 
 	u := chatMember.MergeChatMember().User
-	warnrc := db.GetWarnSetting(chat.Id)
-	numWarns, reasons := db.WarnUser(userId, chat.Id, reason)
+	warnrc := warns.GetWarnSetting(chat.Id)
+	numWarns, reasons := warns.WarnUser(userId, chat.Id, reason)
 
 	if numWarns >= warnrc.WarnLimit {
 		punished := false
@@ -178,7 +180,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 
 		if punished {
-			db.ResetUserWarns(userId, chat.Id)
+			warns.ResetUserWarns(userId, chat.Id)
 		}
 		var sb strings.Builder
 		for _, warnReason := range reasons {
@@ -186,7 +188,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 		reply += sb.String()
 	} else {
-		rules := db.GetChatRulesInfo(chat.Id)
+		rules := rules.GetChatRulesInfo(chat.Id)
 		if len(rules.Rules) >= 1 {
 			keyboard = gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -253,7 +255,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -322,7 +324,7 @@ func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -391,7 +393,7 @@ func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -458,7 +460,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -474,7 +476,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	warnrc := db.GetWarnSetting(chat.Id)
+	warnrc := warns.GetWarnSetting(chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnrc.WarnMode)
 	_, err := msg.Reply(b, text, formatting.Shtml())
@@ -490,7 +492,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "warns") {
@@ -527,11 +529,11 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	numWarns, reasons := db.GetWarns(userId, chat.Id)
+	numWarns, reasons := warns.GetWarns(userId, chat.Id)
 	text := ""
 
 	if numWarns != 0 {
-		warnrc := db.GetWarnSetting(chat.Id)
+		warnrc := warns.GetWarnSetting(chat.Id)
 		if len(reasons) > 0 {
 			temp, _ := tr.GetString("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
@@ -579,7 +581,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
@@ -615,7 +617,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	var replyText string
 
-	res := db.RemoveWarn(int64(userId), chat.Id)
+	res := warns.RemoveWarn(int64(userId), chat.Id)
 	if res {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
@@ -665,7 +667,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
@@ -690,7 +692,7 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 			if num < 1 || num > 100 {
 				replyText, _ = tr.GetString("warns_limit_range_error")
 			} else {
-				if err := db.SetWarnLimit(chat.Id, num); err != nil {
+				if err := warns.SetWarnLimit(chat.Id, num); err != nil {
 					log.Errorf("[Warns] SetWarnLimit failed for chat %d: %v", chat.Id, err)
 					errText, _ := tr.GetString("common_settings_save_failed")
 					_, _ = msg.Reply(b, errText, formatting.Smarkdown())
@@ -720,7 +722,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -757,7 +759,7 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	db.ResetUserWarns(userId, chat.Id)
+	warns.ResetUserWarns(userId, chat.Id)
 	text, _ := tr.GetString("warns_reset_success")
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
@@ -777,7 +779,7 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Get translated button texts
 	yesText, _ := tr.GetString("common_yes")
@@ -793,7 +795,7 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	warnrc := db.GetAllChatWarns(chat.Id)
+	warnrc := warns.GetAllChatWarns(chat.Id)
 	if warnrc == 0 {
 		text, _ := tr.GetString("warns_no_users_warned")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -837,7 +839,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	user := query.From
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
@@ -871,7 +873,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyText = helpText
 			break
 		}
-		db.ResetAllChatWarns(chat.Id)
+		warns.ResetAllChatWarns(chat.Id)
 		helpText, _ = tr.GetString("warns_reset_all_success")
 		replyText, _ = tr.GetString("warns_reset_all_final")
 	case "no":
@@ -916,7 +918,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -954,7 +956,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	var replyText string
-	if db.RemoveWarn(userId, chat.Id) {
+	if warns.RemoveWarn(userId, chat.Id) {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	} else {

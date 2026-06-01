@@ -4,7 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 func TestAsyncUserUpdateWrappersPersistRecords(t *testing.T) {
@@ -14,19 +16,19 @@ func TestAsyncUserUpdateWrappersPersistRecords(t *testing.T) {
 
 	asyncUpdateUser(userID, "user_name", "User Name")
 	waitForModuleCondition(t, func() bool {
-		username, name, found := db.GetUserInfoById(userID)
+		username, name, found := user.GetUserInfoById(userID)
 		return found && username == "user_name" && name == "User Name"
 	})
 
 	asyncUpdateChat(chatID, "Users Chat", userID)
 	waitForModuleCondition(t, func() bool {
-		chat := db.GetChatSettings(chatID)
+		chat := chats.GetChatSettings(chatID)
 		return chat.ChatId == chatID && chat.ChatName == "Users Chat"
 	})
 
 	asyncUpdateChannel(channelID, "Updates", "updates")
 	waitForModuleCondition(t, func() bool {
-		channelUsername, channelName, found := db.GetChannelInfoById(channelID)
+		channelUsername, channelName, found := channels.GetChannelInfoById(channelID)
 		return found && channelUsername == "updates" && channelName == "Updates"
 	})
 }

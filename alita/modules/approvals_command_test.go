@@ -7,8 +7,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 )
 
 func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
@@ -21,10 +20,10 @@ func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 	if err := approvalsModule.approveUser(bot, approveCtx); err != ext.EndGroups {
 		t.Fatalf("approveUser error = %v, want EndGroups", err)
 	}
-	if !db.IsUserApproved(chat.Id, 42) {
+	if !approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("user was not approved")
 	}
-	approved := db.GetApprovedUsers(chat.Id)
+	approved := approvals.GetApprovedUsers(chat.Id)
 	if len(approved) != 1 || approved[0].Reason != "trusted" {
 		t.Fatalf("approved users = %+v, want reason trusted", approved)
 	}
@@ -51,7 +50,7 @@ func TestApproveApprovalListAndUnapproveCommands(t *testing.T) {
 	if err := approvalsModule.unapproveUser(bot, unapproveCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveUser error = %v, want EndGroups", err)
 	}
-	if db.IsUserApproved(chat.Id, 42) {
+	if approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("user stayed approved after /unapprove")
 	}
 }
@@ -61,7 +60,7 @@ func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
@@ -74,7 +73,7 @@ func TestApprovalCommandsHandleMissingAndDuplicateUsers(t *testing.T) {
 	if err := approvalsModule.approveUser(bot, duplicateCtx); err != ext.EndGroups {
 		t.Fatalf("approveUser duplicate error = %v, want EndGroups", err)
 	}
-	if got := len(db.GetApprovedUsers(chat.Id)); got != 1 {
+	if got := len(approvals.GetApprovedUsers(chat.Id)); got != 1 {
 		t.Fatalf("approved users after duplicate = %d, want 1", got)
 	}
 
@@ -105,7 +104,7 @@ func TestApprovedListHandlesEmptyAndLargeLists(t *testing.T) {
 
 	for i := 0; i < approvedUsersInlineLimit+1; i++ {
 		userID := int64(10_000 + i)
-		if err := db.AddApprovedUser(chat.Id, userID, admin.Id, "bulk reason"); err != nil {
+		if err := approvals.AddApprovedUser(chat.Id, userID, admin.Id, "bulk reason"); err != nil {
 			t.Fatalf("AddApprovedUser(%d) error = %v", userID, err)
 		}
 	}
@@ -124,10 +123,10 @@ func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddApprovedUser(chat.Id, 42, owner.Id, "one"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "one"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
-	if err := db.AddApprovedUser(chat.Id, 43, owner.Id, "two"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, 43, owner.Id, "two"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
@@ -148,7 +147,7 @@ func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
 	if err := approvalsModule.unapproveAllCallback(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback error = %v, want EndGroups", err)
 	}
-	if got := len(db.GetApprovedUsers(chat.Id)); got != 0 {
+	if got := len(approvals.GetApprovedUsers(chat.Id)); got != 0 {
 		t.Fatalf("approved users after callback = %d, want none", got)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
@@ -161,7 +160,7 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddApprovedUser(chat.Id, 42, owner.Id, "keep"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "keep"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
@@ -169,7 +168,7 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 	if err := approvalsModule.unapproveAllCallback(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback cancel error = %v, want EndGroups", err)
 	}
-	if !db.IsUserApproved(chat.Id, 42) {
+	if !approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("cancel callback removed approved user")
 	}
 
@@ -188,7 +187,7 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 	if err := approvalsModule.unapproveAllCallback(bot, missingMessageCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback missing message error = %v, want EndGroups", err)
 	}
-	if !db.IsUserApproved(chat.Id, 42) {
+	if !approvals.IsUserApproved(chat.Id, 42) {
 		t.Fatal("missing-message callback removed approved user")
 	}
 
@@ -219,7 +218,7 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			method: "sendMessage",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
+				if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "already"); err != nil {
 					t.Fatalf("AddApprovedUser setup error = %v", err)
 				}
 			},
@@ -233,7 +232,7 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			method: "sendMessage",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+				if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
 					t.Fatalf("AddApprovedUser setup error = %v", err)
 				}
 			},
@@ -247,7 +246,7 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			method: "sendMessage",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+				if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
 					t.Fatalf("AddApprovedUser setup error = %v", err)
 				}
 			},
@@ -260,7 +259,7 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			method: "sendMessage",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
+				if err := approvals.AddApprovedUser(chat.Id, 42, admin.Id, "trusted"); err != nil {
 					t.Fatalf("AddApprovedUser setup error = %v", err)
 				}
 			},
@@ -273,7 +272,7 @@ func TestApprovalCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				for i := 0; i < approvedUsersInlineLimit+1; i++ {
-					if err := db.AddApprovedUser(chat.Id, int64(10_000+i), admin.Id, "bulk"); err != nil {
+					if err := approvals.AddApprovedUser(chat.Id, int64(10_000+i), admin.Id, "bulk"); err != nil {
 						t.Fatalf("AddApprovedUser setup error = %v", err)
 					}
 				}
@@ -336,7 +335,7 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			bot := newModuleTestBot(client)
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Approval Chat"}
-			if err := db.AddApprovedUser(chat.Id, 42, owner.Id, "trusted"); err != nil {
+			if err := approvals.AddApprovedUser(chat.Id, 42, owner.Id, "trusted"); err != nil {
 				t.Fatalf("AddApprovedUser setup error = %v", err)
 			}
 			ctx := newModuleCallbackContext(bot, chat, owner, tt.data)

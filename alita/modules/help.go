@@ -10,12 +10,12 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -200,7 +200,7 @@ func (m *moduleEnabled) LoadModules() []string {
 func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var (
 		currText string
@@ -331,7 +331,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if query.Message == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
@@ -359,7 +359,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Sort the module names
 	if slices.Contains([]string{"BackStart", "Help"}, module) {
 		parsemode = formatting.HTML
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		switch module {
 		case "Help":
 			// This shows the main start menu
@@ -414,7 +414,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if ctx.Message.Chat.Type == "private" {
 		if len(args) == 1 {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			startHelpText := getStartHelp(tr)
 			startMarkupKb := getStartMarkup(tr, getBotUsername(b))
 			_, err := msg.Reply(b,
@@ -441,7 +441,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.WithField("args", args).Debug("Unexpected number of args in /start deep link")
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("help_pm_questions")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -494,7 +494,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	msg := query.Message
 	if msg == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
@@ -502,7 +502,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// just in case
 	if msg.GetChat().Type != "private" {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("help_config_private_only")
 		_, _, err := msg.EditText(b, text, nil)
 		if err != nil {
@@ -614,7 +614,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if ctx.Message.Chat.Type == "private" {
 		if len(args) == 1 {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			name := "User"
 			if msg.From != nil {
 				name = html.EscapeString(msg.From.FirstName)
@@ -648,7 +648,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		pmMeKbText, _ := tr.GetString("help_click_here")
 		pmMeKbUri := fmt.Sprintf("https://t.me/%s?start=help_help", b.Username)
 		moduleHelpString, _ := tr.GetString("help_contact_pm")

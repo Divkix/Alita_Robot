@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 )
 
 type formattingBotClient struct{}
@@ -113,8 +114,8 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 	}
 	bot.Username = "FormatBot"
 	chat := &gotgbot.Chat{Id: -100777, Type: "supergroup", Title: "Rules Chat"}
-	db.SetChatRules(chat.Id, "Keep it tidy.")
-	db.SetChatRulesButton(chat.Id, "Read Rules")
+	rules.SetChatRules(chat.Id, "Keep it tidy.")
+	rules.SetChatRulesButton(chat.Id, "Read Rules")
 
 	got, buttons := FormattingReplacerWithLanguage(
 		bot,

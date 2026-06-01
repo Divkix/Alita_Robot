@@ -12,6 +12,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -63,11 +65,11 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	noteString, _ := tr.GetString("notes_save_success")
 
 	if msg.ReplyToMessage != nil && len(args) <= 1 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -76,7 +78,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if len(args) <= 2 && msg.ReplyToMessage == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_invalid")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -86,7 +88,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	result := content.ExtractNoteAndFilter(msg, false, db.GetLanguage(ctx))
+	result := content.ExtractNoteAndFilter(msg, false, lang.GetLanguage(ctx))
 	noteWord, fileid, text, dataType, buttons, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif, errorMsg := result.KeyWord, result.FileID, result.Text, result.DataType, result.Buttons, result.PvtOnly, result.GrpOnly, result.AdminOnly, result.WebPreview, result.IsProtected, result.NoNotif, result.ErrorMsg
 	if dataType == -1 && errorMsg != "" {
 		_, err := msg.Reply(b, errorMsg, formatting.Shtml())
@@ -108,11 +110,11 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	noteWord = strings.ToLower(noteWord)
 
 	// check if note already exists or not
-	if db.DoesNoteExists(chat.Id, noteWord) {
+	if notes.DoesNoteExists(chat.Id, noteWord) {
 		token, tokenErr := newNotesOverwriteToken()
 		if tokenErr != nil {
 			log.Errorf("[Notes] Failed to generate overwrite token: %v", tokenErr)
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			errorText, _ := tr.GetString("notes_overwrite_token_failed")
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
@@ -133,7 +135,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			isProtected: isProtected,
 			noNotif:     noNotif,
 		})
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		overwriteText, _ := tr.GetString("notes_overwrite_confirm")
 		yesText, _ := tr.GetString("button_yes")
 		noText, _ := tr.GetString("button_no")
@@ -171,9 +173,9 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Fix Issue 1: Remove go keyword and handle error synchronously
-	if err := db.AddNote(chat.Id, noteWord, text, fileid, buttons, dataType, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif); err != nil {
+	if err := notes.AddNote(chat.Id, noteWord, text, fileid, buttons, dataType, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif); err != nil {
 		log.Errorf("[Notes] Failed to add note %s in chat %d: %v", noteWord, chat.Id, err)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errorText, _ := tr.GetString("notes_save_failed")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
@@ -210,7 +212,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()
 
 	if len(args) == 1 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_remove_keyword_required")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -234,8 +236,8 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// check if note exists in admin notes as well
-	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -247,9 +249,9 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 	noteWord, _ = extraction.ExtractQuotes(noteWord, false, true)
 
 	// Fix Issue 2: Add error handling for RemoveNote
-	if err := db.RemoveNote(chat.Id, strings.ToLower(noteWord)); err != nil {
+	if err := notes.RemoveNote(chat.Id, strings.ToLower(noteWord)); err != nil {
 		log.Errorf("[Notes] Failed to remove note %s in chat %d: %v", noteWord, chat.Id, err)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errorText, _ := tr.GetString("error_generic")
 		_, err := msg.Reply(b, errorText, formatting.Shtml())
 		if err != nil {
@@ -259,7 +261,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("notes_removed_success")
 	_, err := msg.Reply(b, fmt.Sprintf(text, noteWord), formatting.Shtml())
 	if err != nil {
@@ -289,26 +291,26 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		option := args[0]
 		switch option {
 		case "on", "yes", "true":
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_enabled")
 			// Fix Issue 2a: Remove go keyword and handle error
-			if err := db.TooglePrivateNote(chat.Id, true); err != nil {
+			if err := notes.TooglePrivateNote(chat.Id, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
 			}
 		case "off", "no", "false":
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
 			// Fix Issue 2b: Remove go keyword and handle error
-			if err := db.TooglePrivateNote(chat.Id, false); err != nil {
+			if err := notes.TooglePrivateNote(chat.Id, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
 			}
 		default:
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_invalid_option")
 		}
 	} else {
-		tmp := db.GetNotes(chat.Id).PrivateNotesEnabled()
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tmp := notes.GetNotes(chat.Id).PrivateNotesEnabled()
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if tmp {
 			txt, _ = tr.GetString("notes_private_status_on")
 		} else {
@@ -343,8 +345,8 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteKeys := db.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	noteKeys := notes.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	info, _ := tr.GetString("notes_none_in_chat")
 
 	if len(noteKeys) == 0 {
@@ -361,7 +363,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 	if ctx.Message.Chat.Type == "private" {
 		// check if want admin notes or not
 		admin := chat_status.IsUserAdmin(b, chat.Id, user.Id)
-		noteKeys := db.GetNotesList(chat.Id, admin)
+		noteKeys := notes.GetNotesList(chat.Id, admin)
 		listText, _ := tr.GetString("notes_list_for_chat")
 		info = fmt.Sprintf(listText, chat.Title)
 		var sb strings.Builder
@@ -378,7 +380,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	privNote := db.GetNotes(chat.Id).PrivateNotesEnabled()
+	privNote := notes.GetNotes(chat.Id).PrivateNotesEnabled()
 	if privNote {
 		checkBtnText, _ := tr.GetString("notes_check_button")
 		_, err := msg.Reply(b, checkBtnText,
@@ -388,7 +390,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text: func() string {
-									tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+									tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 									t, _ := tr.GetString("button_click_me")
 									return t
 								}(),
@@ -441,9 +443,9 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// check notes in adminkeys as well
-	noteKeys := db.GetNotesList(chat.Id, true)
+	noteKeys := notes.GetNotesList(chat.Id, true)
 	if len(noteKeys) == 0 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_none_in_chat")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -460,7 +462,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if mem.MergeChatMember().Status == "creator" {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		clearAllText, _ := tr.GetString("notes_clear_all_confirm")
 		yesText, _ := tr.GetString("button_yes")
 		noText, _ := tr.GetString("button_no")
@@ -487,7 +489,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_creator_only")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -524,7 +526,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	switch action {
 	case "no":
 		// Clean up the pending overwrite entry when user cancels
@@ -603,12 +605,12 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			break
 		}
 
-		if db.DoesNoteExists(chatId, noteWord) {
+		if notes.DoesNoteExists(chatId, noteWord) {
 			// Fix Issue 3: Add error handling for both RemoveNote and AddNote
-			if err := db.RemoveNote(chatId, noteWord); err != nil {
+			if err := notes.RemoveNote(chatId, noteWord); err != nil {
 				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
 			}
-			if err := db.AddNote(chatId, noteData.ItemName, noteData.Text, noteData.FileID, noteData.Buttons, noteData.DataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
+			if err := notes.AddNote(chatId, noteData.ItemName, noteData.Text, noteData.FileID, noteData.Buttons, noteData.DataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
 				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
 				helpText, _ = tr.GetString("notes_save_failed")
 				break
@@ -685,14 +687,14 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if response == "" {
 		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 	var helpText string
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := ctx.EffectiveChat
 	switch response {
 	case "yes":
@@ -701,7 +703,7 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			helpText, _ = tr.GetString("error_generic")
 			break
 		}
-		if err := db.RemoveAllNotes(chat.Id); err != nil {
+		if err := notes.RemoveAllNotes(chat.Id); err != nil {
 			log.Errorf("[Notes] Failed to remove all notes: %v", err)
 			helpText, _ = tr.GetString("error_generic")
 		} else {
@@ -766,15 +768,15 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	noformatNote := len(noteNameArgs) == 2 && noteNameArgs[1] == "noformat"
 
 	// if note does not exist, continue groups
-	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
 		return ext.EndGroups
 	}
 
-	noteData := db.GetNote(chat.Id, noteName)
+	noteData := notes.GetNote(chat.Id, noteName)
 
 	// check if notedata is correct or not
 	if noteData.NoteContent == "" && noteData.FileID == "" {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_parsing_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -788,7 +790,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	// admin notes follow the group note policy
 	if noteData.AdminOnly {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("notes_admin_only")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -808,14 +810,14 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 
 		// chat has private notes enabled or note is private and not group note
-		privateNoteOnly := (db.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly
+		privateNoteOnly := (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly
 
 		// send private note if private notes is enabled or note is private, and it is not group note
 		if privateNoteOnly {
 			if ctx.Message.Chat.Type == "private" {
 				_, err = media.SendNote(b, ctx, chat, noteData, replyMsgId, ctx.Message.MessageThreadId)
 			} else {
-				tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				clickForPrivateText, _ := tr.GetString("notes_click_for_private")
 				_, err = msg.Reply(b,
 					fmt.Sprintf(clickForPrivateText, noteName),
@@ -870,7 +872,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	var err error
 
 	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_get_insufficient_args")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -895,8 +897,8 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	noteName := args[0]
 
 	// check if note exists or not
-	if !slices.Contains(db.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_does_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -906,11 +908,11 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteData := db.GetNote(chat.Id, noteName)
+	noteData := notes.GetNote(chat.Id, noteName)
 
 	// check if notedata is correct or not
 	if noteData.NoteContent == "" && noteData.FileID == "" {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_parsing_error_support")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -924,7 +926,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	// admin notes follow the group note policy
 	if noteData.AdminOnly {
 		if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("notes_admin_only_access")
 			_, err = msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -939,8 +941,8 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
 	} else {
 		// send private note if private notes is enabled or note is private, and it is not group note
-		if (db.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		if (notes.GetNotes(chat.Id).PrivateNotesEnabled() || noteData.PrivateOnly) && !noteData.GroupOnly {
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			clickForPrivateText, _ := tr.GetString("notes_click_for_private")
 			_, err = msg.Reply(b,
 				fmt.Sprintf(clickForPrivateText, noteName),

@@ -9,7 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/locks"
 )
 
 func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
@@ -17,10 +17,10 @@ func TestLockTypesAndCurrentLocksCommands(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.UpdateLock(chat.Id, "url", true); err != nil {
+	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
 		t.Fatalf("UpdateLock setup error = %v", err)
 	}
-	if err := db.UpdateLock(chat.Id, "media", false); err != nil {
+	if err := locks.UpdateLock(chat.Id, "media", false); err != nil {
 		t.Fatalf("UpdateLock setup error = %v", err)
 	}
 
@@ -57,18 +57,18 @@ func TestLockAndUnlockCommandsPersistSettings(t *testing.T) {
 	if err := locksModule.lockPerm(bot, lockCtx); err != ext.EndGroups {
 		t.Fatalf("lockPerm error = %v, want EndGroups", err)
 	}
-	if !db.IsPermLocked(chat.Id, "url") || !db.IsPermLocked(chat.Id, "media") {
-		t.Fatalf("locks were not persisted: %+v", db.GetChatLocks(chat.Id))
+	if !locks.IsPermLocked(chat.Id, "url") || !locks.IsPermLocked(chat.Id, "media") {
+		t.Fatalf("locks were not persisted: %+v", locks.GetChatLocks(chat.Id))
 	}
 
 	unlockCtx := newModuleMessageContext(bot, chat, admin, "/unlock url")
 	if err := locksModule.unlockPerm(bot, unlockCtx); err != ext.EndGroups {
 		t.Fatalf("unlockPerm error = %v, want EndGroups", err)
 	}
-	if db.IsPermLocked(chat.Id, "url") {
+	if locks.IsPermLocked(chat.Id, "url") {
 		t.Fatal("url lock is still enabled after unlock")
 	}
-	if !db.IsPermLocked(chat.Id, "media") {
+	if !locks.IsPermLocked(chat.Id, "media") {
 		t.Fatal("media lock should remain enabled after unlocking url")
 	}
 }
@@ -97,7 +97,7 @@ func TestLockCommandsSkipMissingSenderAndPropagateReplyErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.UpdateLock(chat.Id, "url", true); err != nil {
+	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
 		t.Fatalf("UpdateLock setup error = %v", err)
 	}
 
@@ -160,10 +160,10 @@ func TestLockWatchersDeleteLockedContent(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.UpdateLock(chat.Id, "url", true); err != nil {
+	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
 		t.Fatalf("UpdateLock url setup error = %v", err)
 	}
-	if err := db.UpdateLock(chat.Id, "media", true); err != nil {
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
 		t.Fatalf("UpdateLock media setup error = %v", err)
 	}
 
@@ -190,7 +190,7 @@ func TestBotLockHandlerBansNonAdminAddedBot(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
 	adder := gotgbot.User{Id: 42, FirstName: "Member"}
 	addedBot := gotgbot.User{Id: 4242, IsBot: true, FirstName: "Added Bot"}
-	if err := db.UpdateLock(chat.Id, "bots", true); err != nil {
+	if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
 		t.Fatalf("UpdateLock bots setup error = %v", err)
 	}
 	update := &gotgbot.Update{
@@ -273,7 +273,7 @@ func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
 			bot := newModuleTestBot(client)
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
-			if err := db.UpdateLock(chat.Id, "bots", true); err != nil {
+			if err := locks.UpdateLock(chat.Id, "bots", true); err != nil {
 				t.Fatalf("UpdateLock bots setup error = %v", err)
 			}
 			ctx := newBotLockContext(bot, chat, member, addedBot)

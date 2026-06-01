@@ -9,7 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 )
 
 type chatStatusBotClient struct{}
@@ -391,14 +392,6 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 	}
 }
 
-
-
-
-
-
-
-
-
 func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -413,8 +406,8 @@ func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
 		Text:      "/kick 100",
 	}
 	t.Cleanup(func() {
-		_ = db.EnableCMD(chatID, "kick")
-		_ = db.ToggleDel(chatID, false)
+		_ = disabling.EnableCMD(chatID, "kick")
+		_ = disabling.ToggleDel(chatID, false)
 	})
 
 	privateMsg := *msg
@@ -425,7 +418,7 @@ func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
 	if CheckDisabledCmd(bot, msg, "kick") {
 		t.Fatal("CheckDisabledCmd(enabled command) = true, want false")
 	}
-	if err := db.DisableCMD(chatID, "kick"); err != nil {
+	if err := disabling.DisableCMD(chatID, "kick"); err != nil {
 		t.Fatalf("DisableCMD() error = %v", err)
 	}
 
@@ -441,7 +434,7 @@ func TestCheckDisabledCmdDeletesOnlyWhenConfigured(t *testing.T) {
 		t.Fatalf("deleteMessage calls = %d, want none before delete setting", got)
 	}
 
-	if err := db.ToggleDel(chatID, true); err != nil {
+	if err := disabling.ToggleDel(chatID, true); err != nil {
 		t.Fatalf("ToggleDel(true) error = %v", err)
 	}
 	if !CheckDisabledCmd(bot, msg, "kick") {
@@ -466,14 +459,14 @@ func TestCheckDisabledCmdAllowsTelegramServiceAdmins(t *testing.T) {
 		Text:      "/kick 100",
 	}
 	t.Cleanup(func() {
-		_ = db.EnableCMD(chatID, "kick")
-		_ = db.ToggleDel(chatID, false)
+		_ = disabling.EnableCMD(chatID, "kick")
+		_ = disabling.ToggleDel(chatID, false)
 	})
 
-	if err := db.DisableCMD(chatID, "kick"); err != nil {
+	if err := disabling.DisableCMD(chatID, "kick"); err != nil {
 		t.Fatalf("DisableCMD() error = %v", err)
 	}
-	if err := db.ToggleDel(chatID, true); err != nil {
+	if err := disabling.ToggleDel(chatID, true); err != nil {
 		t.Fatalf("ToggleDel(true) error = %v", err)
 	}
 
@@ -634,10 +627,10 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 		ChatId: chat.Id,
 	}
 	t.Cleanup(func() {
-		_ = db.SetAnonAdminMode(chat.Id, false)
+		_ = admin.SetAnonAdminMode(chat.Id, false)
 	})
 
-	if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+	if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
 		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
 	}
 	isAdmin, shouldReturn := checkAnonAdmin(bot, chat, msg, anonSender)
@@ -648,7 +641,7 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 		t.Fatalf("calls with anon bypass enabled = %+v, want none", client.calls)
 	}
 
-	if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+	if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
 	}
 	isAdmin, shouldReturn = checkAnonAdmin(bot, chat, msg, anonSender)
@@ -892,12 +885,3 @@ func TestIsChannelId(t *testing.T) {
 		t.Fatal("IsChannelId(1) should be false")
 	}
 }
-
-
-
-
-
-
-
-
-

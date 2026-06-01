@@ -15,6 +15,8 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -48,7 +50,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
@@ -71,7 +73,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Check if already approved
-	if db.IsUserApproved(chat.Id, targetUserID) {
+	if approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
 		if err != nil {
@@ -88,7 +90,7 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Reason is optional; default to empty string
-	if err := db.AddApprovedUser(chat.Id, targetUserID, user.Id, reason); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, targetUserID, user.Id, reason); err != nil {
 		log.Errorf("[Approvals] Failed to approve user %d in chat %d: %v", targetUserID, chat.Id, err)
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approve_error")
 		_, _ = msg.Reply(b, text, nil)
@@ -131,7 +133,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
@@ -154,7 +156,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Check if actually approved
-	if !db.IsUserApproved(chat.Id, targetUserID) {
+	if !approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
 		if err != nil {
@@ -164,7 +166,7 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if err := db.RemoveApprovedUser(chat.Id, targetUserID); err != nil {
+	if err := approvals.RemoveApprovedUser(chat.Id, targetUserID); err != nil {
 		log.Errorf("[Approvals] Failed to unapprove user %d in chat %d: %v", targetUserID, chat.Id, err)
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_unapprove_error")
 		_, _ = msg.Reply(b, text, nil)
@@ -201,7 +203,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
@@ -223,7 +225,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 
-	approvedUsers := db.GetApprovedUsers(chat.Id)
+	approvedUsers := approvals.GetApprovedUsers(chat.Id)
 	var foundUser *db.ApprovedUsers
 	for _, a := range approvedUsers {
 		if a.UserID == targetUserID {
@@ -294,7 +296,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	if user == nil {
 		return ext.EndGroups
 	}
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
@@ -302,7 +304,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	approvedUsers := db.GetApprovedUsers(chat.Id)
+	approvedUsers := approvals.GetApprovedUsers(chat.Id)
 	if len(approvedUsers) == 0 {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -416,7 +418,7 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireGroup(b, ctx, nil) {
@@ -464,7 +466,7 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 		return ext.EndGroups
 	}
 	user := query.From
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
@@ -498,7 +500,7 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 			return ext.EndGroups
 		}
 		defer error_handling.RecoverFromPanic("rmAllApprovals", "approvals")
-		if err := db.RemoveAllApprovedUsers(query.Message.GetChat().Id); err != nil {
+		if err := approvals.RemoveAllApprovedUsers(query.Message.GetChat().Id); err != nil {
 			log.WithFields(log.Fields{
 				"chatId": query.Message.GetChat().Id,
 				"error":  err,

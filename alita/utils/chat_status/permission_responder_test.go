@@ -108,4 +108,3 @@ func TestPermissionResponderRespond(t *testing.T) {
 		}
 	})
 }
-

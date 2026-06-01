@@ -47,7 +47,7 @@ func TestMigrationsCreateDisableChatSettingsTable(t *testing.T) {
 func TestClearConnectionsDataPersistsFalseAllowConnect(t *testing.T) {
 	t.Parallel()
 
-	source := readRepoFile(t, "alita", "db", "backup_db.go")
+	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
 	start := strings.Index(source, "func clearConnectionsData")
 	if start == -1 {
 		t.Fatal("clearConnectionsData is missing")
@@ -60,7 +60,7 @@ func TestClearConnectionsDataPersistsFalseAllowConnect(t *testing.T) {
 	}
 	body = body[:end]
 
-	if !strings.Contains(body, "UpdateRecordWithZeroValues") {
+	if !strings.Contains(body, "db.UpdateRecordWithZeroValues") {
 		t.Fatal("clearConnectionsData must use UpdateRecordWithZeroValues to persist false")
 	}
 	if !strings.Contains(body, `"allow_connect"`) ||
@@ -72,7 +72,7 @@ func TestClearConnectionsDataPersistsFalseAllowConnect(t *testing.T) {
 func TestImportConnectionsDataUsesTargetChatAndZeroValueUpdate(t *testing.T) {
 	t.Parallel()
 
-	source := readRepoFile(t, "alita", "db", "backup_db.go")
+	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
 	start := strings.Index(source, "func importConnectionsData")
 	if start == -1 {
 		t.Fatal("importConnectionsData is missing")
@@ -85,10 +85,10 @@ func TestImportConnectionsDataUsesTargetChatAndZeroValueUpdate(t *testing.T) {
 	}
 	body = body[:end]
 
-	if !strings.Contains(body, "GetChatConnectionSetting(chatID)") {
+	if !strings.Contains(body, "connections.GetChatConnectionSetting(chatID)") {
 		t.Fatal("importConnectionsData must ensure the target chat settings row exists")
 	}
-	if !strings.Contains(body, "UpdateRecordWithZeroValues") {
+	if !strings.Contains(body, "db.UpdateRecordWithZeroValues") {
 		t.Fatal("importConnectionsData must use UpdateRecordWithZeroValues to import false")
 	}
 	if !strings.Contains(body, `"allow_connect"`) {
@@ -102,12 +102,12 @@ func TestImportConnectionsDataUsesTargetChatAndZeroValueUpdate(t *testing.T) {
 func TestDisablingBackupImportExportAndClearAreFunctional(t *testing.T) {
 	t.Parallel()
 
-	source := readRepoFile(t, "alita", "db", "backup_db.go")
+	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
 	required := []string{
-		"ShouldDel(chatID)",
-		"ToggleDel(chatID",
-		"DisableCMD(chatID",
-		"EnableCMD(chatID",
+		"disabling.ShouldDel(chatID)",
+		"disabling.ToggleDel(chatID",
+		"disabling.DisableCMD(chatID",
+		"disabling.EnableCMD(chatID",
 	}
 
 	for _, want := range required {

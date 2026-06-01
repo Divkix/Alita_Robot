@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -325,7 +326,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.antichannelpin(bot, antiOnCtx); err != ext.EndGroups {
 		t.Fatalf("antichannelpin on error = %v, want EndGroups", err)
 	}
-	if !db.GetPinData(chatID).AntiChannelPin {
+	if !pins.GetPinData(chatID).AntiChannelPin {
 		t.Fatal("AntiChannelPin was not enabled")
 	}
 
@@ -333,7 +334,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.cleanlinked(bot, cleanOnCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked on error = %v, want EndGroups", err)
 	}
-	if !db.GetPinData(chatID).CleanLinked {
+	if !pins.GetPinData(chatID).CleanLinked {
 		t.Fatal("CleanLinked was not enabled")
 	}
 
@@ -346,7 +347,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.cleanlinked(bot, cleanOffCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked off error = %v, want EndGroups", err)
 	}
-	if db.GetPinData(chatID).CleanLinked {
+	if pins.GetPinData(chatID).CleanLinked {
 		t.Fatal("CleanLinked stayed enabled")
 	}
 
@@ -358,7 +359,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.antichannelpin(bot, antiOffCtx); err != ext.EndGroups {
 		t.Fatalf("antichannelpin off error = %v, want EndGroups", err)
 	}
-	if db.GetPinData(chatID).AntiChannelPin {
+	if pins.GetPinData(chatID).AntiChannelPin {
 		t.Fatal("AntiChannelPin stayed enabled")
 	}
 	antiCurrentDisabledCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
@@ -393,7 +394,7 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	bot := newModuleTestBot(client)
 	cleanChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.SetCleanLinked(cleanChat.Id, true); err != nil {
+	if err := pins.SetCleanLinked(cleanChat.Id, true); err != nil {
 		t.Fatalf("SetCleanLinked() error = %v", err)
 	}
 	cleanCtx := newModuleMessageContext(bot, cleanChat, user, "linked message")
@@ -405,7 +406,7 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	}
 
 	unpinChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	if err := db.SetAntiChannelPin(unpinChat.Id, true); err != nil {
+	if err := pins.SetAntiChannelPin(unpinChat.Id, true); err != nil {
 		t.Fatalf("SetAntiChannelPin() error = %v", err)
 	}
 	unpinCtx := newModuleMessageContext(bot, unpinChat, user, "linked message")
@@ -529,12 +530,12 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		run     func(*gotgbot.Bot, *ext.Context) error
 	}{
 		{name: "check pinned delete", text: "linked message", method: "deleteMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
-			if err := db.SetCleanLinked(ctx.EffectiveChat.Id, true); err != nil {
+			if err := pins.SetCleanLinked(ctx.EffectiveChat.Id, true); err != nil {
 				t.Fatalf("SetCleanLinked() error = %v", err)
 			}
 		}, run: pinsModule.checkPinned},
 		{name: "check pinned unpin", text: "linked message", method: "unpinChatMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
-			if err := db.SetAntiChannelPin(ctx.EffectiveChat.Id, true); err != nil {
+			if err := pins.SetAntiChannelPin(ctx.EffectiveChat.Id, true); err != nil {
 				t.Fatalf("SetAntiChannelPin() error = %v", err)
 			}
 		}, run: pinsModule.checkPinned},

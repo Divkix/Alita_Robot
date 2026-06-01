@@ -6,7 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/admin"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -307,7 +308,7 @@ func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbo
 	bMem := botMember.MergeChatMember()
 	pMem := promoterMember.MergeChatMember()
 
-	teamMem := db.GetTeamMemInfo(user.Id)
+	teamMem := devs.GetTeamMemInfo(user.Id)
 	teamMemInfo := teamMem.Sudo || teamMem.IsDev
 	isPromoterOwner := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id)
 	checkCommonPerms := isPromoterOwner || teamMemInfo
@@ -582,7 +583,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	tr := c.Tr
 	var text string
 
-	adminSettings := db.GetAdminSettings(chat.Id)
+	adminSettings := admin.GetAdminSettings(chat.Id)
 
 	if len(args) == 1 {
 		if adminSettings.AnonAdmin {
@@ -605,7 +606,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
 				// Synchronous DB write - confirm success before sending message
-				if err := db.SetAnonAdminMode(chat.Id, true); err != nil {
+				if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
@@ -620,7 +621,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
 				// Synchronous DB write - confirm success before sending message
-				if err := db.SetAnonAdminMode(chat.Id, false); err != nil {
+				if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
 					_, _ = msg.Reply(c.Bot, errorText, formatting.Shtml())
