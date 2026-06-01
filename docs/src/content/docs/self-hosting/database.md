@@ -289,7 +289,7 @@ pg_dump -h localhost -U postgres -d alita > backup.sql
 pg_dump -h localhost -U postgres -d alita | gzip > backup.sql.gz
 
 # Docker
-docker-compose exec -T postgres pg_dump -U alita -d alita > backup.sql
+docker compose exec -T postgres pg_dump -U alita -d alita > backup.sql
 ```
 
 ### Restore
@@ -302,7 +302,7 @@ psql -h localhost -U postgres -d alita < backup.sql
 gunzip -c backup.sql.gz | psql -h localhost -U postgres -d alita
 
 # Docker
-docker-compose exec -T postgres psql -U alita -d alita < backup.sql
+docker compose exec -T postgres psql -U alita -d alita < backup.sql
 ```
 
 ## Troubleshooting

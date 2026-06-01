@@ -16,7 +16,7 @@ func TestParseCommands_MultiCommand(t *testing.T) {
 var blacklistsModule = moduleStruct{moduleName: "blacklists"}
 
 func LoadBlacklists(dispatcher) {
-	cmdDecorator.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
+	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
 }
 `
 	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
@@ -58,7 +58,7 @@ func TestParseCommands_MultiCommand_AllSites(t *testing.T) {
 var blacklistsModule = moduleStruct{moduleName: "blacklists"}
 
 func LoadBlacklists(dispatcher) {
-	cmdDecorator.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
+	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, blacklistsModule.rmAllBlacklists)
 }
 `
 	if err := os.WriteFile(blFile, []byte(blContent), 0644); err != nil {
@@ -72,7 +72,7 @@ func LoadBlacklists(dispatcher) {
 var formattingModule = moduleStruct{moduleName: "formatting"}
 
 func LoadFormatting(dispatcher) {
-	cmdDecorator.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
+	helpers.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
 }
 `
 	if err := os.WriteFile(fmtFile, []byte(fmtContent), 0644); err != nil {
@@ -86,7 +86,7 @@ func LoadFormatting(dispatcher) {
 var notesModule = moduleStruct{moduleName: "notes"}
 
 func LoadNotes(dispatcher) {
-	cmdDecorator.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
+	helpers.MultiCommand(dispatcher, []string{"privnote", "privatenotes"}, notesModule.privNote)
 }
 `
 	if err := os.WriteFile(notesFile, []byte(notesContent), 0644); err != nil {
@@ -100,7 +100,7 @@ func LoadNotes(dispatcher) {
 var rulesModule = moduleStruct{moduleName: "rules"}
 
 func LoadRules(dispatcher) {
-	cmdDecorator.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
+	helpers.MultiCommand(dispatcher, []string{"resetrules", "clearrules"}, rulesModule.clearRules)
 }
 `
 	if err := os.WriteFile(rulesFile, []byte(rulesContent), 0644); err != nil {
@@ -146,7 +146,7 @@ var bansModule = moduleStruct{moduleName: "bans"}
 func LoadBans(dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
 	dispatcher.AddHandler(handlers.NewCommand("unban", bansModule.unban))
-	cmdDecorator.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, bansModule.rmAllBlacklists)
+	helpers.MultiCommand(dispatcher, []string{"remallbl", "rmallbl"}, bansModule.rmAllBlacklists)
 }
 `
 	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {

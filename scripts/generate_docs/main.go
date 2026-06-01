@@ -321,6 +321,9 @@ func generateInventory(projectRoot string) error {
 		"chat_permissions.go":         true,
 		"connections_auth.go":         true,
 		"rules_format.go":             true,
+		"callback_context.go":         true,
+		"moderation.go":               true,
+		"registry.go":                 true,
 	}
 
 	// Discover module files

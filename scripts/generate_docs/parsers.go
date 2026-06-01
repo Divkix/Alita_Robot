@@ -149,7 +149,8 @@ func parseCommands(modulesPath string) ([]Command, error) {
 	var commands []Command
 
 	// Regex patterns for command extraction
-	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(\w+)\.(\w+)\s*\)`)
+	// Matches handlers.NewCommand("cmd", module.handler) or handlers.NewCommand("cmd", func(...) {...})
+	newCommandPattern := regexp.MustCompile(`handlers\.NewCommand\s*\(\s*"([^"]+)"\s*,\s*(?:(\w+)(?:\(\))?\.(\w+)|func\b)`)
 	disableablePattern := regexp.MustCompile(`(?:misc|helpers)\.AddCmdToDisableable\s*\(\s*"([^"]+)"\s*\)`)
 	moduleNamePattern := regexp.MustCompile(`(\w+)Module\s*=\s*moduleStruct\s*\{\s*moduleName:\s*"([^"]+)"`)
 
@@ -183,6 +184,11 @@ func parseCommands(modulesPath string) ([]Command, error) {
 			}
 		}
 
+		// Special case: DefaultHelpRegistry is used in help.go
+		if strings.Contains(content, "func DefaultHelpRegistry()") {
+			moduleNames["DefaultHelpRegistry"] = "Help"
+		}
+
 		// Find disableable commands
 		disableMatches := disableablePattern.FindAllStringSubmatch(content, -1)
 		for _, match := range disableMatches {
@@ -194,28 +200,32 @@ func parseCommands(modulesPath string) ([]Command, error) {
 		// Find command registrations
 		cmdMatches := newCommandPattern.FindAllStringSubmatch(content, -1)
 		for _, match := range cmdMatches {
-			if len(match) >= 4 {
+			if len(match) >= 2 {
 				cmdName := match[1]
 				moduleVar := match[2]
+				handler := match[3]
+				if handler == "" {
+					handler = "anonymous"
+				}
 
 				// Try to get module name from struct declaration
 				modName := moduleName
 				if name, ok := moduleNames[moduleVar]; ok {
-					modName = name
+					modName = strings.ToLower(name)
 				}
 
 				commands = append(commands, Command{
 					Name:        cmdName,
-					Handler:     match[3],
+					Handler:     handler,
 					Module:      modName,
 					Disableable: disableableCmds[cmdName],
 				})
 			}
 		}
 
-		// Extract MultiCommand registrations (cmdDecorator.MultiCommand(dispatcher, []string{...}, handler))
+		// Extract MultiCommand registrations (helpers.MultiCommand(dispatcher, []string{...}, handler))
 		multiCommandPattern := regexp.MustCompile(
-			`cmdDecorator\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*(\w+)\.(\w+)\s*\)`,
+			`helpers\.MultiCommand\s*\(\s*\w+\s*,\s*\[\]string\s*\{([^}]+)\}\s*,\s*(\w+)\.(\w+)\s*\)`,
 		)
 		multiMatches := multiCommandPattern.FindAllStringSubmatch(content, -1)
 		for _, match := range multiMatches {
@@ -235,22 +245,68 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					}
 				}
 
-				// Resolve module name from the module variable
-				modName := moduleName
-				if name, ok := moduleNames[moduleVar]; ok {
-					modName = name
+			// Resolve module name from the module variable
+			modName := moduleName
+			if name, ok := moduleNames[moduleVar]; ok {
+				modName = strings.ToLower(name)
+			}
+
+			// Register each alias as a command
+			for _, alias := range aliases {
+				commands = append(commands, Command{
+					Name:        alias,
+					Handler:     handler,
+					Module:      modName,
+					Disableable: disableableCmds[alias],
+					Aliases:     aliases,
+				})
+			}
+			}
+		}
+
+		// Extract WrapCommand registrations (helpers.WrapCommand/WrapCommandRaw)
+		// First, find all CommandDescriptor definitions with their command names
+		wrapDescPattern := regexp.MustCompile(`(?s)(\w+)Desc\s*=\s*helpers\.CommandDescriptor\s*\{.*?Name:\s*"([^"]+)"`)
+		wrapDescMatches := wrapDescPattern.FindAllStringSubmatch(content, -1)
+		wrapDescriptors := make(map[string]string) // map[descVar]cmdName
+		for _, match := range wrapDescMatches {
+			if len(match) >= 3 {
+				wrapDescriptors[match[1]+"Desc"] = match[2]
+			}
+		}
+
+		// Find WrapCommand and WrapCommandRaw calls
+		wrapCommandPattern := regexp.MustCompile(
+			`helpers\.WrapCommand(?:Raw)?\s*\(\s*\w+\s*,\s*(\w+)Desc\s*,\s*(\w+)\.(\w+)\s*\)`,
+		)
+		wrapMatches := wrapCommandPattern.FindAllStringSubmatch(content, -1)
+		for _, match := range wrapMatches {
+			if len(match) >= 4 {
+				descVar := match[1] + "Desc"
+				moduleVar := match[2]
+				handler := match[3]
+
+				// Resolve command name from descriptor
+				cmdName := ""
+				if name, ok := wrapDescriptors[descVar]; ok {
+					cmdName = name
+				}
+				if cmdName == "" {
+					continue
 				}
 
-				// Register each alias as a command
-				for _, alias := range aliases {
-					commands = append(commands, Command{
-						Name:        alias,
-						Handler:     handler,
-						Module:      modName,
-						Disableable: disableableCmds[alias],
-						Aliases:     aliases,
-					})
-				}
+			// Resolve module name
+			modName := moduleName
+			if name, ok := moduleNames[moduleVar]; ok {
+				modName = strings.ToLower(name)
+			}
+
+			commands = append(commands, Command{
+				Name:        cmdName,
+				Handler:     handler,
+				Module:      modName,
+				Disableable: disableableCmds[cmdName],
+			})
 			}
 		}
 	}
@@ -681,7 +737,7 @@ func getLockDescription(lockName, category string) string {
 		"anonchannel": "Blocks messages from anonymous channels and linked channel posts",
 
 		// Restriction locks (from restrMap)
-		"messages": "Blocks all text and media messages",
+		"messages": "Blocks all text, media, contacts, locations, games, stickers, and GIFs",
 		"comments": "Blocks messages from non-members (discussion comments)",
 		"media":    "Blocks all media files (audio, document, video, photo, video note, voice)",
 		"other":    "Blocks games, stickers, and GIFs",

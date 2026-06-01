@@ -90,7 +90,7 @@ This is the safest rollback method.
 # 1. Stop the application
 systemctl stop alita-robot
 # OR if using Docker
-docker-compose down
+docker compose down
 
 # 2. Take a pre-rollback backup (just in case)
 pg_dump $DATABASE_URL | gzip > backups/pre_rollback_$(date +%Y%m%d_%H%M%S).sql.gz
@@ -473,7 +473,7 @@ psql $DATABASE_URL -c "SELECT 1;"
 # 1. STOP THE APPLICATION
 systemctl stop alita-robot
 # OR
-docker-compose down
+docker compose down
 
 # 2. Assess the situation
 # - Check logs: journalctl -u alita-robot -n 100
