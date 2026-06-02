@@ -37,7 +37,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/delflood` | Toggle flood message deletion | Admin | ❌ | — |
-| `/flood` | Show current flood settings | Admin | ✅ | — |
+| `/flood` | Show current flood settings | Everyone | ✅ | — |
 | `/setflood` | Set the flood trigger limit | Admin | ❌ | — |
 | `/setfloodmode` | Set the flood action mode | Admin | ❌ | — |
 
@@ -86,7 +86,7 @@ This module has no user-facing commands. It runs as a passive background watcher
 | `/addblacklist` | Add a word to the blacklist | Admin | ❌ | — |
 | `/blacklist` | Add a word to the blacklist | Admin | ❌ | — |
 | `/blacklistaction` | Set the blacklist trigger action | Admin | ❌ | — |
-| `/blacklists` | List all blacklisted words | Admin | ✅ | — |
+| `/blacklists` | List all blacklisted words | Everyone | ✅ | — |
 | `/blaction` | Set the blacklist trigger action | Admin | ❌ | — |
 | `/remallbl` | Remove all blacklisted words | Admin | ❌ | `/rmallbl` |
 | `/rmallbl` | Alias of `/remallbl` | Admin | ❌ | `/remallbl` |
@@ -146,8 +146,8 @@ This module has no user-facing commands. It runs as a passive background watcher
 | `/swarn` | Silently warn a user | Admin | ❌ | — |
 | `/unwarn` | Remove a warning from a user | Admin | ❌ | — |
 | `/warn` | Warn a user | Admin | ❌ | — |
-| `/warnings` | Show warnings for a user | Everyone | ❌ | — |
-| `/warns` | Show current warn settings | Everyone | ✅ | — |
+| `/warnings` | Get the chat's warning settings | Admin | ❌ | — |
+| `/warns` | Show warning count for a user | Everyone | ✅ | — |
 
 ### Content Management
 
@@ -299,7 +299,7 @@ This module has no user-facing commands. It runs as a passive background watcher
 | `/cleanlinked` | Toggle linked channel message cleanup | Admin | ❌ | — |
 | `/permapin` | Pin a message permanently | Admin | ❌ | — |
 | `/pin` | Pin a replied-to message | Admin | ❌ | — |
-| `/pinned` | Get the current pinned message | Admin | ❌ | — |
+| `/pinned` | Get the current pinned message | Everyone | ❌ | — |
 | `/unpin` | Unpin the current pinned message | Admin | ❌ | — |
 | `/unpinall` | Unpin all pinned messages | Admin | ❌ | — |
 
@@ -350,7 +350,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/ban` | Bans | Ban a user | Admin |
 | `/blacklist` | Blacklists | Add a word to the blacklist | Admin |
 | `/blacklistaction` | Blacklists | Set the blacklist trigger action | Admin |
-| `/blacklists` | Blacklists | List all blacklisted words | Admin |
+| `/blacklists` | Blacklists | List all blacklisted words | Everyone |
 | `/blaction` | Blacklists | Set the blacklist trigger action | Admin |
 | `/captcha` | Captcha | Toggle captcha verification | Admin |
 | `/captchaaction` | Captcha | Set the captcha failure action | Admin |
@@ -390,7 +390,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/export` | Backup | Export all group settings to a JSON file | Admin |
 | `/filter` | Filters | Add a keyword filter | Admin |
 | `/filters` | Filters | List all active filters | Everyone |
-| `/flood` | Antiflood | Show current flood settings | Admin |
+| `/flood` | Antiflood | Show current flood settings | Everyone |
 | `/formatting` | Formatting | Alias of `/markdownhelp` | Everyone |
 | `/get` | Notes | Retrieve a saved note | Everyone |
 | `/goodbye` | Greetings | Show current goodbye settings | Admin |
@@ -412,7 +412,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/permapin` | Pins | Pin a message permanently | Admin |
 | `/pin` | Pins | Pin a replied-to message | Admin |
 | `/ping` | Misc | Check bot response latency | Everyone |
-| `/pinned` | Pins | Get the current pinned message | Admin |
+| `/pinned` | Pins | Get the current pinned message | Everyone |
 | `/privatenotes` | Notes | Alias of `/privnote` | Admin |
 | `/privaterules` | Rules | Toggle private rules delivery | Admin |
 | `/privnote` | Notes | Toggle private note delivery | Admin |
@@ -484,8 +484,8 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/unrestrict` | Bans | Remove restrictions from a user | Admin |
 | `/unwarn` | Warns | Remove a warning from a user | Admin |
 | `/warn` | Warns | Warn a user | Admin |
-| `/warnings` | Warns | Show warnings for a user | Everyone |
-| `/warns` | Warns | Show current warn settings | Everyone |
+| `/warnings` | Warns | Get the chat's warning settings | Admin |
+| `/warns` | Warns | Show warning count for a user | Everyone |
 | `/welcome` | Greetings | Show current welcome settings | Admin |
 
 ## Command Registration System

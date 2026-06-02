@@ -628,6 +628,8 @@ Users approved for a chat (immune to anti-spam).
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `user_id` | `BIGINT` | NO | — | — |
+| `reason` | `TEXT` | YES | `''` | — |
+| `approved_by` | `BIGINT` | NO | `0` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
@@ -653,17 +655,19 @@ Anti-raid configuration per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `enabled` | `BOOLEAN` | NO | `false` | — |
-| `action` | `TEXT` | NO | `'ban'` | — |
-| `time` | `BIGINT` | NO | `0` | — |
-| `action_time` | `BIGINT` | NO | `0` | — |
-| `auto_raid` | `BIGINT` | NO | `0` | — |
+| `raid_time` | `INT` | NO | `21600` | CHECK (`raid_time >= 0`) |
+| `raid_action_time` | `INT` | NO | `3600` | CHECK (`raid_action_time >= 0`) |
+| `auto_antiraid_threshold` | `INT` | NO | `0` | CHECK (`auto_antiraid_threshold >= 0`) |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
 
+#### Indexes
+
+- `idx_antiraid_settings_chat_id` (on `chat_id`)
+
 #### Foreign Keys
 
-- `chat_id` → `chats(chat_id)` ON DELETE CASCADE
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
 
 ---
 

@@ -320,6 +320,58 @@ Enable pprof endpoints for performance profiling (development only)
 | **Required** | No |
 | **Default** | `false` |
 
+## 📂 OpenTelemetry tracing configuration
+
+### `OTEL_EXPORTER_OTLP_ENDPOINT`
+
+OTLP gRPC endpoint for trace export (e.g., `localhost:4317`). When set, the bot sends traces to this endpoint.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
+### `OTEL_EXPORTER_CONSOLE`
+
+Enable console exporter for debugging traces (outputs to stderr).
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
+### `OTEL_EXPORTER_OTLP_INSECURE`
+
+Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
+### `OTEL_SERVICE_NAME`
+
+Service name for trace identification.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+| **Default** | `alita_robot` |
+
+### `OTEL_TRACES_SAMPLE_RATE`
+
+Trace sampling rate from 0.0 (no traces) to 1.0 (all traces).
+
+| Property | Value |
+|----------|-------|
+| **Type** | `float` |
+| **Required** | No |
+| **Default** | `1.0` |
+| **Validation** | min=0.0,max=1.0 |
+
 ## 📂 HTTP Server configuration
 
 ### `HTTP_PORT`
@@ -630,6 +682,11 @@ MAX_CONCURRENT_OPERATIONS=# (default: 50)
 MESSAGE_PIPELINE_WORKERS=# (default: NumCPU, max 8)
 MIGRATIONS_PATH=# path to migration files (default: migrations)
 OPERATION_TIMEOUT_SECONDS=# timeout in seconds → time.Duration (default: 30)
+OTEL_EXPORTER_CONSOLE=# enable console trace exporter (default: false)
+OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint (e.g., localhost:4317)
+OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
+OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
+OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
 REDIS_DB=# Redis database number (default: 1)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)
