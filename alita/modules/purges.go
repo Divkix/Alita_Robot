@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
@@ -43,7 +43,7 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		_, err := bot.DeleteMessage(chat.Id, msgId, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "message can't be deleted") {
-				tr := i18n.MustNewTranslator(db.GetLanguage(&ext.Context{EffectiveChat: chat}))
+				tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 				text, _ := tr.GetString("purges_cannot_delete_old")
 				_, err = bot.SendMessage(chat.Id, text,
 					&gotgbot.SendMessageOpts{
@@ -172,7 +172,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		// Limit purge range to prevent abuse and API overload
 		const maxPurgeMessages = 1000
 		if totalMsgs > maxPurgeMessages {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_limit_exceeded")
 			_, err := msg.Reply(bot, fmt.Sprintf(text, maxPurgeMessages), formatting.Shtml())
 			if err != nil {
@@ -185,7 +185,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 		_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId)
 
 		if purge {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			var Text string
 			if len(args) >= 1 {
 				temp, _ := tr.GetString("purges_purged_with_reason")
@@ -207,7 +207,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_purge")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
@@ -254,7 +254,7 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 
 	if msg.ReplyToMessage == nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_delete")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
@@ -285,7 +285,7 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	msgIDRaw := ""
 	decoded, ok := decodeCallbackData(query.Data, "deleteMsg")
@@ -370,7 +370,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.ReplyToMessage != nil {
 		TodelId := msg.ReplyToMessage.MessageId
 		if existingId, ok := delMsgs.Load(chat.Id); ok && existingId == TodelId {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_message_marked")
 			_, _ = msg.Reply(bot, text, nil)
 			return ext.EndGroups
@@ -379,7 +379,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(bot, err.Error(), nil)
 			return ext.EndGroups
 		}
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_marked_for_deletion")
 		pMsg, err := bot.SendMessage(chat.Id, text,
 			&gotgbot.SendMessageOpts{
@@ -412,7 +412,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}(chat.Id, TodelId, pMsg)
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_purgefrom")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {
@@ -465,7 +465,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			msgId = msgIdInterface.(int64)
 		}
 		if msgId == 0 {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_need_purgefrom")
 			_, err := msg.Reply(bot, text, nil)
 			if err != nil {
@@ -476,7 +476,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		deleteTo := msg.ReplyToMessage.MessageId
 		if msgId == deleteTo {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_use_del_single")
 			_, err := msg.Reply(bot, text, nil)
 			if err != nil {
@@ -496,7 +496,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		// Enforce same limit as /purge command to prevent abuse
 		const maxPurgeMessages = 1000
 		if totalMsgs > maxPurgeMessages {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("purges_limit_exceeded")
 			_, err := msg.Reply(bot, fmt.Sprintf(text, maxPurgeMessages), formatting.Shtml())
 			if err != nil {
@@ -514,7 +514,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		if purge {
 			var Text string
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if len(args) >= 1 {
 				temp, _ := tr.GetString("purges_purged_with_reason")
 				Text = fmt.Sprintf(temp, totalMsgs, strings.Join(args, " "))
@@ -535,7 +535,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 	} else {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("purges_reply_to_purgeto")
 		_, err := msg.Reply(bot, text, nil)
 		if err != nil {

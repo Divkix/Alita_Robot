@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/pins"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -325,7 +326,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.antichannelpin(bot, antiOnCtx); err != ext.EndGroups {
 		t.Fatalf("antichannelpin on error = %v, want EndGroups", err)
 	}
-	if !db.GetPinData(chatID).AntiChannelPin {
+	if !pins.GetPinData(chatID).AntiChannelPin {
 		t.Fatal("AntiChannelPin was not enabled")
 	}
 
@@ -333,7 +334,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.cleanlinked(bot, cleanOnCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked on error = %v, want EndGroups", err)
 	}
-	if !db.GetPinData(chatID).CleanLinked {
+	if !pins.GetPinData(chatID).CleanLinked {
 		t.Fatal("CleanLinked was not enabled")
 	}
 
@@ -346,7 +347,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.cleanlinked(bot, cleanOffCtx); err != ext.EndGroups {
 		t.Fatalf("cleanlinked off error = %v, want EndGroups", err)
 	}
-	if db.GetPinData(chatID).CleanLinked {
+	if pins.GetPinData(chatID).CleanLinked {
 		t.Fatal("CleanLinked stayed enabled")
 	}
 
@@ -358,7 +359,7 @@ func TestAntiChannelPinAndCleanLinkedTogglePinPreferences(t *testing.T) {
 	if err := pinsModule.antichannelpin(bot, antiOffCtx); err != ext.EndGroups {
 		t.Fatalf("antichannelpin off error = %v, want EndGroups", err)
 	}
-	if db.GetPinData(chatID).AntiChannelPin {
+	if pins.GetPinData(chatID).AntiChannelPin {
 		t.Fatal("AntiChannelPin stayed enabled")
 	}
 	antiCurrentDisabledCtx := newModuleMessageContext(bot, chat, user, "/antichannelpin")
@@ -393,7 +394,7 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	bot := newModuleTestBot(client)
 	cleanChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.SetCleanLinked(cleanChat.Id, true); err != nil {
+	if err := pins.SetCleanLinked(cleanChat.Id, true); err != nil {
 		t.Fatalf("SetCleanLinked() error = %v", err)
 	}
 	cleanCtx := newModuleMessageContext(bot, cleanChat, user, "linked message")
@@ -405,7 +406,7 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	}
 
 	unpinChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	if err := db.SetAntiChannelPin(unpinChat.Id, true); err != nil {
+	if err := pins.SetAntiChannelPin(unpinChat.Id, true); err != nil {
 		t.Fatalf("SetAntiChannelPin() error = %v", err)
 	}
 	unpinCtx := newModuleMessageContext(bot, unpinChat, user, "linked message")
@@ -465,7 +466,7 @@ func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
 		{name: "audio", dataType: db.AUDIO, fileID: "audio-file", wantMethod: "sendAudio"},
 		{name: "voice", dataType: db.VOICE, fileID: "voice-file", wantMethod: "sendVoice"},
 		{name: "video", dataType: db.VIDEO, fileID: "video-file", wantMethod: "sendVideo"},
-		{name: "video note", dataType: db.VideoNote, fileID: "video-note-file", wantMethod: "sendVideoNote"},
+		{name: "video note", dataType: db.VIDEO_NOTE, fileID: "video-note-file", wantMethod: "sendVideoNote"},
 	}
 
 	for _, tc := range tests {
@@ -494,7 +495,7 @@ func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
 		{name: "audio", reply: &gotgbot.Message{Audio: &gotgbot.Audio{FileId: "audio-file"}}, wantType: db.AUDIO, wantID: "audio-file"},
 		{name: "voice", reply: &gotgbot.Message{Voice: &gotgbot.Voice{FileId: "voice-file"}}, wantType: db.VOICE, wantID: "voice-file"},
 		{name: "video", reply: &gotgbot.Message{Video: &gotgbot.Video{FileId: "video-file"}}, wantType: db.VIDEO, wantID: "video-file"},
-		{name: "video note", reply: &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "video-note-file"}}, wantType: db.VideoNote, wantID: "video-note-file"},
+		{name: "video note", reply: &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "video-note-file"}}, wantType: db.VIDEO_NOTE, wantID: "video-note-file"},
 	}
 	for _, tc := range extractCases {
 		t.Run("extract "+tc.name, func(t *testing.T) {
@@ -529,12 +530,12 @@ func TestPinCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		run     func(*gotgbot.Bot, *ext.Context) error
 	}{
 		{name: "check pinned delete", text: "linked message", method: "deleteMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
-			if err := db.SetCleanLinked(ctx.EffectiveChat.Id, true); err != nil {
+			if err := pins.SetCleanLinked(ctx.EffectiveChat.Id, true); err != nil {
 				t.Fatalf("SetCleanLinked() error = %v", err)
 			}
 		}, run: pinsModule.checkPinned},
 		{name: "check pinned unpin", text: "linked message", method: "unpinChatMessage", prepare: func(_ *moduleBotClient, ctx *ext.Context) {
-			if err := db.SetAntiChannelPin(ctx.EffectiveChat.Id, true); err != nil {
+			if err := pins.SetAntiChannelPin(ctx.EffectiveChat.Id, true); err != nil {
 				t.Fatalf("SetAntiChannelPin() error = %v", err)
 			}
 		}, run: pinsModule.checkPinned},

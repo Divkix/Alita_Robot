@@ -10,7 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -49,7 +49,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var replyString string
 
-	cLang := db.GetLanguage(ctx)
+	cLang := lang.GetLanguage(ctx)
 	tr := i18n.MustNewTranslator(cLang)
 
 	if ctx.Message.Chat.Type == "private" {
@@ -95,7 +95,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := query.From
 	if user.Id == 0 {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
@@ -112,7 +112,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if language == "" {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errText, _ := tr.GetString("language_invalid_selection")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text: errText,
@@ -134,7 +134,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyString string
 
 	if chat.Type == "private" {
-		if err := db.ChangeUserLanguage(user.Id, language); err != nil {
+		if err := lang.ChangeUserLanguage(user.Id, language); err != nil {
 			log.Errorf("[Language] ChangeUserLanguage failed for user %d: %v", user.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
@@ -143,7 +143,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
 		// User is admin (already verified above)
-		if err := db.ChangeGroupLanguage(chat.Id, language); err != nil {
+		if err := lang.ChangeGroupLanguage(chat.Id, language); err != nil {
 			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})

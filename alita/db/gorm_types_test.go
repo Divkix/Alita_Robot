@@ -2,10 +2,11 @@ package db
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
 	"strings"
 	"testing"
+
+	"github.com/divkix/Alita_Robot/alita/db/migrations"
 )
 
 //nolint:dupl // Scan test patterns are intentionally similar across types
@@ -638,7 +639,7 @@ func TestTableNames(t *testing.T) {
 		{"CaptchaAttempts", CaptchaAttempts{}, "captcha_attempts"},
 		{"StoredMessages", StoredMessages{}, "stored_messages"},
 		{"CaptchaMutedUsers", CaptchaMutedUsers{}, "captcha_muted_users"},
-		{"SchemaMigration", SchemaMigration{}, "schema_migrations"},
+		{"SchemaMigration", migrations.SchemaMigration{}, "schema_migrations"},
 	}
 
 	for _, tc := range tests {
@@ -830,63 +831,6 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 	}
 }
 
-func TestGetSpanAttributes(t *testing.T) {
-
-	tests := []struct {
-		name          string
-		model         any
-		wantLen       int
-		wantModelType string
-	}{
-		{
-			name:    "nil model returns empty attributes",
-			model:   nil,
-			wantLen: 0,
-		},
-		{
-			name:          "struct pointer model returns one attribute with type",
-			model:         &BlacklistSettings{},
-			wantLen:       1,
-			wantModelType: fmt.Sprintf("%T", &BlacklistSettings{}),
-		},
-		{
-			name:          "string model returns one attribute",
-			model:         "some string",
-			wantLen:       1,
-			wantModelType: "string",
-		},
-		{
-			name:          "int model returns one attribute",
-			model:         42,
-			wantLen:       1,
-			wantModelType: "int",
-		},
-		{
-			name:          "slice model returns one attribute",
-			model:         []string{"a", "b"},
-			wantLen:       1,
-			wantModelType: "[]string",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-
-			attrs := getSpanAttributes(tc.model)
-
-			if len(attrs) != tc.wantLen {
-				t.Fatalf("getSpanAttributes() len=%d, want %d", len(attrs), tc.wantLen)
-			}
-
-			if tc.wantModelType != "" && len(attrs) > 0 {
-				got := attrs[0].Value.AsString()
-				if got != tc.wantModelType {
-					t.Fatalf("db.model attribute=%q, want %q", got, tc.wantModelType)
-				}
-			}
-		})
-	}
-}
 
 func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
 

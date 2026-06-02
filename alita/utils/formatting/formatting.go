@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -237,7 +238,7 @@ func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *go
 		return res, btns
 	}
 
-	rulesDb := db.GetChatRulesInfo(chat.Id)
+	rulesDb := rules.GetChatRulesInfo(chat.Id)
 	rulesBtnText := rulesDb.RulesBtn
 	if rulesBtnText == "" {
 		tr := i18n.MustNewTranslator(language)

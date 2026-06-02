@@ -183,10 +183,10 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 // moderationSmute is the shared moderationCommand definition for /smute.
 func moderationSmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
-		module:    m,
-		gates:     []gateFn{deleteModGates},
-		extract:   extractUserOnly,
-		validate:  muteTargetValidation,
+		module:   m,
+		gates:    []gateFn{deleteModGates},
+		extract:  extractUserOnly,
+		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
 			return err

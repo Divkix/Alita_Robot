@@ -5,8 +5,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/reports"
 )
 
 func newReportReplyContext(
@@ -100,7 +100,7 @@ func TestReportRejectsInvalidReplyTargetsAndDisabledChats(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
 			if tt.disable {
-				if err := db.SetChatReportStatus(chat.Id, false); err != nil {
+				if err := reports.SetChatReportStatus(chat.Id, false); err != nil {
 					t.Fatalf("SetChatReportStatus setup error = %v", err)
 				}
 			}
@@ -130,7 +130,7 @@ func TestReportSkipsBlockedAdminBotAndAdminTargets(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
 		reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
 		target := gotgbot.User{Id: 43, FirstName: "Target"}
-		if err := db.BlockReportUser(chat.Id, reporter.Id); err != nil {
+		if err := reports.BlockReportUser(chat.Id, reporter.Id); err != nil {
 			t.Fatalf("BlockReportUser setup error = %v", err)
 		}
 
@@ -200,7 +200,7 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	if err := reportsModule.reports(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("reports off error = %v, want EndGroups", err)
 	}
-	if db.GetChatReportSettings(chat.Id).Status {
+	if reports.GetChatReportSettings(chat.Id).Status {
 		t.Fatal("reports setting is still enabled after /reports off")
 	}
 
@@ -208,7 +208,7 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	if err := reportsModule.reports(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("reports on error = %v, want EndGroups", err)
 	}
-	if !db.GetChatReportSettings(chat.Id).Status {
+	if !reports.GetChatReportSettings(chat.Id).Status {
 		t.Fatal("reports setting is still disabled after /reports on")
 	}
 
@@ -216,7 +216,7 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	if err := reportsModule.reports(bot, blockCtx); err != ext.EndGroups {
 		t.Fatalf("reports block error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatReportSettings(chat.Id).BlockedList; len(got) != 1 || got[0] != target.Id {
+	if got := reports.GetChatReportSettings(chat.Id).BlockedList; len(got) != 1 || got[0] != target.Id {
 		t.Fatalf("blocked list = %v, want target user", got)
 	}
 
@@ -229,7 +229,7 @@ func TestReportsSettingsBlockUnblockAndShowBlocklist(t *testing.T) {
 	if err := reportsModule.reports(bot, unblockCtx); err != ext.EndGroups {
 		t.Fatalf("reports unblock error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatReportSettings(chat.Id).BlockedList; len(got) != 0 {
+	if got := reports.GetChatReportSettings(chat.Id).BlockedList; len(got) != 0 {
 		t.Fatalf("blocked list after unblock = %v, want empty", got)
 	}
 }
@@ -241,16 +241,16 @@ func TestReportsSettingsPrivateAndValidationBranches(t *testing.T) {
 	privateChat := gotgbot.Chat{Id: admin.Id, Type: "private", FirstName: "Telegram"}
 	connectedChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connected Report Chat"}
 	client.responses["getChat"] = []byte(`{"id":-100777,"type":"supergroup","title":"Connected Report Chat"}`)
-	db.ConnectId(admin.Id, connectedChat.Id)
+	connections.ConnectId(admin.Id, connectedChat.Id)
 	t.Cleanup(func() {
-		db.DisconnectId(admin.Id)
+		connections.DisconnectId(admin.Id)
 	})
 
 	privateOnCtx := newModuleMessageContext(bot, privateChat, admin, "/reports on")
 	if err := reportsModule.reports(bot, privateOnCtx); err != ext.EndGroups {
 		t.Fatalf("private reports on error = %v, want EndGroups", err)
 	}
-	if !db.GetUserReportSettings(admin.Id).Status {
+	if !reports.GetUserReportSettings(admin.Id).Status {
 		t.Fatal("private report setting did not enable")
 	}
 
@@ -258,7 +258,7 @@ func TestReportsSettingsPrivateAndValidationBranches(t *testing.T) {
 	if err := reportsModule.reports(bot, privateOffCtx); err != ext.EndGroups {
 		t.Fatalf("private reports off error = %v, want EndGroups", err)
 	}
-	if db.GetUserReportSettings(admin.Id).Status {
+	if reports.GetUserReportSettings(admin.Id).Status {
 		t.Fatal("private report setting did not disable")
 	}
 

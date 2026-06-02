@@ -6,8 +6,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 )
 
 func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
@@ -21,7 +21,7 @@ func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
 		t.Fatalf("addBlacklist error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		triggers := db.GetBlacklistSettings(chat.Id).Triggers()
+		triggers := blacklists.GetBlacklistSettings(chat.Id).Triggers()
 		return len(triggers) == 2
 	})
 
@@ -39,7 +39,7 @@ func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
 	if err := blacklistsModule.setBlacklistAction(bot, actionCtx); err != ext.EndGroups {
 		t.Fatalf("setBlacklistAction error = %v, want EndGroups", err)
 	}
-	if got := db.GetBlacklistSettings(chat.Id).Action(); got != "mute" {
+	if got := blacklists.GetBlacklistSettings(chat.Id).Action(); got != "mute" {
 		t.Fatalf("blacklist action = %q, want mute", got)
 	}
 
@@ -48,7 +48,7 @@ func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
 		t.Fatalf("removeBlacklist error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		return !slicesContains(db.GetBlacklistSettings(chat.Id).Triggers(), "spam")
+		return !slicesContains(blacklists.GetBlacklistSettings(chat.Id).Triggers(), "spam")
 	})
 }
 
@@ -73,7 +73,7 @@ func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
 	if err := blacklistsModule.addBlacklist(bot, tooLongCtx); err != ext.EndGroups {
 		t.Fatalf("addBlacklist too-long error = %v, want EndGroups", err)
 	}
-	if got := len(db.GetBlacklistSettings(chat.Id).Triggers()); got != 0 {
+	if got := len(blacklists.GetBlacklistSettings(chat.Id).Triggers()); got != 0 {
 		t.Fatalf("blacklist triggers after too-long word = %d, want none", got)
 	}
 
@@ -82,13 +82,13 @@ func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
 		t.Fatalf("addBlacklist bulk error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		return len(db.GetBlacklistSettings(chat.Id).Triggers()) == 5
+		return len(blacklists.GetBlacklistSettings(chat.Id).Triggers()) == 5
 	})
 	duplicateCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist dup")
 	if err := blacklistsModule.addBlacklist(bot, duplicateCtx); err != ext.EndGroups {
 		t.Fatalf("addBlacklist duplicate error = %v, want EndGroups", err)
 	}
-	if got := len(db.GetBlacklistSettings(chat.Id).Triggers()); got != 5 {
+	if got := len(blacklists.GetBlacklistSettings(chat.Id).Triggers()); got != 5 {
 		t.Fatalf("blacklist triggers after duplicate = %d, want unchanged 5", got)
 	}
 
@@ -120,10 +120,10 @@ func TestBlacklistWatcherAppliesMuteAction(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := db.SetBlacklistAction(chat.Id, "mute"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
 		t.Fatalf("SetBlacklistAction setup error = %v", err)
 	}
 
@@ -160,10 +160,10 @@ func TestBlacklistWatcherAppliesBanWarnAndNoneActions(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 			member := gotgbot.User{Id: 42, FirstName: "Member"}
-			if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 				t.Fatalf("AddBlacklist setup error = %v", err)
 			}
-			if err := db.SetBlacklistAction(chat.Id, tc.action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, tc.action); err != nil {
 				t.Fatalf("SetBlacklistAction setup error = %v", err)
 			}
 
@@ -188,10 +188,10 @@ func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := db.SetBlacklistAction(chat.Id, "kick"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "kick"); err != nil {
 		t.Fatalf("SetBlacklistAction(kick) setup error = %v", err)
 	}
 
@@ -203,7 +203,7 @@ func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
 		t.Fatalf("banChatMember calls = %d, want kick action", len(calls))
 	}
 
-	if err := db.SetBlacklistAction(chat.Id, "ban"); err != nil {
+	if err := blacklists.SetBlacklistAction(chat.Id, "ban"); err != nil {
 		t.Fatalf("SetBlacklistAction(ban) setup error = %v", err)
 	}
 	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
@@ -224,10 +224,10 @@ func TestBlacklistWatcherSkipsSenderAndContentNoopBranches(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddBlacklist(chat.Id, "spam"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := db.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
@@ -277,10 +277,10 @@ func TestRemoveAllBlacklistsConfirmationAndCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddBlacklist(chat.Id, "one"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "one"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
-	if err := db.AddBlacklist(chat.Id, "two"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "two"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
 
@@ -299,7 +299,7 @@ func TestRemoveAllBlacklistsConfirmationAndCallback(t *testing.T) {
 		t.Fatalf("buttonHandler error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		return len(db.GetBlacklistSettings(chat.Id).Triggers()) == 0
+		return len(blacklists.GetBlacklistSettings(chat.Id).Triggers()) == 0
 	})
 }
 
@@ -308,7 +308,7 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddBlacklist(chat.Id, "one"); err != nil {
+	if err := blacklists.AddBlacklist(chat.Id, "one"); err != nil {
 		t.Fatalf("AddBlacklist setup error = %v", err)
 	}
 
@@ -316,7 +316,7 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 	if err := blacklistsModule.buttonHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("buttonHandler cancel error = %v, want EndGroups", err)
 	}
-	if got := len(db.GetBlacklistSettings(chat.Id).Triggers()); got != 1 {
+	if got := len(blacklists.GetBlacklistSettings(chat.Id).Triggers()); got != 1 {
 		t.Fatalf("blacklist triggers after cancel = %d, want retained trigger", got)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
 )
 
 func TestAddGetListAndRemoveTextNote(t *testing.T) {
@@ -22,10 +23,10 @@ func TestAddGetListAndRemoveTextNote(t *testing.T) {
 	if err := notesModule.addNote(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addNote() error = %v, want EndGroups", err)
 	}
-	if !db.DoesNoteExists(chat.Id, "rules") {
+	if !notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("note was not stored")
 	}
-	if note := db.GetNote(chat.Id, "rules"); !strings.Contains(note.NoteContent, "Be kind") {
+	if note := notes.GetNote(chat.Id, "rules"); !strings.Contains(note.NoteContent, "Be kind") {
 		t.Fatalf("note content = %q, want saved text", note.NoteContent)
 	}
 
@@ -43,7 +44,7 @@ func TestAddGetListAndRemoveTextNote(t *testing.T) {
 	if err := notesModule.rmNote(bot, rmCtx); err != ext.EndGroups {
 		t.Fatalf("rmNote() error = %v, want EndGroups", err)
 	}
-	if db.DoesNoteExists(chat.Id, "rules") {
+	if notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("note still exists after /clear")
 	}
 }
@@ -58,7 +59,7 @@ func TestPrivNoteTogglesNewChatSetting(t *testing.T) {
 	if err := notesModule.privNote(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("privNote on error = %v, want EndGroups", err)
 	}
-	if !db.GetNotes(chat.Id).PrivateNotesEnabled() {
+	if !notes.GetNotes(chat.Id).PrivateNotesEnabled() {
 		t.Fatal("private notes were not enabled for new chat")
 	}
 
@@ -71,7 +72,7 @@ func TestPrivNoteTogglesNewChatSetting(t *testing.T) {
 	if err := notesModule.privNote(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("privNote off error = %v, want EndGroups", err)
 	}
-	if db.GetNotes(chat.Id).PrivateNotesEnabled() {
+	if notes.GetNotes(chat.Id).PrivateNotesEnabled() {
 		t.Fatal("private notes stayed enabled")
 	}
 
@@ -86,7 +87,7 @@ func TestAddExistingNoteUsesOverwriteConfirmation(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
@@ -101,7 +102,7 @@ func TestAddExistingNoteUsesOverwriteConfirmation(t *testing.T) {
 	if calls[0].Params["reply_markup"] == nil {
 		t.Fatal("overwrite confirmation did not include reply_markup")
 	}
-	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "old" {
+	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "old" {
 		t.Fatalf("existing note was overwritten before confirmation: %q", got)
 	}
 }
@@ -127,7 +128,7 @@ func TestAddNoteValidationAndPrivateFlagConflict(t *testing.T) {
 	if err := notesModule.addNote(bot, conflictCtx); err != ext.EndGroups {
 		t.Fatalf("addNote(conflict flags) error = %v, want EndGroups", err)
 	}
-	note := db.GetNote(chat.Id, "conflict")
+	note := notes.GetNote(chat.Id, "conflict")
 	if note.PrivateOnly || note.GroupOnly {
 		t.Fatalf("conflicting privacy flags were not normalized: private=%v group=%v", note.PrivateOnly, note.GroupOnly)
 	}
@@ -179,7 +180,7 @@ func TestNoteCommandsPropagateGotgbotReplyErrors(t *testing.T) {
 			text: "/clear cleanup",
 			setup: func(t *testing.T) {
 				t.Helper()
-				if err := db.AddNote(chat.Id, "cleanup", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+				if err := notes.AddNote(chat.Id, "cleanup", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 					t.Fatalf("AddNote setup error = %v", err)
 				}
 			},
@@ -203,7 +204,7 @@ func TestNoteCommandsPropagateGotgbotReplyErrors(t *testing.T) {
 			text: "/notes",
 			setup: func(t *testing.T) {
 				t.Helper()
-				if err := db.AddNote(chat.Id, "listed", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+				if err := notes.AddNote(chat.Id, "listed", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 					t.Fatalf("AddNote setup error = %v", err)
 				}
 			},
@@ -239,7 +240,7 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 	data := encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}, "rmAllNotes.yes")
@@ -260,7 +261,7 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	if err := notesModule.notesButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("notesButtonHandler() error = %v, want EndGroups", err)
 	}
-	if notes := db.GetNotesList(chat.Id, true); len(notes) != 0 {
+	if notes := notes.GetNotesList(chat.Id, true); len(notes) != 0 {
 		t.Fatalf("notes after clear all = %v, want none", notes)
 	}
 }
@@ -284,14 +285,14 @@ func TestRemoveNoteAndClearAllValidationBranches(t *testing.T) {
 		t.Fatalf("rmAllNotes empty error = %v, want EndGroups", err)
 	}
 
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 	memberClearAllCtx := newModuleMessageContext(bot, chat, member, "/clearall")
 	if err := notesModule.rmAllNotes(bot, memberClearAllCtx); err != ext.EndGroups {
 		t.Fatalf("rmAllNotes non-owner error = %v, want EndGroups", err)
 	}
-	if !db.DoesNoteExists(chat.Id, "rules") {
+	if !notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("non-owner clearall removed note")
 	}
 }
@@ -301,7 +302,7 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
@@ -314,7 +315,7 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 	if err := notesModule.notesButtonHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("notesButtonHandler(cancel) error = %v, want EndGroups", err)
 	}
-	if !db.DoesNoteExists(chat.Id, "rules") {
+	if !notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("note was removed by cancel callback")
 	}
 
@@ -378,7 +379,7 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
@@ -398,7 +399,7 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 	if _, ok := notesOverwriteMap.Load(cancelToken); ok {
 		t.Fatal("cancelled overwrite token remained in map")
 	}
-	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "old" {
+	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "old" {
 		t.Fatalf("cancel changed note content to %q", got)
 	}
 
@@ -410,7 +411,7 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 	if err := notesModule.noteOverWriteHandler(bot, legacyCtx); err != ext.EndGroups {
 		t.Fatalf("noteOverWriteHandler(legacy yes) error = %v, want EndGroups", err)
 	}
-	if got := db.GetNote(chat.Id, "rules").NoteContent; got != "new" {
+	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "new" {
 		t.Fatalf("legacy overwrite content = %q, want new", got)
 	}
 }
@@ -419,7 +420,7 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "old", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote setup error = %v", err)
 	}
 
@@ -492,7 +493,7 @@ func TestNotesWatcherSendsMatchingNote(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
@@ -516,7 +517,7 @@ func TestNotesWatcherPrivateAdminOnlyAndNoFormatBranches(t *testing.T) {
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	if err := db.AddNote(chat.Id, "secret", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "secret", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(private) setup error = %v", err)
 	}
 	privateCtx := newModuleMessageContext(bot, chat, member, "#secret")
@@ -527,7 +528,7 @@ func TestNotesWatcherPrivateAdminOnlyAndNoFormatBranches(t *testing.T) {
 		t.Fatalf("private note calls = %+v, want click-through button", calls)
 	}
 
-	if err := db.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote(admin) setup error = %v", err)
 	}
 	memberAdminCtx := newModuleMessageContext(bot, chat, member, "#admin")
@@ -562,7 +563,7 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 		}
 	}
 
-	if err := db.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(private) setup error = %v", err)
 	}
 	privateCtx := newModuleMessageContext(bot, chat, member, "/get private")
@@ -570,7 +571,7 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 		t.Fatalf("getNotes private note error = %v, want EndGroups", err)
 	}
 
-	if err := db.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(raw) setup error = %v", err)
 	}
 	memberNoFormatCtx := newModuleMessageContext(bot, chat, member, "/get raw noformat")
@@ -597,16 +598,16 @@ func TestGetNotesAndWatcherPropagateGotgbotSendErrors(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(rules) setup error = %v", err)
 	}
-	if err := db.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "private", "private text", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(private) setup error = %v", err)
 	}
-	if err := db.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "admin", "admin text", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote(admin) setup error = %v", err)
 	}
-	if err := db.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(broken) setup error = %v", err)
 	}
 
@@ -649,10 +650,10 @@ func TestNotesWatcherAdminOnlyAndMalformedNotes(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "admin", "admin-only", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "admin", "admin-only", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote(admin) setup error = %v", err)
 	}
-	if err := db.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "broken", "", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(broken) setup error = %v", err)
 	}
 
@@ -681,7 +682,7 @@ func TestNotesWatcherPrivateOnlyNoteSendsDeepLinkInGroup(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddNote(chat.Id, "secret", "private", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "secret", "private", "", nil, db.TEXT, true, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
@@ -703,11 +704,11 @@ func TestNotesListPrivateAndPrivateNotesButton(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 
-	if err := db.TooglePrivateNote(chat.Id, true); err != nil {
+	if err := notes.TooglePrivateNote(chat.Id, true); err != nil {
 		t.Fatalf("TooglePrivateNote() error = %v", err)
 	}
 	groupCtx := newModuleMessageContext(bot, chat, admin, "/notes")
@@ -732,7 +733,7 @@ func TestGetNoteNoFormatRequiresAdminAndSendsRawNote(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
 

@@ -120,7 +120,7 @@ func TestGetPinType(t *testing.T) {
 			},
 			wantFileID:   "videonote_file_id",
 			wantText:     "",
-			wantDataType: db.VideoNote,
+			wantDataType: db.VIDEO_NOTE,
 			wantButtons:  0,
 		},
 		{

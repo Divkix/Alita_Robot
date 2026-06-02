@@ -12,7 +12,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -37,7 +37,7 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	// if not a supergroup, send a message and leave it
 	if chat.Type == "group" || chat.Type == "channel" {
 		if chat.Type == "group" {
-			tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("bot_updates_need_supergroup")
 			convertInstr, _ := tr.GetString("bot_updates_convert_instruction")
 			convertHowto, _ := tr.GetString("bot_updates_convert_howto")
@@ -74,7 +74,7 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// send a message to group itself
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	thanksText, _ := tr.GetString("bot_updates_thanks_for_adding")
 	creatorsPlug, _ := tr.GetString("bot_updates_creators_plug")
 	_, err := b.SendMessage(
@@ -121,7 +121,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	qmsg := query.Message
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	chatIDRaw := ""
 	msgIDRaw := ""
@@ -182,7 +182,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg, errCache := getAnonAdminCache(chatId, msgId)
 
 	if errCache != nil {
-		tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		expiredText, _ := tr.GetString("bot_updates_button_expired")
 		_, _, err := qmsg.EditText(b, expiredText, nil)
 		if err != nil {

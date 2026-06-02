@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
 )
 
 func withOwnerID(t *testing.T, ownerID int64) {
@@ -63,7 +64,7 @@ func TestDevTeamRoleCommandsHandleNoopAndAuthorizationBranches(t *testing.T) {
 		t.Fatalf("addSudo(channel id) error = %v, want ContinueGroups", err)
 	}
 
-	if err := db.AddSudo(42); err != nil {
+	if err := devs.AddSudo(42); err != nil {
 		t.Fatalf("AddSudo setup error = %v", err)
 	}
 	alreadySudoCtx := newModuleMessageContext(bot, chat, owner, "/addsudo 42")
@@ -110,7 +111,7 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 	if err := devsModule.addSudo(bot, addSudoCtx); err != ext.ContinueGroups {
 		t.Fatalf("addSudo() error = %v, want ContinueGroups", err)
 	}
-	if got := db.GetTeamMemInfo(42); !got.Sudo {
+	if got := devs.GetTeamMemInfo(42); !got.Sudo {
 		t.Fatalf("Sudo = false after addsudo, full settings: %#v", got)
 	}
 
@@ -118,7 +119,7 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 	if err := devsModule.addDev(bot, addDevCtx); err != ext.ContinueGroups {
 		t.Fatalf("addDev() error = %v, want ContinueGroups", err)
 	}
-	if got := db.GetTeamMemInfo(42); !got.IsDev {
+	if got := devs.GetTeamMemInfo(42); !got.IsDev {
 		t.Fatalf("IsDev = false after adddev, full settings: %#v", got)
 	}
 
@@ -126,7 +127,7 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 	if err := devsModule.remSudo(bot, remSudoCtx); err != ext.ContinueGroups {
 		t.Fatalf("remSudo() error = %v, want ContinueGroups", err)
 	}
-	if got := db.GetTeamMemInfo(42); got.Sudo {
+	if got := devs.GetTeamMemInfo(42); got.Sudo {
 		t.Fatalf("Sudo = true after remsudo, full settings: %#v", got)
 	}
 
@@ -134,7 +135,7 @@ func TestDevTeamRoleCommandsMutateRoles(t *testing.T) {
 	if err := devsModule.remDev(bot, remDevCtx); err != ext.ContinueGroups {
 		t.Fatalf("remDev() error = %v, want ContinueGroups", err)
 	}
-	if got := db.GetTeamMemInfo(42); got.IsDev {
+	if got := devs.GetTeamMemInfo(42); got.IsDev {
 		t.Fatalf("IsDev = true after remdev, full settings: %#v", got)
 	}
 }
@@ -157,10 +158,10 @@ func TestDevCommandsRejectNonTeamUsersWithoutTelegramCalls(t *testing.T) {
 
 func TestDevChatInfoLeaveChatStatsAndTeamList(t *testing.T) {
 	withOwnerID(t, 777000)
-	if err := db.AddDev(42); err != nil {
+	if err := devs.AddDev(42); err != nil {
 		t.Fatalf("AddDev() error = %v", err)
 	}
-	if err := db.AddSudo(43); err != nil {
+	if err := devs.AddSudo(43); err != nil {
 		t.Fatalf("AddSudo() error = %v", err)
 	}
 

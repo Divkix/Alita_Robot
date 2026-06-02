@@ -64,7 +64,7 @@ const (
 	TypeAudio     = db.AUDIO
 	TypeVoice     = db.VOICE
 	TypeVideo     = db.VIDEO
-	TypeVideoNote = db.VideoNote
+	TypeVideoNote = db.VIDEO_NOTE
 )
 
 // ParseMode constants
@@ -133,7 +133,7 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 		return sendVoice(b, content, opts, parseMode, replyParams)
 	case db.VIDEO:
 		return sendVideo(b, content, opts, parseMode, replyParams)
-	case db.VideoNote:
+	case db.VIDEO_NOTE:
 		return sendVideoNote(b, content, opts, replyParams)
 	default:
 		log.Warnf("[Media] Unknown message type %d, falling back to text", content.MsgType)

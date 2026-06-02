@@ -9,7 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/modules"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -65,7 +65,7 @@ func InitialChecks(b *gotgbot.Bot) error {
 	// Ensure bot exists in database (blocking - required for FK constraints)
 	// This must complete before LoadModules to prevent race conditions with
 	// foreign key constraints that reference the bot entry
-	if err := db.EnsureBotInDb(b); err != nil {
+	if err := user.EnsureBotInDb(b); err != nil {
 		log.WithError(err).Error("Failed to ensure bot in database")
 		// Continue anyway - non-fatal for basic operations
 	}

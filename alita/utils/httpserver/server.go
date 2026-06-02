@@ -20,6 +20,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -141,7 +142,7 @@ func (s *Server) RegisterMetrics() {
 // RegisterDBMetrics registers the /db_metrics endpoint for database monitoring
 func (s *Server) RegisterDBMetrics() {
 	s.mux.HandleFunc("/db_metrics", func(w http.ResponseWriter, r *http.Request) {
-		metrics, err := db.GetCurrentMetrics()
+		metrics, err := monitoring.GetCurrentMetrics()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

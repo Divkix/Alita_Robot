@@ -11,6 +11,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/greetings"
 )
 
 func newGreetingMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.User, text string) *ext.Context {
@@ -27,7 +29,7 @@ func TestWelcomeAndGoodbyeTogglesPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.welcome(bot, welcomeOffCtx); err != ext.EndGroups {
 		t.Fatalf("welcome off error = %v, want EndGroups", err)
 	}
-	if db.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
+	if greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
 		t.Fatal("welcome toggle stayed enabled for new chat")
 	}
 
@@ -35,7 +37,7 @@ func TestWelcomeAndGoodbyeTogglesPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.goodbye(bot, goodbyeOnCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye on error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
+	if !greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
 		t.Fatal("goodbye toggle did not enable for new chat")
 	}
 }
@@ -50,7 +52,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	if err := greetingsModule.welcome(bot, welcomeOnCtx); err != ext.EndGroups {
 		t.Fatalf("welcome on error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
+	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
 		t.Fatal("welcome toggle did not enable")
 	}
 
@@ -59,7 +61,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 		t.Fatalf("welcome invalid error = %v, want EndGroups", err)
 	}
 
-	if err := db.SetGoodbyeText(chat.Id, "Bye raw {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetGoodbyeText(chat.Id, "Bye raw {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetGoodbyeText setup error = %v", err)
 	}
 	goodbyeNoformatCtx := newGreetingMessageContext(bot, chat, admin, "/goodbye noformat")
@@ -71,7 +73,7 @@ func TestWelcomeAndGoodbyeToggleInvalidAndDisplayBranches(t *testing.T) {
 	if err := greetingsModule.goodbye(bot, goodbyeOffCtx); err != ext.EndGroups {
 		t.Fatalf("goodbye off error = %v, want EndGroups", err)
 	}
-	if db.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
+	if greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.ShouldGoodbye {
 		t.Fatal("goodbye toggle stayed enabled")
 	}
 
@@ -91,7 +93,7 @@ func TestGreetingDisplayPropagatesMediaSendErrors(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.SetWelcomeText(chat.Id, "Welcome with photo", "photo-file", nil, db.PHOTO); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome with photo", "photo-file", nil, db.PHOTO); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
 
@@ -117,7 +119,7 @@ func TestGreetingToggleRejectsNonAdminUsers(t *testing.T) {
 	if err := greetingsModule.welcome(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("welcome off by non-admin error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
+	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.ShouldWelcome {
 		t.Fatal("welcome toggle changed after non-admin command")
 	}
 }
@@ -132,7 +134,7 @@ func TestSetAndResetGreetingTextCommands(t *testing.T) {
 	if err := greetingsModule.setWelcome(bot, setWelcomeCtx); err != ext.EndGroups {
 		t.Fatalf("setWelcome error = %v, want EndGroups", err)
 	}
-	if got := db.GetGreetingSettings(chat.Id).WelcomeSettings.WelcomeText; got != "Hello {first}" {
+	if got := greetings.GetGreetingSettings(chat.Id).WelcomeSettings.WelcomeText; got != "Hello {first}" {
 		t.Fatalf("welcome text = %q, want command text", got)
 	}
 
@@ -140,7 +142,7 @@ func TestSetAndResetGreetingTextCommands(t *testing.T) {
 	if err := greetingsModule.setGoodbye(bot, setGoodbyeCtx); err != ext.EndGroups {
 		t.Fatalf("setGoodbye error = %v, want EndGroups", err)
 	}
-	if got := db.GetGreetingSettings(chat.Id).GoodbyeSettings.GoodbyeText; got != "Bye {first}" {
+	if got := greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.GoodbyeText; got != "Bye {first}" {
 		t.Fatalf("goodbye text = %q, want command text", got)
 	}
 
@@ -148,7 +150,7 @@ func TestSetAndResetGreetingTextCommands(t *testing.T) {
 	if err := greetingsModule.resetWelcome(bot, resetWelcomeCtx); err != ext.EndGroups {
 		t.Fatalf("resetWelcome error = %v, want EndGroups", err)
 	}
-	if got := db.GetGreetingSettings(chat.Id).WelcomeSettings.WelcomeText; got != db.DefaultWelcome {
+	if got := greetings.GetGreetingSettings(chat.Id).WelcomeSettings.WelcomeText; got != db.DefaultWelcome {
 		t.Fatalf("welcome text after reset = %q, want default", got)
 	}
 
@@ -156,7 +158,7 @@ func TestSetAndResetGreetingTextCommands(t *testing.T) {
 	if err := greetingsModule.resetGoodbye(bot, resetGoodbyeCtx); err != ext.EndGroups {
 		t.Fatalf("resetGoodbye error = %v, want EndGroups", err)
 	}
-	if got := db.GetGreetingSettings(chat.Id).GoodbyeSettings.GoodbyeText; got != db.DefaultGoodbye {
+	if got := greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.GoodbyeText; got != db.DefaultGoodbye {
 		t.Fatalf("goodbye text after reset = %q, want default", got)
 	}
 }
@@ -190,7 +192,7 @@ func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.cleanWelcome(bot, cleanWelcomeCtx); err != ext.EndGroups {
 		t.Fatalf("cleanWelcome error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).WelcomeSettings.CleanWelcome {
+	if !greetings.GetGreetingSettings(chat.Id).WelcomeSettings.CleanWelcome {
 		t.Fatal("clean welcome did not enable for new chat")
 	}
 
@@ -198,7 +200,7 @@ func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.cleanGoodbye(bot, cleanGoodbyeCtx); err != ext.EndGroups {
 		t.Fatalf("cleanGoodbye error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).GoodbyeSettings.CleanGoodbye {
+	if !greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.CleanGoodbye {
 		t.Fatal("clean goodbye did not enable for new chat")
 	}
 
@@ -206,7 +208,7 @@ func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.delJoined(bot, cleanServiceCtx); err != ext.EndGroups {
 		t.Fatalf("delJoined error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).ShouldCleanService {
+	if !greetings.GetGreetingSettings(chat.Id).ShouldCleanService {
 		t.Fatal("clean service did not enable for new chat")
 	}
 
@@ -214,7 +216,7 @@ func TestGreetingCleanupCommandsPersistForNewChat(t *testing.T) {
 	if err := greetingsModule.autoApprove(bot, autoApproveCtx); err != ext.EndGroups {
 		t.Fatalf("autoApprove error = %v, want EndGroups", err)
 	}
-	if !db.GetGreetingSettings(chat.Id).ShouldAutoApprove {
+	if !greetings.GetGreetingSettings(chat.Id).ShouldAutoApprove {
 		t.Fatal("auto approve did not enable for new chat")
 	}
 }
@@ -231,7 +233,7 @@ func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
 			command: "/cleanwelcome off",
 			run:     greetingsModule.cleanWelcome,
 			verify: func(chatID int64) bool {
-				return !db.GetGreetingSettings(chatID).WelcomeSettings.CleanWelcome
+				return !greetings.GetGreetingSettings(chatID).WelcomeSettings.CleanWelcome
 			},
 		},
 		{
@@ -239,7 +241,7 @@ func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
 			command: "/cleangoodbye no",
 			run:     greetingsModule.cleanGoodbye,
 			verify: func(chatID int64) bool {
-				return !db.GetGreetingSettings(chatID).GoodbyeSettings.CleanGoodbye
+				return !greetings.GetGreetingSettings(chatID).GoodbyeSettings.CleanGoodbye
 			},
 		},
 		{
@@ -247,7 +249,7 @@ func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
 			command: "/cleanservice off",
 			run:     greetingsModule.delJoined,
 			verify: func(chatID int64) bool {
-				return !db.GetGreetingSettings(chatID).ShouldCleanService
+				return !greetings.GetGreetingSettings(chatID).ShouldCleanService
 			},
 		},
 		{
@@ -255,7 +257,7 @@ func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
 			command: "/autoapprove no",
 			run:     greetingsModule.autoApprove,
 			verify: func(chatID int64) bool {
-				return !db.GetGreetingSettings(chatID).ShouldAutoApprove
+				return !greetings.GetGreetingSettings(chatID).ShouldAutoApprove
 			},
 		},
 	}
@@ -315,7 +317,7 @@ func TestWelcomeDisplaySendsStatusAndGreeting(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
 
@@ -389,13 +391,13 @@ func TestMemberJoinAndLeaveSendConfiguredGreetings(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4242, FirstName: "Newbie"}
-	if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
-	if err := db.SetGoodbyeText(chat.Id, "Bye {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetGoodbyeText(chat.Id, "Bye {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetGoodbyeText setup error = %v", err)
 	}
-	if err := db.SetGoodbyeToggle(chat.Id, true); err != nil {
+	if err := greetings.SetGoodbyeToggle(chat.Id, true); err != nil {
 		t.Fatalf("SetGoodbyeToggle setup error = %v", err)
 	}
 
@@ -440,10 +442,10 @@ func TestCleanServiceProcessesJoinAndDeletesServiceMessage(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4343, FirstName: "ServiceUser"}
-	if err := db.SetWelcomeText(chat.Id, "Service welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Service welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
-	if err := db.SetShouldCleanService(chat.Id, true); err != nil {
+	if err := greetings.SetShouldCleanService(chat.Id, true); err != nil {
 		t.Fatalf("SetShouldCleanService setup error = %v", err)
 	}
 
@@ -469,10 +471,10 @@ func TestCleanServiceProcessesMultipleNewMembersWithoutCaptcha(t *testing.T) {
 		{Id: 4441, FirstName: "One"},
 		{Id: 4442, FirstName: "Two"},
 	}
-	if err := db.SetWelcomeText(chat.Id, "Hello {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Hello {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
-	if err := db.SetShouldCleanService(chat.Id, true); err != nil {
+	if err := greetings.SetShouldCleanService(chat.Id, true); err != nil {
 		t.Fatalf("SetShouldCleanService setup error = %v", err)
 	}
 	for _, member := range members {
@@ -497,7 +499,7 @@ func TestProcessSingleNewMemberSkipsDuplicatesAndFallsBackWhenCaptchaMuteFails(t
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4545, FirstName: "CaptchaUser"}
-	if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
 
@@ -533,10 +535,10 @@ func TestProcessSingleNewMemberCaptchaSuccessSkipsWelcome(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4646, FirstName: "CaptchaPass"}
-	if err := db.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
-	if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
 
@@ -553,7 +555,7 @@ func TestProcessSingleNewMemberCaptchaSuccessSkipsWelcome(t *testing.T) {
 	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
 		t.Fatalf("sendMessage calls = %d, want no welcome before verification", len(calls))
 	}
-	attempt, err := db.GetCaptchaAttempt(member.Id, chat.Id)
+	attempt, err := captcha.GetCaptchaAttempt(member.Id, chat.Id)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt error = %v", err)
 	}
@@ -572,10 +574,10 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4747, FirstName: "CaptchaFallback"}
-	if err := db.SetCaptchaEnabled(chat.Id, true); err != nil {
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 	}
-	if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText setup error = %v", err)
 	}
 
@@ -592,7 +594,7 @@ func TestProcessSingleNewMemberCaptchaSendFailureUnmutesAndWelcomes(t *testing.T
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want welcome fallback", len(calls))
 	}
-	attempt, err := db.GetCaptchaAttempt(member.Id, chat.Id)
+	attempt, err := captcha.GetCaptchaAttempt(member.Id, chat.Id)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt error = %v", err)
 	}
@@ -631,10 +633,10 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 			member := gotgbot.User{Id: uniqueModuleChatID(), FirstName: "NewCaptcha"}
-			if err := db.SetCaptchaEnabled(chat.Id, true); err != nil {
+			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
 				t.Fatalf("SetCaptchaEnabled setup error = %v", err)
 			}
-			if err := db.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
+			if err := greetings.SetWelcomeText(chat.Id, "Welcome {first}", "", nil, db.TEXT); err != nil {
 				t.Fatalf("SetWelcomeText setup error = %v", err)
 			}
 
@@ -669,16 +671,16 @@ func TestLeftMemberDeletesPendingCaptchaAttemptAndCleanGoodbye(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 4848, FirstName: "Leaving"}
-	if err := db.SetGoodbyeText(chat.Id, "Bye {first}", "", nil, db.TEXT); err != nil {
+	if err := greetings.SetGoodbyeText(chat.Id, "Bye {first}", "", nil, db.TEXT); err != nil {
 		t.Fatalf("SetGoodbyeText setup error = %v", err)
 	}
-	if err := db.SetGoodbyeToggle(chat.Id, true); err != nil {
+	if err := greetings.SetGoodbyeToggle(chat.Id, true); err != nil {
 		t.Fatalf("SetGoodbyeToggle setup error = %v", err)
 	}
-	if err := db.SetCleanGoodbyeSetting(chat.Id, true); err != nil {
+	if err := greetings.SetCleanGoodbyeSetting(chat.Id, true); err != nil {
 		t.Fatalf("SetCleanGoodbyeSetting setup error = %v", err)
 	}
-	if err := db.SetCleanGoodbyeMsgId(chat.Id, 1234); err != nil {
+	if err := greetings.SetCleanGoodbyeMsgId(chat.Id, 1234); err != nil {
 		t.Fatalf("SetCleanGoodbyeMsgId setup error = %v", err)
 	}
 	attempt := &db.CaptchaAttempts{
@@ -709,14 +711,14 @@ func TestLeftMemberDeletesPendingCaptchaAttemptAndCleanGoodbye(t *testing.T) {
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want goodbye message", len(calls))
 	}
-	got, err := db.GetCaptchaAttempt(member.Id, chat.Id)
+	got, err := captcha.GetCaptchaAttempt(member.Id, chat.Id)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt error = %v", err)
 	}
 	if got != nil {
 		t.Fatal("captcha attempt was not deleted for leaving member")
 	}
-	if lastID := db.GetGreetingSettings(chat.Id).GoodbyeSettings.LastMsgId; lastID == 1234 {
+	if lastID := greetings.GetGreetingSettings(chat.Id).GoodbyeSettings.LastMsgId; lastID == 1234 {
 		t.Fatal("clean goodbye message ID was not updated")
 	}
 }
@@ -848,7 +850,7 @@ func TestAutoApproveJoinRequestSkipsAdminNotice(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 	applicant := gotgbot.User{Id: 6161, FirstName: "Applicant"}
-	if err := db.SetShouldAutoApprove(chat.Id, true); err != nil {
+	if err := greetings.SetShouldAutoApprove(chat.Id, true); err != nil {
 		t.Fatalf("SetShouldAutoApprove setup error = %v", err)
 	}
 
@@ -925,7 +927,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "auto approve join request",
 			method: "approveChatJoinRequest",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				if err := db.SetShouldAutoApprove(chat.Id, true); err != nil {
+				if err := greetings.SetShouldAutoApprove(chat.Id, true); err != nil {
 					t.Fatalf("SetShouldAutoApprove() error = %v", err)
 				}
 				return newJoinRequestContext(bot, chat, applicant)
@@ -1053,7 +1055,7 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 				err error
 			)
 			if tt.autoApprove {
-				if err := db.SetShouldAutoApprove(chat.Id, true); err != nil {
+				if err := greetings.SetShouldAutoApprove(chat.Id, true); err != nil {
 					t.Fatalf("SetShouldAutoApprove() error = %v", err)
 				}
 				ctx = newJoinRequestContext(bot, chat, applicant)

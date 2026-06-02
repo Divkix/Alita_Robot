@@ -11,6 +11,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/filters"
 )
 
 func waitForModuleCondition(t *testing.T, condition func() bool) {
@@ -36,7 +37,7 @@ func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 	if err := filtersModule.addFilter(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addFilter error = %v, want EndGroups", err)
 	}
-	if !db.DoesFilterExists(chat.Id, "hello") {
+	if !filters.DoesFilterExists(chat.Id, "hello") {
 		t.Fatal("filter was not stored")
 	}
 
@@ -62,7 +63,7 @@ func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 	if err := filtersModule.rmFilter(bot, removeCtx); err != ext.EndGroups {
 		t.Fatalf("rmFilter error = %v, want EndGroups", err)
 	}
-	if db.DoesFilterExists(chat.Id, "hello") {
+	if filters.DoesFilterExists(chat.Id, "hello") {
 		t.Fatal("filter still exists after remove")
 	}
 }
@@ -95,7 +96,7 @@ func TestFilterCommandValidationBranches(t *testing.T) {
 		}
 	}
 
-	if err := db.AddFilter(chat.Id, "dupe", "old", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "dupe", "old", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 	overwriteCtx := newModuleMessageContext(bot, chat, admin, "/filter dupe new")
@@ -115,7 +116,7 @@ func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 		for i := 0; i < 150; i++ {
-			if err := db.AddFilter(chat.Id, "word"+strconv.Itoa(i), "reply", "", nil, db.TEXT); err != nil {
+			if err := filters.AddFilter(chat.Id, "word"+strconv.Itoa(i), "reply", "", nil, db.TEXT); err != nil {
 				t.Fatalf("AddFilter setup %d error = %v", i, err)
 			}
 		}
@@ -124,7 +125,7 @@ func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("addFilter limit error = %v, want EndGroups", err)
 		}
-		if db.DoesFilterExists(chat.Id, "overflow") {
+		if filters.DoesFilterExists(chat.Id, "overflow") {
 			t.Fatal("filter was stored despite limit")
 		}
 	})
@@ -139,7 +140,7 @@ func TestAddFilterRejectsLimitAndNonAdmin(t *testing.T) {
 		if err := filtersModule.addFilter(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("addFilter non-admin error = %v, want EndGroups", err)
 		}
-		if db.DoesFilterExists(chat.Id, "hello") {
+		if filters.DoesFilterExists(chat.Id, "hello") {
 			t.Fatal("filter was stored by non-admin")
 		}
 	})
@@ -184,7 +185,7 @@ func TestFiltersWatcherNoFormatPathRequiresAdmin(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.AddFilter(chat.Id, "raw", "<b>Raw</b>", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "raw", "<b>Raw</b>", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 
@@ -214,7 +215,7 @@ func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddFilter(chat.Id, "hello", "old reply", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "hello", "old reply", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 	if err := setFilterOverwriteCache("token-1", overwriteFilter{
@@ -279,10 +280,10 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	if err := db.AddFilter(chat.Id, "one", "1", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "one", "1", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
-	if err := db.AddFilter(chat.Id, "two", "2", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "two", "2", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 
@@ -301,7 +302,7 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 		t.Fatalf("filtersButtonHandler error = %v, want EndGroups", err)
 	}
 	waitForModuleCondition(t, func() bool {
-		return len(db.GetFiltersList(chat.Id)) == 0
+		return len(filters.GetFiltersList(chat.Id)) == 0
 	})
 }
 
@@ -316,14 +317,14 @@ func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
 		t.Fatalf("rmAllFilters empty error = %v, want EndGroups", err)
 	}
 
-	if err := db.AddFilter(chat.Id, "keep", "reply", "", nil, db.TEXT); err != nil {
+	if err := filters.AddFilter(chat.Id, "keep", "reply", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
 	cancelCtx := newModuleCallbackContext(bot, chat, owner, "rmAllFilters.no")
 	if err := filtersModule.filtersButtonHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("filtersButtonHandler cancel error = %v, want EndGroups", err)
 	}
-	if !db.DoesFilterExists(chat.Id, "keep") {
+	if !filters.DoesFilterExists(chat.Id, "keep") {
 		t.Fatal("filter was removed after cancel callback")
 	}
 
@@ -355,7 +356,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "/filter hello New",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -369,7 +370,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "/stop hello",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -382,7 +383,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "/filters",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -395,7 +396,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "/stopall",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -407,7 +408,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "hello",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -419,7 +420,7 @@ func TestFilterCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "hello noformat",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -463,7 +464,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes"),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -475,7 +476,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}, "rmAllFilters.no"),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 			},
@@ -487,7 +488,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-edit"}, "filters_overwrite.hello"),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 				if err := setFilterOverwriteCache("token-edit", overwriteFilter{
@@ -509,7 +510,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-answer"}, "filters_overwrite.hello"),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				if err := db.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
+				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
 					t.Fatalf("AddFilter setup error = %v", err)
 				}
 				if err := setFilterOverwriteCache("token-answer", overwriteFilter{

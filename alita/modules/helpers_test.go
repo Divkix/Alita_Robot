@@ -10,6 +10,10 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/notes"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -262,21 +266,21 @@ func TestStartHelpPrefixHandlerRoutesConnectAndRulesDeepLinks(t *testing.T) {
 	))
 	chat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"}
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
-	if err := db.EnsureChatInDb(chatID, "Deep Link Chat"); err != nil {
+	if err := chats.EnsureChatInDb(chatID, "Deep Link Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	db.ToggleAllowConnect(chatID, true)
-	db.SetChatRules(chatID, "Be kind.")
+	connections.ToggleAllowConnect(chatID, true)
+	rules.SetChatRules(chatID, "Be kind.")
 	t.Cleanup(func() {
-		db.ToggleAllowConnect(chatID, false)
-		db.SetChatRules(chatID, "")
+		connections.ToggleAllowConnect(chatID, false)
+		rules.SetChatRules(chatID, "")
 	})
 
 	connectCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start connect_%d", chatID))
 	if err := startHelpPrefixHandler(bot, connectCtx, &user, fmt.Sprintf("connect_%d", chatID)); err != ext.EndGroups {
 		t.Fatalf("startHelpPrefixHandler(connect) error = %v, want EndGroups", err)
 	}
-	if connection := db.Connection(user.Id); !connection.Connected || connection.ChatId != chatID {
+	if connection := connections.Connection(user.Id); !connection.Connected || connection.ChatId != chatID {
 		t.Fatalf("connection = %#v, want connected chat %d", connection, chatID)
 	}
 
@@ -300,13 +304,13 @@ func TestStartHelpPrefixHandlerRoutesNotesDeepLinks(t *testing.T) {
 	))
 	chat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"}
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
-	if err := db.EnsureChatInDb(chatID, "Notes Chat"); err != nil {
+	if err := chats.EnsureChatInDb(chatID, "Notes Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	if err := db.AddNote(chatID, "public", "Visible note", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+	if err := notes.AddNote(chatID, "public", "Visible note", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote(public) error = %v", err)
 	}
-	if err := db.AddNote(chatID, "admin", "Hidden note", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+	if err := notes.AddNote(chatID, "admin", "Hidden note", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote(admin) error = %v", err)
 	}
 
@@ -357,10 +361,10 @@ func TestStartHelpPrefixHandlerHandlesMissingChatsAndAdminOnlyNotes(t *testing.T
 		`{"id":%d,"type":"supergroup","title":"Private Notes Chat"}`,
 		chatID,
 	))
-	if err := db.EnsureChatInDb(chatID, "Private Notes Chat"); err != nil {
+	if err := chats.EnsureChatInDb(chatID, "Private Notes Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	if err := db.AddNote(chatID, "adminonly", "Hidden", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
+	if err := notes.AddNote(chatID, "adminonly", "Hidden", "", nil, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote(adminonly) error = %v", err)
 	}
 

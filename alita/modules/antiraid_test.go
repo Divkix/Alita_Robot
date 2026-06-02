@@ -9,7 +9,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -353,7 +354,7 @@ func TestAntiRaidTimeCommandsPersistSettings(t *testing.T) {
 	if err := antiRaidModule.raidTime(bot, raidTimeCtx); err != ext.EndGroups {
 		t.Fatalf("raidTime() error = %v, want EndGroups", err)
 	}
-	if got := db.GetAntiRaidSettings(chat.Id).RaidTime; got != 2*60*60 {
+	if got := antiraid.GetAntiRaidSettings(chat.Id).RaidTime; got != 2*60*60 {
 		t.Fatalf("RaidTime = %d, want 7200", got)
 	}
 
@@ -361,7 +362,7 @@ func TestAntiRaidTimeCommandsPersistSettings(t *testing.T) {
 	if err := antiRaidModule.raidActionTime(bot, actionTimeCtx); err != ext.EndGroups {
 		t.Fatalf("raidActionTime() error = %v, want EndGroups", err)
 	}
-	if got := db.GetAntiRaidSettings(chat.Id).RaidActionTime; got != 30*60 {
+	if got := antiraid.GetAntiRaidSettings(chat.Id).RaidActionTime; got != 30*60 {
 		t.Fatalf("RaidActionTime = %d, want 1800", got)
 	}
 }
@@ -386,7 +387,7 @@ func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
 		}
 	}
 
-	if err := db.SetRaidTime(chat.Id, 60); err != nil {
+	if err := antiraid.SetRaidTime(chat.Id, 60); err != nil {
 		t.Fatalf("SetRaidTime setup error = %v", err)
 	}
 	noChangeRaidCtx := newModuleMessageContext(bot, chat, user, "/raidtime 1m")
@@ -394,7 +395,7 @@ func TestAntiRaidTimeCommandsValidateInputAndNoChange(t *testing.T) {
 		t.Fatalf("raidTime(no change) error = %v, want EndGroups", err)
 	}
 
-	if err := db.SetRaidActionTime(chat.Id, 120); err != nil {
+	if err := antiraid.SetRaidActionTime(chat.Id, 120); err != nil {
 		t.Fatalf("SetRaidActionTime setup error = %v", err)
 	}
 	noChangeActionCtx := newModuleMessageContext(bot, chat, user, "/raidactiontime 2m")
@@ -417,7 +418,7 @@ func TestAutoAntiRaidCommandPersistsThreshold(t *testing.T) {
 	if err := antiRaidModule.autoAntiRaid(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("autoAntiRaid(set) error = %v, want EndGroups", err)
 	}
-	if got := db.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 4 {
+	if got := antiraid.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 4 {
 		t.Fatalf("AutoAntiRaidThreshold = %d, want 4", got)
 	}
 
@@ -430,7 +431,7 @@ func TestAutoAntiRaidCommandPersistsThreshold(t *testing.T) {
 	if err := antiRaidModule.autoAntiRaid(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("autoAntiRaid(off) error = %v, want EndGroups", err)
 	}
-	if got := db.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 0 {
+	if got := antiraid.GetAntiRaidSettings(chat.Id).AutoAntiRaidThreshold; got != 0 {
 		t.Fatalf("AutoAntiRaidThreshold = %d, want 0 after off", got)
 	}
 }
@@ -452,7 +453,7 @@ func TestAutoAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 		}
 	}
 
-	if err := db.SetAutoAntiRaidThreshold(chat.Id, 3); err != nil {
+	if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 3); err != nil {
 		t.Fatalf("SetAutoAntiRaidThreshold setup error = %v", err)
 	}
 	noChangeCtx := newModuleMessageContext(bot, chat, user, "/autoantiraid 3")
@@ -584,7 +585,7 @@ func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {
 	}
 
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
-	if err := db.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
+	if err := approvals.AddApprovedUser(chat.Id, member.Id, 777000, "trusted"); err != nil {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 	msg := &gotgbot.Message{

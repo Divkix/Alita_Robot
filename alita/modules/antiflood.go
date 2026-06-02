@@ -16,6 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
@@ -102,7 +104,7 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 // along with the flood control data and flood settings from the database.
 // This eliminates redundant database calls by fetching settings once.
 func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
-	floodSettings = db.GetFlood(chatId)
+	floodSettings = antiflood.GetFlood(chatId)
 
 	if floodSettings.Limit != 0 {
 		currentTime := time.Now().Unix()
@@ -175,7 +177,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var (
 		fmode    string
@@ -258,13 +260,13 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// PERFORMANCE FIX: Update flood and get settings in one call to eliminate redundant DB query
-	// Previously this was calling db.GetFlood again after updateFlood, doubling the DB load
+	// Previously this was calling antiflood.GetFlood again after updateFlood, doubling the DB load
 	flooded, floodCrc, flood := antifloodModule.updateFlood(chatId, userId, msg.MessageId)
 	if !flooded {
 		return ext.ContinueGroups
 	}
 
-	// No need to call db.GetFlood again - we already have the settings from updateFlood
+	// No need to call antiflood.GetFlood again - we already have the settings from updateFlood
 	if flood.Action == "mute" || flood.Action == "kick" || flood.Action == "ban" {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
@@ -429,7 +431,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 
 	var replyText string
@@ -438,7 +440,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
 		if slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
-			if err := db.SetFlood(chat.Id, 0); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -453,7 +455,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				if num < 3 || num > 100 {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					if err := db.SetFlood(chat.Id, num); err != nil {
+					if err := antiflood.SetFlood(chat.Id, num); err != nil {
 						log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 						errText, _ := tr.GetString("common_settings_save_failed")
 						_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -493,9 +495,9 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
 
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	flood := db.GetFlood(chat.Id)
+	flood := antiflood.GetFlood(chat.Id)
 	if flood.Limit == 0 {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
@@ -529,13 +531,13 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
 		if slices.Contains([]string{"ban", "kick", "mute"}, selectedMode) {
-			if err := db.SetFloodMode(chat.Id, selectedMode); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, selectedMode); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -575,7 +577,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = connectedChat
 	chat := ctx.EffectiveChat
-	tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 	var text string
 
@@ -583,7 +585,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			if err := db.SetFloodMsgDel(chat.Id, true); err != nil {
+			if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -591,7 +593,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			if err := db.SetFloodMsgDel(chat.Id, false); err != nil {
+			if err := antiflood.SetFloodMsgDel(chat.Id, false); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -602,7 +604,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
 		}
 	} else {
-		currSet := db.GetFlood(chat.Id).DeleteAntifloodMessage
+		currSet := antiflood.GetFlood(chat.Id).DeleteAntifloodMessage
 		if currSet {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_already_enabled")
 		} else {

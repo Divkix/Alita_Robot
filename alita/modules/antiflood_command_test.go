@@ -6,8 +6,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 )
 
 func resetAntifloodState(t *testing.T) {
@@ -30,7 +30,7 @@ func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
 	if err := antifloodModule.setFlood(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("setFlood() error = %v, want EndGroups", err)
 	}
-	if got := db.GetFlood(chat.Id).Limit; got != 4 {
+	if got := antiflood.GetFlood(chat.Id).Limit; got != 4 {
 		t.Fatalf("flood limit = %d, want 4", got)
 	}
 
@@ -38,7 +38,7 @@ func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
 	if err := antifloodModule.setFloodMode(bot, modeCtx); err != ext.EndGroups {
 		t.Fatalf("setFloodMode() error = %v, want EndGroups", err)
 	}
-	if got := db.GetFlood(chat.Id).Action; got != "ban" {
+	if got := antiflood.GetFlood(chat.Id).Action; got != "ban" {
 		t.Fatalf("flood action = %q, want ban", got)
 	}
 
@@ -46,7 +46,7 @@ func TestAntifloodCommandsUpdateSettingsAndDisplay(t *testing.T) {
 	if err := antifloodModule.setFloodDeleter(bot, deleteCtx); err != ext.EndGroups {
 		t.Fatalf("setFloodDeleter() error = %v, want EndGroups", err)
 	}
-	if got := db.GetFlood(chat.Id).DeleteAntifloodMessage; !got {
+	if got := antiflood.GetFlood(chat.Id).DeleteAntifloodMessage; !got {
 		t.Fatal("DeleteAntifloodMessage = false, want true")
 	}
 
@@ -91,7 +91,7 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 			}
 		})
 	}
-	settings := db.GetFlood(chat.Id)
+	settings := antiflood.GetFlood(chat.Id)
 	if settings.Limit != 0 {
 		t.Fatalf("flood limit = %d, want disabled", settings.Limit)
 	}
@@ -106,7 +106,7 @@ func TestAntifloodCommandsHandleDisabledAndValidationBranches(t *testing.T) {
 func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	resetAntifloodState(t)
 	chatID := uniqueModuleChatID()
-	if err := db.SetFlood(chatID, 2); err != nil {
+	if err := antiflood.SetFlood(chatID, 2); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 
@@ -148,10 +148,10 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
-	if err := db.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := db.SetFloodMode(chat.Id, "mute"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "mute"); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
 
@@ -196,10 +196,10 @@ func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 			member := gotgbot.User{Id: tt.userID, FirstName: "Flooder"}
-			if err := db.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := db.SetFloodMode(chat.Id, tt.action); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, tt.action); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 
@@ -229,13 +229,13 @@ func TestAntifloodWatcherBulkDeletesTrackedMessages(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 45, FirstName: "BulkFlooder"}
-	if err := db.SetFlood(chat.Id, 4); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 4); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := db.SetFloodMode(chat.Id, "ban"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
-	if err := db.SetFloodMsgDel(chat.Id, true); err != nil {
+	if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
 		t.Fatalf("SetFloodMsgDel() error = %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 46, FirstName: "Flooder"}
-	if err := db.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
 
@@ -320,7 +320,7 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 			userID: 47,
 			setup: func(t *testing.T, chatID int64, _ *moduleBotClient) {
 				t.Helper()
-				if err := db.AddApprovedUser(chatID, 47, 777000, "trusted"); err != nil {
+				if err := approvals.AddApprovedUser(chatID, 47, 777000, "trusted"); err != nil {
 					t.Fatalf("AddApprovedUser() error = %v", err)
 				}
 			},
@@ -339,10 +339,10 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 			bot := newModuleTestBot(client)
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 			member := gotgbot.User{Id: tt.userID, FirstName: "Flooder"}
-			if err := db.SetFlood(chat.Id, 1); err != nil {
+			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 				t.Fatalf("SetFlood() error = %v", err)
 			}
-			if err := db.SetFloodMode(chat.Id, "mute"); err != nil {
+			if err := antiflood.SetFloodMode(chat.Id, "mute"); err != nil {
 				t.Fatalf("SetFloodMode() error = %v", err)
 			}
 			tt.setup(t, chat.Id, client)
@@ -369,13 +369,13 @@ func TestAntifloodWatcherPropagatesFloodMessageDeleteErrors(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 49, FirstName: "Flooder"}
-	if err := db.SetFlood(chat.Id, 1); err != nil {
+	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
 	}
-	if err := db.SetFloodMode(chat.Id, "ban"); err != nil {
+	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
 		t.Fatalf("SetFloodMode() error = %v", err)
 	}
-	if err := db.SetFloodMsgDel(chat.Id, true); err != nil {
+	if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
 		t.Fatalf("SetFloodMsgDel() error = %v", err)
 	}
 

@@ -4,13 +4,13 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
 // canUserConnectToChat enforces the same authorization gate for /connect and deep-link connect.
 func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
-	settings := db.GetChatConnectionSetting(chatID)
+	settings := connections.GetChatConnectionSetting(chatID)
 	if chat_status.IsUserAdmin(b, chatID, userID) {
 		return true, ""
 	}

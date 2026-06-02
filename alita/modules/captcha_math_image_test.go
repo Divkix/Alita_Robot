@@ -110,7 +110,7 @@ func TestMessageTypeToString(t *testing.T) {
 		{db.AUDIO, "audio"},
 		{db.VOICE, "voice"},
 		{db.VIDEO, "video"},
-		{db.VideoNote, "video note"},
+		{db.VIDEO_NOTE, "video note"},
 		{999, "unknown"},
 		{0, "unknown"},
 		{-1, "unknown"},

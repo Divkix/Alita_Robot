@@ -6,8 +6,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 )
 
 func TestChangeLanguagePrivateShowsLanguageKeyboard(t *testing.T) {
@@ -40,7 +39,7 @@ func TestLanguageCallbackChangesUserLanguageAndEditsMessage(t *testing.T) {
 	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("langBtnHandler() error = %v, want EndGroups", err)
 	}
-	if lang := db.GetLanguage(ctx); lang != "es" {
+	if lang := lang.GetLanguage(ctx); lang != "es" {
 		t.Fatalf("user language = %q, want es", lang)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
@@ -67,7 +66,7 @@ func TestLanguageCallbackWithoutMessageAnswersInsteadOfEditing(t *testing.T) {
 	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("langBtnHandler() error = %v, want EndGroups", err)
 	}
-	if lang := db.GetLanguage(ctx); lang != "fr" {
+	if lang := lang.GetLanguage(ctx); lang != "fr" {
 		t.Fatalf("user language = %q, want fr", lang)
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
@@ -108,7 +107,7 @@ func TestLanguageCallbackHandlesGroupPermissionsAndInvalidUser(t *testing.T) {
 		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("langBtnHandler(group admin) error = %v, want EndGroups", err)
 		}
-		if lang := db.GetLanguage(ctx); lang != "hi" {
+		if lang := lang.GetLanguage(ctx); lang != "hi" {
 			t.Fatalf("group language = %q, want hi", lang)
 		}
 		if calls := client.callsFor("editMessageText"); len(calls) != 1 {

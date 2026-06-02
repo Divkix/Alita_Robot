@@ -8,7 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -30,8 +30,8 @@ func TestCanUserConnectToChatRespectsAllowConnectMembership(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	_ = db.GetChatConnectionSetting(chatID)
-	db.ToggleAllowConnect(chatID, true)
+	_ = connections.GetChatConnectionSetting(chatID)
+	connections.ToggleAllowConnect(chatID, true)
 
 	allowed, denyKey := canUserConnectToChat(bot, chatID, 42)
 	if !allowed {
@@ -46,8 +46,8 @@ func TestCanUserConnectToChatDeniesNonAdminWhenDisabled(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	_ = db.GetChatConnectionSetting(chatID)
-	db.ToggleAllowConnect(chatID, false)
+	_ = connections.GetChatConnectionSetting(chatID)
+	connections.ToggleAllowConnect(chatID, false)
 
 	allowed, denyKey := canUserConnectToChat(bot, chatID, 42)
 	if allowed {
@@ -63,8 +63,8 @@ func TestCanUserConnectToChatDeniesWhenMemberLookupFails(t *testing.T) {
 	client.errors["getChatMember"] = fmt.Errorf("telegram unavailable")
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	_ = db.GetChatConnectionSetting(chatID)
-	db.ToggleAllowConnect(chatID, true)
+	_ = connections.GetChatConnectionSetting(chatID)
+	connections.ToggleAllowConnect(chatID, true)
 
 	allowed, denyKey := canUserConnectToChat(bot, chatID, 42)
 	if allowed {
@@ -86,7 +86,7 @@ func TestAllowConnectTogglesSetting(t *testing.T) {
 	if err := ConnectionsModule.allowConnect(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("allowConnect on error = %v, want EndGroups", err)
 	}
-	if !db.GetChatConnectionSetting(chatID).AllowConnect {
+	if !connections.GetChatConnectionSetting(chatID).AllowConnect {
 		t.Fatal("AllowConnect was not enabled")
 	}
 
@@ -99,7 +99,7 @@ func TestAllowConnectTogglesSetting(t *testing.T) {
 	if err := ConnectionsModule.allowConnect(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("allowConnect off error = %v, want EndGroups", err)
 	}
-	if db.GetChatConnectionSetting(chatID).AllowConnect {
+	if connections.GetChatConnectionSetting(chatID).AllowConnect {
 		t.Fatal("AllowConnect stayed enabled after no")
 	}
 }
@@ -119,11 +119,11 @@ func TestAllowConnectHandlesInvalidOptionAndNonAdminNoop(t *testing.T) {
 	}
 
 	memberCtx := newModuleMessageContext(bot, chat, gotgbot.User{Id: 42, FirstName: "Member"}, "/allowconnect on")
-	db.ToggleAllowConnect(chatID, false)
+	connections.ToggleAllowConnect(chatID, false)
 	if err := ConnectionsModule.allowConnect(bot, memberCtx); err != ext.EndGroups {
 		t.Fatalf("allowConnect(non-admin) error = %v, want EndGroups", err)
 	}
-	if db.GetChatConnectionSetting(chatID).AllowConnect {
+	if connections.GetChatConnectionSetting(chatID).AllowConnect {
 		t.Fatal("non-admin /allowconnect changed the chat setting")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -136,14 +136,14 @@ func TestDisconnectPrivateClearsConnection(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4242, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, chatID)
+	connections.ConnectId(user.Id, chatID)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/disconnect")
 	if err := ConnectionsModule.disconnect(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("disconnect() error = %v, want EndGroups", err)
 	}
-	if db.Connection(user.Id).Connected {
+	if connections.Connection(user.Id).Connected {
 		t.Fatal("user remained connected after /disconnect")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -156,14 +156,14 @@ func TestDisconnectInGroupDoesNotClearConnection(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4243, FirstName: "Member"}
 	connectedChatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, connectedChatID)
+	connections.ConnectId(user.Id, connectedChatID)
 
 	groupChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Connections Chat"}
 	ctx := newModuleMessageContext(bot, groupChat, user, "/disconnect")
 	if err := ConnectionsModule.disconnect(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("disconnect() error = %v, want EndGroups", err)
 	}
-	if !db.Connection(user.Id).Connected {
+	if !connections.Connection(user.Id).Connected {
 		t.Fatal("group /disconnect cleared private connection")
 	}
 }
@@ -173,7 +173,7 @@ func TestConnectionReportsConnectedChat(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4244, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, chatID)
+	connections.ConnectId(user.Id, chatID)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/connection")
@@ -208,12 +208,12 @@ func TestConnectionReportsNotConnectedAndLookupErrors(t *testing.T) {
 	lookupClient := newModuleBotClient()
 	lookupClient.errors["getChat"] = fmt.Errorf("telegram unavailable")
 	lookupBot := newModuleTestBot(lookupClient)
-	db.ConnectId(user.Id, uniqueModuleChatID())
+	connections.ConnectId(user.Id, uniqueModuleChatID())
 	lookupCtx := newModuleMessageContext(lookupBot, privateChat, user, "/connection")
 	if err := ConnectionsModule.connection(lookupBot, lookupCtx); err == nil {
 		t.Fatal("connection(lookup error) error = nil, want request error")
 	}
-	if db.Connection(user.Id).Connected {
+	if connections.Connection(user.Id).Connected {
 		t.Fatal("failed connected-chat lookup did not clear stale connection")
 	}
 }
@@ -228,7 +228,7 @@ func TestConnectInGroupRepliesWithDeepLinkButton(t *testing.T) {
 	if err := ConnectionsModule.connect(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("connect() error = %v, want EndGroups", err)
 	}
-	if db.Connection(user.Id).Connected {
+	if connections.Connection(user.Id).Connected {
 		t.Fatal("group /connect should not create a direct DB connection")
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -246,16 +246,16 @@ func TestConnectPrivateEstablishesConnectionAndHandlesMissingChat(t *testing.T) 
 	if err := ConnectionsModule.connect(bot, missingCtx); err != ext.EndGroups {
 		t.Fatalf("connect(missing chat) error = %v, want EndGroups", err)
 	}
-	if db.Connection(user.Id).Connected {
+	if connections.Connection(user.Id).Connected {
 		t.Fatal("missing chat id connected the user")
 	}
 
-	db.ToggleAllowConnect(-1001, true)
+	connections.ToggleAllowConnect(-1001, true)
 	connectCtx := newModuleMessageContext(bot, privateChat, user, "/connect -1001")
 	if err := ConnectionsModule.connect(bot, connectCtx); err != ext.EndGroups {
 		t.Fatalf("connect(private) error = %v, want EndGroups", err)
 	}
-	if conn := db.Connection(user.Id); !conn.Connected || conn.ChatId != -1001 {
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId != -1001 {
 		t.Fatalf("connection = %+v, want connected to -1001", conn)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
@@ -268,15 +268,15 @@ func TestReconnectPrivateRestoresPreviousChat(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4245, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, chatID)
-	db.DisconnectId(user.Id)
+	connections.ConnectId(user.Id, chatID)
+	connections.DisconnectId(user.Id)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleMessageContext(bot, privateChat, user, "/reconnect")
 	if err := ConnectionsModule.reconnect(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("reconnect() error = %v, want EndGroups", err)
 	}
-	if !db.Connection(user.Id).Connected {
+	if !connections.Connection(user.Id).Connected {
 		t.Fatal("user was not reconnected to previous chat")
 	}
 	if calls := client.callsFor("getChat"); len(calls) != 1 {
@@ -304,8 +304,8 @@ func TestReconnectPrivateHandlesNoLastChatAndLookupFailure(t *testing.T) {
 	lookupClient := newModuleBotClient()
 	lookupClient.errors["getChat"] = fmt.Errorf("telegram unavailable")
 	lookupBot := newModuleTestBot(lookupClient)
-	db.ConnectId(user.Id, uniqueModuleChatID())
-	db.DisconnectId(user.Id)
+	connections.ConnectId(user.Id, uniqueModuleChatID())
+	connections.DisconnectId(user.Id)
 	lookupCtx := newModuleMessageContext(lookupBot, privateChat, user, "/reconnect")
 	if err := ConnectionsModule.reconnect(lookupBot, lookupCtx); err == nil {
 		t.Fatal("reconnect(lookup error) error = nil, want request error")
@@ -332,7 +332,7 @@ func TestConnectionButtonsRenderAdminCommandsAndAnswerCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 4247, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, chatID)
+	connections.ConnectId(user.Id, chatID)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	ctx := newModuleCallbackContext(bot, privateChat, user, "connbtns.Admin")
@@ -352,7 +352,7 @@ func TestConnectionButtonsRenderUserAndMainViews(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42470, FirstName: "Member"}
 	chatID := uniqueModuleChatID()
-	db.ConnectId(user.Id, chatID)
+	connections.ConnectId(user.Id, chatID)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	for _, data := range []string{

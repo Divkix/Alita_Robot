@@ -11,29 +11,31 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
-// asyncUpdateUser wraps db.UpdateUser for async execution with error logging.
+// asyncUpdateUser wraps user.UpdateUser for async execution with error logging.
 func asyncUpdateUser(userId int64, username, name string) {
-	if err := db.UpdateUser(userId, username, name); err != nil {
+	if err := user.UpdateUser(userId, username, name); err != nil {
 		log.Warnf("[Users] Failed to update user %d: %v", userId, err)
 	}
 }
 
-// asyncUpdateChat wraps db.UpdateChat for async execution with error logging.
+// asyncUpdateChat wraps chats.UpdateChat for async execution with error logging.
 func asyncUpdateChat(chatId int64, chatname string, userid int64) {
-	if err := db.UpdateChat(chatId, chatname, userid); err != nil {
+	if err := chats.UpdateChat(chatId, chatname, userid); err != nil {
 		log.Warnf("[Users] Failed to update chat %d: %v", chatId, err)
 	}
 }
 
-// asyncUpdateChannel wraps db.UpdateChannel for async execution with error logging.
+// asyncUpdateChannel wraps channels.UpdateChannel for async execution with error logging.
 func asyncUpdateChannel(channelId int64, channelName, username string) {
-	if err := db.UpdateChannel(channelId, channelName, username); err != nil {
+	if err := channels.UpdateChannel(channelId, channelName, username); err != nil {
 		log.Warnf("[Users] Failed to update channel %d: %v", channelId, err)
 	}
 }

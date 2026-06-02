@@ -210,7 +210,7 @@ func TestExtractMediaFromReply(t *testing.T) {
 			name:     "video note",
 			msg:      &gotgbot.Message{VideoNote: &gotgbot.VideoNote{FileId: "vn_abc"}},
 			wantFile: "vn_abc",
-			wantType: db.VideoNote,
+			wantType: db.VIDEO_NOTE,
 		},
 		{
 			name:     "document",
@@ -476,8 +476,8 @@ func TestNotesParserNone(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-	// ConvertButtonV2ToDbButton
-	// ---------------------------------------------------------------------------
+// ConvertButtonV2ToDbButton
+// ---------------------------------------------------------------------------
 
 func TestConvertButtonV2ToDbButton(t *testing.T) {
 	t.Parallel()

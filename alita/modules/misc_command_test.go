@@ -12,7 +12,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -309,23 +311,23 @@ func TestInfoRepliesForKnownUserWithRoles(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
-	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	u := gotgbot.User{Id: 42, FirstName: "Member"}
 	requireUserID := time.Now().UnixNano()
 
-	if err := db.EnsureUserInDb(requireUserID, "knownuser", "Known User"); err != nil {
+	if err := user.EnsureUserInDb(requireUserID, "knownuser", "Known User"); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
-	if err := db.AddDev(requireUserID); err != nil {
+	if err := devs.AddDev(requireUserID); err != nil {
 		t.Fatalf("AddDev() error = %v", err)
 	}
 	previousOwnerID := config.AppConfig.OwnerId
 	config.AppConfig.OwnerId = requireUserID
 	t.Cleanup(func() {
 		config.AppConfig.OwnerId = previousOwnerID
-		_ = db.RemDev(requireUserID)
+		_ = devs.RemDev(requireUserID)
 	})
 
-	ctx := newModuleMessageContext(bot, chat, user, "/info "+strconv.FormatInt(requireUserID, 10))
+	ctx := newModuleMessageContext(bot, chat, u, "/info "+strconv.FormatInt(requireUserID, 10))
 
 	if err := miscModule.info(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("info() error = %v, want EndGroups", err)
@@ -349,7 +351,7 @@ func TestInfoRepliesForKnownChannel(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Member"}
 	channelID := int64(-1001234567890)
-	if err := db.UpdateChannel(channelID, "News Channel", "newsroom"); err != nil {
+	if err := channels.UpdateChannel(channelID, "News Channel", "newsroom"); err != nil {
 		t.Fatalf("UpdateChannel() error = %v", err)
 	}
 

@@ -8,8 +8,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/rules"
 )
 
 func uniqueModuleChatID() int64 {
@@ -33,7 +32,7 @@ func TestSetRulesStoresCommandTextAndReplies(t *testing.T) {
 		t.Fatalf("setRules() error = %v, want EndGroups", err)
 	}
 
-	rules := db.GetChatRulesInfo(chatID)
+	rules := rules.GetChatRulesInfo(chatID)
 	if !strings.Contains(rules.Rules, "Be kind") {
 		t.Fatalf("stored rules = %q, want command text", rules.Rules)
 	}
@@ -46,7 +45,7 @@ func TestSetRulesWithoutTextDoesNotOverwriteExistingRules(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	db.SetChatRules(chatID, "existing rules")
+	rules.SetChatRules(chatID, "existing rules")
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/setrules")
@@ -55,7 +54,7 @@ func TestSetRulesWithoutTextDoesNotOverwriteExistingRules(t *testing.T) {
 		t.Fatalf("setRules() error = %v, want EndGroups", err)
 	}
 
-	if got := db.GetChatRulesInfo(chatID).Rules; got != "existing rules" {
+	if got := rules.GetChatRulesInfo(chatID).Rules; got != "existing rules" {
 		t.Fatalf("stored rules = %q, want existing rules untouched", got)
 	}
 }
@@ -64,9 +63,9 @@ func TestSendRulesUsesPrivateButtonWhenEnabled(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	db.SetChatRules(chatID, "Read before posting")
-	db.SetPrivateRules(chatID, true)
-	db.SetChatRulesButton(chatID, "Read rules")
+	rules.SetChatRules(chatID, "Read before posting")
+	rules.SetPrivateRules(chatID, true)
+	rules.SetChatRulesButton(chatID, "Read rules")
 
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Member"}
@@ -104,7 +103,7 @@ func TestPrivateRulesTogglesAndReportsCurrentState(t *testing.T) {
 	if err := rulesModule.privaterules(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("privaterules on error = %v, want EndGroups", err)
 	}
-	if !db.GetChatRulesInfo(chatID).Private {
+	if !rules.GetChatRulesInfo(chatID).Private {
 		t.Fatal("private rules were not enabled")
 	}
 
@@ -117,7 +116,7 @@ func TestPrivateRulesTogglesAndReportsCurrentState(t *testing.T) {
 	if err := rulesModule.privaterules(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("privaterules off error = %v, want EndGroups", err)
 	}
-	if db.GetChatRulesInfo(chatID).Private {
+	if rules.GetChatRulesInfo(chatID).Private {
 		t.Fatal("private rules stayed enabled after off")
 	}
 
@@ -137,7 +136,7 @@ func TestRulesButtonSetViewAndReset(t *testing.T) {
 	if err := rulesModule.rulesBtn(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("rulesBtn set error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatRulesInfo(chatID).RulesBtn; got != "House Rules" {
+	if got := rules.GetChatRulesInfo(chatID).RulesBtn; got != "House Rules" {
 		t.Fatalf("RulesBtn = %q, want custom button", got)
 	}
 
@@ -150,7 +149,7 @@ func TestRulesButtonSetViewAndReset(t *testing.T) {
 	if err := rulesModule.resetRulesBtn(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetRulesBtn error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatRulesInfo(chatID).RulesBtn; got != "" {
+	if got := rules.GetChatRulesInfo(chatID).RulesBtn; got != "" {
 		t.Fatalf("RulesBtn = %q, want reset to empty", got)
 	}
 
@@ -171,7 +170,7 @@ func TestRulesButtonRejectsOverlongText(t *testing.T) {
 	if err := rulesModule.rulesBtn(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("rulesBtn overlong error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatRulesInfo(chatID).RulesBtn; got != "" {
+	if got := rules.GetChatRulesInfo(chatID).RulesBtn; got != "" {
 		t.Fatalf("RulesBtn = %q, want overlong text rejected", got)
 	}
 }
@@ -180,7 +179,7 @@ func TestClearRulesRemovesStoredRules(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
-	db.SetChatRules(chatID, "existing rules")
+	rules.SetChatRules(chatID, "existing rules")
 	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/clearrules")
@@ -188,7 +187,7 @@ func TestClearRulesRemovesStoredRules(t *testing.T) {
 	if err := rulesModule.clearRules(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("clearRules() error = %v, want EndGroups", err)
 	}
-	if got := db.GetChatRulesInfo(chatID).Rules; got != "" {
+	if got := rules.GetChatRulesInfo(chatID).Rules; got != "" {
 		t.Fatalf("Rules = %q, want cleared", got)
 	}
 }

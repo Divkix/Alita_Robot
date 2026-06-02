@@ -9,7 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
-	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -30,7 +30,7 @@ func TestDisableEnableTogglesKnownCommandsAndReportsUnknown(t *testing.T) {
 	if err := disablingModule.disable(bot, disableCtx); err != ext.EndGroups {
 		t.Fatalf("disable() error = %v, want EndGroups", err)
 	}
-	disabled := db.GetChatDisabledCMDs(chatID)
+	disabled := disabling.GetChatDisabledCMDs(chatID)
 	if !containsString(disabled, "rules") || !containsString(disabled, "stat") {
 		t.Fatalf("disabled commands = %v, want rules and stat", disabled)
 	}
@@ -42,7 +42,7 @@ func TestDisableEnableTogglesKnownCommandsAndReportsUnknown(t *testing.T) {
 	if err := disablingModule.enable(bot, enableCtx); err != ext.EndGroups {
 		t.Fatalf("enable() error = %v, want EndGroups", err)
 	}
-	disabled = db.GetChatDisabledCMDs(chatID)
+	disabled = disabling.GetChatDisabledCMDs(chatID)
 	if containsString(disabled, "rules") {
 		t.Fatalf("rules remained disabled after /enable: %v", disabled)
 	}
@@ -62,7 +62,7 @@ func TestDisableWithoutArgumentsRepliesWithoutChangingState(t *testing.T) {
 	if err := disablingModule.disable(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("disable() error = %v, want EndGroups", err)
 	}
-	if disabled := db.GetChatDisabledCMDs(chat.Id); len(disabled) != 0 {
+	if disabled := disabling.GetChatDisabledCMDs(chat.Id); len(disabled) != 0 {
 		t.Fatalf("disabled commands = %v, want none", disabled)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
@@ -103,7 +103,7 @@ func TestDisabledListsCurrentCommandsOrEmptyState(t *testing.T) {
 		t.Fatalf("disabled() empty error = %v, want EndGroups", err)
 	}
 
-	if err := db.DisableCMD(chatID, "rules"); err != nil {
+	if err := disabling.DisableCMD(chatID, "rules"); err != nil {
 		t.Fatalf("DisableCMD() error = %v", err)
 	}
 	listCtx := newModuleMessageContext(bot, chat, user, "/disabled")
@@ -137,7 +137,7 @@ func TestDisabledelShowsAndTogglesDeletePreference(t *testing.T) {
 	if err := disablingModule.disabledel(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("disabledel yes error = %v, want EndGroups", err)
 	}
-	if !db.ShouldDel(chatID) {
+	if !disabling.ShouldDel(chatID) {
 		t.Fatal("delete preference was not enabled")
 	}
 
@@ -145,7 +145,7 @@ func TestDisabledelShowsAndTogglesDeletePreference(t *testing.T) {
 	if err := disablingModule.disabledel(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("disabledel invalid error = %v, want EndGroups", err)
 	}
-	if !db.ShouldDel(chatID) {
+	if !disabling.ShouldDel(chatID) {
 		t.Fatal("invalid disabledel option changed delete preference")
 	}
 
@@ -153,7 +153,7 @@ func TestDisabledelShowsAndTogglesDeletePreference(t *testing.T) {
 	if err := disablingModule.disabledel(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("disabledel off error = %v, want EndGroups", err)
 	}
-	if db.ShouldDel(chatID) {
+	if disabling.ShouldDel(chatID) {
 		t.Fatal("delete preference stayed enabled")
 	}
 }
