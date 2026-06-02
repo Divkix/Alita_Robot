@@ -66,7 +66,7 @@ The cache initialization uses exponential backoff (1s, 2s, 4s, 8s, 16s) for Redi
 
 ## TTL Values
 
-Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
+Cache Time-To-Live (TTL) values are defined in `alita/db/cache/ttl.go` (also re-exported from `alita/db/db.go` for backward compatibility):
 
 | Constant | Duration | Used For |
 |----------|----------|----------|
@@ -76,6 +76,7 @@ Cache Time-To-Live (TTL) values are defined in `alita/db/cache_helpers.go`:
 | `CacheTTLBlacklist` | 30 minutes | Blacklisted words |
 | `CacheTTLGreetings` | 30 minutes | Welcome/goodbye messages |
 | `CacheTTLNotesList` | 30 minutes | Saved notes |
+| `CacheTTLNotesSettings` | 30 minutes | Notes configuration |
 | `CacheTTLWarnSettings` | 30 minutes | Warning configuration |
 | `CacheTTLAntiflood` | 30 minutes | Flood protection settings |
 | `CacheTTLDisabledCmds` | 30 minutes | Disabled commands list |
@@ -91,6 +92,7 @@ const (
     CacheTTLBlacklist       = 30 * time.Minute
     CacheTTLGreetings       = 30 * time.Minute
     CacheTTLNotesList       = 30 * time.Minute
+    CacheTTLNotesSettings   = 30 * time.Minute
     CacheTTLWarnSettings    = 30 * time.Minute
     CacheTTLAntiflood       = 30 * time.Minute
     CacheTTLDisabledCmds    = 30 * time.Minute
@@ -208,7 +210,7 @@ import "golang.org/x/sync/singleflight"
 
 var cacheGroup singleflight.Group
 
-func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
+func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
     var result T
 
     m := cache.GetMarshal()
@@ -223,43 +225,50 @@ func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
     }
 
     // Cache miss - use singleflight with timeout
-    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
-
-    resultChan := make(chan sfResult, 1)
+    resCh := make(chan struct {
+        val T
+        err error
+    }, 1)
 
     go func() {
-        defer error_handling.RecoverFromPanic("getFromCacheOrLoad", "cache_helpers")
+        defer error_handling.RecoverFromPanic("cache", "GetFromCacheOrLoad")
 
         // Only ONE goroutine executes this, others wait
-        v, err, _ := cacheGroup.Do(key, func() (any, error) {
-            // Load from database
-            data, loadErr := loader()
-            if loadErr != nil {
-                return data, loadErr
+        v, err, shared := cacheGroup.Do(key, func() (interface{}, error) {
+            val, err := loader()
+            if err != nil {
+                return nil, err
             }
-
-            // Store in cache
-            m.Set(cache.Context, key, data, store.WithExpiration(ttl))
-            return data, nil
+            if err := m.Set(cache.Context, key, val, store.WithExpiration(ttl)); err != nil {
+                log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
+            }
+            return val, nil
         })
 
-        resultChan <- sfResult{value: v, err: err}
+        if shared {
+            log.Debugf("[Cache] Shared cache load for key: %s", key)
+        }
+
+        if err != nil {
+            resCh <- struct {
+                val T
+                err error
+            }{result, err}
+            return
+        }
+
+        resCh <- struct {
+            val T
+            err error
+        }{v.(T), nil}
     }()
 
     select {
-    case res := <-resultChan:
-        if res.err != nil {
-            return result, res.err
-        }
-        if typedResult, ok := res.value.(T); ok {
-            result = typedResult
-        } else {
-            return result, fmt.Errorf("cache: type assertion failed for key %v", res.key)
-        }
-        return result, nil
-    case <-ctx.Done():
+    case res := <-resCh:
+        return res.val, res.err
+    case <-time.After(30 * time.Second):
         cacheGroup.Forget(key)  // Cleanup on timeout
+        log.Errorf("[Cache] Timeout loading key %s after 30s", key)
         return result, fmt.Errorf("cache load timeout for key %s", key)
     }
 }
@@ -559,7 +568,7 @@ redis-cli MEMORY USAGE "alita:chat_settings:123456789"
 
 :::tip[Cache operations]
 Use `cache.GetMarshal().Get/Set/Delete` for direct cache operations, and prefer
-`getFromCacheOrLoad()` in `alita/db/cache_helpers.go` for DB-backed cached reads
+`GetFromCacheOrLoad()` in `alita/db/cache/loader.go` (or `db.getFromCacheOrLoad()` via the backward-compatible re-export in `alita/db/db.go`) for DB-backed cached reads
 with singleflight protection to prevent cache stampedes.
 :::
 

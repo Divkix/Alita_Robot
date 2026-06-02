@@ -13,7 +13,7 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 - **Total Tables**: 28
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
-- **Migration Tool**: Custom SQL migration runner (`alita/db/migrations.go`)
+- **Migration Tool**: Custom SQL migration runner (`alita/db/migrations/runner.go`)
 - **Migrations**: 30 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
 
 ## Design Patterns

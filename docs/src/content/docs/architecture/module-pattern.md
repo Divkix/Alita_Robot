@@ -123,7 +123,7 @@ func init() {
 
 ### Step 1: Create Database Model (If Needed)
 
-Create a new file `alita/db/example_db.go`:
+Create a new file `alita/db/example/repository.go` (following the domain-package pattern):
 
 ```go
 package db
@@ -202,7 +202,7 @@ Always use auto-increment `id` as the primary key. External IDs (`chat_id`, `use
 
 ### Step 3: Implement Database Operations
 
-Add cache helpers to `alita/db/cache_helpers.go` using the CacheKey helper:
+Add cache helpers to `alita/db/cache/ttl.go` and `alita/db/cache/keys.go` using the CacheKey helper:
 
 ```go
 const (
@@ -239,7 +239,7 @@ func GetExampleSettings(chatID int64) *ExampleSettings {
 ```
 
 :::tip[CacheKey helper]
-The `CacheKey()` function in `cache_helpers.go` provides consistent key formatting as `alita:{module}:{id}`. Always use it instead of manual string formatting.
+The `CacheKey()` function in `alita/db/cache/keys.go` provides consistent key formatting as `alita:{module}:{id}`. Always use it instead of manual string formatting.
 :::
 
 :::tip[Cache invalidation is mandatory]

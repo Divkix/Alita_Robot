@@ -92,7 +92,7 @@ Alita_Robot/
 
 <Steps>
 
-1. **Create database operations** in `alita/db/{module}_db.go`
+1. **Create database operations** in `alita/db/{module}/repository.go` (following the domain-package pattern)
 
 2. **Implement command handlers** in `alita/modules/{module}.go`
 
@@ -100,7 +100,7 @@ Alita_Robot/
 
 4. **Add translations** to `locales/en.yml` (and other locale files)
 
-5. **Call `LoadMyModule(dispatcher)`** from `LoadModules()` in `alita/main.go`
+5. **Self-register in `init()`** using `RegisterLegacyModule("MyModule", priority, LoadMyModule)` — modules auto-load via `LoadAllModules()` in `alita/main.go`
 
 </Steps>
 
@@ -124,6 +124,10 @@ func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func LoadMyModule(d *ext.Dispatcher) {
     d.AddHandler(handlers.NewCommand("mycommand", myModule.myCommand))
+}
+
+func init() {
+    RegisterLegacyModule("mymodule", 100, LoadMyModule)
 }
 ```
 

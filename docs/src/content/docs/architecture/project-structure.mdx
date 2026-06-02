@@ -22,12 +22,21 @@ This document explains the directory structure of Alita Robot, helping developer
   - config/
     - config.go Environment variable parsing
   - db/ **Database layer**
-    - db.go GORM connection and setup
-    - cache_helpers.go Cache key patterns and TTLs
-    - migrations.go Migration runner
-    - \*_db.go Per-feature database operations
-    - monitoring.go Database pool metrics
-    - optimized_queries.go Cached optimized queries
+    - db.go GORM connection, setup, and backward-compatible cache re-exports
+    - conn.go Database connection handle
+    - cache/ Cache key patterns, TTLs, and loader
+      - keys.go CacheKey helper for consistent key formatting
+      - ttl.go TTL constants
+      - loader.go GetFromCacheOrLoad with singleflight stampede protection
+    - models/ GORM model definitions
+    - migrations/ Migration runner
+      - runner.go Custom SQL migration engine
+    - monitoring/ Database pool metrics
+      - metrics.go Metrics collection
+    - queries/ Optimized cached queries
+      - optimized.go Cached SELECT queries
+    - {domain}/ Per-feature database repositories (admin, antiflood, antiraid, etc.)
+      - repository.go Domain-specific DB operations
     - backup/ Export/import chat data
       - backup.go Module export/import/clear operations
       - types.go Backup format structs and validation
@@ -50,9 +59,23 @@ This document explains the directory structure of Alita Robot, helping developer
     - warns.go Warning system
     - captcha.go CAPTCHA verification
     - antiraid.go Anti-raid protection
+    - antiflood.go Flood detection and control
     - approvals.go User approval system
+    - blacklists.go Blacklisted word detection
+    - locks.go Permission and restriction locks
+    - reports.go User reporting system
+    - pins.go Pin management and anti-channel-pin
     - purges.go Message purge commands
     - antispam.go Background antispam watcher
+    - connections.go Chat connections from PM
+    - disabling.go Command disable management
+    - rules.go Group rules management
+    - language.go Language configuration
+    - formatting.go Message formatting help
+    - users.go Automatic user/chat tracking
+    - devs.go Developer and sudo commands
+    - misc.go Utility commands
+    - admin.go Admin promotion and management
     - bot_updates.go Bot join/leave event handler
     - rules_format.go HTML formatting for rules
     - connections_auth.go Connection auth helper
@@ -78,7 +101,13 @@ This document explains the directory structure of Alita Robot, helping developer
     - errors/ Custom error types with stack traces
     - extraction/ User/text extraction
     - helpers/ General helper functions and decorators
-    - command_pipeline.go Declarative command pipeline
+      - command_pipeline.go Declarative command pipeline
+      - decorators.go Command aliases and disableable registration
+      - telegram_helpers.go Telegram API helpers
+      - ptr.go Pointer utilities
+      - test_helper.go Test utilities
+    - content/ Note and filter content extraction
+      - content.go Content parsing and validation
     - httpserver/ Unified HTTP server
       - server.go HTTP server
     - keyword_matcher/ Keyword matching utilities
@@ -200,11 +229,17 @@ Environment variable parsing:
 
 ### `alita/db/db.go`
 
-Database connection management:
+Database connection management and backward-compatible re-exports:
 - GORM configuration with connection pooling
-- Auto-migration support
 - Connection health checking
 - Graceful connection closing
+- Re-exports `CacheKey` and `DeleteCache` as exported variables; provides `getFromCacheOrLoad` (lowercase, unexported) as a backward-compatible wrapper; re-exports TTL constants from the `cache/` subpackage for convenience
+
+### `alita/db/conn.go`
+
+Database connection handle and initialization:
+- Global `DB` handle for GORM operations
+- Connection setup and lifecycle management
 
 ## Module Loading Order
 

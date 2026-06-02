@@ -71,7 +71,7 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
 
 ### 1. Domain Functions Pattern
 
-All database operations are organized by domain in `alita/db/*_db.go` files. Each file provides Get/Add/Update/Delete functions for its domain, with surrogate key pattern (auto-increment `id` as PK, external IDs as unique constraints):
+All database operations are organized by domain in `alita/db/{domain}/repository.go` files (e.g., `alita/db/bans/repository.go`, `alita/db/filters/repository.go`). Each package provides Get/Add/Update/Delete functions for its domain, with surrogate key pattern (auto-increment `id` as PK, external IDs as unique constraints):
 
 ```go
 // Example: Direct domain function calls
