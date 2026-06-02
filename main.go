@@ -226,15 +226,6 @@ func main() {
 		})
 	}
 
-	// Register DB monitoring shutdown handler
-	if dbMonitoringCancel != nil {
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping database monitoring...")
-			dbMonitoringCancel()
-			return nil
-		})
-	}
-
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")
 		if activityMonitor != nil {
@@ -252,6 +243,15 @@ func main() {
 		log.Info("[Shutdown] Closing database connections...")
 		return closeDBConnections()
 	})
+
+	// Register DB monitoring shutdown handler (must run before closeDBConnections in LIFO)
+	if dbMonitoringCancel != nil {
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping database monitoring...")
+			dbMonitoringCancel()
+			return nil
+		})
+	}
 
 	// Register tracing shutdown handler
 	shutdownManager.RegisterHandler(func() error {
