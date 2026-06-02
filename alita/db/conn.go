@@ -119,8 +119,6 @@ func init() {
 	} else {
 		log.Info("Database schema managed via SQL migrations - skipping auto-migration")
 	}
-
-
 }
 
 // Close closes the database connection gracefully.

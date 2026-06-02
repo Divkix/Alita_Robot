@@ -1,8 +1,0 @@
-# CodeRabbit configuration to exclude test files and docs from review
-# This reduces the review scope from ~168 files to ~99 core files
-reviews:
-  path_filters:
-    - "!**/*_test.go"
-    - "!**/test_helpers.go"
-    - "!**/testmain_test.go"
-    - "!docs/**"
