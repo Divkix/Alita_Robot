@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -12,42 +11,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
-	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
-)
-
-// Re-exports for backward compatibility during migration
-var (
-	CacheKey    = cache.CacheKey
-	DeleteCache = cache.DeleteCache
-)
-
-// getFromCacheOrLoad is a backward-compatible wrapper for the cache package.
-func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
-	return cache.GetFromCacheOrLoad(key, ttl, loader)
-}
-
-// deleteCache is a backward-compatible wrapper for the cache package.
-func deleteCache(key string) {
-	cache.DeleteCache(key)
-}
-
-// Backward-compatible TTL constant re-exports
-const (
-	CacheTTLChatSettings    = cache.CacheTTLChatSettings
-	CacheTTLLanguage        = cache.CacheTTLLanguage
-	CacheTTLFilterList      = cache.CacheTTLFilterList
-	CacheTTLBlacklist       = cache.CacheTTLBlacklist
-	CacheTTLGreetings       = cache.CacheTTLGreetings
-	CacheTTLNotesList       = cache.CacheTTLNotesList
-	CacheTTLNotesSettings   = cache.CacheTTLNotesSettings
-	CacheTTLWarnSettings    = cache.CacheTTLWarnSettings
-	CacheTTLAntiflood       = cache.CacheTTLAntiflood
-	CacheTTLDisabledCmds    = cache.CacheTTLDisabledCmds
-	CacheTTLCaptchaSettings = cache.CacheTTLCaptchaSettings
-	CacheTTLApprovals       = cache.CacheTTLApprovals
-	CacheTTLAntiRaid        = cache.CacheTTLAntiRaid
 )
 
 // Re-export model types for backward compatibility
