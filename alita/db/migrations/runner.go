@@ -157,6 +157,8 @@ func (m *MigrationRunner) isMigrationApplied(version string) bool {
 // - Comments (single-line and multi-line)
 // - Semicolons inside strings
 func (m *MigrationRunner) splitSQLStatements(sql string) []string {
+	// NOTE: This function shares the same SQL tokenization logic with findDollarQuoteBlocks.
+	// If you modify the parsing rules here, update findDollarQuoteBlocks as well to stay consistent.
 	var statements []string
 	var currentStmt strings.Builder
 
@@ -598,6 +600,8 @@ type dqBlock struct {
 // avoid false positives inside string literals or comments.
 //nolint:gocyclo // State machine parser with many states - complexity is inherent
 func findDollarQuoteBlocks(sql string) []dqBlock {
+	// NOTE: This function shares the same SQL tokenization logic with splitSQLStatements.
+	// If you modify the parsing rules here, update splitSQLStatements as well to stay consistent.
 	var blocks []dqBlock
 	runes := []rune(sql)
 	length := len(runes)
