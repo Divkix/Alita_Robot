@@ -335,8 +335,7 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 	}
 
 	// Parse target user from command
-	args := ctx.Args()[1:]
-	if len(args) < 1 {
+	if len(ctx.Args()) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_pending_usage")
 		_, err := msg.Reply(bot, text, formatting.Shtml())

@@ -22,7 +22,7 @@ var (
 // isCliModeActive returns true if the program is running with CLI flags
 // that should skip database initialization (--version, --health, -v).
 func isCliModeActive() bool {
-	if strings.HasSuffix(os.Args[0], ".test") {
+	if strings.HasSuffix(os.Args[0], ".test") || strings.Contains(os.Args[0], "/go-build") {
 		return true
 	}
 	if len(os.Args) < 2 {
