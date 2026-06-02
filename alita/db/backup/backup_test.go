@@ -632,6 +632,20 @@ func TestExportImportLocksRoundTrip(t *testing.T) {
 	require.NoError(t, locks.UpdateLock(srcChat, " stickers", true))
 	require.NoError(t, locks.UpdateLock(srcChat, " url", false))
 
+	// Export
+	exported, err := exportLocksData(srcChat)
+	require.NoError(t, err)
+	require.NotNil(t, exported)
+	assert.Len(t, exported.Locks, 2)
+
+	// Convert to map for import
+	payload := map[string]interface{}{
+		"locks": exported.Locks,
+	}
+
+	// Import into destination
+	require.NoError(t, importLocksData(dstChat, payload))
+
 	lockMap := locks.GetChatLocks(dstChat)
 	assert.True(t, lockMap[" stickers"])
 	assert.False(t, lockMap[" url"])
