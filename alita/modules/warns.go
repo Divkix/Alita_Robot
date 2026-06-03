@@ -997,4 +997,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Warns", 200, LoadWarns)
+	RegisterAnonymousAdminHandler("warn", warnsModule.warnUser)
+	RegisterAnonymousAdminHandler("swarn", warnsModule.sWarnUser)
+	RegisterAnonymousAdminHandler("dwarn", warnsModule.dWarnUser)
 }

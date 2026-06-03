@@ -18,7 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // function used to get status of bot when it joined a group and send a message to the group
@@ -212,83 +211,9 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	command := strings.Split(msg.Text, " ")[0][1:] // get the command, with or without the bot username and without '/'
 	command = strings.Split(command, "@")[0]       // separate the command from the bot username
 
-	switch command {
-
-	// admin (re-mapped via anonymous admin magic; need raw CommandContext)
-	case "promote", "demote", "title":
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		switch command {
-		case "promote":
-			return adminModule.promote(c)
-		case "demote":
-			return adminModule.demote(c)
-		case "title":
-			return adminModule.setTitle(c)
-		}
-
-	// bans (restrictions)
-	case "ban":
-		return bansModule.ban(b, ctx)
-	case "dban":
-		return bansModule.dBan(b, ctx)
-	case "sban":
-		return bansModule.sBan(b, ctx)
-	case "tban":
-		return bansModule.tBan(b, ctx)
-	case "unban":
-		return bansModule.unban(b, ctx)
-	case "restrict":
-		return bansModule.restrict(b, ctx)
-	case "unrestrict":
-		return bansModule.unrestrict(b, ctx)
-
-	// mutes (restrictions)
-	case "mute":
-		return mutesModule.mute(b, ctx)
-	case "smute":
-		return mutesModule.sMute(b, ctx)
-	case "dmute":
-		return mutesModule.dMute(b, ctx)
-	case "tmute":
-		return mutesModule.tMute(b, ctx)
-	case "unmute":
-		return mutesModule.unmute(b, ctx)
-
-	// pins
-	case "pin", "unpin", "permapin", "unpinall":
-		c, err := helpers.BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		switch command {
-		case "pin":
-			return pinsModule.pin(c)
-		case "unpin":
-			return pinsModule.unpin(c)
-		case "permapin":
-			return pinsModule.permaPin(c)
-		case "unpinall":
-			return pinsModule.unpinAll(c)
-		}
-
-	// purges
-	case "purge":
-		return purgesModule.purge(b, ctx)
-	case "del":
-		return purgesModule.delCmd(b, ctx)
-
-	// warns
-	case "warn":
-		return warnsModule.warnUser(b, ctx)
-	case "swarn":
-		return warnsModule.sWarnUser(b, ctx)
-	case "dwarn":
-		return warnsModule.dWarnUser(b, ctx)
+	if err := HandleAnonymousAdmin(b, ctx, command); err != nil {
+		return ext.EndGroups
 	}
-
 	return ext.EndGroups
 }
 

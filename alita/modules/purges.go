@@ -560,4 +560,6 @@ func LoadPurges(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Purges", 90, LoadPurges)
+	RegisterAnonymousAdminHandler("purge", purgesModule.purge)
+	RegisterAnonymousAdminHandler("del", purgesModule.delCmd)
 }

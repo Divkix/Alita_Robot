@@ -923,6 +923,39 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 	return
 }
 
+// anonymousAdmin wrappers for pins.go
+func (m moduleStruct) pinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.pin(c)
+}
+
+func (m moduleStruct) unpinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.unpin(c)
+}
+
+func (m moduleStruct) permaPinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.permaPin(c)
+}
+
+func (m moduleStruct) unpinAllAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.unpinAll(c)
+}
+
 var (
 	unpinDesc = helpers.CommandDescriptor{
 		Name:  "unpin",
@@ -1007,4 +1040,8 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Pins", 50, LoadPin)
+	RegisterAnonymousAdminHandler("pin", pinsModule.pinAnonAdmin)
+	RegisterAnonymousAdminHandler("unpin", pinsModule.unpinAnonAdmin)
+	RegisterAnonymousAdminHandler("permapin", pinsModule.permaPinAnonAdmin)
+	RegisterAnonymousAdminHandler("unpinall", pinsModule.unpinAllAnonAdmin)
 }

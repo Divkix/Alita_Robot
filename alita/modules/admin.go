@@ -812,6 +812,34 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
+// anonymousAdmin wrappers for admin.go
+func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.promote(c)
+}
+
+func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.demote(c)
+}
+
+func (m moduleStruct) setTitleAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
+	c, err := helpers.BuildCommandContext(b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	return m.setTitle(c)
+}
+
 func init() {
 	RegisterLegacyModule("Admin", 30, LoadAdmin)
+	RegisterAnonymousAdminHandler("promote", adminModule.promoteAnonAdmin)
+	RegisterAnonymousAdminHandler("demote", adminModule.demoteAnonAdmin)
+	RegisterAnonymousAdminHandler("title", adminModule.setTitleAnonAdmin)
 }

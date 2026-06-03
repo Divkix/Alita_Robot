@@ -1113,4 +1113,11 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Bans", 70, LoadBans)
+	RegisterAnonymousAdminHandler("ban", bansModule.ban)
+	RegisterAnonymousAdminHandler("dban", bansModule.dBan)
+	RegisterAnonymousAdminHandler("sban", bansModule.sBan)
+	RegisterAnonymousAdminHandler("tban", bansModule.tBan)
+	RegisterAnonymousAdminHandler("unban", bansModule.unban)
+	RegisterAnonymousAdminHandler("restrict", bansModule.restrict)
+	RegisterAnonymousAdminHandler("unrestrict", bansModule.unrestrict)
 }
