@@ -12,7 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 )
 
 // EnsureBotInDb ensures that the bot's information is stored in the database.
@@ -66,7 +65,7 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 // Returns nil if the user doesn't exist, or a default User struct on error.
 func checkUserInfo(userId int64) (userc *models.User) {
 	// Use optimized cached query instead of SELECT *
-	userc, err := queries.GetOptimizedQueries().GetUserBasicInfoCached(userId)
+	userc, err := GetUserBasicInfoCached(userId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil

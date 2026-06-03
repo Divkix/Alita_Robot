@@ -14,7 +14,7 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/divkix/Alita_Robot/alita/db/filters"
+	db_filters "github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -24,7 +24,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 
 	"github.com/divkix/Alita_Robot/alita/utils/content"
@@ -165,7 +164,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	filtersNum := filters.CountFilters(chat.Id)
+	filtersNum := db_filters.CountFilters(chat.Id)
 	if filtersNum >= 150 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_limit_exceeded")
@@ -223,7 +222,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if filters.DoesFilterExists(chat.Id, filterWord) {
+	if db_filters.DoesFilterExists(chat.Id, filterWord) {
 		token, tokenErr := newOverwriteToken()
 		if tokenErr != nil {
 			log.Errorf("[Filters] Failed to generate overwrite token: %v", tokenErr)
@@ -286,7 +285,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Perform DB operation synchronously to ensure completion before confirmation
-	if err := filters.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType); err != nil {
+	if err := db_filters.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType); err != nil {
 		log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		errText, _ := tr.GetString("common_settings_save_failed")
@@ -348,7 +347,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		filterWord, _ := extraction.ExtractQuotes(strings.Join(args, " "), true, true)
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if !slices.Contains(filters.GetFiltersList(chat.Id), strings.ToLower(filterWord)) {
+		if !slices.Contains(db_filters.GetFiltersList(chat.Id), strings.ToLower(filterWord)) {
 			text, _ := tr.GetString("filters_not_exists")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -357,7 +356,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		} else {
 			// Perform DB operation synchronously to ensure completion before confirmation
-			if err := filters.RemoveFilter(chat.Id, strings.ToLower(filterWord)); err != nil {
+			if err := db_filters.RemoveFilter(chat.Id, strings.ToLower(filterWord)); err != nil {
 				log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -406,7 +405,7 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	filterKeys := filters.GetFiltersList(chat.Id)
+	filterKeys := db_filters.GetFiltersList(chat.Id)
 	info, _ := tr.GetString("filters_none_in_chat")
 	newFilterKeys := make([]string, 0, len(filterKeys))
 
@@ -452,7 +451,7 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	msg := ctx.EffectiveMessage
-	filterKeys := filters.GetFiltersList(chat.Id)
+	filterKeys := db_filters.GetFiltersList(chat.Id)
 
 	if len(filterKeys) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -539,7 +538,7 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	switch response {
 	case "yes":
-		filters.RemoveAllFilters(chat.Id)
+		db_filters.RemoveAllFilters(chat.Id)
 		helpText, _ = tr.GetString("filters_clear_all_success")
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
@@ -649,11 +648,11 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	if filters.DoesFilterExists(chat.Id, filterData.ItemName) {
-		if err := filters.RemoveFilter(chat.Id, filterData.ItemName); err != nil {
+	if db_filters.DoesFilterExists(chat.Id, filterData.ItemName) {
+		if err := db_filters.RemoveFilter(chat.Id, filterData.ItemName); err != nil {
 			log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else if err := filters.AddFilter(chat.Id, filterData.ItemName, filterData.Text, filterData.FileID, filterData.Buttons, filterData.DataType); err != nil {
+		} else if err := db_filters.AddFilter(chat.Id, filterData.ItemName, filterData.Text, filterData.FileID, filterData.Buttons, filterData.DataType); err != nil {
 			log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 			helpText, _ = tr.GetString("common_settings_save_failed")
 		} else {
@@ -722,8 +721,7 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Use optimized cached query to fetch all filters at once (no N+1 query)
-	optQueries := queries.GetOptimizedQueries()
-	allFilters, err := optQueries.GetChatFiltersCached(chat.Id)
+	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
 	if err != nil {
 		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
 		return ext.ContinueGroups

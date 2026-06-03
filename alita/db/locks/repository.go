@@ -4,7 +4,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm/clause"
@@ -15,7 +14,7 @@ import (
 // Returns an empty map if no locks are found or an error occurs.
 func GetChatLocks(chatID int64) map[string]bool {
 	// Use optimized query with caching
-	locks, err := queries.GetOptimizedQueries().GetChatLocksOptimized(chatID)
+	locks, err := GetChatLocksOptimized(chatID)
 	if err != nil {
 		log.Errorf("[Database] GetChatLocks: %v - %d", err, chatID)
 		return make(map[string]bool)
@@ -69,7 +68,7 @@ func InvalidateLockCache(chatID int64, lockType string) {
 // Returns false if the permission is not locked or an error occurs.
 func IsPermLocked(chatID int64, perm string) bool {
 	// Use optimized cached query
-	locked, err := queries.GetOptimizedQueries().GetLockStatusCached(chatID, perm)
+	locked, err := GetLockStatusCached(chatID, perm)
 	if err != nil {
 		log.Errorf("[Database] IsPermLocked: %v - %d", err, chatID)
 		return false

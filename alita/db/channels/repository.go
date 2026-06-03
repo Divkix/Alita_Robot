@@ -7,7 +7,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -16,7 +15,7 @@ import (
 // Returns nil if the channel is not found or an error occurs.
 func GetChannelSettings(channelId int64) (channelSrc *models.ChannelSettings) {
 	// Use optimized cached query instead of SELECT *
-	channelSrc, err := queries.GetOptimizedQueries().GetChannelSettingsCached(channelId)
+	channelSrc, err := GetChannelSettingsCached(channelId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil

@@ -6,7 +6,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -23,7 +22,7 @@ func GetFlood(chatID int64) *models.AntifloodSettings {
 // Uses optimized cached queries and returns default settings if not found.
 func checkFloodSetting(chatID int64) (floodSrc *models.AntifloodSettings) {
 	// Use optimized cached query instead of SELECT *
-	floodSrc, err := queries.GetOptimizedQueries().GetAntifloodSettingsCached(chatID)
+	floodSrc, err := GetAntifloodSettingsCached(chatID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Return default settings
