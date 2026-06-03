@@ -230,10 +230,16 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	// Check cache first - avoid GetChat call if possible
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
 	if adminsAvail && admins.Cached {
-		// Use cached data without making API calls
+		// O(1) lookup via map when available
+		if admins.UserMap != nil {
+			if admin, found := admins.UserMap[userId]; found && admin.User.Id != 0 {
+				return true
+			}
+			return false
+		}
+		// Fallback to linear scan for backwards compatibility (cached data without UserMap)
 		for i := range admins.UserInfo {
-			admin := &admins.UserInfo[i]
-			if admin.User.Id == userId {
+			if admins.UserInfo[i].User.Id == userId {
 				return true
 			}
 		}
@@ -259,11 +265,17 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	// Load admin cache with timeout protection
 	adminList := cache.LoadAdminCache(b, chatID)
 
-	// Check if user is in admin list
-	for i := range adminList.UserInfo {
-		admin := &adminList.UserInfo[i]
-		if admin.User.Id == userId {
+	// Check if user is in admin list via O(1) map lookup
+	if adminList.UserMap != nil {
+		if admin, found := adminList.UserMap[userId]; found && admin.User.Id != 0 {
 			return true
+		}
+	} else {
+		// Fallback to linear scan for backwards compatibility
+		for i := range adminList.UserInfo {
+			if adminList.UserInfo[i].User.Id == userId {
+				return true
+			}
 		}
 	}
 

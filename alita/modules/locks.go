@@ -401,8 +401,13 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Check bot delete permission once before scanning restrictions
+	if !chat_status.CanBotDelete(b, ctx, nil) {
+		return ext.ContinueGroups
+	}
+
 	for restr, filter := range restrMap {
-		if !filter(msg) || !locks.IsPermLocked(chat.Id, restr) || !chat_status.CanBotDelete(b, ctx, nil) {
+		if !filter(msg) || !locks.IsPermLocked(chat.Id, restr) {
 			continue
 		}
 
@@ -451,8 +456,13 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Check bot delete permission once before scanning locks
+	if !chat_status.CanBotDelete(b, ctx, nil) {
+		return ext.ContinueGroups
+	}
+
 	for perm, filter := range lockMap {
-		if !filter(msg) || !locks.IsPermLocked(chat.Id, perm) || !chat_status.CanBotDelete(b, ctx, nil) {
+		if !filter(msg) || !locks.IsPermLocked(chat.Id, perm) {
 			continue
 		}
 

@@ -1,7 +1,7 @@
 package keyword_matcher
 
 import (
-	"fmt"
+	"bytes"
 	"hash/fnv"
 	"strings"
 	"sync"
@@ -147,38 +147,36 @@ func (km *KeywordMatcher) findMatchesWithPositions(text []byte) []matchInfo {
 		return nil
 	}
 
-	var allMatches []matchInfo
-	seen := make(map[string]bool, len(hits))
-
-	// Convert hits to matchInfo with positions
-	textStr := string(text)
+	// Deduplicate hit indices to avoid O(n²) redundant scans
+	seenHits := make(map[int]struct{}, len(hits))
+	uniqueHits := make([]int, 0, len(hits))
 	for _, hit := range hits {
 		if hit >= len(km.patterns) {
 			continue
 		}
+		if _, ok := seenHits[hit]; !ok {
+			seenHits[hit] = struct{}{}
+			uniqueHits = append(uniqueHits, hit)
+		}
+	}
 
-		pattern := strings.ToLower(km.patterns[hit])
+	var allMatches []matchInfo
+	for _, hit := range uniqueHits {
+		pattern := []byte(strings.ToLower(km.patterns[hit]))
 		patternLen := len(pattern)
 
-		// Find all occurrences of this pattern in the text
 		searchStart := 0
 		for {
-			pos := strings.Index(textStr[searchStart:], pattern)
+			pos := bytes.Index(text[searchStart:], pattern)
 			if pos == -1 {
 				break
 			}
-
 			actualPos := searchStart + pos
-			key := fmt.Sprintf("%d:%d", hit, actualPos)
-			if !seen[key] {
-				seen[key] = true
-				allMatches = append(allMatches, matchInfo{
-					PatternIndex: hit,
-					Start:        actualPos,
-					End:          actualPos + patternLen,
-				})
-			}
-
+			allMatches = append(allMatches, matchInfo{
+				PatternIndex: hit,
+				Start:        actualPos,
+				End:          actualPos + patternLen,
+			})
 			searchStart = actualPos + 1
 		}
 	}

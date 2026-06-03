@@ -79,7 +79,8 @@ func Smarkdown() *gotgbot.SendMessageOpts {
 // It splits on newlines to preserve message structure when possible.
 // Uses utf8.RuneCountInString to correctly count UTF-8 characters instead of bytes.
 func SplitMessage(msg string) []string {
-	if utf8.RuneCountInString(msg) <= MaxMessageLength {
+	totalRunes := utf8.RuneCountInString(msg)
+	if totalRunes <= MaxMessageLength {
 		return []string{msg}
 	}
 
@@ -88,20 +89,27 @@ func SplitMessage(msg string) []string {
 		lines = lines[:len(lines)-1]
 	}
 
+	// Pre-allocate result with a heuristic capacity
+	result := make([]string, 0, totalRunes/MaxMessageLength+1)
+
 	smallMsg := ""
-	result := make([]string, 0)
+	smallMsgRunes := 0
 
 	for _, line := range lines {
-		potentialMsg := smallMsg + line + "\n"
-		if utf8.RuneCountInString(potentialMsg) <= MaxMessageLength {
-			smallMsg = potentialMsg
+		lineRunes := utf8.RuneCountInString(line)
+		potentialRunes := smallMsgRunes + lineRunes + 1
+
+		if potentialRunes <= MaxMessageLength {
+			smallMsg += line + "\n"
+			smallMsgRunes = potentialRunes
 			continue
 		}
 
-		if utf8.RuneCountInString(line) > MaxMessageLength {
+		if lineRunes > MaxMessageLength {
 			if smallMsg != "" {
 				result = append(result, smallMsg)
 				smallMsg = ""
+				smallMsgRunes = 0
 			}
 			runes := []rune(line)
 			for len(runes) > 0 {
@@ -114,6 +122,7 @@ func SplitMessage(msg string) []string {
 				result = append(result, smallMsg)
 			}
 			smallMsg = line + "\n"
+			smallMsgRunes = lineRunes + 1
 		}
 	}
 
