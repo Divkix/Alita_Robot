@@ -15,14 +15,24 @@ import (
 type DeepLinkHandler func(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error
 
 var deepLinkRegistry = make(map[string]DeepLinkHandler)
+var exactDeepLinkRegistry = make(map[string]DeepLinkHandler)
 
 // RegisterDeepLinkHandler registers a handler for a deep link prefix.
 func RegisterDeepLinkHandler(prefix string, handler DeepLinkHandler) {
 	deepLinkRegistry[prefix] = handler
 }
 
+// RegisterExactDeepLinkHandler registers a handler for an exact deep link match.
+func RegisterExactDeepLinkHandler(arg string, handler DeepLinkHandler) {
+	exactDeepLinkRegistry[arg] = handler
+}
+
 // HandleDeepLink routes a deep link argument to the appropriate handler.
 func HandleDeepLink(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	if handler, ok := exactDeepLinkRegistry[arg]; ok {
+		return handler(b, ctx, user, arg)
+	}
+
 	var matchedPrefix string
 	var handler DeepLinkHandler
 	for prefix, h := range deepLinkRegistry {

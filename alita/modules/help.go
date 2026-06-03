@@ -660,7 +660,7 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterDeepLinkHandler("help_", helpDeepLinkHandler)
-	RegisterDeepLinkHandler("about", aboutDeepLinkHandler)
+	RegisterExactDeepLinkHandler("about", aboutDeepLinkHandler)
 }
 
 func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
