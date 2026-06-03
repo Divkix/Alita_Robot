@@ -14,6 +14,26 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
+// spamKey is a composite key for rate limiting per user per chat
+type spamKey struct {
+	chatId int64
+	userId int64
+}
+
+// antiSpamInfo tracks spam levels for a user in a chat.
+type antiSpamInfo struct {
+	Levels []antiSpamLevel
+}
+
+// antiSpamLevel represents a single spam threshold.
+type antiSpamLevel struct {
+	Count    int
+	Limit    int
+	CurrTime time.Time
+	Expiry   time.Duration
+	Spammed  bool
+}
+
 var (
 	antiSpamMutex sync.Mutex
 	antiSpamMap   = make(map[spamKey]*antiSpamInfo)

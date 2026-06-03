@@ -145,56 +145,6 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-func NewHelpRegistry() *moduleStruct {
-	return &moduleStruct{
-		moduleName:     "Help",
-		AbleMap:        moduleEnabled{modules: make(map[string]bool)},
-		AltHelpOptions: make(map[string][]string),
-		helpableKb:     make(map[string][][]gotgbot.InlineKeyboardButton),
-	}
-}
-
-var defaultHelpRegistry = NewHelpRegistry()
-
-func DefaultHelpRegistry() *moduleStruct {
-	return defaultHelpRegistry
-}
-
-type moduleEnabled struct {
-	modules map[string]bool
-}
-
-// Init initializes the module enabled map for tracking enabled bot modules.
-// Sets up the internal map structure for storing module activation states.
-func (m *moduleEnabled) Init() {
-	m.modules = make(map[string]bool)
-}
-
-// Store sets the enabled status for a specific module in the bot.
-// Records whether a module is active and available for use.
-func (m *moduleEnabled) Store(module string, enabled bool) {
-	m.modules[module] = enabled
-}
-
-// Load retrieves the enabled status for a specific module.
-// Returns the module name and whether it's currently enabled and accessible.
-func (m *moduleEnabled) Load(module string) (string, bool) {
-	return module, m.modules[module]
-}
-
-// LoadModules returns a slice of all currently enabled module names.
-// Provides a list of active modules that users can access and get help for.
-func (m *moduleEnabled) LoadModules() []string {
-	modules := make([]string, 0)
-	for module := range m.modules {
-		moduleName, enabled := m.Load(module)
-		if enabled {
-			modules = append(modules, moduleName)
-		}
-	}
-	return modules
-}
-
 // about displays information about the bot including version and features.
 // Shows bot details, links to support channels, and configuration options.
 func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
