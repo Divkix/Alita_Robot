@@ -267,7 +267,7 @@ func TestModuleLoadersAreRegisteredWithRegistry(t *testing.T) {
 func TestHelpRegistryDoesNotExposeGlobalMutableSingleton(t *testing.T) {
 	t.Parallel()
 
-	source := readRepoFile(t, "alita", "modules", "help.go")
+	source := readRepoFile(t, "alita", "modules", "core.go")
 	if regexp.MustCompile(`(?m)^var\s+HelpModule\b`).MatchString(source) {
 		t.Fatal("help registry must not expose a package-level HelpModule singleton")
 	}

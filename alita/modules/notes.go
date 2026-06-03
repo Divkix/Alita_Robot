@@ -1065,6 +1065,7 @@ func init() {
 	RegisterLegacyModule("Notes", 160, LoadNotes)
 	RegisterDeepLinkHandler("notes_", notesListDeepLinkHandler)
 	RegisterDeepLinkHandler("note_", noteDeepLinkHandler)
+	RegisterDeepLinkHandler("note", invalidNoteDeepLinkHandler)
 }
 
 func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (chatinfo *gotgbot.ChatFullInfo, err error) {
@@ -1172,5 +1173,14 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 		log.Error(err)
 		return err
 	}
+	return ext.EndGroups
+}
+
+// invalidNoteDeepLinkHandler handles malformed note deep links (e.g. /start note without underscore).
+// Preserves the old behavior from the monolithic startHelpPrefixHandler.
+func invalidNoteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	text, _ := tr.GetString("helpers_invalid_deep_link")
+	_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
 	return ext.EndGroups
 }
