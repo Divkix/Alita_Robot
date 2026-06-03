@@ -21,7 +21,7 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllFilters(chatID)
+		_ = RemoveAllFilters(chatID)
 	})
 
 	// Initially empty
@@ -53,7 +53,7 @@ func TestDoesFilterExists(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllFilters(chatID)
+		_ = RemoveAllFilters(chatID)
 	})
 
 	if DoesFilterExists(chatID, "nonexistent") {
@@ -78,7 +78,7 @@ func TestRemoveFilter(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllFilters(chatID)
+		_ = RemoveAllFilters(chatID)
 	})
 
 	_ = AddFilter(chatID, "remove_me", "reply", "", nil, 1)
@@ -106,7 +106,7 @@ func TestRemoveAllFilters(t *testing.T) {
 	_ = AddFilter(chatID, "b", "b", "", nil, 1)
 	_ = AddFilter(chatID, "c", "c", "", nil, 1)
 
-	RemoveAllFilters(chatID)
+	_ = RemoveAllFilters(chatID)
 
 	list := GetFiltersList(chatID)
 	if len(list) != 0 {
@@ -120,7 +120,7 @@ func TestCountFilters(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllFilters(chatID)
+		_ = RemoveAllFilters(chatID)
 	})
 
 	if CountFilters(chatID) != 0 {
@@ -169,7 +169,7 @@ func TestAddFilterWithButtons(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		RemoveAllFilters(chatID)
+		_ = RemoveAllFilters(chatID)
 	})
 
 	buttons := []models.Button{

@@ -2,7 +2,6 @@ package antiflood
 
 import (
 	"errors"
-	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -44,11 +43,11 @@ func GetAntifloodSettings(chatID int64) (*models.AntifloodSettings, error) {
 }
 
 // GetAntifloodSettingsCached retrieves antiflood settings with caching layer for improved performance.
-// Uses 1-hour cache TTL and falls back to direct query if cache fails.
+// Uses cache.CacheTTLAntiflood TTL and falls back to direct query if cache fails.
 func GetAntifloodSettingsCached(chatID int64) (*models.AntifloodSettings, error) {
 	cacheKey := cache.CacheKey("antiflood", chatID)
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*models.AntifloodSettings, error) {
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLAntiflood, func() (*models.AntifloodSettings, error) {
 		return GetAntifloodSettings(chatID)
 	})
 	if err != nil {

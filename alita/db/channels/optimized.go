@@ -2,7 +2,6 @@ package channels
 
 import (
 	"errors"
-	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -24,11 +23,15 @@ func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
 		Where("chat_id = ?", chatID).
 		First(&settings).Error
 
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		log.Errorf("[OptimizedChannelQueries] getChannelSettingsRaw: %v", err)
+		return nil, err
 	}
 
-	return &settings, err
+	return &settings, nil
 }
 
 // GetChannelSettingsCached retrieves channel settings with caching layer for improved performance.
@@ -36,7 +39,7 @@ func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
 func GetChannelSettingsCached(chatID int64) (*models.ChannelSettings, error) {
 	cacheKey := cache.CacheKey("channel", chatID)
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, 30*time.Minute, func() (*models.ChannelSettings, error) {
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChannels, func() (*models.ChannelSettings, error) {
 		return getChannelSettingsRaw(chatID)
 	})
 	if err != nil {

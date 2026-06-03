@@ -10,6 +10,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 	"gorm.io/gorm"
 )
 
@@ -70,6 +71,7 @@ func TestGetUserBasicInfo(t *testing.T) {
 
 func TestGetUserBasicInfoCached(t *testing.T) {
 	skipIfNoDb(t)
+	utilsCache.SetupTestMemoryMarshaler(t)
 
 	userID := time.Now().UnixNano()
 	username := fmt.Sprintf("testuser_%d", userID)
@@ -93,7 +95,12 @@ func TestGetUserBasicInfoCached(t *testing.T) {
 		t.Fatalf("GetUserBasicInfoCached() UserId = %d, want %d", user.UserId, userID)
 	}
 
-	// Second call should use cache
+	// Direct DB update to bypass cache invalidation logic
+	if err := db.DB.Model(&models.User{}).Where("user_id = ?", userID).Update("username", "different").Error; err != nil {
+		t.Fatalf("Failed to directly update user row: %v", err)
+	}
+
+	// Second call should use cache and return original username
 	user2, err := GetUserBasicInfoCached(userID)
 	if err != nil {
 		t.Fatalf("GetUserBasicInfoCached() cached error = %v", err)
@@ -101,10 +108,14 @@ func TestGetUserBasicInfoCached(t *testing.T) {
 	if user2.UserId != userID {
 		t.Fatalf("GetUserBasicInfoCached() cached UserId = %d, want %d", user2.UserId, userID)
 	}
+	if user2.UserName != username {
+		t.Fatalf("GetUserBasicInfoCached() expected cached username %q, got %q", username, user2.UserName)
+	}
 }
 
 func TestGetUserBasicInfoCached_RecordNotFound(t *testing.T) {
 	skipIfNoDb(t)
+	utilsCache.SetupTestMemoryMarshaler(t)
 
 	userID := time.Now().UnixNano()
 

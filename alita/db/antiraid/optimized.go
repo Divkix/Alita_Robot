@@ -13,12 +13,7 @@ import (
 // getAntiRaidSettingsRaw retrieves anti-raid settings with minimal column selection.
 func getAntiRaidSettingsRaw(chatID int64) (*models.AntiRaidSettings, error) {
 	if db.DB == nil {
-		return &models.AntiRaidSettings{
-			ChatID:                chatID,
-			RaidTime:              21600,
-			RaidActionTime:        3600,
-			AutoAntiRaidThreshold: 0,
-		}, errors.New("database not initialized")
+		return defaultAntiRaidSettings(chatID), errors.New("database not initialized")
 	}
 
 	var settings models.AntiRaidSettings
@@ -28,12 +23,7 @@ func getAntiRaidSettingsRaw(chatID int64) (*models.AntiRaidSettings, error) {
 		First(&settings).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return &models.AntiRaidSettings{
-			ChatID:                chatID,
-			RaidTime:              21600,
-			RaidActionTime:        3600,
-			AutoAntiRaidThreshold: 0,
-		}, nil
+		return defaultAntiRaidSettings(chatID), nil
 	}
 	if err != nil {
 		log.Errorf("[OptimizedAntiRaidQueries] getAntiRaidSettingsRaw: %v", err)
@@ -44,7 +34,7 @@ func getAntiRaidSettingsRaw(chatID int64) (*models.AntiRaidSettings, error) {
 }
 
 // GetAntiRaidSettingsCached retrieves anti-raid settings with caching layer for improved performance.
-// Uses 1-hour cache TTL and falls back to direct query if cache fails.
+// Uses 30-minute cache TTL and falls back to direct query if cache fails.
 func GetAntiRaidSettingsCached(chatID int64) (*models.AntiRaidSettings, error) {
 	cacheKey := cache.CacheKey("antiraid", chatID)
 

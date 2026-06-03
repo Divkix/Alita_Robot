@@ -621,7 +621,9 @@ func importFiltersData(chatID int64, data interface{}) error {
 		}
 
 		// Clear existing filters
-		filters.RemoveAllFilters(chatID)
+		if err := filters.RemoveAllFilters(chatID); err != nil {
+			return fmt.Errorf("failed to clear existing filters: %w", err)
+		}
 
 		// Import filters
 		for _, filter := range filterItems {
@@ -853,8 +855,7 @@ func clearDisabledCommands(chatID int64) error {
 }
 
 func clearFiltersData(chatID int64) error {
-	filters.RemoveAllFilters(chatID)
-	return nil
+	return filters.RemoveAllFilters(chatID)
 }
 
 func clearGreetingsData(chatID int64) error {

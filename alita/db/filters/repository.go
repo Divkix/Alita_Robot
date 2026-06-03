@@ -123,15 +123,17 @@ func RemoveFilter(chatID int64, keyWord string) error {
 }
 
 // RemoveAllFilters deletes all filters for the specified chat ID from the database.
-// Invalidates the filter list cache after removal.
-func RemoveAllFilters(chatID int64) {
+// Invalidates the filter list cache after successful removal.
+func RemoveAllFilters(chatID int64) error {
 	err := db.DB.Where("chat_id = ?", chatID).Delete(&models.ChatFilters{}).Error
 	if err != nil {
 		log.Errorf("[Database][RemoveAllFilters]: %d - %v", chatID, err)
+		return err
 	}
 
 	// Invalidate cache after removing all filters
 	invalidateFilterCaches(chatID)
+	return nil
 }
 
 // CountFilters returns the total number of filters configured for the specified chat ID.

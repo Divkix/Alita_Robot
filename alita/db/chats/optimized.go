@@ -2,7 +2,6 @@ package chats
 
 import (
 	"errors"
-	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -25,22 +24,30 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 		First(&chat).Error
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Errorf("[OptimizedChatQueries] GetChatBasicInfo: %v", err)
+		log.Errorf("[chats.GetChatBasicInfo] GetChatBasicInfo: %v", err)
 	}
 
 	return &chat, err
 }
 
 // GetChatBasicInfoCached retrieves chat information with caching layer for improved performance.
-// Uses 30-minute cache TTL and falls back to direct query if cache fails.
+// Uses cache.CacheTTLChatSettings TTL and falls back to direct query if cache fails.
 func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 	cacheKey := cache.CacheKey("chat", chatID)
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, 30*time.Minute, func() (*models.Chat, error) {
-		return GetChatBasicInfo(chatID)
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (*models.Chat, error) {
+		chat, err := GetChatBasicInfo(chatID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &models.Chat{ChatId: -9999}, nil
+		}
+		return chat, err
 	})
 	if err != nil {
-		return GetChatBasicInfo(chatID)
+		return nil, err
+	}
+
+	if cached != nil && cached.ChatId == -9999 {
+		return nil, gorm.ErrRecordNotFound
 	}
 
 	return cached, nil

@@ -25,7 +25,7 @@ func GetUserBasicInfo(userID int64) (*models.User, error) {
 		First(&user).Error
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Errorf("[OptimizedUserQueries] GetUserBasicInfo: %v", err)
+		log.Errorf("[user.GetUserBasicInfo] GetUserBasicInfo: %v", err)
 	}
 
 	return &user, err
@@ -37,10 +37,21 @@ func GetUserBasicInfoCached(userID int64) (*models.User, error) {
 	cacheKey := cache.CacheKey("user", userID)
 
 	cached, err := cache.GetFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*models.User, error) {
-		return GetUserBasicInfo(userID)
+		user, err := GetUserBasicInfo(userID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &models.User{UserId: -9999}, nil
+		}
+		return user, err
 	})
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
 		return GetUserBasicInfo(userID)
+	}
+
+	if cached != nil && cached.UserId == -9999 {
+		return nil, gorm.ErrRecordNotFound
 	}
 
 	return cached, nil

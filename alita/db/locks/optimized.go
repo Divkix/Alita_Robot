@@ -8,7 +8,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 // GetLockStatus retrieves only the lock status for a specific lock type.
@@ -25,9 +24,6 @@ func GetLockStatus(chatID int64, lockType string) (bool, error) {
 		Where("chat_id = ? AND lock_type = ?", chatID, lockType).
 		Scan(&locked).Error
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, nil // Default to unlocked
-	}
 	if err != nil {
 		log.Errorf("[OptimizedLockQueries] GetLockStatus: %v", err)
 		return false, err

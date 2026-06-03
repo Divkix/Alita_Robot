@@ -8,6 +8,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestGetLockStatus_NilDB(t *testing.T) {
@@ -108,6 +109,7 @@ func TestGetChatLocksOptimized(t *testing.T) {
 
 func TestGetLockStatusCached(t *testing.T) {
 	skipIfNoDb(t)
+	utilsCache.SetupTestMemoryMarshaler(t)
 
 	chatID := time.Now().UnixNano()
 	lockType := "text"
@@ -130,6 +132,11 @@ func TestGetLockStatusCached(t *testing.T) {
 		t.Fatalf("GetLockStatusCached() = %v, want true", locked)
 	}
 
+	// Delete underlying DB row directly to test cache hit
+	if err := db.DB.Where("chat_id = ? AND lock_type = ?", chatID, lockType).Delete(&models.LockSettings{}).Error; err != nil {
+		t.Fatalf("Failed to delete lock settings row to test cache: %v", err)
+	}
+
 	// Second call should use cache
 	locked, err = GetLockStatusCached(chatID, lockType)
 	if err != nil {
@@ -142,6 +149,7 @@ func TestGetLockStatusCached(t *testing.T) {
 
 func TestGetLockStatusCached_RecordNotFound(t *testing.T) {
 	skipIfNoDb(t)
+	utilsCache.SetupTestMemoryMarshaler(t)
 
 	chatID := time.Now().UnixNano()
 	lockType := "text"

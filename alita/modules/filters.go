@@ -538,8 +538,14 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 
 	switch response {
 	case "yes":
-		db_filters.RemoveAllFilters(chat.Id)
-		helpText, _ = tr.GetString("filters_clear_all_success")
+		if err := db_filters.RemoveAllFilters(chat.Id); err != nil {
+			helpText, _ = tr.GetString("filters_clear_all_failed")
+			if helpText == "" {
+				helpText = "Failed to remove all Filters from this Chat ❌"
+			}
+		} else {
+			helpText, _ = tr.GetString("filters_clear_all_success")
+		}
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
 	}
