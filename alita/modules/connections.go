@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
@@ -458,4 +459,58 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Connections", 170, LoadConnections)
+	RegisterDeepLinkHandler("connect_", connectDeepLinkHandler)
+}
+
+func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	msg := ctx.EffectiveMessage
+
+	parts := strings.Split(arg, "_")
+	if len(parts) < 2 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	chatID, err := strconv.Atoi(parts[1])
+	if err != nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	cochat, err := b.GetChat(int64(chatID), nil)
+	if err != nil || cochat == nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	if allowed, denyKey := canUserConnectToChat(b, cochat.Id, user.Id); !allowed {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString(denyKey)
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	// Synchronous DB write before user confirmation - fixes issue #694
+	connections.ConnectId(user.Id, cochat.Id)
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
+	connKeyboard := keyboard.InitButtons(b, cochat.Id, user.Id)
+
+	_, err = msg.Reply(b, Text,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: connKeyboard,
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
 }

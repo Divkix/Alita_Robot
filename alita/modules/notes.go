@@ -1063,4 +1063,114 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Notes", 160, LoadNotes)
+	RegisterDeepLinkHandler("notes_", notesListDeepLinkHandler)
+	RegisterDeepLinkHandler("note_", noteDeepLinkHandler)
+}
+
+func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (chatinfo *gotgbot.ChatFullInfo, err error) {
+	nArgs := strings.SplitN(arg, "_", 3)
+	msg := ctx.EffectiveMessage
+
+	// Validate deep link has at least chat ID
+	if len(nArgs) < 2 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+
+	chatID, parseErr := strconv.Atoi(nArgs[1])
+	if parseErr != nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+
+	chatinfo, chatErr := b.GetChat(int64(chatID), nil)
+	if chatErr != nil || chatinfo == nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return nil, ext.EndGroups
+	}
+	return chatinfo, nil
+}
+
+func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	msg := ctx.EffectiveMessage
+
+	chatinfo, err := parseChatInfoFromDeepLink(b, ctx, arg)
+	if err != nil {
+		return err
+	}
+
+	admin := chat_status.IsUserAdmin(b, chatinfo.Id, user.Id)
+	noteKeys := notes.GetNotesList(chatinfo.Id, admin)
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	info, _ := tr.GetString("notes_none_in_chat")
+	if len(noteKeys) > 0 {
+		info, _ = tr.GetString("helpers_notes_current_header")
+		var sb strings.Builder
+		for _, note := range noteKeys {
+			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>\n", b.Username, chatinfo.Id, note, note)
+		}
+		info += sb.String()
+	}
+
+	_, err = msg.Reply(b, info, formatting.Shtml())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
+}
+
+func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	msg := ctx.EffectiveMessage
+
+	chatinfo, err := parseChatInfoFromDeepLink(b, ctx, arg)
+	if err != nil {
+		return err
+	}
+
+	nArgs := strings.SplitN(arg, "_", 3)
+	// Validate deep link has note name
+	if len(nArgs) < 3 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	noteName := strings.ToLower(nArgs[2])
+	noteData := notes.GetNote(chatinfo.Id, noteName)
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if noteData == nil {
+		text, _ := tr.GetString("helpers_note_not_exist")
+		_, err := msg.Reply(b, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+	if noteData.AdminOnly {
+		if !chat_status.IsUserAdmin(b, chatinfo.Id, user.Id) {
+			text, _ := tr.GetString("helpers_note_admin_only")
+			_, err := msg.Reply(b, text, formatting.Shtml())
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.ContinueGroups
+		}
+	}
+	_chat := chatinfo.ToChat()
+	_, err = media.SendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
 }

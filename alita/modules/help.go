@@ -382,7 +382,7 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		} else if len(args) == 2 {
-			err := startHelpPrefixHandler(b, ctx, user, args[1])
+			err := HandleDeepLink(b, ctx, user, args[1])
 			if err != nil {
 				log.Error(err)
 				return err
@@ -656,4 +656,51 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("about", DefaultHelpRegistry().about))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("about"), DefaultHelpRegistry().about))
 	initHelpButtons()
+}
+
+func init() {
+	RegisterDeepLinkHandler("help_", helpDeepLinkHandler)
+	RegisterDeepLinkHandler("about", aboutDeepLinkHandler)
+}
+
+func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	parts := strings.Split(arg, "_")
+	if len(parts) < 2 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = ctx.EffectiveMessage.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	helpModule := parts[1]
+	_, err := sendHelpkb(b, ctx, helpModule, DefaultHelpRegistry())
+	if err != nil {
+		log.Errorf("[Start]: %v", err)
+		return err
+	}
+	return ext.EndGroups
+}
+
+func aboutDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	aboutText := getAboutText(tr)
+	aboutKb := getAboutKb(tr)
+	_, err := b.SendMessage(ctx.EffectiveChat.Id,
+		aboutText,
+		&gotgbot.SendMessageOpts{
+			ParseMode: formatting.HTML,
+			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
+				IsDisabled: true,
+			},
+			ReplyParameters: &gotgbot.ReplyParameters{
+				MessageId:                ctx.EffectiveMessage.MessageId,
+				AllowSendingWithoutReply: true,
+			},
+			ReplyMarkup: &aboutKb,
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
 }

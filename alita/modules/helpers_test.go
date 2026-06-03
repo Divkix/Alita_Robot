@@ -226,7 +226,7 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	}
 }
 
-func TestStartHelpPrefixHandlerRoutesHelpDeepLink(t *testing.T) {
+func TestHandleDeepLinkRoutesHelpDeepLink(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	previousMarkup := markup
 	defaultHelpRegistry = NewHelpRegistry()
@@ -248,15 +248,15 @@ func TestStartHelpPrefixHandlerRoutesHelpDeepLink(t *testing.T) {
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
 	ctx := newModuleMessageContext(bot, chat, user, "/start help_admin")
 
-	if err := startHelpPrefixHandler(bot, ctx, &user, "help_admin"); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler() error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, ctx, &user, "help_admin"); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink() error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want help deep-link response", len(calls))
 	}
 }
 
-func TestStartHelpPrefixHandlerRoutesConnectAndRulesDeepLinks(t *testing.T) {
+func TestHandleDeepLinkRoutesConnectAndRulesDeepLinks(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
@@ -277,16 +277,16 @@ func TestStartHelpPrefixHandlerRoutesConnectAndRulesDeepLinks(t *testing.T) {
 	})
 
 	connectCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start connect_%d", chatID))
-	if err := startHelpPrefixHandler(bot, connectCtx, &user, fmt.Sprintf("connect_%d", chatID)); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(connect) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, connectCtx, &user, fmt.Sprintf("connect_%d", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(connect) error = %v, want EndGroups", err)
 	}
 	if connection := connections.Connection(user.Id); !connection.Connected || connection.ChatId != chatID {
 		t.Fatalf("connection = %#v, want connected chat %d", connection, chatID)
 	}
 
 	rulesCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start rules_%d", chatID))
-	if err := startHelpPrefixHandler(bot, rulesCtx, &user, fmt.Sprintf("rules_%d", chatID)); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(rules) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, rulesCtx, &user, fmt.Sprintf("rules_%d", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(rules) error = %v, want EndGroups", err)
 	}
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
@@ -294,7 +294,7 @@ func TestStartHelpPrefixHandlerRoutesConnectAndRulesDeepLinks(t *testing.T) {
 	}
 }
 
-func TestStartHelpPrefixHandlerRoutesNotesDeepLinks(t *testing.T) {
+func TestHandleDeepLinkRoutesNotesDeepLinks(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chatID := uniqueModuleChatID()
@@ -315,18 +315,18 @@ func TestStartHelpPrefixHandlerRoutesNotesDeepLinks(t *testing.T) {
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start notes_%d", chatID))
-	if err := startHelpPrefixHandler(bot, listCtx, &user, fmt.Sprintf("notes_%d", chatID)); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(notes list) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, listCtx, &user, fmt.Sprintf("notes_%d", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(notes list) error = %v, want EndGroups", err)
 	}
 
 	noteCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start note_%d_public", chatID))
-	if err := startHelpPrefixHandler(bot, noteCtx, &user, fmt.Sprintf("note_%d_public", chatID)); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(note) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, noteCtx, &user, fmt.Sprintf("note_%d_public", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(note) error = %v, want EndGroups", err)
 	}
 
 	missingCtx := newModuleMessageContext(bot, chat, user, fmt.Sprintf("/start note_%d_missing", chatID))
-	if err := startHelpPrefixHandler(bot, missingCtx, &user, fmt.Sprintf("note_%d_missing", chatID)); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(missing note) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, missingCtx, &user, fmt.Sprintf("note_%d_missing", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(missing note) error = %v, want EndGroups", err)
 	}
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 3 {
@@ -334,7 +334,7 @@ func TestStartHelpPrefixHandlerRoutesNotesDeepLinks(t *testing.T) {
 	}
 }
 
-func TestStartHelpPrefixHandlerHandlesMissingChatsAndAdminOnlyNotes(t *testing.T) {
+func TestHandleDeepLinkHandlesMissingChatsAndAdminOnlyNotes(t *testing.T) {
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
 	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"}
 
@@ -345,8 +345,8 @@ func TestStartHelpPrefixHandlerHandlesMissingChatsAndAdminOnlyNotes(t *testing.T
 			bot := newModuleTestBot(client)
 			ctx := newModuleMessageContext(bot, privateChat, user, "/start "+arg)
 
-			if err := startHelpPrefixHandler(bot, ctx, &user, arg); err != ext.EndGroups {
-				t.Fatalf("startHelpPrefixHandler(%q) error = %v, want EndGroups", arg, err)
+			if err := HandleDeepLink(bot, ctx, &user, arg); err != ext.EndGroups {
+				t.Fatalf("HandleDeepLink(%q) error = %v, want EndGroups", arg, err)
 			}
 			if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 				t.Fatalf("sendMessage calls = %d, want chat-not-found reply", len(calls))
@@ -369,15 +369,15 @@ func TestStartHelpPrefixHandlerHandlesMissingChatsAndAdminOnlyNotes(t *testing.T
 	}
 
 	ctx := newModuleMessageContext(bot, privateChat, user, fmt.Sprintf("/start note_%d_adminonly", chatID))
-	if err := startHelpPrefixHandler(bot, ctx, &user, fmt.Sprintf("note_%d_adminonly", chatID)); err != ext.ContinueGroups {
-		t.Fatalf("startHelpPrefixHandler(admin-only note) error = %v, want ContinueGroups", err)
+	if err := HandleDeepLink(bot, ctx, &user, fmt.Sprintf("note_%d_adminonly", chatID)); err != ext.ContinueGroups {
+		t.Fatalf("HandleDeepLink(admin-only note) error = %v, want ContinueGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want admin-only notice", len(calls))
 	}
 }
 
-func TestStartHelpPrefixHandlerRejectsInvalidDeepLinks(t *testing.T) {
+func TestHandleDeepLinkRejectsInvalidDeepLinks(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
@@ -391,8 +391,8 @@ func TestStartHelpPrefixHandlerRejectsInvalidDeepLinks(t *testing.T) {
 	} {
 		t.Run(arg, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, user, "/start "+arg)
-			if err := startHelpPrefixHandler(bot, ctx, &user, arg); err != ext.EndGroups {
-				t.Fatalf("startHelpPrefixHandler(%q) error = %v, want EndGroups", arg, err)
+			if err := HandleDeepLink(bot, ctx, &user, arg); err != ext.EndGroups {
+				t.Fatalf("HandleDeepLink(%q) error = %v, want EndGroups", arg, err)
 			}
 		})
 	}
@@ -402,20 +402,20 @@ func TestStartHelpPrefixHandlerRejectsInvalidDeepLinks(t *testing.T) {
 	}
 }
 
-func TestStartHelpPrefixHandlerSendsAboutAndDefaultHelp(t *testing.T) {
+func TestHandleDeepLinkSendsAboutAndDefaultHelp(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Tester"}
 	user := gotgbot.User{Id: 42, FirstName: "Tester"}
 
 	aboutCtx := newModuleMessageContext(bot, chat, user, "/start about")
-	if err := startHelpPrefixHandler(bot, aboutCtx, &user, "about"); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(about) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, aboutCtx, &user, "about"); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(about) error = %v, want EndGroups", err)
 	}
 
 	defaultCtx := newModuleMessageContext(bot, chat, user, "/start unknown")
-	if err := startHelpPrefixHandler(bot, defaultCtx, &user, "unknown"); err != ext.EndGroups {
-		t.Fatalf("startHelpPrefixHandler(default) error = %v, want EndGroups", err)
+	if err := HandleDeepLink(bot, defaultCtx, &user, "unknown"); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(default) error = %v, want EndGroups", err)
 	}
 
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
@@ -556,7 +556,7 @@ func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 	}
 }
 
-func TestStartHelpPrefixHandlerPropagatesAboutAndDefaultSendErrors(t *testing.T) {
+func TestHandleDeepLinkPropagatesAboutAndDefaultSendErrors(t *testing.T) {
 	for _, arg := range []string{"about", "unknown"} {
 		t.Run(arg, func(t *testing.T) {
 			client := newModuleBotClient()
@@ -566,8 +566,8 @@ func TestStartHelpPrefixHandlerPropagatesAboutAndDefaultSendErrors(t *testing.T)
 			user := gotgbot.User{Id: 42, FirstName: "Tester"}
 			ctx := newModuleMessageContext(bot, chat, user, "/start "+arg)
 
-			if err := startHelpPrefixHandler(bot, ctx, &user, arg); err == nil {
-				t.Fatalf("startHelpPrefixHandler(%q) error = nil, want send error", arg)
+			if err := HandleDeepLink(bot, ctx, &user, arg); err == nil {
+				t.Fatalf("HandleDeepLink(%q) error = nil, want send error", arg)
 			}
 		})
 	}

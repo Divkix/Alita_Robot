@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -315,4 +316,59 @@ func LoadRules(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Rules", 190, LoadRules)
+	RegisterDeepLinkHandler("rules_", rulesDeepLinkHandler)
+}
+
+func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {
+	msg := ctx.EffectiveMessage
+
+	parts := strings.Split(arg, "_")
+	if len(parts) < 2 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	chatID, err := strconv.Atoi(parts[1])
+	if err != nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_invalid_deep_link")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	chatinfo, err := b.GetChat(int64(chatID), nil)
+	if err != nil || chatinfo == nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
+	rulesrc := rules.GetChatRulesInfo(int64(chatID))
+	normalizedRules := normalizeRulesForHTML(rulesrc.Rules)
+
+	if normalizedRules == "" {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("rules_not_set")
+		_, err := msg.Reply(b, text, formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	text, _ := tr.GetString("rules_for_chat", i18n.TranslationParams{
+		"first":  html.EscapeString(chatinfo.Title),
+		"second": normalizedRules,
+	})
+	_, err = msg.Reply(b, text, formatting.Shtml())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
 }
