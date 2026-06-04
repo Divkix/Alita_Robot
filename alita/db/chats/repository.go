@@ -9,7 +9,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -18,7 +17,7 @@ import (
 // Returns an empty Chat struct if not found or on error.
 func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
 	// Use optimized cached query instead of SELECT *
-	chat, err := queries.GetOptimizedQueries().GetChatBasicInfoCached(chatId)
+	chat, err := GetChatBasicInfoCached(chatId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &models.Chat{}

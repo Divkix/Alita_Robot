@@ -7,7 +7,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -26,7 +25,7 @@ func defaultAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 // GetAntiRaidSettings retrieves anti-raid settings for a chat.
 // Returns defaults if no record exists.
 func GetAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
-	settings, err := queries.GetOptimizedQueries().GetAntiRaidSettingsCached(chatID)
+	settings, err := GetAntiRaidSettingsCached(chatID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return defaultAntiRaidSettings(chatID)

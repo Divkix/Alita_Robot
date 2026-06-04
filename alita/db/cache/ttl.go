@@ -16,4 +16,5 @@ const (
 	CacheTTLCaptchaSettings = 30 * time.Minute
 	CacheTTLApprovals       = 30 * time.Minute
 	CacheTTLAntiRaid        = 30 * time.Minute
+	CacheTTLChannels        = 30 * time.Minute
 )

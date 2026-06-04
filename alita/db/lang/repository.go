@@ -11,12 +11,12 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/queries"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
-// checkUserInfo is a local helper that mirrors db.checkUserInfo for use in this package.
+// checkUserInfo is a local helper that delegates to user.GetUserBasicInfoCached.
 func checkUserInfo(userId int64) (userc *models.User) {
-	userc, err := queries.GetOptimizedQueries().GetUserBasicInfoCached(userId)
+	userc, err := user.GetUserBasicInfoCached(userId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
