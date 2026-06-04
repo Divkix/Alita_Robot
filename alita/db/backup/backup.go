@@ -628,7 +628,9 @@ func importFiltersData(chatID int64, data interface{}) error {
 		// Import filters
 		for _, filter := range filterItems {
 			if filter.KeyWord != "" {
-				_ = filters.AddFilter(chatID, filter.KeyWord, filter.FilterReply, filter.FileID, filter.Buttons, filter.MsgType)
+				if err := filters.AddFilter(chatID, filter.KeyWord, filter.FilterReply, filter.FileID, filter.Buttons, filter.MsgType); err != nil {
+					return fmt.Errorf("failed to import filter %q: %w", filter.KeyWord, err)
+				}
 			}
 		}
 	}

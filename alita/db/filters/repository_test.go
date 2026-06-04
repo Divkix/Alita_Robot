@@ -21,7 +21,9 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
+		if err := RemoveAllFilters(chatID); err != nil {
+			t.Errorf("RemoveAllFilters failed: %v", err)
+		}
 	})
 
 	// Initially empty
@@ -31,8 +33,12 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	}
 
 	// Add two filters
-	_ = AddFilter(chatID, "spam", "spam reply", "", nil, 1)
-	_ = AddFilter(chatID, "flood", "flood reply", "", nil, 1)
+	if err := AddFilter(chatID, "spam", "spam reply", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
+	if err := AddFilter(chatID, "flood", "flood reply", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 
 	list = GetFiltersList(chatID)
 	if len(list) != 2 {
@@ -40,7 +46,9 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	}
 
 	// Adding same keyword again should not duplicate
-	_ = AddFilter(chatID, "spam", "different reply", "", nil, 2)
+	if err := AddFilter(chatID, "spam", "different reply", "", nil, 2); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 	list = GetFiltersList(chatID)
 	if len(list) != 2 {
 		t.Fatalf("expected 2 filters (no duplicate), got %d", len(list))
@@ -53,14 +61,18 @@ func TestDoesFilterExists(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
+		if err := RemoveAllFilters(chatID); err != nil {
+			t.Errorf("RemoveAllFilters failed: %v", err)
+		}
 	})
 
 	if DoesFilterExists(chatID, "nonexistent") {
 		t.Fatal("expected DoesFilterExists=false for non-existent filter")
 	}
 
-	_ = AddFilter(chatID, "hello", "hello reply", "", nil, 1)
+	if err := AddFilter(chatID, "hello", "hello reply", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 
 	if !DoesFilterExists(chatID, "hello") {
 		t.Fatal("expected DoesFilterExists=true after adding filter")
@@ -78,13 +90,21 @@ func TestRemoveFilter(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
+		if err := RemoveAllFilters(chatID); err != nil {
+			t.Errorf("RemoveAllFilters failed: %v", err)
+		}
 	})
 
-	_ = AddFilter(chatID, "remove_me", "reply", "", nil, 1)
-	_ = AddFilter(chatID, "keep_me", "reply", "", nil, 1)
+	if err := AddFilter(chatID, "remove_me", "reply", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
+	if err := AddFilter(chatID, "keep_me", "reply", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 
-	_ = RemoveFilter(chatID, "remove_me")
+	if err := RemoveFilter(chatID, "remove_me"); err != nil {
+		t.Fatalf("RemoveFilter failed: %v", err)
+	}
 
 	if DoesFilterExists(chatID, "remove_me") {
 		t.Fatal("expected filter to be removed")
@@ -94,7 +114,9 @@ func TestRemoveFilter(t *testing.T) {
 	}
 
 	// Removing non-existent filter should not error
-	_ = RemoveFilter(chatID, "does_not_exist")
+	if err := RemoveFilter(chatID, "does_not_exist"); err != nil {
+		t.Fatalf("RemoveFilter(nonexistent) failed: %v", err)
+	}
 }
 
 func TestRemoveAllFilters(t *testing.T) {
@@ -102,11 +124,19 @@ func TestRemoveAllFilters(t *testing.T) {
 
 	chatID := -time.Now().UnixNano()
 
-	_ = AddFilter(chatID, "a", "a", "", nil, 1)
-	_ = AddFilter(chatID, "b", "b", "", nil, 1)
-	_ = AddFilter(chatID, "c", "c", "", nil, 1)
+	if err := AddFilter(chatID, "a", "a", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
+	if err := AddFilter(chatID, "b", "b", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
+	if err := AddFilter(chatID, "c", "c", "", nil, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 
-	_ = RemoveAllFilters(chatID)
+	if err := RemoveAllFilters(chatID); err != nil {
+		t.Fatalf("RemoveAllFilters failed: %v", err)
+	}
 
 	list := GetFiltersList(chatID)
 	if len(list) != 0 {
@@ -120,7 +150,9 @@ func TestCountFilters(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
+		if err := RemoveAllFilters(chatID); err != nil {
+			t.Errorf("RemoveAllFilters failed: %v", err)
+		}
 	})
 
 	if CountFilters(chatID) != 0 {
@@ -128,7 +160,9 @@ func TestCountFilters(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		_ = AddFilter(chatID, fmt.Sprintf("word%d", i), "reply", "", nil, 1)
+		if err := AddFilter(chatID, fmt.Sprintf("word%d", i), "reply", "", nil, 1); err != nil {
+			t.Fatalf("AddFilter failed: %v", err)
+		}
 	}
 
 	if CountFilters(chatID) != 3 {
@@ -152,9 +186,13 @@ func TestLoadFilterStats(t *testing.T) {
 func TestLoadFilterStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
 
-	_ = db.DB.Migrator().DropTable(&models.ChatFilters{})
+	if err := db.DB.Migrator().DropTable(&models.ChatFilters{}); err != nil {
+		t.Fatalf("DropTable failed: %v", err)
+	}
 	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.ChatFilters{})
+		if err := db.DB.AutoMigrate(&models.ChatFilters{}); err != nil {
+			t.Errorf("AutoMigrate failed: %v", err)
+		}
 	})
 
 	total, chats := LoadFilterStats()
@@ -169,14 +207,18 @@ func TestAddFilterWithButtons(t *testing.T) {
 	chatID := -time.Now().UnixNano()
 
 	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
+		if err := RemoveAllFilters(chatID); err != nil {
+			t.Errorf("RemoveAllFilters failed: %v", err)
+		}
 	})
 
 	buttons := []models.Button{
 		{Name: "Click me", Url: "https://example.com", SameLine: false},
 	}
 
-	_ = AddFilter(chatID, "btn_filter", "Filter with button", "", buttons, 1)
+	if err := AddFilter(chatID, "btn_filter", "Filter with button", "", buttons, 1); err != nil {
+		t.Fatalf("AddFilter failed: %v", err)
+	}
 
 	if !DoesFilterExists(chatID, "btn_filter") {
 		t.Fatal("expected filter with buttons to exist")

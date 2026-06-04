@@ -10,6 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// ChatCacheEntry is an explicit cache payload that avoids magic sentinel values.
+type ChatCacheEntry struct {
+	Found bool
+	Chat  *models.Chat
+}
+
 // GetChatBasicInfo retrieves only essential chat information with minimal column selection.
 // Optimized for high-frequency calls by selecting only necessary fields.
 func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
@@ -35,20 +41,31 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 	cacheKey := cache.CacheKey("chat", chatID)
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (*models.Chat, error) {
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (ChatCacheEntry, error) {
 		chat, err := GetChatBasicInfo(chatID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &models.Chat{ChatId: -9999}, nil
+			return ChatCacheEntry{Found: false, Chat: nil}, nil
 		}
-		return chat, err
+		if err != nil {
+			return ChatCacheEntry{}, err
+		}
+		return ChatCacheEntry{Found: true, Chat: chat}, nil
 	})
 	if err != nil {
-		return nil, err
+		// Cache/serialization error: fall back to direct DB query.
+		chat, dbErr := GetChatBasicInfo(chatID)
+		if dbErr == nil {
+			return chat, nil
+		}
+		if errors.Is(dbErr, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, dbErr
 	}
 
-	if cached != nil && cached.ChatId == -9999 {
+	if !cached.Found {
 		return nil, gorm.ErrRecordNotFound
 	}
 
-	return cached, nil
+	return cached.Chat, nil
 }
