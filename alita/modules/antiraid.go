@@ -14,7 +14,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/eko/gocache/lib/v4/store"
-	"github.com/redis/go-redis/v9"
 
 	log "github.com/sirupsen/logrus"
 
@@ -56,12 +55,8 @@ type raidState struct {
 	BannedUsers []int64 `json:"banned_users"` // user IDs banned during this raid
 }
 
-// StartAntiRaidExpiryPoller starts the background expiry poller after cache is available.
+// StartAntiRaidExpiryPoller starts the background expiry poller.
 func StartAntiRaidExpiryPoller() {
-	if !cache.IsRedisAvailable() {
-		log.Warn("[AntiRaid] Redis not available, skipping expiry poller start")
-		return
-	}
 	if antiRaidCancel != nil {
 		// Already started
 		return
@@ -89,32 +84,39 @@ func joinsKey(chatID int64) string {
 	return fmt.Sprintf("%s:%d", antiraidJoinsKey, chatID)
 }
 
+// joinsStore stores join timestamps per chat for in-memory tracking
+var (
+	joinsStore   = make(map[int64][]int64)
+	joinsStoreMu sync.Mutex
+)
+
 func trackJoin(chatID, userID int64) (count int, err error) {
-	if !cache.IsRedisAvailable() {
-		return 0, fmt.Errorf("cache not initialized")
-	}
+	joinsStoreMu.Lock()
+	defer joinsStoreMu.Unlock()
+
 	now := time.Now().Unix()
-	ctx := cache.Context
-	rdb := cache.GetRedisClient()
-	_, err = rdb.ZAdd(ctx, joinsKey(chatID), redis.Z{Score: float64(now), Member: strconv.FormatInt(userID, 10)}).Result()
-	if err != nil {
-		return 0, err
+	windowStart := now - int64(antiraidJoinWindowSeconds)
+
+	// Filter out old joins
+	joins := joinsStore[chatID]
+	var newJoins []int64
+	for _, t := range joins {
+		if t >= windowStart {
+			newJoins = append(newJoins, t)
+		}
 	}
-	_, err = rdb.ZRemRangeByScore(ctx, joinsKey(chatID), "0", strconv.FormatInt(now-int64(antiraidJoinWindowSeconds), 10)).Result()
-	if err != nil {
-		log.WithError(err).Warnf("[AntiRaid] ZRemRangeByScore failed on joinsKey %d", chatID)
-	}
-	rawCount, err := rdb.ZCard(ctx, joinsKey(chatID)).Result()
-	return int(rawCount), err
+
+	// Add current join
+	newJoins = append(newJoins, now)
+	joinsStore[chatID] = newJoins
+
+	return len(newJoins), nil
 }
 
 func clearJoinTracking(chatID int64) {
-	if !cache.IsRedisAvailable() {
-		return
-	}
-	ctx := cache.Context
-	rdb := cache.GetRedisClient()
-	_ = rdb.Del(ctx, joinsKey(chatID)).Err()
+	joinsStoreMu.Lock()
+	defer joinsStoreMu.Unlock()
+	delete(joinsStore, chatID)
 }
 
 func getRaidState(chatID int64) *raidState {
@@ -156,33 +158,8 @@ func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
 }
 
 func (a *antiRaidStruct) checkExpiredRaids(ctx context.Context) {
-	if !cache.IsRedisAvailable() {
-		return
-	}
-	rdb := cache.GetRedisClient()
-
-	iter := rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", antiraidStateKey), 0).Iterator()
-	for iter.Next(ctx) {
-		k := iter.Val()
-		parts := strings.Split(k, ":")
-		if len(parts) < 4 {
-			continue
-		}
-		chatID, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
-		if chatID == 0 {
-			continue
-		}
-		st := getRaidState(chatID)
-		if st.Active && time.Now().Unix() > st.ExpiresAt {
-			st.Active = false
-			_ = setRaidState(chatID, st)
-			clearJoinTracking(chatID)
-			log.Infof("[AntiRaid] Raid expired for chat %d (auto-expiry)", chatID)
-		}
-	}
-	if err := iter.Err(); err != nil {
-		log.WithError(err).Warn("[AntiRaid] SCAN iteration failed in checkExpiredRaids")
-	}
+	// In-memory implementation: we don't have a global way to scan all keys easily with Marshal wrapper
+	// For now, auto-expiry happens on access in isRaidActive/getRaidState
 }
 
 func (a *antiRaidStruct) isRaidActive(chatID int64) bool {

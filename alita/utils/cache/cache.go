@@ -2,25 +2,24 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"sync"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/coocood/freecache"
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
-	gocache_store "github.com/eko/gocache/store/redis/v4"
-	"github.com/redis/go-redis/v9"
+	gocache_store "github.com/eko/gocache/store/freecache/v4"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	Context     = context.Background()
-	marshal     *marshaler.Marshaler
-	Manager     *cache.Cache[any]
-	redisClient *redis.Client
-	marshalMu   sync.RWMutex
+	Context   = context.Background()
+	marshal   *marshaler.Marshaler
+	Manager   *cache.Cache[any]
+	marshalMu sync.RWMutex
+	cacheSize = 100 * 1024 * 1024 // 100MB
+	freeCache *freecache.Cache
 )
 
 // GetMarshal returns the active cache marshaler when initialized.
@@ -44,38 +43,18 @@ type AdminCache struct {
 	Cached   bool
 }
 
-// InitCache initializes the Redis-only cache system.
-// It establishes connection to Redis and returns an error if initialization fails.
+// InitCache initializes the in-memory cache system using freecache.
 func InitCache() error {
-	// Initialize Redis client
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.AppConfig.RedisAddress,
-		Password: config.AppConfig.RedisPassword, // no password set
-		DB:       config.AppConfig.RedisDB,       // use default DB
-	})
+	log.Info("[Cache] Initializing in-memory cache...")
 
-	// Test Redis connection with retry logic
-	maxRetries := 5
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = redisClient.Ping(Context).Err()
-		if pingErr == nil {
-			break
-		}
+	freeCache = freecache.NewCache(cacheSize)
+	freecacheStore := gocache_store.NewFreecache(freeCache)
 
-		log.WithFields(log.Fields{
-			"attempt": attempt + 1,
-			"error":   pingErr,
-		}).Warning("[Cache] Failed to connect to Redis, retrying...")
+	cacheManager := cache.New[any](freecacheStore)
 
-		if attempt < maxRetries-1 {
-			// Exponential backoff: 1s, 2s, 4s, 8s
-			time.Sleep(time.Duration(1<<attempt) * time.Second)
-		}
-	}
-	if pingErr != nil {
-		return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, pingErr)
-	}
+	// Initializes marshaler
+	SetMarshal(marshaler.New(cacheManager))
+	Manager = cacheManager
 
 	// Clear all caches on startup if configured to do so
 	if config.AppConfig.ClearCacheOnStartup {
@@ -84,54 +63,33 @@ func InitCache() error {
 		}
 	}
 
-	// Initialize cache manager with Redis only
-	redisStore := gocache_store.NewRedis(redisClient)
-	cacheManager := cache.New[any](redisStore)
-
-	// Initializes marshaler
-	SetMarshal(marshaler.New(cacheManager))
-	Manager = cacheManager
-
+	log.Info("[Cache] In-memory cache initialized successfully")
 	return nil
 }
 
-// ClearAllCaches clears all cache entries from Redis using FLUSHDB.
-// This function is called on bot startup to ensure fresh data and eliminate cache coherence issues.
-// Since Redis is dedicated to the bot, FLUSHDB safely clears all keys in the current database.
+// ClearAllCaches clears all cache entries from memory.
 func ClearAllCaches() error {
-	if redisClient == nil {
-		return fmt.Errorf("redis client not initialized")
+	if freeCache == nil {
+		return nil
 	}
 
-	log.Info("[Cache] Clearing all caches using FLUSHDB...")
-
-	// Use FLUSHDB to clear all keys in current database
-	// This is safe since Redis is dedicated to the bot
-	if err := redisClient.FlushDB(Context).Err(); err != nil {
-		return fmt.Errorf("failed to flush database: %w", err)
-	}
-
+	log.Info("[Cache] Clearing all in-memory caches...")
+	freeCache.Clear()
 	log.Info("[Cache] Successfully cleared all cache entries")
 	return nil
 }
 
-// GetRedisClient exposes the internal Redis client for modules that need
-// low-level Redis operations (e.g., sorted sets for rate-limiting).
-// Returns nil if cache has not been initialized.
-func GetRedisClient() *redis.Client {
-	return redisClient
+// GetRedisClient is a dummy function for backward compatibility
+func GetRedisClient() interface{} {
+	return nil
 }
 
-// IsRedisAvailable returns whether the Redis client is initialized.
+// IsRedisAvailable always returns false now as we use in-memory cache
 func IsRedisAvailable() bool {
-	return redisClient != nil
+	return false
 }
 
-// DisableRedisForTest clears the Redis client until restore is called.
+// DisableRedisForTest dummy for tests
 func DisableRedisForTest() (restore func()) {
-	previous := redisClient
-	redisClient = nil
-	return func() {
-		redisClient = previous
-	}
+	return func() {}
 }

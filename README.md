@@ -19,8 +19,7 @@
 
 <p align='center'>
   <a href="https://go.dev/"> <img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg?style=flat-square&logo=Go&color=00ADD8" /> </a>
-  <a href="https://www.postgresql.org/"> <img src="https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat-square&logo=postgresql&logoColor=white" /> </a>
-  <a href="https://redis.io/"> <img src="https://img.shields.io/badge/Cache-Redis-DC382D?style=flat-square&logo=redis&logoColor=white" /> </a>
+  <a href="https://www.mongodb.com/"> <img src="https://img.shields.io/badge/Database-MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white" /> </a>
   <a href="https://makeapullrequest.com"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" /> </a>
 </p>
 
@@ -82,8 +81,8 @@
 ### 🔧 **Technical Excellence**
 
 - **Performance**: Built with Go for blazing-fast response times
-- **Cache**: Redis with TTL support and stampede protection
-- **Database**: PostgreSQL with connection pooling and batch operations
+- **Cache**: In-memory with TTL support and stampede protection
+- **Database**: MongoDB with official driver and optimized queries
 - **Deployment Modes**: Support for both polling and webhook modes
 - **Multi-Language**: i18n support with YAML locale files
 - **Monitoring**: Built-in resource monitoring and health checks
@@ -107,8 +106,7 @@ Get Alita running in under 5 minutes!
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- PostgreSQL database (or use the included one)
-- Redis instance (or use the included one)
+- MongoDB database (or use the included one)
 - Telegram Bot Token from [@BotFather](https://t.me/BotFather)
 
 ### Step 1: Clone the Repository
@@ -133,7 +131,6 @@ BOT_TOKEN=your_bot_token_from_botfather
 OWNER_ID=your_telegram_user_id
 MESSAGE_DUMP=-100xxxxxxxxx  # Your log channel
 MONGO_DB_URL=mongodb://postgres:password@mongo:27017/alita_robot
-REDIS_ADDRESS=redis:6379
 ```
 
 ### Step 3: Run with Docker
@@ -157,10 +154,10 @@ Open Telegram and search for your bot username to start using it!
 
 **Platform-specific notes:**
 
-- **Render**: PostgreSQL and Redis are automatically provisioned. Free tier
+- **Render**: MongoDB is automatically provisioned. Free tier
   includes 750 hours/month.
-- **Railway**: PostgreSQL and Redis are included in the template.
-- **Heroku**: Requires paid dynos ($5/mo) + PostgreSQL Essential ($5/mo) + Redis
+- **Railway**: MongoDB is included in the template.
+- **Heroku**: Requires paid dynos ($5/mo) + MongoDB sandbox + In-memory cache
   Mini ($3/mo). All addons are auto-configured.
 
 ## 💻 Installation
@@ -172,7 +169,7 @@ deployment.
 
 #### Using Docker Compose (Full Stack)
 
-This includes PostgreSQL, Redis, and the bot:
+This includes MongoDB and the bot:
 
 ```bash
 # Clone the repository
@@ -210,7 +207,7 @@ docker compose --profile local-bot-api up -d
 
 #### Using Docker Run (Bot Only)
 
-If you have existing PostgreSQL and Redis instances:
+If you have existing MongoDB instance:
 
 ```bash
 docker run -d \
@@ -218,7 +215,6 @@ docker run -d \
   --restart unless-stopped \
   -e BOT_TOKEN="your_bot_token" \
   -e MONGO_DB_URL="your_mongo_url" \
-  -e REDIS_ADDRESS="your_redis_address" \
   -e OWNER_ID="your_telegram_id" \
   -e MESSAGE_DUMP="-100xxxxxxxxx" \
   ghcr.io/divkix/alita_robot:latest
@@ -251,8 +247,7 @@ chmod +x alita_robot
 #### Prerequisites
 
 - Go 1.26 or higher
-- PostgreSQL 14+
-- Redis 6+
+- MongoDB 5.0+
 - Make (optional)
 
 #### Build Steps
@@ -305,7 +300,6 @@ project root:
 | --------------- | ------------------------------------------------------------ | ------------------------------ |
 | `BOT_TOKEN`     | Telegram Bot Token from [@BotFather](https://t.me/BotFather) | `123456:ABC-DEF...`            |
 | `MONGO_DB_URL`  | MongoDB connection string                                    | `mongodb://user:pass@host/db` |
-| `REDIS_ADDRESS` | Redis server address                                         | `redis:6379`                   |
 | `OWNER_ID`      | Your Telegram user ID                                        | `123456789`                    |
 | `MESSAGE_DUMP`  | Log channel ID (must start with -100)                        | `-100123456789`                |
 
@@ -369,8 +363,6 @@ MESSAGE_DUMP=-100xxxxxxxxx
 
 # Database Configuration
 MONGO_DB_URL=mongodb://postgres:password@mongo:27017/alita_robot
-REDIS_ADDRESS=redis:6379
-REDIS_PASSWORD=your_redis_password
 
 # Webhook Configuration
 USE_WEBHOOKS=true
@@ -558,11 +550,10 @@ Alita_Robot/
    sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
    ```
 
-2. **Setup PostgreSQL and Redis**
+2. **Setup MongoDB**
    ```bash
    # Using Docker
-   docker run -d --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 postgres:14
-   docker run -d --name redis -p 6379:6379 redis:7-alpine
+   docker run -d --name mongo -p 27017:27017 mongo:latest
    ```
 
 3. **Clone and Build**

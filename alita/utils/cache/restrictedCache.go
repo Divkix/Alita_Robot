@@ -1,13 +1,11 @@
 package cache
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
@@ -79,32 +77,21 @@ func IsChatRestricted(chatID int64) bool {
 	if time.Since(restrictedSince) >= constants.RestrictedProbeInterval {
 		// Coordinate a single probe attempt across concurrent workers so only one
 		// sender retries Telegram when probe window opens.
-		if redisClient != nil {
-			_, claimErr := redisClient.SetArgs(
-				Context,
-				restrictedProbeKey(chatID),
-				time.Now().Format(time.RFC3339),
-				redis.SetArgs{
-					Mode: "NX",
-					TTL:  constants.ShortCacheTTL,
-				},
-			).Result()
-			if claimErr != nil {
-				if errors.Is(claimErr, redis.Nil) {
-					restrictedCacheHits.Add(1)
-					log.WithFields(log.Fields{
-						"chat_id": chatID,
-						"since":   ts,
-					}).Debug("[RestrictedCache] Probe already in progress, skipping send")
-					return true
-				}
-
-				log.WithFields(log.Fields{
-					"chat_id": chatID,
-					"error":   claimErr,
-				}).Debug("[RestrictedCache] Failed to claim probe lock, allowing send attempt")
-			}
+		// In-memory implementation: use a local lock or just simplified check
+		var dummy string
+		_, claimErr := m.Get(Context, restrictedProbeKey(chatID), &dummy)
+		if claimErr == nil {
+			// Key exists, probe already in progress
+			restrictedCacheHits.Add(1)
+			log.WithFields(log.Fields{
+				"chat_id": chatID,
+				"since":   ts,
+			}).Debug("[RestrictedCache] Probe already in progress, skipping send")
+			return true
 		}
+
+		// Try to claim probe lock
+		_ = m.Set(Context, restrictedProbeKey(chatID), "locked", store.WithExpiration(constants.ShortCacheTTL))
 
 		restrictedCacheMisses.Add(1)
 		log.WithFields(log.Fields{

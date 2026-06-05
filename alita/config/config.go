@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 	"runtime"
@@ -27,54 +26,6 @@ func isCliModeActive() bool {
 		}
 	}
 	return false
-}
-
-// getRedisAddress returns the Redis address from REDIS_ADDRESS or parses it from REDIS_URL.
-// REDIS_URL format: redis://user:password@host:port (standard Redis URL format)
-// Returns: host:port
-func getRedisAddress() string {
-	if addr := os.Getenv("REDIS_ADDRESS"); addr != "" {
-		return addr
-	}
-
-	// Fallback to parsing REDIS_URL (standard Redis URL format used by many platforms)
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		return ""
-	}
-
-	parsed, err := url.Parse(redisURL)
-	if err != nil {
-		log.Warnf("Failed to parse REDIS_URL: %v", err)
-		return ""
-	}
-
-	return parsed.Host
-}
-
-// getRedisPassword returns the Redis password from REDIS_PASSWORD or extracts it from REDIS_URL
-func getRedisPassword() string {
-	if pass := os.Getenv("REDIS_PASSWORD"); pass != "" {
-		return pass
-	}
-
-	// Fallback to extracting from REDIS_URL
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		return ""
-	}
-
-	parsed, err := url.Parse(redisURL)
-	if err != nil {
-		return ""
-	}
-
-	if parsed.User != nil {
-		pass, _ := parsed.User.Password()
-		return pass
-	}
-
-	return ""
 }
 
 // Config holds all configuration for the bot
@@ -104,11 +55,6 @@ type Config struct {
 
 	// Database monitoring configuration
 	EnableDBMonitoring bool `env:"ENABLE_DB_MONITORING" envDefault:"false"`
-
-	// Redis configuration
-	RedisAddress  string `validate:"required"`
-	RedisPassword string
-	RedisDB       int
 
 	// HTTP Server configuration (unified server for health, metrics, webhook)
 	HTTPPort int `validate:"min=1,max=65535"`
@@ -188,9 +134,6 @@ func ValidateConfig(cfg *Config) error {
 	}
 	if cfg.MongoDBURL == "" {
 		return fmt.Errorf("MONGO_DB_URL is required")
-	}
-	if cfg.RedisAddress == "" {
-		return fmt.Errorf("REDIS_ADDRESS or REDIS_URL is required")
 	}
 
 	// Validate webhook configuration if webhooks are enabled
@@ -286,11 +229,6 @@ func LoadConfig() (*Config, error) {
 
 		// Database monitoring configuration
 		EnableDBMonitoring: typeConvertor{str: os.Getenv("ENABLE_DB_MONITORING")}.Bool(),
-
-		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for platform compatibility)
-		RedisAddress:  getRedisAddress(),
-		RedisPassword: getRedisPassword(),
-		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
 
 		// HTTP Server configuration
 		HTTPPort: typeConvertor{str: os.Getenv("HTTP_PORT")}.Int(),
@@ -396,12 +334,6 @@ func (cfg *Config) setDefaults() {
 	}
 	if cfg.WorkingMode == "" {
 		cfg.WorkingMode = "worker"
-	}
-	if cfg.RedisAddress == "" {
-		cfg.RedisAddress = "localhost:6379"
-	}
-	if cfg.RedisDB == 0 {
-		cfg.RedisDB = 1
 	}
 
 	// Handle HTTPPort with backward compatibility for WebhookPort

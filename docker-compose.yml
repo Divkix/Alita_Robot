@@ -11,8 +11,6 @@ services:
     restart: always
     environment:
       MONGO_DB_URL: mongodb://mongo:27017/alita
-      REDIS_ADDRESS: redis:6379
-      REDIS_PASSWORD: redis
       AUTO_MIGRATE: "false"
       USE_WEBHOOKS: "true"
       HTTP_PORT: "8080"
@@ -26,8 +24,6 @@ services:
       - "8080:8080"
     depends_on:
       mongo:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/app/alita_robot", "--health"]
@@ -60,21 +56,6 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  redis:
-    image: redis:7-alpine
-    container_name: alita-redis
-    restart: always
-    command: redis-server --requirepass redis
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
 
 volumes:
   mongo_data:

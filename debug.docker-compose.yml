@@ -11,12 +11,9 @@ services:
       - .env
     environment:
       MONGO_DB_URL: mongodb://mongo:27017/alita_robot
-      REDIS_ADDRESS: redis:6379
     depends_on:
       mongo:
         condition: service_healthy
-      redis:
-        condition: service_started
 
   mongo:
     image: mongo:latest
@@ -33,13 +30,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
-  redis:
-    image: redis:latest
-    restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redisPassword}
-    ports:
-      - "6379:6379"
 
   telegram-bot-api:
     image: aiogram/telegram-bot-api:latest
