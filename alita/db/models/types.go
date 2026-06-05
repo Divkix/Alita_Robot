@@ -8,9 +8,9 @@ import (
 
 // Button represents a button structure used in filters, greetings, etc.
 type Button struct {
-	Name     string `gorm:"column:name" json:"name,omitempty"`
-	Url      string `gorm:"column:url" json:"url,omitempty"`
-	SameLine bool   `gorm:"column:btn_sameline;default:false" json:"btn_sameline" default:"false"`
+	Name     string `gorm:"column:name" json:"name,omitempty" bson:"name"`
+	Url      string `gorm:"column:url" json:"url,omitempty" bson:"url"`
+	SameLine bool   `gorm:"column:btn_sameline;default:false" json:"btn_sameline" default:"false" bson:"btn_sameline"`
 }
 
 // ButtonArray is a custom type for handling arrays of buttons as JSONB

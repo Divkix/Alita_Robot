@@ -1,13 +1,16 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -34,11 +37,17 @@ func EnsureBotInDb(b *gotgbot.Bot) error {
 		botFirstName = me.FirstName
 	}
 
-	usersUpdate := &models.User{UserId: botID, UserName: botUsername, Name: botFirstName}
-	result := db.DB.Where("user_id = ?", botID).Assign(usersUpdate).FirstOrCreate(&models.User{})
-	if result.Error != nil {
-		log.Errorf("[Database] EnsureBotInDb: %v", result.Error)
-		return fmt.Errorf("failed to ensure bot %d in database: %w", botID, result.Error)
+	usersUpdate := &models.User{UserId: botID, UserName: botUsername, Name: botFirstName, UpdatedAt: time.Now()}
+
+	collection := db.DB.Collection("users")
+	filter := bson.M{"user_id": botID}
+	update := bson.M{"$set": usersUpdate}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		log.Errorf("[Database] EnsureBotInDb: %v", err)
+		return fmt.Errorf("failed to ensure bot %d in database: %w", botID, err)
 	}
 	log.Infof("[Database] Bot Updated in Database! (id=%d username=%s)", botID, botUsername)
 	return nil
@@ -48,15 +57,22 @@ func EnsureBotInDb(b *gotgbot.Bot) error {
 // Creates the user record if it doesn't exist, or updates it if it does.
 // This is essential for foreign key constraints that reference the users table.
 func EnsureUserInDb(userId int64, username, firstName string) error {
-	userUpdate := &models.User{
-		UserId:   userId,
-		UserName: username,
-		Name:     firstName,
+	userUpdate := bson.M{
+		"user_id":    userId,
+		"username":   username,
+		"name":       firstName,
+		"updated_at": time.Now(),
 	}
-	result := db.DB.Where("user_id = ?", userId).Assign(userUpdate).FirstOrCreate(&models.User{})
-	if result.Error != nil {
-		log.Errorf("[Database] EnsureUserInDb: %v", result.Error)
-		return fmt.Errorf("failed to ensure user %d in database: %w", userId, result.Error)
+
+	collection := db.DB.Collection("users")
+	filter := bson.M{"user_id": userId}
+	update := bson.M{"$set": userUpdate}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		log.Errorf("[Database] EnsureUserInDb: %v", err)
+		return fmt.Errorf("failed to ensure user %d in database: %w", userId, err)
 	}
 	return nil
 }
@@ -67,7 +83,7 @@ func checkUserInfo(userId int64) (userc *models.User) {
 	// Use optimized cached query instead of SELECT *
 	userc, err := GetUserBasicInfoCached(userId)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return nil
 		}
 		log.Errorf("[Database] checkUserInfo: %v - %d", err, userId)
@@ -87,8 +103,9 @@ func UpdateUser(userId int64, username, name string) error {
 
 	if userc != nil {
 		// Always update last_activity, but only update other fields if changed
-		updates := map[string]any{
+		updates := bson.M{
 			"last_activity": now,
+			"updated_at":    now,
 		}
 
 		// Check if profile updates are needed
@@ -99,7 +116,8 @@ func UpdateUser(userId int64, username, name string) error {
 			updates["username"] = username
 		}
 
-		err := db.DB.Model(&models.User{}).Where("user_id = ?", userId).Updates(updates).Error
+		collection := db.DB.Collection("users")
+		_, err := collection.UpdateOne(context.Background(), bson.M{"user_id": userId}, bson.M{"$set": updates})
 		if err != nil {
 			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
 			return err
@@ -109,13 +127,17 @@ func UpdateUser(userId int64, username, name string) error {
 		log.Debugf("[Database] UpdateUser: %d", userId)
 	} else {
 		// Create new user
-		userc = &models.User{
+		newUser := &models.User{
 			UserId:       userId,
 			UserName:     username,
 			Name:         name,
 			LastActivity: now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
-		err := db.DB.Create(userc).Error
+
+		collection := db.DB.Collection("users")
+		_, err := collection.InsertOne(context.Background(), newUser)
 		if err != nil {
 			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
 			return err
@@ -130,17 +152,19 @@ func UpdateUser(userId int64, username, name string) error {
 // GetUserIdByUserName retrieves a user ID by their username.
 // Returns 0 if the user is not found or an error occurs.
 func GetUserIdByUserName(username string) int64 {
-	var userId int64
-	// Only fetch the user_id column
-	err := db.DB.Model(&models.User{}).Select("user_id").Where("username = ?", username).Scan(&userId).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return 0
-	} else if err != nil {
+	var user models.User
+	collection := db.DB.Collection("users")
+	err := collection.FindOne(context.Background(), bson.M{"username": username}, options.FindOne().SetProjection(bson.M{"user_id": 1})).Decode(&user)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0
+		}
 		log.Errorf("[Database] GetUserIdByUserName: %v - %s", err, username)
 		return 0
 	}
-	log.Debugf("[Database] GetUserIdByUserName: %d", userId)
-	return userId
+	log.Debugf("[Database] GetUserIdByUserName: %d", user.UserId)
+	return user.UserId
 }
 
 // GetUserInfoById retrieves username and name for a given user ID.
@@ -159,9 +183,10 @@ func GetUserInfoById(userId int64) (username, name string, found bool) {
 // LoadUsersStats returns the total count of users in the database.
 // Used for generating system statistics and monitoring.
 func LoadUsersStats() (count int64) {
-	result := db.DB.Model(&models.User{}).Count(&count)
-	if result.Error != nil {
-		log.Errorf("[Database] loadStats: %v", result.Error)
+	collection := db.DB.Collection("users")
+	count, err := collection.CountDocuments(context.Background(), bson.M{})
+	if err != nil {
+		log.Errorf("[Database] loadStats: %v", err)
 		return
 	}
 	return
@@ -175,26 +200,23 @@ func LoadUserActivityStats() (dau, wau, mau int64) {
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 	monthAgo := now.Add(-30 * 24 * time.Hour)
 
+	collection := db.DB.Collection("users")
+
 	// Count daily active users
-	err := db.DB.Model(&models.User{}).
-		Where("last_activity >= ?", dayAgo).
-		Count(&dau).Error
+	var err error
+	dau, err = collection.CountDocuments(context.Background(), bson.M{"last_activity": bson.M{"$gte": dayAgo}})
 	if err != nil {
 		log.Errorf("[Database][LoadUserActivityStats] counting daily active users: %v", err)
 	}
 
 	// Count weekly active users
-	err = db.DB.Model(&models.User{}).
-		Where("last_activity >= ?", weekAgo).
-		Count(&wau).Error
+	wau, err = collection.CountDocuments(context.Background(), bson.M{"last_activity": bson.M{"$gte": weekAgo}})
 	if err != nil {
 		log.Errorf("[Database][LoadUserActivityStats] counting weekly active users: %v", err)
 	}
 
 	// Count monthly active users
-	err = db.DB.Model(&models.User{}).
-		Where("last_activity >= ?", monthAgo).
-		Count(&mau).Error
+	mau, err = collection.CountDocuments(context.Background(), bson.M{"last_activity": bson.M{"$gte": monthAgo}})
 	if err != nil {
 		log.Errorf("[Database][LoadUserActivityStats] counting monthly active users: %v", err)
 	}

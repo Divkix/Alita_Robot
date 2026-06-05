@@ -8,7 +8,7 @@ anti-spam, captcha verification, and multi-language support (en, es, fr, hi, ru,
 
 - **`alita/`** - Core application code
   - `config/` - Configuration management
-  - `db/` - Database models, operations, and caching (PostgreSQL + GORM)
+  - `db/` - Database models, operations, and caching (MongoDB)
   - `i18n/` - Internationalization with embedded YAML locales
   - `modules/` - Bot functionality modules (admin, filters, greetings, etc.)
   - `utils/` - Shared utilities (permissions, error handling, monitoring)
@@ -398,7 +398,7 @@ Install: `pip install pre-commit && pre-commit install`
 
 See `sample.env` for all variables. Critical ones:
 
-- `BOT_TOKEN`, `DATABASE_URL`, `REDIS_ADDRESS`, `MESSAGE_DUMP`, `OWNER_ID` (required)
+- `BOT_TOKEN`, `MONGO_DB_URL`, `REDIS_ADDRESS`, `MESSAGE_DUMP`, `OWNER_ID` (required)
 - `HTTP_PORT` (default 8080) — unified for health, metrics, webhook
 - `USE_WEBHOOKS`, `WEBHOOK_DOMAIN`, `WEBHOOK_SECRET` — webhook mode
 - `AUTO_MIGRATE` — enable startup migrations

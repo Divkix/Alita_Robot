@@ -1,12 +1,15 @@
 package devs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -31,8 +34,8 @@ import (
 // Returns default settings (not a dev) if not found or on error.
 func GetTeamMemInfo(userID int64) (devrc *models.DevSettings) {
 	devrc = &models.DevSettings{}
-	err := db.GetRecord(devrc, models.DevSettings{UserId: userID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.GetRecord(devrc, bson.M{"user_id": userID})
+	if errors.Is(err, db.ErrRecordNotFound) {
 		devrc = &models.DevSettings{UserId: userID, IsDev: false, Sudo: false}
 	} else if err != nil {
 		devrc = &models.DevSettings{UserId: userID, IsDev: false, Sudo: false}
@@ -43,22 +46,20 @@ func GetTeamMemInfo(userID int64) (devrc *models.DevSettings) {
 }
 
 // GetTeamMembers returns a map of all team members with their roles.
-// Queries for both dev and sudo users, combining results.
-// A user can have both roles, in which case "dev" takes precedence.
 func GetTeamMembers() map[int64]string {
 	var devArray []*models.DevSettings
 	var sudoArray []*models.DevSettings
 	array := make(map[int64]string)
 
 	// Get all dev users
-	err := db.GetRecords(&devArray, models.DevSettings{IsDev: true})
+	err := db.GetRecords(&devArray, bson.M{"is_dev": true})
 	if err != nil {
 		log.Error(err)
 		return nil
 	}
 
 	// Get all sudo users
-	err = db.GetRecords(&sudoArray, models.DevSettings{Sudo: true})
+	err = db.GetRecords(&sudoArray, bson.M{"sudo": true})
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -82,17 +83,13 @@ func GetTeamMembers() map[int64]string {
 }
 
 // AddDev adds a user as a developer or updates existing record to dev status.
-// Creates a new record if the user doesn't exist in DevSettings.
 func AddDev(userID int64) error {
-	devSettings := &models.DevSettings{UserId: userID, IsDev: true}
+	collection := db.DB.Collection("devs")
+	filter := bson.M{"user_id": userID}
+	update := bson.M{"$set": bson.M{"is_dev": true, "updated_at": time.Now()}}
+	opts := options.Update().SetUpsert(true)
 
-	// Try to update existing record first
-	err := db.UpdateRecord(&models.DevSettings{}, models.DevSettings{UserId: userID}, models.DevSettings{IsDev: true})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create new record if not exists
-		err = db.CreateRecord(devSettings)
-	}
-
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] AddDev: %v - %d", err, userID)
 		return err
@@ -102,9 +99,8 @@ func AddDev(userID int64) error {
 }
 
 // RemDev removes developer status from a user by setting IsDev to false.
-// Does not delete the record as the user might still have Sudo privileges.
 func RemDev(userID int64) error {
-	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, models.DevSettings{UserId: userID}, map[string]any{"is_dev": false})
+	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, bson.M{"user_id": userID}, map[string]any{"is_dev": false, "updated_at": time.Now()})
 	if err != nil {
 		log.Errorf("[Database] RemDev: %v - %d", err, userID)
 		return err
@@ -114,17 +110,13 @@ func RemDev(userID int64) error {
 }
 
 // AddSudo adds a user as a sudo user or updates existing record to sudo status.
-// Creates a new record if the user doesn't exist in DevSettings.
 func AddSudo(userID int64) error {
-	sudoSettings := &models.DevSettings{UserId: userID, Sudo: true}
+	collection := db.DB.Collection("devs")
+	filter := bson.M{"user_id": userID}
+	update := bson.M{"$set": bson.M{"sudo": true, "updated_at": time.Now()}}
+	opts := options.Update().SetUpsert(true)
 
-	// Try to update existing record first
-	err := db.UpdateRecord(&models.DevSettings{}, models.DevSettings{UserId: userID}, models.DevSettings{Sudo: true})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create new record if not exists
-		err = db.CreateRecord(sudoSettings)
-	}
-
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] AddSudo: %v - %d", err, userID)
 		return err
@@ -134,9 +126,8 @@ func AddSudo(userID int64) error {
 }
 
 // RemSudo removes sudo status from a user by setting Sudo to false.
-// Does not delete the record as the user might still be a Dev.
 func RemSudo(userID int64) error {
-	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, models.DevSettings{UserId: userID}, map[string]any{"sudo": false})
+	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, bson.M{"user_id": userID}, map[string]any{"sudo": false, "updated_at": time.Now()})
 	if err != nil {
 		log.Errorf("[Database] RemSudo: %v - %d", err, userID)
 		return err
@@ -146,7 +137,6 @@ func RemSudo(userID int64) error {
 }
 
 // LoadAllStats generates a comprehensive statistics report for the bot.
-// Includes user counts, chat statistics, feature usage, activity metrics, and system information.
 func LoadAllStats() string {
 	totalUsers := user.LoadUsersStats()
 	activeChats, inactiveChats := chats.LoadChatStats()

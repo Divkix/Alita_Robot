@@ -3,8 +3,10 @@ package backup
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/admin"
@@ -327,8 +329,7 @@ func exportFiltersData(chatID int64) (*FiltersBackup, error) {
 
 	filterList := make([]models.ChatFilters, 0, len(filterWords))
 	for _, word := range filterWords {
-		// Get filter details - using GetAllChatFilters from optimized_queries
-		// For now, we construct minimal filter data
+		// Get filter details
 		filterList = append(filterList, models.ChatFilters{
 			ChatId:  chatID,
 			KeyWord: word,
@@ -427,7 +428,7 @@ func importAdminData(chatID int64, data interface{}) error {
 		var settings models.AdminSettings
 		if err := json.Unmarshal(adminJSON, &settings); err == nil {
 			settings.ChatId = chatID
-			if err := db.UpdateRecord(&models.AdminSettings{}, models.AdminSettings{ChatId: chatID}, settings); err != nil {
+			if err := db.UpdateRecord(&models.AdminSettings{}, bson.M{"chat_id": chatID}, settings); err != nil {
 				log.Warnf("[BackupDB] Failed to import admin settings: %v", err)
 			}
 		}
@@ -555,8 +556,8 @@ func importConnectionsData(chatID int64, data interface{}) error {
 		connections.GetChatConnectionSetting(chatID)
 		if err := db.UpdateRecordWithZeroValues(
 			&models.ConnectionChatSettings{},
-			models.ConnectionChatSettings{ChatId: chatID},
-			map[string]any{"allow_connect": settings.AllowConnect},
+			bson.M{"chat_id": chatID},
+			map[string]any{"allow_connect": settings.AllowConnect, "updated_at": time.Now()},
 		); err != nil {
 			return err
 		}
@@ -738,7 +739,6 @@ func importPinsData(chatID int64, data interface{}) error {
 		}
 
 		_ = pins.SetAntiChannelPin(chatID, settings.AntiChannelPin)
-		// Note: MsgId and CleanLinked would need specific functions
 	}
 
 	return nil
@@ -810,7 +810,6 @@ func importWarnsData(chatID int64, data interface{}) error {
 // Individual module clear functions
 
 func clearAdminData(chatID int64) error {
-	// Reset to defaults via UpdateRecord
 	_ = admin.SetAnonAdminMode(chatID, false)
 	_ = antiflood.SetFlood(chatID, 0)
 	_ = captcha.SetCaptchaEnabled(chatID, false)
@@ -834,8 +833,8 @@ func clearConnectionsData(chatID int64) error {
 	connections.GetChatConnectionSetting(chatID)
 	return db.UpdateRecordWithZeroValues(
 		&models.ConnectionChatSettings{},
-		models.ConnectionChatSettings{ChatId: chatID},
-		map[string]any{"allow_connect": false},
+		bson.M{"chat_id": chatID},
+		map[string]any{"allow_connect": false, "updated_at": time.Now()},
 	)
 }
 

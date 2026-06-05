@@ -6,7 +6,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 // GetAdminSettings Get admin settings for a chat
@@ -20,7 +19,7 @@ func checkAdminSetting(chatID int64) (adminSrc *models.AdminSettings) {
 	adminSrc = &models.AdminSettings{}
 
 	err := db.GetRecord(adminSrc, models.AdminSettings{ChatId: chatID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, db.ErrRecordNotFound) {
 		// Create default settings
 		adminSrc = &models.AdminSettings{ChatId: chatID, AnonAdmin: false}
 		err := db.CreateRecord(adminSrc)

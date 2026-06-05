@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,23 +9,36 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetChatFiltersOptimized retrieves filters with minimal column selection.
 // Optimized for high-frequency calls (34K+ calls) by selecting only essential filter fields.
-// Includes all fields needed by filtersWatcher: keyword, filter_reply, msgtype, fileid, filter_buttons, nonotif.
 func GetChatFiltersOptimized(chatID int64) ([]*models.ChatFilters, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
 
 	var filters []*models.ChatFilters
-	err := db.DB.Model(&models.ChatFilters{}).
-		Select("id, chat_id, keyword, filter_reply, msgtype, fileid, filter_buttons, nonotif").
-		Where("chat_id = ?", chatID).
-		Find(&filters).Error
+	collection := db.DB.Collection("filters")
+	cursor, err := collection.Find(context.Background(), bson.M{"chat_id": chatID}, options.Find().SetProjection(bson.M{
+		"chat_id":        1,
+		"keyword":        1,
+		"filter_reply":   1,
+		"msgtype":        1,
+		"fileid":         1,
+		"filter_buttons": 1,
+		"nonotif":        1,
+	}))
+
 	if err != nil {
 		log.Errorf("[OptimizedFilterQueries] GetChatFiltersOptimized: %v", err)
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	if err := cursor.All(context.Background(), &filters); err != nil {
 		return nil, err
 	}
 

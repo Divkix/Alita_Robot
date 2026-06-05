@@ -1,6 +1,7 @@
 package locks
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,49 +9,47 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetLockStatus retrieves only the lock status for a specific lock type.
-// Optimized for high-frequency lock status checks by selecting only the locked column.
-// Returns false by default if no record is found.
 func GetLockStatus(chatID int64, lockType string) (bool, error) {
 	if db.DB == nil {
 		return false, errors.New("database not initialized")
 	}
 
-	var locked bool
-	err := db.DB.Model(&models.LockSettings{}).
-		Select("locked").
-		Where("chat_id = ? AND lock_type = ?", chatID, lockType).
-		Scan(&locked).Error
+	var lock models.LockSettings
+	collection := db.DB.Collection("locks")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID, "lock_type": lockType}, options.FindOne().SetProjection(bson.M{"locked": 1})).Decode(&lock)
 
 	if err != nil {
+		if err == db.ErrRecordNotFound {
+			return false, nil
+		}
 		log.Errorf("[OptimizedLockQueries] GetLockStatus: %v", err)
 		return false, err
 	}
 
-	return locked, nil
+	return lock.Locked, nil
 }
 
 // GetChatLocksOptimized retrieves all locks for a chat with minimal column selection.
-// Returns a map of lock types to their boolean status for improved performance.
 func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
 
-	type LockResult struct {
-		LockType string
-		Locked   bool
-	}
-
-	var locks []LockResult
-	err := db.DB.Model(&models.LockSettings{}).
-		Select("lock_type, locked").
-		Where("chat_id = ?", chatID).
-		Find(&locks).Error
+	var locks []models.LockSettings
+	collection := db.DB.Collection("locks")
+	cursor, err := collection.Find(context.Background(), bson.M{"chat_id": chatID}, options.Find().SetProjection(bson.M{"lock_type": 1, "locked": 1}))
 	if err != nil {
 		log.Errorf("[OptimizedLockQueries] GetChatLocksOptimized: %v", err)
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	if err := cursor.All(context.Background(), &locks); err != nil {
 		return nil, err
 	}
 

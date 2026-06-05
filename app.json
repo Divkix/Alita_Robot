@@ -4,7 +4,7 @@
   "repository": "https://github.com/divkix/Alita_Robot",
   "keywords": ["telegram", "bot", "go", "group-management"],
   "addons": [
-    { "plan": "heroku-postgresql:essential-0" },
+    { "plan": "mongolab:sandbox" },
     { "plan": "heroku-redis:mini" }
   ],
   "env": {

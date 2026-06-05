@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
 )
@@ -216,12 +215,9 @@ func (collector *BackgroundStatsCollector) collectDatabaseStats() {
 		Timestamp: time.Now(),
 	}
 
-	// Try to get database connection pool stats
-	if sqlDB, err := db.DB.DB(); err == nil {
-		dbStats := sqlDB.Stats()
-		stats.ActiveConnections = dbStats.OpenConnections
-		stats.IdleConnections = dbStats.Idle
-	}
+	// Try to get database connection pool stats (dummy for MongoDB for now)
+	stats.ActiveConnections = 0
+	stats.IdleConnections = 0
 
 	// Get cache hit rate from the cache system if available
 	// This would need to be implemented in the cache package

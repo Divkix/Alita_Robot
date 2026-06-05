@@ -1,10 +1,11 @@
 package notes
 
 import (
-	"errors"
+	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -13,14 +14,11 @@ import (
 )
 
 // getNotesSettings retrieves or creates default notes settings for a chat.
-// Used internally before performing any notes-related operation.
-// Returns default settings if the chat doesn't exist in the database.
-// Results are cached with stampede protection for performance.
 func getNotesSettings(chatID int64) *models.NotesSettings {
 	settings, err := cache.GetFromCacheOrLoad(cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func() (*models.NotesSettings, error) {
 		noteSrc := &models.NotesSettings{}
-		err := db.GetRecord(noteSrc, models.NotesSettings{ChatId: chatID})
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		err := db.GetRecord(noteSrc, bson.M{"chat_id": chatID})
+		if err == db.ErrRecordNotFound {
 			// Ensure chat exists before creating notes settings
 			if !db.ChatExists(chatID) {
 				// Chat doesn't exist, return default settings without creating record
@@ -29,7 +27,7 @@ func getNotesSettings(chatID int64) *models.NotesSettings {
 			}
 
 			// Create default settings only if chat exists
-			noteSrc = &models.NotesSettings{ChatId: chatID, Private: false}
+			noteSrc = &models.NotesSettings{ChatId: chatID, Private: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 			err := db.CreateRecord(noteSrc)
 			if err != nil {
 				log.Errorf("[Database][getNotesSettings]: %d - %v", chatID, err)
@@ -49,9 +47,8 @@ func getNotesSettings(chatID int64) *models.NotesSettings {
 }
 
 // getAllChatNotes retrieves all notes for a specific chat ID from the database.
-// Returns an empty slice if no notes are found or an error occurs.
 func getAllChatNotes(chatId int64) (notes []*models.Notes) {
-	err := db.GetRecords(&notes, models.Notes{ChatId: chatId})
+	err := db.GetRecords(&notes, bson.M{"chat_id": chatId})
 	if err != nil {
 		log.Errorf("[Database] getAllChatNotes: %v - %d", err, chatId)
 		return []*models.Notes{}
@@ -60,17 +57,15 @@ func getAllChatNotes(chatId int64) (notes []*models.Notes) {
 }
 
 // GetNotes returns the notes settings for the specified chat ID.
-// This is the public interface to access notes settings.
 func GetNotes(chatID int64) *models.NotesSettings {
 	return getNotesSettings(chatID)
 }
 
 // GetNote retrieves a specific note by chat ID and note name from the database.
-// Returns nil if the note is not found or an error occurs.
 func GetNote(chatID int64, keyword string) (noteSrc *models.Notes) {
 	noteSrc = &models.Notes{}
-	err := db.GetRecord(noteSrc, models.Notes{ChatId: chatID, NoteName: keyword})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.GetRecord(noteSrc, bson.M{"chat_id": chatID, "note_name": keyword})
+	if err == db.ErrRecordNotFound {
 		return nil
 	} else if err != nil {
 		log.Errorf("[Database] GetNote: %v - %d", err, chatID)
@@ -81,8 +76,6 @@ func GetNote(chatID int64, keyword string) (noteSrc *models.Notes) {
 }
 
 // GetNotesList retrieves a list of all note names for a specific chat ID.
-// The admin parameter determines whether to include admin-only notes.
-// Returns an empty slice if no notes are found.
 func GetNotesList(chatID int64, admin bool) (allNotes []string) {
 	noteSrc := getAllChatNotes(chatID)
 	for _, note := range noteSrc {
@@ -101,13 +94,12 @@ func GetNotesList(chatID int64, admin bool) (allNotes []string) {
 }
 
 // DoesNoteExists checks whether a note with the given name exists in the specified chat.
-// Returns false if the note doesn't exist or an error occurs.
-// Uses LIMIT 1 optimization for better performance than COUNT.
 func DoesNoteExists(chatID int64, noteName string) bool {
 	var note models.Notes
-	err := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&note).Error
+	collection := db.DB.Collection("notes")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID, "note_name": noteName}).Decode(&note)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == db.ErrRecordNotFound {
 			return false
 		}
 		log.Errorf("[Database] DoesNoteExists: %v - %d", err, chatID)
@@ -117,20 +109,16 @@ func DoesNoteExists(chatID int64, noteName string) bool {
 }
 
 // AddNote creates a new note in the database for the specified chat.
-// Returns an error if the operation fails.
-// Supports various note types including text, media, and custom buttons.
 func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.ButtonArray, filtType int, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool) error {
-	// Check if note already exists using optimized query
+	// Check if note already exists
 	var existingNote models.Notes
-	err := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&existingNote).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			log.Errorf("[Database][AddNote] checking existence: %d - %v", chatID, err)
-			return err
-		}
-		// Note doesn't exist, continue with creation
-	} else {
+	collection := db.DB.Collection("notes")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID, "note_name": noteName}).Decode(&existingNote)
+	if err == nil {
 		return nil // Note already exists
+	} else if err != db.ErrRecordNotFound {
+		log.Errorf("[Database][AddNote] checking existence: %d - %v", chatID, err)
+		return err
 	}
 
 	noterc := models.Notes{
@@ -146,6 +134,8 @@ func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.Bu
 		WebPreview:  webPrev,
 		IsProtected: isProtected,
 		NoNotif:     noNotif,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	err = db.CreateRecord(&noterc)
@@ -157,22 +147,20 @@ func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.Bu
 }
 
 // RemoveNote deletes a note with the specified name from the chat.
-// Returns an error if the operation fails.
 func RemoveNote(chatID int64, noteName string) error {
-	// Directly attempt to delete the note without checking existence first
-	result := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Delete(&models.Notes{})
-	if result.Error != nil {
-		log.Errorf("[Database][RemoveNote]: %d - %v", chatID, result.Error)
-		return result.Error
+	collection := db.DB.Collection("notes")
+	_, err := collection.DeleteOne(context.Background(), bson.M{"chat_id": chatID, "note_name": noteName})
+	if err != nil {
+		log.Errorf("[Database][RemoveNote]: %d - %v", chatID, err)
+		return err
 	}
-	// result.RowsAffected will be 0 if no note was found, which is fine
 	return nil
 }
 
 // RemoveAllNotes deletes all notes for the specified chat ID from the database.
-// Returns an error if the operation fails.
 func RemoveAllNotes(chatID int64) error {
-	err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Notes{}).Error
+	collection := db.DB.Collection("notes")
+	_, err := collection.DeleteMany(context.Background(), bson.M{"chat_id": chatID})
 	if err != nil {
 		log.Errorf("[Database][RemoveAllNotes]: %d - %v", chatID, err)
 		return err
@@ -183,22 +171,20 @@ func RemoveAllNotes(chatID int64) error {
 // ensureNotesSettingsRecord ensures a notes_settings row exists for the chat.
 func ensureNotesSettingsRecord(chatID int64) error {
 	noteSrc := &models.NotesSettings{}
-	err := db.GetRecord(noteSrc, models.NotesSettings{ChatId: chatID})
+	err := db.GetRecord(noteSrc, bson.M{"chat_id": chatID})
 	if err == nil {
 		return nil
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != db.ErrRecordNotFound {
 		return err
 	}
 	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 		return err
 	}
-	return db.CreateRecord(&models.NotesSettings{ChatId: chatID, Private: false})
+	return db.CreateRecord(&models.NotesSettings{ChatId: chatID, Private: false, CreatedAt: time.Now(), UpdatedAt: time.Now()})
 }
 
 // TooglePrivateNote toggles the private notes setting for the specified chat.
-// When enabled, notes are sent privately to users instead of in the group.
-// Returns an error if the operation fails.
 func TooglePrivateNote(chatID int64, pref bool) error {
 	if err := ensureNotesSettingsRecord(chatID); err != nil {
 		log.Errorf("[Database][TooglePrivateNote]: ensure settings %d - %v", chatID, err)
@@ -206,8 +192,8 @@ func TooglePrivateNote(chatID int64, pref bool) error {
 	}
 	err := db.UpdateRecordWithZeroValues(
 		&models.NotesSettings{},
-		models.NotesSettings{ChatId: chatID},
-		map[string]any{"private": pref},
+		bson.M{"chat_id": chatID},
+		map[string]any{"private": pref, "updated_at": time.Now()},
 	)
 	if err != nil {
 		log.Errorf("[Database][TooglePrivateNote]: %d - %v", chatID, err)
@@ -220,21 +206,24 @@ func TooglePrivateNote(chatID int64, pref bool) error {
 }
 
 // LoadNotesStats returns statistics about notes across the entire system.
-// Returns the total number of notes and the number of distinct chats using notes.
 func LoadNotesStats() (notesNum, notesUsingChats int64) {
+	collection := db.DB.Collection("notes")
+
 	// Count total notes
-	err := db.DB.Model(&models.Notes{}).Count(&notesNum).Error
+	var err error
+	notesNum, err = collection.CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		log.Errorf("[Database] LoadNotesStats (notes): %v", err)
 		return 0, 0
 	}
 
 	// Count distinct chats with notes
-	err = db.DB.Model(&models.Notes{}).Distinct("chat_id").Count(&notesUsingChats).Error
+	distinctChats, err := collection.Distinct(context.Background(), "chat_id", bson.M{})
 	if err != nil {
 		log.Errorf("[Database] LoadNotesStats (chats): %v", err)
 		return notesNum, 0
 	}
+	notesUsingChats = int64(len(distinctChats))
 
 	return
 }

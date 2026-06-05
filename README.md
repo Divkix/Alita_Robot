@@ -132,7 +132,7 @@ nano .env
 BOT_TOKEN=your_bot_token_from_botfather
 OWNER_ID=your_telegram_user_id
 MESSAGE_DUMP=-100xxxxxxxxx  # Your log channel
-DATABASE_URL=postgres://postgres:password@postgres:5432/alita_robot
+MONGO_DB_URL=mongodb://postgres:password@mongo:27017/alita_robot
 REDIS_ADDRESS=redis:6379
 ```
 
@@ -217,7 +217,7 @@ docker run -d \
   --name alita-bot \
   --restart unless-stopped \
   -e BOT_TOKEN="your_bot_token" \
-  -e DATABASE_URL="your_postgres_url" \
+  -e MONGO_DB_URL="your_mongo_url" \
   -e REDIS_ADDRESS="your_redis_address" \
   -e OWNER_ID="your_telegram_id" \
   -e MESSAGE_DUMP="-100xxxxxxxxx" \
@@ -304,7 +304,7 @@ project root:
 | Variable        | Description                                                  | Example                        |
 | --------------- | ------------------------------------------------------------ | ------------------------------ |
 | `BOT_TOKEN`     | Telegram Bot Token from [@BotFather](https://t.me/BotFather) | `123456:ABC-DEF...`            |
-| `DATABASE_URL`  | PostgreSQL connection string                                 | `postgres://user:pass@host/db` |
+| `MONGO_DB_URL`  | MongoDB connection string                                    | `mongodb://user:pass@host/db` |
 | `REDIS_ADDRESS` | Redis server address                                         | `redis:6379`                   |
 | `OWNER_ID`      | Your Telegram user ID                                        | `123456789`                    |
 | `MESSAGE_DUMP`  | Log channel ID (must start with -100)                        | `-100123456789`                |
@@ -368,7 +368,7 @@ OWNER_ID=your_telegram_user_id
 MESSAGE_DUMP=-100xxxxxxxxx
 
 # Database Configuration
-DATABASE_URL=postgres://postgres:password@postgres:5432/alita_robot?sslmode=disable
+MONGO_DB_URL=mongodb://postgres:password@mongo:27017/alita_robot
 REDIS_ADDRESS=redis:6379
 REDIS_PASSWORD=your_redis_password
 

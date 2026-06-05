@@ -10,28 +10,26 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-alita_robot}?sslmode=disable
+      MONGO_DB_URL: mongodb://mongo:27017/alita_robot
       REDIS_ADDRESS: redis:6379
     depends_on:
-      postgres:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_started
 
-  postgres:
-    image: postgres:15-alpine
-    container_name: alita-postgres-debug
+  mongo:
+    image: mongo:latest
+    container_name: alita-mongo-debug
     restart: always
     env_file:
       - .env
-    environment:
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_debug_data:/var/lib/postgresql/data
+      - mongo_debug_data:/data/db
     ports:
-      - "5432:5432"
+      - "27017:27017"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -54,5 +52,5 @@ services:
     # no ports published; internal use
 
 volumes:
-  postgres_debug_data:
+  mongo_debug_data:
   telegram-bot-api-data:

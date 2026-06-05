@@ -1,6 +1,7 @@
 package chats
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -10,7 +11,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetChatSettings retrieves chat settings using optimized cached queries.
@@ -19,7 +21,7 @@ func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
 	// Use optimized cached query instead of SELECT *
 	chat, err := GetChatBasicInfoCached(chatId)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return &models.Chat{}
 		}
 		log.Errorf("[Database] GetChatSettings: %v - %d", err, chatId)
@@ -32,11 +34,18 @@ func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
 // Creates the chat record if it doesn't exist, or updates it if it does.
 // This is essential for foreign key constraints that reference the chats table.
 func EnsureChatInDb(chatId int64, chatName string) error {
-	chatUpdate := &models.Chat{
-		ChatId:   chatId,
-		ChatName: chatName,
+	chatUpdate := bson.M{
+		"chat_id":    chatId,
+		"chat_name":  chatName,
+		"updated_at": time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatId).Assign(chatUpdate).FirstOrCreate(&models.Chat{}).Error
+
+	collection := db.DB.Collection("chats")
+	filter := bson.M{"chat_id": chatId}
+	update := bson.M{"$set": chatUpdate}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] EnsureChatInDb: %v", err)
 		return fmt.Errorf("failed to ensure chat %d in database: %w", chatId, err)
@@ -53,13 +62,17 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	foundUser := slices.Contains(chatr.Users, userid)
 	now := time.Now()
 
+	collection := db.DB.Collection("chats")
+
 	// Always update last_activity to track message activity
 	if chatr.ChatName == chatname && foundUser {
 		// Only update last_activity and is_inactive
-		err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatId).Updates(map[string]any{
+		updates := bson.M{
 			"last_activity": now,
 			"is_inactive":   false,
-		}).Error
+			"updated_at":    now,
+		}
+		_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": updates})
 		if err != nil {
 			log.Errorf("[Database] UpdateChat (activity only): %d - %v", chatId, err)
 			return err
@@ -70,7 +83,11 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	}
 
 	// Prepare updates for all fields
-	updates := make(map[string]any)
+	updates := bson.M{
+		"is_inactive":   false,
+		"last_activity": now,
+		"updated_at":    now,
+	}
 	if chatr.ChatName != chatname {
 		updates["chat_name"] = chatname
 	}
@@ -79,8 +96,6 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		newUsers = append(newUsers, userid)
 		updates["users"] = newUsers
 	}
-	updates["is_inactive"] = false
-	updates["last_activity"] = now
 
 	if chatr.ChatId == 0 {
 		// Create new chat
@@ -90,15 +105,17 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 			Users:        models.Int64Array{userid},
 			IsInactive:   false,
 			LastActivity: now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
-		err := db.DB.Create(newChat).Error
+		_, err := collection.InsertOne(context.Background(), newChat)
 		if err != nil {
 			log.Errorf("[Database] UpdateChat: %v - %d (%d)", err, chatId, userid)
 			return err
 		}
-	} else if len(updates) > 0 {
+	} else {
 		// Update existing chat with all changes
-		err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatId).Updates(updates).Error
+		_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": updates})
 		if err != nil {
 			log.Errorf("[Database] UpdateChat: %v - %d (%d)", err, chatId, userid)
 			return err
@@ -114,18 +131,23 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 // GetAllChats retrieves all chat records and returns them as a map indexed by chat ID.
 // Returns an empty map if an error occurs.
 func GetAllChats() map[int64]models.Chat {
-	var (
-		chatArray []models.Chat
-		chatMap   = make(map[int64]models.Chat)
-	)
-	err := db.DB.Find(&chatArray).Error
+	chatMap := make(map[int64]models.Chat)
+	collection := db.DB.Collection("chats")
+
+	cursor, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
 		log.Errorf("[Database] GetAllChats: %v", err)
 		return chatMap
 	}
+	defer cursor.Close(context.Background())
 
-	for _, i := range chatArray {
-		chatMap[i.ChatId] = i
+	for cursor.Next(context.Background()) {
+		var chat models.Chat
+		if err := cursor.Decode(&chat); err != nil {
+			log.Errorf("[Database] GetAllChats decode: %v", err)
+			continue
+		}
+		chatMap[chat.ChatId] = chat
 	}
 
 	return chatMap
@@ -134,16 +156,16 @@ func GetAllChats() map[int64]models.Chat {
 // LoadChatStats returns the count of active and inactive chats.
 // Active chats have is_inactive = false, inactive chats have is_inactive = true.
 func LoadChatStats() (activeChats, inactiveChats int) {
-	var activeCount, inactiveCount int64
+	collection := db.DB.Collection("chats")
 
 	// Count active chats
-	err := db.DB.Model(&models.Chat{}).Where("is_inactive = ?", false).Count(&activeCount).Error
+	activeCount, err := collection.CountDocuments(context.Background(), bson.M{"is_inactive": false})
 	if err != nil {
 		log.Errorf("[Database][LoadChatStats] counting active chats: %v", err)
 	}
 
 	// Count inactive chats
-	err = db.DB.Model(&models.Chat{}).Where("is_inactive = ?", true).Count(&inactiveCount).Error
+	inactiveCount, err := collection.CountDocuments(context.Background(), bson.M{"is_inactive": true})
 	if err != nil {
 		log.Errorf("[Database][LoadChatStats] counting inactive chats: %v", err)
 	}
@@ -161,26 +183,32 @@ func LoadActivityStats() (dag, wag, mag int64) {
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 	monthAgo := now.Add(-30 * 24 * time.Hour)
 
+	collection := db.DB.Collection("chats")
+
 	// Count daily active groups
-	err := db.DB.Model(&models.Chat{}).
-		Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).
-		Count(&dag).Error
+	var err error
+	dag, err = collection.CountDocuments(context.Background(), bson.M{
+		"is_inactive":   false,
+		"last_activity": bson.M{"$gte": dayAgo},
+	})
 	if err != nil {
 		log.Errorf("[Database][LoadActivityStats] counting daily active groups: %v", err)
 	}
 
 	// Count weekly active groups
-	err = db.DB.Model(&models.Chat{}).
-		Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).
-		Count(&wag).Error
+	wag, err = collection.CountDocuments(context.Background(), bson.M{
+		"is_inactive":   false,
+		"last_activity": bson.M{"$gte": weekAgo},
+	})
 	if err != nil {
 		log.Errorf("[Database][LoadActivityStats] counting weekly active groups: %v", err)
 	}
 
 	// Count monthly active groups
-	err = db.DB.Model(&models.Chat{}).
-		Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).
-		Count(&mag).Error
+	mag, err = collection.CountDocuments(context.Background(), bson.M{
+		"is_inactive":   false,
+		"last_activity": bson.M{"$gte": monthAgo},
+	})
 	if err != nil {
 		log.Errorf("[Database][LoadActivityStats] counting monthly active groups: %v", err)
 	}

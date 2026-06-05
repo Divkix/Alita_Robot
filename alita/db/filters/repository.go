@@ -1,8 +1,11 @@
 package filters
 
 import (
+	"context"
+	"time"
+
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -23,14 +26,12 @@ func invalidateFilterCaches(chatID int64) {
 }
 
 // GetFiltersList retrieves a list of all filter keywords for a specific chat ID.
-// Uses caching to improve performance for frequently accessed data.
-// Returns an empty slice if no filters are found or an error occurs.
 func GetFiltersList(chatID int64) (allFilterWords []string) {
 	// Try to get from cache first
 	cacheKey := filterListCacheKey(chatID)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLFilterList, func() ([]string, error) {
 		var results []*models.ChatFilters
-		err := db.GetRecords(&results, map[string]any{"chat_id": chatID})
+		err := db.GetRecords(&results, bson.M{"chat_id": chatID})
 		if err != nil {
 			log.Errorf("[Database] GetFiltersList: %v - %d", err, chatID)
 			return []string{}, err
@@ -50,14 +51,17 @@ func GetFiltersList(chatID int64) (allFilterWords []string) {
 }
 
 // DoesFilterExists checks whether a filter with the given keyword exists in the specified chat.
-// Performs a case-insensitive comparison of the keyword.
-// Returns false if the filter doesn't exist or an error occurs.
-// Uses LIMIT 1 optimization for better performance than COUNT.
 func DoesFilterExists(chatId int64, keyword string) bool {
 	var filter models.ChatFilters
-	err := db.DB.Where("chat_id = ? AND LOWER(keyword) = LOWER(?)", chatId, keyword).Take(&filter).Error
+	collection := db.DB.Collection("filters")
+	// Using case-insensitive regex for LOWER check
+	err := collection.FindOne(context.Background(), bson.M{
+		"chat_id": chatId,
+		"keyword": bson.M{"$regex": "^" + keyword + "$", "$options": "i"},
+	}).Decode(&filter)
+
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == db.ErrRecordNotFound {
 			return false
 		}
 		log.Errorf("[Database] DoesFilterExists: %v - %d", err, chatId)
@@ -67,20 +71,17 @@ func DoesFilterExists(chatId int64, keyword string) bool {
 }
 
 // AddFilter creates a new filter in the database for the specified chat.
-// Does nothing if a filter with the same keyword already exists.
-// Invalidates the filter list cache after successful addition.
 func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []models.Button, filtType int) error {
-	// Check if filter already exists using optimized query
+	// Check if filter already exists
 	var existingFilter models.ChatFilters
-	err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Take(&existingFilter).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			log.Errorf("[Database][AddFilter] checking existence: %d - %v", chatID, err)
-			return err
-		}
-		// Filter doesn't exist, continue with creation
-	} else {
+	collection := db.DB.Collection("filters")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID, "keyword": keyWord}).Decode(&existingFilter)
+
+	if err == nil {
 		return nil // Filter already exists
+	} else if err != db.ErrRecordNotFound {
+		log.Errorf("[Database][AddFilter] checking existence: %d - %v", chatID, err)
+		return err
 	}
 
 	// add the filter
@@ -91,6 +92,8 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []models
 		MsgType:     filtType,
 		FileID:      fileID,
 		Buttons:     models.ButtonArray(buttons),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	err = db.CreateRecord(&newFilter)
@@ -105,27 +108,25 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []models
 }
 
 // RemoveFilter deletes a filter with the specified keyword from the chat.
-// Invalidates the filter list cache if a filter was successfully removed.
 func RemoveFilter(chatID int64, keyWord string) error {
-	// Directly attempt to delete the filter without checking existence first
-	result := db.DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Delete(&models.ChatFilters{})
-	if result.Error != nil {
-		log.Errorf("[Database][RemoveFilter]: %d - %v", chatID, result.Error)
-		return result.Error
+	collection := db.DB.Collection("filters")
+	result, err := collection.DeleteOne(context.Background(), bson.M{"chat_id": chatID, "keyword": keyWord})
+	if err != nil {
+		log.Errorf("[Database][RemoveFilter]: %d - %v", chatID, err)
+		return err
 	}
-	// result.RowsAffected will be 0 if no filter was found, which is fine
 
 	// Invalidate cache after removing filter
-	if result.RowsAffected > 0 {
+	if result.DeletedCount > 0 {
 		invalidateFilterCaches(chatID)
 	}
 	return nil
 }
 
 // RemoveAllFilters deletes all filters for the specified chat ID from the database.
-// Invalidates the filter list cache after successful removal.
 func RemoveAllFilters(chatID int64) error {
-	err := db.DB.Where("chat_id = ?", chatID).Delete(&models.ChatFilters{}).Error
+	collection := db.DB.Collection("filters")
+	_, err := collection.DeleteMany(context.Background(), bson.M{"chat_id": chatID})
 	if err != nil {
 		log.Errorf("[Database][RemoveAllFilters]: %d - %v", chatID, err)
 		return err
@@ -137,9 +138,9 @@ func RemoveAllFilters(chatID int64) error {
 }
 
 // CountFilters returns the total number of filters configured for the specified chat ID.
-// Returns 0 if an error occurs during the count operation.
 func CountFilters(chatID int64) (filtersNum int64) {
-	err := db.DB.Model(&models.ChatFilters{}).Where("chat_id = ?", chatID).Count(&filtersNum).Error
+	collection := db.DB.Collection("filters")
+	filtersNum, err := collection.CountDocuments(context.Background(), bson.M{"chat_id": chatID})
 	if err != nil {
 		log.Errorf("[Database][CountFilters]: %d - %v", chatID, err)
 	}
@@ -147,21 +148,24 @@ func CountFilters(chatID int64) (filtersNum int64) {
 }
 
 // LoadFilterStats returns statistics about filters across the entire system.
-// Returns the total number of filters and the number of distinct chats using filters.
 func LoadFilterStats() (filtersNum, filtersUsingChats int64) {
+	collection := db.DB.Collection("filters")
+
 	// Count total number of filters
-	err := db.DB.Model(&models.ChatFilters{}).Count(&filtersNum).Error
+	var err error
+	filtersNum, err = collection.CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		log.Errorf("[Database][LoadFilterStats] counting filters: %v", err)
 		return
 	}
 
 	// Count distinct chats using filters
-	err = db.DB.Model(&models.ChatFilters{}).Select("COUNT(DISTINCT chat_id)").Scan(&filtersUsingChats).Error
+	distinctChats, err := collection.Distinct(context.Background(), "chat_id", bson.M{})
 	if err != nil {
 		log.Errorf("[Database][LoadFilterStats] counting chats: %v", err)
 		return
 	}
+	filtersUsingChats = int64(len(distinctChats))
 
 	return
 }

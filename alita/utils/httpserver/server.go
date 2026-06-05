@@ -72,12 +72,9 @@ func checkDatabase() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	sqlDB, err := db.DB.DB()
-	if err != nil {
-		return false
-	}
-
-	return sqlDB.PingContext(ctx) == nil
+	// In MongoDB, we can just ping the client if we have a reference to it
+	// For now, let's just assume if db.DB is not nil, it's alive, or try a dummy operation
+	return db.MongoClient.Ping(ctx, nil) == nil
 }
 
 // checkRedis checks if the Redis connection is healthy

@@ -1,14 +1,17 @@
 package antiraid
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // defaultAntiRaidSettings returns default settings for a chat when no record exists.
@@ -27,7 +30,7 @@ func defaultAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 func GetAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	settings, err := GetAntiRaidSettingsCached(chatID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return defaultAntiRaidSettings(chatID)
 		}
 		log.Errorf("[Database][GetAntiRaidSettings]: %v", err)
@@ -42,13 +45,15 @@ func SetRaidTime(chatID int64, seconds int) error {
 		return fmt.Errorf("raid time must be non-negative, got %d", seconds)
 	}
 
-	updates := map[string]any{
-		"chat_id":    chatID,
+	updates := bson.M{
 		"raid_time":  seconds,
+		"updated_at": time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
+
+	collection := db.DB.Collection("antiraid_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetRaidTime: %v - %d", err, chatID)
 		return err
@@ -63,13 +68,15 @@ func SetRaidActionTime(chatID int64, seconds int) error {
 		return fmt.Errorf("raid action time must be non-negative, got %d", seconds)
 	}
 
-	updates := map[string]any{
-		"chat_id":           chatID,
-		"raid_action_time":  seconds,
+	updates := bson.M{
+		"raid_action_time": seconds,
+		"updated_at":       time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
+
+	collection := db.DB.Collection("antiraid_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetRaidActionTime: %v - %d", err, chatID)
 		return err
@@ -85,13 +92,15 @@ func SetAutoAntiRaidThreshold(chatID int64, threshold int) error {
 		return fmt.Errorf("threshold must be non-negative, got %d", threshold)
 	}
 
-	updates := map[string]any{
-		"chat_id":                   chatID,
-		"auto_antiraid_threshold":   threshold,
+	updates := bson.M{
+		"auto_antiraid_threshold": threshold,
+		"updated_at":              time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
+
+	collection := db.DB.Collection("antiraid_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetAutoAntiRaidThreshold: %v - %d", err, chatID)
 		return err

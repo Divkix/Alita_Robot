@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,7 +9,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetUserBasicInfo retrieves only essential user information with minimal column selection.
@@ -19,12 +21,16 @@ func GetUserBasicInfo(userID int64) (*models.User, error) {
 	}
 
 	var user models.User
-	err := db.DB.Model(&models.User{}).
-		Select("id, user_id, username, name, language, last_activity").
-		Where("user_id = ?", userID).
-		First(&user).Error
+	collection := db.DB.Collection("users")
+	err := collection.FindOne(context.Background(), bson.M{"user_id": userID}, options.FindOne().SetProjection(bson.M{
+		"user_id":       1,
+		"username":      1,
+		"name":          1,
+		"language":      1,
+		"last_activity": 1,
+	})).Decode(&user)
 
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && err != db.ErrRecordNotFound {
 		log.Errorf("[user.GetUserBasicInfo] GetUserBasicInfo: %v", err)
 	}
 
@@ -38,20 +44,20 @@ func GetUserBasicInfoCached(userID int64) (*models.User, error) {
 
 	cached, err := cache.GetFromCacheOrLoad(cacheKey, 1*time.Hour, func() (*models.User, error) {
 		user, err := GetUserBasicInfo(userID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return &models.User{UserId: -9999}, nil
 		}
 		return user, err
 	})
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, gorm.ErrRecordNotFound
+		if errors.Is(err, db.ErrRecordNotFound) {
+			return nil, db.ErrRecordNotFound
 		}
 		return GetUserBasicInfo(userID)
 	}
 
 	if cached != nil && cached.UserId == -9999 {
-		return nil, gorm.ErrRecordNotFound
+		return nil, db.ErrRecordNotFound
 	}
 
 	return cached, nil

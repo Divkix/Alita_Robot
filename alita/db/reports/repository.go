@@ -1,10 +1,12 @@
 package reports
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -12,19 +14,18 @@ import (
 )
 
 // GetChatReportSettings retrieves or creates default report settings for the specified chat.
-// Returns settings with reports enabled by default if no settings exist.
 func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) {
 	reportsrc = &models.ReportChatSettings{}
-	err := db.GetRecord(reportsrc, models.ReportChatSettings{ChatId: chatID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
+	err := db.GetRecord(reportsrc, bson.M{"chat_id": chatID})
+	if errors.Is(err, db.ErrRecordNotFound) {
+		// Ensure chat exists in database before creating settings
 		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatReportSettings: Failed to ensure chat exists for %d: %v", chatID, err)
 			return &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
 		}
 
 		// Create default settings
-		reportsrc = &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true}
+		reportsrc = &models.ReportChatSettings{ChatId: chatID, Enabled: true, Status: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 		err := db.CreateRecord(reportsrc)
 		if err != nil {
 			log.Error(err)
@@ -38,12 +39,12 @@ func GetChatReportSettings(chatID int64) (reportsrc *models.ReportChatSettings) 
 }
 
 // SetChatReportStatus updates the report feature status for the specified chat.
-// When disabled, users cannot report messages in this chat.
 func SetChatReportStatus(chatID int64, pref bool) error {
 	GetChatReportSettings(chatID)
-	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatID}, map[string]any{
-		"enabled": pref,
-		"status":  pref,
+	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, bson.M{"chat_id": chatID}, map[string]any{
+		"enabled":    pref,
+		"status":     pref,
+		"updated_at": time.Now(),
 	})
 	if err != nil {
 		log.Errorf("[Database] SetChatReportStatus: %v", err)
@@ -52,8 +53,6 @@ func SetChatReportStatus(chatID int64, pref bool) error {
 }
 
 // BlockReportUser adds a user to the chat's report block list.
-// Blocked users cannot send reports in the specified chat.
-// Does nothing if the user is already blocked.
 func BlockReportUser(chatId, userId int64) error {
 	settings := GetChatReportSettings(chatId)
 
@@ -66,7 +65,7 @@ func BlockReportUser(chatId, userId int64) error {
 
 	// Add user to blocked list
 	settings.BlockedList = append(settings.BlockedList, userId)
-	err := db.UpdateRecord(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatId}, models.ReportChatSettings{BlockedList: settings.BlockedList})
+	err := db.UpdateRecord(&models.ReportChatSettings{}, bson.M{"chat_id": chatId}, bson.M{"blocked_list": settings.BlockedList, "updated_at": time.Now()})
 	if err != nil {
 		log.Errorf("[Database] BlockReportUser: %v", err)
 	}
@@ -74,7 +73,6 @@ func BlockReportUser(chatId, userId int64) error {
 }
 
 // UnblockReportUser removes a user from the chat's report block list.
-// Allows the previously blocked user to send reports again.
 func UnblockReportUser(chatId, userId int64) error {
 	settings := GetChatReportSettings(chatId)
 
@@ -86,8 +84,9 @@ func UnblockReportUser(chatId, userId int64) error {
 		}
 	}
 
-	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatId}, map[string]any{
+	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, bson.M{"chat_id": chatId}, map[string]any{
 		"blocked_list": newBlockedList,
+		"updated_at":   time.Now(),
 	})
 	if err != nil {
 		log.Errorf("[Database] UnblockReportUser: %v", err)
@@ -96,13 +95,12 @@ func UnblockReportUser(chatId, userId int64) error {
 }
 
 // GetUserReportSettings retrieves or creates default report settings for the specified user.
-// Returns settings with reports enabled by default if no settings exist.
 func GetUserReportSettings(userId int64) (reportsrc *models.ReportUserSettings) {
 	reportsrc = &models.ReportUserSettings{}
-	err := db.GetRecord(reportsrc, models.ReportUserSettings{UserId: userId})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.GetRecord(reportsrc, bson.M{"user_id": userId})
+	if errors.Is(err, db.ErrRecordNotFound) {
 		// Create default settings
-		reportsrc = &models.ReportUserSettings{UserId: userId, Enabled: true, Status: true}
+		reportsrc = &models.ReportUserSettings{UserId: userId, Enabled: true, Status: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 		err := db.CreateRecord(reportsrc)
 		if err != nil {
 			log.Error(err)
@@ -117,12 +115,12 @@ func GetUserReportSettings(userId int64) (reportsrc *models.ReportUserSettings) 
 }
 
 // SetUserReportSettings updates the global report preference for the specified user.
-// When disabled, the user won't receive any report notifications.
 func SetUserReportSettings(userID int64, pref bool) error {
 	GetUserReportSettings(userID)
-	err := db.UpdateRecordWithZeroValues(&models.ReportUserSettings{}, models.ReportUserSettings{UserId: userID}, map[string]any{
-		"enabled": pref,
-		"status":  pref,
+	err := db.UpdateRecordWithZeroValues(&models.ReportUserSettings{}, bson.M{"user_id": userID}, map[string]any{
+		"enabled":    pref,
+		"status":     pref,
+		"updated_at": time.Now(),
 	})
 	if err != nil {
 		log.Errorf("[Database] SetUserReportSettings: %v", err)
@@ -131,19 +129,12 @@ func SetUserReportSettings(userID int64, pref bool) error {
 }
 
 // LoadReportStats returns statistics about report features across the system.
-// Returns the count of users and chats with reports enabled.
 func LoadReportStats() (uRCount, gRCount int64) {
-	// Count users with reports enabled
-	err := db.DB.Model(&models.ReportUserSettings{}).Where("enabled = ?", true).Count(&uRCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadReportStats (users): %v", err)
-	}
+	collectionUsers := db.DB.Collection("report_user_settings")
+	uRCount, _ = collectionUsers.CountDocuments(context.Background(), bson.M{"enabled": true})
 
-	// Count chats with reports enabled
-	err = db.DB.Model(&models.ReportChatSettings{}).Where("enabled = ?", true).Count(&gRCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadReportStats (chats): %v", err)
-	}
+	collectionChats := db.DB.Collection("report_chat_settings")
+	gRCount, _ = collectionChats.CountDocuments(context.Background(), bson.M{"enabled": true})
 
 	return
 }

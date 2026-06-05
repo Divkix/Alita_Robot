@@ -94,7 +94,7 @@ type Config struct {
 	ValidLangCodes     []string
 
 	// Database configuration
-	DatabaseURL string `validate:"required"`
+	MongoDBURL string `validate:"required"`
 
 	// Database connection pool configuration
 	DBMaxIdleConns       int `validate:"min=1,max=100"`
@@ -186,8 +186,8 @@ func ValidateConfig(cfg *Config) error {
 	if cfg.MessageDump == 0 {
 		return fmt.Errorf("MESSAGE_DUMP is required and must be greater than 0")
 	}
-	if cfg.DatabaseURL == "" {
-		return fmt.Errorf("DATABASE_URL is required")
+	if cfg.MongoDBURL == "" {
+		return fmt.Errorf("MONGO_DB_URL is required")
 	}
 	if cfg.RedisAddress == "" {
 		return fmt.Errorf("REDIS_ADDRESS or REDIS_URL is required")
@@ -276,7 +276,7 @@ func LoadConfig() (*Config, error) {
 		DropPendingUpdates: typeConvertor{str: os.Getenv("DROP_PENDING_UPDATES")}.Bool(),
 
 		// Database configuration
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		MongoDBURL: os.Getenv("MONGO_DB_URL"),
 
 		// Database connection pool configuration
 		DBMaxIdleConns:       typeConvertor{str: os.Getenv("DB_MAX_IDLE_CONNS")}.Int(),
@@ -499,7 +499,7 @@ func (cfg *Config) setDefaults() {
 		}
 	}
 
-	// DATABASE_URL is required - no default for security
+	// MONGO_DB_URL is required - no default for security
 	// This ensures production systems explicitly configure their database connection
 
 	// Set performance optimization defaults (enabled by default for better performance)

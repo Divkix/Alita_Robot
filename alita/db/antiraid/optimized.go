@@ -1,13 +1,15 @@
 package antiraid
 
 import (
+	"context"
 	"errors"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // getAntiRaidSettingsRaw retrieves anti-raid settings with minimal column selection.
@@ -17,12 +19,15 @@ func getAntiRaidSettingsRaw(chatID int64) (*models.AntiRaidSettings, error) {
 	}
 
 	var settings models.AntiRaidSettings
-	err := db.DB.Model(&models.AntiRaidSettings{}).
-		Select("id, chat_id, raid_time, raid_action_time, auto_antiraid_threshold").
-		Where("chat_id = ?", chatID).
-		First(&settings).Error
+	collection := db.DB.Collection("antiraid_settings")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID}, options.FindOne().SetProjection(bson.M{
+		"chat_id":                 1,
+		"raid_time":               1,
+		"raid_action_time":        1,
+		"auto_antiraid_threshold": 1,
+	})).Decode(&settings)
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err == db.ErrRecordNotFound {
 		return defaultAntiRaidSettings(chatID), nil
 	}
 	if err != nil {

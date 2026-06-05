@@ -1,10 +1,13 @@
 package connections
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -14,7 +17,7 @@ import (
 // ToggleAllowConnect enables or disables connection functionality for a chat.
 func ToggleAllowConnect(chatID int64, pref bool) {
 	GetChatConnectionSetting(chatID)
-	err := db.UpdateRecordWithZeroValues(&models.ConnectionChatSettings{}, models.ConnectionChatSettings{ChatId: chatID}, map[string]any{"allow_connect": pref})
+	err := db.UpdateRecordWithZeroValues(&models.ConnectionChatSettings{}, bson.M{"chat_id": chatID}, map[string]any{"allow_connect": pref, "updated_at": time.Now()})
 	if err != nil {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
 	}
@@ -24,16 +27,16 @@ func ToggleAllowConnect(chatID int64, pref bool) {
 // Creates default settings (disabled) if not found.
 func GetChatConnectionSetting(chatID int64) (connectionSrc *models.ConnectionChatSettings) {
 	connectionSrc = &models.ConnectionChatSettings{}
-	err := db.GetRecord(connectionSrc, models.ConnectionChatSettings{ChatId: chatID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Ensure chat exists in database before creating settings to satisfy foreign key constraint
+	err := db.GetRecord(connectionSrc, bson.M{"chat_id": chatID})
+	if errors.Is(err, db.ErrRecordNotFound) {
+		// Ensure chat exists in database before creating settings
 		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 			log.Errorf("[Database] GetChatConnectionSetting: Failed to ensure chat exists for %d: %v", chatID, err)
 			return &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
 		}
 
 		// Create default settings
-		connectionSrc = &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: false}
+		connectionSrc = &models.ConnectionChatSettings{ChatId: chatID, AllowConnect: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 		err := db.CreateRecord(connectionSrc)
 		if err != nil {
 			log.Errorf("[Database] GetChatConnectionSetting: %d - %v", chatID, err)
@@ -47,13 +50,11 @@ func GetChatConnectionSetting(chatID int64) (connectionSrc *models.ConnectionCha
 }
 
 // getUserConnectionSetting retrieves connection settings for a user.
-// Returns default settings (not connected) if not found, without creating a record.
-// This avoids violating foreign key constraints when ChatId would be 0.
 func getUserConnectionSetting(userID int64) (connectionSrc *models.ConnectionSettings) {
 	connectionSrc = &models.ConnectionSettings{}
-	err := db.GetRecord(connectionSrc, models.ConnectionSettings{UserId: userID})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Return default settings without creating a record to avoid FK violation with ChatId=0
+	err := db.GetRecord(connectionSrc, bson.M{"user_id": userID})
+	if errors.Is(err, db.ErrRecordNotFound) {
+		// Return default settings without creating a record
 		connectionSrc = &models.ConnectionSettings{UserId: userID, Connected: false}
 	} else if err != nil {
 		// Return default on error
@@ -65,14 +66,11 @@ func getUserConnectionSetting(userID int64) (connectionSrc *models.ConnectionSet
 }
 
 // Connection returns the connection settings for a user.
-// This is a wrapper around getUserConnectionSetting.
 func Connection(UserID int64) *models.ConnectionSettings {
 	return getUserConnectionSetting(UserID)
 }
 
 // ConnectId connects a user to a specific chat.
-// Sets the user's connection status to true and associates them with the chat.
-// Uses FirstOrCreate to handle both new and existing users.
 func ConnectId(UserID, chatID int64) {
 	if chatID == 0 {
 		log.WithFields(log.Fields{
@@ -82,51 +80,73 @@ func ConnectId(UserID, chatID int64) {
 		return
 	}
 
-	err := db.DB.Where("user_id = ?", UserID).Assign(models.ConnectionSettings{Connected: true, ChatId: chatID}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
+	collection := db.DB.Collection("connection")
+	filter := bson.M{"user_id": UserID}
+	update := bson.M{"$set": bson.M{
+		"connected":  true,
+		"chat_id":    chatID,
+		"updated_at": time.Now(),
+	}}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] ConnectId: %v - %d", err, chatID)
 	}
 }
 
 // DisconnectId disconnects a user from their current chat connection.
-// Sets the user's connection status to false.
-// Uses FirstOrCreate to ensure record exists before updating.
 func DisconnectId(UserID int64) {
-	err := db.DB.Where("user_id = ?", UserID).Assign(map[string]any{"connected": false}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
+	collection := db.DB.Collection("connection")
+	filter := bson.M{"user_id": UserID}
+	update := bson.M{"$set": bson.M{
+		"connected":  false,
+		"updated_at": time.Now(),
+	}}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 	}
 }
 
 // ReconnectId reconnects a user to their previously connected chat.
-// Returns the chat ID the user was reconnected to, or 0 if an error occurs.
-// Uses FirstOrCreate to ensure record exists before updating.
 func ReconnectId(UserID int64) int64 {
-	err := db.DB.Where("user_id = ?", UserID).Assign(models.ConnectionSettings{Connected: true}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
+	collection := db.DB.Collection("connection")
+	filter := bson.M{"user_id": UserID}
+	update := bson.M{"$set": bson.M{
+		"connected":  true,
+		"updated_at": time.Now(),
+	}}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] ReconnectId: %v - %d", err, UserID)
 		return 0
 	}
-	// Reload after update to get fresh data (not stale)
+	// Reload after update to get fresh data
 	connectionUpdate := Connection(UserID)
 	return connectionUpdate.ChatId
 }
 
 // LoadConnectionStats returns statistics about connection usage.
-// Returns the count of connected users and chats that allow connections.
 func LoadConnectionStats() (connectedUsers, connectedChats int64) {
+	var err error
+
 	// Count chats that allow connections
-	err := db.DB.Model(&models.ConnectionChatSettings{}).Where("allow_connect = ?", true).Count(&connectedChats).Error
+	collectionChats := db.DB.Collection("connection_settings")
+	connectedChats, err = collectionChats.CountDocuments(context.Background(), bson.M{"allow_connect": true})
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	// Count connected users
-	err = db.DB.Model(&models.ConnectionSettings{}).Where("connected = ?", true).Count(&connectedUsers).Error
+	collectionUsers := db.DB.Collection("connection")
+	connectedUsers, err = collectionUsers.CountDocuments(context.Background(), bson.M{"connected": true})
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	return

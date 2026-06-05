@@ -92,7 +92,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("BOT_TOKEN", "test-token")
 		t.Setenv("OWNER_ID", "12345")
 		t.Setenv("MESSAGE_DUMP", "67890")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("MONGO_DB_URL", "mongodb://localhost:27017/test")
 		t.Setenv("REDIS_ADDRESS", "redis:6379")
 		t.Setenv("REDIS_PASSWORD", "")
 		t.Setenv("REDIS_URL", "")
@@ -120,8 +120,8 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.MessageDump != 67890 {
 			t.Errorf("MessageDump: got %d, want %d", cfg.MessageDump, 67890)
 		}
-		if cfg.DatabaseURL != "postgres://localhost/test" {
-			t.Errorf("DatabaseURL: got %q, want %q", cfg.DatabaseURL, "postgres://localhost/test")
+		if cfg.MongoDBURL != "mongodb://localhost:27017/test" {
+			t.Errorf("MongoDBURL: got %q, want %q", cfg.MongoDBURL, "mongodb://localhost:27017/test")
 		}
 		if cfg.RedisAddress != "redis:6379" {
 			t.Errorf("RedisAddress: got %q, want %q", cfg.RedisAddress, "redis:6379")
@@ -156,7 +156,8 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("BOT_TOKEN", "tk")
 		t.Setenv("OWNER_ID", "1")
 		t.Setenv("MESSAGE_DUMP", "1")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("MONGO_DB_URL", "mongodb://localhost:27017/test")
+		t.Setenv("MONGO_DB_URL", "mongodb://localhost:27017/test")
 		t.Setenv("REDIS_ADDRESS", "localhost:6379")
 		t.Setenv("USE_WEBHOOKS", "true")
 		t.Setenv("WEBHOOK_DOMAIN", "example.com")
@@ -191,7 +192,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("BOT_TOKEN", "tk")
 		t.Setenv("OWNER_ID", "1")
 		t.Setenv("MESSAGE_DUMP", "1")
-		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("MONGO_DB_URL", "mongodb://localhost:27017/test")
 		t.Setenv("REDIS_ADDRESS", "localhost:6379")
 		t.Setenv("ENABLE_PPROF", "yes")
 		t.Setenv("HTTP_PORT", "8080")
@@ -240,8 +241,8 @@ func TestValidateConfigPure(t *testing.T) {
 		},
 		{
 			name:    "missing database URL",
-			setup:   func(c *Config) { c.DatabaseURL = "" },
-			wantErr: "DATABASE_URL is required",
+			setup:   func(c *Config) { c.MongoDBURL = "" },
+			wantErr: "MONGO_DB_URL is required",
 		},
 		{
 			name:    "missing redis address",

@@ -17,7 +17,7 @@ func validBaseConfig() *Config {
 		BotToken:                "test-token",
 		OwnerId:                 1,
 		MessageDump:             1,
-		DatabaseURL:             "postgres://localhost/test",
+		MongoDBURL:              "mongodb://localhost:27017/test",
 		RedisAddress:            "localhost:6379",
 		HTTPPort:                8080,
 		ChatValidationWorkers:   10,
@@ -62,8 +62,8 @@ func TestValidateConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "empty DatabaseURL returns error",
-			setup:   func(c *Config) { c.DatabaseURL = "" },
+			name:    "empty MongoDBURL returns error",
+			setup:   func(c *Config) { c.MongoDBURL = "" },
 			wantErr: true,
 		},
 		{

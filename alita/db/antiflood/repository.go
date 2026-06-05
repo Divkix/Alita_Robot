@@ -1,13 +1,16 @@
 package antiflood
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // default mode is 'mute'
@@ -24,7 +27,7 @@ func checkFloodSetting(chatID int64) (floodSrc *models.AntifloodSettings) {
 	// Use optimized cached query instead of SELECT *
 	floodSrc, err := GetAntifloodSettingsCached(chatID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			// Return default settings
 			return &models.AntifloodSettings{ChatId: chatID, Limit: 0, Action: defaultFloodsettingsMode}
 		}
@@ -48,15 +51,16 @@ func SetFlood(chatID int64, limit int) error {
 		action = defaultFloodsettingsMode
 	}
 
-	// Use map to ensure zero values (limit=0) are persisted
-	updates := map[string]any{
-		"chat_id":     chatID,
+	updates := bson.M{
 		"flood_limit": limit,
 		"action":      action,
+		"updated_at":  time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
+
+	collection := db.DB.Collection("antiflood_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetFlood: %v - %d", err, chatID)
 		return err
@@ -73,14 +77,16 @@ func SetFloodMode(chatID int64, mode string) error {
 	if floodSrc.Action == mode {
 		return nil
 	}
-	// Use map for consistency with other antiflood setters
-	updates := map[string]any{
-		"chat_id": chatID,
-		"action":  mode,
+
+	updates := bson.M{
+		"action":     mode,
+		"updated_at": time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
+
+	collection := db.DB.Collection("antiflood_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetFloodMode: %v - %d", err, chatID)
 		return err
@@ -97,14 +103,16 @@ func SetFloodMsgDel(chatID int64, val bool) error {
 	if floodSrc.DeleteAntifloodMessage == val {
 		return nil
 	}
-	// Use map to ensure zero values (val=false) are persisted
-	updates := map[string]any{
-		"chat_id":                  chatID,
+
+	updates := bson.M{
 		"delete_antiflood_message": val,
+		"updated_at":               time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
+
+	collection := db.DB.Collection("antiflood_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] SetFloodMsgDel: %v", err)
 		return err
@@ -116,24 +124,14 @@ func SetFloodMsgDel(chatID int64, val bool) error {
 
 // LoadAntifloodStats returns the count of chats with antiflood enabled (limit > 0).
 func LoadAntifloodStats() (antiCount int64) {
-	var totalCount int64
-	var noAntiCount int64
+	collection := db.DB.Collection("antiflood_settings")
 
-	// Count total antiflood settings
-	err := db.DB.Model(&models.AntifloodSettings{}).Count(&totalCount).Error
+	// Count settings with limit > 0
+	antiCount, err := collection.CountDocuments(context.Background(), bson.M{"flood_limit": bson.M{"$gt": 0}})
 	if err != nil {
 		log.Errorf("[Database] LoadAntifloodStats: %v", err)
 		return 0
 	}
 
-	// Count settings with limit 0 (disabled)
-	err = db.DB.Model(&models.AntifloodSettings{}).Where("flood_limit = ?", 0).Count(&noAntiCount).Error
-	if err != nil {
-		log.Errorf("[Database] LoadAntifloodStats: %v", err)
-		return 0
-	}
-
-	antiCount = totalCount - noAntiCount // gives chats which have enabled anti flood
-
-	return
+	return antiCount
 }

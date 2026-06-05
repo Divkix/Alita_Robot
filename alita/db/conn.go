@@ -1,22 +1,22 @@
 package db
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/db/migrations"
 )
 
 var (
-	DB *gorm.DB
+	MongoClient *mongo.Client
+	DB          *mongo.Database
 )
 
 // isCliModeActive returns true if the program is running with CLI flags
@@ -41,94 +41,63 @@ func init() {
 	if isCliModeActive() {
 		return
 	}
-	if os.Getenv("DATABASE_URL") == "" {
+	if os.Getenv("MONGO_DB_URL") == "" {
 		return
 	}
 
 	var err error
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	gormLogger := logger.New(
-		log.StandardLogger(),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Warn,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  false,
-		},
-	)
-
-	dsn := config.AppConfig.DatabaseURL
+	dsn := config.AppConfig.MongoDBURL
 	if dsn == "" {
-		dsn = os.Getenv("DATABASE_URL")
+		dsn = os.Getenv("MONGO_DB_URL")
 	}
+
+	clientOptions := options.Client().ApplyURI(dsn)
 
 	maxRetries := 5
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger:      gormLogger,
-			PrepareStmt: true,
-			NowFunc: func() time.Time {
-				return time.Now().UTC()
-			},
-		})
+		MongoClient, err = mongo.Connect(ctx, clientOptions)
 		if err == nil {
-			break
+			err = MongoClient.Ping(ctx, readpref.Primary())
+			if err == nil {
+				break
+			}
 		}
 
 		log.WithFields(log.Fields{
 			"attempt": attempt + 1,
 			"error":   err,
-		}).Warning("[Database][Connection] Failed to connect, retrying...")
+		}).Warning("[Database][Connection] Failed to connect to MongoDB, retrying...")
 
 		if attempt < maxRetries-1 {
 			time.Sleep(time.Duration(1<<attempt) * time.Second)
 		}
 	}
+
 	if err != nil {
 		log.Fatalf("[Database][Connection] Failed after %d attempts: %v", maxRetries, err)
 	}
 
-	sqlDB, err := DB.DB()
-	if err != nil {
-		log.Fatalf("[Database][SQL DB]: %v", err)
-	}
-
-	sqlDB.SetMaxIdleConns(config.AppConfig.DBMaxIdleConns)
-	sqlDB.SetMaxOpenConns(config.AppConfig.DBMaxOpenConns)
-	sqlDB.SetConnMaxLifetime(time.Duration(config.AppConfig.DBConnMaxLifetimeMin) * time.Minute)
-	sqlDB.SetConnMaxIdleTime(time.Duration(config.AppConfig.DBConnMaxIdleTimeMin) * time.Minute)
-
-	if err := sqlDB.Ping(); err != nil {
-		log.Fatalf("[Database][Ping]: %v", err)
-	}
-
-	log.Info("Connected to PostgreSQL database successfully!")
-
-	if config.AppConfig.AutoMigrate {
-		log.Info("[Database] AUTO_MIGRATE is enabled, running database migrations...")
-		runner := migrations.NewMigrationRunner(DB)
-		if err := runner.RunMigrations(); err != nil {
-			if config.AppConfig.AutoMigrateSilentFail {
-				log.Errorf("[Database][AutoMigrate] Migration failed but continuing: %v", err)
-			} else {
-				log.Fatalf("[Database][AutoMigrate] Migration failed: %v", err)
-			}
-		} else {
-			log.Info("[Database][AutoMigrate] All migrations applied successfully")
+	// Extract database name from connection string or use default
+	dbName := "alita_robot"
+	if parts := strings.Split(dsn, "/"); len(parts) > 3 {
+		if dbPart := strings.Split(parts[3], "?")[0]; dbPart != "" {
+			dbName = dbPart
 		}
-	} else {
-		log.Info("Database schema managed via SQL migrations - skipping auto-migration")
 	}
+
+	DB = MongoClient.Database(dbName)
+	log.Info("Connected to MongoDB database successfully!")
 }
 
 // Close closes the database connection gracefully.
 func Close() error {
-	if DB != nil {
-		sqlDB, err := DB.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get underlying SQL DB: %w", err)
-		}
-		return sqlDB.Close()
+	if MongoClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return MongoClient.Disconnect(ctx)
 	}
 	return nil
 }

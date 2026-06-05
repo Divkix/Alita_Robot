@@ -8,6 +8,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // ActivityMonitor handles automatic tracking and cleanup of chat activity
@@ -119,32 +120,36 @@ func (am *ActivityMonitor) performActivityCheck() {
 	// Find and mark inactive chats
 	inactiveThreshold := time.Now().Add(-am.inactivityThreshold)
 
-	result := db.DB.Model(&db.Chat{}).
-		Where("is_inactive = ? AND last_activity < ?", false, inactiveThreshold).
-		Update("is_inactive", true)
+	collection := db.DB.Collection("chats")
 
-	if result.Error != nil {
-		log.Errorf("[ActivityMonitor] Error marking inactive chats: %v", result.Error)
+	res, err := collection.UpdateMany(am.ctx, bson.M{
+		"is_inactive":   false,
+		"last_activity": bson.M{"$lt": inactiveThreshold},
+	}, bson.M{"$set": bson.M{"is_inactive": true, "updated_at": time.Now()}})
+
+	if err != nil {
+		log.Errorf("[ActivityMonitor] Error marking inactive chats: %v", err)
 		return
 	}
 
-	if result.RowsAffected > 0 {
+	if res.ModifiedCount > 0 {
 		log.Infof("[ActivityMonitor] Marked %d chats as inactive (no activity for %v)",
-			result.RowsAffected, am.inactivityThreshold)
+			res.ModifiedCount, am.inactivityThreshold)
 	}
 
 	// Reactivate chats that have recent activity
-	reactivateResult := db.DB.Model(&db.Chat{}).
-		Where("is_inactive = ? AND last_activity >= ?", true, inactiveThreshold).
-		Update("is_inactive", false)
+	reactivateRes, err := collection.UpdateMany(am.ctx, bson.M{
+		"is_inactive":   true,
+		"last_activity": bson.M{"$gte": inactiveThreshold},
+	}, bson.M{"$set": bson.M{"is_inactive": false, "updated_at": time.Now()}})
 
-	if reactivateResult.Error != nil {
-		log.Errorf("[ActivityMonitor] Error reactivating chats: %v", reactivateResult.Error)
+	if err != nil {
+		log.Errorf("[ActivityMonitor] Error reactivating chats: %v", err)
 		return
 	}
 
-	if reactivateResult.RowsAffected > 0 {
-		log.Infof("[ActivityMonitor] Reactivated %d chats with recent activity", reactivateResult.RowsAffected)
+	if reactivateRes.ModifiedCount > 0 {
+		log.Infof("[ActivityMonitor] Reactivated %d chats with recent activity", reactivateRes.ModifiedCount)
 	}
 
 	elapsed := time.Since(startTime)
@@ -152,7 +157,6 @@ func (am *ActivityMonitor) performActivityCheck() {
 }
 
 // calculateMetrics calculates activity metrics in parallel for improved performance.
-// Executes 9 database COUNT queries concurrently using goroutines.
 func (am *ActivityMonitor) calculateMetrics() {
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
@@ -164,56 +168,44 @@ func (am *ActivityMonitor) calculateMetrics() {
 	}
 
 	var wg sync.WaitGroup
+	collectionChats := db.DB.Collection("chats")
+	collectionUsers := db.DB.Collection("users")
 
 	// Group 1: Chat metrics (5 queries) - run in parallel
 	wg.Add(5)
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).
-			Count(&metrics.DailyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting daily active groups: %v", err)
-		}
+		metrics.DailyActiveGroups, _ = collectionChats.CountDocuments(am.ctx, bson.M{
+			"is_inactive":   false,
+			"last_activity": bson.M{"$gte": dayAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).
-			Count(&metrics.WeeklyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting weekly active groups: %v", err)
-		}
+		metrics.WeeklyActiveGroups, _ = collectionChats.CountDocuments(am.ctx, bson.M{
+			"is_inactive":   false,
+			"last_activity": bson.M{"$gte": weekAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).
-			Count(&metrics.MonthlyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting monthly active groups: %v", err)
-		}
+		metrics.MonthlyActiveGroups, _ = collectionChats.CountDocuments(am.ctx, bson.M{
+			"is_inactive":   false,
+			"last_activity": bson.M{"$gte": monthAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.Chat{}).Count(&metrics.TotalGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting total groups: %v", err)
-		}
+		metrics.TotalGroups, _ = collectionChats.CountDocuments(am.ctx, bson.M{})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ?", true).
-			Count(&metrics.InactiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting inactive groups: %v", err)
-		}
+		metrics.InactiveGroups, _ = collectionChats.CountDocuments(am.ctx, bson.M{"is_inactive": true})
 	}()
 
 	// Group 2: User metrics (4 queries) - run in parallel
@@ -221,40 +213,28 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", dayAgo).
-			Count(&metrics.DailyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting daily active users: %v", err)
-		}
+		metrics.DailyActiveUsers, _ = collectionUsers.CountDocuments(am.ctx, bson.M{
+			"last_activity": bson.M{"$gte": dayAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", weekAgo).
-			Count(&metrics.WeeklyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting weekly active users: %v", err)
-		}
+		metrics.WeeklyActiveUsers, _ = collectionUsers.CountDocuments(am.ctx, bson.M{
+			"last_activity": bson.M{"$gte": weekAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", monthAgo).
-			Count(&metrics.MonthlyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting monthly active users: %v", err)
-		}
+		metrics.MonthlyActiveUsers, _ = collectionUsers.CountDocuments(am.ctx, bson.M{
+			"last_activity": bson.M{"$gte": monthAgo},
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := db.DB.Model(&db.User{}).Count(&metrics.TotalUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting total users: %v", err)
-		}
+		metrics.TotalUsers, _ = collectionUsers.CountDocuments(am.ctx, bson.M{})
 	}()
 
 	// Wait for all queries to complete

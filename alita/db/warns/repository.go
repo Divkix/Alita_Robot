@@ -3,32 +3,34 @@ package warns
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // checkWarnSettings retrieves or creates default warn settings for a chat.
-// Returns default settings with warn limit 3 and mute mode if the chat doesn't exist.
 func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
 	defaultWarnSettings := &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
 	warnrc = &models.WarnSettings{}
-	err := db.DB.Where("chat_id = ?", chatID).First(warnrc).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.GetRecord(warnrc, bson.M{"chat_id": chatID})
+	if errors.Is(err, db.ErrRecordNotFound) {
 		// Ensure chat exists before creating warn settings
 		if !db.ChatExists(chatID) {
-			// Chat doesn't exist, return default settings without creating record
 			log.Warnf("[Database][checkWarnSettings]: Chat %d doesn't exist, returning default settings", chatID)
 			return defaultWarnSettings
 		}
 
 		// Create default settings only if chat exists
 		warnrc = defaultWarnSettings
-		err := db.DB.Create(warnrc).Error
+		warnrc.CreatedAt = time.Now()
+		warnrc.UpdatedAt = time.Now()
+		err := db.CreateRecord(warnrc)
 		if err != nil {
 			log.Errorf("[Database] checkWarnSettings: %v", err)
 		}
@@ -40,22 +42,22 @@ func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
 }
 
 // checkWarns retrieves or creates default warn record for a user in a specific chat.
-// Returns default record with 0 warns if the chat doesn't exist or user has no warns.
 func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
 	defaultWarnSrc := &models.Warns{UserId: userId, ChatId: chatId, NumWarns: 0, Reasons: make(models.StringArray, 0)}
 	warnrc = &models.Warns{}
-	err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := db.GetRecord(warnrc, bson.M{"user_id": userId, "chat_id": chatId})
+	if errors.Is(err, db.ErrRecordNotFound) {
 		// Ensure chat exists before creating warn record
 		if !db.ChatExists(chatId) {
-			// Chat doesn't exist, return default settings without creating record
 			log.Warnf("[Database][checkWarns]: Chat %d doesn't exist, returning default settings", chatId)
 			return defaultWarnSrc
 		}
 
 		// Create default record only if chat exists
 		warnrc = defaultWarnSrc
-		err := db.DB.Create(warnrc).Error
+		warnrc.CreatedAt = time.Now()
+		warnrc.UpdatedAt = time.Now()
+		err := db.CreateRecord(warnrc)
 		if err != nil {
 			log.Errorf("[Database] checkWarns: %v", err)
 		}
@@ -67,149 +69,101 @@ func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
 }
 
 // WarnUser adds a warning to a user in a specific chat with an optional reason.
-// Returns the total number of warnings and all warning reasons for the user.
 func WarnUser(userId, chatId int64, reason string) (int, []string) {
 	return WarnUserWithContext(context.Background(), userId, chatId, reason)
 }
 
 // WarnUserWithContext adds a warning to a user with context support for cancellation.
-// Uses database transactions to ensure data consistency and supports context cancellation.
-// Returns the total number of warnings and all warning reasons for the user.
 func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason string) (int, []string) {
-	var numWarns int
-	var reasons []string
+	// MongoDB doesn't use the same transaction pattern as GORM easily without replica sets.
+	// For simplicity and compatibility, we'll use findOneAndUpdate or atomic updates.
 
-	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Check warn settings within transaction
-		warnSettings := &models.WarnSettings{}
-		if err := tx.Where("chat_id = ?", chatId).First(warnSettings).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create default settings
-				warnSettings = &models.WarnSettings{ChatId: chatId, WarnLimit: 3}
-				if err := tx.Create(warnSettings).Error; err != nil {
-					return err
-				}
-			}
+	collectionSettings := db.DB.Collection("warns_settings")
+	opts := options.Update().SetUpsert(true)
+	_, _ = collectionSettings.UpdateOne(ctx, bson.M{"chat_id": chatId}, bson.M{"$setOnInsert": bson.M{"warn_limit": 3, "warn_mode": "mute", "created_at": time.Now()}}, opts)
+
+	if reason == "" {
+		tr := i18n.MustNewTranslator("en")
+		reason, _ = tr.GetString("db_warn_no_reason")
+		if reason == "" {
+			reason = "No Reason"
 		}
+	}
+	if len(reason) >= 3001 {
+		reason = reason[:3000]
+	}
 
-		// Check warns within transaction
-		warnrc := &models.Warns{}
-		if err := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new warn record
-				warnrc = &models.Warns{UserId: userId, ChatId: chatId}
-			}
-		}
+	collectionWarns := db.DB.Collection("warns_users")
+	filter := bson.M{"user_id": userId, "chat_id": chatId}
+	update := bson.M{
+		"$inc": bson.M{"num_warns": 1},
+		"$push": bson.M{"warns": reason},
+		"$set": bson.M{"updated_at": time.Now()},
+		"$setOnInsert": bson.M{"created_at": time.Now()},
+	}
 
-		warnrc.NumWarns++ // Increment warns
+	var warnrc models.Warns
+	err := collectionWarns.FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)).Decode(&warnrc)
 
-		// Add reason
-		if reason != "" {
-			if len(reason) >= 3001 {
-				reason = reason[:3000]
-			}
-			warnrc.Reasons = append(warnrc.Reasons, reason)
-		} else {
-			// Use default language for "No Reason" - this could be improved to use chat language
-			tr := i18n.MustNewTranslator("en")
-			noReason, _ := tr.GetString("db_warn_no_reason")
-			if noReason == "" {
-				noReason = "No Reason" // fallback
-			}
-			warnrc.Reasons = append(warnrc.Reasons, noReason)
-		}
-
-		// Save the warn record
-		if err := tx.Save(warnrc).Error; err != nil {
-			return err
-		}
-
-		numWarns = warnrc.NumWarns
-		reasons = []string(warnrc.Reasons)
-		return nil
-	})
 	if err != nil {
 		log.Errorf("[Database] WarnUser: %v", err)
 		return 0, []string{}
 	}
 
-	// Invalidate cache after successful transaction
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 
-	return numWarns, reasons
+	return warnrc.NumWarns, []string(warnrc.Reasons)
 }
 
 // RemoveWarn removes the most recent warning from a user in a specific chat.
-// Returns true if a warning was successfully removed, false otherwise.
 func RemoveWarn(userId, chatId int64) bool {
 	return RemoveWarnWithContext(context.Background(), userId, chatId)
 }
 
 // RemoveWarnWithContext removes the most recent warning with context support.
-// Uses database transactions to ensure data consistency and supports context cancellation.
-// Returns true if a warning was successfully removed, false otherwise.
 func RemoveWarnWithContext(ctx context.Context, userId, chatId int64) bool {
-	var removed bool
+	collection := db.DB.Collection("warns_users")
 
-	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		warnrc := &models.Warns{}
-		if err := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// No warns to remove
-				removed = false
-				return nil
-			}
-			return err
-		}
+	// We need to get the current state to pop the last reason correctly if we want to mimic the previous behavior exactly.
+	// MongoDB's $pop only removes from ends, but we also decrement num_warns.
 
-		// only remove if user has warns
-		if warnrc.NumWarns > 0 {
-			warnrc.NumWarns-- // Remove last warn num
-			if len(warnrc.Reasons) > 0 {
-				warnrc.Reasons = warnrc.Reasons[:len(warnrc.Reasons)-1] // Remove last warn reason
-			}
-			removed = true
+	filter := bson.M{"user_id": userId, "chat_id": chatId, "num_warns": bson.M{"$gt": 0}}
+	update := bson.M{
+		"$inc": bson.M{"num_warns": -1},
+		"$pop": bson.M{"warns": 1}, // Removes the last element
+		"$set": bson.M{"updated_at": time.Now()},
+	}
 
-			// update record in db within transaction
-			if err := tx.Save(warnrc).Error; err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+	res, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		log.Errorf("[Database] RemoveWarn: %v", err)
 		return false
 	}
 
-	// Invalidate cache after successful transaction
-	if removed {
+	if res.ModifiedCount > 0 {
 		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 		cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+		return true
 	}
 
-	return removed
+	return false
 }
 
 // ResetUserWarns removes all warnings for a specific user in a chat.
-// Returns true if the operation was successful, false on error.
 func ResetUserWarns(userId, chatId int64) (removed bool) {
-	removed = true
-	err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{}).Error
+	collection := db.DB.Collection("warns_users")
+	_, err := collection.DeleteOne(context.Background(), bson.M{"user_id": userId, "chat_id": chatId})
 	if err != nil {
 		log.Errorf("[Database] ResetUserWarns: %v", err)
-		removed = false
-		return removed
+		return false
 	}
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
-	return removed
+	return true
 }
 
 // GetWarns retrieves the current warning count and reasons for a user in a specific chat.
-// Results are cached to avoid repeated database queries.
 func GetWarns(userId, chatId int64) (int, []string) {
 	type warnCache struct {
 		NumWarns int
@@ -231,37 +185,30 @@ func GetWarns(userId, chatId int64) (int, []string) {
 }
 
 // SetWarnLimit updates the warning limit for a specific chat.
-// When users reach this limit, the configured warn mode action is applied.
 func SetWarnLimit(chatId int64, warnLimit int) error {
-	warnrc := checkWarnSettings(chatId)
-	warnrc.WarnLimit = warnLimit
-	err := db.DB.Save(warnrc).Error
+	collection := db.DB.Collection("warns_settings")
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": bson.M{"warn_limit": warnLimit, "updated_at": time.Now()}}, options.Update().SetUpsert(true))
 	if err != nil {
 		log.Errorf("[Database] SetWarnLimit: %v", err)
 		return err
 	}
-	// Invalidate cache after successful update
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	return nil
 }
 
 // SetWarnMode updates the action to take when users reach the warning limit.
-// Common modes include "mute", "kick", "ban".
 func SetWarnMode(chatId int64, warnMode string) error {
-	warnrc := checkWarnSettings(chatId)
-	warnrc.WarnMode = warnMode
-	err := db.DB.Save(warnrc).Error
+	collection := db.DB.Collection("warns_settings")
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": bson.M{"warn_mode": warnMode, "updated_at": time.Now()}}, options.Update().SetUpsert(true))
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
 		return err
 	}
-	// Invalidate cache after successful update
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	return nil
 }
 
 // GetWarnSetting returns the warning settings for the specified chat.
-// This is the public interface to access warning configuration.
 func GetWarnSetting(chatId int64) *models.WarnSettings {
 	cached, err := cache.GetFromCacheOrLoad(
 		cache.CacheKey("warn_settings", chatId),
@@ -277,10 +224,9 @@ func GetWarnSetting(chatId int64) *models.WarnSettings {
 }
 
 // GetAllChatWarns returns the total count of warned users in a specific chat.
-// Used for administrative statistics and monitoring.
 func GetAllChatWarns(chatId int64) int {
-	var count int64
-	err := db.DB.Model(&models.Warns{}).Where("chat_id = ?", chatId).Count(&count).Error
+	collection := db.DB.Collection("warns_users")
+	count, err := collection.CountDocuments(context.Background(), bson.M{"chat_id": chatId})
 	if err != nil {
 		log.Errorf("[Database] GetAllChatWarns: %v", err)
 		return 0
@@ -289,22 +235,27 @@ func GetAllChatWarns(chatId int64) int {
 }
 
 // ResetAllChatWarns removes all warning records for all users in a specific chat.
-// Returns true if the operation was successful, false on error.
 func ResetAllChatWarns(chatId int64) bool {
-	// Collect user IDs before deletion so we can invalidate per-user caches
-	var userIds []int64
-	if err := db.DB.Model(&models.Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
-		log.Errorf("[Database] ResetAllChatWarns: %v", err)
-		return false
+	collection := db.DB.Collection("warns_users")
+
+	// Collect user IDs before deletion
+	cursor, err := collection.Find(context.Background(), bson.M{"chat_id": chatId}, options.Find().SetProjection(bson.M{"user_id": 1}))
+	if err == nil {
+		var results []struct {
+			UserID int64 `bson:"user_id"`
+		}
+		if err := cursor.All(context.Background(), &results); err == nil {
+			for _, res := range results {
+				cache.DeleteCache(cache.CacheKey("warns", res.UserID, chatId))
+			}
+		}
+		cursor.Close(context.Background())
 	}
 
-	err := db.DB.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
+	_, err = collection.DeleteMany(context.Background(), bson.M{"chat_id": chatId})
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return false
-	}
-	for _, userId := range userIds {
-		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	}
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	return true

@@ -1,11 +1,12 @@
 package greetings
 
 import (
-	"errors"
+	"context"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -15,60 +16,22 @@ import (
 )
 
 // checkGreetingSettings retrieves or creates default greeting settings for a chat.
-// Used internally before performing any greeting-related operation.
-// Returns default settings if the chat doesn't exist in the database.
 func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) {
 	greetingSrc = &models.GreetingSettings{}
-	err := db.GetRecord(greetingSrc, map[string]any{"chat_id": chatID})
+	err := db.GetRecord(greetingSrc, bson.M{"chat_id": chatID})
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err == db.ErrRecordNotFound {
 		// Ensure chat exists before creating greeting settings
 		if !db.ChatExists(chatID) {
 			// Chat doesn't exist, return default settings without creating record
 			log.Warnf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
-			return &models.GreetingSettings{
-				ChatID:             chatID,
-				ShouldCleanService: false,
-				WelcomeSettings: &models.WelcomeSettings{
-					LastMsgId:     0,
-					CleanWelcome:  false,
-					ShouldWelcome: true,
-					WelcomeText:   db.DefaultWelcome,
-					WelcomeType:   db.TEXT,
-					Button:        models.ButtonArray{},
-				},
-				GoodbyeSettings: &models.GoodbyeSettings{
-					LastMsgId:     0,
-					CleanGoodbye:  false,
-					ShouldGoodbye: false,
-					GoodbyeText:   db.DefaultGoodbye,
-					GoodbyeType:   db.TEXT,
-					Button:        models.ButtonArray{},
-				},
-			}
+			return defaultGreetingSettings(chatID)
 		}
 
 		// Create default settings only if chat exists
-		greetingSrc = &models.GreetingSettings{
-			ChatID:             chatID,
-			ShouldCleanService: false,
-			WelcomeSettings: &models.WelcomeSettings{
-				LastMsgId:     0,
-				CleanWelcome:  false,
-				ShouldWelcome: true,
-				WelcomeText:   db.DefaultWelcome,
-				WelcomeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-			GoodbyeSettings: &models.GoodbyeSettings{
-				LastMsgId:     0,
-				CleanGoodbye:  false,
-				ShouldGoodbye: false,
-				GoodbyeText:   db.DefaultGoodbye,
-				GoodbyeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-		}
+		greetingSrc = defaultGreetingSettings(chatID)
+		greetingSrc.CreatedAt = time.Now()
+		greetingSrc.UpdatedAt = time.Now()
 
 		err := db.CreateRecord(greetingSrc)
 		if err != nil {
@@ -77,29 +40,10 @@ func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) 
 	} else if err != nil {
 		log.Errorf("[Database][checkGreetingSettings]: %v", err)
 		// Return default settings on error
-		greetingSrc = &models.GreetingSettings{
-			ChatID:             chatID,
-			ShouldCleanService: false,
-			WelcomeSettings: &models.WelcomeSettings{
-				LastMsgId:     0,
-				CleanWelcome:  false,
-				ShouldWelcome: true,
-				WelcomeText:   db.DefaultWelcome,
-				WelcomeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-			GoodbyeSettings: &models.GoodbyeSettings{
-				LastMsgId:     0,
-				CleanGoodbye:  false,
-				ShouldGoodbye: false,
-				GoodbyeText:   db.DefaultGoodbye,
-				GoodbyeType:   db.TEXT,
-				Button:        models.ButtonArray{},
-			},
-		}
+		greetingSrc = defaultGreetingSettings(chatID)
 	}
 
-	// Ensure WelcomeSettings and GoodbyeSettings are initialized even for existing records
+	// Ensure WelcomeSettings and GoodbyeSettings are initialized
 	if greetingSrc.WelcomeSettings == nil {
 		greetingSrc.WelcomeSettings = &models.WelcomeSettings{
 			LastMsgId:     0,
@@ -110,7 +54,6 @@ func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) 
 			Button:        models.ButtonArray{},
 		}
 	} else if greetingSrc.WelcomeSettings.WelcomeText == "" {
-		// Set default welcome text if it's empty (for existing records with empty text)
 		greetingSrc.WelcomeSettings.WelcomeText = db.DefaultWelcome
 	}
 
@@ -124,21 +67,42 @@ func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) 
 			Button:        models.ButtonArray{},
 		}
 	} else if greetingSrc.GoodbyeSettings.GoodbyeText == "" {
-		// Set default goodbye text if it's empty (for existing records with empty text)
 		greetingSrc.GoodbyeSettings.GoodbyeText = db.DefaultGoodbye
 	}
 
 	return greetingSrc
 }
 
+func defaultGreetingSettings(chatID int64) *models.GreetingSettings {
+	return &models.GreetingSettings{
+		ChatID:             chatID,
+		ShouldCleanService: false,
+		WelcomeSettings: &models.WelcomeSettings{
+			LastMsgId:     0,
+			CleanWelcome:  false,
+			ShouldWelcome: true,
+			WelcomeText:   db.DefaultWelcome,
+			WelcomeType:   db.TEXT,
+			Button:        models.ButtonArray{},
+		},
+		GoodbyeSettings: &models.GoodbyeSettings{
+			LastMsgId:     0,
+			CleanGoodbye:  false,
+			ShouldGoodbye: false,
+			GoodbyeText:   db.DefaultGoodbye,
+			GoodbyeType:   db.TEXT,
+			Button:        models.ButtonArray{},
+		},
+		ShouldAutoApprove: false,
+	}
+}
+
 // GetGreetingSettings returns the greeting settings for the specified chat ID.
-// This is the public interface to access greeting settings.
 func GetGreetingSettings(chatID int64) *models.GreetingSettings {
 	return checkGreetingSettings(chatID)
 }
 
 // GetWelcomeButtons retrieves the welcome message buttons for the specified chat.
-// Returns an empty slice if no buttons are configured or settings are missing.
 func GetWelcomeButtons(chatId int64) []models.Button {
 	greetingSettings := checkGreetingSettings(chatId)
 	if greetingSettings.WelcomeSettings != nil {
@@ -148,7 +112,6 @@ func GetWelcomeButtons(chatId int64) []models.Button {
 }
 
 // GetGoodbyeButtons retrieves the goodbye message buttons for the specified chat.
-// Returns an empty slice if no buttons are configured or settings are missing.
 func GetGoodbyeButtons(chatId int64) []models.Button {
 	greetingSettings := checkGreetingSettings(chatId)
 	if greetingSettings.GoodbyeSettings != nil {
@@ -157,47 +120,68 @@ func GetGoodbyeButtons(chatId int64) []models.Button {
 	return []models.Button{}
 }
 
-func defaultGreetingSettingsAttrs(chatID int64) map[string]any {
-	return map[string]any{
-		"chat_id":                chatID,
-		"clean_service_settings": false,
-		"welcome_enabled":        true,
-		"welcome_text":           db.DefaultWelcome,
-		"welcome_type":           db.TEXT,
-		"welcome_btns":           models.ButtonArray{},
-		"goodbye_enabled":        false,
-		"goodbye_text":           db.DefaultGoodbye,
-		"goodbye_type":           db.TEXT,
-		"goodbye_btns":           models.ButtonArray{},
-		"auto_approve":           false,
-	}
-}
-
 func upsertGreetingSettings(chatID int64, updates map[string]any) error {
 	if !db.ChatExists(chatID) {
 		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
 			return alitaerrors.Wrapf(err, "ensure chat %d in db", chatID)
 		}
 	}
-	updates["updated_at"] = time.Now()
-	settings := models.GreetingSettings{}
-	if err := db.DB.Where("chat_id = ?", chatID).
-		Attrs(defaultGreetingSettingsAttrs(chatID)).
-		FirstOrCreate(&settings).Error; err != nil {
-		return alitaerrors.Wrapf(err, "first-or-create greeting settings for chat %d", chatID)
+
+	collection := db.DB.Collection("greetings")
+
+	// Create MongoDB update document from map
+	mongoUpdate := bson.M{}
+	for k, v := range updates {
+		// Map GORM column names to BSON field names if necessary
+		// In GreetingSettings, some fields are embedded, so we need to map them correctly.
+		switch k {
+		case "welcome_text":
+			mongoUpdate["welcome_settings.text"] = v
+		case "welcome_btns":
+			mongoUpdate["welcome_settings.btns"] = v
+		case "welcome_type":
+			mongoUpdate["welcome_settings.type"] = v
+		case "welcome_file_id":
+			mongoUpdate["welcome_settings.file_id"] = v
+		case "welcome_enabled":
+			mongoUpdate["welcome_settings.enabled"] = v
+		case "goodbye_text":
+			mongoUpdate["goodbye_settings.text"] = v
+		case "goodbye_btns":
+			mongoUpdate["goodbye_settings.btns"] = v
+		case "goodbye_type":
+			mongoUpdate["goodbye_settings.type"] = v
+		case "goodbye_file_id":
+			mongoUpdate["goodbye_settings.file_id"] = v
+		case "goodbye_enabled":
+			mongoUpdate["goodbye_settings.enabled"] = v
+		case "welcome_clean_old":
+			mongoUpdate["welcome_settings.clean_old"] = v
+		case "welcome_last_msg_id":
+			mongoUpdate["welcome_settings.last_msg_id"] = v
+		case "goodbye_clean_old":
+			mongoUpdate["goodbye_settings.clean_old"] = v
+		case "goodbye_last_msg_id":
+			mongoUpdate["goodbye_settings.last_msg_id"] = v
+		case "clean_service_settings":
+			mongoUpdate["clean_service_settings"] = v
+		case "auto_approve":
+			mongoUpdate["auto_approve"] = v
+		default:
+			mongoUpdate[k] = v
+		}
 	}
-	if err := db.DB.Model(&models.GreetingSettings{}).
-		Where("chat_id = ?", chatID).
-		Updates(updates).Error; err != nil {
+	mongoUpdate["updated_at"] = time.Now()
+
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatID}, bson.M{"$set": mongoUpdate}, opts)
+	if err != nil {
 		return alitaerrors.Wrapf(err, "update greeting settings for chat %d", chatID)
 	}
 	return nil
 }
 
 // SetWelcomeText updates the welcome message text, file ID, buttons, and type for a chat.
-// Creates default greeting settings if they don't exist.
-//
-//nolint:dupl // SetGoodbyeText has similar structure but different struct fields
 func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []models.Button, welcType int) error {
 	updates := map[string]any{
 		"welcome_text":    welcometxt,
@@ -218,7 +202,6 @@ func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []models.Bu
 }
 
 // SetWelcomeToggle enables or disables welcome messages for the specified chat.
-// Creates default greeting settings if they don't exist.
 func SetWelcomeToggle(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"welcome_enabled": pref,
@@ -236,9 +219,6 @@ func SetWelcomeToggle(chatID int64, pref bool) error {
 }
 
 // SetGoodbyeText updates the goodbye message text, file ID, buttons, and type for a chat.
-// Creates default greeting settings if they don't exist.
-//
-//nolint:dupl // SetGoodbyeText has similar structure to SetWelcomeText but different struct fields
 func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []models.Button, goodbyeType int) error {
 	updates := map[string]any{
 		"goodbye_text":    goodbyetext,
@@ -259,7 +239,6 @@ func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []models.B
 }
 
 // SetGoodbyeToggle enables or disables goodbye messages for the specified chat.
-// Creates default greeting settings if they don't exist.
 func SetGoodbyeToggle(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"goodbye_enabled": pref,
@@ -277,7 +256,6 @@ func SetGoodbyeToggle(chatID int64, pref bool) error {
 }
 
 // SetShouldCleanService sets whether service messages should be automatically cleaned in the chat.
-// Creates default greeting settings if they don't exist.
 func SetShouldCleanService(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"clean_service_settings": pref,
@@ -295,7 +273,6 @@ func SetShouldCleanService(chatID int64, pref bool) error {
 }
 
 // SetShouldAutoApprove sets whether new members should be automatically approved in the chat.
-// Creates default greeting settings if they don't exist.
 func SetShouldAutoApprove(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"auto_approve": pref,
@@ -313,7 +290,6 @@ func SetShouldAutoApprove(chatID int64, pref bool) error {
 }
 
 // SetCleanWelcomeSetting sets whether old welcome messages should be automatically cleaned.
-// Creates default greeting settings if they don't exist.
 func SetCleanWelcomeSetting(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"welcome_clean_old": pref,
@@ -331,7 +307,6 @@ func SetCleanWelcomeSetting(chatID int64, pref bool) error {
 }
 
 // SetCleanWelcomeMsgId updates the message ID of the last welcome message for cleanup purposes.
-// Creates default greeting settings if they don't exist.
 func SetCleanWelcomeMsgId(chatId, msgId int64) error {
 	updates := map[string]any{
 		"welcome_last_msg_id": msgId,
@@ -349,7 +324,6 @@ func SetCleanWelcomeMsgId(chatId, msgId int64) error {
 }
 
 // SetCleanGoodbyeSetting sets whether old goodbye messages should be automatically cleaned.
-// Creates default greeting settings if they don't exist.
 func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
 	updates := map[string]any{
 		"goodbye_clean_old": pref,
@@ -367,7 +341,6 @@ func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
 }
 
 // SetCleanGoodbyeMsgId updates the message ID of the last goodbye message for cleanup purposes.
-// Creates default greeting settings if they don't exist.
 func SetCleanGoodbyeMsgId(chatId, msgId int64) error {
 	updates := map[string]any{
 		"goodbye_last_msg_id": msgId,
@@ -385,33 +358,14 @@ func SetCleanGoodbyeMsgId(chatId, msgId int64) error {
 }
 
 // LoadGreetingsStats returns statistics about greeting features across all chats.
-// Returns counts for enabled welcome messages, goodbye messages, clean service, clean welcome, and clean goodbye features.
 func LoadGreetingsStats() (enabledWelcome, enabledGoodbye, cleanServiceEnabled, cleanWelcomeEnabled, cleanGoodbyeEnabled int64) {
-	// Use a single query with COUNT and CASE WHEN for better performance
-	type greetingStats struct {
-		EnabledWelcome      int64
-		EnabledGoodbye      int64
-		CleanServiceEnabled int64
-		CleanWelcomeEnabled int64
-		CleanGoodbyeEnabled int64
-	}
+	collection := db.DB.Collection("greetings")
 
-	var stats greetingStats
-	query := `
-		SELECT
-			COUNT(CASE WHEN welcome_enabled = true THEN 1 END) as enabled_welcome,
-			COUNT(CASE WHEN goodbye_enabled = true THEN 1 END) as enabled_goodbye,
-			COUNT(CASE WHEN clean_service_settings = true THEN 1 END) as clean_service_enabled,
-			COUNT(CASE WHEN welcome_clean_old = true THEN 1 END) as clean_welcome_enabled,
-			COUNT(CASE WHEN goodbye_clean_old = true THEN 1 END) as clean_goodbye_enabled
-		FROM greetings
-	`
+	enabledWelcome, _ = collection.CountDocuments(context.Background(), bson.M{"welcome_settings.enabled": true})
+	enabledGoodbye, _ = collection.CountDocuments(context.Background(), bson.M{"goodbye_settings.enabled": true})
+	cleanServiceEnabled, _ = collection.CountDocuments(context.Background(), bson.M{"clean_service_settings": true})
+	cleanWelcomeEnabled, _ = collection.CountDocuments(context.Background(), bson.M{"welcome_settings.clean_old": true})
+	cleanGoodbyeEnabled, _ = collection.CountDocuments(context.Background(), bson.M{"goodbye_settings.clean_old": true})
 
-	err := db.DB.Raw(query).Scan(&stats).Error
-	if err != nil {
-		log.Errorf("[Database][LoadGreetingsStats] querying stats: %v", err)
-		return 0, 0, 0, 0, 0
-	}
-
-	return stats.EnabledWelcome, stats.EnabledGoodbye, stats.CleanServiceEnabled, stats.CleanWelcomeEnabled, stats.CleanGoodbyeEnabled
+	return
 }

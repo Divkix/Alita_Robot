@@ -1,17 +1,18 @@
 package locks
 
 import (
+	"context"
+	"time"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm/clause"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetChatLocks retrieves all lock settings for a specific chat ID.
-// Uses optimized queries with caching for better performance.
-// Returns an empty map if no locks are found or an error occurs.
 func GetChatLocks(chatID int64) map[string]bool {
 	// Use optimized query with caching
 	locks, err := GetChatLocksOptimized(chatID)
@@ -24,20 +25,13 @@ func GetChatLocks(chatID int64) map[string]bool {
 }
 
 // UpdateLock atomically upserts a lock record for the given chat and permission type.
-// Uses INSERT ... ON CONFLICT DO UPDATE for atomicity under concurrent writes.
-// Invalidates the cache after successful update to ensure immediate enforcement.
-// Returns an error if the database operation fails.
 func UpdateLock(chatID int64, perm string, val bool) error {
-	record := models.LockSettings{
-		ChatId:   chatID,
-		LockType: perm,
-		Locked:   val,
-	}
+	collection := db.DB.Collection("locks")
+	filter := bson.M{"chat_id": chatID, "lock_type": perm}
+	update := bson.M{"$set": bson.M{"locked": val, "updated_at": time.Now()}}
+	opts := options.Update().SetUpsert(true)
 
-	err := db.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "lock_type"}},
-		DoUpdates: clause.AssignmentColumns([]string{"locked"}),
-	}).Create(&record).Error
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
 		log.Errorf("[Database] UpdateLock: %v", err)
 		return err
@@ -49,7 +43,6 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 }
 
 // InvalidateLockCache removes the cached lock status for a specific chat and lock type.
-// Should be called after updating a lock to ensure immediate enforcement.
 func InvalidateLockCache(chatID int64, lockType string) {
 	m := utilsCache.GetMarshal()
 	if m == nil {
@@ -64,8 +57,6 @@ func InvalidateLockCache(chatID int64, lockType string) {
 }
 
 // IsPermLocked checks whether a specific permission type is locked in the given chat.
-// Uses optimized cached queries for better performance.
-// Returns false if the permission is not locked or an error occurs.
 func IsPermLocked(chatID int64, perm string) bool {
 	// Use optimized cached query
 	locked, err := GetLockStatusCached(chatID, perm)

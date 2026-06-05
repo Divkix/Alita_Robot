@@ -4,13 +4,13 @@ import "time"
 
 // BlacklistSettings represents blacklist settings for a chat
 type BlacklistSettings struct {
-	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	ChatId    int64     `gorm:"column:chat_id;not null;index:idx_blacklist_chat_word" json:"chat_id,omitempty"`
-	Word      string    `gorm:"column:word;not null;index:idx_blacklist_chat_word" json:"word,omitempty"`
-	Action    string    `gorm:"column:action;default:'warn';check:chk_blacklist_action,action IN ('warn','mute','ban','kick','tban','tmute','delete','none')" json:"action,omitempty"`
-	Reason    string    `gorm:"column:reason" json:"reason,omitempty"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-" bson:"-"`
+	ChatId    int64     `gorm:"column:chat_id;not null;index:idx_blacklist_chat_word" json:"chat_id,omitempty" bson:"chat_id"`
+	Word      string    `gorm:"column:word;not null;index:idx_blacklist_chat_word" json:"word,omitempty" bson:"word"`
+	Action    string    `gorm:"column:action;default:'warn';check:chk_blacklist_action,action IN ('warn','mute','ban','kick','tban','tmute','delete','none')" json:"action,omitempty" bson:"action"`
+	Reason    string    `gorm:"column:reason" json:"reason,omitempty" bson:"reason"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at,omitempty" bson:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty" bson:"updated_at"`
 }
 
 // BlacklistSettingsSlice is a custom type for []*BlacklistSettings with additional methods

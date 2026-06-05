@@ -1,13 +1,15 @@
 package antiflood
 
 import (
+	"context"
 	"errors"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetAntifloodSettings retrieves antiflood settings with minimal column selection.
@@ -22,12 +24,15 @@ func GetAntifloodSettings(chatID int64) (*models.AntifloodSettings, error) {
 	}
 
 	var settings models.AntifloodSettings
-	err := db.DB.Model(&models.AntifloodSettings{}).
-		Select("id, chat_id, flood_limit, action, delete_antiflood_message").
-		Where("chat_id = ?", chatID).
-		First(&settings).Error
+	collection := db.DB.Collection("antiflood_settings")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID}, options.FindOne().SetProjection(bson.M{
+		"chat_id":                  1,
+		"flood_limit":              1,
+		"action":                   1,
+		"delete_antiflood_message": 1,
+	})).Decode(&settings)
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err == db.ErrRecordNotFound {
 		return &models.AntifloodSettings{
 			ChatId: chatID,
 			Limit:  0,

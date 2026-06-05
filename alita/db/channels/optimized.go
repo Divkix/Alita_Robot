@@ -1,13 +1,15 @@
 package channels
 
 import (
+	"context"
 	"errors"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // getChannelSettingsRaw retrieves channel settings with all relevant columns.
@@ -18,13 +20,16 @@ func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
 	}
 
 	var settings models.ChannelSettings
-	err := db.DB.Model(&models.ChannelSettings{}).
-		Select("id, chat_id, channel_id, channel_name, username").
-		Where("chat_id = ?", chatID).
-		First(&settings).Error
+	collection := db.DB.Collection("channels")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID}, options.FindOne().SetProjection(bson.M{
+		"chat_id":      1,
+		"channel_id":   1,
+		"channel_name": 1,
+		"username":     1,
+	})).Decode(&settings)
 
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err == db.ErrRecordNotFound {
 			return nil, nil
 		}
 		log.Errorf("[OptimizedChannelQueries] getChannelSettingsRaw: %v", err)

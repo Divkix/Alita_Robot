@@ -1,9 +1,13 @@
 package disabling
 
 import (
+	"context"
 	"slices"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -11,15 +15,14 @@ import (
 )
 
 // DisableCMD disables a command in a specific chat.
-// Creates a new disable setting record with disabled status set to true.
-// Invalidates cache to ensure consistency.
-// Returns an error if the database operation fails.
 func DisableCMD(chatID int64, cmd string) error {
 	// Create a new disable setting
 	disableSetting := &models.DisableSettings{
-		ChatId:   chatID,
-		Command:  cmd,
-		Disabled: true,
+		ChatId:    chatID,
+		Command:   cmd,
+		Disabled:  true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	err := db.CreateRecord(disableSetting)
@@ -34,11 +37,9 @@ func DisableCMD(chatID int64, cmd string) error {
 }
 
 // EnableCMD enables a command in a specific chat.
-// Removes the disable setting record for the command.
-// Invalidates cache to ensure consistency.
-// Returns an error if the database operation fails.
 func EnableCMD(chatID int64, cmd string) error {
-	err := db.DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&models.DisableSettings{}).Error
+	collection := db.DB.Collection("disable")
+	_, err := collection.DeleteOne(context.Background(), bson.M{"chat_id": chatID, "command": cmd})
 	if err != nil {
 		log.Errorf("[Database][EnableCMD]: %v", err)
 		return err
@@ -50,10 +51,9 @@ func EnableCMD(chatID int64, cmd string) error {
 }
 
 // GetChatDisabledCMDs retrieves all disabled commands for a chat.
-// Returns an empty slice if no disabled commands are found or on error.
 func GetChatDisabledCMDs(chatId int64) []string {
 	var disableSettings []*models.DisableSettings
-	err := db.GetRecords(&disableSettings, models.DisableSettings{ChatId: chatId, Disabled: true})
+	err := db.GetRecords(&disableSettings, bson.M{"chat_id": chatId, "disabled": true})
 	if err != nil {
 		log.Errorf("[Database] GetChatDisabledCMDs: %v - %d", err, chatId)
 		return []string{}
@@ -67,7 +67,6 @@ func GetChatDisabledCMDs(chatId int64) []string {
 }
 
 // GetChatDisabledCMDsCached retrieves all disabled commands for a chat with caching.
-// Uses cache with TTL to avoid database queries on every command check.
 func GetChatDisabledCMDsCached(chatId int64) []string {
 	cacheKey := cache.CacheKey("disabled_cmds", chatId)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLDisabledCmds, func() ([]string, error) {
@@ -81,8 +80,6 @@ func GetChatDisabledCMDsCached(chatId int64) []string {
 }
 
 // IsCommandDisabled checks if a specific command is disabled in a chat.
-// Returns true if the command is in the chat's disabled commands list.
-// Uses cached version for better performance.
 func IsCommandDisabled(chatId int64, cmd string) bool {
 	return slices.Contains(GetChatDisabledCMDsCached(chatId), cmd)
 }
@@ -93,16 +90,16 @@ func invalidateDisabledCommandsCache(chatID int64) {
 }
 
 // ToggleDel toggles the automatic deletion of disabled commands in a chat.
-// Updates the DeleteCommands setting for the chat.
-// Returns an error if the database operation fails.
 func ToggleDel(chatId int64, pref bool) error {
-	updates := map[string]any{
-		"chat_id":         chatId,
+	updates := bson.M{
 		"delete_commands": pref,
+		"updated_at":      time.Now(),
 	}
-	err := db.DB.Where("chat_id = ?", chatId).
-		Assign(updates).
-		FirstOrCreate(&models.DisableChatSettings{}).Error
+
+	collection := db.DB.Collection("disable_chat_settings")
+	opts := options.Update().SetUpsert(true)
+	_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": updates}, opts)
+
 	if err != nil {
 		log.Errorf("[Database] ToggleDel: %v", err)
 		return err
@@ -111,33 +108,37 @@ func ToggleDel(chatId int64, pref bool) error {
 }
 
 // ShouldDel checks if automatic command deletion is enabled for a chat.
-// Returns false if the setting is not found or on error.
 func ShouldDel(chatId int64) bool {
 	var settings models.DisableChatSettings
-	err := db.GetRecord(&settings, models.DisableChatSettings{ChatId: chatId})
+	err := db.GetRecord(&settings, bson.M{"chat_id": chatId})
 	if err != nil {
-		log.Errorf("[Database] ShouldDel: %v", err)
+		if err != db.ErrRecordNotFound {
+			log.Errorf("[Database] ShouldDel: %v", err)
+		}
 		return false
 	}
 	return settings.DeleteCommands
 }
 
 // LoadDisableStats returns statistics about disabled commands.
-// Returns the total number of disabled commands and distinct chats using command disabling.
 func LoadDisableStats() (disabledCmds, disableEnabledChats int64) {
+	collection := db.DB.Collection("disable")
+
 	// Count total disabled commands
-	err := db.DB.Model(&models.DisableSettings{}).Where("disabled = ?", true).Count(&disabledCmds).Error
+	var err error
+	disabledCmds, err = collection.CountDocuments(context.Background(), bson.M{"disabled": true})
 	if err != nil {
 		log.Errorf("[Database] LoadDisableStats (commands): %v", err)
 		return 0, 0
 	}
 
 	// Count distinct chats with disabled commands
-	err = db.DB.Model(&models.DisableSettings{}).Where("disabled = ?", true).Distinct("chat_id").Count(&disableEnabledChats).Error
+	distinctChats, err := collection.Distinct(context.Background(), "chat_id", bson.M{"disabled": true})
 	if err != nil {
 		log.Errorf("[Database] LoadDisableStats (chats): %v", err)
 		return disabledCmds, 0
 	}
+	disableEnabledChats = int64(len(distinctChats))
 
 	return
 }

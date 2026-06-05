@@ -10,7 +10,7 @@ services:
     container_name: alita-robot
     restart: always
     environment:
-      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
+      MONGO_DB_URL: mongodb://mongo:27017/alita
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: redis
       AUTO_MIGRATE: "false"
@@ -25,7 +25,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -43,19 +43,14 @@ services:
           memory: 256M
           cpus: "0.25"
 
-  postgres:
-    image: postgres:17-alpine
-    container_name: alita-postgres
+  mongo:
+    image: mongo:latest
+    container_name: alita-mongo
     restart: always
-    environment:
-      POSTGRES_USER: alita
-      POSTGRES_PASSWORD: alita
-      POSTGRES_DB: alita
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -82,4 +77,4 @@ services:
           cpus: "0.25"
 
 volumes:
-  postgres_data:
+  mongo_data:

@@ -1,13 +1,15 @@
 package chats
 
 import (
+	"context"
 	"errors"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ChatCacheEntry is an explicit cache payload that avoids magic sentinel values.
@@ -24,12 +26,17 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 	}
 
 	var chat models.Chat
-	err := db.DB.Model(&models.Chat{}).
-		Select("id, chat_id, chat_name, language, users, is_inactive, last_activity").
-		Where("chat_id = ?", chatID).
-		First(&chat).Error
+	collection := db.DB.Collection("chats")
+	err := collection.FindOne(context.Background(), bson.M{"chat_id": chatID}, options.FindOne().SetProjection(bson.M{
+		"chat_id":       1,
+		"chat_name":     1,
+		"language":      1,
+		"users":         1,
+		"is_inactive":   1,
+		"last_activity": 1,
+	})).Decode(&chat)
 
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && err != db.ErrRecordNotFound {
 		log.Errorf("[chats.GetChatBasicInfo] GetChatBasicInfo: %v", err)
 	}
 
@@ -43,7 +50,7 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 
 	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (ChatCacheEntry, error) {
 		chat, err := GetChatBasicInfo(chatID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return ChatCacheEntry{Found: false, Chat: nil}, nil
 		}
 		if err != nil {
@@ -57,14 +64,14 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 		if dbErr == nil {
 			return chat, nil
 		}
-		if errors.Is(dbErr, gorm.ErrRecordNotFound) {
-			return nil, gorm.ErrRecordNotFound
+		if errors.Is(dbErr, db.ErrRecordNotFound) {
+			return nil, db.ErrRecordNotFound
 		}
 		return nil, dbErr
 	}
 
 	if !cached.Found {
-		return nil, gorm.ErrRecordNotFound
+		return nil, db.ErrRecordNotFound
 	}
 
 	return cached.Chat, nil

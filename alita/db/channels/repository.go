@@ -1,6 +1,7 @@
 package channels
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,7 +9,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetChannelSettings retrieves channel settings from cache or database.
@@ -17,7 +20,7 @@ func GetChannelSettings(channelId int64) (channelSrc *models.ChannelSettings) {
 	// Use optimized cached query instead of SELECT *
 	channelSrc, err := GetChannelSettingsCached(channelId)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			return nil
 		}
 		log.Errorf("[Database] GetChannelSettings: %v - %d", err, channelId)
@@ -37,7 +40,7 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 	if channelSrc != nil && channelSrc.ChatId != 0 {
 		// Channel exists - check if update is needed
 		needsUpdate := false
-		updates := make(map[string]any)
+		updates := bson.M{}
 
 		if channelSrc.ChannelName != channelName && channelName != "" {
 			updates["channel_name"] = channelName
@@ -50,7 +53,8 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 
 		if needsUpdate {
 			updates["updated_at"] = now
-			err := db.DB.Model(&models.ChannelSettings{}).Where("chat_id = ?", channelId).Updates(updates).Error
+			collection := db.DB.Collection("channels")
+			_, err := collection.UpdateOne(context.Background(), bson.M{"chat_id": channelId}, bson.M{"$set": updates})
 			if err != nil {
 				log.Errorf("[Database] UpdateChannel: failed to update %d: %v", channelId, err)
 				return err
@@ -62,7 +66,7 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 	}
 
 	// Create new channel with full metadata
-	channelSrc = &models.ChannelSettings{
+	newChannel := &models.ChannelSettings{
 		ChatId:      channelId,
 		ChannelId:   channelId,
 		ChannelName: channelName,
@@ -70,7 +74,8 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	err := db.DB.Create(channelSrc).Error
+
+	err := db.CreateRecord(newChannel)
 	if err != nil {
 		log.Errorf("[Database] UpdateChannel: failed to create %d (%s): %v", channelId, username, err)
 		return err
@@ -87,19 +92,17 @@ func GetChannelIdByUserName(username string) int64 {
 		return 0
 	}
 
-	var chatId int64
-	err := db.DB.Model(&models.ChannelSettings{}).
-		Select("chat_id").
-		Where("username = ?", username).
-		Scan(&chatId).Error
+	var channel models.ChannelSettings
+	collection := db.DB.Collection("channels")
+	err := collection.FindOne(context.Background(), bson.M{"username": username}, options.FindOne().SetProjection(bson.M{"chat_id": 1})).Decode(&channel)
 
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if err != mongo.ErrNoDocuments {
 			log.Errorf("[Database] GetChannelIdByUserName: %v - %s", err, username)
 		}
 		return 0
 	}
-	return chatId
+	return channel.ChatId
 }
 
 // GetChannelInfoById retrieves channel information by channel ID.
@@ -116,7 +119,8 @@ func GetChannelInfoById(channelId int64) (username, name string, found bool) {
 
 // LoadChannelStats returns the total count of channel settings records.
 func LoadChannelStats() (count int64) {
-	err := db.DB.Model(&models.ChannelSettings{}).Count(&count).Error
+	collection := db.DB.Collection("channels")
+	count, err := collection.CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		log.Errorf("[Database] loadChannelStats: %v", err)
 		return 0

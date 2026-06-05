@@ -1,12 +1,14 @@
 package blacklists
 
 import (
+	"context"
 	"strings"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // AddBlacklist adds a new blacklist word to a chat with default 'warn' action.
@@ -36,14 +38,15 @@ func AddBlacklist(chatId int64, trigger string) error {
 // The trigger is converted to lowercase before removal.
 // Returns an error if the database operation fails.
 func RemoveBlacklist(chatId int64, trigger string) error {
-	result := db.DB.Where("chat_id = ? AND word = ?", chatId, strings.ToLower(trigger)).Delete(&models.BlacklistSettings{})
-	if result.Error != nil {
-		log.Errorf("[Database] RemoveBlacklist: %v - %d", result.Error, chatId)
-		return result.Error
+	collection := db.DB.Collection("blacklists")
+	result, err := collection.DeleteOne(context.Background(), bson.M{"chat_id": chatId, "word": strings.ToLower(trigger)})
+	if err != nil {
+		log.Errorf("[Database] RemoveBlacklist: %v - %d", err, chatId)
+		return err
 	}
 
 	// Invalidate cache if something was deleted
-	if result.RowsAffected > 0 {
+	if result.DeletedCount > 0 {
 		cache.DeleteCache(cache.CacheKey("blacklist", chatId))
 	}
 	return nil
@@ -52,7 +55,8 @@ func RemoveBlacklist(chatId int64, trigger string) error {
 // RemoveAllBlacklist removes all blacklist entries for a specific chat.
 // Returns an error if the database operation fails.
 func RemoveAllBlacklist(chatId int64) error {
-	err := db.DB.Where("chat_id = ?", chatId).Delete(&models.BlacklistSettings{}).Error
+	collection := db.DB.Collection("blacklists")
+	_, err := collection.DeleteMany(context.Background(), bson.M{"chat_id": chatId})
 	if err != nil {
 		log.Errorf("[Database] RemoveAllBlacklist: %v - %d", err, chatId)
 		return err
@@ -66,7 +70,8 @@ func RemoveAllBlacklist(chatId int64) error {
 // SetBlacklistAction updates the action for all blacklist entries in a chat.
 // The action is converted to lowercase before storage.
 func SetBlacklistAction(chatId int64, action string) error {
-	err := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action)).Error
+	collection := db.DB.Collection("blacklists")
+	_, err := collection.UpdateMany(context.Background(), bson.M{"chat_id": chatId}, bson.M{"$set": bson.M{"action": strings.ToLower(action)}})
 	if err != nil {
 		log.Errorf("[Database] SetBlacklistAction: %v - %d", err, chatId)
 		return err
@@ -84,7 +89,7 @@ func GetBlacklistSettings(chatId int64) models.BlacklistSettingsSlice {
 	cacheKey := cache.CacheKey("blacklist", chatId)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLBlacklist, func() (models.BlacklistSettingsSlice, error) {
 		var blacklists []*models.BlacklistSettings
-		err := db.GetRecords(&blacklists, models.BlacklistSettings{ChatId: chatId})
+		err := db.GetRecords(&blacklists, bson.M{"chat_id": chatId})
 		if err != nil {
 			log.Errorf("[Database] GetBlacklistSettings: %v - %d", err, chatId)
 			return models.BlacklistSettingsSlice{}, err
@@ -100,19 +105,23 @@ func GetBlacklistSettings(chatId int64) models.BlacklistSettingsSlice {
 // LoadBlacklistsStats returns statistics about blacklist usage.
 // Returns the total number of blacklist entries and distinct chats using blacklists.
 func LoadBlacklistsStats() (blacklistTriggers, blacklistChats int64) {
+	collection := db.DB.Collection("blacklists")
+
 	// Count total blacklist entries
-	err := db.DB.Model(&models.BlacklistSettings{}).Count(&blacklistTriggers).Error
+	var err error
+	blacklistTriggers, err = collection.CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		log.Errorf("[Database] LoadBlacklistsStats (triggers): %v", err)
 		return 0, 0
 	}
 
 	// Count distinct chats with blacklists
-	err = db.DB.Model(&models.BlacklistSettings{}).Distinct("chat_id").Count(&blacklistChats).Error
+	distinctChats, err := collection.Distinct(context.Background(), "chat_id", bson.M{})
 	if err != nil {
 		log.Errorf("[Database] LoadBlacklistsStats (chats): %v", err)
 		return blacklistTriggers, 0
 	}
+	blacklistChats = int64(len(distinctChats))
 
 	return
 }
