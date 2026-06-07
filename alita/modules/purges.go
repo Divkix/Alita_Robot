@@ -64,15 +64,21 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		}
 	}
 
+	// When !pFrom, msgId was already deleted above; skip it in the loop.
+	loopFrom := msgId
+	if !pFrom {
+		loopFrom = msgId + 1
+	}
+
 	// Calculate total messages to delete
-	totalMessages := deleteTo - msgId + 1
+	totalMessages := deleteTo - loopFrom + 1
 	if totalMessages <= 0 {
 		return true
 	}
 
 	// For small ranges, use sequential deletion
 	if totalMessages <= 10 {
-		for mId := deleteTo; mId >= msgId; mId-- {
+		for mId := deleteTo; mId >= loopFrom; mId-- {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, mId)
 		}
 		return true
@@ -87,7 +93,7 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 	var wg sync.WaitGroup
 
 	// Delete messages concurrently
-	for mId := deleteTo; mId >= msgId; mId-- {
+	for mId := deleteTo; mId >= loopFrom; mId-- {
 		wg.Add(1)
 		worker.sem <- struct{}{} // Acquire semaphore
 

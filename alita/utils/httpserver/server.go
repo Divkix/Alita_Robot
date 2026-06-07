@@ -282,12 +282,15 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			textPreview = textPreview[:maxPreviewLen] + "..."
 		}
 
-		span.SetAttributes(
+		attrs := []attribute.KeyValue{
 			attribute.Int64("message.chat_id", update.Message.Chat.Id),
-			attribute.Int64("message.from_id", update.Message.From.Id),
 			attribute.Int("message.text_length", len(text)),
 			attribute.String("message.text_preview", textPreview),
-		)
+		}
+		if update.Message.From != nil {
+			attrs = append(attrs, attribute.Int64("message.from_id", update.Message.From.Id))
+		}
+		span.SetAttributes(attrs...)
 	} else if update.CallbackQuery != nil {
 		span.SetAttributes(
 			attribute.String("callback_query.id", update.CallbackQuery.Id),

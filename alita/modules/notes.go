@@ -769,7 +769,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// if note does not exist, continue groups
 	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
-		return ext.EndGroups
+		return ext.ContinueGroups
 	}
 
 	noteData := notes.GetNote(chat.Id, noteName)

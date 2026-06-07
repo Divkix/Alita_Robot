@@ -192,6 +192,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
 			return erredit
 		}
+		_, _ = query.Answer(b, nil)
 	case "no":
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("pins_unpin_all_cancelled")
@@ -204,6 +205,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)
 			return err
 		}
+		_, _ = query.Answer(b, nil)
 	default:
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})

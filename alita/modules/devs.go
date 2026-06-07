@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -102,14 +101,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	tmpFile, err := os.CreateTemp("", "chatlist-*.txt")
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	defer func() { _ = tmpFile.Close() }()
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-
 	allChats := chats.GetAllChats()
 
 	var sb strings.Builder
@@ -119,19 +110,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err = tmpFile.WriteString(sb.String())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	openedFile, err := os.Open(tmpFile.Name())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	defer func() { _ = openedFile.Close() }()
-
 	_, err = rMsg.Delete(b, nil)
 	if err != nil {
 		log.Error(err)
@@ -140,7 +118,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	_, err = b.SendDocument(
 		chat.Id,
-		gotgbot.InputFileByReader("chatlist.txt", openedFile),
+		gotgbot.InputFileByReader("chatlist.txt", strings.NewReader(sb.String())),
 		&gotgbot.SendDocumentOpts{
 			Caption: func() string { caption, _ := tr.GetString("devs_chat_list_caption"); return caption }(),
 			ReplyParameters: &gotgbot.ReplyParameters{
@@ -374,8 +352,15 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 		for userId, uPerm := range teamUsers {
 			reqUser, err := b.GetChat(userId, nil)
 			if err != nil {
-				log.Error(err)
-				return err
+				log.Errorf("[Devs] GetChat failed for user %d: %v", userId, err)
+				userMentioned := formatting.MentionHtml(userId, fmt.Sprintf("%d", userId))
+				switch uPerm {
+				case "dev":
+					devUsers = append(devUsers, fmt.Sprintf("• %s", userMentioned))
+				case "sudo":
+					sudoUsers = append(sudoUsers, fmt.Sprintf("• %s", userMentioned))
+				}
+				continue
 			}
 
 			userMentioned := formatting.MentionHtml(reqUser.Id, formatting.GetFullName(reqUser.FirstName, reqUser.LastName))

@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -176,54 +175,6 @@ func extractFromReply(c *moderationCtx) (target, error) {
 // it sends the i18n error message and returns a non-nil error.
 type validateTargetFn func(c *moderationCtx, t *target) error
 
-// defaultTargetValidation checks:
-//  1. user is in chat
-//  2. user is not ban-protected
-//  3. user is not the bot itself
-//
-// defaultTargetValidation checks the resolved target before executing the action.
-//
-//nolint:unused
-func defaultTargetValidation(c *moderationCtx, t *target) error {
-	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_user_not_in_chat")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_user_not_in_chat")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return fmt.Errorf("user not in chat")
-	}
-	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_cannot_target_admin")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_admin")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return fmt.Errorf("target is admin")
-	}
-	if t.userID == c.Bot.Id {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_self_error")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_self")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return fmt.Errorf("target is bot")
-	}
-	return nil
-}
-
 // actionFn performs the moderation API call.
 // It receives the moderationCtx and the validated target.
 type actionFn func(c *moderationCtx, t *target) error
@@ -305,14 +256,6 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
-}
-
-// MentionHtml is a local alias to avoid importing helpers in every moderation handler file.
-// _mentionHtml is a local wrapper.
-//
-//nolint:unused
-func _mentionHtml(userId int64, name string) string {
-	return formatting.MentionHtml(userId, name)
 }
 
 // Sentinel errors used by moderation command templates.

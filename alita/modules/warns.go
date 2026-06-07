@@ -304,7 +304,7 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	var warnusr int64
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.Id == userId {
 		warnusr = msg.ReplyToMessage.From.Id
 	} else {
 		warnusr = userId

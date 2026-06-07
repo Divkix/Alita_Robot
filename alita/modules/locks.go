@@ -390,6 +390,19 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Early exit: skip API call if no restriction-type locks are active for this chat.
+	chatLocks := locks.GetChatLocks(chat.Id)
+	hasActiveLock := false
+	for restrKey := range restrMap {
+		if chatLocks[restrKey] {
+			hasActiveLock = true
+			break
+		}
+	}
+	if !hasActiveLock {
+		return ext.ContinueGroups
+	}
+
 	// Get sender ID - works for both users and channels
 	senderID := sender.Id()
 
@@ -442,6 +455,19 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Skip if sender is nil (shouldn't happen but be safe)
 	if sender == nil {
+		return ext.ContinueGroups
+	}
+
+	// Early exit: skip API call if no permission-type locks are active for this chat.
+	chatLocks := locks.GetChatLocks(chat.Id)
+	hasActiveLock := false
+	for permKey := range lockMap {
+		if chatLocks[permKey] {
+			hasActiveLock = true
+			break
+		}
+	}
+	if !hasActiveLock {
 		return ext.ContinueGroups
 	}
 

@@ -52,6 +52,9 @@ type floodControl struct {
 	lastActivity int64 // Unix timestamp for cleanup
 }
 
+// floodMu stores per-key *sync.Mutex values to protect the RMW cycle in updateFlood.
+var floodMu sync.Map
+
 var _normalAntifloodModule = moduleStruct{
 	moduleName:   "Antiflood",
 	handlerGroup: 4,
@@ -111,6 +114,13 @@ func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish
 
 		// Use type-safe struct key instead of string concatenation
 		key := floodKey{chatId: chatId, userId: userId}
+
+		// Acquire per-key mutex to protect the Load → mutate → Store RMW cycle
+		muVal, _ := floodMu.LoadOrStore(key, &sync.Mutex{})
+		mu := muVal.(*sync.Mutex)
+		mu.Lock()
+		defer mu.Unlock()
+
 		tmpInterface, valExists := a.syncHelperMap.Load(key)
 		if valExists && tmpInterface != nil {
 			floodCrc = tmpInterface.(floodControl)
@@ -319,6 +329,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if firstError != nil {
+			log.Warnf("[Antiflood] Some flood messages could not be deleted (may be too old): %v", firstError)
 			return firstError
 		}
 	} else {

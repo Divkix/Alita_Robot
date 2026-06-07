@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
@@ -39,7 +38,6 @@ var (
 	antiRaidModule = antiRaidStruct{
 		moduleStruct: moduleStruct{moduleName: "AntiRaid", handlerGroup: -5},
 	}
-	antiRaidMu     sync.Mutex // package-level mutex for state mutations
 	antiRaidCtx    context.Context
 	antiRaidCancel context.CancelFunc
 )
@@ -50,10 +48,9 @@ type antiRaidStruct struct {
 
 // raidState stores the serialized raid state in Redis.
 type raidState struct {
-	Active      bool    `json:"active"`
-	StartedAt   int64   `json:"started_at"`   // unix seconds
-	ExpiresAt   int64   `json:"expires_at"`   // unix seconds
-	BannedUsers []int64 `json:"banned_users"` // user IDs banned during this raid
+	Active    bool  `json:"active"`
+	StartedAt int64 `json:"started_at"` // unix seconds
+	ExpiresAt int64 `json:"expires_at"` // unix seconds
 }
 
 // StartAntiRaidExpiryPoller starts the background expiry poller after cache is available.
@@ -200,10 +197,9 @@ func (a *antiRaidStruct) isRaidActive(chatID int64) bool {
 
 func (a *antiRaidStruct) enableRaid(chatID int64, durationSeconds int) {
 	st := &raidState{
-		Active:      true,
-		StartedAt:   time.Now().Unix(),
-		ExpiresAt:   time.Now().Unix() + int64(durationSeconds),
-		BannedUsers: []int64{},
+		Active:    true,
+		StartedAt: time.Now().Unix(),
+		ExpiresAt: time.Now().Unix() + int64(durationSeconds),
 	}
 	_ = setRaidState(chatID, st)
 	clearJoinTracking(chatID)
@@ -261,12 +257,6 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			})
 			if err != nil {
 				log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", member.Id, chat.Id)
-			} else {
-				antiRaidMu.Lock()
-				st := getRaidState(chat.Id)
-				st.BannedUsers = append(st.BannedUsers, member.Id)
-				_ = setRaidState(chat.Id, st)
-				antiRaidMu.Unlock()
 			}
 			continue
 		}
@@ -294,12 +284,6 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			})
 			if err != nil {
 				log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", member.Id, chat.Id)
-			} else {
-				antiRaidMu.Lock()
-				st := getRaidState(chat.Id)
-				st.BannedUsers = append(st.BannedUsers, member.Id)
-				_ = setRaidState(chat.Id, st)
-				antiRaidMu.Unlock()
 			}
 		}
 	}

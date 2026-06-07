@@ -18,6 +18,7 @@ type Cache struct {
 	lastUsed   map[int64]time.Time
 	lastUsedMu sync.Mutex
 	stopChan   chan struct{}
+	stopOnce   sync.Once
 	cancel     context.CancelFunc
 }
 
@@ -85,42 +86,50 @@ func (c *Cache) touchLastUsed(chatID int64) {
 
 // CleanupExpired removes expired matchers based on TTL
 func (c *Cache) CleanupExpired() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	now := time.Now()
-	expiredChats := make([]int64, 0)
 
+	// Step 1: snapshot expired IDs under lastUsedMu
+	c.lastUsedMu.Lock()
+	expiredChats := make([]int64, 0)
 	for chatID, lastUsed := range c.lastUsed {
 		if now.Sub(lastUsed) > c.ttl {
 			expiredChats = append(expiredChats, chatID)
 		}
 	}
+	c.lastUsedMu.Unlock()
 
+	if len(expiredChats) == 0 {
+		return
+	}
+
+	// Step 2: delete from matchers under mu
+	c.mu.Lock()
 	for _, chatID := range expiredChats {
 		delete(c.matchers, chatID)
+	}
+	c.mu.Unlock()
+
+	// Step 3: delete from lastUsed under lastUsedMu
+	c.lastUsedMu.Lock()
+	for _, chatID := range expiredChats {
 		delete(c.lastUsed, chatID)
 	}
+	c.lastUsedMu.Unlock()
 
-	if len(expiredChats) > 0 {
-		log.WithField("expired_count", len(expiredChats)).Debug("Cleaned up expired keyword matchers")
-	}
+	log.WithField("expired_count", len(expiredChats)).Debug("Cleaned up expired keyword matchers")
 }
 
 // Stop stops the cleanup goroutine for this cache
 // This should be called during shutdown or in tests to prevent goroutine leaks
 func (c *Cache) Stop() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.cancel != nil {
-		c.cancel()
-	}
-
-	// Also signal via stopChan for backward compatibility
-	if c.stopChan != nil {
-		close(c.stopChan)
-	}
+	c.stopOnce.Do(func() {
+		if c.cancel != nil {
+			c.cancel()
+		}
+		if c.stopChan != nil {
+			close(c.stopChan)
+		}
+	})
 }
 
 // Global cache instance

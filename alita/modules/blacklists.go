@@ -125,6 +125,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(args) <= 3 {
 			var wg sync.WaitGroup
 			for _, blWord := range args {
+				blWord = strings.ToLower(blWord)
 				if _, exists := blWordSet[blWord]; exists { // O(1) lookup
 					alreadyBlacklisted = append(alreadyBlacklisted, blWord)
 				} else {
@@ -157,6 +158,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 			var wg sync.WaitGroup
 
 			for _, blWord := range args {
+				blWord = strings.ToLower(blWord)
 				wg.Add(1)
 				go func(word string) {
 					defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
@@ -264,19 +266,17 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
 		for _, blWord := range args {
+			blWord = strings.ToLower(blWord)
 			if slices.Contains(allBlWords, blWord) {
+				if err := blacklists.RemoveBlacklist(chat.Id, blWord); err != nil {
+					log.WithFields(log.Fields{
+						"chatId": chat.Id,
+						"word":   blWord,
+						"error":  err,
+					}).Error("Failed to remove blacklist")
+					continue
+				}
 				removedBlacklists = append(removedBlacklists, blWord)
-				go func(chatId int64, word string) {
-					defer error_handling.RecoverFromPanic("removeBlacklist", "blacklists")
-
-					if err := blacklists.RemoveBlacklist(chatId, word); err != nil {
-						log.WithFields(log.Fields{
-							"chatId": chatId,
-							"word":   word,
-							"error":  err,
-						}).Error("Failed to remove blacklist")
-					}
-				}(chat.Id, blWord)
 			}
 		}
 		if len(removedBlacklists) <= 0 {
@@ -332,9 +332,10 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	blSrc := blacklists.GetBlacklistSettings(chat.Id)
-	slices.Sort(blSrc.Triggers())
+	triggers := blSrc.Triggers()
+	slices.Sort(triggers)
 	var sb strings.Builder
-	for _, i := range blSrc.Triggers() {
+	for _, i := range triggers {
 		fmt.Fprintf(&sb, "\n - <code>%s</code>", html.EscapeString(i))
 	}
 	blacklistsText += sb.String()

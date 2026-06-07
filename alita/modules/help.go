@@ -5,6 +5,7 @@ import (
 	"html"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -19,10 +20,22 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-// cache the bot username after first successful fetch
-var cachedBotUsername string
+// cachedBotUsernameMu protects cachedBotUsername against concurrent reads/writes.
+var (
+	cachedBotUsername   string
+	cachedBotUsernameMu sync.RWMutex
+)
 
 func getBotUsername(b *gotgbot.Bot) string {
+	cachedBotUsernameMu.RLock()
+	cached := cachedBotUsername
+	cachedBotUsernameMu.RUnlock()
+	if cached != "" {
+		return cached
+	}
+	cachedBotUsernameMu.Lock()
+	defer cachedBotUsernameMu.Unlock()
+	// double-check under write lock
 	if cachedBotUsername != "" {
 		return cachedBotUsername
 	}

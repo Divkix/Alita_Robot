@@ -1,6 +1,8 @@
 package filters
 
 import (
+	"errors"
+
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -57,7 +59,7 @@ func DoesFilterExists(chatId int64, keyword string) bool {
 	var filter models.ChatFilters
 	err := db.DB.Where("chat_id = ? AND LOWER(keyword) = LOWER(?)", chatId, keyword).Take(&filter).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false
 		}
 		log.Errorf("[Database] DoesFilterExists: %v - %d", err, chatId)
@@ -74,7 +76,7 @@ func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []models
 	var existingFilter models.ChatFilters
 	err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Take(&existingFilter).Error
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Errorf("[Database][AddFilter] checking existence: %d - %v", chatID, err)
 			return err
 		}

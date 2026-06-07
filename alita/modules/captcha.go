@@ -117,8 +117,7 @@ const (
 
 // Cleanup and recovery constants
 const (
-	captchaFailureMessageTTL = 30 * time.Second
-	captchaCleanupRetries    = 3
+	captchaCleanupRetries = 3
 )
 
 // Module-level bot reference for cleanup operations
@@ -468,7 +467,11 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) == 0 {
 		// Show current status
-		settings, _ := captcha.GetCaptchaSettings(chat.Id)
+		settings, err := captcha.GetCaptchaSettings(chat.Id)
+		if err != nil {
+			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
+			return ext.EndGroups
+		}
 		status := "disabled"
 		if settings.Enabled {
 			status = "enabled"
@@ -488,7 +491,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			header, statusLine, modeLine, timeoutLine, actionLine, attemptsLine, statusUsage,
 		)
 
-		_, err := msg.Reply(bot, text, formatting.Shtml())
+		_, err = msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
@@ -767,11 +770,15 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(args) == 0 {
-		settings, _ := captcha.GetCaptchaSettings(chat.Id)
+		settings, err := captcha.GetCaptchaSettings(chat.Id)
+		if err != nil {
+			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
+			return ext.EndGroups
+		}
 		text, _ := tr.GetString("captcha_max_attempts_current", map[string]any{
 			"attempts": settings.MaxAttempts,
 		})
-		_, err := msg.Reply(bot, text, formatting.Shtml())
+		_, err = msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
@@ -968,7 +975,11 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}()
 	chat := ctx.EffectiveChat
-	settings, _ := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	if err != nil {
+		log.Errorf("[Captcha][SendCaptcha] Failed to get settings for chat %d: %v", chat.Id, err)
+		return err
+	}
 
 	if !settings.Enabled {
 		return nil
@@ -1393,7 +1404,14 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		return err
 	}
 
-	settings, _ := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	if err != nil {
+		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("captcha_error_processing")
+		_, err = query.Answer(bot, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return err
+	}
 
 	// Check if answer is correct
 	if selectedAnswer == attempt.Answer {
@@ -1659,7 +1677,11 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	oldMessageID := attempt.MessageID
 
 	// Determine current mode and whether image flow applies
-	settings, _ := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	if err != nil {
+		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
+		// Fall through with nil settings — the nil guard below handles it safely
+	}
 
 	// Generate a new image/options based on current mode
 	var newAnswer string

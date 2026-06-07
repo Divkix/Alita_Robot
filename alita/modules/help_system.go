@@ -80,11 +80,9 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 		},
 	}
 
+	kb := slices.Clone(registry.helpableKb[ModName])
 	replyMarkup = gotgbot.InlineKeyboardMarkup{
-		InlineKeyboard: append(
-			registry.helpableKb[ModName],
-			backBtnSuffix,
-		),
+		InlineKeyboard: append(kb, backBtnSuffix),
 	}
 	return
 }

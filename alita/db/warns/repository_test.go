@@ -360,10 +360,10 @@ func TestResetWarns_NoWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	// Reset when user has no warns — should succeed without error
+	// Reset when user has no warns — should return false (nothing was reset)
 	ok := ResetUserWarns(userID, chatID)
-	if !ok {
-		t.Fatalf("ResetUserWarns() returned false when no warns exist")
+	if ok {
+		t.Fatalf("ResetUserWarns() returned true when no warns exist, expected false")
 	}
 }
 

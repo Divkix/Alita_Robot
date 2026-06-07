@@ -386,12 +386,6 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 }
 
 func TestBotUpdatesLoadersRegisterExpectedHandlers(t *testing.T) {
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadBotUpdates(dispatcher)
-	if removed := dispatcher.RemoveGroup(-1); removed {
-		t.Fatal("LoadBotUpdates should be a deprecated no-op")
-	}
-
 	moduleDispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	botUpdatesModule{}.Load(moduleDispatcher)
 	if removed := moduleDispatcher.RemoveGroup(-1); !removed {

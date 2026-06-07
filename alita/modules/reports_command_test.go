@@ -2,6 +2,7 @@ package modules
 
 import (
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -353,6 +354,8 @@ func TestReportActionCallbacksKickAndInvalidData(t *testing.T) {
 	if err := reportsModule.markResolvedButtonHandler(bot, kickCtx); err != ext.EndGroups {
 		t.Fatalf("report kick callback error = %v, want EndGroups", err)
 	}
+	// Wait for the async kick-unban goroutine to complete
+	time.Sleep(1500 * time.Millisecond)
 	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 		t.Fatalf("banChatMember calls = %d, want kick ban action", len(calls))
 	}

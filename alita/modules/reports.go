@@ -30,7 +30,7 @@ var reportsModule = moduleStruct{
 
 // adminMentionRegex matches @admin and @admins mentions in messages.
 // Pre-compiled once at init time to avoid per-message compilation overhead.
-var adminMentionRegex = regexp.MustCompile("(?i)@admin(s)?")
+var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
 
 // report handles the /report command and @admin mentions to notify
 // administrators about problematic messages with action buttons.
@@ -410,7 +410,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		if msg.Chat.Type == "private" {
-			rStatus := reports.GetUserReportSettings(chat.Id).Status
+			rStatus := reports.GetUserReportSettings(user.Id).Status
 			if rStatus {
 				replyText, _ = tr.GetString("reports_preference_enabled_private")
 			} else {
@@ -507,13 +507,20 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 			return err
 		}
 
-		time.Sleep(1 * time.Second) // wait for sometime before unbanning
-
-		_, err = chat.UnbanMember(b, userId, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		// Unban after 1s in a background goroutine to avoid blocking a dispatcher worker.
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("[Reports] panic in delayed unban: %v", r)
+				}
+			}()
+			timer := time.NewTimer(1 * time.Second)
+			defer timer.Stop()
+			<-timer.C
+			if _, unbanErr := chat.UnbanMember(b, userId, nil); unbanErr != nil {
+				log.Errorf("[Reports] Failed to unban %d after kick: %v", userId, unbanErr)
+			}
+		}()
 	case "ban":
 		replyQuery, _ = tr.GetString("reports_success_ban")
 		bannedText, _ := tr.GetString("reports_user_banned")

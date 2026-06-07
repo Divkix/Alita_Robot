@@ -100,11 +100,15 @@ func TestHelpKeyboardsUseCallbackCodecAndBotUsername(t *testing.T) {
 	}
 }
 
-func TestGetBotUsernameCachesStructAndGetMeFallbacks(t *testing.T) {
+func resetCachedBotUsername() {
+	cachedBotUsernameMu.Lock()
 	cachedBotUsername = ""
-	t.Cleanup(func() {
-		cachedBotUsername = ""
-	})
+	cachedBotUsernameMu.Unlock()
+}
+
+func TestGetBotUsernameCachesStructAndGetMeFallbacks(t *testing.T) {
+	resetCachedBotUsername()
+	t.Cleanup(resetCachedBotUsername)
 
 	if got := getBotUsername(&gotgbot.Bot{User: gotgbot.User{Username: "StructBot"}}); got != "StructBot" {
 		t.Fatalf("getBotUsername(struct) = %q", got)
@@ -113,7 +117,7 @@ func TestGetBotUsernameCachesStructAndGetMeFallbacks(t *testing.T) {
 		t.Fatalf("getBotUsername(cached) = %q", got)
 	}
 
-	cachedBotUsername = ""
+	resetCachedBotUsername()
 	bot := &gotgbot.Bot{
 		Token: "123:test",
 		BotClient: helpFakeBotClient{response: json.RawMessage(
@@ -124,7 +128,7 @@ func TestGetBotUsernameCachesStructAndGetMeFallbacks(t *testing.T) {
 		t.Fatalf("getBotUsername(getMe) = %q", got)
 	}
 
-	cachedBotUsername = ""
+	resetCachedBotUsername()
 	if got := getBotUsername(nil); got != "" {
 		t.Fatalf("getBotUsername(nil) = %q, want empty", got)
 	}

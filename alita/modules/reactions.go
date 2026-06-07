@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -476,30 +477,34 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check if message text contains any keywords (case-insensitive)
+	// Check if message text contains any keywords (case-insensitive).
+	// Collect all matching keywords first, then sort them for deterministic selection.
 	lowerText := strings.ToLower(msg.Text)
-	for keyword, emoji := range reactionsMap {
+	var matchedKeywords []string
+	for keyword := range reactionsMap {
 		if strings.Contains(lowerText, keyword) {
-			// Set reaction on the message
-			_, err := b.SetMessageReaction(
-				chat.Id,
-				msg.MessageId,
-				&gotgbot.SetMessageReactionOpts{
-					Reaction: []gotgbot.ReactionType{
-						gotgbot.ReactionTypeEmoji{
-							Emoji: emoji,
-						},
-					},
-				},
-			)
-			if err != nil {
-				log.Debugf("[Reactions] Failed to set reaction: %v", err)
-				// Continue to next keyword even if this one failed
-				continue
-			}
-			// Only react with first matching keyword to avoid rate limits
-			break
+			matchedKeywords = append(matchedKeywords, keyword)
 		}
+	}
+	if len(matchedKeywords) == 0 {
+		return ext.ContinueGroups
+	}
+	slices.Sort(matchedKeywords)
+	emoji := reactionsMap[matchedKeywords[0]]
+
+	_, err = b.SetMessageReaction(
+		chat.Id,
+		msg.MessageId,
+		&gotgbot.SetMessageReactionOpts{
+			Reaction: []gotgbot.ReactionType{
+				gotgbot.ReactionTypeEmoji{
+					Emoji: emoji,
+				},
+			},
+		},
+	)
+	if err != nil {
+		log.Debugf("[Reactions] Failed to set reaction: %v", err)
 	}
 
 	return ext.ContinueGroups

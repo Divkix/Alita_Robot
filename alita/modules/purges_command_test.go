@@ -54,7 +54,7 @@ func TestPurgeMsgsConcurrentHandlesDeleteBoundariesAndErrors(t *testing.T) {
 			deleteErr:  fmt.Errorf("Bad Request: message can't be deleted"),
 			wantOK:     true,
 			wantSends:  1,
-			wantDelete: 2,
+			wantDelete: 1,
 		},
 		{
 			name:       "missing starting message is ignored",
@@ -62,7 +62,7 @@ func TestPurgeMsgsConcurrentHandlesDeleteBoundariesAndErrors(t *testing.T) {
 			deleteTo:   10,
 			deleteErr:  fmt.Errorf("Bad Request: message to delete not found"),
 			wantOK:     true,
-			wantDelete: 2,
+			wantDelete: 1,
 		},
 		{
 			name:       "unexpected starting delete error fails purge",

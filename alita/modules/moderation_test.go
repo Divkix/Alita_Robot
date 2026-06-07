@@ -3,8 +3,6 @@
 package modules
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -260,75 +258,7 @@ func TestStandardModGatesRejectsPrivateChatsAndNonAdmins(t *testing.T) {
 	}
 }
 
-func TestDefaultTargetValidationRejectsBotAndAllowsMember(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
-	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
 
-	if err := defaultTargetValidation(mc, &target{userID: 42}); err != nil {
-		t.Fatalf("defaultTargetValidation(member) error = %v, want nil", err)
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
-		t.Fatalf("sendMessage calls = %d, want no error reply for valid member", len(calls))
-	}
-
-	if err := defaultTargetValidation(mc, &target{userID: bot.Id}); err == nil {
-		t.Fatal("defaultTargetValidation(bot) error = nil, want self-target error")
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want one self-target error reply", len(calls))
-	}
-}
-
-func TestDefaultTargetValidationRejectsMissingMemberAndProtectedAdmin(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
-	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
-
-	client.errors["getChatMember"] = fmt.Errorf("Bad Request: user not found")
-	if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
-		t.Fatal("defaultTargetValidation(missing member) error = nil, want rejection")
-	}
-	delete(client.errors, "getChatMember")
-
-	if err := defaultTargetValidation(mc, &target{userID: 777000}); err == nil {
-		t.Fatal("defaultTargetValidation(protected admin) error = nil, want rejection")
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
-		t.Fatalf("sendMessage calls = %d, want missing-member and admin-target replies", len(calls))
-	}
-}
-
-func TestDefaultTargetValidationReturnsReplyError(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Moderation Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
-	mc := newModerationCtxForTest(bot, ctx, &moduleStruct{moduleName: "Bans"})
-
-	client.errors["getChatMember"] = fmt.Errorf("Bad Request: user not found")
-	client.errors["sendMessage"] = fmt.Errorf("reply failed")
-	if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
-		t.Fatal("defaultTargetValidation(reply failure) error = nil, want reply error")
-	}
-}
-
-func TestMentionHtmlWrapperEscapesName(t *testing.T) {
-	got := _mentionHtml(42, "A < B")
-	if !strings.Contains(got, "tg://user?id=42") {
-		t.Fatalf("_mentionHtml() = %q, want user mention link", got)
-	}
-	if strings.Contains(got, "A < B") {
-		t.Fatalf("_mentionHtml() = %q, want escaped display name", got)
-	}
-}
 
 func moderationTestContext() *ext.Context {
 	msg := &gotgbot.Message{

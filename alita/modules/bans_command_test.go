@@ -1041,51 +1041,6 @@ func TestModerationHelpersValidateExtractionAndTargets(t *testing.T) {
 		}
 	})
 
-	t.Run("default target validation rejects missing and protected users", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-		ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
-		mc, err := buildModerationCtx(&bansModule, bot, ctx)
-		if err != nil {
-			t.Fatalf("buildModerationCtx() error = %v", err)
-		}
-
-		client.responses["getChatMember"] = []byte(
-			`{"status":"left","user":{"id":42,"is_bot":false,"first_name":"Gone"}}`,
-		)
-		if err := defaultTargetValidation(mc, &target{userID: 42}); err == nil {
-			t.Fatal("defaultTargetValidation(left user) error = nil, want validation error")
-		}
-
-		protectedClient := newModuleBotClient()
-		protectedClient.responses["getChatMember"] = []byte(
-			`{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Admin"},"can_restrict_members":true}`,
-		)
-		protectedClient.responses["getChatAdministrators"] = []byte(
-			`[
-				{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},
-				{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Admin"}}
-			]`,
-		)
-		protectedBot := newModuleTestBot(protectedClient)
-		protectedCtx := newModuleMessageContext(protectedBot, chat, admin, "/ban 4242")
-		protectedMC, err := buildModerationCtx(&bansModule, protectedBot, protectedCtx)
-		if err != nil {
-			t.Fatalf("buildModerationCtx(protected) error = %v", err)
-		}
-		if err := defaultTargetValidation(protectedMC, &target{userID: 4242}); err == nil {
-			t.Fatal("defaultTargetValidation(admin user) error = nil, want validation error")
-		}
-
-		if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-			t.Fatalf("left-user sendMessage calls = %d, want 1", len(calls))
-		}
-		if calls := protectedClient.callsFor("sendMessage"); len(calls) != 1 {
-			t.Fatalf("protected-user sendMessage calls = %d, want 1", len(calls))
-		}
-	})
 }
 
 func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T) {

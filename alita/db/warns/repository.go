@@ -194,18 +194,19 @@ func RemoveWarnWithContext(ctx context.Context, userId, chatId int64) bool {
 }
 
 // ResetUserWarns removes all warnings for a specific user in a chat.
-// Returns true if the operation was successful, false on error.
-func ResetUserWarns(userId, chatId int64) (removed bool) {
-	removed = true
-	err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{}).Error
-	if err != nil {
-		log.Errorf("[Database] ResetUserWarns: %v", err)
-		removed = false
-		return removed
+// Returns true if a row was actually deleted, false on error or when no warns existed.
+func ResetUserWarns(userId, chatId int64) bool {
+	result := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
+	if result.Error != nil {
+		log.Errorf("[Database] ResetUserWarns: %v", result.Error)
+		return false
+	}
+	if result.RowsAffected == 0 {
+		return false
 	}
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
-	return removed
+	return true
 }
 
 // GetWarns retrieves the current warning count and reasons for a user in a specific chat.

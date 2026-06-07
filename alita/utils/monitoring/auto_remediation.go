@@ -32,18 +32,6 @@ type AutoRemediationManager struct {
 	monitorInterval time.Duration
 	mu              sync.RWMutex
 	collector       *BackgroundStatsCollector
-	thresholds      RemediationThresholds
-}
-
-// RemediationThresholds defines when remediation actions should be triggered
-type RemediationThresholds struct {
-	MaxGoroutines      int
-	MaxMemoryMB        float64
-	MaxGCPauseMs       float64
-	MaxResponseTimeMs  int64
-	MaxErrorRate       float64
-	CriticalMemoryMB   float64
-	CriticalGoroutines int
 }
 
 // NewAutoRemediationManager creates a new auto-remediation manager
@@ -58,15 +46,6 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 		actionCooldown:  5 * time.Minute, // Minimum time between same actions
 		monitorInterval: 1 * time.Minute,
 		collector:       collector,
-		thresholds: RemediationThresholds{
-			MaxGoroutines:      config.AppConfig.ResourceMaxGoroutines,
-			MaxMemoryMB:        float64(config.AppConfig.ResourceMaxMemoryMB),
-			MaxGCPauseMs:       100,
-			MaxResponseTimeMs:  5000,
-			MaxErrorRate:       0.1,
-			CriticalMemoryMB:   float64(config.AppConfig.ResourceMaxMemoryMB * 2),
-			CriticalGoroutines: config.AppConfig.ResourceMaxGoroutines * 2,
-		},
 	}
 
 	// Register built-in remediation actions

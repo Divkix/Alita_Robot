@@ -481,18 +481,6 @@ func TestNewAutoRemediationManager_WithMetrics(t *testing.T) {
 	if !manager.enabled {
 		t.Fatal("expected manager.enabled to be true when EnablePerformanceMonitoring is true")
 	}
-	if manager.thresholds.MaxGoroutines != 100 {
-		t.Errorf("expected MaxGoroutines=100, got %d", manager.thresholds.MaxGoroutines)
-	}
-	if manager.thresholds.MaxMemoryMB != 500 {
-		t.Errorf("expected MaxMemoryMB=500, got %f", manager.thresholds.MaxMemoryMB)
-	}
-	if manager.thresholds.CriticalGoroutines != 200 {
-		t.Errorf("expected CriticalGoroutines=200, got %d", manager.thresholds.CriticalGoroutines)
-	}
-	if manager.thresholds.CriticalMemoryMB != 1000 {
-		t.Errorf("expected CriticalMemoryMB=1000, got %f", manager.thresholds.CriticalMemoryMB)
-	}
 }
 
 // ---------------------------------------------------------------------------

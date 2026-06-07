@@ -562,9 +562,6 @@ func TestAntiRaidOnJoinBansDuringActiveRaid(t *testing.T) {
 	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
 	}
-	if st := getRaidState(chat.Id); len(st.BannedUsers) != 1 || st.BannedUsers[0] != user.Id {
-		t.Fatalf("BannedUsers = %+v, want [%d]", st.BannedUsers, user.Id)
-	}
 }
 
 func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {

@@ -818,12 +818,29 @@ func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return ext.EndGroups
 	}
+	// Anonymous admins bypass WrapCommand's RequiredChecks, so enforce promote
+	// authorization explicitly: the anon admin must have CanPromoteMembers rights
+	// and the bot must have CanPromoteMembers rights.
+	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		return ext.EndGroups
+	}
+	if !chat_status.CanBotPromote(b, ctx, nil) {
+		return ext.EndGroups
+	}
 	return m.promote(c)
 }
 
 func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	c, err := helpers.BuildCommandContext(b, ctx)
 	if err != nil {
+		return ext.EndGroups
+	}
+	// Same authorization gate as promoteAnonAdmin: demoting also requires
+	// CanPromoteMembers on both the caller and the bot.
+	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		return ext.EndGroups
+	}
+	if !chat_status.CanBotPromote(b, ctx, nil) {
 		return ext.EndGroups
 	}
 	return m.demote(c)

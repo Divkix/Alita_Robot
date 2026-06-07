@@ -107,7 +107,7 @@ func DoesNoteExists(chatID int64, noteName string) bool {
 	var note models.Notes
 	err := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&note).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false
 		}
 		log.Errorf("[Database] DoesNoteExists: %v - %d", err, chatID)
@@ -124,7 +124,7 @@ func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.Bu
 	var existingNote models.Notes
 	err := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&existingNote).Error
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Errorf("[Database][AddNote] checking existence: %d - %v", chatID, err)
 			return err
 		}
