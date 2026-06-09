@@ -82,11 +82,11 @@ func canBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 
-	botMember, err := chat.GetMember(b, b.Id, nil)
-	if err != nil {
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotRestrict")
+	if !ok {
 		return false
 	}
-	return botMember.MergeChatMember().CanRestrictMembers
+	return botMember.CanRestrictMembers
 }
 
 // canBotPromote reports whether the bot can promote/demote members.
@@ -99,11 +99,11 @@ func canBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 
-	botMember, err := chat.GetMember(b, b.Id, nil)
-	if err != nil {
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotPromote")
+	if !ok {
 		return false
 	}
-	return botMember.MergeChatMember().CanPromoteMembers
+	return botMember.CanPromoteMembers
 }
 
 // canBotPin reports whether the bot can pin messages.
@@ -116,11 +116,11 @@ func canBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 
-	botMember, err := chat.GetMember(b, b.Id, nil)
-	if err != nil {
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotPin")
+	if !ok {
 		return false
 	}
-	return botMember.MergeChatMember().CanPinMessages
+	return botMember.CanPinMessages
 }
 
 // canBotDelete reports whether the bot can delete messages.
@@ -133,11 +133,11 @@ func canBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 
-	botMember, err := chat.GetMember(b, b.Id, nil)
-	if err != nil {
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotDelete")
+	if !ok {
 		return false
 	}
-	return botMember.MergeChatMember().CanDeleteMessages
+	return botMember.CanDeleteMessages
 }
 
 // isBotAdminPure reports whether the bot is an admin, without sending messages.

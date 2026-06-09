@@ -29,9 +29,12 @@ func AddApprovedUser(chatID, userID, approvedBy int64, reason string) error {
 
 // IsUserApproved checks if a user is in the approved list for a chat.
 func IsUserApproved(chatID, userID int64) bool {
-	var user models.ApprovedUsers
-	err := db.GetRecord(&user, models.ApprovedUsers{ChatID: chatID, UserID: userID})
-	return err == nil
+	for _, u := range GetApprovedUsers(chatID) {
+		if u.UserID == userID {
+			return true
+		}
+	}
+	return false
 }
 
 // GetApprovedUsers returns all approved users for a chat.
