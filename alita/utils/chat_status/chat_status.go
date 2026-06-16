@@ -351,13 +351,12 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return true
 	}
 
-	mem, err := chat.GetMember(b, b.Id, nil)
-	if err != nil {
-		log.Errorf("[IsBotAdmin] GetMember failed for chat %d: %v", chat.Id, err)
+	mem, ok := getUserMemberWithCache(b, chat, b.Id, "IsBotAdmin")
+	if !ok {
 		return false
 	}
 
-	return mem.MergeChatMember().Status == "administrator"
+	return mem.Status == "administrator"
 }
 
 // CanUserChangeInfo checks if a user has permission to change chat information.

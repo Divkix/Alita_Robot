@@ -346,3 +346,25 @@ func slicesContains(values []string, target string) bool {
 	}
 	return false
 }
+
+// TestBlacklistWatcherSkipsBotAdminCallWhenNoTriggers asserts that when a chat
+// has no blacklist triggers the watcher returns before issuing any getChatMember
+// API call — verifying the reorder from Step 1 of plan 007.
+func TestBlacklistWatcherSkipsBotAdminCallWhenNoTriggers(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	// Use a fresh chat ID with no blacklist triggers configured.
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "No Triggers Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	ctx := newModuleMessageContext(bot, chat, member, "some random message")
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(no triggers) error = %v, want ContinueGroups", err)
+	}
+
+	// getChatMember must NOT have been called — the fast-path returns before any
+	// admin-status lookup when no triggers are configured.
+	if calls := client.callsFor("getChatMember"); len(calls) != 0 {
+		t.Fatalf("getChatMember calls = %d, want 0 when no triggers are set", len(calls))
+	}
+}

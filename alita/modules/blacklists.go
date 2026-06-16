@@ -588,6 +588,13 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Fast path: if no triggers are configured, bail out before any API call.
+	blSettings := blacklists.GetBlacklistSettings(chat.Id)
+	triggers := blSettings.Triggers()
+	if len(triggers) == 0 {
+		return ext.ContinueGroups
+	}
+
 	// skip admins and creator + approved users and anonymous channel
 	// Only check admin status for actual users, not anonymous channels
 	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
@@ -608,13 +615,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if matchText == "" {
 		return ext.ContinueGroups
 	}
-	blSettings := blacklists.GetBlacklistSettings(chat.Id)
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	triggers := blSettings.Triggers()
-	if len(triggers) == 0 {
-		return ext.ContinueGroups
-	}
 
 	// Use Aho-Corasick for efficient multi-pattern matching
 	cache := keyword_matcher.GetGlobalCache()

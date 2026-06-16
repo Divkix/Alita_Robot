@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
@@ -347,4 +348,49 @@ func TestExtractAdminUpdateStatusChange(t *testing.T) {
 			t.Fatal("expected false for member->left — no admin change")
 		}
 	})
+}
+
+// TestIsBotAdminUsesCacheAndStatus verifies that IsBotAdmin correctly reports
+// true when the bot is an administrator and false when it is a regular member.
+// After Step 2 the code path goes through getUserMemberWithCache which falls
+// back to a live getChatMember on a cache miss — the fake bot client simulates
+// both outcomes.
+func TestIsBotAdminUsesCacheAndStatus(t *testing.T) {
+	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
+
+	// Bot ID 999 → chatStatusBotClient returns status "administrator" → want true.
+	adminBot := newChatStatusBot(999)
+	adminCtx := makeCtxForBot(adminBot, "supergroup")
+	if !IsBotAdmin(adminBot, adminCtx, chat) {
+		t.Error("IsBotAdmin(adminBot) = false, want true for administrator status")
+	}
+
+	// Bot ID 100 → chatStatusBotClient default case returns status "member" → want false.
+	memberBot := &gotgbot.Bot{
+		Token:     "100:test",
+		BotClient: chatStatusBotClient{},
+		User:      gotgbot.User{Id: 100, IsBot: true, FirstName: "MemberBot"},
+	}
+	memberCtx := makeCtxForBot(memberBot, "supergroup")
+	if IsBotAdmin(memberBot, memberCtx, chat) {
+		t.Error("IsBotAdmin(memberBot) = true, want false for member status")
+	}
+
+	// Private chat → always true regardless of bot status.
+	privateChat := &gotgbot.Chat{Id: 42, Type: "private"}
+	privateCtx := makeCtxForBot(memberBot, "private")
+	if !IsBotAdmin(memberBot, privateCtx, privateChat) {
+		t.Error("IsBotAdmin(private chat) = false, want true (private always true)")
+	}
+}
+
+// makeCtxForBot creates a minimal ext.Context whose message chat type matches chatType.
+func makeCtxForBot(b *gotgbot.Bot, chatType string) *ext.Context {
+	msg := &gotgbot.Message{
+		MessageId: 200,
+		Date:      1,
+		Chat:      gotgbot.Chat{Id: -1001, Type: chatType, Title: "Permission Chat"},
+		From:      &gotgbot.User{Id: 42, FirstName: "Member"},
+	}
+	return ext.NewContext(b, &gotgbot.Update{Message: msg}, nil)
 }
