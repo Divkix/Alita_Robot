@@ -618,7 +618,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// Use Aho-Corasick for efficient multi-pattern matching
-	cache := keyword_matcher.GetGlobalCache()
+	cache := keyword_matcher.GetNamedCache("blacklists")
 	matcher := cache.GetOrCreateMatcher(chat.Id, triggers)
 
 	// Find first matching blacklist trigger using optimized path

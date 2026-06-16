@@ -166,3 +166,49 @@ func GetGlobalCache() *Cache {
 	})
 	return globalCache
 }
+
+// namedCaches is a registry of named caches, each isolated from the others.
+var (
+	namedCaches   = make(map[string]*Cache)
+	namedCachesMu sync.Mutex
+)
+
+// GetNamedCache returns a per-name singleton keyword matcher cache.
+// Each distinct name gets its own independent Cache instance with its own
+// 30-minute TTL and cleanup goroutine, so consumers with different pattern
+// sets (e.g. "filters" vs "blacklists") can never evict each other's entries.
+func GetNamedCache(name string) *Cache {
+	namedCachesMu.Lock()
+	c, ok := namedCaches[name]
+	if ok {
+		namedCachesMu.Unlock()
+		return c
+	}
+	c = NewCache(30 * time.Minute)
+	ctx, cancel := context.WithCancel(context.Background())
+	c.cancel = cancel
+	namedCaches[name] = c
+	namedCachesMu.Unlock()
+
+	// Start the cleanup goroutine outside the mutex to avoid holding it
+	// for the goroutine's lifetime.
+	go func() {
+		defer error_handling.RecoverFromPanic("GetNamedCache.cleanupRoutine["+name+"]", "keyword_matcher")
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.CleanupExpired()
+			case <-ctx.Done():
+				log.WithField("cache_name", name).Debug("Named keyword matcher cache cleanup routine stopped")
+				return
+			case <-c.stopChan:
+				log.WithField("cache_name", name).Debug("Named keyword matcher cache cleanup routine stopped via stopChan")
+				return
+			}
+		}
+	}()
+
+	return c
+}

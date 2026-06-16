@@ -746,7 +746,7 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Use Aho-Corasick for efficient multi-pattern matching
-	cache := keyword_matcher.GetGlobalCache()
+	cache := keyword_matcher.GetNamedCache("filters")
 	matcher := cache.GetOrCreateMatcher(chat.Id, filterKeys)
 
 	// Find first matching filter using optimized path
