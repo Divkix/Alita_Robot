@@ -279,6 +279,7 @@ func main() {
 	// Create unified HTTP server for health, metrics, and webhook endpoints
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
+	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
 	httpServer.RegisterMetrics()
 	httpServer.RegisterDBMetrics()
 

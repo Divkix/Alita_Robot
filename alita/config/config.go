@@ -168,6 +168,9 @@ type Config struct {
 
 	// Profiling configuration
 	EnablePPROF bool // Enable pprof endpoints for performance profiling (development only)
+
+	// Metrics authentication
+	MetricsAuthToken string // Bearer token required to access /metrics and /db_metrics (empty = unauthenticated with a warning)
 }
 
 // AppConfig is the global configuration instance - the single source of truth.
@@ -348,6 +351,9 @@ func LoadConfig() (*Config, error) {
 
 		// Profiling configuration
 		EnablePPROF: typeConvertor{str: os.Getenv("ENABLE_PPROF")}.Bool(),
+
+		// Metrics authentication
+		MetricsAuthToken: os.Getenv("METRICS_AUTH_TOKEN"),
 	}
 
 	// Set defaults

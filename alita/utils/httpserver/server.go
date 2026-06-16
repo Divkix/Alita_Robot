@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,15 +34,16 @@ const maxRequestBodySize = 10 * 1024 * 1024
 
 // Server represents a unified HTTP server that consolidates health, webhook, and metrics endpoints
 type Server struct {
-	mux            *http.ServeMux
-	server         *http.Server
-	port           int
-	bot            *gotgbot.Bot
-	dispatcher     *ext.Dispatcher
-	secret         string
-	webhookEnabled bool
-	pprofEnabled   bool
-	startTime      time.Time
+	mux              *http.ServeMux
+	server           *http.Server
+	port             int
+	bot              *gotgbot.Bot
+	dispatcher       *ext.Dispatcher
+	secret           string
+	metricsAuthToken string
+	webhookEnabled   bool
+	pprofEnabled     bool
+	startTime        time.Time
 }
 
 // New creates a new unified HTTP server on the specified port
@@ -133,25 +135,67 @@ func (s *Server) RegisterHealth() {
 	log.Info("[HTTPServer] Registered /health endpoint")
 }
 
-// RegisterMetrics registers the /metrics endpoint for Prometheus
+// SetMetricsAuthToken configures the bearer token required to access /metrics and /db_metrics.
+// When empty, the endpoints are registered but a warning is logged.
+func (s *Server) SetMetricsAuthToken(token string) {
+	s.metricsAuthToken = token
+}
+
+// requireMetricsAuth is a middleware that enforces bearer-token authentication
+// for metrics endpoints using constant-time comparison to prevent timing attacks.
+// When no token is configured it allows the request through (with a startup warning).
+func (s *Server) requireMetricsAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.metricsAuthToken == "" {
+			// No token configured — allow access (startup warning already logged).
+			next.ServeHTTP(w, r)
+			return
+		}
+		const prefix = "Bearer "
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		provided := authHeader[len(prefix):]
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(s.metricsAuthToken)) != 1 {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RegisterMetrics registers the /metrics endpoint for Prometheus.
+// If a MetricsAuthToken is configured (via SetMetricsAuthToken), requests must supply
+// "Authorization: Bearer <token>". Otherwise the endpoint is open but a warning is logged.
 func (s *Server) RegisterMetrics() {
-	s.mux.Handle("/metrics", promhttp.Handler())
+	if s.metricsAuthToken == "" {
+		log.Warn("[HTTPServer] METRICS_AUTH_TOKEN is not set — /metrics is unauthenticated")
+	}
+	s.mux.Handle("/metrics", s.requireMetricsAuth(promhttp.Handler()))
 	log.Info("[HTTPServer] Registered /metrics endpoint")
 }
 
-// RegisterDBMetrics registers the /db_metrics endpoint for database monitoring
+// RegisterDBMetrics registers the /db_metrics endpoint for database monitoring.
+// If a MetricsAuthToken is configured (via SetMetricsAuthToken), requests must supply
+// "Authorization: Bearer <token>". Otherwise the endpoint is open but a warning is logged.
 func (s *Server) RegisterDBMetrics() {
-	s.mux.HandleFunc("/db_metrics", func(w http.ResponseWriter, r *http.Request) {
+	if s.metricsAuthToken == "" {
+		log.Warn("[HTTPServer] METRICS_AUTH_TOKEN is not set — /db_metrics is unauthenticated")
+	}
+	s.mux.Handle("/db_metrics", s.requireMetricsAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		metrics, err := monitoring.GetCurrentMetrics()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Errorf("[HTTPServer] db_metrics: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(metrics); err != nil {
 			log.Errorf("[HTTPServer] Failed to encode db metrics: %v", err)
 		}
-	})
+	})))
 	log.Info("[HTTPServer] Registered /db_metrics endpoint")
 }
 
