@@ -85,7 +85,7 @@ func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason strin
 		if err := tx.Where("chat_id = ?", chatId).First(warnSettings).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// Create default settings
-				warnSettings = &models.WarnSettings{ChatId: chatId, WarnLimit: 3}
+				warnSettings = &models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute"}
 				if err := tx.Create(warnSettings).Error; err != nil {
 					return err
 				}

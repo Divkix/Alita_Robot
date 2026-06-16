@@ -454,6 +454,35 @@ func TestResetAllChatWarns(t *testing.T) {
 	}
 }
 
+func TestWarnUserCreatesSettingsWithDefaultMode(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	userID := chatID + 1
+
+	if err := chats.EnsureChatInDb(chatID, "test-warn-default-mode"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.Warns{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	// WarnUser is the first operation — no prior GetWarnSetting call — so it
+	// must create the WarnSettings row itself inside its transaction.
+	WarnUser(userID, chatID, "trigger settings creation")
+
+	// Load the persisted WarnSettings row directly from the DB.
+	var settings models.WarnSettings
+	if err := db.DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
+		t.Fatalf("WarnSettings row not found after WarnUser: %v", err)
+	}
+	if settings.WarnMode != "mute" {
+		t.Fatalf("expected WarnMode='mute' when WarnUser creates the settings row, got %q", settings.WarnMode)
+	}
+}
+
 func TestRemoveWarn_NoWarns(t *testing.T) {
 	skipIfNoDb(t)
 
