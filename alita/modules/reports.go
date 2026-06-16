@@ -204,7 +204,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								"a": "kick",
 								"u": fmt.Sprint(reportedUser.Id),
 								"m": fmt.Sprint(reportedMsgId),
-							}, fmt.Sprintf("report.kick=%d=%d", reportedUser.Id, reportedMsgId)),
+							}),
 						},
 						{
 							Text: func() string {
@@ -216,7 +216,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								"a": "ban",
 								"u": fmt.Sprint(reportedUser.Id),
 								"m": fmt.Sprint(reportedMsgId),
-							}, fmt.Sprintf("report.ban=%d=%d", reportedUser.Id, reportedMsgId)),
+							}),
 						},
 					},
 					{
@@ -230,7 +230,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								"a": "delete",
 								"u": fmt.Sprint(reportedUser.Id),
 								"m": fmt.Sprint(reportedMsgId),
-							}, fmt.Sprintf("report.delete=%d=%d", reportedUser.Id, reportedMsgId)),
+							}),
 						},
 					},
 					{
@@ -244,7 +244,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 								"a": "resolved",
 								"u": fmt.Sprint(reportedUser.Id),
 								"m": fmt.Sprint(reportedMsgId),
-							}, fmt.Sprintf("report.resolved=%d=%d", reportedUser.Id, reportedMsgId)),
+							}),
 						},
 					},
 				},
@@ -467,16 +467,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
 		msgIDRaw, _ = decoded.Field("m")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 2 {
-			args := strings.Split(parts[1], "=")
-			if len(args) >= 3 {
-				action = args[0]
-				userIDRaw = args[1]
-				msgIDRaw = args[2]
-			}
-		}
 	}
 	if action == "" || userIDRaw == "" || msgIDRaw == "" {
 		log.Warnf("[Reports] Invalid callback data format: %s", query.Data)

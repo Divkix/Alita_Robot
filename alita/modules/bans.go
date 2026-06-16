@@ -264,7 +264,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 					{
 						{
 							Text:         func() string { t, _ := c.Tr.GetString("bans_unban_button"); return t }(),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}, fmt.Sprintf("unrestrict.unban.%d", t.userID)),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}),
 						},
 					},
 				},
@@ -680,16 +680,16 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         func() string { t, _ := tr.GetString("button_ban"); return t }(),
-							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.ban.%d", userId)),
+							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(userId)}),
 						},
 						{
 							Text:         func() string { t, _ := tr.GetString("button_kick"); return t }(),
-							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "kick", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.kick.%d", userId)),
+							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "kick", "u": fmt.Sprint(userId)}),
 						},
 					},
 					{{
 						Text:         func() string { t, _ := tr.GetString("button_mute"); return t }(),
-						CallbackData: encodeCallbackData("restrict", map[string]string{"a": "mute", "u": fmt.Sprint(userId)}, fmt.Sprintf("restrict.mute.%d", userId)),
+						CallbackData: encodeCallbackData("restrict", map[string]string{"a": "mute", "u": fmt.Sprint(userId)}),
 					}},
 				},
 			},
@@ -729,12 +729,6 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if decoded, ok := decodeCallbackData(query.Data, "restrict"); ok {
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 3 {
-			action = args[1]
-			userIDRaw = args[2]
-		}
 	}
 	if action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed restrict callback data")
@@ -939,11 +933,11 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         unbanText,
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unban.%d", userId)),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(userId)}),
 						},
 						{
 							Text:         unmuteText,
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}, fmt.Sprintf("unrestrict.unmute.%d", userId)),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(userId)}),
 						},
 					},
 				},
@@ -985,12 +979,6 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	if decoded, ok := decodeCallbackData(query.Data, "unrestrict"); ok {
 		action, _ = decoded.Field("a")
 		userIDRaw, _ = decoded.Field("u")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 3 {
-			action = args[1]
-			userIDRaw = args[2]
-		}
 	}
 	if action == "" || userIDRaw == "" {
 		log.WithField("callbackData", query.Data).Error("Malformed unrestrict callback data")

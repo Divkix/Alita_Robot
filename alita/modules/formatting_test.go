@@ -79,9 +79,9 @@ func TestFormattingHandlerEditsMessageAndAnswersCallback(t *testing.T) {
 	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
 
 	for _, data := range []string{
-		encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}, "formatting.md_formatting"),
-		"formatting.fillings",
-		"formatting.random",
+		encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}),
+		encodeCallbackData("formatting", map[string]string{"m": "fillings"}),
+		encodeCallbackData("formatting", map[string]string{"m": "random"}),
 	} {
 		ctx := newModuleCallbackContext(bot, chat, user, data)
 		if err := formattingModule.formattingHandler(bot, ctx); err != ext.EndGroups {
@@ -102,13 +102,13 @@ func TestFormattingHandlerRejectsInvalidCallbackMessages(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
 
-	missingMessage := newModuleCallbackContext(bot, chat, user, "formatting.md_formatting")
+	missingMessage := newModuleCallbackContext(bot, chat, user, encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}))
 	missingMessage.CallbackQuery.Message = nil
 	if err := formattingModule.formattingHandler(bot, missingMessage); err != ext.EndGroups {
 		t.Fatalf("formattingHandler(nil message) error = %v, want EndGroups", err)
 	}
 
-	invalidData := newModuleCallbackContext(bot, chat, user, "formatting")
+	invalidData := newModuleCallbackContext(bot, chat, user, "not-a-formatting-callback")
 	if err := formattingModule.formattingHandler(bot, invalidData); err != ext.EndGroups {
 		t.Fatalf("formattingHandler(invalid data) error = %v, want EndGroups", err)
 	}
@@ -121,7 +121,7 @@ func TestFormattingHandlerRejectsInvalidCallbackMessages(t *testing.T) {
 func TestFormattingHandlerPropagatesEditAndAnswerErrors(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Format Chat"}
 	user := gotgbot.User{Id: 42, FirstName: "Formatter"}
-	data := "formatting.random"
+	data := encodeCallbackData("formatting", map[string]string{"m": "random"})
 
 	editClient := newModuleBotClient()
 	editClient.errors["editMessageText"] = errors.New("edit failed")

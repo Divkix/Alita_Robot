@@ -293,7 +293,7 @@ func TestRemoveAllBlacklistsConfirmationAndCallback(t *testing.T) {
 		t.Fatalf("rmAllBlacklists confirmation calls = %+v, want reply markup", calls)
 	}
 
-	data := encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}, "rmAllBlacklist.yes")
+	data := encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
 	if err := blacklistsModule.buttonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("buttonHandler error = %v, want EndGroups", err)

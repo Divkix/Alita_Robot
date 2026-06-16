@@ -85,7 +85,7 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			{
 				{
 					Text:         aboutMeText,
-					CallbackData: encodeCallbackData("about", map[string]string{"a": "me"}, "about.me"),
+					CallbackData: encodeCallbackData("about", map[string]string{"a": "me"}),
 				},
 			},
 			{
@@ -101,13 +101,13 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 			{
 				{
 					Text:         configurationText,
-					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step1"}, "configuration.step1"),
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step1"}),
 				},
 			},
 			{
 				{
 					Text:         backText,
-					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
 				},
 			},
 		},
@@ -129,7 +129,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 			{
 				{
 					Text:         aboutText,
-					CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
+					CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}),
 				},
 			},
 			{
@@ -145,13 +145,13 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 			{
 				{
 					Text:         commandsHelpText,
-					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}),
 				},
 			},
 			{
 				{
 					Text:         languageText,
-					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Languages"}, "helpq.Languages"),
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Languages"}),
 				},
 			},
 		},
@@ -179,11 +179,6 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 		response := ""
 		if decoded, ok := decodeCallbackData(query.Data, "about"); ok {
 			response, _ = decoded.Field("a")
-		} else {
-			args := strings.Split(query.Data, ".")
-			if len(args) >= 2 {
-				response = args[1]
-			}
 		}
 		if response == "" {
 			log.Warn("[About] Invalid callback data format - missing response part")
@@ -204,7 +199,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         backText,
-							CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
+							CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}),
 						},
 					},
 				},
@@ -256,7 +251,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         aboutButtonText,
-								CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
+								CallbackData: encodeCallbackData("about", map[string]string{"a": "main"}),
 							},
 						},
 					},
@@ -302,11 +297,6 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	module := ""
 	if decoded, ok := decodeCallbackData(query.Data, "helpq"); ok {
 		module, _ = decoded.Field("m")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			module = args[1]
-		}
 	}
 	if module == "" {
 		log.Warn("[HelpButtonHandler] Invalid callback data format - missing module part")
@@ -479,11 +469,6 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	response := ""
 	if decoded, ok := decodeCallbackData(query.Data, "configuration"); ok {
 		response, _ = decoded.Field("s")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			response = args[1]
-		}
 	}
 	if response == "" {
 		log.Warn("[BotConfig] Invalid callback data format - missing response part")
@@ -512,7 +497,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         doneText,
-					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step2"}, "configuration.step2"),
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step2"}),
 				},
 			},
 		}
@@ -523,7 +508,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         doneText,
-					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step3"}, "configuration.step3"),
+					CallbackData: encodeCallbackData("configuration", map[string]string{"s": "step3"}),
 				},
 			},
 		}
@@ -535,7 +520,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text:         continueText,
-					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}),
 				},
 			},
 		}

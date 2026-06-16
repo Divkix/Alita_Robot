@@ -218,11 +218,6 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	userType := ""
 	if decoded, ok := decodeCallbackData(query.Data, "connbtns"); ok {
 		userType, _ = decoded.Field("t")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			userType = args[1]
-		}
 	}
 	if userType == "" {
 		log.Warnf("[Connections] Invalid callback data format: %s", query.Data)
@@ -239,7 +234,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 				{
 					{
 						Text:         backText,
-						CallbackData: encodeCallbackData("connbtns", map[string]string{"t": "Main"}, "connbtns.Main"),
+						CallbackData: encodeCallbackData("connbtns", map[string]string{"t": "Main"}),
 					},
 				},
 			},

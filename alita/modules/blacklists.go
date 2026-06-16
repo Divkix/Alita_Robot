@@ -469,11 +469,11 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 					{
 						{
 							Text:         yesText,
-							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}, "rmAllBlacklist.yes"),
+							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "yes"}),
 						},
 						{
 							Text:         noText,
-							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "no"}, "rmAllBlacklist.no"),
+							CallbackData: encodeCallbackData("rmAllBlacklist", map[string]string{"a": "no"}),
 						},
 					},
 				},
@@ -508,11 +508,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	creatorAction := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmAllBlacklist"); ok {
 		creatorAction, _ = decoded.Field("a")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			creatorAction = args[1]
-		}
 	}
 	if creatorAction == "" {
 		log.Warnf("[Blacklists] Invalid callback data format: %s", query.Data)

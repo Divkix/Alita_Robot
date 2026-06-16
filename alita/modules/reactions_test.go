@@ -127,7 +127,7 @@ func TestReactionsHelpCallbackEditsAndAnswers(t *testing.T) {
 		bot,
 		chat,
 		user,
-		encodeCallbackData("reactions_help", map[string]string{"action": "add"}, "reactions_help.add"),
+		encodeCallbackData("reactions_help", map[string]string{"action": "add"}),
 	)
 
 	if err := reactionsModule.reactionsHelpHandler(bot, ctx); err != ext.EndGroups {

@@ -195,7 +195,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}, fmt.Sprintf("rmWarn.%d", u.Id)),
+							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}),
 						},
 						{
 							Text: rulesButtonText,
@@ -210,7 +210,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 					{
 						{
 							Text:         removeWarnText,
-							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}, fmt.Sprintf("rmWarn.%d", u.Id)),
+							CallbackData: encodeCallbackData("rmWarn", map[string]string{"u": fmt.Sprint(u.Id)}),
 						},
 					},
 				},
@@ -596,11 +596,6 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	userMatch := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmWarn"); ok {
 		userMatch, _ = decoded.Field("u")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			userMatch = args[1]
-		}
 	}
 	if userMatch == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
@@ -811,11 +806,11 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}, "rmAllChatWarns.yes"),
+								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}),
 							},
 							{
 								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "no"}, "rmAllChatWarns.no"),
+								CallbackData: encodeCallbackData("rmAllChatWarns", map[string]string{"a": "no"}),
 							},
 						},
 					},
@@ -849,11 +844,6 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	response := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmAllChatWarns"); ok {
 		response, _ = decoded.Field("a")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			response = args[1]
-		}
 	}
 	if response == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)

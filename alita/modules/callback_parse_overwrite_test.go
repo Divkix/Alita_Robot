@@ -8,7 +8,7 @@ func TestParseNoteOverwriteCallbackDataTokenized(t *testing.T) {
 	data := encodeCallbackData("notes.overwrite", map[string]string{
 		"a": "yes",
 		"t": "tok._-42",
-	}, "notes.overwrite.yes.123_key")
+	})
 
 	action, token, legacy, ok := parseNoteOverwriteCallbackData(data)
 	if !ok {
@@ -50,7 +50,7 @@ func TestParseFilterOverwriteCallbackDataTokenized(t *testing.T) {
 	data := encodeCallbackData("filters_overwrite", map[string]string{
 		"a": "yes",
 		"t": "f0.token",
-	}, "filters_overwrite.example")
+	})
 
 	action, token, legacy, ok := parseFilterOverwriteCallbackData(data)
 	if !ok {

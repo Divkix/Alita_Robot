@@ -142,7 +142,7 @@ func TestUnapproveAllConfirmationAndCallback(t *testing.T) {
 		t.Fatal("unapprove all confirmation did not include reply_markup")
 	}
 
-	data := encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}, "rmAllApprovals.yes")
+	data := encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
 	if err := approvalsModule.unapproveAllCallback(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback error = %v, want EndGroups", err)
@@ -164,7 +164,7 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 		t.Fatalf("AddApprovedUser setup error = %v", err)
 	}
 
-	cancelCtx := newModuleCallbackContext(bot, chat, owner, "rmAllApprovals.no")
+	cancelCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}))
 	if err := approvalsModule.unapproveAllCallback(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback cancel error = %v, want EndGroups", err)
 	}
@@ -172,17 +172,18 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 		t.Fatal("cancel callback removed approved user")
 	}
 
-	invalidCtx := newModuleCallbackContext(bot, chat, owner, "rmAllApprovals")
+	// Invalid (non-codec) data hits the "missing action" path.
+	invalidCtx := newModuleCallbackContext(bot, chat, owner, "not-a-valid-callback")
 	if err := approvalsModule.unapproveAllCallback(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback invalid error = %v, want EndGroups", err)
 	}
 
-	defaultCtx := newModuleCallbackContext(bot, chat, owner, "rmAllApprovals.maybe")
+	defaultCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "maybe"}))
 	if err := approvalsModule.unapproveAllCallback(bot, defaultCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback default error = %v, want EndGroups", err)
 	}
 
-	missingMessageCtx := newModuleCallbackContext(bot, chat, owner, "rmAllApprovals.yes")
+	missingMessageCtx := newModuleCallbackContext(bot, chat, owner, encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}))
 	missingMessageCtx.CallbackQuery.Message = nil
 	if err := approvalsModule.unapproveAllCallback(bot, missingMessageCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback missing message error = %v, want EndGroups", err)
@@ -322,12 +323,12 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		{
 			name:   "edit failure",
 			method: "editMessageText",
-			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}, "rmAllApprovals.yes"),
+			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}),
 		},
 		{
 			name:   "answer failure",
 			method: "answerCallbackQuery",
-			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}, "rmAllApprovals.no"),
+			data:   encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

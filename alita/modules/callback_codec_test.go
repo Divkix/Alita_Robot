@@ -10,23 +10,20 @@ func TestEncodeCallbackData(t *testing.T) {
 	t.Run("valid encode", func(t *testing.T) {
 		t.Parallel()
 
-		result := encodeCallbackData("test_ns", map[string]string{"k": "v"}, "fallback")
-		// Result must not be the fallback and must contain the namespace.
-		if result == "fallback" {
-			t.Fatal("expected encoded data, got fallback")
-		}
+		result := encodeCallbackData("test_ns", map[string]string{"k": "v"})
+		// Result must not be empty and must contain the namespace.
 		if result == "" {
 			t.Fatal("expected non-empty encoded data")
 		}
 	})
 
-	t.Run("encode error with empty namespace falls back", func(t *testing.T) {
+	t.Run("encode error with empty namespace returns empty string", func(t *testing.T) {
 		t.Parallel()
 
 		// Empty namespace triggers ErrInvalidNamespace in the codec.
-		result := encodeCallbackData("", map[string]string{"k": "v"}, "myfallback")
-		if result != "myfallback" {
-			t.Fatalf("expected fallback 'myfallback', got %q", result)
+		result := encodeCallbackData("", map[string]string{"k": "v"})
+		if result != "" {
+			t.Fatalf("expected empty string on encode error, got %q", result)
 		}
 	})
 
@@ -34,18 +31,18 @@ func TestEncodeCallbackData(t *testing.T) {
 		t.Parallel()
 
 		// Nil map should produce a valid encoded string (empty payload becomes "_").
-		result := encodeCallbackData("test_ns", nil, "fallback")
-		if result == "fallback" {
-			t.Fatal("nil fields map should encode successfully, not fall back")
+		result := encodeCallbackData("test_ns", nil)
+		if result == "" {
+			t.Fatal("nil fields map should encode successfully")
 		}
 	})
 
-	t.Run("empty fallback on encode error", func(t *testing.T) {
+	t.Run("empty fields map encodes successfully", func(t *testing.T) {
 		t.Parallel()
 
-		result := encodeCallbackData("", nil, "")
-		if result != "" {
-			t.Fatalf("expected empty fallback, got %q", result)
+		result := encodeCallbackData("test_ns", map[string]string{})
+		if result == "" {
+			t.Fatal("empty fields map should encode successfully")
 		}
 	})
 }
@@ -56,7 +53,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("valid decode no expected namespaces", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("myns", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("myns", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded)
 		if !ok {
 			t.Fatal("expected ok=true for valid encoded data")
@@ -72,7 +69,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("valid with matching namespace", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("myns", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("myns", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded, "myns")
 		if !ok {
 			t.Fatal("expected ok=true when namespace matches")
@@ -85,7 +82,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("namespace mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("myns", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("myns", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded, "otherns")
 		if ok {
 			t.Fatal("expected ok=false for mismatched namespace")
@@ -98,7 +95,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("case-insensitive namespace match", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("MyNs", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("MyNs", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded, "myns")
 		if !ok {
 			t.Fatal("expected ok=true for case-insensitive namespace match")
@@ -135,7 +132,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("multiple expected namespaces with match", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("myns", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("myns", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded, "otherns", "myns")
 		if !ok {
 			t.Fatal("expected ok=true when one of multiple namespaces matches")
@@ -148,7 +145,7 @@ func TestDecodeCallbackData(t *testing.T) {
 	t.Run("multiple expected namespaces no match", func(t *testing.T) {
 		t.Parallel()
 
-		encoded := encodeCallbackData("myns", map[string]string{"x": "1"}, "")
+		encoded := encodeCallbackData("myns", map[string]string{"x": "1"})
 		decoded, ok := decodeCallbackData(encoded, "otherns", "anotherns")
 		if ok {
 			t.Fatal("expected ok=false when none of multiple namespaces match")
@@ -158,12 +155,12 @@ func TestDecodeCallbackData(t *testing.T) {
 		}
 	})
 
-	t.Run("empty fields map encodes successfully", func(t *testing.T) {
+	t.Run("empty fields map encodes and decodes successfully", func(t *testing.T) {
 		t.Parallel()
 
-		result := encodeCallbackData("test_ns", map[string]string{}, "fallback")
-		if result == "fallback" {
-			t.Fatal("empty fields map should encode successfully, not fall back")
+		result := encodeCallbackData("test_ns", map[string]string{})
+		if result == "" {
+			t.Fatal("empty fields map should encode successfully")
 		}
 		decoded, ok := decodeCallbackData(result, "test_ns")
 		if !ok {

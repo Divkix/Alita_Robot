@@ -161,13 +161,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	action := ""
 	if decoded, ok := decodeCallbackData(query.Data, "unpinallbtn"); ok {
 		action, _ = decoded.Field("a")
-	} else {
-		switch query.Data {
-		case "unpinallbtn(yes)":
-			action = "yes"
-		case "unpinallbtn(no)":
-			action = "no"
-		}
 	}
 
 	switch action {
@@ -225,8 +218,8 @@ func (moduleStruct) unpinAll(c *helpers.CommandContext) error {
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
-						{Text: yesText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"}, "unpinallbtn(yes)")},
-						{Text: noText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "no"}, "unpinallbtn(no)")},
+						{Text: yesText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"})},
+						{Text: noText, CallbackData: encodeCallbackData("unpinallbtn", map[string]string{"a": "no"})},
 					},
 				},
 			},

@@ -472,7 +472,7 @@ func TestRmWarnButtonRemovesWarning(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	warns.WarnUser(target.Id, chat.Id, "button")
-	data := encodeCallbackData("rmWarn", map[string]string{"u": "42"}, "rmWarn.42")
+	data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 
 	ctx := newModuleCallbackContext(bot, chat, admin, data)
 	if err := warnsModule.rmWarnButton(bot, ctx); err != ext.EndGroups {
@@ -517,7 +517,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		client.errors["editMessageText"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 		warns.WarnUser(target.Id, chat.Id, "button")
-		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"}, "rmWarn.42")
+		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 		err := warnsModule.rmWarnButton(bot, ctx)
@@ -532,7 +532,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		client.errors["answerCallbackQuery"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 		warns.WarnUser(target.Id, chat.Id, "button")
-		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"}, "rmWarn.42")
+		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 		err := warnsModule.rmWarnButton(bot, ctx)
@@ -568,7 +568,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 			warns.WarnUser(target.Id, chat.Id, "first")
-			data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}, "rmAllChatWarns.yes")
+			data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 			ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 			err := warnsModule.warnsButtonHandler(bot, ctx)
@@ -585,7 +585,7 @@ func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	warns.WarnUser(42, chat.Id, "first")
-	data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"}, "rmAllChatWarns.yes")
+	data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 
 	confirmCtx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
 	if err := warnsModule.resetAllWarns(bot, confirmCtx); err != ext.EndGroups {

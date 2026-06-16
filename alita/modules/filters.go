@@ -264,13 +264,13 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 								CallbackData: encodeCallbackData("filters_overwrite", map[string]string{
 									"a": "yes",
 									"t": token,
-								}, "filters_overwrite."+filterWord),
+								}),
 							},
 							{
 								Text: noText,
 								CallbackData: encodeCallbackData("filters_overwrite", map[string]string{
 									"a": "cancel",
-								}, "filters_overwrite.cancel"),
+								}),
 							},
 						},
 					},
@@ -477,11 +477,11 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes"),
+								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
 							},
 							{
 								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}, "rmAllFilters.no"),
+								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
 							},
 						},
 					},
@@ -521,11 +521,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	response := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmAllFilters"); ok {
 		response, _ = decoded.Field("a")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			response = args[1]
-		}
 	}
 	if response == "" {
 		log.Warnf("[Filters] Invalid callback data format: %s", query.Data)
@@ -825,7 +820,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 					t, _ := tr.GetString("common_formatting_button")
 					return t
 				}(),
-				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
+				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},
 	} // Adds Formatting kb button to Filters Menu

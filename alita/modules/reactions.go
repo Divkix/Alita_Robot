@@ -50,11 +50,11 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 		{
 			{
 				Text:         "Add Reaction",
-				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "add"}, "reactions_help.add"),
+				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "add"}),
 			},
 			{
 				Text:         "Remove Reaction",
-				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "remove"}, "reactions_help.remove"),
+				CallbackData: encodeCallbackData("reactions_help", map[string]string{"action": "remove"}),
 			},
 		},
 	}
@@ -75,11 +75,6 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	action := ""
 	if decoded, ok := decodeCallbackData(query.Data, "reactions_help"); ok {
 		action, _ = decoded.Field("action")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 2 {
-			action = parts[1]
-		}
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if action == "" {
@@ -116,7 +111,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 					{
 						{
 							Text:         backText,
-							CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Reactions"}, "helpq.Reactions"),
+							CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Reactions"}),
 						},
 					},
 				},

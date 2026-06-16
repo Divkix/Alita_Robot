@@ -610,7 +610,7 @@ func TestRestrictCommandAndMuteCallback(t *testing.T) {
 		t.Fatal("restrict menu did not include reply_markup")
 	}
 
-	data := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"}, "restrict.mute.42")
+	data := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"})
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, data)
 	if err := bansModule.restrictButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("restrictButtonHandler() error = %v, want EndGroups", err)
@@ -656,7 +656,7 @@ func TestRestrictCallbacksApplyKickBanAndInvalidUser(t *testing.T) {
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	for _, action := range []string{"kick", "ban"} {
-		data := encodeCallbackData("restrict", map[string]string{"a": action, "u": "42"}, "restrict."+action+".42")
+		data := encodeCallbackData("restrict", map[string]string{"a": action, "u": "42"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 		if err := bansModule.restrictButtonHandler(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("restrictButtonHandler(%s) error = %v, want EndGroups", action, err)
@@ -695,7 +695,7 @@ func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
 		bot,
 		chat,
 		member,
-		encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"}, "restrict.mute.42"),
+		encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"}),
 	)
 	if err := bansModule.restrictButtonHandler(bot, nonAdminCtx); err != ext.EndGroups {
 		t.Fatalf("restrictButtonHandler(non-admin) error = %v, want EndGroups", err)
@@ -732,7 +732,7 @@ func TestUnrestrictCommandAndUnbanCallback(t *testing.T) {
 		t.Fatal("unrestrict menu did not include reply_markup")
 	}
 
-	data := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"}, "unrestrict.unban.42")
+	data := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"})
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, data)
 	if err := bansModule.unrestrictButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("unrestrictButtonHandler() error = %v, want EndGroups", err)
@@ -777,7 +777,7 @@ func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	unmuteData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"}, "unrestrict.unmute.42")
+	unmuteData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"})
 	unmuteCtx := newModuleCallbackContext(bot, chat, admin, unmuteData)
 	if err := bansModule.unrestrictButtonHandler(bot, unmuteCtx); err != ext.EndGroups {
 		t.Fatalf("unrestrictButtonHandler(unmute) error = %v, want EndGroups", err)
@@ -1048,9 +1048,9 @@ func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	restrictData := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"}, "restrict.mute.42")
-	unrestrictData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"}, "unrestrict.unmute.42")
-	unbanData := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"}, "unrestrict.unban.42")
+	restrictData := encodeCallbackData("restrict", map[string]string{"a": "mute", "u": "42"})
+	unrestrictData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"})
+	unbanData := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "42"})
 
 	for _, tt := range []struct {
 		name   string
@@ -1088,7 +1088,7 @@ func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T)
 			name:   "restrict callback ban failure",
 			method: "banChatMember",
 			ctx: func(bot *gotgbot.Bot) *ext.Context {
-				data := encodeCallbackData("restrict", map[string]string{"a": "ban", "u": "42"}, "restrict.ban.42")
+				data := encodeCallbackData("restrict", map[string]string{"a": "ban", "u": "42"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: bansModule.restrictButtonHandler,

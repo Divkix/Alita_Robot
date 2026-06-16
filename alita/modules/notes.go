@@ -151,14 +151,14 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 								CallbackData: encodeCallbackData("notes.overwrite", map[string]string{
 									"a": "yes",
 									"t": token,
-								}, fmt.Sprintf("notes.overwrite.yes.%d_%s", chat.Id, noteWord)),
+								}),
 							},
 							{
 								Text: noText,
 								CallbackData: encodeCallbackData("notes.overwrite", map[string]string{
 									"a": "no",
 									"t": token,
-								}, fmt.Sprintf("notes.overwrite.no.%d_%s", chat.Id, noteWord)),
+								}),
 							},
 						},
 					},
@@ -473,11 +473,11 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 						{
 							{
 								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}, "rmAllNotes.yes"),
+								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}),
 							},
 							{
 								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+								CallbackData: encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
 							},
 						},
 					},
@@ -679,11 +679,6 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	response := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmAllNotes"); ok {
 		response, _ = decoded.Field("a")
-	} else {
-		args := strings.Split(query.Data, ".")
-		if len(args) >= 2 {
-			response = args[1]
-		}
 	}
 	if response == "" {
 		log.Warnf("[Notes] Invalid callback data format: %s", query.Data)
@@ -1033,7 +1028,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 		{
 			{
 				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
-				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
+				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},
 	} // Adds Formatting kb button to Notes Menu

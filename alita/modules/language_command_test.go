@@ -33,7 +33,7 @@ func TestLanguageCallbackChangesUserLanguageAndEditsMessage(t *testing.T) {
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 5202, FirstName: "Member"}
 	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
-	data := encodeCallbackData("change_language", map[string]string{"l": "es"}, "change_language.es")
+	data := encodeCallbackData("change_language", map[string]string{"l": "es"})
 
 	ctx := newModuleCallbackContext(bot, chat, user, data)
 	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
@@ -57,7 +57,7 @@ func TestLanguageCallbackWithoutMessageAnswersInsteadOfEditing(t *testing.T) {
 	query := &gotgbot.CallbackQuery{
 		Id:           "callback-2",
 		From:         user,
-		Data:         "change_language.fr",
+		Data:         encodeCallbackData("change_language", map[string]string{"l": "fr"}),
 		ChatInstance: "test-chat-instance",
 	}
 	ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 3, CallbackQuery: query}, nil)
@@ -101,7 +101,7 @@ func TestLanguageCallbackHandlesGroupPermissionsAndInvalidUser(t *testing.T) {
 		bot := newModuleTestBot(client)
 		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Language Chat"}
-		data := encodeCallbackData("change_language", map[string]string{"l": "hi"}, "change_language.hi")
+		data := encodeCallbackData("change_language", map[string]string{"l": "hi"})
 
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
@@ -120,7 +120,7 @@ func TestLanguageCallbackHandlesGroupPermissionsAndInvalidUser(t *testing.T) {
 		bot := newModuleTestBot(client)
 		member := gotgbot.User{Id: 42, FirstName: "Member"}
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Language Chat"}
-		data := encodeCallbackData("change_language", map[string]string{"l": "es"}, "change_language.es")
+		data := encodeCallbackData("change_language", map[string]string{"l": "es"})
 
 		ctx := newModuleCallbackContext(bot, chat, member, data)
 		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
@@ -136,7 +136,7 @@ func TestLanguageCallbackHandlesGroupPermissionsAndInvalidUser(t *testing.T) {
 		bot := newModuleTestBot(client)
 		user := gotgbot.User{Id: 0, FirstName: "Invalid"}
 		chat := gotgbot.Chat{Id: 1000, Type: "private", FirstName: "Invalid"}
-		data := encodeCallbackData("change_language", map[string]string{"l": "es"}, "change_language.es")
+		data := encodeCallbackData("change_language", map[string]string{"l": "es"})
 
 		ctx := newModuleCallbackContext(bot, chat, user, data)
 		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
@@ -162,7 +162,7 @@ func TestLanguageCallbackPropagatesAnswerAndEditErrors(t *testing.T) {
 			client.errors[tt.method] = fmt.Errorf("telegram request failed")
 			bot := newModuleTestBot(client)
 			user := gotgbot.User{Id: uniqueModuleChatID(), FirstName: "Member"}
-			data := encodeCallbackData("change_language", map[string]string{"l": "fr"}, "change_language.fr")
+			data := encodeCallbackData("change_language", map[string]string{"l": "fr"})
 			var ctx *ext.Context
 			if tt.noMsg {
 				query := &gotgbot.CallbackQuery{

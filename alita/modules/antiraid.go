@@ -340,13 +340,13 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			disableText, _ := tr.GetString("antiraid_btn_disable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         disableText,
-				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "off"}, "antiraid.off"),
+				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "off"}),
 			}})
 		} else {
 			enableText, _ := tr.GetString("antiraid_btn_enable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         enableText,
-				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "on"}, "antiraid.on"),
+				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "on"}),
 			}})
 		}
 

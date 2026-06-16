@@ -44,9 +44,7 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 	for _, i := range listModulesFrom(registry) {
 		kb = append(kb, gotgbot.InlineKeyboardButton{
 			Text: i,
-			CallbackData: encodeCallbackData("helpq", map[string]string{"m": i},
-				fmt.Sprintf("helpq.%s", i),
-			),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": i}),
 		})
 	}
 	zb := keyboard.ChunkKeyboardSlices(kb, 3)
@@ -54,7 +52,7 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 	backText, _ := tr.GetString("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{
 		Text:         backText,
-		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
+		CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
 	}})
 	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
 }
@@ -72,11 +70,11 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 	backBtnSuffix := []gotgbot.InlineKeyboardButton{
 		{
 			Text:         backText,
-			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}),
 		},
 		{
 			Text:         homeText,
-			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}, "helpq.BackStart"),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
 		},
 	}
 

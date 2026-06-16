@@ -79,7 +79,7 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 					{
 						{
 							Text:         func() string { t, _ := c.Tr.GetString("mutes_unmute_button"); return t }(),
-							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(t.userID)}, fmt.Sprintf("unrestrict.unmute.%d", t.userID)),
+							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(t.userID)}),
 						},
 					},
 				},

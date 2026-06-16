@@ -172,13 +172,13 @@ func TestAboutCommandAndCallbacksSendOrEditMessages(t *testing.T) {
 		bot,
 		privateChat,
 		user,
-		encodeCallbackData("about", map[string]string{"a": "main"}, "about.main"),
+		encodeCallbackData("about", map[string]string{"a": "main"}),
 	)
 	if err := DefaultHelpRegistry().about(bot, mainCtx); err != ext.EndGroups {
 		t.Fatalf("about(callback main) error = %v, want EndGroups", err)
 	}
 
-	meCtx := newModuleCallbackContext(bot, privateChat, user, "about.me")
+	meCtx := newModuleCallbackContext(bot, privateChat, user, encodeCallbackData("about", map[string]string{"a": "me"}))
 	if err := DefaultHelpRegistry().about(bot, meCtx); err != ext.EndGroups {
 		t.Fatalf("about(callback me) error = %v, want EndGroups", err)
 	}
@@ -200,7 +200,11 @@ func TestBotConfigCallbackStepsEditAndAnswer(t *testing.T) {
 	user := gotgbot.User{Id: 4304, FirstName: "Helper"}
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
 
-	for _, data := range []string{"configuration.step1", "configuration.step2", "configuration.step3"} {
+	for _, data := range []string{
+		encodeCallbackData("configuration", map[string]string{"s": "step1"}),
+		encodeCallbackData("configuration", map[string]string{"s": "step2"}),
+		encodeCallbackData("configuration", map[string]string{"s": "step3"}),
+	} {
 		ctx := newModuleCallbackContext(bot, privateChat, user, data)
 		if err := DefaultHelpRegistry().botConfig(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("botConfig(%s) error = %v, want EndGroups", data, err)
@@ -238,9 +242,9 @@ func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
 
 	for _, data := range []string{
-		encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
-		"helpq.BackStart",
-		encodeCallbackData("helpq", map[string]string{"m": "Admin"}, "helpq.Admin"),
+		encodeCallbackData("helpq", map[string]string{"m": "Help"}),
+		encodeCallbackData("helpq", map[string]string{"m": "BackStart"}),
+		encodeCallbackData("helpq", map[string]string{"m": "Admin"}),
 	} {
 		ctx := newModuleCallbackContext(bot, chat, user, data)
 		if err := DefaultHelpRegistry().helpButtonHandler(bot, ctx); err != ext.EndGroups {

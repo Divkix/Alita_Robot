@@ -742,7 +742,6 @@ func TestPendingJoinRequestAndCallbacks(t *testing.T) {
 	data := encodeCallbackData(
 		"join_request",
 		map[string]string{"a": "accept", "u": "5151"},
-		"join_request.accept.5151",
 	)
 	callbackCtx := newModuleCallbackContext(bot, chat, admin, data)
 	if err := greetingsModule.joinRequestHandler(bot, callbackCtx); err != ext.EndGroups {
@@ -765,13 +764,13 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 		wantBan     int
 	}{
 		{
-			name:        "legacy decline",
-			data:        "join_request.decline.7171",
+			name:        "encoded decline",
+			data:        encodeCallbackData("join_request", map[string]string{"a": "decline", "u": "7171"}),
 			wantDecline: 1,
 		},
 		{
 			name:        "encoded ban",
-			data:        encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "7171"}, "join_request.ban.7171"),
+			data:        encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "7171"}),
 			wantDecline: 1,
 			wantBan:     1,
 		},
@@ -831,7 +830,7 @@ func TestJoinRequestCallbacksHandleDeclineBanAndInvalidData(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
 		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-		data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "nan"}, "join_request.accept.nan")
+		data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "nan"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 		if err := greetingsModule.joinRequestHandler(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("joinRequestHandler invalid user error = %v, want EndGroups", err)
@@ -938,7 +937,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback lookup",
 			method: "getChat",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -947,7 +946,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback approve",
 			method: "approveChatJoinRequest",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -956,7 +955,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback decline",
 			method: "declineChatJoinRequest",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "decline", "u": "5151"}, "join_request.decline.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "decline", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -965,7 +964,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback ban",
 			method: "banChatMember",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "5151"}, "join_request.ban.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "ban", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -974,7 +973,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback edit",
 			method: "editMessageText",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -983,7 +982,7 @@ func TestJoinRequestFlowPropagatesGotgbotRequestErrors(t *testing.T) {
 			name:   "join callback answer",
 			method: "answerCallbackQuery",
 			build: func(bot *gotgbot.Bot, chat gotgbot.Chat) *ext.Context {
-				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"}, "join_request.accept.5151")
+				data := encodeCallbackData("join_request", map[string]string{"a": "accept", "u": "5151"})
 				return newModuleCallbackContext(bot, chat, admin, data)
 			},
 			run: greetingsModule.joinRequestHandler,
@@ -1022,7 +1021,6 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 			data: encodeCallbackData(
 				"join_request",
 				map[string]string{"a": "accept", "u": "5151"},
-				"join_request.accept.5151",
 			),
 			want: ext.EndGroups,
 		},
@@ -1032,7 +1030,6 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 			data: encodeCallbackData(
 				"join_request",
 				map[string]string{"a": "decline", "u": "5151"},
-				"join_request.decline.5151",
 			),
 			want: ext.EndGroups,
 		},

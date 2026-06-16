@@ -122,7 +122,7 @@ func TestUnpinAllCallbackExecutesAndCancels(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"}, "unpinallbtn(yes)")
+	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"})
 	yesCtx := newModuleCallbackContext(bot, chat, user, yesData)
 	if err := pinsModule.unpinallCallback(bot, yesCtx); err != ext.EndGroups {
 		t.Fatalf("unpinallCallback yes error = %v, want EndGroups", err)
@@ -131,7 +131,7 @@ func TestUnpinAllCallbackExecutesAndCancels(t *testing.T) {
 		t.Fatalf("unpinAllChatMessages calls = %d, want 1", len(calls))
 	}
 
-	noCtx := newModuleCallbackContext(bot, chat, user, "unpinallbtn(no)")
+	noCtx := newModuleCallbackContext(bot, chat, user, encodeCallbackData("unpinallbtn", map[string]string{"a": "no"}))
 	if err := pinsModule.unpinallCallback(bot, noCtx); err != ext.EndGroups {
 		t.Fatalf("unpinallCallback no error = %v, want EndGroups", err)
 	}
@@ -676,7 +676,7 @@ func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"}, "unpinallbtn(yes)")
+	yesData := encodeCallbackData("unpinallbtn", map[string]string{"a": "yes"})
 	for _, tt := range []struct {
 		name   string
 		data   string
@@ -684,7 +684,7 @@ func TestPinCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 	}{
 		{name: "unpin all request", data: yesData, method: "unpinAllChatMessages"},
 		{name: "unpin all edit", data: yesData, method: "editMessageText"},
-		{name: "unpin all cancel edit", data: "unpinallbtn(no)", method: "editMessageText"},
+		{name: "unpin all cancel edit", data: encodeCallbackData("unpinallbtn", map[string]string{"a": "no"}), method: "editMessageText"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newModuleBotClient()

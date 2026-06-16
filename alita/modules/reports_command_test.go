@@ -305,7 +305,7 @@ func TestReportActionCallbacksBanDeleteAndResolve(t *testing.T) {
 		"a": "ban",
 		"u": "42",
 		"m": "505",
-	}, "report.ban=42=505")
+	})
 	banCtx := newModuleCallbackContext(bot, chat, admin, banData)
 	if err := reportsModule.markResolvedButtonHandler(bot, banCtx); err != ext.EndGroups {
 		t.Fatalf("report ban callback error = %v, want EndGroups", err)
@@ -318,7 +318,7 @@ func TestReportActionCallbacksBanDeleteAndResolve(t *testing.T) {
 		"a": "delete",
 		"u": "42",
 		"m": "505",
-	}, "report.delete=42=505")
+	})
 	deleteCtx := newModuleCallbackContext(bot, chat, admin, deleteData)
 	if err := reportsModule.markResolvedButtonHandler(bot, deleteCtx); err != ext.EndGroups {
 		t.Fatalf("report delete callback error = %v, want EndGroups", err)
@@ -331,7 +331,7 @@ func TestReportActionCallbacksBanDeleteAndResolve(t *testing.T) {
 		"a": "resolved",
 		"u": "42",
 		"m": "505",
-	}, "report.resolved=42=505")
+	})
 	resolvedCtx := newModuleCallbackContext(bot, chat, admin, resolvedData)
 	if err := reportsModule.markResolvedButtonHandler(bot, resolvedCtx); err != ext.EndGroups {
 		t.Fatalf("report resolved callback error = %v, want EndGroups", err)
@@ -350,7 +350,7 @@ func TestReportActionCallbacksKickAndInvalidData(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	kickCtx := newModuleCallbackContext(bot, chat, admin, "report.kick=42=505")
+	kickCtx := newModuleCallbackContext(bot, chat, admin, encodeCallbackData("report", map[string]string{"a": "kick", "u": "42", "m": "505"}))
 	if err := reportsModule.markResolvedButtonHandler(bot, kickCtx); err != ext.EndGroups {
 		t.Fatalf("report kick callback error = %v, want EndGroups", err)
 	}
@@ -365,8 +365,8 @@ func TestReportActionCallbacksKickAndInvalidData(t *testing.T) {
 
 	for _, data := range []string{
 		"report.invalid",
-		encodeCallbackData("report", map[string]string{"a": "ban", "u": "nan", "m": "505"}, "report.ban=nan=505"),
-		encodeCallbackData("report", map[string]string{"a": "ban", "u": "42", "m": "nan"}, "report.ban=42=nan"),
+		encodeCallbackData("report", map[string]string{"a": "ban", "u": "nan", "m": "505"}),
+		encodeCallbackData("report", map[string]string{"a": "ban", "u": "42", "m": "nan"}),
 	} {
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 		if err := reportsModule.markResolvedButtonHandler(bot, ctx); err != ext.EndGroups {

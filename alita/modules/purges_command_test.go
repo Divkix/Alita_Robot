@@ -248,7 +248,7 @@ func TestDeleteButtonHandlerDeletesTargetMessage(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	validData := encodeCallbackData("deleteMsg", map[string]string{"m": "345"}, "deleteMsg.345")
+	validData := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
 	ctx := newModuleCallbackContext(bot, chat, admin, validData)
 	if err := purgesModule.deleteButtonHandler(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("deleteButtonHandler error = %v, want EndGroups", err)

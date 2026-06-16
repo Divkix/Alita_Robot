@@ -127,19 +127,6 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if decoded, ok := decodeCallbackData(query.Data, "anon_admin"); ok {
 		chatIDRaw, _ = decoded.Field("c")
 		msgIDRaw, _ = decoded.Field("m")
-	} else {
-		legacy := strings.Split(query.Data, ":")
-		if len(legacy) >= 4 && legacy[0] == "alita" && legacy[1] == "anonAdmin" {
-			chatIDRaw = legacy[2]
-			msgIDRaw = legacy[3]
-		} else {
-			// Backward compatibility for legacy malformed dotted payloads if any exist.
-			data := strings.Split(query.Data, ".")
-			if len(data) >= 3 {
-				chatIDRaw = data[1]
-				msgIDRaw = data[2]
-			}
-		}
 	}
 	if chatIDRaw == "" || msgIDRaw == "" {
 		log.Warnf("[BotUpdates] Invalid callback data format: %s", query.Data)

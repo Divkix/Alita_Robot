@@ -540,7 +540,6 @@ func TestBackupCallbackHandlerConfirmsPendingImport(t *testing.T) {
 	callback := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "confirm_import", "c": strconv.FormatInt(chat.Id, 10)},
-		"backup.confirm",
 	)
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
@@ -566,7 +565,6 @@ func TestBackupCallbackHandlerConfirmsPendingReset(t *testing.T) {
 	callback := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "confirm_reset", "c": strconv.FormatInt(chat.Id, 10)},
-		"backup.reset",
 	)
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
@@ -590,7 +588,6 @@ func TestBackupCallbackHandlerIgnoresWrongChatConfirmation(t *testing.T) {
 	callback := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "confirm_reset", "c": strconv.FormatInt(chat.Id+1, 10)},
-		"backup.reset",
 	)
 	ctx := newModuleCallbackContext(bot, chat, owner, callback)
 	err := backupModule.backupCallbackHandler(bot, ctx)
@@ -643,7 +640,6 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	cancelImport := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "cancel_import", "c": strconv.FormatInt(chat.Id, 10)},
-		"backup.cancel",
 	)
 	importCtx := newModuleCallbackContext(bot, chat, owner, cancelImport)
 	err := backupModule.handleCancelImport(bot, importCtx, testTranslator(t), importCtx.CallbackQuery)
@@ -655,7 +651,6 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	cancelReset := encodeCallbackData(
 		"backup",
 		map[string]string{"a": "cancel_reset", "c": strconv.FormatInt(chat.Id, 10)},
-		"backup.cancel_reset",
 	)
 	resetCtx := newModuleCallbackContext(bot, chat, owner, cancelReset)
 	err = backupModule.handleCancelReset(bot, resetCtx, testTranslator(t), resetCtx.CallbackQuery)

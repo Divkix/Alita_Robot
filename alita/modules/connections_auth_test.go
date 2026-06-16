@@ -336,7 +336,7 @@ func TestConnectionButtonsRenderAdminCommandsAndAnswerCallback(t *testing.T) {
 	connections.ConnectId(user.Id, chatID)
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
-	ctx := newModuleCallbackContext(bot, privateChat, user, "connbtns.Admin")
+	ctx := newModuleCallbackContext(bot, privateChat, user, encodeCallbackData("connbtns", map[string]string{"t": "Admin"}))
 	if err := ConnectionsModule.connectionButtons(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("connectionButtons() error = %v, want EndGroups", err)
 	}
@@ -357,8 +357,8 @@ func TestConnectionButtonsRenderUserAndMainViews(t *testing.T) {
 
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 	for _, data := range []string{
-		encodeCallbackData("connbtns", map[string]string{"t": "User"}, "connbtns.User"),
-		encodeCallbackData("connbtns", map[string]string{"t": "Main"}, "connbtns.Main"),
+		encodeCallbackData("connbtns", map[string]string{"t": "User"}),
+		encodeCallbackData("connbtns", map[string]string{"t": "Main"}),
 	} {
 		ctx := newModuleCallbackContext(bot, privateChat, user, data)
 		if err := ConnectionsModule.connectionButtons(bot, ctx); err != ext.EndGroups {

@@ -237,7 +237,7 @@ func TestVerifyAnonymousAdminRejectsNonAdmin(t *testing.T) {
 	data := encodeCallbackData("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": "101",
-	}, "")
+	})
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 
 	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
@@ -262,7 +262,7 @@ func TestVerifyAnonymousAdminEditsExpiredButton(t *testing.T) {
 	data := encodeCallbackData("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": "202",
-	}, "")
+	})
 	ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
@@ -293,7 +293,7 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 		data := encodeCallbackData("anon_admin", map[string]string{
 			"c": fmt.Sprint(chat.Id),
 			"m": "202",
-		}, "")
+		})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 		err := verifyAnonymousAdmin(bot, ctx)
@@ -322,7 +322,7 @@ func TestVerifyAnonymousAdminPropagatesEditAndDeleteErrors(t *testing.T) {
 		data := encodeCallbackData("anon_admin", map[string]string{
 			"c": fmt.Sprint(chat.Id),
 			"m": fmt.Sprint(cached.MessageId),
-		}, "")
+		})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 		err := verifyAnonymousAdmin(bot, ctx)
@@ -363,7 +363,7 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 	data := encodeCallbackData("anon_admin", map[string]string{
 		"c": fmt.Sprint(chat.Id),
 		"m": fmt.Sprint(cached.MessageId),
-	}, "")
+	})
 	ctx := newModuleCallbackContext(bot, chat, admin, data)
 
 	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {

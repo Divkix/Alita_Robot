@@ -440,11 +440,11 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 					{
 						{
 							Text:         yesText,
-							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}, "rmAllApprovals.yes"),
+							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "yes"}),
 						},
 						{
 							Text:         noText,
-							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}, "rmAllApprovals.no"),
+							CallbackData: encodeCallbackData("rmAllApprovals", map[string]string{"a": "no"}),
 						},
 					},
 				},
@@ -477,11 +477,6 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 	action := ""
 	if decoded, ok := decodeCallbackData(query.Data, "rmAllApprovals"); ok {
 		action, _ = decoded.Field("a")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 2 {
-			action = parts[1]
-		}
 	}
 	if action == "" {
 		log.Warnf("[Approvals] Invalid callback data format: %s", query.Data)

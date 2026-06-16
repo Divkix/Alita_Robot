@@ -955,7 +955,6 @@ func TestCaptchaVerifyCallbackWrongAnswerIncrementsAttempts(t *testing.T) {
 	data := encodeCallbackData(
 		"captcha_verify",
 		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"},
-		fmt.Sprintf("captcha_verify.%d.42.8", attempt.ID),
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
@@ -990,10 +989,10 @@ func TestCaptchaVerifyCallbackValidationBranches(t *testing.T) {
 		data string
 	}{
 		{name: "malformed", user: member, data: "captcha_verify"},
-		{name: "bad attempt id", user: member, data: "captcha_verify.nope.42.7"},
-		{name: "bad user id", user: member, data: fmt.Sprintf("captcha_verify.%d.nope.7", attempt.ID)},
-		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: fmt.Sprintf("captcha_verify.%d.42.7", attempt.ID)},
-		{name: "attempt mismatch", user: member, data: "captcha_verify.999999.42.7"},
+		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "nope", "u": "42", "s": "7"})},
+		{name: "bad user id", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "nope", "s": "7"})},
+		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"})},
+		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_verify", map[string]string{"a": "999999", "u": "42", "s": "7"})},
 	}
 
 	for _, tt := range tests {
@@ -1028,7 +1027,6 @@ func TestCaptchaVerifyCallbackCorrectAnswerUnmutesAndCleansAttempt(t *testing.T)
 	data := encodeCallbackData(
 		"captcha_verify",
 		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"},
-		fmt.Sprintf("captcha_verify.%d.42.7", attempt.ID),
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
@@ -1068,7 +1066,7 @@ func TestCaptchaVerifyCallbackFinalWrongAnswerAppliesFailureAction(t *testing.T)
 		t.Fatalf("UpdateCaptchaAttemptMessageID() error = %v", err)
 	}
 
-	ctx := newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_verify.%d.42.8", attempt.ID))
+	ctx := newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
 	if err := captchaModule.captchaVerifyCallback(bot, ctx); err != nil {
 		t.Fatalf("captchaVerifyCallback(final wrong) error = %v", err)
 	}
@@ -1175,10 +1173,10 @@ func TestCaptchaRefreshCallbackValidationBranches(t *testing.T) {
 		data string
 	}{
 		{name: "malformed", user: member, data: "captcha_refresh"},
-		{name: "bad attempt id", user: member, data: "captcha_refresh.nope.42"},
-		{name: "bad user id", user: member, data: fmt.Sprintf("captcha_refresh.%d.nope", attempt.ID)},
-		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: fmt.Sprintf("captcha_refresh.%d.42", attempt.ID)},
-		{name: "attempt mismatch", user: member, data: "captcha_refresh.999999.42"},
+		{name: "bad attempt id", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "nope", "u": "42"})},
+		{name: "bad user id", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "nope"})},
+		{name: "wrong user", user: gotgbot.User{Id: 43, FirstName: "Other"}, data: encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"})},
+		{name: "attempt mismatch", user: member, data: encodeCallbackData("captcha_refresh", map[string]string{"a": "999999", "u": "42"})},
 	}
 
 	for _, tt := range tests {
@@ -1213,7 +1211,6 @@ func TestCaptchaRefreshCallbackSendsNewChallengeAndUpdatesAttempt(t *testing.T) 
 	data := encodeCallbackData(
 		"captcha_refresh",
 		map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"},
-		fmt.Sprintf("captcha_refresh.%d.42", attempt.ID),
 	)
 	ctx := newModuleCallbackContext(bot, chat, member, data)
 	if err := captchaModule.captchaRefreshCallback(bot, ctx); err != nil {
@@ -1324,7 +1321,7 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_verify.%d.42.8", attempt.ID))
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "8"}))
 			},
 			run: captchaModule.captchaVerifyCallback,
 		},
@@ -1337,7 +1334,7 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_verify.%d.42.7", attempt.ID))
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_verify", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42", "s": "7"}))
 			},
 			run: captchaModule.captchaVerifyCallback,
 		},
@@ -1350,7 +1347,7 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_refresh.%d.42", attempt.ID))
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"}))
 			},
 			run: captchaModule.captchaRefreshCallback,
 		},
@@ -1363,7 +1360,7 @@ func TestCaptchaCallbacksPropagateGotgbotRequestErrors(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 				}
-				return newModuleCallbackContext(bot, chat, member, fmt.Sprintf("captcha_refresh.%d.42", attempt.ID))
+				return newModuleCallbackContext(bot, chat, member, encodeCallbackData("captcha_refresh", map[string]string{"a": fmt.Sprint(attempt.ID), "u": "42"}))
 			},
 			run: captchaModule.captchaRefreshCallback,
 		},

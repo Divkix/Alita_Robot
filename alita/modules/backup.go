@@ -740,14 +740,14 @@ func buildImportKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboa
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "confirm_import",
 						"c": fmt.Sprintf("%d", chatID),
-					}, "backup.confirm"),
+					}),
 				},
 				{
 					Text: func() string { t, _ := tr.GetString("button_cancel_import"); return t }(),
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "cancel_import",
 						"c": fmt.Sprintf("%d", chatID),
-					}, "backup.cancel"),
+					}),
 				},
 			},
 		},
@@ -763,7 +763,7 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "confirm_reset",
 						"c": fmt.Sprintf("%d", chatID),
-					}, "backup.confirm_reset"),
+					}),
 				},
 			},
 			{
@@ -772,7 +772,7 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "cancel_reset",
 						"c": fmt.Sprintf("%d", chatID),
-					}, "backup.cancel_reset"),
+					}),
 				},
 			},
 		},
@@ -793,7 +793,7 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 					t, _ := tr.GetString("backup_export_button")
 					return t
 				}(),
-				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_export"}, "backup.show_export"),
+				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_export"}),
 			},
 			{
 				Text: func() string {
@@ -801,7 +801,7 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 					t, _ := tr.GetString("backup_import_button")
 					return t
 				}(),
-				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_import"}, "backup.show_import"),
+				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_import"}),
 			},
 		},
 	}

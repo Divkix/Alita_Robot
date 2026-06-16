@@ -488,7 +488,7 @@ func TestAntiRaidCallbackTogglesState(t *testing.T) {
 		bot,
 		chat,
 		user,
-		encodeCallbackData("antiraid", map[string]string{"a": "on"}, "antiraid.on"),
+		encodeCallbackData("antiraid", map[string]string{"a": "on"}),
 	)
 	if err := antiRaidModule.callbackHandler(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("callbackHandler(on) error = %v, want EndGroups", err)
@@ -501,7 +501,7 @@ func TestAntiRaidCallbackTogglesState(t *testing.T) {
 		bot,
 		chat,
 		user,
-		encodeCallbackData("antiraid", map[string]string{"a": "off"}, "antiraid.off"),
+		encodeCallbackData("antiraid", map[string]string{"a": "off"}),
 	)
 	if err := antiRaidModule.callbackHandler(bot, offCtx); err != ext.EndGroups {
 		t.Fatalf("callbackHandler(off) error = %v, want EndGroups", err)
@@ -532,7 +532,7 @@ func TestAntiRaidCallbackRejectsInvalidAndUnknownActions(t *testing.T) {
 		},
 		{
 			name: "unknown action",
-			data: encodeCallbackData("antiraid", map[string]string{"a": "later"}, "antiraid.later"),
+			data: encodeCallbackData("antiraid", map[string]string{"a": "later"}),
 			want: ext.EndGroups,
 		},
 	}

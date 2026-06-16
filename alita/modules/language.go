@@ -1,8 +1,6 @@
 package modules
 
 import (
-	"strings"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -104,11 +102,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	language := ""
 	if decoded, ok := decodeCallbackData(query.Data, "change_language"); ok {
 		language, _ = decoded.Field("l")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 2 {
-			language = parts[1]
-		}
 	}
 	if language == "" {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)

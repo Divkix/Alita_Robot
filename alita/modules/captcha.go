@@ -1073,7 +1073,6 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 					"u": fmt.Sprint(userID),
 					"s": option,
 				},
-				fmt.Sprintf("captcha_verify.%d.%d.%s", preAttempt.ID, userID, option),
 			),
 		}
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
@@ -1092,7 +1091,6 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 						"a": fmt.Sprint(preAttempt.ID),
 						"u": fmt.Sprint(userID),
 					},
-					fmt.Sprintf("captcha_refresh.%d.%d", preAttempt.ID, userID),
 				),
 			},
 		})
@@ -1340,9 +1338,6 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	// Parse callback data (codec-first with legacy fallback):
-	// New: captcha_verify|v1|a={attempt_id}&u={user_id}&s={answer}
-	// Old: captcha_verify.{attempt_id}.{user_id}.{answer}
 	attemptIDRaw := ""
 	targetUserIDRaw := ""
 	selectedAnswer := ""
@@ -1350,13 +1345,6 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		attemptIDRaw, _ = decoded.Field("a")
 		targetUserIDRaw, _ = decoded.Field("u")
 		selectedAnswer, _ = decoded.Field("s")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 4 {
-			attemptIDRaw = parts[1]
-			targetUserIDRaw = parts[2]
-			selectedAnswer = strings.Join(parts[3:], ".")
-		}
 	}
 	if attemptIDRaw == "" || targetUserIDRaw == "" || selectedAnswer == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1593,20 +1581,11 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	chat := ctx.EffectiveChat
 	user := query.From
 
-	// Parse callback data (codec-first with legacy fallback):
-	// New: captcha_refresh|v1|a={attempt_id}&u={user_id}
-	// Old: captcha_refresh.{attempt_id}.{user_id}
 	attemptIDRaw := ""
 	targetUserIDRaw := ""
 	if decoded, ok := decodeCallbackData(query.Data, "captcha_refresh"); ok {
 		attemptIDRaw, _ = decoded.Field("a")
 		targetUserIDRaw, _ = decoded.Field("u")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 3 {
-			attemptIDRaw = parts[1]
-			targetUserIDRaw = parts[2]
-		}
 	}
 	if attemptIDRaw == "" || targetUserIDRaw == "" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1712,7 +1691,6 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 					"u": fmt.Sprint(targetUserID),
 					"s": option,
 				},
-				fmt.Sprintf("captcha_verify.%d.%d.%s", attempt.ID, targetUserID, option),
 			),
 		}
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
@@ -1727,7 +1705,6 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 				"a": fmt.Sprint(attempt.ID),
 				"u": fmt.Sprint(targetUserID),
 			},
-			fmt.Sprintf("captcha_refresh.%d.%d", attempt.ID, targetUserID),
 		),
 	}})
 

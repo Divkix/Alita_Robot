@@ -243,7 +243,7 @@ func TestRmAllNotesConfirmationAndCallback(t *testing.T) {
 	if err := notes.AddNote(chat.Id, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() setup error = %v", err)
 	}
-	data := encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"}, "rmAllNotes.yes")
+	data := encodeCallbackData("rmAllNotes", map[string]string{"a": "yes"})
 
 	confirmCtx := newModuleMessageContext(bot, chat, admin, "/clearall")
 	if err := notesModule.rmAllNotes(bot, confirmCtx); err != ext.EndGroups {
@@ -310,7 +310,7 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 		bot,
 		chat,
 		admin,
-		encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+		encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
 	)
 	if err := notesModule.notesButtonHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("notesButtonHandler(cancel) error = %v, want EndGroups", err)
@@ -352,12 +352,12 @@ func TestNotesButtonHandlerSkipsMissingCallbackAndPropagatesRequestErrors(t *tes
 		{
 			name:   "edit failure",
 			method: "editMessageText",
-			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
 		},
 		{
 			name:   "answer failure",
 			method: "answerCallbackQuery",
-			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}, "rmAllNotes.no"),
+			data:   encodeCallbackData("rmAllNotes", map[string]string{"a": "no"}),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -391,7 +391,7 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 		bot,
 		chat,
 		admin,
-		encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": cancelToken}, "notes.overwrite.no"),
+		encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": cancelToken}),
 	)
 	if err := notesModule.noteOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("noteOverWriteHandler(cancel) error = %v, want EndGroups", err)
@@ -435,7 +435,7 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 		"notes.overwrite",
 		"notes.overwrite.maybe." + strconv.FormatInt(chat.Id, 10) + "_rules",
 		"notes.overwrite.yes.not-a-chat_rules",
-		encodeCallbackData("notes.overwrite", map[string]string{"a": "yes", "t": "missing-token"}, "notes.overwrite.yes"),
+		encodeCallbackData("notes.overwrite", map[string]string{"a": "yes", "t": "missing-token"}),
 	} {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
@@ -457,7 +457,7 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 			bot,
 			chat,
 			admin,
-			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}, "notes.overwrite.no"),
+			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}),
 		)
 
 		err := notesModule.noteOverWriteHandler(bot, ctx)
@@ -478,7 +478,7 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 			bot,
 			chat,
 			admin,
-			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}, "notes.overwrite.no"),
+			encodeCallbackData("notes.overwrite", map[string]string{"a": "no", "t": token}),
 		)
 
 		err := notesModule.noteOverWriteHandler(bot, ctx)

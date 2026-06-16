@@ -232,7 +232,6 @@ func TestFilterOverwriteCallbackReplacesExistingFilter(t *testing.T) {
 	data := encodeCallbackData(
 		"filters_overwrite",
 		map[string]string{"a": "yes", "t": "token-1"},
-		"filters_overwrite.hello",
 	)
 	ctx := newModuleCallbackContext(bot, chat, admin, data)
 	if err := filtersModule.filterOverWriteHandler(bot, ctx); err != ext.EndGroups {
@@ -261,7 +260,7 @@ func TestFilterOverwriteCallbackCancelAndExpired(t *testing.T) {
 		t.Fatalf("filterOverWriteHandler cancel error = %v, want EndGroups", err)
 	}
 
-	expiredData := encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "missing"}, "filters_overwrite.old")
+	expiredData := encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "missing"})
 	expiredCtx := newModuleCallbackContext(bot, chat, admin, expiredData)
 	if err := filtersModule.filterOverWriteHandler(bot, expiredCtx); err != ext.EndGroups {
 		t.Fatalf("filterOverWriteHandler expired error = %v, want EndGroups", err)
@@ -296,7 +295,7 @@ func TestRemoveAllFiltersConfirmationAndCallback(t *testing.T) {
 		t.Fatalf("rmAllFilters confirmation calls = %+v, want reply markup", calls)
 	}
 
-	data := encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes")
+	data := encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"})
 	callbackCtx := newModuleCallbackContext(bot, chat, owner, data)
 	if err := filtersModule.filtersButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("filtersButtonHandler error = %v, want EndGroups", err)
@@ -461,7 +460,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			name:   "remove all edit failure",
 			method: "editMessageText",
 			run:    filtersModule.filtersButtonHandler,
-			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes"),
+			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
@@ -473,7 +472,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			name:   "remove all answer failure",
 			method: "answerCallbackQuery",
 			run:    filtersModule.filtersButtonHandler,
-			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}, "rmAllFilters.no"),
+			data:   encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
@@ -485,7 +484,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			name:   "overwrite edit failure",
 			method: "editMessageText",
 			run:    filtersModule.filterOverWriteHandler,
-			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-edit"}, "filters_overwrite.hello"),
+			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-edit"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
@@ -507,7 +506,7 @@ func TestFilterCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			name:   "overwrite answer failure",
 			method: "answerCallbackQuery",
 			run:    filtersModule.filterOverWriteHandler,
-			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-answer"}, "filters_overwrite.hello"),
+			data:   encodeCallbackData("filters_overwrite", map[string]string{"a": "yes", "t": "token-answer"}),
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
 				if err := filters.AddFilter(chat.Id, "hello", "old", "", nil, db.TEXT); err != nil {
@@ -554,7 +553,7 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 		bot,
 		chat,
 		admin,
-		encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}, "rmAllFilters.yes"),
+		encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
 	)
 	rmAllCtx.EffectiveChat = nil
 	if err := filtersModule.filtersButtonHandler(bot, rmAllCtx); err != ext.EndGroups {

@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -63,7 +62,7 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 			[]gotgbot.InlineKeyboardButton{
 				{
 					Text:         backText,
-					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}, "helpq.Help"),
+					CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Help"}),
 				},
 			},
 		)
@@ -110,17 +109,17 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 	// First row
 	keyboard[0][0] = gotgbot.InlineKeyboardButton{
 		Text:         markdownFormattingText,
-		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}, "formatting.md_formatting"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}),
 	}
 	keyboard[0][1] = gotgbot.InlineKeyboardButton{
 		Text:         fillingsText,
-		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "fillings"}, "formatting.fillings"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "fillings"}),
 	}
 
 	// Second Row
 	keyboard[1][0] = gotgbot.InlineKeyboardButton{
 		Text:         randomContentText,
-		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "random"}, "formatting.random"),
+		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "random"}),
 	}
 
 	return keyboard
@@ -160,11 +159,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	module := ""
 	if decoded, ok := decodeCallbackData(query.Data, "formatting"); ok {
 		module, _ = decoded.Field("m")
-	} else {
-		parts := strings.Split(query.Data, ".")
-		if len(parts) >= 2 {
-			module = parts[1]
-		}
 	}
 	if module == "" {
 		log.Warnf("[Formatting] Invalid callback data format: %s", query.Data)
@@ -183,7 +177,7 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 				{
 					{
 						Text:         backText,
-						CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}, "helpq.Formatting"),
+						CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 					},
 				},
 			},

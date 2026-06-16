@@ -7,14 +7,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func encodeCallbackData(namespace string, fields map[string]string, fallback string) string {
+func encodeCallbackData(namespace string, fields map[string]string) string {
 	data, err := callbackcodec.Encode(namespace, fields)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"namespace": namespace,
 			"error":     err,
-		}).Warn("[CallbackCodec] Failed to encode callback data; using fallback")
-		return fallback
+		}).Error("[CallbackCodec] Failed to encode callback data")
+		return ""
 	}
 	return data
 }
