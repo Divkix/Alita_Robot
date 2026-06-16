@@ -12,6 +12,7 @@ import (
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
+	"github.com/redis/go-redis/v9"
 )
 
 type cacheMemoryStore struct {
@@ -145,5 +146,18 @@ func SetupTestMemoryMarshaler(t *testing.T) {
 		SetMarshal(previousMarshal)
 		Manager = previousManager
 		redisClient = previousRedisClient
+	})
+}
+
+// SetRedisClientForTest replaces the package-level Redis client with the
+// provided client and restores the original when the test finishes.
+// Used by tests that need a real Redis client (e.g. backed by miniredis)
+// without relying on a live Redis server.
+func SetRedisClientForTest(t *testing.T, client *redis.Client) {
+	t.Helper()
+	previous := redisClient
+	redisClient = client
+	t.Cleanup(func() {
+		redisClient = previous
 	})
 }

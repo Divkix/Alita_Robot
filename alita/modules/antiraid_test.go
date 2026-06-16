@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -611,5 +612,238 @@ func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {
 	}
 	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
 		t.Fatalf("banChatMember calls = %d, want no bans for skipped members", len(calls))
+	}
+}
+
+// TestAntiRaidTrackJoinTriggersAtThreshold characterizes the join-counting logic in
+// trackJoin: the count must stay below T for the first T-1 joins and reach T on
+// the T-th join, with no overlap between distinct chat IDs.
+func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
+	withMiniredis(t)
+
+	chatID := uniqueModuleChatID()
+	threshold := 3
+
+	// Clean up join tracking state for the chat after the test.
+	t.Cleanup(func() {
+		clearJoinTracking(chatID)
+	})
+
+	// First T-1 joins must not meet the threshold.
+	for i := 0; i < threshold-1; i++ {
+		userID := int64(1000 + i)
+		count, err := trackJoin(chatID, userID)
+		if err != nil {
+			t.Fatalf("trackJoin(%d, %d) error = %v", chatID, userID, err)
+		}
+		if count >= threshold {
+			t.Fatalf("join %d: count = %d, want < %d (threshold not yet reached)", i+1, count, threshold)
+		}
+	}
+
+	// T-th join must meet or exceed the threshold.
+	count, err := trackJoin(chatID, int64(1000+threshold-1))
+	if err != nil {
+		t.Fatalf("trackJoin (T-th) error = %v", err)
+	}
+	if count < threshold {
+		t.Fatalf("T-th join: count = %d, want >= %d (threshold should be reached)", count, threshold)
+	}
+
+	// A separate chat ID must have an independent counter.
+	otherChatID := uniqueModuleChatID()
+	t.Cleanup(func() {
+		clearJoinTracking(otherChatID)
+	})
+	otherCount, err := trackJoin(otherChatID, 9999)
+	if err != nil {
+		t.Fatalf("trackJoin(other chat) error = %v", err)
+	}
+	if otherCount != 1 {
+		t.Fatalf("other chat join count = %d, want 1 (counters are independent)", otherCount)
+	}
+}
+
+// TestAntiRaidOnJoinAppliesConfiguredAction characterizes two key onJoin branches:
+//  1. No action when raid is inactive and AutoAntiRaidThreshold is 0.
+//  2. Ban + raid activation when the threshold is reached (via miniredis).
+func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
+	t.Run("no action when raid inactive and threshold disabled", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+		raider := gotgbot.User{Id: 5001, FirstName: "Raider"}
+
+		// Ensure threshold is 0 (default) so no auto-raid logic runs.
+		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 0); err != nil {
+			t.Fatalf("SetAutoAntiRaidThreshold setup error = %v", err)
+		}
+
+		msg := &gotgbot.Message{
+			MessageId:      401,
+			Date:           1,
+			Chat:           chat,
+			From:           &raider,
+			NewChatMembers: []gotgbot.User{raider},
+		}
+		ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 401, Message: msg}, nil)
+		if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("onJoin(no threshold) error = %v, want ContinueGroups", err)
+		}
+		if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+			t.Fatalf("banChatMember calls = %d, want no action when threshold disabled", len(calls))
+		}
+	})
+
+	t.Run("auto-triggers raid and bans joiner at threshold", func(t *testing.T) {
+		withMiniredis(t)
+
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
+		raider := gotgbot.User{Id: 5002, FirstName: "Raider"}
+
+		// Set threshold to 1: the very first tracked join must trigger auto-raid.
+		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 1); err != nil {
+			t.Fatalf("SetAutoAntiRaidThreshold(1) error = %v", err)
+		}
+		t.Cleanup(func() {
+			antiRaidModule.disableRaid(chat.Id)
+			clearJoinTracking(chat.Id)
+		})
+
+		msg := &gotgbot.Message{
+			MessageId:      402,
+			Date:           1,
+			Chat:           chat,
+			From:           &raider,
+			NewChatMembers: []gotgbot.User{raider},
+		}
+		ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 402, Message: msg}, nil)
+		if err := antiRaidModule.onJoin(bot, ctx); err != ext.ContinueGroups {
+			t.Fatalf("onJoin(auto-trigger) error = %v, want ContinueGroups", err)
+		}
+
+		// The raid must now be active.
+		if !antiRaidModule.isRaidActive(chat.Id) {
+			t.Fatal("isRaidActive = false after threshold reached, want true")
+		}
+		// The triggering joiner must have been banned.
+		if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+			t.Fatalf("banChatMember calls = %d, want 1 (triggering joiner)", len(calls))
+		}
+	})
+}
+
+// TestAntiRaidCheckExpiredRaidsReleasesAfterWindow characterizes the observable
+// contract of checkExpiredRaids.
+//
+// CHARACTERIZATION FINDING (STOP condition documented here, not fixed):
+// The inner release branch of checkExpiredRaids (antiraid.go:173–178,
+// `if st.Active && time.Now().Unix() > st.ExpiresAt { … }`) is unreachable dead
+// code: getRaidState (antiraid.go:126–128) already coerces Active=false for any
+// expired state before returning, so the `st.Active` guard is always false when
+// checkExpiredRaids evaluates it.  The persist/clear sub-block (setRaidState +
+// clearJoinTracking) is therefore never executed by checkExpiredRaids; expiry is
+// fully handled by the read-side coercion in getRaidState.
+//
+// This test characterizes what checkExpiredRaids ACTUALLY does:
+//  - It iterates via Redis SCAN without error.
+//  - For a key whose raid is already past its ExpiresAt, the chat ends inactive
+//    after the call — but that is due to getRaidState's read coercion, NOT due
+//    to the checkExpiredRaids persist branch (which is never entered).
+//  - For a key whose raid is genuinely still active (ExpiresAt in the future),
+//    checkExpiredRaids leaves it active (the non-expired path is also a no-op).
+//
+// Uses miniredis for the Redis SCAN; the in-memory gocache marshal handles
+// state reads/writes.
+func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
+	withMiniredis(t)
+
+	rdb := cache.GetRedisClient()
+
+	// --- Scenario A: expired raid ---
+	expiredChatID := uniqueModuleChatID()
+	t.Cleanup(func() {
+		antiRaidModule.disableRaid(expiredChatID)
+		clearJoinTracking(expiredChatID)
+		if rdb != nil {
+			_ = rdb.Del(cache.Context, stateKey(expiredChatID)).Err()
+		}
+	})
+
+	expiredState := &raidState{
+		Active:    true,
+		StartedAt: time.Now().Add(-2 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(), // expired 1 hour ago
+	}
+	// Persist to the gocache marshal so getRaidState can read it.
+	if err := setRaidState(expiredChatID, expiredState); err != nil {
+		t.Fatalf("setRaidState(expired) setup error = %v", err)
+	}
+	// Seed the state key into Redis so the SCAN discovers it.
+	raw, err := json.Marshal(expiredState)
+	if err != nil {
+		t.Fatalf("json.Marshal(expiredState) error = %v", err)
+	}
+	if err := rdb.Set(cache.Context, stateKey(expiredChatID), raw, 24*time.Hour).Err(); err != nil {
+		t.Fatalf("Redis SET expiredChatID error = %v", err)
+	}
+
+	// --- Scenario B: still-active raid ---
+	activeChatID := uniqueModuleChatID()
+	t.Cleanup(func() {
+		antiRaidModule.disableRaid(activeChatID)
+		clearJoinTracking(activeChatID)
+		if rdb != nil {
+			_ = rdb.Del(cache.Context, stateKey(activeChatID)).Err()
+		}
+	})
+
+	activeState := &raidState{
+		Active:    true,
+		StartedAt: time.Now().Unix(),
+		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(), // expires 1 hour from now
+	}
+	if err := setRaidState(activeChatID, activeState); err != nil {
+		t.Fatalf("setRaidState(active) setup error = %v", err)
+	}
+	rawActive, err := json.Marshal(activeState)
+	if err != nil {
+		t.Fatalf("json.Marshal(activeState) error = %v", err)
+	}
+	if err := rdb.Set(cache.Context, stateKey(activeChatID), rawActive, 24*time.Hour).Err(); err != nil {
+		t.Fatalf("Redis SET activeChatID error = %v", err)
+	}
+
+	// Run the expiry check — must not return an error or panic.
+	antiRaidModule.checkExpiredRaids(context.Background())
+
+	// --- Assertions for expired scenario ---
+	//
+	// The expired chat must be inactive.  NOTE: this passes because getRaidState's
+	// read-side coercion (antiraid.go:126–128) returns Active=false for any state
+	// whose ExpiresAt is in the past.  The checkExpiredRaids persist branch
+	// (antiraid.go:173–178) is never entered for this key because st.Active is
+	// already false when the guard is evaluated — that is the dead-code finding.
+	expiredSt := getRaidState(expiredChatID)
+	if expiredSt.Active {
+		t.Fatalf("getRaidState(expired).Active = true after checkExpiredRaids, want false")
+	}
+	if antiRaidModule.isRaidActive(expiredChatID) {
+		t.Fatal("isRaidActive(expired) = true after checkExpiredRaids, want false")
+	}
+
+	// --- Assertions for still-active scenario ---
+	//
+	// checkExpiredRaids must leave a non-expired raid untouched (it evaluates the
+	// same dead guard but the guard body is irrelevant here — the raid stays active
+	// because getRaidState returns Active=true for a future ExpiresAt).
+	activeSt := getRaidState(activeChatID)
+	if !activeSt.Active {
+		t.Fatalf("getRaidState(active).Active = false after checkExpiredRaids, want true (non-expired raid must not be released)")
+	}
+	if !antiRaidModule.isRaidActive(activeChatID) {
+		t.Fatal("isRaidActive(active) = false after checkExpiredRaids, want true (non-expired raid must stay active)")
 	}
 }
