@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/chatjoinrequest"
 	"github.com/eko/gocache/lib/v4/store"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -83,14 +85,21 @@ func recentJoinProcessingKey(chatID, userID int64) string {
 func claimRecentJoinProcessing(chatID, userID int64) bool {
 	key := recentJoinProcessingKey(chatID, userID)
 
-	if m := cache.GetMarshal(); m != nil {
-		if exists, _ := m.Get(cache.Context, key, new(bool)); exists != nil {
-			return false
-		}
-		if err := m.Set(cache.Context, key, true, store.WithExpiration(recentJoinProcessTTL)); err == nil {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		_, err := rdb.SetArgs(cache.Context, key, true, redis.SetArgs{
+			Mode: "NX",
+			TTL:  recentJoinProcessTTL,
+		}).Result()
+		if err == nil {
+			// Key did not exist; we set it — claim is ours.
 			return true
 		}
-		log.Debugf("[Greetings] Shared cache unavailable for join dedupe key %s, falling back to in-memory claim", key)
+		if errors.Is(err, redis.Nil) {
+			// Key already existed; another goroutine claimed this join.
+			return false
+		}
+		// Genuine Redis error — fall through to in-memory fallback.
+		log.Debugf("[Greetings] Redis SETNX unavailable for join dedupe key %s, falling back to in-memory claim: %v", key, err)
 	}
 
 	if _, loaded := recentJoinProcessing.LoadOrStore(key, struct{}{}); loaded {
