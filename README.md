@@ -56,9 +56,8 @@
   blacklists, and warnings
 - **Worker Pool Architecture**: Efficient concurrent task processing with rate
   limiting
-- **Smart Caching**: Two-tier caching with stampede protection and TTL
+- **Smart Caching**: Redis-backed caching with stampede protection and TTL
   management
-- **Batch Prefetching**: Optimized data loading for reduced database queries
 - **Resource Monitoring**: Automatic detection and alerting for memory/goroutine
   issues
 - **Performance Analytics**: Built-in statistics collection and performance

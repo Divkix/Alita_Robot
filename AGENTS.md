@@ -409,10 +409,10 @@ See `sample.env` for all variables. Critical ones:
 **Additional configuration sections:**
 - Connection pool tuning: `DB_MAX_IDLE_CONNS`, `DB_MAX_OPEN_CONNS`, `DB_CONN_MAX_LIFETIME_MIN`, `DB_CONN_MAX_IDLE_TIME_MIN`
 - Redis alternatives: `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_URL`
-- Worker pools: `CHAT_VALIDATION_WORKERS`, `DATABASE_WORKERS`, `MESSAGE_PIPELINE_WORKERS`, `BULK_OPERATION_WORKERS`, `CACHE_WORKERS`, `STATS_COLLECTION_WORKERS`, `MAX_CONCURRENT_OPERATIONS`, `OPERATION_TIMEOUT_SECONDS`, `DISPATCHER_MAX_ROUTINES`
+- Worker pools: `DISPATCHER_MAX_ROUTINES`
 - Monitoring toggles: `ENABLE_PERFORMANCE_MONITORING`, `ENABLE_BACKGROUND_STATS`, `ENABLE_DB_MONITORING`
 - Activity monitoring: `INACTIVITY_THRESHOLD_DAYS`, `ACTIVITY_CHECK_INTERVAL`, `ENABLE_AUTO_CLEANUP`
-- Performance optimizations: `ENABLE_QUERY_PREFETCHING`, `ENABLE_CACHE_PREWARMING`, `ENABLE_ASYNC_PROCESSING`, `ENABLE_RESPONSE_CACHING`, `RESPONSE_CACHE_TTL`, `ENABLE_BATCH_REQUESTS`, `BATCH_REQUEST_TIMEOUT_MS`, `ENABLE_HTTP_CONNECTION_POOLING`, `HTTP_MAX_IDLE_CONNS`, `HTTP_MAX_IDLE_CONNS_PER_HOST`
+- Performance optimizations: `ENABLE_ASYNC_PROCESSING`, `HTTP_MAX_IDLE_CONNS`, `HTTP_MAX_IDLE_CONNS_PER_HOST`
 - Resource limits: `RESOURCE_MAX_GOROUTINES`, `RESOURCE_MAX_MEMORY_MB`, `RESOURCE_GC_THRESHOLD_MB`
 - Migration settings: `AUTO_MIGRATE_SILENT_FAIL`, `MIGRATIONS_PATH`
 - Other: `CLOUDFLARE_TUNNEL_TOKEN`, `ENABLED_LOCALES`, `DROP_PENDING_UPDATES`, `API_SERVER`
@@ -440,3 +440,22 @@ Releases: GoReleaser to `ghcr.io/divkix/alita_robot`.
 - Use `AUTO_MIGRATE=true` for production database migrations
 - Disable `ENABLE_PPROF` in production (exposes memory/profile endpoints)
 - Webhook mode requires HTTPS with valid certificates for production
+
+## Dependency Risks
+
+The following dependencies carry stability or reproducibility risks that are
+tracked here as a conscious decision, not an oversight:
+
+- **`github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.35`** — pinned to a release
+  candidate. Release candidates carry no stability or API-compatibility
+  guarantee; a future `rc.36` or the eventual `v2.0.0` final may include
+  breaking changes on the bot's hot path (handler signatures, Update parsing).
+  Upgrade trigger: when gotgbot publishes `v2.0.0` final, evaluate and migrate
+  then. Do not auto-merge gotgbot Dependabot PRs that bump the major or change
+  the RC number without a code-compatibility review.
+
+- **`github.com/PaulSonOfLars/gotg_md2html v0.0.0-20260314092343-61634cbfb443`** —
+  pinned to an untagged commit (pseudo-version). If the upstream author force-
+  pushes or rewrites that commit, reproducible builds break silently. Prefer a
+  tagged release if/when the maintainer publishes one. Until then, keep the
+  `go.sum` entry pinned and do not run `go get ./...` blindly.
