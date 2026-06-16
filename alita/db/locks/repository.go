@@ -13,8 +13,8 @@ import (
 // Uses optimized queries with caching for better performance.
 // Returns an empty map if no locks are found or an error occurs.
 func GetChatLocks(chatID int64) map[string]bool {
-	// Use optimized query with caching
-	locks, err := GetChatLocksOptimized(chatID)
+	// Use cached whole-map query to avoid per-message DB round-trips
+	locks, err := GetChatLocksCached(chatID)
 	if err != nil {
 		log.Errorf("[Database] GetChatLocks: %v - %d", err, chatID)
 		return make(map[string]bool)
@@ -49,6 +49,7 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 }
 
 // InvalidateLockCache removes the cached lock status for a specific chat and lock type.
+// Also invalidates the whole-map cache key so GetChatLocks reflects the change immediately.
 // Should be called after updating a lock to ensure immediate enforcement.
 func InvalidateLockCache(chatID int64, lockType string) {
 	m := utilsCache.GetMarshal()
@@ -57,9 +58,13 @@ func InvalidateLockCache(chatID int64, lockType string) {
 	}
 
 	cacheKey := cache.CacheKey("lock", chatID, lockType)
-	err := m.Delete(utilsCache.Context, cacheKey)
-	if err != nil {
+	if err := m.Delete(utilsCache.Context, cacheKey); err != nil {
 		log.Debugf("[Cache] Failed to invalidate lock cache for key %s: %v", cacheKey, err)
+	}
+
+	mapKey := cache.CacheKey("locks_map", chatID)
+	if err := m.Delete(utilsCache.Context, mapKey); err != nil {
+		log.Debugf("[Cache] Failed to invalidate locks_map cache for key %s: %v", mapKey, err)
 	}
 }
 

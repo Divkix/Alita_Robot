@@ -77,3 +77,19 @@ func GetLockStatusCached(chatID int64, lockType string) (bool, error) {
 
 	return cached, nil
 }
+
+// GetChatLocksCached retrieves all locks for a chat with a caching layer for improved performance.
+// Caches the full lock map under a single key, eliminating repeated DB round-trips per message.
+// Uses 1-hour cache TTL and falls back to direct query if cache fails.
+func GetChatLocksCached(chatID int64) (map[string]bool, error) {
+	cacheKey := cache.CacheKey("locks_map", chatID)
+
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, 1*time.Hour, func() (map[string]bool, error) {
+		return GetChatLocksOptimized(chatID)
+	})
+	if err != nil {
+		return GetChatLocksOptimized(chatID)
+	}
+
+	return cached, nil
+}

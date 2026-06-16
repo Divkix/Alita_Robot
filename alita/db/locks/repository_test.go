@@ -287,3 +287,39 @@ func TestInvalidateLockCacheNilMarshal(t *testing.T) {
 
 	InvalidateLockCache(-100123, "sticker")
 }
+
+// TestGetChatLocksCacheInvalidation verifies that UpdateLock invalidates the whole-map
+// cache so that a subsequent GetChatLocks call reflects the updated value.
+func TestGetChatLocksCacheInvalidation(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	perm := "game"
+
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&models.LockSettings{}).Error; err != nil {
+			t.Fatalf("cleanup Delete error: %v", err)
+		}
+	})
+
+	// Step 1: write initial value and populate the map cache via GetChatLocks.
+	if err := UpdateLock(chatID, perm, true); err != nil {
+		t.Fatalf("UpdateLock(true) error = %v", err)
+	}
+	locks := GetChatLocks(chatID)
+	if !locks[perm] {
+		t.Fatalf("GetChatLocks() after first UpdateLock = %v, want locked %q", locks, perm)
+	}
+
+	// Step 2: update the lock to a different value; cache must be invalidated.
+	if err := UpdateLock(chatID, perm, false); err != nil {
+		t.Fatalf("UpdateLock(false) error = %v", err)
+	}
+
+	// Step 3: GetChatLocks must reflect the new value, not serve the stale cached map.
+	locks = GetChatLocks(chatID)
+	if locks[perm] {
+		t.Fatalf("GetChatLocks() after second UpdateLock = %v, want unlocked %q (cache invalidation failed)", locks, perm)
+	}
+}
