@@ -337,6 +337,26 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+  # Docs & Translations drift gate
+  docs-check:
+    name: Docs & Translations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: true
+      - name: Check translations
+        run: make check-translations
+      - name: Check generated docs drift
+        run: make check-docs
+
   # Docker build verification (single arch, fast)
   docker-verify:
     name: Docker Build Test
@@ -437,7 +457,7 @@ jobs:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [security, lint, build, test, docker-verify, docker-publish]
+    needs: [security, lint, build, test, docs-check, docker-verify, docker-publish]
     if: always()
     steps:
       - name: Check all jobs status
@@ -447,6 +467,7 @@ jobs:
              [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.docs-check.result }}" != "success" ] || \
              [ "${{ needs.docker-verify.result }}" != "success" ]; then
             echo "One or more CI jobs failed!"
             exit 1
