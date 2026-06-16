@@ -246,38 +246,21 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	return ext.EndGroups
 }
 
-// warnUser handles the /warn command to issue warnings to users
-// with optional reasons, requiring admin permissions.
-func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
+// dispatchWarn runs the standard moderation gate check then dispatches a warn
+// action of the given warnType ("warn", "swarn", or "dwarn").
+// Extracted from the three formerly-identical warnUser/sWarnUser/dWarnUser bodies.
+func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType string) error {
+	mc, err := buildModerationCtx(&warnsModule, b, ctx)
+	if err != nil {
+		return ext.EndGroups
+	}
+	if !standardModGates(mc) {
+		return ext.EndGroups
+	}
+
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	// Check permissions
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
+	tr := mc.Tr
 
 	userId, reason := extraction.ExtractUserAndText(b, ctx)
 	if userId == -1 {
@@ -310,145 +293,25 @@ func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		warnusr = userId
 	}
 
-	return m.warnThisUser(b, ctx, warnusr, reason, "warn")
+	return m.warnThisUser(b, ctx, warnusr, reason, warnType)
+}
+
+// warnUser handles the /warn command to issue warnings to users
+// with optional reasons, requiring admin permissions.
+func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
+	return m.dispatchWarn(b, ctx, "warn")
 }
 
 // sWarnUser handles the /swarn command to silently warn users
 // by deleting the command message, requiring admin permissions.
-//
-//nolint:dupl // sWarnUser has similar structure to dWarnUser
 func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	// Check permissions
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		return ext.EndGroups
-	}
-	var warnusr int64
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.Id == userId {
-		warnusr = msg.ReplyToMessage.From.Id
-	} else {
-		warnusr = userId
-	}
-
-	return m.warnThisUser(b, ctx, warnusr, reason, "swarn")
+	return m.dispatchWarn(b, ctx, "swarn")
 }
 
 // dWarnUser handles the /dwarn command to warn users and delete
 // the message they replied to, requiring admin permissions.
-//
-//nolint:dupl // dWarnUser has similar structure to sWarnUser
 func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
-	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(b, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	// Check permissions
-	if !chat_status.RequireGroup(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserRestrict(b, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotRestrict(b, ctx, nil) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		return ext.EndGroups
-	}
-
-	userId, reason := extraction.ExtractUserAndText(b, ctx)
-	if userId == -1 {
-		return ext.EndGroups
-	} else if chat_status.IsChannelId(userId) {
-		text, _ := tr.GetString("common_anonymous_user_error")
-		_, err := msg.Reply(b, text, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	} else if userId == 0 {
-		text, _ := tr.GetString("common_no_user_specified")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		return ext.EndGroups
-	}
-	var warnusr int64
-	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil && msg.ReplyToMessage.From.Id == userId {
-		warnusr = msg.ReplyToMessage.From.Id
-	} else {
-		warnusr = userId
-	}
-
-	return m.warnThisUser(b, ctx, warnusr, reason, "dwarn")
+	return m.dispatchWarn(b, ctx, "dwarn")
 }
 
 // warnings handles the /warnings command to display current
