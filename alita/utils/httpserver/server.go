@@ -228,11 +228,12 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 	s.secret = secret
 	s.webhookEnabled = true
 
-	// Register the webhook handler at /webhook/{secret}
-	webhookPath := fmt.Sprintf("/webhook/%s", secret)
+	// Register the webhook handler at a static path — the secret is NOT in the URL.
+	// Authentication is enforced by validateWebhook via the X-Telegram-Bot-Api-Secret-Token header.
+	webhookPath := "/webhook"
 	s.mux.HandleFunc(webhookPath, s.webhookHandler)
 
-	// Set the webhook URL on Telegram
+	// Set the webhook URL on Telegram — safe to log because the path is now secret-free.
 	webhookURL := fmt.Sprintf("%s%s", domain, webhookPath)
 	log.Infof("[HTTPServer] Setting webhook URL: %s", webhookURL)
 
@@ -266,8 +267,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		"webhook.request",
 		trace.WithAttributes(
 			attribute.String("http.method", r.Method),
-			// Record a sanitized route instead of the full URL to avoid leaking the webhook secret
-			attribute.String("http.route", "/webhook/{secret}"),
+			attribute.String("http.route", "/webhook"),
 			tracing.WorkingModeAttribute(),
 		))
 	defer span.End()
@@ -411,7 +411,7 @@ func (s *Server) Start() error {
 		endpoints = append(endpoints, "/debug/pprof/*")
 	}
 	if s.webhookEnabled {
-		endpoints = append(endpoints, "/webhook/{secret}")
+		endpoints = append(endpoints, "/webhook")
 	}
 	log.Infof("[HTTPServer] Starting unified HTTP server on port %d with endpoints: %v", s.port, endpoints)
 

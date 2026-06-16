@@ -616,11 +616,20 @@ func TestRegisterWebhookConfiguresTelegramWebhook(t *testing.T) {
 		t.Fatal("setWebhook was not called")
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/webhook/secret-token", nil)
+	// The webhook is now registered at the static path /webhook (no secret in URL).
+	req := httptest.NewRequest(http.MethodGet, "/webhook", nil)
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("registered webhook route status = %d, want 405 for GET", rr.Code)
+	}
+
+	// The old secret-bearing path must NOT be registered.
+	req2 := httptest.NewRequest(http.MethodGet, "/webhook/secret-token", nil)
+	rr2 := httptest.NewRecorder()
+	s.mux.ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusNotFound {
+		t.Fatalf("/webhook/<secret> path should not be registered, got status %d", rr2.Code)
 	}
 }
 
@@ -652,4 +661,62 @@ func TestStopWithNilServer(t *testing.T) {
 	if err := s.Stop(); err != nil {
 		t.Errorf("expected nil error from Stop on unstarted server, got: %v", err)
 	}
+}
+
+// TestWebhookValidatesHeaderNotPath verifies that the webhook endpoint is served at the
+// static path /webhook (with no secret in the URL) and that access control is enforced
+// entirely via the X-Telegram-Bot-Api-Secret-Token header, not by the URL path.
+func TestWebhookValidatesHeaderNotPath(t *testing.T) {
+	t.Parallel()
+
+	client := &httpServerBotClient{}
+	bot := newHTTPServerTestBot(client)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	s := New(9200, time.Now())
+	if err := s.RegisterWebhook(bot, dispatcher, "my-secret", "https://example.test"); err != nil {
+		t.Fatalf("RegisterWebhook() error = %v", err)
+	}
+
+	validBody := `{"update_id":1,"message":{"message_id":1,"date":1,"chat":{"id":1,"type":"private"},"from":{"id":1,"is_bot":false,"first_name":"T"},"text":"hi"}}`
+
+	t.Run("correct header accepted on /webhook", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(validBody))
+		req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "my-secret")
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("correct header: expected 200, got %d", rr.Code)
+		}
+	})
+
+	t.Run("wrong header rejected on /webhook", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(validBody))
+		req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "wrong-secret")
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("wrong header: expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("missing header rejected on /webhook", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(validBody))
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("missing header: expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("secret-bearing path is not routed", func(t *testing.T) {
+		// The old /webhook/<secret> path must not be registered.
+		req := httptest.NewRequest(http.MethodPost, "/webhook/my-secret", strings.NewReader(validBody))
+		req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "my-secret")
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("secret path: expected 404, got %d", rr.Code)
+		}
+	})
 }
