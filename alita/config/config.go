@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"time"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -119,18 +118,7 @@ type Config struct {
 	WebhookSecret string
 	WebhookPort   int `validate:"min=1,max=65535"` // Deprecated: use HTTPPort instead
 
-	// Worker pool configuration for concurrent processing
-	ChatValidationWorkers  int `validate:"min=1,max=100"`
-	DatabaseWorkers        int `validate:"min=1,max=50"`
-	MessagePipelineWorkers int `validate:"min=1,max=50"`
-	BulkOperationWorkers   int `validate:"min=1,max=20"`
-	CacheWorkers           int `validate:"min=1,max=20"`
-	StatsCollectionWorkers int `validate:"min=1,max=10"`
-
 	// Safety and performance limits
-	MaxConcurrentOperations     int           `validate:"min=1,max=1000"`
-	OperationTimeoutSeconds     int           `validate:"min=1,max=300"`
-	OperationTimeout            time.Duration // Computed from OperationTimeoutSeconds
 	EnablePerformanceMonitoring bool
 	EnableBackgroundStats       bool
 	DispatcherMaxRoutines       int `validate:"min=1,max=1000"` // Max concurrent goroutines for dispatcher
@@ -144,17 +132,9 @@ type Config struct {
 	EnableAutoCleanup       bool // Whether to automatically mark inactive chats
 
 	// Performance optimization settings
-	EnableQueryPrefetching bool // Enable query batching and prefetching
-
-	EnableCachePrewarming       bool // Enable cache prewarming on startup
-	EnableAsyncProcessing       bool // Enable async processing for non-critical operations
-	EnableResponseCaching       bool // Enable response caching
-	ResponseCacheTTL            int  `validate:"min=1,max=3600"` // Response cache TTL in seconds
-	EnableBatchRequests         bool // Enable batch API requests
-	BatchRequestTimeoutMS       int  `validate:"min=10,max=5000"` // Batch request timeout in milliseconds
-	EnableHTTPConnectionPooling bool // Enable HTTP connection pooling
-	HTTPMaxIdleConns            int  `validate:"min=10,max=1000"` // HTTP connection pool size
-	HTTPMaxIdleConnsPerHost     int  `validate:"min=5,max=500"`   // HTTP connections per host
+	EnableAsyncProcessing   bool // Enable async processing for non-critical operations
+	HTTPMaxIdleConns        int  `validate:"min=10,max=1000"` // HTTP connection pool size
+	HTTPMaxIdleConnsPerHost int  `validate:"min=5,max=500"`   // HTTP connections per host
 
 	// Database migration settings
 	AutoMigrate           bool   // Enable automatic database migrations on startup
@@ -211,33 +191,7 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("HTTP_PORT must be between 1 and 65535")
 	}
 
-	// Validate worker configurations
-	if cfg.ChatValidationWorkers <= 0 || cfg.ChatValidationWorkers > 100 {
-		return fmt.Errorf("CHAT_VALIDATION_WORKERS must be between 1 and 100")
-	}
-	if cfg.DatabaseWorkers <= 0 || cfg.DatabaseWorkers > 50 {
-		return fmt.Errorf("DATABASE_WORKERS must be between 1 and 50")
-	}
-	if cfg.MessagePipelineWorkers <= 0 || cfg.MessagePipelineWorkers > 50 {
-		return fmt.Errorf("MESSAGE_PIPELINE_WORKERS must be between 1 and 50")
-	}
-	if cfg.BulkOperationWorkers <= 0 || cfg.BulkOperationWorkers > 20 {
-		return fmt.Errorf("BULK_OPERATION_WORKERS must be between 1 and 20")
-	}
-	if cfg.CacheWorkers <= 0 || cfg.CacheWorkers > 20 {
-		return fmt.Errorf("CACHE_WORKERS must be between 1 and 20")
-	}
-	if cfg.StatsCollectionWorkers <= 0 || cfg.StatsCollectionWorkers > 10 {
-		return fmt.Errorf("STATS_COLLECTION_WORKERS must be between 1 and 10")
-	}
-
 	// Validate performance limits
-	if cfg.MaxConcurrentOperations <= 0 || cfg.MaxConcurrentOperations > 1000 {
-		return fmt.Errorf("MAX_CONCURRENT_OPERATIONS must be between 1 and 1000")
-	}
-	if cfg.OperationTimeoutSeconds <= 0 || cfg.OperationTimeoutSeconds > 300 {
-		return fmt.Errorf("OPERATION_TIMEOUT_SECONDS must be between 1 and 300")
-	}
 	if cfg.DispatcherMaxRoutines != 0 && (cfg.DispatcherMaxRoutines < 1 || cfg.DispatcherMaxRoutines > 1000) {
 		return fmt.Errorf("DISPATCHER_MAX_ROUTINES must be between 1 and 1000")
 	}
@@ -304,17 +258,7 @@ func LoadConfig() (*Config, error) {
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
 		WebhookPort:   typeConvertor{str: os.Getenv("WEBHOOK_PORT")}.Int(),
 
-		// Worker pool configuration
-		ChatValidationWorkers:  typeConvertor{str: os.Getenv("CHAT_VALIDATION_WORKERS")}.Int(),
-		DatabaseWorkers:        typeConvertor{str: os.Getenv("DATABASE_WORKERS")}.Int(),
-		MessagePipelineWorkers: typeConvertor{str: os.Getenv("MESSAGE_PIPELINE_WORKERS")}.Int(),
-		BulkOperationWorkers:   typeConvertor{str: os.Getenv("BULK_OPERATION_WORKERS")}.Int(),
-		CacheWorkers:           typeConvertor{str: os.Getenv("CACHE_WORKERS")}.Int(),
-		StatsCollectionWorkers: typeConvertor{str: os.Getenv("STATS_COLLECTION_WORKERS")}.Int(),
-
 		// Safety and performance limits
-		MaxConcurrentOperations:     typeConvertor{str: os.Getenv("MAX_CONCURRENT_OPERATIONS")}.Int(),
-		OperationTimeoutSeconds:     typeConvertor{str: os.Getenv("OPERATION_TIMEOUT_SECONDS")}.Int(),
 		EnablePerformanceMonitoring: typeConvertor{str: os.Getenv("ENABLE_PERFORMANCE_MONITORING")}.Bool(),
 		EnableBackgroundStats:       typeConvertor{str: os.Getenv("ENABLE_BACKGROUND_STATS")}.Bool(),
 		DispatcherMaxRoutines:       typeConvertor{str: os.Getenv("DISPATCHER_MAX_ROUTINES")}.Int(),
@@ -328,16 +272,9 @@ func LoadConfig() (*Config, error) {
 		EnableAutoCleanup:       typeConvertor{str: os.Getenv("ENABLE_AUTO_CLEANUP")}.Bool(),
 
 		// Performance optimization settings
-		EnableQueryPrefetching:      typeConvertor{str: os.Getenv("ENABLE_QUERY_PREFETCHING")}.Bool(),
-		EnableCachePrewarming:       typeConvertor{str: os.Getenv("ENABLE_CACHE_PREWARMING")}.Bool(),
-		EnableAsyncProcessing:       typeConvertor{str: os.Getenv("ENABLE_ASYNC_PROCESSING")}.Bool(),
-		EnableResponseCaching:       typeConvertor{str: os.Getenv("ENABLE_RESPONSE_CACHING")}.Bool(),
-		ResponseCacheTTL:            typeConvertor{str: os.Getenv("RESPONSE_CACHE_TTL")}.Int(),
-		EnableBatchRequests:         typeConvertor{str: os.Getenv("ENABLE_BATCH_REQUESTS")}.Bool(),
-		BatchRequestTimeoutMS:       typeConvertor{str: os.Getenv("BATCH_REQUEST_TIMEOUT_MS")}.Int(),
-		EnableHTTPConnectionPooling: typeConvertor{str: os.Getenv("ENABLE_HTTP_CONNECTION_POOLING")}.Bool(),
-		HTTPMaxIdleConns:            typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS")}.Int(),
-		HTTPMaxIdleConnsPerHost:     typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS_PER_HOST")}.Int(),
+		EnableAsyncProcessing:   typeConvertor{str: os.Getenv("ENABLE_ASYNC_PROCESSING")}.Bool(),
+		HTTPMaxIdleConns:        typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS")}.Int(),
+		HTTPMaxIdleConnsPerHost: typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS_PER_HOST")}.Int(),
 
 		// Database migration settings
 		AutoMigrate:           typeConvertor{str: os.Getenv("AUTO_MIGRATE")}.Bool(),
@@ -363,9 +300,6 @@ func LoadConfig() (*Config, error) {
 	if err := ValidateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
-
-	// Set computed values
-	cfg.OperationTimeout = time.Duration(cfg.OperationTimeoutSeconds) * time.Second
 
 	// Set allowed updates and valid language codes
 	cfg.AllowedUpdates = []string{
@@ -427,31 +361,6 @@ func (cfg *Config) setDefaults() {
 		cfg.WebhookPort = 8081 // Legacy default
 	}
 
-	// Set default values for worker pool configurations
-	cpuCount := runtime.NumCPU()
-
-	if cfg.ChatValidationWorkers == 0 {
-		cfg.ChatValidationWorkers = 10
-	}
-	if cfg.DatabaseWorkers == 0 {
-		cfg.DatabaseWorkers = 5
-	}
-	if cfg.MessagePipelineWorkers == 0 {
-		cfg.MessagePipelineWorkers = cpuCount
-		if cfg.MessagePipelineWorkers > 8 {
-			cfg.MessagePipelineWorkers = 8
-		}
-	}
-	if cfg.BulkOperationWorkers == 0 {
-		cfg.BulkOperationWorkers = 4
-	}
-	if cfg.CacheWorkers == 0 {
-		cfg.CacheWorkers = 3
-	}
-	if cfg.StatsCollectionWorkers == 0 {
-		cfg.StatsCollectionWorkers = 2
-	}
-
 	// Set activity monitoring defaults
 	if cfg.InactivityThresholdDays == 0 {
 		cfg.InactivityThresholdDays = 30 // 30 days before marking as inactive
@@ -479,12 +388,6 @@ func (cfg *Config) setDefaults() {
 	}
 
 	// Set default safety limits
-	if cfg.MaxConcurrentOperations == 0 {
-		cfg.MaxConcurrentOperations = 50
-	}
-	if cfg.OperationTimeoutSeconds == 0 {
-		cfg.OperationTimeoutSeconds = 30
-	}
 	if cfg.DispatcherMaxRoutines == 0 {
 		cfg.DispatcherMaxRoutines = 200 // Optimized for better throughput
 	}
@@ -509,29 +412,8 @@ func (cfg *Config) setDefaults() {
 	// This ensures production systems explicitly configure their database connection
 
 	// Set performance optimization defaults (enabled by default for better performance)
-	if !cfg.EnableQueryPrefetching {
-		cfg.EnableQueryPrefetching = true
-	}
-	if !cfg.EnableCachePrewarming {
-		cfg.EnableCachePrewarming = true
-	}
 	if !cfg.EnableAsyncProcessing {
 		cfg.EnableAsyncProcessing = true
-	}
-	if !cfg.EnableResponseCaching {
-		cfg.EnableResponseCaching = true
-	}
-	if cfg.ResponseCacheTTL == 0 {
-		cfg.ResponseCacheTTL = 30 // 30 seconds
-	}
-	if !cfg.EnableBatchRequests {
-		cfg.EnableBatchRequests = true
-	}
-	if cfg.BatchRequestTimeoutMS == 0 {
-		cfg.BatchRequestTimeoutMS = 100 // 100ms
-	}
-	if !cfg.EnableHTTPConnectionPooling {
-		cfg.EnableHTTPConnectionPooling = true
 	}
 	if cfg.HTTPMaxIdleConns == 0 {
 		cfg.HTTPMaxIdleConns = 100

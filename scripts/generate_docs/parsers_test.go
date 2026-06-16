@@ -324,8 +324,6 @@ func TestCamelToScreamingSnake(t *testing.T) {
 		{"DatabaseURL", "DATABASE_URL"},
 		{"DBMaxIdleConns", "DB_MAX_IDLE_CONNS"},
 		{"DBConnMaxIdleTimeMin", "DB_CONN_MAX_IDLE_TIME_MIN"},
-		{"BatchRequestTimeoutMS", "BATCH_REQUEST_TIMEOUT_MS"},
-		{"EnableHTTPConnectionPooling", "ENABLE_HTTP_CONNECTION_POOLING"},
 		{"HTTPPort", "HTTP_PORT"},
 		{"EnablePPROF", "ENABLE_PPROF"},
 		{"RedisAddress", "REDIS_ADDRESS"},

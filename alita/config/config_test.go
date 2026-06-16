@@ -14,20 +14,12 @@ func skipIfNoConfig(t *testing.T) {
 
 func validBaseConfig() *Config {
 	return &Config{
-		BotToken:                "test-token",
-		OwnerId:                 1,
-		MessageDump:             1,
-		DatabaseURL:             "postgres://localhost/test",
-		RedisAddress:            "localhost:6379",
-		HTTPPort:                8080,
-		ChatValidationWorkers:   10,
-		DatabaseWorkers:         5,
-		MessagePipelineWorkers:  4,
-		BulkOperationWorkers:    4,
-		CacheWorkers:            3,
-		StatsCollectionWorkers:  2,
-		MaxConcurrentOperations: 50,
-		OperationTimeoutSeconds: 30,
+		BotToken:     "test-token",
+		OwnerId:      1,
+		MessageDump:  1,
+		DatabaseURL:  "postgres://localhost/test",
+		RedisAddress: "localhost:6379",
+		HTTPPort:     8080,
 	}
 }
 
@@ -129,103 +121,6 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.HTTPPort = 1 },
 			wantErr: false,
 		},
-		// Worker pool validations
-		{
-			name:    "ChatValidationWorkers zero returns error",
-			setup:   func(c *Config) { c.ChatValidationWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "ChatValidationWorkers 101 returns error",
-			setup:   func(c *Config) { c.ChatValidationWorkers = 101 },
-			wantErr: true,
-		},
-		{
-			name:    "ChatValidationWorkers 1 succeeds",
-			setup:   func(c *Config) { c.ChatValidationWorkers = 1 },
-			wantErr: false,
-		},
-		{
-			name:    "DatabaseWorkers zero returns error",
-			setup:   func(c *Config) { c.DatabaseWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "DatabaseWorkers 51 returns error",
-			setup:   func(c *Config) { c.DatabaseWorkers = 51 },
-			wantErr: true,
-		},
-		{
-			name:    "MessagePipelineWorkers zero returns error",
-			setup:   func(c *Config) { c.MessagePipelineWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "MessagePipelineWorkers 51 returns error",
-			setup:   func(c *Config) { c.MessagePipelineWorkers = 51 },
-			wantErr: true,
-		},
-		{
-			name:    "BulkOperationWorkers zero returns error",
-			setup:   func(c *Config) { c.BulkOperationWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "BulkOperationWorkers 21 returns error",
-			setup:   func(c *Config) { c.BulkOperationWorkers = 21 },
-			wantErr: true,
-		},
-		{
-			name:    "CacheWorkers zero returns error",
-			setup:   func(c *Config) { c.CacheWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "CacheWorkers 21 returns error",
-			setup:   func(c *Config) { c.CacheWorkers = 21 },
-			wantErr: true,
-		},
-		{
-			name:    "StatsCollectionWorkers zero returns error",
-			setup:   func(c *Config) { c.StatsCollectionWorkers = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "StatsCollectionWorkers 11 returns error",
-			setup:   func(c *Config) { c.StatsCollectionWorkers = 11 },
-			wantErr: true,
-		},
-		// Performance limit validations
-		{
-			name:    "MaxConcurrentOperations zero returns error",
-			setup:   func(c *Config) { c.MaxConcurrentOperations = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "MaxConcurrentOperations negative returns error",
-			setup:   func(c *Config) { c.MaxConcurrentOperations = -1 },
-			wantErr: true,
-		},
-		{
-			name:    "MaxConcurrentOperations 1001 returns error",
-			setup:   func(c *Config) { c.MaxConcurrentOperations = 1001 },
-			wantErr: true,
-		},
-		{
-			name:    "OperationTimeoutSeconds zero returns error",
-			setup:   func(c *Config) { c.OperationTimeoutSeconds = 0 },
-			wantErr: true,
-		},
-		{
-			name:    "OperationTimeoutSeconds 301 returns error",
-			setup:   func(c *Config) { c.OperationTimeoutSeconds = 301 },
-			wantErr: true,
-		},
-		{
-			name:    "OperationTimeoutSeconds 300 succeeds",
-			setup:   func(c *Config) { c.OperationTimeoutSeconds = 300 },
-			wantErr: false,
-		},
 		// Dispatcher optional field validation
 		{
 			name:    "DispatcherMaxRoutines zero is allowed",
@@ -273,19 +168,6 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.DBMaxOpenConns = 1000 },
 			wantErr: false,
 		},
-		// All workers at minimum 1 succeeds
-		{
-			name: "all workers at minimum 1 succeeds",
-			setup: func(c *Config) {
-				c.ChatValidationWorkers = 1
-				c.DatabaseWorkers = 1
-				c.MessagePipelineWorkers = 1
-				c.BulkOperationWorkers = 1
-				c.CacheWorkers = 1
-				c.StatsCollectionWorkers = 1
-			},
-			wantErr: false,
-		},
 	}
 
 	for _, tc := range tests {
@@ -328,21 +210,6 @@ func TestSetDefaults(t *testing.T) {
 		if cfg.HTTPPort != 8080 {
 			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 8080)
 		}
-		if cfg.ChatValidationWorkers != 10 {
-			t.Errorf("ChatValidationWorkers: got %d, want %d", cfg.ChatValidationWorkers, 10)
-		}
-		if cfg.DatabaseWorkers != 5 {
-			t.Errorf("DatabaseWorkers: got %d, want %d", cfg.DatabaseWorkers, 5)
-		}
-		if cfg.BulkOperationWorkers != 4 {
-			t.Errorf("BulkOperationWorkers: got %d, want %d", cfg.BulkOperationWorkers, 4)
-		}
-		if cfg.CacheWorkers != 3 {
-			t.Errorf("CacheWorkers: got %d, want %d", cfg.CacheWorkers, 3)
-		}
-		if cfg.StatsCollectionWorkers != 2 {
-			t.Errorf("StatsCollectionWorkers: got %d, want %d", cfg.StatsCollectionWorkers, 2)
-		}
 		if cfg.DBMaxIdleConns != 50 {
 			t.Errorf("DBMaxIdleConns: got %d, want %d", cfg.DBMaxIdleConns, 50)
 		}
@@ -360,12 +227,6 @@ func TestSetDefaults(t *testing.T) {
 		}
 		if !cfg.ClearCacheOnStartup {
 			t.Errorf("ClearCacheOnStartup: got false, want true")
-		}
-		if cfg.MaxConcurrentOperations != 50 {
-			t.Errorf("MaxConcurrentOperations: got %d, want %d", cfg.MaxConcurrentOperations, 50)
-		}
-		if cfg.OperationTimeoutSeconds != 30 {
-			t.Errorf("OperationTimeoutSeconds: got %d, want %d", cfg.OperationTimeoutSeconds, 30)
 		}
 		if cfg.DispatcherMaxRoutines != 200 {
 			t.Errorf("DispatcherMaxRoutines: got %d, want %d", cfg.DispatcherMaxRoutines, 200)

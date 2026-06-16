@@ -4,7 +4,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 // TestIsCliModeActive tests the isCliModeActive helper. It does NOT call
@@ -97,14 +96,6 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("REDIS_PASSWORD", "")
 		t.Setenv("REDIS_URL", "")
 		t.Setenv("HTTP_PORT", "9090")
-		t.Setenv("CHAT_VALIDATION_WORKERS", "5")
-		t.Setenv("DATABASE_WORKERS", "3")
-		t.Setenv("MESSAGE_PIPELINE_WORKERS", "2")
-		t.Setenv("BULK_OPERATION_WORKERS", "1")
-		t.Setenv("CACHE_WORKERS", "1")
-		t.Setenv("STATS_COLLECTION_WORKERS", "1")
-		t.Setenv("MAX_CONCURRENT_OPERATIONS", "20")
-		t.Setenv("OPERATION_TIMEOUT_SECONDS", "10")
 
 		cfg, err := LoadConfig()
 		if err != nil {
@@ -128,12 +119,6 @@ func TestLoadConfig(t *testing.T) {
 		}
 		if cfg.HTTPPort != 9090 {
 			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 9090)
-		}
-		if cfg.ChatValidationWorkers != 5 {
-			t.Errorf("ChatValidationWorkers: got %d, want %d", cfg.ChatValidationWorkers, 5)
-		}
-		if cfg.OperationTimeout != 10*time.Second {
-			t.Errorf("OperationTimeout: got %v, want %v", cfg.OperationTimeout, 10*time.Second)
 		}
 		// Defaults should have been applied
 		if cfg.ApiServer != "https://api.telegram.org" {
@@ -162,14 +147,6 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("WEBHOOK_DOMAIN", "example.com")
 		t.Setenv("WEBHOOK_SECRET", "shh")
 		t.Setenv("HTTP_PORT", "8080")
-		t.Setenv("CHAT_VALIDATION_WORKERS", "1")
-		t.Setenv("DATABASE_WORKERS", "1")
-		t.Setenv("MESSAGE_PIPELINE_WORKERS", "1")
-		t.Setenv("BULK_OPERATION_WORKERS", "1")
-		t.Setenv("CACHE_WORKERS", "1")
-		t.Setenv("STATS_COLLECTION_WORKERS", "1")
-		t.Setenv("MAX_CONCURRENT_OPERATIONS", "1")
-		t.Setenv("OPERATION_TIMEOUT_SECONDS", "1")
 
 		cfg, err := LoadConfig()
 		if err != nil {
@@ -195,14 +172,6 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("REDIS_ADDRESS", "localhost:6379")
 		t.Setenv("ENABLE_PPROF", "yes")
 		t.Setenv("HTTP_PORT", "8080")
-		t.Setenv("CHAT_VALIDATION_WORKERS", "1")
-		t.Setenv("DATABASE_WORKERS", "1")
-		t.Setenv("MESSAGE_PIPELINE_WORKERS", "1")
-		t.Setenv("BULK_OPERATION_WORKERS", "1")
-		t.Setenv("CACHE_WORKERS", "1")
-		t.Setenv("STATS_COLLECTION_WORKERS", "1")
-		t.Setenv("MAX_CONCURRENT_OPERATIONS", "1")
-		t.Setenv("OPERATION_TIMEOUT_SECONDS", "1")
 
 		cfg, err := LoadConfig()
 		if err != nil {
@@ -270,46 +239,6 @@ func TestValidateConfigPure(t *testing.T) {
 			name:    "invalid HTTP port",
 			setup:   func(c *Config) { c.HTTPPort = 70000 },
 			wantErr: "HTTP_PORT must be between 1 and 65535",
-		},
-		{
-			name:    "invalid chat validation workers",
-			setup:   func(c *Config) { c.ChatValidationWorkers = 101 },
-			wantErr: "CHAT_VALIDATION_WORKERS must be between 1 and 100",
-		},
-		{
-			name:    "invalid database workers",
-			setup:   func(c *Config) { c.DatabaseWorkers = 51 },
-			wantErr: "DATABASE_WORKERS must be between 1 and 50",
-		},
-		{
-			name:    "invalid message pipeline workers",
-			setup:   func(c *Config) { c.MessagePipelineWorkers = 51 },
-			wantErr: "MESSAGE_PIPELINE_WORKERS must be between 1 and 50",
-		},
-		{
-			name:    "invalid bulk workers",
-			setup:   func(c *Config) { c.BulkOperationWorkers = 21 },
-			wantErr: "BULK_OPERATION_WORKERS must be between 1 and 20",
-		},
-		{
-			name:    "invalid cache workers",
-			setup:   func(c *Config) { c.CacheWorkers = 21 },
-			wantErr: "CACHE_WORKERS must be between 1 and 20",
-		},
-		{
-			name:    "invalid stats workers",
-			setup:   func(c *Config) { c.StatsCollectionWorkers = 11 },
-			wantErr: "STATS_COLLECTION_WORKERS must be between 1 and 10",
-		},
-		{
-			name:    "invalid max concurrent operations",
-			setup:   func(c *Config) { c.MaxConcurrentOperations = 1001 },
-			wantErr: "MAX_CONCURRENT_OPERATIONS must be between 1 and 1000",
-		},
-		{
-			name:    "invalid operation timeout",
-			setup:   func(c *Config) { c.OperationTimeoutSeconds = 301 },
-			wantErr: "OPERATION_TIMEOUT_SECONDS must be between 1 and 300",
 		},
 		{
 			name:    "invalid dispatcher routines",
