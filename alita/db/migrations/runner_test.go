@@ -1,11 +1,14 @@
 package migrations
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -822,3 +825,147 @@ func TestFindDollarQuoteBlocks_ByteOffsets(t *testing.T) {
 		t.Errorf("end (%d) should be <= len(input) (%d)", got[0].end, len(input))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Checksum verification tests
+// ---------------------------------------------------------------------------
+
+// TestApplyMigrationStoresChecksum verifies that applying a migration records a
+// non-empty checksum equal to the SHA-256 hex of the raw file bytes.
+func TestApplyMigrationStoresChecksum(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "900_checksum_store.sql"
+	migrationPath := filepath.Join(dir, version)
+	fileContent := []byte(`CREATE TABLE migration_checksum_store_test (id INTEGER PRIMARY KEY);`)
+	if err := os.WriteFile(migrationPath, fileContent, 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_checksum_store_test").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err != nil {
+		t.Fatalf("applyMigration() error = %v", err)
+	}
+
+	rec := runner.getMigrationRecord(version)
+	if rec == nil {
+		t.Fatalf("getMigrationRecord(%q) returned nil", version)
+	}
+	if rec.Checksum == "" {
+		t.Fatal("stored checksum is empty, want non-empty SHA-256 hex")
+	}
+
+	sum := sha256.Sum256(fileContent)
+	want := hex.EncodeToString(sum[:])
+	if rec.Checksum != want {
+		t.Errorf("stored checksum = %q, want %q", rec.Checksum, want)
+	}
+}
+
+// TestRunMigrationsDetectsChecksumMismatch verifies that, after a migration is
+// applied, modifying its stored checksum causes RunMigrations to return an error
+// when AutoMigrateSilentFail is false.
+func TestRunMigrationsDetectsChecksumMismatch(t *testing.T) {
+	skipIfNoDb(t)
+
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	dir := t.TempDir()
+	version := "901_checksum_mismatch.sql"
+	migrationPath := filepath.Join(dir, version)
+	fileContent := []byte(`CREATE TABLE migration_checksum_mismatch_test (id INTEGER PRIMARY KEY);`)
+	if err := os.WriteFile(migrationPath, fileContent, 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_checksum_mismatch_test").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() first run error = %v", err)
+	}
+
+	// Corrupt the stored checksum to simulate content drift.
+	if err := getTestDB().Model(&SchemaMigration{}).
+		Where("version = ?", version).
+		Update("checksum", "deadbeefdeadbeefdeadbeefdeadbeef").Error; err != nil {
+		t.Fatalf("failed to corrupt checksum: %v", err)
+	}
+
+	// Second run must detect the mismatch and return an error.
+	err := runner.RunMigrations()
+	if err == nil {
+		t.Fatal("RunMigrations() second run error = nil, want checksum mismatch error")
+	}
+	if !strings.Contains(err.Error(), "checksum mismatch") {
+		t.Errorf("RunMigrations() error = %q, want it to mention 'checksum mismatch'", err)
+	}
+}
+
+// TestLegacyRowWithoutChecksumDoesNotFalseAlarm verifies that an already-applied
+// migration whose stored checksum is empty (i.e., applied before this feature
+// existed) is not flagged as a mismatch.  Instead its checksum is backfilled.
+func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
+	skipIfNoDb(t)
+
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	dir := t.TempDir()
+	version := "902_legacy_empty_checksum.sql"
+	migrationPath := filepath.Join(dir, version)
+	fileContent := []byte(`CREATE TABLE migration_legacy_checksum_test (id INTEGER PRIMARY KEY);`)
+	if err := os.WriteFile(migrationPath, fileContent, 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_legacy_checksum_test").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+
+	// Insert a legacy migration record with an empty checksum.
+	legacyRec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: ""}
+	if err := getTestDB().Create(&legacyRec).Error; err != nil {
+		t.Fatalf("failed to insert legacy migration record: %v", err)
+	}
+
+	// RunMigrations must NOT error and must NOT apply the migration again.
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() with legacy empty-checksum row error = %v", err)
+	}
+
+	// The checksum should now be backfilled.
+	rec := runner.getMigrationRecord(version)
+	if rec == nil {
+		t.Fatalf("getMigrationRecord(%q) returned nil after RunMigrations", version)
+	}
+	sum := sha256.Sum256(fileContent)
+	want := hex.EncodeToString(sum[:])
+	if rec.Checksum != want {
+		t.Errorf("backfilled checksum = %q, want %q", rec.Checksum, want)
+	}
+}
+
+// timeNow is a simple helper used by tests to get the current UTC time.
+func timeNow() time.Time { return time.Now().UTC() }

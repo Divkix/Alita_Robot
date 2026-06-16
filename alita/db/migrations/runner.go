@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -27,6 +29,7 @@ type MigrationRunner struct {
 type SchemaMigration struct {
 	Version    string    `gorm:"primaryKey;column:version"`
 	ExecutedAt time.Time `gorm:"column:executed_at"`
+	Checksum   string    `gorm:"column:checksum"`
 }
 
 // TableName returns the table name for schema migrations
@@ -73,8 +76,19 @@ func (m *MigrationRunner) RunMigrations() error {
 	for _, file := range files {
 		version := filepath.Base(file)
 
+		// Read the raw file content once so we can checksum it regardless of
+		// whether the migration is pending or already applied.
+		content, err := os.ReadFile(file) // #nosec G304 - path comes from getMigrationFiles which validates the directory
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", version, err)
+		}
+
 		// Check if already applied
 		if m.isMigrationApplied(version) {
+			// Verify the content hasn't changed since it was applied.
+			if err := m.verifyMigrationChecksum(file, version, content); err != nil {
+				return err
+			}
 			log.Debugf("[Migrations] Skipping %s (already applied)", version)
 			skipped++
 			continue
@@ -109,15 +123,23 @@ func (m *MigrationRunner) RunMigrations() error {
 	return nil
 }
 
-// ensureMigrationsTable creates the schema_migrations table if it doesn't exist
+// ensureMigrationsTable creates the schema_migrations table if it doesn't exist,
+// and idempotently adds the checksum column so existing deployments are upgraded
+// without re-running migrations.
 func (m *MigrationRunner) ensureMigrationsTable() error {
-	sql := `
+	createSQL := `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version VARCHAR(255) PRIMARY KEY,
 			executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`
-	return m.db.Exec(sql).Error
+	if err := m.db.Exec(createSQL).Error; err != nil {
+		return err
+	}
+	// Add the checksum column to existing tables.  IF NOT EXISTS prevents
+	// errors on fresh tables that were just created above.
+	alterSQL := `ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum VARCHAR(64)`
+	return m.db.Exec(alterSQL).Error
 }
 
 // getMigrationFiles returns a sorted list of migration SQL files
@@ -148,6 +170,56 @@ func (m *MigrationRunner) isMigrationApplied(version string) bool {
 	var count int64
 	m.db.Model(&SchemaMigration{}).Where("version = ?", version).Count(&count)
 	return count > 0
+}
+
+// getMigrationRecord fetches the stored migration record for the given version.
+// Returns nil if the version is not found.
+func (m *MigrationRunner) getMigrationRecord(version string) *SchemaMigration {
+	var rec SchemaMigration
+	if err := m.db.Where("version = ?", version).First(&rec).Error; err != nil {
+		return nil
+	}
+	return &rec
+}
+
+// verifyMigrationChecksum compares the stored checksum for an already-applied
+// migration against the SHA-256 of the current file content.
+// When the stored checksum is empty (legacy row), the current checksum is
+// written back as a trusted baseline instead of raising an error — this avoids
+// false alarms on migrations that pre-date this feature.
+// When AutoMigrateSilentFail is false a mismatch returns an error; otherwise
+// it only logs a warning so that existing deployments are not blocked.
+func (m *MigrationRunner) verifyMigrationChecksum(filePath, version string, content []byte) error {
+	rec := m.getMigrationRecord(version)
+	if rec == nil {
+		return nil // not in DB yet — will be applied shortly
+	}
+
+	sum := sha256.Sum256(content)
+	current := hex.EncodeToString(sum[:])
+
+	if rec.Checksum == "" {
+		// Legacy row with no checksum — backfill and treat as trusted.
+		if err := m.db.Model(&SchemaMigration{}).
+			Where("version = ?", version).
+			Update("checksum", current).Error; err != nil {
+			log.Warnf("[Migrations] Failed to backfill checksum for %s: %v", version, err)
+		} else {
+			log.Debugf("[Migrations] Backfilled checksum for legacy migration %s", version)
+		}
+		return nil
+	}
+
+	if rec.Checksum == current {
+		return nil // content unchanged
+	}
+
+	log.Warnf("[Migrations] Checksum mismatch for %s: file content changed since it was applied", version)
+	if !config.AppConfig.AutoMigrateSilentFail {
+		return fmt.Errorf("migration %s has been modified after it was applied (checksum mismatch); "+
+			"migrations are immutable once applied — create a new migration file instead", version)
+	}
+	return nil
 }
 
 // splitSQLStatements splits a SQL string into individual statements
@@ -369,10 +441,16 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 
 	log.Debugf("[Migrations] All %d statements executed successfully", len(statements))
 
+	// Compute checksum over raw file bytes (before any Supabase cleaning) so
+	// the stored value is stable and matches a simple sha256sum of the source file.
+	sum := sha256.Sum256(content)
+	checksum := hex.EncodeToString(sum[:])
+
 	// Record migration
 	migration := SchemaMigration{
 		Version:    version,
 		ExecutedAt: time.Now().UTC(),
+		Checksum:   checksum,
 	}
 	if err := tx.Create(&migration).Error; err != nil {
 		if rollbackErr := tx.Rollback().Error; rollbackErr != nil {
