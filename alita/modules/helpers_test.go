@@ -1,3 +1,5 @@
+//go:build testtools
+
 package modules
 
 import (
@@ -14,8 +16,25 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
+
+// deepLinkTestYAML holds the minimal translation strings needed to distinguish
+// rejection messages from served content in the deep-link security tests.
+// It is used by OverrideManagerForTest so that MustNewTranslator (called inside
+// the production handlers) returns a real translator instead of a bare stub.
+const deepLinkTestYAML = `
+helpers_chat_not_found: "Could not find the chat"
+helpers_invalid_deep_link: "Invalid deep link"
+rules_for_chat: "Rules for <b>%s</b>:\n\n%s"
+rules_not_set: "No rules set"
+helpers_notes_current_header: "Current notes:\n"
+notes_none_in_chat: "No notes in this chat"
+helpers_note_not_exist: "Note does not exist"
+helpers_note_admin_only: "Admin only note"
+helpers_person_no_name: "PersonWithNoName"
+`
 
 func TestModuleEnabled_StoreAndLoad(t *testing.T) {
 	t.Parallel()
@@ -568,6 +587,176 @@ func TestHandleDeepLinkPropagatesAboutAndDefaultSendErrors(t *testing.T) {
 
 			if err := HandleDeepLink(bot, ctx, &user, arg); err == nil {
 				t.Fatalf("HandleDeepLink(%q) error = nil, want send error", arg)
+			}
+		})
+	}
+}
+
+// TestDeepLinkNonMemberDenied verifies that a user who has left (or was kicked
+// from) the target chat is rejected by the rules and notes deep-link handlers
+// before any content is served (IDOR fix).
+//
+// The test harness maps user ID 13 to {"status":"left"} and user ID 14 to
+// {"status":"kicked"}, so both IDs represent non-members.
+func TestDeepLinkNonMemberDenied(t *testing.T) {
+	// Override the global i18n manager so MustNewTranslator returns real strings.
+	// This lets us assert that the rejection text IS sent and content is NOT.
+	restore, err := i18n.OverrideManagerForTest(deepLinkTestYAML)
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest() error = %v", err)
+	}
+	t.Cleanup(restore)
+
+	chatID := uniqueModuleChatID()
+
+	// Seed the target chat and some content.
+	if err := chats.EnsureChatInDb(chatID, "Secure Chat"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	rules.SetChatRules(chatID, "No spam.")
+	if err := notes.AddNote(chatID, "secret", "Secret content", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(secret) error = %v", err)
+	}
+	t.Cleanup(func() {
+		rules.SetChatRules(chatID, "")
+		_ = notes.RemoveNote(chatID, "secret")
+	})
+
+	// Non-member: user ID 13 (status:"left" in test harness).
+	nonMemberUser := gotgbot.User{Id: 13, FirstName: "Left User"}
+	privateChat := gotgbot.Chat{Id: nonMemberUser.Id, Type: "private", FirstName: "Left User"}
+
+	cases := []struct {
+		name string
+		arg  string
+	}{
+		{"rules denied for non-member", fmt.Sprintf("rules_%d", chatID)},
+		{"notes list denied for non-member", fmt.Sprintf("notes_%d", chatID)},
+		{"note denied for non-member", fmt.Sprintf("note_%d_secret", chatID)},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(fmt.Sprintf(
+				`{"id":%d,"type":"supergroup","title":"Secure Chat"}`,
+				chatID,
+			))
+			bot := newModuleTestBot(client)
+			ctx := newModuleMessageContext(bot, privateChat, nonMemberUser, "/start "+tc.arg)
+
+			if err := HandleDeepLink(bot, ctx, &nonMemberUser, tc.arg); err != ext.EndGroups {
+				t.Fatalf("HandleDeepLink(%q) error = %v, want EndGroups (rejection)", tc.arg, err)
+			}
+			calls := client.callsFor("sendMessage")
+			if len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want 1 (rejection notice)", len(calls))
+			}
+
+			// The sent text MUST be the rejection message (not the served content).
+			text, _ := calls[0].Params["text"].(string)
+			if !strings.Contains(text, "Could not find the chat") {
+				t.Fatalf("non-member received unexpected message (not the rejection): %q", text)
+			}
+			// The sent text MUST NOT contain any seeded content that would indicate
+			// the security gate was bypassed and content was leaked.
+			if strings.Contains(text, "No spam.") || strings.Contains(text, "Secret content") || strings.Contains(text, "secret") {
+				t.Fatalf("non-member leaked content via deep link: %q", text)
+			}
+			// For the note subtest: verify no alternative content-delivery call fired
+			// (e.g. sendDocument or sendPhoto that media.SendNote might use for media notes).
+			for _, call := range client.calls {
+				if call.Method == "sendDocument" || call.Method == "sendPhoto" || call.Method == "sendAudio" || call.Method == "sendVideo" {
+					t.Fatalf("non-member triggered content-delivery call %q — gate was bypassed", call.Method)
+				}
+			}
+		})
+	}
+}
+
+// TestDeepLinkMemberAllowed verifies that a user who is a member of the target
+// chat can still access rules, notes list, and individual notes via deep links.
+//
+// The test harness maps user ID 42 to {"status":"member"} — a legitimate member.
+func TestDeepLinkMemberAllowed(t *testing.T) {
+	// Override the global i18n manager so MustNewTranslator returns real strings.
+	// This lets us assert that actual content (not a rejection) is delivered.
+	restore, err := i18n.OverrideManagerForTest(deepLinkTestYAML)
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest() error = %v", err)
+	}
+	t.Cleanup(restore)
+
+	chatID := uniqueModuleChatID()
+
+	if err := chats.EnsureChatInDb(chatID, "Open Chat"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	rules.SetChatRules(chatID, "Be nice.")
+	if err := notes.AddNote(chatID, "welcome", "Welcome note", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote(welcome) error = %v", err)
+	}
+	t.Cleanup(func() {
+		rules.SetChatRules(chatID, "")
+		_ = notes.RemoveNote(chatID, "welcome")
+	})
+
+	memberUser := gotgbot.User{Id: 42, FirstName: "Member"}
+	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
+
+	cases := []struct {
+		name        string
+		arg         string
+		wantText    string // substring that must appear in the sent text
+		forbidText  string // substring that must NOT appear (the rejection)
+	}{
+		{
+			name:       "rules allowed for member",
+			arg:        fmt.Sprintf("rules_%d", chatID),
+			wantText:   "Be nice.",
+			forbidText: "Could not find the chat",
+		},
+		{
+			name:       "notes list allowed for member",
+			arg:        fmt.Sprintf("notes_%d", chatID),
+			wantText:   "welcome",
+			forbidText: "Could not find the chat",
+		},
+		{
+			name:       "note allowed for member",
+			arg:        fmt.Sprintf("note_%d_welcome", chatID),
+			wantText:   "Welcome note",
+			forbidText: "Could not find the chat",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(fmt.Sprintf(
+				`{"id":%d,"type":"supergroup","title":"Open Chat"}`,
+				chatID,
+			))
+			bot := newModuleTestBot(client)
+			ctx := newModuleMessageContext(bot, privateChat, memberUser, "/start "+tc.arg)
+
+			if err := HandleDeepLink(bot, ctx, &memberUser, tc.arg); err != ext.EndGroups {
+				t.Fatalf("HandleDeepLink(%q) error = %v, want EndGroups (content served)", tc.arg, err)
+			}
+			calls := client.callsFor("sendMessage")
+			if len(calls) != 1 {
+				t.Fatalf("sendMessage calls = %d, want 1 (content reply)", len(calls))
+			}
+
+			// The sent text MUST contain actual content, not the rejection message.
+			text, _ := calls[0].Params["text"].(string)
+			if strings.Contains(text, tc.forbidText) {
+				t.Fatalf("member was wrongly denied — got rejection text in response: %q", text)
+			}
+			if !strings.Contains(text, tc.wantText) {
+				t.Fatalf("member did not receive expected content %q; got: %q", tc.wantText, text)
 			}
 		})
 	}

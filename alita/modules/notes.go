@@ -1106,6 +1106,14 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 		return err
 	}
 
+	_chat := chatinfo.ToChat()
+	if !chat_status.IsUserInChat(b, &_chat, user.Id) {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
 	admin := chat_status.IsUserAdmin(b, chatinfo.Id, user.Id)
 	noteKeys := notes.GetNotesList(chatinfo.Id, admin)
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1133,6 +1141,14 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 	chatinfo, err := parseChatInfoFromDeepLink(b, ctx, arg)
 	if err != nil {
 		return err
+	}
+
+	_chat := chatinfo.ToChat()
+	if !chat_status.IsUserInChat(b, &_chat, user.Id) {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("helpers_chat_not_found")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	nArgs := strings.SplitN(arg, "_", 3)
@@ -1167,7 +1183,6 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 			return ext.ContinueGroups
 		}
 	}
-	_chat := chatinfo.ToChat()
 	_, err = media.SendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId)
 	if err != nil {
 		log.Error(err)
