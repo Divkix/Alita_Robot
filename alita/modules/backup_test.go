@@ -666,6 +666,8 @@ func TestModuleNames(t *testing.T) {
 		modules := []string{
 			backup.BackupModuleAdmin,
 			backup.BackupModuleAntiflood,
+			backup.BackupModuleAntiraid,
+			backup.BackupModuleApprovals,
 			backup.BackupModuleBlacklists,
 			backup.BackupModuleCaptcha,
 			backup.BackupModuleConnections,

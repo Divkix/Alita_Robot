@@ -11,6 +11,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -311,7 +313,6 @@ func TestBackupDataStructures(t *testing.T) {
 	})
 }
 
-// cleanupChat removes all test data for a chatID across known backup-related tables.
 // cleanupBackupChat removes all test data for a chatID across known backup-related tables.
 // Uses t.Errorf not t.Fatalf so a failure for one table still attempts the others.
 func cleanupBackupChat(t *testing.T, chatID int64) {
@@ -363,6 +364,12 @@ func cleanupBackupChat(t *testing.T, chatID int64) {
 	}
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting WarnSettings: %v", err)
+	}
+	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntiRaidSettings{}).Error; err != nil {
+		t.Errorf("cleanup failed deleting AntiRaidSettings: %v", err)
+	}
+	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.ApprovedUsers{}).Error; err != nil {
+		t.Errorf("cleanup failed deleting ApprovedUsers: %v", err)
 	}
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting Chat: %v", err)
@@ -1354,4 +1361,111 @@ func TestImportChatData_MissingModuleDataSkipped(t *testing.T) {
 
 	require.NoError(t, ImportChatData(chatID, backup, nil))
 	assert.Len(t, filters.GetFiltersList(chatID), 1)
+}
+
+func TestAntiraidBackupRoundTrip(t *testing.T) {
+	skipIfNoDb(t)
+
+	srcChat := time.Now().UnixNano()
+	dstChat := srcChat + 1
+	require.NoError(t, chats.EnsureChatInDb(srcChat, "src_antiraid"))
+	require.NoError(t, chats.EnsureChatInDb(dstChat, "dst_antiraid"))
+	t.Cleanup(func() {
+		cleanupBackupChat(t, srcChat)
+		cleanupBackupChat(t, dstChat)
+	})
+
+	// Configure non-default antiraid settings on srcChat
+	require.NoError(t, antiraid.SetRaidTime(srcChat, 3600))
+	require.NoError(t, antiraid.SetRaidActionTime(srcChat, 7200))
+	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(srcChat, 10))
+
+	// Export
+	exported, err := exportAntiraidData(srcChat)
+	require.NoError(t, err)
+	require.NotNil(t, exported)
+	require.NotNil(t, exported.Settings)
+	assert.Equal(t, 3600, exported.Settings.RaidTime)
+	assert.Equal(t, 7200, exported.Settings.RaidActionTime)
+	assert.Equal(t, 10, exported.Settings.AutoAntiRaidThreshold)
+
+	// Clear srcChat to defaults
+	require.NoError(t, clearAntiraidData(srcChat))
+	cleared := antiraid.GetAntiRaidSettings(srcChat)
+	assert.Equal(t, 21600, cleared.RaidTime)
+	assert.Equal(t, 3600, cleared.RaidActionTime)
+	assert.Equal(t, 0, cleared.AutoAntiRaidThreshold)
+
+	// Import into dstChat
+	exportedJSON, err := json.Marshal(exported)
+	require.NoError(t, err)
+	var payload map[string]interface{}
+	require.NoError(t, json.Unmarshal(exportedJSON, &payload))
+
+	require.NoError(t, importAntiraidData(dstChat, payload))
+
+	restored := antiraid.GetAntiRaidSettings(dstChat)
+	require.NotNil(t, restored)
+	assert.Equal(t, 3600, restored.RaidTime)
+	assert.Equal(t, 7200, restored.RaidActionTime)
+	assert.Equal(t, 10, restored.AutoAntiRaidThreshold)
+}
+
+func TestApprovalsBackupRoundTrip(t *testing.T) {
+	skipIfNoDb(t)
+
+	srcChat := time.Now().UnixNano()
+	dstChat := srcChat + 1
+	require.NoError(t, chats.EnsureChatInDb(srcChat, "src_approvals"))
+	require.NoError(t, chats.EnsureChatInDb(dstChat, "dst_approvals"))
+	t.Cleanup(func() {
+		cleanupBackupChat(t, srcChat)
+		cleanupBackupChat(t, dstChat)
+	})
+
+	// Add two approved users
+	const approverID = int64(999)
+	userA := int64(111)
+	userB := int64(222)
+	require.NoError(t, approvals.AddApprovedUser(srcChat, userA, approverID, "reason A"))
+	require.NoError(t, approvals.AddApprovedUser(srcChat, userB, approverID, "reason B"))
+
+	// Export
+	exported, err := exportApprovalsData(srcChat)
+	require.NoError(t, err)
+	require.NotNil(t, exported)
+	assert.Len(t, exported.ApprovedUsers, 2)
+
+	exportedUserIDs := make([]int64, len(exported.ApprovedUsers))
+	for i, u := range exported.ApprovedUsers {
+		exportedUserIDs[i] = u.UserID
+	}
+	assert.Contains(t, exportedUserIDs, userA)
+	assert.Contains(t, exportedUserIDs, userB)
+
+	// Clear srcChat approvals
+	require.NoError(t, clearApprovalsData(srcChat))
+	assert.Empty(t, approvals.GetApprovedUsers(srcChat))
+
+	// Import into dstChat
+	exportedJSON, err := json.Marshal(exported)
+	require.NoError(t, err)
+	var payload map[string]interface{}
+	require.NoError(t, json.Unmarshal(exportedJSON, &payload))
+
+	require.NoError(t, importApprovalsData(dstChat, payload))
+
+	restoredUsers := approvals.GetApprovedUsers(dstChat)
+	require.Len(t, restoredUsers, 2)
+
+	restoredIDs := make([]int64, len(restoredUsers))
+	for i, u := range restoredUsers {
+		restoredIDs[i] = u.UserID
+	}
+	assert.Contains(t, restoredIDs, userA)
+	assert.Contains(t, restoredIDs, userB)
+
+	// Verify approvals recognizes the restored users
+	assert.True(t, approvals.IsUserApproved(dstChat, userA))
+	assert.True(t, approvals.IsUserApproved(dstChat, userB))
 }

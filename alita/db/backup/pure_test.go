@@ -308,6 +308,8 @@ func TestAllExportableModules(t *testing.T) {
 	expected := []string{
 		BackupModuleAdmin,
 		BackupModuleAntiflood,
+		BackupModuleAntiraid,
+		BackupModuleApprovals,
 		BackupModuleBlacklists,
 		BackupModuleCaptcha,
 		BackupModuleConnections,

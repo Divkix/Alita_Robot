@@ -82,6 +82,8 @@ func BackupFormatFromJSON(data []byte) (*BackupFormat, error) {
 const (
 	BackupModuleAdmin       = "admin"
 	BackupModuleAntiflood   = "antiflood"
+	BackupModuleAntiraid    = "antiraid"
+	BackupModuleApprovals   = "approvals"
 	BackupModuleBlacklists  = "blacklists"
 	BackupModuleCaptcha     = "captcha"
 	BackupModuleConnections = "connections"
@@ -101,6 +103,8 @@ func AllExportableModules() []string {
 	return []string{
 		BackupModuleAdmin,
 		BackupModuleAntiflood,
+		BackupModuleAntiraid,
+		BackupModuleApprovals,
 		BackupModuleBlacklists,
 		BackupModuleCaptcha,
 		BackupModuleConnections,
@@ -214,4 +218,14 @@ type RulesBackup struct {
 // WarnsBackup represents warning settings backup data
 type WarnsBackup struct {
 	WarnSettings *models.WarnSettings `json:"warn_settings,omitempty"`
+}
+
+// AntiraidBackup represents anti-raid settings backup data
+type AntiraidBackup struct {
+	Settings *models.AntiRaidSettings `json:"settings,omitempty"`
+}
+
+// ApprovalsBackup represents approved users backup data
+type ApprovalsBackup struct {
+	ApprovedUsers []models.ApprovedUsers `json:"approved_users,omitempty"`
 }

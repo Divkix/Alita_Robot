@@ -9,6 +9,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
@@ -53,6 +55,10 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 		return exportReportsData(chatID)
 	case BackupModuleRules:
 		return exportRulesData(chatID)
+	case BackupModuleAntiraid:
+		return exportAntiraidData(chatID)
+	case BackupModuleApprovals:
+		return exportApprovalsData(chatID)
 	case BackupModuleWarns:
 		return exportWarnsData(chatID)
 	default:
@@ -89,6 +95,10 @@ func ImportModuleData(chatID int64, module string, data interface{}) error {
 		return importReportsData(chatID, data)
 	case BackupModuleRules:
 		return importRulesData(chatID, data)
+	case BackupModuleAntiraid:
+		return importAntiraidData(chatID, data)
+	case BackupModuleApprovals:
+		return importApprovalsData(chatID, data)
 	case BackupModuleWarns:
 		return importWarnsData(chatID, data)
 	default:
@@ -125,6 +135,10 @@ func ClearModuleData(chatID int64, module string) error {
 		return clearReportsData(chatID)
 	case BackupModuleRules:
 		return clearRulesData(chatID)
+	case BackupModuleAntiraid:
+		return clearAntiraidData(chatID)
+	case BackupModuleApprovals:
+		return clearApprovalsData(chatID)
 	case BackupModuleWarns:
 		return clearWarnsData(chatID)
 	default:
@@ -898,4 +912,93 @@ func clearWarnsData(chatID int64) error {
 	_ = warns.SetWarnLimit(chatID, 3) // Default
 	_ = warns.SetWarnMode(chatID, "") // Default
 	return nil
+}
+
+func exportAntiraidData(chatID int64) (*AntiraidBackup, error) {
+	settings := antiraid.GetAntiRaidSettings(chatID)
+	if settings == nil {
+		return &AntiraidBackup{}, nil
+	}
+	return &AntiraidBackup{Settings: settings}, nil
+}
+
+func importAntiraidData(chatID int64, data interface{}) error { //nolint:dupl
+	backupData, ok := data.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid antiraid data format")
+	}
+
+	if settingData, ok := backupData["settings"]; ok {
+		settingJSON, _ := json.Marshal(settingData)
+		var settings models.AntiRaidSettings
+		if err := json.Unmarshal(settingJSON, &settings); err != nil {
+			return fmt.Errorf("failed to parse antiraid settings: %w", err)
+		}
+
+		if err := antiraid.SetRaidTime(chatID, settings.RaidTime); err != nil {
+			return err
+		}
+		if err := antiraid.SetRaidActionTime(chatID, settings.RaidActionTime); err != nil {
+			return err
+		}
+		if err := antiraid.SetAutoAntiRaidThreshold(chatID, settings.AutoAntiRaidThreshold); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func clearAntiraidData(chatID int64) error {
+	// Reset to defaults: RaidTime=21600, RaidActionTime=3600, AutoAntiRaidThreshold=0
+	if err := antiraid.SetRaidTime(chatID, 21600); err != nil {
+		return err
+	}
+	if err := antiraid.SetRaidActionTime(chatID, 3600); err != nil {
+		return err
+	}
+	return antiraid.SetAutoAntiRaidThreshold(chatID, 0)
+}
+
+func exportApprovalsData(chatID int64) (*ApprovalsBackup, error) {
+	users := approvals.GetApprovedUsers(chatID)
+	userList := make([]models.ApprovedUsers, 0, len(users))
+	for _, u := range users {
+		userList = append(userList, *u)
+	}
+	return &ApprovalsBackup{ApprovedUsers: userList}, nil
+}
+
+func importApprovalsData(chatID int64, data interface{}) error {
+	backupData, ok := data.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid approvals data format")
+	}
+
+	if usersPayload, ok := backupData["approved_users"]; ok {
+		usersJSON, _ := json.Marshal(usersPayload)
+		var users []models.ApprovedUsers
+		if err := json.Unmarshal(usersJSON, &users); err != nil {
+			return fmt.Errorf("failed to parse approved users: %w", err)
+		}
+
+		// Clear existing approvals before importing
+		if err := approvals.RemoveAllApprovedUsers(chatID); err != nil {
+			return fmt.Errorf("failed to clear existing approved users: %w", err)
+		}
+
+		for _, u := range users {
+			if u.UserID != 0 {
+				if err := approvals.AddApprovedUser(chatID, u.UserID, u.ApprovedBy, u.Reason); err != nil {
+					return fmt.Errorf("failed to import approved user %d: %w", u.UserID, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func clearApprovalsData(chatID int64) error {
+	return approvals.RemoveAllApprovedUsers(chatID)
 }
