@@ -241,6 +241,7 @@ func TestConnectPrivateEstablishesConnectionAndHandlesMissingChat(t *testing.T) 
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42441, FirstName: "Member"}
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	t.Cleanup(func() { connections.DisconnectId(user.Id) })
 
 	missingCtx := newModuleMessageContext(bot, privateChat, user, "/connect")
 	if err := ConnectionsModule.connect(bot, missingCtx); err != ext.EndGroups {

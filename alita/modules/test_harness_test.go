@@ -96,7 +96,7 @@ func newModuleBotClient() *moduleBotClient {
 				`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`,
 			),
 			"getChatAdministrators": json.RawMessage(
-				`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}]`,
+				`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_pin_messages":true,"can_delete_messages":true,"can_restrict_members":true,"can_promote_members":true,"can_change_info":true,"can_invite_users":true,"can_manage_chat":true}]`,
 			),
 		},
 		errors: make(map[string]error),

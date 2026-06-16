@@ -202,10 +202,10 @@ func TestDevChatInfoLeaveChatStatsAndTeamList(t *testing.T) {
 
 func TestDevChatListSendsDocument(t *testing.T) {
 	withOwnerID(t, 777000)
-	if err := db.DB.Create(&db.Chat{ChatId: -100123, ChatName: "Active", IsInactive: false}).Error; err != nil {
+	if err := db.DB.Create(&db.Chat{ChatId: uniqueModuleChatID(), ChatName: "Active", IsInactive: false}).Error; err != nil {
 		t.Fatalf("Create active chat failed: %v", err)
 	}
-	if err := db.DB.Create(&db.Chat{ChatId: -100456, ChatName: "Inactive", IsInactive: true}).Error; err != nil {
+	if err := db.DB.Create(&db.Chat{ChatId: uniqueModuleChatID(), ChatName: "Inactive", IsInactive: true}).Error; err != nil {
 		t.Fatalf("Create inactive chat failed: %v", err)
 	}
 
