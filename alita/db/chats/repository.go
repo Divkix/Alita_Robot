@@ -84,8 +84,8 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 
 	// Atomically append userid only if not already present in the JSON array
 	result := db.DB.Exec(
-		`UPDATE chats SET users = users || to_jsonb($1::bigint) WHERE chat_id = $2 AND NOT (users @> to_jsonb($1::bigint))`,
-		userid, chatId,
+		`UPDATE chats SET users = users || to_jsonb(?::bigint) WHERE chat_id = ? AND NOT (users @> to_jsonb(?::bigint))`,
+		userid, chatId, userid,
 	)
 	if result.Error != nil {
 		log.Errorf("[Database] UpdateChat atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
