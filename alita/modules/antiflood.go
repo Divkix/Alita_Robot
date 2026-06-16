@@ -75,6 +75,23 @@ func init() {
 	}()
 }
 
+// cleanupOnce performs a single cleanup pass, removing entries idle for more
+// than 600 seconds (10 minutes) from both syncHelperMap and floodMu.
+// It is called by cleanupLoop on each ticker tick and is also directly
+// callable in tests for deterministic verification.
+func (a *antifloodStruct) cleanupOnce(now int64) {
+	a.syncHelperMap.Range(func(key, value any) bool {
+		if floodData, ok := value.(floodControl); ok {
+			// Remove entries older than 10 minutes
+			if now-floodData.lastActivity > 600 {
+				a.syncHelperMap.Delete(key)
+				floodMu.Delete(key)
+			}
+		}
+		return true
+	})
+}
+
 // cleanupLoop periodically removes old flood control entries from memory.
 // Runs every 5 minutes to clean entries older than 10 minutes.
 // Accepts a context for graceful shutdown.
@@ -85,16 +102,7 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			currentTime := time.Now().Unix()
-			a.syncHelperMap.Range(func(key, value any) bool {
-				if floodData, ok := value.(floodControl); ok {
-					// Remove entries older than 10 minutes
-					if currentTime-floodData.lastActivity > 600 {
-						a.syncHelperMap.Delete(key)
-					}
-				}
-				return true
-			})
+			a.cleanupOnce(time.Now().Unix())
 		case <-ctx.Done():
 			log.Info("Antiflood cleanup goroutine shutting down gracefully")
 			return
