@@ -618,13 +618,23 @@ func parseDuration(input string) (seconds int, ok bool) {
 	if len(input) == 0 {
 		return 0, false
 	}
-	numStr := input[:len(input)-1]
 	unit := input[len(input)-1]
+	// If the last char is a digit, treat the whole string as bare seconds.
+	if unit >= '0' && unit <= '9' {
+		raw, err := strconv.Atoi(input)
+		if err != nil || raw < 0 {
+			return 0, false
+		}
+		return raw, true
+	}
+	numStr := input[:len(input)-1]
 	num, err := strconv.Atoi(numStr)
 	if err != nil || num < 0 {
 		return 0, false
 	}
 	switch unit {
+	case 's':
+		return num, true
 	case 'm':
 		return num * 60, true
 	case 'h':
@@ -634,11 +644,7 @@ func parseDuration(input string) (seconds int, ok bool) {
 	case 'w':
 		return num * 7 * 24 * 60 * 60, true
 	default:
-		raw, err := strconv.Atoi(input)
-		if err != nil {
-			return 0, false
-		}
-		return raw, true
+		return 0, false
 	}
 }
 
