@@ -9,6 +9,8 @@ import (
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/utils/logredact"
 )
 
 // isCliModeActive returns true if the program is running with CLI flags
@@ -465,6 +467,11 @@ func init() {
 		},
 	)
 
+	// Install the sensitive-data redaction hook before any configuration is
+	// loaded. Structural patterns (bot tokens, DSN passwords, bearer tokens)
+	// are scrubbed immediately; exact secrets are registered below once known.
+	logredact.Install(nil)
+
 	// Load the structured configuration
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -478,6 +485,17 @@ func init() {
 
 	// Set global configuration instance
 	AppConfig = cfg
+
+	// Register the now-known exact secrets so they are scrubbed from any log
+	// line that happens to include them verbatim (e.g. a wrapped DB error
+	// containing the DSN, or a startup dump).
+	logredact.RegisterSecret(
+		cfg.BotToken,
+		cfg.DatabaseURL,
+		cfg.RedisPassword,
+		cfg.WebhookSecret,
+		cfg.MetricsAuthToken,
+	)
 
 	// Configure logger based on debug mode
 	if cfg.Debug {

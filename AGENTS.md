@@ -285,6 +285,26 @@ metadata via `alita/utils/errors/` (`Wrap()`/`Wrapf()` using `runtime.Caller`).
 - `SendMessageWithErrorHandling()` / `DeleteMessageWithErrorHandling()` — wrappers that mark chats as restricted on permission failures
 - `IsPermissionError()` — substring matcher for bot-send permission errors
 
+### Sensitive Data Log Scrubbing (`alita/utils/logredact/`)
+
+All log output is sanitized before it is written. A logrus hook installed in
+`config.init()` (`logredact.Install(nil)`) scrubs every entry's message and
+string/error fields at all log levels, so even ad-hoc `log.Errorf("... %v", err)`
+calls cannot leak secrets.
+
+- **Structural redaction**: credential shapes are masked regardless of value —
+  Telegram bot tokens (`<id>:<hash>`), connection-string passwords
+  (`scheme://user:pass@host` → password replaced), and `Authorization: Bearer/Basic`
+  tokens. Replaced with `logredact.Placeholder` (`[REDACTED]`).
+- **Exact-value redaction**: known secrets from the loaded config
+  (`BotToken`, `DatabaseURL`, `RedisPassword`, `WebhookSecret`, `MetricsAuthToken`)
+  are registered via `logredact.RegisterSecret(...)` and matched longest-first
+  to avoid partial leaks.
+- **Pre-sanitizing strings**: call `logredact.Scrub(s)` directly before logging a
+  value (e.g. a URL) you want masked outside the logging path.
+- **When adding a new secret config field**, register it with
+  `logredact.RegisterSecret()` in `config.init()`.
+
 ### Graceful Shutdown (`alita/utils/shutdown/`)
 
 Central coordinator. Handlers registered during setup, executed in LIFO order
@@ -312,6 +332,7 @@ on shutdown. Each handler gets panic recovery. Total timeout: 60 seconds.
 - `alita/utils/formatting/` — `Shtml()`, `Smarkdown()`, `SplitMessage()`, `MentionHtml()`, `ReverseHTML2MD()`, `FormattingReplacer()`
 - `alita/utils/keyboard/` — `BuildKeyboard()`, `ChunkKeyboardSlices()`, `MakeLanguageKeyboard()`
 - `alita/utils/ratelimit/` — `BackupRateLimiter` with `CanExport/CanImport/CanReset` and cooldown tracking
+- `alita/utils/logredact/` — sensitive-data log scrubbing: `Install()` (logrus redaction hook), `RegisterSecret()` (exact secrets), `Scrub()` (manual sanitize), masks bot tokens, DSN passwords, and bearer tokens
 
 ## Commit & Pull Request Guidelines
 
