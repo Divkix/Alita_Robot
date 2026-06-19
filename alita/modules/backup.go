@@ -630,13 +630,15 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	return ext.EndGroups
 }
 
-func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery) error {
+// handleCancelPending clears the chat's pending state via clear and acknowledges
+// the cancelled backup callback using the cancelKey confirmation message.
+func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, clear func(int64), cancelKey string) error {
 	chat := ctx.EffectiveChat
 
 	// Clean up
-	clearPendingImport(chat.Id)
+	clear(chat.Id)
 
-	text, _ := tr.GetString("backup_import_cancelled")
+	text, _ := tr.GetString(cancelKey)
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 		Text: text,
 	})
@@ -649,6 +651,10 @@ func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i
 	}
 
 	return ext.EndGroups
+}
+
+func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery) error {
+	return m.handleCancelPending(b, ctx, tr, query, clearPendingImport, "backup_import_cancelled")
 }
 
 func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) error {
@@ -691,24 +697,7 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 }
 
 func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery) error {
-	chat := ctx.EffectiveChat
-
-	// Clean up
-	clearPendingReset(chat.Id)
-
-	text, _ := tr.GetString("backup_reset_cancelled")
-	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
-		Text: text,
-	})
-
-	msg := ctx.EffectiveMessage
-	if msg != nil {
-		_, _, _ = msg.EditText(b, text, &gotgbot.EditMessageTextOpts{
-			ParseMode: "HTML",
-		})
-	}
-
-	return ext.EndGroups
+	return m.handleCancelPending(b, ctx, tr, query, clearPendingReset, "backup_reset_cancelled")
 }
 
 // Helper functions
