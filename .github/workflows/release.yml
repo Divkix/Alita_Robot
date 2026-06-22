@@ -128,6 +128,22 @@ jobs:
             git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$TAG"
           fi
 
+      - name: Verify BotVersion matches tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          if ! grep -qF "BotVersion:  \"${ver}\"" alita/config/config.go; then
+            echo "::error::BotVersion in alita/config/config.go != ${ver} — run 'make bump-version TAG=${TAG}', commit, and re-tag" >&2
+            exit 1
+          fi
+          if ! grep -qF "version = \"${TAG}\"" main.go; then
+            echo "::error::CLI version fallback in main.go != ${TAG} — run 'make bump-version TAG=${TAG}', commit, and re-tag" >&2
+            exit 1
+          fi
+          echo "BotVersion matches release tag ${TAG}"
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
         with:
