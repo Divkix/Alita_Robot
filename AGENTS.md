@@ -181,13 +181,23 @@ Parallel jobs (no `needs`), then aggregation:
 
 `release-ci-checks` (gosec `-no-fail`, govulncheck `continue-on-error`, build) →
 `goreleaser` (**v2.13.0**, deletes any pre-existing release for the tag to handle
-tag moves; workflow_dispatch creates an annotated tag if missing) → then
-`attest-artifacts` (SLSA `attest-build-provenance` over `dist/*`) **and**
-`post-release-scan` (Trivy `CRITICAL,HIGH`, `exit-code:0`, informational).
+tag moves) → then `attest-artifacts` (SLSA `attest-build-provenance` over `dist/*`)
+**and** `post-release-scan` (Trivy `CRITICAL,HIGH`, `exit-code:0`, informational).
 GoReleaser's `dockers_v2` publishes GHCR `{{.Tag}}`, `{{.Version}}`, **`latest`**
-(only the release path publishes `latest`). ⚠️ The `-X main.version/commit/date`
-ldflags are **no-ops** — `package main` declares no such vars; `--version` reads
-`config.AppConfig.BotVersion` (hardcoded `"2.18.2"`).
+(only the release path publishes `latest`).
+
+⚠️ **Tags must be `v`-prefixed** (`on: push: tags: ["v*"]`). The `goreleaser` job's
+**Resolve release tag** step normalizes the `workflow_dispatch` input to one `v`
+prefix and strictly validates `vMAJOR.MINOR.PATCH[-prerelease]` (on tag-push it
+passes `github.ref_name` through), exposing `steps.tag.outputs.tag`. On
+`workflow_dispatch` it then runs `scripts/bump_version.sh <tag>` to patch the
+version (commits to `main` and pushes), tags that commit, and pushes the tag — all
+git pushes use a token-in-URL (`https://x-access-token:$GITHUB_TOKEN@…`) because
+checkout keeps `persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger
+workflows, so there's no double release. `--version` reads
+`config.AppConfig.BotVersion` (patched by the bump script; currently `"2.19.4"`).
+There are **no** `-X main.version/commit/date` ldflags anymore (they were no-ops —
+`package main` declares no such vars).
 
 ### `docs.yml` (path-filtered to docs/alita/scripts/locales)
 
@@ -688,6 +698,10 @@ m != nil`) — every helper bails when it's nil.
 - `migrate_psql.sh` (forward-only; richer perl-based Supabase cleaning than the
   Makefile's sed-based `psql-prepare` — `psql-verify` compares against the sed
   output, so keep them aligned).
+- **`scripts/bump_version.sh <vX.Y.Z>`** — sed-patches the two version strings
+  (`BotVersion` in `alita/config/config.go` + the `--version` fallback in `main.go`);
+  BSD/GNU-sed portable, idempotent (a no-op leaves the tree clean so the release
+  workflow skips the commit). Wrapped by `make bump-version TAG=vX.Y.Z`.
 
 ---
 
@@ -766,7 +780,11 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
 - `OTEL_*` (service name, sample rate, OTLP endpoint, console/insecure) are read via
   raw `os.Getenv`, not config, and are intentionally not in `sample.env`.
-- `BotVersion` is hardcoded `"2.18.2"` in `config.go` — bump it there for releases.
+- `BotVersion` lives in `config.go` (currently `"2.19.4"`), mirrored by a CLI
+  fallback in `main.go`. **Don't hand-edit it** — `scripts/bump_version.sh <vX.Y.Z>`
+  patches both, and the release workflow runs it automatically on `workflow_dispatch`.
+  For a manual tag-push release, run the script (or `make bump-version TAG=vX.Y.Z`)
+  and commit before tagging.
 
 ---
 

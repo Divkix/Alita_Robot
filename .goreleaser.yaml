@@ -37,7 +37,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }}
+      - -s -w
 
 archives:
   # - rlcp: true
