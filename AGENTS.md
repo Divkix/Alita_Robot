@@ -86,7 +86,7 @@ Big architectural facts an agent must hold in mind:
 - **`main.go`** — process entry point (CLI flags, bootstrap, polling/webhook
   branch, dispatcher, shutdown wiring, custom Bot-API rewrite transport).
 - **`alita/`** — application code
-  - `main.go` — `LoadModules`, `InitialChecks`, `ListModules`, `ResourceMonitor`.
+  - `main.go` — `LoadModules`, `InitialChecks`, `ListModules`.
   - `config/` — `config.go` (manual env loading, defaults, validation, logredact
     wiring in `init()`), `types.go` (`typeConvertor`). **No viper here.**
   - `db/`
@@ -102,11 +102,13 @@ Big architectural facts an agent must hold in mind:
     - `monitoring/` — `metrics.go` (DB pool metrics for `/db_metrics`).
     - `backup/` — `backup.go` + `types.go` (per-module export/import/clear, **16 modules**).
   - `i18n/` — singleton `LocaleManager`, per-language `Translator`, `go:embed` locales.
+    Locale YAML is parsed into `map[string]any` (yaml.v3); key lookup is a dot-path
+    descent with case-insensitive fallback (for `alt_names.<Module>`). **No viper.**
   - `modules/` — bot feature modules + shared plumbing (see §6).
   - `utils/` — `chat_status` (permissions), `helpers` (command pipeline), `cache`,
     `callbackcodec`, `formatting`, `keyboard`, `keyword_matcher`, `media`, `content`,
     `extraction`, `error_handling`, `errors`, `logredact`, `ratelimit`, `constants`,
-    `async`, `monitoring`, `shutdown`, `tracing`, `httpserver`.
+    `monitoring`, `shutdown`, `tracing`, `httpserver`.
 - **`locales/`** — `en/es/fr/hi/ru/pt/id.yml` translations + **`config.yml`** (loaded
   as a pseudo-language `"config"`; holds `alt_names.<Module>` and `db_default_*`).
 - **`migrations/`** — timestamped `.sql` schema files (source of truth).
@@ -234,8 +236,8 @@ the `--health` flag.
 7. HTTP transport (with optional `API_SERVER` rewrite) → `gotgbot.NewBot` → resolve
    username → goroutine pre-warming Telegram connections.
 8. `alita.InitialChecks(b)` — `user.EnsureBotInDb` (blocking, FK anchor) +
-   `checkDuplicateAliases` (fatal on dup) + `go ResourceMonitor()`.
-9. async init → dispatcher (`TracingProcessor`, `dispatcherErrorHandler`,
+   `checkDuplicateAliases` (fatal on dup).
+9. dispatcher (`TracingProcessor`, `dispatcherErrorHandler`,
    `MaxRoutines` default 200) → monitoring systems → shutdown manager →
    unified HTTP server.
 10. **Mode branch** on `UseWebhooks`: webhook (requires `WEBHOOK_DOMAIN` +
@@ -321,9 +323,6 @@ module using the new `Module` interface directly; all others use `RegisterLegacy
   real error. `Disableable:true` registers every alias as disableable.
 - **Legacy** — everything else: `dispatcher.AddHandler(handlers.NewCommand(...))`,
   `helpers.MultiCommand(d, aliases, handler)`, `helpers.AddCmdToDisableable(cmd)`.
-
-⚠️ `helpers.AdminCmds`/`UserCmds` are declared but **never populated** in production
-(only tests assign them); `connections.go` joins them into empty strings.
 
 ---
 
@@ -759,10 +758,9 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
 - `HTTP_PORT` 8080, `DISPATCHER_MAX_ROUTINES` 200, `REDIS_DB` **1** (you cannot
   select 0), pool: `DB_MAX_IDLE_CONNS` 50 / `DB_MAX_OPEN_CONNS` 200 /
   `DB_CONN_MAX_LIFETIME_MIN` 240 / `DB_CONN_MAX_IDLE_TIME_MIN` 60.
-- ⚠️ `ENABLE_ASYNC_PROCESSING`, `ENABLE_PERFORMANCE_MONITORING`,
-  `ENABLE_BACKGROUND_STATS` **cannot be disabled via env** (forced true; the latter
-  two only when not Debug). `ENABLE_AUTO_CLEANUP` and `CLEAR_CACHE_ON_STARTUP`
-  default true but **do** honor an explicit `false`.
+- ⚠️ `ENABLE_PERFORMANCE_MONITORING` and `ENABLE_BACKGROUND_STATS` **cannot be
+  disabled via env** (forced true when not Debug). `ENABLE_AUTO_CLEANUP` and
+  `CLEAR_CACHE_ON_STARTUP` default true but **do** honor an explicit `false`.
 - `AUTO_MIGRATE` / `AUTO_MIGRATE_SILENT_FAIL`, `MIGRATIONS_PATH` (default
   `"migrations"`, relative to cwd), `ENABLED_LOCALES` (picker only), `API_SERVER`,
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.

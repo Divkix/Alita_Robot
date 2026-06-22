@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/eko/gocache/lib/v4/cache"
-	"github.com/spf13/viper"
 )
 
 // TranslationParams represents parameters for translation interpolation
@@ -15,9 +14,9 @@ type TranslationParams map[string]any
 // LocaleManager manages all locales with thread-safe operations
 type LocaleManager struct {
 	mu          sync.RWMutex
-	viperCache  map[string]*viper.Viper // Pre-compiled viper instances
-	localeData  map[string][]byte       // Raw YAML data
-	cacheClient *cache.Cache[any]       // External cache for translations
+	localeMaps  map[string]map[string]any // Parsed YAML maps per language
+	localeData  map[string][]byte         // Raw YAML data
+	cacheClient *cache.Cache[any]         // External cache for translations
 	defaultLang string
 	localeFS    *embed.FS
 	localePath  string
@@ -27,8 +26,8 @@ type LocaleManager struct {
 type Translator struct {
 	langCode    string
 	manager     *LocaleManager
-	viper       *viper.Viper // Pre-compiled viper instance
-	cachePrefix string       // Cache key prefix for this language
+	data        map[string]any // Parsed YAML map for this language
+	cachePrefix string         // Cache key prefix for this language
 }
 
 // CacheConfig defines cache configuration for translations

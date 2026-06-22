@@ -2,10 +2,8 @@ package alita
 
 import (
 	"fmt"
-	"runtime"
 	"slices"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -15,38 +13,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
-
-// ResourceMonitor monitors system resources including memory usage and goroutine count.
-// It runs every 5 minutes, logging resource statistics and issuing warnings
-// when thresholds are exceeded (>1000 goroutines or >500MB memory usage).
-func ResourceMonitor() {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-
-		numGoroutines := runtime.NumGoroutine()
-
-		// Log metrics
-		log.WithFields(log.Fields{
-			"goroutines": numGoroutines,
-			"memory_mb":  m.Alloc / 1024 / 1024,
-			"sys_mb":     m.Sys / 1024 / 1024,
-			"gc_runs":    m.NumGC,
-		}).Info("Resource usage stats")
-
-		// Warning thresholds
-		if numGoroutines > 1000 {
-			log.WithField("goroutines", numGoroutines).Warn("High goroutine count detected")
-		}
-
-		if m.Alloc/1024/1024 > 500 { // 500MB
-			log.WithField("memory_mb", m.Alloc/1024/1024).Warn("High memory usage detected")
-		}
-	}
-}
 
 // ListModules returns a formatted string containing all loaded bot modules.
 // It retrieves the module names from the default help registry, sorts them alphabetically,
@@ -58,8 +24,7 @@ func ListModules() string {
 }
 
 // InitialChecks performs essential initialization tasks before starting the bot.
-// It ensures the bot exists in the database, validates command aliases for duplicates,
-// and starts resource monitoring.
+// It ensures the bot exists in the database and validates command aliases for duplicates.
 // Note: Cache is initialized in main.go before this function is called.
 func InitialChecks(b *gotgbot.Bot) error {
 	// Ensure bot exists in database (blocking - required for FK constraints)
@@ -72,8 +37,6 @@ func InitialChecks(b *gotgbot.Bot) error {
 
 	checkDuplicateAliases()
 
-	// Start resource monitoring
-	go ResourceMonitor()
 	return nil
 }
 

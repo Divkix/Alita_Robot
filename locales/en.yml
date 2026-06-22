@@ -337,8 +337,8 @@ connections_connect_tap_btn_connect:
   Please press the button below to connect this
   chat to your PM.
 connections_connected: You are currently connected to <b>%s</b>!
-connections_connections_btns_admin_conn_cmds: Available Admin commands:%s
-connections_connections_btns_user_conn_cmds: Available User commands:%s
+connections_connections_btns_admin_conn_cmds: Available Admin commands
+connections_connections_btns_user_conn_cmds: Available User commands
 connections_disconnect_disconnected:
   Successfully disconnected from the connected
   chat.

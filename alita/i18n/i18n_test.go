@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/spf13/viper"
 )
 
 //go:embed testdata/locales/* testdata/locales/nested/* testdata/badlocales/* testdata/nodefault/*
@@ -302,19 +300,19 @@ func TestExtractOrderedValues(t *testing.T) {
 // newTestTranslator creates a Translator backed by inline YAML content for tests.
 func newTestTranslator(t *testing.T, yamlContent string) *Translator {
 	t.Helper()
-	vi, err := compileViper([]byte(yamlContent))
+	data, err := parseYAML([]byte(yamlContent))
 	if err != nil {
-		t.Fatalf("compileViper() error = %v", err)
+		t.Fatalf("parseYAML() error = %v", err)
 	}
 	lm := &LocaleManager{
 		defaultLang: "en",
-		viperCache:  map[string]*viper.Viper{"en": vi},
+		localeMaps:  map[string]map[string]any{"en": data},
 		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 	}
 	return &Translator{
 		langCode:    "en",
 		manager:     lm,
-		viper:       vi,
+		data:        data,
 		cachePrefix: "i18n:en:",
 	}
 }
@@ -388,15 +386,15 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 
 	const enYAML = "language_name: English\n"
 
-	vi, err := compileViper([]byte(enYAML))
+	data, err := parseYAML([]byte(enYAML))
 	if err != nil {
-		t.Fatalf("compileViper() error = %v", err)
+		t.Fatalf("parseYAML() error = %v", err)
 	}
 
 	// Use a local (non-singleton) LocaleManager to avoid contaminating global state.
 	// We embed a minimal FS pointer placeholder — use the trick of setting localeFS
 	// to a non-nil value via the embed pointer is not straightforward without go:embed.
-	// Instead, we bypass the localeFS nil check by setting viperCache so GetTranslator
+	// Instead, we bypass the localeFS nil check by setting localeMaps so GetTranslator
 	// can succeed when localeFS check is bypassed. Since GetTranslator checks localeFS,
 	// we test via the singleton initialized from main, or use MustNewTranslator.
 
@@ -426,7 +424,7 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 
 		lm := &LocaleManager{
 			defaultLang: "en",
-			viperCache:  map[string]*viper.Viper{"en": vi},
+			localeMaps:  map[string]map[string]any{"en": data},
 			localeData:  map[string][]byte{"en": []byte(enYAML)},
 		}
 
@@ -450,7 +448,7 @@ func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 	// Build a local LocaleManager with known locales.
 	lm := &LocaleManager{
 		defaultLang: "en",
-		viperCache:  make(map[string]*viper.Viper),
+		localeMaps:  make(map[string]map[string]any),
 		localeData: map[string][]byte{
 			"en": []byte("language_name: English\n"),
 			"es": []byte("language_name: Spanish\n"),
@@ -480,7 +478,7 @@ func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 func newTestLocaleManager() *LocaleManager {
 	return &LocaleManager{
 		defaultLang: "en",
-		viperCache:  make(map[string]*viper.Viper),
+		localeMaps:  make(map[string]map[string]any),
 		localeData:  make(map[string][]byte),
 	}
 }

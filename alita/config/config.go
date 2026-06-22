@@ -134,9 +134,8 @@ type Config struct {
 	EnableAutoCleanup       bool // Whether to automatically mark inactive chats
 
 	// Performance optimization settings
-	EnableAsyncProcessing   bool // Enable async processing for non-critical operations
-	HTTPMaxIdleConns        int  `validate:"min=10,max=1000"` // HTTP connection pool size
-	HTTPMaxIdleConnsPerHost int  `validate:"min=5,max=500"`   // HTTP connections per host
+	HTTPMaxIdleConns        int `validate:"min=10,max=1000"` // HTTP connection pool size
+	HTTPMaxIdleConnsPerHost int `validate:"min=5,max=500"`   // HTTP connections per host
 
 	// Database migration settings
 	AutoMigrate           bool   // Enable automatic database migrations on startup
@@ -274,7 +273,6 @@ func LoadConfig() (*Config, error) {
 		EnableAutoCleanup:       typeConvertor{str: os.Getenv("ENABLE_AUTO_CLEANUP")}.Bool(),
 
 		// Performance optimization settings
-		EnableAsyncProcessing:   typeConvertor{str: os.Getenv("ENABLE_ASYNC_PROCESSING")}.Bool(),
 		HTTPMaxIdleConns:        typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS")}.Int(),
 		HTTPMaxIdleConnsPerHost: typeConvertor{str: os.Getenv("HTTP_MAX_IDLE_CONNS_PER_HOST")}.Int(),
 
@@ -414,9 +412,6 @@ func (cfg *Config) setDefaults() {
 	// This ensures production systems explicitly configure their database connection
 
 	// Set performance optimization defaults (enabled by default for better performance)
-	if !cfg.EnableAsyncProcessing {
-		cfg.EnableAsyncProcessing = true
-	}
 	if cfg.HTTPMaxIdleConns == 0 {
 		cfg.HTTPMaxIdleConns = 100
 	}
