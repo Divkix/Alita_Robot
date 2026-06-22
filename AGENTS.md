@@ -9,6 +9,14 @@ warns, locks, backups, connections, reactions and multi-language support
 > `CLAUDE.md` and `GEMINI.md` are symlinks to this file — **AGENTS.md is the single
 > source of truth** for agent/contributor guidance. Edit this file only.
 
+## Maintaining This File
+
+This file is **not** auto-generated. When you make changes that affect anything
+documented here — build pipeline, scripts, env vars, routes, key systems,
+dependencies, directory layout, or code-style rules — update the relevant
+section in the same change so it stays accurate. `CLAUDE.md` and `GEMINI.md` are
+symlinks to this file, so edit `AGENTS.md`.
+
 ---
 
 ## 0. Maintaining this document (READ FIRST)
@@ -147,6 +155,9 @@ make docs-dev           # bun run dev (Astro, localhost:4321)
 make psql-prepare / psql-migrate / psql-status / psql-rollback / psql-verify / psql-reset
 make validate-db        # scripts/validate_orphaned_data.go
 make backup-db          # scripts/backup_database.sh
+
+# Release version bump (patches BotVersion in config.go + main.go fallback)
+make bump-version TAG=vX.Y.Z   # wraps scripts/bump_version.sh
 ```
 
 **Tests require live Postgres + Redis and `CGO_ENABLED=1`** (the `-race` detector
@@ -195,9 +206,14 @@ version (commits to `main` and pushes), tags that commit, and pushes the tag —
 git pushes use a token-in-URL (`https://x-access-token:$GITHUB_TOKEN@…`) because
 checkout keeps `persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger
 workflows, so there's no double release. `--version` reads
-`config.AppConfig.BotVersion` (patched by the bump script; currently `"2.19.4"`).
-There are **no** `-X main.version/commit/date` ldflags anymore (they were no-ops —
-`package main` declares no such vars).
+`config.AppConfig.BotVersion` (patched by the bump script; currently `"2.19.6"`),
+with a hard-coded local fallback `version = "v2.19.6"` in `main.go` (used only when
+config didn't load). There are **no** `-X main.version/commit/date` ldflags anymore
+(they were no-ops — `package main` declares no such vars). ⚠️ After the bump step,
+`goreleaser` runs a **"Verify BotVersion matches tag"** gate that `grep`s **both**
+`alita/config/config.go` (`BotVersion:  "<ver>"`) **and** `main.go`
+(`version = "v<tag>"`) and fails the release on mismatch — this is the enforcement
+behind "don't hand-edit BotVersion."
 
 ### `docs.yml` (path-filtered to docs/alita/scripts/locales)
 
@@ -459,13 +475,19 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   timeout it `Forget`s the key and degrades to a direct DB load). Writes must
   **explicitly `cache.DeleteCache(...)`** every affected key.
 - ⚠️ Cache key **prefixes differ from package/table names**: `blacklists→"blacklist"`,
-  `channels→"channel"`, `chats→"chat"`, `captcha→"captcha_settings"`. The `admin`
-  package has **no cache** at all. Reuse the exact existing literal when invalidating.
+  `channels→"channel"`, `chats→"chat"`, `captcha→"captcha_settings"`,
+  `notes→"notes_settings"`, `disabling→"disabled_cmds"`, `warns→"warns"` (per-user)
+  + `"warn_settings"` (per-chat), `filters→"filter_list"` + `"filters_optimized"`,
+  `locks→"lock"` + `"locks_map"`, `lang→"chat_lang"`/`"user_lang"` (also invalidates
+  `"chat_settings"`/`"chat"`/`"user"`). The `admin`, `connections`, `devs`, `pins`,
+  `reports`, `rules` packages have **no cache** at all. Reuse the exact existing
+  literal when invalidating.
 - Upserts use `Where(...).Assign(map[string]any{...}).FirstOrCreate(...)` with **map**
-  payloads (so zero values persist). `locks.UpdateLock` is the only true atomic
-  `clause.OnConflict` upsert; `filters.AddFilter`/`notes.AddNote` are non-atomic
-  (Take-then-Create, race-prone). `chats.UpdateChat` appends to the JSONB `users`
-  array with Postgres-specific raw SQL (`users || to_jsonb(...)`).
+  payloads (so zero values persist). `locks.UpdateLock` and
+  `captcha.SetCaptchaMaxAttempts` are the true atomic `clause.OnConflict` upserts;
+  `filters.AddFilter`/`notes.AddNote` are non-atomic (Take-then-Create, race-prone).
+  `chats.UpdateChat` appends to the JSONB `users` array with Postgres-specific raw
+  SQL (`users || to_jsonb(...)`).
 - `user.GetUserBasicInfoCached` negative-caches a missing user as sentinel
   `User{UserId:-9999}` → maps back to `ErrRecordNotFound` (preserve on both sides).
 - Most read helpers swallow errors and return safe defaults (empty slice/map,
@@ -690,8 +712,9 @@ m != nil`) — every helper bails when it's nil.
 - **`scripts/check_translations/`** — a **separate Go module** (own `go.mod`); cannot
   import `alita`; uses hardcoded `../../alita` and `../../locales`. Only validates
   **string-literal** keys passed to `tr.GetString`/`GetStringSlice`.
-- **`scripts/validate_orphaned_data.go`** — 22 referential-integrity checks; keep in
-  sync with `migrations/20250805204145_add_foreign_key_relations.sql` step 1.
+- **`scripts/validate_orphaned_data.go`** — 21 referential-integrity checks
+  (`defaultOrphanChecks()`); keep in sync with
+  `migrations/20250805204145_add_foreign_key_relations.sql` step 1.
 - **`internal/repo_checks/`** — test-only structural-invariant assertions (string/
   regex over source files via `../..`); **sensitive to renames/reformatting** of the
   functions it inspects — update expectations alongside refactors.
@@ -780,11 +803,20 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
 - `OTEL_*` (service name, sample rate, OTLP endpoint, console/insecure) are read via
   raw `os.Getenv`, not config, and are intentionally not in `sample.env`.
-- `BotVersion` lives in `config.go` (currently `"2.19.4"`), mirrored by a CLI
-  fallback in `main.go`. **Don't hand-edit it** — `scripts/bump_version.sh <vX.Y.Z>`
-  patches both, and the release workflow runs it automatically on `workflow_dispatch`.
-  For a manual tag-push release, run the script (or `make bump-version TAG=vX.Y.Z`)
-  and commit before tagging.
+- `BotVersion` lives in `config.go` (currently `"2.19.6"`), mirrored by a CLI
+  fallback `version = "v2.19.6"` in `main.go`. **Don't hand-edit it** —
+  `scripts/bump_version.sh <vX.Y.Z>` patches both, and the release workflow runs it
+  automatically on `workflow_dispatch`; the `goreleaser` job then re-greps both files
+  and fails on mismatch. For a manual tag-push release, run the script (or
+  `make bump-version TAG=vX.Y.Z`) and commit before tagging.
+
+Additional env vars present in `config.go` (defaults in parens) not covered above:
+`ENABLE_DB_MONITORING` (false; gates `/db_metrics`), `WEBHOOK_PORT` (deprecated,
+legacy 8081, backfills `HTTP_PORT`), `INACTIVITY_THRESHOLD_DAYS` (30),
+`ACTIVITY_CHECK_INTERVAL` (1), `HTTP_MAX_IDLE_CONNS` (100),
+`HTTP_MAX_IDLE_CONNS_PER_HOST` (50), `RESOURCE_MAX_GOROUTINES` (1000),
+`RESOURCE_MAX_MEMORY_MB` (500), `RESOURCE_GC_THRESHOLD_MB` (400, the raw-MB
+`MemoryCleanup` trigger in §14).
 
 ---
 
