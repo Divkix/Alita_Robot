@@ -18,7 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
@@ -248,11 +247,9 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	switch userType {
 	case "Admin":
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_admin_conn_cmds")
-		replyText = fmt.Sprintf(temp, m.adminCmdConnString())
+		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_admin_conn_cmds")
 	case "User":
-		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_user_conn_cmds")
-		replyText = fmt.Sprintf(temp, m.userCmdConnString())
+		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_user_conn_cmds")
 	case "Main":
 		chatId := m.isConnected(b, ctx, user.Id)
 		if chatId == 0 {
@@ -425,18 +422,6 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
-}
-
-// adminCmdConnString returns a formatted list of admin commands available via connections.
-// Used for displaying available commands in connection interface.
-func (moduleStruct) adminCmdConnString() string {
-	return "\n - /" + strings.Join(helpers.AdminCmds, "\n - /")
-}
-
-// userCmdConnString returns a formatted list of user commands available via connections.
-// Used for displaying available commands in connection interface.
-func (moduleStruct) userCmdConnString() string {
-	return "\n - /" + strings.Join(helpers.UserCmds, "\n - /")
 }
 
 // LoadConnections registers all connection module handlers with the dispatcher.

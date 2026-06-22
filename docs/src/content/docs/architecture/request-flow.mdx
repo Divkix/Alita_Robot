@@ -150,17 +150,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     alita.InitialChecks(b)  // Validates config and performs startup health checks
     ```
 
-11. **Async Processor** <Badge text="Optional" variant="default" />
-    
-    If `EnableAsyncProcessing` is configured, the async processor is initialized for non-critical background operations.
-    
-    ```go
-    if config.AppConfig.EnableAsyncProcessing {
-        async.InitializeAsyncProcessor()
-    }
-    ```
-
-12. **Dispatcher Creation** <Badge text="Core" variant="note" />
+11. **Dispatcher Creation** <Badge text="Core" variant="note" />
     
     The dispatcher routes updates to handlers with bounded concurrency. It uses a `TracingProcessor` wrapper for trace context propagation in polling mode.
     
@@ -172,7 +162,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     })
     ```
 
-13. **Monitoring Systems** <Badge text="Observability" variant="success" />
+12. **Monitoring Systems** <Badge text="Observability" variant="success" />
     
     Monitoring systems are started based on configuration.
     
@@ -186,7 +176,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     activityMonitor = monitoring.NewActivityMonitor() // Always starts
     ```
 
-14. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
+13. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
     
     The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
     

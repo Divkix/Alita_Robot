@@ -2,14 +2,12 @@ package modules
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
-	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 func TestCanUserConnectToChatAllowsTelegramServiceAdmins(t *testing.T) {
@@ -414,25 +412,5 @@ func TestConnectionButtonsRejectInvalidData(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
-	}
-}
-
-func TestConnectionCommandStringsIncludeRegisteredCommands(t *testing.T) {
-	originalAdminCmds := helpers.AdminCmds
-	originalUserCmds := helpers.UserCmds
-	helpers.AdminCmds = []string{"ban", "mute"}
-	helpers.UserCmds = []string{"rules", "notes"}
-	t.Cleanup(func() {
-		helpers.AdminCmds = originalAdminCmds
-		helpers.UserCmds = originalUserCmds
-	})
-
-	adminCommands := ConnectionsModule.adminCmdConnString()
-	userCommands := ConnectionsModule.userCmdConnString()
-	if !strings.Contains(adminCommands, "/ban") {
-		t.Fatalf("adminCmdConnString() = %q, want admin commands", adminCommands)
-	}
-	if !strings.Contains(userCommands, "/rules") {
-		t.Fatalf("userCmdConnString() = %q, want user commands", userCommands)
 	}
 }

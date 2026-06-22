@@ -4,26 +4,24 @@ package i18n
 
 import (
 	"embed"
-
-	"github.com/spf13/viper"
 )
 
 // NewTestTranslator creates a Translator backed by inline YAML content for tests.
 // It is guarded by the `testtools` build tag so it is excluded from production builds.
 func NewTestTranslator(yamlContent string) (*Translator, error) {
-	vi, err := compileViper([]byte(yamlContent))
+	data, err := parseYAML([]byte(yamlContent))
 	if err != nil {
 		return nil, err
 	}
 	lm := &LocaleManager{
 		defaultLang: "en",
-		viperCache:  map[string]*viper.Viper{"en": vi},
+		localeMaps:  map[string]map[string]any{"en": data},
 		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 	}
 	return &Translator{
 		langCode:    "en",
 		manager:     lm,
-		viper:       vi,
+		data:        data,
 		cachePrefix: "i18n:en:",
 	}, nil
 }
@@ -36,16 +34,16 @@ func NewTestTranslator(yamlContent string) (*Translator, error) {
 //
 // It is guarded by the testtools build tag and is never compiled into production.
 func OverrideManagerForTest(yamlContent string) (restore func(), err error) {
-	vi, err := compileViper([]byte(yamlContent))
+	data, err := parseYAML([]byte(yamlContent))
 	if err != nil {
 		return nil, err
 	}
 	// A non-nil *embed.FS is required to pass GetTranslator's localeFS nil-guard.
-	// The value is never used for file I/O because viperCache is already populated.
+	// The value is never used for file I/O because localeMaps is already populated.
 	var dummyFS embed.FS
 	lm := &LocaleManager{
 		defaultLang: "en",
-		viperCache:  map[string]*viper.Viper{"en": vi},
+		localeMaps:  map[string]map[string]any{"en": data},
 		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 		localeFS:    &dummyFS,
 	}

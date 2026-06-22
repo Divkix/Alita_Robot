@@ -36,8 +36,8 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 		}
 	}
 
-	// Get string from viper
-	result := t.viper.GetString(key)
+	// Get string from the parsed locale map
+	result := lookupString(t.data, key)
 
 	// Check if key exists
 	if result == "" || result == "<nil>" {
@@ -92,7 +92,7 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 		}
 	}
 
-	result := t.viper.GetStringSlice(key)
+	result := lookupStringSlice(t.data, key)
 
 	// Check if key exists
 	if len(result) == 0 {
