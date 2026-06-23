@@ -58,9 +58,8 @@ func StartMonitoring(ctx context.Context, interval time.Duration) {
 	log.Info("[DBMonitoring] Started database performance monitoring")
 }
 
-// collectMetrics gathers current database pool statistics
-func collectMetrics(db *sql.DB) DatabaseMetrics {
-	stats := db.Stats()
+// newDatabaseMetrics maps sql.DBStats into a DatabaseMetrics value.
+func newDatabaseMetrics(stats sql.DBStats) DatabaseMetrics {
 	return DatabaseMetrics{
 		OpenConnections:   stats.OpenConnections,
 		InUse:             stats.InUse,
@@ -70,6 +69,11 @@ func collectMetrics(db *sql.DB) DatabaseMetrics {
 		MaxIdleClosed:     stats.MaxIdleClosed,
 		MaxLifetimeClosed: stats.MaxLifetimeClosed,
 	}
+}
+
+// collectMetrics gathers current database pool statistics
+func collectMetrics(db *sql.DB) DatabaseMetrics {
+	return newDatabaseMetrics(db.Stats())
 }
 
 // logMetrics logs database metrics in a structured format
@@ -96,16 +100,6 @@ func GetCurrentMetrics() (*DatabaseMetrics, error) {
 		return nil, err
 	}
 
-	stats := sqlDB.Stats()
-	metrics := DatabaseMetrics{
-		OpenConnections:   stats.OpenConnections,
-		InUse:             stats.InUse,
-		Idle:              stats.Idle,
-		WaitCount:         stats.WaitCount,
-		WaitDuration:      stats.WaitDuration,
-		MaxIdleClosed:     stats.MaxIdleClosed,
-		MaxLifetimeClosed: stats.MaxLifetimeClosed,
-	}
-
+	metrics := newDatabaseMetrics(sqlDB.Stats())
 	return &metrics, nil
 }

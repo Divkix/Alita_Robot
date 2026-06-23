@@ -503,9 +503,8 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // noteOverWriteHandler processes callback queries for note overwrite
 // confirmations when adding notes that already exist.
-// Callback formats:
+// Callback format:
 // - v1 codec: notes.overwrite|v1|a={yes/no}&t={token}
-// - legacy: notes.overwrite.{action}.{chatId}_{noteWord}
 func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -520,7 +519,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	var helpText string
-	action, token, legacyNoteWordMapKey, ok := parseNoteOverwriteCallbackData(query.Data)
+	action, token, ok := parseNoteOverwriteCallbackData(query.Data)
 	if !ok {
 		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
 		return ext.EndGroups
@@ -533,65 +532,37 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 		if token != "" {
 			notesOverwriteMap.Delete(token)
 		}
-		if legacyNoteWordMapKey != "" {
-			notesOverwriteMap.Delete(legacyNoteWordMapKey)
-		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	case "yes":
 		var (
 			chatId      int64
 			noteWord    string
-			noteData    overwriteNote
 			noteDataRaw any
 			ok          bool
-			dataSplit   []string
 		)
 
-		if token != "" {
-			noteDataRaw, ok = notesOverwriteMap.Load(token)
-			if !ok {
-				helpText, _ = tr.GetString("notes_overwrite_cancelled")
-				break
-			}
-			noteData, castOk := noteDataRaw.(overwriteNote)
-			if !castOk {
-				helpText, _ = tr.GetString("notes_overwrite_cancelled")
-				break
-			}
-			chatId = noteData.ChatID
-			noteWord = noteData.ItemName
-			if chatId == 0 {
-				if query.Message != nil {
-					chatId = query.Message.GetChat().Id
-				} else if ctx.EffectiveChat != nil {
-					chatId = ctx.EffectiveChat.Id
-				}
-			}
-		} else {
-			dataSplit = strings.SplitN(legacyNoteWordMapKey, "_", 2)
-			if len(dataSplit) < 2 {
-				helpText, _ = tr.GetString("notes_overwrite_cancelled")
-				break
-			}
-			strChatId, parsedNoteWord := dataSplit[0], dataSplit[1]
-			parsedChatID, parseErr := strconv.ParseInt(strChatId, 10, 64)
-			if parseErr != nil {
-				helpText, _ = tr.GetString("notes_overwrite_cancelled")
-				break
-			}
-			chatId = parsedChatID
-			noteWord = parsedNoteWord
-			noteDataRaw, ok = notesOverwriteMap.Load(legacyNoteWordMapKey)
-			if !ok {
-				helpText, _ = tr.GetString("notes_overwrite_cancelled")
-				break
-			}
+		if token == "" {
+			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			break
 		}
-
+		noteDataRaw, ok = notesOverwriteMap.Load(token)
+		if !ok {
+			helpText, _ = tr.GetString("notes_overwrite_cancelled")
+			break
+		}
 		noteData, castOk := noteDataRaw.(overwriteNote)
 		if !castOk {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
+		}
+		chatId = noteData.ChatID
+		noteWord = noteData.ItemName
+		if chatId == 0 {
+			if query.Message != nil {
+				chatId = query.Message.GetChat().Id
+			} else if ctx.EffectiveChat != nil {
+				chatId = ctx.EffectiveChat.Id
+			}
 		}
 
 		callbackChatID := int64(0)
@@ -617,9 +588,6 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			}
 			if token != "" {
 				notesOverwriteMap.Delete(token)
-			}
-			if legacyNoteWordMapKey != "" {
-				notesOverwriteMap.Delete(legacyNoteWordMapKey)
 			}
 			helpText, _ = tr.GetString("notes_overwrite_success")
 		} else {
@@ -825,7 +793,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 							InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 								{
 									{
-										Text: func() string { t, _ := tr.GetString("button_click_me"); return t }(),
+										Text: trS(tr, "button_click_me"),
 										Url:  fmt.Sprintf("https://t.me/%s?start=note_%d_%s", b.Username, chat.Id, noteName),
 									},
 								},
@@ -946,7 +914,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 						InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 							{
 								{
-									Text: func() string { t, _ := tr.GetString("button_click_me"); return t }(),
+									Text: trS(tr, "button_click_me"),
 									Url:  fmt.Sprintf("https://t.me/%s?start=note_%d_%s", b.Username, chat.Id, noteName),
 								},
 							},
@@ -1027,7 +995,7 @@ func LoadNotes(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
-				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
+				Text:         trS(i18n.MustNewTranslator("en"), "button_formatting"),
 				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},

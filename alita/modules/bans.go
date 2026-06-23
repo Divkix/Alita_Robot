@@ -29,7 +29,7 @@ var bansModule = moduleStruct{moduleName: "Bans"}
 
 // delayedUnban performs a delayed unban after kick with timeout protection.
 // Runs in a goroutine to avoid blocking the main execution.
-func delayedUnban(chat *gotgbot.Chat, b *gotgbot.Bot, userId int64, operation string) {
+func delayedUnban(chat *gotgbot.Chat, b *gotgbot.Bot, userId int64, operation string, delay time.Duration) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -41,7 +41,7 @@ func delayedUnban(chat *gotgbot.Chat, b *gotgbot.Bot, userId int64, operation st
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		timer := time.NewTimer(2 * time.Second)
+		timer := time.NewTimer(delay)
 		defer timer.Stop()
 
 		select {
@@ -188,7 +188,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 			}
 			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
 			if err == nil {
-				delayedUnban(c.Chat, c.Bot, t.userID, "dkick")
+				delayedUnban(c.Chat, c.Bot, t.userID, "dkick", 2*time.Second)
 			}
 			return err
 		},
@@ -263,7 +263,7 @@ func banReplyWithButton(c *moderationCtx, t *target) error {
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
-							Text:         func() string { t, _ := c.Tr.GetString("bans_unban_button"); return t }(),
+							Text:         trS(c.Tr, "bans_unban_button"),
 							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": fmt.Sprint(t.userID)}),
 						},
 					},
@@ -355,7 +355,7 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 		execute: func(c *moderationCtx, t *target) error {
 			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
 			if err == nil {
-				delayedUnban(c.Chat, c.Bot, t.userID, "kick")
+				delayedUnban(c.Chat, c.Bot, t.userID, "kick", 2*time.Second)
 			}
 			return err
 		},
@@ -398,7 +398,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 			if err != nil {
 				return err
 			}
-			delayedUnban(c.Chat, c.Bot, t.userID, "kickme")
+			delayedUnban(c.Chat, c.Bot, t.userID, "kickme", 2*time.Second)
 			return nil
 		},
 		reply: func(c *moderationCtx, t *target) error {
@@ -679,16 +679,16 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
-							Text:         func() string { t, _ := tr.GetString("button_ban"); return t }(),
+							Text:         trS(tr, "button_ban"),
 							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "ban", "u": fmt.Sprint(userId)}),
 						},
 						{
-							Text:         func() string { t, _ := tr.GetString("button_kick"); return t }(),
+							Text:         trS(tr, "button_kick"),
 							CallbackData: encodeCallbackData("restrict", map[string]string{"a": "kick", "u": fmt.Sprint(userId)}),
 						},
 					},
 					{{
-						Text:         func() string { t, _ := tr.GetString("button_mute"); return t }(),
+						Text:         trS(tr, "button_mute"),
 						CallbackData: encodeCallbackData("restrict", map[string]string{"a": "mute", "u": fmt.Sprint(userId)}),
 					}},
 				},
@@ -774,37 +774,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			formatting.MentionHtml(int64(userId), actionUser.FirstName),
 		)
 		// Use non-blocking delayed unban for restrict kick action with timeout
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("panic", r).Error("Panic in restrict delayed unban goroutine")
-				}
-			}()
-
-			// Create context with timeout to prevent goroutine from hanging indefinitely
-			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			timer := time.NewTimer(3 * time.Second)
-			defer timer.Stop()
-
-			select {
-			case <-timer.C:
-				_, unbanErr := chat.UnbanMember(b, int64(userId), nil)
-				if unbanErr != nil {
-					log.WithFields(log.Fields{
-						"chatId": chat.Id,
-						"userId": userId,
-						"error":  unbanErr,
-					}).Error("Failed to unban user after restrict kick")
-				}
-			case <-timeoutCtx.Done():
-				log.WithFields(log.Fields{
-					"chatId": chat.Id,
-					"userId": userId,
-				}).Warn("Restrict kick unban operation timed out")
-			}
-		}()
+		delayedUnban(chat, b, int64(userId), "restrict-kick", 3*time.Second)
 	case "mute":
 		_, err := chat.RestrictMember(b, int64(userId),
 			MutedPermissions,

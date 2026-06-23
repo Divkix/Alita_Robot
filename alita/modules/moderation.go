@@ -58,8 +58,6 @@ func standardModGates(c *moderationCtx) bool {
 
 // deleteModGates extends standardModGates with delete permissions.
 // Used by purge-like commands.
-//
-//nolint:unused
 func deleteModGates(c *moderationCtx) bool {
 	if !standardModGates(c) {
 		return false
@@ -119,8 +117,6 @@ func extractFromArgs(c *moderationCtx) (target, error) {
 }
 
 // extractFromReply resolves the target from the replied-to message.
-//
-//nolint:unused
 func extractFromReply(c *moderationCtx) (target, error) {
 	if c.Msg.ReplyToMessage == nil {
 		text, _ := c.Tr.GetString("bans_dkick_no_reply")

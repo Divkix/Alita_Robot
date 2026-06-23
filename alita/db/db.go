@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -12,93 +11,58 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
-	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-// Re-exports for backward compatibility during migration
-var (
-	CacheKey    = cache.CacheKey
-	DeleteCache = cache.DeleteCache
-)
-
-// getFromCacheOrLoad is a backward-compatible wrapper for the cache package.
-func getFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
-	return cache.GetFromCacheOrLoad(key, ttl, loader)
-}
-
-// deleteCache is a backward-compatible wrapper for the cache package.
-func deleteCache(key string) {
-	cache.DeleteCache(key)
-}
-
-// Backward-compatible TTL constant re-exports
-const (
-	CacheTTLChatSettings    = cache.CacheTTLChatSettings
-	CacheTTLLanguage        = cache.CacheTTLLanguage
-	CacheTTLFilterList      = cache.CacheTTLFilterList
-	CacheTTLBlacklist       = cache.CacheTTLBlacklist
-	CacheTTLGreetings       = cache.CacheTTLGreetings
-	CacheTTLNotesList       = cache.CacheTTLNotesList
-	CacheTTLNotesSettings   = cache.CacheTTLNotesSettings
-	CacheTTLWarnSettings    = cache.CacheTTLWarnSettings
-	CacheTTLAntiflood       = cache.CacheTTLAntiflood
-	CacheTTLDisabledCmds    = cache.CacheTTLDisabledCmds
-	CacheTTLCaptchaSettings = cache.CacheTTLCaptchaSettings
-	CacheTTLApprovals       = cache.CacheTTLApprovals
-	CacheTTLAntiRaid        = cache.CacheTTLAntiRaid
-)
-
 // Re-export model types for backward compatibility
 type (
-	Button            = models.Button
-	ButtonArray       = models.ButtonArray
-	StringArray       = models.StringArray
-	Int64Array        = models.Int64Array
-	User              = models.User
-	Chat              = models.Chat
-	ChatUser          = models.ChatUser
-	WarnSettings      = models.WarnSettings
-	Warns             = models.Warns
-	GreetingSettings  = models.GreetingSettings
-	WelcomeSettings   = models.WelcomeSettings
-	GoodbyeSettings   = models.GoodbyeSettings
-	ChatFilters       = models.ChatFilters
-	AdminSettings     = models.AdminSettings
-	BlacklistSettings = models.BlacklistSettings
+	Button                 = models.Button
+	ButtonArray            = models.ButtonArray
+	StringArray            = models.StringArray
+	Int64Array             = models.Int64Array
+	User                   = models.User
+	Chat                   = models.Chat
+	WarnSettings           = models.WarnSettings
+	Warns                  = models.Warns
+	GreetingSettings       = models.GreetingSettings
+	WelcomeSettings        = models.WelcomeSettings
+	GoodbyeSettings        = models.GoodbyeSettings
+	ChatFilters            = models.ChatFilters
+	AdminSettings          = models.AdminSettings
+	BlacklistSettings      = models.BlacklistSettings
 	BlacklistSettingsSlice = models.BlacklistSettingsSlice
-	PinSettings       = models.PinSettings
-	ReportChatSettings = models.ReportChatSettings
-	ReportUserSettings = models.ReportUserSettings
-	DevSettings       = models.DevSettings
-	ChannelSettings   = models.ChannelSettings
-	AntifloodSettings = models.AntifloodSettings
-	ConnectionSettings = models.ConnectionSettings
+	PinSettings            = models.PinSettings
+	ReportChatSettings     = models.ReportChatSettings
+	ReportUserSettings     = models.ReportUserSettings
+	DevSettings            = models.DevSettings
+	ChannelSettings        = models.ChannelSettings
+	AntifloodSettings      = models.AntifloodSettings
+	ConnectionSettings     = models.ConnectionSettings
 	ConnectionChatSettings = models.ConnectionChatSettings
-	DisableSettings   = models.DisableSettings
-	DisableChatSettings = models.DisableChatSettings
-	RulesSettings     = models.RulesSettings
-	LockSettings      = models.LockSettings
-	NotesSettings     = models.NotesSettings
-	Notes             = models.Notes
-	ApprovedUsers     = models.ApprovedUsers
-	CaptchaSettings   = models.CaptchaSettings
-	CaptchaAttempts   = models.CaptchaAttempts
-	StoredMessages    = models.StoredMessages
-	CaptchaMutedUsers = models.CaptchaMutedUsers
-	AntiRaidSettings  = models.AntiRaidSettings
+	DisableSettings        = models.DisableSettings
+	DisableChatSettings    = models.DisableChatSettings
+	RulesSettings          = models.RulesSettings
+	LockSettings           = models.LockSettings
+	NotesSettings          = models.NotesSettings
+	Notes                  = models.Notes
+	ApprovedUsers          = models.ApprovedUsers
+	CaptchaSettings        = models.CaptchaSettings
+	CaptchaAttempts        = models.CaptchaAttempts
+	StoredMessages         = models.StoredMessages
+	CaptchaMutedUsers      = models.CaptchaMutedUsers
+	AntiRaidSettings       = models.AntiRaidSettings
 )
 
 // Message type constants - maintain compatibility with existing code
 const (
-	TEXT      int = 1
-	STICKER   int = 2
-	DOCUMENT  int = 3
-	PHOTO     int = 4
-	AUDIO     int = 5
-	VOICE     int = 6
-	VIDEO     int = 7
+	TEXT       int = 1
+	STICKER    int = 2
+	DOCUMENT   int = 3
+	PHOTO      int = 4
+	AUDIO      int = 5
+	VOICE      int = 6
+	VIDEO      int = 7
 	VIDEO_NOTE int = 8
 )
 

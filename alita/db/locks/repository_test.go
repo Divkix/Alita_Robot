@@ -285,7 +285,7 @@ func TestInvalidateLockCacheNilMarshal(t *testing.T) {
 		cache.SetMarshal(orig)
 	})
 
-	InvalidateLockCache(-100123, "sticker")
+	InvalidateLockCache(-100123)
 }
 
 // TestGetChatLocksCacheInvalidation verifies that UpdateLock invalidates the whole-map

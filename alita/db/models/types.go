@@ -6,6 +6,19 @@ import (
 	"errors"
 )
 
+// jsonbBytes coerces a database driver value into the raw JSON bytes used by the
+// JSONB Scan implementations below.
+func jsonbBytes(value any) ([]byte, error) {
+	switch v := value.(type) {
+	case []byte:
+		return v, nil
+	case string:
+		return []byte(v), nil
+	default:
+		return nil, errors.New("type assertion to []byte or string failed")
+	}
+}
+
 // Button represents a button structure used in filters, greetings, etc.
 type Button struct {
 	Name     string `gorm:"column:name" json:"name,omitempty"`
@@ -23,14 +36,9 @@ func (ba *ButtonArray) Scan(value any) error {
 		return nil
 	}
 
-	var data []byte
-	switch v := value.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return errors.New("type assertion to []byte or string failed")
+	data, err := jsonbBytes(value)
+	if err != nil {
+		return err
 	}
 
 	return json.Unmarshal(data, ba)
@@ -54,14 +62,9 @@ func (sa *StringArray) Scan(value any) error {
 		return nil
 	}
 
-	var data []byte
-	switch v := value.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return errors.New("type assertion to []byte or string failed")
+	data, err := jsonbBytes(value)
+	if err != nil {
+		return err
 	}
 
 	return json.Unmarshal(data, sa)
@@ -85,14 +88,9 @@ func (ia *Int64Array) Scan(value any) error {
 		return nil
 	}
 
-	var data []byte
-	switch v := value.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return errors.New("type assertion to []byte or string failed")
+	data, err := jsonbBytes(value)
+	if err != nil {
+		return err
 	}
 
 	return json.Unmarshal(data, ia)

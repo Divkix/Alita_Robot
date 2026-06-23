@@ -78,7 +78,7 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{
 						{
-							Text:         func() string { t, _ := c.Tr.GetString("mutes_unmute_button"); return t }(),
+							Text:         trS(c.Tr, "mutes_unmute_button"),
 							CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(t.userID)}),
 						},
 					},

@@ -3,7 +3,6 @@ package i18n
 import (
 	"embed"
 	"sync"
-	"time"
 
 	"github.com/eko/gocache/lib/v4/cache"
 )
@@ -32,17 +31,12 @@ type Translator struct {
 
 // CacheConfig defines cache configuration for translations
 type CacheConfig struct {
-	TTL               time.Duration
-	EnableCache       bool
-	CacheKeyPrefix    string
-	MaxCacheSize      int64
-	InvalidateOnError bool
+	EnableCache bool
 }
 
 // LoaderConfig defines configuration for locale loading
 type LoaderConfig struct {
 	DefaultLanguage string
-	ValidateYAML    bool
 	StrictMode      bool // Fail if any locale file has errors
 }
 
@@ -56,15 +50,10 @@ type ManagerConfig struct {
 func DefaultManagerConfig() ManagerConfig {
 	return ManagerConfig{
 		Cache: CacheConfig{
-			TTL:               30 * time.Minute,
-			EnableCache:       true,
-			CacheKeyPrefix:    "i18n:",
-			MaxCacheSize:      1000,
-			InvalidateOnError: false,
+			EnableCache: true,
 		},
 		Loader: LoaderConfig{
 			DefaultLanguage: "en",
-			ValidateYAML:    true,
 			StrictMode:      false,
 		},
 	}

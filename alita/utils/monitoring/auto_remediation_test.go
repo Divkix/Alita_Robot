@@ -223,10 +223,9 @@ func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
 
 	collector := NewBackgroundStatsCollector()
 	collector.updateSystemMetrics(SystemMetrics{
-		GoroutineCount:      200,
-		MemoryAllocMB:       600,
-		GCPauseMs:           75,
-		AverageResponseTime: 25 * time.Millisecond,
+		GoroutineCount: 200,
+		MemoryAllocMB:  600,
+		GCPauseMs:      75,
 	})
 
 	manager := NewAutoRemediationManager(collector)
@@ -273,10 +272,9 @@ func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {
 
 	collector := NewBackgroundStatsCollector()
 	collector.updateSystemMetrics(SystemMetrics{
-		GoroutineCount:      200,
-		MemoryAllocMB:       600,
-		GCPauseMs:           75,
-		AverageResponseTime: 25 * time.Millisecond,
+		GoroutineCount: 200,
+		MemoryAllocMB:  600,
+		GCPauseMs:      75,
 	})
 
 	manager := NewAutoRemediationManager(collector)

@@ -467,14 +467,107 @@ func (m moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.resetGreeting(bot, ctx, false)
 }
 
-// cleanWelcome toggles automatic deletion of old welcome messages.
-// Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
-//
-//nolint:dupl // cleanWelcome has symmetric logic with cleanGoodbye but different settings
-func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+// greetingToggleConfig captures the per-command differences between the four
+// near-identical on/off/show greeting toggle handlers (cleanWelcome, cleanGoodbye,
+// delJoined, autoApprove), so they can share a single skeleton in greetingToggle.
+type greetingToggleConfig struct {
+	// getPref returns the current setting; for clean* it also emits the
+	// "settings nil" warn log and returns false in that case.
+	getPref func(chatID int64) bool
+	// setPref persists the new setting.
+	setPref func(chatID int64, val bool) error
+	// saveErrLog is the setter name used in the DB-error log line.
+	saveErrLog string
+	// connectBotAdmin is the botAdmin arg passed to IsUserConnected.
+	connectBotAdmin bool
+	// Message keys for each branch.
+	showEnabled  string
+	showDisabled string
+	setEnabled   string
+	setDisabled  string
+	invalid      string
+	// useMarkdownOnEnabled renders the enabled "show" branch with Smarkdown
+	// instead of Shtml (delJoined/autoApprove quirk); disabled show + all other
+	// branches always use Shtml.
+	useMarkdownOnEnabled bool
+}
+
+var cleanWelcomeToggleConfig = greetingToggleConfig{
+	getPref: func(chatID int64) bool {
+		greetSettings := greetings.GetGreetingSettings(chatID)
+		if greetSettings.WelcomeSettings == nil {
+			log.Warnf("[Greetings][cleanWelcome] WelcomeSettings is nil for chat %d, using default (false)", chatID)
+			return false
+		}
+		return greetSettings.WelcomeSettings.CleanWelcome
+	},
+	setPref:              greetings.SetCleanWelcomeSetting,
+	saveErrLog:           "SetCleanWelcomeSetting",
+	connectBotAdmin:      false,
+	showEnabled:          "greetings_clean_welcome_not",
+	showDisabled:         "greetings_clean_welcome_should",
+	setEnabled:           "greetings_clean_welcome_enable",
+	setDisabled:          "greetings_clean_welcome_disable",
+	invalid:              "greetings_clean_welcome_invalid_option",
+	useMarkdownOnEnabled: false,
+}
+
+var cleanGoodbyeToggleConfig = greetingToggleConfig{
+	getPref: func(chatID int64) bool {
+		greetSettings := greetings.GetGreetingSettings(chatID)
+		if greetSettings.GoodbyeSettings == nil {
+			log.Warnf("[Greetings][cleanGoodbye] GoodbyeSettings is nil for chat %d, using default (false)", chatID)
+			return false
+		}
+		return greetSettings.GoodbyeSettings.CleanGoodbye
+	},
+	setPref:              greetings.SetCleanGoodbyeSetting,
+	saveErrLog:           "SetCleanGoodbyeSetting",
+	connectBotAdmin:      false,
+	showEnabled:          "greetings_clean_goodbye_not",
+	showDisabled:         "greetings_clean_goodbye_should",
+	setEnabled:           "greetings_clean_goodbye_enable",
+	setDisabled:          "greetings_clean_goodbye_disable",
+	invalid:              "greetings_clean_goodbye_invalid_option",
+	useMarkdownOnEnabled: false,
+}
+
+var delJoinedToggleConfig = greetingToggleConfig{
+	getPref: func(chatID int64) bool {
+		return greetings.GetGreetingSettings(chatID).ShouldCleanService
+	},
+	setPref:              greetings.SetShouldCleanService,
+	saveErrLog:           "SetShouldCleanService",
+	connectBotAdmin:      true,
+	showEnabled:          "greetings_clean_service_should",
+	showDisabled:         "greetings_clean_service_not",
+	setEnabled:           "greetings_clean_service_enable",
+	setDisabled:          "greetings_clean_service_disable",
+	invalid:              "greetings_clean_service_invalid_option",
+	useMarkdownOnEnabled: true,
+}
+
+var autoApproveToggleConfig = greetingToggleConfig{
+	getPref: func(chatID int64) bool {
+		return greetings.GetGreetingSettings(chatID).ShouldAutoApprove
+	},
+	setPref:              greetings.SetShouldAutoApprove,
+	saveErrLog:           "SetShouldAutoApprove",
+	connectBotAdmin:      true,
+	showEnabled:          "greetings_auto_approve_enabled",
+	showDisabled:         "greetings_auto_approve_disabled",
+	setEnabled:           "greetings_auto_approve_enable",
+	setDisabled:          "greetings_auto_approve_disable",
+	invalid:              "greetings_auto_approve_invalid_option",
+	useMarkdownOnEnabled: true,
+}
+
+// greetingToggle is the shared skeleton for the on/off/show greeting toggle
+// commands. Per-command differences are supplied via cfg.
+func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greetingToggleConfig) error {
 	msg := ctx.EffectiveMessage
 	// connection status
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
+	connectedChat := chat_status.IsUserConnected(bot, ctx, true, cfg.connectBotAdmin)
 	if connectedChat == nil {
 		return ext.EndGroups
 	}
@@ -492,30 +585,18 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+
 	if len(args) == 0 {
-		var err error
-		greetSettings := greetings.GetGreetingSettings(chat.Id)
-
-		// Nil check for WelcomeSettings
-		if greetSettings.WelcomeSettings == nil {
-			log.Warnf("[Greetings][cleanWelcome] WelcomeSettings is nil for chat %d, using default (false)", chat.Id)
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_clean_welcome_should")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
+		if cfg.getPref(chat.Id) {
+			text, _ := tr.GetString(cfg.showEnabled)
+			if cfg.useMarkdownOnEnabled {
+				_, err = msg.Reply(bot, text, formatting.Smarkdown())
+			} else {
+				_, err = msg.Reply(bot, text, formatting.Shtml())
 			}
-			return ext.EndGroups
-		}
-
-		cleanPref := greetSettings.WelcomeSettings.CleanWelcome
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if !cleanPref {
-			text, _ := tr.GetString("greetings_clean_welcome_should")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
 		} else {
-			text, _ := tr.GetString("greetings_clean_welcome_not")
+			text, _ := tr.GetString(cfg.showDisabled)
 			_, err = msg.Reply(bot, text, formatting.Shtml())
 		}
 		if err != nil {
@@ -527,28 +608,25 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch strings.ToLower(args[0]) {
 	case "off", "no":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetCleanWelcomeSetting(chat.Id, false); dbErr != nil {
-			log.Errorf("[Greetings] SetCleanWelcomeSetting failed for chat %d: %v", chat.Id, dbErr)
+		if dbErr := cfg.setPref(chat.Id, false); dbErr != nil {
+			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.saveErrLog, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("greetings_clean_welcome_disable")
+		text, _ := tr.GetString(cfg.setDisabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	case "on", "yes":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetCleanWelcomeSetting(chat.Id, true); dbErr != nil {
-			log.Errorf("[Greetings] SetCleanWelcomeSetting failed for chat %d: %v", chat.Id, dbErr)
+		if dbErr := cfg.setPref(chat.Id, true); dbErr != nil {
+			log.Errorf("[Greetings] %s failed for chat %d: %v", cfg.saveErrLog, chat.Id, dbErr)
 			errText, _ := tr.GetString("common_settings_save_failed")
 			_, _ = msg.Reply(bot, errText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		text, _ := tr.GetString("greetings_clean_welcome_enable")
+		text, _ := tr.GetString(cfg.setEnabled)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	default:
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_clean_welcome_invalid_option")
+		text, _ := tr.GetString(cfg.invalid)
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 	}
 
@@ -557,174 +635,24 @@ func (moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 	return ext.EndGroups
+}
+
+// cleanWelcome toggles automatic deletion of old welcome messages.
+// Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
+func (m moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.greetingToggle(bot, ctx, cleanWelcomeToggleConfig)
 }
 
 // cleanGoodbye toggles automatic deletion of old goodbye messages.
 // Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
-//
-//nolint:dupl // cleanGoodbye has symmetric logic with cleanWelcome but different settings
-func (moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	args := ctx.Args()[1:]
-	var err error
-	// connection status
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	// check permission
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
-
-	if len(args) == 0 {
-		var err error
-		greetSettings := greetings.GetGreetingSettings(chat.Id)
-
-		// Nil check for GoodbyeSettings
-		if greetSettings.GoodbyeSettings == nil {
-			log.Warnf("[Greetings][cleanGoodbye] GoodbyeSettings is nil for chat %d, using default (false)", chat.Id)
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("greetings_clean_goodbye_should")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			return ext.EndGroups
-		}
-
-		cleanPref := greetSettings.GoodbyeSettings.CleanGoodbye
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if !cleanPref {
-			text, _ := tr.GetString("greetings_clean_goodbye_should")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-		} else {
-			text, _ := tr.GetString("greetings_clean_goodbye_not")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	switch strings.ToLower(args[0]) {
-	case "off", "no":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetCleanGoodbyeSetting(chat.Id, false); dbErr != nil {
-			log.Errorf("[Greetings] SetCleanGoodbyeSetting failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_clean_goodbye_disable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	case "on", "yes":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetCleanGoodbyeSetting(chat.Id, true); dbErr != nil {
-			log.Errorf("[Greetings] SetCleanGoodbyeSetting failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_clean_goodbye_enable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	default:
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_clean_goodbye_invalid_option")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	}
-
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.EndGroups
+func (m moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.greetingToggle(bot, ctx, cleanGoodbyeToggleConfig)
 }
 
 // delJoined toggles automatic deletion of service messages when users join the chat.
 // Admins can enable/disable cleanup of 'user joined' messages or check current setting.
-//
-//nolint:dupl // delJoined has symmetric logic with autoApprove
-func (moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	args := ctx.Args()[1:]
-	var err error
-	// connection status
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-	// check permission
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
-
-	if len(args) == 0 {
-		delPref := greetings.GetGreetingSettings(chat.Id).ShouldCleanService
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if delPref {
-			text, _ := tr.GetString("greetings_clean_service_should")
-			_, err = msg.Reply(bot, text, formatting.Smarkdown())
-		} else {
-			text, _ := tr.GetString("greetings_clean_service_not")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	switch strings.ToLower(args[0]) {
-	case "off", "no":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetShouldCleanService(chat.Id, false); dbErr != nil {
-			log.Errorf("[Greetings] SetShouldCleanService failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_clean_service_disable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	case "on", "yes":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetShouldCleanService(chat.Id, true); dbErr != nil {
-			log.Errorf("[Greetings] SetShouldCleanService failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_clean_service_enable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	default:
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_clean_service_invalid_option")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	}
-
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return ext.EndGroups
+func (m moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.greetingToggle(bot, ctx, delJoinedToggleConfig)
 }
 
 // SendWelcomeMessage sends the configured welcome message for a user in a chat.
@@ -817,22 +745,7 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
 				// Unmute the user if captcha sending fails
-				_, _ = chat.RestrictMember(bot, newMember.Id, gotgbot.ChatPermissions{
-					CanSendMessages:       true,
-					CanSendPhotos:         true,
-					CanSendVideos:         true,
-					CanSendAudios:         true,
-					CanSendDocuments:      true,
-					CanSendVideoNotes:     true,
-					CanSendVoiceNotes:     true,
-					CanAddWebPagePreviews: true,
-					CanChangeInfo:         false,
-					CanInviteUsers:        true,
-					CanPinMessages:        false,
-					CanManageTopics:       helpers.Ptr(false),
-					CanSendPolls:          true,
-					CanSendOtherMessages:  true,
-				}, nil)
+				_, _ = chat.RestrictMember(bot, newMember.Id, defaultUnmutePermissions(), nil)
 			} else {
 				// Captcha sent successfully, don't send welcome message yet
 				return ext.EndGroups
@@ -939,22 +852,7 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 			if err != nil {
 				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
 				// Unmute the user if captcha sending fails
-				_, _ = chat.RestrictMember(bot, newMember.Id, gotgbot.ChatPermissions{
-					CanSendMessages:       true,
-					CanSendPhotos:         true,
-					CanSendVideos:         true,
-					CanSendAudios:         true,
-					CanSendDocuments:      true,
-					CanSendVideoNotes:     true,
-					CanSendVoiceNotes:     true,
-					CanAddWebPagePreviews: true,
-					CanChangeInfo:         false,
-					CanInviteUsers:        true,
-					CanPinMessages:        false,
-					CanManageTopics:       helpers.Ptr(false),
-					CanSendPolls:          true,
-					CanSendOtherMessages:  true,
-				}, nil)
+				_, _ = chat.RestrictMember(bot, newMember.Id, defaultUnmutePermissions(), nil)
 				// Send welcome if captcha fails
 				if err := SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
 					log.Error(err)
@@ -1230,80 +1128,8 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // autoApprove toggles automatic approval of chat join requests.
 // Admins can enable/disable auto-approval or check current setting for new join requests.
-//
-//nolint:dupl // autoApprove has symmetric logic with delJoined
-func (moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	args := ctx.Args()[1:]
-	var err error
-	// connection status
-	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
-	if connectedChat == nil {
-		return ext.EndGroups
-	}
-	ctx.EffectiveChat = connectedChat
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		return ext.EndGroups
-	}
-
-	// check permission
-	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		return ext.EndGroups
-	}
-
-	if len(args) == 0 {
-		delPref := greetings.GetGreetingSettings(chat.Id).ShouldAutoApprove
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if delPref {
-			text, _ := tr.GetString("greetings_auto_approve_enabled")
-			_, err = msg.Reply(bot, text, formatting.Smarkdown())
-		} else {
-			text, _ := tr.GetString("greetings_auto_approve_disabled")
-			_, err = msg.Reply(bot, text, formatting.Shtml())
-		}
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	switch strings.ToLower(args[0]) {
-	case "off", "no":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetShouldAutoApprove(chat.Id, false); dbErr != nil {
-			log.Errorf("[Greetings] SetShouldAutoApprove failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_auto_approve_disable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	case "on", "yes":
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		if dbErr := greetings.SetShouldAutoApprove(chat.Id, true); dbErr != nil {
-			log.Errorf("[Greetings] SetShouldAutoApprove failed for chat %d: %v", chat.Id, dbErr)
-			errText, _ := tr.GetString("common_settings_save_failed")
-			_, _ = msg.Reply(bot, errText, formatting.Shtml())
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("greetings_auto_approve_enable")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	default:
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("greetings_auto_approve_invalid_option")
-		_, err = msg.Reply(bot, text, formatting.Shtml())
-	}
-
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return ext.EndGroups
+func (m moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
+	return m.greetingToggle(bot, ctx, autoApproveToggleConfig)
 }
 
 // loadPendingJoins checks if a join request notification has already been sent for a user.
@@ -1343,7 +1169,7 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
-				Text:         func() string { tr := i18n.MustNewTranslator("en"); t, _ := tr.GetString("button_formatting"); return t }(),
+				Text:         trS(i18n.MustNewTranslator("en"), "button_formatting"),
 				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},

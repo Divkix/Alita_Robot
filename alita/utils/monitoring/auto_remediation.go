@@ -165,17 +165,22 @@ func (m *AutoRemediationManager) checkAndRemediate() {
 
 	metrics := m.collector.GetCurrentMetrics()
 
+	// Surface unusually long GC pauses; this is the one signal not already
+	// covered by the goroutine/memory remediation thresholds below.
+	if metrics.GCPauseMs > 100 {
+		log.WithField("gc_pause_ms", metrics.GCPauseMs).Warn("[AutoRemediation] Long GC pause detected")
+	}
+
 	for _, action := range m.actions {
 		if !action.canExecute(metrics) || !m.shouldExecuteAction(action.name) {
 			continue
 		}
 
 		log.WithFields(log.Fields{
-			"action":               action.name,
-			"goroutines":           metrics.GoroutineCount,
-			"memory_mb":            metrics.MemoryAllocMB,
-			"gc_pause_ms":          metrics.GCPauseMs,
-			"avg_response_time_ms": metrics.AverageResponseTime.Milliseconds(),
+			"action":      action.name,
+			"goroutines":  metrics.GoroutineCount,
+			"memory_mb":   metrics.MemoryAllocMB,
+			"gc_pause_ms": metrics.GCPauseMs,
 		}).Info("[AutoRemediation] Executing remediation action")
 
 		action.execute()

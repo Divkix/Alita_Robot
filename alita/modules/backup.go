@@ -3,7 +3,6 @@ package modules
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -725,14 +724,14 @@ func buildImportKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboa
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text: func() string { t, _ := tr.GetString("button_confirm_import"); return t }(),
+					Text: trS(tr, "button_confirm_import"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "confirm_import",
 						"c": fmt.Sprintf("%d", chatID),
 					}),
 				},
 				{
-					Text: func() string { t, _ := tr.GetString("button_cancel_import"); return t }(),
+					Text: trS(tr, "button_cancel_import"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "cancel_import",
 						"c": fmt.Sprintf("%d", chatID),
@@ -748,7 +747,7 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
-					Text: func() string { t, _ := tr.GetString("button_confirm_reset"); return t }(),
+					Text: trS(tr, "button_confirm_reset"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "confirm_reset",
 						"c": fmt.Sprintf("%d", chatID),
@@ -757,7 +756,7 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 			},
 			{
 				{
-					Text: func() string { t, _ := tr.GetString("button_cancel_reset"); return t }(),
+					Text: trS(tr, "button_cancel_reset"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
 						"a": "cancel_reset",
 						"c": fmt.Sprintf("%d", chatID),
@@ -813,8 +812,6 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 	log.Info("[Backup] Module loaded successfully")
 }
 
-// init function to handle unused import
 func init() {
 	RegisterLegacyModule("Backup", 270, LoadBackup)
-	_ = json.Marshal
 }

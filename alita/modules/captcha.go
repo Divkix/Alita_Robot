@@ -438,6 +438,30 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 	return err
 }
 
+// captchaAdminGate runs the shared permission preamble for captcha setting
+// commands: RequireUser → RequireGroup → RequireUserAdmin (and RequireBotAdmin
+// when requireBotAdmin is set). Each gate sends its own responder message on
+// failure; ok is false the instant any gate fails.
+func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) (*gotgbot.User, bool) {
+	user := chat_status.RequireUser(bot, ctx)
+	if user == nil {
+		return nil, false
+	}
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		return nil, false
+	}
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		return nil, false
+	}
+	if requireBotAdmin && !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+		return nil, false
+	}
+	return user, true
+}
+
 // captchaCommand handles the /captcha command to enable/disable captcha verification.
 // Admins can use this to toggle captcha protection for their group.
 func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -445,25 +469,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if _, ok := captchaAdminGate(bot, ctx, true); !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
 
 	if len(args) == 0 {
 		// Show current status
@@ -569,21 +578,10 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -632,21 +630,10 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -690,21 +677,10 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
 
 	if len(args) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -747,25 +723,10 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if _, ok := captchaAdminGate(bot, ctx, true); !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	// Check permissions
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
@@ -966,6 +927,40 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 	return answer, imageBytes, options, nil
 }
 
+// buildCaptchaKeyboard builds the inline keyboard for a captcha challenge:
+// one button per answer option (captcha_verify) and, when includeRefresh is
+// set, a trailing refresh button (captcha_refresh) labelled refreshBtnText.
+func buildCaptchaKeyboard(attemptID uint, userID int64, options []string, includeRefresh bool, refreshBtnText string) gotgbot.InlineKeyboardMarkup {
+	var buttons [][]gotgbot.InlineKeyboardButton
+	for _, option := range options {
+		button := gotgbot.InlineKeyboardButton{
+			Text: option,
+			CallbackData: encodeCallbackData(
+				"captcha_verify",
+				map[string]string{
+					"a": fmt.Sprint(attemptID),
+					"u": fmt.Sprint(userID),
+					"s": option,
+				},
+			),
+		}
+		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
+	}
+	if includeRefresh {
+		buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
+			Text: refreshBtnText,
+			CallbackData: encodeCallbackData(
+				"captcha_refresh",
+				map[string]string{
+					"a": fmt.Sprint(attemptID),
+					"u": fmt.Sprint(userID),
+				},
+			),
+		}})
+	}
+	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
+}
+
 // SendCaptcha sends a captcha challenge to a new member.
 // Called when a new member joins a group with captcha enabled.
 func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName string) error {
@@ -1061,44 +1056,15 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		return preErr
 	}
 
-	// Create inline keyboard with options including attempt ID
-	var buttons [][]gotgbot.InlineKeyboardButton
-	for _, option := range options {
-		button := gotgbot.InlineKeyboardButton{
-			Text: option,
-			CallbackData: encodeCallbackData(
-				"captcha_verify",
-				map[string]string{
-					"a": fmt.Sprint(preAttempt.ID),
-					"u": fmt.Sprint(userID),
-					"s": option,
-				},
-			),
-		}
-		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
-	}
-
-	// Add refresh button for image-based captcha (text or math) with attempt ID
-	if isImage && imageBytes != nil {
+	// Create inline keyboard with options including attempt ID.
+	// Add refresh button for image-based captcha (text or math) with attempt ID.
+	includeRefresh := isImage && imageBytes != nil
+	refreshBtnText := ""
+	if includeRefresh {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		buttonText, _ := tr.GetString("captcha_refresh_button")
-		buttons = append(buttons, []gotgbot.InlineKeyboardButton{
-			{
-				Text: buttonText,
-				CallbackData: encodeCallbackData(
-					"captcha_refresh",
-					map[string]string{
-						"a": fmt.Sprint(preAttempt.ID),
-						"u": fmt.Sprint(userID),
-					},
-				),
-			},
-		})
+		refreshBtnText, _ = tr.GetString("captcha_refresh_button")
 	}
-
-	keyboard := gotgbot.InlineKeyboardMarkup{
-		InlineKeyboard: buttons,
-	}
+	keyboard := buildCaptchaKeyboard(preAttempt.ID, userID, options, includeRefresh, refreshBtnText)
 
 	// Prepare message text/caption
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1275,23 +1241,12 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 		log.Errorf("Failed to send captcha failure message: %v", err)
 	}
 
-	// Delete the failure message after 30 seconds with context
+	// Delete the failure message after 30 seconds
 	if sent != nil {
-		go func(msgID int64, cID int64) {
-			ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-			defer cancel()
-
-			timer := time.NewTimer(30 * time.Second)
-			defer timer.Stop()
-
-			select {
-			case <-timer.C:
-				_ = helpers.DeleteMessageWithErrorHandling(bot, cID, msgID)
-			case <-ctx.Done():
-				// Context cancelled, clean up and exit
-				return
-			}
-		}(sent.MessageId, chatID)
+		time.AfterFunc(30*time.Second, func() {
+			defer error_handling.RecoverFromPanic("captchaFailureMsgDelete", "captcha")
+			_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, sent.MessageId)
+		})
 	}
 
 	// Execute the failure action
@@ -1413,22 +1368,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		}
 
 		// Correct answer - unmute the user
-		_, err = chat.RestrictMember(bot, targetUserID, gotgbot.ChatPermissions{
-			CanSendMessages:       true,
-			CanSendPhotos:         true,
-			CanSendVideos:         true,
-			CanSendAudios:         true,
-			CanSendDocuments:      true,
-			CanSendVideoNotes:     true,
-			CanSendVoiceNotes:     true,
-			CanAddWebPagePreviews: true,
-			CanChangeInfo:         false,
-			CanInviteUsers:        true,
-			CanPinMessages:        false,
-			CanManageTopics:       helpers.Ptr(false),
-			CanSendPolls:          true,
-			CanSendOtherMessages:  true,
-		}, nil)
+		_, err = chat.RestrictMember(bot, targetUserID, defaultUnmutePermissions(), nil)
 
 		if err != nil {
 			log.Errorf("Failed to unmute user %d: %v", targetUserID, err)
@@ -1466,22 +1406,10 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 
 			// Auto-delete the summary after 30 seconds
 			if summaryMsg != nil {
-				go func(chatID, msgID int64) {
-					// Create context with timeout
-					ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-					defer cancel()
-
-					timer := time.NewTimer(30 * time.Second)
-					defer timer.Stop()
-
-					select {
-					case <-timer.C:
-						_ = helpers.DeleteMessageWithErrorHandling(bot, chatID, msgID)
-					case <-ctx.Done():
-						log.Debugf("Summary message deletion cancelled for message %d", msgID)
-						return
-					}
-				}(chat.Id, summaryMsg.MessageId)
+				time.AfterFunc(30*time.Second, func() {
+					defer error_handling.RecoverFromPanic("captchaSummaryMsgDelete", "captcha")
+					_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, summaryMsg.MessageId)
+				})
 			}
 		}
 
@@ -1497,24 +1425,12 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		successMsg := fmt.Sprintf(msgTemplate, formatting.MentionHtml(targetUserID, user.FirstName))
 		sent, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, successMsg, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
 
-		// Delete success message after 5 seconds with timeout
+		// Delete success message after 5 seconds
 		if sent != nil {
-			go func(msgID int64, cID int64) {
-				// Create context with timeout
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-
-				timer := time.NewTimer(5 * time.Second)
-				defer timer.Stop()
-
-				select {
-				case <-timer.C:
-					_ = helpers.DeleteMessageWithErrorHandling(bot, cID, msgID)
-				case <-ctx.Done():
-					log.Debugf("Success message deletion cancelled for message %d", msgID)
-					return
-				}
-			}(sent.MessageId, chat.Id)
+			time.AfterFunc(5*time.Second, func() {
+				defer error_handling.RecoverFromPanic("captchaSuccessMsgDelete", "captcha")
+				_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, sent.MessageId)
+			})
 		}
 
 		// Send welcome message after successful verification
@@ -1680,35 +1596,9 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 	}
 
 	// Build keyboard with new options and refresh button
-	var buttons [][]gotgbot.InlineKeyboardButton
-	for _, option := range options {
-		button := gotgbot.InlineKeyboardButton{
-			Text: option,
-			CallbackData: encodeCallbackData(
-				"captcha_verify",
-				map[string]string{
-					"a": fmt.Sprint(attempt.ID),
-					"u": fmt.Sprint(targetUserID),
-					"s": option,
-				},
-			),
-		}
-		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
-	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	refreshBtnText, _ := tr.GetString("captcha_refresh_button")
-	buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
-		Text: refreshBtnText,
-		CallbackData: encodeCallbackData(
-			"captcha_refresh",
-			map[string]string{
-				"a": fmt.Sprint(attempt.ID),
-				"u": fmt.Sprint(targetUserID),
-			},
-		),
-	}})
-
-	keyboard := gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
+	keyboard := buildCaptchaKeyboard(attempt.ID, targetUserID, options, true, refreshBtnText)
 
 	// Build caption for the new message
 	remainingMinutes := int(time.Until(attempt.ExpiresAt).Minutes())
@@ -1982,22 +1872,7 @@ func unmuteExpiredCaptchaUsers() {
 	var unmuteIDs []uint
 	for _, user := range users {
 		// Unmute the user by granting standard member permissions (matching success unmute)
-		_, err := captchaBotRef.RestrictChatMember(user.ChatID, user.UserID, gotgbot.ChatPermissions{
-			CanSendMessages:       true,
-			CanSendAudios:         true,
-			CanSendDocuments:      true,
-			CanSendPhotos:         true,
-			CanSendVideos:         true,
-			CanSendVideoNotes:     true,
-			CanSendVoiceNotes:     true,
-			CanSendPolls:          true,
-			CanSendOtherMessages:  true,
-			CanAddWebPagePreviews: true,
-			CanChangeInfo:         false, // Match success unmute permissions
-			CanInviteUsers:        true,
-			CanPinMessages:        false,              // Match success unmute permissions
-			CanManageTopics:       helpers.Ptr(false), // Match success unmute permissions
-		}, nil)
+		_, err := captchaBotRef.RestrictChatMember(user.ChatID, user.UserID, defaultUnmutePermissions(), nil)
 		if err != nil {
 			if isPermanentUnmuteError(err) {
 				// Permanent error - user left, chat deleted, etc. - remove from DB

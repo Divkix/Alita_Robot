@@ -462,8 +462,9 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   writing raw SQL.
 - Consolidated/dead fields — **do not reference**: `antiflood_settings.limit`/`.mode`
   (use `flood_limit`/`action`), `devs.dev` (use `is_dev`), `connection_settings.enabled`
-  (use `allow_connect`); `ChatUser`/`chat_users` is dead (membership lives in the
-  `chats.users` JSONB array). `ReportChatSettings`/`ReportUserSettings` still carry
+  (use `allow_connect`); the `chat_users` table and its `ChatUser` GORM model have
+  been removed (membership lives in the `chats.users` JSONB array).
+  `ReportChatSettings`/`ReportUserSettings` still carry
   both `Enabled` and `Status` (alias) columns — set both consistently.
 - Schema-change checklist: **migration → struct tag → optimized query column list →
   repository function** (and add the struct to `testmain_test.go`'s AutoMigrate list).
@@ -637,13 +638,14 @@ m != nil`) — every helper bails when it's nil.
 - **`alita/utils/monitoring`** (distinct from `alita/db/monitoring`): three
   background services — `ActivityMonitor` (per-chat & per-user DAU/WAU/MAU, marks
   chats inactive; ⚠️ user counts ignore `is_inactive`, chat counts don't),
-  `BackgroundStatsCollector` (30s system / 1m DB / 5m report; hardcoded warn
-  thresholds), `AutoRemediationManager` (one action per minute, ascending severity,
-  5-min cooldown). The 4 tiers: LogWarning(0) at goroutines>0.8× or mem>0.5×,
-  GC(1) at mem>0.6× or GCPause>50ms, MemoryCleanup(2) at mem>`ResourceGCThresholdMB`
-  (**raw MB**, not %), RestartRecommendation(10) at goroutines>1.5× or mem>1.6×
-  (logs only). In non-Debug mode `EnableBackgroundStats`/`EnablePerformanceMonitoring`
-  are force-on.
+  `BackgroundStatsCollector` (3 ticker goroutines — 30s system / 1m DB / 5m report —
+  that write the shared metrics struct directly under a mutex; no worker pool or
+  channels), `AutoRemediationManager` (one action per minute, ascending severity,
+  5-min cooldown; also emits a >100ms GC-pause warn each cycle). The 4 tiers:
+  LogWarning(0) at goroutines>0.8× or mem>0.5×, GC(1) at mem>0.6× or GCPause>50ms,
+  MemoryCleanup(2) at mem>`ResourceGCThresholdMB` (**raw MB**, not %),
+  RestartRecommendation(10) at goroutines>1.5× or mem>1.6× (logs only). In non-Debug
+  mode `EnableBackgroundStats`/`EnablePerformanceMonitoring` are force-on.
 - **`tracing`**: OTel via OTLP gRPC or stdout console (env `OTEL_*` read with raw
   `os.Getenv`, not config). Disabled if neither exporter is set (propagator still
   installed). `TracingProcessor` roots one span per polling update. ⚠️ It has **no

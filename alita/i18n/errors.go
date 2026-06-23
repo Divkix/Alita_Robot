@@ -44,5 +44,4 @@ var (
 	ErrInvalidYAML       = fmt.Errorf("invalid YAML format")
 	ErrManagerNotInit    = fmt.Errorf("locale manager not initialized")
 	ErrRecursiveFallback = fmt.Errorf("recursive fallback detected")
-	ErrInvalidParams     = fmt.Errorf("invalid translation parameters")
 )

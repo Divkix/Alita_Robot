@@ -36,6 +36,19 @@ func GetAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	return settings
 }
 
+// upsertChatField upserts the given column updates for a chat's anti-raid settings
+// and invalidates the antiraid cache. Callers handle any validation guards.
+func upsertChatField(chatID int64, updates map[string]any) error {
+	if err := db.DB.Where("chat_id = ?", chatID).
+		Assign(updates).
+		FirstOrCreate(&models.AntiRaidSettings{}).Error; err != nil {
+		log.Errorf("[Database] upsertChatField: %v - %d", err, chatID)
+		return err
+	}
+	cache.DeleteCache(cache.CacheKey("antiraid", chatID))
+	return nil
+}
+
 // SetRaidTime sets the raid duration (in seconds) for a chat.
 func SetRaidTime(chatID int64, seconds int) error {
 	if seconds < 0 {
@@ -43,18 +56,10 @@ func SetRaidTime(chatID int64, seconds int) error {
 	}
 
 	updates := map[string]any{
-		"chat_id":    chatID,
-		"raid_time":  seconds,
+		"chat_id":   chatID,
+		"raid_time": seconds,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetRaidTime: %v - %d", err, chatID)
-		return err
-	}
-	cache.DeleteCache(cache.CacheKey("antiraid", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }
 
 // SetRaidActionTime sets the ban/restriction duration during a raid (in seconds).
@@ -64,18 +69,10 @@ func SetRaidActionTime(chatID int64, seconds int) error {
 	}
 
 	updates := map[string]any{
-		"chat_id":           chatID,
-		"raid_action_time":  seconds,
+		"chat_id":          chatID,
+		"raid_action_time": seconds,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetRaidActionTime: %v - %d", err, chatID)
-		return err
-	}
-	cache.DeleteCache(cache.CacheKey("antiraid", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }
 
 // SetAutoAntiRaidThreshold sets the auto-trigger join-rate threshold.
@@ -86,16 +83,8 @@ func SetAutoAntiRaidThreshold(chatID int64, threshold int) error {
 	}
 
 	updates := map[string]any{
-		"chat_id":                   chatID,
-		"auto_antiraid_threshold":   threshold,
+		"chat_id":                 chatID,
+		"auto_antiraid_threshold": threshold,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntiRaidSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetAutoAntiRaidThreshold: %v - %d", err, chatID)
-		return err
-	}
-	cache.DeleteCache(cache.CacheKey("antiraid", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }

@@ -255,7 +255,8 @@ func TestFilterOverwriteCallbackCancelAndExpired(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	cancelCtx := newModuleCallbackContext(bot, chat, admin, "filters_overwrite.cancel")
+	cancelData := encodeCallbackData("filters_overwrite", map[string]string{"a": "cancel"})
+	cancelCtx := newModuleCallbackContext(bot, chat, admin, cancelData)
 	if err := filtersModule.filterOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("filterOverWriteHandler cancel error = %v, want EndGroups", err)
 	}
@@ -560,7 +561,7 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 		t.Fatalf("filtersButtonHandler(no chat) error = %v, want EndGroups", err)
 	}
 
-	overwriteCtx := newModuleCallbackContext(bot, chat, admin, "filters_overwrite.cancel")
+	overwriteCtx := newModuleCallbackContext(bot, chat, admin, encodeCallbackData("filters_overwrite", map[string]string{"a": "cancel"}))
 	overwriteCtx.EffectiveChat = nil
 	if err := filtersModule.filterOverWriteHandler(bot, overwriteCtx); err != ext.EndGroups {
 		t.Fatalf("filterOverWriteHandler(no chat) error = %v, want EndGroups", err)

@@ -90,32 +90,6 @@ func TestRecordError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// RecordResponseTime
-// ---------------------------------------------------------------------------
-
-func TestRecordResponseTime(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-
-	const calls = 5
-	duration := 10 * time.Millisecond
-
-	for range calls {
-		c.RecordResponseTime(duration)
-	}
-
-	if c.responseTimeCount != calls {
-		t.Fatalf("expected responseTimeCount=%d, got %d", calls, c.responseTimeCount)
-	}
-
-	expectedSum := int64(duration) * calls
-	if c.responseTimeSum != expectedSum {
-		t.Fatalf("expected responseTimeSum=%d, got %d", expectedSum, c.responseTimeSum)
-	}
-}
-
-// ---------------------------------------------------------------------------
 // GetCurrentMetrics
 // ---------------------------------------------------------------------------
 
@@ -165,42 +139,30 @@ func TestCollectDatabaseStatsPublishesPoolMetrics(t *testing.T) {
 	c := NewBackgroundStatsCollector()
 	c.collectDatabaseStats()
 
-	select {
-	case stats := <-c.databaseStatsChan:
-		if stats.Timestamp.IsZero() {
-			t.Fatal("database stats timestamp was not set")
-		}
-		if stats.ActiveConnections < 0 || stats.IdleConnections < 0 {
-			t.Fatalf("database connection stats must be non-negative: %#v", stats)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for database stats")
+	metrics := c.GetCurrentMetrics()
+	if metrics.DatabaseConnections < 0 {
+		t.Fatalf("database connection stats must be non-negative: %#v", metrics)
 	}
 }
 
-func TestUpdateDatabaseMetricsAndReportThresholdChecks(t *testing.T) {
+func TestUpdateDatabaseMetricsAndReport(t *testing.T) {
 	c := NewBackgroundStatsCollector()
 	c.updateDatabaseMetrics(DatabaseStats{
 		ActiveConnections: 7,
-		TotalQueries:      11,
-		CacheHitRate:      0.75,
 	})
 	c.updateSystemMetrics(SystemMetrics{
-		GoroutineCount:      1001,
-		MemoryAllocMB:       501,
-		GCPauseMs:           101,
-		AverageResponseTime: 6 * time.Second,
-		Timestamp:           time.Now(),
+		GoroutineCount: 1001,
+		MemoryAllocMB:  501,
+		GCPauseMs:      101,
+		Timestamp:      time.Now(),
 	})
 
 	metrics := c.GetCurrentMetrics()
-	if metrics.DatabaseConnections != 7 || metrics.DatabaseTotalQueries != 11 || metrics.CacheHitRate != 0.75 {
-		t.Fatalf("database metrics = connections %d total %d hit rate %.2f, want 7/11/0.75",
-			metrics.DatabaseConnections, metrics.DatabaseTotalQueries, metrics.CacheHitRate)
+	if metrics.DatabaseConnections != 7 {
+		t.Fatalf("database connections = %d, want 7", metrics.DatabaseConnections)
 	}
 
 	c.reportStats()
-	c.checkPerformanceThresholds()
 }
 
 // ---------------------------------------------------------------------------
@@ -241,33 +203,27 @@ func TestConcurrentRecordMessage(t *testing.T) {
 // Additional: TestCollectSystemStats
 // ---------------------------------------------------------------------------
 
-// TestCollectSystemStats verifies that collectSystemStats populates the channel
-// with metrics that have sensible runtime values (goroutines > 0, memory >= 0).
+// TestCollectSystemStats verifies that collectSystemStats stores metrics with
+// sensible runtime values (goroutines > 0, memory >= 0).
 func TestCollectSystemStats(t *testing.T) {
 	t.Parallel()
 
 	c := NewBackgroundStatsCollector()
 
-	// collectSystemStats() sends to systemStatsChan (buffered capacity 10)
 	c.collectSystemStats()
 
-	// Read from the channel to get the posted metrics
-	select {
-	case metrics := <-c.systemStatsChan:
-		if metrics.GoroutineCount <= 0 {
-			t.Fatalf("expected GoroutineCount > 0 (at least the test goroutine), got %d", metrics.GoroutineCount)
-		}
-		if metrics.MemoryAllocMB < 0 {
-			t.Fatalf("expected MemoryAllocMB >= 0, got %f", metrics.MemoryAllocMB)
-		}
-		if metrics.CPUCount <= 0 {
-			t.Fatalf("expected CPUCount > 0, got %d", metrics.CPUCount)
-		}
-		if metrics.Timestamp.IsZero() {
-			t.Fatal("expected Timestamp to be non-zero")
-		}
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout: collectSystemStats() did not send to channel within 1s")
+	metrics := c.GetCurrentMetrics()
+	if metrics.GoroutineCount <= 0 {
+		t.Fatalf("expected GoroutineCount > 0 (at least the test goroutine), got %d", metrics.GoroutineCount)
+	}
+	if metrics.MemoryAllocMB < 0 {
+		t.Fatalf("expected MemoryAllocMB >= 0, got %f", metrics.MemoryAllocMB)
+	}
+	if metrics.CPUCount <= 0 {
+		t.Fatalf("expected CPUCount > 0, got %d", metrics.CPUCount)
+	}
+	if metrics.Timestamp.IsZero() {
+		t.Fatal("expected Timestamp to be non-zero")
 	}
 }
 
@@ -320,18 +276,9 @@ func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	c.RecordMessage()
 	c.RecordMessage()
 	c.RecordError()
-	c.RecordResponseTime(100 * time.Millisecond)
-	c.RecordResponseTime(200 * time.Millisecond)
 
-	// collectSystemStats reads atomic counters and sends to channel
+	// collectSystemStats reads atomic counters and stores them.
 	c.collectSystemStats()
-
-	select {
-	case metrics := <-c.systemStatsChan:
-		c.updateSystemMetrics(metrics)
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout waiting for system stats")
-	}
 
 	result := c.GetCurrentMetrics()
 
@@ -341,54 +288,11 @@ func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	if result.ErrorCount != 1 {
 		t.Errorf("expected ErrorCount=1, got %d", result.ErrorCount)
 	}
-	if result.AverageResponseTime != 150*time.Millisecond {
-		t.Errorf("expected AverageResponseTime=150ms, got %v", result.AverageResponseTime)
-	}
 	if result.UptimeSeconds < 0 {
 		t.Errorf("expected UptimeSeconds >= 0, got %d", result.UptimeSeconds)
 	}
 	if result.Timestamp.IsZero() {
 		t.Error("expected Timestamp to be set")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// RecordResponseTime verifies AverageResponseTime in metrics
-// ---------------------------------------------------------------------------
-
-func TestRecordResponseTime_VerifiesAverageResponseTime(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-
-	c.RecordResponseTime(50 * time.Millisecond)
-	c.RecordResponseTime(150 * time.Millisecond)
-	c.RecordResponseTime(100 * time.Millisecond)
-
-	c.collectSystemStats()
-
-	select {
-	case metrics := <-c.systemStatsChan:
-		c.updateSystemMetrics(metrics)
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout waiting for system stats")
-	}
-
-	result := c.GetCurrentMetrics()
-	expectedAvg := 100 * time.Millisecond // (50+150+100)/3 = 100ms
-	if result.AverageResponseTime != expectedAvg {
-		t.Errorf("expected AverageResponseTime=%v, got %v", expectedAvg, result.AverageResponseTime)
-	}
-
-	// responseTimeCount should be 3
-	if c.responseTimeCount != 3 {
-		t.Errorf("expected responseTimeCount=3, got %d", c.responseTimeCount)
-	}
-
-	// responseTimeSum should be 300ms
-	expectedSum := int64(300 * time.Millisecond)
-	if c.responseTimeSum != expectedSum {
-		t.Errorf("expected responseTimeSum=%d, got %d", expectedSum, c.responseTimeSum)
 	}
 }
 
@@ -421,9 +325,6 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 	if collector.messageCounter != 0 {
 		t.Fatal("expected initial messageCounter to be 0")
 	}
-	if collector.responseTimeCount != 0 {
-		t.Fatal("expected initial responseTimeCount to be 0")
-	}
 
 	// Record via global functions
 	GlobalRecordError()
@@ -435,12 +336,6 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 	}
 	if collector.messageCounter != 1 {
 		t.Errorf("expected messageCounter=1 after GlobalRecordMessage, got %d", collector.messageCounter)
-	}
-	if collector.responseTimeCount != 0 {
-		t.Errorf("expected responseTimeCount=0 when no response times are recorded, got %d", collector.responseTimeCount)
-	}
-	if collector.responseTimeSum != 0 {
-		t.Errorf("expected responseTimeSum=0 when no response times are recorded, got %d", collector.responseTimeSum)
 	}
 }
 

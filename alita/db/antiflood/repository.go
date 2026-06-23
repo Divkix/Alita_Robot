@@ -34,6 +34,20 @@ func checkFloodSetting(chatID int64) (floodSrc *models.AntifloodSettings) {
 	return floodSrc
 }
 
+// upsertChatField upserts the given column updates for a chat's antiflood settings
+// and invalidates the antiflood cache. Callers handle any pre-read short-circuits.
+func upsertChatField(chatID int64, updates map[string]any) error {
+	if err := db.DB.Where("chat_id = ?", chatID).
+		Assign(updates).
+		FirstOrCreate(&models.AntifloodSettings{}).Error; err != nil {
+		log.Errorf("[Database] upsertChatField: %v - %d", err, chatID)
+		return err
+	}
+	// Invalidate cache after update
+	cache.DeleteCache(cache.CacheKey("antiflood", chatID))
+	return nil
+}
+
 // SetFlood set Flood Setting for a Chat
 func SetFlood(chatID int64, limit int) error {
 	floodSrc := checkFloodSetting(chatID)
@@ -54,16 +68,7 @@ func SetFlood(chatID int64, limit int) error {
 		"flood_limit": limit,
 		"action":      action,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetFlood: %v - %d", err, chatID)
-		return err
-	}
-	// Invalidate cache after update
-	cache.DeleteCache(cache.CacheKey("antiflood", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }
 
 // SetFloodMode Set flood mode for a chat
@@ -78,16 +83,7 @@ func SetFloodMode(chatID int64, mode string) error {
 		"chat_id": chatID,
 		"action":  mode,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetFloodMode: %v - %d", err, chatID)
-		return err
-	}
-	// Invalidate cache after update
-	cache.DeleteCache(cache.CacheKey("antiflood", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }
 
 // SetFloodMsgDel Set flood message deletion setting for a chat
@@ -102,16 +98,7 @@ func SetFloodMsgDel(chatID int64, val bool) error {
 		"chat_id":                  chatID,
 		"delete_antiflood_message": val,
 	}
-	err := db.DB.Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error
-	if err != nil {
-		log.Errorf("[Database] SetFloodMsgDel: %v", err)
-		return err
-	}
-	// Invalidate cache after update
-	cache.DeleteCache(cache.CacheKey("antiflood", chatID))
-	return nil
+	return upsertChatField(chatID, updates)
 }
 
 // LoadAntifloodStats returns the count of chats with antiflood enabled (limit > 0).

@@ -99,35 +99,6 @@ func deleteFilterOverwriteCache(token string) {
 	}
 }
 
-func legacyFilterOverwriteCacheKey(filterWord string, chatID int64) string {
-	return fmt.Sprintf("alita:filter_overwrite:%s:%d", filterWord, chatID)
-}
-
-func getLegacyFilterOverwriteCache(filterWord string, chatID int64) (*overwriteFilter, error) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return nil, fmt.Errorf("cache not initialized")
-	}
-	key := legacyFilterOverwriteCacheKey(filterWord, chatID)
-	var data overwriteFilter
-	_, err := m.Get(cache.Context, key, &data)
-	if err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-func deleteLegacyFilterOverwriteCache(filterWord string, chatID int64) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return
-	}
-	key := legacyFilterOverwriteCacheKey(filterWord, chatID)
-	if err := m.Delete(cache.Context, key); err != nil {
-		log.Debugf("[Filters] Failed to delete legacy cache for key %s: %v", key, err)
-	}
-}
-
 /*
 	Used to add a filter to a specific keyword in chat!
 
@@ -593,7 +564,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	action, token, legacyFilterWord, ok := parseFilterOverwriteCallbackData(query.Data)
+	action, token, ok := parseFilterOverwriteCallbackData(query.Data)
 	if !ok {
 		log.Error("[Filters] Invalid callback data format")
 		return ext.EndGroups
@@ -622,8 +593,6 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	)
 	if token != "" {
 		filterData, err = getFilterOverwriteCache(token)
-	} else if legacyFilterWord != "" {
-		filterData, err = getLegacyFilterOverwriteCache(legacyFilterWord, chat.Id)
 	}
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
@@ -660,18 +629,12 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 			if token != "" {
 				deleteFilterOverwriteCache(token) // Clean up cache
 			}
-			if legacyFilterWord != "" {
-				deleteLegacyFilterOverwriteCache(legacyFilterWord, chat.Id)
-			}
 			helpText, _ = tr.GetString("filters_overwrite_success")
 		}
 	} else {
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
 		if token != "" {
 			deleteFilterOverwriteCache(token)
-		}
-		if legacyFilterWord != "" {
-			deleteLegacyFilterOverwriteCache(legacyFilterWord, chat.Id)
 		}
 	}
 

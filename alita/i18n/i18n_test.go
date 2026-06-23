@@ -212,7 +212,6 @@ func TestPredefinedErrorsDistinct(t *testing.T) {
 		{"ErrInvalidYAML", ErrInvalidYAML},
 		{"ErrManagerNotInit", ErrManagerNotInit},
 		{"ErrRecursiveFallback", ErrRecursiveFallback},
-		{"ErrInvalidParams", ErrInvalidParams},
 	}
 
 	for i, a := range predefined {

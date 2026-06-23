@@ -31,7 +31,6 @@ var (
 		restrHandlerGroup: 6,
 	}
 	arabmatch, _                 = regexp.Compile("[\u0600-\u06FF]") // the regex detects the arabic language
-	GIF          filters.Message = message.Animation
 	OTHER        filters.Message = func(msg *gotgbot.Message) bool {
 		return msg.Game != nil || msg.Sticker != nil || message.Animation(msg)
 	}

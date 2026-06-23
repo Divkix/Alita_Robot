@@ -23,7 +23,6 @@ import (
 const (
 	Markdown             = "Markdown"
 	HTML                 = "HTML"
-	None                 = "None"
 	MaxMessageLength int = 4096
 )
 
@@ -171,11 +170,7 @@ func ReverseHTML2MD(text string) string {
 // Handles variables like {first}, {last}, {username}, {mention}, {count}, {chatname}, {id}.
 // Also processes rules button insertion with various positioning options.
 func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
-	return FormattingReplacerWithLanguage(b, chat, user, oldMsg, buttons, "en")
-}
-
-// FormattingReplacerWithLanguage is like FormattingReplacer but accepts a language parameter for localization.
-func FormattingReplacerWithLanguage(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button, language string) (res string, btns []db.Button) {
+	const language = "en"
 	var (
 		firstName     string
 		lastName      string

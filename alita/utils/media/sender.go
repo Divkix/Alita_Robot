@@ -16,18 +16,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
-
-// isPermissionError reports whether the Telegram error string indicates that the
-// bot lacks permission to send messages in a chat.
-func isPermissionError(errStr string) bool {
-	return strings.Contains(errStr, "not enough rights to send text messages") ||
-		strings.Contains(errStr, "have no rights to send a message") ||
-		strings.Contains(errStr, "CHAT_WRITE_FORBIDDEN") ||
-		strings.Contains(errStr, "CHAT_RESTRICTED") ||
-		strings.Contains(errStr, "need administrator rights in the channel chat")
-}
 
 // resolveSendResult handles the shared error-handling path for all send methods.
 // It marks the chat as restricted on permission errors, clears it on success,
@@ -39,7 +30,7 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 	}
 
 	errStr := err.Error()
-	if isPermissionError(errStr) {
+	if helpers.IsPermissionError(errStr) {
 		cache.MarkChatRestricted(chatID)
 		log.WithFields(log.Fields{
 			"chat_id":    chatID,
@@ -52,20 +43,8 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 	return result, errors.Wrapf(err, "failed to send %s to chat %d", mediaType, chatID)
 }
 
-// Type constants matching db package for convenience
 // Sentinel errors
 var ErrNoPermission = fmt.Errorf("bot lacks permission to send messages")
-
-const (
-	TypeText      = db.TEXT
-	TypeSticker   = db.STICKER
-	TypeDocument  = db.DOCUMENT
-	TypePhoto     = db.PHOTO
-	TypeAudio     = db.AUDIO
-	TypeVoice     = db.VOICE
-	TypeVideo     = db.VIDEO
-	TypeVideoNote = db.VIDEO_NOTE
-)
 
 // ParseMode constants
 const (

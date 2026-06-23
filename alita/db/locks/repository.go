@@ -44,22 +44,17 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 	}
 
 	// Invalidate cache to ensure immediate enforcement
-	InvalidateLockCache(chatID, perm)
+	InvalidateLockCache(chatID)
 	return nil
 }
 
-// InvalidateLockCache removes the cached lock status for a specific chat and lock type.
-// Also invalidates the whole-map cache key so GetChatLocks reflects the change immediately.
+// InvalidateLockCache removes the cached whole-map lock status for a chat so that
+// GetChatLocks reflects the change immediately.
 // Should be called after updating a lock to ensure immediate enforcement.
-func InvalidateLockCache(chatID int64, lockType string) {
+func InvalidateLockCache(chatID int64) {
 	m := utilsCache.GetMarshal()
 	if m == nil {
 		return
-	}
-
-	cacheKey := cache.CacheKey("lock", chatID, lockType)
-	if err := m.Delete(utilsCache.Context, cacheKey); err != nil {
-		log.Debugf("[Cache] Failed to invalidate lock cache for key %s: %v", cacheKey, err)
 	}
 
 	mapKey := cache.CacheKey("locks_map", chatID)
@@ -69,15 +64,8 @@ func InvalidateLockCache(chatID int64, lockType string) {
 }
 
 // IsPermLocked checks whether a specific permission type is locked in the given chat.
-// Uses optimized cached queries for better performance.
+// Uses the cached whole-map lock query for better performance.
 // Returns false if the permission is not locked or an error occurs.
 func IsPermLocked(chatID int64, perm string) bool {
-	// Use optimized cached query
-	locked, err := GetLockStatusCached(chatID, perm)
-	if err != nil {
-		log.Errorf("[Database] IsPermLocked: %v - %d", err, chatID)
-		return false
-	}
-
-	return locked
+	return GetChatLocks(chatID)[perm]
 }

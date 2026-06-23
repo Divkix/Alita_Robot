@@ -120,7 +120,7 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat.Id,
 		gotgbot.InputFileByReader("chatlist.txt", strings.NewReader(sb.String())),
 		&gotgbot.SendDocumentOpts{
-			Caption: func() string { caption, _ := tr.GetString("devs_chat_list_caption"); return caption }(),
+			Caption: trS(tr, "devs_chat_list_caption"),
 			ReplyParameters: &gotgbot.ReplyParameters{
 				MessageId:                msg.MessageId,
 				AllowSendingWithoutReply: true,

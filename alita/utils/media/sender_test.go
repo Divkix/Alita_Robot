@@ -56,36 +56,6 @@ func newTestContext(chatID, userID int64, threadID int) *ext.Context {
 	return ext.NewContext(bot, &gotgbot.Update{Message: msg}, nil)
 }
 
-func TestTypeConstantsMatchDB(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		got  int
-		want int
-	}{
-		{name: "TypeText", got: TypeText, want: db.TEXT},
-		{name: "TypeSticker", got: TypeSticker, want: db.STICKER},
-		{name: "TypeDocument", got: TypeDocument, want: db.DOCUMENT},
-		{name: "TypePhoto", got: TypePhoto, want: db.PHOTO},
-		{name: "TypeAudio", got: TypeAudio, want: db.AUDIO},
-		{name: "TypeVoice", got: TypeVoice, want: db.VOICE},
-		{name: "TypeVideo", got: TypeVideo, want: db.VIDEO},
-		{name: "TypeVideoNote", got: TypeVideoNote, want: db.VIDEO_NOTE},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			if tc.got != tc.want {
-				t.Fatalf("%s = %d, want %d", tc.name, tc.got, tc.want)
-			}
-		})
-	}
-}
-
 func TestContentAndOptionsZeroValues(t *testing.T) {
 	t.Parallel()
 
@@ -114,34 +84,6 @@ func TestErrNoPermission(t *testing.T) {
 	}
 	if !strings.Contains(ErrNoPermission.Error(), "permission") {
 		t.Fatalf("ErrNoPermission message = %q, want permission context", ErrNoPermission.Error())
-	}
-}
-
-func TestIsPermissionError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		err  string
-		want bool
-	}{
-		{name: "not enough rights", err: "not enough rights to send text messages", want: true},
-		{name: "no message rights", err: "have no rights to send a message", want: true},
-		{name: "write forbidden", err: "CHAT_WRITE_FORBIDDEN", want: true},
-		{name: "chat restricted", err: "CHAT_RESTRICTED", want: true},
-		{name: "channel admin required", err: "need administrator rights in the channel chat", want: true},
-		{name: "unrelated", err: "Bad Request: message text is empty", want: false},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := isPermissionError(tc.err); got != tc.want {
-				t.Fatalf("isPermissionError(%q) = %v, want %v", tc.err, got, tc.want)
-			}
-		})
 	}
 }
 
@@ -219,7 +161,7 @@ func TestSendTextBuildsTelegramParams(t *testing.T) {
 	client := &recordingBotClient{}
 	bot := newRecordingBot(client)
 
-	msg, err := Send(bot, Content{Text: "hello", MsgType: TypeText}, Options{
+	msg, err := Send(bot, Content{Text: "hello", MsgType: db.TEXT}, Options{
 		ChatID:            -100,
 		ReplyMsgID:        123,
 		ThreadID:          456,
@@ -277,13 +219,13 @@ func TestSendMediaFallsBackToTextWhenFileIDMissing(t *testing.T) {
 		name    string
 		msgType int
 	}{
-		{name: "sticker", msgType: TypeSticker},
-		{name: "document", msgType: TypeDocument},
-		{name: "photo", msgType: TypePhoto},
-		{name: "audio", msgType: TypeAudio},
-		{name: "voice", msgType: TypeVoice},
-		{name: "video", msgType: TypeVideo},
-		{name: "video note", msgType: TypeVideoNote},
+		{name: "sticker", msgType: db.STICKER},
+		{name: "document", msgType: db.DOCUMENT},
+		{name: "photo", msgType: db.PHOTO},
+		{name: "audio", msgType: db.AUDIO},
+		{name: "voice", msgType: db.VOICE},
+		{name: "video", msgType: db.VIDEO},
+		{name: "video note", msgType: db.VIDEO_NOTE},
 		{name: "unknown", msgType: 999},
 	}
 
@@ -317,13 +259,13 @@ func TestSendMediaUsesTelegramMethodForFileID(t *testing.T) {
 		wantKey   string
 		wantMedia string
 	}{
-		{name: "sticker", msgType: TypeSticker, wantKey: "sticker", wantMedia: "sendSticker"},
-		{name: "document", msgType: TypeDocument, wantKey: "document", wantMedia: "sendDocument"},
-		{name: "photo", msgType: TypePhoto, wantKey: "photo", wantMedia: "sendPhoto"},
-		{name: "audio", msgType: TypeAudio, wantKey: "audio", wantMedia: "sendAudio"},
-		{name: "voice", msgType: TypeVoice, wantKey: "voice", wantMedia: "sendVoice"},
-		{name: "video", msgType: TypeVideo, wantKey: "video", wantMedia: "sendVideo"},
-		{name: "video note", msgType: TypeVideoNote, wantKey: "video_note", wantMedia: "sendVideoNote"},
+		{name: "sticker", msgType: db.STICKER, wantKey: "sticker", wantMedia: "sendSticker"},
+		{name: "document", msgType: db.DOCUMENT, wantKey: "document", wantMedia: "sendDocument"},
+		{name: "photo", msgType: db.PHOTO, wantKey: "photo", wantMedia: "sendPhoto"},
+		{name: "audio", msgType: db.AUDIO, wantKey: "audio", wantMedia: "sendAudio"},
+		{name: "voice", msgType: db.VOICE, wantKey: "voice", wantMedia: "sendVoice"},
+		{name: "video", msgType: db.VIDEO, wantKey: "video", wantMedia: "sendVideo"},
+		{name: "video note", msgType: db.VIDEO_NOTE, wantKey: "video_note", wantMedia: "sendVideoNote"},
 	}
 
 	for _, tc := range tests {
@@ -381,7 +323,7 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 				note := &db.Notes{
 					NoteName:    "rules",
 					NoteContent: "note text",
-					MsgType:     TypeText,
+					MsgType:     db.TEXT,
 					NoNotif:     true,
 					WebPreview:  true,
 					IsProtected: true,
@@ -405,7 +347,7 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 				filter := &db.ChatFilters{
 					KeyWord:     "hello",
 					FilterReply: "filter text",
-					MsgType:     TypeText,
+					MsgType:     db.TEXT,
 					NoNotif:     true,
 				}
 				ctx := newTestContext(-200, 1, 444)
@@ -422,7 +364,7 @@ func TestSendConvenienceWrappersBuildContentAndOptions(t *testing.T) {
 		{
 			name: "greeting",
 			send: func(bot *gotgbot.Bot) (*gotgbot.Message, error) {
-				return SendGreeting(bot, -300, "welcome", "", TypeText, &gotgbot.InlineKeyboardMarkup{}, 555)
+				return SendGreeting(bot, -300, "welcome", "", db.TEXT, &gotgbot.InlineKeyboardMarkup{}, 555)
 			},
 			want: textSendWant{
 				text:           "welcome",
@@ -463,7 +405,7 @@ func TestSendNoteRandomization(t *testing.T) {
 	note := &db.Notes{
 		NoteName:    "test",
 		NoteContent: "option1%%%option2%%%option3",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	// Call many times to verify all options are possible outcomes.
@@ -495,7 +437,7 @@ func TestSendNoteFormattingReplacement(t *testing.T) {
 	note := &db.Notes{
 		NoteName:    "test",
 		NoteContent: "Hello {first}",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
@@ -518,7 +460,7 @@ func TestSendNoteKeyboardBuilding(t *testing.T) {
 	note := &db.Notes{
 		NoteName:    "test",
 		NoteContent: "note text",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 		Buttons: []db.Button{
 			{Name: "A", Url: "https://example.com/a"},
 			{Name: "B", Url: "https://example.com/b", SameLine: true},
@@ -552,7 +494,7 @@ func TestSendNoteNotesParserStripsTags(t *testing.T) {
 	note := &db.Notes{
 		NoteName:    "test",
 		NoteContent: "{private}{admin}{preview}Hello",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
@@ -592,7 +534,7 @@ func TestSendNoteUsesChatForFormattingButCtxForSendTarget(t *testing.T) {
 	note := &db.Notes{
 		NoteName:    "rules",
 		NoteContent: "Welcome to {chatname}!",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	_, err := SendNote(bot, ctx, groupChat, note, 0, 0)
@@ -621,7 +563,7 @@ func TestSendFilterRandomization(t *testing.T) {
 	filter := &db.ChatFilters{
 		KeyWord:     "test",
 		FilterReply: "a%%%b%%%c",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	seen := make(map[string]bool)
@@ -651,7 +593,7 @@ func TestSendFilterFormattingReplacement(t *testing.T) {
 	filter := &db.ChatFilters{
 		KeyWord:     "test",
 		FilterReply: "User: {first}",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 	}
 
 	_, err := SendFilter(bot, ctx, filter, 0)
@@ -674,7 +616,7 @@ func TestSendFilterKeyboardBuilding(t *testing.T) {
 	filter := &db.ChatFilters{
 		KeyWord:     "test",
 		FilterReply: "filter text",
-		MsgType:     TypeText,
+		MsgType:     db.TEXT,
 		Buttons: []db.Button{
 			{Name: "X", Url: "https://example.com/x"},
 		},
