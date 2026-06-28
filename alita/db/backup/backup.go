@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/locks"
@@ -41,6 +42,8 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 		return exportConnectionsData(chatID)
 	case BackupModuleDisabling:
 		return exportDisablingData(chatID)
+	case BackupModuleFederations:
+		return exportFederationsData(chatID)
 	case BackupModuleFilters:
 		return exportFiltersData(chatID)
 	case BackupModuleGreetings:
@@ -81,6 +84,8 @@ func ImportModuleData(chatID int64, module string, data interface{}) error {
 		return importConnectionsData(chatID, data)
 	case BackupModuleDisabling:
 		return importDisablingData(chatID, data)
+	case BackupModuleFederations:
+		return importFederationsData(chatID, data)
 	case BackupModuleFilters:
 		return importFiltersData(chatID, data)
 	case BackupModuleGreetings:
@@ -121,6 +126,8 @@ func ClearModuleData(chatID int64, module string) error {
 		return clearConnectionsData(chatID)
 	case BackupModuleDisabling:
 		return clearDisablingData(chatID)
+	case BackupModuleFederations:
+		return clearFederationsData(chatID)
 	case BackupModuleFilters:
 		return clearFiltersData(chatID)
 	case BackupModuleGreetings:
@@ -1001,4 +1008,49 @@ func importApprovalsData(chatID int64, data interface{}) error {
 
 func clearApprovalsData(chatID int64) error {
 	return approvals.RemoveAllApprovedUsers(chatID)
+}
+
+func exportFederationsData(chatID int64) (*FederationsBackup, error) {
+	fed, err := federations.GetChatFederation(chatID)
+	if err != nil {
+		if err == federations.ErrFederationNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &FederationsBackup{FedID: fed.FedID, Name: fed.Name}, nil
+}
+
+func importFederationsData(chatID int64, data interface{}) error {
+	backupData, ok := data.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid federations data format")
+	}
+
+	fedID, _ := backupData["fed_id"].(string)
+	if fedID == "" {
+		return nil
+	}
+
+	fed, err := federations.GetFederationByID(fedID)
+	if err != nil {
+		if err == federations.ErrFederationNotFound {
+			log.Warnf("[Backup] Skipping federation import: federation %s not found", fedID)
+			return nil
+		}
+		return err
+	}
+
+	return federations.JoinChat(fed.FedID, chatID, 0)
+}
+
+func clearFederationsData(chatID int64) error {
+	_, err := federations.GetChatFederation(chatID)
+	if err != nil {
+		if err == federations.ErrFederationNotFound {
+			return nil
+		}
+		return err
+	}
+	return federations.LeaveChat(chatID)
 }
