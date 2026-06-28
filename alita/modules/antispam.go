@@ -31,7 +31,6 @@ type antiSpamLevel struct {
 	Limit    int
 	CurrTime time.Time
 	Expiry   time.Duration
-	Spammed  bool
 }
 
 var (
@@ -100,7 +99,6 @@ func checkSpammed(key spamKey, levels []antiSpamLevel) bool {
 				Limit:    lvl.Limit,
 				CurrTime: time.Now(),
 				Expiry:   lvl.Expiry,
-				Spammed:  false,
 			}
 		}
 		antiSpamMap[key] = info
@@ -115,12 +113,10 @@ func checkSpammed(key spamKey, levels []antiSpamLevel) bool {
 		if time.Since(level.CurrTime) >= level.Expiry {
 			level.CurrTime = time.Now()
 			level.Count = 0
-			level.Spammed = false
 		}
 
 		level.Count++
 		if level.Count >= level.Limit {
-			level.Spammed = true
 			spammed = true
 		}
 	}

@@ -1,4 +1,4 @@
-package helpers
+package helpers_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
@@ -64,7 +65,7 @@ func TestDeleteMessageWithErrorHandlingSuppressesExpectedTelegramErrors(t *testi
 			client.errors["deleteMessage"] = fmt.Errorf("%s", errText)
 			bot := newTelegramHelperBot(client)
 
-			if err := DeleteMessageWithErrorHandling(bot, -1001, 55); err != nil {
+			if err := helpers.DeleteMessageWithErrorHandling(bot, -1001, 55); err != nil {
 				t.Fatalf("DeleteMessageWithErrorHandling() error = %v, want nil", err)
 			}
 			if client.calls["deleteMessage"] != 1 {
@@ -79,7 +80,7 @@ func TestDeleteMessageWithErrorHandlingWrapsUnexpectedError(t *testing.T) {
 	client.errors["deleteMessage"] = fmt.Errorf("Internal Server Error")
 	bot := newTelegramHelperBot(client)
 
-	err := DeleteMessageWithErrorHandling(bot, -1001, 55)
+	err := helpers.DeleteMessageWithErrorHandling(bot, -1001, 55)
 	if err == nil {
 		t.Fatal("DeleteMessageWithErrorHandling() error = nil, want wrapped error")
 	}
@@ -101,7 +102,7 @@ func TestSendMessageWithErrorHandlingSuppressesPermissionErrors(t *testing.T) {
 			client.errors["sendMessage"] = fmt.Errorf("%s", errText)
 			bot := newTelegramHelperBot(client)
 
-			msg, err := SendMessageWithErrorHandling(bot, -1001, "hello", nil)
+			msg, err := helpers.SendMessageWithErrorHandling(bot, -1001, "hello", nil)
 			if err != nil {
 				t.Fatalf("SendMessageWithErrorHandling() error = %v, want nil", err)
 			}
@@ -117,7 +118,7 @@ func TestSendMessageWithErrorHandlingWrapsUnexpectedError(t *testing.T) {
 	client.errors["sendMessage"] = fmt.Errorf("Internal Server Error")
 	bot := newTelegramHelperBot(client)
 
-	msg, err := SendMessageWithErrorHandling(bot, -1001, "hello", nil)
+	msg, err := helpers.SendMessageWithErrorHandling(bot, -1001, "hello", nil)
 	if msg != nil {
 		t.Fatalf("SendMessageWithErrorHandling() msg = %#v, want nil on error", msg)
 	}
@@ -133,7 +134,7 @@ func TestSendMessageWithErrorHandlingReturnsSentMessage(t *testing.T) {
 	client := newTelegramHelperBotClient()
 	bot := newTelegramHelperBot(client)
 
-	msg, err := SendMessageWithErrorHandling(bot, -1001, "hello", nil)
+	msg, err := helpers.SendMessageWithErrorHandling(bot, -1001, "hello", nil)
 	if err != nil {
 		t.Fatalf("SendMessageWithErrorHandling() error = %v, want nil", err)
 	}
@@ -143,7 +144,7 @@ func TestSendMessageWithErrorHandlingReturnsSentMessage(t *testing.T) {
 }
 
 func TestIsExpectedTelegramErrorClassifiesNilExpectedAndUnexpected(t *testing.T) {
-	if IsExpectedTelegramError(nil) {
+	if helpers.IsExpectedTelegramError(nil) {
 		t.Fatal("IsExpectedTelegramError(nil) = true, want false")
 	}
 	for _, errText := range []string{
@@ -155,11 +156,11 @@ func TestIsExpectedTelegramErrorClassifiesNilExpectedAndUnexpected(t *testing.T)
 		"message to delete not found",
 		"TOPIC_CLOSED",
 	} {
-		if !IsExpectedTelegramError(fmt.Errorf("%s", errText)) {
+		if !helpers.IsExpectedTelegramError(fmt.Errorf("%s", errText)) {
 			t.Fatalf("IsExpectedTelegramError(%q) = false, want true", errText)
 		}
 	}
-	if IsExpectedTelegramError(fmt.Errorf("database connection failed")) {
+	if helpers.IsExpectedTelegramError(fmt.Errorf("database connection failed")) {
 		t.Fatal("IsExpectedTelegramError(unexpected) = true, want false")
 	}
 }
@@ -182,7 +183,7 @@ func TestIsExpectedTelegramErrorKnown(t *testing.T) {
 		t.Run(msg, func(t *testing.T) {
 			t.Parallel()
 			err := fmt.Errorf("%s", msg)
-			if !IsExpectedTelegramError(err) {
+			if !helpers.IsExpectedTelegramError(err) {
 				t.Fatalf("IsExpectedTelegramError(%q) expected true", msg)
 			}
 		})
@@ -193,7 +194,7 @@ func TestIsExpectedTelegramErrorUnknown(t *testing.T) {
 	t.Parallel()
 
 	err := fmt.Errorf("some unknown telegram error xyz")
-	if IsExpectedTelegramError(err) {
+	if helpers.IsExpectedTelegramError(err) {
 		t.Fatalf("IsExpectedTelegramError for unknown error expected false")
 	}
 }
@@ -230,7 +231,7 @@ func TestIsExpectedTelegramErrorAllStrings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			err := errors.New(tc.errMsg)
-			if !IsExpectedTelegramError(err) {
+			if !helpers.IsExpectedTelegramError(err) {
 				t.Fatalf("IsExpectedTelegramError(%q) expected true", tc.errMsg)
 			}
 		})
@@ -241,7 +242,7 @@ func TestIsExpectedTelegramErrorSubstring(t *testing.T) {
 	t.Parallel()
 
 	err := fmt.Errorf("failed: bot was kicked from the group chat")
-	if !IsExpectedTelegramError(err) {
+	if !helpers.IsExpectedTelegramError(err) {
 		t.Fatalf("IsExpectedTelegramError with extra context expected true, got false")
 	}
 }
@@ -250,7 +251,7 @@ func TestIsExpectedTelegramErrorWrapped(t *testing.T) {
 	t.Parallel()
 
 	err := fmt.Errorf("wrap: %w", errors.New("chat not found"))
-	if !IsExpectedTelegramError(err) {
+	if !helpers.IsExpectedTelegramError(err) {
 		t.Fatalf("IsExpectedTelegramError with wrapped error expected true, got false")
 	}
 }
@@ -259,7 +260,7 @@ func TestIsExpectedTelegramErrorEmptyError(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("")
-	if IsExpectedTelegramError(err) {
+	if helpers.IsExpectedTelegramError(err) {
 		t.Fatalf("IsExpectedTelegramError(\"\") expected false")
 	}
 }
@@ -284,7 +285,7 @@ func TestIsPermissionError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.errStr, func(t *testing.T) {
 			t.Parallel()
-			got := IsPermissionError(tc.errStr)
+			got := helpers.IsPermissionError(tc.errStr)
 			if got != tc.expected {
 				t.Errorf("IsPermissionError(%q) = %v, want %v", tc.errStr, got, tc.expected)
 			}
@@ -298,7 +299,7 @@ func TestIsPermissionError(t *testing.T) {
 func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
 	t.Parallel()
 
-	if !IsExpectedTelegramError(media.ErrNoPermission) {
+	if !helpers.IsExpectedTelegramError(media.ErrNoPermission) {
 		t.Fatalf("IsExpectedTelegramError(media.ErrNoPermission) expected true (ErrNoPermission should be suppressed); got false for %q", media.ErrNoPermission.Error())
 	}
 }

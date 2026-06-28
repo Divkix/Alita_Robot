@@ -297,8 +297,8 @@ connections_connect_tap_btn_connect: |
   Silakan tekan tombol di bawah untuk menghubungkan obrolan ini
   ke PM Anda.
 connections_connected: Anda saat ini terhubung ke <b>%s</b>!
-connections_connections_btns_admin_conn_cmds: Perintah Admin yang Tersedia:%s
-connections_connections_btns_user_conn_cmds: Perintah Pengguna yang Tersedia:%s
+connections_connections_btns_admin_conn_cmds: Perintah Admin yang Tersedia
+connections_connections_btns_user_conn_cmds: Perintah Pengguna yang Tersedia
 connections_disconnect_disconnected: |
   Berhasil memutuskan dari obrolan yang terhubung.
 connections_disconnect_need_pm: |

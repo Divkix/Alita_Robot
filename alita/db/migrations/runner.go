@@ -676,6 +676,7 @@ type dqBlock struct {
 // findDollarQuoteBlocks finds all dollar-quoted block boundaries in the given SQL.
 // It handles single quotes, double quotes, line comments, and block comments to
 // avoid false positives inside string literals or comments.
+//
 //nolint:gocyclo // State machine parser with many states - complexity is inherent
 func findDollarQuoteBlocks(sql string) []dqBlock {
 	// NOTE: This function shares the same SQL tokenization logic with splitSQLStatements.
@@ -810,8 +811,6 @@ func (m *MigrationRunner) logMigrationStatus() {
 	m.db.Model(&SchemaMigration{}).Count(&count)
 	log.Infof("[Migrations] Total migrations applied: %d", count)
 }
-
-// GetAppliedMigrations returns a list of all applied migrations
 
 // verifyIndexes checks that expected composite indexes are created
 func (m *MigrationRunner) verifyIndexes() error {

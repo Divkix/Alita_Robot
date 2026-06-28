@@ -1,7 +1,6 @@
 package monitoring
 
 import (
-	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -9,381 +8,146 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-// ---------------------------------------------------------------------------
-// GCAction
-// ---------------------------------------------------------------------------
-
-func TestGCActionCanExecute(t *testing.T) {
-	// Cannot run in parallel because it reads global config.AppConfig.
-
-	action := &GCAction{}
-	gcThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.6
-
-	t.Run("memory above 60% threshold returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			MemoryAllocMB: gcThreshold + 1,
-			GCPauseMs:     0,
+// findAction returns the built-in action with the given name, or fails the test.
+func findAction(t *testing.T, m *AutoRemediationManager, name string) remediationAction {
+	t.Helper()
+	for _, a := range m.actions {
+		if a.name == name {
+			return a
 		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when MemoryAllocMB %.1f > threshold %.1f", metrics.MemoryAllocMB, gcThreshold)
-		}
-	})
-
-	t.Run("memory below threshold and GCPauseMs below 50 returns false", func(t *testing.T) {
-		metrics := SystemMetrics{
-			MemoryAllocMB: gcThreshold - 1,
-			GCPauseMs:     10,
-		}
-		if action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=false when memory and GC pause are both below thresholds")
-		}
-	})
-
-	t.Run("GCPauseMs above 50 even with low memory returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			MemoryAllocMB: 0,
-			GCPauseMs:     51,
-		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when GCPauseMs=51 > 50")
-		}
-	})
-
-	t.Run("zero-value SystemMetrics returns false", func(t *testing.T) {
-		metrics := SystemMetrics{}
-		if action.CanExecute(metrics) {
-			t.Fatal("expected CanExecute=false for zero-value SystemMetrics")
-		}
-	})
-}
-
-// ---------------------------------------------------------------------------
-// MemoryCleanupAction
-// ---------------------------------------------------------------------------
-
-func TestMemoryCleanupActionCanExecute(t *testing.T) {
-	// Cannot run in parallel because it reads global config.AppConfig.
-
-	action := &MemoryCleanupAction{}
-	threshold := float64(config.AppConfig.ResourceGCThresholdMB)
-
-	t.Run("above ResourceGCThresholdMB returns true", func(t *testing.T) {
-		metrics := SystemMetrics{MemoryAllocMB: threshold + 1}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when MemoryAllocMB %.1f > threshold %.1f", metrics.MemoryAllocMB, threshold)
-		}
-	})
-
-	t.Run("below ResourceGCThresholdMB returns false", func(t *testing.T) {
-		metrics := SystemMetrics{MemoryAllocMB: threshold - 1}
-		if action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=false when MemoryAllocMB %.1f < threshold %.1f", metrics.MemoryAllocMB, threshold)
-		}
-	})
-}
-
-// ---------------------------------------------------------------------------
-// LogWarningAction & RestartRecommendationAction (threshold-based actions)
-// ---------------------------------------------------------------------------
-
-func TestThresholdBasedActionsCanExecute(t *testing.T) {
-	// Cannot run in parallel because it reads global config.AppConfig.
-
-	cases := []struct {
-		name               string
-		action             RemediationAction
-		goroutineThreshold int
-		memoryThreshold    float64
-	}{
-		{
-			name:               "LogWarningAction",
-			action:             &LogWarningAction{},
-			goroutineThreshold: int(float64(config.AppConfig.ResourceMaxGoroutines) * 0.8),
-			memoryThreshold:    float64(config.AppConfig.ResourceMaxMemoryMB) * 0.5,
-		},
-		{
-			name:               "RestartRecommendationAction",
-			action:             &RestartRecommendationAction{},
-			goroutineThreshold: int(float64(config.AppConfig.ResourceMaxGoroutines) * 1.5),
-			memoryThreshold:    float64(config.AppConfig.ResourceMaxMemoryMB) * 1.6,
-		},
 	}
-
-	for _, tc := range cases {
-		t.Run(tc.name+"/goroutines above threshold returns true", func(t *testing.T) {
-			metrics := SystemMetrics{GoroutineCount: tc.goroutineThreshold + 1, MemoryAllocMB: 0}
-			if !tc.action.CanExecute(metrics) {
-				t.Fatalf("expected CanExecute=true when goroutines %d > threshold %d", metrics.GoroutineCount, tc.goroutineThreshold)
-			}
-		})
-
-		t.Run(tc.name+"/memory above threshold returns true", func(t *testing.T) {
-			metrics := SystemMetrics{GoroutineCount: 0, MemoryAllocMB: tc.memoryThreshold + 1}
-			if !tc.action.CanExecute(metrics) {
-				t.Fatalf("expected CanExecute=true when memory %.1f > threshold %.1f", metrics.MemoryAllocMB, tc.memoryThreshold)
-			}
-		})
-
-		t.Run(tc.name+"/both below thresholds returns false", func(t *testing.T) {
-			metrics := SystemMetrics{GoroutineCount: tc.goroutineThreshold - 1, MemoryAllocMB: tc.memoryThreshold - 1}
-			if tc.action.CanExecute(metrics) {
-				t.Fatal("expected CanExecute=false when both metrics are below thresholds")
-			}
-		})
-	}
+	t.Fatalf("action %q not found in manager.actions", name)
+	return remediationAction{}
 }
 
 // ---------------------------------------------------------------------------
-// Action Names
+// Built-in action ordering
 // ---------------------------------------------------------------------------
 
-func TestActionNames(t *testing.T) {
-	t.Parallel()
+func TestBuiltInActionsAreSeverityOrdered(t *testing.T) {
+	// Cannot run in parallel because it reads global config.AppConfig.
 
-	tests := []struct {
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
+
+	wantOrder := []struct {
 		name     string
-		action   RemediationAction
-		wantName string
+		severity int
 	}{
-		{name: "GCAction", action: &GCAction{}, wantName: "garbage_collection"},
-		{name: "MemoryCleanupAction", action: &MemoryCleanupAction{}, wantName: "memory_cleanup"},
-		{name: "LogWarningAction", action: &LogWarningAction{}, wantName: "log_warning"},
-		{name: "RestartRecommendationAction", action: &RestartRecommendationAction{}, wantName: "restart_recommendation"},
+		{"log_warning", 0},
+		{"garbage_collection", 1},
+		{"memory_cleanup", 2},
+		{"restart_recommendation", 10},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	if len(manager.actions) != len(wantOrder) {
+		t.Fatalf("got %d actions, want %d", len(manager.actions), len(wantOrder))
+	}
 
-			got := tc.action.Name()
-			if got != tc.wantName {
-				t.Fatalf("%s.Name() = %q, want %q", tc.name, got, tc.wantName)
-			}
-		})
+	for i, want := range wantOrder {
+		got := manager.actions[i]
+		if got.name != want.name || got.severity != want.severity {
+			t.Fatalf("action[%d] = {%q, %d}, want {%q, %d}", i, got.name, got.severity, want.name, want.severity)
+		}
+		if i > 0 && manager.actions[i-1].severity >= got.severity {
+			t.Fatalf("actions not in ascending severity order at index %d", i)
+		}
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Action Severity Ordering
+// Threshold conditions select the right action
 // ---------------------------------------------------------------------------
 
-func TestActionSeverityOrdering(t *testing.T) {
-	t.Parallel()
-
-	logWarn := &LogWarningAction{}
-	gc := &GCAction{}
-	memClean := &MemoryCleanupAction{}
-	restart := &RestartRecommendationAction{}
-
-	t.Run("LogWarning severity is 0", func(t *testing.T) {
-		t.Parallel()
-		if logWarn.Severity() != 0 {
-			t.Fatalf("expected LogWarning.Severity()=0, got %d", logWarn.Severity())
-		}
-	})
-
-	t.Run("GC severity is 1", func(t *testing.T) {
-		t.Parallel()
-		if gc.Severity() != 1 {
-			t.Fatalf("expected GC.Severity()=1, got %d", gc.Severity())
-		}
-	})
-
-	t.Run("MemoryCleanup severity is 2", func(t *testing.T) {
-		t.Parallel()
-		if memClean.Severity() != 2 {
-			t.Fatalf("expected MemoryCleanup.Severity()=2, got %d", memClean.Severity())
-		}
-	})
-
-	t.Run("RestartRecommendation severity is 10", func(t *testing.T) {
-		t.Parallel()
-		if restart.Severity() != 10 {
-			t.Fatalf("expected RestartRecommendation.Severity()=10, got %d", restart.Severity())
-		}
-	})
-
-	t.Run("severity ordering LogWarning < GC < MemoryCleanup < RestartRecommendation", func(t *testing.T) {
-		t.Parallel()
-
-		if logWarn.Severity() >= gc.Severity() {
-			t.Fatalf("expected LogWarning(%d) < GC(%d)", logWarn.Severity(), gc.Severity())
-		}
-		if gc.Severity() >= memClean.Severity() {
-			t.Fatalf("expected GC(%d) < MemoryCleanup(%d)", gc.Severity(), memClean.Severity())
-		}
-		if memClean.Severity() >= restart.Severity() {
-			t.Fatalf("expected MemoryCleanup(%d) < RestartRecommendation(%d)", memClean.Severity(), restart.Severity())
-		}
-	})
-}
-
-// ---------------------------------------------------------------------------
-// Additional: AggressiveGCAction (RestartRecommendationAction at 150%+ threshold)
-// ---------------------------------------------------------------------------
-
-// TestAggressiveGCAction_CanExecute tests RestartRecommendationAction which triggers
-// at 150% goroutine threshold or 160% memory threshold -- the most aggressive action.
-func TestAggressiveGCAction_CanExecute(t *testing.T) {
+func TestActionThresholds(t *testing.T) {
 	// Cannot run in parallel because it reads global config.AppConfig.
 
-	action := &RestartRecommendationAction{}
-	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 1.5)
-	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 1.6
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
 
-	t.Run("metrics below 150% thresholds returns false", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: goroutineThreshold - 1,
-			MemoryAllocMB:  memoryThreshold - 1,
+	maxGoroutines := config.AppConfig.ResourceMaxGoroutines
+	maxMemoryMB := config.AppConfig.ResourceMaxMemoryMB
+	gcThresholdMB := config.AppConfig.ResourceGCThresholdMB
+
+	t.Run("log_warning", func(t *testing.T) {
+		a := findAction(t, manager, "log_warning")
+		goroutineThreshold := int(float64(maxGoroutines) * 0.8)
+		memoryThreshold := float64(maxMemoryMB) * 0.5
+
+		if a.canExecute(SystemMetrics{GoroutineCount: goroutineThreshold - 1, MemoryAllocMB: memoryThreshold - 1}) {
+			t.Fatal("expected false when both metrics below thresholds")
 		}
-		if action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=false when goroutines=%d < threshold=%d and memory=%.1f < threshold=%.1f",
-				metrics.GoroutineCount, goroutineThreshold, metrics.MemoryAllocMB, memoryThreshold)
+		if !a.canExecute(SystemMetrics{GoroutineCount: goroutineThreshold + 1}) {
+			t.Fatal("expected true when goroutines above threshold")
+		}
+		if !a.canExecute(SystemMetrics{MemoryAllocMB: memoryThreshold + 1}) {
+			t.Fatal("expected true when memory above threshold")
 		}
 	})
 
-	t.Run("memory above 160% threshold returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: 0,
-			MemoryAllocMB:  memoryThreshold + 1,
+	t.Run("garbage_collection", func(t *testing.T) {
+		a := findAction(t, manager, "garbage_collection")
+		gcThreshold := float64(maxMemoryMB) * 0.6
+
+		if a.canExecute(SystemMetrics{MemoryAllocMB: gcThreshold - 1, GCPauseMs: 10}) {
+			t.Fatal("expected false when memory and GC pause below thresholds")
 		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when MemoryAllocMB=%.1f > threshold=%.1f",
-				metrics.MemoryAllocMB, memoryThreshold)
+		if !a.canExecute(SystemMetrics{MemoryAllocMB: gcThreshold + 1}) {
+			t.Fatal("expected true when memory above 60% threshold")
+		}
+		if !a.canExecute(SystemMetrics{GCPauseMs: 51}) {
+			t.Fatal("expected true when GCPauseMs above 50")
 		}
 	})
 
-	t.Run("goroutines above 150% threshold returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: goroutineThreshold + 1,
-			MemoryAllocMB:  0,
+	t.Run("memory_cleanup", func(t *testing.T) {
+		a := findAction(t, manager, "memory_cleanup")
+		threshold := float64(gcThresholdMB)
+
+		if a.canExecute(SystemMetrics{MemoryAllocMB: threshold - 1}) {
+			t.Fatal("expected false when memory below ResourceGCThresholdMB")
 		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when goroutines=%d > threshold=%d",
-				metrics.GoroutineCount, goroutineThreshold)
+		if !a.canExecute(SystemMetrics{MemoryAllocMB: threshold + 1}) {
+			t.Fatal("expected true when memory above ResourceGCThresholdMB")
 		}
 	})
 
-	t.Run("zero-value metrics returns false", func(t *testing.T) {
-		metrics := SystemMetrics{}
-		if action.CanExecute(metrics) {
-			t.Fatal("expected CanExecute=false for zero-value SystemMetrics")
+	t.Run("restart_recommendation", func(t *testing.T) {
+		a := findAction(t, manager, "restart_recommendation")
+		goroutineThreshold := int(float64(maxGoroutines) * 1.5)
+		memoryThreshold := float64(maxMemoryMB) * 1.6
+
+		if a.canExecute(SystemMetrics{GoroutineCount: goroutineThreshold - 1, MemoryAllocMB: memoryThreshold - 1}) {
+			t.Fatal("expected false when both metrics below 150%/160% thresholds")
+		}
+		if !a.canExecute(SystemMetrics{GoroutineCount: goroutineThreshold + 1}) {
+			t.Fatal("expected true when goroutines above 150% threshold")
+		}
+		if !a.canExecute(SystemMetrics{MemoryAllocMB: memoryThreshold + 1}) {
+			t.Fatal("expected true when memory above 160% threshold")
 		}
 	})
 }
 
 // ---------------------------------------------------------------------------
-// Additional: WarningAction (LogWarningAction at 80% goroutine / 50% memory threshold)
+// Built-in execute bodies do not panic
 // ---------------------------------------------------------------------------
 
-// TestWarningAction_CanExecute tests LogWarningAction which triggers at 80% goroutine
-// threshold or 50% memory threshold.
-func TestWarningAction_CanExecute(t *testing.T) {
+func TestBuiltInActionsExecuteDoNotPanic(t *testing.T) {
 	// Cannot run in parallel because it reads global config.AppConfig.
 
-	action := &LogWarningAction{}
-	goroutineThreshold := int(float64(config.AppConfig.ResourceMaxGoroutines) * 0.8)
-	memoryThreshold := float64(config.AppConfig.ResourceMaxMemoryMB) * 0.5
-
-	t.Run("metrics below 80% thresholds returns false", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: goroutineThreshold - 1,
-			MemoryAllocMB:  memoryThreshold - 1,
-		}
-		if action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=false when goroutines=%d < threshold=%d and memory=%.1f < threshold=%.1f",
-				metrics.GoroutineCount, goroutineThreshold, metrics.MemoryAllocMB, memoryThreshold)
-		}
-	})
-
-	t.Run("memory above 50% ResourceMaxMemoryMB returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: 0,
-			MemoryAllocMB:  memoryThreshold + 1,
-		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when MemoryAllocMB=%.1f > threshold=%.1f",
-				metrics.MemoryAllocMB, memoryThreshold)
-		}
-	})
-
-	t.Run("goroutines above 80% ResourceMaxGoroutines returns true", func(t *testing.T) {
-		metrics := SystemMetrics{
-			GoroutineCount: goroutineThreshold + 1,
-			MemoryAllocMB:  0,
-		}
-		if !action.CanExecute(metrics) {
-			t.Fatalf("expected CanExecute=true when goroutines=%d > threshold=%d",
-				metrics.GoroutineCount, goroutineThreshold)
-		}
-	})
-}
-
-// ---------------------------------------------------------------------------
-// Additional: GCAction Name and Severity
-// ---------------------------------------------------------------------------
-
-// TestGCAction_NameAndSeverity tests that all built-in actions have non-empty names
-// and valid severity values.
-func TestGCAction_NameAndSeverity(t *testing.T) {
-	t.Parallel()
-
-	actions := []RemediationAction{
-		&GCAction{},
-		&MemoryCleanupAction{},
-		&LogWarningAction{},
-		&RestartRecommendationAction{},
-	}
-
-	for _, action := range actions {
-		action := action
-		t.Run(action.Name(), func(t *testing.T) {
-			t.Parallel()
-
-			name := action.Name()
-			if name == "" {
-				t.Fatalf("%T.Name() returned empty string", action)
-			}
-
-			severity := action.Severity()
-			if severity < 0 {
-				t.Fatalf("%T.Severity() = %d, must be >= 0", action, severity)
-			}
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
+	for _, a := range manager.actions {
+		t.Run(a.name, func(t *testing.T) {
+			a.execute()
 		})
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Execute methods — no panic, return nil
-// ---------------------------------------------------------------------------
-
-func TestExecuteActions_TableDriven(t *testing.T) {
-	tests := []struct {
-		name      string
-		newAction func() RemediationAction
-	}{
-		{"GCAction", func() RemediationAction { return &GCAction{} }},
-		{"MemoryCleanupAction", func() RemediationAction { return &MemoryCleanupAction{} }},
-		{"LogWarningAction", func() RemediationAction { return &LogWarningAction{} }},
-		{"RestartRecommendationAction", func() RemediationAction { return &RestartRecommendationAction{} }},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			if err := tc.newAction().Execute(context.Background()); err != nil {
-				t.Fatalf("expected Execute to return nil, got %v", err)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// NewAutoRemediationManager — disabled monitoring
+// Disabled monitoring — Start does nothing, Stop does not deadlock
 // ---------------------------------------------------------------------------
 
 func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state
+	// Do not use t.Parallel() - tests global config state.
 
 	origEnabled := config.AppConfig.EnablePerformanceMonitoring
 	config.AppConfig.EnablePerformanceMonitoring = false
@@ -391,22 +155,114 @@ func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 		config.AppConfig.EnablePerformanceMonitoring = origEnabled
 	}()
 
-	collector := NewBackgroundStatsCollector()
-	manager := NewAutoRemediationManager(collector)
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
 
 	if manager.enabled {
 		t.Fatal("expected manager.enabled to be false when EnablePerformanceMonitoring is false")
 	}
 
-	// Start() should return immediately without spawning goroutines
+	// Start() should return immediately without spawning goroutines.
 	manager.Start()
-
-	// Stop should not deadlock even though Start() did nothing
+	// Stop should not deadlock even though Start() did nothing.
 	manager.Stop()
 }
 
-func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state
+// ---------------------------------------------------------------------------
+// Constructor wiring
+// ---------------------------------------------------------------------------
+
+func TestNewAutoRemediationManager_WithCollector(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state.
+
+	origEnabled := config.AppConfig.EnablePerformanceMonitoring
+	config.AppConfig.EnablePerformanceMonitoring = true
+	defer func() {
+		config.AppConfig.EnablePerformanceMonitoring = origEnabled
+	}()
+
+	collector := NewBackgroundStatsCollector()
+	manager := NewAutoRemediationManager(collector)
+
+	if manager.collector != collector {
+		t.Fatal("expected manager.collector to be the collector passed in")
+	}
+	if !manager.enabled {
+		t.Fatal("expected manager.enabled to be true when EnablePerformanceMonitoring is true")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Cooldown prevents re-execution
+// ---------------------------------------------------------------------------
+
+func TestAutoRemediationManager_Cooldown(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state.
+
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
+
+	// First execution should be allowed.
+	if !manager.shouldExecuteAction("garbage_collection") {
+		t.Fatal("expected shouldExecuteAction to be true on first call")
+	}
+
+	// Record execution.
+	manager.markActionExecuted("garbage_collection")
+
+	// Second execution should be blocked by cooldown.
+	if manager.shouldExecuteAction("garbage_collection") {
+		t.Fatal("expected shouldExecuteAction to be false immediately after execution")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// checkAndRemediate behavior
+// ---------------------------------------------------------------------------
+
+func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state.
+
+	collector := NewBackgroundStatsCollector()
+	collector.updateSystemMetrics(SystemMetrics{
+		GoroutineCount: 200,
+		MemoryAllocMB:  600,
+		GCPauseMs:      75,
+	})
+
+	manager := NewAutoRemediationManager(collector)
+
+	var lowExec, highExec int32
+	// Ordered ascending by severity, mirroring the constructor invariant.
+	manager.actions = []remediationAction{
+		{name: "low", severity: 1, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&lowExec, 1) }},
+		{name: "high", severity: 5, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&highExec, 1) }},
+	}
+
+	manager.checkAndRemediate()
+
+	if atomic.LoadInt32(&lowExec) != 1 {
+		t.Fatalf("low severity action executions = %d, want 1", lowExec)
+	}
+	if atomic.LoadInt32(&highExec) != 0 {
+		t.Fatalf("high severity action executions = %d, want 0 (one action per cycle)", highExec)
+	}
+	if manager.shouldExecuteAction("low") {
+		t.Fatal("executed action was not put on cooldown")
+	}
+}
+
+func TestCheckAndRemediateHandlesNilCollector(t *testing.T) {
+	t.Parallel()
+
+	manager := NewAutoRemediationManager(nil)
+	manager.checkAndRemediate() // must not panic
+}
+
+// ---------------------------------------------------------------------------
+// Start runs the monitor loop on the configured interval
+// ---------------------------------------------------------------------------
+
+func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state.
 
 	origEnabled := config.AppConfig.EnablePerformanceMonitoring
 	config.AppConfig.EnablePerformanceMonitoring = true
@@ -416,15 +272,17 @@ func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *tes
 
 	collector := NewBackgroundStatsCollector()
 	collector.updateSystemMetrics(SystemMetrics{
-		GoroutineCount:      200,
-		MemoryAllocMB:       600,
-		GCPauseMs:           75,
-		AverageResponseTime: 25 * time.Millisecond,
+		GoroutineCount: 200,
+		MemoryAllocMB:  600,
+		GCPauseMs:      75,
 	})
 
 	manager := NewAutoRemediationManager(collector)
-	action := &testRemediationAction{name: "fast-loop", severity: 1}
-	manager.actions = []RemediationAction{action}
+
+	var executed int32
+	manager.actions = []remediationAction{
+		{name: "fast-loop", severity: 1, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&executed, 1) }},
+	}
 	manager.actionCooldown = 0
 	manager.monitorInterval = time.Millisecond
 
@@ -433,7 +291,7 @@ func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *tes
 
 	deadline := time.After(500 * time.Millisecond)
 	for {
-		if atomic.LoadInt32(&action.executed) > 0 {
+		if atomic.LoadInt32(&executed) > 0 {
 			return
 		}
 		select {
@@ -443,176 +301,4 @@ func TestAutoRemediationManagerStartRunsMonitorLoopWithConfiguredInterval(t *tes
 			time.Sleep(time.Millisecond)
 		}
 	}
-}
-
-// ---------------------------------------------------------------------------
-// NewAutoRemediationManager — with collector and metrics
-// ---------------------------------------------------------------------------
-
-func TestNewAutoRemediationManager_WithMetrics(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state
-
-	origMaxGoroutines := config.AppConfig.ResourceMaxGoroutines
-	origMaxMemoryMB := config.AppConfig.ResourceMaxMemoryMB
-	origGCThresholdMB := config.AppConfig.ResourceGCThresholdMB
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-
-	config.AppConfig.ResourceMaxGoroutines = 100
-	config.AppConfig.ResourceMaxMemoryMB = 500
-	config.AppConfig.ResourceGCThresholdMB = 400
-	config.AppConfig.EnablePerformanceMonitoring = true
-	defer func() {
-		config.AppConfig.ResourceMaxGoroutines = origMaxGoroutines
-		config.AppConfig.ResourceMaxMemoryMB = origMaxMemoryMB
-		config.AppConfig.ResourceGCThresholdMB = origGCThresholdMB
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	collector := NewBackgroundStatsCollector()
-	collector.RecordMessage()
-	collector.RecordError()
-	collector.RecordResponseTime(50 * time.Millisecond)
-
-	manager := NewAutoRemediationManager(collector)
-
-	if manager.collector != collector {
-		t.Fatal("expected manager.collector to be the same collector passed in")
-	}
-	if !manager.enabled {
-		t.Fatal("expected manager.enabled to be true when EnablePerformanceMonitoring is true")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// AutoRemediationManager — getApplicableActions
-// ---------------------------------------------------------------------------
-
-func TestAutoRemediationManager_GetApplicableActions(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state
-
-	origMaxGoroutines := config.AppConfig.ResourceMaxGoroutines
-	origMaxMemoryMB := config.AppConfig.ResourceMaxMemoryMB
-	origGCThresholdMB := config.AppConfig.ResourceGCThresholdMB
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-
-	config.AppConfig.ResourceMaxGoroutines = 100
-	config.AppConfig.ResourceMaxMemoryMB = 500
-	config.AppConfig.ResourceGCThresholdMB = 400
-	config.AppConfig.EnablePerformanceMonitoring = true
-	defer func() {
-		config.AppConfig.ResourceMaxGoroutines = origMaxGoroutines
-		config.AppConfig.ResourceMaxMemoryMB = origMaxMemoryMB
-		config.AppConfig.ResourceGCThresholdMB = origGCThresholdMB
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	collector := NewBackgroundStatsCollector()
-	manager := NewAutoRemediationManager(collector)
-
-	// Metrics that trigger all applicable actions
-	metrics := SystemMetrics{
-		GoroutineCount:      200, // above all thresholds
-		MemoryAllocMB:       600, // above all thresholds
-		GCPauseMs:           60,
-		AverageResponseTime: 10 * time.Millisecond,
-	}
-
-	applicable := manager.getApplicableActions(metrics)
-	if len(applicable) == 0 {
-		t.Fatal("expected some applicable actions")
-	}
-
-	// Verify sorted by severity (ascending)
-	for i := 1; i < len(applicable); i++ {
-		if applicable[i].Severity() < applicable[i-1].Severity() {
-			t.Fatalf("actions not sorted by severity: %d at index %d < %d at index %d",
-				applicable[i].Severity(), i, applicable[i-1].Severity(), i-1)
-		}
-	}
-}
-
-// ---------------------------------------------------------------------------
-// AutoRemediationManager — shouldExecuteAction cooldown
-// ---------------------------------------------------------------------------
-
-func TestAutoRemediationManager_ShouldExecuteAction_Cooldown(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state
-
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-	config.AppConfig.EnablePerformanceMonitoring = true
-	defer func() {
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	collector := NewBackgroundStatsCollector()
-	manager := NewAutoRemediationManager(collector)
-	action := &GCAction{}
-
-	// First execution should be allowed
-	if !manager.shouldExecuteAction(action) {
-		t.Fatal("expected shouldExecuteAction to be true on first call")
-	}
-
-	// Record execution
-	manager.markActionExecuted(action)
-
-	// Second execution should be blocked by cooldown
-	if manager.shouldExecuteAction(action) {
-		t.Fatal("expected shouldExecuteAction to be false immediately after execution")
-	}
-}
-
-type testRemediationAction struct {
-	name     string
-	severity int
-	executed int32
-}
-
-func (a *testRemediationAction) Name() string {
-	return a.name
-}
-
-func (a *testRemediationAction) Severity() int {
-	return a.severity
-}
-
-func (a *testRemediationAction) CanExecute(SystemMetrics) bool {
-	return true
-}
-
-func (a *testRemediationAction) Execute(context.Context) error {
-	atomic.AddInt32(&a.executed, 1)
-	return nil
-}
-
-func TestAutoRemediationManagerCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
-	collector := NewBackgroundStatsCollector()
-	collector.updateSystemMetrics(SystemMetrics{
-		GoroutineCount:      200,
-		MemoryAllocMB:       600,
-		GCPauseMs:           75,
-		AverageResponseTime: 25 * time.Millisecond,
-	})
-
-	manager := NewAutoRemediationManager(collector)
-	low := &testRemediationAction{name: "low", severity: 1}
-	high := &testRemediationAction{name: "high", severity: 5}
-	manager.actions = []RemediationAction{high, low}
-
-	manager.checkAndRemediate()
-
-	if atomic.LoadInt32(&low.executed) != 1 {
-		t.Fatalf("low severity action executions = %d, want 1", low.executed)
-	}
-	if atomic.LoadInt32(&high.executed) != 0 {
-		t.Fatalf("high severity action executions = %d, want 0 because one action executes per cycle", high.executed)
-	}
-	if manager.shouldExecuteAction(low) {
-		t.Fatal("executed action was not put on cooldown")
-	}
-}
-
-func TestAutoRemediationManagerCheckAndRemediateHandlesNilCollector(t *testing.T) {
-	manager := NewAutoRemediationManager(nil)
-	manager.checkAndRemediate()
 }

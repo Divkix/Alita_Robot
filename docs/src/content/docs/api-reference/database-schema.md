@@ -31,7 +31,7 @@ All tables use an auto-incremented `id` field as the primary key (internal ident
 
 ### Chat Membership
 
-Chat membership is managed via the JSONB `users` column on the `chats` table (an `Int64Array` of user IDs). The `ChatUser` GORM model exists in code for type safety but the physical `chat_users` join table has been dropped by migration.
+Chat membership is managed via the JSONB `users` column on the `chats` table (an `Int64Array` of user IDs). The physical `chat_users` join table was dropped by migration and there is no corresponding GORM model.
 
 ## Tables
 

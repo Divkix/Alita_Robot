@@ -42,8 +42,8 @@ func TestCheckSpammedInitializesAndTripsThreshold(t *testing.T) {
 	if info == nil || len(info.Levels) != 1 {
 		t.Fatalf("antiSpamMap[%+v] = %+v, want one level", key, info)
 	}
-	if !info.Levels[0].Spammed {
-		t.Fatal("spam level was not marked spammed")
+	if !checkSpammed(key, levels) {
+		t.Fatal("subsequent message did not stay over spam threshold")
 	}
 }
 
@@ -56,7 +56,6 @@ func TestCheckSpammedResetsExpiredWindow(t *testing.T) {
 		Limit:    3,
 		CurrTime: time.Now().Add(-2 * time.Minute),
 		Expiry:   time.Second,
-		Spammed:  true,
 	}}}
 
 	if checkSpammed(key, []antiSpamLevel{{Limit: 3, Expiry: time.Second}}) {
@@ -66,9 +65,6 @@ func TestCheckSpammedResetsExpiredWindow(t *testing.T) {
 	got := antiSpamMap[key].Levels[0]
 	if got.Count != 1 {
 		t.Fatalf("reset Count = %d, want 1 after current message", got.Count)
-	}
-	if got.Spammed {
-		t.Fatal("reset level remained spammed")
 	}
 }
 
@@ -162,7 +158,7 @@ func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
 	if info == nil || len(info.Levels) != 1 {
 		t.Fatalf("antiSpamMap[%+v] = %#v, want one spam level", key, info)
 	}
-	if !info.Levels[0].Spammed {
+	if !spamCheck(key) {
 		t.Fatal("antispam dispatcher handler did not mark user as spammed at threshold")
 	}
 }

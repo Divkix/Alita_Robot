@@ -68,7 +68,7 @@ func (r *BackupRateLimiter) CanExport(chatID int64) (bool, time.Duration) {
 // RecordExport records an export operation for rate limiting
 func (r *BackupRateLimiter) RecordExport(chatID int64) {
 	cacheKey := exportRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey)
+	r.recordOperation(cacheKey, DefaultExportCooldown)
 }
 
 // CanImport checks if an import operation is allowed for the given chat
@@ -91,7 +91,7 @@ func (r *BackupRateLimiter) CanImport(chatID int64) (bool, time.Duration) {
 // RecordImport records an import operation for rate limiting
 func (r *BackupRateLimiter) RecordImport(chatID int64) {
 	cacheKey := importRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey)
+	r.recordOperation(cacheKey, DefaultImportCooldown)
 }
 
 // CanReset checks if a reset operation is allowed for the given chat
@@ -114,7 +114,7 @@ func (r *BackupRateLimiter) CanReset(chatID int64) (bool, time.Duration) {
 // RecordReset records a reset operation for rate limiting
 func (r *BackupRateLimiter) RecordReset(chatID int64) {
 	cacheKey := resetRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey)
+	r.recordOperation(cacheKey, DefaultResetCooldown)
 }
 
 // getLastOperation retrieves the timestamp of the last operation from cache
@@ -138,26 +138,13 @@ func (r *BackupRateLimiter) getLastOperation(cacheKey string) (time.Time, error)
 }
 
 // recordOperation stores the current timestamp in cache
-func (r *BackupRateLimiter) recordOperation(cacheKey string) {
+func (r *BackupRateLimiter) recordOperation(cacheKey string, ttl time.Duration) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	m := cache.GetMarshal()
 	if m == nil {
 		return
-	}
-
-	// Determine TTL based on operation type
-	var ttl time.Duration
-	switch {
-	case len(cacheKey) > len(exportRatePrefix) && cacheKey[:len(exportRatePrefix)] == exportRatePrefix:
-		ttl = DefaultExportCooldown
-	case len(cacheKey) > len(importRatePrefix) && cacheKey[:len(importRatePrefix)] == importRatePrefix:
-		ttl = DefaultImportCooldown
-	case len(cacheKey) > len(resetRatePrefix) && cacheKey[:len(resetRatePrefix)] == resetRatePrefix:
-		ttl = DefaultResetCooldown
-	default:
-		ttl = 1 * time.Hour
 	}
 
 	if err := m.Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(ttl)); err != nil {

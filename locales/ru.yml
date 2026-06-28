@@ -219,8 +219,8 @@ connections_connect_connection_disabled: |
     Пожалуйста, попросите администраторов разрешить, если вы хотите подключиться!"
 connections_connect_tap_btn_connect: Пожалуйста, нажмите кнопку ниже, чтобы подключить этот чат к вашему ЛС.
 connections_connected: Вы в данный момент подключены к <b>%s</b>!
-connections_connections_btns_admin_conn_cmds: Доступные команды администратора:%s
-connections_connections_btns_user_conn_cmds: Доступные пользовательские команды:%s
+connections_connections_btns_admin_conn_cmds: Доступные команды администратора
+connections_connections_btns_user_conn_cmds: Доступные пользовательские команды
 connections_disconnect_disconnected: |
   Успешно отключён от подключенного чата.
 connections_disconnect_need_pm: Вам нужно отправить это мне в ЛС, чтобы отключиться от чата!

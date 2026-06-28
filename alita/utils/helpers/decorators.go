@@ -9,8 +9,6 @@ import (
 
 // Global command tracking variables
 var (
-	AdminCmds   = make([]string, 0)
-	UserCmds    = make([]string, 0)
 	DisableCmds = make([]string, 0)
 	cmdsMu      = &sync.Mutex{}
 )

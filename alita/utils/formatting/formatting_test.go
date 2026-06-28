@@ -49,13 +49,13 @@ func TestFormattingReplacerWithoutRulesDoesNotRequireDatabase(t *testing.T) {
 	}
 	input := `{first}|{last}|{fullname}|{username}|{mention}|{chatname}|{id}`
 
-	got, buttons := FormattingReplacerWithLanguage(nil, chat, user, input, nil, "en")
+	got, buttons := FormattingReplacer(nil, chat, user, input, nil)
 	want := `&lt;Ada&gt;|Lovelace &amp; Byron|&lt;Ada&gt; Lovelace &amp; Byron|@ada&lt;&amp;&gt;|@ada&lt;&amp;&gt;|&lt;Group &amp; Co&gt;|42`
 	if got != want {
-		t.Fatalf("FormattingReplacerWithLanguage() = %q, want %q", got, want)
+		t.Fatalf("FormattingReplacer() = %q, want %q", got, want)
 	}
 	if len(buttons) != 0 {
-		t.Fatalf("FormattingReplacerWithLanguage() buttons = %#v, want none", buttons)
+		t.Fatalf("FormattingReplacer() buttons = %#v, want none", buttons)
 	}
 }
 
@@ -71,17 +71,16 @@ func TestFormattingReplacerHandlesNilUserAndMemberCount(t *testing.T) {
 	}
 	chat := &gotgbot.Chat{Id: -100123, Type: "supergroup", Title: "Format Chat"}
 
-	got, buttons := FormattingReplacerWithLanguage(
+	got, buttons := FormattingReplacer(
 		bot,
 		chat,
 		nil,
 		"{first}|{fullname}|{username}|{mention}|{count}|{id}",
 		nil,
-		"en",
 	)
 	want := "PersonWithNoName|PersonWithNoName|PersonWithNoName|PersonWithNoName|42|0"
 	if got != want {
-		t.Fatalf("FormattingReplacerWithLanguage(nil user) = %q, want %q", got, want)
+		t.Fatalf("FormattingReplacer(nil user) = %q, want %q", got, want)
 	}
 	if len(buttons) != 0 {
 		t.Fatalf("buttons = %#v, want none", buttons)
@@ -117,13 +116,12 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 	rules.SetChatRules(chat.Id, "Keep it tidy.")
 	rules.SetChatRulesButton(chat.Id, "Read Rules")
 
-	got, buttons := FormattingReplacerWithLanguage(
+	got, buttons := FormattingReplacer(
 		bot,
 		chat,
 		&gotgbot.User{Id: 5, FirstName: "Ada"},
 		"before {rules:up} after",
 		[]db.Button{{Name: "Existing", Url: "https://example.com"}},
-		"en",
 	)
 	if got != "before  after" {
 		t.Fatalf("result = %q, want rules placeholder removed", got)
@@ -138,13 +136,12 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 		t.Fatalf("rules URL = %q", buttons[0].Url)
 	}
 
-	got, buttons = FormattingReplacerWithLanguage(
+	got, buttons = FormattingReplacer(
 		bot,
 		chat,
 		&gotgbot.User{Id: 5, FirstName: "Ada"},
 		"show {rules:same}",
 		nil,
-		"en",
 	)
 	if got != "show " {
 		t.Fatalf("same-line result = %q, want placeholder removed", got)

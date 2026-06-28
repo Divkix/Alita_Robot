@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -17,7 +16,7 @@ var (
 func GetManager() *LocaleManager {
 	managerOnce.Do(func() {
 		managerInstance = &LocaleManager{
-			viperCache:  make(map[string]*viper.Viper),
+			localeMaps:  make(map[string]map[string]any),
 			localeData:  make(map[string][]byte),
 			defaultLang: "en",
 		}
@@ -72,20 +71,20 @@ func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 
 	// Check if language exists, fallback to default if not
 	targetLang := langCode
-	viperInstance, exists := lm.viperCache[langCode]
+	data, exists := lm.localeMaps[langCode]
 	if !exists {
 		// Fallback to default language
 		targetLang = lm.defaultLang
-		viperInstance = lm.viperCache[lm.defaultLang]
-		if viperInstance == nil {
-			return nil, NewI18nError("get_translator", langCode, "", "default language viper not found", ErrLocaleNotFound)
+		data = lm.localeMaps[lm.defaultLang]
+		if data == nil {
+			return nil, NewI18nError("get_translator", langCode, "", "default language data not found", ErrLocaleNotFound)
 		}
 	}
 
 	return &Translator{
 		langCode:    targetLang,
 		manager:     lm,
-		viper:       viperInstance,
+		data:        data,
 		cachePrefix: fmt.Sprintf("i18n:%s:", targetLang),
 	}, nil
 }

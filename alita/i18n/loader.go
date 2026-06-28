@@ -1,12 +1,10 @@
 package i18n
 
 import (
-	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
 
@@ -67,13 +65,13 @@ func (lm *LocaleManager) loadSingleLocaleFile(filePath, langCode string) error {
 	// Store raw data
 	lm.localeData[langCode] = content
 
-	// Pre-compile viper instance
-	viperInstance, err := compileViper(content)
+	// Parse YAML into a map for key lookups
+	parsed, err := parseYAML(content)
 	if err != nil {
-		return NewI18nError("load_file", langCode, "", "failed to compile viper", err)
+		return NewI18nError("load_file", langCode, "", "failed to parse YAML", err)
 	}
 
-	lm.viperCache[langCode] = viperInstance
+	lm.localeMaps[langCode] = parsed
 
 	return nil
 }
@@ -102,16 +100,91 @@ func extractLangCode(fileName string) string {
 	return langCode
 }
 
-// compileViper creates and configures a viper instance from YAML content.
-func compileViper(content []byte) (*viper.Viper, error) {
-	vi := viper.New()
-	vi.SetConfigType("yaml")
-
-	if err := vi.ReadConfig(bytes.NewBuffer(content)); err != nil {
+// parseYAML unmarshals YAML content into a map for key lookups. yaml.v3 decodes
+// nested mappings with string keys as map[string]any, so dot-path descent is clean.
+func parseYAML(content []byte) (map[string]any, error) {
+	data := make(map[string]any)
+	if err := yaml.Unmarshal(content, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
-	return vi, nil
+	return data, nil
+}
+
+// lookup descends a parsed YAML map by a dot-separated key path and returns the
+// leaf value if present. Path segments are matched case-insensitively to replicate
+// viper's case-insensitive key behavior (e.g. "alt_names.Admin" against a config
+// where keys may differ in case).
+func lookup(data map[string]any, key string) (any, bool) {
+	if data == nil {
+		return nil, false
+	}
+
+	segments := strings.Split(key, ".")
+	var current any = data
+
+	for _, seg := range segments {
+		m, ok := current.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		value, found := lookupSegment(m, seg)
+		if !found {
+			return nil, false
+		}
+		current = value
+	}
+
+	return current, true
+}
+
+// lookupSegment resolves a single map key, preferring an exact match and falling
+// back to a case-insensitive match.
+func lookupSegment(m map[string]any, seg string) (any, bool) {
+	if value, ok := m[seg]; ok {
+		return value, true
+	}
+	for k, v := range m {
+		if strings.EqualFold(k, seg) {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+// lookupString resolves a dot-path key to its scalar value, coercing the leaf to a
+// string via fmt.Sprint (mirroring viper.GetString). Missing keys yield "".
+func lookupString(data map[string]any, key string) string {
+	value, found := lookup(data, key)
+	if !found || value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
+}
+
+// lookupStringSlice resolves a dot-path key to a []string, coercing each element of
+// a YAML sequence via fmt.Sprint and splitting a scalar string on whitespace
+// (mirroring viper.GetStringSlice). Missing keys yield an empty slice.
+func lookupStringSlice(data map[string]any, key string) []string {
+	value, found := lookup(data, key)
+	if !found || value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, elem := range v {
+			out = append(out, fmt.Sprint(elem))
+		}
+		return out
+	case string:
+		return strings.Fields(v)
+	default:
+		return strings.Fields(fmt.Sprint(v))
+	}
 }
 
 // isYAMLFile checks if a filename has a YAML extension.

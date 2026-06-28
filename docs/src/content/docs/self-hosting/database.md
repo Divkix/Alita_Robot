@@ -235,7 +235,7 @@ chat_id BIGINT NOT NULL UNIQUE  -- Ensures one row per chat
 
 ### Exception: Join Tables
 
-Chat membership is managed via the JSONB `users` column on the `chats` table, not a physical join table. The `ChatUser` GORM model exists in code for type safety only.
+Chat membership is managed via the JSONB `users` column on the `chats` table, not a physical join table. The `chat_users` join table and its GORM model have both been removed.
 
 ## Database Tables
 

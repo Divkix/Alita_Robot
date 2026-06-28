@@ -374,7 +374,7 @@ func TestNotesButtonHandlerSkipsMissingCallbackAndPropagatesRequestErrors(t *tes
 	}
 }
 
-func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
+func TestNoteOverwriteHandlerCancelAndSuccess(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
@@ -403,16 +403,21 @@ func TestNoteOverwriteHandlerCancelAndLegacySuccess(t *testing.T) {
 		t.Fatalf("cancel changed note content to %q", got)
 	}
 
-	legacyKey := strconv.FormatInt(chat.Id, 10) + "_rules"
-	notesOverwriteMap.Store(legacyKey, overwriteNote{
+	yesToken := "yes-note-token"
+	notesOverwriteMap.Store(yesToken, overwriteNote{
 		overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
 	})
-	legacyCtx := newModuleCallbackContext(bot, chat, admin, "notes.overwrite.yes."+legacyKey)
-	if err := notesModule.noteOverWriteHandler(bot, legacyCtx); err != ext.EndGroups {
-		t.Fatalf("noteOverWriteHandler(legacy yes) error = %v, want EndGroups", err)
+	yesCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("notes.overwrite", map[string]string{"a": "yes", "t": yesToken}),
+	)
+	if err := notesModule.noteOverWriteHandler(bot, yesCtx); err != ext.EndGroups {
+		t.Fatalf("noteOverWriteHandler(yes) error = %v, want EndGroups", err)
 	}
 	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "new" {
-		t.Fatalf("legacy overwrite content = %q, want new", got)
+		t.Fatalf("overwrite content = %q, want new", got)
 	}
 }
 
@@ -434,7 +439,6 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 	for _, data := range []string{
 		"notes.overwrite",
 		"notes.overwrite.maybe." + strconv.FormatInt(chat.Id, 10) + "_rules",
-		"notes.overwrite.yes.not-a-chat_rules",
 		encodeCallbackData("notes.overwrite", map[string]string{"a": "yes", "t": "missing-token"}),
 	} {
 		client := newModuleBotClient()

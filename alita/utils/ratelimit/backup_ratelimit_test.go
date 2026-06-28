@@ -128,7 +128,7 @@ func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
 	}
 
 	// Record an operation.
-	limiter.recordOperation(cacheKey)
+	limiter.recordOperation(cacheKey, DefaultExportCooldown)
 
 	// Now getLastOperation should succeed.
 	ts, err := limiter.getLastOperation(cacheKey)
@@ -141,7 +141,7 @@ func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
 
 	// Record again; timestamp should be updated (or at least not older).
 	before := time.Now()
-	limiter.recordOperation(cacheKey)
+	limiter.recordOperation(cacheKey, DefaultExportCooldown)
 	ts2, err := limiter.getLastOperation(cacheKey)
 	if err != nil {
 		t.Fatalf("unexpected error on second record: %v", err)
@@ -304,8 +304,8 @@ func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
 	limiter := &BackupRateLimiter{}
 	cacheKey := "backup:unknown:12345"
 
-	// Should not panic and should store with default 1-hour TTL.
-	limiter.recordOperation(cacheKey)
+	// Should not panic and should store with the provided 1-hour TTL.
+	limiter.recordOperation(cacheKey, time.Hour)
 
 	ts, err := limiter.getLastOperation(cacheKey)
 	if err != nil {

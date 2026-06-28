@@ -298,8 +298,8 @@ connections_connect_tap_btn_connect:
   Por favor presiona el botón de abajo para conectar este
   chat a tu PM.
 connections_connected: ¡Actualmente estás conectado a <b>%s</b>!
-connections_connections_btns_admin_conn_cmds: Comandos de administrador disponibles:%s
-connections_connections_btns_user_conn_cmds: Comandos de usuario disponibles:%s
+connections_connections_btns_admin_conn_cmds: Comandos de administrador disponibles
+connections_connections_btns_user_conn_cmds: Comandos de usuario disponibles
 connections_disconnect_disconnected: Desconectado exitosamente del chat
   conectado.
 connections_disconnect_need_pm:

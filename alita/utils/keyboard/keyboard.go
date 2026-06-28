@@ -81,12 +81,7 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 // InitButtons creates an inline keyboard markup for the connection menu.
 // Shows admin commands button if the user is an admin, otherwise shows only user commands.
 func InitButtons(b *gotgbot.Bot, chatId, userId int64) gotgbot.InlineKeyboardMarkup {
-	return InitButtonsWithLanguage(b, chatId, userId, "en")
-}
-
-// InitButtonsWithLanguage creates an inline keyboard markup with localized button text.
-func InitButtonsWithLanguage(b *gotgbot.Bot, chatId, userId int64, language string) gotgbot.InlineKeyboardMarkup {
-	tr := i18n.MustNewTranslator(language)
+	tr := i18n.MustNewTranslator("en")
 	adminText, _ := tr.GetString("helpers_admin_commands")
 	if adminText == "" {
 		adminText = "Admin commands" // fallback

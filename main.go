@@ -23,7 +23,6 @@ import (
 	dbmonitoring "github.com/divkix/Alita_Robot/alita/db/monitoring"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/modules"
-	"github.com/divkix/Alita_Robot/alita/utils/async"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
@@ -72,7 +71,7 @@ func main() {
 		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.18.2" // Fallback to hardcoded version if config wasn't loaded
+			version = "v2.19.7" // Fallback to hardcoded version if config wasn't loaded
 		}
 		fmt.Println(version)
 		os.Exit(0)
@@ -175,13 +174,6 @@ func main() {
 		log.Fatalf("Initial checks failed: %v", err)
 	}
 
-	// Initialize async processing system
-	if config.AppConfig.EnableAsyncProcessing {
-		async.InitializeAsyncProcessor()
-		// Note: defer async.StopAsyncProcessor() removed - shutdown happens via os.Exit()
-		// The stop is now handled by the shutdown manager registered below
-	}
-
 	// Create dispatcher with limited max routines and proper error recovery
 	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
 
@@ -216,15 +208,6 @@ func main() {
 
 	// Setup graceful shutdown
 	shutdownManager := shutdown.NewManager()
-
-	// Register async processor shutdown handler (if enabled)
-	if config.AppConfig.EnableAsyncProcessing {
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping async processor...")
-			async.StopAsyncProcessor()
-			return nil
-		})
-	}
 
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")

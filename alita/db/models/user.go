@@ -38,9 +38,3 @@ type Chat struct {
 func (Chat) TableName() string {
 	return "chats"
 }
-
-// ChatUser represents the many-to-many relationship between chats and users
-type ChatUser struct {
-	ChatID int64 `gorm:"column:chat_id;primaryKey" json:"chat_id"`
-	UserID int64 `gorm:"column:user_id;primaryKey" json:"user_id"`
-}

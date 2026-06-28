@@ -142,7 +142,7 @@ func TestInitButtonsReflectsAdminStatus(t *testing.T) {
 		t.Fatalf("InitButtons(admin) has empty button text: %#v", adminKb.InlineKeyboard)
 	}
 
-	userKb := InitButtonsWithLanguage(bot, -1001, 42, "en")
+	userKb := InitButtons(bot, -1001, 42)
 	if len(userKb.InlineKeyboard) != 1 {
 		t.Fatalf("InitButtons(user) rows = %d, want only user row", len(userKb.InlineKeyboard))
 	}
