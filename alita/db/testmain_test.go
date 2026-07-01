@@ -63,6 +63,12 @@ func TestMain(m *testing.M) {
 		&CaptchaMutedUsers{},
 		&ApprovedUsers{},
 		&AntiRaidSettings{},
+		&Federation{},
+		&FederationAdmin{},
+		&FederationChat{},
+		&FederationBan{},
+		&FederationSubscription{},
+		&FederationSettings{},
 	)
 	if err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)

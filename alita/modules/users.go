@@ -171,10 +171,42 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
+// logChatMember tracks users when they join a group so that moderation
+// features (e.g. federation enforcement) know which chats a user has been
+// seen in even before they send a message.
+func (moduleStruct) logChatMember(bot *gotgbot.Bot, ctx *ext.Context) error {
+	update := ctx.Update
+	chat := ctx.EffectiveChat
+	if update == nil || update.ChatMember == nil || chat == nil {
+		return ext.ContinueGroups
+	}
+
+	newMember := update.ChatMember.NewChatMember.MergeChatMember()
+	if newMember.Status != "member" && newMember.Status != "administrator" {
+		return ext.ContinueGroups
+	}
+	if newMember.User.Id == 0 {
+		return ext.ContinueGroups
+	}
+
+	go asyncUpdateChat(chat.Id, chat.Title, newMember.User.Id)
+	go asyncUpdateUser(
+		newMember.User.Id,
+		newMember.User.Username,
+		formatting.GetFullName(newMember.User.FirstName, newMember.User.LastName),
+	)
+
+	return ext.ContinueGroups
+}
+
 // LoadUsers registers the user logging handler with the dispatcher
 // to automatically track users and chats across all messages.
 func LoadUsers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, usersModule.logUsers), usersModule.handlerGroup)
+	dispatcher.AddHandler(handlers.NewChatMember(func(u *gotgbot.ChatMemberUpdated) bool {
+		newMem := u.NewChatMember.MergeChatMember()
+		return newMem.Status == "member" || newMem.Status == "administrator"
+	}, usersModule.logChatMember))
 }
 
 func init() {
