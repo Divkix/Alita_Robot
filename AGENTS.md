@@ -847,3 +847,17 @@ safeguard relies on them being major bumps or on branch-protection settings.
   (constant-time compare); they are unauthenticated (with a warning) otherwise.
 - Deep links and callback confirmation handlers **re-check permissions** (stale/
   forwarded buttons) — never remove those re-checks.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `Divkix/Alita_Robot` (use the `gh` CLI); external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles mapped to GitHub labels with their default names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
