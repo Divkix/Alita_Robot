@@ -57,18 +57,9 @@ func (lm *LocaleManager) loadSingleLocaleFile(filePath, langCode string) error {
 		return NewI18nError("load_file", langCode, "", "failed to read file", err)
 	}
 
-	// Validate YAML structure
-	if err := validateYAMLStructure(content); err != nil {
-		return NewI18nError("load_file", langCode, "", "invalid YAML structure", err)
-	}
-
-	// Store raw data
-	lm.localeData[langCode] = content
-
-	// Parse YAML into a map for key lookups
 	parsed, err := parseYAML(content)
 	if err != nil {
-		return NewI18nError("load_file", langCode, "", "failed to parse YAML", err)
+		return NewI18nError("load_file", langCode, "", "invalid YAML structure", err)
 	}
 
 	lm.localeMaps[langCode] = parsed
@@ -76,19 +67,20 @@ func (lm *LocaleManager) loadSingleLocaleFile(filePath, langCode string) error {
 	return nil
 }
 
-// validateYAMLStructure validates that the YAML content is well-formed.
-func validateYAMLStructure(content []byte) error {
+// parseYAML unmarshals a YAML mapping for key lookups. yaml.v3 decodes nested
+// mappings with string keys as map[string]any, so dot-path descent is clean.
+func parseYAML(content []byte) (map[string]any, error) {
 	var data any
 	if err := yaml.Unmarshal(content, &data); err != nil {
-		return NewI18nError("validate_yaml", "", "", "YAML parsing failed", err)
+		return nil, NewI18nError("validate_yaml", "", "", "YAML parsing failed", err)
 	}
 
-	// Check if it's a map structure (required for translations)
-	if _, ok := data.(map[string]any); !ok {
-		return NewI18nError("validate_yaml", "", "", "root element must be a map", ErrInvalidYAML)
+	parsed, ok := data.(map[string]any)
+	if !ok {
+		return nil, NewI18nError("validate_yaml", "", "", "root element must be a map", ErrInvalidYAML)
 	}
 
-	return nil
+	return parsed, nil
 }
 
 // extractLangCode extracts the language code from a filename.
@@ -98,17 +90,6 @@ func extractLangCode(fileName string) string {
 	langCode = strings.TrimSuffix(langCode, ".yml")
 	langCode = strings.TrimSuffix(langCode, ".yaml")
 	return langCode
-}
-
-// parseYAML unmarshals YAML content into a map for key lookups. yaml.v3 decodes
-// nested mappings with string keys as map[string]any, so dot-path descent is clean.
-func parseYAML(content []byte) (map[string]any, error) {
-	data := make(map[string]any)
-	if err := yaml.Unmarshal(content, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML: %w", err)
-	}
-
-	return data, nil
 }
 
 // lookup descends a parsed YAML map by a dot-separated key path and returns the

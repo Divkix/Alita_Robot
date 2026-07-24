@@ -14,7 +14,6 @@ type TranslationParams map[string]any
 type LocaleManager struct {
 	mu          sync.RWMutex
 	localeMaps  map[string]map[string]any // Parsed YAML maps per language
-	localeData  map[string][]byte         // Raw YAML data
 	cacheClient *cache.Cache[any]         // External cache for translations
 	defaultLang string
 	localeFS    *embed.FS
