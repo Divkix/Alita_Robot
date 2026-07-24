@@ -46,28 +46,24 @@ BEGIN
 END $$;
 
 -- =====================================================
--- Step 2: Drop foreign key constraints first
+-- Step 2: Drop all constraints first
 -- =====================================================
--- Drop any foreign key constraints pointing to or from chat_users
+-- Drop any constraints (foreign keys, primary key, etc.) on chat_users
 DO $$
 BEGIN
-    -- Drop foreign key constraints if they exist
     IF EXISTS (
         SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_type = 'FOREIGN KEY'
-        AND table_name = 'chat_users'
+        WHERE table_name = 'chat_users'
     ) THEN
-        -- Drop constraints dynamically
         DECLARE
             constraint_record RECORD;
         BEGIN
             FOR constraint_record IN
                 SELECT constraint_name
                 FROM information_schema.table_constraints
-                WHERE constraint_type = 'FOREIGN KEY'
-                AND table_name = 'chat_users'
+                WHERE table_name = 'chat_users'
             LOOP
-                EXECUTE 'ALTER TABLE chat_users DROP CONSTRAINT IF EXISTS ' || constraint_record.constraint_name;
+                EXECUTE 'ALTER TABLE chat_users DROP CONSTRAINT IF EXISTS ' || quote_ident(constraint_record.constraint_name);
                 RAISE NOTICE 'Dropped constraint: %', constraint_record.constraint_name;
             END LOOP;
         END;
@@ -88,7 +84,7 @@ BEGIN
         WHERE tablename = 'chat_users'
         AND schemaname = 'public'
     LOOP
-        EXECUTE 'DROP INDEX IF EXISTS ' || index_record.indexname;
+        EXECUTE 'DROP INDEX IF EXISTS ' || quote_ident(index_record.indexname);
         RAISE NOTICE 'Dropped index: %', index_record.indexname;
     END LOOP;
 END $$;

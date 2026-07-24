@@ -52,6 +52,12 @@ type (
 	StoredMessages         = models.StoredMessages
 	CaptchaMutedUsers      = models.CaptchaMutedUsers
 	AntiRaidSettings       = models.AntiRaidSettings
+	Federation             = models.Federation
+	FederationAdmin        = models.FederationAdmin
+	FederationChat         = models.FederationChat
+	FederationBan          = models.FederationBan
+	FederationSubscription = models.FederationSubscription
+	FederationSettings     = models.FederationSettings
 )
 
 // Message type constants - maintain compatibility with existing code

@@ -88,6 +88,7 @@ const (
 	BackupModuleCaptcha     = "captcha"
 	BackupModuleConnections = "connections"
 	BackupModuleDisabling   = "disabling"
+	BackupModuleFederations = "federations"
 	BackupModuleFilters     = "filters"
 	BackupModuleGreetings   = "greetings"
 	BackupModuleLocks       = "locks"
@@ -109,6 +110,7 @@ func AllExportableModules() []string {
 		BackupModuleCaptcha,
 		BackupModuleConnections,
 		BackupModuleDisabling,
+		BackupModuleFederations,
 		BackupModuleFilters,
 		BackupModuleGreetings,
 		BackupModuleLocks,
@@ -228,4 +230,10 @@ type AntiraidBackup struct {
 // ApprovalsBackup represents approved users backup data
 type ApprovalsBackup struct {
 	ApprovedUsers []models.ApprovedUsers `json:"approved_users,omitempty"`
+}
+
+// FederationsBackup represents federation membership backup data for a chat.
+type FederationsBackup struct {
+	FedID string `json:"fed_id,omitempty"`
+	Name  string `json:"name,omitempty"`
 }
