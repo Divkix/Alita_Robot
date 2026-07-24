@@ -22,7 +22,6 @@ import (
 type MigrationRunner struct {
 	db             *gorm.DB
 	migrationsPath string
-	cleanSQL       bool
 }
 
 // SchemaMigration represents a migration record in the database
@@ -42,7 +41,6 @@ func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 	return &MigrationRunner{
 		db:             db,
 		migrationsPath: config.AppConfig.MigrationsPath,
-		cleanSQL:       true, // Always clean Supabase-specific SQL
 	}
 }
 
@@ -391,11 +389,8 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 		return fmt.Errorf("failed to read migration file: %w", err)
 	}
 
-	// Clean SQL if needed
-	sql := string(content)
-	if m.cleanSQL {
-		sql = m.cleanSupabaseSQL(sql)
-	}
+	// Clean Supabase-specific SQL before splitting statements.
+	sql := cleanSupabaseSQL(string(content))
 
 	// Split SQL into individual statements
 	statements := m.splitSQLStatements(sql)
@@ -468,7 +463,7 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 }
 
 // cleanSupabaseSQL removes Supabase-specific SQL commands
-func (m *MigrationRunner) cleanSupabaseSQL(sql string) string {
+func cleanSupabaseSQL(sql string) string {
 	// List of Supabase-specific extensions that are not available in standard PostgreSQL
 	// These extensions are pre-installed in Supabase but will fail on regular PostgreSQL
 	supabaseOnlyExtensions := []string{

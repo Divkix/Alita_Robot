@@ -29,7 +29,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
-	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
 	"github.com/divkix/Alita_Robot/alita/utils/monitoring"
 	"github.com/divkix/Alita_Robot/alita/utils/shutdown"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
@@ -240,13 +239,6 @@ func main() {
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Shutting down tracer provider...")
 		return tracing.Shutdown(context.Background())
-	})
-
-	// Register keyword matcher cache shutdown handler
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Stopping keyword matcher cache...")
-		keyword_matcher.GetGlobalCache().Stop()
-		return nil
 	})
 
 	// Register anti-raid expiry poller shutdown handler

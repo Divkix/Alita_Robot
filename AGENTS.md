@@ -286,9 +286,8 @@ DB closes.
 
 ### Registry (`alita/modules/registry.go`)
 
-- `RegisterModule(m Module)` (interface `Name()/Priority()/Load(dispatcher)`) or
-  `RegisterLegacyModule(name, priority, loadFunc)` (wraps a `LoadXxx`). Dedup is by
-  `Name()` (duplicates silently ignored, first wins).
+- `RegisterLegacyModule(name, priority, loadFunc)` appends a `registeredModule`
+  record. Dedup is by name (duplicates silently ignored, first wins).
 - `LoadAllModules` stable-sorts **ascending** by priority. **Lower number loads
   earlier.** `alita.LoadModules` inits `AbleMap`, **defers `LoadHelp`** (so Help
   renders after every module pushed its metadata), then `LoadAllModules`.
@@ -308,8 +307,8 @@ DB closes.
 |     |        | 160 | Notes | 260 | Formatting |
 |     |        | 170 | Connections | 270 | Backup |
 
-Help is not in the registry (deferred-last). `bot_updates.go` is the **only**
-module using the new `Module` interface directly; all others use `RegisterLegacyModule`.
+Help is not in the registry (deferred-last). Every module, including BotUpdates,
+uses `RegisterLegacyModule`.
 
 ### `moduleStruct` and the help registry (`core.go`)
 

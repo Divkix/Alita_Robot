@@ -12,7 +12,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -43,11 +42,11 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 
 	for _, i := range listModulesFrom(registry) {
 		kb = append(kb, gotgbot.InlineKeyboardButton{
-			Text: i,
+			Text:         i,
 			CallbackData: encodeCallbackData("helpq", map[string]string{"m": i}),
 		})
 	}
-	zb := keyboard.ChunkKeyboardSlices(kb, 3)
+	zb := slices.Collect(slices.Chunk(kb, 3))
 	tr := i18n.MustNewTranslator("en")
 	backText, _ := tr.GetString("helpers_back_button")
 	zb = append(zb, []gotgbot.InlineKeyboardButton{{

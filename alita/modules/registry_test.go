@@ -9,26 +9,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 )
 
-type testRegistryModule struct {
-	name     string
-	priority int
-	load     func()
-}
-
-func (m testRegistryModule) Name() string {
-	return m.name
-}
-
-func (m testRegistryModule) Priority() int {
-	return m.priority
-}
-
-func (m testRegistryModule) Load(_ *ext.Dispatcher) {
-	if m.load != nil {
-		m.load()
-	}
-}
-
 func withIsolatedRegistry(t *testing.T) {
 	t.Helper()
 
@@ -39,19 +19,19 @@ func withIsolatedRegistry(t *testing.T) {
 	})
 }
 
-func TestLoadAllModulesUsesPriorityOrder(t *testing.T) {
+func TestLoadAllModulesUsesStablePriorityOrder(t *testing.T) {
 	withIsolatedRegistry(t)
 
 	var loaded []string
-	RegisterModule(testRegistryModule{name: "third", priority: 30, load: func() {
+	RegisterLegacyModule("third", 30, func(_ *ext.Dispatcher) {
 		loaded = append(loaded, "third")
-	}})
-	RegisterModule(testRegistryModule{name: "first", priority: 10, load: func() {
+	})
+	RegisterLegacyModule("first", 10, func(_ *ext.Dispatcher) {
 		loaded = append(loaded, "first")
-	}})
-	RegisterModule(testRegistryModule{name: "second", priority: 20, load: func() {
+	})
+	RegisterLegacyModule("second", 10, func(_ *ext.Dispatcher) {
 		loaded = append(loaded, "second")
-	}})
+	})
 
 	LoadAllModules(nil)
 
@@ -61,16 +41,16 @@ func TestLoadAllModulesUsesPriorityOrder(t *testing.T) {
 	}
 }
 
-func TestRegisterModuleIgnoresDuplicateNames(t *testing.T) {
+func TestRegisterLegacyModuleIgnoresDuplicateNames(t *testing.T) {
 	withIsolatedRegistry(t)
 
 	var loaded []string
-	RegisterModule(testRegistryModule{name: "duplicate", priority: 20, load: func() {
+	RegisterLegacyModule("duplicate", 20, func(_ *ext.Dispatcher) {
 		loaded = append(loaded, "first")
-	}})
-	RegisterModule(testRegistryModule{name: "duplicate", priority: 10, load: func() {
+	})
+	RegisterLegacyModule("duplicate", 10, func(_ *ext.Dispatcher) {
 		loaded = append(loaded, "second")
-	}})
+	})
 
 	LoadAllModules(nil)
 
@@ -80,7 +60,7 @@ func TestRegisterModuleIgnoresDuplicateNames(t *testing.T) {
 	}
 }
 
-func TestRegisterLegacyModuleAdaptsLoader(t *testing.T) {
+func TestRegisterLegacyModuleLoadsLoader(t *testing.T) {
 	withIsolatedRegistry(t)
 
 	called := false
@@ -93,6 +73,13 @@ func TestRegisterLegacyModuleAdaptsLoader(t *testing.T) {
 	if !called {
 		t.Fatal("RegisterLegacyModule did not adapt and load the legacy function")
 	}
+}
+
+func TestRegisterLegacyModuleAllowsNilLoader(t *testing.T) {
+	withIsolatedRegistry(t)
+
+	RegisterLegacyModule("nil", 1, nil)
+	LoadAllModules(nil)
 }
 
 type recordingHandler struct {
@@ -177,7 +164,7 @@ func TestRegisteredModulesRespectGotgbotDefaultGroupSemantics(t *testing.T) {
 func TestDefaultRegistryIncludesEveryRuntimeModule(t *testing.T) {
 	got := make([]string, 0, len(registry))
 	for _, module := range registry {
-		got = append(got, module.Name())
+		got = append(got, module.name)
 	}
 	slices.Sort(got)
 

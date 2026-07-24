@@ -387,11 +387,11 @@ func TestVerifyAnonymousAdminRestoresCachedMessageAndDeletesButton(t *testing.T)
 
 func TestBotUpdatesLoadersRegisterExpectedHandlers(t *testing.T) {
 	moduleDispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	botUpdatesModule{}.Load(moduleDispatcher)
+	LoadBotUpdates(moduleDispatcher)
 	if removed := moduleDispatcher.RemoveGroup(-1); !removed {
-		t.Fatal("botUpdatesModule.Load did not register join handler in group -1")
+		t.Fatal("LoadBotUpdates did not register join handler in group -1")
 	}
 	if removed := moduleDispatcher.RemoveGroup(0); !removed {
-		t.Fatal("botUpdatesModule.Load did not register standard handlers in group 0")
+		t.Fatal("LoadBotUpdates did not register standard handlers in group 0")
 	}
 }
