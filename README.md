@@ -20,7 +20,7 @@ Prerequisites: Docker, Docker Compose, a Telegram bot token from
 git clone https://github.com/divkix/Alita_Robot.git
 cd Alita_Robot
 cp sample.env .env
-# Set BOT_TOKEN, OWNER_ID, and MESSAGE_DUMP in .env.
+# Set BOT_TOKEN, OWNER_ID, MESSAGE_DUMP, WEBHOOK_DOMAIN, and WEBHOOK_SECRET in .env.
 docker compose up -d
 docker compose logs -f alita
 ```
