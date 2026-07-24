@@ -30,7 +30,7 @@ func RegisterLegacyModule(name string, priority int, load func(*ext.Dispatcher))
 }
 
 // LoadAllModules sorts registered modules by ascending priority and
-// calls Load on each one.
+// calls each loader.
 func LoadAllModules(dispatcher *ext.Dispatcher) {
 	mods := append([]registeredModule(nil), registry...)
 

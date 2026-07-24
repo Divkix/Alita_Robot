@@ -71,7 +71,7 @@ func TestRegisterLegacyModuleLoadsLoader(t *testing.T) {
 	LoadAllModules(nil)
 
 	if !called {
-		t.Fatal("RegisterLegacyModule did not adapt and load the legacy function")
+		t.Fatal("RegisterLegacyModule did not call loader")
 	}
 }
 
