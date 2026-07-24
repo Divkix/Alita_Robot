@@ -19,12 +19,8 @@ import (
 // Config holds the generator configuration
 type Config struct {
 	// Source paths (relative to project root)
-	LocalesPath    string
-	ModulesPath    string
-	ConfigPath     string
-	MigrationsPath string
-	SampleEnvPath  string
-	ChatStatusPath string // Path to chat_status.go for permission parsing
+	LocalesPath string
+	ModulesPath string
 
 	// Output path
 	DocsOutputPath string
@@ -53,36 +49,6 @@ type Command struct {
 	Aliases     []string
 }
 
-// EnvVar represents an environment variable
-type EnvVar struct {
-	Name        string
-	Type        string
-	Required    bool
-	Default     string
-	Description string
-	Validation  string
-	Category    string
-}
-
-// DBTable represents a database table
-type DBTable struct {
-	Name        string
-	Description string
-	Columns     []DBColumn
-	Indexes     []string
-	ForeignKeys []string
-}
-
-// DBColumn represents a database column
-type DBColumn struct {
-	Name       string
-	Type       string
-	Nullable   bool
-	Default    string
-	PrimaryKey bool
-	Unique     bool
-}
-
 // Callback represents a callback query handler registration
 type Callback struct {
 	Prefix     string // e.g., "restrict."
@@ -91,26 +57,12 @@ type Callback struct {
 	SourceFile string // e.g., "bans.go"
 }
 
-// PermissionFunc represents a permission checking function
-type PermissionFunc struct {
-	Name        string   // e.g., "CanUserRestrict"
-	Signature   string   // Full function signature
-	Parameters  []string // Parameter list
-	ReturnType  string   // e.g., "bool"
-	Category    string   // e.g., "User Permission Checks"
-	Description string   // From comment above function
-}
-
 var config Config
 
 func main() {
 	// Parse flags
 	flag.StringVar(&config.LocalesPath, "locales", "locales", "Path to locales directory")
 	flag.StringVar(&config.ModulesPath, "modules", "alita/modules", "Path to modules directory")
-	flag.StringVar(&config.ConfigPath, "config", "alita/config/config.go", "Path to config.go")
-	flag.StringVar(&config.MigrationsPath, "migrations", "migrations", "Path to migrations directory")
-	flag.StringVar(&config.SampleEnvPath, "sample-env", "sample.env", "Path to sample.env")
-	flag.StringVar(&config.ChatStatusPath, "chat-status", "alita/utils/chat_status/chat_status.go", "Path to chat_status.go")
 	flag.StringVar(&config.DocsOutputPath, "output", "docs/src/content/docs", "Output path for generated docs")
 	var inventoryMode bool
 	flag.BoolVar(&config.Verbose, "verbose", false, "Enable verbose logging")
@@ -156,36 +108,6 @@ func main() {
 	}
 	log.Infof("   Found %d commands", len(commands))
 
-	log.Info("⚙️  Parsing environment variables...")
-	envVars, err := parseConfigStruct(filepath.Join(projectRoot, config.ConfigPath))
-	if err != nil {
-		log.Fatalf("Failed to parse config: %v", err)
-	}
-	log.Infof("   Found %d environment variables", len(envVars))
-
-	log.Info("🗄️  Parsing database schema...")
-	tables, err := parseMigrations(filepath.Join(projectRoot, config.MigrationsPath))
-	if err != nil {
-		log.Fatalf("Failed to parse migrations: %v", err)
-	}
-	log.Infof("   Found %d database tables", len(tables))
-
-	// Parse callbacks
-	log.Info("🔔 Parsing callbacks from modules...")
-	callbacks, err := parseCallbacks(filepath.Join(projectRoot, config.ModulesPath))
-	if err != nil {
-		log.Fatalf("Failed to parse callbacks: %v", err)
-	}
-	log.Infof("   Found %d callback handlers", len(callbacks))
-
-	// Parse permissions
-	log.Info("🔐 Parsing permission functions...")
-	permissions, err := parsePermissions(filepath.Join(projectRoot, config.ChatStatusPath))
-	if err != nil {
-		log.Fatalf("Failed to parse permissions: %v", err)
-	}
-	log.Infof("   Found %d permission functions", len(permissions))
-
 	// Parse lock types
 	log.Info("🔒 Parsing lock types...")
 	lockTypes, err := parseLockTypes(filepath.Join(projectRoot, config.ModulesPath, "locks.go"))
@@ -208,33 +130,6 @@ func main() {
 
 	if err := generateModuleDocs(modules, outputPath); err != nil {
 		log.Fatalf("Failed to generate module docs: %v", err)
-	}
-
-	if err := generateCommandReference(modules, outputPath); err != nil {
-		log.Fatalf("Failed to generate command reference: %v", err)
-	}
-
-	if err := generateEnvReference(envVars, outputPath); err != nil {
-		log.Fatalf("Failed to generate env reference: %v", err)
-	}
-
-	if err := generateSchemaReference(tables, outputPath); err != nil {
-		log.Fatalf("Failed to generate schema reference: %v", err)
-	}
-
-	if err := generateCommandsOverview(modules, outputPath); err != nil {
-		log.Fatalf("Failed to generate commands overview: %v", err)
-	}
-
-	// Generate callbacks reference
-	if err := generateCallbacksReference(callbacks, outputPath); err != nil {
-		log.Fatalf("Failed to generate callbacks reference: %v", err)
-	}
-	log.Info("Generated: api-reference/callbacks.md")
-
-	// Generate permissions reference
-	if err := generatePermissionsReference(permissions, outputPath); err != nil {
-		log.Fatalf("Failed to generate permissions reference: %v", err)
 	}
 
 	// Generate lock types reference

@@ -315,31 +315,6 @@ func TestParseMessageWatchers_EmptyDir(t *testing.T) {
 	}
 }
 
-func TestCamelToScreamingSnake(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"BotToken", "BOT_TOKEN"},
-		{"DatabaseURL", "DATABASE_URL"},
-		{"DBMaxIdleConns", "DB_MAX_IDLE_CONNS"},
-		{"DBConnMaxIdleTimeMin", "DB_CONN_MAX_IDLE_TIME_MIN"},
-		{"HTTPPort", "HTTP_PORT"},
-		{"EnablePPROF", "ENABLE_PPROF"},
-		{"RedisAddress", "REDIS_ADDRESS"},
-		{"UseWebhooks", "USE_WEBHOOKS"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := camelToScreamingSnake(tt.input)
-			if got != tt.expected {
-				t.Errorf("camelToScreamingSnake(%q) = %q, want %q", tt.input, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestParseMessageWatchers_NoWatchers(t *testing.T) {
 	tmpDir := t.TempDir()
 

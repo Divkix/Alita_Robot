@@ -705,12 +705,11 @@ m != nil`) — every helper bails when it's nil.
 ## 17. Scripts & tooling
 
 - **`scripts/generate_docs/`** — `package main` in the **root module** (`go run .`),
-  regex/text parsers (not AST) of locales/modules/config/migrations/chat_status/
-  locks → Starlight Markdown. ⚠️ Most generated files carry a
-  `<!-- MANUALLY MAINTAINED: do not regenerate -->` sentinel, so `make generate-docs`
-  is effectively a no-op except `api-reference/lock-types.md`; editing the frozen
-  files by hand is the intended workflow. Lock descriptions are hardcoded in
-  `getLockDescription()`. `-inventory` writes `.planning/INVENTORY.{json,md}`.
+  regex/text parsers (not AST) of locales/modules/locks → Starlight Markdown. Normal
+  generation updates only `commands/users/index.md` and `api-reference/lock-types.md`;
+  frozen files are hand-maintained. Lock descriptions are hardcoded in
+  `getLockDescription()`. `-inventory` separately parses commands, callbacks, and
+  message watchers, then writes `.planning/INVENTORY.{json,md}`.
 - **`scripts/check_translations/`** — a **separate Go module** (own `go.mod`); cannot
   import `alita`; uses hardcoded `../../alita` and `../../locales`. Only validates
   **string-literal** keys passed to `tr.GetString`/`GetStringSlice`.
