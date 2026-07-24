@@ -71,7 +71,7 @@ func TestIsYAMLFile(t *testing.T) {
 	}
 }
 
-func TestValidateYAMLStructure(t *testing.T) {
+func TestParseYAML(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -115,12 +115,12 @@ func TestValidateYAMLStructure(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := validateYAMLStructure(tc.content)
+			_, err := parseYAML(tc.content)
 			if tc.wantErr && err == nil {
-				t.Fatalf("validateYAMLStructure() = nil, want non-nil error")
+				t.Fatalf("parseYAML() = nil, want non-nil error")
 			}
 			if !tc.wantErr && err != nil {
-				t.Fatalf("validateYAMLStructure() = %v, want nil", err)
+				t.Fatalf("parseYAML() = %v, want nil", err)
 			}
 		})
 	}
@@ -306,7 +306,6 @@ func newTestTranslator(t *testing.T, yamlContent string) *Translator {
 	lm := &LocaleManager{
 		defaultLang: "en",
 		localeMaps:  map[string]map[string]any{"en": data},
-		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 	}
 	return &Translator{
 		langCode:    "en",
@@ -424,7 +423,6 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 		lm := &LocaleManager{
 			defaultLang: "en",
 			localeMaps:  map[string]map[string]any{"en": data},
-			localeData:  map[string][]byte{"en": []byte(enYAML)},
 		}
 
 		// localeFS is nil so GetTranslator returns ErrManagerNotInit.
@@ -447,12 +445,11 @@ func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 	// Build a local LocaleManager with known locales.
 	lm := &LocaleManager{
 		defaultLang: "en",
-		localeMaps:  make(map[string]map[string]any),
-		localeData: map[string][]byte{
-			"en": []byte("language_name: English\n"),
-			"es": []byte("language_name: Spanish\n"),
-			"fr": []byte("language_name: French\n"),
-			"hi": []byte("language_name: Hindi\n"),
+		localeMaps: map[string]map[string]any{
+			"en": {"language_name": "English"},
+			"es": {"language_name": "Spanish"},
+			"fr": {"language_name": "French"},
+			"hi": {"language_name": "Hindi"},
 		},
 	}
 
@@ -478,7 +475,6 @@ func newTestLocaleManager() *LocaleManager {
 	return &LocaleManager{
 		defaultLang: "en",
 		localeMaps:  make(map[string]map[string]any),
-		localeData:  make(map[string][]byte),
 	}
 }
 

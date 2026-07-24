@@ -305,7 +305,7 @@ func TestCacheStopPreventsGoroutineLeak(t *testing.T) {
 	// Create a done channel to verify goroutine exits
 	done := make(chan struct{})
 
-	// Start a mock cleanup goroutine similar to GetGlobalCache
+	// Start a mock cleanup goroutine similar to GetNamedCache.
 	go func() {
 		defer close(done)
 		ticker := time.NewTicker(100 * time.Millisecond)

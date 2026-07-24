@@ -286,9 +286,8 @@ DB closes.
 
 ### Registry (`alita/modules/registry.go`)
 
-- `RegisterModule(m Module)` (interface `Name()/Priority()/Load(dispatcher)`) or
-  `RegisterLegacyModule(name, priority, loadFunc)` (wraps a `LoadXxx`). Dedup is by
-  `Name()` (duplicates silently ignored, first wins).
+- `RegisterLegacyModule(name, priority, loadFunc)` appends a `registeredModule`
+  record. Dedup is by name (duplicates silently ignored, first wins).
 - `LoadAllModules` stable-sorts **ascending** by priority. **Lower number loads
   earlier.** `alita.LoadModules` inits `AbleMap`, **defers `LoadHelp`** (so Help
   renders after every module pushed its metadata), then `LoadAllModules`.
@@ -308,8 +307,8 @@ DB closes.
 |     |        | 160 | Notes | 260 | Formatting |
 |     |        | 170 | Connections | 270 | Backup |
 
-Help is not in the registry (deferred-last). `bot_updates.go` is the **only**
-module using the new `Module` interface directly; all others use `RegisterLegacyModule`.
+Help is not in the registry (deferred-last). Every module, including BotUpdates,
+uses `RegisterLegacyModule`.
 
 ### `moduleStruct` and the help registry (`core.go`)
 
@@ -705,12 +704,11 @@ m != nil`) — every helper bails when it's nil.
 ## 17. Scripts & tooling
 
 - **`scripts/generate_docs/`** — `package main` in the **root module** (`go run .`),
-  regex/text parsers (not AST) of locales/modules/config/migrations/chat_status/
-  locks → Starlight Markdown. ⚠️ Most generated files carry a
-  `<!-- MANUALLY MAINTAINED: do not regenerate -->` sentinel, so `make generate-docs`
-  is effectively a no-op except `api-reference/lock-types.md`; editing the frozen
-  files by hand is the intended workflow. Lock descriptions are hardcoded in
-  `getLockDescription()`. `-inventory` writes `.planning/INVENTORY.{json,md}`.
+  regex/text parsers (not AST) of locales/modules/locks → Starlight Markdown. Normal
+  generation updates only `commands/users/index.md` and `api-reference/lock-types.md`;
+  frozen files are hand-maintained. Lock descriptions are hardcoded in
+  `getLockDescription()`. `-inventory` separately parses commands, callbacks, and
+  message watchers, then writes `.planning/INVENTORY.{json,md}`.
 - **`scripts/check_translations/`** — a **separate Go module** (own `go.mod`); cannot
   import `alita`; uses hardcoded `../../alita` and `../../locales`. Only validates
   **string-literal** keys passed to `tr.GetString`/`GetStringSlice`.

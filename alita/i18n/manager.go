@@ -17,7 +17,6 @@ func GetManager() *LocaleManager {
 	managerOnce.Do(func() {
 		managerInstance = &LocaleManager{
 			localeMaps:  make(map[string]map[string]any),
-			localeData:  make(map[string][]byte),
 			defaultLang: "en",
 		}
 	})
@@ -53,7 +52,7 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 	}
 
 	// Validate default language exists
-	if _, exists := lm.localeData[lm.defaultLang]; !exists {
+	if _, exists := lm.localeMaps[lm.defaultLang]; !exists {
 		return NewI18nError("initialize", lm.defaultLang, "", "default language not found", ErrLocaleNotFound)
 	}
 
@@ -94,8 +93,8 @@ func (lm *LocaleManager) GetAvailableLanguages() []string {
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
 
-	languages := make([]string, 0, len(lm.localeData))
-	for langCode := range lm.localeData {
+	languages := make([]string, 0, len(lm.localeMaps))
+	for langCode := range lm.localeMaps {
 		languages = append(languages, langCode)
 	}
 	return languages

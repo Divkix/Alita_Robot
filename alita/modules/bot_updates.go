@@ -192,7 +192,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	ctx.EffectiveMessage = msg        // set the message to the message that was originally used when command was given
+	ctx.EffectiveMessage = msg            // set the message to the message that was originally used when command was given
 	ctx.EffectiveMessage.SenderChat = nil // make senderChat nil to avoid chat_status.isAnonAdmin to mistaken user for GroupAnonymousBot
 	ctx.CallbackQuery = nil               // callback query is not needed anymore
 
@@ -227,23 +227,9 @@ func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
 	return result.(*gotgbot.Message), nil
 }
 
-type botUpdatesModule struct {
-	moduleStruct
-}
-
-// Name returns the module name.
-func (botUpdatesModule) Name() string {
-	return "BotUpdates"
-}
-
-// Priority returns the load priority. Negative values load before standard modules.
-func (botUpdatesModule) Priority() int {
-	return -10
-}
-
-// Load registers bot event handlers for group management.
+// LoadBotUpdates registers bot event handlers for group management.
 // Sets up handlers for bot joins, admin updates, and anonymous admin verification.
-func (m botUpdatesModule) Load(dispatcher *ext.Dispatcher) {
+func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMyChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
@@ -267,7 +253,5 @@ func (m botUpdatesModule) Load(dispatcher *ext.Dispatcher) {
 }
 
 func init() {
-	RegisterModule(botUpdatesModule{moduleStruct{moduleName: "BotUpdates"}})
+	RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates)
 }
-
-

@@ -16,7 +16,6 @@ func NewTestTranslator(yamlContent string) (*Translator, error) {
 	lm := &LocaleManager{
 		defaultLang: "en",
 		localeMaps:  map[string]map[string]any{"en": data},
-		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 	}
 	return &Translator{
 		langCode:    "en",
@@ -44,7 +43,6 @@ func OverrideManagerForTest(yamlContent string) (restore func(), err error) {
 	lm := &LocaleManager{
 		defaultLang: "en",
 		localeMaps:  map[string]map[string]any{"en": data},
-		localeData:  map[string][]byte{"en": []byte(yamlContent)},
 		localeFS:    &dummyFS,
 	}
 	// Ensure managerOnce.Do has already fired before we overwrite managerInstance.

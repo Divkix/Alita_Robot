@@ -41,9 +41,9 @@ func skipIfNoDb(t *testing.T) {
 }
 
 // newTestRunner returns a MigrationRunner with nil db suitable for testing
-// pure functions like cleanSupabaseSQL and splitSQLStatements.
+// splitSQLStatements.
 func newTestRunner() *MigrationRunner {
-	return &MigrationRunner{db: nil, migrationsPath: "", cleanSQL: true}
+	return &MigrationRunner{db: nil, migrationsPath: ""}
 }
 
 // ---------------------------------------------------------------------------
@@ -63,8 +63,6 @@ func TestSchemaMigrationTableName(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCleanSupabaseSQL(t *testing.T) {
-
-	runner := newTestRunner()
 
 	tests := []struct {
 		name      string
@@ -135,7 +133,7 @@ func TestCleanSupabaseSQL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			got := runner.cleanSupabaseSQL(tc.input)
+			got := cleanSupabaseSQL(tc.input)
 
 			for _, want := range tc.wantParts {
 				if want != "" && !strings.Contains(got, want) {
@@ -153,8 +151,6 @@ func TestCleanSupabaseSQL(t *testing.T) {
 }
 
 func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
-
-	runner := newTestRunner()
 
 	tests := []struct {
 		name      string
@@ -254,7 +250,7 @@ GRANT INSERT ON profiles TO authenticated;`,
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			got := runner.cleanSupabaseSQL(tc.input)
+			got := cleanSupabaseSQL(tc.input)
 
 			for _, want := range tc.wantParts {
 				if want != "" && !strings.Contains(got, want) {
@@ -416,7 +412,7 @@ func TestGetMigrationFiles(t *testing.T) {
 	t.Run("empty directory returns empty slice no error", func(t *testing.T) {
 
 		dir := t.TempDir()
-		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
+		runner := &MigrationRunner{db: nil, migrationsPath: dir}
 
 		files, err := runner.getMigrationFiles()
 		if err != nil {
@@ -437,7 +433,7 @@ func TestGetMigrationFiles(t *testing.T) {
 			}
 		}
 
-		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
+		runner := &MigrationRunner{db: nil, migrationsPath: dir}
 		files, err := runner.getMigrationFiles()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -459,7 +455,7 @@ func TestGetMigrationFiles(t *testing.T) {
 
 	t.Run("non-existent path returns error", func(t *testing.T) {
 
-		runner := &MigrationRunner{db: nil, migrationsPath: "/tmp/nonexistent-migrations-dir-alita-test", cleanSQL: true}
+		runner := &MigrationRunner{db: nil, migrationsPath: "/tmp/nonexistent-migrations-dir-alita-test"}
 		_, err := runner.getMigrationFiles()
 		if err == nil {
 			t.Fatalf("expected error for non-existent path, got nil")
@@ -483,7 +479,7 @@ func TestGetMigrationFiles(t *testing.T) {
 			}
 		}
 
-		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
+		runner := &MigrationRunner{db: nil, migrationsPath: dir}
 		files, err := runner.getMigrationFiles()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -511,7 +507,7 @@ func TestGetMigrationFiles(t *testing.T) {
 			}
 		}
 
-		runner := &MigrationRunner{db: nil, migrationsPath: dir, cleanSQL: true}
+		runner := &MigrationRunner{db: nil, migrationsPath: dir}
 		files, err := runner.getMigrationFiles()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -556,7 +552,7 @@ INSERT INTO migration_runner_test_items (id, name) VALUES (1, 'first');
 		}
 	})
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.RunMigrations(); err != nil {
 		t.Fatalf("RunMigrations() first run error = %v", err)
 	}
@@ -594,7 +590,7 @@ func TestApplyMigration_EmptyFileDoesNotRecordVersion(t *testing.T) {
 		t.Fatalf("failed to write empty migration file: %v", err)
 	}
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.ensureMigrationsTable(); err != nil {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
 	}
@@ -621,7 +617,7 @@ INSERT INTO migration_runner_missing_table (id) VALUES (1);
 		t.Fatalf("failed to write rollback migration file: %v", err)
 	}
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.ensureMigrationsTable(); err != nil {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
 	}
@@ -644,7 +640,7 @@ func TestApplyMigration_RejectsUnsafePath(t *testing.T) {
 	skipIfNoDb(t)
 
 	dir := t.TempDir()
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 
 	tests := []struct {
 		name string
@@ -677,9 +673,6 @@ func TestNewMigrationRunnerUsesConfiguredPath(t *testing.T) {
 	runner := NewMigrationRunner(&gorm.DB{})
 	if runner.migrationsPath != "custom-migrations" {
 		t.Fatalf("migrationsPath = %q, want custom-migrations", runner.migrationsPath)
-	}
-	if !runner.cleanSQL {
-		t.Fatal("cleanSQL = false, want true")
 	}
 }
 
@@ -848,7 +841,7 @@ func TestApplyMigrationStoresChecksum(t *testing.T) {
 		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
 	})
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.ensureMigrationsTable(); err != nil {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
 	}
@@ -894,7 +887,7 @@ func TestRunMigrationsDetectsChecksumMismatch(t *testing.T) {
 		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
 	})
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.RunMigrations(); err != nil {
 		t.Fatalf("RunMigrations() first run error = %v", err)
 	}
@@ -939,7 +932,7 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
 	})
 
-	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir, cleanSQL: true}
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.ensureMigrationsTable(); err != nil {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
 	}

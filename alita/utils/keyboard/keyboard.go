@@ -3,6 +3,7 @@ package keyboard
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
@@ -38,23 +39,6 @@ func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 	return keyb
 }
 
-// ChunkKeyboardSlices splits a slice of inline keyboard buttons into chunks of specified size.
-// Used for creating organized help menu keyboards with consistent row layouts.
-func ChunkKeyboardSlices(slice []gotgbot.InlineKeyboardButton, chunkSize int) (chunks [][]gotgbot.InlineKeyboardButton) {
-	if chunkSize <= 0 {
-		return nil
-	}
-	for len(slice) > 0 {
-		if len(slice) < chunkSize {
-			chunkSize = len(slice)
-		}
-
-		chunks = append(chunks, slice[0:chunkSize])
-		slice = slice[chunkSize:]
-	}
-	return
-}
-
 // MakeLanguageKeyboard creates an inline keyboard with all available language options.
 // Uses valid language codes from config and chunks them into 2-column layout.
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
@@ -75,7 +59,7 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 		)
 	}
 
-	return ChunkKeyboardSlices(kb, 2)
+	return slices.Collect(slices.Chunk(kb, 2))
 }
 
 // InitButtons creates an inline keyboard markup for the connection menu.

@@ -16,10 +16,9 @@ import (
 )
 
 type TranslationKey struct {
-	Key       string
-	File      string
-	Line      int
-	IsDynamic bool
+	Key  string
+	File string
+	Line int
 }
 
 type MissingTranslation struct {
@@ -30,8 +29,6 @@ type MissingTranslation struct {
 var (
 	simpleKeyRegex  = regexp.MustCompile(`tr\.GetString\s*\(\s*"([^"]+)"`)
 	simpleKeyRegex2 = regexp.MustCompile(`tr\.GetStringSlice\s*\(\s*"([^"]+)"`)
-	dynamicKeyRegex = regexp.MustCompile(`fmt\.Sprintf\s*\(\s*"([^"]+)"`)
-	altNamesPattern = regexp.MustCompile(`alt_names\.%s`)
 )
 
 func main() {
@@ -56,9 +53,9 @@ func main() {
 
 	// Step 3: Check each locale for missing keys
 	totalMissing := 0
-	for localeName, localeData := range locales {
+	for localeName, locale := range locales {
 		fmt.Printf("\n📁 Checking locale: %s\n", localeName)
-		missing := checkMissingKeys(keys, localeData, localeName)
+		missing := checkMissingKeys(keys, locale)
 
 		if len(missing) > 0 {
 			fmt.Printf("  ⚠️  Missing %d translations:\n", len(missing))
@@ -86,7 +83,6 @@ func main() {
 
 func extractTranslationKeys(rootDir string) ([]TranslationKey, error) {
 	var keys []TranslationKey
-	keyMap := make(map[string]bool)
 
 	err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -106,7 +102,6 @@ func extractTranslationKeys(rootDir string) ([]TranslationKey, error) {
 
 		for _, key := range fileKeys {
 			keys = append(keys, key)
-			keyMap[key.Key] = true
 		}
 
 		return nil
@@ -262,19 +257,19 @@ func loadLocaleFiles(localesDir string) (map[string]map[string]any, error) {
 			continue
 		}
 
-		var localeData map[string]any
-		if err := yaml.Unmarshal(data, &localeData); err != nil {
+		var locale map[string]any
+		if err := yaml.Unmarshal(data, &locale); err != nil {
 			fmt.Printf("  ⚠️  Warning: Could not parse %s: %v\n", filename, err)
 			continue
 		}
 
-		locales[filename] = localeData
+		locales[filename] = locale
 	}
 
 	return locales, nil
 }
 
-func checkMissingKeys(keys []TranslationKey, localeData map[string]any, localeName string) []MissingTranslation {
+func checkMissingKeys(keys []TranslationKey, locale map[string]any) []MissingTranslation {
 	missing := make(map[string][]string)
 
 	for _, key := range keys {
@@ -283,7 +278,7 @@ func checkMissingKeys(keys []TranslationKey, localeData map[string]any, localeNa
 			continue
 		}
 
-		if !keyExists(key.Key, localeData) {
+		if !keyExists(key.Key, locale) {
 			usage := fmt.Sprintf("%s:%d", filepath.Base(key.File), key.Line)
 			missing[key.Key] = append(missing[key.Key], usage)
 		}

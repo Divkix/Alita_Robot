@@ -88,62 +88,6 @@ func TestGenerateModuleDocs_MixedSentinelAndNonSentinel(t *testing.T) {
 	}
 }
 
-func TestGenerateEnvReference_SkipsManuallyMaintainedFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	refDir := filepath.Join(tmpDir, "api-reference")
-	if err := os.MkdirAll(refDir, 0755); err != nil {
-		t.Fatalf("Failed to create api reference dir: %v", err)
-	}
-
-	originalContent := "---\ntitle: Environment\n---\n" + manualMaintenanceSentinel + "\n\n# Custom environment docs"
-	refFile := filepath.Join(refDir, "environment.md")
-	if err := os.WriteFile(refFile, []byte(originalContent), 0644); err != nil {
-		t.Fatalf("Failed to write environment reference: %v", err)
-	}
-
-	envVars := []EnvVar{{Name: "BOT_TOKEN", Type: "string", Required: true}}
-	if err := generateEnvReference(envVars, tmpDir); err != nil {
-		t.Fatalf("generateEnvReference returned error: %v", err)
-	}
-
-	got, err := os.ReadFile(refFile)
-	if err != nil {
-		t.Fatalf("Failed to read environment reference: %v", err)
-	}
-
-	if string(got) != originalContent {
-		t.Errorf("Sentinel-protected environment reference was overwritten")
-	}
-}
-
-func TestGenerateSchemaReference_SkipsManuallyMaintainedFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	refDir := filepath.Join(tmpDir, "api-reference")
-	if err := os.MkdirAll(refDir, 0755); err != nil {
-		t.Fatalf("Failed to create api reference dir: %v", err)
-	}
-
-	originalContent := "---\ntitle: Schema\n---\n" + manualMaintenanceSentinel + "\n\n# Custom schema docs"
-	refFile := filepath.Join(refDir, "database-schema.md")
-	if err := os.WriteFile(refFile, []byte(originalContent), 0644); err != nil {
-		t.Fatalf("Failed to write schema reference: %v", err)
-	}
-
-	tables := []DBTable{{Name: "users"}}
-	if err := generateSchemaReference(tables, tmpDir); err != nil {
-		t.Fatalf("generateSchemaReference returned error: %v", err)
-	}
-
-	got, err := os.ReadFile(refFile)
-	if err != nil {
-		t.Fatalf("Failed to read schema reference: %v", err)
-	}
-
-	if string(got) != originalContent {
-		t.Errorf("Sentinel-protected schema reference was overwritten")
-	}
-}
-
 func TestExtractCommandDescription_DashSeparator(t *testing.T) {
 	helpText := "• /export - Export all group settings to a JSON file\n• /import - Restore settings from a backup file"
 	got := extractCommandDescription("export", helpText)

@@ -154,15 +154,15 @@ another_key: "World"
 		t.Fatal("loadLocaleFiles returned empty map, expected at least 1 locale loaded")
 	}
 
-	localeData, ok := locales["en.yml"]
+	locale, ok := locales["en.yml"]
 	if !ok {
 		t.Fatal("Expected 'en.yml' to be loaded")
 	}
 
-	if _, exists := localeData["test_key"]; !exists {
+	if _, exists := locale["test_key"]; !exists {
 		t.Error("Expected key 'test_key' in loaded locale data")
 	}
-	if _, exists := localeData["another_key"]; !exists {
+	if _, exists := locale["another_key"]; !exists {
 		t.Error("Expected key 'another_key' in loaded locale data")
 	}
 }

@@ -132,41 +132,6 @@ func (c *Cache) Stop() {
 	})
 }
 
-// Global cache instance
-var (
-	globalCache *Cache
-	once        sync.Once
-)
-
-// GetGlobalCache returns the singleton keyword matcher cache
-func GetGlobalCache() *Cache {
-	once.Do(func() {
-		globalCache = NewCache(30 * time.Minute) // 30 minute TTL
-		// Create cancellable context for cleanup routine
-		ctx, cancel := context.WithCancel(context.Background())
-		globalCache.cancel = cancel
-		// Start cleanup routine
-		go func() {
-			defer error_handling.RecoverFromPanic("GetGlobalCache.cleanupRoutine", "keyword_matcher")
-			ticker := time.NewTicker(10 * time.Minute)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					globalCache.CleanupExpired()
-				case <-ctx.Done():
-					log.Debug("Keyword matcher cache cleanup routine stopped")
-					return
-				case <-globalCache.stopChan:
-					log.Debug("Keyword matcher cache cleanup routine stopped via stopChan")
-					return
-				}
-			}
-		}()
-	})
-	return globalCache
-}
-
 // namedCaches is a registry of named caches, each isolated from the others.
 var (
 	namedCaches   = make(map[string]*Cache)
