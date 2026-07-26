@@ -2364,8 +2364,8 @@ backup_export_success: |
   <b>Modul:</b>
   %s
 
-backup_export_success_text: "✅ Berhasil mengekspor %d modul. Unduh file cadangan di atas."
-backup_export_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengekspor lagi."
+backup_export_success_text: "✅ Berhasil mengekspor {modules} modul. Unduh file cadangan di atas."
+backup_export_rate_limited: "⏳ Silakan tunggu <b>{time}</b> sebelum mengekspor lagi."
 backup_export_no_modules: "❌ Tidak ada modul yang dapat diekspor untuk obrolan ini."
 backup_export_failed: "❌ Gagal mengekspor pengaturan. Silakan coba lagi nanti."
 
@@ -2377,7 +2377,7 @@ backup_import_success: |
   <b>Modul:</b>
   %s
 
-backup_import_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengimpor lagi."
+backup_import_rate_limited: "⏳ Silakan tunggu <b>{time}</b> sebelum mengimpor lagi."
 backup_import_no_reply: "❌ Silakan balas ke file cadangan dengan <code>/import</code>."
 backup_import_invalid_file: "❌ Format file cadangan tidak valid. Silakan kirim file cadangan JSON yang valid."
 backup_import_file_too_large: "❌ File cadangan terlalu besar. Ukuran maksimum adalah 10MB."
@@ -2404,7 +2404,7 @@ backup_reset_success: |
   <b>Modul:</b>
   %s
 
-backup_reset_rate_limited: "⏳ Silakan tunggu <b>%s</b> sebelum mengatur ulang lagi."
+backup_reset_rate_limited: "⏳ Silakan tunggu <b>{time}</b> sebelum mengatur ulang lagi."
 backup_reset_creator_only: "❌ Hanya pembuat grup yang dapat mengatur ulang pengaturan."
 backup_reset_confirm: |
   <b>⚠️ Konfirmasi Atur Ulang</b>
@@ -2511,22 +2511,22 @@ antiraid_help_msg: |
   /raidactiontime <time>: Atur durasi temp-ban (default: 1h).
   /autoantiraid <N>: Aktifkan otomatis jika N+ bergabung/menit.
   /autoantiraid off: Nonaktifkan pemicu otomatis.
-antiraid_active_status: "AntiRaid AKTIF | Kedaluwarsa: %s | Raid: %s | Tindakan: %s | Otomatis: %s"
-antiraid_inactive_status: "AntiRaid NONAKTIF | Raid: %s | Tindakan: %s | Otomatis: %s"
-antiraid_enabled: "AntiRaid diaktifkan untuk %s."
+antiraid_active_status: "AntiRaid AKTIF | Kedaluwarsa: {expires_in} | Raid: {raid_time} | Tindakan: {action_time} | Otomatis: {auto_threshold}"
+antiraid_inactive_status: "AntiRaid NONAKTIF | Raid: {raid_time} | Tindakan: {action_time} | Otomatis: {auto_threshold}"
+antiraid_enabled: "AntiRaid diaktifkan untuk {duration}."
 antiraid_disabled: "AntiRaid dinonaktifkan."
 antiraid_already_active: "AntiRaid sudah aktif."
 antiraid_not_active: "AntiRaid tidak aktif."
 antiraid_invalid_duration: "Durasi tidak valid. Gunakan format seperti: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "Durasi harus positif."
 antiraid_raidtime_usage: "Penggunaan: /raidtime <duration> (mis., 6h)"
-antiraid_raidtime_no_change: "Waktu raid sudah %s."
-antiraid_raidtime_set: "Waktu raid diatur ke %s."
+antiraid_raidtime_no_change: "Waktu raid sudah {duration}."
+antiraid_raidtime_set: "Waktu raid diatur ke {duration}."
 antiraid_raidactiontime_usage: "Penggunaan: /raidactiontime <duration> (mis., 1h)"
-antiraid_raidactiontime_no_change: "Waktu tindakan raid sudah %s."
-antiraid_raidactiontime_set: "Waktu tindakan raid diatur ke %s."
+antiraid_raidactiontime_no_change: "Waktu tindakan raid sudah {duration}."
+antiraid_raidactiontime_set: "Waktu tindakan raid diatur ke {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid dinonaktifkan."
-antiraid_auto_enabled: "Ambang Auto-AntiRaid: %d bergabung/menit."
+antiraid_auto_enabled: "Ambang Auto-AntiRaid: {threshold} bergabung/menit."
 antiraid_invalid_threshold: "Ambang tidak valid. Berikan angka positif atau 'off'."
 antiraid_auto_triggered: "Raid otomatis dipicu! %s pengguna bergabung/menit — pendatang baru dilarang sementara."
 antiraid_btn_enable: "Aktifkan AntiRaid"

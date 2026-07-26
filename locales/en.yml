@@ -2417,8 +2417,8 @@ backup_export_success: |
   <b>Modules:</b>
   %s
 
-backup_export_success_text: "✅ Successfully exported %d modules. Download the backup file above."
-backup_export_rate_limited: "⏳ Please wait <b>%s</b> before exporting again."
+backup_export_success_text: "✅ Successfully exported {modules} modules. Download the backup file above."
+backup_export_rate_limited: "⏳ Please wait <b>{time}</b> before exporting again."
 backup_export_no_modules: "❌ No exportable modules found for this chat."
 backup_export_failed: "❌ Failed to export settings. Please try again later."
 
@@ -2430,7 +2430,7 @@ backup_import_success: |
   <b>Modules:</b>
   %s
 
-backup_import_rate_limited: "⏳ Please wait <b>%s</b> before importing again."
+backup_import_rate_limited: "⏳ Please wait <b>{time}</b> before importing again."
 backup_import_no_reply: "❌ Please reply to a backup file with <code>/import</code>."
 backup_import_invalid_file: "❌ Invalid backup file format. Please send a valid JSON backup file."
 backup_import_file_too_large: "❌ Backup file is too large. Maximum size is 10MB."
@@ -2457,7 +2457,7 @@ backup_reset_success: |
   <b>Modules:</b>
   %s
 
-backup_reset_rate_limited: "⏳ Please wait <b>%s</b> before resetting again."
+backup_reset_rate_limited: "⏳ Please wait <b>{time}</b> before resetting again."
 backup_reset_creator_only: "❌ Only the group creator can reset settings."
 backup_reset_confirm: |
   <b>⚠️ Confirm Reset</b>
@@ -2525,22 +2525,22 @@ antiraid_help_msg: |
   /raidactiontime <time>: Set temp-ban duration (default: 1h).
   /autoantiraid <N>: Auto-enable if N+ joins/min.
   /autoantiraid off: Disable auto-trigger.
-antiraid_active_status: "AntiRaid ACTIVE | Expires: %s | Raid: %s | Action: %s | Auto: %s"
-antiraid_inactive_status: "AntiRaid INACTIVE | Raid: %s | Action: %s | Auto: %s"
-antiraid_enabled: "AntiRaid enabled for %s."
+antiraid_active_status: "AntiRaid ACTIVE | Expires: {expires_in} | Raid: {raid_time} | Action: {action_time} | Auto: {auto_threshold}"
+antiraid_inactive_status: "AntiRaid INACTIVE | Raid: {raid_time} | Action: {action_time} | Auto: {auto_threshold}"
+antiraid_enabled: "AntiRaid enabled for {duration}."
 antiraid_disabled: "AntiRaid disabled."
 antiraid_already_active: "AntiRaid is already active."
 antiraid_not_active: "AntiRaid is not active."
 antiraid_invalid_duration: "Invalid duration. Use format like: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "Duration must be positive."
 antiraid_raidtime_usage: "Usage: /raidtime <duration> (e.g., 6h)"
-antiraid_raidtime_no_change: "Raid time is already %s."
-antiraid_raidtime_set: "Raid time set to %s."
+antiraid_raidtime_no_change: "Raid time is already {duration}."
+antiraid_raidtime_set: "Raid time set to {duration}."
 antiraid_raidactiontime_usage: "Usage: /raidactiontime <duration> (e.g., 1h)"
-antiraid_raidactiontime_no_change: "Raid action time is already %s."
-antiraid_raidactiontime_set: "Raid action time set to %s."
+antiraid_raidactiontime_no_change: "Raid action time is already {duration}."
+antiraid_raidactiontime_set: "Raid action time set to {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid is disabled."
-antiraid_auto_enabled: "Auto-AntiRaid threshold: %d joins/min."
+antiraid_auto_enabled: "Auto-AntiRaid threshold: {threshold} joins/min."
 antiraid_invalid_threshold: "Invalid threshold. Give a positive number or 'off'."
 antiraid_auto_triggered: "Auto-raid triggered! %s users joined/min — new joiners temp-banned."
 antiraid_btn_enable: "Enable AntiRaid"
