@@ -687,8 +687,8 @@ func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
 		t.Fatalf("restrictChatMember calls = %d, want none for rejected callbacks", len(calls))
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
-		t.Fatalf("answerCallbackQuery calls = %d, want malformed callback answers", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want malformed and non-admin callback answers", len(calls))
 	}
 }
 

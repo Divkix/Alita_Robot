@@ -185,7 +185,7 @@ Parallel jobs (no `needs`), then aggregation:
 | `test` | Service containers **postgres:16** + **redis:7**; `CGO_ENABLED=1`; `make test`; then coverage gate **≥78%** | Yes |
 | `docs-check` | `make check-translations` + `make check-docs` (translation + docs drift gate) | Yes |
 | `docker-verify` | single-arch `docker build -f docker/alpine` (no push) | Yes |
-| `docker-publish` | main-push only; multi-arch `linux/amd64,linux/arm64` → GHCR tags `dev`, `dev-<sha7>`, `<sha7>` (NOT `latest`), with `provenance:true` + `sbom:true`; `needs: [security,lint,build,test,docker-verify]` (NOT docs-check) | Yes (on main push) |
+| `docker-publish` | main-push only; multi-arch `linux/amd64,linux/arm64` → GHCR tags `dev`, `dev-<sha7>`, `<sha7>` (NOT `latest`), with `provenance:true` + `sbom:true`; GHA cache export is best-effort (`ignore-error=true`) while image build/push remains gating; `needs: [security,lint,build,test,docker-verify]` (NOT docs-check) | Yes (on main push) |
 | `ci-success` | `if: always()`; re-checks each result; enforces `docker-publish` only on main-push | Final gate |
 
 ### `release.yml` (tag push `*` or manual dispatch with `tag` input)
@@ -202,12 +202,15 @@ GoReleaser's `dockers_v2` publishes GHCR `{{.Tag}}`, `{{.Version}}`, **`latest`*
 prefix and strictly validates `vMAJOR.MINOR.PATCH[-prerelease]` (on tag-push it
 passes `github.ref_name` through), exposing `steps.tag.outputs.tag`. On
 `workflow_dispatch` it then runs `scripts/bump_version.sh <tag>` to patch the
-version (commits to `main` and pushes), tags that commit, and pushes the tag — all
-git pushes use a token-in-URL (`https://x-access-token:$GITHUB_TOKEN@…`) because
-checkout keeps `persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger
-workflows, so there's no double release. `--version` reads
-`config.AppConfig.BotVersion` (patched by the bump script; currently `"2.19.6"`),
-with a hard-coded local fallback `version = "v2.19.6"` in `main.go` (used only when
+version from current `origin/main`, commits, and pushes it. If `main` advances
+during the bump, the workflow fetches, rebases, and retries up to three times
+without force-pushing; a conflict fails safely. It then tags that commit and
+pushes the tag — all git pushes use a token-in-URL
+(`https://x-access-token:$GITHUB_TOKEN@…`) because checkout keeps
+`persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger workflows,
+so there's no double release. `--version` reads `config.AppConfig.BotVersion`
+(patched by the bump script; currently `"2.19.7"`), with a hard-coded local
+fallback `version = "v2.19.7"` in `main.go` (used only when
 config didn't load). There are **no** `-X main.version/commit/date` ldflags anymore
 (they were no-ops — `package main` declares no such vars). ⚠️ After the bump step,
 `goreleaser` runs a **"Verify BotVersion matches tag"** gate that `grep`s **both**
@@ -367,12 +370,14 @@ uses `RegisterLegacyModule`.
   case-insensitively. Never `strings.Split` raw data. The module wrapper
   `encodeCallbackData` returns `""` on overflow (broken button) — for user-supplied
   values use the **token pattern** (store payload in Redis, put a short hex token
-  in the callback; see filters/notes overwrite flows). `EncodeOrFallback` emits a
-  legacy dot-notation string when encoding overflows; legacy dot-notation is still
-  decoded for backward compat.
+  in the callback; see filters/notes overwrite flows). Decoding is strict:
+  deprecated dot-notation callbacks are intentionally rejected.
 - **`callbackQueryFromContext(ctx)`** is the nil-safe guard at the top of every
   callback handler (duplicated verbatim in `chat_status` because Go can't share
-  unexported helpers). Always nil-check `query.Message`.
+  unexported helpers). Always nil-check `query.Message`. gotgbot unmarshals an
+  accessible `CallbackQuery.Message` as a `gotgbot.Message` value, not a pointer;
+  use its interface methods to edit/delete and `ctx.EffectiveMessage` to read
+  concrete message fields rather than asserting `*gotgbot.Message`.
 - **Anonymous-admin flow**: on a `GroupAnonymousBot` sender, `chat_status.checkAnonAdmin`
   either bypasses (if the chat's `AnonAdmin` DB setting is on) or caches the
   original message (`alita:anonAdmin:<chat>:<msg>`, **20s TTL**) and shows a "prove
@@ -800,8 +805,8 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
 - `OTEL_*` (service name, sample rate, OTLP endpoint, console/insecure) are read via
   raw `os.Getenv`, not config, and are intentionally not in `sample.env`.
-- `BotVersion` lives in `config.go` (currently `"2.19.6"`), mirrored by a CLI
-  fallback `version = "v2.19.6"` in `main.go`. **Don't hand-edit it** —
+- `BotVersion` lives in `config.go` (currently `"2.19.7"`), mirrored by a CLI
+  fallback `version = "v2.19.7"` in `main.go`. **Don't hand-edit it** —
   `scripts/bump_version.sh <vX.Y.Z>` patches both, and the release workflow runs it
   automatically on `workflow_dispatch`; the `goreleaser` job then re-greps both files
   and fails on mismatch. For a manual tag-push release, run the script (or
