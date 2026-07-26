@@ -663,10 +663,31 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 	return
 }
 
+// enforcePinChecks re-enforces the permission gates that WrapCommand applies
+// for pin commands. The anonymous-admin flow bypasses WrapCommand's
+// RequiredChecks, so without this an anonymous admin lacking CanPinMessages
+// could pin/unpin via the anon flow (the bot issues the API call, so Telegram
+// only checks the bot's rights, not the caller's).
+func enforcePinChecks(c *helpers.CommandContext) bool {
+	for _, check := range []helpers.CheckFunc{
+		helpers.RequireBotAdmin(),
+		helpers.CanUserPin(),
+		helpers.CanBotPin(),
+	} {
+		if !check(c) {
+			return false
+		}
+	}
+	return true
+}
+
 // anonymousAdmin wrappers for pins.go
 func (m moduleStruct) pinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	c, err := helpers.BuildCommandContext(b, ctx)
 	if err != nil {
+		return ext.EndGroups
+	}
+	if !enforcePinChecks(c) {
 		return ext.EndGroups
 	}
 	return m.pin(c)
@@ -677,6 +698,9 @@ func (m moduleStruct) unpinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return ext.EndGroups
 	}
+	if !enforcePinChecks(c) {
+		return ext.EndGroups
+	}
 	return m.unpin(c)
 }
 
@@ -685,12 +709,18 @@ func (m moduleStruct) permaPinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error 
 	if err != nil {
 		return ext.EndGroups
 	}
+	if !enforcePinChecks(c) {
+		return ext.EndGroups
+	}
 	return m.permaPin(c)
 }
 
 func (m moduleStruct) unpinAllAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	c, err := helpers.BuildCommandContext(b, ctx)
 	if err != nil {
+		return ext.EndGroups
+	}
+	if !enforcePinChecks(c) {
 		return ext.EndGroups
 	}
 	return m.unpinAll(c)
