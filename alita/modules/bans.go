@@ -997,15 +997,26 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		temp, _ := tr.GetString("bans_unrestrict_unmuted")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	case "unban":
-		_, err := chat.Unban(b,
-			int64(userId),
-			&gotgbot.UnbanChatMemberOpts{
-				OnlyIfBanned: true,
-			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
+		if chat_status.IsChannelId(int64(userId)) {
+			// Anonymous channel bans use BanChatSenderChat; unban must use the
+			// matching sender-chat endpoint, not UnbanChatMember (which rejects
+			// channel IDs and leaves the channel permanently banned).
+			_, err := chat.UnbanSenderChat(b, int64(userId), nil)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+		} else {
+			_, err := chat.Unban(b,
+				int64(userId),
+				&gotgbot.UnbanChatMemberOpts{
+					OnlyIfBanned: true,
+				},
+			)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
 		}
 
 		temp, _ := tr.GetString("bans_unrestrict_unbanned")
