@@ -69,13 +69,7 @@ func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
 // WarnUser adds a warning to a user in a specific chat with an optional reason.
 // Returns the total number of warnings and all warning reasons for the user.
 func WarnUser(userId, chatId int64, reason string) (int, []string) {
-	return WarnUserWithContext(context.Background(), userId, chatId, reason)
-}
-
-// WarnUserWithContext adds a warning to a user with context support for cancellation.
-// Uses database transactions to ensure data consistency and supports context cancellation.
-// Returns the total number of warnings and all warning reasons for the user.
-func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason string) (int, []string) {
+	ctx := context.Background()
 	var numWarns int
 	var reasons []string
 
@@ -143,13 +137,7 @@ func WarnUserWithContext(ctx context.Context, userId, chatId int64, reason strin
 // RemoveWarn removes the most recent warning from a user in a specific chat.
 // Returns true if a warning was successfully removed, false otherwise.
 func RemoveWarn(userId, chatId int64) bool {
-	return RemoveWarnWithContext(context.Background(), userId, chatId)
-}
-
-// RemoveWarnWithContext removes the most recent warning with context support.
-// Uses database transactions to ensure data consistency and supports context cancellation.
-// Returns true if a warning was successfully removed, false otherwise.
-func RemoveWarnWithContext(ctx context.Context, userId, chatId int64) bool {
+	ctx := context.Background()
 	var removed bool
 
 	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

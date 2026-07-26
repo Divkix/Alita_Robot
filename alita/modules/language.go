@@ -181,7 +181,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadLanguage registers language-related command and callback handlers.
 // Sets up language selection commands and keyboard navigation for internationalization.
 func LoadLanguage(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(languagesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[languagesModule.moduleName] = true
 	DefaultHelpRegistry().helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))

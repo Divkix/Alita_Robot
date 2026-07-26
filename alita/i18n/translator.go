@@ -1,7 +1,6 @@
 package i18n
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -20,20 +19,6 @@ var (
 func (t *Translator) GetString(key string, params ...TranslationParams) (string, error) {
 	if t.manager == nil {
 		return "", NewI18nError("get_string", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	// Create cache key if caching is enabled
-	cacheKey := ""
-	if t.manager.cacheClient != nil && len(params) == 0 {
-		// Only cache non-parameterized strings
-		cacheKey = t.cachePrefix + key
-
-		// Try to get from cache first
-		if cached, err := t.manager.cacheClient.Get(context.Background(), cacheKey); err == nil {
-			if cachedStr, ok := cached.(string); ok {
-				return cachedStr, nil
-			}
-		}
 	}
 
 	// Get string from the parsed locale map
@@ -63,11 +48,6 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 		if err != nil {
 			return result, NewI18nError("get_string", t.langCode, key, "parameter interpolation failed", err)
 		}
-	} else {
-		// Cache non-parameterized results
-		if cacheKey != "" && t.manager.cacheClient != nil {
-			_ = t.manager.cacheClient.Set(context.Background(), cacheKey, result)
-		}
 	}
 
 	return result, nil
@@ -77,19 +57,6 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 func (t *Translator) GetStringSlice(key string) ([]string, error) {
 	if t.manager == nil {
 		return nil, NewI18nError("get_string_slice", t.langCode, key, "manager not initialized", ErrManagerNotInit)
-	}
-
-	// Create cache key
-	cacheKey := ""
-	if t.manager.cacheClient != nil {
-		cacheKey = t.cachePrefix + "slice:" + key
-
-		// Try to get from cache first
-		if cached, err := t.manager.cacheClient.Get(context.Background(), cacheKey); err == nil {
-			if cachedSlice, ok := cached.([]string); ok {
-				return cachedSlice, nil
-			}
-		}
 	}
 
 	result := lookupStringSlice(t.data, key)
@@ -108,11 +75,6 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 			return defaultTranslator.GetStringSlice(key)
 		}
 		return nil, NewI18nError("get_string_slice", t.langCode, key, "translation not found", ErrKeyNotFound)
-	}
-
-	// Cache the result
-	if cacheKey != "" && t.manager.cacheClient != nil {
-		_ = t.manager.cacheClient.Set(context.Background(), cacheKey, result)
 	}
 
 	return result, nil

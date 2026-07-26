@@ -512,7 +512,7 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadMisc registers all miscellaneous module handlers with the dispatcher,
 // including utility commands for IDs, ping, translation, and stats.
 func LoadMisc(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(miscModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[miscModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("stat", miscModule.stat))
 	helpers.AddCmdToDisableable("stat")

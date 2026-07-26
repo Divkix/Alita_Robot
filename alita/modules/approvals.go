@@ -558,7 +558,7 @@ func extractDisplayName(userID int64) string {
 //
 //nolint:dupl // Pattern matches other LoadXxx functions
 func LoadApprovals(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(approvalsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[approvalsModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("approve", approvalsModule.approveUser))
 	dispatcher.AddHandler(handlers.NewCommand("unapprove", approvalsModule.unapproveUser))

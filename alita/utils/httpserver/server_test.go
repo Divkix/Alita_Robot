@@ -386,23 +386,6 @@ func TestWebhookHandlerAcceptsAuthorizedTelegramUpdate(t *testing.T) {
 	}
 }
 
-func TestPprofHandler(t *testing.T) {
-	t.Parallel()
-
-	req := httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-	rr := httptest.NewRecorder()
-
-	pprofHandler(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-	body := rr.Body.String()
-	if !strings.Contains(body, "profile") && !strings.Contains(body, "Profiles") && !strings.Contains(body, "Types of profiles") {
-		t.Errorf("expected pprof content in response body, got: %s", body)
-	}
-}
-
 func TestRegisterHealth(t *testing.T) {
 	s := New(8080, time.Now())
 	s.RegisterHealth()
@@ -580,6 +563,9 @@ func TestRegisterPPROF(t *testing.T) {
 		"/debug/pprof/threadcreate",
 		"/debug/pprof/block",
 		"/debug/pprof/mutex",
+		"/debug/pprof/allocs",
+		"/debug/pprof/cmdline",
+		"/debug/pprof/symbol",
 	}
 	for _, path := range paths {
 		req := httptest.NewRequest(http.MethodGet, path, nil)

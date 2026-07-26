@@ -21,12 +21,7 @@ const (
 	LongTimeout     = 30 * time.Second
 	VeryLongTimeout = 120 * time.Second
 
-	// Retry and delay durations
-	ShortDelay              = 100 * time.Millisecond
-	ConnectionFastThreshold = 100 * time.Millisecond
-
 	// Connection pooling
-	DefaultHTTPPort           = 8080
-	MaxIdleConnsExtraBuffer   = 20
-	PreWarmConnectionAttempts = 3
+	DefaultHTTPPort         = 8080
+	MaxIdleConnsExtraBuffer = 20
 )

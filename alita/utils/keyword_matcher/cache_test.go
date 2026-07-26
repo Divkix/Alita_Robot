@@ -10,7 +10,7 @@ func TestNewCache(t *testing.T) {
 	t.Parallel()
 
 	ttl := 5 * time.Minute
-	c := NewCache(ttl)
+	c := newCache(ttl)
 
 	if c == nil {
 		t.Fatal("NewCache() returned nil")
@@ -38,7 +38,7 @@ func TestGetOrCreateMatcher(t *testing.T) {
 	t.Run("new chatID creates matcher", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		m := c.GetOrCreateMatcher(100, []string{"hello", "world"})
 		if m == nil {
 			t.Fatal("GetOrCreateMatcher() returned nil for new chatID")
@@ -48,7 +48,7 @@ func TestGetOrCreateMatcher(t *testing.T) {
 	t.Run("same chatID and patterns returns cached pointer", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		patterns := []string{"foo", "bar"}
 		m1 := c.GetOrCreateMatcher(200, patterns)
 		m2 := c.GetOrCreateMatcher(200, patterns)
@@ -60,7 +60,7 @@ func TestGetOrCreateMatcher(t *testing.T) {
 	t.Run("same chatID with different patterns creates new matcher", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		m1 := c.GetOrCreateMatcher(300, []string{"alpha"})
 		m2 := c.GetOrCreateMatcher(300, []string{"beta"})
 		if m1 == m2 {
@@ -71,7 +71,7 @@ func TestGetOrCreateMatcher(t *testing.T) {
 	t.Run("empty patterns slice", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		m := c.GetOrCreateMatcher(400, []string{})
 		if m == nil {
 			t.Fatal("GetOrCreateMatcher() returned nil for empty patterns")
@@ -81,7 +81,7 @@ func TestGetOrCreateMatcher(t *testing.T) {
 	t.Run("concurrent 10 goroutines", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		patterns := []string{"concurrent", "test"}
 
 		var wg sync.WaitGroup
@@ -114,13 +114,13 @@ func TestCleanupExpired(t *testing.T) {
 	t.Run("expired entries removed with 1ms TTL after 5ms sleep", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Millisecond)
+		c := newCache(time.Millisecond)
 		c.GetOrCreateMatcher(1001, []string{"pattern"})
 
 		// Wait for TTL to expire
 		time.Sleep(5 * time.Millisecond)
 
-		c.CleanupExpired()
+		c.cleanupExpired()
 
 		c.mu.RLock()
 		_, exists := c.matchers[1001]
@@ -134,10 +134,10 @@ func TestCleanupExpired(t *testing.T) {
 	t.Run("unexpired entries kept with 1h TTL", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Hour)
+		c := newCache(time.Hour)
 		c.GetOrCreateMatcher(1002, []string{"pattern"})
 
-		c.CleanupExpired()
+		c.cleanupExpired()
 
 		c.mu.RLock()
 		_, exists := c.matchers[1002]
@@ -151,9 +151,9 @@ func TestCleanupExpired(t *testing.T) {
 	t.Run("empty cache cleanup is a no-op", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(time.Minute)
+		c := newCache(time.Minute)
 		// Should not panic or have side effects on empty cache
-		c.CleanupExpired()
+		c.cleanupExpired()
 
 		c.mu.RLock()
 		count := len(c.matchers)
@@ -167,14 +167,14 @@ func TestCleanupExpired(t *testing.T) {
 	t.Run("zero TTL — all entries expired immediately", func(t *testing.T) {
 		t.Parallel()
 
-		c := NewCache(0)
+		c := newCache(0)
 		c.GetOrCreateMatcher(1003, []string{"pattern"})
 
 		// With zero TTL, any elapsed time > 0 means expired.
 		// Sleep a tiny bit to ensure time.Now().Sub(lastUsed) > 0.
 		time.Sleep(time.Millisecond)
 
-		c.CleanupExpired()
+		c.cleanupExpired()
 
 		c.mu.RLock()
 		_, exists := c.matchers[1003]
@@ -273,64 +273,5 @@ func TestPatternsEqual(t *testing.T) {
 				t.Errorf("patternsEqual(%v, %v) = %v, want %v", tc.a, tc.b, got, tc.want)
 			}
 		})
-	}
-}
-
-func TestCacheStop(t *testing.T) {
-	t.Parallel()
-
-	c := NewCache(time.Minute)
-	// Ensure stopChan is initialized
-	if c.stopChan == nil {
-		t.Fatal("stopChan should be initialized")
-	}
-
-	// Call Stop and ensure it doesn't panic
-	c.Stop()
-
-	// Multiple Stop calls should not panic (channel is already closed)
-	// Note: This will panic if Stop() doesn't check before closing, but
-	// that's the expected behavior - we should only call Stop() once
-}
-
-func TestCacheStopPreventsGoroutineLeak(t *testing.T) {
-	t.Parallel()
-
-	// Create a cache with stopChan initialized
-	c := NewCache(time.Second)
-	if c.stopChan == nil {
-		t.Fatal("stopChan should be initialized")
-	}
-
-	// Create a done channel to verify goroutine exits
-	done := make(chan struct{})
-
-	// Start a mock cleanup goroutine similar to GetNamedCache.
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				c.CleanupExpired()
-			case <-c.stopChan:
-				return
-			}
-		}
-	}()
-
-	// Wait for goroutine to start
-	time.Sleep(150 * time.Millisecond)
-
-	// Call Stop
-	c.Stop()
-
-	// Wait for goroutine to exit with timeout
-	select {
-	case <-done:
-		// Goroutine exited successfully
-	case <-time.After(500 * time.Millisecond):
-		t.Error("Goroutine did not exit within timeout - possible leak")
 	}
 }

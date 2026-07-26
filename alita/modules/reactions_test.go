@@ -179,13 +179,13 @@ func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
 	key := reactionKey(chat.Id)
-	_, prevEnabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
+	prevEnabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
 	t.Cleanup(func() {
 		_ = m.Delete(cache.Context, key)
-		DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, prevEnabled)
+		DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = prevEnabled
 	})
 
-	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 	if err := m.Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
 		t.Fatalf("seed reaction cache: %v", err)
 	}
@@ -225,13 +225,13 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 		t.Fatalf("checkReactions(no chat) error = %v, want ContinueGroups", err)
 	}
 
-	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, false)
+	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = false
 	disabledCtx := newModuleMessageContext(bot, chat, user, "hello")
 	if err := reactionsModule.checkReactions(bot, disabledCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkReactions(disabled) error = %v, want ContinueGroups", err)
 	}
 
-	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 	if err := m.Set(cache.Context, key, map[string]string{}); err != nil {
 		t.Fatalf("seed empty reaction cache: %v", err)
 	}
@@ -248,10 +248,10 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 func TestReactionCommandsHandleNilMarshal(t *testing.T) {
 	orig := cache.GetMarshal()
 	cache.SetMarshal(nil)
-	_, prevEnabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
+	prevEnabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
 	t.Cleanup(func() {
 		cache.SetMarshal(orig)
-		DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, prevEnabled)
+		DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = prevEnabled
 	})
 
 	client := newModuleBotClient()
@@ -279,7 +279,7 @@ func TestReactionCommandsHandleNilMarshal(t *testing.T) {
 		t.Fatalf("resetReactions(nil marshal) error = %v, want EndGroups", err)
 	}
 
-	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 	checkCtx := newModuleMessageContext(bot, chat, admin, "hello")
 	if err := reactionsModule.checkReactions(bot, checkCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkReactions(nil marshal) error = %v, want ContinueGroups", err)
@@ -294,8 +294,8 @@ func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadReactions(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName); moduleName != reactionsModule.moduleName || !enabled {
-		t.Fatalf("reactions help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] {
+		t.Fatal("reactions help registration = false, want enabled")
 	}
 	if got := DefaultHelpRegistry().AltHelpOptions["Reactions"]; len(got) != 1 || got[0] != "reaction" {
 		t.Fatalf("reactions alt help = %v, want [reaction]", got)

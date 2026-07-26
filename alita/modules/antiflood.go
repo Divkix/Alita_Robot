@@ -641,7 +641,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadAntiflood registers all antiflood module handlers with the dispatcher.
 // Sets up flood detection commands and message monitoring handlers.
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(antifloodModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[antifloodModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))

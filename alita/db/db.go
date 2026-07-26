@@ -83,11 +83,7 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 
 // CreateRecord creates a new database record using the provided model.
 func CreateRecord(model any) error {
-	return CreateRecordWithContext(context.Background(), model)
-}
-
-// CreateRecordWithContext creates a new database record with context support for trace propagation.
-func CreateRecordWithContext(ctx context.Context, model any) error {
+	ctx := context.Background()
 	ctx, span := tracing.StartSpan(ctx, "db.create",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
@@ -104,22 +100,12 @@ func CreateRecordWithContext(ctx context.Context, model any) error {
 
 // UpdateRecord updates an existing database record with the provided updates.
 func UpdateRecord(model any, where any, updates any) error {
-	return UpdateRecordWithContext(context.Background(), model, where, updates)
+	return updateRecordInternal(context.Background(), model, where, updates, "UpdateRecord")
 }
 
 // UpdateRecordWithZeroValues updates a database record including zero values.
 func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
-	return UpdateRecordWithZeroValuesWithContext(context.Background(), model, where, updates)
-}
-
-// UpdateRecordWithContext updates a database record with context support.
-func UpdateRecordWithContext(ctx context.Context, model any, where any, updates any) error {
-	return updateRecordInternal(ctx, model, where, updates, "UpdateRecord")
-}
-
-// UpdateRecordWithZeroValuesWithContext updates a database record including zero values with context.
-func UpdateRecordWithZeroValuesWithContext(ctx context.Context, model any, where any, updates map[string]any) error {
-	return updateRecordInternal(ctx, model, where, updates, "UpdateRecordWithZeroValues")
+	return updateRecordInternal(context.Background(), model, where, updates, "UpdateRecordWithZeroValues")
 }
 
 // updateRecordInternal is the shared implementation for record updates.
@@ -144,11 +130,7 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 
 // GetRecord retrieves a single database record matching the where clause.
 func GetRecord(model any, where any) error {
-	return GetRecordWithContext(context.Background(), model, where)
-}
-
-// GetRecordWithContext retrieves a single database record with context support.
-func GetRecordWithContext(ctx context.Context, model any, where any) error {
+	ctx := context.Background()
 	ctx, span := tracing.StartSpan(ctx, "db.get",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
@@ -176,11 +158,7 @@ func ChatExists(chatID int64) bool {
 
 // GetRecords retrieves multiple database records matching the where clause.
 func GetRecords(models any, where any) error {
-	return GetRecordsWithContext(context.Background(), models, where)
-}
-
-// GetRecordsWithContext retrieves multiple database records with context support.
-func GetRecordsWithContext(ctx context.Context, models any, where any) error {
+	ctx := context.Background()
 	ctx, span := tracing.StartSpan(ctx, "db.find",
 		trace.WithAttributes(append(getSpanAttributes(models), tracing.WorkingModeAttribute())...))
 	defer span.End()

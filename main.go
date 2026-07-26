@@ -91,13 +91,13 @@ func main() {
 		log.Info("Running in RELEASE Mode...")
 	}
 
-	// Initialize cache FIRST (before i18n, which depends on it)
+	// Initialize Redis-backed application caches before other services.
 	if err := cache.InitCache(); err != nil {
 		log.Fatalf("Failed to initialize cache: %v", err)
 	}
 	log.Info("Cache system initialized successfully")
 
-	// Initialize Locale Manager (requires cache to be initialized first)
+	// Initialize the process-local locale maps.
 	localeManager := i18n.GetManager()
 	if err := localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig()); err != nil {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
@@ -118,7 +118,7 @@ func main() {
 	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
 
-	transport := newBotAPITransport(maxIdleConns, maxIdleConnsPerHost, config.AppConfig.ApiServer)
+	transport := newBotAPITransport(maxIdleConns, maxIdleConnsPerHost)
 
 	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
 
@@ -127,12 +127,13 @@ func main() {
 	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
 			Client: http.Client{
-				Transport: transport, // Use the shared (possibly rewritten) transport
+				Transport: transport, // Use the shared transport
 				Timeout:   constants.LongTimeout,
 			},
 			UseTestEnvironment: false,
 			DefaultRequestOpts: &gotgbot.RequestOpts{
 				Timeout: time.Duration(constants.LongTimeout),
+				APIURL:  resolveBotAPIURL(config.AppConfig.ApiServer),
 			},
 		},
 	})
@@ -143,30 +144,6 @@ func main() {
 
 	// Retrieve bot identity early for logging and downstream components that reference username
 	botUsername := resolveBotUsername(b)
-
-	// Pre-warm connections to Telegram API for faster initial responses
-	go func() {
-		log.Info("[Main] Pre-warming connections to Telegram API...")
-
-		// Make multiple requests to establish connection pool
-		for i := 0; i < constants.PreWarmConnectionAttempts; i++ {
-			startTime := time.Now()
-			_, err := b.GetMe(nil)
-			if err != nil {
-				log.Warnf("[Main] Pre-warm request %d failed: %v", i+1, err)
-			} else {
-				elapsed := time.Since(startTime)
-				log.Infof("[Main] Pre-warm request %d completed in %v", i+1, elapsed)
-				// First request establishes connection, subsequent ones should be faster
-				if i > 0 && elapsed < constants.ConnectionFastThreshold {
-					log.Info("[Main] Connection pooling confirmed working - reused existing connection")
-				}
-			}
-			time.Sleep(constants.ShortDelay) // Small delay between requests
-		}
-
-		log.Info("[Main] Connection pre-warming completed")
-	}()
 
 	// some initial checks before running bot
 	if err := alita.InitialChecks(b); err != nil {
@@ -353,16 +330,8 @@ func main() {
 	}
 }
 
-// apiServerRewriteTransport rewrites outgoing requests that target api.telegram.org
-// to a custom Bot API server specified via configuration. This allows using a
-// locally hosted Bot API server without changing the gotgbot library internals.
-type apiServerRewriteTransport struct {
-	base   http.RoundTripper
-	target *url.URL
-}
-
-func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int, apiServer string) http.RoundTripper {
-	httpTransport := &http.Transport{
+func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int) *http.Transport {
+	return &http.Transport{
 		MaxIdleConns:          maxIdleConns,
 		MaxIdleConnsPerHost:   maxIdleConnsPerHost,
 		MaxConnsPerHost:       maxIdleConnsPerHost + constants.MaxIdleConnsExtraBuffer,
@@ -374,42 +343,28 @@ func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int, apiServer string)
 		ResponseHeaderTimeout: constants.DefaultTimeout,
 		ExpectContinueTimeout: constants.ShortTimeout,
 	}
-
-	if apiServer == "" || apiServer == "https://api.telegram.org" {
-		return httpTransport
-	}
-	parsed, err := url.Parse(apiServer)
-	if err != nil || parsed.Host == "" {
-		log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", apiServer)
-		return httpTransport
-	}
-	log.Infof("[Main] Using custom Bot API server: %s", parsed.String())
-	return &apiServerRewriteTransport{base: httpTransport, target: parsed}
 }
 
-func (t *apiServerRewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Only rewrite Telegram Bot API host
-	if req.URL != nil && strings.EqualFold(req.URL.Host, "api.telegram.org") && t.target != nil {
-		// Clone the request to avoid mutating the caller's request
-		newReq := *req
-		// Rewrite scheme and host
-		newURL := *req.URL
-		newURL.Scheme = t.target.Scheme
-		newURL.Host = t.target.Host
-		// If target has a path prefix, prepend it once
-		if t.target.Path != "" && t.target.Path != "/" {
-			// Ensure single slash join
-			if strings.HasSuffix(t.target.Path, "/") {
-				newURL.Path = t.target.Path + strings.TrimPrefix(newURL.Path, "/")
-			} else {
-				newURL.Path = t.target.Path + newURL.Path
-			}
-		}
-		newReq.URL = &newURL
-		newReq.Host = t.target.Host
-		return t.base.RoundTrip(&newReq)
+func resolveBotAPIURL(apiServer string) string {
+	if apiServer == "" {
+		return gotgbot.DefaultAPIURL
 	}
-	return t.base.RoundTrip(req)
+
+	parsed, err := url.Parse(apiServer)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		log.Warnf("[Main] Invalid API_SERVER '%s'; falling back to default Telegram API.", apiServer)
+		return gotgbot.DefaultAPIURL
+	}
+
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.ForceQuery = false
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	parsed.RawPath = strings.TrimRight(parsed.RawPath, "/")
+
+	return parsed.String()
 }
 
 func resolveBotUsername(b *gotgbot.Bot) string {

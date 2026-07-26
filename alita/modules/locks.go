@@ -567,7 +567,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadLocks registers all locks module handlers with the dispatcher,
 // including commands and message filters for lock enforcement.
 func LoadLocks(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(locksModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[locksModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("lock", locksModule.lockPerm))
 	dispatcher.AddHandler(handlers.NewCommand("unlock", locksModule.unlockPerm))

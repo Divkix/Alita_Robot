@@ -77,7 +77,7 @@ When the bot starts (`main.go`), it performs these steps in order:
 
 4. **Cache Initialization** <Badge text="Infrastructure" variant="note" />
    
-   The Redis cache is initialized with connection retry logic (exponential backoff). Cache must be available before i18n (which uses it for translation caching) and before the database layer.
+   The Redis cache is initialized with connection retry logic (exponential backoff). Startup fails if Redis is unavailable.
    
    ```go
    if err := cache.InitCache(); err != nil {
@@ -117,32 +117,21 @@ When the bot starts (`main.go`), it performs these steps in order:
 
 8. **Bot Client Creation** <Badge text="Core" variant="note" />
    
-   The gotgbot client is initialized with the configured HTTP transport and a 30-second timeout.
+   The gotgbot client is initialized with the configured HTTP transport, a
+   30-second timeout, and the optional custom Bot API URL.
    
    ```go
    b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
        BotClient: &gotgbot.BaseBotClient{
            Client: http.Client{Transport: transport, Timeout: 30 * time.Second},
+           DefaultRequestOpts: &gotgbot.RequestOpts{
+               APIURL: resolveBotAPIURL(config.AppConfig.ApiServer),
+           },
        },
    })
    ```
 
-9. **Connection Pre-warming** <Badge text="Performance" variant="tip" />
-   
-   Three `GetMe` calls run in a background goroutine to establish the HTTP connection pool before real traffic arrives.
-   
-   ```go
-   go func() {
-       for i := 0; i < 3; i++ {
-           b.GetMe(nil)  // Establish connection pool
-           time.Sleep(100 * time.Millisecond)
-       }
-   }()
-   ```
-   
-   Pre-warming prevents the first real user request from paying the TCP + TLS handshake cost. The 3 calls ensure multiple connections are established in the pool.
-
-10. **Initial Checks** <Badge text="Validation" variant="note" />
+9. **Initial Checks** <Badge text="Validation" variant="note" />
     
     Validates configuration and performs startup health checks.
     
@@ -205,7 +194,7 @@ After dispatcher creation, modules are loaded via `alita/main.go`:
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
     // Initialize help system first
-    modules.DefaultHelpRegistry().AbleMap.Init()
+    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
 
     // Load help LAST (deferred) to collect all commands
     defer modules.LoadHelp(dispatcher)
@@ -224,7 +213,7 @@ Each module registers handlers using gotgbot's handler system:
 ```go
 func LoadBans(dispatcher *ext.Dispatcher) {
     // Register module in help system
-    DefaultHelpRegistry().AbleMap.Store(bansModule.moduleName, true)
+    DefaultHelpRegistry().AbleMap[bansModule.moduleName] = true
 
     // Command handlers
     dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))

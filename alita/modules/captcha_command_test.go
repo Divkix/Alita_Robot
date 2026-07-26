@@ -1383,8 +1383,8 @@ func TestLoadCaptchaRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadCaptcha(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(captchaModule.moduleName); moduleName != captchaModule.moduleName || !enabled {
-		t.Fatalf("captcha help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[captchaModule.moduleName] {
+		t.Fatal("captcha help registration = false, want enabled")
 	}
 }
 

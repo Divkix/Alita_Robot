@@ -18,13 +18,18 @@ import (
 // It retrieves the module names from the default help registry, sorts them alphabetically,
 // and returns them as a comma-separated list wrapped in square brackets.
 func ListModules() string {
-	modSlice := modules.DefaultHelpRegistry().AbleMap.LoadModules()
+	var modSlice []string
+	for module, enabled := range modules.DefaultHelpRegistry().AbleMap {
+		if enabled {
+			modSlice = append(modSlice, module)
+		}
+	}
 	slices.Sort(modSlice)
 	return fmt.Sprintf("[%s]", strings.Join(modSlice, ", "))
 }
 
 // InitialChecks performs essential initialization tasks before starting the bot.
-// It ensures the bot exists in the database and validates command aliases for duplicates.
+// It ensures the bot exists in the database before modules load.
 // Note: Cache is initialized in main.go before this function is called.
 func InitialChecks(b *gotgbot.Bot) error {
 	// Ensure bot exists in database (blocking - required for FK constraints)
@@ -35,36 +40,7 @@ func InitialChecks(b *gotgbot.Bot) error {
 		// Continue anyway - non-fatal for basic operations
 	}
 
-	checkDuplicateAliases()
-
 	return nil
-}
-
-// checkDuplicateAliases validates that no command aliases are duplicated across modules.
-// It collects all alternative help options from loaded modules and checks for duplicates.
-// The function terminates the program with a fatal error if duplicates are found.
-func checkDuplicateAliases() {
-	var althelp []string
-
-	for _, i := range modules.DefaultHelpRegistry().AltHelpOptions {
-		althelp = append(althelp, i...)
-	}
-
-	// Check for duplicate aliases in module help options
-	var duplicateAlias string
-	val := false
-	visited := make(map[string]bool)
-	for _, item := range althelp {
-		if visited[item] {
-			duplicateAlias = item
-			val = true
-			break
-		}
-		visited[item] = true
-	}
-	if val {
-		log.Fatalf("Found duplicate alias: %s", duplicateAlias)
-	}
 }
 
 // LoadModules loads all bot modules in the correct order using the provided dispatcher.
@@ -72,7 +48,7 @@ func checkDuplicateAliases() {
 // and ensures the help module is loaded last to register all available commands.
 func LoadModules(dispatcher *ext.Dispatcher) {
 	// Initialize Inner Map
-	modules.DefaultHelpRegistry().AbleMap.Init()
+	modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
 
 	// Load this at last because it loads all the modules
 	defer modules.LoadHelp(dispatcher)

@@ -336,28 +336,6 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	}
 }
 
-func TestDeleteKickDeletesReplyThenKicks(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	target := gotgbot.User{Id: 42, FirstName: "Member"}
-
-	ctx := newBanReplyContext(bot, chat, admin, target, "/dkick clean this")
-	if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("dkick() error = %v, want EndGroups", err)
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want kick ban", len(calls))
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want kick confirmation", len(calls))
-	}
-}
-
 func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -815,8 +793,8 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadBans(dispatcher)
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(bansModule.moduleName); moduleName != bansModule.moduleName || !enabled {
-		t.Fatalf("bans help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[bansModule.moduleName] {
+		t.Fatal("bans help registration = false, want enabled")
 	}
 }
 

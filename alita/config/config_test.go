@@ -275,17 +275,6 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("backward compat WebhookPort", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := &Config{WebhookPort: 9090, HTTPPort: 0}
-		cfg.setDefaults()
-
-		if cfg.HTTPPort != 9090 {
-			t.Errorf("HTTPPort: got %d, want %d (expected WebhookPort to be used)", cfg.HTTPPort, 9090)
-		}
-	})
-
 	t.Run("ClearCacheOnStartup defaults to true when not set", func(t *testing.T) {
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
 

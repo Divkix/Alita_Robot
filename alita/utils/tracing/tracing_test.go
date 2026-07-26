@@ -36,28 +36,6 @@ func ensureAppConfig(t *testing.T) {
 	}
 }
 
-func TestIsEnabled_BeforeInit_ReturnsFalse(t *testing.T) {
-	if IsEnabled() {
-		t.Error("expected IsEnabled() to return false before InitTracing is called")
-	}
-}
-
-func TestGetTracer_BeforeInit_ReturnsNonNil(t *testing.T) {
-	tr := GetTracer()
-	if tr == nil {
-		t.Fatal("expected GetTracer() to return non-nil tracer")
-	}
-
-	// Verify it behaves as a no-op tracer by starting a span
-	ctx, span := tr.Start(context.Background(), "test-span")
-	if ctx == nil {
-		t.Error("no-op tracer.Start returned nil context")
-	}
-	if span == nil {
-		t.Error("no-op tracer.Start returned nil span")
-	}
-}
-
 func TestGetPropagator_BeforeInit_ReturnsNonNil(t *testing.T) {
 	p := GetPropagator()
 	if p == nil {

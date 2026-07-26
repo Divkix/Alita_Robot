@@ -20,17 +20,15 @@ type spamKey struct {
 	userId int64
 }
 
-// antiSpamInfo tracks spam levels for a user in a chat.
-type antiSpamInfo struct {
-	Levels []antiSpamLevel
-}
+const (
+	antiSpamLimit  = 18
+	antiSpamWindow = time.Second
+)
 
-// antiSpamLevel represents a single spam threshold.
-type antiSpamLevel struct {
-	Count    int
-	Limit    int
-	CurrTime time.Time
-	Expiry   time.Duration
+// antiSpamInfo tracks a user's current fixed spam window.
+type antiSpamInfo struct {
+	Count       int
+	WindowStart time.Time
 }
 
 var (
@@ -63,76 +61,33 @@ func cleanupExpiredAntiSpam(now time.Time) {
 	defer antiSpamMutex.Unlock()
 
 	for key, info := range antiSpamMap {
-		if info == nil {
-			delete(antiSpamMap, key)
-			continue
-		}
-
-		allExpired := true
-		for _, level := range info.Levels {
-			if now.Sub(level.CurrTime) < level.Expiry*2 {
-				allExpired = false
-				break
-			}
-		}
-		if allExpired {
+		if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
 			delete(antiSpamMap, key)
 		}
 	}
 }
 
-// checkSpammed evaluates if a user in a chat has exceeded spam detection levels.
-// Returns true if any configured spam threshold has been violated.
-func checkSpammed(key spamKey, levels []antiSpamLevel) bool {
+// spamCheck performs spam detection for a specific user in a chat.
+// The eighteenth message within one second is spam.
+func spamCheck(key spamKey) bool {
 	antiSpamMutex.Lock()
 	defer antiSpamMutex.Unlock()
 
+	now := time.Now()
 	info, ok := antiSpamMap[key]
-	if !ok {
-		// Initialize with current time and count=1 (first message counts)
-		info = &antiSpamInfo{
-			Levels: make([]antiSpamLevel, len(levels)),
-		}
-		for i, lvl := range levels {
-			info.Levels[i] = antiSpamLevel{
-				Count:    1,
-				Limit:    lvl.Limit,
-				CurrTime: time.Now(),
-				Expiry:   lvl.Expiry,
-			}
-		}
+	if !ok || info == nil {
+		info = &antiSpamInfo{Count: 1, WindowStart: now}
 		antiSpamMap[key] = info
 		return false
 	}
 
-	var spammed bool
-	for i := range info.Levels {
-		level := &info.Levels[i]
-
-		// Reset if window expired
-		if time.Since(level.CurrTime) >= level.Expiry {
-			level.CurrTime = time.Now()
-			level.Count = 0
-		}
-
-		level.Count++
-		if level.Count >= level.Limit {
-			spammed = true
-		}
+	if now.Sub(info.WindowStart) >= antiSpamWindow {
+		info.WindowStart = now
+		info.Count = 0
 	}
 
-	return spammed
-}
-
-// spamCheck performs spam detection for a specific user in a chat.
-// Checks against a default threshold of 18 messages per second.
-func spamCheck(key spamKey) bool {
-	return checkSpammed(key, []antiSpamLevel{
-		{
-			Limit:  18,
-			Expiry: time.Second,
-		},
-	})
+	info.Count++
+	return info.Count >= antiSpamLimit
 }
 
 // LoadAntispam registers the antispam message handler with the dispatcher.

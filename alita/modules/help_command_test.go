@@ -59,14 +59,14 @@ func TestHelpCommandRepliesInPrivateAndGroup(t *testing.T) {
 func TestHelpCommandRoutesSpecificModuleInPrivateAndGroup(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	previousMarkup := markup
-	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
 		markup = previousMarkup
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
-	registry.AbleMap.Store("Admin", true)
+	registry.AbleMap["Admin"] = true
 	registry.AltHelpOptions["Admin"] = []string{"admin"}
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
 	initHelpButtons()
@@ -222,7 +222,7 @@ func TestBotConfigCallbackStepsEditAndAnswer(t *testing.T) {
 func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	previousMarkup := markup
-	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
 		markup = previousMarkup
@@ -230,7 +230,7 @@ func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap.Store("Admin", true)
+	registry.AbleMap["Admin"] = true
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	}

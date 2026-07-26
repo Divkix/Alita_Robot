@@ -1498,7 +1498,6 @@ config_message_dump_required: "MESSAGE_DUMP обязателен и должен
 config_database_url_required: "DATABASE_URL обязателен"
 config_redis_address_required: "REDIS_ADDRESS обязателен"
 config_webhook_domain_required: "WEBHOOK_DOMAIN обязателен, когда USE_WEBHOOKS включён"
-config_webhook_port_invalid: "WEBHOOK_PORT должен быть между 1 и 65535"
 config_workers_invalid: "%s должен быть между %d и %d"
 
 # System messages

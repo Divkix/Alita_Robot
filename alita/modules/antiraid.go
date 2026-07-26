@@ -665,7 +665,7 @@ func formatDuration(seconds int) string {
 }
 
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(antiRaidModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[antiRaidModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("antiraid", antiRaidModule.antiraid))
 	dispatcher.AddHandler(handlers.NewCommand("raidtime", antiRaidModule.raidTime))

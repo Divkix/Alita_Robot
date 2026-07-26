@@ -359,48 +359,6 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return mem.Status == "administrator"
 }
 
-// CanUserChangeInfo checks if a user has permission to change chat information.
-// Handles anonymous admins and validates the CanChangeInfo permission.
-func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return canUserChangeInfo(b, ctx, chat, userId)
-}
-
-// CanUserRestrict checks if a user has permission to restrict other members.
-// Handles anonymous admins and validates the CanRestrictMembers permission.
-func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return canUserRestrict(b, ctx, chat, userId)
-}
-
-// CanBotRestrict checks if the bot has permission to restrict members in the chat.
-// Validates the bot's CanRestrictMembers permission.
-func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return canBotRestrict(b, ctx, chat)
-}
-
-// CanUserPromote checks if a user has permission to promote/demote other members.
-// Handles anonymous admins and validates the CanPromoteMembers permission.
-func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return canUserPromote(b, ctx, chat, userId)
-}
-
-// CanBotPromote checks if the bot has permission to promote/demote members in the chat.
-// Validates the bot's CanPromoteMembers permission.
-func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return canBotPromote(b, ctx, chat)
-}
-
-// CanUserPin checks if a user has permission to pin messages in the chat.
-// Handles anonymous admins and validates the CanPinMessages permission.
-func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return canUserPin(b, ctx, chat, userId)
-}
-
-// CanBotPin checks if the bot has permission to pin messages in the chat.
-// Validates the bot's CanPinMessages permission.
-func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return canBotPin(b, ctx, chat)
-}
-
 // CanInvite checks if the bot and user have permissions to generate invite links.
 // Returns true immediately if the chat has a public username.
 // Validates both bot and user permissions for invite link generation.
@@ -442,24 +400,6 @@ func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 		return false
 	}
 	return true
-}
-
-// CanUserDelete checks if a user has permission to delete messages in the chat.
-// Handles anonymous admins and validates the CanDeleteMessages permission.
-func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return canUserDelete(b, ctx, chat, userId)
-}
-
-// CanBotDelete checks if the bot has permission to delete messages in the chat.
-// Validates the bot's CanDeleteMessages permission.
-func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return canBotDelete(b, ctx, chat)
-}
-
-// RequireBotAdmin ensures the bot has administrator privileges in the chat.
-// Uses IsBotAdmin internally to perform the check.
-func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return requireBotAdminPure(b, ctx, chat)
 }
 
 // IsUserInChat checks if a user is currently a member of the specified chat.
@@ -570,34 +510,6 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 	}
 
 	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || slices.Contains(tgAdminList, userId)
-}
-
-// RequireUserAdmin ensures a user has administrator privileges in the chat.
-// Uses IsUserAdmin internally to perform the check.
-func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return requireUserAdminPure(b, ctx, chat, userId)
-}
-
-// RequireUserOwner ensures a user is the chat creator/owner.
-// Checks for "creator" status specifically, not just administrator.
-func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
-	return requireUserOwnerPure(b, ctx, chat, userId)
-}
-
-// RequirePrivate ensures the command is being used in a private chat.
-// Returns false for group chats and supergroups.
-//
-//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
-func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return requirePrivatePure(b, ctx, chat)
-}
-
-// RequireGroup ensures the command is being used in a group chat.
-// Returns false for private chats.
-//
-//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
-func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return requireGroupPure(b, ctx, chat)
 }
 
 // setAnonAdminCache stores anonymous admin message information in cache.

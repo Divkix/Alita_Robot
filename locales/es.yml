@@ -1776,7 +1776,6 @@ config_message_dump_required: "MESSAGE_DUMP es requerido y debe ser mayor que 0"
 config_database_url_required: "DATABASE_URL es requerido"
 config_redis_address_required: "REDIS_ADDRESS es requerido"
 config_webhook_domain_required: "WEBHOOK_DOMAIN es requerido cuando USE_WEBHOOKS está habilitado"
-config_webhook_port_invalid: "WEBHOOK_PORT debe estar entre 1 y 65535"
 config_workers_invalid: "%s debe estar entre %d y %d"
 
 # System messages

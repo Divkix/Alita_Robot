@@ -1,7 +1,6 @@
 package keyword_matcher
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -17,18 +16,13 @@ type Cache struct {
 	ttl        time.Duration
 	lastUsed   map[int64]time.Time
 	lastUsedMu sync.Mutex
-	stopChan   chan struct{}
-	stopOnce   sync.Once
-	cancel     context.CancelFunc
 }
 
-// NewCache creates a new keyword matcher cache
-func NewCache(ttl time.Duration) *Cache {
+func newCache(ttl time.Duration) *Cache {
 	return &Cache{
 		matchers: make(map[int64]*KeywordMatcher),
 		lastUsed: make(map[int64]time.Time),
 		ttl:      ttl,
-		stopChan: make(chan struct{}),
 	}
 }
 
@@ -62,7 +56,7 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	}
 
 	// Create new matcher
-	matcher = NewKeywordMatcher(patterns)
+	matcher = newKeywordMatcher(patterns)
 	c.matchers[chatID] = matcher
 	c.mu.Unlock()
 	c.touchLastUsed(chatID)
@@ -84,8 +78,8 @@ func (c *Cache) touchLastUsed(chatID int64) {
 	c.lastUsedMu.Unlock()
 }
 
-// CleanupExpired removes expired matchers based on TTL
-func (c *Cache) CleanupExpired() {
+// cleanupExpired removes expired matchers based on TTL.
+func (c *Cache) cleanupExpired() {
 	now := time.Now()
 
 	// Step 1: snapshot expired IDs under lastUsedMu
@@ -119,19 +113,6 @@ func (c *Cache) CleanupExpired() {
 	log.WithField("expired_count", len(expiredChats)).Debug("Cleaned up expired keyword matchers")
 }
 
-// Stop stops the cleanup goroutine for this cache
-// This should be called during shutdown or in tests to prevent goroutine leaks
-func (c *Cache) Stop() {
-	c.stopOnce.Do(func() {
-		if c.cancel != nil {
-			c.cancel()
-		}
-		if c.stopChan != nil {
-			close(c.stopChan)
-		}
-	})
-}
-
 // namedCaches is a registry of named caches, each isolated from the others.
 var (
 	namedCaches   = make(map[string]*Cache)
@@ -149,9 +130,7 @@ func GetNamedCache(name string) *Cache {
 		namedCachesMu.Unlock()
 		return c
 	}
-	c = NewCache(30 * time.Minute)
-	ctx, cancel := context.WithCancel(context.Background())
-	c.cancel = cancel
+	c = newCache(30 * time.Minute)
 	namedCaches[name] = c
 	namedCachesMu.Unlock()
 
@@ -161,17 +140,8 @@ func GetNamedCache(name string) *Cache {
 		defer error_handling.RecoverFromPanic("GetNamedCache.cleanupRoutine["+name+"]", "keyword_matcher")
 		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				c.CleanupExpired()
-			case <-ctx.Done():
-				log.WithField("cache_name", name).Debug("Named keyword matcher cache cleanup routine stopped")
-				return
-			case <-c.stopChan:
-				log.WithField("cache_name", name).Debug("Named keyword matcher cache cleanup routine stopped via stopChan")
-				return
-			}
+		for range ticker.C {
+			c.cleanupExpired()
 		}
 	}()
 

@@ -827,7 +827,7 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadWarns registers all warns module handlers with the dispatcher,
 // including warning commands and callback handlers.
 func LoadWarns(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(warnsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[warnsModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("warn", warnsModule.warnUser))
 	dispatcher.AddHandler(handlers.NewCommand("swarn", warnsModule.sWarnUser))

@@ -6,6 +6,71 @@ import (
 	"testing"
 )
 
+func TestExtractKeysFromFile_ASTOnlyCallSites(t *testing.T) {
+	goFile := filepath.Join(t.TempDir(), "test_module.go")
+	content := `package modules
+
+func handler() {
+	// tr.GetString("comment_only")
+	_ = "tr.GetString(\"string_only\")"
+	tr.GetString(
+		"multiline_key",
+	)
+	tr.GetString("same_key")
+	tr.GetString("same_key")
+	tr.GetStringSlice("slice_key")
+	c.Tr.GetString("context_key")
+	tempTr.GetStringSlice("temporary_slice_key")
+}
+`
+	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	keys, err := extractKeysFromFile(goFile)
+	if err != nil {
+		t.Fatalf("extractKeysFromFile() error = %v", err)
+	}
+
+	want := []struct {
+		key  string
+		line int
+	}{
+		{key: "multiline_key", line: 7},
+		{key: "same_key", line: 9},
+		{key: "same_key", line: 10},
+		{key: "slice_key", line: 11},
+		{key: "context_key", line: 12},
+		{key: "temporary_slice_key", line: 13},
+	}
+	if len(keys) != len(want) {
+		t.Fatalf("extractKeysFromFile() returned %d keys, want %d: %#v", len(keys), len(want), keys)
+	}
+	for i, expected := range want {
+		if keys[i].Key != expected.key || keys[i].Line != expected.line {
+			t.Errorf(
+				"key[%d] = {%q, line %d}, want {%q, line %d}",
+				i,
+				keys[i].Key,
+				keys[i].Line,
+				expected.key,
+				expected.line,
+			)
+		}
+	}
+}
+
+func TestExtractKeysFromFile_ReturnsParserError(t *testing.T) {
+	goFile := filepath.Join(t.TempDir(), "invalid.go")
+	if err := os.WriteFile(goFile, []byte("package modules\nfunc handler( {\n"), 0644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	if _, err := extractKeysFromFile(goFile); err == nil {
+		t.Fatal("extractKeysFromFile() error = nil, want parser error")
+	}
+}
+
 func TestExtractKeysFromFile_RelativePaths(t *testing.T) {
 	// Create a temporary directory with a Go file containing translation key patterns
 	tmpDir := t.TempDir()

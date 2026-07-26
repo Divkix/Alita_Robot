@@ -1,8 +1,6 @@
 package modules
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"slices"
 	"strconv"
@@ -30,14 +28,6 @@ import (
 
 var notesModule = moduleStruct{
 	moduleName: "Notes",
-}
-
-func newNotesOverwriteToken() (string, error) {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
 }
 
 // addNote handles the /save command to create new notes
@@ -111,7 +101,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// check if note already exists or not
 	if notes.DoesNoteExists(chat.Id, noteWord) {
-		token, tokenErr := newNotesOverwriteToken()
+		token, tokenErr := newOverwriteToken()
 		if tokenErr != nil {
 			log.Errorf("[Notes] Failed to generate overwrite token: %v", tokenErr)
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -519,7 +509,7 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	var helpText string
-	action, token, ok := parseNoteOverwriteCallbackData(query.Data)
+	action, token, ok := parseOverwriteCallbackData(query.Data, "notes.overwrite")
 	if !ok {
 		log.WithField("data", query.Data).Warn("Invalid note overwrite callback data format")
 		return ext.EndGroups
@@ -990,7 +980,7 @@ func (moduleStruct) sendNoFormatNote(b *gotgbot.Bot, ctx *ext.Context, replyMsgI
 // LoadNotes registers all notes module handlers with the dispatcher,
 // including note management commands and the notes watcher.
 func LoadNotes(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(notesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[notesModule.moduleName] = true
 
 	DefaultHelpRegistry().helpableKb[notesModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{

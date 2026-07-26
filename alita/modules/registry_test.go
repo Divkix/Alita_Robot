@@ -206,8 +206,8 @@ func TestDefaultRegistryIncludesEveryRuntimeModule(t *testing.T) {
 
 func TestDefaultRegistryLoadsRuntimeModules(t *testing.T) {
 	originalHelpRegistry := defaultHelpRegistry
-	defaultHelpRegistry = NewHelpRegistry()
-	defaultHelpRegistry.AbleMap.Init()
+	defaultHelpRegistry = newHelpRegistry()
+	defaultHelpRegistry.AbleMap = make(map[string]bool)
 	t.Cleanup(func() {
 		defaultHelpRegistry = originalHelpRegistry
 	})
@@ -215,8 +215,7 @@ func TestDefaultRegistryLoadsRuntimeModules(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAllModules(dispatcher)
 
-	loadedModules := defaultHelpRegistry.AbleMap.LoadModules()
-	slices.Sort(loadedModules)
+	loadedModules := listModulesFrom(defaultHelpRegistry)
 	want := []string{
 		"Admin",
 		"AntiRaid",

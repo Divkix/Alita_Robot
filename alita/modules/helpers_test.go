@@ -4,7 +4,6 @@ package modules
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"testing"
 
@@ -36,87 +35,14 @@ helpers_note_admin_only: "Admin only note"
 helpers_person_no_name: "PersonWithNoName"
 `
 
-func TestModuleEnabled_StoreAndLoad(t *testing.T) {
-	t.Parallel()
-
-	var m moduleEnabled
-	m.Init()
-
-	// Store true and load
-	m.Store("admin", true)
-	_, got := m.Load("admin")
-	if !got {
-		t.Fatalf("Load(\"admin\") = false, want true after Store(\"admin\", true)")
-	}
-
-	// Load non-existent key returns false
-	_, got = m.Load("nonexistent")
-	if got {
-		t.Fatalf("Load(\"nonexistent\") = true, want false")
-	}
-
-	// Overwrite with false
-	m.Store("admin", false)
-	_, got = m.Load("admin")
-	if got {
-		t.Fatalf("Load(\"admin\") = true, want false after Store(\"admin\", false)")
-	}
-
-	// Empty string key
-	m.Store("", true)
-	_, got = m.Load("")
-	if !got {
-		t.Fatalf("Load(\"\") = false, want true after Store(\"\", true)")
-	}
-}
-
-func TestModuleEnabled_LoadModules(t *testing.T) {
-	t.Parallel()
-
-	t.Run("no stores returns empty slice", func(t *testing.T) {
-		t.Parallel()
-
-		var m moduleEnabled
-		m.Init()
-
-		result := m.LoadModules()
-		if len(result) != 0 {
-			t.Fatalf("LoadModules() with no stores = %v (len %d), want empty slice", result, len(result))
-		}
-	})
-
-	t.Run("enabled modules returned, disabled excluded", func(t *testing.T) {
-		t.Parallel()
-
-		var m moduleEnabled
-		m.Init()
-		m.Store("a", true)
-		m.Store("b", true)
-		m.Store("c", false)
-
-		result := m.LoadModules()
-		if len(result) != 2 {
-			t.Fatalf("LoadModules() = %v (len %d), want 2 elements", result, len(result))
-		}
-		if !slices.Contains(result, "a") {
-			t.Fatalf("LoadModules() = %v, want to contain \"a\"", result)
-		}
-		if !slices.Contains(result, "b") {
-			t.Fatalf("LoadModules() = %v, want to contain \"b\"", result)
-		}
-		if slices.Contains(result, "c") {
-			t.Fatalf("LoadModules() = %v, must not contain \"c\" (disabled)", result)
-		}
-	})
-}
-
 func TestListModules(t *testing.T) {
 	t.Parallel()
 
-	helpRegistry := NewHelpRegistry()
-	helpRegistry.AbleMap.Store("admin", true)
-	helpRegistry.AbleMap.Store("filters", true)
-	helpRegistry.AbleMap.Store("help", true)
+	helpRegistry := newHelpRegistry()
+	helpRegistry.AbleMap["admin"] = true
+	helpRegistry.AbleMap["filters"] = true
+	helpRegistry.AbleMap["help"] = true
+	helpRegistry.AbleMap["disabled"] = false
 
 	result := listModulesFrom(helpRegistry)
 
@@ -135,10 +61,10 @@ func TestListModules(t *testing.T) {
 
 func TestListModulesViaDefaultRegistry(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
-	defaultHelpRegistry = NewHelpRegistry()
-	defaultHelpRegistry.AbleMap.Store("Bans", true)
-	defaultHelpRegistry.AbleMap.Store("Admin", true)
-	defaultHelpRegistry.AbleMap.Store("Filters", true)
+	defaultHelpRegistry = newHelpRegistry()
+	defaultHelpRegistry.AbleMap["Bans"] = true
+	defaultHelpRegistry.AbleMap["Admin"] = true
+	defaultHelpRegistry.AbleMap["Filters"] = true
 	defer func() {
 		defaultHelpRegistry = previousRegistry
 	}()
@@ -172,15 +98,15 @@ func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
 	registry := DefaultHelpRegistry()
 	previousAbleMap := registry.AbleMap
 	previousMarkup := markup
-	registry.AbleMap.Init()
+	registry.AbleMap = make(map[string]bool)
 	t.Cleanup(func() {
 		registry.AbleMap = previousAbleMap
 		markup = previousMarkup
 	})
 
-	registry.AbleMap.Store("Warns", true)
-	registry.AbleMap.Store("Admin", true)
-	registry.AbleMap.Store("Filters", true)
+	registry.AbleMap["Warns"] = true
+	registry.AbleMap["Admin"] = true
+	registry.AbleMap["Filters"] = true
 
 	initHelpButtons()
 	if len(markup.InlineKeyboard) == 0 {
@@ -203,14 +129,14 @@ func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
 func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	previousMarkup := markup
-	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
 		markup = previousMarkup
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap.Store("Admin", true)
+	registry.AbleMap["Admin"] = true
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	}
@@ -248,14 +174,14 @@ func TestModuleHelpLookupRenderingAndSend(t *testing.T) {
 func TestHandleDeepLinkRoutesHelpDeepLink(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
 	previousMarkup := markup
-	defaultHelpRegistry = NewHelpRegistry()
+	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
 		markup = previousMarkup
 	})
 
 	registry := DefaultHelpRegistry()
-	registry.AbleMap.Store("Admin", true)
+	registry.AbleMap["Admin"] = true
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	}
@@ -445,8 +371,8 @@ func TestHandleDeepLinkSendsAboutAndDefaultHelp(t *testing.T) {
 // TestGetModuleHelpAndKb_UsesPassedRegistry proves that getModuleHelpAndKb honors
 // the passed *moduleStruct registry instead of reaching for the global HelpModule.
 func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
-	localRegistry := NewHelpRegistry()
-	localRegistry.AbleMap.Store("Admin", true)
+	localRegistry := newHelpRegistry()
+	localRegistry.AbleMap["Admin"] = true
 	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "FakeAdminBtn", CallbackData: "test-admin"}},
 		{{Text: "FakeAdminBtn2", CallbackData: "test-admin2"}},
@@ -489,9 +415,9 @@ func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 // TestGetModuleNameFromAltName_UsesPassedRegistry proves getModuleNameFromAltName
 // resolves against the registry passed as parameter rather than the global HelpModule.
 func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
-	localRegistry := NewHelpRegistry()
-	localRegistry.AbleMap.Store("Filters", true)
-	localRegistry.AbleMap.Store("Admin", true)
+	localRegistry := newHelpRegistry()
+	localRegistry.AbleMap["Filters"] = true
+	localRegistry.AbleMap["Admin"] = true
 
 	cases := []struct {
 		name     string
@@ -517,9 +443,9 @@ func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 // TestGetHelpTextAndMarkup_UsesPassedRegistry proves getHelpTextAndMarkup resolves
 // the module list and keyboard from the passed registry, not from the global.
 func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
-	localRegistry := NewHelpRegistry()
-	localRegistry.AbleMap.Store("Admin", true)
-	localRegistry.AbleMap.Store("Filters", true)
+	localRegistry := newHelpRegistry()
+	localRegistry.AbleMap["Admin"] = true
+	localRegistry.AbleMap["Filters"] = true
 	// Do NOT store "Warns" — querying "warns" should miss in local registry.
 	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "CustomAdmin", CallbackData: "custom-admin"}},
@@ -706,10 +632,10 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 	privateChat := gotgbot.Chat{Id: 42, Type: "private", FirstName: "Member"}
 
 	cases := []struct {
-		name        string
-		arg         string
-		wantText    string // substring that must appear in the sent text
-		forbidText  string // substring that must NOT appear (the rejection)
+		name       string
+		arg        string
+		wantText   string // substring that must appear in the sent text
+		forbidText string // substring that must NOT appear (the rejection)
 	}{
 		{
 			name:       "rules allowed for member",

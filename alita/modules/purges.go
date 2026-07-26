@@ -555,7 +555,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 // LoadPurges registers all purges module handlers with the dispatcher,
 // including message deletion commands and callback handlers.
 func LoadPurges(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(purgesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[purgesModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("del", purgesModule.delCmd))
 	dispatcher.AddHandler(handlers.NewCommand("purge", purgesModule.purge))

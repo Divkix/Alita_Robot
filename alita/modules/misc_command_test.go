@@ -377,7 +377,7 @@ func TestLoadMiscRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadMisc(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(miscModule.moduleName); moduleName != miscModule.moduleName || !enabled {
-		t.Fatalf("misc help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[miscModule.moduleName] {
+		t.Fatal("misc help registration = false, want enabled")
 	}
 }

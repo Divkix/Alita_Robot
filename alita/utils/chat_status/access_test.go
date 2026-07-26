@@ -294,11 +294,11 @@ func TestPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		name string
 		fn   func() bool
 	}{
-		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 10) }},
-		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 10) }},
-		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 10) }},
-		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 10) }},
-		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 10) }},
+		{name: "change info", fn: func() bool { return CanUserChangeInfo(bot, ctx, chat, 10) }},
+		{name: "restrict", fn: func() bool { return CanUserRestrict(bot, ctx, chat, 10) }},
+		{name: "promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 10) }},
+		{name: "pin", fn: func() bool { return CanUserPin(bot, ctx, chat, 10) }},
+		{name: "delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 10) }},
 	}
 
 	for _, tt := range tests {
@@ -315,14 +315,14 @@ func TestPermissionHelpersAllowCreatorWithoutSpecificFlags(t *testing.T) {
 	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
 	ctx := makeCtxWithMessage("supergroup")
 
-	if !canUserRestrict(bot, ctx, chat, 12) {
-		t.Fatal("canUserRestrict() = false, want true for creator")
+	if !CanUserRestrict(bot, ctx, chat, 12) {
+		t.Fatal("CanUserRestrict() = false, want true for creator")
 	}
-	if !canUserDelete(bot, ctx, chat, 12) {
-		t.Fatal("canUserDelete() = false, want true for creator")
+	if !CanUserDelete(bot, ctx, chat, 12) {
+		t.Fatal("CanUserDelete() = false, want true for creator")
 	}
-	if !requireUserOwnerPure(bot, ctx, chat, 12) {
-		t.Fatal("requireUserOwnerPure() = false, want true for creator")
+	if !RequireUserOwner(bot, ctx, chat, 12) {
+		t.Fatal("RequireUserOwner() = false, want true for creator")
 	}
 }
 
@@ -335,11 +335,11 @@ func TestPermissionHelpersRejectMissingMemberPermissions(t *testing.T) {
 		name string
 		fn   func() bool
 	}{
-		{name: "change info", fn: func() bool { return canUserChangeInfo(bot, ctx, chat, 11) }},
-		{name: "restrict", fn: func() bool { return canUserRestrict(bot, ctx, chat, 11) }},
-		{name: "promote", fn: func() bool { return canUserPromote(bot, ctx, chat, 11) }},
-		{name: "pin", fn: func() bool { return canUserPin(bot, ctx, chat, 11) }},
-		{name: "delete", fn: func() bool { return canUserDelete(bot, ctx, chat, 11) }},
+		{name: "change info", fn: func() bool { return CanUserChangeInfo(bot, ctx, chat, 11) }},
+		{name: "restrict", fn: func() bool { return CanUserRestrict(bot, ctx, chat, 11) }},
+		{name: "promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 11) }},
+		{name: "pin", fn: func() bool { return CanUserPin(bot, ctx, chat, 11) }},
+		{name: "delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 11) }},
 	}
 
 	for _, tt := range tests {
@@ -360,10 +360,10 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		name string
 		fn   func() bool
 	}{
-		{name: "restrict", fn: func() bool { return canBotRestrict(fullBot, ctx, chat) }},
-		{name: "promote", fn: func() bool { return canBotPromote(fullBot, ctx, chat) }},
-		{name: "pin", fn: func() bool { return canBotPin(fullBot, ctx, chat) }},
-		{name: "delete", fn: func() bool { return canBotDelete(fullBot, ctx, chat) }},
+		{name: "restrict", fn: func() bool { return CanBotRestrict(fullBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return CanBotPromote(fullBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return CanBotPin(fullBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return CanBotDelete(fullBot, ctx, chat) }},
 	}
 	for _, tt := range fullTests {
 		t.Run("full/"+tt.name, func(t *testing.T) {
@@ -378,10 +378,10 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		name string
 		fn   func() bool
 	}{
-		{name: "restrict", fn: func() bool { return canBotRestrict(limitedBot, ctx, chat) }},
-		{name: "promote", fn: func() bool { return canBotPromote(limitedBot, ctx, chat) }},
-		{name: "pin", fn: func() bool { return canBotPin(limitedBot, ctx, chat) }},
-		{name: "delete", fn: func() bool { return canBotDelete(limitedBot, ctx, chat) }},
+		{name: "restrict", fn: func() bool { return CanBotRestrict(limitedBot, ctx, chat) }},
+		{name: "promote", fn: func() bool { return CanBotPromote(limitedBot, ctx, chat) }},
+		{name: "pin", fn: func() bool { return CanBotPin(limitedBot, ctx, chat) }},
+		{name: "delete", fn: func() bool { return CanBotDelete(limitedBot, ctx, chat) }},
 	}
 	for _, tt := range limitedTests {
 		t.Run("limited/"+tt.name, func(t *testing.T) {
@@ -698,23 +698,23 @@ func TestPermissionResponderSendsMessage(t *testing.T) {
 	}
 }
 
-func TestRequireUserAdminPureUsesGotgbotAdminList(t *testing.T) {
+func TestRequireUserAdminUsesGotgbotAdminList(t *testing.T) {
 	bot := newChatStatusBot(999)
 	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}
 	ctx := makeCtxWithMessage("supergroup")
 
-	if !requireUserAdminPure(bot, ctx, chat, 10) {
-		t.Fatal("requireUserAdminPure(full admin) = false, want true")
+	if !RequireUserAdmin(bot, ctx, chat, 10) {
+		t.Fatal("RequireUserAdmin(full admin) = false, want true")
 	}
-	if !requireUserAdminPure(bot, ctx, chat, 777000) {
-		t.Fatal("requireUserAdminPure(Telegram service user) = false, want true")
+	if !RequireUserAdmin(bot, ctx, chat, 777000) {
+		t.Fatal("RequireUserAdmin(Telegram service user) = false, want true")
 	}
-	if requireUserAdminPure(bot, ctx, chat, 42) {
-		t.Fatal("requireUserAdminPure(member) = true, want false")
+	if RequireUserAdmin(bot, ctx, chat, 42) {
+		t.Fatal("RequireUserAdmin(member) = true, want false")
 	}
 }
 
-func TestRequireGroupPure(t *testing.T) {
+func TestRequireGroup(t *testing.T) {
 	tests := []struct {
 		name     string
 		chatType string
@@ -729,15 +729,15 @@ func TestRequireGroupPure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chat := &gotgbot.Chat{Type: tt.chatType}
-			got := requireGroupPure(nil, nil, chat)
+			got := RequireGroup(nil, nil, chat)
 			if got != tt.want {
-				t.Fatalf("requireGroupPure(%q) = %v, want %v", tt.chatType, got, tt.want)
+				t.Fatalf("RequireGroup(%q) = %v, want %v", tt.chatType, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestRequirePrivatePure(t *testing.T) {
+func TestRequirePrivate(t *testing.T) {
 	tests := []struct {
 		name     string
 		chatType string
@@ -752,113 +752,113 @@ func TestRequirePrivatePure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chat := &gotgbot.Chat{Type: tt.chatType}
-			got := requirePrivatePure(nil, nil, chat)
+			got := RequirePrivate(nil, nil, chat)
 			if got != tt.want {
-				t.Fatalf("requirePrivatePure(%q) = %v, want %v", tt.chatType, got, tt.want)
+				t.Fatalf("RequirePrivate(%q) = %v, want %v", tt.chatType, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestRequireGroupPure_NilChat(t *testing.T) {
+func TestRequireGroup_NilChat(t *testing.T) {
 	ctx := makeCtxWithMessage("group")
 	// When chat is nil, extractChatFromContext pulls from ctx's embedded Update.Message.Chat
-	if !requireGroupPure(nil, ctx, nil) {
-		t.Fatal("requireGroupPure(nil, ctxWithGroup, nil) should be true")
+	if !RequireGroup(nil, ctx, nil) {
+		t.Fatal("RequireGroup(nil, ctxWithGroup, nil) should be true")
 	}
 }
 
-func TestRequirePrivatePure_NilChat(t *testing.T) {
+func TestRequirePrivate_NilChat(t *testing.T) {
 	ctx := makeCtxWithMessage("private")
-	if !requirePrivatePure(nil, ctx, nil) {
-		t.Fatal("requirePrivatePure(nil, ctxWithPrivate, nil) should be true")
+	if !RequirePrivate(nil, ctx, nil) {
+		t.Fatal("RequirePrivate(nil, ctxWithPrivate, nil) should be true")
 	}
 }
 
-func TestRequireGroupPure_NilContextAndChat(t *testing.T) {
-	if requireGroupPure(nil, nil, nil) {
-		t.Fatal("requireGroupPure(nil, nil, nil) should be false")
+func TestRequireGroup_NilContextAndChat(t *testing.T) {
+	if RequireGroup(nil, nil, nil) {
+		t.Fatal("RequireGroup(nil, nil, nil) should be false")
 	}
 }
 
-func TestRequirePrivatePure_NilContextAndChat(t *testing.T) {
-	if requirePrivatePure(nil, nil, nil) {
-		t.Fatal("requirePrivatePure(nil, nil, nil) should be false")
+func TestRequirePrivate_NilContextAndChat(t *testing.T) {
+	if RequirePrivate(nil, nil, nil) {
+		t.Fatal("RequirePrivate(nil, nil, nil) should be false")
 	}
 }
 
-func TestIsBotAdminPure_NilBot(t *testing.T) {
+func TestIsBotAdmin_NilBot(t *testing.T) {
 	ctx := makeCtxWithMessage("private")
 	// Private chats always return true from IsBotAdmin.
-	if !isBotAdminPure(nil, ctx, nil) {
-		t.Fatal("isBotAdminPure(nil, privateCtx, nil) should be true for private chats")
+	if !IsBotAdmin(nil, ctx, nil) {
+		t.Fatal("IsBotAdmin(nil, privateCtx, nil) should be true for private chats")
 	}
 }
 
-func TestRequireBotAdminPure_NilBot(t *testing.T) {
+func TestRequireBotAdmin_NilBot(t *testing.T) {
 	ctx := makeCtxWithMessage("private")
-	if !requireBotAdminPure(nil, ctx, nil) {
-		t.Fatal("requireBotAdminPure(nil, privateCtx, nil) should be true for private chats")
+	if !RequireBotAdmin(nil, ctx, nil) {
+		t.Fatal("RequireBotAdmin(nil, privateCtx, nil) should be true for private chats")
 	}
 }
 
-func TestRequireUserOwnerPure_NilChat(t *testing.T) {
-	if requireUserOwnerPure(nil, nil, nil, 12345) {
-		t.Fatal("requireUserOwnerPure(nil, nil, nil, user) should be false")
+func TestRequireUserOwner_NilChat(t *testing.T) {
+	if RequireUserOwner(nil, nil, nil, 12345) {
+		t.Fatal("RequireUserOwner(nil, nil, nil, user) should be false")
 	}
 }
 
 func TestCanBotRestrict_NilBotAndChat(t *testing.T) {
-	if canBotRestrict(nil, nil, nil) {
-		t.Fatal("canBotRestrict(nil, nil, nil) should be false")
+	if CanBotRestrict(nil, nil, nil) {
+		t.Fatal("CanBotRestrict(nil, nil, nil) should be false")
 	}
 }
 
 func TestCanBotPromote_NilBotAndChat(t *testing.T) {
-	if canBotPromote(nil, nil, nil) {
-		t.Fatal("canBotPromote(nil, nil, nil) should be false")
+	if CanBotPromote(nil, nil, nil) {
+		t.Fatal("CanBotPromote(nil, nil, nil) should be false")
 	}
 }
 
 func TestCanBotPin_NilBotAndChat(t *testing.T) {
-	if canBotPin(nil, nil, nil) {
-		t.Fatal("canBotPin(nil, nil, nil) should be false")
+	if CanBotPin(nil, nil, nil) {
+		t.Fatal("CanBotPin(nil, nil, nil) should be false")
 	}
 }
 
 func TestCanBotDelete_NilBotAndChat(t *testing.T) {
-	if canBotDelete(nil, nil, nil) {
-		t.Fatal("canBotDelete(nil, nil, nil) should be false")
+	if CanBotDelete(nil, nil, nil) {
+		t.Fatal("CanBotDelete(nil, nil, nil) should be false")
 	}
 }
 
 func TestCanUserChangeInfo_NilBotAndChat(t *testing.T) {
-	if canUserChangeInfo(nil, nil, nil, 1) {
-		t.Fatal("canUserChangeInfo(nil, nil, nil, 1) should be false")
+	if CanUserChangeInfo(nil, nil, nil, 1) {
+		t.Fatal("CanUserChangeInfo(nil, nil, nil, 1) should be false")
 	}
 }
 
 func TestCanUserRestrict_NilBotAndChat(t *testing.T) {
-	if canUserRestrict(nil, nil, nil, 1) {
-		t.Fatal("canUserRestrict(nil, nil, nil, 1) should be false")
+	if CanUserRestrict(nil, nil, nil, 1) {
+		t.Fatal("CanUserRestrict(nil, nil, nil, 1) should be false")
 	}
 }
 
 func TestCanUserPromote_NilBotAndChat(t *testing.T) {
-	if canUserPromote(nil, nil, nil, 1) {
-		t.Fatal("canUserPromote(nil, nil, nil, 1) should be false")
+	if CanUserPromote(nil, nil, nil, 1) {
+		t.Fatal("CanUserPromote(nil, nil, nil, 1) should be false")
 	}
 }
 
 func TestCanUserPin_NilBotAndChat(t *testing.T) {
-	if canUserPin(nil, nil, nil, 1) {
-		t.Fatal("canUserPin(nil, nil, nil, 1) should be false")
+	if CanUserPin(nil, nil, nil, 1) {
+		t.Fatal("CanUserPin(nil, nil, nil, 1) should be false")
 	}
 }
 
 func TestCanUserDelete_NilBotAndChat(t *testing.T) {
-	if canUserDelete(nil, nil, nil, 1) {
-		t.Fatal("canUserDelete(nil, nil, nil, 1) should be false")
+	if CanUserDelete(nil, nil, nil, 1) {
+		t.Fatal("CanUserDelete(nil, nil, nil, 1) should be false")
 	}
 }
 

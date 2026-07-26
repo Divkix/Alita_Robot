@@ -269,21 +269,17 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 
 	keyb := keyboard.BuildKeyboard(content.ConvertButtonV2ToDbButton(buttons))
 
-	// Validate that enum function exists before calling to prevent panic from invalid dataType
-	// This protects against database corruption or invalid message types
-	pinFunc, exists := PinsEnumFuncMap[pinT.DataType]
-	if !exists || pinFunc == nil {
-		log.Errorf("Invalid or missing pin type: %d, cannot send permapin", pinT.DataType)
-		text, _ := c.Tr.GetString("pins_permapin_unsupported")
-		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
-	ppmsg, err := pinFunc(c.Bot, c.Ctx, pinT, &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}, 0)
+	ppmsg, err := media.Send(c.Bot, media.Content{
+		Text:    pinT.MsgText,
+		FileID:  pinT.FileID,
+		MsgType: pinT.DataType,
+	}, media.Options{
+		ChatID:            c.Chat.Id,
+		ThreadID:          c.Msg.MessageThreadId,
+		Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb},
+		WebPreview:        false,
+		AllowWithoutReply: true,
+	})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -600,39 +596,6 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// PinsEnumFuncMap maps data types to functions that send pinned messages with appropriate formatting.
-// Each function handles a specific media type (text, photo, video, etc.) for pin notifications.
-// All cases route through media.Send, which switches on MsgType and falls back to text on empty FileID.
-var PinsEnumFuncMap = map[int]func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error){
-	db.TEXT:       pinSendFunc(db.TEXT),
-	db.STICKER:    pinSendFunc(db.STICKER),
-	db.DOCUMENT:   pinSendFunc(db.DOCUMENT),
-	db.PHOTO:      pinSendFunc(db.PHOTO),
-	db.AUDIO:      pinSendFunc(db.AUDIO),
-	db.VOICE:      pinSendFunc(db.VOICE),
-	db.VIDEO:      pinSendFunc(db.VIDEO),
-	db.VIDEO_NOTE: pinSendFunc(db.VIDEO_NOTE),
-}
-
-// pinSendFunc builds a pin-send closure for the given message type that routes
-// the send through media.Send (which handles empty-FileID text fallback).
-func pinSendFunc(msgType int) func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
-	return func(b *gotgbot.Bot, ctx *ext.Context, pinT pinType, keyb *gotgbot.InlineKeyboardMarkup, replyMsgId int64) (*gotgbot.Message, error) {
-		return media.Send(b, media.Content{
-			Text:    pinT.MsgText,
-			FileID:  pinT.FileID,
-			MsgType: msgType,
-		}, media.Options{
-			ChatID:            ctx.EffectiveChat.Id,
-			ReplyMsgID:        replyMsgId,
-			ThreadID:          ctx.EffectiveMessage.MessageThreadId,
-			Keyboard:          keyb,
-			WebPreview:        false,
-			AllowWithoutReply: true,
-		})
-	}
-}
-
 // GetPinType analyzes a message to determine its content type and extract
 // relevant data for pinning, including file IDs, text, and buttons.
 func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataType int, buttons []tgmd2html.ButtonV2) {
@@ -791,7 +754,7 @@ var (
 // LoadPin registers all pins module handlers with the dispatcher,
 // including pin management commands and channel message monitoring.
 func LoadPin(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(pinsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[pinsModule.moduleName] = true
 
 	helpers.WrapCommand(dispatcher, unpinDesc, pinsModule.unpin)
 	helpers.WrapCommand(dispatcher, unpinAllDesc, pinsModule.unpinAll)

@@ -1906,7 +1906,7 @@ func unmuteExpiredCaptchaUsers() {
 
 // LoadCaptcha registers all captcha module handlers with the dispatcher.
 func LoadCaptcha(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(captchaModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[captchaModule.moduleName] = true
 
 	// Message handler for users with pending captcha (high priority to intercept early)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)

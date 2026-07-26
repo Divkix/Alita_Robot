@@ -314,7 +314,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadDisabling registers all disabling-related command handlers with the dispatcher.
 // Sets up commands for managing which bot commands are enabled or disabled in chats.
 func LoadDisabling(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(disablingModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[disablingModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("disable", disablingModule.disable))
 	dispatcher.AddHandler(handlers.NewCommand("disableable", disablingModule.disableable))
