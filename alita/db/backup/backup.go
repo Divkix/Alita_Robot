@@ -441,7 +441,11 @@ func importAdminData(chatID int64, data interface{}) error {
 		var settings models.AdminSettings
 		if err := json.Unmarshal(adminJSON, &settings); err == nil {
 			settings.ChatId = chatID
-			if err := db.UpdateRecord(&models.AdminSettings{}, models.AdminSettings{ChatId: chatID}, settings); err != nil {
+			// Use SetAnonAdminMode so AnonAdmin=false is actually persisted
+			// (UpdateRecord with a struct ignores zero values, so restoring
+			// anon-admin OFF onto a chat that had it ON would leave it ON).
+			// SetAnonAdminMode also ensures the row exists before updating.
+			if err := admin.SetAnonAdminMode(chatID, settings.AnonAdmin); err != nil {
 				log.Warnf("[BackupDB] Failed to import admin settings: %v", err)
 			}
 		}
