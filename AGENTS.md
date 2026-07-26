@@ -123,7 +123,11 @@ Big architectural facts an agent must hold in mind:
 - **`scripts/`** — `generate_docs/` (root module), `check_translations/` (**separate
   go.mod**), `validate_orphaned_data.go`, `migrate_psql.sh`, `backup_database.sh`.
 - **`internal/repo_checks/`** — test-only structural-invariant assertions.
-- **`docs/`** — Astro + Starlight docs site (bun, deployed to Cloudflare Workers).
+- **`docs/`** — Blume (useblume.dev) markdown-first docs site (bun, static
+  build to Cloudflare Workers). Content in `docs/src/content/docs/`, config in
+  `docs/blume.config.ts`; sidebar groups inferred from the folder tree with
+  per-folder `meta.ts`. Built-in AI artifacts (llms.txt, llms-full.txt, .md
+  mirrors) on by default.
 - **`.github/workflows/`** — `ci.yml`, `release.yml`, `docs.yml`, `dependabot-native-merge.yml`.
 - **`docker/`** — `alpine` (prod), `alpine.debug`, `goreleaser`, `pr-build`.
 
@@ -149,7 +153,7 @@ make check-duplicates   # golangci-lint --enable dupl (duplicate Go CODE, NOT tr
 make generate-docs      # regenerate docs from source (no-op for sentinel-frozen files)
 make check-docs         # docs drift gate (diff regenerated vs committed)
 make inventory          # .planning/INVENTORY.{json,md} (authoritative command list)
-make docs-dev           # bun run dev (Astro, localhost:4321)
+make docs-dev           # blume dev (hot-reload dev server)
 
 # Postgres migrations (require PSQL_DB_* env)
 make psql-prepare / psql-migrate / psql-status / psql-rollback / psql-verify / psql-reset
@@ -706,7 +710,7 @@ m != nil`) — every helper bails when it's nil.
 ## 17. Scripts & tooling
 
 - **`scripts/generate_docs/`** — `package main` in the **root module** (`go run .`),
-  regex/text parsers (not AST) of locales/modules/locks → Starlight Markdown. Normal
+  regex/text parsers (not AST) of locales/modules/locks → Blume Markdown. Normal
   generation updates only `commands/users/index.md` and `api-reference/lock-types.md`;
   frozen files are hand-maintained. Lock descriptions are hardcoded in
   `getLockDescription()`. `-inventory` separately parses commands, callbacks, and

@@ -142,7 +142,7 @@ inventory:
 	@echo "Inventory written to .planning/INVENTORY.json and .planning/INVENTORY.md"
 
 docs-dev:
-	@echo "🚀 Starting Astro dev server..."
+	@echo "🚀 Starting Blume dev server..."
 	@cd docs && bun run dev
 
 # Database validation and backup

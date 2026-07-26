@@ -3,8 +3,6 @@ title: Request Flow
 description: How Telegram updates are processed through the Alita Robot pipeline.
 ---
 
-import { Badge, Steps } from '@astrojs/starlight/components';
-
 This document details how Telegram updates flow through Alita Robot, from reception to response.
 
 ## Update Processing Pipeline
@@ -39,110 +37,128 @@ This document details how Telegram updates flow through Alita Robot, from recept
 When the bot starts (`main.go`), it performs these steps in order:
 
 <Steps>
+  <Step title="Health Check Mode">
+    <Badge>Optional</Badge>
 
-1. **Health Check Mode** <Badge text="Optional" variant="default" />
-   
-   If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
-   
-   ```go
-    if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
-       // HTTP GET to /health, exit with status code
-       os.Exit(0)
-   }
-   ```
+    If the `--health` flag is passed, the process performs an HTTP GET to `/health` and exits with the status code. This is used by Docker health checks.
 
-2. **Version Check** <Badge text="Optional" variant="default" />
-   
-   If the `--version`, `-version`, or `-v` flag is passed, the process prints the bot version and exits immediately without initializing any services.
-   
-   ```go
-    if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
-       fmt.Println(config.AppConfig.BotVersion)
-       os.Exit(0)
-   }
-   ```
+    ```go
+     if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
+        // HTTP GET to /health, exit with status code
+        os.Exit(0)
+    }
+    ```
+  </Step>
 
-3. **Panic Recovery Setup** <Badge text="Safety" variant="caution" />
-   
-   A top-level deferred recovery ensures the process logs the panic and exits cleanly rather than crashing silently.
-   
-   ```go
-   defer func() {
-       if r := recover(); r != nil {
-           log.Errorf("[Main] Panic recovered: %v", r)
-           os.Exit(1)
-       }
-   }()
-   ```
+  <Step title="Version Check">
+    <Badge>Optional</Badge>
 
-4. **Cache Initialization** <Badge text="Infrastructure" variant="note" />
-   
-   The Redis cache is initialized with connection retry logic (exponential backoff). Startup fails if Redis is unavailable.
-   
-   ```go
-   if err := cache.InitCache(); err != nil {
-       log.Fatalf("Failed to initialize cache: %v", err)
-   }
-   ```
+    If the `--version`, `-version`, or `-v` flag is passed, the process prints the bot version and exits immediately without initializing any services.
 
-5. **Locale Manager Initialization** <Badge text="i18n" variant="note" />
-   
-   The singleton `LocaleManager` loads embedded YAML translation files for all supported languages.
-   
-   ```go
-   localeManager := i18n.GetManager()
-   localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
-   ```
+    ```go
+     if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
+        fmt.Println(config.AppConfig.BotVersion)
+        os.Exit(0)
+    }
+    ```
+  </Step>
 
-6. **OpenTelemetry Tracing Initialization** <Badge text="Observability" variant="success" />
-   
-   Sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
-   
-   ```go
-   tracing.InitTracing()
-   ```
+  <Step title="Panic Recovery Setup">
+    <Badge variant="warning">Safety</Badge>
 
-7. **HTTP Transport Configuration** <Badge text="Networking" variant="note" />
-   
-   Connection pooling is configured for outbound HTTP requests to the Telegram API.
-   
-   ```go
-   httpTransport := &http.Transport{
-       MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
-       MaxIdleConnsPerHost: config.AppConfig.HTTPMaxIdleConnsPerHost,
-       IdleConnTimeout:     120 * time.Second,
-       ForceAttemptHTTP2:   true,
-   }
-   ```
+    A top-level deferred recovery ensures the process logs the panic and exits cleanly rather than crashing silently.
 
-8. **Bot Client Creation** <Badge text="Core" variant="note" />
-   
-   The gotgbot client is initialized with the configured HTTP transport, a
-   30-second timeout, and the optional custom Bot API URL.
-   
-   ```go
-   b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
-       BotClient: &gotgbot.BaseBotClient{
-           Client: http.Client{Transport: transport, Timeout: 30 * time.Second},
-           DefaultRequestOpts: &gotgbot.RequestOpts{
-               APIURL: resolveBotAPIURL(config.AppConfig.ApiServer),
-           },
-       },
-   })
-   ```
+    ```go
+    defer func() {
+        if r := recover(); r != nil {
+            log.Errorf("[Main] Panic recovered: %v", r)
+            os.Exit(1)
+        }
+    }()
+    ```
+  </Step>
 
-9. **Initial Checks** <Badge text="Validation" variant="note" />
-    
+  <Step title="Cache Initialization">
+    <Badge variant="accent">Infrastructure</Badge>
+
+    The Redis cache is initialized with connection retry logic (exponential backoff). Startup fails if Redis is unavailable.
+
+    ```go
+    if err := cache.InitCache(); err != nil {
+        log.Fatalf("Failed to initialize cache: %v", err)
+    }
+    ```
+  </Step>
+
+  <Step title="Locale Manager Initialization">
+    <Badge variant="accent">i18n</Badge>
+
+    The singleton `LocaleManager` loads embedded YAML translation files for all supported languages.
+
+    ```go
+    localeManager := i18n.GetManager()
+    localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig())
+    ```
+  </Step>
+
+  <Step title="OpenTelemetry Tracing Initialization">
+    <Badge variant="success">Observability</Badge>
+
+    Sets up distributed tracing with OTLP or console exporters based on environment configuration (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLE_RATE`).
+
+    ```go
+    tracing.InitTracing()
+    ```
+  </Step>
+
+  <Step title="HTTP Transport Configuration">
+    <Badge variant="accent">Networking</Badge>
+
+    Connection pooling is configured for outbound HTTP requests to the Telegram API.
+
+    ```go
+    httpTransport := &http.Transport{
+        MaxIdleConns:        config.AppConfig.HTTPMaxIdleConns,
+        MaxIdleConnsPerHost: config.AppConfig.HTTPMaxIdleConnsPerHost,
+        IdleConnTimeout:     120 * time.Second,
+        ForceAttemptHTTP2:   true,
+    }
+    ```
+  </Step>
+
+  <Step title="Bot Client Creation">
+    <Badge variant="accent">Core</Badge>
+
+    The gotgbot client is initialized with the configured HTTP transport, a
+    30-second timeout, and the optional custom Bot API URL.
+
+    ```go
+    b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
+        BotClient: &gotgbot.BaseBotClient{
+            Client: http.Client{Transport: transport, Timeout: 30 * time.Second},
+            DefaultRequestOpts: &gotgbot.RequestOpts{
+                APIURL: resolveBotAPIURL(config.AppConfig.ApiServer),
+            },
+        },
+    })
+    ```
+  </Step>
+
+  <Step title="Initial Checks">
+    <Badge variant="accent">Validation</Badge>
+
     Validates configuration and performs startup health checks.
-    
+
     ```go
     alita.InitialChecks(b)  // Validates config and performs startup health checks
     ```
+  </Step>
 
-11. **Dispatcher Creation** <Badge text="Core" variant="note" />
-    
+  <Step title="Dispatcher Creation">
+    <Badge variant="accent">Core</Badge>
+
     The dispatcher routes updates to handlers with bounded concurrency. It uses a `TracingProcessor` wrapper for trace context propagation in polling mode.
-    
+
     ```go
     dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{
         Error:       errorHandler,
@@ -150,11 +166,13 @@ When the bot starts (`main.go`), it performs these steps in order:
         Processor:   tracing.TracingProcessor{},
     })
     ```
+  </Step>
 
-12. **Monitoring Systems** <Badge text="Observability" variant="success" />
-    
+  <Step title="Monitoring Systems">
+    <Badge variant="success">Observability</Badge>
+
     Monitoring systems are started based on configuration.
-    
+
     ```go
     if config.AppConfig.EnableBackgroundStats {
         statsCollector = monitoring.NewBackgroundStatsCollector()
@@ -164,11 +182,13 @@ When the bot starts (`main.go`), it performs these steps in order:
     }
     activityMonitor = monitoring.NewActivityMonitor() // Always starts
     ```
+  </Step>
 
-13. **HTTP Server & Mode Selection** <Badge text="Core" variant="note" />
-    
+  <Step title="HTTP Server & Mode Selection">
+    <Badge variant="accent">Core</Badge>
+
     The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
-    
+
     ```go
     httpServer := httpserver.New(config.AppConfig.HTTPPort)
     httpServer.RegisterHealth()
@@ -177,14 +197,14 @@ When the bot starts (`main.go`), it performs these steps in order:
     if config.AppConfig.EnablePPROF {
         httpServer.RegisterPPROF()
     }
-    
+
     if config.AppConfig.UseWebhooks {
         httpServer.RegisterWebhook(b, dispatcher, secret, domain)
     } else {
         updater.StartPolling(b, pollingOpts)
     }
     ```
-
+  </Step>
 </Steps>
 
 ## Module Loading Order

@@ -1,11 +1,7 @@
 ---
-title: Self-Hosting Overview
+title: Self-Hosting
 description: Host your own instance of Alita Robot.
 ---
-
-import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
-
-# Self-Hosting Alita Robot
 
 This guide covers everything you need to deploy your own instance of Alita Robot.
 
@@ -28,9 +24,9 @@ For building from source:
 Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redis so you do not need to install them separately.
 :::
 
-<CardGrid>
-  <Card title="Docker Compose" icon="seti:docker">
-    <Badge text="Recommended" variant="success" /> The easiest way to deploy Alita. Includes PostgreSQL and Redis out of the box.
+<CardGroup cols={3}>
+  <Card title="Docker Compose" href="/self-hosting/docker/" icon="container">
+    <Badge variant="success">Recommended</Badge> The easiest way to deploy Alita. Includes PostgreSQL and Redis out of the box.
 
     ```bash
     git clone https://github.com/divkix/Alita_Robot.git
@@ -39,19 +35,15 @@ Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redi
     # Edit .env with your configuration
     docker compose up -d
     ```
-
-    [Full Docker Guide →](/self-hosting/docker/)
   </Card>
-  <Card title="Binary Deployment" icon="seti:shell">
+  <Card title="Binary Deployment" href="/self-hosting/binary/" icon="terminal">
     Download pre-built binaries for your platform:
 
     - Linux (amd64, arm64)
     - macOS (amd64, arm64)
     - Windows (amd64)
-
-    [Binary Installation →](/self-hosting/binary/)
   </Card>
-  <Card title="Build from Source" icon="seti:config">
+  <Card title="Build from Source" href="/self-hosting/source/" icon="settings">
     Compile the bot yourself for development or customization:
 
     ```bash
@@ -59,10 +51,8 @@ Docker Compose is the fastest way to get started. It bundles PostgreSQL and Redi
     cd Alita_Robot
     go build -o alita_robot .
     ```
-
-    [Building from Source →](/self-hosting/source/)
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Essential Configuration
 
@@ -72,11 +62,13 @@ At minimum, you need these environment variables:
 BOT_TOKEN=your_bot_token_from_botfather
 OWNER_ID=your_telegram_user_id
 MESSAGE_DUMP=-100xxxxxxxxxx  # Log channel ID
-DATABASE_URL=postgres://user:pass@host:5432/db
+DATABASE_URL=******************************/db
 REDIS_ADDRESS=localhost:6379
 ```
 
-<LinkCard title="Full Environment Reference" href="/api-reference/environment/" description="Complete list of all environment variables and their descriptions." />
+<Card title="Full Environment Reference" href="/api-reference/environment/" icon="book-open">
+  Complete list of all environment variables and their descriptions.
+</Card>
 
 ## Webhook vs Polling
 
@@ -85,7 +77,9 @@ REDIS_ADDRESS=localhost:6379
 | **Webhook** | Production | Requires HTTPS domain |
 | **Polling** | Development | Simple, works anywhere |
 
-<LinkCard title="Webhook Setup" href="/self-hosting/webhooks/" description="Configure webhooks for production deployments." />
+<Card title="Webhook Setup" href="/self-hosting/webhooks/" icon="webhook">
+  Configure webhooks for production deployments.
+</Card>
 
 ## Database Setup
 
@@ -99,7 +93,9 @@ AUTO_MIGRATE=true
     make psql-migrate
 ```
 
-<LinkCard title="Database Guide" href="/self-hosting/database/" description="Database setup, migrations, connection pooling, and schema design." />
+<Card title="Database Guide" href="/self-hosting/database/" icon="database">
+  Database setup, migrations, connection pooling, and schema design.
+</Card>
 
 ## Monitoring
 
@@ -109,12 +105,20 @@ Built-in observability endpoints:
 - `GET /metrics` - Prometheus metrics
 - `GET /db_metrics` - Database performance metrics
 
-<LinkCard title="Monitoring Guide" href="/self-hosting/monitoring/" description="Health checks, Prometheus metrics, and resource monitoring." />
+<Card title="Monitoring Guide" href="/self-hosting/monitoring/" icon="activity">
+  Health checks, Prometheus metrics, and resource monitoring.
+</Card>
 
 ## Next Steps
 
-<CardGrid>
-  <LinkCard title="Docker Deployment" href="/self-hosting/docker/" description="Quick start with containers" />
-  <LinkCard title="Environment Variables" href="/api-reference/environment/" description="Full configuration reference" />
-  <LinkCard title="Troubleshooting" href="/self-hosting/troubleshooting/" description="Common issues and solutions" />
-</CardGrid>
+<CardGroup cols={3}>
+  <Card title="Docker Deployment" href="/self-hosting/docker/" icon="container">
+    Quick start with containers
+  </Card>
+  <Card title="Environment Variables" href="/api-reference/environment/" icon="book-open">
+    Full configuration reference
+  </Card>
+  <Card title="Troubleshooting" href="/self-hosting/troubleshooting/" icon="circle-help">
+    Common issues and solutions
+  </Card>
+</CardGroup>

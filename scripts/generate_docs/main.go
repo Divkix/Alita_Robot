@@ -1,5 +1,5 @@
 // Package main provides a documentation generator for Alita Robot.
-// It parses the codebase and generates Markdown documentation for Astro/Starlight.
+// It parses the codebase and generates Markdown documentation for Blume.
 package main
 
 import (

@@ -3,10 +3,6 @@ title: Binary Installation
 description: Deploy Alita Robot using pre-built binaries.
 ---
 
-import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-
-# Binary Installation
-
 Pre-built binaries are available for all major platforms, making it easy to deploy Alita Robot without Docker or building from source.
 
 ## Available Platforms
@@ -67,27 +63,27 @@ Always verify checksums after downloading to ensure the binary has not been tamp
 ## Quick Start
 
 <Steps>
+  <Step title="Download and extract the binary">
+    See the Download section above.
+  </Step>
 
-1. **Download and extract the binary** (see above)
+  <Step title="Create a configuration file">
+    ```bash
+    cat > .env << EOF
+    BOT_TOKEN=your_bot_token
+    OWNER_ID=your_telegram_id
+    MESSAGE_DUMP=-100xxxxxxxxxx
+    DATABASE_URL=***********************************/alita
+    REDIS_ADDRESS=localhost:6379
+    EOF
+    ```
+  </Step>
 
-2. **Create a configuration file**
-
-   ```bash
-   cat > .env << EOF
-   BOT_TOKEN=your_bot_token
-   OWNER_ID=your_telegram_id
-   MESSAGE_DUMP=-100xxxxxxxxxx
-   DATABASE_URL=postgres://user:pass@localhost:5432/alita
-   REDIS_ADDRESS=localhost:6379
-   EOF
-   ```
-
-3. **Run the bot**
-
-   ```bash
-   ./alita_robot
-   ```
-
+  <Step title="Run the bot">
+    ```bash
+    ./alita_robot
+    ```
+  </Step>
 </Steps>
 
 ## Systemd Service (Linux)
@@ -146,37 +142,35 @@ WantedBy=multi-user.target
 ### Setup
 
 <Steps>
+  <Step title="Create user and directory">
+    ```bash
+    sudo useradd -r -s /bin/false alita
+    sudo mkdir -p /opt/alita-robot
+    sudo chown alita:alita /opt/alita-robot
+    ```
+  </Step>
 
-1. **Create user and directory**
+  <Step title="Copy binary and config">
+    ```bash
+    sudo cp alita_robot /opt/alita-robot/
+    sudo cp .env /opt/alita-robot/
+    sudo chmod 600 /opt/alita-robot/.env
+    sudo chown alita:alita /opt/alita-robot/*
+    ```
+  </Step>
 
-   ```bash
-   sudo useradd -r -s /bin/false alita
-   sudo mkdir -p /opt/alita-robot
-   sudo chown alita:alita /opt/alita-robot
-   ```
+  <Step title="Copy migrations if using auto-migrate">
+    ```bash
+    sudo cp -r migrations /opt/alita-robot/
+    ```
+  </Step>
 
-2. **Copy binary and config**
-
-   ```bash
-   sudo cp alita_robot /opt/alita-robot/
-   sudo cp .env /opt/alita-robot/
-   sudo chmod 600 /opt/alita-robot/.env
-   sudo chown alita:alita /opt/alita-robot/*
-   ```
-
-3. **Copy migrations if using auto-migrate**
-
-   ```bash
-   sudo cp -r migrations /opt/alita-robot/
-   ```
-
-4. **Reload systemd and enable service**
-
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable alita-robot
-   ```
-
+  <Step title="Reload systemd and enable service">
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable alita-robot
+    ```
+  </Step>
 </Steps>
 
 ### Service Management
@@ -243,7 +237,7 @@ Create `/opt/alita-robot/.env`:
 BOT_TOKEN=your_bot_token
 OWNER_ID=your_telegram_id
 MESSAGE_DUMP=-100xxxxxxxxxx
-DATABASE_URL=postgres://user:pass@localhost:5432/alita
+DATABASE_URL=***********************************/alita
 REDIS_ADDRESS=localhost:6379
 
 # Optional but recommended
@@ -268,7 +262,7 @@ Always set restrictive permissions on the `.env` file since it contains sensitiv
 ## macOS Installation
 
 <Tabs>
-  <TabItem label="Apple Silicon">
+  <Tab title="Apple Silicon">
     ```bash
     # Get the latest release version
     VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
@@ -279,8 +273,8 @@ Always set restrictive permissions on the `.env` file since it contains sensitiv
     chmod +x alita_robot
     ./alita_robot
     ```
-  </TabItem>
-  <TabItem label="Intel">
+  </Tab>
+  <Tab title="Intel">
     ```bash
     # Get the latest release version
     VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
@@ -291,7 +285,7 @@ Always set restrictive permissions on the `.env` file since it contains sensitiv
     chmod +x alita_robot
     ./alita_robot
     ```
-  </TabItem>
+  </Tab>
 </Tabs>
 
 ### Create a Launch Agent (Optional)
@@ -363,33 +357,31 @@ nssm start AlitaRobot
 ## Updating
 
 <Steps>
+  <Step title="Stop the service">
+    ```bash
+    sudo systemctl stop alita-robot
+    ```
+  </Step>
 
-1. **Stop the service**
+  <Step title="Download the new binary">
+    ```bash
+    VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
+    curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/alita_robot_${VERSION}_linux_amd64.tar.gz"
+    tar -xzf alita_robot_${VERSION}_linux_amd64.tar.gz
+    ```
+  </Step>
 
-   ```bash
-   sudo systemctl stop alita-robot
-   ```
+  <Step title="Replace the existing binary">
+    ```bash
+    sudo cp alita_robot /opt/alita-robot/
+    ```
+  </Step>
 
-2. **Download the new binary**
-
-   ```bash
-   VERSION=$(curl -s https://api.github.com/repos/divkix/Alita_Robot/releases/latest | grep tag_name | cut -d '"' -f 4)
-   curl -LO "https://github.com/divkix/Alita_Robot/releases/download/${VERSION}/alita_robot_${VERSION}_linux_amd64.tar.gz"
-   tar -xzf alita_robot_${VERSION}_linux_amd64.tar.gz
-   ```
-
-3. **Replace the existing binary**
-
-   ```bash
-   sudo cp alita_robot /opt/alita-robot/
-   ```
-
-4. **Start the service**
-
-   ```bash
-   sudo systemctl start alita-robot
-   ```
-
+  <Step title="Start the service">
+    ```bash
+    sudo systemctl start alita-robot
+    ```
+  </Step>
 </Steps>
 
 ## Troubleshooting

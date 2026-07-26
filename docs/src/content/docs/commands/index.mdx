@@ -1,11 +1,7 @@
 ---
-title: Commands Overview
+title: Commands
 description: Overview of all command modules and categories
 ---
-
-import { Badge, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
-
-# Commands Overview
 
 Alita Robot provides a comprehensive set of commands organized into modules. Each module handles a specific aspect of group management.
 
@@ -13,263 +9,176 @@ Alita Robot provides a comprehensive set of commands organized into modules. Eac
 
 ## Administration
 
-<CardGrid>
-  <Card title="Admin" icon="star">
+<CardGroup cols={2}>
+  <Card title="Admin" href="/commands/admin/" icon="star">
     Make it easy to promote and demote users with the admin module.
-
-    <Badge text="8 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Admin Commands" href="/commands/admin/" />
+    <Badge variant="accent">8 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Moderation
 
-<CardGrid>
-  <Card title="Antiflood" icon="warning">
+<CardGroup cols={2}>
+  <Card title="Antiflood" href="/commands/antiflood/" icon="shield-alert">
     Automatic flood detection and action. Set message thresholds and choose ban, kick, or mute for offenders.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Antiflood Commands" href="/commands/antiflood/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Antispam" icon="shield">
+  <Card title="Antispam" href="/commands/antispam/" icon="shield">
     Automatic behind-the-scenes rate limiting. No configuration required — works out of the box.
-
-    <Badge text="No commands" variant="default" /> <Badge text="Automatic" variant="success" />
-
-    <LinkCard title="View Antispam Details" href="/commands/antispam/" />
+    <Badge>No commands</Badge> <Badge variant="success">Automatic</Badge>
   </Card>
 
-  <Card title="AntiRaid" icon="shield">
+  <Card title="AntiRaid" href="/commands/antiraid/" icon="shield">
     Automatic raid protection with configurable duration and action. Detects rapid join events and acts automatically.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View AntiRaid Commands" href="/commands/antiraid/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Bans" icon="close">
+  <Card title="Bans" href="/commands/bans/" icon="ban">
     Ban, kick, and restrict users. Supports silent bans, delete-bans, and temporary bans with time limits.
-
-    <Badge text="10 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Bans Commands" href="/commands/bans/" />
+    <Badge variant="accent">10 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Approvals" icon="approve-check">
+  <Card title="Approvals" href="/commands/approvals/" icon="check">
     Manage approved users who are immune to anti-spam measures. Auto-approve, list, and remove approvals.
-
-    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Approvals Commands" href="/commands/approvals/" />
+    <Badge variant="accent">5 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Blacklists" icon="list-format">
+  <Card title="Blacklists" href="/commands/blacklists/" icon="list">
     Automatically detect and act on blacklisted words. Configurable actions: warn, mute, kick, or ban.
-
-    <Badge text="8 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Blacklists Commands" href="/commands/blacklists/" />
+    <Badge variant="accent">8 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Captcha" icon="puzzle">
+  <Card title="Captcha" href="/commands/captcha/" icon="puzzle">
     Force new members to solve a challenge before they can send messages. Math and text captcha types.
-
-    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Captcha Commands" href="/commands/captcha/" />
+    <Badge variant="accent">7 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Locks" icon="lock">
+  <Card title="Locks" href="/commands/locks/" icon="lock">
     Restrict group permissions by locking specific message types — URLs, stickers, media, bots, and more.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Locks Commands" href="/commands/locks/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Mutes" icon="forbidden">
+  <Card title="Mutes" href="/commands/mutes/" icon="mic-off">
     Mute users to prevent them from sending messages. Supports silent, delete, and temporary mutes.
-
-    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Mutes Commands" href="/commands/mutes/" />
+    <Badge variant="accent">5 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Purges" icon="trash">
+  <Card title="Purges" href="/commands/purges/" icon="trash-2">
     Bulk-delete messages between two points, or delete individual messages by reply.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Purges Commands" href="/commands/purges/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Warns" icon="warning">
+  <Card title="Warns" href="/commands/warns/" icon="alert-triangle">
     Issue warnings to users. Configurable warn limit and action (ban, kick, or mute) when the limit is reached.
-
-    <Badge text="12 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Warns Commands" href="/commands/warns/" />
+    <Badge variant="accent">12 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Content Management
 
-<CardGrid>
-  <Card title="Filters" icon="magnifier">
+<CardGroup cols={2}>
+  <Card title="Filters" href="/commands/filters/" icon="search">
     Auto-reply when trigger words are detected. Supports text, media, random responses, and inline buttons.
-
-    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Filters Commands" href="/commands/filters/" />
+    <Badge variant="accent">7 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Greetings" icon="heart">
+  <Card title="Greetings" href="/commands/greetings/" icon="heart">
     Welcome new members and say goodbye when they leave. Customizable messages with media support.
-
-    <Badge text="10 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Greetings Commands" href="/commands/greetings/" />
+    <Badge variant="accent">10 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Notes" icon="document">
+  <Card title="Notes" href="/commands/notes/" icon="file-text">
     Save and retrieve text, media, and formatted messages. Supports private notes, admin-only notes, and buttons.
-
-    <Badge text="10 commands" variant="note" />
-
-    <LinkCard title="View Notes Commands" href="/commands/notes/" />
+    <Badge variant="accent">10 commands</Badge>
   </Card>
 
-  <Card title="Reactions" icon="reaction">
+  <Card title="Reactions" href="/commands/reactions/" icon="smile">
     Automatically react to messages containing specific keywords with configurable emoji reactions.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Reactions Commands" href="/commands/reactions/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Rules" icon="open-book">
+  <Card title="Rules" href="/commands/rules/" icon="book-open">
     Set and display group rules. Supports private rules and custom button text.
-
-    <Badge text="11 commands" variant="note" />
-
-    <LinkCard title="View Rules Commands" href="/commands/rules/" />
+    <Badge variant="accent">11 commands</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## User Tools
 
-<CardGrid>
-  <Card title="Formatting" icon="pencil">
+<CardGroup cols={2}>
+  <Card title="Formatting" href="/commands/formatting/" icon="pencil">
     Learn about message formatting options — Markdown, HTML, and special tags supported by Alita.
-
-    <Badge text="2 commands" variant="note" /> <Badge text="Everyone" variant="success" />
-
-    <LinkCard title="View Formatting Help" href="/commands/formatting/" />
+    <Badge variant="accent">2 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
-  <Card title="Misc" icon="setting">
+  <Card title="Misc" href="/commands/misc/" icon="settings">
     Utility commands: user info, group ID, bot ping, translation, message stats, and more.
-
-    <Badge text="7 commands" variant="note" /> <Badge text="Everyone" variant="success" />
-
-    <LinkCard title="View Misc Commands" href="/commands/misc/" />
+    <Badge variant="accent">7 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
-  <Card title="Reports" icon="approve-check">
+  <Card title="Reports" href="/commands/reports/" icon="flag">
     Let users report rule-breaking messages to admins with one command. Admins get action buttons.
-
-    <Badge text="2 commands" variant="note" />
-
-    <LinkCard title="View Reports Commands" href="/commands/reports/" />
+    <Badge variant="accent">2 commands</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Bot Management
 
-<CardGrid>
-  <Card title="Connections" icon="forward-slash">
+<CardGroup cols={2}>
+  <Card title="Connections" href="/commands/connections/" icon="link">
     Connect to a chat's database from PM to manage settings without the group seeing your commands.
-
-    <Badge text="5 commands" variant="note" />
-
-    <LinkCard title="View Connections Commands" href="/commands/connections/" />
+    <Badge variant="accent">5 commands</Badge>
   </Card>
 
-  <Card title="Disabling" icon="close">
+  <Card title="Disabling" href="/commands/disabling/" icon="circle-slash">
     Disable specific commands for non-admin users. Optionally auto-delete disabled command messages.
-
-    <Badge text="5 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Disabling Commands" href="/commands/disabling/" />
+    <Badge variant="accent">5 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Help" icon="information">
+  <Card title="Help" href="/commands/help/" icon="info">
     Bot entry points and navigation. Welcome message, help menu, about, and donate.
-
-    <Badge text="4 commands" variant="note" /> <Badge text="Everyone" variant="success" />
-
-    <LinkCard title="View Help Commands" href="/commands/help/" />
+    <Badge variant="accent">4 commands</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
-  <Card title="Languages" icon="translate">
+  <Card title="Languages" href="/commands/languages/" icon="languages">
     Change the bot's language for yourself or your group. Supports English, Spanish, French, Hindi, Russian, Portuguese, and Indonesian.
-
-    <Badge text="1 command" variant="note" /> <Badge text="Everyone" variant="success" />
-
-    <LinkCard title="View Languages Commands" href="/commands/languages/" />
+    <Badge variant="accent">1 command</Badge> <Badge variant="success">Everyone</Badge>
   </Card>
 
-  <Card title="Pins" icon="document">
+  <Card title="Pins" href="/commands/pins/" icon="pin">
     Pin and unpin messages. Anti-channel-pin, clean linked channel messages, and custom permapin.
-
-    <Badge text="7 commands" variant="note" /> <Badge text="Admin Only" variant="caution" />
-
-    <LinkCard title="View Pins Commands" href="/commands/pins/" />
+    <Badge variant="accent">7 commands</Badge> <Badge variant="warning">Admin Only</Badge>
   </Card>
 
-  <Card title="Backup & Restore" icon="download">
+  <Card title="Backup & Restore" href="/commands/backup/" icon="download">
     Export and import group settings as JSON files. Supports selective export/import and full reset.
-
-    <Badge text="3 commands" variant="note" /> <Badge text="Admin &amp; Creator" variant="caution" />
-
-    <LinkCard title="View Backup Commands" href="/commands/backup/" />
+    <Badge variant="accent">3 commands</Badge> <Badge variant="warning">Admin & Creator</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Developer
 
-<CardGrid>
-  <Card title="Devs" icon="setting">
+<CardGroup cols={2}>
+  <Card title="Devs" href="/commands/devs/" icon="settings">
     Bot management and diagnostic commands for the bot owner and trusted developers.
-
-    <Badge text="9 commands" variant="note" /> <Badge text="Owner/Dev Only" variant="caution" />
-
-    <LinkCard title="View Devs Commands" href="/commands/devs/" />
+    <Badge variant="accent">9 commands</Badge> <Badge variant="warning">Owner/Dev Only</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Background
 
-<CardGrid>
-  <Card title="Users" icon="seti:db">
+<CardGroup cols={2}>
+  <Card title="Users" href="/commands/users/" icon="users">
     Automatic user and chat tracking. Silently logs all message senders and chats.
-
-    <Badge text="No commands" variant="default" /> <Badge text="Automatic" variant="success" />
-
-    <LinkCard title="View Users Module" href="/commands/users/" />
+    <Badge>No commands</Badge> <Badge variant="success">Automatic</Badge>
   </Card>
 
-  <Card title="Bot Updates" icon="robot">
+  <Card title="Bot Updates" href="/commands/bot_updates/" icon="bot">
     Handles bot join/leave events, admin cache auto-refresh, and anonymous admin verification.
-
-    <Badge text="No commands" variant="default" /> <Badge text="Automatic" variant="success" />
-
-    <LinkCard title="View Bot Updates Module" href="/commands/bot_updates/" />
+    <Badge>No commands</Badge> <Badge variant="success">Automatic</Badge>
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Getting Started
 
