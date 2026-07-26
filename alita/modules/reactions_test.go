@@ -6,42 +6,30 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-func TestReactionKey(t *testing.T) {
-	t.Parallel()
-
-	if got := reactionKey(-1001234567890); got != "alita:reactions:-1001234567890" {
-		t.Fatalf("reactionKey() = %q", got)
-	}
-}
-
-func TestReactionCommandsManageCache(t *testing.T) {
-	m := cache.GetMarshal()
-	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+func TestReactionCommandsManageDBRows(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("requires database connection")
 	}
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = m.Delete(cache.Context, key)
+		_ = reactions.ResetReactions(chat.Id)
 	})
 
 	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
 	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addReaction() error = %v, want EndGroups", err)
 	}
-	existing, err := m.Get(cache.Context, key, new(map[string]string))
-	if err != nil {
-		t.Fatalf("cached reactions missing after add: %v", err)
-	}
-	if got := (*existing.(*map[string]string))["hello"]; got != "ok" {
-		t.Fatalf("cached reaction = %q, want ok", got)
+	if got := reactions.GetReactions(chat.Id)["hello"]; got != "ok" {
+		t.Fatalf("stored reaction = %q, want ok", got)
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, admin, "/reactions")
@@ -53,38 +41,35 @@ func TestReactionCommandsManageCache(t *testing.T) {
 	if err := reactionsModule.removeReaction(bot, removeCtx); err != ext.EndGroups {
 		t.Fatalf("removeReaction() error = %v, want EndGroups", err)
 	}
-	if _, err := m.Get(cache.Context, key, new(map[string]string)); err == nil {
-		t.Fatal("reaction cache remained after removing final reaction")
+	if m := reactions.GetReactions(chat.Id); len(m) != 0 {
+		t.Fatalf("reactions remained after removing final reaction: %v", m)
 	}
 
-	if err := m.Set(cache.Context, key, map[string]string{"bye": "ok"}); err != nil {
-		t.Fatalf("cache set error = %v", err)
-	}
+	_ = reactions.AddReaction(chat.Id, "bye", "ok")
 	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetreactions")
 	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetReactions() error = %v, want EndGroups", err)
 	}
-	if _, err := m.Get(cache.Context, key, new(map[string]string)); err == nil {
-		t.Fatal("reaction cache remained after reset")
+	if m := reactions.GetReactions(chat.Id); len(m) != 0 {
+		t.Fatalf("reactions remained after reset: %v", m)
 	}
+
 	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
 		t.Fatalf("sendMessage calls = %d, want 4", len(calls))
 	}
 }
 
 func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
-	m := cache.GetMarshal()
-	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+	if db.DB == nil {
+		t.Skip("requires database connection")
 	}
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = m.Delete(cache.Context, key)
+		_ = reactions.ResetReactions(chat.Id)
 	})
 
 	for _, tt := range []struct {
@@ -94,8 +79,8 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 	}{
 		{name: "add usage", text: "/addreaction keyword", run: reactionsModule.addReaction},
 		{name: "remove usage", text: "/removereaction", run: reactionsModule.removeReaction},
-		{name: "remove missing cache", text: "/removereaction hello", run: reactionsModule.removeReaction},
-		{name: "list missing cache", text: "/reactions", run: reactionsModule.listReactions},
+		{name: "remove missing", text: "/removereaction hello", run: reactionsModule.removeReaction},
+		{name: "list missing", text: "/reactions", run: reactionsModule.listReactions},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newModuleMessageContext(bot, chat, admin, tt.text)
@@ -105,8 +90,8 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 		})
 	}
 
-	if err := m.Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
-		t.Fatalf("seed reaction cache: %v", err)
+	if err := reactions.AddReaction(chat.Id, "hello", "ok"); err != nil {
+		t.Fatalf("seed reaction: %v", err)
 	}
 	missingKeywordCtx := newModuleMessageContext(bot, chat, admin, "/removereaction absent")
 	if err := reactionsModule.removeReaction(bot, missingKeywordCtx); err != ext.EndGroups {
@@ -169,25 +154,20 @@ func TestReactionsHelpCallbackRejectsInvalidAndAnswersWithoutMessage(t *testing.
 }
 
 func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
-	m := cache.GetMarshal()
-	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+	if db.DB == nil {
+		t.Skip("requires database connection")
 	}
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
-	key := reactionKey(chat.Id)
-	prevEnabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
 	t.Cleanup(func() {
-		_ = m.Delete(cache.Context, key)
-		DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = prevEnabled
+		_ = reactions.ResetReactions(chat.Id)
 	})
 
-	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
-	if err := m.Set(cache.Context, key, map[string]string{"hello": "ok"}); err != nil {
-		t.Fatalf("seed reaction cache: %v", err)
+	if err := reactions.AddReaction(chat.Id, "hello", "ok"); err != nil {
+		t.Fatalf("seed reaction: %v", err)
 	}
 
 	ctx := newModuleMessageContext(bot, chat, user, "well hello there")
@@ -199,19 +179,17 @@ func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
 	}
 }
 
-func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testing.T) {
-	m := cache.GetMarshal()
-	if m == nil {
-		t.Skip("requires initialized cache marshaler")
+func TestCheckReactionsNoopsForMissingMessageChatAndEmptyConfig(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("requires database connection")
 	}
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	user := gotgbot.User{Id: 4307, FirstName: "Member"}
-	key := reactionKey(chat.Id)
 	t.Cleanup(func() {
-		_ = m.Delete(cache.Context, key)
+		_ = reactions.ResetReactions(chat.Id)
 	})
 
 	emptyTextCtx := newModuleMessageContext(bot, chat, user, "")
@@ -225,19 +203,9 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 		t.Fatalf("checkReactions(no chat) error = %v, want ContinueGroups", err)
 	}
 
-	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = false
-	disabledCtx := newModuleMessageContext(bot, chat, user, "hello")
-	if err := reactionsModule.checkReactions(bot, disabledCtx); err != ext.ContinueGroups {
-		t.Fatalf("checkReactions(disabled) error = %v, want ContinueGroups", err)
-	}
-
-	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
-	if err := m.Set(cache.Context, key, map[string]string{}); err != nil {
-		t.Fatalf("seed empty reaction cache: %v", err)
-	}
-	emptyCacheCtx := newModuleMessageContext(bot, chat, user, "hello")
-	if err := reactionsModule.checkReactions(bot, emptyCacheCtx); err != ext.ContinueGroups {
-		t.Fatalf("checkReactions(empty cache) error = %v, want ContinueGroups", err)
+	emptyConfigCtx := newModuleMessageContext(bot, chat, user, "hello")
+	if err := reactionsModule.checkReactions(bot, emptyConfigCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkReactions(empty config) error = %v, want ContinueGroups", err)
 	}
 
 	if calls := client.callsFor("setMessageReaction"); len(calls) != 0 {
@@ -245,28 +213,34 @@ func TestCheckReactionsNoopsForMissingMessageChatDisabledAndEmptyCache(t *testin
 	}
 }
 
-func TestReactionCommandsHandleNilMarshal(t *testing.T) {
+// TestReactionCommandsWorkWithNilCacheMarshal verifies the DB-backed repository
+// still functions (bypassing cache) when the cache marshaler is unavailable,
+// so reactions are not lost just because Redis is down.
+func TestReactionCommandsWorkWithNilCacheMarshal(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("requires database connection")
+	}
+
 	orig := cache.GetMarshal()
 	cache.SetMarshal(nil)
-	prevEnabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
 	t.Cleanup(func() {
 		cache.SetMarshal(orig)
-		DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = prevEnabled
 	})
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Reaction Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	t.Cleanup(func() {
+		_ = reactions.ResetReactions(chat.Id)
+	})
 
 	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
 	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addReaction(nil marshal) error = %v, want EndGroups", err)
 	}
-
-	removeCtx := newModuleMessageContext(bot, chat, admin, "/removereaction hello")
-	if err := reactionsModule.removeReaction(bot, removeCtx); err != ext.EndGroups {
-		t.Fatalf("removeReaction(nil marshal) error = %v, want EndGroups", err)
+	if got := reactions.GetReactions(chat.Id)["hello"]; got != "ok" {
+		t.Fatalf("stored reaction with nil marshal = %q, want ok", got)
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, admin, "/reactions")
@@ -278,15 +252,13 @@ func TestReactionCommandsHandleNilMarshal(t *testing.T) {
 	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetReactions(nil marshal) error = %v, want EndGroups", err)
 	}
+	if m := reactions.GetReactions(chat.Id); len(m) != 0 {
+		t.Fatalf("reactions remained after reset with nil marshal: %v", m)
+	}
 
-	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 	checkCtx := newModuleMessageContext(bot, chat, admin, "hello")
 	if err := reactionsModule.checkReactions(bot, checkCtx); err != ext.ContinueGroups {
 		t.Fatalf("checkReactions(nil marshal) error = %v, want ContinueGroups", err)
-	}
-
-	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
-		t.Fatalf("sendMessage calls = %d, want add/remove/list/reset error replies", len(calls))
 	}
 }
 

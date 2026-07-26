@@ -105,6 +105,12 @@ func LoadAntispam(dispatcher *ext.Dispatcher) {
 				if chat_status.IsApproved(bot, ctx.EffectiveChat.Id, ctx.EffectiveUser.Id) {
 					return ext.ContinueGroups
 				}
+				// Skip admins: every other anti-abuse module exempts admins, and
+				// silently dropping an admin's messages (including legitimate
+				// command bursts) is worse than letting them through.
+				if chat_status.IsUserAdmin(bot, ctx.EffectiveChat.Id, ctx.EffectiveUser.Id) {
+					return ext.ContinueGroups
+				}
 
 				key := spamKey{
 					chatId: ctx.EffectiveChat.Id,
@@ -114,7 +120,10 @@ func LoadAntispam(dispatcher *ext.Dispatcher) {
 				if spamCheck(key) {
 					log.Debugf("[Antispam] Rate limited user=%d chat=%d",
 						ctx.EffectiveUser.Id, ctx.EffectiveChat.Id)
-					return ext.EndGroups
+					// Continue (not EndGroups) so a throttled message still
+					// reaches non-moderation watchers (commands/filters/locks/
+					// antiflood) instead of aborting every later handler group.
+					return ext.ContinueGroups
 				}
 				return ext.ContinueGroups
 			},

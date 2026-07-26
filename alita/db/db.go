@@ -52,6 +52,7 @@ type (
 	StoredMessages         = models.StoredMessages
 	CaptchaMutedUsers      = models.CaptchaMutedUsers
 	AntiRaidSettings       = models.AntiRaidSettings
+	Reactions              = models.Reactions
 )
 
 // Message type constants - maintain compatibility with existing code

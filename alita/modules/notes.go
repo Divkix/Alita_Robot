@@ -725,7 +725,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	noteData := notes.GetNote(chat.Id, noteName)
+	noteData := notes.GetNote(chat.Id, strings.ToLower(noteName))
 
 	// check if notedata is correct or not
 	if noteData.NoteContent == "" && noteData.FileID == "" {
@@ -861,7 +861,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteData := notes.GetNote(chat.Id, noteName)
+	noteData := notes.GetNote(chat.Id, strings.ToLower(noteName))
 
 	// check if notedata is correct or not
 	if noteData.NoteContent == "" && noteData.FileID == "" {

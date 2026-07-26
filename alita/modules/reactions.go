@@ -13,8 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
@@ -22,11 +22,6 @@ import (
 var reactionsModule = moduleStruct{
 	moduleName:   "Reactions",
 	handlerGroup: 8,
-}
-
-// reactionKey generates a Redis key for storing reactions for a chat
-func reactionKey(chatID int64) string {
-	return fmt.Sprintf("alita:reactions:%d", chatID)
 }
 
 // LoadReactions loads the reactions module with all command handlers
@@ -180,33 +175,8 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Store in Redis using SET
-	key := reactionKey(chat.Id)
-	cm := cache.GetMarshal()
-	if cm == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_add_error")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	// Get existing reactions
-	existing, err := cm.Get(cache.Context, key, new(map[string]string))
-	if err != nil {
-		// Create new map if doesn't exist
-		existing = &map[string]string{}
-	}
-
-	reactionsMap := *existing.(*map[string]string)
-	if reactionsMap == nil {
-		reactionsMap = make(map[string]string)
-	}
-
-	// Add or update reaction
-	reactionsMap[keyword] = emoji
-
-	// Save back to cache
-	if err := cm.Set(cache.Context, key, reactionsMap); err != nil {
+	// Store in DB (cache is invalidated by the repository).
+	if err := reactions.AddReaction(chat.Id, keyword, emoji); err != nil {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_error")
@@ -219,7 +189,7 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		"keyword": keyword,
 		"emoji":   emoji,
 	})
-	_, err = msg.Reply(b, text, formatting.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -262,31 +232,8 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	keyword := strings.ToLower(strings.TrimSpace(args[1]))
-	key := reactionKey(chat.Id)
-	cm := cache.GetMarshal()
-	if cm == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_remove_error")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
 
-	// Get existing reactions
-	existing, err := cm.Get(cache.Context, key, new(map[string]string))
-	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_not_found")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	reactionsMap := *existing.(*map[string]string)
-	if reactionsMap == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_not_found")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
+	reactionsMap := reactions.GetReactions(chat.Id)
 
 	// Check if keyword exists
 	if _, exists := reactionsMap[keyword]; !exists {
@@ -298,29 +245,20 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Remove reaction
-	delete(reactionsMap, keyword)
-
-	// Save back to cache (or delete if empty)
-	if len(reactionsMap) == 0 {
-		if err := cm.Delete(cache.Context, key); err != nil {
-			log.Errorf("[Reactions] Failed to delete empty reactions: %v", err)
-		}
-	} else {
-		if err := cm.Set(cache.Context, key, reactionsMap); err != nil {
-			log.Errorf("[Reactions] Failed to update reactions: %v", err)
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("reactions_remove_error")
-			_, _ = msg.Reply(b, text, formatting.Shtml())
-			return ext.EndGroups
-		}
+	// Remove reaction from DB (cache is invalidated by the repository).
+	if err := reactions.RemoveReaction(chat.Id, keyword); err != nil {
+		log.Errorf("[Reactions] Failed to update reactions: %v", err)
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("reactions_remove_error")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_remove_success", i18n.TranslationParams{
 		"keyword": keyword,
 	})
-	_, err = msg.Reply(b, text, formatting.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -340,25 +278,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	key := reactionKey(chat.Id)
-	cm := cache.GetMarshal()
-	if cm == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_none")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	// Get existing reactions
-	existing, err := cm.Get(cache.Context, key, new(map[string]string))
-	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("reactions_none")
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	reactionsMap := *existing.(*map[string]string)
+	reactionsMap := reactions.GetReactions(chat.Id)
 	if len(reactionsMap) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
@@ -376,7 +296,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	text, _ := tr.GetString("reactions_list_header", i18n.TranslationParams{
 		"list": sb.String(),
 	})
-	_, err = msg.Reply(b, text, formatting.Shtml())
+	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -406,18 +326,13 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	key := reactionKey(chat.Id)
-	cm := cache.GetMarshal()
-	if cm == nil {
+	// Delete all reactions from DB (cache is invalidated by the repository).
+	if err := reactions.ResetReactions(chat.Id); err != nil {
+		log.Errorf("[Reactions] Failed to reset reactions: %v", err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
-	}
-
-	// Delete all reactions
-	if err := cm.Delete(cache.Context, key); err != nil {
-		log.Debugf("[Reactions] Failed to delete reactions (may not exist): %v", err)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -449,25 +364,8 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Skip if module is disabled for this chat
-	enabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
-	if !enabled {
-		return ext.ContinueGroups
-	}
-
-	// Get reactions for this chat
-	key := reactionKey(chat.Id)
-	cm := cache.GetMarshal()
-	if cm == nil {
-		return ext.ContinueGroups
-	}
-	existing, err := cm.Get(cache.Context, key, new(map[string]string))
-	if err != nil {
-		// No reactions configured, continue silently
-		return ext.ContinueGroups
-	}
-
-	reactionsMap := *existing.(*map[string]string)
+	// Get reactions for this chat (read-through cache backed by the DB).
+	reactionsMap := reactions.GetReactions(chat.Id)
 	if len(reactionsMap) == 0 {
 		return ext.ContinueGroups
 	}
@@ -487,7 +385,7 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	slices.Sort(matchedKeywords)
 	emoji := reactionsMap[matchedKeywords[0]]
 
-	_, err = b.SetMessageReaction(
+	_, err := b.SetMessageReaction(
 		chat.Id,
 		msg.MessageId,
 		&gotgbot.SetMessageReactionOpts{

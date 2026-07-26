@@ -7,6 +7,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -170,6 +171,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.Chat{}).
 			Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).
 			Count(&metrics.DailyActiveGroups).Error
@@ -180,6 +182,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.Chat{}).
 			Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).
 			Count(&metrics.WeeklyActiveGroups).Error
@@ -190,6 +193,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.Chat{}).
 			Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).
 			Count(&metrics.MonthlyActiveGroups).Error
@@ -200,6 +204,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.Chat{}).Count(&metrics.TotalGroups).Error
 		if err != nil {
 			log.Errorf("[ActivityMonitor] Error counting total groups: %v", err)
@@ -208,6 +213,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.Chat{}).
 			Where("is_inactive = ?", true).
 			Count(&metrics.InactiveGroups).Error
@@ -221,6 +227,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.User{}).
 			Where("last_activity >= ?", dayAgo).
 			Count(&metrics.DailyActiveUsers).Error
@@ -231,6 +238,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.User{}).
 			Where("last_activity >= ?", weekAgo).
 			Count(&metrics.WeeklyActiveUsers).Error
@@ -241,6 +249,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.User{}).
 			Where("last_activity >= ?", monthAgo).
 			Count(&metrics.MonthlyActiveUsers).Error
@@ -251,6 +260,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	go func() {
 		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
 		err := db.DB.Model(&db.User{}).Count(&metrics.TotalUsers).Error
 		if err != nil {
 			log.Errorf("[ActivityMonitor] Error counting total users: %v", err)

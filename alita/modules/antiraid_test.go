@@ -335,6 +335,16 @@ func TestAntiRaidCommandHandlesInvalidAndNoopBranches(t *testing.T) {
 		t.Fatalf("antiraid(invalid duration) error = %v, want EndGroups", err)
 	}
 
+	// Zero duration must be rejected (parseDuration("0") = 0s, which would
+	// enable an already-expired raid and report success misleadingly).
+	zeroCtx := newModuleMessageContext(bot, chat, user, "/antiraid 0")
+	if err := antiRaidModule.antiraid(bot, zeroCtx); err != ext.EndGroups {
+		t.Fatalf("antiraid(zero duration) error = %v, want EndGroups", err)
+	}
+	if antiRaidModule.isRaidActive(chat.Id) {
+		t.Fatal("raid activated by /antiraid 0, want rejected")
+	}
+
 	onCtx := newModuleMessageContext(bot, chat, user, "/antiraid on")
 	if err := antiRaidModule.antiraid(bot, onCtx); err != ext.EndGroups {
 		t.Fatalf("antiraid(on) error = %v, want EndGroups", err)

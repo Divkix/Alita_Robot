@@ -2092,8 +2092,8 @@ backup_export_success: |
   <b>Модули:</b>
   %s
 
-backup_export_success_text: "✅ Успешно экспортировано %d модулей. Скачайте файл резервной копии выше."
-backup_export_rate_limited: "⏳ Пожалуйста, подождите <b>%s</b> перед следующим экспортом."
+backup_export_success_text: "✅ Успешно экспортировано {modules} модулей. Скачайте файл резервной копии выше."
+backup_export_rate_limited: "⏳ Пожалуйста, подождите <b>{time}</b> перед следующим экспортом."
 backup_export_no_modules: "❌ Для этого чата не найдено модулей для экспорта."
 backup_export_failed: "❌ Не удалось экспортировать настройки. Пожалуйста, попробуйте позже."
 
@@ -2105,7 +2105,7 @@ backup_import_success: |
   <b>Модули:</b>
   %s
 
-backup_import_rate_limited: "⏳ Пожалуйста, подождите <b>%s</b> перед следующим импортом."
+backup_import_rate_limited: "⏳ Пожалуйста, подождите <b>{time}</b> перед следующим импортом."
 backup_import_no_reply: "❌ Пожалуйста, ответьте на файл резервной копии командой <code>/import</code>."
 backup_import_invalid_file: "❌ Неверный формат файла резервной копии. Пожалуйста, отправьте корректный JSON-файл."
 backup_import_file_too_large: "❌ Файл резервной копии слишком большой. Максимальный размер — 10 МБ."
@@ -2132,7 +2132,7 @@ backup_reset_success: |
   <b>Модули:</b>
   %s
 
-backup_reset_rate_limited: "⏳ Пожалуйста, подождите <b>%s</b> перед следующим сбросом."
+backup_reset_rate_limited: "⏳ Пожалуйста, подождите <b>{time}</b> перед следующим сбросом."
 backup_reset_creator_only: "❌ Только создатель группы может сбросить настройки."
 backup_reset_confirm: |
   <b>⚠️ Подтвердите сброс</b>
@@ -2239,22 +2239,22 @@ antiraid_help_msg: |
   /raidactiontime <time>: Установить длительность временного бана (по умолчанию: 1ч).
   /autoantiraid <N>: Авто-включение при N+ входов/мин.
   /autoantiraid off: Отключить авто-триггер.
-antiraid_active_status: "AntiRaid АКТИВЕН | Истекает: %s | Рейд: %s | Действие: %s | Авто: %s"
-antiraid_inactive_status: "AntiRaid НЕАКТИВЕН | Рейд: %s | Действие: %s | Авто: %s"
-antiraid_enabled: "AntiRaid включён на %s."
+antiraid_active_status: "AntiRaid АКТИВЕН | Истекает: {expires_in} | Рейд: {raid_time} | Действие: {action_time} | Авто: {auto_threshold}"
+antiraid_inactive_status: "AntiRaid НЕАКТИВЕН | Рейд: {raid_time} | Действие: {action_time} | Авто: {auto_threshold}"
+antiraid_enabled: "AntiRaid включён на {duration}."
 antiraid_disabled: "AntiRaid отключён."
 antiraid_already_active: "AntiRaid уже активен."
 antiraid_not_active: "AntiRaid не активен."
 antiraid_invalid_duration: "Неверная длительность. Используйте формат: 30м, 2ч, 1д, 1н"
 antiraid_duration_must_be_positive: "Длительность должна быть положительной."
 antiraid_raidtime_usage: "Использование: /raidtime <длительность> (например, 6ч)"
-antiraid_raidtime_no_change: "Время рейда уже %s."
-antiraid_raidtime_set: "Время рейда установлено на %s."
+antiraid_raidtime_no_change: "Время рейда уже {duration}."
+antiraid_raidtime_set: "Время рейда установлено на {duration}."
 antiraid_raidactiontime_usage: "Использование: /raidactiontime <длительность> (например, 1ч)"
-antiraid_raidactiontime_no_change: "Время действия рейда уже %s."
-antiraid_raidactiontime_set: "Время действия рейда установлено на %s."
+antiraid_raidactiontime_no_change: "Время действия рейда уже {duration}."
+antiraid_raidactiontime_set: "Время действия рейда установлено на {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid отключён."
-antiraid_auto_enabled: "Порог Auto-AntiRaid: %d входов/мин."
+antiraid_auto_enabled: "Порог Auto-AntiRaid: {threshold} входов/мин."
 antiraid_invalid_threshold: "Неверный порог. Укажите положительное число или 'off'."
 antiraid_auto_triggered: "Авто-рейд активирован! %s пользователей вошло/мин — новые участники временно забанены."
 antiraid_btn_enable: "Включить AntiRaid"

@@ -348,6 +348,7 @@ func TestMain(m *testing.M) {
 		&db.AntifloodSettings{},
 		&db.AntiRaidSettings{},
 		&db.DevSettings{},
+		&db.Reactions{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

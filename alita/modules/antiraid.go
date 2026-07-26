@@ -389,6 +389,11 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
+		if dur <= 0 {
+			text, _ := tr.GetString("antiraid_duration_must_be_positive")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
+			return ext.EndGroups
+		}
 		if a.isRaidActive(chat.Id) {
 			st := getRaidState(chat.Id)
 			st.ExpiresAt = time.Now().Unix() + int64(dur)

@@ -90,11 +90,11 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if len(args) > 0 {
-		_, _ = msg.Delete(b, nil)
+		// Send the echo first; only delete the command on success so a failed
+		// send does not destroy the admin's command with no content echoed.
+		echoText := strings.Join(strings.Split(msg.OriginalHTML(), " ")[1:], " ")
 		_, err := msg.Reply(b,
-			strings.Join(
-				strings.Split(msg.OriginalHTML(), " ")[1:], " ",
-			),
+			echoText,
 			&gotgbot.SendMessageOpts{
 				ReplyParameters: &gotgbot.ReplyParameters{
 					MessageId: replyMsg.MessageId,
@@ -104,6 +104,11 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 		)
 		if err != nil {
 			log.Error(err)
+			// Leave the command message in place so the admin can see the echo failed.
+			return ext.EndGroups
+		}
+		if _, derr := msg.Delete(b, nil); derr != nil {
+			log.Error(derr)
 		}
 	} else {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

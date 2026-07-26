@@ -777,6 +777,28 @@ func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
 	}
 }
 
+func TestUnrestrictCallbackUnbansAnonymousChannel(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	// Anonymous channel bans use BanChatSenderChat; the unban callback must
+	// call UnbanChatSenderChat, not UnbanChatMember (which rejects channel IDs
+	// and would leave the channel permanently banned).
+	channelData := encodeCallbackData("unrestrict", map[string]string{"a": "unban", "u": "-1001234567890"})
+	ctx := newModuleCallbackContext(bot, chat, admin, channelData)
+	if err := bansModule.unrestrictButtonHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unrestrictButtonHandler(channel unban) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("unbanChatSenderChat"); len(calls) != 1 {
+		t.Fatalf("unbanChatSenderChat calls = %d, want 1 for anonymous channel unban", len(calls))
+	}
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want 0 for anonymous channel unban", len(calls))
+	}
+}
+
 func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

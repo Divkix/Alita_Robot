@@ -851,6 +851,17 @@ func (m moduleStruct) setTitleAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error 
 	if err != nil {
 		return ext.EndGroups
 	}
+	// Anonymous admins bypass WrapCommand's RequiredChecks, so enforce promote
+	// authorization explicitly (setTitle requires CanPromoteMembers), matching
+	// promoteAnonAdmin/demoteAnonAdmin.
+	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
+		return ext.EndGroups
+	}
+	if !chat_status.CanBotPromote(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_promote_error", "")
+		return ext.EndGroups
+	}
 	return m.setTitle(c)
 }
 

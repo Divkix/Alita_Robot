@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -11,7 +12,10 @@ import (
 )
 
 // DisableCMD disables a command in a specific chat.
-// Creates a new disable setting record with disabled status set to true.
+// Creates a new disable setting record with disabled status set to true, or
+// no-ops if the command is already disabled (the disable table has a
+// UNIQUE(chat_id, command) constraint, so a plain INSERT would fail and
+// surface a silent failure to the admin on re-disable).
 // Invalidates cache to ensure consistency.
 // Returns an error if the database operation fails.
 func DisableCMD(chatID int64, cmd string) error {
@@ -22,7 +26,10 @@ func DisableCMD(chatID int64, cmd string) error {
 		Disabled: true,
 	}
 
-	err := db.CreateRecord(disableSetting)
+	err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "command"}},
+		DoNothing: true,
+	}).Create(disableSetting).Error
 	if err != nil {
 		log.Errorf("[Database][DisableCMD]: %v", err)
 		return err
