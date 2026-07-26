@@ -1876,7 +1876,6 @@ config_message_dump_required: "MESSAGE_DUMP आवश्यक है और 0 �
 config_database_url_required: "DATABASE_URL आवश्यक है"
 config_redis_address_required: "REDIS_ADDRESS आवश्यक है"
 config_webhook_domain_required: "USE_WEBHOOKS सक्षम होने पर WEBHOOK_DOMAIN आवश्यक है"
-config_webhook_port_invalid: "WEBHOOK_PORT 1 और 65535 के बीच होना चाहिए"
 config_workers_invalid: "%s %d और %d के बीच होना चाहिए"
 help_pm_intro: |
   हेलो %s!

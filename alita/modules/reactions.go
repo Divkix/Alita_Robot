@@ -42,7 +42,7 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
 
 	// Register module as disableable
-	DefaultHelpRegistry().AbleMap.Store(reactionsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 
 	// Add help text
 	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
@@ -450,7 +450,7 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Skip if module is disabled for this chat
-	_, enabled := DefaultHelpRegistry().AbleMap.Load(reactionsModule.moduleName)
+	enabled := DefaultHelpRegistry().AbleMap[reactionsModule.moduleName]
 	if !enabled {
 		return ext.ContinueGroups
 	}

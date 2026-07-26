@@ -763,7 +763,7 @@ var (
 // LoadAdmin registers all admin module command handlers with the dispatcher.
 // Sets up commands for promotion, demotion, title setting, and admin management.
 func LoadAdmin(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store("Admin", true)
+	DefaultHelpRegistry().AbleMap["Admin"] = true
 
 	helpers.WrapCommand(dispatcher, adminlistDesc, adminModule.adminlist)
 	helpers.WrapCommand(dispatcher, promoteDesc, adminModule.promote)

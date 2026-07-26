@@ -308,10 +308,9 @@ func newTestTranslator(t *testing.T, yamlContent string) *Translator {
 		localeMaps:  map[string]map[string]any{"en": data},
 	}
 	return &Translator{
-		langCode:    "en",
-		manager:     lm,
-		data:        data,
-		cachePrefix: "i18n:en:",
+		langCode: "en",
+		manager:  lm,
+		data:     data,
 	}
 }
 
@@ -482,7 +481,6 @@ func TestLocaleManagerInitializeLoadsEmbeddedLocales(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultManagerConfig()
-	cfg.Cache.EnableCache = false
 	cfg.Loader.DefaultLanguage = "en"
 	cfg.Loader.StrictMode = true
 
@@ -542,7 +540,6 @@ func TestLocaleManagerInitializeStrictModeReturnsLoadError(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultManagerConfig()
-	cfg.Cache.EnableCache = false
 	cfg.Loader.DefaultLanguage = "en"
 	cfg.Loader.StrictMode = true
 
@@ -560,7 +557,6 @@ func TestLocaleManagerInitializeNonStrictStillRequiresDefault(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultManagerConfig()
-	cfg.Cache.EnableCache = false
 	cfg.Loader.DefaultLanguage = "en"
 	cfg.Loader.StrictMode = false
 
@@ -707,7 +703,6 @@ func TestTranslator_GetStringSlice_FallsBackToDefaultLanguage(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultManagerConfig()
-	cfg.Cache.EnableCache = false
 	cfg.Loader.DefaultLanguage = "en"
 	cfg.Loader.StrictMode = true
 

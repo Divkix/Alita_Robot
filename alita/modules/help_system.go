@@ -26,7 +26,12 @@ func listModules() []string {
 }
 
 func listModulesFrom(registry *moduleStruct) []string {
-	modules := registry.AbleMap.LoadModules()
+	var modules []string
+	for module, enabled := range registry.AbleMap {
+		if enabled {
+			modules = append(modules, module)
+		}
+	}
 	slices.Sort(modules)
 	return modules
 }

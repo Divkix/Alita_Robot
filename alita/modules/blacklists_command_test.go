@@ -333,8 +333,8 @@ func TestLoadBlacklistsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadBlacklists(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(blacklistsModule.moduleName); moduleName != blacklistsModule.moduleName || !enabled {
-		t.Fatalf("blacklists help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[blacklistsModule.moduleName] {
+		t.Fatal("blacklists help registration = false, want enabled")
 	}
 }
 

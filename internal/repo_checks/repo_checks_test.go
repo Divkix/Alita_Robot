@@ -271,8 +271,8 @@ func TestHelpRegistryDoesNotExposeGlobalMutableSingleton(t *testing.T) {
 	if regexp.MustCompile(`(?m)^var\s+HelpModule\b`).MatchString(source) {
 		t.Fatal("help registry must not expose a package-level HelpModule singleton")
 	}
-	if !strings.Contains(source, "func NewHelpRegistry() *moduleStruct") {
-		t.Fatal("help registry must expose a constructor for isolated tests")
+	if !strings.Contains(source, "func newHelpRegistry() *moduleStruct") {
+		t.Fatal("help registry must keep a constructor for isolated tests")
 	}
 }
 

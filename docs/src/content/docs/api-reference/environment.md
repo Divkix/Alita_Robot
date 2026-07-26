@@ -542,17 +542,6 @@ Required when `USE_WEBHOOKS=true`.
 | **Type** | `string` |
 | **Required** | Conditional |
 
-### `WEBHOOK_PORT`
-
-Deprecated: use `HTTP_PORT` instead.
-
-| Property | Value |
-|----------|-------|
-| **Type** | `integer` |
-| **Required** | No |
-| **Default** | `8081` |
-| **Validation** | min=1,max=65535 |
-
 ### `WEBHOOK_SECRET`
 
 Required when `USE_WEBHOOKS=true`.
@@ -697,6 +686,5 @@ RESPONSE_CACHE_TTL=# response cache TTL in seconds (default: 30)
 STATS_COLLECTION_WORKERS=# (default: 2)
 USE_WEBHOOKS=# enable webhook mode (default: false)
 WEBHOOK_DOMAIN=# required if USE_WEBHOOKS=true
-WEBHOOK_PORT=# deprecated, use HTTP_PORT (default: 8081)
 WEBHOOK_SECRET=# required if USE_WEBHOOKS=true
 ```

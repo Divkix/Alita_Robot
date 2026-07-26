@@ -642,7 +642,7 @@ func TestLoadWarnsRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadWarns(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(warnsModule.moduleName); moduleName != warnsModule.moduleName || !enabled {
-		t.Fatalf("warns help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[warnsModule.moduleName] {
+		t.Fatal("warns help registration = false, want enabled")
 	}
 }

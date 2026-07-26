@@ -93,7 +93,8 @@ This document explains the directory structure of Alita Robot, helping developer
       - restrictedCache.go Restricted chat cache
     - callbackcodec/ Versioned callback data encoding/decoding
     - chat_status/
-      - chat_status.go Admin/permission checks
+      - access.go Public permission checks
+      - chat_status.go Shared status and membership checks
       - permission_responder.go Permission failure messaging
     - constants/ Application constants
       - time.go Time constants
@@ -246,7 +247,7 @@ Modules are loaded in a specific order in `alita/main.go`:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.DefaultHelpRegistry().AbleMap.Init()
+    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
     defer modules.LoadHelp(dispatcher)  // Help loaded LAST
 
     // Loads all modules registered via RegisterLegacyModule / RegisterModule

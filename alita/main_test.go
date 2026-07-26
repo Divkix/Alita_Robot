@@ -62,10 +62,10 @@ func resetHelpRegistryForTest(t *testing.T) {
 	t.Helper()
 
 	registry := modules.DefaultHelpRegistry()
-	registry.AbleMap.Init()
+	registry.AbleMap = make(map[string]bool)
 	registry.AltHelpOptions = make(map[string][]string)
 	t.Cleanup(func() {
-		registry.AbleMap.Init()
+		registry.AbleMap = make(map[string]bool)
 		registry.AltHelpOptions = make(map[string][]string)
 	})
 }
@@ -75,9 +75,9 @@ func TestListModulesSortsEnabledModuleNames(t *testing.T) {
 
 	registry := modules.DefaultHelpRegistry()
 
-	registry.AbleMap.Store("Warns", true)
-	registry.AbleMap.Store("Admin", true)
-	registry.AbleMap.Store("Filters", true)
+	registry.AbleMap["Warns"] = true
+	registry.AbleMap["Admin"] = true
+	registry.AbleMap["Filters"] = true
 
 	if got, want := ListModules(), "[Admin, Filters, Warns]"; got != want {
 		t.Fatalf("ListModules() = %q, want %q", got, want)
@@ -91,26 +91,14 @@ func TestLoadModulesLoadsRegistryAndHelp(t *testing.T) {
 	LoadModules(dispatcher)
 
 	for _, moduleName := range []string{"Admin", "Captcha", "Filters", "Greetings", "Warns"} {
-		_, enabled := modules.DefaultHelpRegistry().AbleMap.Load(moduleName)
-		if !enabled {
+		if !modules.DefaultHelpRegistry().AbleMap[moduleName] {
 			t.Fatalf("%s was not enabled after LoadModules", moduleName)
 		}
 	}
 }
 
-func TestCheckDuplicateAliasesAllowsUniqueAliases(t *testing.T) {
-	resetHelpRegistryForTest(t)
-
-	registry := modules.DefaultHelpRegistry()
-	registry.AltHelpOptions["Admin"] = []string{"admin", "promote"}
-	registry.AltHelpOptions["Warns"] = []string{"warn", "dwarn"}
-
-	checkDuplicateAliases()
-}
-
-func TestInitialChecksEnsuresBotAndValidatesAliases(t *testing.T) {
+func TestInitialChecksEnsuresBot(t *testing.T) {
 	setupAlitaMainDB(t)
-	resetHelpRegistryForTest(t)
 	bot := &gotgbot.Bot{
 		Token:     "999:test",
 		BotClient: alitaTestBotClient{},

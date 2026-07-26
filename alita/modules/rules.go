@@ -299,7 +299,7 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 // LoadRules registers all rules module handlers with the dispatcher,
 // including rules management and display commands.
 func LoadRules(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(rulesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[rulesModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("rules", rulesModule.sendRules))
 	helpers.AddCmdToDisableable("rules")

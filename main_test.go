@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,20 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
-
-type captureRoundTripper struct {
-	req *http.Request
-}
-
-func (c *captureRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	c.req = req
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader("ok")),
-		Header:     make(http.Header),
-		Request:    req,
-	}, nil
-}
 
 type mainBotCall struct {
 	method string
@@ -68,95 +53,59 @@ func (c *mainBotClient) FileURL(token string, tgFilePath string, opts *gotgbot.R
 	return c.GetAPIURL(opts) + "/file/bot" + token + "/" + tgFilePath
 }
 
-func TestAPIServerRewriteTransportRewritesTelegramRequests(t *testing.T) {
-	base := &captureRoundTripper{}
-	target, err := url.Parse("https://bot-api.example/internal")
-	if err != nil {
-		t.Fatalf("parse target: %v", err)
-	}
-	transport := &apiServerRewriteTransport{base: base, target: target}
-	req, err := http.NewRequest(http.MethodPost, "https://api.telegram.org/bot123/sendMessage", nil)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
+func TestResolveBotAPIURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{name: "empty", output: gotgbot.DefaultAPIURL},
+		{name: "default", input: gotgbot.DefaultAPIURL, output: gotgbot.DefaultAPIURL},
+		{name: "path prefix", input: "https://bot-api.example/internal/", output: "https://bot-api.example/internal"},
+		{
+			name:   "drops unsupported components",
+			input:  "https://user:secret@bot-api.example/internal/?x=1#fragment",
+			output: "https://bot-api.example/internal",
+		},
+		{name: "invalid URL", input: "://bad-url", output: gotgbot.DefaultAPIURL},
+		{name: "missing scheme", input: "bot-api.example/internal", output: gotgbot.DefaultAPIURL},
+		{name: "unsupported scheme", input: "ftp://bot-api.example/internal", output: gotgbot.DefaultAPIURL},
 	}
 
-	resp, err := transport.RoundTrip(req)
-	if err != nil {
-		t.Fatalf("round trip: %v", err)
-	}
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
-
-	if base.req == nil {
-		t.Fatal("base transport did not receive rewritten request")
-	}
-	if got := base.req.URL.String(); got != "https://bot-api.example/internal/bot123/sendMessage" {
-		t.Fatalf("rewritten URL = %q", got)
-	}
-	if base.req.Host != "bot-api.example" {
-		t.Fatalf("rewritten Host = %q", base.req.Host)
-	}
-	if req.URL.String() != "https://api.telegram.org/bot123/sendMessage" {
-		t.Fatalf("original request was mutated: %q", req.URL.String())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := resolveBotAPIURL(test.input); got != test.output {
+				t.Fatalf("resolveBotAPIURL(%q) = %q, want %q", test.input, got, test.output)
+			}
+		})
 	}
 }
 
-func TestNewBotAPITransportUsesRewriteForCustomServer(t *testing.T) {
-	transport := newBotAPITransport(12, 4, "https://bot-api.example/internal")
-	rewrite, ok := transport.(*apiServerRewriteTransport)
-	if !ok {
-		t.Fatalf("newBotAPITransport() = %T, want apiServerRewriteTransport", transport)
+func TestNewBotAPITransportKeepsConnectionTuning(t *testing.T) {
+	transport := newBotAPITransport(12, 4)
+	if transport.MaxIdleConns != 12 || transport.MaxIdleConnsPerHost != 4 {
+		t.Fatalf(
+			"transport limits = (%d, %d), want (12, 4)",
+			transport.MaxIdleConns,
+			transport.MaxIdleConnsPerHost,
+		)
 	}
-	if rewrite.target.String() != "https://bot-api.example/internal" {
-		t.Fatalf("rewrite target = %q", rewrite.target.String())
-	}
-	if base, ok := rewrite.base.(*http.Transport); !ok || base.MaxIdleConns != 12 {
-		t.Fatalf("rewrite base = %#v, want configured *http.Transport", rewrite.base)
-	}
-}
-
-func TestNewBotAPITransportFallsBackForDefaultOrInvalidServer(t *testing.T) {
-	for _, apiServer := range []string{"", "https://api.telegram.org", "://bad-url"} {
-		transport := newBotAPITransport(9, 3, apiServer)
-		if _, ok := transport.(*apiServerRewriteTransport); ok {
-			t.Fatalf("newBotAPITransport(%q) returned rewrite transport", apiServer)
-		}
-		base, ok := transport.(*http.Transport)
-		if !ok {
-			t.Fatalf("newBotAPITransport(%q) = %T, want *http.Transport", apiServer, transport)
-		}
-		if base.MaxIdleConns != 9 || base.MaxIdleConnsPerHost != 3 {
-			t.Fatalf("transport limits = (%d, %d), want (9, 3)", base.MaxIdleConns, base.MaxIdleConnsPerHost)
-		}
+	if transport.MaxConnsPerHost <= transport.MaxIdleConnsPerHost {
+		t.Fatalf("MaxConnsPerHost = %d, want more than MaxIdleConnsPerHost", transport.MaxConnsPerHost)
 	}
 }
 
-func TestAPIServerRewriteTransportPreservesNonTelegramRequests(t *testing.T) {
-	base := &captureRoundTripper{}
-	target, err := url.Parse("https://bot-api.example/internal")
-	if err != nil {
-		t.Fatalf("parse target: %v", err)
+func TestBaseBotClientUsesResolvedAPIURL(t *testing.T) {
+	client := &gotgbot.BaseBotClient{
+		DefaultRequestOpts: &gotgbot.RequestOpts{
+			APIURL: resolveBotAPIURL("https://bot-api.example/internal/"),
+		},
 	}
-	transport := &apiServerRewriteTransport{base: base, target: target}
-	req, err := http.NewRequest(http.MethodGet, "https://example.com/status", nil)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
+	if got := client.GetAPIURL(nil); got != "https://bot-api.example/internal" {
+		t.Fatalf("GetAPIURL(nil) = %q, want custom API URL", got)
 	}
-
-	resp, err := transport.RoundTrip(req)
-	if err != nil {
-		t.Fatalf("round trip: %v", err)
-	}
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
-
-	if base.req != req {
-		t.Fatal("non-Telegram request should be passed through unchanged")
-	}
-	if base.req.URL.String() != "https://example.com/status" {
-		t.Fatalf("pass-through URL = %q", base.req.URL.String())
+	if got := client.FileURL("123:token", "photos/file.jpg", nil); got != "https://bot-api.example/internal/file/bot123:token/photos/file.jpg" {
+		t.Fatalf("FileURL() = %q, want custom API file URL", got)
 	}
 }
 

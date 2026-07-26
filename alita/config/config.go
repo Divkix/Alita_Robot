@@ -118,7 +118,6 @@ type Config struct {
 	UseWebhooks   bool
 	WebhookDomain string
 	WebhookSecret string
-	WebhookPort   int `validate:"min=1,max=65535"` // Deprecated: use HTTPPort instead
 
 	// Safety and performance limits
 	EnablePerformanceMonitoring bool
@@ -257,7 +256,6 @@ func LoadConfig() (*Config, error) {
 		UseWebhooks:   typeConvertor{str: os.Getenv("USE_WEBHOOKS")}.Bool(),
 		WebhookDomain: os.Getenv("WEBHOOK_DOMAIN"),
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
-		WebhookPort:   typeConvertor{str: os.Getenv("WEBHOOK_PORT")}.Int(),
 
 		// Safety and performance limits
 		EnablePerformanceMonitoring: typeConvertor{str: os.Getenv("ENABLE_PERFORMANCE_MONITORING")}.Bool(),
@@ -344,21 +342,8 @@ func (cfg *Config) setDefaults() {
 		cfg.RedisDB = 1
 	}
 
-	// Handle HTTPPort with backward compatibility for WebhookPort
 	if cfg.HTTPPort == 0 {
-		if cfg.WebhookPort != 0 {
-			// Use deprecated WebhookPort for backward compatibility
-			cfg.HTTPPort = cfg.WebhookPort
-			log.Warn("[Config] WEBHOOK_PORT is deprecated, please use HTTP_PORT instead")
-		} else {
-			// Default to 8080
-			cfg.HTTPPort = 8080
-		}
-	}
-
-	// Keep WebhookPort for backward compatibility (default to 8081 if not set)
-	if cfg.WebhookPort == 0 {
-		cfg.WebhookPort = 8081 // Legacy default
+		cfg.HTTPPort = 8080
 	}
 
 	// Set activity monitoring defaults

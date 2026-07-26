@@ -430,57 +430,8 @@ func TestCheckPinnedDeletesOrUnpinsLinkedChannelMessages(t *testing.T) {
 	}
 }
 
-func TestPinTypeMediaSendersAndExtraction(t *testing.T) {
-	client := newModuleBotClient()
-	genericMessage := []byte(
-		`{"message_id":9010,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Pin Chat"}}`,
-	)
-	for _, method := range []string{
-		"sendSticker",
-		"sendAudio",
-		"sendVoice",
-		"sendVideo",
-		"sendVideoNote",
-	} {
-		client.responses[method] = genericMessage
-	}
-	bot := newModuleTestBot(client)
+func TestGetPinTypeExtractsMedia(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
-	user := gotgbot.User{Id: 42, FirstName: "Member"}
-	ctx := newModuleMessageContext(bot, chat, user, "/permapin media")
-	keyboard := &gotgbot.InlineKeyboardMarkup{}
-
-	tests := []struct {
-		name       string
-		dataType   int
-		fileID     string
-		wantMethod string
-	}{
-		{name: "text", dataType: db.TEXT, wantMethod: "sendMessage"},
-		{name: "sticker fallback", dataType: db.STICKER, wantMethod: "sendMessage"},
-		{name: "sticker", dataType: db.STICKER, fileID: "sticker-file", wantMethod: "sendSticker"},
-		{name: "document fallback", dataType: db.DOCUMENT, wantMethod: "sendMessage"},
-		{name: "document", dataType: db.DOCUMENT, fileID: "doc-file", wantMethod: "sendDocument"},
-		{name: "photo fallback", dataType: db.PHOTO, wantMethod: "sendMessage"},
-		{name: "photo", dataType: db.PHOTO, fileID: "photo-file", wantMethod: "sendPhoto"},
-		{name: "audio", dataType: db.AUDIO, fileID: "audio-file", wantMethod: "sendAudio"},
-		{name: "voice", dataType: db.VOICE, fileID: "voice-file", wantMethod: "sendVoice"},
-		{name: "video", dataType: db.VIDEO, fileID: "video-file", wantMethod: "sendVideo"},
-		{name: "video note", dataType: db.VIDEO_NOTE, fileID: "video-note-file", wantMethod: "sendVideoNote"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			before := len(client.callsFor(tc.wantMethod))
-			sendFn := PinsEnumFuncMap[tc.dataType]
-			if _, err := sendFn(bot, ctx, pinType{MsgText: "hello", FileID: tc.fileID}, keyboard, 44); err != nil {
-				t.Fatalf("PinsEnumFuncMap[%d]() error = %v", tc.dataType, err)
-			}
-			if calls := client.callsFor(tc.wantMethod); len(calls) != before+1 {
-				t.Fatalf("%s calls = %d, want %d", tc.wantMethod, len(calls), before+1)
-			}
-		})
-	}
 
 	extractCases := []struct {
 		name     string
@@ -513,8 +464,8 @@ func TestLoadPinRegistersHelpAndHandlers(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadPin(dispatcher)
 
-	if moduleName, enabled := DefaultHelpRegistry().AbleMap.Load(pinsModule.moduleName); moduleName != pinsModule.moduleName || !enabled {
-		t.Fatalf("pins help registration = (%q, %v), want enabled", moduleName, enabled)
+	if !DefaultHelpRegistry().AbleMap[pinsModule.moduleName] {
+		t.Fatal("pins help registration = false, want enabled")
 	}
 }
 

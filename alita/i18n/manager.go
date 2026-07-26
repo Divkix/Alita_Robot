@@ -4,8 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"sync"
-
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 var (
@@ -36,11 +34,6 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 	lm.localeFS = fs
 	lm.localePath = localePath
 	lm.defaultLang = config.Loader.DefaultLanguage
-
-	// Initialize cache if available
-	if config.Cache.EnableCache && cache.Manager != nil {
-		lm.cacheClient = cache.Manager
-	}
 
 	// Load all locale files
 	if err := lm.loadLocaleFiles(); err != nil {
@@ -81,10 +74,9 @@ func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 	}
 
 	return &Translator{
-		langCode:    targetLang,
-		manager:     lm,
-		data:        data,
-		cachePrefix: fmt.Sprintf("i18n:%s:", targetLang),
+		langCode: targetLang,
+		manager:  lm,
+		data:     data,
 	}, nil
 }
 

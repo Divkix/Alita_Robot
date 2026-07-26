@@ -23,48 +23,21 @@ func resetAntiSpamMapForTest(t *testing.T) {
 	})
 }
 
-func TestCheckSpammedInitializesAndTripsThreshold(t *testing.T) {
-	resetAntiSpamMapForTest(t)
-
-	key := spamKey{chatId: -1001, userId: 42}
-	levels := []antiSpamLevel{{Limit: 2, Expiry: time.Minute}}
-
-	if checkSpammed(key, levels) {
-		t.Fatal("first message marked as spam")
-	}
-	if !checkSpammed(key, levels) {
-		t.Fatal("second message did not trip spam threshold")
-	}
-
-	antiSpamMutex.Lock()
-	info := antiSpamMap[key]
-	antiSpamMutex.Unlock()
-	if info == nil || len(info.Levels) != 1 {
-		t.Fatalf("antiSpamMap[%+v] = %+v, want one level", key, info)
-	}
-	if !checkSpammed(key, levels) {
-		t.Fatal("subsequent message did not stay over spam threshold")
-	}
-}
-
-func TestCheckSpammedResetsExpiredWindow(t *testing.T) {
+func TestSpamCheckResetsExpiredWindow(t *testing.T) {
 	resetAntiSpamMapForTest(t)
 
 	key := spamKey{chatId: -1002, userId: 43}
-	antiSpamMap[key] = &antiSpamInfo{Levels: []antiSpamLevel{{
-		Count:    10,
-		Limit:    3,
-		CurrTime: time.Now().Add(-2 * time.Minute),
-		Expiry:   time.Second,
-	}}}
+	antiSpamMap[key] = &antiSpamInfo{
+		Count:       antiSpamLimit,
+		WindowStart: time.Now().Add(-2 * antiSpamWindow),
+	}
 
-	if checkSpammed(key, []antiSpamLevel{{Limit: 3, Expiry: time.Second}}) {
+	if spamCheck(key) {
 		t.Fatal("expired spam window should not stay spammed after reset")
 	}
 
-	got := antiSpamMap[key].Levels[0]
-	if got.Count != 1 {
-		t.Fatalf("reset Count = %d, want 1 after current message", got.Count)
+	if got := antiSpamMap[key].Count; got != 1 {
+		t.Fatalf("reset Count = %d, want 1 after current message", got)
 	}
 }
 
@@ -77,14 +50,8 @@ func TestCleanupExpiredAntiSpamDeletesNilAndExpiredEntries(t *testing.T) {
 	activeKey := spamKey{chatId: -1003, userId: 46}
 
 	antiSpamMap[nilKey] = nil
-	antiSpamMap[expiredKey] = &antiSpamInfo{Levels: []antiSpamLevel{{
-		CurrTime: now.Add(-10 * time.Minute),
-		Expiry:   time.Minute,
-	}}}
-	antiSpamMap[activeKey] = &antiSpamInfo{Levels: []antiSpamLevel{{
-		CurrTime: now.Add(-30 * time.Second),
-		Expiry:   time.Minute,
-	}}}
+	antiSpamMap[expiredKey] = &antiSpamInfo{WindowStart: now.Add(-3 * antiSpamWindow)}
+	antiSpamMap[activeKey] = &antiSpamInfo{WindowStart: now.Add(-antiSpamWindow)}
 
 	cleanupExpiredAntiSpam(now)
 
@@ -155,8 +122,8 @@ func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
 	antiSpamMutex.Lock()
 	info := antiSpamMap[key]
 	antiSpamMutex.Unlock()
-	if info == nil || len(info.Levels) != 1 {
-		t.Fatalf("antiSpamMap[%+v] = %#v, want one spam level", key, info)
+	if info == nil || info.Count != antiSpamLimit {
+		t.Fatalf("antiSpamMap[%+v] = %#v, want count %d", key, info, antiSpamLimit)
 	}
 	if !spamCheck(key) {
 		t.Fatal("antispam dispatcher handler did not mark user as spammed at threshold")

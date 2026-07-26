@@ -8,8 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -25,11 +25,6 @@ type MissingTranslation struct {
 	Key   string
 	Usage []string
 }
-
-var (
-	simpleKeyRegex  = regexp.MustCompile(`tr\.GetString\s*\(\s*"([^"]+)"`)
-	simpleKeyRegex2 = regexp.MustCompile(`tr\.GetStringSlice\s*\(\s*"([^"]+)"`)
-)
 
 func main() {
 	fmt.Println("🔍 Checking translations...")
@@ -95,14 +90,9 @@ func extractTranslationKeys(rootDir string) ([]TranslationKey, error) {
 
 		fileKeys, err := extractKeysFromFile(path)
 		if err != nil {
-			fmt.Printf("  ⚠️  Warning: Could not parse %s: %v\n", path, err)
-			// Continue processing other files
-			return nil
+			return fmt.Errorf("extract keys from %s: %w", path, err)
 		}
-
-		for _, key := range fileKeys {
-			keys = append(keys, key)
-		}
+		keys = append(keys, fileKeys...)
 
 		return nil
 	})
@@ -130,42 +120,10 @@ func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 		return nil, err
 	}
 
-	// Method 1: Use regex to find simple patterns
-	lines := strings.Split(string(content), "\n")
-	for lineNum, line := range lines {
-		// Check for tr.GetString("key")
-		if matches := simpleKeyRegex.FindAllStringSubmatch(line, -1); matches != nil {
-			for _, match := range matches {
-				if len(match) > 1 {
-					keys = append(keys, TranslationKey{
-						Key:  match[1],
-						File: filePath,
-						Line: lineNum + 1,
-					})
-				}
-			}
-		}
-
-		// Check for tr.GetStringSlice("key")
-		if matches := simpleKeyRegex2.FindAllStringSubmatch(line, -1); matches != nil {
-			for _, match := range matches {
-				if len(match) > 1 {
-					keys = append(keys, TranslationKey{
-						Key:  match[1],
-						File: filePath,
-						Line: lineNum + 1,
-					})
-				}
-			}
-		}
-	}
-
-	// Method 2: Use AST parsing for more complex patterns
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filePath, content, parser.AllErrors)
 	if err != nil {
-		// If AST parsing fails, continue with regex results
-		return keys, nil
+		return nil, err
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
@@ -174,36 +132,20 @@ func extractKeysFromFile(filePath string) ([]TranslationKey, error) {
 			return true
 		}
 
-		// Check for tr.GetString or tr.GetStringSlice calls
-		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-			if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "tr" {
-				if sel.Sel.Name == "GetString" || sel.Sel.Name == "GetStringSlice" {
-					if len(call.Args) > 0 {
-						if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-							key := strings.Trim(lit.Value, `"`)
-							pos := fset.Position(lit.Pos())
-
-							// Check if this key is already in our list
-							found := false
-							for _, existingKey := range keys {
-								if existingKey.Key == key && existingKey.File == filePath {
-									found = true
-									break
-								}
-							}
-
-							if !found {
-								keys = append(keys, TranslationKey{
-									Key:  key,
-									File: filePath,
-									Line: pos.Line,
-								})
-							}
-						}
-					}
-				}
-			}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || (sel.Sel.Name != "GetString" && sel.Sel.Name != "GetStringSlice") || len(call.Args) == 0 {
+			return true
 		}
+		lit, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || lit.Kind != token.STRING {
+			return true
+		}
+		key, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			return true
+		}
+		pos := fset.Position(lit.Pos())
+		keys = append(keys, TranslationKey{Key: key, File: filePath, Line: pos.Line})
 
 		return true
 	})

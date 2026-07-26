@@ -92,7 +92,7 @@ Big architectural facts an agent must hold in mind:
 ## 2. Project structure
 
 - **`main.go`** — process entry point (CLI flags, bootstrap, polling/webhook
-  branch, dispatcher, shutdown wiring, custom Bot-API rewrite transport).
+  branch, dispatcher, shutdown wiring, tuned Bot-API HTTP transport).
 - **`alita/`** — application code
   - `main.go` — `LoadModules`, `InitialChecks`, `ListModules`.
   - `config/` — `config.go` (manual env loading, defaults, validation, logredact
@@ -255,14 +255,13 @@ the `--health` flag.
 2. **CLI flags** by raw `os.Args`: `--health` GETs `/health` and exits 0/1
    (distroless has no curl); `--version`/`-v` prints `BotVersion` and exits.
 3. Main-goroutine panic-recovery `defer` (`os.Exit(1)`).
-4. **`cache.InitCache()` FIRST** (i18n depends on it) — fatal on failure;
+4. **`cache.InitCache()` FIRST** — fatal on failure;
    FLUSHDBs Redis when `ClearCacheOnStartup` (default **true**).
 5. `i18n.GetManager().Initialize(&Locales, "locales", …)` (embedded YAML).
 6. `tracing.InitTracing()` — **non-fatal** (warns and continues).
-7. HTTP transport (with optional `API_SERVER` rewrite) → `gotgbot.NewBot` → resolve
-   username → goroutine pre-warming Telegram connections.
-8. `alita.InitialChecks(b)` — `user.EnsureBotInDb` (blocking, FK anchor) +
-   `checkDuplicateAliases` (fatal on dup).
+7. Tuned HTTP transport + optional `API_SERVER` through gotgbot's
+   `RequestOpts.APIURL` → `gotgbot.NewBot` → resolve username.
+8. `alita.InitialChecks(b)` — `user.EnsureBotInDb` (blocking, FK anchor).
 9. dispatcher (`TracingProcessor`, `dispatcherErrorHandler`,
    `MaxRoutines` default 200) → monitoring systems → shutdown manager →
    unified HTTP server.
@@ -289,7 +288,7 @@ DB closes.
 - `RegisterLegacyModule(name, priority, loadFunc)` appends a `registeredModule`
   record. Dedup is by name (duplicates silently ignored, first wins).
 - `LoadAllModules` stable-sorts **ascending** by priority. **Lower number loads
-  earlier.** `alita.LoadModules` inits `AbleMap`, **defers `LoadHelp`** (so Help
+  earlier.** `alita.LoadModules` resets `AbleMap`, **defers `LoadHelp`** (so Help
   renders after every module pushed its metadata), then `LoadAllModules`.
 
 **Priorities** (edit the literal in each module's `init()` to reorder):
@@ -318,10 +317,10 @@ uses `RegisterLegacyModule`.
 
 - A single package-global singleton `DefaultHelpRegistry()` doubles as the Help
   module's state **and** the cross-module registry. Each module, at the end of its
-  `LoadXxx`, calls `DefaultHelpRegistry().AbleMap.Store(name, true)` and optionally
-  sets `helpableKb[Name]` / `AltHelpOptions[Name]`. `AbleMap` is a plain
-  `map[string]bool` wrapper (**not** `sync.Map`, no mutex) — safe only because all
-  writes happen during single-threaded startup. Do not `Store` from a handler.
+  `LoadXxx`, sets `DefaultHelpRegistry().AbleMap[name] = true` and optionally sets
+  `helpableKb[Name]` / `AltHelpOptions[Name]`. `AbleMap` is a plain
+  `map[string]bool` (**not** `sync.Map`, no mutex) — safe only because all writes
+  happen during single-threaded startup. Do not write it from a handler.
 - `helpableKb` keys are the **Title-cased** module name; per-module help text comes
   from i18n key `<lowercase>_help_msg` rendered via `tgmd2html.MD2HTMLV2`.
 - ⚠️ `moduleStruct` is passed **by value** to handler methods, so it must never
@@ -335,7 +334,7 @@ uses `RegisterLegacyModule`.
    `migrations/`.
 2. Handlers + `LoadYourModule(dispatcher)` in `alita/modules/your_module.go`.
 3. `RegisterLegacyModule("YourModule", <priority>, LoadYourModule)` in `init()`;
-   call `DefaultHelpRegistry().AbleMap.Store(...)` inside `LoadXxx`.
+   set `DefaultHelpRegistry().AbleMap[name] = true` inside `LoadXxx`.
 4. Add `<yourmodule>_help_msg` (and any keys) to **all** locale files.
 
 ### Command registration: two patterns coexist
@@ -398,9 +397,9 @@ uses `RegisterLegacyModule`.
 
 ## 8. Permission system (`alita/utils/chat_status/`)
 
-Two-layer: public `Can*/Require*` exports in `chat_status.go` delegate to
-unexported peers in `access.go` (edit the unexported layer). `permission_responder.go`
-centralizes failure messaging.
+Public `Can*/Require*` permission implementations live directly in `access.go`;
+`chat_status.go` holds shared status and membership logic.
+`permission_responder.go` centralizes failure messaging.
 
 - `RequireGroup`/`RequirePrivate`, `RequireBotAdmin`/`RequireUserAdmin`/
   `RequireUserOwner` are **pure boolean** guards (no messages); messaging is done by
@@ -557,8 +556,6 @@ m != nil`) — every helper bails when it's nil.
   `extractOrderedValues` (`first,second,…,question,answer,number,count,value,name,
   user,username,…`). If you use a `%verb` with a param name not in that list, the
   mapping is dropped/misordered — extend `commonKeys`.
-- ⚠️ Translation cache entries **never expire** (the configured 30-min TTL is never
-  applied) — fine only because embedded locale content is immutable.
 - **Parse mode**: locale strings are authored in Markdown but the bot sends HTML —
   convert via `tgmd2html.MD2HTMLV2`. Some short status strings are already authored
   in HTML; whether to convert depends on the specific key.
@@ -602,8 +599,8 @@ m != nil`) — every helper bails when it's nil.
 
 - **Filters/Blacklists** use Aho-Corasick (`keyword_matcher`) with **separate named
   caches** (`GetNamedCache("filters")` / `"blacklists")`) so they never evict each
-  other — do not revert to the shared global cache. Watchers use `FirstMatch` (cheap)
-  not `FindMatches` (expensive). Search text is built by `buildModerationMatchText`
+  other — do not revert to the shared global cache. Watchers use `FirstMatch`.
+  Search text is built by `buildModerationMatchText`
   (text + caption + URL entities from **both** `Entities` and `CaptionEntities`).
 - **Overwrite confirmation**: filters store the pending payload in **Redis**
   (`alita:filter_overwrite:<token>`, 5-min TTL, short hex token in callback); notes
@@ -811,8 +808,8 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `make bump-version TAG=vX.Y.Z`) and commit before tagging.
 
 Additional env vars present in `config.go` (defaults in parens) not covered above:
-`ENABLE_DB_MONITORING` (false; gates `/db_metrics`), `WEBHOOK_PORT` (deprecated,
-legacy 8081, backfills `HTTP_PORT`), `INACTIVITY_THRESHOLD_DAYS` (30),
+`ENABLE_DB_MONITORING` (false; gates `/db_metrics`),
+`INACTIVITY_THRESHOLD_DAYS` (30),
 `ACTIVITY_CHECK_INTERVAL` (1), `HTTP_MAX_IDLE_CONNS` (100),
 `HTTP_MAX_IDLE_CONNS_PER_HOST` (50), `RESOURCE_MAX_GOROUTINES` (1000),
 `RESOURCE_MAX_MEMORY_MB` (500), `RESOURCE_GC_THRESHOLD_MB` (400, the raw-MB

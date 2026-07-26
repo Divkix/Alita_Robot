@@ -1,8 +1,6 @@
 package modules
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"html"
 	"slices"
@@ -47,14 +45,6 @@ const (
 // filterOverwriteCacheKey generates a cache key for filter overwrite confirmations.
 func filterOverwriteCacheKey(token string) string {
 	return fmt.Sprintf("alita:filter_overwrite:%s", token)
-}
-
-func newOverwriteToken() (string, error) {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
 }
 
 // setFilterOverwriteCache stores filter overwrite data in cache with TTL.
@@ -564,7 +554,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	action, token, ok := parseFilterOverwriteCallbackData(query.Data)
+	action, token, ok := parseOverwriteCallbackData(query.Data, "filters_overwrite")
 	if !ok {
 		log.Error("[Filters] Invalid callback data format")
 		return ext.EndGroups
@@ -773,7 +763,7 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadFilters registers all filter-related handlers with the dispatcher.
 // Sets up commands for managing filters and the message watcher for automatic responses.
 func LoadFilters(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(filtersModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[filtersModule.moduleName] = true
 
 	DefaultHelpRegistry().helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{

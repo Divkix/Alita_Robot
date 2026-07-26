@@ -326,7 +326,7 @@ func (m moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadMutes registers all mute module handlers with the dispatcher,
 // including various mute commands and their variants.
 func LoadMutes(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(mutesModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[mutesModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("mute", mutesModule.mute))
 	dispatcher.AddHandler(handlers.NewCommand("smute", mutesModule.sMute))

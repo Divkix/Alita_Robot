@@ -1163,7 +1163,7 @@ func (moduleStruct) setPendingJoins(chatId, userId int64) {
 // LoadGreetings registers all greeting-related handlers with the dispatcher.
 // Sets up welcome/goodbye messages, join requests, and service message cleanup.
 func LoadGreetings(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap.Store(greetingsModule.moduleName, true)
+	DefaultHelpRegistry().AbleMap[greetingsModule.moduleName] = true
 
 	// Adds Formatting kb button to Greetings Menu
 	DefaultHelpRegistry().helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{

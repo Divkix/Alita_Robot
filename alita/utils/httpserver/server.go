@@ -202,23 +202,10 @@ func (s *Server) RegisterDBMetrics() {
 // RegisterPPROF registers pprof endpoints for performance profiling.
 // This should only be enabled in development environments.
 func (s *Server) RegisterPPROF() {
-	// Register pprof handlers at /debug/pprof/*
-	// net/http/pprof automatically registers to DefaultServeMux,
-	// but we want to use our own mux for consistency
-	s.mux.HandleFunc("/debug/pprof/", pprofHandler)
-	s.mux.HandleFunc("/debug/pprof/heap", pprofHandler)
-	s.mux.HandleFunc("/debug/pprof/goroutine", pprofHandler)
-	s.mux.HandleFunc("/debug/pprof/threadcreate", pprofHandler)
-	s.mux.HandleFunc("/debug/pprof/block", pprofHandler)
-	s.mux.HandleFunc("/debug/pprof/mutex", pprofHandler)
+	s.mux.Handle("/debug/pprof/", http.DefaultServeMux)
 
 	s.pprofEnabled = true
 	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
-}
-
-// pprofHandler wraps the default pprof handler to work with our mux
-func pprofHandler(w http.ResponseWriter, r *http.Request) {
-	http.DefaultServeMux.ServeHTTP(w, r)
 }
 
 // RegisterWebhook registers the webhook endpoint and configures the Telegram webhook

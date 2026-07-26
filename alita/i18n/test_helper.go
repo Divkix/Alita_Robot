@@ -18,10 +18,9 @@ func NewTestTranslator(yamlContent string) (*Translator, error) {
 		localeMaps:  map[string]map[string]any{"en": data},
 	}
 	return &Translator{
-		langCode:    "en",
-		manager:     lm,
-		data:        data,
-		cachePrefix: "i18n:en:",
+		langCode: "en",
+		manager:  lm,
+		data:     data,
 	}, nil
 }
 

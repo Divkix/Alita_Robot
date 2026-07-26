@@ -156,20 +156,6 @@ func Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// IsEnabled returns whether tracing is currently enabled.
-func IsEnabled() bool {
-	return enabled
-}
-
-// GetTracer returns the global tracer instance.
-// If tracing is not initialized, it returns a no-op tracer.
-func GetTracer() trace.Tracer {
-	if tracer != nil {
-		return tracer
-	}
-	return otel.Tracer("alita_robot")
-}
-
 // GetPropagator returns the global text map propagator for trace context propagation.
 func GetPropagator() propagation.TextMapPropagator {
 	if propagator == nil {
@@ -195,5 +181,5 @@ func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	if !enabled {
 		return ctx, trace.SpanFromContext(ctx)
 	}
-	return GetTracer().Start(ctx, name, opts...)
+	return tracer.Start(ctx, name, opts...)
 }

@@ -37,43 +37,43 @@ func hasUserPermission(
 	return requiredField(&userMember) || userMember.Status == "creator"
 }
 
-// canUserChangeInfo reports whether the user can change chat information.
-func canUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// CanUserChangeInfo reports whether the user can change chat information.
+func CanUserChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
 		return m.CanChangeInfo
 	})
 }
 
-// canUserRestrict reports whether the user can restrict other members.
-func canUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// CanUserRestrict reports whether the user can restrict other members.
+func CanUserRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
 		return m.CanRestrictMembers
 	})
 }
 
-// canUserPromote reports whether the user can promote/demote other members.
-func canUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// CanUserPromote reports whether the user can promote/demote other members.
+func CanUserPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
 		return m.CanPromoteMembers
 	})
 }
 
-// canUserPin reports whether the user can pin messages.
-func canUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// CanUserPin reports whether the user can pin messages.
+func CanUserPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
 		return m.CanPinMessages
 	})
 }
 
-// canUserDelete reports whether the user can delete messages.
-func canUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// CanUserDelete reports whether the user can delete messages.
+func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
 		return m.CanDeleteMessages
 	})
 }
 
-// canBotRestrict reports whether the bot can restrict members.
-func canBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// CanBotRestrict reports whether the bot can restrict members.
+func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {
 		return false
 	}
@@ -89,8 +89,8 @@ func canBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return botMember.CanRestrictMembers
 }
 
-// canBotPromote reports whether the bot can promote/demote members.
-func canBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// CanBotPromote reports whether the bot can promote/demote members.
+func CanBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {
 		return false
 	}
@@ -106,8 +106,8 @@ func canBotPromote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return botMember.CanPromoteMembers
 }
 
-// canBotPin reports whether the bot can pin messages.
-func canBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// CanBotPin reports whether the bot can pin messages.
+func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {
 		return false
 	}
@@ -123,8 +123,8 @@ func canBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return botMember.CanPinMessages
 }
 
-// canBotDelete reports whether the bot can delete messages.
-func canBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// CanBotDelete reports whether the bot can delete messages.
+func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {
 		return false
 	}
@@ -140,32 +140,22 @@ func canBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return botMember.CanDeleteMessages
 }
 
-// isBotAdminPure reports whether the bot is an admin, without sending messages.
-func isBotAdminPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// RequireBotAdmin reports whether the bot is an admin.
+func RequireBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return IsBotAdmin(b, ctx, chat)
 }
 
-// isUserAdminPure reports whether the user is an admin, without sending messages.
-func isUserAdminPure(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
-	return IsUserAdmin(b, chat.Id, userId)
-}
-
-// requireBotAdminPure reports whether the bot is an admin.
-func requireBotAdminPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
-	return isBotAdminPure(b, ctx, chat)
-}
-
-// requireUserAdminPure reports whether the user is an admin.
-func requireUserAdminPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// RequireUserAdmin reports whether the user is an admin.
+func RequireUserAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
 	}
-	return isUserAdminPure(b, chat, userId)
+	return IsUserAdmin(b, chat.Id, userId)
 }
 
-// requireUserOwnerPure reports whether the user is the chat owner.
-func requireUserOwnerPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+// RequireUserOwner reports whether the user is the chat owner.
+func RequireUserOwner(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
@@ -178,8 +168,10 @@ func requireUserOwnerPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, 
 	return mem.GetStatus() == "creator"
 }
 
-// requireGroupPure reports whether the chat is a group (not private).
-func requireGroupPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// RequireGroup reports whether the chat is a group (not private).
+//
+//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
@@ -187,8 +179,10 @@ func requireGroupPure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 	return chat.Type != "private"
 }
 
-// requirePrivatePure reports whether the chat is a private chat.
-func requirePrivatePure(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+// RequirePrivate reports whether the chat is a private chat.
+//
+//nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		return false
