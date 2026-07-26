@@ -1204,36 +1204,7 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 	// Send failure message with action taken and stored message info
 	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: &gotgbot.Chat{Id: chatID}}))
 
-	var failureMsg string
-	if storedMsgCount > 0 {
-		// Get the action-specific translation key
-		var actionKey string
-		switch action {
-		case "ban":
-			actionKey, _ = tr.GetString("captcha_action_banned")
-		case "mute":
-			actionKey, _ = tr.GetString("captcha_action_muted")
-		default:
-			actionKey, _ = tr.GetString("captcha_action_kicked")
-		}
-
-		template, _ := tr.GetString("captcha_timeout_with_messages")
-		failureMsg = fmt.Sprintf(template, formatting.MentionHtml(userID, userName), actionKey, storedMsgCount)
-	} else {
-		// Use action-specific failure message
-		var msgKey string
-		switch action {
-		case "ban":
-			msgKey = "captcha_timeout_failure_banned"
-		case "mute":
-			msgKey = "captcha_timeout_failure_muted"
-		default:
-			msgKey = "captcha_timeout_failure_kicked"
-		}
-
-		template, _ := tr.GetString(msgKey)
-		failureMsg = fmt.Sprintf(template, formatting.MentionHtml(userID, userName))
-	}
+	failureMsg := buildCaptchaFailureMessage(tr, action, userID, userName, storedMsgCount)
 
 	// Send the failure message
 	sent, err := helpers.SendMessageWithErrorHandling(bot, chatID, failureMsg, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML})
@@ -1250,38 +1221,71 @@ func handleCaptchaTimeout(bot *gotgbot.Bot, chatID, userID int64, attemptID uint
 	}
 
 	// Execute the failure action
+	executeCaptchaFailureAction(bot, chatID, userID, action)
+	return true
+}
+
+// buildCaptchaFailureMessage builds the user-facing captcha failure message,
+// including stored pending-message counts when present. Extracted from
+// handleCaptchaTimeout to keep its cyclomatic complexity under the gocyclo limit.
+func buildCaptchaFailureMessage(tr *i18n.Translator, action string, userID int64, userName string, storedMsgCount int64) string {
+	if storedMsgCount > 0 {
+		var actionKey string
+		switch action {
+		case "ban":
+			actionKey, _ = tr.GetString("captcha_action_banned")
+		case "mute":
+			actionKey, _ = tr.GetString("captcha_action_muted")
+		default:
+			actionKey, _ = tr.GetString("captcha_action_kicked")
+		}
+
+		template, _ := tr.GetString("captcha_timeout_with_messages")
+		return fmt.Sprintf(template, formatting.MentionHtml(userID, userName), actionKey, storedMsgCount)
+	}
+
+	var msgKey string
+		switch action {
+		case "ban":
+			msgKey = "captcha_timeout_failure_banned"
+		case "mute":
+			msgKey = "captcha_timeout_failure_muted"
+		default:
+			msgKey = "captcha_timeout_failure_kicked"
+		}
+
+		template, _ := tr.GetString(msgKey)
+		return fmt.Sprintf(template, formatting.MentionHtml(userID, userName))
+}
+
+// executeCaptchaFailureAction applies the configured captcha failure action
+// (kick/ban/mute) to a user. Extracted from handleCaptchaTimeout.
+func executeCaptchaFailureAction(bot *gotgbot.Bot, chatID, userID int64, action string) {
 	switch action {
 	case "kick":
-		// First ban the user
-		_, err := bot.BanChatMember(chatID, userID, nil)
-		if err != nil {
+		// First ban the user, then unban to achieve a kick.
+		if _, err := bot.BanChatMember(chatID, userID, nil); err != nil {
 			log.Errorf("Failed to ban user %d for kick: %v", userID, err)
-			return true
+			return
 		}
-		// Then immediately unban to achieve "kick" effect
-		_, err = bot.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
-		if err != nil {
+		if _, err := bot.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false}); err != nil {
 			log.Errorf("Failed to unban user %d after kick: %v", userID, err)
 		}
 	case "ban":
-		_, err := bot.BanChatMember(chatID, userID, nil)
-		if err != nil {
+		if _, err := bot.BanChatMember(chatID, userID, nil); err != nil {
 			log.Errorf("Failed to ban user %d: %v", userID, err)
 		}
 	case "mute":
-		// Explicitly mute the user (don't rely on initial mute from greetings)
-		_, muteErr := bot.RestrictChatMember(chatID, userID, MutedPermissions, nil)
-		if muteErr != nil {
+		// Explicitly mute the user (don't rely on initial mute from greetings).
+		if _, muteErr := bot.RestrictChatMember(chatID, userID, MutedPermissions, nil); muteErr != nil {
 			log.Errorf("[Captcha] Failed to mute user %d in chat %d: %v", userID, chatID, muteErr)
 		}
-		// Store for auto-unmute in 24 hours
 		unmuteAt := time.Now().Add(24 * time.Hour)
 		if err := captcha.CreateMutedUser(userID, chatID, unmuteAt); err != nil {
 			log.Errorf("[Captcha] Failed to store muted user for auto-unmute: %v", err)
 		}
 		log.Infof("User %d muted in chat %d, will be unmuted at %s", userID, chatID, unmuteAt.Format(time.RFC3339))
 	}
-	return true
 }
 
 // captchaVerifyCallback handles captcha answer button clicks.
