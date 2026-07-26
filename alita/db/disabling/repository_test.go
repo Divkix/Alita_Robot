@@ -244,9 +244,10 @@ func TestDisableSameCommandTwice(t *testing.T) {
 		db.DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&models.DisableSettings{})
 	})
 
-	// Disable "start" twice -- DisableCMD uses CreateRecord (no deduplication),
-	// so two rows may be inserted. The important invariant is that IsCommandDisabled
-	// returns true and the command appears at least once in the list.
+	// Disable "start" twice -- DisableCMD uses ON CONFLICT DO NOTHING, so the
+	// second call is a no-op (no duplicate row, no error). The important
+	// invariant is that IsCommandDisabled returns true and exactly one row
+	// exists in the list.
 	if err := DisableCMD(chatID, cmd); err != nil {
 		t.Fatalf("DisableCMD() first call error = %v", err)
 	}
@@ -259,9 +260,15 @@ func TestDisableSameCommandTwice(t *testing.T) {
 		t.Fatalf("IsCommandDisabled() = false after two DisableCMD calls, want true")
 	}
 
-	// Verify it appears at least once in the list
+	// Verify it appears exactly once in the list (no duplicate rows)
 	cmds := GetChatDisabledCMDs(chatID)
-	if !slices.Contains(cmds, cmd) {
-		t.Fatalf("DisableCMD() twice: command %q not found in list at all; list: %v", cmd, cmds)
+	var count int
+	for _, c := range cmds {
+		if c == cmd {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("DisableCMD() twice: command %q appears %d times, want 1; list: %v", cmd, count, cmds)
 	}
 }
