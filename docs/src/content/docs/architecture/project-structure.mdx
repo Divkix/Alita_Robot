@@ -3,8 +3,6 @@ title: Project Structure
 description: Directory layout and key files in the Alita Robot codebase.
 ---
 
-import { Badge, FileTree } from '@astrojs/starlight/components';
-
 This document explains the directory structure of Alita Robot, helping developers navigate the codebase efficiently.
 
 ## Directory Tree
@@ -148,7 +146,7 @@ This document explains the directory structure of Alita Robot, helping developer
   - ...
 </FileTree>
 
-### `/alita/utils/chat_status/` - Permission Checking <Badge text="Security" variant="caution" />
+### `/alita/utils/chat_status/` - Permission Checking <Badge variant="warning">Security</Badge>
 
 Central permission validation:
 
@@ -165,7 +163,7 @@ chat_status.IsUserInChat(b, chat, userId)
 chat_status.IsUserBanProtected(b, ctx, chat, userId)
 ```
 
-### `/migrations/` - SQL Migrations <Badge text="Database" variant="tip" />
+### `/migrations/` - SQL Migrations <Badge variant="success">Database</Badge>
 
 Database migrations follow naming convention:
 
@@ -181,7 +179,7 @@ Migrations are:
 - Idempotent (safe to run multiple times)
 - Auto-cleaned of Supabase-specific SQL if present
 
-### `/locales/` - Translation Files <Badge text="i18n" variant="default" />
+### `/locales/` - Translation Files <Badge>i18n</Badge>
 
 YAML-based translations:
 

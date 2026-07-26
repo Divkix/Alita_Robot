@@ -42,7 +42,7 @@ func generateModuleDocs(modules []Module, outputPath string) error {
 		// Prepare content
 		var content strings.Builder
 
-		// Starlight frontmatter
+		// Blume frontmatter (title/description — also valid for any Markdown docs framework)
 		content.WriteString("---\n")
 		fmt.Fprintf(&content, "title: %s Commands\n", module.DisplayName)
 		fmt.Fprintf(&content, "description: Complete guide to %s module commands and features\n", module.DisplayName)

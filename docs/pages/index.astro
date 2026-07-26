@@ -1,0 +1,225 @@
+---
+import PageLayout from "blume/components/layout/PageLayout.astro";
+import Icon from "blume/components/Icon.astro";
+import data from "blume:data";
+
+const { config } = data;
+
+const features = [
+	{
+		icon: "shield-alert",
+		title: "Moderation",
+		badge: "Popular",
+		body: "Ban, mute, kick, and warn users. Anti-flood protection and word blacklists.",
+	},
+	{
+		icon: "rocket",
+		title: "Automation",
+		badge: "Smart",
+		body: "Welcome messages, CAPTCHA verification, auto-approve join requests, and keyword filters.",
+	},
+	{
+		icon: "file-text",
+		title: "Content",
+		badge: "Core",
+		body: "Save notes, set rules, create filters, and manage pinned messages with ease.",
+	},
+	{
+		icon: "languages",
+		title: "Multi-Language",
+		badge: "7+ Languages",
+		body: "English, Spanish, French, Hindi, Russian, Portuguese, and Indonesian — extensible.",
+	},
+	{
+		icon: "zap",
+		title: "High Performance",
+		badge: "Go-Powered",
+		body: "Built in Go with concurrent processing, Redis caching, and PostgreSQL storage.",
+	},
+	{
+		icon: "server",
+		title: "Self-Hostable",
+		badge: "Docker Ready",
+		body: "Deploy your own instance with Docker, binaries, or build from source.",
+	},
+];
+
+const quickLinks = [
+	{
+		href: "/getting-started/quick-start/",
+		icon: "rocket",
+		title: "Quick Start",
+		body: "Add Alita to your group in under 2 minutes.",
+	},
+	{
+		href: "/commands/",
+		icon: "terminal",
+		title: "Command Reference",
+		body: "Browse all 158+ commands organized by category.",
+	},
+	{
+		href: "/self-hosting/",
+		icon: "server",
+		title: "Self-Hosting",
+		body: "Host your own instance with our deployment guide.",
+	},
+	{
+		href: "/api-reference/environment/",
+		icon: "book-open",
+		title: "API Reference",
+		body: "Environment variables, database schema, and technical docs.",
+	},
+];
+---
+
+<PageLayout
+	site={{ title: config.title, description: config.description }}
+	logo={config.logo}
+	banner={config.banner}
+	navigation={data.navigation}
+	favicon={config.favicon}
+	fontCssVars={data.fontCssVars}
+	themeMode={config.theme.mode}
+	searchEnabled={config.search.enabled}
+	siteUrl={config.site}
+	ogEnabled={config.og.enabled}
+	page={{ title: `${config.title} Documentation`, description: config.description }}
+>
+	<!-- Hero -->
+	<section class="relative overflow-hidden border-b border-border">
+		<div
+			class="pointer-events-none absolute inset-0 -z-10 opacity-60 bg-[radial-gradient(60rem_30rem_at_50%_-10rem,theme(color.accent/0.18),transparent)]"
+		>
+		</div>
+		<div class="mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
+			<span
+				class="inline-flex items-center gap-2 rounded-full border border-border bg-muted/60 px-3 py-1 text-muted-foreground text-sm"
+			>
+				<Icon icon="bot" size={16} />
+				Telegram group management bot
+			</span>
+			<h1
+				class="mt-6 text-4xl font-bold tracking-tight text-foreground sm:text-6xl"
+			>
+				Alita Robot
+			</h1>
+			<p class="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+				A modern Telegram group management bot built with Go — 29+ modules, 158+
+				commands, 7+ languages, and blazing-fast performance powered by Redis
+				caching and PostgreSQL.
+			</p>
+			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+				<a
+					href="/getting-started/introduction/"
+					class="inline-flex items-center gap-2 rounded-blume bg-primary px-5 py-2.5 font-medium text-primary-foreground transition hover:opacity-90"
+				>
+					<Icon icon="rocket" size={18} />
+					Get Started
+				</a>
+				<a
+					href="/commands/"
+					class="inline-flex items-center gap-2 rounded-blume border border-border bg-background px-5 py-2.5 font-medium text-foreground transition hover:bg-muted"
+				>
+					<Icon icon="terminal" size={18} />
+					Commands
+				</a>
+				<a
+					href="/self-hosting/"
+					class="inline-flex items-center gap-2 rounded-blume border border-border bg-background px-5 py-2.5 font-medium text-foreground transition hover:bg-muted"
+				>
+					<Icon icon="server" size={18} />
+					Self-Host
+				</a>
+			</div>
+			<dl
+				class="mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-4 border-t border-border pt-8 text-center"
+			>
+				<div>
+					<dt class="text-sm text-muted-foreground">Modules</dt>
+					<dd class="mt-1 text-2xl font-bold text-foreground">29+</dd>
+				</div>
+				<div>
+					<dt class="text-sm text-muted-foreground">Commands</dt>
+					<dd class="mt-1 text-2xl font-bold text-foreground">158+</dd>
+				</div>
+				<div>
+					<dt class="text-sm text-muted-foreground">Languages</dt>
+					<dd class="mt-1 text-2xl font-bold text-foreground">7+</dd>
+				</div>
+			</dl>
+		</div>
+	</section>
+
+	<!-- Features -->
+	<section class="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+		<h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+			Features
+		</h2>
+		<div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+			{
+				features.map((f) => (
+					<div class="rounded-blume border border-border p-6 transition hover:border-accent/50">
+						<div class="flex items-center gap-3">
+							<span class="flex h-9 w-9 items-center justify-center rounded-blume bg-muted text-foreground">
+								<Icon icon={f.icon} size={18} />
+							</span>
+							<h3 class="font-semibold text-foreground">{f.title}</h3>
+						</div>
+						<p class="mt-3 text-muted-foreground text-sm">{f.body}</p>
+					</div>
+				))
+			}
+		</div>
+	</section>
+
+	<!-- Quick links -->
+	<section class="mx-auto max-w-6xl px-6 pb-16 sm:pb-20">
+		<h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+			Quick Links
+		</h2>
+		<div class="mt-8 grid gap-5 sm:grid-cols-2">
+			{
+				quickLinks.map((q) => (
+					<a
+						href={q.href}
+						class="group flex items-start gap-4 rounded-blume border border-border p-6 transition hover:border-accent/50 hover:bg-muted/40"
+					>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-blume bg-muted text-foreground">
+							<Icon icon={q.icon} size={20} />
+						</span>
+						<span>
+							<span class="font-semibold text-foreground group-hover:text-accent">
+								{q.title}
+							</span>
+							<span class="mt-1 block text-muted-foreground text-sm">
+								{q.body}
+							</span>
+						</span>
+					</a>
+				))
+			}
+		</div>
+	</section>
+
+	<!-- Support -->
+	<section class="mx-auto max-w-6xl px-6 pb-20">
+		<div
+			class="rounded-blume border border-border bg-muted/40 p-6 text-center sm:p-8"
+		>
+			<h2 class="text-xl font-semibold text-foreground sm:text-2xl">Need help?</h2>
+			<p class="mx-auto mt-2 max-w-2xl text-muted-foreground text-sm">
+				<strong>Support Group</strong>:
+				<a class="text-accent underline-offset-2 hover:underline" href="https://t.me/DivideSupport"
+					>t.me/DivideSupport</a
+				> — <strong>Updates Channel</strong>:
+				<a class="text-accent underline-offset-2 hover:underline" href="https://t.me/DivideProjects"
+					>t.me/DivideProjects</a
+				> — <strong>GitHub Issues</strong>:
+				<a
+					class="text-accent underline-offset-2 hover:underline"
+					href="https://github.com/divkix/Alita_Robot/issues">Report bugs or request features</a
+				>
+			</p>
+		</div>
+	</section>
+</PageLayout>

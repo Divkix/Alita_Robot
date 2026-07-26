@@ -3,10 +3,6 @@ title: Docker Deployment
 description: Deploy Alita Robot using Docker and docker-compose.
 ---
 
-import { Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-
-# Docker Deployment
-
 Docker is the recommended way to deploy Alita Robot. The provided `docker-compose.yml` includes all required services with optimized configurations for production use.
 
 ## Prerequisites
@@ -19,28 +15,26 @@ Docker is the recommended way to deploy Alita Robot. The provided `docker-compos
 ## Quick Start
 
 <Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    ```
+  </Step>
 
-1. **Clone the repository**
+  <Step title="Copy and configure environment variables">
+    ```bash
+    cp sample.env .env
+    ```
 
-   ```bash
-   git clone https://github.com/divkix/Alita_Robot.git
-   cd Alita_Robot
-   ```
+    Edit `.env` with your configuration. At minimum, set: <Badge variant="danger">BOT_TOKEN</Badge>, <Badge variant="danger">OWNER_ID</Badge>, <Badge variant="danger">MESSAGE_DUMP</Badge>.
+  </Step>
 
-2. **Copy and configure environment variables**
-
-   ```bash
-   cp sample.env .env
-   ```
-
-   Edit `.env` with your configuration. At minimum, set: <Badge text="BOT_TOKEN" variant="danger" />, <Badge text="OWNER_ID" variant="danger" />, <Badge text="MESSAGE_DUMP" variant="danger" />.
-
-3. **Start all services**
-
-   ```bash
-   docker compose up -d
-   ```
-
+  <Step title="Start all services">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
 </Steps>
 
 ## Docker Compose Configuration
@@ -57,7 +51,7 @@ services:
     container_name: alita-robot
     restart: always
     environment:
-      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
+      DATABASE_URL: **************************************/alita
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: redis
       AUTO_MIGRATE: "false"
@@ -218,50 +212,48 @@ deploy:
 ## Updating the Bot
 
 <Steps>
+  <Step title="Pull the latest images">
+    ```bash
+    docker compose pull
+    ```
+  </Step>
 
-1. **Pull the latest images**
+  <Step title="Recreate containers with new images">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
 
-   ```bash
-   docker compose pull
-   ```
-
-2. **Recreate containers with new images**
-
-   ```bash
-   docker compose up -d
-   ```
-
-3. **Optional: Remove old images**
-
-   ```bash
-   docker image prune -f
-   ```
-
+  <Step title="Remove old images (optional)">
+    ```bash
+    docker image prune -f
+    ```
+  </Step>
 </Steps>
 
 ## Viewing Logs
 
 <Tabs>
-  <TabItem label="All Services">
-   ```bash
-   docker compose logs -f
-   ```
-  </TabItem>
-  <TabItem label="Bot Only">
-   ```bash
-   docker compose logs -f alita
-   ```
-  </TabItem>
-  <TabItem label="Last 100 Lines">
-   ```bash
-   docker compose logs --tail=100 alita
-   ```
-  </TabItem>
-  <TabItem label="PostgreSQL">
-     ```bash
-     docker compose logs -f postgres
-     ```
-  </TabItem>
+  <Tab title="All Services">
+    ```bash
+    docker compose logs -f
+    ```
+  </Tab>
+  <Tab title="Bot Only">
+    ```bash
+    docker compose logs -f alita
+    ```
+  </Tab>
+  <Tab title="Last 100 Lines">
+    ```bash
+    docker compose logs --tail=100 alita
+    ```
+  </Tab>
+  <Tab title="PostgreSQL">
+    ```bash
+    docker compose logs -f postgres
+    ```
+  </Tab>
 </Tabs>
 
 ## Common Operations

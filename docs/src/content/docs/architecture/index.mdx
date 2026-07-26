@@ -1,52 +1,50 @@
 ---
-title: Architecture Overview
+title: Architecture
 description: High-level architecture and design principles of Alita Robot.
 ---
-
-import { Badge, Tabs, TabItem, Card, CardGrid } from '@astrojs/starlight/components';
 
 Alita Robot is a modern Telegram group management bot built with Go and the gotgbot library. This document provides an overview of the architectural decisions, technology stack, and design principles that guide the codebase.
 
 ## Technology Stack
 
 <Tabs>
-  <TabItem label="Go Runtime">
+  <Tab title="Go Runtime">
     | Component | Technology | Purpose |
     |-----------|------------|---------|
-    | **Language** | <Badge text="Go 1.26+" variant="note" /> | Core application runtime |
-    | **Telegram Library** | <Badge text="gotgbot v2" variant="note" /> | Telegram Bot API wrapper |
-    | **Build System** | <Badge text="GoReleaser" variant="default" /> | Multi-platform builds and releases |
-  </TabItem>
-  <TabItem label="PostgreSQL">
+    | **Language** | <Badge variant="accent">Go 1.26+</Badge> | Core application runtime |
+    | **Telegram Library** | <Badge variant="accent">gotgbot v2</Badge> | Telegram Bot API wrapper |
+    | **Build System** | <Badge>GoReleaser</Badge> | Multi-platform builds and releases |
+  </Tab>
+  <Tab title="PostgreSQL">
     | Component | Technology | Purpose |
     |-----------|------------|---------|
-    | **Database** | <Badge text="PostgreSQL" variant="tip" /> | Persistent data storage |
-    | **ORM** | <Badge text="GORM" variant="tip" /> | Object-relational mapping |
-    | **Migrations** | <Badge text="Custom Engine" variant="default" /> | Schema versioning with transactional execution |
+    | **Database** | <Badge variant="success">PostgreSQL</Badge> | Persistent data storage |
+    | **ORM** | <Badge variant="success">GORM</Badge> | Object-relational mapping |
+    | **Migrations** | <Badge>Custom Engine</Badge> | Schema versioning with transactional execution |
 
     The database uses a **surrogate key pattern**: auto-increment `id` as PK with external IDs (`user_id`, `chat_id`) as unique constraints.
-  </TabItem>
-  <TabItem label="Redis">
+  </Tab>
+  <Tab title="Redis">
     | Component | Technology | Purpose |
     |-----------|------------|---------|
-    | **Caching** | <Badge text="Redis" variant="caution" /> | Distributed caching layer |
-    | **Client** | <Badge text="gocache" variant="caution" /> | Go cache library with marshaling |
-    | **Stampede Protection** | <Badge text="singleflight" variant="default" /> | Prevents thundering herd on cache misses |
+    | **Caching** | <Badge variant="warning">Redis</Badge> | Distributed caching layer |
+    | **Client** | <Badge variant="warning">gocache</Badge> | Go cache library with marshaling |
+    | **Stampede Protection** | <Badge>singleflight</Badge> | Prevents thundering herd on cache misses |
 
     All cache keys are prefixed with `alita:` for namespace isolation. TTLs range from 20 seconds (anonymous admin verification) to 1 hour (language preferences).
-  </TabItem>
-  <TabItem label="Monitoring">
+  </Tab>
+  <Tab title="Monitoring">
     | Component | Technology | Purpose |
     |-----------|------------|---------|
-    | **Metrics** | <Badge text="Prometheus" variant="success" /> | Metrics and observability |
-    | **Tracing** | <Badge text="OpenTelemetry" variant="success" /> | Distributed tracing with OTLP/console exporters |
-    | **Health** | <Badge text="HTTP /health" variant="default" /> | Unified health, metrics, pprof on single port |
-  </TabItem>
+    | **Metrics** | <Badge variant="success">Prometheus</Badge> | Metrics and observability |
+    | **Tracing** | <Badge variant="success">OpenTelemetry</Badge> | Distributed tracing with OTLP/console exporters |
+    | **Health** | <Badge>HTTP /health</Badge> | Unified health, metrics, pprof on single port |
+  </Tab>
 </Tabs>
 
 ## Architecture Components
 
-<CardGrid>
+<CardGroup cols={2}>
   <Card title="Dispatcher" icon="rocket">
     Routes incoming Telegram updates to appropriate handlers. Configurable max goroutines (default: 200) with enhanced error handling and panic recovery.
   </Card>
@@ -56,16 +54,16 @@ Alita Robot is a modern Telegram group management bot built with Go and the gotg
   <Card title="Cache Layer" icon="star">
     Redis caching with singleflight stampede protection. Per-type TTLs, automatic invalidation on writes, and distributed cache with namespace isolation.
   </Card>
-  <Card title="Permission System" icon="approve-check">
+  <Card title="Permission System" icon="check">
     Centralized permission validation in `alita/utils/chat_status/`. Checks are cached to reduce Telegram API calls. Supports anonymous admin detection.
   </Card>
-  <Card title="Monitoring" icon="seti:config">
+  <Card title="Monitoring" icon="settings">
     4-tier auto-remediation, activity tracking (per-chat and per-user DAU/WAU/MAU), background stats every 30s, and GC triggers on memory thresholds.
   </Card>
-  <Card title="Graceful Shutdown" icon="close">
+  <Card title="Graceful Shutdown" icon="x">
     Central coordinator with LIFO handler execution. Each handler gets panic recovery. Total timeout: 60 seconds.
   </Card>
-</CardGrid>
+</CardGroup>
 
 ## Core Design Principles
 

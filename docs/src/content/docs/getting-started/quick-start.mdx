@@ -1,84 +1,86 @@
 ---
-title: Quick Start
+title: Quick Start Guide
 description: Add Alita Robot to your Telegram group in under 2 minutes.
 ---
-
-import { Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
-
-# Quick Start Guide
 
 Get Alita Robot running in your group in just a few steps.
 
 <Steps>
+  <Step title="Add the Bot">
+    <Badge variant="accent">Step 1</Badge>
 
-1. **Add the Bot** <Badge text="Step 1" variant="note" />
+    <Tabs>
+      <Tab title="Add to existing group">
+        1. Open Telegram and search for **@AlitaRobot** (or your self-hosted bot)
+        2. Click **Start** to begin a conversation
+        3. Click the **Add to Group** button, or use this link: [Add Alita to Group](https://t.me/AlitaRobot?startgroup=true)
+        4. Select your group and confirm
+      </Tab>
+      <Tab title="Create a new group">
+        1. Open Telegram and create a new group
+        2. During member selection, search for **@AlitaRobot** and add it
+        3. Complete group creation — Alita will be added automatically
+        4. Alternatively, create the group first, then use the link: [Add Alita to Group](https://t.me/AlitaRobot?startgroup=true)
+      </Tab>
+    </Tabs>
+  </Step>
 
-   <Tabs>
-     <TabItem label="Add to existing group">
-       1. Open Telegram and search for **@AlitaRobot** (or your self-hosted bot)
-       2. Click **Start** to begin a conversation
-       3. Click the **Add to Group** button, or use this link: [Add Alita to Group](https://t.me/AlitaRobot?startgroup=true)
-       4. Select your group and confirm
-     </TabItem>
-     <TabItem label="Create a new group">
-       1. Open Telegram and create a new group
-       2. During member selection, search for **@AlitaRobot** and add it
-       3. Complete group creation — Alita will be added automatically
-       4. Alternatively, create the group first, then use the link: [Add Alita to Group](https://t.me/AlitaRobot?startgroup=true)
-     </TabItem>
-   </Tabs>
+  <Step title="Make the Bot Admin">
+    <Badge variant="accent">Step 2</Badge>
 
-2. **Make the Bot Admin** <Badge text="Step 2" variant="note" />
+    :::caution[Admin permissions are required]
+    Alita **cannot** moderate your group without admin permissions. Without them, commands like ban, mute, and delete will fail silently.
+    :::
 
-   :::caution[Admin permissions are required]
-   Alita **cannot** moderate your group without admin permissions. Without them, commands like ban, mute, and delete will fail silently.
-   :::
+    1. Open your group settings
+    2. Go to **Administrators**
+    3. Click **Add Administrator**
+    4. Select **Alita Robot**
+    5. Enable these permissions:
+       - Delete messages
+       - Ban users
+       - Invite users via link
+       - Pin messages
+       - Manage video chats (optional)
+  </Step>
 
-   1. Open your group settings
-   2. Go to **Administrators**
-   3. Click **Add Administrator**
-   4. Select **Alita Robot**
-   5. Enable these permissions:
-      - Delete messages
-      - Ban users
-      - Invite users via link
-      - Pin messages
-      - Manage video chats (optional)
+  <Step title="Configure Basic Settings">
+    <Badge variant="accent">Step 3</Badge>
 
-3. **Configure Basic Settings** <Badge text="Step 3" variant="note" />
+    **Set Group Rules**
+    ```
+    /setrules Your group rules here.
+    Be respectful and follow the guidelines.
+    ```
 
-   **Set Group Rules**
-   ```
-   /setrules Your group rules here.
-   Be respectful and follow the guidelines.
-   ```
+    **Set Welcome Message**
+    ```
+    /setwelcome Welcome {mention}! Please read our /rules before chatting.
+    ```
 
-   **Set Welcome Message**
-   ```
-   /setwelcome Welcome {mention}! Please read our /rules before chatting.
-   ```
+    **Enable CAPTCHA (Recommended)**
+    ```
+    /captcha on
+    /captchamode math
+    ```
 
-   **Enable CAPTCHA (Recommended)**
-   ```
-   /captcha on
-   /captchamode math
-   ```
+    :::tip[Pro tip]
+    Use `{mention}` in welcome messages to tag new members by name. Other placeholders include `{chatname}` for the group name and `{count}` for member count.
+    :::
+  </Step>
 
-   :::tip[Pro tip]
-   Use `{mention}` in welcome messages to tag new members by name. Other placeholders include `{chatname}` for the group name and `{count}` for member count.
-   :::
+  <Step title="Explore Commands">
+    <Badge variant="accent">Step 4</Badge>
 
-4. **Explore Commands** <Badge text="Step 4" variant="note" />
+    Use `/help` to see all available commands organized by category.
 
-   Use `/help` to see all available commands organized by category.
-
-   Popular commands to try:
-   - `/adminlist` — See all group admins
-   - `/rules` — Display group rules
-   - `/notes` — List saved notes
-   - `/filters` — List active filters
-   - `/locks` — See current lock settings
-
+    Popular commands to try:
+    - `/adminlist` — See all group admins
+    - `/rules` — Display group rules
+    - `/notes` — List saved notes
+    - `/filters` — List active filters
+    - `/locks` — See current lock settings
+  </Step>
 </Steps>
 
 ## Next Steps
