@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
@@ -153,6 +154,9 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
 				return err
 			}
+			// Kick = ban then unban, matching /kick and every other kick path.
+			// Without the delayed unban this becomes a permanent ban.
+			delayedUnban(chat, b, userId, "warn-kick", 2*time.Second)
 			punished = true
 		case "mute":
 			_, err = chat.RestrictMember(b, userId,
