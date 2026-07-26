@@ -3,10 +3,6 @@ title: Contributing
 description: How to contribute to Alita Robot development.
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
-# Contributing to Alita Robot
-
 Thank you for your interest in contributing to Alita Robot! This guide will help you get started with development.
 
 ## Development Setup
@@ -21,29 +17,27 @@ Thank you for your interest in contributing to Alita Robot! This guide will help
 ### Clone and Setup
 
 <Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    ```
+  </Step>
 
-1. **Clone the repository**
+  <Step title="Configure environment">
+    ```bash
+    cp sample.env .env
+    # Edit .env with your configuration
+    ```
+  </Step>
 
-   ```bash
-   git clone https://github.com/divkix/Alita_Robot.git
-   cd Alita_Robot
-   ```
-
-2. **Configure environment**
-
-   ```bash
-   cp sample.env .env
-   # Edit .env with your configuration
-   ```
-
-3. **Verify the build**
-
-   ```bash
-   make lint
-   make test
-   make run
-   ```
-
+  <Step title="Verify the build">
+    ```bash
+    make lint
+    make test
+    make run
+    ```
+  </Step>
 </Steps>
 
 ### Essential Commands
@@ -91,17 +85,25 @@ Alita_Robot/
 ## Adding a New Module
 
 <Steps>
+  <Step title="Create database operations">
+    Add them in `alita/db/{module}/repository.go` (following the domain-package pattern).
+  </Step>
 
-1. **Create database operations** in `alita/db/{module}/repository.go` (following the domain-package pattern)
+  <Step title="Implement command handlers">
+    Put them in `alita/modules/{module}.go`.
+  </Step>
 
-2. **Implement command handlers** in `alita/modules/{module}.go`
+  <Step title="Register commands">
+    Register commands in a `LoadXxx(dispatcher)` function.
+  </Step>
 
-3. **Register commands** in a `LoadXxx(dispatcher)` function
+  <Step title="Add translations">
+    Add translations to `locales/en.yml` (and other locale files).
+  </Step>
 
-4. **Add translations** to `locales/en.yml` (and other locale files)
-
-5. **Self-register in `init()`** using `RegisterLegacyModule("MyModule", priority, LoadMyModule)` — modules auto-load via `LoadAllModules()` in `alita/main.go`
-
+  <Step title="Self-register in init()">
+    Use `RegisterLegacyModule("MyModule", priority, LoadMyModule)` — modules auto-load via `LoadAllModules()` in `alita/main.go`.
+  </Step>
 </Steps>
 
 ### Module Template
@@ -235,29 +237,27 @@ Automated regression tests are required for all contributions:
 ## Submitting Changes
 
 <Steps>
+  <Step title="Fork the repository" />
 
-1. **Fork the repository**
+  <Step title="Create a feature branch">
+    ```bash
+    git checkout -b feature/my-feature
+    ```
+  </Step>
 
-2. **Create a feature branch**
+  <Step title="Make your changes" />
 
-   ```bash
-   git checkout -b feature/my-feature
-   ```
+  <Step title="Run quality checks">
+    ```bash
+    make test && make lint
+    ```
+  </Step>
 
-3. **Make your changes**
+  <Step title="Commit with a descriptive message" />
 
-4. **Run quality checks**
+  <Step title="Push to your fork" />
 
-   ```bash
-   make test && make lint
-   ```
-
-5. **Commit with a descriptive message**
-
-6. **Push to your fork**
-
-7. **Open a Pull Request**
-
+  <Step title="Open a Pull Request" />
 </Steps>
 
 ## Common Pitfalls

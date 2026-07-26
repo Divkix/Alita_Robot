@@ -3,10 +3,6 @@ title: Building from Source
 description: Compile Alita Robot from source code.
 ---
 
-import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-
-# Building from Source
-
 Build Alita Robot from source for development, customization, or when pre-built binaries are not available for your platform.
 
 ## Prerequisites
@@ -25,39 +21,39 @@ All tools below must be accessible from your `PATH`. After installing Go or gola
 ### Install Go
 
 <Tabs>
-  <TabItem label="macOS">
+  <Tab title="macOS">
     ```bash
     brew install go
     ```
-  </TabItem>
-  <TabItem label="Ubuntu/Debian">
+  </Tab>
+  <Tab title="Ubuntu/Debian">
     ```bash
     sudo snap install go --classic
     ```
-  </TabItem>
-  <TabItem label="Manual Download">
+  </Tab>
+  <Tab title="Manual Download">
     Download from [https://go.dev/dl/](https://go.dev/dl/)
-  </TabItem>
+  </Tab>
 </Tabs>
 
 ### Install golangci-lint
 
 <Tabs>
-  <TabItem label="macOS">
+  <Tab title="macOS">
     ```bash
     brew install golangci-lint
     ```
-  </TabItem>
-  <TabItem label="Linux/macOS Script">
+  </Tab>
+  <Tab title="Linux/macOS Script">
     ```bash
     curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
     ```
-  </TabItem>
-  <TabItem label="Go Install">
+  </Tab>
+  <Tab title="Go Install">
     ```bash
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
     ```
-  </TabItem>
+  </Tab>
 </Tabs>
 
 ## Clone the Repository
@@ -84,21 +80,19 @@ go run main.go
 ### Production Build
 
 <Steps>
+  <Step title="Install GoReleaser">
+    ```bash
+    go install github.com/goreleaser/goreleaser/v2@latest
+    ```
+  </Step>
 
-1. **Install GoReleaser**
+  <Step title="Build release binaries">
+    ```bash
+    make build
+    ```
 
-   ```bash
-   go install github.com/goreleaser/goreleaser/v2@latest
-   ```
-
-2. **Build release binaries**
-
-   ```bash
-   make build
-   ```
-
-   This creates binaries in the `dist/` directory for all supported platforms.
-
+    This creates binaries in the `dist/` directory for all supported platforms.
+  </Step>
 </Steps>
 
 ### Manual Build
@@ -152,7 +146,7 @@ GOOS=windows GOARCH=amd64 go build -o alita_robot_windows_amd64.exe .
 | `check-docs` | `make check-docs` | Check documentation integrity |
 | `inventory` | `make inventory` | Show project structure inventory |
 | `generate-docs` | `make generate-docs` | Generate documentation site content |
-| `docs-dev` | `make docs-dev` | Start Astro docs dev server |
+| `docs-dev` | `make docs-dev` | Start the docs dev server |
 
 ## Code Quality
 
