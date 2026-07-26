@@ -187,10 +187,11 @@ func newModuleCallbackContext(
 		From:      &from,
 		Text:      "callback source",
 	}
+	// Match gotgbot's JSON decoder, which stores Message as a value.
 	query := &gotgbot.CallbackQuery{
 		Id:           "callback-1",
 		From:         from,
-		Message:      msg,
+		Message:      *msg,
 		Data:         data,
 		ChatInstance: "test-chat-instance",
 	}

@@ -1012,21 +1012,17 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	}
 
-	// type assertion to get the message
-	_updatedMsg, ok := msg.(*gotgbot.Message)
-	if !ok || _updatedMsg == nil {
-		log.Warn("[Bans] Could not cast message for strikethrough formatting")
-		return ext.EndGroups
+	updatedText := ""
+	if ctx.EffectiveMessage != nil {
+		updatedText = ctx.EffectiveMessage.Text
 	}
-
-	// only strikethrough if msg.Text is non-empty
-	if _updatedMsg.Text != "" {
-		_updatedMsg.Text = fmt.Sprint("<s>", _updatedMsg.Text, "</s>", "\n\n")
+	if updatedText != "" {
+		updatedText = "<s>" + updatedText + "</s>\n\n"
 	}
 
 	_, _, err = msg.EditText(
 		b,
-		fmt.Sprint(_updatedMsg.Text, helpText),
+		updatedText+helpText,
 		&gotgbot.EditMessageTextOpts{
 			ParseMode: formatting.HTML,
 		},

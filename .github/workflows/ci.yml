@@ -438,7 +438,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=main
-          cache-to: type=gha,mode=max,scope=main
+          cache-to: type=gha,mode=max,scope=main,ignore-error=true
           provenance: true
           sbom: true
 
