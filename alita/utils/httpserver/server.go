@@ -268,6 +268,15 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate the webhook secret BEFORE reading the body. The secret is in a
+	// header available without consuming the body, so rejecting early avoids
+	// buffering up to 10MB for unauthenticated requests (resource exhaustion).
+	if !s.validateWebhook(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		span.SetStatus(codes.Error, "unauthorized")
+		return
+	}
+
 	// Read the request body with size limit to prevent DoS attacks
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
@@ -283,13 +292,6 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("[HTTPServer] Failed to close request body: %v", closeErr)
 		}
 	}()
-
-	// Validate the webhook secret
-	if !s.validateWebhook(r) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		span.SetStatus(codes.Error, "unauthorized")
-		return
-	}
 
 	// Parse the update
 	var update gotgbot.Update
@@ -374,7 +376,7 @@ func (s *Server) validateWebhook(r *http.Request) bool {
 
 	// Get the X-Telegram-Bot-Api-Secret-Token header
 	secretToken := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
-	if secretToken != s.secret {
+	if subtle.ConstantTimeCompare([]byte(secretToken), []byte(s.secret)) != 1 {
 		log.Error("[HTTPServer] Invalid secret token")
 		return false
 	}
