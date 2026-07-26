@@ -209,8 +209,8 @@ pushes the tag — all git pushes use a token-in-URL
 (`https://x-access-token:$GITHUB_TOKEN@…`) because checkout keeps
 `persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger workflows,
 so there's no double release. `--version` reads `config.AppConfig.BotVersion`
-(patched by the bump script; currently `"2.19.7"`), with a hard-coded local
-fallback `version = "v2.19.7"` in `main.go` (used only when
+(patched by the bump script; currently `"2.20.0"`), with a hard-coded local
+fallback `version = "v2.20.0"` in `main.go` (used only when
 config didn't load). There are **no** `-X main.version/commit/date` ldflags anymore
 (they were no-ops — `package main` declares no such vars). ⚠️ After the bump step,
 `goreleaser` runs a **"Verify BotVersion matches tag"** gate that `grep`s **both**
@@ -805,8 +805,8 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
 - `OTEL_*` (service name, sample rate, OTLP endpoint, console/insecure) are read via
   raw `os.Getenv`, not config, and are intentionally not in `sample.env`.
-- `BotVersion` lives in `config.go` (currently `"2.19.7"`), mirrored by a CLI
-  fallback `version = "v2.19.7"` in `main.go`. **Don't hand-edit it** —
+- `BotVersion` lives in `config.go` (currently `"2.20.0"`), mirrored by a CLI
+  fallback `version = "v2.20.0"` in `main.go`. **Don't hand-edit it** —
   `scripts/bump_version.sh <vX.Y.Z>` patches both, and the release workflow runs it
   automatically on `workflow_dispatch`; the `goreleaser` job then re-greps both files
   and fails on mismatch. For a manual tag-push release, run the script (or
