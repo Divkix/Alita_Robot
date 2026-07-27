@@ -1379,21 +1379,39 @@ purges_invalid_message_id: "ID de message invalide."
 
 # Reports module strings
 reports_help_msg: |
-  Si vous souhaitez signaler un message dans votre groupe pour qu'un admin vienne s'en occuper,
-  c'est votre module ! Lorsque le signalement est activé, les utilisateurs peuvent être alertés
-  par d'autres utilisateurs via /report ou @admin.
+  Nous sommes tous occupés et n'avons pas le temps de surveiller nos groupes
+  24h/24. Mais comment réagir si quelqu'un spamme dans votre groupe ?
 
-  *Commandes Utilisateur :*
-  × /report : Répondez à un message pour le signaler aux admins.
 
-  *Commandes Admin :*
-  × /reports <on/off/yes/no> : Active/désactive le signalement
-  × /reports block : Bloquer l'utilisateur (réponse) du signalement
-  × /reports unblock : Débloquer l'utilisateur (réponse) du signalement
-  × /reports showblocklist : Afficher la liste des utilisateurs bloqués du signalement
+  × /report `<raison>` : Répondez à un message pour le signaler aux admins.
 
-  Note : L'utilisateur peut choisir s'il veut être notifié lorsque quelqu'un signale quelque chose.
-  Pour ce faire, tapez /reports dans mes MP.
+  - @admin : Pareil que /report mais sans commande.
+
+
+  *Admins uniquement :*
+
+  × /reports `<on/off/yes/no>` : Modifie le paramètre de signalement, ou affiche l'état actuel.
+
+  - En MP, bascule votre statut personnel.
+
+  - Dans un groupe, bascule le statut du groupe.
+
+  × /reports `block` (uniquement en réponse) : Bloque un utilisateur pour /report ou @admin.
+
+  × /reports `unblock` (uniquement en réponse) : Débloque un utilisateur pour /report ou @admin.
+
+  × /reports `showblocklist` : Affiche tous les utilisateurs bloqués qui ne peuvent pas utiliser /report ou
+  @admin.
+
+
+  Pour signaler un utilisateur, répondez simplement à son message avec @admin ou /report ; Alita
+  répondra alors avec un message indiquant que les admins ont été notifiés.
+
+  Vous DEVEZ répondre à un message pour signaler un utilisateur ; vous ne pouvez pas utiliser @admin
+  pour taguer les admins sans raison !
+
+
+  *NOTE :* Aucun de ces deux ne se déclenchera s'il est utilisé par des admins.
 reports_reply_to_report: Vous devez répondre à un message pour le signaler.
 reports_expose_yourself: Vous devez d'abord vous exposer !
 reports_reply_to_block: Vous devez répondre à un utilisateur pour le bloquer.

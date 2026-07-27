@@ -780,7 +780,7 @@ reports_help_msg:
   @admin.
 
 
-  Para reportar um usuário, simplesmente responda à mensagem dele com @admin ou /report; Natalie
+  Para reportar um usuário, simplesmente responda à mensagem dele com @admin ou /report; Alita
   responderá com uma mensagem afirmando que os admins foram notificados.
 
   Você DEVE responder a uma mensagem para reportar um usuário; não pode simplesmente usar @admin para marcar

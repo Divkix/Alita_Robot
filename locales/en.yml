@@ -855,7 +855,7 @@ reports_help_msg:
   @admin.
 
 
-  To report a user, simply reply to his message with @admin or /report; Natalie will
+  To report a user, simply reply to his message with @admin or /report; Alita will
   then reply with a message stating that admins have been notified.
 
   You MUST reply to a message to report a user; you can't just use @admin to tag
