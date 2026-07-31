@@ -2,6 +2,7 @@ package modules
 
 import (
 	"strings"
+	"unicode/utf16"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -65,11 +66,11 @@ func extractEntityText(source string, offset, length int64) string {
 	if source == "" || offset < 0 || length <= 0 {
 		return ""
 	}
-	runes := []rune(source)
-	start := int(offset)
-	end := start + int(length)
-	if start >= len(runes) || end > len(runes) || start >= end {
+	codeUnits := utf16.Encode([]rune(source))
+	if offset >= int64(len(codeUnits)) || length > int64(len(codeUnits))-offset {
 		return ""
 	}
-	return string(runes[start:end])
+	start := int(offset)
+	end := start + int(length)
+	return string(utf16.Decode(codeUnits[start:end]))
 }

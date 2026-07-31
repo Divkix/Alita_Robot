@@ -15,23 +15,8 @@ func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
 		return true, ""
 	}
 
-	if settings.AllowConnect {
-		member, err := b.GetChatMember(chatID, userID, nil)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"chatId":     chatID,
-				"userId":     userID,
-				"dbSetting":  settings.AllowConnect,
-				"denyReason": "member_lookup_failed",
-				"error":      err,
-			}).Warn("[Connections] Connection request denied")
-			return false, "connections_connect_connection_disabled"
-		}
-
-		memberStatus := member.MergeChatMember().Status
-		if memberStatus != "left" && memberStatus != "kicked" {
-			return true, ""
-		}
+	if settings.AllowConnect && chat_status.IsUserInChat(b, &gotgbot.Chat{Id: chatID}, userID) {
+		return true, ""
 	}
 
 	log.WithFields(log.Fields{

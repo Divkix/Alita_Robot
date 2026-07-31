@@ -156,9 +156,8 @@ The easiest way to get a channel ID is to forward any message from the channel t
 **Solutions:**
 
 1. **Check WEBHOOK_SECRET matches:**
-   - The URL path must include your secret: `/webhook/your-secret-here`
+   - The URL path must be `/webhook`; the secret is not part of the URL
    - The `X-Telegram-Bot-Api-Secret-Token` header must match your `WEBHOOK_SECRET`
-   - Both conditions must be satisfied for the request to be authorized
 
 2. **Verify configuration:**
    ```bash
@@ -195,25 +194,25 @@ The easiest way to get a channel ID is to forward any message from the channel t
 
 **Solutions:**
 
-:::caution
-Only use `AUTO_MIGRATE_SILENT_FAIL=true` in development. In production, always investigate and resolve migration failures before continuing.
-:::
+Each migration file and its `schema_migrations` record are applied in one
+transaction. If a statement fails, the file is rolled back and remains pending.
 
-1. **Skip with silent fail (development only):**
-   ```bash
-   AUTO_MIGRATE_SILENT_FAIL=true
-   ```
-
-2. **Mark migration as applied manually:**
-   ```sql
-   INSERT INTO schema_migrations (version, executed_at)
-   VALUES ('problematic_migration.sql', NOW());
-   ```
-
+1. **Read the full error and statement preview** to identify the failing
+   migration.
+2. **Reconcile the existing schema**, then restart with `AUTO_MIGRATE=true` so
+   the pending file can run again.
 3. **Check migration status:**
    ```bash
    make psql-status
    ```
+4. **Add a new forward migration** if an already-applied schema needs to change.
+   Applied migration files are checksum-verified and must not be edited.
+
+:::caution
+Do not bypass a production failure with `AUTO_MIGRATE_SILENT_FAIL=true` or
+manually insert a `schema_migrations` row. Either can run the bot against an
+incomplete schema.
+:::
 
 ### Too Many Connections
 
@@ -327,10 +326,9 @@ If you're running an older version, upgrade to get this fix.
    RESOURCE_GC_THRESHOLD_MB=400
    ```
 
-2. **Reduce worker pools:**
+2. **Reduce update concurrency:**
    ```bash
    DISPATCHER_MAX_ROUTINES=100
-   DATABASE_WORKERS=3
    ```
 
 3. **Check for memory leaks:**
@@ -346,13 +344,7 @@ If you're running an older version, upgrade to get this fix.
 
 **Solutions:**
 
-1. **Enable query caching:**
-   ```bash
-   ENABLE_RESPONSE_CACHING=true
-   RESPONSE_CACHE_TTL=30
-   ```
-
-2. **Check database performance:**
+1. **Check database performance:**
    ```sql
    -- Find slow queries
    SELECT query, calls, mean_exec_time
@@ -361,16 +353,16 @@ If you're running an older version, upgrade to get this fix.
    LIMIT 10;
    ```
 
-3. **Optimize connection pooling:**
+2. **Tune connection pooling for your database limit:**
    ```bash
    DB_MAX_IDLE_CONNS=50
    DB_MAX_OPEN_CONNS=200
    ```
 
-4. **Enable HTTP connection pooling:**
+3. **Tune the always-enabled Telegram HTTP pool:**
    ```bash
-   ENABLE_HTTP_CONNECTION_POOLING=true
    HTTP_MAX_IDLE_CONNS=100
+   HTTP_MAX_IDLE_CONNS_PER_HOST=50
    ```
 
 ### High CPU Usage

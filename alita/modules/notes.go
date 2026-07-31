@@ -30,6 +30,26 @@ var notesModule = moduleStruct{
 	moduleName: "Notes",
 }
 
+func noteOverwriteCacheKey(token string) string {
+	return overwriteCacheKey("note", token)
+}
+
+func setNoteOverwriteCache(token string, data overwriteNote) error {
+	return setOverwriteCache(noteOverwriteCacheKey(token), data)
+}
+
+func getNoteOverwriteCache(token string) (*overwriteNote, error) {
+	return getOverwriteCache[overwriteNote](noteOverwriteCacheKey(token))
+}
+
+func consumeNoteOverwriteCache(token string) (*overwriteNote, error) {
+	return consumeOverwriteCache[overwriteNote](noteOverwriteCacheKey(token))
+}
+
+func deleteNoteOverwriteCache(token string) {
+	deleteOverwriteCache(noteOverwriteCacheKey(token))
+}
+
 // addNote handles the /save command to create new notes
 // with support for various media types and formatting options.
 //
@@ -109,22 +129,28 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(b, errorText, formatting.Shtml())
 			return ext.EndGroups
 		}
-		notesOverwriteMap.Store(token, overwriteNote{
+		if err := setNoteOverwriteCache(token, overwriteNote{
 			overwriteBase: overwriteBase{
 				ChatID:   chat.Id,
+				UserID:   user.Id,
 				ItemName: noteWord,
 				Text:     text,
 				FileID:   fileid,
 				Buttons:  buttons,
 				DataType: dataType,
 			},
-			pvtOnly:     pvtOnly,
-			grpOnly:     grpOnly,
-			adminOnly:   adminOnly,
-			webPrev:     webPrev,
-			isProtected: isProtected,
-			noNotif:     noNotif,
-		})
+			PvtOnly:     pvtOnly,
+			GrpOnly:     grpOnly,
+			AdminOnly:   adminOnly,
+			WebPrev:     webPrev,
+			IsProtected: isProtected,
+			NoNotif:     noNotif,
+		}); err != nil {
+			log.Errorf("[Notes] Failed to cache overwrite data: %v", err)
+			errorText, _ := tr.GetString("notes_overwrite_token_failed")
+			_, _ = msg.Reply(b, errorText, formatting.Shtml())
+			return ext.EndGroups
+		}
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		overwriteText, _ := tr.GetString("notes_overwrite_confirm")
 		yesText, _ := tr.GetString("button_yes")
@@ -156,6 +182,7 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
+			deleteNoteOverwriteCache(token)
 			log.Error(err)
 			return err
 		}
@@ -518,35 +545,31 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	switch action {
 	case "no":
-		// Clean up the pending overwrite entry when user cancels
 		if token != "" {
-			notesOverwriteMap.Delete(token)
+			noteData, err := getNoteOverwriteCache(token)
+			if err == nil && (noteData.UserID == 0 || noteData.UserID == user.Id) {
+				deleteNoteOverwriteCache(token)
+			}
 		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
 	case "yes":
-		var (
-			chatId      int64
-			noteWord    string
-			noteDataRaw any
-			ok          bool
-		)
+		var chatId int64
 
 		if token == "" {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		noteDataRaw, ok = notesOverwriteMap.Load(token)
-		if !ok {
+		pending, err := getNoteOverwriteCache(token)
+		if err != nil || (pending.UserID != 0 && pending.UserID != user.Id) {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		noteData, castOk := noteDataRaw.(overwriteNote)
-		if !castOk {
+		noteData, err := consumeNoteOverwriteCache(token)
+		if err != nil {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
 		chatId = noteData.ChatID
-		noteWord = noteData.ItemName
 		if chatId == 0 {
 			if query.Message != nil {
 				chatId = query.Message.GetChat().Id
@@ -566,25 +589,32 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			break
 		}
 
-		if notes.DoesNoteExists(chatId, noteWord) {
-			// Fix Issue 3: Add error handling for both RemoveNote and AddNote
-			if err := notes.RemoveNote(chatId, noteWord); err != nil {
-				log.Errorf("[Notes] Failed to remove note for overwrite: %v", err)
-			}
-			if err := notes.AddNote(chatId, noteData.ItemName, noteData.Text, noteData.FileID, noteData.Buttons, noteData.DataType, noteData.pvtOnly, noteData.grpOnly, noteData.adminOnly, noteData.webPrev, noteData.isProtected, noteData.noNotif); err != nil {
-				log.Errorf("[Notes] Failed to add note during overwrite: %v", err)
-				helpText, _ = tr.GetString("notes_save_failed")
-				break
-			}
-			if token != "" {
-				notesOverwriteMap.Delete(token)
-			}
+		updated, err := notes.UpdateNote(
+			chatId,
+			noteData.ItemName,
+			noteData.Text,
+			noteData.FileID,
+			noteData.Buttons,
+			noteData.DataType,
+			noteData.PvtOnly,
+			noteData.GrpOnly,
+			noteData.AdminOnly,
+			noteData.WebPrev,
+			noteData.IsProtected,
+			noteData.NoNotif,
+		)
+		if err != nil {
+			log.Errorf("[Notes] Failed to update note during overwrite: %v", err)
+			helpText, _ = tr.GetString("notes_save_failed")
+		} else if updated {
 			helpText, _ = tr.GetString("notes_overwrite_success")
 		} else {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 		}
 	default:
 		log.WithField("action", action).Warn("Unknown note overwrite action")
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
@@ -664,6 +694,10 @@ func (moduleStruct) notesButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	case "no":
 		helpText, _ = tr.GetString("notes_clear_all_cancelled")
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
 	}
 
 	if query.Message == nil {

@@ -831,7 +831,6 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 	}
 }
 
-
 func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
 
 	tests := []struct {

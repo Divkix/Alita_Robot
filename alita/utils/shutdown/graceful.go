@@ -87,12 +87,18 @@ func (m *Manager) shutdown() {
 
 		// Execute handlers in reverse order (LIFO)
 		for i := len(handlers) - 1; i >= 0; i-- {
+			result := make(chan error, 1)
+			go func(handler func() error, index int) {
+				result <- m.executeHandler(handler, index)
+			}(handlers[i], i)
+
 			select {
 			case <-ctx.Done():
 				log.Warn("[Shutdown] Timeout reached, forcing exit")
 				exitProcess(1)
-			default:
-				if err := m.executeHandler(handlers[i], i); err != nil {
+				return
+			case err := <-result:
+				if err != nil {
 					log.Errorf("[Shutdown] Handler error: %v", err)
 				}
 			}

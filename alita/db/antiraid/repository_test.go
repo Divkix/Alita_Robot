@@ -166,9 +166,9 @@ func TestAntiRaidSettersRejectNegativeValues(t *testing.T) {
 
 	chatID := time.Now().UnixNano()
 	tests := []struct {
-		name                 string
-		call                 func() error
-		expectedErrMessage   string
+		name               string
+		call               func() error
+		expectedErrMessage string
 	}{
 		{name: "raid time", call: func() error { return SetRaidTime(chatID, -1) }, expectedErrMessage: "raid time must be non-negative"},
 		{name: "raid action time", call: func() error { return SetRaidActionTime(chatID, -1) }, expectedErrMessage: "raid action time must be non-negative"},

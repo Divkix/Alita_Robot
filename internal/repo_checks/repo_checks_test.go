@@ -44,79 +44,6 @@ func TestMigrationsCreateDisableChatSettingsTable(t *testing.T) {
 	t.Fatal("disable_chat_settings model has no CREATE TABLE statement in SQL migrations")
 }
 
-func TestClearConnectionsDataPersistsFalseAllowConnect(t *testing.T) {
-	t.Parallel()
-
-	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
-	start := strings.Index(source, "func clearConnectionsData")
-	if start == -1 {
-		t.Fatal("clearConnectionsData is missing")
-	}
-
-	body := source[start:]
-	end := strings.Index(body, "\n}\n")
-	if end == -1 {
-		t.Fatal("clearConnectionsData body is malformed")
-	}
-	body = body[:end]
-
-	if !strings.Contains(body, "db.UpdateRecordWithZeroValues") {
-		t.Fatal("clearConnectionsData must use UpdateRecordWithZeroValues to persist false")
-	}
-	if !strings.Contains(body, `"allow_connect"`) ||
-		!strings.Contains(body, "false") {
-		t.Fatal("clearConnectionsData must set allow_connect to false")
-	}
-}
-
-func TestImportConnectionsDataUsesTargetChatAndZeroValueUpdate(t *testing.T) {
-	t.Parallel()
-
-	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
-	start := strings.Index(source, "func importConnectionsData")
-	if start == -1 {
-		t.Fatal("importConnectionsData is missing")
-	}
-
-	body := source[start:]
-	end := strings.Index(body, "\n}\n\nfunc ")
-	if end == -1 {
-		t.Fatal("importConnectionsData body is malformed")
-	}
-	body = body[:end]
-
-	if !strings.Contains(body, "connections.GetChatConnectionSetting(chatID)") {
-		t.Fatal("importConnectionsData must ensure the target chat settings row exists")
-	}
-	if !strings.Contains(body, "db.UpdateRecordWithZeroValues") {
-		t.Fatal("importConnectionsData must use UpdateRecordWithZeroValues to import false")
-	}
-	if !strings.Contains(body, `"allow_connect"`) {
-		t.Fatal("importConnectionsData must update allow_connect on the target chat")
-	}
-	if strings.Contains(body, "settings.ChatId") {
-		t.Fatal("importConnectionsData must not write the source backup chat_id into the target row")
-	}
-}
-
-func TestDisablingBackupImportExportAndClearAreFunctional(t *testing.T) {
-	t.Parallel()
-
-	source := readRepoFile(t, "alita", "db", "backup", "backup.go")
-	required := []string{
-		"disabling.ShouldDel(chatID)",
-		"disabling.ToggleDel(chatID",
-		"disabling.DisableCMD(chatID",
-		"disabling.EnableCMD(chatID",
-	}
-
-	for _, want := range required {
-		if !strings.Contains(source, want) {
-			t.Fatalf("backup disabling support missing %s", want)
-		}
-	}
-}
-
 func TestPollingLoadsModulesBeforeStartingPolling(t *testing.T) {
 	t.Parallel()
 
@@ -181,11 +108,10 @@ func TestCaptchaBackgroundGoroutinesRecoverFromPanics(t *testing.T) {
 
 	source := readRepoFile(t, "alita", "modules", "captcha.go")
 	required := []string{
-		`error_handling.RecoverFromPanic("CaptchaDisableCleanup"`,
-		`error_handling.RecoverFromPanic("CaptchaDisableDeleteAttempts"`,
 		`error_handling.RecoverFromPanic("CaptchaCleanup"`,
 		`error_handling.RecoverFromPanic("CaptchaCleanupExpiredAttempts"`,
 		`error_handling.RecoverFromPanic("CaptchaUnmute"`,
+		`error_handling.RecoverFromPanic("captchaTimeout"`,
 	}
 
 	for _, want := range required {

@@ -34,7 +34,7 @@ func TestUnpinWithoutReplyUnpinsLatestMessage(t *testing.T) {
 	}
 }
 
-func TestUnpinReplyWithoutPinnedMessageDoesNotCallTelegramUnpin(t *testing.T) {
+func TestUnpinReplyUsesReplyMessageID(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Pin Chat"}
@@ -54,8 +54,12 @@ func TestUnpinReplyWithoutPinnedMessageDoesNotCallTelegramUnpin(t *testing.T) {
 	if err := pinsModule.unpin(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("unpin() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unpinChatMessage"); len(calls) != 0 {
-		t.Fatalf("unpinChatMessage calls = %d, want 0 for non-pinned reply", len(calls))
+	calls := client.callsFor("unpinChatMessage")
+	if len(calls) != 1 {
+		t.Fatalf("unpinChatMessage calls = %d, want 1", len(calls))
+	}
+	if got, ok := calls[0].Params["message_id"].(*int64); !ok || got == nil || *got != int64(77) {
+		t.Fatalf("unpinChatMessage message_id = %#v, want pointer to 77", calls[0].Params["message_id"])
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))

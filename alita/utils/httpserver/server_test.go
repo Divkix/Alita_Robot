@@ -407,7 +407,7 @@ func TestRegisterHealth(t *testing.T) {
 		t.Errorf("expected status 200 or 503, got %d", rr.Code)
 	}
 	ct := rr.Header().Get("Content-Type")
-	if ct != "" && !strings.Contains(ct, "application/json") {
+	if !strings.Contains(ct, "application/json") {
 		t.Errorf("expected application/json content type, got %s", ct)
 	}
 }
@@ -619,7 +619,7 @@ func TestRegisterWebhookConfiguresTelegramWebhook(t *testing.T) {
 	}
 }
 
-func TestStartAndStopEphemeralServer(t *testing.T) {
+func TestStartAndStopEphemeralServerKeepsWebhookRegistered(t *testing.T) {
 	client := &httpServerBotClient{}
 	s := New(0, time.Now())
 	s.bot = newHTTPServerTestBot(client)
@@ -634,8 +634,8 @@ func TestStartAndStopEphemeralServer(t *testing.T) {
 	if err := s.Stop(); err != nil {
 		t.Fatalf("Stop() error = %v", err)
 	}
-	if !client.called("deleteWebhook") {
-		t.Fatal("deleteWebhook was not called on Stop for webhook-enabled server")
+	if client.called("deleteWebhook") {
+		t.Fatal("Stop deleted the webhook; a rolling replacement may already own it")
 	}
 }
 
@@ -646,6 +646,27 @@ func TestStopWithNilServer(t *testing.T) {
 
 	if err := s.Stop(); err != nil {
 		t.Errorf("expected nil error from Stop on unstarted server, got: %v", err)
+	}
+}
+
+func TestStopWaitsForWebhookDispatches(t *testing.T) {
+	s := New(0, time.Now())
+	s.dispatchWG.Add(1)
+
+	stopped := make(chan error, 1)
+	go func() {
+		stopped <- s.Stop()
+	}()
+
+	select {
+	case err := <-stopped:
+		t.Fatalf("Stop returned before dispatch completed: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	s.dispatchWG.Done()
+	if err := <-stopped; err != nil {
+		t.Fatalf("Stop() error = %v", err)
 	}
 }
 

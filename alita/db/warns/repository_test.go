@@ -3,8 +3,11 @@ package warns
 import (
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -13,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 func TestMain(m *testing.M) {
@@ -36,42 +40,50 @@ func TestMain(m *testing.M) {
 			fmt.Printf("SQLite init failed: %v\n", err)
 			os.Exit(1)
 		}
+		sqlDB, err := sqliteDB.DB()
+		if err != nil {
+			fmt.Printf("SQLite handle failed: %v\n", err)
+			os.Exit(1)
+		}
+		sqlDB.SetMaxOpenConns(1)
 		db.DB = sqliteDB
 	}
 
-	err := db.DB.AutoMigrate(
-		&models.User{},
-		&models.Chat{},
-		&models.WarnSettings{},
-		&models.Warns{},
-		&models.GreetingSettings{},
-		&models.ChatFilters{},
-		&models.AdminSettings{},
-		&models.BlacklistSettings{},
-		&models.PinSettings{},
-		&models.ReportChatSettings{},
-		&models.ReportUserSettings{},
-		&models.DevSettings{},
-		&models.ChannelSettings{},
-		&models.AntifloodSettings{},
-		&models.ConnectionSettings{},
-		&models.ConnectionChatSettings{},
-		&models.DisableSettings{},
-		&models.DisableChatSettings{},
-		&models.RulesSettings{},
-		&models.LockSettings{},
-		&models.NotesSettings{},
-		&models.Notes{},
-		&models.CaptchaSettings{},
-		&models.CaptchaAttempts{},
-		&models.StoredMessages{},
-		&models.CaptchaMutedUsers{},
-		&models.ApprovedUsers{},
-		&models.AntiRaidSettings{},
-	)
-	if err != nil {
-		fmt.Printf("AutoMigrate failed: %v\n", err)
-		os.Exit(1)
+	if dbFileName != "" {
+		err := db.DB.AutoMigrate(
+			&models.User{},
+			&models.Chat{},
+			&models.WarnSettings{},
+			&models.Warns{},
+			&models.GreetingSettings{},
+			&models.ChatFilters{},
+			&models.AdminSettings{},
+			&models.BlacklistSettings{},
+			&models.PinSettings{},
+			&models.ReportChatSettings{},
+			&models.ReportUserSettings{},
+			&models.DevSettings{},
+			&models.ChannelSettings{},
+			&models.AntifloodSettings{},
+			&models.ConnectionSettings{},
+			&models.ConnectionChatSettings{},
+			&models.DisableSettings{},
+			&models.DisableChatSettings{},
+			&models.RulesSettings{},
+			&models.LockSettings{},
+			&models.NotesSettings{},
+			&models.Notes{},
+			&models.CaptchaSettings{},
+			&models.CaptchaAttempts{},
+			&models.StoredMessages{},
+			&models.CaptchaMutedUsers{},
+			&models.ApprovedUsers{},
+			&models.AntiRaidSettings{},
+		)
+		if err != nil {
+			fmt.Printf("AutoMigrate failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	exitCode := m.Run()
@@ -143,7 +155,10 @@ func TestWarnUser(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	numWarns, reasons := WarnUser(userID, chatID, "test reason")
+	numWarns, reasons, err := WarnUser(userID, chatID, "test reason")
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
 	if numWarns != 1 {
 		t.Fatalf("expected numWarns=1, got %d", numWarns)
 	}
@@ -152,6 +167,34 @@ func TestWarnUser(t *testing.T) {
 	}
 	if reasons[0] != "test reason" {
 		t.Fatalf("expected reason='test reason', got %q", reasons[0])
+	}
+}
+
+func TestWarnUserCreatesMissingParentRows(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	chatID := base
+	userID := base + 1
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.Warns{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	numWarns, reasons, err := WarnUser(userID, chatID, "first")
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+	if numWarns != 1 || len(reasons) != 1 {
+		t.Fatalf("WarnUser() = (%d, %v), want one persisted warning", numWarns, reasons)
+	}
+	if err := db.DB.Where("chat_id = ?", chatID).First(&models.Chat{}).Error; err != nil {
+		t.Fatalf("chat parent row missing: %v", err)
+	}
+	if err := db.DB.Where("user_id = ?", userID).First(&models.User{}).Error; err != nil {
+		t.Fatalf("user parent row missing: %v", err)
 	}
 }
 
@@ -175,7 +218,10 @@ func TestWarnUserReachesLimit(t *testing.T) {
 	var lastCount int
 	for i := 1; i <= limit; i++ {
 		reason := fmt.Sprintf("reason %d", i)
-		n, _ := WarnUser(userID, chatID, reason)
+		n, _, err := WarnUser(userID, chatID, reason)
+		if err != nil {
+			t.Fatalf("WarnUser(%d) error = %v", i, err)
+		}
 		lastCount = n
 	}
 
@@ -211,7 +257,10 @@ func TestRemoveWarn(t *testing.T) {
 	WarnUser(userID, chatID, "first")
 	WarnUser(userID, chatID, "second")
 
-	removed := RemoveWarn(userID, chatID)
+	removed, err := RemoveWarn(userID, chatID)
+	if err != nil {
+		t.Fatalf("RemoveWarn() error = %v", err)
+	}
 	if !removed {
 		t.Fatalf("RemoveWarn() returned false, expected true")
 	}
@@ -253,7 +302,10 @@ func TestResetWarns(t *testing.T) {
 		t.Fatalf("expected 3 warns before reset, got %d", numBefore)
 	}
 
-	ok := ResetUserWarns(userID, chatID)
+	ok, err := ResetUserWarns(userID, chatID)
+	if err != nil {
+		t.Fatalf("ResetUserWarns() error = %v", err)
+	}
 	if !ok {
 		t.Fatalf("ResetUserWarns() returned false")
 	}
@@ -331,7 +383,10 @@ func TestWarnWithEmptyReason(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	numWarns, reasons := WarnUser(userID, chatID, "")
+	numWarns, reasons, err := WarnUser(userID, chatID, "")
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
 	if numWarns != 1 {
 		t.Fatalf("expected numWarns=1, got %d", numWarns)
 	}
@@ -341,6 +396,31 @@ func TestWarnWithEmptyReason(t *testing.T) {
 	// Empty reason should be stored as a default "No Reason" placeholder
 	if reasons[0] == "" {
 		t.Fatalf("expected a non-empty placeholder for empty reason, got empty string")
+	}
+}
+
+func TestWarnReasonTruncationPreservesUTF8(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	chatID := base
+	userID := base + 1
+
+	if err := chats.EnsureChatInDb(chatID, "test-warn-utf8-reason"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.Warns{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	_, reasons, err := WarnUser(userID, chatID, strings.Repeat("a", 2999)+"界")
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+	if len(reasons) != 1 || len(reasons[0]) > 3000 || !utf8.ValidString(reasons[0]) {
+		t.Fatalf("truncated reason = %q, want one valid UTF-8 reason of at most 3000 bytes", reasons)
 	}
 }
 
@@ -361,7 +441,10 @@ func TestResetWarns_NoWarns(t *testing.T) {
 	})
 
 	// Reset when user has no warns — should return false (nothing was reset)
-	ok := ResetUserWarns(userID, chatID)
+	ok, err := ResetUserWarns(userID, chatID)
+	if err != nil {
+		t.Fatalf("ResetUserWarns() error = %v", err)
+	}
 	if ok {
 		t.Fatalf("ResetUserWarns() returned true when no warns exist, expected false")
 	}
@@ -443,9 +526,8 @@ func TestResetAllChatWarns(t *testing.T) {
 	WarnUser(userID1, chatID, "a")
 	WarnUser(userID2, chatID, "b")
 
-	ok := ResetAllChatWarns(chatID)
-	if !ok {
-		t.Fatalf("ResetAllChatWarns() returned false")
+	if err := ResetAllChatWarns(chatID); err != nil {
+		t.Fatalf("ResetAllChatWarns() error = %v", err)
 	}
 
 	count := GetAllChatWarns(chatID)
@@ -500,8 +582,86 @@ func TestRemoveWarn_NoWarns(t *testing.T) {
 	})
 
 	// RemoveWarn on user with no prior warns should return false gracefully
-	removed := RemoveWarn(userID, chatID)
+	removed, err := RemoveWarn(userID, chatID)
+	if err != nil {
+		t.Fatalf("RemoveWarn() error = %v", err)
+	}
 	if removed {
 		t.Fatalf("expected RemoveWarn=false when user has no warns")
+	}
+}
+
+func TestConcurrentWarnAndRemovePreserveCount(t *testing.T) {
+	skipIfNoDb(t)
+
+	base := time.Now().UnixNano()
+	chatID := base
+	userID := base + 1
+	if err := chats.EnsureChatInDb(chatID, "concurrent-warns"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := user.EnsureUserInDb(userID, "concurrent-warns", "Concurrent"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.Warns{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	const operations = 10
+	for i := 0; i < operations; i++ {
+		if _, _, err := WarnUser(userID, chatID, fmt.Sprintf("seed %d", i)); err != nil {
+			t.Fatalf("WarnUser(seed %d) error = %v", i, err)
+		}
+	}
+
+	start := make(chan struct{})
+	removed := make(chan bool, operations)
+	removeErrs := make(chan error, operations)
+	warnErrs := make(chan error, operations)
+	var workers sync.WaitGroup
+	workers.Add(operations * 2)
+	for i := 0; i < operations; i++ {
+		go func(i int) {
+			defer workers.Done()
+			<-start
+			_, _, err := WarnUser(userID, chatID, fmt.Sprintf("concurrent %d", i))
+			warnErrs <- err
+		}(i)
+		go func() {
+			defer workers.Done()
+			<-start
+			ok, err := RemoveWarn(userID, chatID)
+			removed <- ok
+			removeErrs <- err
+		}()
+	}
+	close(start)
+	workers.Wait()
+	close(removed)
+	close(removeErrs)
+	close(warnErrs)
+
+	for err := range warnErrs {
+		if err != nil {
+			t.Errorf("concurrent WarnUser() error = %v", err)
+		}
+	}
+	for err := range removeErrs {
+		if err != nil {
+			t.Errorf("concurrent RemoveWarn() error = %v", err)
+		}
+	}
+
+	for ok := range removed {
+		if !ok {
+			t.Fatal("concurrent RemoveWarn() returned false")
+		}
+	}
+	numWarns, reasons := GetWarns(userID, chatID)
+	if numWarns != operations || len(reasons) != operations {
+		t.Fatalf("warn state = (%d, %d reasons), want (%d, %d)", numWarns, len(reasons), operations, operations)
 	}
 }

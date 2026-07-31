@@ -338,7 +338,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if firstError != nil {
 			log.Warnf("[Antiflood] Some flood messages could not be deleted (may be too old): %v", firstError)
-			return firstError
 		}
 	} else {
 		_ = helpers.DeleteMessageWithErrorHandling(b, chatId, msg.MessageId)
@@ -375,26 +374,10 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		fmode = "kicked"
 		keyboard = nil
-		_, err := chat.BanMember(b, userId, nil)
-		if err != nil {
+		if err := kickMember(b, chat.Id, userId); err != nil {
 			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 			return err
 		}
-		// Use non-blocking delayed unban for kick action
-		go func() {
-			defer error_handling.RecoverFromPanic("delayedUnban", "antiflood")
-
-			time.Sleep(3 * time.Second)
-
-			_, unbanErr := chat.UnbanMember(b, userId, nil)
-			if unbanErr != nil {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"userId": userId,
-					"error":  unbanErr,
-				}).Error("Failed to unban user after antiflood kick")
-			}
-		}()
 	case "ban":
 		fmode = "banned"
 		if !user.IsAnonymousChannel() {

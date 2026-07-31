@@ -10,7 +10,7 @@ This page documents all inline button callback handlers in Alita Robot.
 
 ## Overview
 
-- **Total Callbacks**: 27
+- **Total Callbacks**: 26
 - **Modules with Callbacks**: 18
 
 ## Callback Data Format
@@ -27,9 +27,10 @@ When the payload has no fields, `_` is used as placeholder: `helpq|v1|_`.
 
 **Maximum length**: 64 bytes (Telegram's `callback_data` limit).
 
-### Backward Compatibility
+### Strict Decoding
 
-Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backward compatibility but is deprecated. All new callbacks use the versioned format.
+Handlers accept only the versioned format above. Malformed payloads, unsupported
+versions, and legacy unversioned dot-notation payloads are rejected.
 
 ## All Callbacks
 
@@ -39,7 +40,6 @@ Legacy dot-notation (`prefix.field1.field2`) is accepted by handlers for backwar
 | Bans | `restrict` | restrictButtonHandler |
 | Bans | `unrestrict` | unrestrictButtonHandler |
 | Blacklists | `rmAllBlacklist` | buttonHandler |
-| Bot Updates | `alita:anonAdmin:` | verifyAnonymousAdmin |
 | Bot Updates | `anon_admin` | verifyAnonymousAdmin |
 | AntiRaid | `antiraid` | callbackHandler |
 | Approvals | `rmAllApprovals` | unapproveAllCallback |
@@ -94,14 +94,6 @@ Handles backup import/export operations via inline buttons.
 - **Source**: `blacklists.go`
 
 ### Bot Updates
-
-#### `alita:anonAdmin:`
-
-- **Handler**: `verifyAnonymousAdmin`
-- **Source**: `bot_updates.go`
-
-Legacy dot-notation fallback prefix for anonymous admin verification callbacks.
-Matches patterns like `alita.anonAdmin.<chat_id>.<msg_id>`.
 
 #### `anon_admin`
 

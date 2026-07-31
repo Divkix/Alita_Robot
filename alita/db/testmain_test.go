@@ -34,40 +34,42 @@ func TestMain(m *testing.M) {
 		DB = sqliteDB
 	}
 
-	err := DB.AutoMigrate(
-		&User{},
-		&Chat{},
-		&WarnSettings{},
-		&Warns{},
-		&GreetingSettings{},
-		&ChatFilters{},
-		&AdminSettings{},
-		&BlacklistSettings{},
-		&PinSettings{},
-		&ReportChatSettings{},
-		&ReportUserSettings{},
-		&DevSettings{},
-		&ChannelSettings{},
-		&AntifloodSettings{},
-		&ConnectionSettings{},
-		&ConnectionChatSettings{},
-		&DisableSettings{},
-		&DisableChatSettings{},
-		&RulesSettings{},
-		&LockSettings{},
-		&NotesSettings{},
-		&Notes{},
-		&CaptchaSettings{},
-		&CaptchaAttempts{},
-		&StoredMessages{},
-		&CaptchaMutedUsers{},
-		&ApprovedUsers{},
-		&AntiRaidSettings{},
-		&Reactions{},
-	)
-	if err != nil {
-		fmt.Printf("AutoMigrate failed: %v\n", err)
-		os.Exit(1)
+	if dbFileName != "" {
+		err := DB.AutoMigrate(
+			&User{},
+			&Chat{},
+			&WarnSettings{},
+			&Warns{},
+			&GreetingSettings{},
+			&ChatFilters{},
+			&AdminSettings{},
+			&BlacklistSettings{},
+			&PinSettings{},
+			&ReportChatSettings{},
+			&ReportUserSettings{},
+			&DevSettings{},
+			&ChannelSettings{},
+			&AntifloodSettings{},
+			&ConnectionSettings{},
+			&ConnectionChatSettings{},
+			&DisableSettings{},
+			&DisableChatSettings{},
+			&RulesSettings{},
+			&LockSettings{},
+			&NotesSettings{},
+			&Notes{},
+			&CaptchaSettings{},
+			&CaptchaAttempts{},
+			&StoredMessages{},
+			&CaptchaMutedUsers{},
+			&ApprovedUsers{},
+			&AntiRaidSettings{},
+			&Reactions{},
+		)
+		if err != nil {
+			fmt.Printf("AutoMigrate failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	exitCode := m.Run()

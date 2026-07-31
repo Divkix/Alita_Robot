@@ -77,7 +77,19 @@ func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
 		t.Fatalf("blacklist triggers after too-long word = %d, want none", got)
 	}
 
-	addCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist dup one two three four")
+	unicodeWord := strings.Repeat("界", 100)
+	unicodeCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist "+unicodeWord)
+	if err := blacklistsModule.addBlacklist(bot, unicodeCtx); err != ext.EndGroups {
+		t.Fatalf("addBlacklist 100-rune word error = %v, want EndGroups", err)
+	}
+	if got := blacklists.GetBlacklistSettings(chat.Id).Triggers(); len(got) != 1 || got[0] != unicodeWord {
+		t.Fatalf("blacklist triggers after 100-rune word = %q, want accepted word", got)
+	}
+	if err := blacklists.RemoveAllBlacklist(chat.Id); err != nil {
+		t.Fatalf("RemoveAllBlacklist cleanup error = %v", err)
+	}
+
+	addCtx := newModuleMessageContext(bot, chat, admin, "/addblacklist dup one two three four dup")
 	if err := blacklistsModule.addBlacklist(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addBlacklist bulk error = %v, want EndGroups", err)
 	}
@@ -199,8 +211,8 @@ func TestBlacklistWatcherAppliesKickAndAnonymousChannelBan(t *testing.T) {
 	if err := blacklistsModule.blacklistWatcher(bot, kickCtx); err != ext.ContinueGroups {
 		t.Fatalf("blacklistWatcher(kick) error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want kick action", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want kick action", len(calls))
 	}
 
 	if err := blacklists.SetBlacklistAction(chat.Id, "ban"); err != nil {
@@ -324,7 +336,16 @@ func TestRemoveAllBlacklistsCancelAndInvalidCallbacks(t *testing.T) {
 	if err := blacklistsModule.buttonHandler(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("buttonHandler invalid error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+	unknownCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		owner,
+		encodeCallbackData("rmAllBlacklist", map[string]string{"a": "crafted"}),
+	)
+	if err := blacklistsModule.buttonHandler(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("buttonHandler unknown action error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid answers", len(calls))
 	}
 }

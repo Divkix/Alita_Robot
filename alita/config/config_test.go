@@ -264,6 +264,17 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
+	t.Run("explicit Redis DB zero preserved", func(t *testing.T) {
+		t.Setenv("REDIS_DB", "0")
+
+		cfg := &Config{}
+		cfg.setDefaults()
+
+		if cfg.RedisDB != 0 {
+			t.Errorf("RedisDB: got %d, want 0", cfg.RedisDB)
+		}
+	})
+
 	t.Run("pre-set HTTPPort preserved", func(t *testing.T) {
 		t.Parallel()
 
@@ -309,8 +320,8 @@ func TestSetDefaults(t *testing.T) {
 	})
 
 	t.Run("Debug false enables monitoring", func(t *testing.T) {
-		t.Parallel()
-
+		t.Setenv("ENABLE_PERFORMANCE_MONITORING", "")
+		t.Setenv("ENABLE_BACKGROUND_STATS", "")
 		cfg := &Config{Debug: false}
 		cfg.setDefaults()
 
@@ -319,6 +330,17 @@ func TestSetDefaults(t *testing.T) {
 		}
 		if !cfg.EnableBackgroundStats {
 			t.Errorf("EnableBackgroundStats: got false, want true when Debug=false")
+		}
+	})
+
+	t.Run("explicit false disables production monitoring", func(t *testing.T) {
+		t.Setenv("ENABLE_PERFORMANCE_MONITORING", "false")
+		t.Setenv("ENABLE_BACKGROUND_STATS", "false")
+		cfg := &Config{Debug: false}
+		cfg.setDefaults()
+
+		if cfg.EnablePerformanceMonitoring || cfg.EnableBackgroundStats {
+			t.Fatal("explicit false monitoring settings were overwritten")
 		}
 	})
 }
@@ -356,6 +378,23 @@ func TestClearCacheOnStartupEnvVar(t *testing.T) {
 
 		if !cfg.ClearCacheOnStartup {
 			t.Errorf("ClearCacheOnStartup: got false, want true (should respect env var CLEAR_CACHE_ON_STARTUP=true)")
+		}
+	})
+}
+
+func TestGetHTTPPort(t *testing.T) {
+	t.Run("HTTP_PORT wins", func(t *testing.T) {
+		t.Setenv("HTTP_PORT", "8081")
+		t.Setenv("PORT", "9091")
+		if got := getHTTPPort(); got != 8081 {
+			t.Fatalf("getHTTPPort() = %d, want 8081", got)
+		}
+	})
+	t.Run("Railway PORT fallback", func(t *testing.T) {
+		t.Setenv("HTTP_PORT", "")
+		t.Setenv("PORT", "9091")
+		if got := getHTTPPort(); got != 9091 {
+			t.Fatalf("getHTTPPort() = %d, want 9091", got)
 		}
 	})
 }
@@ -443,6 +482,16 @@ func TestGetRedisPassword(t *testing.T) {
 		got := getRedisPassword()
 		if got != "pass123" {
 			t.Errorf("got %q, want %q", got, "pass123")
+		}
+	})
+
+	t.Run("REDIS_ADDRESS does not inherit REDIS_URL password", func(t *testing.T) {
+		t.Setenv("REDIS_PASSWORD", "")
+		t.Setenv("REDIS_URL", "redis://user:stale@old-host:6380")
+		t.Setenv("REDIS_ADDRESS", "new-host:6379")
+
+		if got := getRedisPassword(); got != "" {
+			t.Errorf("got %q, want empty password for direct address", got)
 		}
 	})
 

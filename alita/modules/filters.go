@@ -5,16 +5,13 @@ import (
 	"html"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
-	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
 
 	db_filters "github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 
@@ -37,56 +34,28 @@ var filtersModule = moduleStruct{
 	handlerGroup: 9,
 }
 
-const (
-	// Cache TTL for filter overwrite confirmations (5 minutes)
-	filterOverwriteCacheTTL = 5 * time.Minute
-)
-
 // filterOverwriteCacheKey generates a cache key for filter overwrite confirmations.
 func filterOverwriteCacheKey(token string) string {
-	return fmt.Sprintf("alita:filter_overwrite:%s", token)
+	return overwriteCacheKey("filter", token)
 }
 
 // setFilterOverwriteCache stores filter overwrite data in cache with TTL.
 func setFilterOverwriteCache(token string, data overwriteFilter) error {
-	m := cache.GetMarshal()
-	if m == nil {
-		return fmt.Errorf("cache not initialized")
-	}
-
-	key := filterOverwriteCacheKey(token)
-	return m.Set(cache.Context, key, data, store.WithExpiration(filterOverwriteCacheTTL))
+	return setOverwriteCache(filterOverwriteCacheKey(token), data)
 }
 
 // getFilterOverwriteCache retrieves filter overwrite data from cache.
 func getFilterOverwriteCache(token string) (*overwriteFilter, error) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return nil, fmt.Errorf("cache not initialized")
-	}
+	return getOverwriteCache[overwriteFilter](filterOverwriteCacheKey(token))
+}
 
-	key := filterOverwriteCacheKey(token)
-	var data overwriteFilter
-	_, err := m.Get(cache.Context, key, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	return &data, nil
+func consumeFilterOverwriteCache(token string) (*overwriteFilter, error) {
+	return consumeOverwriteCache[overwriteFilter](filterOverwriteCacheKey(token))
 }
 
 // deleteFilterOverwriteCache removes filter overwrite data from cache.
 func deleteFilterOverwriteCache(token string) {
-	m := cache.GetMarshal()
-	if m == nil {
-		return
-	}
-
-	key := filterOverwriteCacheKey(token)
-	err := m.Delete(cache.Context, key)
-	if err != nil {
-		log.Debugf("[Filters] Failed to delete cache for key %s: %v", key, err)
-	}
+	deleteOverwriteCache(filterOverwriteCacheKey(token))
 }
 
 /*
@@ -172,7 +141,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	filterWord = strings.ToLower(filterWord) // convert string to it's lower form
 
 	// Validate keyword length - max 100 characters
-	if len(filterWord) > 100 {
+	if len([]rune(filterWord)) > 100 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_keyword_too_long")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -197,6 +166,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		err := setFilterOverwriteCache(token, overwriteFilter{
 			overwriteBase: overwriteBase{
 				ChatID:   chat.Id,
+				UserID:   user.Id,
 				ItemName: filterWord,
 				Text:     text,
 				FileID:   fileid,
@@ -206,7 +176,10 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 		if err != nil {
 			log.Errorf("[Filters] Failed to cache overwrite data: %v", err)
-			// Fallback: allow the operation to continue
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			errorText, _ := tr.GetString("filters_overwrite_token_failed")
+			_, _ = msg.Reply(b, errorText, formatting.Shtml())
+			return ext.EndGroups
 		}
 
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -231,6 +204,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 								Text: noText,
 								CallbackData: encodeCallbackData("filters_overwrite", map[string]string{
 									"a": "cancel",
+									"t": token,
 								}),
 							},
 						},
@@ -239,6 +213,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		)
 		if err != nil {
+			deleteFilterOverwriteCache(token)
 			log.Error(err)
 			return err
 		}
@@ -504,6 +479,10 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		}
 	case "no":
 		helpText, _ = tr.GetString("filters_clear_all_cancelled")
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
 	}
 
 	if query.Message == nil {
@@ -559,10 +538,22 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		log.Error("[Filters] Invalid callback data format")
 		return ext.EndGroups
 	}
+	if action != "yes" && action != "cancel" {
+		log.WithField("action", action).Warn("[Filters] Invalid overwrite action")
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 	var helpText string
 
 	// Handle cancel case first - no cache lookup needed
 	if action == "cancel" {
+		if token != "" {
+			filterData, err := getFilterOverwriteCache(token)
+			if err == nil && (filterData.UserID == 0 || filterData.UserID == user.Id) {
+				deleteFilterOverwriteCache(token)
+			}
+		}
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
 		if query.Message != nil {
 			_, _, editErr := query.Message.EditText(b, helpText, nil)
@@ -599,7 +590,8 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		}
 		return ext.EndGroups
 	}
-	if filterData.ChatID != 0 && filterData.ChatID != chat.Id {
+	if (filterData.UserID != 0 && filterData.UserID != user.Id) ||
+		(filterData.ChatID != 0 && filterData.ChatID != chat.Id) {
 		helpText, _ = tr.GetString("filters_overwrite_expired")
 		if query.Message != nil {
 			_, _, _ = query.Message.EditText(b, helpText, nil)
@@ -608,26 +600,32 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	if db_filters.DoesFilterExists(chat.Id, filterData.ItemName) {
-		if err := db_filters.RemoveFilter(chat.Id, filterData.ItemName); err != nil {
-			log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
-			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else if err := db_filters.AddFilter(chat.Id, filterData.ItemName, filterData.Text, filterData.FileID, filterData.Buttons, filterData.DataType); err != nil {
-			log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
-			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else {
-			if token != "" {
-				deleteFilterOverwriteCache(token) // Clean up cache
-			}
-			helpText, _ = tr.GetString("filters_overwrite_success")
-		}
+	filterData, err = consumeFilterOverwriteCache(token)
+	if err != nil {
+		helpText, _ = tr.GetString("filters_overwrite_expired")
 	} else {
-		helpText, _ = tr.GetString("filters_overwrite_cancelled")
-		if token != "" {
-			deleteFilterOverwriteCache(token)
+		updated, updateErr := db_filters.UpdateFilter(
+			chat.Id,
+			filterData.ItemName,
+			filterData.Text,
+			filterData.FileID,
+			filterData.Buttons,
+			filterData.DataType,
+		)
+		if updateErr != nil {
+			log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", chat.Id, updateErr)
+			helpText, _ = tr.GetString("common_settings_save_failed")
+		} else if updated {
+			helpText, _ = tr.GetString("filters_overwrite_success")
+		} else {
+			helpText, _ = tr.GetString("filters_overwrite_cancelled")
 		}
 	}
 
+	if query.Message == nil {
+		_, err = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		return err
+	}
 	_, _, err = query.Message.EditText(b,
 		helpText,
 		nil,

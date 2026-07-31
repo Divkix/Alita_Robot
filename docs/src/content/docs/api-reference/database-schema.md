@@ -10,11 +10,12 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Total Tables**: 28
+- **Application Tables**: 29
+- **Migration Metadata**: `schema_migrations`
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
 - **Migration Tool**: Custom SQL migration runner (`alita/db/migrations/runner.go`)
-- **Migrations**: 30 files using `YYYYMMDDHHMMSS_description.sql` naming (e.g., `20250805200527_initial_migration.sql`)
+- **Migrations**: Timestamped forward SQL files using `YYYYMMDDHHMMSS_description.sql` naming
 
 ## Design Patterns
 
@@ -499,6 +500,32 @@ Pinned message settings per chat.
 
 ---
 
+### `reactions`
+
+Stores per-chat keyword-to-emoji reaction mappings.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `keyword`) |
+| `keyword` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `keyword`) |
+| `emoji` | `TEXT` | NO | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- Unique composite index on (`chat_id`, `keyword`)
+- `idx_reactions_chat_id`
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
 ### `report_chat_settings`
 
 Report settings per chat.
@@ -730,6 +757,6 @@ User warnings per chat.
 
 - User ↔ Chat: Many-to-many through JSONB `users` field on `chats`
 - Chat → Settings: One-to-one (module-specific settings like `warns_settings`, `antiflood_settings`, `pins`)
-- Chat → Content: One-to-many (`filters`, `notes`, `blacklists`)
+- Chat → Content: One-to-many (`filters`, `notes`, `blacklists`, `reactions`)
 - User → Chat Warnings: One-to-many through `warns_users`
 - Chat → Captcha: One-to-one (`captcha_settings`) with one-to-many attempts (`captcha_attempts`)

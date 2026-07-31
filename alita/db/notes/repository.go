@@ -2,9 +2,11 @@ package notes
 
 import (
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -116,44 +118,63 @@ func DoesNoteExists(chatID int64, noteName string) bool {
 	return true
 }
 
-// AddNote creates a new note in the database for the specified chat.
+// AddNote creates a note if its name is unused.
+// Explicit overwrite confirmation uses UpdateNote.
 // Returns an error if the operation fails.
 // Supports various note types including text, media, and custom buttons.
 func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.ButtonArray, filtType int, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool) error {
-	// Check if note already exists using optimized query
-	var existingNote models.Notes
-	err := db.DB.Where("chat_id = ? AND note_name = ?", chatID, noteName).Take(&existingNote).Error
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[Database][AddNote] checking existence: %d - %v", chatID, err)
-			return err
-		}
-		// Note doesn't exist, continue with creation
-	} else {
-		return nil // Note already exists
+	now := time.Now().UTC()
+	noterc := map[string]any{
+		"chat_id":      chatID,
+		"note_name":    noteName,
+		"note_content": replyText,
+		"msg_type":     filtType,
+		"file_id":      fileID,
+		"buttons":      buttons,
+		"admin_only":   adminOnly,
+		"private_only": pvtOnly,
+		"group_only":   grpOnly,
+		"web_preview":  webPrev,
+		"is_protected": isProtected,
+		"no_notif":     noNotif,
+		"created_at":   now,
+		"updated_at":   now,
 	}
 
-	noterc := models.Notes{
-		ChatId:      chatID,
-		NoteName:    noteName,
-		NoteContent: replyText,
-		MsgType:     filtType,
-		FileID:      fileID,
-		Buttons:     buttons,
-		AdminOnly:   adminOnly,
-		PrivateOnly: pvtOnly,
-		GroupOnly:   grpOnly,
-		WebPreview:  webPrev,
-		IsProtected: isProtected,
-		NoNotif:     noNotif,
-	}
-
-	err = db.CreateRecord(&noterc)
-	if err != nil {
-		log.Errorf("[Database][AddNotes]: %d - %v", chatID, err)
-		return err
+	result := db.DB.Model(&models.Notes{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "note_name"}},
+		DoNothing: true,
+	}).Create(noterc)
+	if result.Error != nil {
+		log.Errorf("[Database][AddNote]: %d - %v", chatID, result.Error)
+		return result.Error
 	}
 	return nil
+}
+
+// UpdateNote replaces an existing note without recreating one removed while an
+// overwrite confirmation was pending.
+func UpdateNote(chatID int64, noteName, replyText, fileID string, buttons models.ButtonArray, filtType int, pvtOnly, grpOnly, adminOnly, webPrev, isProtected, noNotif bool) (bool, error) {
+	result := db.DB.Model(&models.Notes{}).
+		Where("chat_id = ? AND note_name = ?", chatID, noteName).
+		Updates(map[string]any{
+			"note_content": replyText,
+			"msg_type":     filtType,
+			"file_id":      fileID,
+			"buttons":      buttons,
+			"admin_only":   adminOnly,
+			"private_only": pvtOnly,
+			"group_only":   grpOnly,
+			"web_preview":  webPrev,
+			"is_protected": isProtected,
+			"no_notif":     noNotif,
+			"updated_at":   time.Now().UTC(),
+		})
+	if result.Error != nil {
+		log.Errorf("[Database][UpdateNote]: %d - %v", chatID, result.Error)
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
 }
 
 // RemoveNote deletes a note with the specified name from the chat.

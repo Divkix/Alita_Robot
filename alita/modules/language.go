@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"slices"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -92,7 +94,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := ctx.EffectiveChat
 	user := query.From
-	if user.Id == 0 {
+	if chat == nil || user.Id == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -112,6 +114,14 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		})
 		return ext.EndGroups
 	}
+	if !slices.Contains([]string{"en", "es", "fr", "hi", "ru", "pt", "id"}, language) {
+		log.Warnf("[Language] Unsupported callback language: %s", language)
+		currentTr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		errText, _ := currentTr.GetString("language_invalid_selection")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText})
+		return ext.EndGroups
+	}
+	tr := i18n.MustNewTranslator(language)
 
 	// For group chats, check admin permissions first before any language operations
 	if chat.Type != "private" {
@@ -123,7 +133,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Now we can safely create translator for the target language
-	tr := i18n.MustNewTranslator(language)
 	var replyString string
 
 	if chat.Type == "private" {

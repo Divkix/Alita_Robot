@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	_ "net/http/pprof" // #nosec G108 -- pprof gated behind ENABLE_PPROF env var
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -44,6 +45,7 @@ type Server struct {
 	webhookEnabled   bool
 	pprofEnabled     bool
 	startTime        time.Time
+	dispatchWG       sync.WaitGroup
 }
 
 // New creates a new unified HTTP server on the specified port
@@ -108,6 +110,8 @@ func checkRedis() bool {
 // RegisterHealth registers the /health endpoint
 func (s *Server) RegisterHealth() {
 	s.mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		dbHealthy := checkDatabase()
 		redisHealthy := checkRedis()
 
@@ -126,7 +130,6 @@ func (s *Server) RegisterHealth() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(status); err != nil {
 			log.Errorf("[HTTPServer] Failed to encode health status: %v", err)
 		}
@@ -246,8 +249,7 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 
 // webhookHandler handles incoming webhook requests from Telegram
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
-	// Extract trace context from incoming request and start a span
-	// Note: Don't record the full URL path because it contains the webhook secret
+	// Extract trace context from the incoming request and record the stable route.
 	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	_, span := tracing.StartSpan(
 		ctx,
@@ -304,21 +306,12 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add update-specific attributes to the span
-	// Avoid recording full message text to reduce the risk of leaking sensitive data
-	// and to limit cardinality/size. Record text length and a preview instead.
+	// Add update-specific attributes without recording message or callback content.
 	if update.Message != nil {
 		text := update.Message.Text
-		const maxPreviewLen = 100
-		textPreview := text
-		if len(textPreview) > maxPreviewLen {
-			textPreview = textPreview[:maxPreviewLen] + "..."
-		}
-
 		attrs := []attribute.KeyValue{
 			attribute.Int64("message.chat_id", update.Message.Chat.Id),
 			attribute.Int("message.text_length", len(text)),
-			attribute.String("message.text_preview", textPreview),
 		}
 		if update.Message.From != nil {
 			attrs = append(attrs, attribute.Int64("message.from_id", update.Message.From.Id))
@@ -336,12 +329,14 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	// will complete even if the HTTP response has already been sent. This is by design
 	// as Telegram expects a quick 200 OK response while processing happens async.
 	// Pass the trace context to the goroutine for proper span parenting
+	s.dispatchWG.Add(1)
 	go func(requestCtx context.Context) {
+		defer s.dispatchWG.Done()
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
 
-		// Create a timeout context to prevent goroutine from hanging indefinitely
-		// Timeout of 30s allows for complex operations while preventing resource leaks
-		ctx, cancel := context.WithTimeout(requestCtx, 30*time.Second)
+		// Bound the async span and the context exposed to opt-in handlers.
+		// ProcessUpdate itself does not observe this cancellation.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(requestCtx), 30*time.Second)
 		defer cancel()
 
 		// Start a new child span for the async processing using the request context
@@ -433,26 +428,24 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	log.Info("[HTTPServer] Shutting down server...")
 
-	// Check if server was never started
-	if s.server == nil {
-		log.Warn("[HTTPServer] Server was never started, nothing to stop")
-		return nil
-	}
-
-	// Create a context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Shutdown the server
-	if err := s.server.Shutdown(ctx); err != nil {
+	if s.server == nil {
+		log.Warn("[HTTPServer] Server was never started")
+	} else if err := s.server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("HTTP server shutdown failed: %w", err)
 	}
 
-	// Delete the webhook if it was enabled
-	if s.webhookEnabled && s.bot != nil {
-		if _, err := s.bot.DeleteWebhook(nil); err != nil {
-			log.Errorf("[HTTPServer] Failed to delete webhook: %v", err)
-		}
+	dispatchesDone := make(chan struct{})
+	go func() {
+		s.dispatchWG.Wait()
+		close(dispatchesDone)
+	}()
+	select {
+	case <-dispatchesDone:
+	case <-ctx.Done():
+		return fmt.Errorf("waiting for webhook dispatches: %w", ctx.Err())
 	}
 
 	log.Info("[HTTPServer] Server stopped gracefully")

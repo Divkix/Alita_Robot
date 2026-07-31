@@ -3,8 +3,10 @@ package modules
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
@@ -14,6 +16,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	"github.com/eko/gocache/lib/v4/store"
 	"github.com/redis/go-redis/v9"
+	"github.com/vmihailenco/msgpack/v5"
 
 	log "github.com/sirupsen/logrus"
 
@@ -23,6 +26,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
+	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
@@ -32,14 +36,38 @@ const (
 	antiraidPollInterval      = 30 * time.Second
 	antiraidStateKey          = "alita:antiraid:state" // format: state:chat_id
 	antiraidJoinsKey          = "alita:antiraid:joins" // format: joins:chat_id (sorted set)
+	maxAntiRaidDuration       = 366 * 24 * 60 * 60
 )
 
 var (
 	antiRaidModule = antiRaidStruct{
 		moduleStruct: moduleStruct{moduleName: "AntiRaid", handlerGroup: -5},
 	}
-	antiRaidCtx    context.Context
-	antiRaidCancel context.CancelFunc
+	antiRaidCtx      context.Context
+	antiRaidCancel   context.CancelFunc
+	antiRaidPollerMu sync.Mutex
+	antiRaidPollerWG sync.WaitGroup
+	antiRaidStateMu  sync.Mutex
+
+	deleteRaidStateScript = redis.NewScript(`
+		if redis.call("GET", KEYS[1]) == ARGV[1] then
+			redis.call("DEL", KEYS[1], KEYS[2])
+			return 1
+		end
+		return 0
+	`)
+	replaceRaidStateScript = redis.NewScript(`
+		if redis.call("GET", KEYS[1]) == ARGV[1] then
+			redis.call("SET", KEYS[1], ARGV[2], "PX", ARGV[3])
+			return 1
+		end
+		return 0
+	`)
+	disableRaidScript = redis.NewScript(`
+		local existed = redis.call("DEL", KEYS[1])
+		redis.call("DEL", KEYS[2])
+		return existed
+	`)
 )
 
 type antiRaidStruct struct {
@@ -59,22 +87,30 @@ func StartAntiRaidExpiryPoller() {
 		log.Warn("[AntiRaid] Redis not available, skipping expiry poller start")
 		return
 	}
+	antiRaidPollerMu.Lock()
+	defer antiRaidPollerMu.Unlock()
 	if antiRaidCancel != nil {
 		// Already started
 		return
 	}
 	antiRaidCtx, antiRaidCancel = context.WithCancel(context.Background())
-	go func() {
+	antiRaidPollerWG.Add(1)
+	go func(ctx context.Context) {
+		defer antiRaidPollerWG.Done()
 		defer error_handling.RecoverFromPanic("antiRaidExpiryPoller", "antiraid")
-		antiRaidModule.expiryPoller(antiRaidCtx)
-	}()
+		antiRaidModule.expiryPoller(ctx)
+	}(antiRaidCtx)
 }
 
-// StopAntiRaidExpiryPoller stops the background expiry poller.
+// StopAntiRaidExpiryPoller stops and joins the background expiry poller.
 func StopAntiRaidExpiryPoller() {
+	antiRaidPollerMu.Lock()
+	defer antiRaidPollerMu.Unlock()
 	if antiRaidCancel != nil {
 		antiRaidCancel()
+		antiRaidPollerWG.Wait()
 		antiRaidCancel = nil
+		antiRaidCtx = nil
 	}
 }
 
@@ -96,6 +132,9 @@ func trackJoin(chatID, userID int64) (count int, err error) {
 	_, err = rdb.ZAdd(ctx, joinsKey(chatID), redis.Z{Score: float64(now), Member: strconv.FormatInt(userID, 10)}).Result()
 	if err != nil {
 		return 0, err
+	}
+	if err := rdb.Expire(ctx, joinsKey(chatID), time.Duration(antiraidJoinWindowSeconds)*time.Second).Err(); err != nil {
+		log.WithError(err).Warnf("[AntiRaid] Failed to expire join tracking for chat %d", chatID)
 	}
 	_, err = rdb.ZRemRangeByScore(ctx, joinsKey(chatID), "0", strconv.FormatInt(now-int64(antiraidJoinWindowSeconds), 10)).Result()
 	if err != nil {
@@ -123,9 +162,6 @@ func getRaidState(chatID int64) *raidState {
 	if _, err := m.Get(cache.Context, stateKey(chatID), &st); err != nil {
 		return &raidState{Active: false}
 	}
-	if st.Active && time.Now().Unix() > st.ExpiresAt {
-		st.Active = false
-	}
 	return &st
 }
 
@@ -134,7 +170,87 @@ func setRaidState(chatID int64, st *raidState) error {
 	if m == nil {
 		return fmt.Errorf("cache not initialized")
 	}
-	return m.Set(cache.Context, stateKey(chatID), st, store.WithExpiration(24*time.Hour))
+	return m.Set(cache.Context, stateKey(chatID), st, store.WithExpiration(raidStateExpiration(st)))
+}
+
+func raidStateExpiration(st *raidState) time.Duration {
+	expiration := 24 * time.Hour
+	if st.Active {
+		expiration = time.Until(time.Unix(st.ExpiresAt, 0)) + antiraidPollInterval
+		if expiration <= 0 {
+			expiration = antiraidPollInterval
+		}
+	}
+	return expiration
+}
+
+func marshalRaidState(st *raidState) ([]byte, error) {
+	data, err := msgpack.Marshal(st)
+	if err != nil {
+		return nil, fmt.Errorf("marshal anti-raid state: %w", err)
+	}
+	return data, nil
+}
+
+func deleteRaidStateIfUnchanged(chatID int64, expected *raidState) (bool, error) {
+	expectedJSON, err := marshalRaidState(expected)
+	if err != nil {
+		return false, err
+	}
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		deleted, err := deleteRaidStateScript.Run(
+			cache.Context,
+			rdb,
+			[]string{stateKey(chatID), joinsKey(chatID)},
+			expectedJSON,
+		).Int()
+		return deleted == 1, err
+	}
+
+	antiRaidStateMu.Lock()
+	defer antiRaidStateMu.Unlock()
+	current := getRaidState(chatID)
+	if *current != *expected {
+		return false, nil
+	}
+	m := cache.GetMarshal()
+	if m == nil {
+		return false, fmt.Errorf("cache not initialized")
+	}
+	if err := m.Delete(cache.Context, stateKey(chatID)); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func replaceRaidStateIfUnchanged(chatID int64, expected, replacement *raidState) (bool, error) {
+	expectedJSON, err := marshalRaidState(expected)
+	if err != nil {
+		return false, err
+	}
+	replacementJSON, err := marshalRaidState(replacement)
+	if err != nil {
+		return false, err
+	}
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		replaced, err := replaceRaidStateScript.Run(
+			cache.Context,
+			rdb,
+			[]string{stateKey(chatID)},
+			expectedJSON,
+			replacementJSON,
+			raidStateExpiration(replacement).Milliseconds(),
+		).Int()
+		return replaced == 1, err
+	}
+
+	antiRaidStateMu.Lock()
+	defer antiRaidStateMu.Unlock()
+	current := getRaidState(chatID)
+	if *current != *expected {
+		return false, nil
+	}
+	return true, setRaidState(chatID, replacement)
 }
 
 func (a *antiRaidStruct) expiryPoller(ctx context.Context) {
@@ -171,10 +287,14 @@ func (a *antiRaidStruct) checkExpiredRaids(ctx context.Context) {
 		}
 		st := getRaidState(chatID)
 		if st.Active && time.Now().Unix() > st.ExpiresAt {
-			st.Active = false
-			_ = setRaidState(chatID, st)
-			clearJoinTracking(chatID)
-			log.Infof("[AntiRaid] Raid expired for chat %d (auto-expiry)", chatID)
+			deleted, err := deleteRaidStateIfUnchanged(chatID, st)
+			if err != nil {
+				log.WithError(err).Warnf("[AntiRaid] Failed to expire raid for chat %d", chatID)
+				continue
+			}
+			if deleted {
+				log.Infof("[AntiRaid] Raid expired for chat %d (auto-expiry)", chatID)
+			}
 		}
 	}
 	if err := iter.Err(); err != nil {
@@ -188,32 +308,133 @@ func (a *antiRaidStruct) isRaidActive(chatID int64) bool {
 		return false
 	}
 	if time.Now().Unix() > st.ExpiresAt {
-		st.Active = false
-		_ = setRaidState(chatID, st)
+		deleted, err := deleteRaidStateIfUnchanged(chatID, st)
+		if err != nil {
+			log.WithError(err).Warnf("[AntiRaid] Failed to expire raid for chat %d", chatID)
+			return false
+		}
+		if !deleted {
+			st = getRaidState(chatID)
+			return st.Active && time.Now().Unix() <= st.ExpiresAt
+		}
 		return false
 	}
 	return true
 }
 
-func (a *antiRaidStruct) enableRaid(chatID int64, durationSeconds int) {
+func (a *antiRaidStruct) enableRaid(chatID int64, durationSeconds int) (bool, error) {
+	if durationSeconds <= 0 || durationSeconds > maxAntiRaidDuration {
+		return false, fmt.Errorf("duration must be between 1 second and 366 days")
+	}
+	now := time.Now().Unix()
 	st := &raidState{
 		Active:    true,
-		StartedAt: time.Now().Unix(),
-		ExpiresAt: time.Now().Unix() + int64(durationSeconds),
+		StartedAt: now,
+		ExpiresAt: now + int64(durationSeconds),
 	}
-	_ = setRaidState(chatID, st)
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		current := getRaidState(chatID)
+		if current.Active && current.ExpiresAt > now {
+			return false, nil
+		}
+		if _, err := deleteRaidStateIfUnchanged(chatID, current); err != nil {
+			return false, err
+		}
+		payload, err := marshalRaidState(st)
+		if err != nil {
+			return false, err
+		}
+		enabled, err := rdb.SetNX(cache.Context, stateKey(chatID), payload, raidStateExpiration(st)).Result()
+		if err != nil || !enabled {
+			return enabled, err
+		}
+		clearJoinTracking(chatID)
+		return true, nil
+	}
+
+	antiRaidStateMu.Lock()
+	defer antiRaidStateMu.Unlock()
+	current := getRaidState(chatID)
+	if current.Active && current.ExpiresAt > now {
+		return false, nil
+	}
+	if err := setRaidState(chatID, st); err != nil {
+		return false, err
+	}
 	clearJoinTracking(chatID)
+	return true, nil
 }
 
-func (a *antiRaidStruct) disableRaid(chatID int64) bool {
-	st := getRaidState(chatID)
-	if !st.Active {
-		return false
+func (a *antiRaidStruct) disableRaid(chatID int64) (bool, error) {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		deleted, err := disableRaidScript.Run(
+			cache.Context,
+			rdb,
+			[]string{stateKey(chatID), joinsKey(chatID)},
+		).Int()
+		if err != nil {
+			log.WithError(err).Warnf("[AntiRaid] Failed to disable raid for chat %d", chatID)
+			return false, err
+		}
+		return deleted == 1, nil
 	}
-	st.Active = false
-	_ = setRaidState(chatID, st)
+
+	antiRaidStateMu.Lock()
+	defer antiRaidStateMu.Unlock()
+	st := getRaidState(chatID)
+	if !st.Active || time.Now().Unix() > st.ExpiresAt {
+		return false, nil
+	}
+	m := cache.GetMarshal()
+	if m == nil {
+		return false, fmt.Errorf("cache not initialized")
+	}
+	if err := m.Delete(cache.Context, stateKey(chatID)); err != nil {
+		log.WithError(err).Warnf("[AntiRaid] Failed to disable raid for chat %d", chatID)
+		return false, err
+	}
 	clearJoinTracking(chatID)
-	return true
+	return true, nil
+}
+
+func (a *antiRaidStruct) setRaidDuration(chatID int64, durationSeconds int) error {
+	if durationSeconds <= 0 || durationSeconds > maxAntiRaidDuration {
+		return fmt.Errorf("duration must be between 1 second and 366 days")
+	}
+	for range 5 {
+		current := getRaidState(chatID)
+		if current.Active && time.Now().Unix() <= current.ExpiresAt {
+			replacement := *current
+			replacement.ExpiresAt = time.Now().Unix() + int64(durationSeconds)
+			replaced, err := replaceRaidStateIfUnchanged(chatID, current, &replacement)
+			if err != nil {
+				return err
+			}
+			if replaced {
+				return nil
+			}
+			continue
+		}
+		enabled, err := a.enableRaid(chatID, durationSeconds)
+		if err != nil {
+			return err
+		}
+		if enabled {
+			return nil
+		}
+	}
+	return fmt.Errorf("anti-raid state changed concurrently")
+}
+
+func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTime int) {
+	untilDate, ok := extraction.TemporaryUntilDate(time.Now().Unix(), int64(actionTime))
+	if !ok {
+		log.Warnf("[AntiRaid] Invalid raid action time %d; refusing permanent ban for user %d in chat %d", actionTime, userID, chat.Id)
+		return
+	}
+	if _, err := chat.BanMember(bot, userID, &gotgbot.BanChatMemberOpts{UntilDate: untilDate}); err != nil {
+		log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", userID, chat.Id)
+	}
 }
 
 func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -252,12 +473,7 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if isActive {
-			_, err := chat.BanMember(bot, member.Id, &gotgbot.BanChatMemberOpts{
-				UntilDate: time.Now().Unix() + int64(settings.RaidActionTime),
-			})
-			if err != nil {
-				log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", member.Id, chat.Id)
-			}
+			banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
 			continue
 		}
 
@@ -272,19 +488,25 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if count >= settings.AutoAntiRaidThreshold {
-			a.enableRaid(chat.Id, settings.RaidTime)
+			enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
+			if err != nil {
+				log.WithError(err).Warnf("[AntiRaid] Failed to auto-enable raid in chat %d", chat.Id)
+				continue
+			}
+			isActive = true
+			if !enabled {
+				// Another update crossed the threshold first. Apply the active
+				// raid without resetting its expiry or sending a duplicate alert.
+				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
+				continue
+			}
 			log.Infof("[AntiRaid] Auto-triggered raid in chat %d (joins=%d >= threshold=%d)", chat.Id, count, settings.AutoAntiRaidThreshold)
 
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("antiraid_auto_triggered", i18n.TranslationParams{"count": strconv.Itoa(count)})
 			_, _ = chat.SendMessage(bot, text, formatting.Shtml())
 
-			_, err := chat.BanMember(bot, member.Id, &gotgbot.BanChatMemberOpts{
-				UntilDate: time.Now().Unix() + int64(settings.RaidActionTime),
-			})
-			if err != nil {
-				log.WithError(err).Warnf("[AntiRaid] Failed to ban user %d in chat %d", member.Id, chat.Id)
-			}
+			banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
 		}
 	}
 
@@ -363,18 +585,30 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	arg := strings.ToLower(args[0])
 	switch arg {
 	case "on":
-		if a.isRaidActive(chat.Id) {
+		settings := antiraid.GetAntiRaidSettings(chat.Id)
+		enabled, err := a.enableRaid(chat.Id, settings.RaidTime)
+		if err != nil {
+			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chat.Id)
+			text, _ := tr.GetString("error_generic")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
+			return ext.EndGroups
+		}
+		if !enabled {
 			text, _ := tr.GetString("antiraid_already_active")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		settings := antiraid.GetAntiRaidSettings(chat.Id)
-		a.enableRaid(chat.Id, settings.RaidTime)
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 
 	case "off":
-		if !a.disableRaid(chat.Id) {
+		disabled, err := a.disableRaid(chat.Id)
+		if err != nil {
+			text, _ := tr.GetString("error_generic")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
+			return ext.EndGroups
+		}
+		if !disabled {
 			text, _ := tr.GetString("antiraid_not_active")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
@@ -389,17 +623,11 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		if dur <= 0 {
-			text, _ := tr.GetString("antiraid_duration_must_be_positive")
+		if err := a.setRaidDuration(chat.Id, dur); err != nil {
+			log.WithError(err).Errorf("[AntiRaid] Failed to set raid duration in chat %d", chat.Id)
+			text, _ := tr.GetString("error_generic")
 			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
-		}
-		if a.isRaidActive(chat.Id) {
-			st := getRaidState(chat.Id)
-			st.ExpiresAt = time.Now().Unix() + int64(dur)
-			_ = setRaidState(chat.Id, st)
-		} else {
-			a.enableRaid(chat.Id, dur)
 		}
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(dur)})
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
@@ -451,13 +679,11 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 	}
 
 	dur, ok := parseDuration(args[0])
+	if ok && !isRaidTime {
+		_, ok = extraction.TemporaryUntilDate(0, int64(dur))
+	}
 	if !ok {
 		text, _ := tr.GetString("antiraid_invalid_duration")
-		_, _ = msg.Reply(bot, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-	if dur == 0 {
-		text, _ := tr.GetString("antiraid_duration_must_be_positive")
 		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -473,6 +699,8 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		err := antiraid.SetRaidTime(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidTime failed for chat %d", chat.Id)
+			text, _ = tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		text, _ = tr.GetString("antiraid_raidtime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
@@ -486,6 +714,8 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 		err := antiraid.SetRaidActionTime(chat.Id, dur)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetRaidActionTime failed for chat %d", chat.Id)
+			text, _ = tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		text, _ = tr.GetString("antiraid_raidactiontime_set", i18n.TranslationParams{"duration": formatDuration(dur)})
@@ -533,6 +763,8 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 		err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 0)
 		if err != nil {
 			log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(0) failed for chat %d", chat.Id)
+			text, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(bot, text, formatting.Shtml())
 			return ext.EndGroups
 		}
 		text, _ := tr.GetString("antiraid_auto_disabled")
@@ -548,6 +780,8 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, threshold); err != nil {
 		log.WithError(err).Errorf("[AntiRaid] SetAutoAntiRaidThreshold(%d) failed for chat %d", threshold, chat.Id)
+		text, _ := tr.GetString("common_settings_save_failed")
+		_, _ = msg.Reply(bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
@@ -590,20 +824,32 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	switch action {
 	case "on":
-		if a.isRaidActive(chatID) {
+		settings := antiraid.GetAntiRaidSettings(chatID)
+		enabled, err := a.enableRaid(chatID, settings.RaidTime)
+		if err != nil {
+			log.WithError(err).Errorf("[AntiRaid] Failed to enable raid in chat %d", chatID)
+			text, _ := tr.GetString("error_generic")
+			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
+		if !enabled {
 			text, _ := tr.GetString("antiraid_already_active")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		settings := antiraid.GetAntiRaidSettings(chatID)
-		a.enableRaid(chatID, settings.RaidTime)
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
 			ParseMode: formatting.HTML,
 		})
 	case "off":
-		if !a.disableRaid(chatID) {
+		disabled, err := a.disableRaid(chatID)
+		if err != nil {
+			text, _ := tr.GetString("error_generic")
+			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
+		}
+		if !disabled {
 			text, _ := tr.GetString("antiraid_not_active")
 			_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
@@ -613,6 +859,9 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
 			ParseMode: formatting.HTML,
 		})
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 	}
 
 	return ext.EndGroups
@@ -623,34 +872,46 @@ func parseDuration(input string) (seconds int, ok bool) {
 	if len(input) == 0 {
 		return 0, false
 	}
+
+	var duration int64
 	unit := input[len(input)-1]
 	// If the last char is a digit, treat the whole string as bare seconds.
 	if unit >= '0' && unit <= '9' {
-		raw, err := strconv.Atoi(input)
-		if err != nil || raw < 0 {
+		var err error
+		duration, err = strconv.ParseInt(input, 10, 64)
+		if err != nil {
 			return 0, false
 		}
-		return raw, true
+	} else {
+		num, err := strconv.ParseInt(input[:len(input)-1], 10, 64)
+		if err != nil || num < 0 {
+			return 0, false
+		}
+		var multiplier int64
+		switch unit {
+		case 's':
+			multiplier = 1
+		case 'm':
+			multiplier = 60
+		case 'h':
+			multiplier = 60 * 60
+		case 'd':
+			multiplier = 24 * 60 * 60
+		case 'w':
+			multiplier = 7 * 24 * 60 * 60
+		default:
+			return 0, false
+		}
+		if num > math.MaxInt64/multiplier {
+			return 0, false
+		}
+		duration = num * multiplier
 	}
-	numStr := input[:len(input)-1]
-	num, err := strconv.Atoi(numStr)
-	if err != nil || num < 0 {
+
+	if duration <= 0 || duration > maxAntiRaidDuration {
 		return 0, false
 	}
-	switch unit {
-	case 's':
-		return num, true
-	case 'm':
-		return num * 60, true
-	case 'h':
-		return num * 60 * 60, true
-	case 'd':
-		return num * 24 * 60 * 60, true
-	case 'w':
-		return num * 7 * 24 * 60 * 60, true
-	default:
-		return 0, false
-	}
+	return int(duration), true
 }
 
 func formatDuration(seconds int) string {
@@ -677,13 +938,14 @@ func LoadAntiRaid(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("raidactiontime", antiRaidModule.raidActionTime))
 	dispatcher.AddHandler(handlers.NewCommand("autoantiraid", antiRaidModule.autoAntiRaid))
 
-	dispatcher.AddHandler(
+	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {
 				return msg.NewChatMembers != nil
 			},
 			antiRaidModule.onJoin,
 		),
+		antiRaidModule.handlerGroup,
 	)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("antiraid"), antiRaidModule.callbackHandler))

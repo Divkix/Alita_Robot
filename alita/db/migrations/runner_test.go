@@ -3,6 +3,7 @@ package migrations
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -46,6 +48,15 @@ func newTestRunner() *MigrationRunner {
 	return &MigrationRunner{db: nil, migrationsPath: ""}
 }
 
+func migrationApplied(t *testing.T, runner *MigrationRunner, version string) bool {
+	t.Helper()
+	applied, err := runner.isMigrationApplied(version)
+	if err != nil {
+		t.Fatalf("isMigrationApplied(%q) error = %v", version, err)
+	}
+	return applied
+}
+
 // ---------------------------------------------------------------------------
 // SchemaMigration.TableName
 // ---------------------------------------------------------------------------
@@ -55,6 +66,61 @@ func TestSchemaMigrationTableName(t *testing.T) {
 	got := SchemaMigration{}.TableName()
 	if got != "schema_migrations" {
 		t.Fatalf("SchemaMigration.TableName() = %q, want %q", got, "schema_migrations")
+	}
+}
+
+func newMetadataTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "migrations.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open metadata test database: %v", err)
+	}
+	if err := database.AutoMigrate(&SchemaMigration{}); err != nil {
+		t.Fatalf("migrate metadata test database: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("get metadata test database handle: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	return database
+}
+
+func TestMigrationMetadataReadErrorsPropagate(t *testing.T) {
+	database := newMetadataTestDB(t)
+	wantErr := errors.New("metadata read failed")
+	if err := database.Callback().Query().Before("gorm:query").Register("test:fail_metadata_read", func(tx *gorm.DB) {
+		_ = tx.AddError(wantErr)
+	}); err != nil {
+		t.Fatalf("register query callback: %v", err)
+	}
+
+	runner := &MigrationRunner{db: database}
+	if _, err := runner.isMigrationApplied("001.sql"); !errors.Is(err, wantErr) {
+		t.Fatalf("isMigrationApplied() error = %v, want %v", err, wantErr)
+	}
+	if _, err := runner.getMigrationRecord("001.sql"); !errors.Is(err, wantErr) {
+		t.Fatalf("getMigrationRecord() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestVerifyMigrationChecksumPropagatesBackfillError(t *testing.T) {
+	database := newMetadataTestDB(t)
+	version := "001.sql"
+	if err := database.Create(&SchemaMigration{Version: version}).Error; err != nil {
+		t.Fatalf("create legacy migration record: %v", err)
+	}
+
+	wantErr := errors.New("checksum backfill failed")
+	if err := database.Callback().Update().Before("gorm:update").Register("test:fail_checksum_backfill", func(tx *gorm.DB) {
+		_ = tx.AddError(wantErr)
+	}); err != nil {
+		t.Fatalf("register update callback: %v", err)
+	}
+
+	runner := &MigrationRunner{db: database}
+	if err := runner.verifyMigrationChecksum(version, []byte("SELECT 1;")); !errors.Is(err, wantErr) {
+		t.Fatalf("verifyMigrationChecksum() error = %v, want %v", err, wantErr)
 	}
 }
 
@@ -184,8 +250,10 @@ func TestCleanSupabaseSQL_AdditionalCases(t *testing.T) {
 				"DO $$",
 				"CREATE TYPE mood AS ENUM",
 				"EXCEPTION",
+				"WHEN duplicate_object THEN NULL",
 				"END $$;",
 			},
+			wantGone: []string{"WHEN OTHERS"},
 		},
 		{
 			name:  "ALTER TABLE ADD CONSTRAINT wrapped in DO block",
@@ -227,9 +295,36 @@ END $$;`,
 				"DO $$ BEGIN",
 				"ALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id);",
 				"EXCEPTION",
-				"WHEN OTHERS THEN null;",
+				"WHEN duplicate_object THEN NULL;",
 				"END $$;",
 			},
+			wantGone: []string{"WHEN OTHERS"},
+		},
+		{
+			name: "multiline ALTER TABLE ADD CONSTRAINT gets DO-wrapped",
+			input: `ALTER TABLE orders
+ADD CONSTRAINT fk_user
+FOREIGN KEY (user_id)
+REFERENCES users(id);`,
+			wantParts: []string{
+				"DO $$ BEGIN",
+				"ALTER TABLE orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id)",
+				"REFERENCES users(id);",
+				"WHEN duplicate_object THEN NULL;",
+				"END $$;",
+			},
+			wantGone: []string{"WHEN OTHERS"},
+		},
+		{
+			name:  "dynamic index drop only ignores constraint-owned indexes",
+			input: `EXECUTE 'DROP INDEX IF EXISTS ' || index_record.indexname;`,
+			wantParts: []string{
+				"BEGIN",
+				"EXECUTE 'DROP INDEX IF EXISTS ' || index_record.indexname;",
+				"WHEN dependent_objects_still_exist THEN NULL;",
+				"END;",
+			},
+			wantGone: []string{"WHEN OTHERS"},
 		},
 		{
 			name: "Mixed GRANT and CREATE TABLE - GRANTs removed, CREATE TABLE preserved",
@@ -262,6 +357,30 @@ GRANT INSERT ON profiles TO authenticated;`,
 				if gone != "" && strings.Contains(got, gone) {
 					t.Errorf("cleanSupabaseSQL() result still contains removed substring %q\nresult: %q", gone, got)
 				}
+			}
+		})
+	}
+}
+
+func TestIsTransactionControlStatement(t *testing.T) {
+	tests := []struct {
+		stmt string
+		want bool
+	}{
+		{stmt: "BEGIN", want: true},
+		{stmt: "-- migration transaction\nBEGIN", want: true},
+		{stmt: "/* migration transaction */ COMMIT", want: true},
+		{stmt: "ROLLBACK WORK", want: false},
+		{stmt: "START TRANSACTION", want: true},
+		{stmt: "DO $$ BEGIN NULL; END $$", want: false},
+		{stmt: "SELECT 'COMMIT'", want: false},
+		{stmt: "-- BEGIN", want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.stmt, func(t *testing.T) {
+			if got := isTransactionControlStatement(tc.stmt); got != tc.want {
+				t.Fatalf("isTransactionControlStatement(%q) = %t, want %t", tc.stmt, got, tc.want)
 			}
 		})
 	}
@@ -565,7 +684,7 @@ INSERT INTO migration_runner_test_items (id, name) VALUES (1, 'first');
 		t.Fatalf("migrated row count = %d, want 1", itemCount)
 	}
 
-	if !runner.isMigrationApplied(filepath.Base(migrationPath)) {
+	if !migrationApplied(t, runner, filepath.Base(migrationPath)) {
 		t.Fatalf("migration %s was not recorded as applied", filepath.Base(migrationPath))
 	}
 
@@ -597,7 +716,7 @@ func TestApplyMigration_EmptyFileDoesNotRecordVersion(t *testing.T) {
 	if err := runner.applyMigration(migrationPath, version); err != nil {
 		t.Fatalf("applyMigration(empty) error = %v", err)
 	}
-	if runner.isMigrationApplied(version) {
+	if migrationApplied(t, runner, version) {
 		t.Fatalf("empty migration %s was recorded as applied", version)
 	}
 }
@@ -628,11 +747,171 @@ INSERT INTO migration_runner_missing_table (id) VALUES (1);
 	if !strings.Contains(err.Error(), "Statement preview") {
 		t.Fatalf("applyMigration(failing) error %q missing statement preview", err)
 	}
-	if runner.isMigrationApplied(version) {
+	if migrationApplied(t, runner, version) {
 		t.Fatalf("failing migration %s was recorded as applied", version)
 	}
 	if getTestDB().Migrator().HasTable("migration_runner_rollback_items") {
 		t.Fatalf("failed migration left migration_runner_rollback_items table behind")
+	}
+}
+
+func TestApplyMigration_EmbeddedTransactionStillRollsBack(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "004_embedded_transaction.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte(`
+BEGIN;
+CREATE TABLE migration_runner_embedded_tx_items (
+	id INTEGER PRIMARY KEY
+);
+COMMIT;
+INSERT INTO migration_runner_missing_table (id) VALUES (1);
+`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_runner_embedded_tx_items").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err == nil {
+		t.Fatal("applyMigration() error = nil, want statement failure")
+	}
+	if migrationApplied(t, runner, version) {
+		t.Fatalf("failing migration %s was recorded as applied", version)
+	}
+	if getTestDB().Migrator().HasTable("migration_runner_embedded_tx_items") {
+		t.Fatal("embedded COMMIT escaped the runner transaction")
+	}
+}
+
+func TestApplyMigration_ConstraintErrorsAreNotSwallowed(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "005_constraint_error.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte(`
+CREATE TABLE migration_runner_constraint_items (
+	id INTEGER PRIMARY KEY,
+	parent_id INTEGER
+);
+ALTER TABLE migration_runner_constraint_items
+ADD CONSTRAINT fk_migration_runner_missing_parent
+FOREIGN KEY (parent_id) REFERENCES migration_runner_missing_parent(id);
+`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_runner_constraint_items").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err == nil {
+		t.Fatal("applyMigration() error = nil, want undefined referenced table failure")
+	}
+	if migrationApplied(t, runner, version) {
+		t.Fatalf("failing migration %s was recorded as applied", version)
+	}
+	if getTestDB().Migrator().HasTable("migration_runner_constraint_items") {
+		t.Fatal("constraint failure did not roll back the migration")
+	}
+}
+
+func TestApplyMigration_DuplicateConstraintIsIgnored(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "006_duplicate_constraint.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte(`
+CREATE TABLE migration_runner_constraint_parents (
+	id INTEGER PRIMARY KEY
+);
+CREATE TABLE migration_runner_constraint_children (
+	parent_id INTEGER
+);
+ALTER TABLE migration_runner_constraint_children
+ADD CONSTRAINT fk_migration_runner_parent
+FOREIGN KEY (parent_id) REFERENCES migration_runner_constraint_parents(id);
+ALTER TABLE migration_runner_constraint_children
+ADD CONSTRAINT fk_migration_runner_parent
+FOREIGN KEY (parent_id) REFERENCES migration_runner_constraint_parents(id);
+`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_runner_constraint_children").Error
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_runner_constraint_parents").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err != nil {
+		t.Fatalf("applyMigration() error = %v", err)
+	}
+	if !migrationApplied(t, runner, version) {
+		t.Fatalf("migration %s was not recorded as applied", version)
+	}
+}
+
+func TestApplyMigration_ConstraintOwnedIndexIsLeftForDropTable(t *testing.T) {
+	skipIfNoDb(t)
+
+	dir := t.TempDir()
+	version := "007_constraint_owned_index.sql"
+	migrationPath := filepath.Join(dir, version)
+	if err := os.WriteFile(migrationPath, []byte(`
+CREATE TABLE migration_runner_drop_index_items (
+	id INTEGER PRIMARY KEY
+);
+DO $$
+DECLARE
+	index_record RECORD;
+BEGIN
+	FOR index_record IN
+		SELECT indexname
+		FROM pg_indexes
+		WHERE tablename = 'migration_runner_drop_index_items'
+	LOOP
+		EXECUTE 'DROP INDEX IF EXISTS ' || index_record.indexname;
+	END LOOP;
+END $$;
+DROP TABLE migration_runner_drop_index_items;
+`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = getTestDB().Exec("DROP TABLE IF EXISTS migration_runner_drop_index_items").Error
+		_ = getTestDB().Where("version = ?", version).Delete(&SchemaMigration{}).Error
+	})
+
+	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if err := runner.applyMigration(migrationPath, version); err != nil {
+		t.Fatalf("applyMigration() error = %v", err)
+	}
+	if getTestDB().Migrator().HasTable("migration_runner_drop_index_items") {
+		t.Fatal("migration_runner_drop_index_items still exists")
 	}
 }
 
@@ -849,7 +1128,10 @@ func TestApplyMigrationStoresChecksum(t *testing.T) {
 		t.Fatalf("applyMigration() error = %v", err)
 	}
 
-	rec := runner.getMigrationRecord(version)
+	rec, err := runner.getMigrationRecord(version)
+	if err != nil {
+		t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
+	}
 	if rec == nil {
 		t.Fatalf("getMigrationRecord(%q) returned nil", version)
 	}
@@ -949,7 +1231,10 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 	}
 
 	// The checksum should now be backfilled.
-	rec := runner.getMigrationRecord(version)
+	rec, err := runner.getMigrationRecord(version)
+	if err != nil {
+		t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
+	}
 	if rec == nil {
 		t.Fatalf("getMigrationRecord(%q) returned nil after RunMigrations", version)
 	}

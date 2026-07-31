@@ -1,7 +1,7 @@
 name: Dependabot Native Auto-merge
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, ready_for_review]
 
 permissions:
@@ -12,7 +12,9 @@ jobs:
   dependabot-auto-merge:
     name: Auto-merge Dependabot PR
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.actor == 'dependabot[bot]'
     steps:
       - name: Get dependency metadata
         id: metadata
@@ -21,28 +23,41 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Auto-approve and enable auto-merge for minor/patch updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        if: >-
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor') &&
+          !contains(steps.metadata.outputs.dependency-names, 'github.com/PaulSonOfLars/gotgbot/v2') &&
+          !contains(steps.metadata.outputs.dependency-names, 'github.com/PaulSonOfLars/gotg_md2html')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
+          REPOSITORY: ${{ github.repository }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
         run: |
-          echo "Auto-approving ${{ steps.metadata.outputs.update-type }} update"
-          gh pr review $PR_NUMBER --approve --repo ${{ github.repository }}
-          gh pr merge $PR_NUMBER --auto --squash --repo ${{ github.repository }}
+          echo "Auto-approving $UPDATE_TYPE update"
+          gh pr review "$PR_NUMBER" --approve --repo "$REPOSITORY"
+          gh pr merge "$PR_NUMBER" --auto --squash --repo "$REPOSITORY"
 
-      - name: Comment on major updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+      - name: Comment on updates requiring manual review
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-major' ||
+          contains(steps.metadata.outputs.dependency-names, 'github.com/PaulSonOfLars/gotgbot/v2') ||
+          contains(steps.metadata.outputs.dependency-names, 'github.com/PaulSonOfLars/gotg_md2html')
         env:
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
         run: |
-          comment_body="🔄 **Major version update detected!**
+          comment_body="🔄 **Manual dependency review required**
 
-          **Update type:** \`${{ steps.metadata.outputs.update-type }}\`
-          **Dependency:** \`${{ steps.metadata.outputs.dependency-names }}\`
+          **Update type:** \`$UPDATE_TYPE\`
+          **Dependency:** \`$DEPENDENCY_NAMES\`
 
-          This PR requires manual review for potential breaking changes.
+          Major updates and compatibility-sensitive gotgbot/gotg_md2html updates are not auto-merged.
 
-          @${{ github.repository_owner }} please review this update carefully."
+          @$REPOSITORY_OWNER please review this update carefully."
 
-          gh pr comment $PR_NUMBER --body "$comment_body" --repo ${{ github.repository }}
+          gh pr comment "$PR_NUMBER" --body "$comment_body" --repo "$REPOSITORY"

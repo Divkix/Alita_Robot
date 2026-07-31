@@ -96,6 +96,15 @@ func TestFilterCommandValidationBranches(t *testing.T) {
 		}
 	}
 
+	unicodeKeyword := strings.Repeat("界", 100)
+	unicodeCtx := newModuleMessageContext(bot, chat, admin, "/filter "+unicodeKeyword+" value")
+	if err := filtersModule.addFilter(bot, unicodeCtx); err != ext.EndGroups {
+		t.Fatalf("addFilter 100-rune keyword error = %v, want EndGroups", err)
+	}
+	if !filters.DoesFilterExists(chat.Id, unicodeKeyword) {
+		t.Fatal("100-rune filter keyword was rejected")
+	}
+
 	if err := filters.AddFilter(chat.Id, "dupe", "old", "", nil, db.TEXT); err != nil {
 		t.Fatalf("AddFilter setup error = %v", err)
 	}
@@ -332,7 +341,16 @@ func TestRemoveAllFiltersEmptyCancelAndInvalidCallback(t *testing.T) {
 	if err := filtersModule.filtersButtonHandler(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("filtersButtonHandler invalid error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+	unknownCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		owner,
+		encodeCallbackData("rmAllFilters", map[string]string{"a": "crafted"}),
+	)
+	if err := filtersModule.filtersButtonHandler(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("filtersButtonHandler unknown action error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid acknowledgements", len(calls))
 	}
 }

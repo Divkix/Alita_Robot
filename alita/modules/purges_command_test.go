@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -276,5 +277,23 @@ func TestDeleteButtonHandlerRejectsInvalidData(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want error answer", len(calls))
+	}
+}
+
+func TestDeleteButtonHandlerReturnsDeleteFailure(t *testing.T) {
+	client := newModuleBotClient()
+	requestErr := errors.New("delete failed")
+	client.errors["deleteMessage"] = requestErr
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Purge Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	data := encodeCallbackData("deleteMsg", map[string]string{"m": "345"})
+
+	err := purgesModule.deleteButtonHandler(bot, newModuleCallbackContext(bot, chat, admin, data))
+	if !errors.Is(err, requestErr) {
+		t.Fatalf("deleteButtonHandler error = %v, want delete failure", err)
+	}
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
+		t.Fatalf("answerCallbackQuery calls = %d, want no success answer", len(calls))
 	}
 }

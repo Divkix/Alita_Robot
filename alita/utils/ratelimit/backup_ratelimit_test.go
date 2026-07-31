@@ -21,10 +21,12 @@ func TestFormatCooldown(t *testing.T) {
 		want     string
 	}{
 		{"30 seconds", 30 * time.Second, "30 seconds"},
-		{"1 minute 30 seconds", 90 * time.Second, "1 minutes 30 seconds"},
+		{"1 minute 30 seconds", 90 * time.Second, "1 minute 30 seconds"},
 		{"5 minutes", 5 * time.Minute, "5 minutes"},
-		{"1 hour", 1 * time.Hour, "1 hours"},
-		{"1 hour 30 minutes", 1*time.Hour + 30*time.Minute, "1 hours 30 minutes"},
+		{"1 hour", 1 * time.Hour, "1 hour"},
+		{"1 hour 30 minutes", 1*time.Hour + 30*time.Minute, "1 hour 30 minutes"},
+		{"1 hour 1 minute", 1*time.Hour + time.Minute, "1 hour 1 minute"},
+		{"1 second", time.Second, "1 second"},
 		{"0 seconds", 0, "0 seconds"},
 	}
 
@@ -180,6 +182,43 @@ func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
 	}
 	if remaining <= 0 || remaining > DefaultExportCooldown {
 		t.Errorf("expected remaining in (0, %v], got %v", DefaultExportCooldown, remaining)
+	}
+}
+
+func TestBackupRateLimiter_AcquireExportIsAtomic(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	limiter := &BackupRateLimiter{}
+	const chatID = int64(99906)
+	const contenders = 20
+	start := make(chan struct{})
+	results := make(chan bool, contenders)
+	var wg sync.WaitGroup
+	for range contenders {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			allowed, _ := limiter.AcquireExport(chatID)
+			results <- allowed
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	acquired := 0
+	for allowed := range results {
+		if allowed {
+			acquired++
+		}
+	}
+	if acquired != 1 {
+		t.Fatalf("successful acquisitions = %d, want 1", acquired)
+	}
+
+	if allowed, _ := limiter.AcquireExport(chatID); allowed {
+		t.Fatal("AcquireExport allowed a second reservation")
 	}
 }
 

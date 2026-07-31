@@ -13,7 +13,7 @@ services:
       DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: redis
-      AUTO_MIGRATE: "false"
+      AUTO_MIGRATE: "true"
       USE_WEBHOOKS: "true"
       HTTP_PORT: "8080"
       DROP_PENDING_UPDATES: "true"

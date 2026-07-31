@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -88,10 +87,14 @@ func TestLoadAdminCacheFetchesAndStoresAdminMap(t *testing.T) {
 	if admin, ok := got.UserMap[777000]; !ok || admin.User.FirstName != "Telegram" {
 		t.Fatalf("UserMap[777000] = (%+v, %v), want Telegram admin", admin, ok)
 	}
-	waitForAdminCacheStored(t, -100123)
+	if found, _ := GetAdminCacheList(-100123); !found {
+		t.Fatal("LoadAdminCache did not store the admin list before returning")
+	}
 }
 
 func TestLoadAdminCacheHandlesNilBotNonAdminBotAndEmptyAdminList(t *testing.T) {
+	withMemoryMarshaler(t)
+
 	if got := LoadAdminCache(nil, -100123); got.Cached || len(got.UserInfo) != 0 {
 		t.Fatalf("LoadAdminCache(nil) = %+v, want empty uncached result", got)
 	}
@@ -104,6 +107,9 @@ func TestLoadAdminCacheHandlesNilBotNonAdminBotAndEmptyAdminList(t *testing.T) {
 	if got := LoadAdminCache(newAdminCacheBot(memberClient), -100124); !got.Cached || len(got.UserInfo) != 0 {
 		t.Fatalf("LoadAdminCache(non-admin bot) = %+v, want cached empty result", got)
 	}
+	if found, _ := GetAdminCacheList(-100124); !found {
+		t.Fatal("LoadAdminCache did not store the non-admin result")
+	}
 
 	emptyClient := &adminCacheBotClient{responses: map[string]json.RawMessage{
 		"getChatMember:999": json.RawMessage(
@@ -114,17 +120,7 @@ func TestLoadAdminCacheHandlesNilBotNonAdminBotAndEmptyAdminList(t *testing.T) {
 	if got := LoadAdminCache(newAdminCacheBot(emptyClient), -100125); !got.Cached || len(got.UserInfo) != 0 {
 		t.Fatalf("LoadAdminCache(empty admins) = %+v, want cached empty result", got)
 	}
-}
-
-func waitForAdminCacheStored(t *testing.T, chatID int64) {
-	t.Helper()
-
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if found, _ := GetAdminCacheList(chatID); found {
-			return
-		}
-		time.Sleep(time.Millisecond)
+	if found, _ := GetAdminCacheList(-100125); !found {
+		t.Fatal("LoadAdminCache did not store the empty admin-list result")
 	}
-	t.Fatalf("admin cache for chat %d was not stored before timeout", chatID)
 }

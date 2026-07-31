@@ -53,10 +53,21 @@ func getRedisAddress() string {
 	return parsed.Host
 }
 
+// getRedisURL returns REDIS_URL only when the direct address form is not in use.
+func getRedisURL() string {
+	if os.Getenv("REDIS_ADDRESS") != "" {
+		return ""
+	}
+	return os.Getenv("REDIS_URL")
+}
+
 // getRedisPassword returns the Redis password from REDIS_PASSWORD or extracts it from REDIS_URL
 func getRedisPassword() string {
 	if pass := os.Getenv("REDIS_PASSWORD"); pass != "" {
 		return pass
+	}
+	if os.Getenv("REDIS_ADDRESS") != "" {
+		return ""
 	}
 
 	// Fallback to extracting from REDIS_URL
@@ -76,6 +87,14 @@ func getRedisPassword() string {
 	}
 
 	return ""
+}
+
+func getHTTPPort() int {
+	value := os.Getenv("HTTP_PORT")
+	if value == "" {
+		value = os.Getenv("PORT")
+	}
+	return typeConvertor{str: value}.Int()
 }
 
 // Config holds all configuration for the bot
@@ -108,6 +127,7 @@ type Config struct {
 
 	// Redis configuration
 	RedisAddress  string `validate:"required"`
+	RedisURL      string
 	RedisPassword string
 	RedisDB       int
 
@@ -222,7 +242,7 @@ func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		// Core configuration
 		BotToken:    os.Getenv("BOT_TOKEN"),
-		BotVersion:  "2.20.2",
+		BotVersion:  "2.21.0",
 		ApiServer:   os.Getenv("API_SERVER"),
 		WorkingMode: "worker",
 		Debug:       typeConvertor{str: os.Getenv("DEBUG")}.Bool(),
@@ -246,11 +266,12 @@ func LoadConfig() (*Config, error) {
 
 		// Redis configuration (supports both REDIS_ADDRESS and REDIS_URL for platform compatibility)
 		RedisAddress:  getRedisAddress(),
+		RedisURL:      getRedisURL(),
 		RedisPassword: getRedisPassword(),
 		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
 
 		// HTTP Server configuration
-		HTTPPort: typeConvertor{str: os.Getenv("HTTP_PORT")}.Int(),
+		HTTPPort: getHTTPPort(),
 
 		// Webhook configuration
 		UseWebhooks:   typeConvertor{str: os.Getenv("USE_WEBHOOKS")}.Bool(),
@@ -338,7 +359,7 @@ func (cfg *Config) setDefaults() {
 	if cfg.RedisAddress == "" {
 		cfg.RedisAddress = "localhost:6379"
 	}
-	if cfg.RedisDB == 0 {
+	if cfg.RedisDB == 0 && os.Getenv("REDIS_DB") != "0" {
 		cfg.RedisDB = 1
 	}
 
@@ -385,10 +406,10 @@ func (cfg *Config) setDefaults() {
 
 	// Enable monitoring by default in production
 	if !cfg.Debug {
-		if !cfg.EnablePerformanceMonitoring {
+		if os.Getenv("ENABLE_PERFORMANCE_MONITORING") == "" {
 			cfg.EnablePerformanceMonitoring = true
 		}
-		if !cfg.EnableBackgroundStats {
+		if os.Getenv("ENABLE_BACKGROUND_STATS") == "" {
 			cfg.EnableBackgroundStats = true
 		}
 	}

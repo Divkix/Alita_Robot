@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,11 +48,7 @@ func main() {
 
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
-		// Use default port if config is not properly initialized or port is 0
-		healthPort := config.AppConfig.HTTPPort
-		if healthPort == 0 {
-			healthPort = constants.DefaultHTTPPort
-		}
+		healthPort := healthCheckPort()
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", healthPort))
 		if err != nil {
 			os.Exit(1)
@@ -70,7 +67,7 @@ func main() {
 		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.20.2" // Fallback to hardcoded version if config wasn't loaded
+			version = "v2.21.0" // Fallback to hardcoded version if config wasn't loaded
 		}
 		fmt.Println(version)
 		os.Exit(0)
@@ -186,6 +183,10 @@ func main() {
 	shutdownManager := shutdown.NewManager()
 
 	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Closing database connections...")
+		return closeDBConnections()
+	})
+	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")
 		if activityMonitor != nil {
 			activityMonitor.Stop()
@@ -198,12 +199,9 @@ func main() {
 		}
 		return nil
 	})
-	shutdownManager.RegisterHandler(func() error {
-		log.Info("[Shutdown] Closing database connections...")
-		return closeDBConnections()
-	})
 
-	// Register DB monitoring shutdown handler (must run before closeDBConnections in LIFO)
+	// DB-using workers are registered after closeDBConnections so LIFO stops
+	// them before the pool is closed.
 	if dbMonitoringCancel != nil {
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Stopping database monitoring...")
@@ -224,9 +222,11 @@ func main() {
 		modules.StopAntiRaidExpiryPoller()
 		return nil
 	})
-
-	// Start shutdown handler in background
-	go shutdownManager.WaitForShutdown()
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Stopping captcha lifecycle...")
+		modules.StopCaptchaLifecycle()
+		return nil
+	})
 
 	// Create unified HTTP server for health, metrics, and webhook endpoints
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
@@ -271,6 +271,8 @@ func main() {
 			log.Info("[Shutdown] Stopping HTTP server...")
 			return httpServer.Stop()
 		})
+
+		go shutdownManager.WaitForShutdown()
 
 		// Wait for shutdown signal (blocking)
 		select {}
@@ -325,9 +327,29 @@ func main() {
 			return nil
 		})
 
+		go shutdownManager.WaitForShutdown()
+
 		// Idle, to keep updates coming in, and avoid bot stopping.
 		updater.Idle()
 	}
+}
+
+func healthCheckPort() int {
+	for _, name := range []string{"HTTP_PORT", "PORT"} {
+		value := os.Getenv(name)
+		if value == "" {
+			continue
+		}
+		port, err := strconv.Atoi(value)
+		if err == nil && port > 0 && port <= 65535 {
+			return port
+		}
+		break
+	}
+	if config.AppConfig != nil && config.AppConfig.HTTPPort > 0 {
+		return config.AppConfig.HTTPPort
+	}
+	return constants.DefaultHTTPPort
 }
 
 func newBotAPITransport(maxIdleConns, maxIdleConnsPerHost int) *http.Transport {
@@ -417,11 +439,14 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 	return ext.DispatcherActionNoop
 }
 
-// postInit runs shared initialization steps after the server has started
-// for both webhook and polling modes. It loads modules, sets bot commands,
-// and sends the startup notification message.
+// postInit runs shared initialization before either update transport starts.
+// It loads modules, restores captcha state, sets bot commands, and sends the
+// startup notification.
 func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	alita.LoadModules(d)
+	if err := modules.StartCaptchaLifecycle(b); err != nil {
+		log.Fatalf("[Captcha] Failed to start lifecycle: %v", err)
+	}
 	log.Infof("[Modules] Loaded modules: %s", alita.ListModules())
 
 	config.AppConfig.WorkingMode = mode

@@ -113,10 +113,36 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 	}
 	bot.Username = "FormatBot"
 	chat := &gotgbot.Chat{Id: -100777, Type: "supergroup", Title: "Rules Chat"}
+
+	noRulesText, noRulesButtons := FormattingReplacer(
+		bot,
+		chat,
+		&gotgbot.User{Id: 5, FirstName: "Ada"},
+		"before {rules} after",
+		nil,
+	)
+	if noRulesText != "before  after" {
+		t.Fatalf("result without rules = %q, want rules token removed", noRulesText)
+	}
+	if len(noRulesButtons) != 0 {
+		t.Fatalf("buttons without rules = %#v, want none", noRulesButtons)
+	}
+
 	rules.SetChatRules(chat.Id, "Keep it tidy.")
 	rules.SetChatRulesButton(chat.Id, "Read Rules")
 
 	got, buttons := FormattingReplacer(
+		bot,
+		chat,
+		&gotgbot.User{Id: 5, FirstName: "{rules}"},
+		"{first}",
+		nil,
+	)
+	if got != "{rules}" || len(buttons) != 0 {
+		t.Fatalf("user-provided directive text produced %q, %#v; want literal text and no button", got, buttons)
+	}
+
+	got, buttons = FormattingReplacer(
 		bot,
 		chat,
 		&gotgbot.User{Id: 5, FirstName: "Ada"},

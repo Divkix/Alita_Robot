@@ -18,7 +18,7 @@ func TestRegisterAnonymousAdminHandler(t *testing.T) {
 
 	bot := &gotgbot.Bot{}
 	ctx := &ext.Context{}
-	
+
 	err := HandleAnonymousAdmin(bot, ctx, "test")
 	if err != nil {
 		t.Fatalf("HandleAnonymousAdmin returned error: %v", err)
@@ -33,7 +33,7 @@ func TestHandleAnonymousAdmin_UnknownCommand(t *testing.T) {
 
 	bot := &gotgbot.Bot{}
 	ctx := &ext.Context{}
-	
+
 	err := HandleAnonymousAdmin(bot, ctx, "unknown")
 	if err == nil {
 		t.Fatal("Expected error for unknown command")

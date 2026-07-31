@@ -5,7 +5,6 @@ import (
 	"html"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
@@ -121,18 +120,6 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		return err
 	}
 
-	switch warnType {
-	case "dwarn":
-		if msg.ReplyToMessage != nil {
-			_, err := msg.ReplyToMessage.Delete(b, nil)
-			if err != nil {
-				log.Errorf("[Warns] Failed to delete message: %v", err)
-			}
-		}
-	case "swarn":
-		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-	}
-
 	chatMember, err := chat.GetMember(b, userId, nil)
 	if err != nil {
 		log.Error(err)
@@ -141,22 +128,38 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 	u := chatMember.MergeChatMember().User
 	warnrc := warns.GetWarnSetting(chat.Id)
-	numWarns, reasons := warns.WarnUser(userId, chat.Id, reason)
+	numWarns, reasons, err := warns.WarnUser(userId, chat.Id, reason)
+	if err != nil {
+		text, _ := tr.GetString("common_settings_save_failed")
+		_, sendErr := msg.Reply(b, text, formatting.Shtml())
+		if sendErr != nil {
+			return sendErr
+		}
+		return ext.EndGroups
+	}
+
+	switch warnType {
+	case "dwarn":
+		if msg.ReplyToMessage != nil {
+			if _, deleteErr := msg.ReplyToMessage.Delete(b, nil); deleteErr != nil {
+				log.Errorf("[Warns] Failed to delete message: %v", deleteErr)
+			}
+		}
+	case "swarn":
+		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
+	}
 
 	if numWarns >= warnrc.WarnLimit {
 		punished := false
 		switch warnrc.WarnMode {
 		case "kick":
-			_, err = chat.BanMember(b, userId, nil)
+			err = kickMember(b, chat.Id, userId)
 			temp, _ := tr.GetString("warns_limit_kicked")
 			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
 			if err != nil {
 				log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
 				return err
 			}
-			// Kick = ban then unban, matching /kick and every other kick path.
-			// Without the delayed unban this becomes a permanent ban.
-			delayedUnban(chat, b, userId, "warn-kick", 2*time.Second)
 			punished = true
 		case "mute":
 			_, err = chat.RestrictMember(b, userId,
@@ -184,7 +187,9 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 		}
 
 		if punished {
-			warns.ResetUserWarns(userId, chat.Id)
+			if _, resetErr := warns.ResetUserWarns(userId, chat.Id); resetErr != nil {
+				return resetErr
+			}
 		}
 		var sb strings.Builder
 		for _, warnReason := range reasons {
@@ -479,8 +484,10 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	var replyText string
 
-	res := warns.RemoveWarn(int64(userId), chat.Id)
-	if res {
+	removed, removeErr := warns.RemoveWarn(int64(userId), chat.Id)
+	if removeErr != nil {
+		replyText, _ = tr.GetString("error_generic")
+	} else if removed {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	} else {
@@ -621,8 +628,15 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	warns.ResetUserWarns(userId, chat.Id)
-	text, _ := tr.GetString("warns_reset_success")
+	removed, resetErr := warns.ResetUserWarns(userId, chat.Id)
+	var text string
+	if resetErr != nil {
+		text, _ = tr.GetString("error_generic")
+	} else if removed {
+		text, _ = tr.GetString("warns_reset_success")
+	} else {
+		text, _ = tr.GetString("warns_no_warns_to_remove")
+	}
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
@@ -730,12 +744,20 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyText = helpText
 			break
 		}
-		warns.ResetAllChatWarns(chat.Id)
-		helpText, _ = tr.GetString("warns_reset_all_success")
-		replyText, _ = tr.GetString("warns_reset_all_final")
+		if err := warns.ResetAllChatWarns(chat.Id); err == nil {
+			helpText, _ = tr.GetString("warns_reset_all_success")
+			replyText, _ = tr.GetString("warns_reset_all_final")
+		} else {
+			helpText, _ = tr.GetString("error_generic")
+			replyText = helpText
+		}
 	case "no":
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")
 		replyText = helpText
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
 	}
 
 	if query.Message == nil {
@@ -813,7 +835,10 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	var replyText string
-	if warns.RemoveWarn(userId, chat.Id) {
+	removed, removeErr := warns.RemoveWarn(userId, chat.Id)
+	if removeErr != nil {
+		replyText, _ = tr.GetString("error_generic")
+	} else if removed {
 		temp, _ := tr.GetString("warns_removed_by")
 		replyText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	} else {

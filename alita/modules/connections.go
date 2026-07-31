@@ -46,21 +46,15 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	chatId := m.isConnected(b, ctx, user.Id)
-	if chatId == 0 {
+	chat := chat_status.IsUserConnected(b, ctx, false, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
-	chat, err := b.GetChat(chatId, nil)
-	if err != nil {
-		connections.DisconnectId(user.Id)
-		log.Error(err)
-		return err
-	}
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 	_text := fmt.Sprintf(temp, chat.Title)
 	connKeyboard := keyboard.InitButtons(b, chat.Id, user.Id)
-	_, err = msg.Reply(b,
+	_, err := msg.Reply(b,
 		_text,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: connKeyboard,
@@ -105,11 +99,17 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		toogleOption := args[1]
 		switch toogleOption {
 		case "on", "true", "yes":
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
-			connections.ToggleAllowConnect(chat.Id, true)
+			if err := connections.ToggleAllowConnect(chat.Id, true); err != nil {
+				text, _ = tr.GetString("common_settings_save_failed")
+			} else {
+				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_on")
+			}
 		case "off", "false", "no":
-			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
-			connections.ToggleAllowConnect(chat.Id, false)
+			if err := connections.ToggleAllowConnect(chat.Id, false); err != nil {
+				text, _ = tr.GetString("common_settings_save_failed")
+			} else {
+				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_allow_connect_turned_off")
+			}
 		default:
 			text, _ = tr.GetString("connections_invalid_option")
 		}
@@ -159,8 +159,9 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
 			text, _ = tr.GetString(denyKey)
+		} else if err := connections.ConnectId(user.Id, chat.Id); err != nil {
+			text, _ = tr.GetString("common_settings_save_failed")
 		} else {
-			connections.ConnectId(user.Id, chat.Id)
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
 			text = fmt.Sprintf(temp, chat.Title)
 			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
@@ -213,12 +214,19 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	user := query.From
 	msg := query.Message
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if msg == nil {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	userType := ""
 	if decoded, ok := decodeCallbackData(query.Data, "connbtns"); ok {
 		userType, _ = decoded.Field("t")
 	}
-	if userType == "" {
+	switch userType {
+	case "Admin", "User", "Main":
+	default:
 		log.Warnf("[Connections] Invalid callback data format: %s", query.Data)
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
@@ -240,8 +248,8 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		}
 	)
 
-	chatStat := m.isConnected(b, ctx, user.Id)
-	if chatStat == 0 {
+	chat := chat_status.IsUserConnected(b, ctx, false, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -251,19 +259,9 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	case "User":
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_user_conn_cmds")
 	case "Main":
-		chatId := m.isConnected(b, ctx, user.Id)
-		if chatId == 0 {
-			return ext.EndGroups
-		}
-		pchat, err := b.GetChat(chatId, nil)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
-		replyText = fmt.Sprintf(temp, pchat.Title)
-		replyKb = keyboard.InitButtons(b, pchat.Id, user.Id)
+		replyText = fmt.Sprintf(temp, chat.Title)
+		replyKb = keyboard.InitButtons(b, chat.Id, user.Id)
 	}
 
 	_, _, err := msg.EditText(b,
@@ -305,14 +303,15 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 
 	if ctx.Message.Chat.Type == "private" {
-		chatId := m.isConnected(b, ctx, user.Id)
-		if chatId == 0 {
-			return ext.EndGroups
+		if connections.Connection(user.Id).Connected {
+			if err := connections.DisconnectId(user.Id); err != nil {
+				text, _ = tr.GetString("common_settings_save_failed")
+			} else {
+				text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
+			}
+		} else {
+			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
 		}
-
-		connections.DisconnectId(user.Id)
-
-		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_disconnected")
 	} else {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_disconnect_need_pm")
 	}
@@ -324,40 +323,6 @@ func (m moduleStruct) disconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	return ext.EndGroups
-}
-
-/*
-	Function used to check if user is connected to a chat or not
-
-If user is connected, chatId is returned else 0
-*/
-// isConnected checks if a user has an active connection to any chat.
-// Returns the connected chat ID or 0 if no connection exists.
-func (m moduleStruct) isConnected(b *gotgbot.Bot, ctx *ext.Context, userId int64) int64 {
-	conn := connections.Connection(userId)
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	if conn.Connected {
-		return conn.ChatId
-	}
-
-	text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
-	if query, ok := callbackQueryFromContext(ctx); ok && query != nil {
-		_, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		if err != nil {
-			log.Error(err)
-		}
-		return 0
-	}
-	if ctx == nil || ctx.EffectiveMessage == nil {
-		return 0
-	}
-	_, err := ctx.EffectiveMessage.Reply(b, text, nil)
-	if err != nil {
-		log.Error(err)
-	}
-
-	return 0
 }
 
 /*
@@ -380,7 +345,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 		if user == nil {
 			return ext.EndGroups
 		}
-		chatId := connections.ReconnectId(user.Id)
+		chatId := connections.Connection(user.Id).ChatId
 
 		if chatId != 0 {
 			gchat, err := b.GetChat(chatId, nil)
@@ -392,13 +357,24 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 			// need to convert to chat type
 			_chat := gchat.ToChat()
 
-			if !chat_status.IsUserInChat(b, &_chat, user.Id) {
-				return ext.EndGroups
+			isMember, err := chat_status.IsUserInChatWithError(b, &_chat, user.Id)
+			if err != nil {
+				log.Error(err)
+				return err
 			}
-
-			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
-			text = fmt.Sprintf(temp, gchat.Title)
-			connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
+			if !isMember {
+				if err := connections.DisconnectId(user.Id); err != nil {
+					text, _ = tr.GetString("common_settings_save_failed")
+				} else {
+					text, _ = tr.GetString("connections_stale_connection")
+				}
+			} else if err := connections.ConnectId(user.Id, chatId); err != nil {
+				text, _ = tr.GetString("common_settings_save_failed")
+			} else {
+				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
+				text = fmt.Sprintf(temp, gchat.Title)
+				connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
+			}
 		} else {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_no_last_chat")
 		}
@@ -476,10 +452,13 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		return ext.EndGroups
 	}
 
-	// Synchronous DB write before user confirmation - fixes issue #694
-	connections.ConnectId(user.Id, cochat.Id)
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if err := connections.ConnectId(user.Id, cochat.Id); err != nil {
+		text, _ := tr.GetString("common_settings_save_failed")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+
 	Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
 	connKeyboard := keyboard.InitButtons(b, cochat.Id, user.Id)
 

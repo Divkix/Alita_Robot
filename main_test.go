@@ -8,14 +8,17 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/modules"
 	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
@@ -95,6 +98,23 @@ func TestNewBotAPITransportKeepsConnectionTuning(t *testing.T) {
 	}
 }
 
+func TestHealthCheckPortUsesProviderEnvironment(t *testing.T) {
+	previousConfig := config.AppConfig
+	config.AppConfig = &config.Config{HTTPPort: 8080}
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+
+	t.Setenv("HTTP_PORT", "")
+	t.Setenv("PORT", "9090")
+	if got := healthCheckPort(); got != 9090 {
+		t.Fatalf("healthCheckPort() = %d, want Railway PORT 9090", got)
+	}
+
+	t.Setenv("HTTP_PORT", "7070")
+	if got := healthCheckPort(); got != 7070 {
+		t.Fatalf("healthCheckPort() = %d, want HTTP_PORT 7070", got)
+	}
+}
+
 func TestBaseBotClientUsesResolvedAPIURL(t *testing.T) {
 	client := &gotgbot.BaseBotClient{
 		DefaultRequestOpts: &gotgbot.RequestOpts{
@@ -141,7 +161,7 @@ func TestMainHealthModeExitsByStatus(t *testing.T) {
 
 			port := serverPort(t, server.URL)
 			cmd := helperMainCommand(t, "--health")
-			cmd.Env = append(cmd.Env, "ALITA_TEST_MAIN_HTTP_PORT="+port)
+			cmd.Env = append(cmd.Env, "HTTP_PORT="+port, "PORT=")
 
 			output, err := cmd.CombinedOutput()
 			if tt.wantErr {
@@ -169,6 +189,20 @@ func TestPostInitSetsCommandsAndStartupMessage(t *testing.T) {
 	config.AppConfig.WorkingMode = ""
 	t.Cleanup(func() {
 		config.AppConfig = previousConfig
+	})
+
+	previousDB := db.DB
+	testDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open captcha lifecycle test database: %v", err)
+	}
+	if err := testDB.AutoMigrate(&db.CaptchaAttempts{}); err != nil {
+		t.Fatalf("migrate captcha lifecycle test database: %v", err)
+	}
+	db.DB = testDB
+	t.Cleanup(func() {
+		modules.StopCaptchaLifecycle()
+		db.DB = previousDB
 	})
 
 	client := &mainBotClient{}
@@ -250,14 +284,6 @@ func TestHelperMainProcess(t *testing.T) {
 	if version := os.Getenv("ALITA_TEST_MAIN_VERSION"); version != "" {
 		config.AppConfig.BotVersion = version
 	}
-	if port := os.Getenv("ALITA_TEST_MAIN_HTTP_PORT"); port != "" {
-		parsed, err := strconv.Atoi(port)
-		if err != nil {
-			t.Fatalf("invalid ALITA_TEST_MAIN_HTTP_PORT: %v", err)
-		}
-		config.AppConfig.HTTPPort = parsed
-	}
-
 	args := []string{os.Args[0]}
 	if sep := slicesIndex(os.Args, "--"); sep >= 0 && sep+1 < len(os.Args) {
 		args = append(args, os.Args[sep+1:]...)

@@ -147,10 +147,14 @@ When the bot starts (`main.go`), it performs these steps in order:
   <Step title="Initial Checks">
     <Badge variant="accent">Validation</Badge>
 
-    Validates configuration and performs startup health checks.
+    Ensures the bot user exists in the database before modules load, providing
+    the foreign-key anchor used by downstream records. Configuration has already
+    been loaded and validated by the config package.
 
     ```go
-    alita.InitialChecks(b)  // Validates config and performs startup health checks
+    if err := alita.InitialChecks(b); err != nil {
+        log.Fatalf("Initial checks failed: %v", err)
+    }
     ```
   </Step>
 
@@ -190,7 +194,7 @@ When the bot starts (`main.go`), it performs these steps in order:
     The unified HTTP server registers health, metrics, and optionally pprof endpoints. Then either webhook or polling mode is activated.
 
     ```go
-    httpServer := httpserver.New(config.AppConfig.HTTPPort)
+    httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
     httpServer.RegisterHealth()
     httpServer.RegisterMetrics()
     httpServer.RegisterDBMetrics()
@@ -209,7 +213,8 @@ When the bot starts (`main.go`), it performs these steps in order:
 
 ## Module Loading Order
 
-After dispatcher creation, modules are loaded via `alita/main.go`:
+After dispatcher creation and before Telegram updates are accepted, `postInit`
+loads modules and starts the persisted captcha lifecycle:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
@@ -222,7 +227,17 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     // Loads all registered modules in priority order
     modules.LoadAllModules(dispatcher)
 }
+
+alita.LoadModules(dispatcher)
+if err := modules.StartCaptchaLifecycle(bot); err != nil {
+    log.Fatalf("[Captcha] Failed to start lifecycle: %v", err)
+}
 ```
+
+Captcha startup recovery releases incomplete attempts, finalizes expired
+attempts, and reschedules still-valid attempts. It then starts the periodic
+attempt-cleanup and scheduled-unmute workers. A recovery failure aborts startup
+instead of accepting updates with an unknown captcha state.
 
 Registered modules include: BotUpdates, Antispam, Language, Admin, Approvals, Pin, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, AntiRaid, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, Blacklists, Reactions, Backup.
 
@@ -242,7 +257,7 @@ func LoadBans(dispatcher *ext.Dispatcher) {
 
     // Callback query handlers
     dispatcher.AddHandler(handlers.NewCallback(
-        callbackquery.Prefix("restrict."),
+        callbackquery.Prefix("restrict"),
         bansModule.restrictButtonHandler,
     ))
 }

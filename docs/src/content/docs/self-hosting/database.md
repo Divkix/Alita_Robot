@@ -13,9 +13,8 @@ Alita Robot uses PostgreSQL as its primary database with GORM as the ORM layer. 
 PostgreSQL is the only supported database engine. MySQL, SQLite, and other databases are not supported.
 :::
 
-- **PostgreSQL** 17 or higher
+- **PostgreSQL** 16 or higher
 - UTF-8 encoding support
-- Minimum 512MB RAM for the database
 
 ## Connection String
 
@@ -68,12 +67,12 @@ MIGRATIONS_PATH=migrations
 ### How Auto-Migration Works
 
 :::tip
-Auto-migration is safe to enable on every startup. Migrations are tracked and only applied once, so re-running them is a no-op.
+Auto-migration is safe to enable on every startup for a single bot instance. If you run multiple replicas, serialize deployments so only one instance migrates at a time.
 :::
 
 1. **Migration Files**: SQL migrations are stored in the `migrations/` directory
-2. **Version Tracking**: Applied migrations are tracked in the `schema_migrations` table
-3. **Idempotent**: Migrations are only applied once; safe to run multiple times
+2. **Version Tracking**: Applied migrations and their SHA-256 checksums are tracked in the `schema_migrations` table
+3. **Immutable History**: Changing an applied file causes startup to fail with a checksum mismatch
 4. **Transactional**: Each migration runs in a transaction for atomicity
 5. **Auto-Cleaning**: Supabase-specific SQL (GRANT statements, RLS policies) is automatically removed
 
@@ -91,15 +90,15 @@ Example log output:
 
 ```
 [Migrations] Starting automatic database migration...
-[Migrations] Found 28 migration files
+[Migrations] Found N migration files
 [Migrations] Applying 20250805200527_initial_migration.sql...
 [Migrations] Successfully applied 20250805200527_initial_migration.sql
-[Migrations] Migration complete - Applied: 3, Skipped: 24
+[Migrations] Migration complete - Applied: N, Skipped: M
 ```
 
 ## Manual Migration Commands
 
-If you prefer manual control over migrations, use the Makefile targets:
+If you prefer manual control, the repository's migration script uses the same `migrations/` source files, cleans Supabase-only SQL into a temporary directory, and applies each file transactionally.
 
 ### Apply Migrations
 
@@ -110,6 +109,7 @@ export PSQL_DB_NAME=alita
 export PSQL_DB_USER=postgres
 export PSQL_DB_PASSWORD=password
 export PSQL_DB_PORT=5432  # Optional, defaults to 5432
+export PSQL_DB_SSLMODE=prefer  # Optional
 
 # Apply all pending migrations
 make psql-migrate
@@ -121,18 +121,15 @@ make psql-migrate
 make psql-status
 ```
 
-### Additional Migration Commands
+The manual runner also verifies the checksum of every previously applied migration. Legacy rows without checksums are backfilled on their first check.
+
+:::caution
+Migrations are forward-only. Never edit an applied migration or insert/delete `schema_migrations` rows by hand. Add a new timestamped migration for every schema change.
+:::
+
+### Additional Database Commands
 
 ```bash
-# Prepare database for migrations (create schema_migrations table)
-make psql-prepare
-
-# Rollback the last migration (use with caution)
-make psql-rollback
-
-# Verify migration integrity
-make psql-verify
-
 # Validate database for orphaned data before major migrations
 make validate-db
 
@@ -181,7 +178,7 @@ DB_MAX_OPEN_CONNS=200
 DB_CONN_MAX_LIFETIME_MIN=240
 
 # Maximum idle time in minutes
-# Default: 60, Recommended: 30-120 minutes
+# Default: 60, Valid range: 1-60 minutes
 DB_CONN_MAX_IDLE_TIME_MIN=60
 ```
 
@@ -199,7 +196,7 @@ Start with the defaults and only adjust pool settings if you observe connection 
 
 ## Schema Design Patterns
 
-Alita Robot uses a **surrogate key pattern** for all database tables:
+Alita Robot uses a **surrogate key pattern** for application tables. The `schema_migrations` metadata table is keyed by migration filename instead.
 
 ### Primary Keys
 
@@ -207,7 +204,7 @@ Each table has an auto-incremented `id` field as the primary key (internal ident
 
 ```sql
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,           -- Internal ID
+    id BIGSERIAL PRIMARY KEY,        -- Internal ID
     user_id BIGINT NOT NULL UNIQUE,  -- Telegram user ID
     username VARCHAR(255),
     name VARCHAR(255),
@@ -271,7 +268,8 @@ Alita Robot creates the following tables:
 | `captcha_attempts` | Active captcha attempts |
 | `captcha_muted_users` | Users muted due to captcha failure |
 | `stored_messages` | Messages stored during captcha |
-| `schema_migrations` | Migration tracking |
+| `reactions` | Per-chat keyword reactions |
+| `schema_migrations` | Migration versions and checksums |
 
 ## Backup and Restore
 
@@ -342,14 +340,7 @@ too many connections for role
 Migration failed: column already exists
 ```
 
-This usually means the migration was partially applied. Options:
-
-1. Set `AUTO_MIGRATE_SILENT_FAIL=true` and let the bot continue
-2. Manually fix the schema and mark the migration as applied:
-   ```sql
-   INSERT INTO schema_migrations (version, executed_at)
-   VALUES ('problematic_migration.sql', NOW());
-   ```
+Each migration is transactional, so a failed file is not recorded as applied. Inspect the failing statement and reconcile the existing schema so the migration can run successfully. Do not bypass the failure with `AUTO_MIGRATE_SILENT_FAIL` or manually mark the file as applied; either can leave the application running against an incomplete schema.
 
 ### Slow queries
 

@@ -22,8 +22,8 @@ func (CaptchaSettings) TableName() string {
 // CaptchaAttempts represents active captcha attempts for users
 type CaptchaAttempts struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	UserID       int64     `gorm:"column:user_id;not null;index:idx_captcha_user_chat" json:"user_id,omitempty"`
-	ChatID       int64     `gorm:"column:chat_id;not null;index:idx_captcha_user_chat" json:"chat_id,omitempty"`
+	UserID       int64     `gorm:"column:user_id;not null;uniqueIndex:uk_captcha_user_chat" json:"user_id,omitempty"`
+	ChatID       int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_user_chat" json:"chat_id,omitempty"`
 	Answer       string    `gorm:"column:answer;not null" json:"answer,omitempty"`
 	Attempts     int       `gorm:"column:attempts;default:0" json:"attempts,omitempty"`
 	MessageID    int64     `gorm:"column:message_id" json:"message_id,omitempty"`
@@ -31,6 +31,8 @@ type CaptchaAttempts struct {
 	ExpiresAt    time.Time `gorm:"column:expires_at;not null;check:chk_captcha_expires_at,expires_at > created_at" json:"expires_at,omitempty"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+
+	PreviousMessageID int64 `gorm:"-" json:"-"`
 }
 
 func (CaptchaAttempts) TableName() string {
@@ -58,8 +60,8 @@ func (StoredMessages) TableName() string {
 // They will be automatically unmuted after UnmuteAt time
 type CaptchaMutedUsers struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	UserID    int64     `gorm:"column:user_id;not null;index:idx_captcha_muted_user_chat" json:"user_id,omitempty"`
-	ChatID    int64     `gorm:"column:chat_id;not null;index:idx_captcha_muted_user_chat" json:"chat_id,omitempty"`
+	UserID    int64     `gorm:"column:user_id;not null;uniqueIndex:uk_captcha_muted_user_chat" json:"user_id,omitempty"`
+	ChatID    int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_muted_user_chat" json:"chat_id,omitempty"`
 	UnmuteAt  time.Time `gorm:"column:unmute_at;not null;index:idx_captcha_unmute_at" json:"unmute_at,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at,omitempty"`
 }

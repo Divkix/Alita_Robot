@@ -2,6 +2,7 @@ package captcha
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -19,6 +20,7 @@ var (
 	ErrInvalidFailureAction = errors.New("INVALID_FAILURE_ACTION")
 	ErrInvalidMaxAttempts   = errors.New("INVALID_MAX_ATTEMPTS")
 	ErrNoActiveCaptcha      = errors.New("NO_ACTIVE_CAPTCHA")
+	ErrCaptchaDisabled      = errors.New("CAPTCHA_DISABLED")
 )
 
 // GetCaptchaSettings retrieves captcha settings for a chat.
@@ -168,6 +170,16 @@ func SetCaptchaFailureAction(chatID int64, action string) error {
 // CreateCaptchaAttemptPreMessage creates a captcha attempt before sending a message,
 // setting message_id to 0 temporarily and returning the created attempt with ID.
 func CreateCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout int) (*models.CaptchaAttempts, error) {
+	return createCaptchaAttemptPreMessage(userID, chatID, answer, timeout, false)
+}
+
+// CreateCaptchaAttemptPreMessageIfEnabled serializes attempt creation with
+// captcha disablement so a disabled chat cannot gain a new pending challenge.
+func CreateCaptchaAttemptPreMessageIfEnabled(userID, chatID int64, answer string, timeout int) (*models.CaptchaAttempts, error) {
+	return createCaptchaAttemptPreMessage(userID, chatID, answer, timeout, true)
+}
+
+func createCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout int, requireEnabled bool) (*models.CaptchaAttempts, error) {
 	attempt := &models.CaptchaAttempts{
 		UserID:       userID,
 		ChatID:       chatID,
@@ -180,7 +192,42 @@ func CreateCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout
 
 	// Use a transaction to ensure atomicity
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		// Delete any existing attempt for this user in this chat
+		if tx.Name() == "postgres" {
+			lockKey := fmt.Sprintf("%d:%d", chatID, userID)
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lockKey).Error; err != nil {
+				return err
+			}
+		}
+		if requireEnabled {
+			var settings models.CaptchaSettings
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("chat_id = ?", chatID).
+				First(&settings).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && !settings.Enabled) {
+				return ErrCaptchaDisabled
+			}
+			if err != nil {
+				return err
+			}
+		}
+
+		var previous models.CaptchaAttempts
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND chat_id = ?", userID, chatID).
+			Order("id DESC").
+			First(&previous).Error
+		if err == nil {
+			attempt.PreviousMessageID = previous.MessageID
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		// Remove dependent messages explicitly as well as relying on the
+		// production foreign-key cascade; SQLite test schemas may not enforce it.
+		if err := tx.Where("user_id = ? AND chat_id = ?", userID, chatID).
+			Delete(&models.StoredMessages{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&models.CaptchaAttempts{}).Error; err != nil {
 			return err
 		}
@@ -201,10 +248,13 @@ func CreateCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout
 
 // UpdateCaptchaAttemptMessageID sets the message_id for an existing attempt by ID.
 func UpdateCaptchaAttemptMessageID(attemptID uint, messageID int64) error {
-	err := db.DB.Model(&models.CaptchaAttempts{}).Where("id = ?", attemptID).Update("message_id", messageID).Error
-	if err != nil {
-		log.Errorf("[Database][UpdateCaptchaAttemptMessageID]: %v", err)
-		return err
+	result := db.DB.Model(&models.CaptchaAttempts{}).Where("id = ?", attemptID).Update("message_id", messageID)
+	if result.Error != nil {
+		log.Errorf("[Database][UpdateCaptchaAttemptMessageID]: %v", result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNoActiveCaptcha
 	}
 	return nil
 }
@@ -228,6 +278,22 @@ func GetCaptchaAttempt(userID, chatID int64) (*models.CaptchaAttempts, error) {
 	return attempt, nil
 }
 
+// GetCaptchaAttemptIncludingExpired retrieves the latest attempt for cleanup paths.
+func GetCaptchaAttemptIncludingExpired(userID, chatID int64) (*models.CaptchaAttempts, error) {
+	attempt := &models.CaptchaAttempts{}
+	err := db.DB.Where("user_id = ? AND chat_id = ?", userID, chatID).
+		Order("id DESC").
+		First(attempt).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		log.Errorf("[Database][GetCaptchaAttemptIncludingExpired]: %v", err)
+		return nil, err
+	}
+	return attempt, nil
+}
+
 // GetCaptchaAttemptByID retrieves a captcha attempt by ID regardless of expiration.
 func GetCaptchaAttemptByID(attemptID uint) (*models.CaptchaAttempts, error) {
 	attempt := &models.CaptchaAttempts{}
@@ -242,93 +308,214 @@ func GetCaptchaAttemptByID(attemptID uint) (*models.CaptchaAttempts, error) {
 	return attempt, nil
 }
 
-// IncrementCaptchaAttempts increments the attempt counter for a captcha.
-// Returns the updated attempt record.
-// Uses SELECT FOR UPDATE to prevent race conditions on concurrent requests.
-func IncrementCaptchaAttempts(userID, chatID int64) (*models.CaptchaAttempts, error) {
-	var attempt models.CaptchaAttempts
-	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		// Use SELECT FOR UPDATE to lock the row and prevent concurrent modifications
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("user_id = ? AND chat_id = ? AND expires_at > ?", userID, chatID, time.Now()).
-			First(&attempt).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrNoActiveCaptcha
-			}
-			return err
-		}
-		attempt.Attempts++
-		return tx.Save(&attempt).Error
-	})
-	if err != nil {
-		if !errors.Is(err, ErrNoActiveCaptcha) {
-			log.Errorf("[Database][IncrementCaptchaAttempts]: %v", err)
-		}
+// IncrementCaptchaAttempts increments only the challenge version the callback
+// was rendered for. A concurrent refresh makes the old keyboard stale.
+func IncrementCaptchaAttempts(
+	attemptID uint,
+	userID, chatID int64,
+	expectedAnswer string,
+	expectedMessageID int64,
+	expectedRefreshCount int,
+) (*models.CaptchaAttempts, error) {
+	result := db.DB.Model(&models.CaptchaAttempts{}).
+		Where(
+			"id = ? AND user_id = ? AND chat_id = ? AND answer = ? AND message_id = ? AND refresh_count = ? AND expires_at > ?",
+			attemptID,
+			userID,
+			chatID,
+			expectedAnswer,
+			expectedMessageID,
+			expectedRefreshCount,
+			time.Now(),
+		).
+		Update("attempts", gorm.Expr("attempts + 1"))
+	if result.Error != nil {
+		log.Errorf("[Database][IncrementCaptchaAttempts]: %v", result.Error)
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, ErrNoActiveCaptcha
+	}
+
+	attempt := &models.CaptchaAttempts{}
+	if err := db.DB.First(attempt, attemptID).Error; err != nil {
+		log.Errorf("[Database][IncrementCaptchaAttempts:Reload]: %v", err)
 		return nil, err
 	}
-	return &attempt, nil
+	return attempt, nil
 }
 
 // DeleteCaptchaAttempt removes a captcha attempt record.
 // Called when verification is successful or when user is kicked/banned.
 func DeleteCaptchaAttempt(userID, chatID int64) error {
-	result := db.DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&models.CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][DeleteCaptchaAttempt]: %v", result.Error)
-		return result.Error
-	}
-	return nil
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var ids []uint
+		if err := tx.Model(&models.CaptchaAttempts{}).
+			Where("user_id = ? AND chat_id = ?", userID, chatID).
+			Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		if err := tx.Where("id IN ?", ids).Delete(&models.CaptchaAttempts{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("attempt_id IN ?", ids).Delete(&models.StoredMessages{}).Error
+	})
 }
 
 // DeleteCaptchaAttemptByIDAtomic deletes a specific attempt and returns whether it was deleted.
 // The userID/chatID filter prevents deleting another attempt with the same ID unexpectedly.
 func DeleteCaptchaAttemptByIDAtomic(attemptID uint, userID, chatID int64) (bool, error) {
-	result := db.DB.Where("id = ? AND user_id = ? AND chat_id = ?", attemptID, userID, chatID).Delete(&models.CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][DeleteCaptchaAttemptByIDAtomic]: %v", result.Error)
-		return false, result.Error
+	deleted, err := deleteCaptchaAttemptAtomic(
+		attemptID,
+		false,
+		0,
+		0,
+		"id = ? AND user_id = ? AND chat_id = ?",
+		attemptID,
+		userID,
+		chatID,
+	)
+	if err != nil {
+		log.Errorf("[Database][DeleteCaptchaAttemptByIDAtomic]: %v", err)
 	}
-	return result.RowsAffected > 0, nil
+	return deleted, err
+}
+
+// CompleteCaptchaAttemptAtomic claims an unexpired attempt only if its answer is
+// still current. This prevents a stale answer racing a captcha refresh.
+func CompleteCaptchaAttemptAtomic(
+	attemptID uint,
+	userID, chatID int64,
+	answer string,
+	expectedMessageID int64,
+	expectedRefreshCount int,
+) (bool, error) {
+	deleted, err := deleteCaptchaAttemptAtomic(
+		attemptID,
+		true,
+		userID,
+		chatID,
+		"id = ? AND user_id = ? AND chat_id = ? AND answer = ? AND message_id = ? AND refresh_count = ? AND expires_at > ?",
+		attemptID,
+		userID,
+		chatID,
+		answer,
+		expectedMessageID,
+		expectedRefreshCount,
+		time.Now(),
+	)
+	if err != nil {
+		log.Errorf("[Database][CompleteCaptchaAttemptAtomic]: %v", err)
+	}
+	return deleted, err
+}
+
+// ReleaseCaptchaAttemptAtomic claims an attempt and durably schedules an
+// immediate permission restore in the same transaction.
+func ReleaseCaptchaAttemptAtomic(attemptID uint, userID, chatID int64) (bool, error) {
+	deleted, err := deleteCaptchaAttemptAtomic(
+		attemptID,
+		true,
+		userID,
+		chatID,
+		"id = ? AND user_id = ? AND chat_id = ?",
+		attemptID,
+		userID,
+		chatID,
+	)
+	if err != nil {
+		log.Errorf("[Database][ReleaseCaptchaAttemptAtomic]: %v", err)
+	}
+	return deleted, err
+}
+
+func deleteCaptchaAttemptAtomic(
+	attemptID uint,
+	scheduleUnmute bool,
+	userID, chatID int64,
+	where string,
+	args ...any,
+) (bool, error) {
+	var deleted bool
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where(where, args...).Delete(&models.CaptchaAttempts{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return nil
+		}
+		deleted = true
+		if err := tx.Where("attempt_id = ?", attemptID).Delete(&models.StoredMessages{}).Error; err != nil {
+			return err
+		}
+		if scheduleUnmute {
+			return createMutedUser(tx, userID, chatID, time.Now().UTC())
+		}
+		return nil
+	})
+	if err != nil {
+		deleted = false
+	}
+	return deleted, err
 }
 
 // DeleteAllCaptchaAttempts removes all captcha attempts for a chat.
 // Used when captcha is disabled or for admin cleanup.
 func DeleteAllCaptchaAttempts(chatID int64) error {
-	result := db.DB.Where("chat_id = ?", chatID).Delete(&models.CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][DeleteAllCaptchaAttempts]: %v", result.Error)
-		return result.Error
-	}
-
-	if result.RowsAffected > 0 {
-		log.Infof("[Database][DeleteAllCaptchaAttempts]: Deleted %d captcha attempts for chat %d", result.RowsAffected, chatID)
-	}
-
-	return nil
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var ids []uint
+		if err := tx.Model(&models.CaptchaAttempts{}).Where("chat_id = ?", chatID).Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		if err := tx.Where("id IN ?", ids).Delete(&models.CaptchaAttempts{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("attempt_id IN ?", ids).Delete(&models.StoredMessages{}).Error
+	})
 }
 
-// UpdateCaptchaAttemptOnRefreshByID updates answer, message ID and increments refresh_count by attempt ID.
-func UpdateCaptchaAttemptOnRefreshByID(attemptID uint, newAnswer string, newMessageID int64) (*models.CaptchaAttempts, error) {
-	attempt := &models.CaptchaAttempts{}
-	err := db.DB.First(attempt, attemptID).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		log.Errorf("[Database][UpdateCaptchaAttemptOnRefreshByID:Find]: %v", err)
-		return nil, err
-	}
-
+// UpdateCaptchaAttemptOnRefreshByID replaces a challenge only if it has not
+// changed since the caller read it.
+func UpdateCaptchaAttemptOnRefreshByID(
+	attemptID uint,
+	expectedAnswer string,
+	expectedMessageID int64,
+	expectedRefreshCount int,
+	newAnswer string,
+	newMessageID int64,
+) (*models.CaptchaAttempts, error) {
 	updates := map[string]any{
 		"answer":        newAnswer,
 		"message_id":    newMessageID,
 		"refresh_count": gorm.Expr("COALESCE(refresh_count, 0) + 1"),
 	}
-	if err := db.UpdateRecord(&models.CaptchaAttempts{}, map[string]any{"id": attemptID}, updates); err != nil {
-		return nil, err
+	result := db.DB.Model(&models.CaptchaAttempts{}).
+		Where(
+			"id = ? AND answer = ? AND message_id = ? AND refresh_count = ? AND expires_at > ?",
+			attemptID,
+			expectedAnswer,
+			expectedMessageID,
+			expectedRefreshCount,
+			time.Now(),
+		).
+		Updates(updates)
+	if result.Error != nil {
+		log.Errorf("[Database][UpdateCaptchaAttemptOnRefreshByID:Update]: %v", result.Error)
+		return nil, result.Error
 	}
-	// Reload
-	err = db.DB.First(attempt, attemptID).Error
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+
+	attempt := &models.CaptchaAttempts{}
+	err := db.DB.First(attempt, attemptID).Error
 	if err != nil {
 		log.Errorf("[Database][UpdateCaptchaAttemptOnRefreshByID:Reload]: %v", err)
 		return nil, err
@@ -450,27 +637,53 @@ func GetAllPendingCaptchaAttempts() ([]*models.CaptchaAttempts, error) {
 	return attempts, nil
 }
 
+// GetCaptchaAttemptsForChat returns every pending attempt for a chat.
+func GetCaptchaAttemptsForChat(chatID int64) ([]*models.CaptchaAttempts, error) {
+	var attempts []*models.CaptchaAttempts
+	if err := db.DB.Where("chat_id = ?", chatID).Find(&attempts).Error; err != nil {
+		log.Errorf("[Database][GetCaptchaAttemptsForChat]: %v", err)
+		return nil, err
+	}
+	return attempts, nil
+}
+
 // DeleteCaptchaAttemptsByIDs deletes multiple captcha attempts by their IDs.
 // Returns the number of deleted rows.
 func DeleteCaptchaAttemptsByIDs(ids []uint) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	result := db.DB.Where("id IN ?", ids).Delete(&models.CaptchaAttempts{})
-	if result.Error != nil {
-		log.Errorf("[Database][DeleteCaptchaAttemptsByIDs]: %v", result.Error)
-		return 0, result.Error
+	var deleted int64
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("id IN ?", ids).Delete(&models.CaptchaAttempts{})
+		if result.Error != nil {
+			return result.Error
+		}
+		deleted = result.RowsAffected
+		return tx.Where("attempt_id IN ?", ids).Delete(&models.StoredMessages{}).Error
+	})
+	if err != nil {
+		log.Errorf("[Database][DeleteCaptchaAttemptsByIDs]: %v", err)
+		return 0, err
 	}
-	return result.RowsAffected, nil
+	return deleted, nil
 }
 
 // CreateMutedUser stores a user who failed captcha and should be unmuted later
 func CreateMutedUser(userID, chatID int64, unmuteAt time.Time) error {
-	return db.DB.Create(&models.CaptchaMutedUsers{
+	return createMutedUser(db.DB, userID, chatID, unmuteAt)
+}
+
+func createMutedUser(database *gorm.DB, userID, chatID int64, unmuteAt time.Time) error {
+	mutedUser := &models.CaptchaMutedUsers{
 		UserID:   userID,
 		ChatID:   chatID,
 		UnmuteAt: unmuteAt,
-	}).Error
+	}
+	return database.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"unmute_at"}),
+	}).Create(mutedUser).Error
 }
 
 // GetUsersToUnmute returns users whose unmute time has passed
@@ -480,8 +693,39 @@ func GetUsersToUnmute() ([]*models.CaptchaMutedUsers, error) {
 	return users, err
 }
 
+// GetMutedUsersForChat returns captcha mutes owned by a chat.
+func GetMutedUsersForChat(chatID int64) ([]*models.CaptchaMutedUsers, error) {
+	var users []*models.CaptchaMutedUsers
+	err := db.DB.Where("chat_id = ?", chatID).Find(&users).Error
+	return users, err
+}
+
+// GetMutedUser returns the current unmute schedule for a user in a chat.
+func GetMutedUser(userID, chatID int64) (*models.CaptchaMutedUsers, error) {
+	var user models.CaptchaMutedUsers
+	err := db.DB.Where("user_id = ? AND chat_id = ?", userID, chatID).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &user, err
+}
+
+// DeleteMutedUserIfUnchanged removes only the schedule version a worker read.
+func DeleteMutedUserIfUnchanged(id uint, unmuteAt time.Time) (bool, error) {
+	result := db.DB.Where("id = ? AND unmute_at = ?", id, unmuteAt).Delete(&models.CaptchaMutedUsers{})
+	return result.RowsAffected == 1, result.Error
+}
+
+// DeleteMutedUser removes every scheduled captcha unmute for a user in a chat.
+func DeleteMutedUser(userID, chatID int64) error {
+	return db.DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&models.CaptchaMutedUsers{}).Error
+}
+
 // DeleteMutedUsersByIDs removes multiple users by their IDs
 func DeleteMutedUsersByIDs(ids []uint) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
 	result := db.DB.Delete(&models.CaptchaMutedUsers{}, ids)
 	return result.RowsAffected, result.Error
 }

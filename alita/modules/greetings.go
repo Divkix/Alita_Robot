@@ -712,50 +712,12 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
 
-	// when bot joins stop all updates of the groups
-	// we use bot_updates for this
-	if newMember.Id == bot.Id {
-		return ext.EndGroups
-	}
-
-	// Telegram can emit both ChatMemberUpdated and a service message for the same join.
-	// Claim once per user/chat to avoid sending duplicate welcome/captcha prompts.
-	if !claimRecentJoinProcessing(chat.Id, newMember.Id) {
-		log.Debugf("[Greetings][newMember] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
-		return ext.EndGroups
-	}
-
-	// Check if captcha is enabled
 	captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
-		// Continue with welcome message on error (captcha disabled by default)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
 	}
-	if captchaSettings != nil && captchaSettings.Enabled {
-		// Mute the new member immediately
-		_, err := chat.RestrictMember(bot, newMember.Id, MutedPermissions, nil)
-
-		if err != nil {
-			log.Errorf("Failed to mute user %d for captcha: %v", newMember.Id, err)
-			// Continue with normal welcome if muting fails
-		} else {
-			// Send captcha instead of welcome message
-			err = SendCaptcha(bot, ctx, newMember.Id, newMember.FirstName)
-			if err != nil {
-				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
-				// Unmute the user if captcha sending fails
-				_, _ = chat.RestrictMember(bot, newMember.Id, defaultUnmutePermissions(), nil)
-			} else {
-				// Captcha sent successfully, don't send welcome message yet
-				return ext.EndGroups
-			}
-		}
-	}
-
-	// Send welcome message if captcha is disabled or failed
-	if err := SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
-		log.Error(err)
+	if err := processSingleNewMember(bot, ctx, newMember, captchaSettings != nil && captchaSettings.Enabled); err != nil {
 		return err
 	}
 	return ext.EndGroups
@@ -776,7 +738,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	clearRecentJoinProcessing(chat.Id, leftMember.Id)
 
 	// Clean up any pending captcha for the leaving user
-	captchaAttempt, err := captcha.GetCaptchaAttempt(leftMember.Id, chat.Id)
+	captchaAttempt, err := captcha.GetCaptchaAttemptIncludingExpired(leftMember.Id, chat.Id)
 	if err != nil {
 		log.Errorf("Failed to get captcha attempt for leaving user %d: %v", leftMember.Id, err)
 	} else if captchaAttempt != nil {
@@ -786,10 +748,12 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 				log.Debugf("Failed to delete captcha message for leaving user %d: %v", leftMember.Id, delErr)
 			}
 		}
-		// Delete the captcha attempt from database
-		if delErr := captcha.DeleteCaptchaAttempt(leftMember.Id, chat.Id); delErr != nil {
+		if _, delErr := captcha.DeleteCaptchaAttemptByIDAtomic(captchaAttempt.ID, leftMember.Id, chat.Id); delErr != nil {
 			log.Errorf("Failed to delete captcha attempt for leaving user %d: %v", leftMember.Id, delErr)
 		}
+	}
+	if err := captcha.DeleteMutedUser(leftMember.Id, chat.Id); err != nil {
+		log.Errorf("Failed to delete scheduled captcha unmute for leaving user %d: %v", leftMember.Id, err)
 	}
 
 	// Nil check for GoodbyeSettings
@@ -823,48 +787,28 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // processSingleNewMember handles a single new member joining (mute, captcha, welcome).
-// This is extracted to enable concurrent processing of multiple members.
-func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbot.User, captchaEnabled bool) {
+func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbot.User, captchaEnabled bool) error {
 	chat := ctx.EffectiveChat
 
 	if newMember.Id == bot.Id {
-		return
+		return nil
 	}
 
 	if !claimRecentJoinProcessing(chat.Id, newMember.Id) {
 		log.Debugf("[Greetings][cleanService] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
-		return
+		return nil
 	}
 
-	if captchaEnabled {
-		// Mute the new member immediately
-		_, err := chat.RestrictMember(bot, newMember.Id, MutedPermissions, nil)
-
-		if err != nil {
-			log.Errorf("Failed to mute user %d for captcha: %v", newMember.Id, err)
-			// Send welcome if muting fails
-			if err := SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
-				log.Error(err)
+	if captchaEnabled && !chat_status.IsApproved(bot, chat.Id, newMember.Id) {
+		if err := SendCaptcha(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
+			if !errors.Is(err, errCaptchaDisabled) {
+				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
 			}
 		} else {
-			// Send captcha instead of welcome message
-			err = SendCaptcha(bot, ctx, newMember.Id, newMember.FirstName)
-			if err != nil {
-				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
-				// Unmute the user if captcha sending fails
-				_, _ = chat.RestrictMember(bot, newMember.Id, defaultUnmutePermissions(), nil)
-				// Send welcome if captcha fails
-				if err := SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
-					log.Error(err)
-				}
-			}
-		}
-	} else {
-		// Captcha is disabled, send welcome message
-		if err := SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
-			log.Error(err)
+			return nil
 		}
 	}
+	return SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName)
 }
 
 // cleanService automatically deletes service messages about members joining/leaving.
@@ -912,14 +856,18 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 					defer wg.Done()
 					defer func() { <-sem }() // Release semaphore
 
-					processSingleNewMember(bot, ctx, member, captchaEnabled)
+					if err := processSingleNewMember(bot, ctx, member, captchaEnabled); err != nil {
+						log.Error(err)
+					}
 				}(newMember)
 			}
 
 			wg.Wait()
 		} else if numMembers == 1 {
 			// For single member, process directly without goroutine
-			processSingleNewMember(bot, ctx, msg.NewChatMembers[0], captchaEnabled)
+			if err := processSingleNewMember(bot, ctx, msg.NewChatMembers[0], captchaEnabled); err != nil {
+				log.Error(err)
+			}
 		}
 	}
 
@@ -999,12 +947,11 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			},
 		)
-		m.setPendingJoins(chat.Id, user.Id)
-
 		if err != nil {
 			log.Error(err)
 			return err
 		}
+		m.setPendingJoins(chat.Id, user.Id)
 	}
 
 	return ext.ContinueGroups
@@ -1012,11 +959,16 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 // joinRequestHandler processes admin responses to join request approval buttons.
 // Handles accept, decline, and ban actions for pending chat join requests.
-func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
+//
+//nolint:gocyclo // Validation and one-shot action handling stay together to prevent partial flows.
+func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("Greetings", "joinRequestHandler")
 
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
+		return ext.EndGroups
+	}
+	if query.Message == nil {
 		return ext.EndGroups
 	}
 	user := query.From
@@ -1042,6 +994,13 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
+	if response != "accept" && response != "decline" && response != "ban" {
+		log.Warnf("[Greetings] Invalid join request action: %s", response)
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 	joinUserId, err := strconv.ParseInt(joinUserIDRaw, 10, 64)
 	if err != nil {
 		log.Errorf("[Greetings] Failed to parse join user ID '%s': %v", joinUserIDRaw, err)
@@ -1050,6 +1009,28 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
+
+	if response == "ban" {
+		if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+			return ext.EndGroups
+		}
+		if !chat_status.CanBotRestrict(b, ctx, chat) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_error", "chat_status_bot_restrict_error")
+			return ext.EndGroups
+		}
+	}
+	if response == "accept" || response == "decline" || response == "ban" {
+		if !chat_status.CanUserInvite(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_user_error", "chat_status_invite_link_user_error")
+			return ext.EndGroups
+		}
+		if !chat_status.CanBotInvite(b, ctx, chat) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_invite_link_bot_error", "chat_status_invite_link_bot_error")
+			return ext.EndGroups
+		}
+	}
+
 	joinUser, err := b.GetChat(joinUserId, nil)
 	if err != nil {
 		log.Error(err)
@@ -1069,9 +1050,6 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 		helpText, _ = tr.GetString("greetings_join_request_accepted")
-		if m := cache.GetMarshal(); m != nil {
-			_ = m.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chat.Id, joinUser.Id))
-		}
 	case "decline":
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
 			if helpers.IsExpectedTelegramError(err) {
@@ -1101,6 +1079,7 @@ func (moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		helpText, _ = tr.GetString("greetings_join_request_banned")
 	}
+	m.clearPendingJoins(chat.Id, joinUser.Id)
 
 	_, _, err = msg.EditText(b,
 		fmt.Sprintf(helpText, formatting.MentionHtml(joinUser.Id, joinUser.FirstName)),
@@ -1158,6 +1137,12 @@ func (moduleStruct) setPendingJoins(chatId, userId int64) {
 		return
 	}
 	_ = m.Set(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), true, store.WithExpiration(5*time.Minute))
+}
+
+func (moduleStruct) clearPendingJoins(chatId, userId int64) {
+	if m := cache.GetMarshal(); m != nil {
+		_ = m.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId))
+	}
 }
 
 // LoadGreetings registers all greeting-related handlers with the dispatcher.

@@ -122,3 +122,28 @@ func TestInitialChecksEnsuresBot(t *testing.T) {
 		t.Fatalf("bot user = username %q name %q, want AlitaTestBot/Alita", user.UserName, user.Name)
 	}
 }
+
+func TestInitialChecksReturnsDatabaseError(t *testing.T) {
+	originalDB := db.DB
+	t.Cleanup(func() {
+		db.DB = originalDB
+	})
+
+	var err error
+	db.DB, err = gorm.Open(
+		sqlite.Open("file:alita_main_missing_schema?mode=memory&cache=shared"),
+		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},
+	)
+	if err != nil {
+		t.Fatalf("open schema-less database: %v", err)
+	}
+
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: alitaTestBotClient{},
+		User:      gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
+	}
+	if err := InitialChecks(bot); err == nil {
+		t.Fatal("InitialChecks() error = nil, want missing-schema error")
+	}
+}

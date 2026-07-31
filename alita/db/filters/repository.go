@@ -2,9 +2,11 @@ package filters
 
 import (
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -68,42 +70,57 @@ func DoesFilterExists(chatId int64, keyword string) bool {
 	return true
 }
 
-// AddFilter creates a new filter in the database for the specified chat.
-// Does nothing if a filter with the same keyword already exists.
-// Invalidates the filter list cache after successful addition.
+// AddFilter creates a filter if its keyword is unused.
+// Explicit overwrite confirmation uses UpdateFilter.
 func AddFilter(chatID int64, keyWord, replyText, fileID string, buttons []models.Button, filtType int) error {
-	// Check if filter already exists using optimized query
-	var existingFilter models.ChatFilters
-	err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, keyWord).Take(&existingFilter).Error
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[Database][AddFilter] checking existence: %d - %v", chatID, err)
-			return err
-		}
-		// Filter doesn't exist, continue with creation
-	} else {
-		return nil // Filter already exists
+	now := time.Now().UTC()
+	newFilter := map[string]any{
+		"chat_id":        chatID,
+		"keyword":        keyWord,
+		"filter_reply":   replyText,
+		"msgtype":        filtType,
+		"fileid":         fileID,
+		"nonotif":        false,
+		"filter_buttons": models.ButtonArray(buttons),
+		"created_at":     now,
+		"updated_at":     now,
 	}
 
-	// add the filter
-	newFilter := models.ChatFilters{
-		ChatId:      chatID,
-		KeyWord:     keyWord,
-		FilterReply: replyText,
-		MsgType:     filtType,
-		FileID:      fileID,
-		Buttons:     models.ButtonArray(buttons),
+	result := db.DB.Model(&models.ChatFilters{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "keyword"}},
+		DoNothing: true,
+	}).Create(newFilter)
+	if result.Error != nil {
+		log.Errorf("[Database][AddFilter]: %d - %v", chatID, result.Error)
+		return result.Error
 	}
 
-	err = db.CreateRecord(&newFilter)
-	if err != nil {
-		log.Errorf("[Database][AddFilter]: %d - %v", chatID, err)
-		return err
+	if result.RowsAffected > 0 {
+		invalidateFilterCaches(chatID)
 	}
-
-	// Invalidate cache after adding filter
-	invalidateFilterCaches(chatID)
 	return nil
+}
+
+// UpdateFilter replaces an existing filter without recreating one removed while
+// an overwrite confirmation was pending.
+func UpdateFilter(chatID int64, keyWord, replyText, fileID string, buttons []models.Button, filtType int) (bool, error) {
+	result := db.DB.Model(&models.ChatFilters{}).
+		Where("chat_id = ? AND keyword = ?", chatID, keyWord).
+		Updates(map[string]any{
+			"filter_reply":   replyText,
+			"msgtype":        filtType,
+			"fileid":         fileID,
+			"filter_buttons": models.ButtonArray(buttons),
+			"updated_at":     time.Now().UTC(),
+		})
+	if result.Error != nil {
+		log.Errorf("[Database][UpdateFilter]: %d - %v", chatID, result.Error)
+		return false, result.Error
+	}
+	if result.RowsAffected > 0 {
+		invalidateFilterCaches(chatID)
+	}
+	return result.RowsAffected > 0, nil
 }
 
 // RemoveFilter deletes a filter with the specified keyword from the chat.

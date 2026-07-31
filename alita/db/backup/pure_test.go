@@ -63,10 +63,36 @@ func TestBackupFormat_Validate(t *testing.T) {
 				BotName:    "AlitaRobot",
 				ChatID:     123,
 				Modules:    []string{"admin"},
-				Data:       make(map[string]interface{}),
+				Data:       map[string]interface{}{"admin": map[string]interface{}{}},
 				ExportedAt: now,
 			},
 			wantErr: false,
+		},
+		{
+			name: "current format requires every module payload",
+			bf: &BackupFormat{
+				Version:    BackupFormatVersion,
+				BotName:    "AlitaRobot",
+				ChatID:     123,
+				Modules:    []string{"admin"},
+				Data:       make(map[string]interface{}),
+				ExportedAt: now,
+			},
+			wantErr: true,
+			errMsg:  "missing data for module: admin",
+		},
+		{
+			name: "legacy format requires every module payload",
+			bf: &BackupFormat{
+				Version:    legacyFormatVersion,
+				BotName:    "AlitaRobot",
+				ChatID:     123,
+				Modules:    []string{"admin"},
+				Data:       make(map[string]interface{}),
+				ExportedAt: now,
+			},
+			wantErr: true,
+			errMsg:  "missing data for module: admin",
 		},
 		{
 			name: "empty version returns error",
@@ -178,7 +204,12 @@ func TestBackupFormat_IsCompatibleVersion(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "older version returns false",
+			name:    "legacy version remains compatible",
+			version: legacyFormatVersion,
+			want:    true,
+		},
+		{
+			name:    "unsupported older version returns false",
 			version: "0.9",
 			want:    false,
 		},
@@ -263,6 +294,11 @@ func TestBackupFormatFromJSON(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "trailing JSON returns error",
+			input:   `{"version":"1.0"} {}`,
+			wantErr: true,
+		},
+		{
 			name:    "minimal valid JSON parses",
 			input:   `{"version":"2.0","bot_name":"TestBot","chat_id":789,"exported_by":0,"modules":["filters"],"data":{},"exported_at":"2024-06-01T12:00:00Z"}`,
 			wantErr: false,
@@ -292,6 +328,16 @@ func TestBackupFormatFromJSON(t *testing.T) {
 			}
 		})
 	}
+
+	const largeID = "9007199254740993"
+	bf, err := BackupFormatFromJSON([]byte(`{"data":{"warns":[{"user_id":` + largeID + `}]}}`))
+	if err != nil {
+		t.Fatalf("large nested integer parse: %v", err)
+	}
+	got := bf.Data["warns"].([]any)[0].(map[string]any)["user_id"]
+	if got != json.Number(largeID) {
+		t.Fatalf("nested user_id = %v (%T), want exact json.Number(%s)", got, got, largeID)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +365,7 @@ func TestAllExportableModules(t *testing.T) {
 		BackupModuleLocks,
 		BackupModuleNotes,
 		BackupModulePins,
+		BackupModuleReactions,
 		BackupModuleReports,
 		BackupModuleRules,
 		BackupModuleWarns,

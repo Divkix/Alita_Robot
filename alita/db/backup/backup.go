@@ -2,37 +2,27 @@ package backup
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/admin"
-	"github.com/divkix/Alita_Robot/alita/db/antiflood"
-	"github.com/divkix/Alita_Robot/alita/db/antiraid"
-	"github.com/divkix/Alita_Robot/alita/db/approvals"
-	"github.com/divkix/Alita_Robot/alita/db/blacklists"
-	"github.com/divkix/Alita_Robot/alita/db/captcha"
-	"github.com/divkix/Alita_Robot/alita/db/connections"
-	"github.com/divkix/Alita_Robot/alita/db/disabling"
-	"github.com/divkix/Alita_Robot/alita/db/filters"
-	"github.com/divkix/Alita_Robot/alita/db/greetings"
-	"github.com/divkix/Alita_Robot/alita/db/locks"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/db/pins"
-	"github.com/divkix/Alita_Robot/alita/db/reports"
-	"github.com/divkix/Alita_Robot/alita/db/rules"
-	"github.com/divkix/Alita_Robot/alita/db/warns"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// ExportModuleData exports data for a specific module from a chat
+// ExportModuleData exports data for a specific module from a chat.
 func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	switch module {
 	case BackupModuleAdmin:
 		return exportAdminData(chatID)
 	case BackupModuleAntiflood:
 		return exportAntifloodData(chatID)
+	case BackupModuleAntiraid:
+		return exportAntiraidData(chatID)
+	case BackupModuleApprovals:
+		return exportApprovalsData(chatID)
 	case BackupModuleBlacklists:
 		return exportBlacklistsData(chatID)
 	case BackupModuleCaptcha:
@@ -51,14 +41,12 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 		return exportNotesData(chatID)
 	case BackupModulePins:
 		return exportPinsData(chatID)
+	case BackupModuleReactions:
+		return exportReactionsData(chatID)
 	case BackupModuleReports:
 		return exportReportsData(chatID)
 	case BackupModuleRules:
 		return exportRulesData(chatID)
-	case BackupModuleAntiraid:
-		return exportAntiraidData(chatID)
-	case BackupModuleApprovals:
-		return exportApprovalsData(chatID)
 	case BackupModuleWarns:
 		return exportWarnsData(chatID)
 	default:
@@ -66,943 +54,1019 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	}
 }
 
-// ImportModuleData imports data for a specific module into a chat
+// ImportModuleData imports one module atomically into a chat.
 func ImportModuleData(chatID int64, module string, data interface{}) error {
-	switch module {
-	case BackupModuleAdmin:
-		return importAdminData(chatID, data)
-	case BackupModuleAntiflood:
-		return importAntifloodData(chatID, data)
-	case BackupModuleBlacklists:
-		return importBlacklistsData(chatID, data)
-	case BackupModuleCaptcha:
-		return importCaptchaData(chatID, data)
-	case BackupModuleConnections:
-		return importConnectionsData(chatID, data)
-	case BackupModuleDisabling:
-		return importDisablingData(chatID, data)
-	case BackupModuleFilters:
-		return importFiltersData(chatID, data)
-	case BackupModuleGreetings:
-		return importGreetingsData(chatID, data)
-	case BackupModuleLocks:
-		return importLocksData(chatID, data)
-	case BackupModuleNotes:
-		return importNotesData(chatID, data)
-	case BackupModulePins:
-		return importPinsData(chatID, data)
-	case BackupModuleReports:
-		return importReportsData(chatID, data)
-	case BackupModuleRules:
-		return importRulesData(chatID, data)
-	case BackupModuleAntiraid:
-		return importAntiraidData(chatID, data)
-	case BackupModuleApprovals:
-		return importApprovalsData(chatID, data)
-	case BackupModuleWarns:
-		return importWarnsData(chatID, data)
-	default:
-		return fmt.Errorf("unknown module: %s", module)
+	database, err := backupDB()
+	if err != nil {
+		return err
 	}
+
+	var keys []string
+	err = database.Transaction(func(tx *gorm.DB) error {
+		var importErr error
+		keys, importErr = importModuleData(tx, chatID, module, data, false)
+		return importErr
+	})
+	if err != nil {
+		return err
+	}
+	invalidate(keys...)
+	return nil
 }
 
-// ClearModuleData clears data for a specific module from a chat
+// ClearModuleData clears one module atomically from a chat.
 func ClearModuleData(chatID int64, module string) error {
-	switch module {
-	case BackupModuleAdmin:
-		return clearAdminData(chatID)
-	case BackupModuleAntiflood:
-		return clearAntifloodData(chatID)
-	case BackupModuleBlacklists:
-		return clearBlacklistsData(chatID)
-	case BackupModuleCaptcha:
-		return clearCaptchaData(chatID)
-	case BackupModuleConnections:
-		return clearConnectionsData(chatID)
-	case BackupModuleDisabling:
-		return clearDisablingData(chatID)
-	case BackupModuleFilters:
-		return clearFiltersData(chatID)
-	case BackupModuleGreetings:
-		return clearGreetingsData(chatID)
-	case BackupModuleLocks:
-		return clearLocksData(chatID)
-	case BackupModuleNotes:
-		return clearNotesData(chatID)
-	case BackupModulePins:
-		return clearPinsData(chatID)
-	case BackupModuleReports:
-		return clearReportsData(chatID)
-	case BackupModuleRules:
-		return clearRulesData(chatID)
-	case BackupModuleAntiraid:
-		return clearAntiraidData(chatID)
-	case BackupModuleApprovals:
-		return clearApprovalsData(chatID)
-	case BackupModuleWarns:
-		return clearWarnsData(chatID)
-	default:
-		return fmt.Errorf("unknown module: %s", module)
+	database, err := backupDB()
+	if err != nil {
+		return err
 	}
+
+	var keys []string
+	err = database.Transaction(func(tx *gorm.DB) error {
+		var clearErr error
+		keys, clearErr = clearModuleData(tx, chatID, module)
+		return clearErr
+	})
+	if err != nil {
+		return err
+	}
+	invalidate(keys...)
+	return nil
 }
 
-// ExportChatData exports data for specified modules from a chat
+// ExportChatData exports the selected modules. A failed module aborts the
+// export so callers never receive a backup that only looks complete.
 func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string) (*BackupFormat, error) {
-	// If no modules specified, export all
-	if len(modules) == 0 {
-		modules = AllExportableModules()
-	}
-
-	// Filter valid modules
-	modules = FilterValidModules(modules)
-	if len(modules) == 0 {
-		return nil, fmt.Errorf("no valid modules specified")
+	modules, err := checkedModules(modules)
+	if err != nil {
+		return nil, err
 	}
 
 	backup := NewBackupFormat(chatID, chatName, exportedBy, modules)
-
 	for _, module := range modules {
 		data, err := ExportModuleData(chatID, module)
 		if err != nil {
-			log.Warnf("[BackupDB] Failed to export module %s for chat %d: %v", module, chatID, err)
-			continue
+			return nil, fmt.Errorf("failed to export module %s: %w", module, err)
 		}
-		if data != nil {
-			backup.Data[module] = data
-		}
+		backup.Data[module] = data
 	}
-
 	return backup, nil
 }
 
-// ImportChatData imports backup data into a chat
+// ImportChatData imports every selected module in one transaction.
 func ImportChatData(chatID int64, backup *BackupFormat, modules []string) error {
-	// Validate backup
+	if backup == nil {
+		return fmt.Errorf("invalid backup: backup cannot be nil")
+	}
 	if err := backup.Validate(); err != nil {
 		return fmt.Errorf("invalid backup: %w", err)
 	}
-
-	// If no modules specified, import all from backup
+	if !backup.IsCompatibleVersion() {
+		return fmt.Errorf("unsupported backup version %q", backup.Version)
+	}
 	if len(modules) == 0 {
 		modules = backup.Modules
 	}
-
-	// Filter to only modules present in backup
-	var validModules []string
-	for _, m := range modules {
-		if _, ok := backup.Data[m]; ok {
-			validModules = append(validModules, m)
-		}
-	}
-
-	// Import each module
-	for _, module := range validModules {
-		data := backup.Data[module]
-		if err := ImportModuleData(chatID, module, data); err != nil {
-			log.Errorf("[BackupDB] Failed to import module %s for chat %d: %v", module, chatID, err)
-			return fmt.Errorf("failed to import module %s: %w", module, err)
-		}
-	}
-
-	return nil
-}
-
-// ClearChatData clears data for specified modules from a chat
-func ClearChatData(chatID int64, modules []string) error {
-	// If no modules specified, clear all
-	if len(modules) == 0 {
-		modules = AllExportableModules()
-	}
-
-	// Filter valid modules
-	modules = FilterValidModules(modules)
-
 	for _, module := range modules {
-		if err := ClearModuleData(chatID, module); err != nil {
-			log.Errorf("[BackupDB] Failed to clear module %s for chat %d: %v", module, chatID, err)
-			return fmt.Errorf("failed to clear module %s: %w", module, err)
+		if !IsValidModule(module) {
+			return fmt.Errorf("unknown module: %s", module)
+		}
+		if _, ok := backup.Data[module]; !ok {
+			return fmt.Errorf("missing data for module: %s", module)
 		}
 	}
 
+	database, err := backupDB()
+	if err != nil {
+		return err
+	}
+
+	var keys []string
+	err = database.Transaction(func(tx *gorm.DB) error {
+		for _, module := range modules {
+			data := backup.Data[module]
+			moduleKeys, err := importModuleData(tx, chatID, module, data, backup.Version == legacyFormatVersion)
+			if err != nil {
+				return fmt.Errorf("failed to import module %s: %w", module, err)
+			}
+			keys = append(keys, moduleKeys...)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	invalidate(keys...)
 	return nil
 }
 
-// Individual module export functions
+// ClearChatData clears every selected module in one transaction.
+func ClearChatData(chatID int64, modules []string) error {
+	modules, err := checkedModules(modules)
+	if err != nil {
+		return err
+	}
+	database, err := backupDB()
+	if err != nil {
+		return err
+	}
+
+	var keys []string
+	err = database.Transaction(func(tx *gorm.DB) error {
+		for _, module := range modules {
+			moduleKeys, err := clearModuleData(tx, chatID, module)
+			if err != nil {
+				return fmt.Errorf("failed to clear module %s: %w", module, err)
+			}
+			keys = append(keys, moduleKeys...)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	invalidate(keys...)
+	return nil
+}
+
+func checkedModules(modules []string) ([]string, error) {
+	if len(modules) == 0 {
+		return AllExportableModules(), nil
+	}
+	for _, module := range modules {
+		if !IsValidModule(module) {
+			return nil, fmt.Errorf("unknown module: %s", module)
+		}
+	}
+	return modules, nil
+}
+
+func backupDB() (*gorm.DB, error) {
+	if db.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return db.DB, nil
+}
+
+func findChatSetting[T any](chatID int64) (*T, error) {
+	database, err := backupDB()
+	if err != nil {
+		return nil, err
+	}
+	var setting T
+	err = database.Where("chat_id = ?", chatID).Take(&setting).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &setting, nil
+}
+
+func findChatRows[T any](chatID int64) ([]T, error) {
+	database, err := backupDB()
+	if err != nil {
+		return nil, err
+	}
+	var rows []T
+	if err := database.Where("chat_id = ?", chatID).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func replaceChatSetting[T any](tx *gorm.DB, chatID int64, setting *T) error {
+	if err := tx.Where("chat_id = ?", chatID).Delete(new(T)).Error; err != nil {
+		return err
+	}
+	if setting == nil {
+		return nil
+	}
+	var desired T
+	raw, err := json.Marshal(setting)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, &desired); err != nil {
+		return err
+	}
+	if err := tx.Omit("ID").Create(setting).Error; err != nil {
+		return err
+	}
+	// GORM applies tagged database defaults to zero-valued fields on CREATE.
+	// The explicit update is required for backed-up false/0 values.
+	return tx.Model(new(T)).
+		Where("chat_id = ?", chatID).
+		Select("*").
+		Omit("ID", "CreatedAt").
+		Updates(&desired).Error
+}
+
+func replaceChatRows[T any](tx *gorm.DB, chatID int64, rows []T) error {
+	if err := tx.Where("chat_id = ?", chatID).Delete(new(T)).Error; err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	var desired []T
+	raw, err := json.Marshal(rows)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, &desired); err != nil {
+		return err
+	}
+	if err := tx.Omit("ID").Create(&rows).Error; err != nil {
+		return err
+	}
+	for i := range rows {
+		if err := tx.Model(&rows[i]).
+			Select("*").
+			Omit("ID", "CreatedAt").
+			Updates(&desired[i]).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func decodeModuleData(data interface{}, module string, target interface{}) error {
+	if _, ok := data.(map[string]interface{}); !ok {
+		return fmt.Errorf("invalid %s data format", module)
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("invalid %s data format: %w", module, err)
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
+		return fmt.Errorf("failed to parse %s data: %w", module, err)
+	}
+	return nil
+}
+
+func invalidate(keys ...string) {
+	for _, key := range keys {
+		dbcache.DeleteCache(key)
+	}
+}
+
+func cacheKey(module string, chatID int64) string {
+	return dbcache.CacheKey(module, chatID)
+}
+
+// Exporters query complete rows instead of lossy summary getters.
 
 func exportAdminData(chatID int64) (*AdminBackup, error) {
-	backup := &AdminBackup{}
-
-	// Export admin settings
-	adminSettings := admin.GetAdminSettings(chatID)
-	if adminSettings != nil {
-		backup.AdminSettings = adminSettings
+	adminSettings, err := findChatSetting[models.AdminSettings](chatID)
+	if err != nil {
+		return nil, fmt.Errorf("get admin settings: %w", err)
+	}
+	antifloodSettings, err := findChatSetting[models.AntifloodSettings](chatID)
+	if err != nil {
+		return nil, fmt.Errorf("get antiflood settings: %w", err)
+	}
+	captchaSettings, err := findChatSetting[models.CaptchaSettings](chatID)
+	if err != nil {
+		return nil, fmt.Errorf("get captcha settings: %w", err)
+	}
+	connectionSettings, err := findChatSetting[models.ConnectionChatSettings](chatID)
+	if err != nil {
+		return nil, fmt.Errorf("get connection settings: %w", err)
+	}
+	blacklistEntries, err := findChatRows[models.BlacklistSettings](chatID)
+	if err != nil {
+		return nil, fmt.Errorf("get blacklist settings: %w", err)
 	}
 
-	// Export antiflood settings
-	antifloodSettings := antiflood.GetFlood(chatID)
-	if antifloodSettings != nil {
-		backup.AntifloodSettings = antifloodSettings
+	result := &AdminBackup{
+		AdminSettings:      adminSettings,
+		AntifloodSettings:  antifloodSettings,
+		CaptchaSettings:    captchaSettings,
+		ConnectionSettings: connectionSettings,
 	}
-
-	// Export blacklist mode
-	blacklistSettings := blacklists.GetBlacklistSettings(chatID)
-	if len(blacklistSettings) > 0 {
-		backup.BlacklistMode = blacklistSettings.Action()
+	if len(blacklistEntries) > 0 {
+		result.BlacklistMode = blacklistEntries[0].Action
 	}
-
-	// Export captcha settings
-	captchaSettings, err := captcha.GetCaptchaSettings(chatID)
-	if err == nil && captchaSettings != nil {
-		backup.CaptchaSettings = captchaSettings
-	}
-
-	// Export connection settings
-	connection := connections.GetChatConnectionSetting(chatID)
-	if connection != nil {
-		backup.ConnectionSettings = connection
-	}
-
-	return backup, nil
+	return result, nil
 }
 
 func exportAntifloodData(chatID int64) (*AntifloodBackup, error) {
-	setting := antiflood.GetFlood(chatID)
-	if setting == nil {
-		return &AntifloodBackup{}, nil
-	}
-	return &AntifloodBackup{Settings: setting}, nil
-}
-
-func exportBlacklistsData(chatID int64) (*BlacklistsBackup, error) {
-	backup := &BlacklistsBackup{}
-
-	settings := blacklists.GetBlacklistSettings(chatID)
-	if len(settings) > 0 {
-		backup.BlacklistMode = settings.Action()
-		// Convert slice to []models.BlacklistSettings
-		entries := make([]models.BlacklistSettings, len(settings))
-		for i, s := range settings {
-			entry := *s
-			entries[i] = entry
-		}
-		backup.Entries = entries
-	}
-
-	return backup, nil
-}
-
-func exportCaptchaData(chatID int64) (*CaptchaBackup, error) {
-	setting, err := captcha.GetCaptchaSettings(chatID)
-	if err != nil {
-		return &CaptchaBackup{}, nil
-	}
-	return &CaptchaBackup{Settings: setting}, nil
-}
-
-func exportConnectionsData(chatID int64) (*ConnectionsBackup, error) {
-	setting := connections.GetChatConnectionSetting(chatID)
-	if setting == nil {
-		return &ConnectionsBackup{}, nil
-	}
-	return &ConnectionsBackup{Settings: setting}, nil
-}
-
-func exportDisablingData(chatID int64) (*DisablingBackup, error) {
-	commands := disabling.GetChatDisabledCMDs(chatID)
-	deleteCommands := disabling.ShouldDel(chatID)
-
-	backup := &DisablingBackup{}
-	if deleteCommands {
-		backup.ChatSettings = &models.DisableChatSettings{
-			ChatId:         chatID,
-			DeleteCommands: deleteCommands,
-		}
-	}
-
-	disableSettings := make([]models.DisableSettings, len(commands))
-	for i, cmd := range commands {
-		disableSettings[i] = models.DisableSettings{
-			ChatId:   chatID,
-			Command:  cmd,
-			Disabled: true,
-		}
-	}
-	backup.Commands = disableSettings
-
-	return backup, nil
-}
-
-func exportFiltersData(chatID int64) (*FiltersBackup, error) {
-	// Get all filters
-	filterWords := filters.GetFiltersList(chatID)
-	if len(filterWords) == 0 {
-		return &FiltersBackup{}, nil
-	}
-
-	filterList := make([]models.ChatFilters, 0, len(filterWords))
-	for _, word := range filterWords {
-		// Get filter details - using GetAllChatFilters from optimized_queries
-		// For now, we construct minimal filter data
-		filterList = append(filterList, models.ChatFilters{
-			ChatId:  chatID,
-			KeyWord: word,
-		})
-	}
-
-	return &FiltersBackup{Filters: filterList}, nil
-}
-
-func exportGreetingsData(chatID int64) (*GreetingsBackup, error) {
-	settings := greetings.GetGreetingSettings(chatID)
-	if settings == nil {
-		return &GreetingsBackup{}, nil
-	}
-	return &GreetingsBackup{Settings: settings}, nil
-}
-
-func exportLocksData(chatID int64) (*LocksBackup, error) {
-	locksMap := locks.GetChatLocks(chatID)
-	lockList := make([]models.LockSettings, 0, len(locksMap))
-
-	for lockType, locked := range locksMap {
-		lockList = append(lockList, models.LockSettings{
-			ChatId:   chatID,
-			LockType: lockType,
-			Locked:   locked,
-		})
-	}
-
-	return &LocksBackup{Locks: lockList}, nil
-}
-
-func exportNotesData(chatID int64) (*NotesBackup, error) {
-	// Get all notes
-	notesList := notes.GetNotesList(chatID, true)
-	if len(notesList) == 0 {
-		return &NotesBackup{}, nil
-	}
-
-	noteList := make([]models.Notes, 0, len(notesList))
-	for _, noteName := range notesList {
-		if note := notes.GetNote(chatID, noteName); note != nil {
-			noteList = append(noteList, *note)
-		}
-	}
-
-	return &NotesBackup{Notes: noteList}, nil
-}
-
-func exportPinsData(chatID int64) (*PinsBackup, error) {
-	setting := pins.GetPinData(chatID)
-	if setting == nil {
-		return &PinsBackup{}, nil
-	}
-	return &PinsBackup{Settings: setting}, nil
-}
-
-func exportReportsData(chatID int64) (*ReportsBackup, error) {
-	setting := reports.GetChatReportSettings(chatID)
-	if setting == nil {
-		return &ReportsBackup{}, nil
-	}
-	return &ReportsBackup{Settings: setting}, nil
-}
-
-func exportRulesData(chatID int64) (*RulesBackup, error) {
-	setting := rules.GetChatRulesInfo(chatID)
-	if setting == nil {
-		return &RulesBackup{}, nil
-	}
-	return &RulesBackup{Settings: setting}, nil
-}
-
-func exportWarnsData(chatID int64) (*WarnsBackup, error) {
-	backup := &WarnsBackup{}
-
-	setting := warns.GetWarnSetting(chatID)
-	if setting != nil {
-		backup.WarnSettings = setting
-	}
-
-	return backup, nil
-}
-
-// Individual module import functions
-
-func importAdminData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid admin data format")
-	}
-
-	// Import admin settings
-	if adminPayload, ok := backupData["admin_settings"]; ok {
-		adminJSON, _ := json.Marshal(adminPayload)
-		var settings models.AdminSettings
-		if err := json.Unmarshal(adminJSON, &settings); err == nil {
-			settings.ChatId = chatID
-			// Use SetAnonAdminMode so AnonAdmin=false is actually persisted
-			// (UpdateRecord with a struct ignores zero values, so restoring
-			// anon-admin OFF onto a chat that had it ON would leave it ON).
-			// SetAnonAdminMode also ensures the row exists before updating.
-			if err := admin.SetAnonAdminMode(chatID, settings.AnonAdmin); err != nil {
-				log.Warnf("[BackupDB] Failed to import admin settings: %v", err)
-			}
-		}
-	}
-
-	// Import antiflood settings
-	if antifloodPayload, ok := backupData["antiflood_settings"]; ok {
-		antifloodJSON, _ := json.Marshal(antifloodPayload)
-		var settings models.AntifloodSettings
-		if err := json.Unmarshal(antifloodJSON, &settings); err == nil {
-			if err := antiflood.SetFlood(chatID, settings.Limit); err != nil {
-				log.Warnf("[BackupDB] Failed to import antiflood limit: %v", err)
-			}
-			if err := antiflood.SetFloodMode(chatID, settings.Action); err != nil {
-				log.Warnf("[BackupDB] Failed to import antiflood mode: %v", err)
-			}
-		}
-	}
-
-	// Import captcha settings
-	if captchaPayload, ok := backupData["captcha_settings"]; ok {
-		captchaJSON, _ := json.Marshal(captchaPayload)
-		var settings models.CaptchaSettings
-		if err := json.Unmarshal(captchaJSON, &settings); err == nil {
-			_ = captcha.SetCaptchaEnabled(chatID, settings.Enabled)
-			_ = captcha.SetCaptchaMode(chatID, settings.CaptchaMode)
-			_ = captcha.SetCaptchaTimeout(chatID, settings.Timeout)
-		}
-	}
-
-	return nil
-}
-
-func importAntifloodData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid antiflood data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.AntifloodSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse antiflood settings: %w", err)
-		}
-
-		if err := antiflood.SetFlood(chatID, settings.Limit); err != nil {
-			return err
-		}
-		if err := antiflood.SetFloodMode(chatID, settings.Action); err != nil {
-			return err
-		}
-		if err := antiflood.SetFloodMsgDel(chatID, settings.DeleteAntifloodMessage); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func importBlacklistsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid blacklists data format")
-	}
-
-	// Import entries
-	if entriesData, ok := backupData["entries"]; ok {
-		entriesJSON, _ := json.Marshal(entriesData)
-		var entries []models.BlacklistSettings
-		if err := json.Unmarshal(entriesJSON, &entries); err == nil {
-			// Clear existing
-			_ = blacklists.RemoveAllBlacklist(chatID)
-
-			// Add new entries
-			for _, entry := range entries {
-				if err := blacklists.AddBlacklist(chatID, entry.Word); err != nil {
-					log.Warnf("[BackupDB] Failed to add blacklist entry: %v", err)
-				}
-				if entry.Action != "" {
-					_ = blacklists.SetBlacklistAction(chatID, entry.Action)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func importCaptchaData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid captcha data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.CaptchaSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse captcha settings: %w", err)
-		}
-
-		_ = captcha.SetCaptchaEnabled(chatID, settings.Enabled)
-		_ = captcha.SetCaptchaMode(chatID, settings.CaptchaMode)
-		_ = captcha.SetCaptchaTimeout(chatID, settings.Timeout)
-		_ = captcha.SetCaptchaMaxAttempts(chatID, settings.MaxAttempts)
-	}
-
-	return nil
-}
-
-func importConnectionsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid connections data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.ConnectionChatSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse connection settings: %w", err)
-		}
-
-		connections.GetChatConnectionSetting(chatID)
-		if err := db.UpdateRecordWithZeroValues(
-			&models.ConnectionChatSettings{},
-			models.ConnectionChatSettings{ChatId: chatID},
-			map[string]any{"allow_connect": settings.AllowConnect},
-		); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func importDisablingData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid disabling data format")
-	}
-
-	if err := clearDisabledCommands(chatID); err != nil {
-		return err
-	}
-
-	deleteCommands := false
-	if settingData, ok := backupData["chat_settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.DisableChatSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse disable chat settings: %w", err)
-		}
-		deleteCommands = settings.DeleteCommands
-	}
-	if err := disabling.ToggleDel(chatID, deleteCommands); err != nil {
-		return fmt.Errorf("failed to restore disabled command deletion setting: %w", err)
-	}
-
-	if commandsData, ok := backupData["commands"]; ok {
-		commandsJSON, _ := json.Marshal(commandsData)
-		var commands []models.DisableSettings
-		if err := json.Unmarshal(commandsJSON, &commands); err != nil {
-			return fmt.Errorf("failed to parse disabled commands: %w", err)
-		}
-
-		for _, cmd := range commands {
-			if cmd.Command != "" {
-				if err := disabling.DisableCMD(chatID, cmd.Command); err != nil {
-					return fmt.Errorf("failed to restore disabled command %q: %w", cmd.Command, err)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func importFiltersData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid filters data format")
-	}
-
-	if filtersPayload, ok := backupData["filters"]; ok {
-		filtersJSON, _ := json.Marshal(filtersPayload)
-		var filterItems []models.ChatFilters
-		if err := json.Unmarshal(filtersJSON, &filterItems); err != nil {
-			return fmt.Errorf("failed to parse filters: %w", err)
-		}
-
-		// Clear existing filters
-		if err := filters.RemoveAllFilters(chatID); err != nil {
-			return fmt.Errorf("failed to clear existing filters: %w", err)
-		}
-
-		// Import filters
-		for _, filter := range filterItems {
-			if filter.KeyWord != "" {
-				if err := filters.AddFilter(chatID, filter.KeyWord, filter.FilterReply, filter.FileID, filter.Buttons, filter.MsgType); err != nil {
-					return fmt.Errorf("failed to import filter %q: %w", filter.KeyWord, err)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func importGreetingsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid greetings data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.GreetingSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse greetings settings: %w", err)
-		}
-
-		// Import welcome settings
-		if settings.WelcomeSettings != nil {
-			_ = greetings.SetWelcomeText(chatID, settings.WelcomeSettings.WelcomeText,
-				settings.WelcomeSettings.FileID,
-				settings.WelcomeSettings.Button,
-				settings.WelcomeSettings.WelcomeType)
-			_ = greetings.SetWelcomeToggle(chatID, settings.WelcomeSettings.ShouldWelcome)
-		}
-
-		// Import goodbye settings
-		if settings.GoodbyeSettings != nil {
-			_ = greetings.SetGoodbyeText(chatID, settings.GoodbyeSettings.GoodbyeText,
-				settings.GoodbyeSettings.FileID,
-				settings.GoodbyeSettings.Button,
-				settings.GoodbyeSettings.GoodbyeType)
-		}
-	}
-
-	return nil
-}
-
-func importLocksData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid locks data format")
-	}
-
-	if locksPayload, ok := backupData["locks"]; ok {
-		locksJSON, _ := json.Marshal(locksPayload)
-		var lockList []models.LockSettings
-		if err := json.Unmarshal(locksJSON, &lockList); err != nil {
-			return fmt.Errorf("failed to parse locks: %w", err)
-		}
-
-		// Import locks
-		for _, lock := range lockList {
-			if lock.LockType != "" {
-				_ = locks.UpdateLock(chatID, lock.LockType, lock.Locked)
-			}
-		}
-	}
-
-	return nil
-}
-
-func importNotesData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid notes data format")
-	}
-
-	if notesPayload, ok := backupData["notes"]; ok {
-		notesJSON, _ := json.Marshal(notesPayload)
-		var noteItems []models.Notes
-		if err := json.Unmarshal(notesJSON, &noteItems); err != nil {
-			return fmt.Errorf("failed to parse notes: %w", err)
-		}
-
-		// Clear existing notes
-		_ = notes.RemoveAllNotes(chatID)
-
-		// Import notes
-		for _, note := range noteItems {
-			if note.NoteName != "" {
-				_ = notes.AddNote(chatID, note.NoteName, note.NoteContent, note.FileID, note.Buttons, note.MsgType,
-					note.PrivateOnly, note.GroupOnly, note.AdminOnly, note.WebPreview, note.IsProtected, note.NoNotif)
-			}
-		}
-	}
-
-	return nil
-}
-
-func importPinsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid pins data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.PinSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse pin settings: %w", err)
-		}
-
-		_ = pins.SetAntiChannelPin(chatID, settings.AntiChannelPin)
-		// Note: MsgId and CleanLinked would need specific functions
-	}
-
-	return nil
-}
-
-func importReportsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid reports data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.ReportChatSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse report settings: %w", err)
-		}
-
-		_ = reports.SetChatReportStatus(chatID, settings.Enabled)
-	}
-
-	return nil
-}
-
-func importRulesData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid rules data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.RulesSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse rules settings: %w", err)
-		}
-
-		if settings.Rules != "" {
-			rules.SetChatRules(chatID, settings.Rules)
-		}
-		if settings.RulesBtn != "" {
-			rules.SetChatRulesButton(chatID, settings.RulesBtn)
-		}
-		rules.SetPrivateRules(chatID, settings.Private)
-	}
-
-	return nil
-}
-
-func importWarnsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid warns data format")
-	}
-
-	// Import warn settings
-	if settingData, ok := backupData["warn_settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.WarnSettings
-		if err := json.Unmarshal(settingJSON, &settings); err == nil {
-			_ = warns.SetWarnLimit(chatID, settings.WarnLimit)
-			_ = warns.SetWarnMode(chatID, settings.WarnMode)
-		}
-	}
-
-	return nil
-}
-
-// Individual module clear functions
-
-func clearAdminData(chatID int64) error {
-	// Reset to defaults via UpdateRecord
-	_ = admin.SetAnonAdminMode(chatID, false)
-	_ = antiflood.SetFlood(chatID, 0)
-	_ = captcha.SetCaptchaEnabled(chatID, false)
-	return nil
-}
-
-func clearAntifloodData(chatID int64) error {
-	return antiflood.SetFlood(chatID, 0)
-}
-
-func clearBlacklistsData(chatID int64) error {
-	return blacklists.RemoveAllBlacklist(chatID)
-}
-
-func clearCaptchaData(chatID int64) error {
-	return captcha.SetCaptchaEnabled(chatID, false)
-}
-
-func clearConnectionsData(chatID int64) error {
-	// Reset connection settings
-	connections.GetChatConnectionSetting(chatID)
-	return db.UpdateRecordWithZeroValues(
-		&models.ConnectionChatSettings{},
-		models.ConnectionChatSettings{ChatId: chatID},
-		map[string]any{"allow_connect": false},
-	)
-}
-
-func clearDisablingData(chatID int64) error {
-	if err := clearDisabledCommands(chatID); err != nil {
-		return err
-	}
-	return disabling.ToggleDel(chatID, false)
-}
-
-func clearDisabledCommands(chatID int64) error {
-	existing := disabling.GetChatDisabledCMDs(chatID)
-	for _, cmd := range existing {
-		if err := disabling.EnableCMD(chatID, cmd); err != nil {
-			return fmt.Errorf("failed to enable command %q: %w", cmd, err)
-		}
-	}
-	return nil
-}
-
-func clearFiltersData(chatID int64) error {
-	return filters.RemoveAllFilters(chatID)
-}
-
-func clearGreetingsData(chatID int64) error {
-	_ = greetings.SetWelcomeToggle(chatID, false)
-	return nil
-}
-
-func clearLocksData(chatID int64) error {
-	// Get all locks and unlock them
-	lockMap := locks.GetChatLocks(chatID)
-	for lockType := range lockMap {
-		_ = locks.UpdateLock(chatID, lockType, false)
-	}
-	return nil
-}
-
-func clearNotesData(chatID int64) error {
-	return notes.RemoveAllNotes(chatID)
-}
-
-func clearPinsData(chatID int64) error {
-	_ = pins.SetAntiChannelPin(chatID, false)
-	return nil
-}
-
-func clearReportsData(chatID int64) error {
-	return reports.SetChatReportStatus(chatID, true) // Default is enabled
-}
-
-func clearRulesData(chatID int64) error {
-	rules.SetChatRules(chatID, "")
-	rules.SetChatRulesButton(chatID, "")
-	rules.SetPrivateRules(chatID, false)
-	return nil
-}
-
-func clearWarnsData(chatID int64) error {
-	_ = warns.SetWarnLimit(chatID, 3) // Default
-	_ = warns.SetWarnMode(chatID, "") // Default
-	return nil
+	settings, err := findChatSetting[models.AntifloodSettings](chatID)
+	return &AntifloodBackup{Settings: settings}, err
 }
 
 func exportAntiraidData(chatID int64) (*AntiraidBackup, error) {
-	settings := antiraid.GetAntiRaidSettings(chatID)
-	if settings == nil {
-		return &AntiraidBackup{}, nil
-	}
-	return &AntiraidBackup{Settings: settings}, nil
-}
-
-func importAntiraidData(chatID int64, data interface{}) error { //nolint:dupl
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid antiraid data format")
-	}
-
-	if settingData, ok := backupData["settings"]; ok {
-		settingJSON, _ := json.Marshal(settingData)
-		var settings models.AntiRaidSettings
-		if err := json.Unmarshal(settingJSON, &settings); err != nil {
-			return fmt.Errorf("failed to parse antiraid settings: %w", err)
-		}
-
-		if err := antiraid.SetRaidTime(chatID, settings.RaidTime); err != nil {
-			return err
-		}
-		if err := antiraid.SetRaidActionTime(chatID, settings.RaidActionTime); err != nil {
-			return err
-		}
-		if err := antiraid.SetAutoAntiRaidThreshold(chatID, settings.AutoAntiRaidThreshold); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func clearAntiraidData(chatID int64) error {
-	// Reset to defaults: RaidTime=21600, RaidActionTime=3600, AutoAntiRaidThreshold=0
-	if err := antiraid.SetRaidTime(chatID, 21600); err != nil {
-		return err
-	}
-	if err := antiraid.SetRaidActionTime(chatID, 3600); err != nil {
-		return err
-	}
-	return antiraid.SetAutoAntiRaidThreshold(chatID, 0)
+	settings, err := findChatSetting[models.AntiRaidSettings](chatID)
+	return &AntiraidBackup{Settings: settings}, err
 }
 
 func exportApprovalsData(chatID int64) (*ApprovalsBackup, error) {
-	users := approvals.GetApprovedUsers(chatID)
-	userList := make([]models.ApprovedUsers, 0, len(users))
-	for _, u := range users {
-		userList = append(userList, *u)
-	}
-	return &ApprovalsBackup{ApprovedUsers: userList}, nil
+	users, err := findChatRows[models.ApprovedUsers](chatID)
+	return &ApprovalsBackup{ApprovedUsers: users}, err
 }
 
-func importApprovalsData(chatID int64, data interface{}) error {
-	backupData, ok := data.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("invalid approvals data format")
+func exportBlacklistsData(chatID int64) (*BlacklistsBackup, error) {
+	entries, err := findChatRows[models.BlacklistSettings](chatID)
+	if err != nil {
+		return nil, err
 	}
-
-	if usersPayload, ok := backupData["approved_users"]; ok {
-		usersJSON, _ := json.Marshal(usersPayload)
-		var users []models.ApprovedUsers
-		if err := json.Unmarshal(usersJSON, &users); err != nil {
-			return fmt.Errorf("failed to parse approved users: %w", err)
-		}
-
-		// Clear existing approvals before importing
-		if err := approvals.RemoveAllApprovedUsers(chatID); err != nil {
-			return fmt.Errorf("failed to clear existing approved users: %w", err)
-		}
-
-		for _, u := range users {
-			if u.UserID != 0 {
-				if err := approvals.AddApprovedUser(chatID, u.UserID, u.ApprovedBy, u.Reason); err != nil {
-					return fmt.Errorf("failed to import approved user %d: %w", u.UserID, err)
-				}
-			}
-		}
+	result := &BlacklistsBackup{Entries: entries}
+	if len(entries) > 0 {
+		result.BlacklistMode = entries[0].Action
 	}
-
-	return nil
+	return result, nil
 }
 
-func clearApprovalsData(chatID int64) error {
-	return approvals.RemoveAllApprovedUsers(chatID)
+func exportCaptchaData(chatID int64) (*CaptchaBackup, error) {
+	settings, err := findChatSetting[models.CaptchaSettings](chatID)
+	return &CaptchaBackup{Settings: settings}, err
+}
+
+func exportConnectionsData(chatID int64) (*ConnectionsBackup, error) {
+	settings, err := findChatSetting[models.ConnectionChatSettings](chatID)
+	return &ConnectionsBackup{Settings: settings}, err
+}
+
+func exportDisablingData(chatID int64) (*DisablingBackup, error) {
+	settings, err := findChatSetting[models.DisableChatSettings](chatID)
+	if err != nil {
+		return nil, err
+	}
+	commands, err := findChatRows[models.DisableSettings](chatID)
+	if err != nil {
+		return nil, err
+	}
+	return &DisablingBackup{ChatSettings: settings, Commands: commands}, nil
+}
+
+func exportFiltersData(chatID int64) (*FiltersBackup, error) {
+	rows, err := findChatRows[models.ChatFilters](chatID)
+	return &FiltersBackup{Filters: rows}, err
+}
+
+func exportGreetingsData(chatID int64) (*GreetingsBackup, error) {
+	settings, err := findChatSetting[models.GreetingSettings](chatID)
+	return &GreetingsBackup{Settings: settings}, err
+}
+
+func exportLocksData(chatID int64) (*LocksBackup, error) {
+	rows, err := findChatRows[models.LockSettings](chatID)
+	return &LocksBackup{Locks: rows}, err
+}
+
+func exportNotesData(chatID int64) (*NotesBackup, error) {
+	settings, err := findChatSetting[models.NotesSettings](chatID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := findChatRows[models.Notes](chatID)
+	if err != nil {
+		return nil, err
+	}
+	return &NotesBackup{Settings: settings, Notes: rows}, nil
+}
+
+func exportPinsData(chatID int64) (*PinsBackup, error) {
+	settings, err := findChatSetting[models.PinSettings](chatID)
+	return &PinsBackup{Settings: settings}, err
+}
+
+func exportReactionsData(chatID int64) (*ReactionsBackup, error) {
+	rows, err := findChatRows[models.Reactions](chatID)
+	return &ReactionsBackup{Reactions: rows}, err
+}
+
+func exportReportsData(chatID int64) (*ReportsBackup, error) {
+	settings, err := findChatSetting[models.ReportChatSettings](chatID)
+	return &ReportsBackup{Settings: settings}, err
+}
+
+func exportRulesData(chatID int64) (*RulesBackup, error) {
+	settings, err := findChatSetting[models.RulesSettings](chatID)
+	return &RulesBackup{Settings: settings}, err
+}
+
+func exportWarnsData(chatID int64) (*WarnsBackup, error) {
+	settings, err := findChatSetting[models.WarnSettings](chatID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := findChatRows[models.Warns](chatID)
+	if err != nil {
+		return nil, err
+	}
+	return &WarnsBackup{WarnSettings: settings, Warns: rows}, nil
+}
+
+func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool) ([]string, error) {
+	if err := ensureBackupChat(tx, chatID); err != nil {
+		return nil, err
+	}
+	switch module {
+	case BackupModuleAdmin:
+		return importAdmin(tx, chatID, data)
+	case BackupModuleAntiflood:
+		return importAntiflood(tx, chatID, data)
+	case BackupModuleAntiraid:
+		return importAntiraid(tx, chatID, data)
+	case BackupModuleApprovals:
+		return importApprovals(tx, chatID, data)
+	case BackupModuleBlacklists:
+		return importBlacklists(tx, chatID, data)
+	case BackupModuleCaptcha:
+		return importCaptcha(tx, chatID, data)
+	case BackupModuleConnections:
+		return importConnections(tx, chatID, data)
+	case BackupModuleDisabling:
+		return importDisabling(tx, chatID, data)
+	case BackupModuleFilters:
+		return importFilters(tx, chatID, data)
+	case BackupModuleGreetings:
+		return importGreetings(tx, chatID, data)
+	case BackupModuleLocks:
+		return importLocks(tx, chatID, data)
+	case BackupModuleNotes:
+		return importNotes(tx, chatID, data, preserveLegacyOmissions)
+	case BackupModulePins:
+		return importPins(tx, chatID, data)
+	case BackupModuleReactions:
+		return importReactions(tx, chatID, data)
+	case BackupModuleReports:
+		return importReports(tx, chatID, data)
+	case BackupModuleRules:
+		return importRules(tx, chatID, data)
+	case BackupModuleWarns:
+		return importWarns(tx, chatID, data, preserveLegacyOmissions)
+	default:
+		return nil, fmt.Errorf("unknown module: %s", module)
+	}
+}
+
+func importAdmin(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data AdminBackup
+	if err := decodeModuleData(payload, BackupModuleAdmin, &data); err != nil {
+		return nil, err
+	}
+	if data.AdminSettings != nil {
+		data.AdminSettings.ChatId = chatID
+	}
+	if data.AntifloodSettings != nil {
+		data.AntifloodSettings.ChatId = chatID
+	}
+	if data.CaptchaSettings != nil {
+		data.CaptchaSettings.ChatID = chatID
+	}
+	if data.ConnectionSettings != nil {
+		data.ConnectionSettings.ChatId = chatID
+	}
+
+	if err := replaceChatSetting(tx, chatID, data.AdminSettings); err != nil {
+		return nil, fmt.Errorf("restore admin settings: %w", err)
+	}
+	if err := replaceChatSetting(tx, chatID, data.AntifloodSettings); err != nil {
+		return nil, fmt.Errorf("restore antiflood settings: %w", err)
+	}
+	if err := replaceChatSetting(tx, chatID, data.CaptchaSettings); err != nil {
+		return nil, fmt.Errorf("restore captcha settings: %w", err)
+	}
+	if err := replaceChatSetting(tx, chatID, data.ConnectionSettings); err != nil {
+		return nil, fmt.Errorf("restore connection settings: %w", err)
+	}
+	if data.BlacklistMode != "" {
+		if err := tx.Model(&models.BlacklistSettings{}).
+			Where("chat_id = ?", chatID).
+			Update("action", data.BlacklistMode).Error; err != nil {
+			return nil, fmt.Errorf("restore blacklist mode: %w", err)
+		}
+	}
+	return []string{
+		cacheKey("antiflood", chatID),
+		cacheKey("captcha_settings", chatID),
+		cacheKey("blacklist", chatID),
+	}, nil
+}
+
+func importAntiflood(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data AntifloodBackup
+	if err := decodeModuleData(payload, BackupModuleAntiflood, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+		if data.Settings.Limit < 0 {
+			return nil, fmt.Errorf("invalid antiflood limit %d", data.Settings.Limit)
+		}
+	}
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("antiflood", chatID)}, nil
+}
+
+func importAntiraid(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data AntiraidBackup
+	if err := decodeModuleData(payload, BackupModuleAntiraid, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatID = chatID
+		if data.Settings.RaidTime < 0 || data.Settings.RaidActionTime < 0 || data.Settings.AutoAntiRaidThreshold < 0 {
+			return nil, fmt.Errorf("invalid antiraid settings")
+		}
+	}
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("antiraid", chatID)}, nil
+}
+
+func importApprovals(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data ApprovalsBackup
+	if err := decodeModuleData(payload, BackupModuleApprovals, &data); err != nil {
+		return nil, err
+	}
+	for i := range data.ApprovedUsers {
+		if data.ApprovedUsers[i].UserID == 0 {
+			return nil, fmt.Errorf("invalid approved user ID")
+		}
+		data.ApprovedUsers[i].ChatID = chatID
+	}
+	if err := replaceChatRows(tx, chatID, data.ApprovedUsers); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("approvals", chatID)}, nil
+}
+
+func importBlacklists(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data BlacklistsBackup
+	if err := decodeModuleData(payload, BackupModuleBlacklists, &data); err != nil {
+		return nil, err
+	}
+	if len(data.Entries) == 0 && data.Settings != nil {
+		data.Entries = []models.BlacklistSettings{*data.Settings}
+	}
+	for i := range data.Entries {
+		if data.Entries[i].Word == "" {
+			return nil, fmt.Errorf("invalid empty blacklist word")
+		}
+		data.Entries[i].ChatId = chatID
+		if data.Entries[i].Action == "" {
+			data.Entries[i].Action = data.BlacklistMode
+		}
+		if data.Entries[i].Action == "" {
+			data.Entries[i].Action = "warn"
+		}
+	}
+	if err := replaceChatRows(tx, chatID, data.Entries); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("blacklist", chatID)}, nil
+}
+
+func importCaptcha(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data CaptchaBackup
+	if err := decodeModuleData(payload, BackupModuleCaptcha, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatID = chatID
+	}
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("captcha_settings", chatID)}, nil
+}
+
+func importConnections(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data ConnectionsBackup
+	if err := decodeModuleData(payload, BackupModuleConnections, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+	}
+	return nil, replaceChatSetting(tx, chatID, data.Settings)
+}
+
+func importDisabling(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
+	var data DisablingBackup
+	if err := decodeModuleData(payload, BackupModuleDisabling, &data); err != nil {
+		return nil, err
+	}
+	if data.ChatSettings != nil {
+		data.ChatSettings.ChatId = chatID
+	}
+	for i := range data.Commands {
+		if data.Commands[i].Command == "" {
+			return nil, fmt.Errorf("invalid empty disabled command")
+		}
+		data.Commands[i].ChatId = chatID
+	}
+	if err := replaceChatSetting(tx, chatID, data.ChatSettings); err != nil {
+		return nil, err
+	}
+	if err := replaceChatRows(tx, chatID, data.Commands); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("disabled_cmds", chatID)}, nil
+}
+
+func importFilters(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
+	var data FiltersBackup
+	if err := decodeModuleData(payload, BackupModuleFilters, &data); err != nil {
+		return nil, err
+	}
+	for i := range data.Filters {
+		if data.Filters[i].KeyWord == "" {
+			return nil, fmt.Errorf("invalid empty filter keyword")
+		}
+		data.Filters[i].ChatId = chatID
+	}
+	if err := replaceChatRows(tx, chatID, data.Filters); err != nil {
+		return nil, err
+	}
+	return []string{
+		cacheKey("filter_list", chatID),
+		cacheKey("filters_optimized", chatID),
+	}, nil
+}
+
+func importGreetings(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data GreetingsBackup
+	if err := decodeModuleData(payload, BackupModuleGreetings, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatID = chatID
+	}
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("greetings", chatID)}, nil
+}
+
+func importLocks(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) { //nolint:dupl // module-specific schema
+	var data LocksBackup
+	if err := decodeModuleData(payload, BackupModuleLocks, &data); err != nil {
+		return nil, err
+	}
+	for i := range data.Locks {
+		if data.Locks[i].LockType == "" {
+			return nil, fmt.Errorf("invalid empty lock type")
+		}
+		data.Locks[i].ChatId = chatID
+	}
+	if err := replaceChatRows(tx, chatID, data.Locks); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("lock", chatID), cacheKey("locks_map", chatID)}, nil
+}
+
+func importNotes(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) { //nolint:dupl // module-specific schema
+	restoreSettings := !preserveLegacyOmissions || moduleFieldPresent(payload, "settings")
+	var data NotesBackup
+	if err := decodeModuleData(payload, BackupModuleNotes, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+	}
+	for i := range data.Notes {
+		if data.Notes[i].NoteName == "" {
+			return nil, fmt.Errorf("invalid empty note name")
+		}
+		data.Notes[i].ChatId = chatID
+	}
+	if restoreSettings {
+		if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+			return nil, err
+		}
+	}
+	if err := replaceChatRows(tx, chatID, data.Notes); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("notes_settings", chatID)}, nil
+}
+
+func importPins(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data PinsBackup
+	if err := decodeModuleData(payload, BackupModulePins, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+	}
+	return nil, replaceChatSetting(tx, chatID, data.Settings)
+}
+
+func importReactions(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data ReactionsBackup
+	if err := decodeModuleData(payload, BackupModuleReactions, &data); err != nil {
+		return nil, err
+	}
+	for i := range data.Reactions {
+		if data.Reactions[i].Keyword == "" || data.Reactions[i].Emoji == "" {
+			return nil, fmt.Errorf("invalid reaction")
+		}
+		data.Reactions[i].ChatID = chatID
+	}
+	if err := replaceChatRows(tx, chatID, data.Reactions); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("reactions", chatID)}, nil
+}
+
+func importReports(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data ReportsBackup
+	if err := decodeModuleData(payload, BackupModuleReports, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+		data.Settings.Status = data.Settings.Enabled
+	}
+	return nil, replaceChatSetting(tx, chatID, data.Settings)
+}
+
+func importRules(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data RulesBackup
+	if err := decodeModuleData(payload, BackupModuleRules, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatId = chatID
+	}
+	return nil, replaceChatSetting(tx, chatID, data.Settings)
+}
+
+func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyOmissions bool) ([]string, error) {
+	restoreWarns := !preserveLegacyOmissions || moduleFieldPresent(payload, "warns")
+	var data WarnsBackup
+	if err := decodeModuleData(payload, BackupModuleWarns, &data); err != nil {
+		return nil, err
+	}
+	if data.WarnSettings != nil {
+		data.WarnSettings.ChatId = chatID
+		if data.WarnSettings.WarnLimit <= 0 {
+			return nil, fmt.Errorf("invalid warn limit %d", data.WarnSettings.WarnLimit)
+		}
+	}
+	for i := range data.Warns {
+		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {
+			return nil, fmt.Errorf("invalid warn record")
+		}
+		data.Warns[i].ChatId = chatID
+	}
+	if len(data.Warns) > 0 {
+		users := make([]models.User, len(data.Warns))
+		for i := range data.Warns {
+			users[i].UserId = data.Warns[i].UserId
+		}
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}},
+			DoNothing: true,
+		}).Create(&users).Error; err != nil {
+			return nil, fmt.Errorf("ensure warned users: %w", err)
+		}
+	}
+
+	var oldUserIDs []int64
+	if restoreWarns {
+		if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &oldUserIDs).Error; err != nil {
+			return nil, err
+		}
+	}
+	if err := replaceChatSetting(tx, chatID, data.WarnSettings); err != nil {
+		return nil, err
+	}
+	if restoreWarns {
+		if err := replaceChatRows(tx, chatID, data.Warns); err != nil {
+			return nil, err
+		}
+	}
+
+	keys := []string{cacheKey("warn_settings", chatID)}
+	for _, userID := range oldUserIDs {
+		keys = append(keys, dbcache.CacheKey("warns", userID, chatID))
+	}
+	if restoreWarns {
+		for _, row := range data.Warns {
+			keys = append(keys, dbcache.CacheKey("warns", row.UserId, chatID))
+		}
+	}
+	return keys, nil
+}
+
+func moduleFieldPresent(payload interface{}, field string) bool {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return false
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return false
+	}
+	_, ok := fields[field]
+	return ok
+}
+
+func clearModuleData(tx *gorm.DB, chatID int64, module string) ([]string, error) {
+	if err := ensureBackupChat(tx, chatID); err != nil {
+		return nil, err
+	}
+	switch module {
+	case BackupModuleAdmin:
+		return clearAdmin(tx, chatID)
+	case BackupModuleAntiflood:
+		return clearAntiflood(tx, chatID)
+	case BackupModuleAntiraid:
+		return clearAntiraid(tx, chatID)
+	case BackupModuleApprovals:
+		return clearApprovals(tx, chatID)
+	case BackupModuleBlacklists:
+		return clearBlacklists(tx, chatID)
+	case BackupModuleCaptcha:
+		return clearCaptcha(tx, chatID)
+	case BackupModuleConnections:
+		return clearConnections(tx, chatID)
+	case BackupModuleDisabling:
+		return clearDisabling(tx, chatID)
+	case BackupModuleFilters:
+		return clearFilters(tx, chatID)
+	case BackupModuleGreetings:
+		return clearGreetings(tx, chatID)
+	case BackupModuleLocks:
+		return clearLocks(tx, chatID)
+	case BackupModuleNotes:
+		return clearNotes(tx, chatID)
+	case BackupModulePins:
+		return clearPins(tx, chatID)
+	case BackupModuleReactions:
+		return clearReactions(tx, chatID)
+	case BackupModuleReports:
+		return clearReports(tx, chatID)
+	case BackupModuleRules:
+		return clearRules(tx, chatID)
+	case BackupModuleWarns:
+		return clearWarns(tx, chatID)
+	default:
+		return nil, fmt.Errorf("unknown module: %s", module)
+	}
+}
+
+func ensureBackupChat(tx *gorm.DB, chatID int64) error {
+	return tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoNothing: true,
+	}).Create(&models.Chat{ChatId: chatID}).Error
+}
+
+func clearAdmin(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := replaceChatSetting(tx, chatID, &models.AdminSettings{ChatId: chatID}); err != nil {
+		return nil, err
+	}
+	if _, err := clearAntiflood(tx, chatID); err != nil {
+		return nil, err
+	}
+	if _, err := clearCaptcha(tx, chatID); err != nil {
+		return nil, err
+	}
+	if _, err := clearConnections(tx, chatID); err != nil {
+		return nil, err
+	}
+	if err := tx.Model(&models.BlacklistSettings{}).
+		Where("chat_id = ?", chatID).
+		Update("action", "warn").Error; err != nil {
+		return nil, err
+	}
+	return []string{
+		cacheKey("antiflood", chatID),
+		cacheKey("captcha_settings", chatID),
+		cacheKey("blacklist", chatID),
+	}, nil
+}
+
+func clearAntiflood(tx *gorm.DB, chatID int64) ([]string, error) {
+	settings := &models.AntifloodSettings{ChatId: chatID, Limit: 0, Action: "mute"}
+	return []string{cacheKey("antiflood", chatID)}, replaceChatSetting(tx, chatID, settings)
+}
+
+func clearAntiraid(tx *gorm.DB, chatID int64) ([]string, error) {
+	settings := &models.AntiRaidSettings{
+		ChatID:                chatID,
+		RaidTime:              21600,
+		RaidActionTime:        3600,
+		AutoAntiRaidThreshold: 0,
+	}
+	return []string{cacheKey("antiraid", chatID)}, replaceChatSetting(tx, chatID, settings)
+}
+
+func clearApprovals(tx *gorm.DB, chatID int64) ([]string, error) {
+	return []string{cacheKey("approvals", chatID)}, replaceChatRows[models.ApprovedUsers](tx, chatID, nil)
+}
+
+func clearBlacklists(tx *gorm.DB, chatID int64) ([]string, error) {
+	return []string{cacheKey("blacklist", chatID)}, replaceChatRows[models.BlacklistSettings](tx, chatID, nil)
+}
+
+func clearCaptcha(tx *gorm.DB, chatID int64) ([]string, error) {
+	settings := &models.CaptchaSettings{
+		ChatID:        chatID,
+		CaptchaMode:   "math",
+		Timeout:       2,
+		FailureAction: "kick",
+		MaxAttempts:   3,
+	}
+	return []string{cacheKey("captcha_settings", chatID)}, replaceChatSetting(tx, chatID, settings)
+}
+
+func clearConnections(tx *gorm.DB, chatID int64) ([]string, error) {
+	return nil, replaceChatSetting(tx, chatID, &models.ConnectionChatSettings{ChatId: chatID})
+}
+
+func clearDisabling(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := replaceChatSetting(tx, chatID, &models.DisableChatSettings{ChatId: chatID}); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("disabled_cmds", chatID)}, replaceChatRows[models.DisableSettings](tx, chatID, nil)
+}
+
+func clearFilters(tx *gorm.DB, chatID int64) ([]string, error) {
+	return []string{
+		cacheKey("filter_list", chatID),
+		cacheKey("filters_optimized", chatID),
+	}, replaceChatRows[models.ChatFilters](tx, chatID, nil)
+}
+
+func clearGreetings(tx *gorm.DB, chatID int64) ([]string, error) {
+	settings := &models.GreetingSettings{
+		ChatID: chatID,
+		WelcomeSettings: &models.WelcomeSettings{
+			WelcomeText: db.DefaultWelcome,
+			WelcomeType: db.TEXT,
+			Button:      models.ButtonArray{},
+		},
+		GoodbyeSettings: &models.GoodbyeSettings{
+			GoodbyeText: db.DefaultGoodbye,
+			GoodbyeType: db.TEXT,
+			Button:      models.ButtonArray{},
+		},
+	}
+	return []string{cacheKey("greetings", chatID)}, replaceChatSetting(tx, chatID, settings)
+}
+
+func clearLocks(tx *gorm.DB, chatID int64) ([]string, error) {
+	return []string{
+		cacheKey("lock", chatID),
+		cacheKey("locks_map", chatID),
+	}, replaceChatRows[models.LockSettings](tx, chatID, nil)
+}
+
+func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := replaceChatSetting(tx, chatID, &models.NotesSettings{ChatId: chatID}); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("notes_settings", chatID)}, replaceChatRows[models.Notes](tx, chatID, nil)
+}
+
+func clearPins(tx *gorm.DB, chatID int64) ([]string, error) {
+	return nil, replaceChatSetting(tx, chatID, &models.PinSettings{ChatId: chatID})
+}
+
+func clearReactions(tx *gorm.DB, chatID int64) ([]string, error) {
+	return []string{cacheKey("reactions", chatID)}, replaceChatRows[models.Reactions](tx, chatID, nil)
+}
+
+func clearReports(tx *gorm.DB, chatID int64) ([]string, error) {
+	settings := &models.ReportChatSettings{
+		ChatId:      chatID,
+		Enabled:     true,
+		Status:      true,
+		BlockedList: models.Int64Array{},
+	}
+	return nil, replaceChatSetting(tx, chatID, settings)
+}
+
+func clearRules(tx *gorm.DB, chatID int64) ([]string, error) {
+	return nil, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
+}
+
+func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
+	var userIDs []int64
+	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
+		return nil, err
+	}
+	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3}); err != nil {
+		return nil, err
+	}
+	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {
+		return nil, err
+	}
+	keys := []string{cacheKey("warn_settings", chatID)}
+	for _, userID := range userIDs {
+		keys = append(keys, dbcache.CacheKey("warns", userID, chatID))
+	}
+	return keys, nil
 }

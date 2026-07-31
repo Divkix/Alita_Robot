@@ -33,7 +33,7 @@ This page documents every registered message watcher with its exact handler grou
 :::caution[Critical propagation rules]
 Understanding these rules is essential for debugging why a message did or did not trigger a particular watcher.
 
-- **Captcha is first (group -10).** Any message from a user with a pending captcha is intercepted, stored for delivery after verification, and deleted. The message never reaches antiraid, antispam, antiflood, blacklists, or filters.
+- **Captcha is first (group -10).** Any message from a user with a pending captcha is stored for moderator review and deleted. The message never reaches antiraid, antispam, antiflood, blacklists, or filters.
 - **AntiRaid intercepts joins (group -5).** During raid mode, new member joins are intercepted and auto-restricted before reaching downstream handlers.
 - **Antispam EndGroups stops all further processing.** When antispam (group -2) returns `EndGroups` for a rate-limited user, every downstream handler is skipped. A rate-limited message never reaches any other watcher.
 - **Blacklists and Filters use ContinueGroups.** Both take their configured action (warn, mute, ban for blacklists; send reply for filters) but do not block downstream watchers. A message matching a blacklist word still gets checked by filters.
@@ -45,7 +45,7 @@ Understanding these rules is essential for debugging why a message did or did no
 
 1. **Captcha (group -10)** intercepts the message, stores it in the pending queue, and deletes it from the chat.
 2. Returns `EndGroups`. Nothing else fires.
-3. After the user completes captcha verification, stored messages are replayed.
+3. After successful verification, the stored messages are deleted and the bot sends a type/count summary; their contents are not replayed.
 
 ### Scenario 2: User sends a flood of messages
 

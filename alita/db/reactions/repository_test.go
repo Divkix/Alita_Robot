@@ -11,10 +11,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if db.DB != nil {
-		// Sub-package tests do not run the alita/db TestMain, so ensure the
-		// reactions table exists on whatever DB (Postgres in CI, SQLite
-		// locally) the test process is using.
+	if db.DB != nil && db.DB.Name() == "sqlite" {
 		_ = db.DB.AutoMigrate(&models.Reactions{})
 	}
 	os.Exit(m.Run())

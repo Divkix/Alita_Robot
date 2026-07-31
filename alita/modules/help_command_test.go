@@ -287,9 +287,27 @@ func TestHelpButtonAndConfigCallbacksRejectInvalidMessages(t *testing.T) {
 	if err := DefaultHelpRegistry().botConfig(bot, invalidConfig); err != ext.EndGroups {
 		t.Fatalf("botConfig(invalid) error = %v, want EndGroups", err)
 	}
+	unknownConfig := newModuleCallbackContext(
+		bot,
+		privateChat,
+		user,
+		encodeCallbackData("configuration", map[string]string{"s": "step4"}),
+	)
+	if err := DefaultHelpRegistry().botConfig(bot, unknownConfig); err != ext.EndGroups {
+		t.Fatalf("botConfig(unknown step) error = %v, want EndGroups", err)
+	}
+	unknownAbout := newModuleCallbackContext(
+		bot,
+		privateChat,
+		user,
+		encodeCallbackData("about", map[string]string{"a": "crafted"}),
+	)
+	if err := DefaultHelpRegistry().about(bot, unknownAbout); err != ext.EndGroups {
+		t.Fatalf("about(unknown action) error = %v, want EndGroups", err)
+	}
 
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) < 3 {
-		t.Fatalf("answerCallbackQuery calls = %d, want at least invalid callbacks answered", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) < 5 {
+		t.Fatalf("answerCallbackQuery calls = %d, want all invalid callbacks answered", len(calls))
 	}
 }
 

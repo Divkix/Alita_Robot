@@ -92,6 +92,23 @@ func TestSendRulesUsesPrivateButtonWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestRulesButtonAcceptsThirtyUnicodeCharacters(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	chat := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Rules Chat"}
+	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	buttonText := strings.Repeat("界", 30)
+	ctx := newModuleMessageContext(bot, chat, user, "/rulesbtn "+buttonText)
+
+	if err := rulesModule.rulesBtn(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("rulesBtn() error = %v, want EndGroups", err)
+	}
+	if got := rules.GetChatRulesInfo(chatID).RulesBtn; got != buttonText {
+		t.Fatalf("stored rules button = %q, want %q", got, buttonText)
+	}
+}
+
 func TestPrivateRulesTogglesAndReportsCurrentState(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

@@ -402,20 +402,39 @@ func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbo
 	return true
 }
 
-// IsUserInChat checks if a user is currently a member of the specified chat.
-// Returns false for special Telegram accounts and users with "left" or "kicked" status.
-func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
-	// telegram cannot be in chat, will need to fix this later
-	if userId == tgUserId {
-		return false
+// IsUserInChatWithError reports definitive membership separately from Telegram
+// lookup failures so callers do not destroy persisted state on transient errors.
+func IsUserInChatWithError(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) (bool, error) {
+	if b == nil || chat == nil || userId == tgUserId {
+		return false, nil
 	}
 	member, err := chat.GetMember(b, userId, nil)
+	if err != nil {
+		return false, err
+	}
+	if member == nil {
+		return false, nil
+	}
+
+	merged := member.MergeChatMember()
+	switch merged.Status {
+	case "creator", "administrator", "member":
+		return true, nil
+	case "restricted":
+		return merged.IsMember, nil
+	default:
+		return false, nil
+	}
+}
+
+// IsUserInChat checks if a user is currently a member of the specified chat.
+func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
+	isMember, err := IsUserInChatWithError(b, chat, userId)
 	if err != nil {
 		log.Errorf("[IsUserInChat] GetMember failed for user %d in chat %d: %v", userId, chat.Id, err)
 		return false
 	}
-	userStatus := member.MergeChatMember().Status
-	return !slices.Contains([]string{"left", "kicked"}, userStatus)
+	return isMember
 }
 
 // IsUserConnected checks if a user is connected to a chat and validates permissions.
@@ -430,39 +449,82 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 		return nil
 	}
 
+	userAdminVerified := false
+	respond := func(text string) {
+		if query, ok := callbackQueryFromContext(ctx); ok {
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return
+		}
+		_, _ = msg.Reply(b, text, nil)
+	}
+
 	if msg.Chat.Type == "private" {
 		conn := connections.Connection(user.Id)
 		if conn.Connected && conn.ChatId != 0 {
+			disconnectStale := func() {
+				key := "connections_stale_connection"
+				if err := connections.DisconnectId(user.Id); err != nil {
+					key = "error_generic"
+				}
+				text, _ := tr.GetString(key)
+				respond(text)
+			}
+
 			chatFullInfo, err := b.GetChat(conn.ChatId, nil)
-			if err != nil {
+			if err != nil || chatFullInfo == nil {
 				log.WithFields(log.Fields{
 					"userId": user.Id,
 					"chatId": conn.ChatId,
 					"error":  err,
-				}).Warn("Stale connection detected - chat no longer accessible")
-				// Provide user feedback about stale connection
-				text, _ := tr.GetString("connections_stale_connection")
-				_, _ = msg.Reply(b, text, nil)
-				return nil
-			}
-			_chat := chatFullInfo.ToChat() // need to convert to Chat type
-			chat = &_chat
-		} else {
-			text, _ := tr.GetString("connections_is_user_connected_need_group")
-			_, err := msg.Reply(b,
-				text,
-				&gotgbot.SendMessageOpts{
-					ReplyParameters: &gotgbot.ReplyParameters{
-						MessageId:                msg.MessageId,
-						AllowSendingWithoutReply: true,
-					},
-				},
-			)
-			if err != nil {
-				log.Error(err)
+				}).Warn("Connected chat lookup failed")
+				text, _ := tr.GetString("error_generic")
+				respond(text)
 				return nil
 			}
 
+			_chat := chatFullInfo.ToChat()
+			if chatAdmin && IsUserAdmin(b, _chat.Id, user.Id) {
+				userAdminVerified = true
+			} else {
+				isMember, err := IsUserInChatWithError(b, &_chat, user.Id)
+				if err != nil {
+					log.WithFields(log.Fields{
+						"userId": user.Id,
+						"chatId": conn.ChatId,
+						"error":  err,
+					}).Warn("Connected chat membership check failed")
+					text, _ := tr.GetString("error_generic")
+					respond(text)
+					return nil
+				}
+				if !isMember {
+					log.WithFields(log.Fields{
+						"userId": user.Id,
+						"chatId": conn.ChatId,
+					}).Info("Stale connection detected - user is no longer a member")
+					disconnectStale()
+					return nil
+				}
+			}
+			chat = &_chat
+		} else {
+			text, _ := tr.GetString("connections_is_user_connected_need_group")
+			if query, ok := callbackQueryFromContext(ctx); ok {
+				_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			} else {
+				_, err := msg.Reply(b,
+					text,
+					&gotgbot.SendMessageOpts{
+						ReplyParameters: &gotgbot.ReplyParameters{
+							MessageId:                msg.MessageId,
+							AllowSendingWithoutReply: true,
+						},
+					},
+				)
+				if err != nil {
+					log.Error(err)
+				}
+			}
 			return nil
 		}
 	} else {
@@ -481,7 +543,7 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 		}
 	}
 	if chatAdmin {
-		if !IsUserAdmin(b, chat.Id, user.Id) {
+		if !userAdminVerified && !IsUserAdmin(b, chat.Id, user.Id) {
 			text, _ := tr.GetString("connections_is_user_connected_user_not_admin")
 			_, err := msg.Reply(b, text, formatting.Shtml())
 			if err != nil {
@@ -648,6 +710,13 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	mainText, _ := tr.GetString("chat_status_anon_confirm")
 	buttonText, _ := tr.GetString("chat_status_anon_prove_admin")
+	callbackData, err := callbackcodec.Encode("anon_admin", map[string]string{
+		"c": fmt.Sprint(chat.Id),
+		"m": fmt.Sprint(msg.MessageId),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode anonymous-admin callback: %w", err)
+	}
 
 	return msg.Reply(b,
 		mainText,
@@ -655,15 +724,8 @@ func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.C
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
 				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 					{{
-						Text: buttonText,
-						CallbackData: callbackcodec.EncodeOrFallback(
-							"anon_admin",
-							map[string]string{
-								"c": fmt.Sprint(chat.Id),
-								"m": fmt.Sprint(msg.MessageId),
-							},
-							fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, msg.MessageId),
-						),
+						Text:         buttonText,
+						CallbackData: callbackData,
 					}},
 				},
 			},

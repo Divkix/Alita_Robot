@@ -76,3 +76,40 @@ func TestCallbackHandlersIgnoreMissingCallbackQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestCallbackHandlersRejectMissingCallbackMessage(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	module := moduleStruct{}
+	from := gotgbot.User{Id: 42, FirstName: "Admin"}
+
+	handlers := []struct {
+		name string
+		call func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "verifyAnonymousAdmin", call: verifyAnonymousAdmin},
+		{name: "markResolvedButtonHandler", call: module.markResolvedButtonHandler},
+		{name: "connectionButtons", call: module.connectionButtons},
+		{name: "restrictButtonHandler", call: module.restrictButtonHandler},
+		{name: "unrestrictButtonHandler", call: module.unrestrictButtonHandler},
+	}
+
+	for _, handler := range handlers {
+		t.Run(handler.name, func(t *testing.T) {
+			ctx := ext.NewContext(bot, &gotgbot.Update{
+				CallbackQuery: &gotgbot.CallbackQuery{
+					Id:   "callback-without-message",
+					From: from,
+					Data: "invalid",
+				},
+			}, nil)
+			if got := handler.call(bot, ctx); got != ext.EndGroups {
+				t.Fatalf("%s returned %v, want EndGroups", handler.name, got)
+			}
+		})
+	}
+
+	if got := len(client.callsFor("answerCallbackQuery")); got != len(handlers) {
+		t.Fatalf("answerCallbackQuery calls = %d, want %d", got, len(handlers))
+	}
+}

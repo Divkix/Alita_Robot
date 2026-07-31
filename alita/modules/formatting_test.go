@@ -112,8 +112,17 @@ func TestFormattingHandlerRejectsInvalidCallbackMessages(t *testing.T) {
 	if err := formattingModule.formattingHandler(bot, invalidData); err != ext.EndGroups {
 		t.Fatalf("formattingHandler(invalid data) error = %v, want EndGroups", err)
 	}
+	unknownModule := newModuleCallbackContext(
+		bot,
+		chat,
+		user,
+		encodeCallbackData("formatting", map[string]string{"m": "crafted"}),
+	)
+	if err := formattingModule.formattingHandler(bot, unknownModule); err != ext.EndGroups {
+		t.Fatalf("formattingHandler(unknown module) error = %v, want EndGroups", err)
+	}
 
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want invalid callback answers", len(calls))
 	}
 }

@@ -20,9 +20,12 @@ var (
 )
 
 // isCliModeActive returns true if the program is running with CLI flags
-// that should skip database initialization (--version, --health, -v).
+// that should skip database initialization (--version, --health, -v). Tests
+// also skip it unless ALITA_TEST_DATABASE explicitly opts into PostgreSQL.
 func isCliModeActive() bool {
-	if strings.HasSuffix(os.Args[0], ".test") || strings.Contains(os.Args[0], "/go-build") {
+	testBinary := strings.TrimSuffix(os.Args[0], ".exe")
+	if strings.HasSuffix(testBinary, ".test") &&
+		!strings.EqualFold(strings.TrimSpace(os.Getenv("ALITA_TEST_DATABASE")), "true") {
 		return true
 	}
 	if len(os.Args) < 2 {

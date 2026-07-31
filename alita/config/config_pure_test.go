@@ -315,6 +315,12 @@ func TestRedisEnvParsingPure(t *testing.T) {
 			wantPassword: "direct-password",
 		},
 		{
+			name:      "explicit address ignores URL credentials",
+			redisAddr: "redis.internal:6379",
+			redisURL:  "redis://:stale@example.com:6380",
+			wantAddr:  "redis.internal:6379",
+		},
+		{
 			name:         "url supplies host and password",
 			redisURL:     "redis://:secret@example.com:6380/1",
 			wantAddr:     "example.com:6380",

@@ -3,6 +3,8 @@ package modules
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -33,59 +35,161 @@ var backupModule = moduleStruct{
 	moduleName: "Backup",
 }
 
-// Pending imports storage (in-memory, per chat)
+type pendingImportState struct {
+	backup    *backup.BackupFormat
+	modules   []string
+	token     string
+	expiresAt time.Time
+}
+
+type pendingResetState struct {
+	modules   []string
+	token     string
+	expiresAt time.Time
+}
+
+// Pending backup operations are stored in memory per chat. The callback token
+// prevents an older confirmation button from acting on newer pending state.
 var (
-	pendingMu            sync.RWMutex
-	pendingImports       = make(map[int64]*backup.BackupFormat)
-	pendingImportModules = make(map[int64][]string)
-	pendingResetModules  = make(map[int64][]string)
-	errNoValidModule     = errors.New("no valid modules in arguments")
+	pendingMu        sync.Mutex
+	pendingImports   = make(map[int64]pendingImportState)
+	pendingResets    = make(map[int64]pendingResetState)
+	errNoValidModule = errors.New("no valid modules in arguments")
 
 	backupDownloadBaseURL    = "https://api.telegram.org/file/bot"
 	backupDownloadHTTPClient = &http.Client{}
 )
 
-func storePendingImport(chatID int64, backup *backup.BackupFormat, modules []string) {
+const (
+	maxBackupFileSize = 10 * 1024 * 1024
+	pendingBackupTTL  = 10 * time.Minute
+	// Short action values leave room for an int64 chat ID and nonce under
+	// Telegram's 64-byte callback-data limit.
+	backupActionConfirmImport = "ci"
+	backupActionCancelImport  = "xi"
+	backupActionConfirmReset  = "cr"
+	backupActionCancelReset   = "xr"
+)
+
+func newPendingToken() (string, error) {
+	var value [8]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", fmt.Errorf("generate pending backup token: %w", err)
+	}
+	return hex.EncodeToString(value[:]), nil
+}
+
+func storePendingImport(chatID int64, bkp *backup.BackupFormat, modules []string) (string, error) {
+	token, err := newPendingToken()
+	if err != nil {
+		return "", err
+	}
+
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
-	pendingImports[chatID] = backup
-	pendingImportModules[chatID] = modules
+	pendingImports[chatID] = pendingImportState{
+		backup:    bkp,
+		modules:   modules,
+		token:     token,
+		expiresAt: time.Now().Add(pendingBackupTTL),
+	}
+	return token, nil
 }
 
 func getPendingImport(chatID int64) (*backup.BackupFormat, []string, bool) {
-	pendingMu.RLock()
-	defer pendingMu.RUnlock()
-	backup, ok := pendingImports[chatID]
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pending, ok := pendingImports[chatID]
+	if !ok || !time.Now().Before(pending.expiresAt) {
+		delete(pendingImports, chatID)
+		return nil, nil, false
+	}
+	return pending.backup, pending.modules, true
+}
+
+func consumePendingImport(chatID int64, token string) (*backup.BackupFormat, []string, bool) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pending, ok := pendingImports[chatID]
 	if !ok {
 		return nil, nil, false
 	}
-	return backup, pendingImportModules[chatID], true
+	if !time.Now().Before(pending.expiresAt) {
+		delete(pendingImports, chatID)
+		return nil, nil, false
+	}
+	if pending.token != token {
+		return nil, nil, false
+	}
+	delete(pendingImports, chatID)
+	return pending.backup, pending.modules, true
+}
+
+func discardPendingImport(chatID int64, token string) bool {
+	_, _, ok := consumePendingImport(chatID, token)
+	return ok
 }
 
 func clearPendingImport(chatID int64) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 	delete(pendingImports, chatID)
-	delete(pendingImportModules, chatID)
 }
 
-func storePendingReset(chatID int64, modules []string) {
+func storePendingReset(chatID int64, modules []string) (string, error) {
+	token, err := newPendingToken()
+	if err != nil {
+		return "", err
+	}
+
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
-	pendingResetModules[chatID] = modules
+	pendingResets[chatID] = pendingResetState{
+		modules:   modules,
+		token:     token,
+		expiresAt: time.Now().Add(pendingBackupTTL),
+	}
+	return token, nil
 }
 
 func getPendingReset(chatID int64) ([]string, bool) {
-	pendingMu.RLock()
-	defer pendingMu.RUnlock()
-	modules, ok := pendingResetModules[chatID]
-	return modules, ok
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pending, ok := pendingResets[chatID]
+	if !ok || !time.Now().Before(pending.expiresAt) {
+		delete(pendingResets, chatID)
+		return nil, false
+	}
+	return pending.modules, true
+}
+
+func consumePendingReset(chatID int64, token string) ([]string, bool) {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	pending, ok := pendingResets[chatID]
+	if !ok {
+		return nil, false
+	}
+	if !time.Now().Before(pending.expiresAt) {
+		delete(pendingResets, chatID)
+		return nil, false
+	}
+	if pending.token != token {
+		return nil, false
+	}
+	delete(pendingResets, chatID)
+	return pending.modules, true
+}
+
+func discardPendingReset(chatID int64, token string) bool {
+	_, ok := consumePendingReset(chatID, token)
+	return ok
 }
 
 func clearPendingReset(chatID int64) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
-	delete(pendingResetModules, chatID)
+	delete(pendingResets, chatID)
 }
 
 // exportHandler handles the /export command
@@ -118,17 +222,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check rate limiting
-	limiter := ratelimit.GetBackupRateLimiter()
-	if allowed, cooldown := limiter.CanExport(chat.Id); !allowed {
-		cooldownStr := ratelimit.FormatCooldown(cooldown)
-		text, _ := tr.GetString("backup_export_rate_limited", i18n.TranslationParams{
-			"time": cooldownStr,
-		})
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
 	// Parse module arguments
 	var modules []string
 	if msg.Text != "" {
@@ -142,6 +235,18 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.EndGroups
 			}
 		}
+	}
+
+	// Reserve before starting work. The cooldown remains after a failure so an
+	// expired operation cannot delete a newer caller's reservation.
+	limiter := ratelimit.GetBackupRateLimiter()
+	if allowed, cooldown := limiter.AcquireExport(chat.Id); !allowed {
+		cooldownStr := ratelimit.FormatCooldown(cooldown)
+		text, _ := tr.GetString("backup_export_rate_limited", i18n.TranslationParams{
+			"time": cooldownStr,
+		})
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	// Export data
@@ -191,9 +296,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-
-	// Record rate limit
-	limiter.RecordExport(chat.Id)
 
 	log.Infof("[Backup] Chat %d exported %d modules", chat.Id, len(bkp.Data))
 	return ext.EndGroups
@@ -254,8 +356,7 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 		return nil, text
 	}
 
-	// Max 10MB
-	if doc.FileSize > 10*1024*1024 {
+	if doc.FileSize > maxBackupFileSize {
 		text, _ := tr.GetString("backup_import_file_too_large")
 		return nil, text
 	}
@@ -311,10 +412,14 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 		return nil, text
 	}
 
-	fileData, err := io.ReadAll(resp.Body)
+	fileData, err := io.ReadAll(io.LimitReader(resp.Body, maxBackupFileSize+1))
 	if err != nil {
 		log.Errorf("[Backup] Failed to read file: %v", err)
 		text, _ := tr.GetString("backup_import_download_failed")
+		return nil, text
+	}
+	if len(fileData) > maxBackupFileSize {
+		text, _ := tr.GetString("backup_import_file_too_large")
 		return nil, text
 	}
 
@@ -404,10 +509,10 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check version compatibility
-	versionWarning := ""
 	if !bkp.IsCompatibleVersion() {
-		versionWarning, _ = tr.GetString("backup_import_version_mismatch")
+		text, _ := tr.GetString("backup_import_version_mismatch")
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	// Parse module arguments
@@ -424,7 +529,13 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Store pending import
-	storePendingImport(chat.Id, bkp, importModules)
+	token, err := storePendingImport(chat.Id, bkp, importModules)
+	if err != nil {
+		log.Errorf("[Backup] Failed to store pending import: %v", err)
+		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{"error": err.Error()})
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
 
 	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_import_confirm", i18n.TranslationParams{
@@ -432,17 +543,14 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		"list":    buildModuleList(importModules),
 	})
 
-	if versionWarning != "" {
-		confirmText = versionWarning + "\n\n" + confirmText
-	}
-
-	keyboard := buildImportKeyboard(tr, chat.Id)
+	keyboard := buildImportKeyboard(tr, chat.Id, token)
 
 	_, err = msg.Reply(b, confirmText, &gotgbot.SendMessageOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: keyboard,
 	})
 	if err != nil {
+		discardPendingImport(chat.Id, token)
 		log.Errorf("[Backup] Failed to send confirmation: %v", err)
 	}
 
@@ -510,8 +618,14 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		resetModules = backup.AllExportableModules()
 	}
 
-	// Store pending reset (using same maps for simplicity)
-	storePendingReset(chat.Id, resetModules)
+	// Store pending reset
+	token, err := storePendingReset(chat.Id, resetModules)
+	if err != nil {
+		log.Errorf("[Backup] Failed to store pending reset: %v", err)
+		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{"error": err.Error()})
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
+	}
 
 	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_reset_confirm", i18n.TranslationParams{
@@ -519,13 +633,14 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		"list":    buildModuleList(resetModules),
 	})
 
-	keyboard := buildResetKeyboard(tr, chat.Id)
+	keyboard := buildResetKeyboard(tr, chat.Id, token)
 
-	_, err := msg.Reply(b, confirmText, &gotgbot.SendMessageOpts{
+	_, err = msg.Reply(b, confirmText, &gotgbot.SendMessageOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: keyboard,
 	})
 	if err != nil {
+		discardPendingReset(chat.Id, token)
 		log.Errorf("[Backup] Failed to send confirmation: %v", err)
 	}
 
@@ -540,10 +655,15 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	}
 	user := query.From
 	chat := ctx.EffectiveChat
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if chat == nil {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	// Only creator can confirm import/reset
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text:      text,
@@ -555,40 +675,40 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	// Decode callback data
 	decoded, ok := decodeCallbackData(query.Data, "backup")
 	if !ok {
-		tempTr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tempTr.GetString("common_callback_invalid_request")
+		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
 	action, _ := decoded.Field("a")
 	chatIDStr, _ := decoded.Field("c")
-	chatID, _ := strconv.ParseInt(chatIDStr, 10, 64)
-
-	if chatID != chat.Id {
-		// Wrong chat
+	token, _ := decoded.Field("t")
+	chatID, err := strconv.ParseInt(chatIDStr, 10, 64)
+	validAction := action == backupActionConfirmImport ||
+		action == backupActionCancelImport ||
+		action == backupActionConfirmReset ||
+		action == backupActionCancelReset
+	if err != nil || chatID != chat.Id || token == "" || !validAction {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
 	switch action {
-	case "confirm_import":
-		return m.handleConfirmImport(b, ctx, tr, chat)
-	case "cancel_import":
-		return m.handleCancelImport(b, ctx, tr, query)
-	case "confirm_reset":
-		return m.handleConfirmReset(b, ctx, tr, chat)
-	case "cancel_reset":
-		return m.handleCancelReset(b, ctx, tr, query)
+	case backupActionConfirmImport:
+		return m.handleConfirmImport(b, ctx, tr, chat, token)
+	case backupActionCancelImport:
+		return m.handleCancelImport(b, ctx, tr, query, token)
+	case backupActionConfirmReset:
+		return m.handleConfirmReset(b, ctx, tr, chat, token)
+	case backupActionCancelReset:
+		return m.handleCancelReset(b, ctx, tr, query, token)
 	}
-
 	return ext.EndGroups
 }
 
-func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) error {
-	// Get pending import
-	bkp, modules, ok := getPendingImport(chat.Id)
+func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, token string) error {
+	bkp, modules, ok := consumePendingImport(chat.Id, token)
 	if !ok {
 		text, _ := tr.GetString("backup_import_expired")
 		_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
@@ -598,6 +718,14 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
+	limiter := ratelimit.GetBackupRateLimiter()
+	if allowed, cooldown := limiter.AcquireImport(chat.Id); !allowed {
+		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
+			"time": ratelimit.FormatCooldown(cooldown),
+		})
+		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
+		return ext.EndGroups
+	}
 	// Perform import
 	if err := backup.ImportChatData(chat.Id, bkp, modules); err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
@@ -607,13 +735,6 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-
-	// Record rate limit
-	limiter := ratelimit.GetBackupRateLimiter()
-	limiter.RecordImport(chat.Id)
-
-	// Clean up
-	clearPendingImport(chat.Id)
 
 	// Success message
 	text, _ := tr.GetString("backup_import_success", i18n.TranslationParams{
@@ -629,13 +750,16 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	return ext.EndGroups
 }
 
-// handleCancelPending clears the chat's pending state via clear and acknowledges
-// the cancelled backup callback using the cancelKey confirmation message.
-func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, clear func(int64), cancelKey string) error {
+// handleCancelPending atomically discards matching pending state and
+// acknowledges the cancelled backup callback.
+func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, token string, discard func(int64, string) bool, cancelKey, expiredKey string) error {
 	chat := ctx.EffectiveChat
 
-	// Clean up
-	clear(chat.Id)
+	if !discard(chat.Id, token) {
+		text, _ := tr.GetString(expiredKey)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	text, _ := tr.GetString(cancelKey)
 	_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -652,18 +776,26 @@ func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *
 	return ext.EndGroups
 }
 
-func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery) error {
-	return m.handleCancelPending(b, ctx, tr, query, clearPendingImport, "backup_import_cancelled")
+func (m moduleStruct) handleCancelImport(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, token string) error {
+	return m.handleCancelPending(b, ctx, tr, query, token, discardPendingImport, "backup_import_cancelled", "backup_import_expired")
 }
 
-func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) error {
-	modules, ok := getPendingReset(chat.Id)
+func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat, token string) error {
+	modules, ok := consumePendingReset(chat.Id, token)
 	if !ok || len(modules) == 0 {
 		text, _ := tr.GetString("backup_reset_expired")
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
+	limiter := ratelimit.GetBackupRateLimiter()
+	if allowed, cooldown := limiter.AcquireReset(chat.Id); !allowed {
+		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
+			"time": ratelimit.FormatCooldown(cooldown),
+		})
+		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
+		return ext.EndGroups
+	}
 	// Perform reset
 	if err := backup.ClearChatData(chat.Id, modules); err != nil {
 		log.Errorf("[Backup] Reset failed for chat %d: %v", chat.Id, err)
@@ -673,13 +805,6 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
 	}
-
-	// Record rate limit
-	limiter := ratelimit.GetBackupRateLimiter()
-	limiter.RecordReset(chat.Id)
-
-	// Clean up
-	clearPendingReset(chat.Id)
 
 	// Success message
 	text, _ := tr.GetString("backup_reset_success", i18n.TranslationParams{
@@ -695,8 +820,8 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 	return ext.EndGroups
 }
 
-func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery) error {
-	return m.handleCancelPending(b, ctx, tr, query, clearPendingReset, "backup_reset_cancelled")
+func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, token string) error {
+	return m.handleCancelPending(b, ctx, tr, query, token, discardPendingReset, "backup_reset_cancelled", "backup_reset_expired")
 }
 
 // Helper functions
@@ -719,22 +844,24 @@ func buildModuleList(modules []string) string {
 	return "• " + strings.Join(modules, "\n• ")
 }
 
-func buildImportKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboardMarkup {
+func buildImportKeyboard(tr *i18n.Translator, chatID int64, token string) gotgbot.InlineKeyboardMarkup {
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
 					Text: trS(tr, "button_confirm_import"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
-						"a": "confirm_import",
+						"a": backupActionConfirmImport,
 						"c": fmt.Sprintf("%d", chatID),
+						"t": token,
 					}),
 				},
 				{
 					Text: trS(tr, "button_cancel_import"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
-						"a": "cancel_import",
+						"a": backupActionCancelImport,
 						"c": fmt.Sprintf("%d", chatID),
+						"t": token,
 					}),
 				},
 			},
@@ -742,15 +869,16 @@ func buildImportKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboa
 	}
 }
 
-func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboardMarkup {
+func buildResetKeyboard(tr *i18n.Translator, chatID int64, token string) gotgbot.InlineKeyboardMarkup {
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
 			{
 				{
 					Text: trS(tr, "button_confirm_reset"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
-						"a": "confirm_reset",
+						"a": backupActionConfirmReset,
 						"c": fmt.Sprintf("%d", chatID),
+						"t": token,
 					}),
 				},
 			},
@@ -758,8 +886,9 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 				{
 					Text: trS(tr, "button_cancel_reset"),
 					CallbackData: encodeCallbackData("backup", map[string]string{
-						"a": "cancel_reset",
+						"a": backupActionCancelReset,
 						"c": fmt.Sprintf("%d", chatID),
+						"t": token,
 					}),
 				},
 			},
@@ -771,28 +900,6 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64) gotgbot.InlineKeyboar
 func LoadBackup(dispatcher *ext.Dispatcher) {
 	// Register module in enabled map
 	DefaultHelpRegistry().AbleMap[backupModule.moduleName] = true
-
-	// Add help keyboard buttons
-	DefaultHelpRegistry().helpableKb[backupModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
-		{
-			{
-				Text: func() string {
-					tr := i18n.MustNewTranslator("en")
-					t, _ := tr.GetString("backup_export_button")
-					return t
-				}(),
-				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_export"}),
-			},
-			{
-				Text: func() string {
-					tr := i18n.MustNewTranslator("en")
-					t, _ := tr.GetString("backup_import_button")
-					return t
-				}(),
-				CallbackData: encodeCallbackData("backup", map[string]string{"a": "show_import"}),
-			},
-		},
-	}
 
 	// Register command handlers
 	dispatcher.AddHandler(handlers.NewCommand("export", backupModule.exportHandler))

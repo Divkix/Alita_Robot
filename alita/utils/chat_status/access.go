@@ -72,6 +72,13 @@ func CanUserDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId 
 	})
 }
 
+// CanUserInvite reports whether the user can invite members and manage join requests.
+func CanUserInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
+	return hasUserPermission(b, ctx, chat, userId, func(m *gotgbot.MergedChatMember) bool {
+		return m.CanInviteUsers
+	})
+}
+
 // CanBotRestrict reports whether the bot can restrict members.
 func CanBotRestrict(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {
@@ -138,6 +145,23 @@ func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 		return false
 	}
 	return botMember.CanDeleteMessages
+}
+
+// CanBotInvite reports whether the bot can invite members and manage join requests.
+func CanBotInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
+	chat = extractChatFromContext(ctx, chat)
+	if chat == nil {
+		return false
+	}
+
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotInvite")
+	if !ok {
+		return false
+	}
+	return botMember.CanInviteUsers
 }
 
 // RequireBotAdmin reports whether the bot is an admin.

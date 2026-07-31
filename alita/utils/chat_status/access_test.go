@@ -33,6 +33,10 @@ func (chatStatusBotClient) RequestWithContext(_ context.Context, _ string, metho
 			return json.RawMessage(`{"status":"left","user":{"id":13,"is_bot":false,"first_name":"Left User"}}`), nil
 		case "14":
 			return json.RawMessage(`{"status":"kicked","user":{"id":14,"is_bot":false,"first_name":"Kicked User"}}`), nil
+		case "15":
+			return json.RawMessage(`{"status":"restricted","user":{"id":15,"is_bot":false,"first_name":"Restricted Member"},"is_member":true}`), nil
+		case "16":
+			return json.RawMessage(`{"status":"restricted","user":{"id":16,"is_bot":false,"first_name":"Former Restricted Member"},"is_member":false}`), nil
 		default:
 			return json.RawMessage(`{"status":"member","user":{"id":42,"is_bot":false,"first_name":"Member"}}`), nil
 		}
@@ -299,6 +303,7 @@ func TestPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		{name: "promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 10) }},
 		{name: "pin", fn: func() bool { return CanUserPin(bot, ctx, chat, 10) }},
 		{name: "delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 10) }},
+		{name: "invite", fn: func() bool { return CanUserInvite(bot, ctx, chat, 10) }},
 	}
 
 	for _, tt := range tests {
@@ -321,6 +326,9 @@ func TestPermissionHelpersAllowCreatorWithoutSpecificFlags(t *testing.T) {
 	if !CanUserDelete(bot, ctx, chat, 12) {
 		t.Fatal("CanUserDelete() = false, want true for creator")
 	}
+	if !CanUserInvite(bot, ctx, chat, 12) {
+		t.Fatal("CanUserInvite() = false, want true for creator")
+	}
 	if !RequireUserOwner(bot, ctx, chat, 12) {
 		t.Fatal("RequireUserOwner() = false, want true for creator")
 	}
@@ -340,6 +348,7 @@ func TestPermissionHelpersRejectMissingMemberPermissions(t *testing.T) {
 		{name: "promote", fn: func() bool { return CanUserPromote(bot, ctx, chat, 11) }},
 		{name: "pin", fn: func() bool { return CanUserPin(bot, ctx, chat, 11) }},
 		{name: "delete", fn: func() bool { return CanUserDelete(bot, ctx, chat, 11) }},
+		{name: "invite", fn: func() bool { return CanUserInvite(bot, ctx, chat, 11) }},
 	}
 
 	for _, tt := range tests {
@@ -364,6 +373,7 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		{name: "promote", fn: func() bool { return CanBotPromote(fullBot, ctx, chat) }},
 		{name: "pin", fn: func() bool { return CanBotPin(fullBot, ctx, chat) }},
 		{name: "delete", fn: func() bool { return CanBotDelete(fullBot, ctx, chat) }},
+		{name: "invite", fn: func() bool { return CanBotInvite(fullBot, ctx, chat) }},
 	}
 	for _, tt := range fullTests {
 		t.Run("full/"+tt.name, func(t *testing.T) {
@@ -382,6 +392,7 @@ func TestBotPermissionHelpersUseGotgbotMemberPermissions(t *testing.T) {
 		{name: "promote", fn: func() bool { return CanBotPromote(limitedBot, ctx, chat) }},
 		{name: "pin", fn: func() bool { return CanBotPin(limitedBot, ctx, chat) }},
 		{name: "delete", fn: func() bool { return CanBotDelete(limitedBot, ctx, chat) }},
+		{name: "invite", fn: func() bool { return CanBotInvite(limitedBot, ctx, chat) }},
 	}
 	for _, tt := range limitedTests {
 		t.Run("limited/"+tt.name, func(t *testing.T) {
@@ -674,6 +685,12 @@ func TestMembershipAndProtectionHelpers(t *testing.T) {
 	if IsUserInChat(bot, chat, 14) {
 		t.Fatal("IsUserInChat(kicked user) = true, want false")
 	}
+	if !IsUserInChat(bot, chat, 15) {
+		t.Fatal("IsUserInChat(restricted member) = false, want true")
+	}
+	if IsUserInChat(bot, chat, 16) {
+		t.Fatal("IsUserInChat(former restricted member) = true, want false")
+	}
 	if !IsUserBanProtected(bot, makeCtxWithMessage("private"), nil, 42) {
 		t.Fatal("IsUserBanProtected(private) = false, want true")
 	}
@@ -832,6 +849,12 @@ func TestCanBotDelete_NilBotAndChat(t *testing.T) {
 	}
 }
 
+func TestCanBotInvite_NilBotAndChat(t *testing.T) {
+	if CanBotInvite(nil, nil, nil) {
+		t.Fatal("CanBotInvite(nil, nil, nil) should be false")
+	}
+}
+
 func TestCanUserChangeInfo_NilBotAndChat(t *testing.T) {
 	if CanUserChangeInfo(nil, nil, nil, 1) {
 		t.Fatal("CanUserChangeInfo(nil, nil, nil, 1) should be false")
@@ -859,6 +882,12 @@ func TestCanUserPin_NilBotAndChat(t *testing.T) {
 func TestCanUserDelete_NilBotAndChat(t *testing.T) {
 	if CanUserDelete(nil, nil, nil, 1) {
 		t.Fatal("CanUserDelete(nil, nil, nil, 1) should be false")
+	}
+}
+
+func TestCanUserInvite_NilBotAndChat(t *testing.T) {
+	if CanUserInvite(nil, nil, nil, 1) {
+		t.Fatal("CanUserInvite(nil, nil, nil, 1) should be false")
 	}
 }
 

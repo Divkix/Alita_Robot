@@ -8,6 +8,10 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func skipIfNoDb(t *testing.T) {
@@ -15,6 +19,36 @@ func skipIfNoDb(t *testing.T) {
 	if db.DB == nil {
 		t.Skip("requires database connection")
 	}
+}
+
+func withChatSQLite(t *testing.T) {
+	t.Helper()
+
+	originalDB := db.DB
+	originalMarshal := utilsCache.GetMarshal()
+	testDB, err := gorm.Open(
+		sqlite.Open(fmt.Sprintf("file:chats-%d?mode=memory&cache=shared", time.Now().UnixNano())),
+		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},
+	)
+	if err != nil {
+		t.Fatalf("open SQLite: %v", err)
+	}
+	sqlDB, err := testDB.DB()
+	if err != nil {
+		t.Fatalf("get SQLite handle: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	db.DB = testDB
+	utilsCache.SetMarshal(nil)
+	if err := db.DB.AutoMigrate(&models.Chat{}); err != nil {
+		t.Fatalf("AutoMigrate Chat: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = sqlDB.Close()
+		db.DB = originalDB
+		utilsCache.SetMarshal(originalMarshal)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +201,18 @@ func TestUpdateChat(t *testing.T) {
 	}
 	if !slices.Contains(chat.Users, userID2) {
 		t.Errorf("chat users missing new user %d: %v", userID2, chat.Users)
+	}
+}
+
+func TestUpdateChatReturnsAtomicAppendError(t *testing.T) {
+	withChatSQLite(t)
+
+	const chatID = int64(-100123)
+	if err := EnsureChatInDb(chatID, "existing"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := UpdateChat(chatID, "existing", 42); err == nil {
+		t.Fatal("UpdateChat() error = nil when the PostgreSQL JSONB append fails")
 	}
 }
 

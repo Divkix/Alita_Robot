@@ -244,22 +244,22 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					}
 				}
 
-			// Resolve module name from the module variable
-			modName := moduleName
-			if name, ok := moduleNames[moduleVar]; ok {
-				modName = strings.ToLower(name)
-			}
+				// Resolve module name from the module variable
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = strings.ToLower(name)
+				}
 
-			// Register each alias as a command
-			for _, alias := range aliases {
-				commands = append(commands, Command{
-					Name:        alias,
-					Handler:     handler,
-					Module:      modName,
-					Disableable: disableableCmds[alias],
-					Aliases:     aliases,
-				})
-			}
+				// Register each alias as a command
+				for _, alias := range aliases {
+					commands = append(commands, Command{
+						Name:        alias,
+						Handler:     handler,
+						Module:      modName,
+						Disableable: disableableCmds[alias],
+						Aliases:     aliases,
+					})
+				}
 			}
 		}
 
@@ -294,18 +294,18 @@ func parseCommands(modulesPath string) ([]Command, error) {
 					continue
 				}
 
-			// Resolve module name
-			modName := moduleName
-			if name, ok := moduleNames[moduleVar]; ok {
-				modName = strings.ToLower(name)
-			}
+				// Resolve module name
+				modName := moduleName
+				if name, ok := moduleNames[moduleVar]; ok {
+					modName = strings.ToLower(name)
+				}
 
-			commands = append(commands, Command{
-				Name:        cmdName,
-				Handler:     handler,
-				Module:      modName,
-				Disableable: disableableCmds[cmdName],
-			})
+				commands = append(commands, Command{
+					Name:        cmdName,
+					Handler:     handler,
+					Module:      modName,
+					Disableable: disableableCmds[cmdName],
+				})
 			}
 		}
 	}

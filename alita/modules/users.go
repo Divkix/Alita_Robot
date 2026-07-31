@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/db/channels"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -22,6 +24,7 @@ import (
 // asyncUpdateUser wraps user.UpdateUser for async execution with error logging.
 func asyncUpdateUser(userId int64, username, name string) {
 	if err := user.UpdateUser(userId, username, name); err != nil {
+		userUpdateCache.Delete(userId)
 		log.Warnf("[Users] Failed to update user %d: %v", userId, err)
 	}
 }
@@ -29,6 +32,7 @@ func asyncUpdateUser(userId int64, username, name string) {
 // asyncUpdateChat wraps chats.UpdateChat for async execution with error logging.
 func asyncUpdateChat(chatId int64, chatname string, userid int64) {
 	if err := chats.UpdateChat(chatId, chatname, userid); err != nil {
+		chatUpdateCache.Delete([2]int64{chatId, userid})
 		log.Warnf("[Users] Failed to update chat %d: %v", chatId, err)
 	}
 }
@@ -36,6 +40,7 @@ func asyncUpdateChat(chatId int64, chatname string, userid int64) {
 // asyncUpdateChannel wraps channels.UpdateChannel for async execution with error logging.
 func asyncUpdateChannel(channelId int64, channelName, username string) {
 	if err := channels.UpdateChannel(channelId, channelName, username); err != nil {
+		channelUpdateCache.Delete(channelId)
 		log.Warnf("[Users] Failed to update channel %d: %v", channelId, err)
 	}
 }
@@ -47,10 +52,12 @@ var (
 	}
 
 	// Rate limiting for database updates
-	// Maps user/chat ID to last update timestamp
+	// Maps user/channel IDs or chat/user pairs to their last update timestamp.
 	userUpdateCache    = &sync.Map{}
 	chatUpdateCache    = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
+	userUpdateGroup    singleflight.Group
+	chatUpdateGroup    singleflight.Group
 
 	// Update intervals
 	userUpdateInterval    = constants.UserUpdateInterval
@@ -58,16 +65,57 @@ var (
 	channelUpdateInterval = constants.ChannelUpdateInterval
 )
 
-// shouldUpdate checks if enough time has passed since the last update
+// shouldUpdateKey checks if enough time has passed since the last update
 // for rate limiting database operations to prevent excessive writes.
-func shouldUpdate(cache *sync.Map, id int64, interval time.Duration) bool {
-	if lastUpdate, ok := cache.Load(id); ok {
-		if time.Since(lastUpdate.(time.Time)) < interval {
+func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
+	now := time.Now()
+	for {
+		lastUpdate, loaded := cache.LoadOrStore(key, now)
+		if !loaded {
+			expireUpdateKey(cache, key, now, interval)
+			return true
+		}
+		if now.Sub(lastUpdate.(time.Time)) < interval {
 			return false
 		}
+		if cache.CompareAndSwap(key, lastUpdate, now) {
+			expireUpdateKey(cache, key, now, interval)
+			return true
+		}
 	}
-	cache.Store(id, time.Now())
-	return true
+}
+
+func expireUpdateKey(cache *sync.Map, key any, timestamp time.Time, interval time.Duration) {
+	time.AfterFunc(interval, func() {
+		cache.CompareAndDelete(key, timestamp)
+	})
+}
+
+func shouldUpdate(cache *sync.Map, id int64, interval time.Duration) bool {
+	return shouldUpdateKey(cache, id, interval)
+}
+
+func shouldUpdateChatMember(cache *sync.Map, chatID, userID int64, interval time.Duration) bool {
+	return shouldUpdateKey(cache, [2]int64{chatID, userID}, interval)
+}
+
+func updateCurrentUser(userID int64, username, name string) {
+	_, _, _ = userUpdateGroup.Do(strconv.FormatInt(userID, 10), func() (any, error) {
+		if shouldUpdate(userUpdateCache, userID, userUpdateInterval) {
+			asyncUpdateUser(userID, username, name)
+		}
+		return nil, nil
+	})
+}
+
+func updateCurrentChat(chatID int64, chatName string, userID int64) {
+	key := strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
+	_, _, _ = chatUpdateGroup.Do(key, func() (any, error) {
+		if shouldUpdateChatMember(chatUpdateCache, chatID, userID, chatUpdateInterval) {
+			asyncUpdateChat(chatID, chatName, userID)
+		}
+		return nil, nil
+	})
 }
 
 // logUsers handles automatic user and chat tracking by updating
@@ -93,26 +141,13 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			// Don't add user to chat entry
 			if chat_status.RequireGroup(bot, ctx, chat) {
-				// Update user in chat collection with rate limiting
-				if shouldUpdate(chatUpdateCache, chat.Id, chatUpdateInterval) {
-					go asyncUpdateChat(
-						chat.Id,
-						chat.Title,
-						user.Id(),
-					)
-				}
+				// The group -1 tracker must create the parent synchronously before
+				// later handlers write tables with chat foreign keys.
+				updateCurrentChat(chat.Id, chat.Title, user.Id())
 			}
 
-			// Only update user if enough time has passed
-			if shouldUpdate(userUpdateCache, user.Id(), userUpdateInterval) {
-				log.Debugf("Updating user %d in db", user.Id())
-				// update when users send a message
-				go asyncUpdateUser(
-					user.Id(),
-					user.Username(),
-					user.Name(),
-				)
-			}
+			// The same ordering protects user foreign keys on first-ever commands.
+			updateCurrentUser(user.Id(), user.Username(), user.Name())
 		}
 	}
 

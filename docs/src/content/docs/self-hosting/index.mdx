@@ -62,9 +62,12 @@ At minimum, you need these environment variables:
 BOT_TOKEN=your_bot_token_from_botfather
 OWNER_ID=your_telegram_user_id
 MESSAGE_DUMP=-100xxxxxxxxxx  # Log channel ID
-DATABASE_URL=******************************/db
-REDIS_ADDRESS=localhost:6379
+DATABASE_URL=postgresql://alita:change-me@localhost:5432/alita
 ```
+
+Redis itself is also required at runtime. No Redis endpoint variable is needed
+when it is available at the default `localhost:6379`; otherwise set either
+`REDIS_ADDRESS=host:port` or a full `REDIS_URL`.
 
 <Card title="Full Environment Reference" href="/api-reference/environment/" icon="book-open">
   Complete list of all environment variables and their descriptions.
@@ -89,8 +92,8 @@ Alita uses PostgreSQL with automatic migrations:
 # Enable auto-migration
 AUTO_MIGRATE=true
 
-    # Or run manually (requires PSQL_DB_* env vars to be set)
-    make psql-migrate
+# Or run manually (requires PSQL_DB_* env vars to be set)
+make psql-migrate
 ```
 
 <Card title="Database Guide" href="/self-hosting/database/" icon="database">

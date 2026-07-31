@@ -92,6 +92,14 @@ func TestExtractEntityURLs(t *testing.T) {
 			want: []string{"https://a.example", "https://b.example"},
 		},
 		{
+			name:   "url after surrogate pair",
+			source: "😀 https://example.com",
+			entities: []gotgbot.MessageEntity{
+				{Type: "url", Offset: 3, Length: 19},
+			},
+			want: []string{"https://example.com"},
+		},
+		{
 			name:   "non-url entity skipped",
 			source: "hello world",
 			entities: []gotgbot.MessageEntity{
@@ -206,6 +214,13 @@ func TestExtractEntityText(t *testing.T) {
 			offset: 7,
 			length: 3,
 			want:   "мир",
+		},
+		{
+			name:   "utf16 offset after emoji",
+			source: "😀 link",
+			offset: 3,
+			length: 4,
+			want:   "link",
 		},
 	}
 

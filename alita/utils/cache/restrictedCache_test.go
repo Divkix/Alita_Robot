@@ -6,32 +6,37 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/eko/gocache/lib/v4/store"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
-// TestMain for the cache package: tries to initialize the cache with a real Redis
-// connection. If Redis is not available, tests that call skipIfNoCache are skipped,
-// but pure-logic tests (key format, nil safety) still run.
+// TestMain gives cache tests an isolated Redis instance.
 func TestMain(m *testing.M) {
-	// Attempt to initialize the cache using any available Redis configuration.
-	// Allow override via environment (REDIS_ADDRESS).
-	if addr := os.Getenv("REDIS_ADDRESS"); addr != "" {
-		config.AppConfig.RedisAddress = addr
+	redisServer, err := miniredis.Run()
+	if err != nil {
+		fmt.Printf("[cache tests] start miniredis: %v\n", err)
+		os.Exit(1)
 	}
-	if config.AppConfig.RedisAddress == "" {
-		config.AppConfig.RedisAddress = "localhost:6379"
-	}
+	config.AppConfig.RedisAddress = redisServer.Addr()
+	config.AppConfig.RedisURL = ""
+	config.AppConfig.RedisPassword = ""
+	config.AppConfig.RedisDB = 0
 
 	if err := InitCache(); err != nil {
-		fmt.Printf("[cache tests] Redis not available (%v) — Redis-dependent tests will be skipped\n", err)
-		// Marshal remains nil; skipIfNoCache() will skip Redis-dependent tests.
-		// Pure-logic tests (key format, nil safety) still run.
+		fmt.Printf("[cache tests] initialize cache: %v\n", err)
+		redisServer.Close()
+		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	exitCode := m.Run()
+	if client := GetRedisClient(); client != nil {
+		_ = client.Close()
+	}
+	redisServer.Close()
+	os.Exit(exitCode)
 }
 
 // skipIfNoCache skips the current test when the cache is not initialized.

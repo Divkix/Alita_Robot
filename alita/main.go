@@ -5,8 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/modules"
 
@@ -36,8 +34,7 @@ func InitialChecks(b *gotgbot.Bot) error {
 	// This must complete before LoadModules to prevent race conditions with
 	// foreign key constraints that reference the bot entry
 	if err := user.EnsureBotInDb(b); err != nil {
-		log.WithError(err).Error("Failed to ensure bot in database")
-		// Continue anyway - non-fatal for basic operations
+		return fmt.Errorf("ensure bot in database: %w", err)
 	}
 
 	return nil

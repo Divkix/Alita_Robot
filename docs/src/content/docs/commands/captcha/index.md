@@ -90,9 +90,14 @@ This module can be accessed using the following aliases:
 **Orphaned Captcha Recovery:**
 On bot restart, any pending captcha attempts are automatically processed:
 - Expired attempts: failure action is applied (kick/ban/mute)
-- Still-valid attempts: captcha message is deleted, user must rejoin to get a new challenge
+- Still-valid attempts: the existing challenge is retained and its remaining timeout is rescheduled
+- Incomplete attempts that never received a Telegram message are removed and the user's chat permissions are restored
+
+Messages intercepted while verification is pending are deleted. After a
+successful answer, the bot sends a summary of their types and count; it does
+not replay their original contents.
 
 **Failure Actions:**
-- `kick` - Ban then immediately unban (allows user to rejoin)
+- `kick` - Remove the user while allowing them to rejoin
 - `ban` - Permanently ban the user
 - `mute` - Keep the user muted for 24 hours

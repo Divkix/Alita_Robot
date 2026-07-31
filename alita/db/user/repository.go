@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -53,11 +54,27 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 		UserName: username,
 		Name:     firstName,
 	}
-	result := db.DB.Where("user_id = ?", userId).Assign(userUpdate).FirstOrCreate(&models.User{})
+	columns := make([]string, 0, 3)
+	if username != "" {
+		columns = append(columns, "username")
+	}
+	if firstName != "" {
+		columns = append(columns, "name")
+	}
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}},
+		DoNothing: len(columns) == 0,
+	}
+	if len(columns) > 0 {
+		columns = append(columns, "updated_at")
+		onConflict.DoUpdates = clause.AssignmentColumns(columns)
+	}
+	result := db.DB.Clauses(onConflict).Create(userUpdate)
 	if result.Error != nil {
 		log.Errorf("[Database] EnsureUserInDb: %v", result.Error)
 		return fmt.Errorf("failed to ensure user %d in database: %w", userId, result.Error)
 	}
+	cache.DeleteCache(cache.CacheKey("user", userId))
 	return nil
 }
 
@@ -76,54 +93,26 @@ func checkUserInfo(userId int64) (userc *models.User) {
 	return userc
 }
 
-// UpdateUser creates or updates user information in the database.
-// Only updates fields that have actually changed to minimize database operations.
-// Always updates last_activity to track user interactions.
-// Invalidates user cache after successful update.
-// Returns error if database operation fails.
+// UpdateUser atomically creates or updates user metadata and activity.
 func UpdateUser(userId int64, username, name string) error {
-	userc := checkUserInfo(userId)
 	now := time.Now()
-
-	if userc != nil {
-		// Always update last_activity, but only update other fields if changed
-		updates := map[string]any{
-			"last_activity": now,
-		}
-
-		// Check if profile updates are needed
-		if userc.Name != name {
-			updates["name"] = name
-		}
-		if userc.UserName != username {
-			updates["username"] = username
-		}
-
-		err := db.DB.Model(&models.User{}).Where("user_id = ?", userId).Updates(updates).Error
-		if err != nil {
-			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
-			return err
-		}
-		// Invalidate cache after update
-		cache.DeleteCache(cache.CacheKey("user", userId))
-		log.Debugf("[Database] UpdateUser: %d", userId)
-	} else {
-		// Create new user
-		userc = &models.User{
-			UserId:       userId,
-			UserName:     username,
-			Name:         name,
-			LastActivity: now,
-		}
-		err := db.DB.Create(userc).Error
-		if err != nil {
-			log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
-			return err
-		}
-		// Invalidate cache after create
-		cache.DeleteCache(cache.CacheKey("user", userId))
-		log.Infof("[Database] UpdateUser: created new user %d", userId)
+	userRecord := &models.User{
+		UserId:       userId,
+		UserName:     username,
+		Name:         name,
+		LastActivity: now,
 	}
+	if err := db.DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns(
+			[]string{"username", "name", "last_activity", "updated_at"},
+		),
+	}).Create(userRecord).Error; err != nil {
+		log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
+		return err
+	}
+	cache.DeleteCache(cache.CacheKey("user", userId))
+	log.Debugf("[Database] UpdateUser: %d", userId)
 	return nil
 }
 

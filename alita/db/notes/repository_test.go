@@ -4,6 +4,7 @@ package notes
 
 import (
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -244,7 +245,7 @@ func TestToggleNotesPrivate(t *testing.T) {
 	}
 }
 
-func TestNoteUpsertBehavior(t *testing.T) {
+func TestAddNotePreservesExistingNote(t *testing.T) {
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -270,9 +271,14 @@ func TestNoteUpsertBehavior(t *testing.T) {
 		t.Fatalf("AddNote() first call error = %v", err)
 	}
 
-	// Second add with same name — per AddNote implementation: returns nil (no-op) if already exists
+	// A repeated add must not bypass overwrite confirmation.
 	if err := AddNote(chatID, "dupnote", "updated content", "", models.ButtonArray{}, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() second call error = %v", err)
+	}
+
+	note := GetNote(chatID, "dupnote")
+	if note == nil || note.NoteContent != "original content" {
+		t.Fatalf("GetNote() = %+v, want original content", note)
 	}
 
 	list := GetNotesList(chatID, false)
@@ -431,6 +437,9 @@ func TestLoadNotesStatsErrorBranch(t *testing.T) {
 		_ = db.DB.AutoMigrate(&models.Notes{})
 	})
 
+	if err := AddNote(1, "missing-table", "text", "", nil, db.TEXT, false, false, false, false, false, false); err == nil {
+		t.Fatal("AddNote() error = nil after notes table was dropped")
+	}
 	notes, chats := LoadNotesStats()
 	if notes != 0 || chats != 0 {
 		t.Fatalf("LoadNotesStats() = (%d, %d), want (0, 0) on error", notes, chats)
@@ -513,7 +522,7 @@ func TestAddNoteWithAdminOnly(t *testing.T) {
 	}
 }
 
-func TestSaveNoteTwice_Overwrites(t *testing.T) {
+func TestAddNotePreservesExistingUntilExplicitUpdate(t *testing.T) {
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
@@ -534,24 +543,53 @@ func TestSaveNoteTwice_Overwrites(t *testing.T) {
 		}
 	})
 
-	// Save note v1
-	if err := AddNote(chatID, "my-note", "v1 content", "", models.ButtonArray{}, db.TEXT, false, false, false, false, false, false); err != nil {
+	// Add is insert-only so an unconfirmed duplicate cannot overwrite the note.
+	if err := AddNote(
+		chatID,
+		"my-note",
+		"v1 content",
+		"old-file",
+		models.ButtonArray{{Name: "old", Url: "https://example.com"}},
+		db.PHOTO,
+		true,
+		true,
+		true,
+		true,
+		true,
+		true,
+	); err != nil {
 		t.Fatalf("AddNote() v1 error = %v", err)
 	}
 
-	// Save note v2 (same name) -- AddNote is a no-op for duplicates (returns nil, keeps v1)
 	if err := AddNote(chatID, "my-note", "v2 content", "", models.ButtonArray{}, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() v2 error = %v", err)
 	}
 
-	// GetNote should return the existing note (v1 content, since AddNote is idempotent)
 	note := GetNote(chatID, "my-note")
 	if note == nil {
 		t.Fatal("GetNote() returned nil")
 	}
-	// AddNote does not overwrite existing notes - v1 content is preserved
-	if note.NoteContent != "v1 content" {
-		t.Fatalf("NoteContent = %q, want %q (AddNote is idempotent, does not overwrite)", note.NoteContent, "v1 content")
+	if note.NoteContent != "v1 content" || note.FileID != "old-file" || note.MsgType != db.PHOTO ||
+		len(note.Buttons) != 1 || !note.AdminOnly || !note.PrivateOnly || !note.GroupOnly ||
+		!note.WebPreview || !note.IsProtected || !note.NoNotif {
+		t.Fatalf("duplicate AddNote() changed existing note: %+v", note)
+	}
+
+	updated, err := UpdateNote(chatID, "my-note", "v2 content", "", models.ButtonArray{}, db.TEXT, false, false, false, false, false, false)
+	if err != nil {
+		t.Fatalf("UpdateNote() error = %v", err)
+	}
+	if !updated {
+		t.Fatal("UpdateNote() = false, want existing note updated")
+	}
+	note = GetNote(chatID, "my-note")
+	if note == nil {
+		t.Fatal("GetNote() after update returned nil")
+	}
+	if note.NoteContent != "v2 content" || note.FileID != "" || note.MsgType != db.TEXT ||
+		len(note.Buttons) != 0 || note.AdminOnly || note.PrivateOnly || note.GroupOnly ||
+		note.WebPreview || note.IsProtected || note.NoNotif {
+		t.Fatalf("UpdateNote() did not persist replacement fields: %+v", note)
 	}
 
 	// Verify no duplicate entries
@@ -564,6 +602,49 @@ func TestSaveNoteTwice_Overwrites(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 entry for 'my-note', got %d; list: %v", count, list)
+	}
+}
+
+func TestAddNoteConcurrentInsert(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	if err := chats.EnsureChatInDb(chatID, "test-concurrent-note-upsert"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Notes{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	const writers = 16
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- AddNote(chatID, "shared", "concurrent", "", nil, db.TEXT, false, false, false, false, false, false)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent AddNote() error = %v", err)
+		}
+	}
+
+	if err := AddNote(chatID, "shared", "final", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("final AddNote() error = %v", err)
+	}
+	var count int64
+	if err := db.DB.Model(&models.Notes{}).Where("chat_id = ? AND note_name = ?", chatID, "shared").Count(&count).Error; err != nil {
+		t.Fatalf("count notes error = %v", err)
+	}
+	note := GetNote(chatID, "shared")
+	if count != 1 || note == nil || note.NoteContent != "concurrent" {
+		t.Fatalf("concurrent insert left count=%d note=%+v", count, note)
 	}
 }
 

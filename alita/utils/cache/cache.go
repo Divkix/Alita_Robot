@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -47,12 +48,11 @@ type AdminCache struct {
 // InitCache initializes the Redis-only cache system.
 // It establishes connection to Redis and returns an error if initialization fails.
 func InitCache() error {
-	// Initialize Redis client
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.AppConfig.RedisAddress,
-		Password: config.AppConfig.RedisPassword, // no password set
-		DB:       config.AppConfig.RedisDB,       // use default DB
-	})
+	options, err := newRedisOptions(config.AppConfig)
+	if err != nil {
+		return err
+	}
+	redisClient = redis.NewClient(options)
 
 	// Test Redis connection with retry logic
 	maxRetries := 5
@@ -93,6 +93,28 @@ func InitCache() error {
 	Manager = cacheManager
 
 	return nil
+}
+
+func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
+	if cfg.RedisURL == "" {
+		return &redis.Options{
+			Addr:     cfg.RedisAddress,
+			Password: cfg.RedisPassword,
+			DB:       cfg.RedisDB,
+		}, nil
+	}
+
+	options, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse REDIS_URL: %w", err)
+	}
+	if os.Getenv("REDIS_PASSWORD") != "" {
+		options.Password = cfg.RedisPassword
+	}
+	if os.Getenv("REDIS_DB") != "" {
+		options.DB = cfg.RedisDB
+	}
+	return options, nil
 }
 
 // ClearAllCaches clears all cache entries from Redis using FLUSHDB.

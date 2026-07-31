@@ -59,18 +59,26 @@ func EnableCMD(chatID int64, cmd string) error {
 // GetChatDisabledCMDs retrieves all disabled commands for a chat.
 // Returns an empty slice if no disabled commands are found or on error.
 func GetChatDisabledCMDs(chatId int64) []string {
-	var disableSettings []*models.DisableSettings
-	err := db.GetRecords(&disableSettings, models.DisableSettings{ChatId: chatId, Disabled: true})
+	commands, err := getChatDisabledCMDs(chatId)
 	if err != nil {
 		log.Errorf("[Database] GetChatDisabledCMDs: %v - %d", err, chatId)
 		return []string{}
+	}
+	return commands
+}
+
+func getChatDisabledCMDs(chatId int64) ([]string, error) {
+	var disableSettings []*models.DisableSettings
+	err := db.GetRecords(&disableSettings, models.DisableSettings{ChatId: chatId, Disabled: true})
+	if err != nil {
+		return nil, err
 	}
 
 	commands := make([]string, len(disableSettings))
 	for i, setting := range disableSettings {
 		commands[i] = setting.Command
 	}
-	return commands
+	return commands, nil
 }
 
 // GetChatDisabledCMDsCached retrieves all disabled commands for a chat with caching.
@@ -78,7 +86,7 @@ func GetChatDisabledCMDs(chatId int64) []string {
 func GetChatDisabledCMDsCached(chatId int64) []string {
 	cacheKey := cache.CacheKey("disabled_cmds", chatId)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLDisabledCmds, func() ([]string, error) {
-		return GetChatDisabledCMDs(chatId), nil
+		return getChatDisabledCMDs(chatId)
 	})
 	if err != nil {
 		log.Errorf("[Cache] Failed to get disabled commands from cache for chat %d: %v", chatId, err)

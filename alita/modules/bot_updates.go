@@ -119,8 +119,12 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	qmsg := query.Message
-
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if qmsg == nil {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	chatIDRaw := ""
 	msgIDRaw := ""
@@ -249,7 +253,6 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 	)
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("anon_admin"), verifyAnonymousAdmin))
-	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("alita:anonAdmin:"), verifyAnonymousAdmin))
 }
 
 func init() {

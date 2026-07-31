@@ -1,14 +1,9 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
@@ -27,40 +22,9 @@ import (
 
 var bansModule = moduleStruct{moduleName: "Bans"}
 
-// delayedUnban performs a delayed unban after kick with timeout protection.
-// Runs in a goroutine to avoid blocking the main execution.
-func delayedUnban(chat *gotgbot.Chat, b *gotgbot.Bot, userId int64, operation string, delay time.Duration) {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.WithField("panic", r).Error("Panic in delayed unban goroutine")
-			}
-		}()
-
-		// Create context with timeout to prevent goroutine from hanging indefinitely
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		timer := time.NewTimer(delay)
-		defer timer.Stop()
-
-		select {
-		case <-timer.C:
-			_, unbanErr := chat.UnbanMember(b, userId, nil)
-			if unbanErr != nil {
-				log.WithFields(log.Fields{
-					"chatId": chat.Id,
-					"userId": userId,
-					"error":  unbanErr,
-				}).Errorf("Failed to unban user after %s", operation)
-			}
-		case <-timeoutCtx.Done():
-			log.WithFields(log.Fields{
-				"chatId": chat.Id,
-				"userId": userId,
-			}).Warnf("%s unban operation timed out", cases.Title(language.English).String(operation))
-		}
-	}()
+func kickMember(b *gotgbot.Bot, chatID, userID int64) error {
+	_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: false})
+	return err
 }
 
 /* Used to Kick a user from group
@@ -186,11 +150,7 @@ func moderationDkick(m *moduleStruct) *moderationCommand {
 				log.Error(err)
 				return err
 			}
-			_, err = c.Chat.BanMember(c.Bot, t.userID, nil)
-			if err == nil {
-				delayedUnban(c.Chat, c.Bot, t.userID, "dkick", 2*time.Second)
-			}
-			return err
+			return kickMember(c.Bot, c.Chat.Id, t.userID)
 		},
 		reply: kickReply,
 	}
@@ -353,11 +313,7 @@ func moderationKick(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: kickTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			if err == nil {
-				delayedUnban(c.Chat, c.Bot, t.userID, "kick", 2*time.Second)
-			}
-			return err
+			return kickMember(c.Bot, c.Chat.Id, t.userID)
 		},
 		reply: kickReply,
 	}
@@ -394,12 +350,7 @@ func moderationKickme(m *moduleStruct) *moderationCommand {
 			return target{userID: c.User.Id}, nil
 		},
 		execute: func(c *moderationCtx, t *target) error {
-			_, err := c.Chat.BanMember(c.Bot, t.userID, nil)
-			if err != nil {
-				return err
-			}
-			delayedUnban(c.Chat, c.Bot, t.userID, "kickme", 2*time.Second)
-			return nil
+			return kickMember(c.Bot, c.Chat.Id, t.userID)
 		},
 		reply: func(c *moderationCtx, t *target) error {
 			text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kickme_ok_out")
@@ -641,7 +592,7 @@ func (moduleStruct) restrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// User should be in chat for getting restricted
+	// Restriction only applies to current members.
 	if !chat_status.IsUserInChat(b, chat, userId) {
 		text, _ := tr.GetString("common_user_not_in_chat")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -711,6 +662,12 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	if !ok {
 		return ext.EndGroups
 	}
+	if query.Message == nil {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -739,6 +696,14 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		})
 		return ext.EndGroups
 	}
+	switch action {
+	case "kick", "mute", "ban":
+	default:
+		log.WithField("callbackData", query.Data).Error("Unknown restrict callback action")
+		errText, _ := tr.GetString("bans_invalid_callback_data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText, ShowAlert: true})
+		return ext.EndGroups
+	}
 	userId, err := strconv.Atoi(userIDRaw)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -763,8 +728,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	switch action {
 	case "kick":
-		_, err := chat.BanMember(b, int64(userId), nil)
-		if err != nil {
+		if err := kickMember(b, chat.Id, int64(userId)); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -773,8 +737,6 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 			formatting.MentionHtml(user.Id, user.FirstName),
 			formatting.MentionHtml(int64(userId), actionUser.FirstName),
 		)
-		// Use non-blocking delayed unban for restrict kick action with timeout
-		delayedUnban(chat, b, int64(userId), "restrict-kick", 3*time.Second)
 	case "mute":
 		_, err := chat.RestrictMember(b, int64(userId),
 			MutedPermissions,
@@ -862,17 +824,6 @@ func (moduleStruct) unrestrict(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// User should be in chat for getting restricted
-	if !chat_status.IsUserInChat(b, chat, userId) {
-		text, _ := tr.GetString("common_user_not_in_chat")
-		_, err := msg.Reply(b, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
-
 	if chat_status.IsUserBanProtected(b, ctx, nil, userId) {
 		text, _ := tr.GetString("bans_unrestrict_admin_error")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -937,6 +888,11 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	}
 	msg := query.Message
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if msg == nil {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	// permissions check
 	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
@@ -957,6 +913,14 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 			Text:      errText,
 			ShowAlert: true,
 		})
+		return ext.EndGroups
+	}
+	switch action {
+	case "unmute", "unban":
+	default:
+		log.WithField("callbackData", query.Data).Error("Unknown unrestrict callback action")
+		errText, _ := tr.GetString("bans_invalid_callback_data")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText, ShowAlert: true})
 		return ext.EndGroups
 	}
 	userId, err := strconv.Atoi(userIDRaw)

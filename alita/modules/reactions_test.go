@@ -24,12 +24,12 @@ func TestReactionCommandsManageDBRows(t *testing.T) {
 		_ = reactions.ResetReactions(chat.Id)
 	})
 
-	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
+	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello 👍")
 	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addReaction() error = %v, want EndGroups", err)
 	}
-	if got := reactions.GetReactions(chat.Id)["hello"]; got != "ok" {
-		t.Fatalf("stored reaction = %q, want ok", got)
+	if got := reactions.GetReactions(chat.Id)["hello"]; got != "👍" {
+		t.Fatalf("stored reaction = %q, want 👍", got)
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, admin, "/reactions")
@@ -45,7 +45,7 @@ func TestReactionCommandsManageDBRows(t *testing.T) {
 		t.Fatalf("reactions remained after removing final reaction: %v", m)
 	}
 
-	_ = reactions.AddReaction(chat.Id, "bye", "ok")
+	_ = reactions.AddReaction(chat.Id, "bye", "👍")
 	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetreactions")
 	if err := reactionsModule.resetReactions(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetReactions() error = %v, want EndGroups", err)
@@ -90,7 +90,7 @@ func TestReactionCommandsHandleUsageAndMissingEntries(t *testing.T) {
 		})
 	}
 
-	if err := reactions.AddReaction(chat.Id, "hello", "ok"); err != nil {
+	if err := reactions.AddReaction(chat.Id, "hello", "👍"); err != nil {
 		t.Fatalf("seed reaction: %v", err)
 	}
 	missingKeywordCtx := newModuleMessageContext(bot, chat, admin, "/removereaction absent")
@@ -166,7 +166,7 @@ func TestCheckReactionsSetsMessageReactionForMatchingKeyword(t *testing.T) {
 		_ = reactions.ResetReactions(chat.Id)
 	})
 
-	if err := reactions.AddReaction(chat.Id, "hello", "ok"); err != nil {
+	if err := reactions.AddReaction(chat.Id, "hello", "👍"); err != nil {
 		t.Fatalf("seed reaction: %v", err)
 	}
 
@@ -235,12 +235,12 @@ func TestReactionCommandsWorkWithNilCacheMarshal(t *testing.T) {
 		_ = reactions.ResetReactions(chat.Id)
 	})
 
-	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello ok")
+	addCtx := newModuleMessageContext(bot, chat, admin, "/addreaction hello 👍")
 	if err := reactionsModule.addReaction(bot, addCtx); err != ext.EndGroups {
 		t.Fatalf("addReaction(nil marshal) error = %v, want EndGroups", err)
 	}
-	if got := reactions.GetReactions(chat.Id)["hello"]; got != "ok" {
-		t.Fatalf("stored reaction with nil marshal = %q, want ok", got)
+	if got := reactions.GetReactions(chat.Id)["hello"]; got != "👍" {
+		t.Fatalf("stored reaction with nil marshal = %q, want 👍", got)
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, admin, "/reactions")

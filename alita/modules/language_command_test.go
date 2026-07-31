@@ -83,12 +83,18 @@ func TestLanguageCallbackRejectsInvalidSelection(t *testing.T) {
 	user := gotgbot.User{Id: 5204, FirstName: "Member"}
 	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 
-	ctx := newModuleCallbackContext(bot, chat, user, "change_language")
-	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("langBtnHandler() error = %v, want EndGroups", err)
+	for _, data := range []string{
+		"change_language",
+		encodeCallbackData("change_language", map[string]string{"l": "bogus"}),
+		encodeCallbackData("change_language", map[string]string{"l": "config"}),
+	} {
+		ctx := newModuleCallbackContext(bot, chat, user, data)
+		if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("langBtnHandler(%q) error = %v, want EndGroups", data, err)
+		}
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 3", len(calls))
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
 		t.Fatalf("editMessageText calls = %d, want 0 for invalid selection", len(calls))

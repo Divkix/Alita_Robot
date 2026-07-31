@@ -1,15 +1,20 @@
 package backup
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// BackupFormatVersion is the current backup format version
-const BackupFormatVersion = "1.0"
+const (
+	// BackupFormatVersion is the current backup format version.
+	BackupFormatVersion = "1.1"
+	legacyFormatVersion = "1.0"
+)
 
 // BackupFormat represents the structure of an exported backup file
 type BackupFormat struct {
@@ -39,6 +44,9 @@ func NewBackupFormat(chatID int64, chatName string, exportedBy int64, modules []
 
 // Validate checks if the backup format is valid
 func (b *BackupFormat) Validate() error {
+	if b == nil {
+		return fmt.Errorf("backup cannot be nil")
+	}
 	if b.Version == "" {
 		return fmt.Errorf("backup version is required")
 	}
@@ -54,14 +62,20 @@ func (b *BackupFormat) Validate() error {
 	if b.Data == nil {
 		return fmt.Errorf("data field cannot be nil")
 	}
+	for _, module := range b.Modules {
+		if !IsValidModule(module) {
+			return fmt.Errorf("unknown module: %s", module)
+		}
+		if _, ok := b.Data[module]; !ok {
+			return fmt.Errorf("missing data for module: %s", module)
+		}
+	}
 	return nil
 }
 
 // IsCompatibleVersion checks if the backup version is compatible
 func (b *BackupFormat) IsCompatibleVersion() bool {
-	// For now, only support exact version match
-	// Future: support migration from older versions
-	return b.Version == BackupFormatVersion
+	return b.Version == BackupFormatVersion || b.Version == legacyFormatVersion
 }
 
 // ToJSON marshals the backup format to JSON bytes
@@ -72,8 +86,13 @@ func (b *BackupFormat) ToJSON() ([]byte, error) {
 // BackupFormatFromJSON unmarshals JSON bytes to BackupFormat
 func BackupFormatFromJSON(data []byte) (*BackupFormat, error) {
 	var backup BackupFormat
-	if err := json.Unmarshal(data, &backup); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&backup); err != nil {
 		return nil, fmt.Errorf("failed to parse backup file: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return nil, fmt.Errorf("failed to parse backup file: trailing data")
 	}
 	return &backup, nil
 }
@@ -93,6 +112,7 @@ const (
 	BackupModuleLocks       = "locks"
 	BackupModuleNotes       = "notes"
 	BackupModulePins        = "pins"
+	BackupModuleReactions   = "reactions"
 	BackupModuleReports     = "reports"
 	BackupModuleRules       = "rules"
 	BackupModuleWarns       = "warns"
@@ -114,6 +134,7 @@ func AllExportableModules() []string {
 		BackupModuleLocks,
 		BackupModuleNotes,
 		BackupModulePins,
+		BackupModuleReactions,
 		BackupModuleReports,
 		BackupModuleRules,
 		BackupModuleWarns,
@@ -145,11 +166,11 @@ func FilterValidModules(modules []string) []string {
 
 // AdminBackup represents admin settings backup data
 type AdminBackup struct {
-	AdminSettings       *models.AdminSettings        `json:"admin_settings,omitempty"`
-	AntifloodSettings   *models.AntifloodSettings    `json:"antiflood_settings,omitempty"`
-	BlacklistMode       string                       `json:"blacklist_mode,omitempty"`
-	CaptchaSettings     *models.CaptchaSettings      `json:"captcha_settings,omitempty"`
-	ConnectionSettings  *models.ConnectionChatSettings `json:"connection_settings,omitempty"`
+	AdminSettings      *models.AdminSettings          `json:"admin_settings,omitempty"`
+	AntifloodSettings  *models.AntifloodSettings      `json:"antiflood_settings,omitempty"`
+	BlacklistMode      string                         `json:"blacklist_mode,omitempty"`
+	CaptchaSettings    *models.CaptchaSettings        `json:"captcha_settings,omitempty"`
+	ConnectionSettings *models.ConnectionChatSettings `json:"connection_settings,omitempty"`
 }
 
 // AntifloodBackup represents antiflood settings backup data
@@ -159,9 +180,9 @@ type AntifloodBackup struct {
 
 // BlacklistsBackup represents blacklist settings and entries backup data
 type BlacklistsBackup struct {
-	Settings      *models.BlacklistSettings   `json:"settings,omitempty"`
-	BlacklistMode string                      `json:"blacklist_mode,omitempty"`
-	Entries       []models.BlacklistSettings  `json:"entries,omitempty"`
+	Settings      *models.BlacklistSettings  `json:"settings,omitempty"`
+	BlacklistMode string                     `json:"blacklist_mode,omitempty"`
+	Entries       []models.BlacklistSettings `json:"entries,omitempty"`
 }
 
 // CaptchaBackup represents captcha settings backup data
@@ -197,7 +218,8 @@ type LocksBackup struct {
 
 // NotesBackup represents notes backup data
 type NotesBackup struct {
-	Notes []models.Notes `json:"notes,omitempty"`
+	Settings *models.NotesSettings `json:"settings,omitempty"`
+	Notes    []models.Notes        `json:"notes,omitempty"`
 }
 
 // PinsBackup represents pin settings backup data
@@ -218,6 +240,7 @@ type RulesBackup struct {
 // WarnsBackup represents warning settings backup data
 type WarnsBackup struct {
 	WarnSettings *models.WarnSettings `json:"warn_settings,omitempty"`
+	Warns        []models.Warns       `json:"warns,omitempty"`
 }
 
 // AntiraidBackup represents anti-raid settings backup data
@@ -228,4 +251,9 @@ type AntiraidBackup struct {
 // ApprovalsBackup represents approved users backup data
 type ApprovalsBackup struct {
 	ApprovedUsers []models.ApprovedUsers `json:"approved_users,omitempty"`
+}
+
+// ReactionsBackup represents keyword reaction mappings.
+type ReactionsBackup struct {
+	Reactions []models.Reactions `json:"reactions,omitempty"`
 }

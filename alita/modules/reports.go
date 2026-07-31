@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -449,6 +448,12 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 	msg := query.Message
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if msg == nil {
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 	var replyQuery, replyText string
 
 	// permissions check
@@ -457,7 +462,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	invalidActionText, _ := tr.GetString("reports_invalid_action")
 
 	action := ""
@@ -473,6 +477,13 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
+	switch action {
+	case "kick", "ban", "delete", "resolved":
+	default:
+		log.Warnf("[Reports] Invalid callback action: %s", action)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
+		return ext.EndGroups
+	}
 	userId, err := strconv.ParseInt(userIDRaw, 10, 64)
 	if err != nil {
 		log.Warnf("[Reports] Invalid user ID in callback: %s", userIDRaw)
@@ -485,32 +496,38 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: invalidActionText})
 		return ext.EndGroups
 	}
+
+	switch action {
+	case "kick", "ban":
+		if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+			return ext.EndGroups
+		}
+		if !chat_status.CanBotRestrict(b, ctx, chat) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_restrict_error", "chat_status_bot_restrict_error")
+			return ext.EndGroups
+		}
+	case "delete":
+		if !chat_status.CanUserDelete(b, ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error")
+			return ext.EndGroups
+		}
+		if !chat_status.CanBotDelete(b, ctx, chat) {
+			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_delete_error", "chat_status_bot_delete_error")
+			return ext.EndGroups
+		}
+	}
+
 	switch action {
 	case "kick":
 		replyQuery, _ = tr.GetString("reports_success_kick")
 		kickedText, _ := tr.GetString("reports_user_kicked")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", kickedText, actionBy)
-		_, err := chat.BanMember(b, userId, nil)
-		if err != nil {
+		if err := kickMember(b, chat.Id, userId); err != nil {
 			log.Error(err)
 			return err
 		}
-
-		// Unban after 1s in a background goroutine to avoid blocking a dispatcher worker.
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Errorf("[Reports] panic in delayed unban: %v", r)
-				}
-			}()
-			timer := time.NewTimer(1 * time.Second)
-			defer timer.Stop()
-			<-timer.C
-			if _, unbanErr := chat.UnbanMember(b, userId, nil); unbanErr != nil {
-				log.Errorf("[Reports] Failed to unban %d after kick: %v", userId, unbanErr)
-			}
-		}()
 	case "ban":
 		replyQuery, _ = tr.GetString("reports_success_ban")
 		bannedText, _ := tr.GetString("reports_user_banned")
@@ -527,11 +544,13 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		deletedText, _ := tr.GetString("reports_message_deleted")
 		actionBy, _ := tr.GetString("reports_action_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 		replyText = fmt.Sprintf("%s\n%s", deletedText, actionBy)
-		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId)
-	default:
+		if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
+			log.Error(err)
+			return err
+		}
+	case "resolved":
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
-
 	}
 	_, _, err = msg.EditText(
 		b,

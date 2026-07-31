@@ -3,6 +3,7 @@ package migrations
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -82,9 +83,13 @@ func (m *MigrationRunner) RunMigrations() error {
 		}
 
 		// Check if already applied
-		if m.isMigrationApplied(version) {
+		isApplied, err := m.isMigrationApplied(version)
+		if err != nil {
+			return fmt.Errorf("failed to check migration %s status: %w", version, err)
+		}
+		if isApplied {
 			// Verify the content hasn't changed since it was applied.
-			if err := m.verifyMigrationChecksum(file, version, content); err != nil {
+			if err := m.verifyMigrationChecksum(version, content); err != nil {
 				return err
 			}
 			log.Debugf("[Migrations] Skipping %s (already applied)", version)
@@ -164,20 +169,25 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 }
 
 // isMigrationApplied checks if a migration version has already been applied
-func (m *MigrationRunner) isMigrationApplied(version string) bool {
+func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {
 	var count int64
-	m.db.Model(&SchemaMigration{}).Where("version = ?", version).Count(&count)
-	return count > 0
+	if err := m.db.Model(&SchemaMigration{}).Where("version = ?", version).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // getMigrationRecord fetches the stored migration record for the given version.
 // Returns nil if the version is not found.
-func (m *MigrationRunner) getMigrationRecord(version string) *SchemaMigration {
+func (m *MigrationRunner) getMigrationRecord(version string) (*SchemaMigration, error) {
 	var rec SchemaMigration
 	if err := m.db.Where("version = ?", version).First(&rec).Error; err != nil {
-		return nil
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return &rec
+	return &rec, nil
 }
 
 // verifyMigrationChecksum compares the stored checksum for an already-applied
@@ -187,10 +197,13 @@ func (m *MigrationRunner) getMigrationRecord(version string) *SchemaMigration {
 // false alarms on migrations that pre-date this feature.
 // When AutoMigrateSilentFail is false a mismatch returns an error; otherwise
 // it only logs a warning so that existing deployments are not blocked.
-func (m *MigrationRunner) verifyMigrationChecksum(filePath, version string, content []byte) error {
-	rec := m.getMigrationRecord(version)
+func (m *MigrationRunner) verifyMigrationChecksum(version string, content []byte) error {
+	rec, err := m.getMigrationRecord(version)
+	if err != nil {
+		return fmt.Errorf("failed to read migration record %s: %w", version, err)
+	}
 	if rec == nil {
-		return nil // not in DB yet — will be applied shortly
+		return fmt.Errorf("migration record %s not found", version)
 	}
 
 	sum := sha256.Sum256(content)
@@ -201,10 +214,9 @@ func (m *MigrationRunner) verifyMigrationChecksum(filePath, version string, cont
 		if err := m.db.Model(&SchemaMigration{}).
 			Where("version = ?", version).
 			Update("checksum", current).Error; err != nil {
-			log.Warnf("[Migrations] Failed to backfill checksum for %s: %v", version, err)
-		} else {
-			log.Debugf("[Migrations] Backfilled checksum for legacy migration %s", version)
+			return fmt.Errorf("failed to backfill checksum for %s: %w", version, err)
 		}
+		log.Debugf("[Migrations] Backfilled checksum for legacy migration %s", version)
 		return nil
 	}
 
@@ -370,6 +382,40 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 	return statements
 }
 
+// isTransactionControlStatement reports whether stmt is a top-level transaction
+// boundary. Migration files may contain their own BEGIN/COMMIT pairs, but the
+// runner owns the transaction so those boundaries must not be executed.
+func isTransactionControlStatement(stmt string) bool {
+	stmt = strings.TrimSpace(stmt)
+	for {
+		switch {
+		case strings.HasPrefix(stmt, "--"):
+			if newline := strings.IndexByte(stmt, '\n'); newline >= 0 {
+				stmt = strings.TrimSpace(stmt[newline+1:])
+				continue
+			}
+			return false
+		case strings.HasPrefix(stmt, "/*"):
+			if end := strings.Index(stmt[2:], "*/"); end >= 0 {
+				stmt = strings.TrimSpace(stmt[end+4:])
+				continue
+			}
+			return false
+		}
+		break
+	}
+
+	switch strings.ToUpper(strings.Join(strings.Fields(stmt), " ")) {
+	case "BEGIN", "BEGIN WORK", "BEGIN TRANSACTION",
+		"START TRANSACTION",
+		"COMMIT", "COMMIT WORK", "COMMIT TRANSACTION",
+		"END", "END WORK", "END TRANSACTION":
+		return true
+	default:
+		return false
+	}
+}
+
 // applyMigration reads, cleans, and applies a single migration file
 func (m *MigrationRunner) applyMigration(filepath, version string) error {
 	// Validate that the file path is within the migrations directory to prevent path traversal
@@ -392,8 +438,10 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 	// Clean Supabase-specific SQL before splitting statements.
 	sql := cleanSupabaseSQL(string(content))
 
-	// Split SQL into individual statements
+	// Split SQL into individual statements. The runner owns one transaction per
+	// file, so discard transaction boundaries embedded in legacy migrations.
 	statements := m.splitSQLStatements(sql)
+	statements = slices.DeleteFunc(statements, isTransactionControlStatement)
 	if len(statements) == 0 {
 		log.Warnf("[Migrations] No statements found in migration %s", version)
 		return nil
@@ -515,7 +563,7 @@ func cleanSupabaseSQL(sql string) string {
 
 	// Make CREATE TYPE idempotent (for ENUMs) using DO block pattern
 	// PostgreSQL doesn't support CREATE TYPE IF NOT EXISTS directly
-	// Use WHEN OTHERS to catch all exception types
+	// Ignore only the duplicate-object case; invalid enum definitions must fail.
 	createTypePattern := regexp.MustCompile(`(?i)create\s+type\s+([\"']?[^\"'\s(]+[\"']?)\s+as\s+enum\s*\(([^)]+)\)\s*;?`)
 	cleaned = createTypePattern.ReplaceAllStringFunc(cleaned, func(match string) string {
 		matches := createTypePattern.FindStringSubmatch(match)
@@ -527,15 +575,17 @@ func cleanSupabaseSQL(sql string) string {
 		return fmt.Sprintf(`DO $$ BEGIN
     CREATE TYPE %s AS ENUM (%s);
 EXCEPTION
-    WHEN OTHERS THEN null;
+    WHEN duplicate_object THEN NULL;
 END $$;`, typeName, enumValues)
 	})
 
-	// Make ALTER TABLE ADD CONSTRAINT idempotent — wrap in DO block.
+	// Make ALTER TABLE ADD CONSTRAINT idempotent — wrap in a DO block that only
+	// ignores a constraint which already exists. Every other error must abort the
+	// migration so a broken schema is never recorded as applied.
 	// Skips ALTER TABLE statements already inside dollar-quoted blocks
 	// (e.g., hand-written DO $$ blocks in migration files) to avoid
 	// creating nested DO blocks that PostgreSQL cannot parse.
-	addConstraintPattern := regexp.MustCompile(`(?i)alter\s+table\s+(?:only\s+)?([\"']?[^\"'\s]+[\"']?)\s+add\s+constraint\s+([\"']?[^\"'\s]+[\"']?)\s+(.+?);`)
+	addConstraintPattern := regexp.MustCompile(`(?is)alter\s+table\s+(?:only\s+)?([\"']?[^\"'\s]+[\"']?)\s+add\s+constraint\s+([\"']?[^\"'\s]+[\"']?)\s+(.+?);`)
 
 	// Find dollar-quote block boundaries so we can skip matches inside them.
 	dollarBlocks := findDollarQuoteBlocks(cleaned)
@@ -573,7 +623,7 @@ END $$;`, typeName, enumValues)
 					fmt.Fprintf(&result, `DO $$ BEGIN
     ALTER TABLE %s ADD CONSTRAINT %s %s;
 EXCEPTION
-    WHEN OTHERS THEN null;
+    WHEN duplicate_object THEN NULL;
 END $$;`, tableName, constraintName, constraintDef)
 				} else {
 					result.WriteString(cleaned[matchStart:matchEnd])
@@ -584,6 +634,17 @@ END $$;`, tableName, constraintName, constraintDef)
 		result.WriteString(cleaned[lastEnd:])
 		cleaned = result.String()
 	}
+
+	// One legacy migration dynamically drops every index before dropping its
+	// table, including the constraint-owned primary-key index. PostgreSQL requires
+	// the owning constraint/table to remove that index, so leave it for the
+	// following DROP TABLE while still propagating every unrelated error.
+	dynamicDropIndexPattern := regexp.MustCompile(`(?i)execute\s+'drop\s+index\s+if\s+exists\s+'\s*\|\|\s*([^;]+);`)
+	cleaned = dynamicDropIndexPattern.ReplaceAllString(cleaned, `BEGIN
+    EXECUTE 'DROP INDEX IF EXISTS ' || $1;
+EXCEPTION
+    WHEN dependent_objects_still_exist THEN NULL;
+END;`)
 
 	log.Debugf("[Migrations] SQL cleaning: Applied idempotency transformations")
 

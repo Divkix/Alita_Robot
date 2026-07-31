@@ -240,6 +240,50 @@ func TestShutdownExecutesHandlersInLIFOOrderAndExitsOnce(t *testing.T) {
 	}
 }
 
+func TestShutdownTimeoutInterruptsBlockedHandler(t *testing.T) {
+	oldExit := exitProcess
+	oldTimeout := shutdownTimeout
+	defer func() {
+		exitProcess = oldExit
+		shutdownTimeout = oldTimeout
+	}()
+
+	block := make(chan struct{})
+	t.Cleanup(func() { close(block) })
+	exitCode := make(chan int, 1)
+	exitProcess = func(code int) {
+		exitCode <- code
+	}
+	shutdownTimeout = 10 * time.Millisecond
+
+	m := NewManager()
+	m.RegisterHandler(func() error {
+		<-block
+		return nil
+	})
+
+	done := make(chan struct{})
+	go func() {
+		m.shutdown()
+		close(done)
+	}()
+
+	select {
+	case code := <-exitCode:
+		if code != 1 {
+			t.Fatalf("exit code = %d, want 1", code)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not enforce its timeout")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not return after timed out exit")
+	}
+}
+
 func TestWaitForShutdownUsesSignalHooks(t *testing.T) {
 	oldExit := exitProcess
 	oldNotify := notifySignals

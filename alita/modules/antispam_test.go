@@ -6,6 +6,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 )
 
 func resetAntiSpamMapForTest(t *testing.T) {
@@ -80,11 +82,16 @@ func TestSpamCheckUsesDefaultThreshold(t *testing.T) {
 	}
 }
 
-func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
+func TestLoadAntispamRegisteredHandlerAllowsDownstreamModeration(t *testing.T) {
 	resetAntiSpamMapForTest(t)
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadAntispam(dispatcher)
+	processed := 0
+	dispatcher.AddHandler(handlers.NewMessage(message.All, func(*gotgbot.Bot, *ext.Context) error {
+		processed++
+		return ext.ContinueGroups
+	}))
 	bot := newModuleTestBot(newModuleBotClient())
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Spam Chat"}
 
@@ -100,6 +107,7 @@ func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
 	if err := dispatcher.ProcessUpdate(bot, channelPost, nil); err != nil {
 		t.Fatalf("ProcessUpdate(channel post) error = %v", err)
 	}
+	processed = 0
 
 	user := &gotgbot.User{Id: 42, FirstName: "Member"}
 	for i := 0; i < 18; i++ {
@@ -124,6 +132,9 @@ func TestLoadAntispamRegisteredHandlerAllowsChannelsAndStopsSpam(t *testing.T) {
 	antiSpamMutex.Unlock()
 	if info == nil || info.Count != antiSpamLimit {
 		t.Fatalf("antiSpamMap[%+v] = %#v, want count %d", key, info, antiSpamLimit)
+	}
+	if processed != antiSpamLimit {
+		t.Fatalf("downstream messages = %d, want all %d messages", processed, antiSpamLimit)
 	}
 	if !spamCheck(key) {
 		t.Fatal("antispam dispatcher handler did not mark user as spammed at threshold")

@@ -43,39 +43,41 @@ func TestMain(m *testing.M) {
 		db.DB = sqliteDB
 	}
 
-	err := db.DB.AutoMigrate(
-		&models.User{},
-		&models.Chat{},
-		&models.WarnSettings{},
-		&models.Warns{},
-		&models.GreetingSettings{},
-		&models.ChatFilters{},
-		&models.AdminSettings{},
-		&models.BlacklistSettings{},
-		&models.PinSettings{},
-		&models.ReportChatSettings{},
-		&models.ReportUserSettings{},
-		&models.DevSettings{},
-		&models.ChannelSettings{},
-		&models.AntifloodSettings{},
-		&models.ConnectionSettings{},
-		&models.ConnectionChatSettings{},
-		&models.DisableSettings{},
-		&models.DisableChatSettings{},
-		&models.RulesSettings{},
-		&models.LockSettings{},
-		&models.NotesSettings{},
-		&models.Notes{},
-		&models.CaptchaSettings{},
-		&models.CaptchaAttempts{},
-		&models.StoredMessages{},
-		&models.CaptchaMutedUsers{},
-		&models.ApprovedUsers{},
-		&models.AntiRaidSettings{},
-	)
-	if err != nil {
-		fmt.Printf("AutoMigrate failed: %v\n", err)
-		os.Exit(1)
+	if dbFileName != "" {
+		err := db.DB.AutoMigrate(
+			&models.User{},
+			&models.Chat{},
+			&models.WarnSettings{},
+			&models.Warns{},
+			&models.GreetingSettings{},
+			&models.ChatFilters{},
+			&models.AdminSettings{},
+			&models.BlacklistSettings{},
+			&models.PinSettings{},
+			&models.ReportChatSettings{},
+			&models.ReportUserSettings{},
+			&models.DevSettings{},
+			&models.ChannelSettings{},
+			&models.AntifloodSettings{},
+			&models.ConnectionSettings{},
+			&models.ConnectionChatSettings{},
+			&models.DisableSettings{},
+			&models.DisableChatSettings{},
+			&models.RulesSettings{},
+			&models.LockSettings{},
+			&models.NotesSettings{},
+			&models.Notes{},
+			&models.CaptchaSettings{},
+			&models.CaptchaAttempts{},
+			&models.StoredMessages{},
+			&models.CaptchaMutedUsers{},
+			&models.ApprovedUsers{},
+			&models.AntiRaidSettings{},
+		)
+		if err != nil {
+			fmt.Printf("AutoMigrate failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	exitCode := m.Run()
@@ -381,6 +383,9 @@ func TestLoadUserStats(t *testing.T) {
 
 func TestLoadUsersStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
+	if db.DB.Name() != "sqlite" {
+		t.Skip("schema-destructive error-path test requires isolated SQLite")
+	}
 
 	_ = db.DB.Migrator().DropTable(&models.User{})
 	t.Cleanup(func() {

@@ -73,7 +73,7 @@ Always verify checksums after downloading to ensure the binary has not been tamp
     BOT_TOKEN=your_bot_token
     OWNER_ID=your_telegram_id
     MESSAGE_DUMP=-100xxxxxxxxxx
-    DATABASE_URL=***********************************/alita
+    DATABASE_URL=postgresql://alita:change-me@localhost:5432/alita
     REDIS_ADDRESS=localhost:6379
     EOF
     ```
@@ -237,10 +237,13 @@ Create `/opt/alita-robot/.env`:
 BOT_TOKEN=your_bot_token
 OWNER_ID=your_telegram_id
 MESSAGE_DUMP=-100xxxxxxxxxx
-DATABASE_URL=***********************************/alita
-REDIS_ADDRESS=localhost:6379
+DATABASE_URL=postgresql://alita:change-me@localhost:5432/alita
 
-# Optional but recommended
+# Redis endpoint (optional when Redis is at localhost:6379)
+# REDIS_ADDRESS=redis-host:6379
+# REDIS_URL=redis://user:password@redis-host:6379/1
+
+# Optional
 AUTO_MIGRATE=true
 HTTP_PORT=8080
 DEBUG=false

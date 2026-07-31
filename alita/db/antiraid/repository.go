@@ -3,6 +3,7 @@ package antiraid
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -54,6 +55,9 @@ func SetRaidTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid time must be non-negative, got %d", seconds)
 	}
+	if int64(seconds) > math.MaxInt32 {
+		return fmt.Errorf("raid time exceeds a PostgreSQL integer, got %d", seconds)
+	}
 
 	updates := map[string]any{
 		"chat_id":   chatID,
@@ -66,6 +70,9 @@ func SetRaidTime(chatID int64, seconds int) error {
 func SetRaidActionTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid action time must be non-negative, got %d", seconds)
+	}
+	if int64(seconds) > math.MaxInt32 {
+		return fmt.Errorf("raid action time exceeds a PostgreSQL integer, got %d", seconds)
 	}
 
 	updates := map[string]any{

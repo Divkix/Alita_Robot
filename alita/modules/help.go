@@ -204,6 +204,10 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 					},
 				},
 			}
+		default:
+			text, _ := tr.GetString("common_callback_invalid_request")
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+			return ext.EndGroups
 		}
 		_, _, err := query.Message.EditText(b,
 			currText,
@@ -525,6 +529,10 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			},
 		}
 		text, _ = tr.GetString("help_configuration_step-3")
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
 	}
 	_, _, err := msg.EditText(
 		b,

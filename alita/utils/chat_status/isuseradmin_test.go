@@ -16,7 +16,7 @@ import (
 // errorBotClient is a bot client that returns an error for getChat requests,
 // used to exercise the GetChatWithContext error path inside IsUserAdmin.
 type errorBotClient struct {
-	chatErr bool // if true, getChat returns an error
+	chatErr  bool   // if true, getChat returns an error
 	chatType string // if non-empty and chatErr is false, getChat returns this type
 }
 
@@ -197,9 +197,9 @@ func TestIsUserAdminChannelIDReturnsFalse(t *testing.T) {
 	}
 
 	channelIDs := []int64{
-		-1001234567890,  // standard supergroup-channel ID format
-		-1009999999999,  // another channel ID
-		-1000000000001,  // just below the threshold
+		-1001234567890, // standard supergroup-channel ID format
+		-1009999999999, // another channel ID
+		-1000000000001, // just below the threshold
 	}
 
 	for _, chanID := range channelIDs {
@@ -537,9 +537,9 @@ func TestIsUserAdminFallbackGetChatMemberErrors(t *testing.T) {
 //  2. getChatMember:<botID> → "member" (bot not admin → triggers empty-list path)
 //  3. getChatMember:<userID> → returns the configured error
 type fallbackErrBotClient struct {
-	botID  int64
-	chatID int64
-	userID int64
+	botID   int64
+	chatID  int64
+	userID  int64
 	userErr error
 }
 

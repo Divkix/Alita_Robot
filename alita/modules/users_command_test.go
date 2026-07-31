@@ -2,6 +2,7 @@ package modules
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,6 +26,58 @@ func TestShouldUpdateRateLimitsByID(t *testing.T) {
 	if !shouldUpdate(cache, 10, time.Hour) {
 		t.Fatal("update after interval should be allowed")
 	}
+}
+
+func TestShouldUpdateRateLimitsChatMembershipByChatAndUser(t *testing.T) {
+	cache := &sync.Map{}
+	const chatID = int64(-1001)
+
+	if !shouldUpdateChatMember(cache, chatID, 10, time.Hour) {
+		t.Fatal("first user update should be allowed")
+	}
+	if !shouldUpdateChatMember(cache, chatID, 11, time.Hour) {
+		t.Fatal("different user in the same chat should be allowed")
+	}
+	if shouldUpdateChatMember(cache, chatID, 10, time.Hour) {
+		t.Fatal("same chat/user update inside interval should be blocked")
+	}
+}
+
+func TestShouldUpdateAllowsOneConcurrentCaller(t *testing.T) {
+	cache := &sync.Map{}
+	start := make(chan struct{})
+	var allowed atomic.Int32
+	var workers sync.WaitGroup
+
+	for range 32 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			<-start
+			if shouldUpdate(cache, 10, time.Hour) {
+				allowed.Add(1)
+			}
+		}()
+	}
+	close(start)
+	workers.Wait()
+
+	if got := allowed.Load(); got != 1 {
+		t.Fatalf("concurrent allowed calls = %d, want 1", got)
+	}
+}
+
+func TestShouldUpdateExpiresInactiveKeys(t *testing.T) {
+	cache := &sync.Map{}
+	const key = int64(10)
+
+	if !shouldUpdate(cache, key, time.Millisecond) {
+		t.Fatal("first update should be allowed")
+	}
+	waitForModuleCondition(t, func() bool {
+		_, loaded := cache.Load(key)
+		return !loaded
+	})
 }
 
 func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {

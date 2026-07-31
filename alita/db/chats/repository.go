@@ -10,6 +10,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GetChatSettings retrieves chat settings using optimized cached queries.
@@ -35,11 +36,20 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 		ChatId:   chatId,
 		ChatName: chatName,
 	}
-	err := db.DB.Where("chat_id = ?", chatId).Assign(chatUpdate).FirstOrCreate(&models.Chat{}).Error
+	onConflict := clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoNothing: true,
+	}
+	if chatName != "" {
+		onConflict.DoNothing = false
+		onConflict.DoUpdates = clause.AssignmentColumns([]string{"chat_name", "updated_at"})
+	}
+	err := db.DB.Clauses(onConflict).Create(chatUpdate).Error
 	if err != nil {
 		log.Errorf("[Database] EnsureChatInDb: %v", err)
 		return fmt.Errorf("failed to ensure chat %d in database: %w", chatId, err)
 	}
+	cache.DeleteCache(cache.CacheKey("chat", chatId))
 	return nil
 }
 
@@ -48,39 +58,27 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 // and updates the last activity timestamp to track when messages are received.
 // Returns error if database operation fails.
 func UpdateChat(chatId int64, chatname string, userid int64) error {
-	chatr := GetChatSettings(chatId)
 	now := time.Now()
 
-	if chatr.ChatId == 0 {
-		// Create new chat record with the user already in the array
-		newChat := &models.Chat{
-			ChatId:       chatId,
-			ChatName:     chatname,
-			Users:        models.Int64Array{userid},
-			IsInactive:   false,
-			LastActivity: now,
-		}
-		err := db.DB.Create(newChat).Error
-		if err != nil {
-			log.Errorf("[Database] UpdateChat: %v - %d (%d)", err, chatId, userid)
-			return err
-		}
-		cache.DeleteCache(cache.CacheKey("chat", chatId))
-		return nil
+	columns := []string{"is_inactive", "last_activity", "updated_at"}
+	if chatname != "" {
+		columns = append(columns, "chat_name")
 	}
-
-	// Update scalar fields (chat_name, is_inactive, last_activity)
-	updates := map[string]any{
-		"is_inactive":   false,
-		"last_activity": now,
+	chat := &models.Chat{
+		ChatId:       chatId,
+		ChatName:     chatname,
+		Users:        models.Int64Array{userid},
+		IsInactive:   false,
+		LastActivity: now,
 	}
-	if chatr.ChatName != chatname {
-		updates["chat_name"] = chatname
-	}
-	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatId).Updates(updates).Error; err != nil {
-		log.Errorf("[Database] UpdateChat (scalar): %d - %v", chatId, err)
+	if err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns(columns),
+	}).Create(chat).Error; err != nil {
+		log.Errorf("[Database] UpdateChat upsert failed for chat %d: %v", chatId, err)
 		return err
 	}
+	defer cache.DeleteCache(cache.CacheKey("chat", chatId))
 
 	// Atomically append userid only if not already present in the JSON array
 	result := db.DB.Exec(
@@ -89,10 +87,9 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	)
 	if result.Error != nil {
 		log.Errorf("[Database] UpdateChat atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
+		return result.Error
 	}
 
-	// Invalidate cache after update
-	cache.DeleteCache(cache.CacheKey("chat", chatId))
 	log.Debugf("[Database] UpdateChat: %d", chatId)
 	return nil
 }

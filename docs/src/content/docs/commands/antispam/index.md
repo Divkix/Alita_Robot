@@ -6,38 +6,26 @@ description: Complete guide to Antispam module commands and features
 
 # 📦 Antispam Commands
 
-The antispam module provides automatic, behind-the-scenes spam protection for your groups.
+The Antispam module is a telemetry-only detector. It operates automatically and
+has no user commands or per-chat configuration.
 
-Unlike other modules, it operates automatically without requiring any user commands.
+## How It Works
 
-**How It Works:**
-Per-user-per-chat rate limiting prevents spam automatically.
-- **Rate Limit:** 18 messages per second per user per chat
-- **Automatic:** No configuration required - works out of the box
-- **Transparent:** Silently ignores excessive messages (stops further bot processing, messages remain visible)
-- **Per-User Tracking:** Busy groups with many legitimate users won't trigger false positives
+- **Fixed window:** Tracks each non-admin, non-approved user separately in each
+  chat for one-second windows.
+- **Threshold:** The 18th and later messages in the same window produce a
+  server-side debug log.
+- **Non-blocking:** The module always continues update processing. It does not
+  delete or hide messages, restrict users, or prevent other handlers from
+  running.
+- **Automatic cleanup:** A background task removes stale counters every five
+  minutes.
 
+## Limitations
 
-**Technical Details**
+- The one-second window and threshold of 18 are hardcoded.
+- Detection events are only written to debug logs; nothing is posted in the
+  chat.
+- The module does not enforce a spam penalty.
 
-**Rate Limiting Algorithm:**
-The module uses a sliding window approach:
-1. **First Message:** Starts tracking with count = 1
-2. **Subsequent Messages:** Increments counter within the time window
-3. **Window Expiry:** Counter resets when the time window (1 second) expires
-4. **Threshold Exceeded:** Messages beyond 18/second are silently ignored (bot stops processing them, but they remain visible to all chat members)
-
-**Memory Management:**
-- Automatic cleanup: Expired tracking entries are removed every 5 minutes
-- No memory leaks: Background goroutine prevents unbounded memory growth
-- Efficient storage: Only active users are tracked
-
-
-## Technical Notes
-
-**Limitations**
-- **No User Commands:** Cannot be enabled/disabled per chat
-- **Fixed Threshold:** 18 messages/second is hardcoded
-- **No Logging to Chat:** Spam events are only logged server-side
-
-Use **Antispam** for automatic background protection and **Antiflood** for configurable flood control.
+Use **Antiflood** when you need configurable flood detection and enforcement.

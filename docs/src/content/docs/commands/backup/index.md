@@ -34,6 +34,13 @@ This module can be accessed using the following aliases:
 - `import`
 - `reset`
 
+## Supported Data
+
+Backups cover 17 modules: admin, antiflood, antiraid, approvals, blacklists,
+captcha, connections, disabling, filters, greetings, locks, notes, pins,
+reactions, reports, rules, and warns. Import and reset are transactional: if one
+selected module fails, no selected module is changed.
+
 ## Available Commands
 
 | Command | Description | Disableable |
@@ -76,6 +83,6 @@ Both `/import` and `/reset` require explicit confirmation before executing:
 
 ## Version Compatibility
 
-When importing a backup file, the bot compares the backup's version against the
-current bot version. If they differ, a **version mismatch warning** is prepended
-to the confirmation message. The import can still proceed after confirmation.
+The current backup format is `1.1`. Imports also accept legacy `1.0` files while
+preserving notes settings and user warning rows that `1.0` did not export.
+Unsupported versions are rejected before the confirmation step.

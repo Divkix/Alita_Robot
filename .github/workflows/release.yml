@@ -18,7 +18,43 @@ jobs:
   release-ci-checks:
     name: Release CI Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    outputs:
+      tested-sha: ${{ steps.tested.outputs.sha }}
+      tested-tree: ${{ steps.tested.outputs.tree }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: alita_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d alita_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BOT_TOKEN: test-token
+      OWNER_ID: "1"
+      MESSAGE_DUMP: "1"
+      REDIS_ADDRESS: "localhost:6379"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable"
+      AUTO_MIGRATE: "false"
+      USE_WEBHOOKS: "false"
+      DEBUG: "false"
+      CGO_ENABLED: "1"
     permissions:
       contents: read
       security-events: write
@@ -26,8 +62,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Prepare and record gated tree
+        id: tested
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            tag="v${INPUT_TAG#v}"
+            bash scripts/bump_version.sh "$tag"
+          fi
+          git add alita/config/config.go main.go
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -53,6 +105,34 @@ jobs:
           fi
           echo "Build successful"
 
+      - name: Verify repository migration chain
+        env:
+          ALITA_TEST_MIGRATION_CHAIN: "true"
+        run: go test -tags testtools -v -count=1 -run '^TestRepositoryMigrationChain$' ./alita/db/migrations
+
+      - name: Run PostgreSQL integrity tests
+        env:
+          ALITA_TEST_DATABASE: "true"
+        run: make test-postgres-integrity
+
+      - name: Run full test suite
+        run: make test
+
+      - name: Check coverage threshold
+        run: |
+          coverage=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          if ! awk -v coverage="$coverage" 'BEGIN {exit !(coverage >= 78)}'; then
+            echo "Coverage ${coverage}% is below 78%"
+            exit 1
+          fi
+          echo "Coverage ${coverage}% meets 78%"
+
+      - name: Check translations
+        run: make check-translations
+
+      - name: Check generated docs drift
+        run: make check-docs
+
   goreleaser:
     name: Release with GoReleaser
     runs-on: ubuntu-latest
@@ -67,6 +147,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.release-ci-checks.outputs.tested-sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -101,27 +182,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
+          TESTED_SHA: ${{ needs.release-ci-checks.outputs.tested-sha }}
+          TESTED_TREE: ${{ needs.release-ci-checks.outputs.tested-tree }}
         run: |
           set -euo pipefail
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git fetch origin refs/heads/main:refs/remotes/origin/main
-          git merge --ff-only origin/main
+          if [ "$(git rev-parse HEAD)" != "$TESTED_SHA" ] || [ "$(git rev-parse origin/main)" != "$TESTED_SHA" ]; then
+            echo "::error::main moved after release checks; rerun the release workflow" >&2
+            exit 1
+          fi
           bash scripts/bump_version.sh "$TAG"
-          if [ -n "$(git status --porcelain)" ]; then
+          git add alita/config/config.go main.go
+          if [ "$(git write-tree)" != "$TESTED_TREE" ]; then
+            echo "::error::release tree differs from the tree that passed checks" >&2
+            exit 1
+          fi
+          if ! git diff --cached --quiet; then
             git commit -am "chore(release): set BotVersion to ${TAG}"
-            for attempt in 1 2 3; do
-              if git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main; then
-                break
-              fi
-              if [ "$attempt" -eq 3 ]; then
-                echo "::error::main kept advancing; failed to push release version after 3 attempts" >&2
-                exit 1
-              fi
-              echo "main advanced during release; rebasing and retrying push"
-              git fetch origin refs/heads/main:refs/remotes/origin/main
-              git rebase origin/main
-            done
+            if ! git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main; then
+              echo "::error::main advanced while publishing the tested release tree; rerun the workflow" >&2
+              exit 1
+            fi
           else
             echo "BotVersion already at ${TAG}; nothing to commit"
           fi
@@ -133,8 +216,18 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
-          if git rev-parse "$TAG" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping creation"
+          git fetch origin refs/heads/main:refs/remotes/origin/main
+          if [ "$(git rev-parse origin/main)" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::main moved before tag creation; rerun the release workflow" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
+            if [ "$(git rev-list -n 1 "$TAG")" != "$(git rev-parse HEAD)" ]; then
+              echo "::error::tag $TAG already points to another commit" >&2
+              exit 1
+            fi
+            echo "Tag $TAG already points to this commit"
           else
             echo "Creating tag $TAG"
             git tag -a "$TAG" -m "Release $TAG"

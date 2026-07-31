@@ -251,7 +251,7 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 		mode       string
 		wantMethod string
 	}{
-		{mode: "kick", wantMethod: "banChatMember"},
+		{mode: "kick", wantMethod: "unbanChatMember"},
 		{mode: "mute", wantMethod: "restrictChatMember"},
 	}
 
@@ -434,7 +434,7 @@ func TestWarnThisUserPropagatesGotgbotRequestErrors(t *testing.T) {
 		{name: "member lookup failure", method: "getChatMember", callWarnThis: true},
 		{name: "warning reply failure", method: "sendMessage"},
 		{name: "ban limit failure", method: "banChatMember", mode: "ban"},
-		{name: "kick limit failure", method: "banChatMember", mode: "kick"},
+		{name: "kick limit failure", method: "unbanChatMember", mode: "kick"},
 		{name: "mute limit failure", method: "restrictChatMember", mode: "mute"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -632,8 +632,17 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 	if err := warnsModule.warnsButtonHandler(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("warnsButtonHandler invalid error = %v, want EndGroups", err)
 	}
+	unknownCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("rmAllChatWarns", map[string]string{"a": "crafted"}),
+	)
+	if err := warnsModule.warnsButtonHandler(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("warnsButtonHandler unknown action error = %v, want EndGroups", err)
+	}
 
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid answers", len(calls))
 	}
 }

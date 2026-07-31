@@ -46,7 +46,7 @@ Alita Robot uses a single HTTP server for all endpoints:
 |----------|--------|-------------|
 | `/health` | GET | Health check with database and Redis status |
 | `/metrics` | GET | Prometheus metrics for monitoring |
-| `/webhook/{secret}` | POST | Telegram webhook endpoint (webhook mode only) |
+| `/webhook` | POST | Telegram webhook endpoint (webhook mode only) |
 | `/debug/pprof/*` | GET | Go profiling endpoints (only when `ENABLE_PPROF=true`) |
 
 :::danger
@@ -60,14 +60,15 @@ All endpoints run on the port specified by `HTTP_PORT` (default: 8080).
 Telegram will send updates to:
 
 ```
-https://{WEBHOOK_DOMAIN}/webhook/{WEBHOOK_SECRET}
+{WEBHOOK_DOMAIN}/webhook
 ```
 
 For example, if:
 - `WEBHOOK_DOMAIN=https://bot.example.com`
 - `WEBHOOK_SECRET=abc123`
 
-The webhook URL will be: `https://bot.example.com/webhook/abc123`
+The webhook URL will be: `https://bot.example.com/webhook`. Telegram sends the
+secret separately in the `X-Telegram-Bot-Api-Secret-Token` header.
 
 ## Cloudflare Tunnel Setup
 
@@ -174,7 +175,9 @@ openssl rand -hex 32
 
 ### 2. Validate Webhook Origin
 
-Alita automatically validates that requests come from Telegram by checking the `X-Telegram-Bot-Api-Secret-Token` header matches your `WEBHOOK_SECRET`. The URL path `/webhook/{secret}` is used by the router to route requests, but the actual validation only checks the header.
+Alita validates the `X-Telegram-Bot-Api-Secret-Token` header against
+`WEBHOOK_SECRET` before reading the request body. The secret is never placed in
+the URL.
 
 ### 3. Use HTTPS Only
 

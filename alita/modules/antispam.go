@@ -120,10 +120,6 @@ func LoadAntispam(dispatcher *ext.Dispatcher) {
 				if spamCheck(key) {
 					log.Debugf("[Antispam] Rate limited user=%d chat=%d",
 						ctx.EffectiveUser.Id, ctx.EffectiveChat.Id)
-					// Continue (not EndGroups) so a throttled message still
-					// reaches non-moderation watchers (commands/filters/locks/
-					// antiflood) instead of aborting every later handler group.
-					return ext.ContinueGroups
 				}
 				return ext.ContinueGroups
 			},

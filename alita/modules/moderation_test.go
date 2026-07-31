@@ -258,8 +258,6 @@ func TestStandardModGatesRejectsPrivateChatsAndNonAdmins(t *testing.T) {
 	}
 }
 
-
-
 func moderationTestContext() *ext.Context {
 	msg := &gotgbot.Message{
 		MessageId: 10,

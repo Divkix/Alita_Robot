@@ -2,13 +2,16 @@ package reports
 
 import (
 	"errors"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 // GetChatReportSettings retrieves or creates default report settings for the specified chat.
@@ -55,18 +58,7 @@ func SetChatReportStatus(chatID int64, pref bool) error {
 // Blocked users cannot send reports in the specified chat.
 // Does nothing if the user is already blocked.
 func BlockReportUser(chatId, userId int64) error {
-	settings := GetChatReportSettings(chatId)
-
-	// Check if user is already blocked
-	for _, blockedId := range settings.BlockedList {
-		if blockedId == userId {
-			return nil // User already blocked
-		}
-	}
-
-	// Add user to blocked list
-	settings.BlockedList = append(settings.BlockedList, userId)
-	err := db.UpdateRecord(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatId}, models.ReportChatSettings{BlockedList: settings.BlockedList})
+	err := updateReportBlockList(chatId, userId, true)
 	if err != nil {
 		log.Errorf("[Database] BlockReportUser: %v", err)
 	}
@@ -76,23 +68,53 @@ func BlockReportUser(chatId, userId int64) error {
 // UnblockReportUser removes a user from the chat's report block list.
 // Allows the previously blocked user to send reports again.
 func UnblockReportUser(chatId, userId int64) error {
-	settings := GetChatReportSettings(chatId)
-
-	// Remove user from blocked list
-	var newBlockedList models.Int64Array
-	for _, blockedId := range settings.BlockedList {
-		if blockedId != userId {
-			newBlockedList = append(newBlockedList, blockedId)
-		}
-	}
-
-	err := db.UpdateRecordWithZeroValues(&models.ReportChatSettings{}, models.ReportChatSettings{ChatId: chatId}, map[string]any{
-		"blocked_list": newBlockedList,
-	})
+	err := updateReportBlockList(chatId, userId, false)
 	if err != nil {
 		log.Errorf("[Database] UnblockReportUser: %v", err)
 	}
 	return err
+}
+
+func updateReportBlockList(chatId, userId int64, block bool) error {
+	// Ensure both parent and settings rows exist before taking locks. The
+	// transaction then serializes every list mutation for this chat.
+	GetChatReportSettings(chatId)
+
+	return db.DB.Transaction(func(tx *gorm.DB) error {
+		var chat models.Chat
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id").
+			Where("chat_id = ?", chatId).
+			Take(&chat).Error; err != nil {
+			return err
+		}
+
+		var settings models.ReportChatSettings
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("chat_id = ?", chatId).
+			Take(&settings).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			settings = models.ReportChatSettings{ChatId: chatId, Enabled: true, Status: true}
+			if err := tx.Create(&settings).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+
+		if block {
+			if slices.Contains(settings.BlockedList, userId) {
+				return nil
+			}
+			settings.BlockedList = append(settings.BlockedList, userId)
+		} else {
+			settings.BlockedList = slices.DeleteFunc(settings.BlockedList, func(blockedId int64) bool {
+				return blockedId == userId
+			})
+		}
+
+		return tx.Model(&settings).Update("blocked_list", settings.BlockedList).Error
+	})
 }
 
 // GetUserReportSettings retrieves or creates default report settings for the specified user.
@@ -101,6 +123,11 @@ func GetUserReportSettings(userId int64) (reportsrc *models.ReportUserSettings) 
 	reportsrc = &models.ReportUserSettings{}
 	err := db.GetRecord(reportsrc, models.ReportUserSettings{UserId: userId})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := user.EnsureUserInDb(userId, "", ""); err != nil {
+			log.Errorf("[Database] GetUserReportSettings: Failed to ensure user exists for %d: %v", userId, err)
+			return &models.ReportUserSettings{UserId: userId, Enabled: true, Status: true}
+		}
+
 		// Create default settings
 		reportsrc = &models.ReportUserSettings{UserId: userId, Enabled: true, Status: true}
 		err := db.CreateRecord(reportsrc)

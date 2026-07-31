@@ -75,7 +75,7 @@ jobs:
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.9.0
+          version: v2.11.4
           install-mode: binary
           args: --timeout 10m
           # Only report new issues to allow gradual improvement of existing codebase
@@ -122,7 +122,7 @@ jobs:
       - name: Run duplicate code detection
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.9.0
+          version: v2.11.4
           install-mode: binary
           # Only run dupl linter, disable all other linters
           args: --default=none --enable dupl --timeout 10m
@@ -279,6 +279,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends build-essential
 
+      - name: Verify repository migration chain
+        env:
+          ALITA_TEST_MIGRATION_CHAIN: "true"
+        run: go test -tags testtools -v -count=1 -run '^TestRepositoryMigrationChain$' ./alita/db/migrations
+
+      - name: Run PostgreSQL integrity tests
+        env:
+          ALITA_TEST_DATABASE: "true"
+        run: make test-postgres-integrity
+
       - name: Run test suite
         run: |
           # Run tests and capture timing (capture exit status to track duration even on failure)
@@ -378,7 +388,7 @@ jobs:
     name: Publish Docker Images
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [security, lint, build, test, docker-verify]
+    needs: [security, lint, build, test, docs-check, docker-verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read

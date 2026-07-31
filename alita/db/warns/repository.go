@@ -1,15 +1,18 @@
 package warns
 
 import (
-	"context"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // checkWarnSettings retrieves or creates default warn settings for a chat.
@@ -67,53 +70,79 @@ func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
 }
 
 // WarnUser adds a warning to a user in a specific chat with an optional reason.
-// Returns the total number of warnings and all warning reasons for the user.
-func WarnUser(userId, chatId int64, reason string) (int, []string) {
-	ctx := context.Background()
+// Returns the total number of warnings, all reasons, and any persistence error.
+func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 	var numWarns int
 	var reasons []string
 
-	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Check warn settings within transaction
+	if err := chats.EnsureChatInDb(chatId, ""); err != nil {
+		return 0, nil, err
+	}
+	if err := user.EnsureUserInDb(userId, "", ""); err != nil {
+		return 0, nil, err
+	}
+
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		// Lock the parent row first so concurrent first warnings cannot both
+		// observe a missing warns_users row.
+		// ponytail: this serializes warnings per chat; use per-user advisory
+		// locks only if moderation write throughput becomes material.
+		var chat models.Chat
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id").
+			Where("chat_id = ?", chatId).
+			Take(&chat).Error; err != nil {
+			return err
+		}
+
 		warnSettings := &models.WarnSettings{}
-		if err := tx.Where("chat_id = ?", chatId).First(warnSettings).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("chat_id = ?", chatId).
+			First(warnSettings).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create default settings
 				warnSettings = &models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute"}
 				if err := tx.Create(warnSettings).Error; err != nil {
 					return err
 				}
+			} else {
+				return err
 			}
 		}
 
-		// Check warns within transaction
 		warnrc := &models.Warns{}
-		if err := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND chat_id = ?", userId, chatId).
+			First(warnrc).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new warn record
-				warnrc = &models.Warns{UserId: userId, ChatId: chatId}
+				warnrc = &models.Warns{
+					UserId:  userId,
+					ChatId:  chatId,
+					Reasons: models.StringArray{},
+				}
+			} else {
+				return err
 			}
 		}
 
-		warnrc.NumWarns++ // Increment warns
+		warnrc.NumWarns++
 
-		// Add reason
 		if reason != "" {
-			if len(reason) >= 3001 {
+			if len(reason) > 3000 {
 				reason = reason[:3000]
+				for !utf8.ValidString(reason) {
+					reason = reason[:len(reason)-1]
+				}
 			}
 			warnrc.Reasons = append(warnrc.Reasons, reason)
 		} else {
-			// Use default language for "No Reason" - this could be improved to use chat language
 			tr := i18n.MustNewTranslator("en")
 			noReason, _ := tr.GetString("db_warn_no_reason")
 			if noReason == "" {
-				noReason = "No Reason" // fallback
+				noReason = "No Reason"
 			}
 			warnrc.Reasons = append(warnrc.Reasons, noReason)
 		}
 
-		// Save the warn record
 		if err := tx.Save(warnrc).Error; err != nil {
 			return err
 		}
@@ -124,42 +153,48 @@ func WarnUser(userId, chatId int64, reason string) (int, []string) {
 	})
 	if err != nil {
 		log.Errorf("[Database] WarnUser: %v", err)
-		return 0, []string{}
+		return 0, nil, err
 	}
 
 	// Invalidate cache after successful transaction
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 
-	return numWarns, reasons
+	return numWarns, reasons, nil
 }
 
 // RemoveWarn removes the most recent warning from a user in a specific chat.
-// Returns true if a warning was successfully removed, false otherwise.
-func RemoveWarn(userId, chatId int64) bool {
-	ctx := context.Background()
+// Returns whether a warning was removed and any persistence error.
+func RemoveWarn(userId, chatId int64) (bool, error) {
 	var removed bool
 
-	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		var chat models.Chat
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id").
+			Where("chat_id = ?", chatId).
+			Take(&chat).Error; err != nil {
+			return err
+		}
+
 		warnrc := &models.Warns{}
-		if err := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND chat_id = ?", userId, chatId).
+			First(warnrc).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// No warns to remove
 				removed = false
 				return nil
 			}
 			return err
 		}
 
-		// only remove if user has warns
 		if warnrc.NumWarns > 0 {
-			warnrc.NumWarns-- // Remove last warn num
+			warnrc.NumWarns--
 			if len(warnrc.Reasons) > 0 {
-				warnrc.Reasons = warnrc.Reasons[:len(warnrc.Reasons)-1] // Remove last warn reason
+				warnrc.Reasons = warnrc.Reasons[:len(warnrc.Reasons)-1]
 			}
 			removed = true
 
-			// update record in db within transaction
 			if err := tx.Save(warnrc).Error; err != nil {
 				return err
 			}
@@ -169,7 +204,7 @@ func RemoveWarn(userId, chatId int64) bool {
 	})
 	if err != nil {
 		log.Errorf("[Database] RemoveWarn: %v", err)
-		return false
+		return false, err
 	}
 
 	// Invalidate cache after successful transaction
@@ -178,23 +213,23 @@ func RemoveWarn(userId, chatId int64) bool {
 		cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	}
 
-	return removed
+	return removed, nil
 }
 
 // ResetUserWarns removes all warnings for a specific user in a chat.
-// Returns true if a row was actually deleted, false on error or when no warns existed.
-func ResetUserWarns(userId, chatId int64) bool {
+// Returns whether a row was deleted and any persistence error.
+func ResetUserWarns(userId, chatId int64) (bool, error) {
 	result := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
 	if result.Error != nil {
 		log.Errorf("[Database] ResetUserWarns: %v", result.Error)
-		return false
+		return false, result.Error
 	}
 	if result.RowsAffected == 0 {
-		return false
+		return false, nil
 	}
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
-	return true
+	return true, nil
 }
 
 // GetWarns retrieves the current warning count and reasons for a user in a specific chat.
@@ -278,23 +313,22 @@ func GetAllChatWarns(chatId int64) int {
 }
 
 // ResetAllChatWarns removes all warning records for all users in a specific chat.
-// Returns true if the operation was successful, false on error.
-func ResetAllChatWarns(chatId int64) bool {
+func ResetAllChatWarns(chatId int64) error {
 	// Collect user IDs before deletion so we can invalidate per-user caches
 	var userIds []int64
 	if err := db.DB.Model(&models.Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
-		return false
+		return err
 	}
 
 	err := db.DB.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
-		return false
+		return err
 	}
 	for _, userId := range userIds {
 		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	}
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
-	return true
+	return nil
 }

@@ -328,7 +328,10 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, int64(msgId))
+	if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, int64(msgId)); err != nil {
+		log.Error(err)
+		return err
+	}
 
 	_, err = query.Answer(b, nil)
 	if err != nil {

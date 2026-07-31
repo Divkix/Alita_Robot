@@ -3,6 +3,7 @@ package extraction
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,6 +29,22 @@ var (
 	errInvalidTimeType   = errors.New("invalid time type")
 	errTimeLimitExceeded = errors.New("time limit exceeded")
 )
+
+const (
+	minTemporaryDurationSeconds int64 = 30
+	maxTemporaryDurationSeconds int64 = 366 * 24 * 60 * 60
+)
+
+// TemporaryUntilDate returns a Telegram-safe until_date for a temporary
+// moderation action.
+func TemporaryUntilDate(now, durationSeconds int64) (int64, bool) {
+	if durationSeconds < minTemporaryDurationSeconds ||
+		durationSeconds > maxTemporaryDurationSeconds ||
+		now > math.MaxInt64-durationSeconds {
+		return 0, false
+	}
+	return now + durationSeconds, true
+}
 
 // ExtractChat extracts and validates a chat from command arguments.
 // Supports both numeric chat IDs and chat usernames for chat identification.
@@ -382,29 +399,37 @@ func parseTemporaryDuration(inputVal string, now int64) (banTime int64, timeStr,
 		return -1, "", "", errInvalidTimeType
 	}
 
-	timeNum, err := strconv.Atoi(timeVal[:len(timeVal)-1])
-	if err != nil {
+	timeNum, err := strconv.ParseInt(timeVal[:len(timeVal)-1], 10, 64)
+	if err != nil || timeNum <= 0 {
 		return -1, "", "", errInvalidTimeAmount
 	}
 
+	var multiplier int64
+	var unitName string
 	switch lastChar {
 	case 'm':
-		banTime = now + int64(timeNum*60)
-		timeStr = fmt.Sprintf("%d minutes", timeNum)
+		multiplier = 60
+		unitName = "minutes"
 	case 'h':
-		banTime = now + int64(timeNum*60*60)
-		timeStr = fmt.Sprintf("%d hours", timeNum)
+		multiplier = 60 * 60
+		unitName = "hours"
 	case 'd':
-		banTime = now + int64(timeNum*24*60*60)
-		timeStr = fmt.Sprintf("%d days", timeNum)
+		multiplier = 24 * 60 * 60
+		unitName = "days"
 	case 'w':
-		banTime = now + int64(timeNum*7*24*60*60)
-		timeStr = fmt.Sprintf("%d weeks", timeNum)
+		multiplier = 7 * 24 * 60 * 60
+		unitName = "weeks"
 	}
 
-	if banTime >= now+int64(365*24*60*60) {
+	if timeNum > math.MaxInt64/multiplier {
 		return -1, "", "", errTimeLimitExceeded
 	}
 
+	banTime, ok := TemporaryUntilDate(now, timeNum*multiplier)
+	if !ok {
+		return -1, "", "", errTimeLimitExceeded
+	}
+
+	timeStr = fmt.Sprintf("%d %s", timeNum, unitName)
 	return banTime, timeStr, reason, nil
 }

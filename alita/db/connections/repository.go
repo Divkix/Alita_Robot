@@ -2,22 +2,26 @@ package connections
 
 import (
 	"errors"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 // ToggleAllowConnect enables or disables connection functionality for a chat.
-func ToggleAllowConnect(chatID int64, pref bool) {
+func ToggleAllowConnect(chatID int64, pref bool) error {
 	GetChatConnectionSetting(chatID)
 	err := db.UpdateRecordWithZeroValues(&models.ConnectionChatSettings{}, models.ConnectionChatSettings{ChatId: chatID}, map[string]any{"allow_connect": pref})
 	if err != nil {
 		log.Errorf("[Database] ToggleAllowConnect: %d - %v", chatID, err)
 	}
+	return err
 }
 
 // GetChatConnectionSetting retrieves connection settings for a chat.
@@ -72,43 +76,61 @@ func Connection(UserID int64) *models.ConnectionSettings {
 
 // ConnectId connects a user to a specific chat.
 // Sets the user's connection status to true and associates them with the chat.
-// Uses FirstOrCreate to handle both new and existing users.
-func ConnectId(UserID, chatID int64) {
+// The user_id uniqueness constraint makes this a single atomic write.
+func ConnectId(UserID, chatID int64) error {
 	if chatID == 0 {
-		log.WithFields(log.Fields{
-			"userID": UserID,
-			"chatID": chatID,
-		}).Warning("[Database] ConnectId: Invalid chatID, skipping connection update")
-		return
+		err := fmt.Errorf("invalid chat ID %d", chatID)
+		log.WithField("userID", UserID).Warningf("[Database] ConnectId: %v", err)
+		return err
+	}
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		return err
+	}
+	if err := user.EnsureUserInDb(UserID, "", ""); err != nil {
+		return err
 	}
 
-	err := db.DB.Where("user_id = ?", UserID).Assign(models.ConnectionSettings{Connected: true, ChatId: chatID}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
+	connection := &models.ConnectionSettings{UserId: UserID, ChatId: chatID, Connected: true}
+	err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"chat_id", "connected", "updated_at"}),
+	}).Create(connection).Error
 	if err != nil {
 		log.Errorf("[Database] ConnectId: %v - %d", err, chatID)
 	}
+	return err
 }
 
 // DisconnectId disconnects a user from their current chat connection.
-// Sets the user's connection status to false.
-// Uses FirstOrCreate to ensure record exists before updating.
-func DisconnectId(UserID int64) {
-	err := db.DB.Where("user_id = ?", UserID).Assign(map[string]any{"connected": false}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
+// It deliberately retains chat_id so ReconnectId can restore the connection.
+func DisconnectId(UserID int64) error {
+	err := db.DB.Model(&models.ConnectionSettings{}).
+		Where("user_id = ?", UserID).
+		Update("connected", false).Error
 	if err != nil {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 	}
+	return err
 }
 
 // ReconnectId reconnects a user to their previously connected chat.
 // Returns the chat ID the user was reconnected to, or 0 if an error occurs.
-// Uses FirstOrCreate to ensure record exists before updating.
 func ReconnectId(UserID int64) int64 {
-	err := db.DB.Where("user_id = ?", UserID).Assign(models.ConnectionSettings{Connected: true}).FirstOrCreate(&models.ConnectionSettings{UserId: UserID}).Error
-	if err != nil {
-		log.Errorf("[Database] ReconnectId: %v - %d", err, UserID)
+	result := db.DB.Model(&models.ConnectionSettings{}).
+		Where("user_id = ?", UserID).
+		Update("connected", true)
+	if result.Error != nil {
+		log.Errorf("[Database] ReconnectId: %v - %d", result.Error, UserID)
 		return 0
 	}
-	// Reload after update to get fresh data (not stale)
+	if result.RowsAffected == 0 {
+		return 0
+	}
+
 	connectionUpdate := Connection(UserID)
+	if connectionUpdate.ChatId == 0 {
+		return 0
+	}
 	return connectionUpdate.ChatId
 }
 

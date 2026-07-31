@@ -27,7 +27,12 @@ Docker is the recommended way to deploy Alita Robot. The provided `docker-compos
     cp sample.env .env
     ```
 
-    Edit `.env` with your configuration. At minimum, set: <Badge variant="danger">BOT_TOKEN</Badge>, <Badge variant="danger">OWNER_ID</Badge>, <Badge variant="danger">MESSAGE_DUMP</Badge>.
+    Edit `.env` with your configuration. The supplied Compose file runs in
+    webhook mode, so set <Badge variant="danger">BOT_TOKEN</Badge>,
+    <Badge variant="danger">OWNER_ID</Badge>,
+    <Badge variant="danger">MESSAGE_DUMP</Badge>,
+    <Badge variant="danger">WEBHOOK_DOMAIN</Badge>, and
+    <Badge variant="danger">WEBHOOK_SECRET</Badge>.
   </Step>
 
   <Step title="Start all services">
@@ -51,10 +56,10 @@ services:
     container_name: alita-robot
     restart: always
     environment:
-      DATABASE_URL: **************************************/alita
+      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: redis
-      AUTO_MIGRATE: "false"
+      AUTO_MIGRATE: "true"
       USE_WEBHOOKS: "true"
       HTTP_PORT: "8080"
       DROP_PENDING_UPDATES: "true"

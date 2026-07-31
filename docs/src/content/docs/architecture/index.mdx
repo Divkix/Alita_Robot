@@ -116,7 +116,7 @@ Redis-based caching with stampede protection:
                           v                                     v
                +----------+----------+              +-----------+-----------+
                |   HTTP Server       |              |      Updater          |
-               |   /webhook/{secret} |              |   GetUpdates loop     |
+               |      /webhook       |              |   GetUpdates loop     |
                +----------+----------+              +-----------+-----------+
                           |                                     |
                           +------------------+------------------+
@@ -201,13 +201,8 @@ Comprehensive monitoring subsystems:
 // Dispatcher limits concurrent handler execution
 MaxRoutines: 200  // Configurable via DISPATCHER_MAX_ROUTINES
 
-// Worker pools use bounded parallelism
-chatWorkers := make(chan struct{}, config.AppConfig.ChatValidationWorkers)   // CHAT_VALIDATION_WORKERS
-dbWorkers := make(chan struct{}, config.AppConfig.DatabaseWorkers)             // DATABASE_WORKERS
-msgWorkers := make(chan struct{}, config.AppConfig.MessagePipelineWorkers)     // MESSAGE_PIPELINE_WORKERS
-bulkWorkers := make(chan struct{}, config.AppConfig.BulkOperationWorkers)      // BULK_OPERATION_WORKERS
-cacheWorkers := make(chan struct{}, config.AppConfig.CacheWorkers)             // CACHE_WORKERS
-statsWorkers := make(chan struct{}, config.AppConfig.StatsCollectionWorkers)   // STATS_COLLECTION_WORKERS
+// Hot bulk paths have fixed local limits: purges, flood cleanup, admin checks,
+// and multi-member greetings. They are intentionally not configuration knobs.
 ```
 
 ### Singleflight for Cache

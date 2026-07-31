@@ -11,7 +11,6 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 // LoadAdminCache retrieves and caches the list of administrators for a given chat.
@@ -21,6 +20,17 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
 		return AdminCache{}
+	}
+	storeResult := func(adminCache AdminCache) AdminCache {
+		if m := GetMarshal(); m != nil {
+			if err := m.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
+				log.WithFields(log.Fields{
+					"chatId": chatId,
+					"error":  err,
+				}).Error("LoadAdminCache: Failed to cache admin list")
+			}
+		}
+		return adminCache
 	}
 
 	// Create context with timeout to prevent indefinite blocking
@@ -45,11 +55,11 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 
 	botStatus := botMember.GetStatus()
 	if botStatus != "administrator" && botStatus != "creator" {
-		return AdminCache{
+		return storeResult(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
 			Cached:   true,
-		}
+		})
 	}
 
 	// Bot has admin rights — clear any stale restricted flag so sends are
@@ -97,11 +107,11 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		}).Warning("LoadAdminCache: No administrators found - this is unusual for a valid group")
 		// Empty admin list is unusual but not necessarily an error
 		// Return empty cache but mark it as cached to avoid infinite retries
-		return AdminCache{
+		return storeResult(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
 			Cached:   true,
-		}
+		})
 	}
 
 	// Convert ChatMember to MergedChatMember and build lookup map
@@ -124,36 +134,7 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		Cached:   true,
 	}
 
-	// Cache the admin list with retry on failure in background
-	go func() {
-		defer error_handling.RecoverFromPanic("LoadAdminCache.cacheRoutine", "adminCache")
-		m := GetMarshal()
-		if m == nil {
-			return
-		}
-		maxRetries := 3
-		for i := range maxRetries {
-			if err := m.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"error":  err,
-					"retry":  i + 1,
-				}).Error("LoadAdminCache: Failed to cache admin list")
-
-				if i < maxRetries-1 {
-					time.Sleep(time.Second * 2) // Wait before retry
-					continue
-				}
-			} else {
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-				}).Debug("LoadAdminCache: Successfully cached admin list")
-				break
-			}
-		}
-	}()
-
-	return adminCache
+	return storeResult(adminCache)
 }
 
 // GetAdminCacheList retrieves the cached administrator list for a specific chat.

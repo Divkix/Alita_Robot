@@ -2251,7 +2251,7 @@ captcha_permissions_docs: |
   • Delete messages (for cleaning up captcha messages)
 
   <b>Failure Actions:</b>
-  • <code>kick</code> - Ban then immediately unban (allows user to rejoin)
+  • <code>kick</code> - Remove the user while allowing them to rejoin
   • <code>ban</code> - Permanently ban the user
   • <code>mute</code> - Keep the user muted for 24 hours
 

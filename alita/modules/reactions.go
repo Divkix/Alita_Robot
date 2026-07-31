@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"slices"
 	"strings"
 
@@ -22,6 +23,16 @@ import (
 var reactionsModule = moduleStruct{
 	moduleName:   "Reactions",
 	handlerGroup: 8,
+}
+
+var supportedReactionEmoji = []string{
+	"❤", "👍", "👎", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
+	"🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱", "🥴", "😍", "🐳",
+	"❤‍🔥", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓",
+	"🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈",
+	"😇", "😨", "🤝", "✍", "🤗", "🫡", "🎅", "🎄", "☃", "💅", "🤪", "🗿",
+	"🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂", "🤷",
+	"🤷‍♀", "😡",
 }
 
 // LoadReactions loads the reactions module with all command handlers
@@ -161,10 +172,10 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	keyword := strings.ToLower(strings.TrimSpace(args[1]))
-	emoji := strings.TrimSpace(args[2])
+	emoji := strings.ReplaceAll(strings.TrimSpace(args[2]), "\ufe0f", "")
 
-	// Validate emoji (basic check - should be a single emoji or emoji sequence)
-	if emoji == "" {
+	// ReactionTypeEmoji accepts only Telegram's documented reaction set.
+	if !slices.Contains(supportedReactionEmoji, emoji) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_invalid_emoji")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -186,8 +197,8 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_add_success", i18n.TranslationParams{
-		"keyword": keyword,
-		"emoji":   emoji,
+		"keyword": html.EscapeString(keyword),
+		"emoji":   html.EscapeString(emoji),
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
@@ -239,7 +250,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	if _, exists := reactionsMap[keyword]; !exists {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_keyword_not_found", i18n.TranslationParams{
-			"keyword": keyword,
+			"keyword": html.EscapeString(keyword),
 		})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
@@ -256,7 +267,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_remove_success", i18n.TranslationParams{
-		"keyword": keyword,
+		"keyword": html.EscapeString(keyword),
 	})
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
@@ -289,7 +300,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Build list
 	var sb strings.Builder
 	for keyword, emoji := range reactionsMap {
-		fmt.Fprintf(&sb, "• %s → %s\n", keyword, emoji)
+		fmt.Fprintf(&sb, "• %s → %s\n", html.EscapeString(keyword), html.EscapeString(emoji))
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

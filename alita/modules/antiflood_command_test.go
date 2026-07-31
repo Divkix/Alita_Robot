@@ -188,7 +188,7 @@ func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 		userID  int64
 		message string
 	}{
-		{name: "kick", action: "kick", method: "banChatMember", userID: 43, message: "kick me"},
+		{name: "kick", action: "kick", method: "unbanChatMember", userID: 43, message: "kick me"},
 		{name: "ban", action: "ban", method: "banChatMember", userID: 44, message: "ban me"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -428,7 +428,7 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 	floodMu.Delete(freshKey)
 }
 
-func TestAntifloodWatcherPropagatesFloodMessageDeleteErrors(t *testing.T) {
+func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	resetAntifloodState(t)
 	client := newModuleBotClient()
 	client.errors["deleteMessage"] = fmt.Errorf("delete failed")
@@ -451,10 +451,10 @@ func TestAntifloodWatcherPropagatesFloodMessageDeleteErrors(t *testing.T) {
 	}
 	secondCtx := newModuleMessageContext(bot, chat, member, "two")
 	secondCtx.EffectiveMessage.MessageId = 602
-	if err := antifloodModule.checkFlood(bot, secondCtx); err == nil {
-		t.Fatal("checkFlood delete failure error = nil, want delete error")
+	if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkFlood delete failure error = %v, want ContinueGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want no action after delete failure", len(calls))
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want punishment despite delete failure", len(calls))
 	}
 }

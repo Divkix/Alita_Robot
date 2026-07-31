@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,42 +37,50 @@ func TestMain(m *testing.M) {
 			fmt.Printf("SQLite init failed: %v\n", err)
 			os.Exit(1)
 		}
+		sqlDB, err := sqliteDB.DB()
+		if err != nil {
+			fmt.Printf("SQLite handle failed: %v\n", err)
+			os.Exit(1)
+		}
+		sqlDB.SetMaxOpenConns(1)
 		db.DB = sqliteDB
 	}
 
-	err := db.DB.AutoMigrate(
-		&models.User{},
-		&models.Chat{},
-		&models.WarnSettings{},
-		&models.Warns{},
-		&models.GreetingSettings{},
-		&models.ChatFilters{},
-		&models.AdminSettings{},
-		&models.BlacklistSettings{},
-		&models.PinSettings{},
-		&models.ReportChatSettings{},
-		&models.ReportUserSettings{},
-		&models.DevSettings{},
-		&models.ChannelSettings{},
-		&models.AntifloodSettings{},
-		&models.ConnectionSettings{},
-		&models.ConnectionChatSettings{},
-		&models.DisableSettings{},
-		&models.DisableChatSettings{},
-		&models.RulesSettings{},
-		&models.LockSettings{},
-		&models.NotesSettings{},
-		&models.Notes{},
-		&models.CaptchaSettings{},
-		&models.CaptchaAttempts{},
-		&models.StoredMessages{},
-		&models.CaptchaMutedUsers{},
-		&models.ApprovedUsers{},
-		&models.AntiRaidSettings{},
-	)
-	if err != nil {
-		fmt.Printf("AutoMigrate failed: %v\n", err)
-		os.Exit(1)
+	if dbFileName != "" {
+		err := db.DB.AutoMigrate(
+			&models.User{},
+			&models.Chat{},
+			&models.WarnSettings{},
+			&models.Warns{},
+			&models.GreetingSettings{},
+			&models.ChatFilters{},
+			&models.AdminSettings{},
+			&models.BlacklistSettings{},
+			&models.PinSettings{},
+			&models.ReportChatSettings{},
+			&models.ReportUserSettings{},
+			&models.DevSettings{},
+			&models.ChannelSettings{},
+			&models.AntifloodSettings{},
+			&models.ConnectionSettings{},
+			&models.ConnectionChatSettings{},
+			&models.DisableSettings{},
+			&models.DisableChatSettings{},
+			&models.RulesSettings{},
+			&models.LockSettings{},
+			&models.NotesSettings{},
+			&models.Notes{},
+			&models.CaptchaSettings{},
+			&models.CaptchaAttempts{},
+			&models.StoredMessages{},
+			&models.CaptchaMutedUsers{},
+			&models.ApprovedUsers{},
+			&models.AntiRaidSettings{},
+		)
+		if err != nil {
+			fmt.Printf("AutoMigrate failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	exitCode := m.Run()
@@ -172,6 +181,7 @@ func TestGetUserReportSettings_Defaults(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
+		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
 	settings := GetUserReportSettings(userID)
@@ -180,6 +190,13 @@ func TestGetUserReportSettings_Defaults(t *testing.T) {
 	}
 	if !settings.Enabled {
 		t.Fatal("expected default Enabled=true for user report settings")
+	}
+	var parentCount int64
+	if err := db.DB.Model(&models.User{}).Where("user_id = ?", userID).Count(&parentCount).Error; err != nil {
+		t.Fatalf("count user parent: %v", err)
+	}
+	if parentCount != 1 {
+		t.Fatalf("user parent rows = %d, want 1", parentCount)
 	}
 }
 
@@ -190,6 +207,7 @@ func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
+		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
 	// Initialize default settings
@@ -371,5 +389,55 @@ func TestLoadReportStats_Returns(t *testing.T) {
 	}
 	if gRCount < 0 {
 		t.Fatalf("expected non-negative gRCount, got %d", gRCount)
+	}
+}
+
+func TestConcurrentReportBlockListUpdates(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	if err := chats.EnsureChatInDb(chatID, "concurrent-reports"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	_ = GetChatReportSettings(chatID)
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	const users = 12
+	runConcurrent := func(operation func(int64) error) {
+		t.Helper()
+		errs := make(chan error, users)
+		var workers sync.WaitGroup
+		workers.Add(users)
+		for i := 0; i < users; i++ {
+			go func(userID int64) {
+				defer workers.Done()
+				errs <- operation(userID)
+			}(int64(i + 1))
+		}
+		workers.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Errorf("concurrent report-list update: %v", err)
+			}
+		}
+	}
+
+	runConcurrent(func(userID int64) error {
+		return BlockReportUser(chatID, userID)
+	})
+	settings := GetChatReportSettings(chatID)
+	if len(settings.BlockedList) != users {
+		t.Fatalf("blocked users = %v, want %d entries", settings.BlockedList, users)
+	}
+
+	runConcurrent(func(userID int64) error {
+		return UnblockReportUser(chatID, userID)
+	})
+	if blocked := GetChatReportSettings(chatID).BlockedList; len(blocked) != 0 {
+		t.Fatalf("blocked users after concurrent unblocks = %v, want empty", blocked)
 	}
 }

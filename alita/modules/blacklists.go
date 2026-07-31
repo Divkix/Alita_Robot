@@ -1,13 +1,10 @@
 package modules
 
 import (
-	"context"
 	"fmt"
 	"html"
 	"slices"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -19,7 +16,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
@@ -97,9 +93,8 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		var tooLong []string
 		validArgs := make([]string, 0, len(args))
 		for _, word := range args {
-			if len(word) > 100 {
-				// Use rune-based truncation to avoid splitting multi-byte UTF-8 characters
-				runes := []rune(word)
+			runes := []rune(word)
+			if len(runes) > 100 {
 				preview := word
 				if len(runes) > 20 {
 					preview = string(runes[:20]) + "..."
@@ -121,78 +116,24 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		args = validArgs
 
-		// For small lists, process sequentially with WaitGroup
-		if len(args) <= 3 {
-			var wg sync.WaitGroup
-			for _, blWord := range args {
-				blWord = strings.ToLower(blWord)
-				if _, exists := blWordSet[blWord]; exists { // O(1) lookup
-					alreadyBlacklisted = append(alreadyBlacklisted, blWord)
-				} else {
-					wg.Add(1)
-					go func(chatId int64, word string) {
-						defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
-						defer wg.Done()
-
-						if err := blacklists.AddBlacklist(chatId, word); err != nil {
-							log.WithFields(log.Fields{
-								"chatId": chatId,
-								"word":   word,
-								"error":  err,
-							}).Error("Failed to add blacklist")
-						}
-					}(chat.Id, blWord)
-					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
-				}
+		saveFailed := false
+		for _, blWord := range args {
+			blWord = strings.ToLower(blWord)
+			if _, exists := blWordSet[blWord]; exists {
+				alreadyBlacklisted = append(alreadyBlacklisted, blWord)
+				continue
 			}
-			// Wait for all goroutines to complete
-			wg.Wait()
-		} else {
-			// For larger lists, process concurrently
-			type result struct {
-				word            string
-				isAlreadyListed bool
+			if err := blacklists.AddBlacklist(chat.Id, blWord); err != nil {
+				log.WithFields(log.Fields{
+					"chatId": chat.Id,
+					"word":   blWord,
+					"error":  err,
+				}).Error("Failed to add blacklist")
+				saveFailed = true
+				continue
 			}
-
-			resultChan := make(chan result, len(args))
-			var wg sync.WaitGroup
-
-			for _, blWord := range args {
-				blWord = strings.ToLower(blWord)
-				wg.Add(1)
-				go func(word string) {
-					defer error_handling.RecoverFromPanic("addBlacklist", "blacklists")
-					defer wg.Done()
-
-					_, isListed := blWordSet[word] // O(1) lookup
-					resultChan <- result{word: word, isAlreadyListed: isListed}
-
-					if !isListed {
-						if err := blacklists.AddBlacklist(chat.Id, word); err != nil {
-							log.WithFields(log.Fields{
-								"chatId": chat.Id,
-								"word":   word,
-								"error":  err,
-							}).Error("Failed to add blacklist")
-						}
-					}
-				}(blWord)
-			}
-
-			// Close channel after all goroutines complete
-			go func() {
-				wg.Wait()
-				close(resultChan)
-			}()
-
-			// Collect results
-			for res := range resultChan {
-				if res.isAlreadyListed {
-					alreadyBlacklisted = append(alreadyBlacklisted, res.word)
-				} else {
-					newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(res.word)))
-				}
-			}
+			blWordSet[blWord] = struct{}{}
+			newBlacklist = append(newBlacklist, fmt.Sprintf("<code>%s</code>", html.EscapeString(blWord)))
 		}
 
 		if len(alreadyBlacklisted) >= 1 {
@@ -202,6 +143,10 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		if len(newBlacklist) >= 1 {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_blacklist_added_bl")
 			text += temp + fmt.Sprintf("\n - %s\n\n", strings.Join(newBlacklist, "\n - "))
+		}
+		if saveFailed {
+			temp, _ := tr.GetString("common_settings_save_failed")
+			text += temp
 		}
 
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -498,6 +443,11 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	if query.Message == nil {
+		text, _ := tr.GetString("common_callback_message_unavailable")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
 
 	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
@@ -520,14 +470,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch creatorAction {
 	case "yes":
-		// Check if message is nil (may have been deleted)
-		if query.Message == nil {
-			log.Warn("[Blacklists] Cannot remove all blacklists: message was deleted")
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
 		chatID := query.Message.GetChat().Id
 		if err := blacklists.RemoveAllBlacklist(chatID); err != nil {
 			log.WithFields(log.Fields{
@@ -540,6 +482,10 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_yes")
 	case "no":
 		helpText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_rm_all_bl_button_handler_no")
+	default:
+		text, _ := tr.GetString("common_callback_invalid_request")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
 	}
 
 	_, _, err := query.Message.EditText(b,
@@ -676,8 +622,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 
-		_, err = b.BanChatMember(chat.Id, user.Id(), nil)
-		if err != nil {
+		if err = kickMember(b, chat.Id, user.Id()); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -692,39 +637,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-
-		// Use non-blocking delayed unban for blacklist kick action
-		go func(userId int64, chatId int64) {
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("panic", r).Error("Panic in blacklist delayed unban goroutine")
-				}
-			}()
-
-			// Create context with timeout
-			timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			timer := time.NewTimer(3 * time.Second)
-			defer timer.Stop()
-
-			select {
-			case <-timer.C:
-				_, unbanErr := chat.UnbanMember(b, userId, nil)
-				if unbanErr != nil {
-					log.WithFields(log.Fields{
-						"chatId": chatId,
-						"userId": userId,
-						"error":  unbanErr,
-					}).Error("Failed to unban user after blacklist kick")
-				}
-			case <-timeoutCtx.Done():
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"userId": userId,
-				}).Warn("Blacklist unban operation timed out")
-			}
-		}(user.Id(), chat.Id)
 	case "warn":
 		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {

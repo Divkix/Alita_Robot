@@ -242,7 +242,7 @@ func TestTemporaryBanRejectsMissingChannelAndBotTargets(t *testing.T) {
 	}
 }
 
-func TestKickUsesBanThenReply(t *testing.T) {
+func TestKickUsesNativeRemovalThenReply(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
@@ -253,8 +253,10 @@ func TestKickUsesBanThenReply(t *testing.T) {
 	if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kick() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
+	} else if onlyIfBanned, ok := calls[0].Params["only_if_banned"].(bool); ok && onlyIfBanned {
+		t.Fatalf("only_if_banned = %#v, want false so a current member is removed", calls[0].Params["only_if_banned"])
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -284,8 +286,8 @@ func TestKickRejectsInvalidAndProtectedTargets(t *testing.T) {
 		})
 	}
 
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none for rejected kick targets", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want none for rejected kick targets", len(calls))
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 4 {
 		t.Fatalf("sendMessage calls = %d, want one denial per rejected target", len(calls))
@@ -306,8 +308,8 @@ func TestKickRejectsTargetNotInChat(t *testing.T) {
 		t.Fatalf("kick(user left) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none for target outside chat", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want none for target outside chat", len(calls))
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want user-not-in-chat denial", len(calls))
@@ -328,8 +330,8 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -355,8 +357,8 @@ func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want none for unidentifiable sender", len(calls))
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none for unidentifiable sender", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want none for unidentifiable sender", len(calls))
 	}
 }
 
@@ -386,8 +388,8 @@ func TestDeleteKickRejectsInvalidReplyTargets(t *testing.T) {
 		})
 	}
 
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none for rejected dkick targets", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want none for rejected dkick targets", len(calls))
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
 		t.Fatalf("sendMessage calls = %d, want one denial per rejected dkick target", len(calls))
@@ -444,7 +446,7 @@ func TestDeleteBanRejectsValidTargetWithoutReplyAndProtectedTarget(t *testing.T)
 	}
 }
 
-func TestKickMeBansRequesterAndReplies(t *testing.T) {
+func TestKickMeRemovesRequesterAndReplies(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
@@ -454,12 +456,12 @@ func TestKickMeBansRequesterAndReplies(t *testing.T) {
 	if err := bansModule.kickme(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kickme() error = %v, want EndGroups", err)
 	}
-	calls := client.callsFor("banChatMember")
+	calls := client.callsFor("unbanChatMember")
 	if len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
 	}
 	if got := calls[0].Params["user_id"]; got != int64(42) {
-		t.Fatalf("banChatMember user_id = %v, want 42", got)
+		t.Fatalf("unbanChatMember user_id = %v, want 42", got)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -475,7 +477,7 @@ func TestKickMePropagatesGotgbotRequestErrors(t *testing.T) {
 		name   string
 		method string
 	}{
-		{name: "kickme ban failure", method: "banChatMember"},
+		{name: "kickme removal failure", method: "unbanChatMember"},
 		{name: "kickme reply failure", method: "sendMessage"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -646,8 +648,11 @@ func TestRestrictCallbacksApplyKickBanAndInvalidUser(t *testing.T) {
 		t.Fatalf("restrictButtonHandler(invalid user) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("banChatMember"); len(calls) != 2 {
-		t.Fatalf("banChatMember calls = %d, want kick and ban actions", len(calls))
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want ban action", len(calls))
+	}
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want kick action", len(calls))
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want two successes and invalid user answer", len(calls))
@@ -668,6 +673,15 @@ func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
 	if err := bansModule.restrictButtonHandler(bot, malformedCtx); err != ext.EndGroups {
 		t.Fatalf("restrictButtonHandler(malformed) error = %v, want EndGroups", err)
 	}
+	craftedCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("restrict", map[string]string{"a": "crafted", "u": "42"}),
+	)
+	if err := bansModule.restrictButtonHandler(bot, craftedCtx); err != ext.EndGroups {
+		t.Fatalf("restrictButtonHandler(crafted) error = %v, want EndGroups", err)
+	}
 
 	nonAdminCtx := newModuleCallbackContext(
 		bot,
@@ -683,12 +697,21 @@ func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
 	if err := bansModule.unrestrictButtonHandler(bot, badUnrestrictCtx); err != ext.EndGroups {
 		t.Fatalf("unrestrictButtonHandler(malformed) error = %v, want EndGroups", err)
 	}
+	craftedUnrestrictCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("unrestrict", map[string]string{"a": "crafted", "u": "42"}),
+	)
+	if err := bansModule.unrestrictButtonHandler(bot, craftedUnrestrictCtx); err != ext.EndGroups {
+		t.Fatalf("unrestrictButtonHandler(crafted) error = %v, want EndGroups", err)
+	}
 
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
 		t.Fatalf("restrictChatMember calls = %d, want none for rejected callbacks", len(calls))
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
-		t.Fatalf("answerCallbackQuery calls = %d, want malformed and non-admin callback answers", len(calls))
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 5 {
+		t.Fatalf("answerCallbackQuery calls = %d, want malformed, crafted, and non-admin callback answers", len(calls))
 	}
 }
 
@@ -720,6 +743,22 @@ func TestUnrestrictCommandAndUnbanCallback(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
+	}
+}
+
+func TestUnrestrictCommandAllowsBannedTarget(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/unrestrict 14")
+	if err := bansModule.unrestrict(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("unrestrict() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 || calls[0].Params["reply_markup"] == nil {
+		t.Fatalf("sendMessage calls = %#v; all calls = %#v, want unrestriction menu for banned target", calls, client.calls)
 	}
 }
 
@@ -809,8 +848,8 @@ func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
 	if err := bansModule.kickme(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kickme(admin) error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
-		t.Fatalf("banChatMember calls = %d, want none for admin kickme", len(calls))
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
+		t.Fatalf("unbanChatMember calls = %d, want none for admin kickme", len(calls))
 	}
 
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
@@ -851,7 +890,7 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	}{
 		{
 			name:   "kick member failure",
-			method: "banChatMember",
+			method: "unbanChatMember",
 			text:   "/kick spam",
 			ctx:    func(bot *gotgbot.Bot) *ext.Context { return newBanReplyContext(bot, chat, admin, target, "/kick spam") },
 			run:    bansModule.kick,
@@ -952,7 +991,7 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 		},
 		{
 			name:   "delete kick member failure",
-			method: "banChatMember",
+			method: "unbanChatMember",
 			text:   "/dkick cleanup",
 			ctx: func(bot *gotgbot.Bot) *ext.Context {
 				return newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")

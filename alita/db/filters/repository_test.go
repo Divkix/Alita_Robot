@@ -2,10 +2,12 @@ package filters
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
@@ -15,10 +17,24 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
+func newFilterTestChat(t *testing.T) int64 {
+	t.Helper()
+	chatID := -time.Now().UnixNano()
+	if err := chats.EnsureChatInDb(chatID, "test-filters"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
+			t.Errorf("cleanup Chat failed: %v", err)
+		}
+	})
+	return chatID
+}
+
 func TestAddAndGetFiltersList(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	t.Cleanup(func() {
 		if err := RemoveAllFilters(chatID); err != nil {
@@ -45,7 +61,7 @@ func TestAddAndGetFiltersList(t *testing.T) {
 		t.Fatalf("expected 2 filters after adding, got %d", len(list))
 	}
 
-	// Adding same keyword again should not duplicate
+	// Adding the same keyword again must not bypass overwrite confirmation.
 	if err := AddFilter(chatID, "spam", "different reply", "", nil, 2); err != nil {
 		t.Fatalf("AddFilter failed: %v", err)
 	}
@@ -53,12 +69,19 @@ func TestAddAndGetFiltersList(t *testing.T) {
 	if len(list) != 2 {
 		t.Fatalf("expected 2 filters (no duplicate), got %d", len(list))
 	}
+	var updated models.ChatFilters
+	if err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, "spam").Take(&updated).Error; err != nil {
+		t.Fatalf("read replaced filter failed: %v", err)
+	}
+	if updated.FilterReply != "spam reply" || updated.MsgType != 1 {
+		t.Fatalf("filter = %+v, want original reply and type", updated)
+	}
 }
 
 func TestDoesFilterExists(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	t.Cleanup(func() {
 		if err := RemoveAllFilters(chatID); err != nil {
@@ -87,7 +110,7 @@ func TestDoesFilterExists(t *testing.T) {
 func TestRemoveFilter(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	t.Cleanup(func() {
 		if err := RemoveAllFilters(chatID); err != nil {
@@ -122,7 +145,7 @@ func TestRemoveFilter(t *testing.T) {
 func TestRemoveAllFilters(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	if err := AddFilter(chatID, "a", "a", "", nil, 1); err != nil {
 		t.Fatalf("AddFilter failed: %v", err)
@@ -147,7 +170,7 @@ func TestRemoveAllFilters(t *testing.T) {
 func TestCountFilters(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	t.Cleanup(func() {
 		if err := RemoveAllFilters(chatID); err != nil {
@@ -195,6 +218,9 @@ func TestLoadFilterStatsErrorBranch(t *testing.T) {
 		}
 	})
 
+	if err := AddFilter(1, "missing-table", "reply", "", nil, db.TEXT); err == nil {
+		t.Fatal("AddFilter() error = nil after filters table was dropped")
+	}
 	total, chats := LoadFilterStats()
 	if total != 0 || chats != 0 {
 		t.Fatalf("LoadFilterStats() = (%d, %d), want (0, 0) on error", total, chats)
@@ -204,7 +230,7 @@ func TestLoadFilterStatsErrorBranch(t *testing.T) {
 func TestAddFilterWithButtons(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := -time.Now().UnixNano()
+	chatID := newFilterTestChat(t)
 
 	t.Cleanup(func() {
 		if err := RemoveAllFilters(chatID); err != nil {
@@ -222,5 +248,43 @@ func TestAddFilterWithButtons(t *testing.T) {
 
 	if !DoesFilterExists(chatID, "btn_filter") {
 		t.Fatal("expected filter with buttons to exist")
+	}
+}
+
+func TestAddFilterConcurrentInsert(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := newFilterTestChat(t)
+	t.Cleanup(func() {
+		_ = RemoveAllFilters(chatID)
+	})
+
+	const writers = 16
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- AddFilter(chatID, "shared", "concurrent", "", nil, db.TEXT)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent AddFilter() error = %v", err)
+		}
+	}
+
+	if err := AddFilter(chatID, "shared", "final", "", nil, db.TEXT); err != nil {
+		t.Fatalf("final AddFilter() error = %v", err)
+	}
+	var rows []models.ChatFilters
+	if err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, "shared").Find(&rows).Error; err != nil {
+		t.Fatalf("read filters error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].FilterReply != "concurrent" {
+		t.Fatalf("concurrent insert left filters=%+v", rows)
 	}
 }

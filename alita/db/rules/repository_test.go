@@ -39,39 +39,41 @@ func TestMain(m *testing.M) {
 		db.DB = sqliteDB
 	}
 
-	err := db.DB.AutoMigrate(
-		&models.User{},
-		&models.Chat{},
-		&models.WarnSettings{},
-		&models.Warns{},
-		&models.GreetingSettings{},
-		&models.ChatFilters{},
-		&models.AdminSettings{},
-		&models.BlacklistSettings{},
-		&models.PinSettings{},
-		&models.ReportChatSettings{},
-		&models.ReportUserSettings{},
-		&models.DevSettings{},
-		&models.ChannelSettings{},
-		&models.AntifloodSettings{},
-		&models.ConnectionSettings{},
-		&models.ConnectionChatSettings{},
-		&models.DisableSettings{},
-		&models.DisableChatSettings{},
-		&models.RulesSettings{},
-		&models.LockSettings{},
-		&models.NotesSettings{},
-		&models.Notes{},
-		&models.CaptchaSettings{},
-		&models.CaptchaAttempts{},
-		&models.StoredMessages{},
-		&models.CaptchaMutedUsers{},
-		&models.ApprovedUsers{},
-		&models.AntiRaidSettings{},
-	)
-	if err != nil {
-		fmt.Printf("AutoMigrate failed: %v\n", err)
-		os.Exit(1)
+	if dbFileName != "" {
+		err := db.DB.AutoMigrate(
+			&models.User{},
+			&models.Chat{},
+			&models.WarnSettings{},
+			&models.Warns{},
+			&models.GreetingSettings{},
+			&models.ChatFilters{},
+			&models.AdminSettings{},
+			&models.BlacklistSettings{},
+			&models.PinSettings{},
+			&models.ReportChatSettings{},
+			&models.ReportUserSettings{},
+			&models.DevSettings{},
+			&models.ChannelSettings{},
+			&models.AntifloodSettings{},
+			&models.ConnectionSettings{},
+			&models.ConnectionChatSettings{},
+			&models.DisableSettings{},
+			&models.DisableChatSettings{},
+			&models.RulesSettings{},
+			&models.LockSettings{},
+			&models.NotesSettings{},
+			&models.Notes{},
+			&models.CaptchaSettings{},
+			&models.CaptchaAttempts{},
+			&models.StoredMessages{},
+			&models.CaptchaMutedUsers{},
+			&models.ApprovedUsers{},
+			&models.AntiRaidSettings{},
+		)
+		if err != nil {
+			fmt.Printf("AutoMigrate failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	exitCode := m.Run()
@@ -349,9 +351,9 @@ func TestSetRules_EmptyString(t *testing.T) {
 	// Initialize settings (default rules = "")
 	_ = GetChatRulesInfo(chatID)
 
-	// SetChatRules with empty string is a GORM zero-value skip (no-op on a struct Update)
-	// The initial default of "" should remain.
-	SetChatRules(chatID, "")
+	if err := SetChatRules(chatID, ""); err != nil {
+		t.Fatalf("SetChatRules(empty) error = %v", err)
+	}
 
 	rulesrc := GetChatRulesInfo(chatID)
 	if rulesrc == nil {
@@ -386,12 +388,8 @@ func TestClearRules(t *testing.T) {
 		t.Fatalf("expected 'Some rules text', got %q", rulesrc.Rules)
 	}
 
-	// SetChatRules uses struct-based Updates which skips zero values (empty string).
-	// To "clear" rules via the DB layer directly:
-	if err := db.DB.Model(&models.RulesSettings{}).
-		Where("chat_id = ?", chatID).
-		Update("rules", "").Error; err != nil {
-		t.Fatalf("DB direct update to clear rules error = %v", err)
+	if err := SetChatRules(chatID, ""); err != nil {
+		t.Fatalf("SetChatRules(clear) error = %v", err)
 	}
 
 	rulesrc = GetChatRulesInfo(chatID)
@@ -400,5 +398,29 @@ func TestClearRules(t *testing.T) {
 	}
 	if rulesrc.Rules != "" {
 		t.Fatalf("expected empty rules after clear, got %q", rulesrc.Rules)
+	}
+}
+
+func TestRulesSettersErrorBranch(t *testing.T) {
+	skipIfNoDb(t)
+
+	if err := db.DB.Migrator().DropTable(&models.RulesSettings{}); err != nil {
+		t.Fatalf("DropTable RulesSettings: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(&models.RulesSettings{}); err != nil {
+			t.Fatalf("restore RulesSettings: %v", err)
+		}
+	})
+
+	chatID := time.Now().UnixNano()
+	if err := SetChatRules(chatID, "rules"); err == nil {
+		t.Fatal("SetChatRules() error = nil with missing rules table")
+	}
+	if err := SetChatRulesButton(chatID, "Rules"); err == nil {
+		t.Fatal("SetChatRulesButton() error = nil with missing rules table")
+	}
+	if err := SetPrivateRules(chatID, true); err == nil {
+		t.Fatal("SetPrivateRules() error = nil with missing rules table")
 	}
 }

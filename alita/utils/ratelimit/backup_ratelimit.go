@@ -49,20 +49,7 @@ const (
 // CanExport checks if an export operation is allowed for the given chat
 // Returns true if allowed, and remaining cooldown if not
 func (r *BackupRateLimiter) CanExport(chatID int64) (bool, time.Duration) {
-	cacheKey := exportRatePrefix + strconv.FormatInt(chatID, 10)
-
-	lastExport, err := r.getLastOperation(cacheKey)
-	if err != nil {
-		// No previous export found or error, allow it
-		return true, 0
-	}
-
-	elapsed := time.Since(lastExport)
-	if elapsed >= DefaultExportCooldown {
-		return true, 0
-	}
-
-	return false, DefaultExportCooldown - elapsed
+	return r.canOperate(exportRatePrefix+strconv.FormatInt(chatID, 10), DefaultExportCooldown)
 }
 
 // RecordExport records an export operation for rate limiting
@@ -71,21 +58,14 @@ func (r *BackupRateLimiter) RecordExport(chatID int64) {
 	r.recordOperation(cacheKey, DefaultExportCooldown)
 }
 
+// AcquireExport atomically reserves the export cooldown for a chat.
+func (r *BackupRateLimiter) AcquireExport(chatID int64) (bool, time.Duration) {
+	return r.acquireOperation(exportRatePrefix+strconv.FormatInt(chatID, 10), DefaultExportCooldown)
+}
+
 // CanImport checks if an import operation is allowed for the given chat
 func (r *BackupRateLimiter) CanImport(chatID int64) (bool, time.Duration) {
-	cacheKey := importRatePrefix + strconv.FormatInt(chatID, 10)
-
-	lastImport, err := r.getLastOperation(cacheKey)
-	if err != nil {
-		return true, 0
-	}
-
-	elapsed := time.Since(lastImport)
-	if elapsed >= DefaultImportCooldown {
-		return true, 0
-	}
-
-	return false, DefaultImportCooldown - elapsed
+	return r.canOperate(importRatePrefix+strconv.FormatInt(chatID, 10), DefaultImportCooldown)
 }
 
 // RecordImport records an import operation for rate limiting
@@ -94,27 +74,81 @@ func (r *BackupRateLimiter) RecordImport(chatID int64) {
 	r.recordOperation(cacheKey, DefaultImportCooldown)
 }
 
+// AcquireImport atomically reserves the import cooldown for a chat.
+func (r *BackupRateLimiter) AcquireImport(chatID int64) (bool, time.Duration) {
+	return r.acquireOperation(importRatePrefix+strconv.FormatInt(chatID, 10), DefaultImportCooldown)
+}
+
 // CanReset checks if a reset operation is allowed for the given chat
 func (r *BackupRateLimiter) CanReset(chatID int64) (bool, time.Duration) {
-	cacheKey := resetRatePrefix + strconv.FormatInt(chatID, 10)
-
-	lastReset, err := r.getLastOperation(cacheKey)
-	if err != nil {
-		return true, 0
-	}
-
-	elapsed := time.Since(lastReset)
-	if elapsed >= DefaultResetCooldown {
-		return true, 0
-	}
-
-	return false, DefaultResetCooldown - elapsed
+	return r.canOperate(resetRatePrefix+strconv.FormatInt(chatID, 10), DefaultResetCooldown)
 }
 
 // RecordReset records a reset operation for rate limiting
 func (r *BackupRateLimiter) RecordReset(chatID int64) {
 	cacheKey := resetRatePrefix + strconv.FormatInt(chatID, 10)
 	r.recordOperation(cacheKey, DefaultResetCooldown)
+}
+
+// AcquireReset atomically reserves the reset cooldown for a chat.
+func (r *BackupRateLimiter) AcquireReset(chatID int64) (bool, time.Duration) {
+	return r.acquireOperation(resetRatePrefix+strconv.FormatInt(chatID, 10), DefaultResetCooldown)
+}
+
+func (r *BackupRateLimiter) canOperate(cacheKey string, cooldown time.Duration) (bool, time.Duration) {
+	if client := cache.GetRedisClient(); client != nil {
+		remaining, err := client.TTL(cache.Context, cacheKey).Result()
+		if err != nil || remaining <= 0 {
+			return true, 0
+		}
+		return false, remaining
+	}
+
+	lastOperation, err := r.getLastOperation(cacheKey)
+	if err != nil {
+		return true, 0
+	}
+	elapsed := time.Since(lastOperation)
+	if elapsed >= cooldown {
+		return true, 0
+	}
+	return false, cooldown - elapsed
+}
+
+func (r *BackupRateLimiter) acquireOperation(cacheKey string, cooldown time.Duration) (bool, time.Duration) {
+	if client := cache.GetRedisClient(); client != nil {
+		acquired, err := client.SetNX(cache.Context, cacheKey, time.Now().Unix(), cooldown).Result()
+		if err != nil {
+			log.Debugf("[BackupRateLimit] Failed to reserve operation for key %s: %v", cacheKey, err)
+			return true, 0
+		}
+		if acquired {
+			return true, 0
+		}
+		remaining, err := client.TTL(cache.Context, cacheKey).Result()
+		if err != nil || remaining <= 0 {
+			return false, cooldown
+		}
+		return false, remaining
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	m := cache.GetMarshal()
+	if m == nil {
+		return true, 0
+	}
+	var timestamp time.Time
+	if _, err := m.Get(context.Background(), cacheKey, &timestamp); err == nil {
+		if remaining := cooldown - time.Since(timestamp); remaining > 0 {
+			return false, remaining
+		}
+	}
+	if err := m.Set(context.Background(), cacheKey, time.Now(), store.WithExpiration(cooldown)); err != nil {
+		log.Debugf("[BackupRateLimit] Failed to reserve operation for key %s: %v", cacheKey, err)
+		return true, 0
+	}
+	return true, 0
 }
 
 // getLastOperation retrieves the timestamp of the last operation from cache
@@ -155,20 +189,28 @@ func (r *BackupRateLimiter) recordOperation(cacheKey string, ttl time.Duration) 
 // FormatCooldown formats a duration as a human-readable string
 func FormatCooldown(duration time.Duration) string {
 	if duration < time.Minute {
-		return fmt.Sprintf("%d seconds", int(duration.Seconds()))
+		seconds := int(duration.Seconds())
+		return fmt.Sprintf("%d second%s", seconds, pluralSuffix(seconds))
 	}
 	if duration < time.Hour {
 		minutes := int(duration.Minutes())
 		seconds := int(duration.Seconds()) % 60
 		if seconds > 0 {
-			return fmt.Sprintf("%d minutes %d seconds", minutes, seconds)
+			return fmt.Sprintf("%d minute%s %d second%s", minutes, pluralSuffix(minutes), seconds, pluralSuffix(seconds))
 		}
-		return fmt.Sprintf("%d minutes", minutes)
+		return fmt.Sprintf("%d minute%s", minutes, pluralSuffix(minutes))
 	}
 	hours := int(duration.Hours())
 	minutes := int(duration.Minutes()) % 60
 	if minutes > 0 {
-		return fmt.Sprintf("%d hours %d minutes", hours, minutes)
+		return fmt.Sprintf("%d hour%s %d minute%s", hours, pluralSuffix(hours), minutes, pluralSuffix(minutes))
 	}
-	return fmt.Sprintf("%d hours", hours)
+	return fmt.Sprintf("%d hour%s", hours, pluralSuffix(hours))
+}
+
+func pluralSuffix(value int) string {
+	if value == 1 {
+		return ""
+	}
+	return "s"
 }

@@ -81,17 +81,13 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	}
 
 	if rMsg := msg.ReplyToMessage; rMsg != nil {
-		if rMsg.PinnedMessage == nil {
-			replyText, _ = c.Tr.GetString("pins_unpin_not_pinned")
-		} else {
-			_, err := c.Bot.UnpinChatMessage(chat.Id, &gotgbot.UnpinChatMessageOpts{MessageId: &rMsg.MessageId})
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			replyText, _ = c.Tr.GetString("pins_unpinned_message")
-			replyMsgId = rMsg.MessageId
+		_, err := c.Bot.UnpinChatMessage(chat.Id, &gotgbot.UnpinChatMessageOpts{MessageId: &rMsg.MessageId})
+		if err != nil {
+			log.Error(err)
+			return err
 		}
+		replyText, _ = c.Tr.GetString("pins_unpinned_message")
+		replyMsgId = rMsg.MessageId
 	} else {
 		replyText, _ = c.Tr.GetString("pins_unpinned_last")
 		_, err := c.Bot.UnpinChatMessage(chat.Id, nil)

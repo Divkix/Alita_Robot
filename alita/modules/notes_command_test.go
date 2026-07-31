@@ -323,8 +323,17 @@ func TestNotesButtonHandlerCancelAndInvalidCallbacks(t *testing.T) {
 	if err := notesModule.notesButtonHandler(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("notesButtonHandler(invalid) error = %v, want EndGroups", err)
 	}
+	unknownCtx := newModuleCallbackContext(
+		bot,
+		chat,
+		admin,
+		encodeCallbackData("rmAllNotes", map[string]string{"a": "crafted"}),
+	)
+	if err := notesModule.notesButtonHandler(bot, unknownCtx); err != ext.EndGroups {
+		t.Fatalf("notesButtonHandler(unknown action) error = %v, want EndGroups", err)
+	}
 
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
+	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want cancel and invalid callback answers", len(calls))
 	}
 }
@@ -384,9 +393,11 @@ func TestNoteOverwriteHandlerCancelAndSuccess(t *testing.T) {
 	}
 
 	cancelToken := "cancel-note-token"
-	notesOverwriteMap.Store(cancelToken, overwriteNote{
+	if err := setNoteOverwriteCache(cancelToken, overwriteNote{
 		overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "cancelled", DataType: db.TEXT},
-	})
+	}); err != nil {
+		t.Fatalf("setNoteOverwriteCache(cancel) error = %v", err)
+	}
 	cancelCtx := newModuleCallbackContext(
 		bot,
 		chat,
@@ -396,17 +407,19 @@ func TestNoteOverwriteHandlerCancelAndSuccess(t *testing.T) {
 	if err := notesModule.noteOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("noteOverWriteHandler(cancel) error = %v, want EndGroups", err)
 	}
-	if _, ok := notesOverwriteMap.Load(cancelToken); ok {
-		t.Fatal("cancelled overwrite token remained in map")
+	if _, err := getNoteOverwriteCache(cancelToken); err == nil {
+		t.Fatal("cancelled overwrite token remained in cache")
 	}
 	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "old" {
 		t.Fatalf("cancel changed note content to %q", got)
 	}
 
 	yesToken := "yes-note-token"
-	notesOverwriteMap.Store(yesToken, overwriteNote{
+	if err := setNoteOverwriteCache(yesToken, overwriteNote{
 		overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
-	})
+	}); err != nil {
+		t.Fatalf("setNoteOverwriteCache(yes) error = %v", err)
+	}
 	yesCtx := newModuleCallbackContext(
 		bot,
 		chat,
@@ -454,9 +467,11 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 		bot := newModuleTestBot(client)
 		client.errors["editMessageText"] = requestErr
 		token := "edit-failure-note-token"
-		notesOverwriteMap.Store(token, overwriteNote{
+		if err := setNoteOverwriteCache(token, overwriteNote{
 			overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
-		})
+		}); err != nil {
+			t.Fatalf("setNoteOverwriteCache() error = %v", err)
+		}
 		ctx := newModuleCallbackContext(
 			bot,
 			chat,
@@ -475,9 +490,11 @@ func TestNoteOverwriteHandlerMissingMalformedAndRequestErrors(t *testing.T) {
 		bot := newModuleTestBot(client)
 		client.errors["answerCallbackQuery"] = requestErr
 		token := "answer-failure-note-token"
-		notesOverwriteMap.Store(token, overwriteNote{
+		if err := setNoteOverwriteCache(token, overwriteNote{
 			overwriteBase: overwriteBase{ChatID: chat.Id, ItemName: "rules", Text: "new", DataType: db.TEXT},
-		})
+		}); err != nil {
+			t.Fatalf("setNoteOverwriteCache() error = %v", err)
+		}
 		ctx := newModuleCallbackContext(
 			bot,
 			chat,
