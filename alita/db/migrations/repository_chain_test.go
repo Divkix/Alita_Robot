@@ -68,6 +68,21 @@ func TestRepositoryMigrationChain(t *testing.T) {
 		t.Fatalf("apply repository migration chain: %v", err)
 	}
 
+	var timezoneAwareCaptchaColumns int64
+	if err := database.Raw(`
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'captcha_attempts'
+		  AND column_name IN ('created_at', 'updated_at', 'expires_at')
+		  AND data_type = 'timestamp with time zone'
+	`).Scan(&timezoneAwareCaptchaColumns).Error; err != nil {
+		t.Fatalf("inspect captcha attempt timestamp types: %v", err)
+	}
+	if timezoneAwareCaptchaColumns != 3 {
+		t.Fatalf("timezone-aware captcha attempt timestamp columns = %d, want 3", timezoneAwareCaptchaColumns)
+	}
+
 	var records []SchemaMigration
 	if err := database.Order("version").Find(&records).Error; err != nil {
 		t.Fatalf("load applied migration records: %v", err)

@@ -482,9 +482,12 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   `ReportChatSettings`/`ReportUserSettings` still carry
   both `Enabled` and `Status` (alias) columns — set both consistently.
 - Runtime uniqueness also depends on migration constraints: one `connection` row
-  per `user_id`, one `captcha_muted_users` row per `(user_id,chat_id)`, and one
-  case-insensitive non-empty `channels.username` owner. Connection disconnects
-  retain `chat_id` so `/reconnect` can restore it.
+  per `user_id`, one `captcha_attempts` and `captcha_muted_users` row per
+  `(user_id,chat_id)`, and one case-insensitive non-empty `channels.username`
+  owner. Connection disconnects retain `chat_id` so `/reconnect` can restore it.
+- Captcha attempt lifecycle timestamps are timezone-aware; migration
+  `20260730030000_use_timestamptz_for_captcha_attempts.sql` interprets the legacy
+  captcha attempt timestamps as UTC before converting them to `timestamptz`.
 - Schema-change checklist: **migration → struct tag → optimized query column list →
   repository function** (and add the struct to `testmain_test.go`'s AutoMigrate list).
 

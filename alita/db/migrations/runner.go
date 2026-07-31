@@ -891,7 +891,7 @@ func (m *MigrationRunner) verifyIndexes() error {
 			"idx_antiflood_settings_chat_id": {"chat_id"},
 		},
 		"captcha_attempts": {
-			"idx_captcha_user_chat": {"user_id", "chat_id"},
+			"uk_captcha_user_chat": {"user_id", "chat_id"},
 		},
 	}
 
