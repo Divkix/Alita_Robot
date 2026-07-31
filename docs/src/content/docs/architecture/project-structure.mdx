@@ -20,7 +20,7 @@ This document explains the directory structure of Alita Robot, helping developer
   - config/
     - config.go Environment variable parsing
   - db/ **Database layer**
-    - db.go GORM connection, setup, and backward-compatible cache re-exports
+    - db.go GORM connection, setup, and backward-compatible model re-exports
     - conn.go Database connection handle
     - cache/ Cache key patterns, TTLs, and loader
       - keys.go CacheKey helper for consistent key formatting
@@ -31,10 +31,9 @@ This document explains the directory structure of Alita Robot, helping developer
       - runner.go Custom SQL migration engine
     - monitoring/ Database pool metrics
       - metrics.go Metrics collection
-    - queries/ Optimized cached queries
-      - optimized.go Cached SELECT queries
     - {'{domain}'}/ Per-feature database repositories (admin, antiflood, antiraid, etc.)
       - repository.go Domain-specific DB operations
+      - optimized.go Cached SELECT queries (hot reads)
     - backup/ Export/import chat data
       - backup.go Module export/import/clear operations
       - types.go Backup format structs and validation
@@ -84,7 +83,6 @@ This document explains the directory structure of Alita Robot, helping developer
     - registry.go Module registration system
     - ...
   - utils/ **Utility packages**
-    - async/ Async processing utilities
     - cache/
       - cache.go Cache client setup
       - adminCache.go Admin cache operations
@@ -221,7 +219,7 @@ Module loading and initialization:
 ### `alita/config/config.go`
 
 Environment variable parsing:
-- Required: `BOT_TOKEN`, `DATABASE_URL`, `REDIS_ADDRESS`, `MESSAGE_DUMP`, `OWNER_ID`
+- Required: `BOT_TOKEN`, `DATABASE_URL`, `MESSAGE_DUMP`, `OWNER_ID` (Redis endpoint is required; `REDIS_ADDRESS` or `REDIS_URL`)
 - Optional: Performance tuning, monitoring, webhooks
 - Validation and default values
 
@@ -231,7 +229,7 @@ Database connection management and backward-compatible re-exports:
 - GORM configuration with connection pooling
 - Connection health checking
 - Graceful connection closing
-- Re-exports `CacheKey` and `DeleteCache` as exported variables; provides `getFromCacheOrLoad` (lowercase, unexported) as a backward-compatible wrapper; re-exports TTL constants from the `cache/` subpackage for convenience
+- Re-exports model types (`db.User = models.User`) and message-type constants (`db.TEXT`…`db.VIDEO_NOTE`). Cache helpers and TTL constants live in `alita/db/cache/` — they are **not** re-exported from `db.go`.
 
 ### `alita/db/conn.go`
 
@@ -248,7 +246,7 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
     defer modules.LoadHelp(dispatcher)  // Help loaded LAST
 
-    // Loads all modules registered via RegisterLegacyModule / RegisterModule
+    // Loads all modules registered via RegisterLegacyModule
     modules.LoadAllModules(dispatcher)
 }
 ```

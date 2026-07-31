@@ -10,8 +10,8 @@ Thank you for your interest in contributing to Alita Robot! This guide will help
 ### Prerequisites
 
 - **Go** 1.26+
-- **PostgreSQL** 14+
-- **Redis** 6+
+- **PostgreSQL** 16+
+- **Redis** 7+
 - **Make** (for running commands)
 
 ### Clone and Setup
@@ -117,7 +117,7 @@ import (
     "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 )
 
-var myModule = moduleStruct{moduleName: "mymodule"}
+var myModule = moduleStruct{moduleName: "MyModule"}
 
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
     // Implementation
@@ -129,7 +129,7 @@ func LoadMyModule(d *ext.Dispatcher) {
 }
 
 func init() {
-    RegisterLegacyModule("mymodule", 100, LoadMyModule)
+    RegisterLegacyModule("MyModule", 100, LoadMyModule)
 }
 ```
 
@@ -163,13 +163,13 @@ pip install pre-commit && pre-commit install
 Always escape user-controlled input before rendering in HTML-formatted messages:
 
 ```go
-import "github.com/divkix/Alita_Robot/alita/utils/helpers"
+import "github.com/divkix/Alita_Robot/alita/utils/formatting"
 
 // Wrong - vulnerable to HTML injection
 text := fmt.Sprintf("Welcome to %s!", chat.Title)
 
 // Correct - escaped
-text := fmt.Sprintf("Welcome to %s!", helpers.HtmlEscape(chat.Title))
+text := fmt.Sprintf("Welcome to %s!", formatting.HtmlEscape(chat.Title))
 ```
 
 **When to escape:**
@@ -178,8 +178,8 @@ text := fmt.Sprintf("Welcome to %s!", helpers.HtmlEscape(chat.Title))
 - Any user-supplied text in HTML-formatted messages
 
 **Safe alternatives:**
-- `helpers.MentionHtml(userId, name)` - Already escapes the name
-- `helpers.MentionUrl(url, name)` - Already escapes the name
+- `formatting.MentionHtml(userId, name)` - Already escapes the name
+- `formatting.MentionUrl(url, name)` - Already escapes the name
 
 ### Goroutine Error Handling
 

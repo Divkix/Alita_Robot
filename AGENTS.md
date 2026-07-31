@@ -71,9 +71,10 @@ Big architectural facts an agent must hold in mind:
   is unset (so tests can import them). Do **not** move this into `main()`.
 - **The DB layer is split into per-domain sub-packages** (`alita/db/<domain>/`)
   with all GORM structs in `alita/db/models/`. `alita/db/db.go` is a
-  backward-compat shim that re-exports model types (`db.User = models.User`), cache
-  helpers, and TTL constants. ⚠️ Older docs described a flat `alita/db/*_db.go`
-  layout — that no longer exists.
+  backward-compat shim that re-exports model types (`db.User = models.User`) and
+  message-type constants (`db.TEXT`…`db.VIDEO_NOTE`) — it does **not** re-export
+  cache helpers or TTL constants (those live in `alita/db/cache/`). ⚠️ Older docs
+  described a flat `alita/db/*_db.go` layout — that no longer exists.
 - **Schema source of truth is raw SQL in `migrations/*.sql`**, applied by a custom
   runtime engine (`alita/db/migrations/runner.go`), **not** `gorm.AutoMigrate`.
   GORM struct tags only affect runtime CRUD. Tests bootstrap schema via SQLite
@@ -98,7 +99,7 @@ Big architectural facts an agent must hold in mind:
   - `config/` — `config.go` (manual env loading, defaults, validation, logredact
     wiring in `init()`), `types.go` (`typeConvertor`). **No viper here.**
   - `db/`
-    - `db.go` — OTel-traced CRUD wrappers + re-export shim for models/cache/TTLs.
+    - `db.go` — OTel-traced CRUD wrappers + re-export shim for models and message-type constants.
     - `conn.go` — Postgres connection (opened in `init()`), pool tuning, optional `AUTO_MIGRATE`.
     - `models/` — **all GORM structs** (one file per table) + `types.go` (JSONB types).
     - `<domain>/` — per-domain repositories: `admin, antiflood, antiraid, approvals,
@@ -128,7 +129,7 @@ Big architectural facts an agent must hold in mind:
   `docs/blume.config.ts`; sidebar groups inferred from the folder tree with
   per-folder `meta.ts`. Built-in AI artifacts (llms.txt, llms-full.txt, .md
   mirrors) on by default.
-- **`.github/workflows/`** — `ci.yml`, `release.yml`, `docs.yml`, `dependabot-native-merge.yml`.
+- **`.github/workflows/`** — `ci.yml`, `release.yml`, `docs.yml`, `dependabot-native-merge.yml`, `pullfrog.yml`.
 - **`docker/`** — `alpine` (prod), `alpine.debug`, `goreleaser`, `pr-build`.
 
 ---
@@ -239,6 +240,13 @@ translation, and docs gates before publishing.
 Runs on `pull_request_target` without checking out PR code. It auto-approves +
 `gh pr merge --auto --squash` for **patch/minor** updates except gotgbot and
 `gotg_md2html`; major and compatibility-sensitive updates get a warning comment.
+
+### `pullfrog.yml`
+
+Manual `workflow_dispatch` (with a `prompt` input) that runs the pullfrog agent
+(`pullfrog/pullfrog@v0`) against the checked-out code. Read-only permissions
+(`contents: read`); provider API keys come from repo secrets. Not part of the
+push/PR CI pipeline.
 
 ### Local quality gates
 
@@ -941,4 +949,8 @@ Five canonical triage roles mapped to GitHub labels with their default names (`n
 
 ### Domain docs
 
-Single-context layout: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+This repo does **not** use the single-context layout yet — there is no
+`CONTEXT.md` and no `docs/adr/` at the repo root. The convention is documented
+in `docs/agents/domain.md`, which instructs agents to proceed silently while
+those files are absent; `/domain-modeling` creates them lazily when terms or
+decisions actually get resolved. See `docs/agents/domain.md`.

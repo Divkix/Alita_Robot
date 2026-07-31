@@ -132,7 +132,7 @@ GOOS=windows GOARCH=amd64 go build -o alita_robot_windows_amd64.exe .
 | `lint` | `make lint` | Run golangci-lint for code quality |
 | `tidy` | `make tidy` | Clean and download go.mod dependencies |
 | `vendor` | `make vendor` | Vendor dependencies |
-| `test` | `make test` | Run test suite (`go test ./...`) |
+| `test` | `make test` | Run test suite (SQLite + miniredis; `-tags testtools -race -coverprofile=coverage.out`) |
 | `psql-migrate` | `make psql-migrate` | Apply database migrations |
 | `psql-status` | `make psql-status` | Check migration status |
 | `psql-reset` | `make psql-reset` | Reset database (DANGEROUS) |
@@ -230,7 +230,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}}
+      - -s -w
     mod_timestamp: "{{ .CommitTimestamp }}"
 ```
 
@@ -263,7 +263,6 @@ Key dependencies from `go.mod`:
 | `gorm.io/gorm` | ORM for database operations |
 | `redis/go-redis/v9` | Redis client |
 | `sirupsen/logrus` | Structured logging |
-| `spf13/viper` | Configuration management |
 | `prometheus/client_golang` | Metrics |
 
 ## Testing

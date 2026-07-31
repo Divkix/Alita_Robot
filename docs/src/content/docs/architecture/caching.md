@@ -66,7 +66,7 @@ The cache initialization uses exponential backoff (1s, 2s, 4s, 8s, 16s) for Redi
 
 ## TTL Values
 
-Cache Time-To-Live (TTL) values are defined in `alita/db/cache/ttl.go` (also re-exported from `alita/db/db.go` for backward compatibility):
+Cache Time-To-Live (TTL) values are defined in `alita/db/cache/ttl.go`:
 
 | Constant | Duration | Used For |
 |----------|----------|----------|
@@ -116,7 +116,7 @@ All cache keys use the `alita:` prefix for namespace isolation:
 
 | Key Pattern | Description |
 |-------------|-------------|
-| `alita:chat_settings:{chatId}` | Chat settings object |
+| `alita:chat_settings:{chatId}` | Legacy invalidation target only — settings are read via `alita:chat:{chatId}` |
 | `alita:user_lang:{userId}` | User language preference |
 | `alita:chat_lang:{chatId}` | Chat language preference |
 | `alita:filter_list:{chatId}` | List of filters for chat |
@@ -127,12 +127,12 @@ All cache keys use the `alita:` prefix for namespace isolation:
 | `alita:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
 | `alita:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
 | `alita:approvals:{chatId}` | Approved users list (30 min TTL) |
-| `alita:antiraid:state:{chatId}` | Anti-raid settings (30 min TTL) |
-| `alita:antiraid:joins:{chatId}` | Anti-raid join tracking (30 min TTL) |
-| `alita:lock:{chatId}:{lockType}` | Lock status (1 hour TTL, from optimized queries) |
+| `alita:antiraid:state:{chatId}` | Live anti-raid state (TTL covers the requested raid expiry, capped at 24h) |
+| `alita:antiraid:joins:{chatId}` | Anti-raid join tracking (60s counting window) |
+| `alita:locks_map:{chatId}` | Lock status (1 hour TTL, from optimized queries) |
 | `alita:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |
 | `alita:chat:{chatId}` | Chat basic info (30 min TTL, from optimized queries) |
-| `alita:antiflood:{chatId}` | Antiflood settings (1 hour TTL, from optimized queries) |
+| `alita:antiflood:{chatId}` | Antiflood settings (30 min TTL, from optimized queries) |
 | `alita:channel:{chatId}` | Channel settings (30 min TTL, from optimized queries) |
 
 ### Anonymous Admin Verification Flow
@@ -568,7 +568,7 @@ redis-cli MEMORY USAGE "alita:chat_settings:123456789"
 
 :::tip[Cache operations]
 Use `cache.GetMarshal().Get/Set/Delete` for direct cache operations, and prefer
-`GetFromCacheOrLoad()` in `alita/db/cache/loader.go` (or `db.getFromCacheOrLoad()` via the backward-compatible re-export in `alita/db/db.go`) for DB-backed cached reads
+`GetFromCacheOrLoad()` in `alita/db/cache/loader.go` for DB-backed cached reads
 with singleflight protection to prevent cache stampedes.
 :::
 

@@ -26,7 +26,7 @@ import (
     "github.com/divkix/Alita_Robot/alita/i18n"
     "github.com/divkix/Alita_Robot/alita/utils/chat_status"
     "github.com/divkix/Alita_Robot/alita/utils/extraction"
-    "github.com/divkix/Alita_Robot/alita/utils/helpers"
+    "github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // Module struct with name for help system
@@ -49,7 +49,7 @@ func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
 
     // Business logic here
     text, _ := tr.GetString("example_success_message")
-    _, err := msg.Reply(b, text, helpers.Shtml())
+    _, err := msg.Reply(b, text, formatting.Shtml())
     if err != nil {
         log.Error(err)
         // Return ext.EndGroups after user notification, not the error
@@ -68,7 +68,7 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
     tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
 
     // Parse callback data using the modules package wrapper
-    // This handles both new codec format and legacy dot-notation fallback
+    // (versioned codec only — legacy dot-notation callbacks are rejected)
     decoded, ok := decodeCallbackData(query.Data, "example")
     if !ok {
         log.Warn("[ExampleCallback] Invalid callback data format")
@@ -281,15 +281,14 @@ func LoadModules(dispatcher *ext.Dispatcher) {
     modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
     defer modules.LoadHelp(dispatcher)
 
-    // Loads all modules registered via RegisterLegacyModule / RegisterModule
+    // Loads all modules registered via RegisterLegacyModule
     modules.LoadAllModules(dispatcher)
 }
 ```
 
-There are two registration patterns:
+There is one registration pattern:
 
-- **Legacy** (most modules): `RegisterLegacyModule(name, priority, loadFunc)` in `init()` — wraps existing `LoadXxx(dispatcher)` functions.
-- **New interface**: `RegisterModule(m Module)` where `Module` implements `Name()`, `Priority()`, `Load(dispatcher)`.
+- **`RegisterLegacyModule(name, priority, loadFunc)`** in `init()` — wraps existing `LoadXxx(dispatcher)` functions. There is no newer `RegisterModule` interface; `RegisterLegacyModule` is the only registry entry point.
 
 :::note[Load order matters]
 Priority determines load order (lower numbers load first). Place your module at a priority after any modules it depends on (e.g., after `Users` if you need user lookups). `LoadHelp` is deferred and always loads last.
@@ -449,7 +448,7 @@ import (
     "github.com/divkix/Alita_Robot/alita/db"
     "github.com/divkix/Alita_Robot/alita/i18n"
     "github.com/divkix/Alita_Robot/alita/utils/chat_status"
-    "github.com/divkix/Alita_Robot/alita/utils/helpers"
+    "github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 var welcomeModule = moduleStruct{moduleName: "Welcome"}
@@ -476,7 +475,7 @@ func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
     } else {
         text, _ = tr.GetString("welcome_status_disabled")
     }
-    _, err := msg.Reply(b, text, helpers.Shtml())
+    _, err := msg.Reply(b, text, formatting.Shtml())
     if err != nil {
         log.Error(err)
         return err
@@ -516,7 +515,7 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
     } else {
         text, _ = tr.GetString("welcome_toggle_disabled")
     }
-    _, err := msg.Reply(b, text, helpers.Shtml())
+    _, err := msg.Reply(b, text, formatting.Shtml())
     if err != nil {
         log.Error(err)
         return err
@@ -544,16 +543,16 @@ func init() {
 When displaying user-controlled data in HTML-formatted messages, always escape it:
 
 ```go
-import "github.com/divkix/Alita_Robot/alita/utils/helpers"
+import "github.com/divkix/Alita_Robot/alita/utils/formatting"
 
 // Escape chat titles, usernames, and user-supplied text
-text := fmt.Sprintf("Settings for %s", helpers.HtmlEscape(chat.Title))
+text := fmt.Sprintf("Settings for %s", formatting.HtmlEscape(chat.Title))
 ```
 
-The `helpers.MentionHtml()` function already handles escaping for user names.
+The `formatting.MentionHtml()` function already handles escaping for user names.
 
 :::caution[XSS via Telegram HTML]
-Telegram supports a subset of HTML in messages. User-controlled strings (chat titles, usernames, filter keywords) must be escaped with `helpers.HtmlEscape()` before insertion into HTML-formatted messages. Unescaped angle brackets can break message formatting or inject unintended HTML tags.
+Telegram supports a subset of HTML in messages. User-controlled strings (chat titles, usernames, filter keywords) must be escaped with `formatting.HtmlEscape()` before insertion into HTML-formatted messages. Unescaped angle brackets can break message formatting or inject unintended HTML tags.
 :::
 
 ### Database Operations and User Feedback
@@ -563,7 +562,7 @@ Telegram supports a subset of HTML in messages. User-controlled strings (chat ti
 ```go
 // CORRECT: Synchronous operation before success message
 db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
-_, err := msg.Reply(b, "Welcome message reset successfully!", helpers.Shtml())
+_, err := msg.Reply(b, "Welcome message reset successfully!", formatting.Shtml())
 ```
 
 ```go
@@ -646,13 +645,13 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Add appropriate permission checks
 - [ ] Use `i18n.MustNewTranslator(db.GetLanguage(ctx))` for translations
 - [ ] Handle errors properly (log and return)
-- [ ] **Escape user-controlled input with `helpers.HtmlEscape()`**
+- [ ] **Escape user-controlled input with `formatting.HtmlEscape()`**
 - [ ] **Add panic recovery to goroutines**
 - [ ] Create database models if needed
 - [ ] Create migration file if needed
 - [ ] Add cache helpers if needed
 - [ ] Add translations to all locale files
-- [ ] Register module in `init()` with `RegisterLegacyModule` or `RegisterModule`
+- [ ] Register module in `init()` with `RegisterLegacyModule`
 - [ ] Store module in help system with `DefaultHelpRegistry().AbleMap[name] = true`
 - [ ] Test in development environment
 

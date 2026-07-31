@@ -26,7 +26,7 @@ GET /health
     "database": true,
     "redis": true
   },
-  "version": "2.17.24",
+  "version": "2.21.0",
   "uptime": "24h30m15s"
 }
 ```
@@ -242,7 +242,7 @@ GET /db_metrics
 
 ```json
 {
-  "open": 12,
+  "open_connections": 12,
   "idle": 38,
   "in_use": 7,
   "wait_count": 0,

@@ -38,7 +38,9 @@ Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
         └── docs/adr/
 ```
 
-This repo uses the **single-context** layout.
+This repo is a **single-context** repo, but `CONTEXT.md` and `docs/adr/` don't
+exist here yet — proceed per the guidance above (silently) until
+`/domain-modeling` creates them.
 
 ## Use the glossary's vocabulary
 
