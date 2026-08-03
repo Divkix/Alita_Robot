@@ -10,20 +10,20 @@ services:
     container_name: alita-robot
     restart: always
     environment:
-      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
+      DATABASE_URL: postgresql://${POSTGRES_USER:-alita}:${POSTGRES_PASSWORD:-alita}@postgres:5432/${POSTGRES_DB:-alita}
       REDIS_ADDRESS: redis:6379
-      REDIS_PASSWORD: redis
-      AUTO_MIGRATE: "true"
-      USE_WEBHOOKS: "true"
-      HTTP_PORT: "8080"
-      DROP_PENDING_UPDATES: "true"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      USE_WEBHOOKS: ${USE_WEBHOOKS:-false}
+      HTTP_PORT: ${HTTP_PORT:-8080}
+      DROP_PENDING_UPDATES: ${DROP_PENDING_UPDATES:-true}
       BOT_TOKEN: ${BOT_TOKEN}
       OWNER_ID: ${OWNER_ID}
       MESSAGE_DUMP: ${MESSAGE_DUMP}
-      WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     ports:
-      - "8080:8080"
+      - "${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,14 +48,16 @@ services:
     container_name: alita-postgres
     restart: always
     environment:
-      POSTGRES_USER: alita
-      POSTGRES_PASSWORD: alita
-      POSTGRES_DB: alita
+      POSTGRES_USER: ${POSTGRES_USER:-alita}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alita}
+      POSTGRES_DB: ${POSTGRES_DB:-alita}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alita} -d ${POSTGRES_DB:-alita}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,9 +71,11 @@ services:
     image: redis:7-alpine
     container_name: alita-redis
     restart: always
-    command: redis-server --requirepass redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
