@@ -39,7 +39,8 @@ func IsPermissionError(errStr string) bool {
 
 // SendMessageWithErrorHandling wraps bot.SendMessage with graceful error handling for expected permission errors.
 // This handles cases when the bot lacks send message permissions in a chat.
-// Returns (*Message, nil) for suppressed permission errors to allow callers to continue execution.
+// Returns (nil, nil) for suppressed permission errors — callers MUST nil-check the returned message.
+// This sentinel avoids error spam but is indistinguishable from success without the extra nil check.
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	// Short-circuit if bot is known to be restricted in this chat.
 	if cache.IsChatRestricted(chatId) {

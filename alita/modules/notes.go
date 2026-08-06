@@ -546,9 +546,11 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	switch action {
 	case "no":
 		if token != "" {
-			noteData, err := getNoteOverwriteCache(token)
-			if err == nil && (noteData.UserID == 0 || noteData.UserID == user.Id) {
-				deleteNoteOverwriteCache(token)
+			if data, err := consumeNoteOverwriteCache(token); err == nil {
+				if data.UserID != 0 && data.UserID != user.Id {
+					helpText, _ = tr.GetString("notes_overwrite_cancelled")
+					break
+				}
 			}
 		}
 		helpText, _ = tr.GetString("notes_overwrite_cancelled")
@@ -559,13 +561,8 @@ func (m moduleStruct) noteOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) err
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}
-		pending, err := getNoteOverwriteCache(token)
-		if err != nil || (pending.UserID != 0 && pending.UserID != user.Id) {
-			helpText, _ = tr.GetString("notes_overwrite_cancelled")
-			break
-		}
 		noteData, err := consumeNoteOverwriteCache(token)
-		if err != nil {
+		if err != nil || (noteData.UserID != 0 && noteData.UserID != user.Id) {
 			helpText, _ = tr.GetString("notes_overwrite_cancelled")
 			break
 		}

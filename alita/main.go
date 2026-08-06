@@ -17,7 +17,7 @@ import (
 // and returns them as a comma-separated list wrapped in square brackets.
 func ListModules() string {
 	var modSlice []string
-	for module, enabled := range modules.DefaultHelpRegistry().AbleMap {
+	for module, enabled := range modules.GetAbleMap() {
 		if enabled {
 			modSlice = append(modSlice, module)
 		}
@@ -44,8 +44,9 @@ func InitialChecks(b *gotgbot.Bot) error {
 // It initializes the help system, loads core functionality modules (admin, bans, filters, etc.),
 // and ensures the help module is loaded last to register all available commands.
 func LoadModules(dispatcher *ext.Dispatcher) {
-	// Initialize Inner Map
-	modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+	// Reset registry maps under lock (init-only, single-threaded startup)
+	// ResetHelpRegistry atomically clears AbleMap/helpableKb/AltHelpOptions.
+	modules.ResetHelpRegistry()
 
 	// Load this at last because it loads all the modules
 	defer modules.LoadHelp(dispatcher)

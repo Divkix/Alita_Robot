@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -26,7 +25,9 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 		return loader()
 	}
 
-	_, err := m.Get(cache.Context, key, &result)
+	ctx, cancel := cache.ContextWithTimeout()
+	_, err := m.Get(ctx, key, &result)
+	cancel()
 	if err == nil {
 		return result, nil
 	}
@@ -49,14 +50,19 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 			// ponytail: one global generation avoids unbounded per-key bookkeeping;
 			// shard it only if unrelated writes measurably suppress cache fills.
 			if generation == cacheGeneration.Load() {
-				if err := m.Set(cache.Context, key, val, store.WithExpiration(ttl)); err != nil {
-					log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
+				ctxSet, cancelSet := cache.ContextWithTimeout()
+				setErr := m.Set(ctxSet, key, val, store.WithExpiration(ttl))
+				cancelSet()
+				if setErr != nil {
+					log.Debugf("[Cache] Failed to set cache for key %s: %v", key, setErr)
 				} else if generation != cacheGeneration.Load() {
 					// An invalidation raced with Set after the first check. Delete
 					// the value so an old database snapshot cannot survive it.
-					if err := m.Delete(cache.Context, key); err != nil {
+					ctxDel, cancelDel := cache.ContextWithTimeout()
+					if err := m.Delete(ctxDel, key); err != nil {
 						log.Debugf("[Cache] Failed to delete raced cache value for key %s: %v", key, err)
 					}
+					cancelDel()
 				}
 			}
 			return val, nil
@@ -80,13 +86,16 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 		}{v.(T), nil}
 	}()
 
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
 	select {
 	case res := <-resCh:
 		return res.val, res.err
-	case <-time.After(30 * time.Second):
+	case <-timer.C:
 		cacheGroup.Forget(key)
 		log.Errorf("[Cache] Timeout loading key %s after 30s", key)
-		return result, fmt.Errorf("cache load timeout for key %s", key)
+		val, lerr := loader()
+		return val, lerr
 	}
 }
 
@@ -102,7 +111,9 @@ func DeleteCache(key string) {
 		return
 	}
 
-	err := m.Delete(cache.Context, key)
+	ctx, cancel := cache.ContextWithTimeout()
+	defer cancel()
+	err := m.Delete(ctx, key)
 	if err != nil {
 		log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
 	}

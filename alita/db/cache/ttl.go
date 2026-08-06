@@ -2,6 +2,8 @@ package cache
 
 import "time"
 
+// TTL constants for cache entries. Each domain uses its own TTL to balance
+// freshness vs DB load. Warn settings (30m) are separate from language (1h).
 const (
 	CacheTTLChatSettings    = 30 * time.Minute
 	CacheTTLLanguage        = 1 * time.Hour

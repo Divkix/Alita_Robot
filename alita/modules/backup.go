@@ -50,6 +50,8 @@ type pendingResetState struct {
 
 // Pending backup operations are stored in memory per chat. The callback token
 // prevents an older confirmation button from acting on newer pending state.
+// NOTE: single-instance requirement — pending maps are in-memory and lost on
+// restart; not suitable for multi-instance deployments without shared storage.
 var (
 	pendingMu        sync.Mutex
 	pendingImports   = make(map[int64]pendingImportState)
@@ -190,6 +192,32 @@ func clearPendingReset(chatID int64) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
 	delete(pendingResets, chatID)
+}
+
+func cleanupExpiredPending() {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	now := time.Now()
+	for k, v := range pendingImports {
+		if !now.Before(v.expiresAt) {
+			delete(pendingImports, k)
+		}
+	}
+	for k, v := range pendingResets {
+		if !now.Before(v.expiresAt) {
+			delete(pendingResets, k)
+		}
+	}
+}
+
+func startPendingCleanupTicker() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cleanupExpiredPending()
+		}
+	}()
 }
 
 // exportHandler handles the /export command
@@ -470,13 +498,7 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check rate limiting
-	if allowed, rateLimitText := checkImportRateLimit(chat.Id, tr); !allowed {
-		_, _ = msg.Reply(b, rateLimitText, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	// Check if this is a reply to a document
+	// Check if this is a reply to a document (validate before burning cooldown)
 	if msg.ReplyToMessage == nil || msg.ReplyToMessage.Document == nil {
 		text, _ := tr.GetString("backup_import_no_reply")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -526,6 +548,16 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// If no modules specified, use all from backup
 	if len(importModules) == 0 {
 		importModules = bkp.Modules
+	}
+
+	// Reserve cooldown after validation to avoid burning on malformed input.
+	limiter := ratelimit.GetBackupRateLimiter()
+	if allowed, cooldown := limiter.AcquireImport(chat.Id); !allowed {
+		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
+			"time": ratelimit.FormatCooldown(cooldown),
+		})
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	// Store pending import
@@ -587,18 +619,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check rate limiting
-	limiter := ratelimit.GetBackupRateLimiter()
-	if allowed, cooldown := limiter.CanReset(chat.Id); !allowed {
-		cooldownStr := ratelimit.FormatCooldown(cooldown)
-		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
-			"time": cooldownStr,
-		})
-		_, _ = msg.Reply(b, text, formatting.Shtml())
-		return ext.EndGroups
-	}
-
-	// Parse module arguments
+	// Parse module arguments (validate before burning cooldown)
 	var resetModules []string
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
@@ -616,6 +637,16 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// If no modules specified, reset all
 	if len(resetModules) == 0 {
 		resetModules = backup.AllExportableModules()
+	}
+
+	// Reserve after validation to avoid burning cooldown on malformed input.
+	limiter := ratelimit.GetBackupRateLimiter()
+	if allowed, cooldown := limiter.AcquireReset(chat.Id); !allowed {
+		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
+			"time": ratelimit.FormatCooldown(cooldown),
+		})
+		_, _ = msg.Reply(b, text, formatting.Shtml())
+		return ext.EndGroups
 	}
 
 	// Store pending reset
@@ -718,14 +749,8 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
-	limiter := ratelimit.GetBackupRateLimiter()
-	if allowed, cooldown := limiter.AcquireImport(chat.Id); !allowed {
-		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
-			"time": ratelimit.FormatCooldown(cooldown),
-		})
-		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
-		return ext.EndGroups
-	}
+	// Rate limit already acquired at importHandler entry; no second Acquire here
+	// to keep operation atomic (handler entry reserves the cooldown).
 	// Perform import
 	if err := backup.ImportChatData(chat.Id, bkp, modules); err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
@@ -788,14 +813,7 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 		return ext.EndGroups
 	}
 
-	limiter := ratelimit.GetBackupRateLimiter()
-	if allowed, cooldown := limiter.AcquireReset(chat.Id); !allowed {
-		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
-			"time": ratelimit.FormatCooldown(cooldown),
-		})
-		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
-		return ext.EndGroups
-	}
+	// Rate limit already acquired at resetHandler entry.
 	// Perform reset
 	if err := backup.ClearChatData(chat.Id, modules); err != nil {
 		log.Errorf("[Backup] Reset failed for chat %d: %v", chat.Id, err)
@@ -921,4 +939,5 @@ func LoadBackup(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Backup", 270, LoadBackup)
+	startPendingCleanupTicker()
 }

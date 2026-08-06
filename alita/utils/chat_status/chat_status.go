@@ -67,17 +67,27 @@ func callbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 // checkAnonAdmin handles anonymous admin checks.
 // Returns true if user should be treated as admin (anon bypass enabled),
 // false if anon keyboard was sent, and a bool indicating if caller should return immediately.
+// skipKeyboard prevents spamming keyboards when called from high-volume watchers.
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
+	return checkAnonAdminWithOptions(b, chat, msg, sender, false)
+}
+
+func checkAnonAdminWithOptions(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender, skipKeyboard bool) (isAdmin bool, shouldReturn bool) {
 	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
 	}
 	if admin.GetAdminSettings(chat.Id).AnonAdmin {
 		return true, true
 	}
+	if msg == nil {
+		return false, true
+	}
 	setAnonAdminCache(chat.Id, msg)
-	_, err := sendAnonAdminKeyboard(b, msg, chat)
-	if err != nil {
-		log.Error(err)
+	if !skipKeyboard {
+		_, err := sendAnonAdminKeyboard(b, msg, chat)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	return false, true
 }
@@ -223,10 +233,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return true
 	}
 
-	// Create context with timeout to prevent blocking indefinitely
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// Check cache first - avoid GetChat call if possible
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
 	if adminsAvail && admins.Cached {
@@ -246,8 +252,10 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return false
 	}
 
-	// Only make GetChat call if cache miss - use context with timeout
-	chat, err := b.GetChatWithContext(ctx, chatID, nil)
+	// Only make GetChat call if cache miss - use fresh context per API call
+	ctxGetChat, cancelGetChat := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelGetChat()
+	chat, err := b.GetChatWithContext(ctxGetChat, chatID, nil)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"chatID": chatID,
@@ -280,18 +288,19 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	}
 
 	// Fallback: If admin cache is empty but we know this is a group/supergroup,
-	// try a direct GetChatMember call as backup using the existing context timeout
+	// try a direct GetChatMember call as backup with a fresh context
 	if len(adminList.UserInfo) == 0 {
 		log.WithFields(log.Fields{
 			"chatID": chatID,
 			"userID": userId,
 		}).Debug("IsUserAdmin: Admin cache empty, trying direct GetChatMember fallback")
 
-		// Use context-aware API call to ensure proper cancellation on timeout
-		member, err := b.GetChatMemberWithContext(ctx, chatID, userId, nil)
+		ctxMember, cancelMember := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelMember()
+		member, err := b.GetChatMemberWithContext(ctxMember, chatID, userId, nil)
 		if err != nil {
 			// Check for context timeout
-			if ctx.Err() != nil {
+			if ctxMember.Err() != nil {
 				log.WithFields(log.Fields{
 					"chatID": chatID,
 					"userID": userId,

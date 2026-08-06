@@ -33,25 +33,31 @@ func getBotUsername(b *gotgbot.Bot) string {
 	if cached != "" {
 		return cached
 	}
-	cachedBotUsernameMu.Lock()
-	defer cachedBotUsernameMu.Unlock()
-	// double-check under write lock
-	if cachedBotUsername != "" {
-		return cachedBotUsername
-	}
-	// try bot struct first
+	// Fetch outside lock to avoid holding lock over network RTT
 	if b != nil && b.Username != "" {
-		cachedBotUsername = b.Username
-		return cachedBotUsername
+		cachedBotUsernameMu.Lock()
+		if cachedBotUsername == "" {
+			cachedBotUsername = b.Username
+		}
+		cached := cachedBotUsername
+		cachedBotUsernameMu.Unlock()
+		return cached
 	}
-	// fallback to GetMe
 	if b != nil {
 		if me, err := b.GetMe(nil); err == nil && me != nil && me.Username != "" {
-			cachedBotUsername = me.Username
-			return cachedBotUsername
+			cachedBotUsernameMu.Lock()
+			if cachedBotUsername == "" {
+				cachedBotUsername = me.Username
+			}
+			cached := cachedBotUsername
+			cachedBotUsernameMu.Unlock()
+			return cached
 		}
 	}
-	return ""
+	// Re-check under RLock in case another goroutine populated it
+	cachedBotUsernameMu.RLock()
+	defer cachedBotUsernameMu.RUnlock()
+	return cachedBotUsername
 }
 
 // Dynamic strings that will be loaded using i18n

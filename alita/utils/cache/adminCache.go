@@ -16,14 +16,21 @@ import (
 // LoadAdminCache retrieves and caches the list of administrators for a given chat.
 // It fetches the current administrators from Telegram API and stores them in cache
 // with a 30-minute expiration. Returns an AdminCache struct containing the admin list.
+func adminCacheKey(chatId int64) string {
+	return fmt.Sprintf("alita:adminCache:%d", chatId)
+}
+
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
 		return AdminCache{}
 	}
-	storeResult := func(adminCache AdminCache) AdminCache {
+
+	const negativeAdminCacheTTL = 2 * time.Minute
+
+	storeWithTTL := func(adminCache AdminCache, ttl time.Duration) AdminCache {
 		if m := GetMarshal(); m != nil {
-			if err := m.Set(Context, fmt.Sprintf("alita:adminCache:%d", chatId), adminCache, store.WithExpiration(constants.AdminCacheTTL)); err != nil {
+			if err := m.Set(Context, adminCacheKey(chatId), adminCache, store.WithExpiration(ttl)); err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chatId,
 					"error":  err,
@@ -32,13 +39,17 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		}
 		return adminCache
 	}
+	storeResult := func(ac AdminCache) AdminCache {
+		return storeWithTTL(ac, constants.AdminCacheTTL)
+	}
+	storeNegativeResult := func(ac AdminCache) AdminCache {
+		return storeWithTTL(ac, negativeAdminCacheTTL)
+	}
 
-	// Create context with timeout to prevent indefinite blocking
-	ctx, cancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
-	defer cancel()
-
-	// First, check if bot itself is admin to diagnose permission issues
-	botMember, botErr := b.GetChatMemberWithContext(ctx, chatId, b.Id, nil)
+	// Check if bot itself is admin with a dedicated timeout context
+	botCtx, botCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
+	botMember, botErr := b.GetChatMemberWithContext(botCtx, chatId, b.Id, nil)
+	botCancel()
 	if botErr != nil {
 		log.WithFields(log.Fields{
 			"chatId": chatId,
@@ -55,7 +66,7 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 
 	botStatus := botMember.GetStatus()
 	if botStatus != "administrator" && botStatus != "creator" {
-		return storeResult(AdminCache{
+		return storeNegativeResult(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
 			Cached:   true,
@@ -72,13 +83,15 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		"botStatus": botStatus,
 	}).Debug("LoadAdminCache: Bot has admin privileges")
 
-	// Retry logic for API call
+	// Retry logic for API call — per-attempt timeout to avoid deadline exceeded after sleeps
 	maxRetries := 3
 	var adminList []gotgbot.ChatMember
 	var err error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		adminList, err = b.GetChatAdministratorsWithContext(ctx, chatId, nil)
+		attemptCtx, attemptCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
+		adminList, err = b.GetChatAdministratorsWithContext(attemptCtx, chatId, nil)
+		attemptCancel()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"chatId":    chatId,
@@ -146,7 +159,7 @@ func GetAdminCacheList(chatId int64) (bool, AdminCache) {
 	}
 	gotAdminlist, err := m.Get(
 		Context,
-		fmt.Sprintf("alita:adminCache:%d", chatId),
+		adminCacheKey(chatId),
 		new(AdminCache),
 	)
 	if err != nil {
@@ -174,7 +187,7 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 		return false, gotgbot.MergedChatMember{}
 	}
 	// Use consistent string key format matching LoadAdminCache
-	adminList, err := m.Get(Context, fmt.Sprintf("alita:adminCache:%d", chatId), new(AdminCache))
+	adminList, err := m.Get(Context, adminCacheKey(chatId), new(AdminCache))
 	if err != nil || adminList == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
@@ -207,7 +220,7 @@ func InvalidateAdminCache(chatId int64) {
 	if m == nil {
 		return
 	}
-	cacheKey := fmt.Sprintf("alita:adminCache:%d", chatId)
+	cacheKey := adminCacheKey(chatId)
 	if err := m.Delete(Context, cacheKey); err != nil {
 		log.Debugf("[AdminCache] Failed to invalidate cache for chat %d: %v", chatId, err)
 	} else {

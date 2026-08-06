@@ -186,8 +186,21 @@ func TestPurgeFromToDeletesMarkedRange(t *testing.T) {
 	if err := purgesModule.purgeFrom(bot, fromCtx); err != ext.EndGroups {
 		t.Fatalf("purgeFrom error = %v, want EndGroups", err)
 	}
-	if stored, ok := delMsgs.Load(chat.Id); !ok || stored.(int64) != 215 {
-		t.Fatalf("stored purge marker = %v/%v, want 215", stored, ok)
+	if stored, ok := delMsgs.Load(chat.Id); !ok {
+		t.Fatalf("stored purge marker missing, want 215")
+	} else {
+		var sid int64
+		switch v := stored.(type) {
+		case delMsgEntry:
+			sid = v.msgID
+		case int64:
+			sid = v
+		default:
+			t.Fatalf("stored purge marker type = %T, want int64 or delMsgEntry", stored)
+		}
+		if sid != 215 {
+			t.Fatalf("stored purge marker = %v, want 215", sid)
+		}
 	}
 
 	toCtx := newPurgeReplyContext(bot, chat, admin, "/purgeto reason", 230, 218)

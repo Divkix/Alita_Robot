@@ -47,6 +47,7 @@ type BackgroundStatsCollector struct {
 	cancel      context.CancelFunc
 	wg          sync.WaitGroup
 	stopOnce    sync.Once
+	started     atomic.Bool
 	metrics     SystemMetrics
 	metricsLock sync.RWMutex
 
@@ -87,6 +88,10 @@ func NewBackgroundStatsCollector() *BackgroundStatsCollector {
 
 // Start begins the background statistics collection
 func (collector *BackgroundStatsCollector) Start() {
+	if !collector.started.CompareAndSwap(false, true) {
+		log.Warn("BackgroundStatsCollector already started, ignoring duplicate Start")
+		return
+	}
 	log.Info("Starting background statistics collection")
 
 	// Start collection goroutines

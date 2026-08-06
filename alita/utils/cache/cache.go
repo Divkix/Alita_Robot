@@ -24,6 +24,12 @@ var (
 	marshalMu   sync.RWMutex
 )
 
+// ContextWithTimeout returns a context with a 5-second timeout derived from the background Context.
+// Use this for cache Get/Set/Delete operations to avoid indefinite blocking when Redis is unavailable.
+func ContextWithTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(Context, 5*time.Second)
+}
+
 // GetMarshal returns the active cache marshaler when initialized.
 func GetMarshal() *marshaler.Marshaler {
 	marshalMu.RLock()

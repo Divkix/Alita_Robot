@@ -95,11 +95,12 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 			return true
 		}
 		if errors.Is(err, redis.Nil) {
-			// Key already existed; another goroutine claimed this join.
+			// Key already existed; another instance/goroutine claimed this join.
 			return false
 		}
-		// Genuine Redis error — fall through to in-memory fallback.
-		log.Debugf("[Greetings] Redis SETNX unavailable for join dedupe key %s, falling back to in-memory claim: %v", key, err)
+		// Genuine Redis error — fail closed to avoid double welcome/captcha in multi-instance.
+		log.Debugf("[Greetings] Redis SETNX failed for join dedupe key %s, failing closed: %v", key, err)
+		return false
 	}
 
 	if _, loaded := recentJoinProcessing.LoadOrStore(key, struct{}{}); loaded {
@@ -116,8 +117,8 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 func clearRecentJoinProcessing(chatID, userID int64) {
 	key := recentJoinProcessingKey(chatID, userID)
 
-	if m := cache.GetMarshal(); m != nil {
-		if err := m.Delete(cache.Context, key); err != nil {
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		if err := rdb.Del(cache.Context, key).Err(); err != nil {
 			log.Debugf("[Greetings] Failed to clear shared join dedupe key %s: %v", key, err)
 		}
 	}

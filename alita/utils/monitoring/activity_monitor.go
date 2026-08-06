@@ -152,123 +152,77 @@ func (am *ActivityMonitor) performActivityCheck() {
 	log.Infof("[ActivityMonitor] Activity check completed in %v", elapsed)
 }
 
+// countAsync runs a single COUNT query in a goroutine and logs on error.
+func countAsync(wg *sync.WaitGroup, query func() error, errMsg string) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
+		if err := query(); err != nil {
+			log.Errorf("[ActivityMonitor] %s: %v", errMsg, err)
+		}
+	}()
+}
+
 // calculateMetrics calculates activity metrics in parallel for improved performance.
 // Executes 9 database COUNT queries concurrently using goroutines.
+// Each goroutine writes to its own local variable to avoid data races on struct fields.
 func (am *ActivityMonitor) calculateMetrics() {
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 	monthAgo := now.Add(-30 * 24 * time.Hour)
 
-	metrics := &ActivityMetrics{
-		CalculatedAt: now,
-	}
+	var (
+		dailyGroups, weeklyGroups, monthlyGroups, totalGroups, inactiveGroups int64
+		dailyUsers, weeklyUsers, monthlyUsers, totalUsers                     int64
+	)
 
 	var wg sync.WaitGroup
 
-	// Group 1: Chat metrics (5 queries) - run in parallel
-	wg.Add(5)
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).
-			Count(&metrics.DailyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting daily active groups: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).
-			Count(&metrics.WeeklyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting weekly active groups: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).
-			Count(&metrics.MonthlyActiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting monthly active groups: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.Chat{}).Count(&metrics.TotalGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting total groups: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.Chat{}).
-			Where("is_inactive = ?", true).
-			Count(&metrics.InactiveGroups).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting inactive groups: %v", err)
-		}
-	}()
-
-	// Group 2: User metrics (4 queries) - run in parallel
-	wg.Add(4)
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", dayAgo).
-			Count(&metrics.DailyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting daily active users: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", weekAgo).
-			Count(&metrics.WeeklyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting weekly active users: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.User{}).
-			Where("last_activity >= ?", monthAgo).
-			Count(&metrics.MonthlyActiveUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting monthly active users: %v", err)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		defer error_handling.RecoverFromPanic("calculateMetrics", "ActivityMonitor")
-		err := db.DB.Model(&db.User{}).Count(&metrics.TotalUsers).Error
-		if err != nil {
-			log.Errorf("[ActivityMonitor] Error counting total users: %v", err)
-		}
-	}()
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).Count(&dailyGroups).Error
+	}, "Error counting daily active groups")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).Count(&weeklyGroups).Error
+	}, "Error counting weekly active groups")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).Count(&monthlyGroups).Error
+	}, "Error counting monthly active groups")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.Chat{}).Count(&totalGroups).Error
+	}, "Error counting total groups")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.Chat{}).Where("is_inactive = ?", true).Count(&inactiveGroups).Error
+	}, "Error counting inactive groups")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.User{}).Where("last_activity >= ?", dayAgo).Count(&dailyUsers).Error
+	}, "Error counting daily active users")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.User{}).Where("last_activity >= ?", weekAgo).Count(&weeklyUsers).Error
+	}, "Error counting weekly active users")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.User{}).Where("last_activity >= ?", monthAgo).Count(&monthlyUsers).Error
+	}, "Error counting monthly active users")
+	countAsync(&wg, func() error {
+		return db.DB.Model(&db.User{}).Count(&totalUsers).Error
+	}, "Error counting total users")
 
 	// Wait for all queries to complete
 	wg.Wait()
+
+	metrics := &ActivityMetrics{
+		DailyActiveGroups:   dailyGroups,
+		WeeklyActiveGroups:  weeklyGroups,
+		MonthlyActiveGroups: monthlyGroups,
+		TotalGroups:         totalGroups,
+		InactiveGroups:      inactiveGroups,
+		DailyActiveUsers:    dailyUsers,
+		WeeklyActiveUsers:   weeklyUsers,
+		MonthlyActiveUsers:  monthlyUsers,
+		TotalUsers:          totalUsers,
+		CalculatedAt:        now,
+	}
 
 	// Store metrics
 	am.metricsLock.Lock()

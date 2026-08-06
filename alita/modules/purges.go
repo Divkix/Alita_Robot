@@ -22,21 +22,57 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
+type delMsgEntry struct {
+	userID    int64
+	timestamp time.Time
+	msgID     int64
+}
+
 var (
 	purgesModule = moduleStruct{moduleName: "Purges"}
-	delMsgs      = sync.Map{} // Concurrent-safe map for tracking messages to delete
+	delMsgs      = sync.Map{} // Concurrent-safe map for tracking messages to delete (value is delMsgEntry)
 )
 
-// PurgeWorker manages concurrent message deletion with rate limiting
+// checkPurgePermissions verifies all permissions required for purge/delete commands.
+// Returns the user and true if all checks pass, nil and false otherwise (response already sent).
+func checkPurgePermissions(bot *gotgbot.Bot, ctx *ext.Context) (*gotgbot.User, bool) {
+	user := chat_status.RequireUser(bot, ctx)
+	if user == nil {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
+		return nil, false
+	}
+	if !chat_status.RequireGroup(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
+		return nil, false
+	}
+	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+		return nil, false
+	}
+	if !chat_status.CanBotDelete(bot, ctx, nil) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
+		return nil, false
+	}
+	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		return nil, false
+	}
+	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+		return nil, false
+	}
+	return user, true
+}
+
+// PurgeWorker collects errors from concurrent message deletion.
 type PurgeWorker struct {
-	sem        chan struct{} // Semaphore for rate limiting
-	errors     []error       // Collect errors
-	errorCount int           // Count of errors
-	mu         sync.Mutex    // Protect error slice
+	errors     []error // Collect errors
+	errorCount int     // Count of errors
+	mu         sync.Mutex
 }
 
 // purgeMsgsConcurrent performs concurrent message deletion with rate limiting.
-// Uses goroutines to delete messages in parallel for better performance.
+// Uses a fixed worker pool to avoid spawning up to 1000 goroutines.
 func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, msgId, deleteTo int64) bool {
 	// Handle the starting message if not pFrom
 	if !pFrom {
@@ -84,36 +120,35 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		return true
 	}
 
-	// For larger ranges, use concurrent deletion
+	// For larger ranges, use fixed worker pool
+	const maxConcurrentMsgDeletions = 10
 	worker := &PurgeWorker{
-		sem:    make(chan struct{}, 10), // Max 10 concurrent deletions
 		errors: make([]error, 0),
 	}
 
-	var wg sync.WaitGroup
-
-	// Delete messages concurrently
+	jobs := make(chan int64, totalMessages)
 	for mId := deleteTo; mId >= loopFrom; mId-- {
-		wg.Add(1)
-		worker.sem <- struct{}{} // Acquire semaphore
-
-		go func(messageId int64) {
-			defer wg.Done()
-			defer func() { <-worker.sem }() // Release semaphore
-
-			err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, messageId)
-			if err != nil {
-				worker.mu.Lock()
-				worker.errorCount++
-				// Only log first 5 errors to avoid spam
-				if worker.errorCount <= 5 {
-					worker.errors = append(worker.errors, err)
-				}
-				worker.mu.Unlock()
-			}
-		}(mId)
+		jobs <- mId
 	}
+	close(jobs)
 
+	var wg sync.WaitGroup
+	for i := 0; i < maxConcurrentMsgDeletions; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for messageID := range jobs {
+				if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, messageID); err != nil {
+					worker.mu.Lock()
+					worker.errorCount++
+					if worker.errorCount <= 5 {
+						worker.errors = append(worker.errors, err)
+					}
+					worker.mu.Unlock()
+				}
+			}
+		}()
+	}
 	wg.Wait()
 
 	// Log errors if any (excluding "not found" errors)
@@ -138,31 +173,7 @@ func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, 
 // purge handles the /purge command to delete all messages from a replied
 // message up to the command message, requiring admin permissions.
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
 	}
 
@@ -206,8 +217,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
-					timer := time.NewTimer(3 * time.Second)
-					<-timer.C
+					time.Sleep(3 * time.Second)
 					_, _ = msgToDelete.Delete(bot, nil)
 				}(pMsg)
 			}
@@ -228,31 +238,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 // delCmd handles the /del command to delete a specific replied message
 // along with the command message, requiring admin permissions.
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
 	}
 
@@ -345,31 +331,8 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 // purgeFrom handles the /purgefrom command to mark a starting message
 // for range deletion, requiring admin permissions.
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+	user, ok := checkPurgePermissions(bot, ctx)
+	if !ok {
 		return ext.EndGroups
 	}
 
@@ -378,11 +341,20 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if msg.ReplyToMessage != nil {
 		TodelId := msg.ReplyToMessage.MessageId
-		if existingId, ok := delMsgs.Load(chat.Id); ok && existingId == TodelId {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-			text, _ := tr.GetString("purges_message_marked")
-			_, _ = msg.Reply(bot, text, nil)
-			return ext.EndGroups
+		if existing, ok := delMsgs.Load(chat.Id); ok {
+			if entry, ok := existing.(delMsgEntry); ok && entry.msgID == TodelId {
+				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+				text, _ := tr.GetString("purges_message_marked")
+				_, _ = msg.Reply(bot, text, nil)
+				return ext.EndGroups
+			}
+			// Reject overwrite — inform user to use purgefrom again or clear
+			if existing != nil {
+				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+				text, _ := tr.GetString("purges_message_marked")
+				_, _ = msg.Reply(bot, text, nil)
+				return ext.EndGroups
+			}
 		}
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			_, _ = msg.Reply(bot, err.Error(), nil)
@@ -402,15 +374,16 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		delMsgs.Store(chat.Id, TodelId)
+		delMsgs.Store(chat.Id, delMsgEntry{userID: user.Id, timestamp: time.Now(), msgID: TodelId})
 
 		// Run cleanup in background goroutine to avoid blocking the handler
 		go func(chatId, toDelId int64, msgToDelete *gotgbot.Message) {
-			timer := time.NewTimer(30 * time.Second)
-			<-timer.C
+			time.Sleep(30 * time.Second)
 			// Only clean up if the stored ID is still the same (not overwritten by another purgefrom)
-			if existingId, ok := delMsgs.Load(chatId); ok && existingId == toDelId {
-				delMsgs.Delete(chatId)
+			if existingId, ok := delMsgs.Load(chatId); ok {
+				if entry, ok := existingId.(delMsgEntry); ok && entry.msgID == toDelId {
+					delMsgs.Delete(chatId)
+				}
 			}
 			_, err := msgToDelete.Delete(bot, nil)
 			if err != nil {
@@ -435,31 +408,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 // purgeTo handles the /purgeto command to complete range deletion
 // from a previously marked message, requiring admin permissions.
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-
-	// Permission checks
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.CanBotDelete(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.CanUserDelete(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
 	}
 
@@ -471,7 +420,11 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		msgIdInterface, ok := delMsgs.Load(chat.Id)
 		msgId := int64(0)
 		if ok {
-			msgId = msgIdInterface.(int64)
+			if entry, ok := msgIdInterface.(delMsgEntry); ok {
+				msgId = entry.msgID
+			} else if legacy, ok := msgIdInterface.(int64); ok {
+				msgId = legacy
+			}
 		}
 		if msgId == 0 {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -537,8 +490,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
-					timer := time.NewTimer(3 * time.Second)
-					<-timer.C
+					time.Sleep(3 * time.Second)
 					_, _ = msgToDelete.Delete(bot, nil)
 				}(pMsg)
 			}

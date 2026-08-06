@@ -68,6 +68,12 @@ var (
 		redis.call("DEL", KEYS[2])
 		return existed
 	`)
+	trackJoinScript = redis.NewScript(`
+		redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
+		redis.call('EXPIRE', KEYS[1], ARGV[3])
+		redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[4])
+		return redis.call('ZCARD', KEYS[1])
+	`)
 )
 
 type antiRaidStruct struct {
@@ -129,19 +135,15 @@ func trackJoin(chatID, userID int64) (count int, err error) {
 	now := time.Now().Unix()
 	ctx := cache.Context
 	rdb := cache.GetRedisClient()
-	_, err = rdb.ZAdd(ctx, joinsKey(chatID), redis.Z{Score: float64(now), Member: strconv.FormatInt(userID, 10)}).Result()
+	// Use unique member to count events, not distinct users (multiple joins from same user in window count separately)
+	member := fmt.Sprintf("%d:%d:%d", userID, now, time.Now().UnixNano())
+	window := antiraidJoinWindowSeconds
+	cutoff := now - int64(antiraidJoinWindowSeconds)
+	res, err := trackJoinScript.Run(ctx, rdb, []string{joinsKey(chatID)}, now, member, window, cutoff).Int()
 	if err != nil {
 		return 0, err
 	}
-	if err := rdb.Expire(ctx, joinsKey(chatID), time.Duration(antiraidJoinWindowSeconds)*time.Second).Err(); err != nil {
-		log.WithError(err).Warnf("[AntiRaid] Failed to expire join tracking for chat %d", chatID)
-	}
-	_, err = rdb.ZRemRangeByScore(ctx, joinsKey(chatID), "0", strconv.FormatInt(now-int64(antiraidJoinWindowSeconds), 10)).Result()
-	if err != nil {
-		log.WithError(err).Warnf("[AntiRaid] ZRemRangeByScore failed on joinsKey %d", chatID)
-	}
-	rawCount, err := rdb.ZCard(ctx, joinsKey(chatID)).Result()
-	return int(rawCount), err
+	return res, nil
 }
 
 func clearJoinTracking(chatID int64) {
@@ -274,7 +276,7 @@ func (a *antiRaidStruct) checkExpiredRaids(ctx context.Context) {
 	}
 	rdb := cache.GetRedisClient()
 
-	iter := rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", antiraidStateKey), 0).Iterator()
+	iter := rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", antiraidStateKey), 100).Iterator()
 	for iter.Next(ctx) {
 		k := iter.Val()
 		parts := strings.Split(k, ":")

@@ -15,7 +15,7 @@ type KeywordMatcher struct {
 	matcher     *ahocorasick.Matcher
 	patterns    []string
 	patternHash uint64
-	mu          sync.Mutex
+	mu          sync.RWMutex
 	lastBuild   time.Time
 }
 
@@ -63,7 +63,12 @@ func (km *KeywordMatcher) build() {
 }
 
 // FirstMatch returns the first pattern that matches the given text.
+// ahocorasick.Matcher.Match is not safe for concurrent use, so we hold an
+// exclusive lock across the Match call. ToLower is done outside the lock to
+// reduce contention.
 func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
+	lowerText := strings.ToLower(text)
+
 	km.mu.Lock()
 	defer km.mu.Unlock()
 
@@ -71,7 +76,6 @@ func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 		return "", false
 	}
 
-	lowerText := strings.ToLower(text)
 	hits := km.matcher.Match([]byte(lowerText))
 	if len(hits) == 0 {
 		return "", false

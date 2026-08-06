@@ -18,6 +18,7 @@ var registry []registeredModule
 
 // RegisterLegacyModule registers a module loader.
 // Duplicate registrations are silently ignored to prevent double-loading handlers.
+// init-only, not safe for concurrent Register.
 func RegisterLegacyModule(name string, priority int, load func(*ext.Dispatcher)) {
 	for _, existing := range registry {
 		if existing.name == name {

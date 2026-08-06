@@ -130,13 +130,21 @@ func TestMessageTypeToString(t *testing.T) {
 
 func TestSecureIntn(t *testing.T) {
 	t.Run("max zero returns zero", func(t *testing.T) {
-		if got := secureIntn(0); got != 0 {
+		got, err := secureIntn(0)
+		if err != nil {
+			t.Fatalf("secureIntn(0) error = %v", err)
+		}
+		if got != 0 {
 			t.Fatalf("secureIntn(0) = %d, want 0", got)
 		}
 	})
 
 	t.Run("negative max returns zero", func(t *testing.T) {
-		if got := secureIntn(-5); got != 0 {
+		got, err := secureIntn(-5)
+		if err != nil {
+			t.Fatalf("secureIntn(-5) error = %v", err)
+		}
+		if got != 0 {
 			t.Fatalf("secureIntn(-5) = %d, want 0", got)
 		}
 	})
@@ -144,7 +152,10 @@ func TestSecureIntn(t *testing.T) {
 	t.Run("positive max returns value in range", func(t *testing.T) {
 		const max = 100
 		for i := 0; i < 50; i++ {
-			got := secureIntn(max)
+			got, err := secureIntn(max)
+			if err != nil {
+				t.Fatalf("secureIntn(%d) error = %v", max, err)
+			}
 			if got < 0 || got >= max {
 				t.Fatalf("secureIntn(%d) = %d, want [0, %d)", max, got, max)
 			}
@@ -153,7 +164,11 @@ func TestSecureIntn(t *testing.T) {
 
 	t.Run("max 1 always returns 0", func(t *testing.T) {
 		for i := 0; i < 20; i++ {
-			if got := secureIntn(1); got != 0 {
+			got, err := secureIntn(1)
+			if err != nil {
+				t.Fatalf("secureIntn(1) error = %v", err)
+			}
+			if got != 0 {
 				t.Fatalf("secureIntn(1) = %d, want 0", got)
 			}
 		}
@@ -165,7 +180,9 @@ func TestSecureIntn(t *testing.T) {
 func TestSecureShuffleStrings(t *testing.T) {
 	t.Run("empty slice", func(t *testing.T) {
 		empty := []string{}
-		secureShuffleStrings(empty)
+		if err := secureShuffleStrings(empty); err != nil {
+			t.Fatalf("secureShuffleStrings(empty) error = %v", err)
+		}
 		if len(empty) != 0 {
 			t.Fatalf("expected empty slice, got %v", empty)
 		}
@@ -173,7 +190,9 @@ func TestSecureShuffleStrings(t *testing.T) {
 
 	t.Run("single element", func(t *testing.T) {
 		single := []string{"only"}
-		secureShuffleStrings(single)
+		if err := secureShuffleStrings(single); err != nil {
+			t.Fatalf("secureShuffleStrings(single) error = %v", err)
+		}
 		if len(single) != 1 || single[0] != "only" {
 			t.Fatalf("expected [only], got %v", single)
 		}
@@ -183,7 +202,9 @@ func TestSecureShuffleStrings(t *testing.T) {
 		original := []string{"a", "b", "c", "d", "e"}
 		for i := 0; i < 20; i++ {
 			copySlice := slices.Clone(original)
-			secureShuffleStrings(copySlice)
+			if err := secureShuffleStrings(copySlice); err != nil {
+				t.Fatalf("secureShuffleStrings error = %v", err)
+			}
 			if len(copySlice) != len(original) {
 				t.Fatalf("length changed: %d vs %d", len(copySlice), len(original))
 			}
@@ -200,7 +221,10 @@ func TestSecureShuffleStrings(t *testing.T) {
 
 func TestGenerateMathCaptcha(t *testing.T) {
 	for i := 0; i < 20; i++ {
-		question, answer, options := generateMathCaptcha()
+		question, answer, options, err := generateMathCaptcha()
+		if err != nil {
+			t.Fatalf("generateMathCaptcha() error = %v", err)
+		}
 
 		if question == "" {
 			t.Fatal("expected non-empty question")

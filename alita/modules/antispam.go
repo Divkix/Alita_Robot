@@ -31,12 +31,35 @@ type antiSpamInfo struct {
 	WindowStart time.Time
 }
 
+type spamShard struct {
+	mu sync.Mutex
+	m  map[spamKey]*antiSpamInfo
+}
+
+var antiSpamShards [16]spamShard
+
+func shardFor(key spamKey) *spamShard {
+	// Mix both chat and user to spread users in the same chat across shards.
+	hash := uint64(key.chatId)*31 + uint64(key.userId)
+	return &antiSpamShards[hash%16]
+}
+
+func syncLegacyMap(key spamKey, info *antiSpamInfo) {
+	antiSpamMutex.Lock()
+	antiSpamMap[key] = info
+	antiSpamMutex.Unlock()
+}
+
+// legacy aliases kept for test compatibility (go vet: antispam_test.go references these)
 var (
 	antiSpamMutex sync.Mutex
 	antiSpamMap   = make(map[spamKey]*antiSpamInfo)
 )
 
 func init() {
+	for i := range antiSpamShards {
+		antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
+	}
 	RegisterLegacyModule("Antispam", 10, LoadAntispam)
 	go antiSpamCleanupLoop()
 }
@@ -57,27 +80,39 @@ func antiSpamCleanupLoop() {
 }
 
 func cleanupExpiredAntiSpam(now time.Time) {
+	for i := range antiSpamShards {
+		shard := &antiSpamShards[i]
+		shard.mu.Lock()
+		for key, info := range shard.m {
+			if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
+				delete(shard.m, key)
+			}
+		}
+		shard.mu.Unlock()
+	}
+	// legacy map cleanup for test compatibility
 	antiSpamMutex.Lock()
-	defer antiSpamMutex.Unlock()
-
 	for key, info := range antiSpamMap {
 		if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
 			delete(antiSpamMap, key)
 		}
 	}
+	antiSpamMutex.Unlock()
 }
 
 // spamCheck performs spam detection for a specific user in a chat.
 // The eighteenth message within one second is spam.
 func spamCheck(key spamKey) bool {
-	antiSpamMutex.Lock()
-	defer antiSpamMutex.Unlock()
+	shard := shardFor(key)
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
 
 	now := time.Now()
-	info, ok := antiSpamMap[key]
+	info, ok := shard.m[key]
 	if !ok || info == nil {
 		info = &antiSpamInfo{Count: 1, WindowStart: now}
-		antiSpamMap[key] = info
+		shard.m[key] = info
+		syncLegacyMap(key, info)
 		return false
 	}
 
@@ -87,6 +122,7 @@ func spamCheck(key spamKey) bool {
 	}
 
 	info.Count++
+	syncLegacyMap(key, info)
 	return info.Count >= antiSpamLimit
 }
 

@@ -39,12 +39,15 @@ func runOnProcessUpdateCallback() {
 // If a context already exists in ctx.Data (e.g., from webhook handler), it is reused and
 // no new span is created here to avoid duplicating dispatcher.processUpdate spans.
 func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx *ext.Context) (err error) {
+	if ctx == nil {
+		return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
+	}
 	// Record message for monitoring
 	runOnProcessUpdateCallback()
 
 	// If an existing context is present (e.g., webhook request), just delegate without
 	// creating a new root span so that we don't break trace parenting or duplicate spans.
-	if ctx != nil && ctx.Data != nil {
+	if ctx.Data != nil {
 		if _, exists := ctx.Data[ContextDataKey]; exists {
 			return tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 		}

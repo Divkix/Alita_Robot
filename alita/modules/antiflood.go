@@ -76,18 +76,43 @@ func init() {
 }
 
 // cleanupOnce performs a single cleanup pass, removing entries idle for more
-// than 600 seconds (10 minutes) from both syncHelperMap and floodMu.
+// than 600 seconds (10 minutes) from syncHelperMap and floodMu.
 // It is called by cleanupLoop on each ticker tick and is also directly
 // callable in tests for deterministic verification.
 func (a *antifloodStruct) cleanupOnce(now int64) {
 	a.syncHelperMap.Range(func(key, value any) bool {
-		if floodData, ok := value.(floodControl); ok {
-			// Remove entries older than 10 minutes
-			if now-floodData.lastActivity > 600 {
+		floodData, ok := value.(floodControl)
+		if !ok || now-floodData.lastActivity <= 600 {
+			return true
+		}
+		// Acquire per-key mutex before deleting to avoid racing with updateFlood's RMW cycle.
+		// If the mutex is busy, skip this key and retry next tick.
+		if muVal, hasMu := floodMu.Load(key); hasMu {
+			if mu, ok := muVal.(*sync.Mutex); ok {
+				if !mu.TryLock() {
+					return true
+				}
+				// Re-validate after acquiring lock - entry may have been refreshed.
+				if cur, ok := a.syncHelperMap.Load(key); ok {
+					if curFC, ok := cur.(floodControl); ok && now-curFC.lastActivity <= 600 {
+						mu.Unlock()
+						return true
+					}
+				} else {
+					// Already deleted by concurrent writer
+					floodMu.Delete(key)
+					mu.Unlock()
+					return true
+				}
 				a.syncHelperMap.Delete(key)
 				floodMu.Delete(key)
+				mu.Unlock()
+				return true
 			}
+			// Unexpected type - delete the entry
+			floodMu.Delete(key)
 		}
+		a.syncHelperMap.Delete(key)
 		return true
 	})
 }

@@ -18,8 +18,9 @@ import (
 // Used internally before performing any notes-related operation.
 // Returns default settings if the chat doesn't exist in the database.
 // Results are cached with stampede protection for performance.
+// Caches value type to avoid double-pointer issue with generic loader.
 func getNotesSettings(chatID int64) *models.NotesSettings {
-	settings, err := cache.GetFromCacheOrLoad(cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func() (*models.NotesSettings, error) {
+	settingsVal, err := cache.GetFromCacheOrLoad(cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func() (models.NotesSettings, error) {
 		noteSrc := &models.NotesSettings{}
 		err := db.GetRecord(noteSrc, models.NotesSettings{ChatId: chatID})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -27,7 +28,7 @@ func getNotesSettings(chatID int64) *models.NotesSettings {
 			if !db.ChatExists(chatID) {
 				// Chat doesn't exist, return default settings without creating record
 				log.Warnf("[Database][getNotesSettings]: Chat %d doesn't exist, returning default settings", chatID)
-				return &models.NotesSettings{ChatId: chatID, Private: false}, nil
+				return models.NotesSettings{ChatId: chatID, Private: false}, nil
 			}
 
 			// Create default settings only if chat exists
@@ -39,15 +40,15 @@ func getNotesSettings(chatID int64) *models.NotesSettings {
 		} else if err != nil {
 			// Return default on error
 			log.Errorf("[Database] getNotesSettings: %v - %d", err, chatID)
-			return &models.NotesSettings{ChatId: chatID, Private: false}, nil
+			return models.NotesSettings{ChatId: chatID, Private: false}, nil
 		}
-		return noteSrc, nil
+		return *noteSrc, nil
 	})
 	if err != nil {
 		log.Errorf("[Database][getNotesSettings]: cache load error %d - %v", chatID, err)
 		return &models.NotesSettings{ChatId: chatID, Private: false}
 	}
-	return settings
+	return &settingsVal
 }
 
 // getAllChatNotes retrieves all notes for a specific chat ID from the database.
@@ -82,24 +83,52 @@ func GetNote(chatID int64, keyword string) (noteSrc *models.Notes) {
 	return
 }
 
+// cachedNoteInfo is the cache payload for notes_list to preserve adminOnly filtering.
+type cachedNoteInfo struct {
+	Name      string
+	AdminOnly bool
+}
+
+func notesListCacheKey(chatID int64) string {
+	return cache.CacheKey("notes_list", chatID)
+}
+
+func invalidateNotesCache(chatID int64) {
+	cache.DeleteCache(notesListCacheKey(chatID))
+}
+
 // GetNotesList retrieves a list of all note names for a specific chat ID.
 // The admin parameter determines whether to include admin-only notes.
 // Returns an empty slice if no notes are found.
-func GetNotesList(chatID int64, admin bool) (allNotes []string) {
-	noteSrc := getAllChatNotes(chatID)
-	for _, note := range noteSrc {
-		if admin {
-			// Admin sees all notes
-			allNotes = append(allNotes, note.NoteName)
-		} else {
-			// Non-admin only sees non-admin notes
-			if !note.AdminOnly {
-				allNotes = append(allNotes, note.NoteName)
+// Results are cached with stampede protection for performance.
+func GetNotesList(chatID int64, admin bool) []string {
+	cacheKey := notesListCacheKey(chatID)
+	entries, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLNotesList, func() ([]cachedNoteInfo, error) {
+		notes := getAllChatNotes(chatID)
+		infos := make([]cachedNoteInfo, 0, len(notes))
+		for _, n := range notes {
+			infos = append(infos, cachedNoteInfo{Name: n.NoteName, AdminOnly: n.AdminOnly})
+		}
+		return infos, nil
+	})
+	if err != nil {
+		// Fallback to direct DB load on cache error
+		noteSrc := getAllChatNotes(chatID)
+		var out []string
+		for _, note := range noteSrc {
+			if admin || !note.AdminOnly {
+				out = append(out, note.NoteName)
 			}
 		}
+		return out
 	}
-
-	return
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if admin || !e.AdminOnly {
+			out = append(out, e.Name)
+		}
+	}
+	return out
 }
 
 // DoesNoteExists checks whether a note with the given name exists in the specified chat.
@@ -149,6 +178,9 @@ func AddNote(chatID int64, noteName, replyText, fileID string, buttons models.Bu
 		log.Errorf("[Database][AddNote]: %d - %v", chatID, result.Error)
 		return result.Error
 	}
+	if result.RowsAffected > 0 {
+		invalidateNotesCache(chatID)
+	}
 	return nil
 }
 
@@ -174,6 +206,9 @@ func UpdateNote(chatID int64, noteName, replyText, fileID string, buttons models
 		log.Errorf("[Database][UpdateNote]: %d - %v", chatID, result.Error)
 		return false, result.Error
 	}
+	if result.RowsAffected > 0 {
+		invalidateNotesCache(chatID)
+	}
 	return result.RowsAffected > 0, nil
 }
 
@@ -186,7 +221,9 @@ func RemoveNote(chatID int64, noteName string) error {
 		log.Errorf("[Database][RemoveNote]: %d - %v", chatID, result.Error)
 		return result.Error
 	}
-	// result.RowsAffected will be 0 if no note was found, which is fine
+	if result.RowsAffected > 0 {
+		invalidateNotesCache(chatID)
+	}
 	return nil
 }
 
@@ -198,6 +235,7 @@ func RemoveAllNotes(chatID int64) error {
 		log.Errorf("[Database][RemoveAllNotes]: %d - %v", chatID, err)
 		return err
 	}
+	invalidateNotesCache(chatID)
 	return nil
 }
 

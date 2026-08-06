@@ -306,10 +306,11 @@ func releaseIncompleteCaptchaAttempt(bot *gotgbot.Bot, attempt *db.CaptchaAttemp
 }
 
 // secureIntn returns a cryptographically secure random integer in [0, max).
-// If max <= 0, it returns 0.
-func secureIntn(max int) int {
+// If max <= 0, it returns 0. On persistent entropy failure it returns an error
+// instead of falling back to a predictable PRNG.
+func secureIntn(max int) (int, error) {
 	if max <= 0 {
-		return 0
+		return 0, nil
 	}
 	// Use crypto/rand.Int for unbiased secure random selection
 	// Bounded retry to avoid CPU starvation if entropy source fails persistently.
@@ -317,19 +318,22 @@ func secureIntn(max int) int {
 	for i := 0; i < maxRetries; i++ {
 		n, err := crand.Int(crand.Reader, big.NewInt(int64(max)))
 		if err == nil {
-			return int(n.Int64())
+			return int(n.Int64()), nil
 		}
 	}
-	log.Error("[Captcha] secureIntn: exhausted retries for crypto/rand.Int, returning 0")
-	return 0
+	return 0, fmt.Errorf("secureIntn: exhausted retries for crypto/rand.Int (max=%d)", max)
 }
 
 // secureShuffleStrings shuffles a slice of strings using Fisher-Yates with crypto-grade randomness.
-func secureShuffleStrings(values []string) {
+func secureShuffleStrings(values []string) error {
 	for i := len(values) - 1; i > 0; i-- {
-		j := secureIntn(i + 1)
+		j, err := secureIntn(i + 1)
+		if err != nil {
+			return err
+		}
 		values[i], values[j] = values[j], values[i]
 	}
+	return nil
 }
 
 // viewPendingMessages handles the /captchapending command to view stored messages for a user.
@@ -795,27 +799,55 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 }
 
 // generateMathCaptcha generates a random math problem and returns the question and answer.
-func generateMathCaptcha() (string, string, []string) {
+func generateMathCaptcha() (string, string, []string, error) {
+	opIdx, err := secureIntn(3)
+	if err != nil {
+		return "", "", nil, err
+	}
 	operations := []string{"+", "-", "*"}
-	operation := operations[secureIntn(len(operations))]
+	operation := operations[opIdx]
 
 	var a, b, answer int
 	var question string
 
 	switch operation {
 	case "+":
-		a = secureIntn(50) + 1
-		b = secureIntn(50) + 1
+		a0, err := secureIntn(50)
+		if err != nil {
+			return "", "", nil, err
+		}
+		b0, err := secureIntn(50)
+		if err != nil {
+			return "", "", nil, err
+		}
+		a = a0 + 1
+		b = b0 + 1
 		answer = a + b
 		question = formatMathQuestion(a, b, operation)
 	case "-":
-		a = secureIntn(50) + 20
-		b = secureIntn(a) + 1
+		a0, err := secureIntn(50)
+		if err != nil {
+			return "", "", nil, err
+		}
+		a = a0 + 20
+		bRaw, err := secureIntn(a)
+		if err != nil {
+			return "", "", nil, err
+		}
+		b = bRaw + 1
 		answer = a - b
 		question = formatMathQuestion(a, b, operation)
 	case "*":
-		a = secureIntn(12) + 1
-		b = secureIntn(12) + 1
+		a0, err := secureIntn(12)
+		if err != nil {
+			return "", "", nil, err
+		}
+		b0, err := secureIntn(12)
+		if err != nil {
+			return "", "", nil, err
+		}
+		a = a0 + 1
+		b = b0 + 1
 		answer = a * b
 		question = formatMathQuestion(a, b, operation)
 	}
@@ -824,7 +856,11 @@ func generateMathCaptcha() (string, string, []string) {
 	options := []string{strconv.Itoa(answer)}
 	for len(options) < 4 {
 		// Generate a wrong answer within reasonable range
-		wrongAnswer := answer + secureIntn(20) - 10
+		off, err := secureIntn(20)
+		if err != nil {
+			return "", "", nil, err
+		}
+		wrongAnswer := answer + off - 10
 		if wrongAnswer != answer && wrongAnswer > 0 {
 			wrongStr := strconv.Itoa(wrongAnswer)
 			// Check if this option already exists
@@ -835,9 +871,11 @@ func generateMathCaptcha() (string, string, []string) {
 	}
 
 	// Shuffle options
-	secureShuffleStrings(options)
+	if err := secureShuffleStrings(options); err != nil {
+		return "", "", nil, err
+	}
 
-	return question, strconv.Itoa(answer), options
+	return question, strconv.Itoa(answer), options, nil
 }
 
 func formatMathQuestion(a, b int, operation string) string {
@@ -899,7 +937,11 @@ func generateTextCaptcha() (string, []byte, []string, error) {
 		// Generate a random string of same length as answer
 		decoy := ""
 		for range len(answer) {
-			decoy += string(characters[secureIntn(len(characters))])
+			idx, err := secureIntn(len(characters))
+			if err != nil {
+				return "", nil, nil, err
+			}
+			decoy += string(characters[idx])
 		}
 		// Check if this option already exists
 		if !slices.Contains(options, decoy) {
@@ -908,7 +950,9 @@ func generateTextCaptcha() (string, []byte, []string, error) {
 	}
 
 	// Shuffle options
-	secureShuffleStrings(options)
+	if err := secureShuffleStrings(options); err != nil {
+		return "", nil, nil, err
+	}
 
 	// Verify answer is in options (defensive check)
 	if !slices.Contains(options, answer) {
@@ -923,7 +967,10 @@ func generateTextCaptcha() (string, []byte, []string, error) {
 // for reliable answer matching. Uses the existing generateMathCaptcha logic.
 func generateMathImageCaptcha() (string, []byte, []string, error) {
 	// Use our reliable math generation
-	question, answer, options := generateMathCaptcha()
+	question, answer, options, err := generateMathCaptcha()
+	if err != nil {
+		return "", nil, nil, err
+	}
 
 	// DriverString normally samples random characters from Source on Generate.
 	// Wrap it so the rendered image always matches the computed math question.
@@ -1034,8 +1081,13 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		answer, imageBytes, options, err = generateMathImageCaptcha()
 		if err != nil || imageBytes == nil {
 			log.Errorf("Failed to generate math image captcha: %v", err)
-			// Fallback to text-based math question
-			question, answer, options = generateMathCaptcha()
+			// Fallback to text-based math question (fail-closed on entropy error)
+			var fbErr error
+			question, answer, options, fbErr = generateMathCaptcha()
+			if fbErr != nil {
+				log.Errorf("Failed to generate fallback math captcha: %v", fbErr)
+				return fmt.Errorf("generate captcha: %w", fbErr)
+			}
 			isImage = false
 		} else {
 			isImage = true
@@ -1046,8 +1098,13 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		answer, imageBytes, options, err = generateTextCaptcha()
 		if err != nil {
 			log.Errorf("Failed to generate text captcha: %v", err)
-			// Fallback to text-based math question
-			question, answer, options = generateMathCaptcha()
+			// Fallback to text-based math question (fail-closed on entropy error)
+			var fbErr error
+			question, answer, options, fbErr = generateMathCaptcha()
+			if fbErr != nil {
+				log.Errorf("Failed to generate fallback math captcha: %v", fbErr)
+				return fmt.Errorf("generate captcha: %w", fbErr)
+			}
 			isImage = false
 		} else {
 			isImage = true
@@ -1200,12 +1257,21 @@ func scheduleCaptchaTimeout(bot *gotgbot.Bot, attempt *db.CaptchaAttempts) {
 	if delay < 0 {
 		delay = 0
 	}
+	capturedRefreshCount := attempt.RefreshCount
+	capturedExpiresAt := attempt.ExpiresAt
+	capturedID := attempt.ID
 	startCaptchaLifecycleTask(func(ctx context.Context) {
 		timer := time.NewTimer(delay)
 		defer timer.Stop()
 		select {
 		case <-timer.C:
 			defer error_handling.RecoverFromPanic("captchaTimeout", "captcha")
+			if fresh, err := captcha.GetCaptchaAttemptByID(capturedID); err == nil && fresh != nil {
+				if fresh.RefreshCount != capturedRefreshCount || !fresh.ExpiresAt.Equal(capturedExpiresAt) {
+					log.Debugf("[Captcha] Stale timer for attempt %d ignored (refreshCount %d->%d, expires %v->%v)", capturedID, capturedRefreshCount, fresh.RefreshCount, capturedExpiresAt, fresh.ExpiresAt)
+					return
+				}
+			}
 			if _, err := expireCaptchaAttempt(bot, attempt); err != nil {
 				log.Errorf("[Captcha] Failed to expire attempt %d: %v", attempt.ID, err)
 			}

@@ -29,11 +29,20 @@ func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
 			return defaultWarnSettings
 		}
 
-		// Create default settings only if chat exists
+		// Use ON CONFLICT DO NOTHING to handle concurrent creation safely
 		warnrc = defaultWarnSettings
-		err := db.DB.Create(warnrc).Error
-		if err != nil {
-			log.Errorf("[Database] checkWarnSettings: %v", err)
+		result := db.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "chat_id"}},
+			DoNothing: true,
+		}).Create(warnrc)
+		if result.Error != nil {
+			log.Errorf("[Database] checkWarnSettings: %v", result.Error)
+		} else if result.RowsAffected == 0 {
+			// Another writer created the row concurrently; reload it
+			if err := db.DB.Where("chat_id = ?", chatID).First(warnrc).Error; err != nil {
+				log.Errorf("[Database] checkWarnSettings reload: %v", err)
+				warnrc = defaultWarnSettings
+			}
 		}
 	} else if err != nil {
 		log.Errorf("[Database][checkWarnSettings]: %d - %v", chatID, err)
@@ -56,11 +65,20 @@ func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
 			return defaultWarnSrc
 		}
 
-		// Create default record only if chat exists
+		// Use ON CONFLICT DO NOTHING to handle concurrent creation safely
 		warnrc = defaultWarnSrc
-		err := db.DB.Create(warnrc).Error
-		if err != nil {
-			log.Errorf("[Database] checkWarns: %v", err)
+		result := db.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}, {Name: "chat_id"}},
+			DoNothing: true,
+		}).Create(warnrc)
+		if result.Error != nil {
+			log.Errorf("[Database] checkWarns: %v", result.Error)
+		} else if result.RowsAffected == 0 {
+			// Another writer created the row concurrently; reload it
+			if err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
+				log.Errorf("[Database] checkWarns reload: %v", err)
+				warnrc = defaultWarnSrc
+			}
 		}
 	} else if err != nil {
 		log.Errorf("[Database][checkUserWarns]: %d - %v", userId, err)
@@ -241,7 +259,7 @@ func GetWarns(userId, chatId int64) (int, []string) {
 	}
 	cached, err := cache.GetFromCacheOrLoad(
 		cache.CacheKey("warns", userId, chatId),
-		cache.CacheTTLLanguage,
+		cache.CacheTTLWarnSettings,
 		func() (warnCache, error) {
 			w := checkWarns(userId, chatId)
 			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
@@ -286,18 +304,20 @@ func SetWarnMode(chatId int64, warnMode string) error {
 
 // GetWarnSetting returns the warning settings for the specified chat.
 // This is the public interface to access warning configuration.
+// Caches the value type to avoid double-pointer issues with the generic loader.
 func GetWarnSetting(chatId int64) *models.WarnSettings {
 	cached, err := cache.GetFromCacheOrLoad(
 		cache.CacheKey("warn_settings", chatId),
-		cache.CacheTTLLanguage,
-		func() (*models.WarnSettings, error) {
-			return checkWarnSettings(chatId), nil
+		cache.CacheTTLWarnSettings,
+		func() (models.WarnSettings, error) {
+			w := checkWarnSettings(chatId)
+			return *w, nil
 		},
 	)
 	if err != nil {
 		return checkWarnSettings(chatId)
 	}
-	return cached
+	return &cached
 }
 
 // GetAllChatWarns returns the total count of warned users in a specific chat.

@@ -546,12 +546,28 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 	var helpText string
 
-	// Handle cancel case first - no cache lookup needed
+	// Handle cancel — atomically consume and validate
 	if action == "cancel" {
 		if token != "" {
-			filterData, err := getFilterOverwriteCache(token)
-			if err == nil && (filterData.UserID == 0 || filterData.UserID == user.Id) {
-				deleteFilterOverwriteCache(token)
+			if data, err := consumeFilterOverwriteCache(token); err == nil {
+				if data.UserID != 0 && data.UserID != user.Id {
+					// Wrong user consumed another user's token — already deleted atomically
+					helpText, _ = tr.GetString("filters_overwrite_expired")
+					if query.Message != nil {
+						_, _, _ = query.Message.EditText(b, helpText, nil)
+					}
+					_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+					// Re-store is not attempted; token is already consumed (one-time)
+					return ext.EndGroups
+				}
+				if data.ChatID != 0 && data.ChatID != chat.Id {
+					helpText, _ = tr.GetString("filters_overwrite_expired")
+					if query.Message != nil {
+						_, _, _ = query.Message.EditText(b, helpText, nil)
+					}
+					_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+					return ext.EndGroups
+				}
 			}
 		}
 		helpText, _ = tr.GetString("filters_overwrite_cancelled")
@@ -568,13 +584,8 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	var (
-		filterData *overwriteFilter
-		err        error
-	)
-	if token != "" {
-		filterData, err = getFilterOverwriteCache(token)
-	}
+	// Atomically consume — no prior get check (TOCTOU fix)
+	filterData, err := consumeFilterOverwriteCache(token)
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
 		helpText, _ = tr.GetString("filters_overwrite_expired")
@@ -600,26 +611,21 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	filterData, err = consumeFilterOverwriteCache(token)
-	if err != nil {
-		helpText, _ = tr.GetString("filters_overwrite_expired")
+	updated, updateErr := db_filters.UpdateFilter(
+		chat.Id,
+		filterData.ItemName,
+		filterData.Text,
+		filterData.FileID,
+		filterData.Buttons,
+		filterData.DataType,
+	)
+	if updateErr != nil {
+		log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", chat.Id, updateErr)
+		helpText, _ = tr.GetString("common_settings_save_failed")
+	} else if updated {
+		helpText, _ = tr.GetString("filters_overwrite_success")
 	} else {
-		updated, updateErr := db_filters.UpdateFilter(
-			chat.Id,
-			filterData.ItemName,
-			filterData.Text,
-			filterData.FileID,
-			filterData.Buttons,
-			filterData.DataType,
-		)
-		if updateErr != nil {
-			log.Errorf("[Filters] UpdateFilter failed for chat %d: %v", chat.Id, updateErr)
-			helpText, _ = tr.GetString("common_settings_save_failed")
-		} else if updated {
-			helpText, _ = tr.GetString("filters_overwrite_success")
-		} else {
-			helpText, _ = tr.GetString("filters_overwrite_cancelled")
-		}
+		helpText, _ = tr.GetString("filters_overwrite_cancelled")
 	}
 
 	if query.Message == nil {

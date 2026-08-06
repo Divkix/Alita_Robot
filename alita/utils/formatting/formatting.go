@@ -9,10 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -28,7 +29,8 @@ const (
 
 // precompiled regexes and replacer for ReverseHTML2MD.
 var (
-	linkRegex = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
+	linkRegex     = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
+	rulesBtnRegex = regexp.MustCompile(`(?s){rules(:(same|up))?}`)
 	// htmlToMdReplacer efficiently replaces HTML tags with Markdown in a single pass.
 	htmlToMdReplacer = strings.NewReplacer(
 		"<b>", "*",
@@ -45,6 +47,28 @@ var (
 		"</pre>", "```",
 	)
 )
+
+type memberCountEntry struct {
+	count int
+	at    time.Time
+}
+
+var memberCountCache sync.Map // map[int64]memberCountEntry
+
+// cachedMemberCount returns member count with 60s TTL per chat to avoid API call per message.
+func cachedMemberCount(b *gotgbot.Bot, chat *gotgbot.Chat) string {
+	if v, ok := memberCountCache.Load(chat.Id); ok {
+		if e, ok := v.(memberCountEntry); ok && time.Since(e.at) < 60*time.Second {
+			return strconv.Itoa(e.count)
+		}
+	}
+	count, err := chat.GetMemberCount(b, nil)
+	if err != nil {
+		return "0"
+	}
+	memberCountCache.Store(chat.Id, memberCountEntry{count: int(count), at: time.Now()})
+	return strconv.Itoa(int(count))
+}
 
 // Shtml returns SendMessageOpts configured with HTML parse mode, disabled link preview,
 // and reply parameters that allow sending without reply.
@@ -172,12 +196,11 @@ func ReverseHTML2MD(text string) string {
 func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
 	const language = "en"
 	var (
-		firstName     string
-		lastName      string
-		fullName      string
-		username      string
-		userId        int64
-		rulesBtnRegex = `(?s){rules(:(same|up))?}`
+		firstName string
+		lastName  string
+		fullName  string
+		username  string
+		userId    int64
 	)
 
 	if user == nil {
@@ -215,9 +238,7 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 
 	countStr := "0"
 	if strings.Contains(oldMsg, "{count}") {
-		if count, err := chat.GetMemberCount(b, nil); err == nil {
-			countStr = strconv.Itoa(int(count))
-		}
+		countStr = cachedMemberCount(b, chat)
 	}
 
 	r := strings.NewReplacer(
@@ -231,18 +252,14 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 		"{id}", strconv.Itoa(int(userId)),
 	)
 
-	pattern, err := regexp.Compile(rulesBtnRegex)
-	if err != nil {
-		log.Error(err)
-		return r.Replace(oldMsg), buttons
-	}
-	response := pattern.FindStringSubmatch(oldMsg)
+	response := rulesBtnRegex.FindStringSubmatch(oldMsg)
 	if response == nil {
 		return r.Replace(oldMsg), buttons
 	}
 
-	res = r.Replace(pattern.ReplaceAllString(oldMsg, ""))
-	btns = buttons
+	res = r.Replace(rulesBtnRegex.ReplaceAllString(oldMsg, ""))
+	// Copy buttons to avoid mutating cached slice underlying array.
+	btns = append([]db.Button(nil), buttons...)
 
 	rulesDb := rules.GetChatRulesInfo(chat.Id)
 	if rulesDb.Rules == "" {
@@ -267,10 +284,8 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 	}
 
 	if response[2] == "up" {
-		btns = []db.Button{rulesButton}
-		btns = append(btns, buttons...)
+		btns = append([]db.Button{rulesButton}, buttons...)
 	} else {
-		btns = buttons
 		btns = append(btns, rulesButton)
 	}
 

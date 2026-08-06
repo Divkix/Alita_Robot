@@ -12,34 +12,61 @@ import (
 
 func resetAntiSpamMapForTest(t *testing.T) {
 	t.Helper()
-
+	// Clear all shards and legacy map for test isolation.
+	for i := range antiSpamShards {
+		antiSpamShards[i].mu.Lock()
+		antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
+		antiSpamShards[i].mu.Unlock()
+	}
 	antiSpamMutex.Lock()
 	previous := antiSpamMap
 	antiSpamMap = make(map[spamKey]*antiSpamInfo)
 	antiSpamMutex.Unlock()
-
 	t.Cleanup(func() {
+		for i := range antiSpamShards {
+			antiSpamShards[i].mu.Lock()
+			antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
+			antiSpamShards[i].mu.Unlock()
+		}
 		antiSpamMutex.Lock()
 		antiSpamMap = previous
 		antiSpamMutex.Unlock()
 	})
 }
 
+func setAntiSpamInfoForTest(key spamKey, info *antiSpamInfo) {
+	shard := shardFor(key)
+	shard.mu.Lock()
+	shard.m[key] = info
+	shard.mu.Unlock()
+	antiSpamMutex.Lock()
+	antiSpamMap[key] = info
+	antiSpamMutex.Unlock()
+}
+
+func getAntiSpamInfoForTest(key spamKey) (*antiSpamInfo, bool) {
+	shard := shardFor(key)
+	shard.mu.Lock()
+	v, ok := shard.m[key]
+	shard.mu.Unlock()
+	return v, ok
+}
+
 func TestSpamCheckResetsExpiredWindow(t *testing.T) {
 	resetAntiSpamMapForTest(t)
 
 	key := spamKey{chatId: -1002, userId: 43}
-	antiSpamMap[key] = &antiSpamInfo{
+	setAntiSpamInfoForTest(key, &antiSpamInfo{
 		Count:       antiSpamLimit,
 		WindowStart: time.Now().Add(-2 * antiSpamWindow),
-	}
+	})
 
 	if spamCheck(key) {
 		t.Fatal("expired spam window should not stay spammed after reset")
 	}
 
-	if got := antiSpamMap[key].Count; got != 1 {
-		t.Fatalf("reset Count = %d, want 1 after current message", got)
+	if got, _ := getAntiSpamInfoForTest(key); got.Count != 1 {
+		t.Fatalf("reset Count = %d, want 1 after current message", got.Count)
 	}
 }
 
@@ -51,19 +78,19 @@ func TestCleanupExpiredAntiSpamDeletesNilAndExpiredEntries(t *testing.T) {
 	expiredKey := spamKey{chatId: -1003, userId: 45}
 	activeKey := spamKey{chatId: -1003, userId: 46}
 
-	antiSpamMap[nilKey] = nil
-	antiSpamMap[expiredKey] = &antiSpamInfo{WindowStart: now.Add(-3 * antiSpamWindow)}
-	antiSpamMap[activeKey] = &antiSpamInfo{WindowStart: now.Add(-antiSpamWindow)}
+	setAntiSpamInfoForTest(nilKey, nil)
+	setAntiSpamInfoForTest(expiredKey, &antiSpamInfo{WindowStart: now.Add(-3 * antiSpamWindow)})
+	setAntiSpamInfoForTest(activeKey, &antiSpamInfo{WindowStart: now.Add(-antiSpamWindow)})
 
 	cleanupExpiredAntiSpam(now)
 
-	if _, ok := antiSpamMap[nilKey]; ok {
+	if _, ok := getAntiSpamInfoForTest(nilKey); ok {
 		t.Fatal("nil anti-spam entry was not deleted")
 	}
-	if _, ok := antiSpamMap[expiredKey]; ok {
+	if _, ok := getAntiSpamInfoForTest(expiredKey); ok {
 		t.Fatal("expired anti-spam entry was not deleted")
 	}
-	if _, ok := antiSpamMap[activeKey]; !ok {
+	if _, ok := getAntiSpamInfoForTest(activeKey); !ok {
 		t.Fatal("active anti-spam entry was deleted")
 	}
 }
@@ -127,9 +154,7 @@ func TestLoadAntispamRegisteredHandlerAllowsDownstreamModeration(t *testing.T) {
 	}
 
 	key := spamKey{chatId: chat.Id, userId: user.Id}
-	antiSpamMutex.Lock()
-	info := antiSpamMap[key]
-	antiSpamMutex.Unlock()
+	info, _ := getAntiSpamInfoForTest(key)
 	if info == nil || info.Count != antiSpamLimit {
 		t.Fatalf("antiSpamMap[%+v] = %#v, want count %d", key, info, antiSpamLimit)
 	}

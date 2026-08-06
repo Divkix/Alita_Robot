@@ -13,10 +13,24 @@ func encodeCallbackData(namespace string, fields map[string]string) string {
 		log.WithFields(log.Fields{
 			"namespace": namespace,
 			"error":     err,
-		}).Error("[CallbackCodec] Failed to encode callback data")
+		}).Warn("[CallbackCodec] Failed to encode callback data - button will be dead")
 		return ""
 	}
 	return data
+}
+
+// encodeCallbackDataChecked returns error when encoding fails so callers can abort the send.
+//nolint:unused // kept for future callers that need to handle 64-byte overflow explicitly
+func encodeCallbackDataChecked(namespace string, fields map[string]string) (string, error) {
+	data, err := callbackcodec.Encode(namespace, fields)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"error":     err,
+		}).Warn("[CallbackCodec] Failed to encode callback data")
+		return "", err
+	}
+	return data, nil
 }
 
 func decodeCallbackData(data string, expectedNamespaces ...string) (*callbackcodec.Decoded, bool) {

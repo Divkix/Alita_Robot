@@ -30,12 +30,14 @@ func newCache(ttl time.Duration) *Cache {
 // Uses RWMutex for concurrent read access and only takes write lock when
 // creating a new matcher or when patterns have changed.
 func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatcher {
+	h := hashPatterns(patterns)
+
 	// Fast path: read-only check with RLock
 	c.mu.RLock()
 	matcher, exists := c.matchers[chatID]
 	if exists {
 		// O(1) hash comparison avoids copying patterns
-		if matcher.patternHash == hashPatterns(patterns) {
+		if matcher.patternHash == h {
 			c.mu.RUnlock()
 			c.touchLastUsed(chatID)
 			return matcher
@@ -48,7 +50,7 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 
 	// Double-check after acquiring write lock
 	if matcher, exists := c.matchers[chatID]; exists {
-		if matcher.patternHash == hashPatterns(patterns) {
+		if matcher.patternHash == h {
 			c.mu.Unlock()
 			c.touchLastUsed(chatID)
 			return matcher
@@ -96,17 +98,26 @@ func (c *Cache) cleanupExpired() {
 		return
 	}
 
-	// Step 2: delete from matchers under mu
+	// Step 2: delete from matchers under mu (re-check to avoid deleting revived chats)
 	c.mu.Lock()
 	for _, chatID := range expiredChats {
+		c.lastUsedMu.Lock()
+		lu, ok := c.lastUsed[chatID]
+		expired := ok && time.Since(lu) > c.ttl
+		c.lastUsedMu.Unlock()
+		if !expired {
+			continue
+		}
 		delete(c.matchers, chatID)
 	}
 	c.mu.Unlock()
 
-	// Step 3: delete from lastUsed under lastUsedMu
+	// Step 3: delete from lastUsed under lastUsedMu (re-check)
 	c.lastUsedMu.Lock()
 	for _, chatID := range expiredChats {
-		delete(c.lastUsed, chatID)
+		if lu, ok := c.lastUsed[chatID]; ok && time.Since(lu) > c.ttl {
+			delete(c.lastUsed, chatID)
+		}
 	}
 	c.lastUsedMu.Unlock()
 
