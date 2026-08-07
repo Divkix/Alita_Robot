@@ -33,6 +33,18 @@ func encodeCallbackDataChecked(namespace string, fields map[string]string) (stri
 	return data, nil
 }
 
+func mustCallbackData(namespace string, fields map[string]string) (string, bool) {
+	data, err := callbackcodec.Encode(namespace, fields)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"namespace": namespace,
+			"error":     err,
+		}).Warn("[CallbackCodec] Failed to encode callback data")
+		return "", false
+	}
+	return data, true
+}
+
 func decodeCallbackData(data string, expectedNamespaces ...string) (*callbackcodec.Decoded, bool) {
 	decoded, err := callbackcodec.Decode(data)
 	if err != nil {

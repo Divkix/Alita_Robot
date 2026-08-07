@@ -1064,7 +1064,7 @@ func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (ch
 		return nil, ext.EndGroups
 	}
 
-	chatID, parseErr := strconv.Atoi(nArgs[1])
+	chatID, parseErr := strconv.ParseInt(nArgs[1], 10, 64)
 	if parseErr != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_invalid_deep_link")
@@ -1072,7 +1072,7 @@ func parseChatInfoFromDeepLink(b *gotgbot.Bot, ctx *ext.Context, arg string) (ch
 		return nil, ext.EndGroups
 	}
 
-	chatinfo, chatErr := b.GetChat(int64(chatID), nil)
+	chatinfo, chatErr := b.GetChat(chatID, nil)
 	if chatErr != nil || chatinfo == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_chat_not_found")

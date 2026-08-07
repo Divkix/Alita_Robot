@@ -475,7 +475,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
-	userId, parseErr := strconv.Atoi(userMatch)
+	userId, parseErr := strconv.ParseInt(userMatch, 10, 64)
 	if parseErr != nil {
 		log.Errorf("[Warns] Failed to parse user ID from callback: %v", parseErr)
 		text, _ := tr.GetString("common_callback_invalid_request")
@@ -484,7 +484,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	var replyText string
 
-	removed, removeErr := warns.RemoveWarn(int64(userId), chat.Id)
+	removed, removeErr := warns.RemoveWarn(userId, chat.Id)
 	if removeErr != nil {
 		replyText, _ = tr.GetString("error_generic")
 	} else if removed {

@@ -33,13 +33,14 @@ import (
 )
 
 // Concurrency limit for processing multiple new members
-const (
-	maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
-	recentJoinProcessTTL          = 5 * time.Second
-)
+const maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
+
+var recentJoinProcessTTL = 5 * time.Second
 
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
 var recentJoinProcessing sync.Map
+
+type joinClaim struct{ exp time.Time }
 
 type greetingType int
 
@@ -103,15 +104,32 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 		return false
 	}
 
-	if _, loaded := recentJoinProcessing.LoadOrStore(key, struct{}{}); loaded {
-		return false
+	now := time.Now()
+	for {
+		newClaim := joinClaim{exp: now.Add(recentJoinProcessTTL)}
+		actual, loaded := recentJoinProcessing.LoadOrStore(key, newClaim)
+		if !loaded {
+			expireRecentJoinClaim(key, newClaim)
+			return true
+		}
+		if c, ok := actual.(joinClaim); ok && now.Before(c.exp) {
+			return false
+		}
+		// expired — try to take over atomically so only one caller wins
+		newClaim = joinClaim{exp: time.Now().Add(recentJoinProcessTTL)}
+		if recentJoinProcessing.CompareAndSwap(key, actual, newClaim) {
+			expireRecentJoinClaim(key, newClaim)
+			return true
+		}
+		// CAS lost to a concurrent takeover — re-evaluate fresh state
+		now = time.Now()
 	}
+}
 
+func expireRecentJoinClaim(key string, claim joinClaim) {
 	time.AfterFunc(recentJoinProcessTTL, func() {
-		recentJoinProcessing.Delete(key)
+		recentJoinProcessing.CompareAndDelete(key, claim)
 	})
-
-	return true
 }
 
 func clearRecentJoinProcessing(chatID, userID int64) {
@@ -125,7 +143,6 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 
 	recentJoinProcessing.Delete(key)
 }
-
 // displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
 // It consolidates common logic between welcome() and goodbye() commands.
 //
@@ -712,13 +729,17 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
-
+	var threadID int64
+	if ctx.EffectiveMessage != nil {
+		threadID = ctx.EffectiveMessage.MessageThreadId
+	}
+	chatCopy := *chat
 	captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
 	}
-	if err := processSingleNewMember(bot, ctx, newMember, captchaSettings != nil && captchaSettings.Enabled); err != nil {
+	if err := processSingleNewMember(bot, &chatCopy, threadID, newMember, captchaSettings != nil && captchaSettings.Enabled); err != nil {
 		return err
 	}
 	return ext.EndGroups
@@ -788,9 +809,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // processSingleNewMember handles a single new member joining (mute, captcha, welcome).
-func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbot.User, captchaEnabled bool) error {
-	chat := ctx.EffectiveChat
-
+func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
 	if newMember.Id == bot.Id {
 		return nil
 	}
@@ -801,15 +820,26 @@ func processSingleNewMember(bot *gotgbot.Bot, ctx *ext.Context, newMember gotgbo
 	}
 
 	if captchaEnabled && !chat_status.IsApproved(bot, chat.Id, newMember.Id) {
-		if err := SendCaptcha(bot, ctx, newMember.Id, newMember.FirstName); err != nil {
-			if !errors.Is(err, errCaptchaDisabled) {
+		ctxCopy := ext.Context{EffectiveChat: chat}
+		if threadID != 0 {
+			ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
+		}
+		if err := SendCaptcha(bot, &ctxCopy, newMember.Id, newMember.FirstName); err != nil {
+			if errors.Is(err, errCaptchaDisabled) {
+				// captcha turned off mid-flight — welcome normally
+			} else {
 				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
+				return err
 			}
 		} else {
 			return nil
 		}
 	}
-	return SendWelcomeMessage(bot, ctx, newMember.Id, newMember.FirstName)
+	ctxCopy := ext.Context{EffectiveChat: chat}
+	if threadID != 0 {
+		ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
+	}
+	return SendWelcomeMessage(bot, &ctxCopy, newMember.Id, newMember.FirstName)
 }
 
 // cleanService automatically deletes service messages about members joining/leaving.
@@ -837,6 +867,13 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		captchaEnabled := captchaSettings != nil && captchaSettings.Enabled
 
+		// Capture chat identity and thread before fanning out
+		var threadID int64
+		if msg != nil {
+			threadID = msg.MessageThreadId
+		}
+		chatCopyBase := *chat
+
 		// Process multiple members concurrently for better performance
 		numMembers := len(msg.NewChatMembers)
 		if numMembers > 1 {
@@ -857,7 +894,9 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 					defer wg.Done()
 					defer func() { <-sem }() // Release semaphore
 
-					if err := processSingleNewMember(bot, ctx, member, captchaEnabled); err != nil {
+					// Local chat copy per goroutine so we don't share pointer
+					chatCopy := chatCopyBase
+					if err := processSingleNewMember(bot, &chatCopy, threadID, member, captchaEnabled); err != nil {
 						log.Error(err)
 					}
 				}(newMember)
@@ -865,8 +904,9 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 			wg.Wait()
 		} else if numMembers == 1 {
-			// For single member, process directly without goroutine
-			if err := processSingleNewMember(bot, ctx, msg.NewChatMembers[0], captchaEnabled); err != nil {
+			// For single member, process directly without goroutine (copy for consistency)
+			chatCopy := chatCopyBase
+			if err := processSingleNewMember(bot, &chatCopy, threadID, msg.NewChatMembers[0], captchaEnabled); err != nil {
 				log.Error(err)
 			}
 		}

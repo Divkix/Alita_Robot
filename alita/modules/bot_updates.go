@@ -199,7 +199,9 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	ctx.EffectiveMessage = msg            // set the message to the message that was originally used when command was given
 	ctx.EffectiveMessage.SenderChat = nil // make senderChat nil to avoid chat_status.isAnonAdmin to mistaken user for GroupAnonymousBot
 	ctx.CallbackQuery = nil               // callback query is not needed anymore
-
+	fromCopy := query.From
+	ctx.EffectiveUser = &fromCopy
+	ctx.EffectiveSender = &gotgbot.Sender{User: &fromCopy, ChatId: chatId}
 	// Extract the command from Text or Caption (caption commands would panic on empty Text)
 	text := msg.Text
 	if text == "" {

@@ -877,38 +877,33 @@ func parseDuration(input string) (seconds int, ok bool) {
 
 	var duration int64
 	unit := input[len(input)-1]
-	// If the last char is a digit, treat the whole string as bare seconds.
+	// Bare number without unit is invalid — require explicit s/m/h/d/w
 	if unit >= '0' && unit <= '9' {
-		var err error
-		duration, err = strconv.ParseInt(input, 10, 64)
-		if err != nil {
-			return 0, false
-		}
-	} else {
-		num, err := strconv.ParseInt(input[:len(input)-1], 10, 64)
-		if err != nil || num < 0 {
-			return 0, false
-		}
-		var multiplier int64
-		switch unit {
-		case 's':
-			multiplier = 1
-		case 'm':
-			multiplier = 60
-		case 'h':
-			multiplier = 60 * 60
-		case 'd':
-			multiplier = 24 * 60 * 60
-		case 'w':
-			multiplier = 7 * 24 * 60 * 60
-		default:
-			return 0, false
-		}
-		if num > math.MaxInt64/multiplier {
-			return 0, false
-		}
-		duration = num * multiplier
+		return 0, false
 	}
+	num, err := strconv.ParseInt(input[:len(input)-1], 10, 64)
+	if err != nil || num < 0 {
+		return 0, false
+	}
+	var multiplier int64
+	switch unit {
+	case 's':
+		multiplier = 1
+	case 'm':
+		multiplier = 60
+	case 'h':
+		multiplier = 60 * 60
+	case 'd':
+		multiplier = 24 * 60 * 60
+	case 'w':
+		multiplier = 7 * 24 * 60 * 60
+	default:
+		return 0, false
+	}
+	if num > math.MaxInt64/multiplier {
+		return 0, false
+	}
+	duration = num * multiplier
 
 	if duration <= 0 || duration > maxAntiRaidDuration {
 		return 0, false

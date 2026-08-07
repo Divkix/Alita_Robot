@@ -53,9 +53,9 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 	if len(args) != 0 {
-		if _, err := strconv.Atoi(args[0]); err == nil {
-			chatId, _ := strconv.Atoi(args[0])
-			chat, err := b.GetChat(int64(chatId), nil)
+		if _, err := strconv.ParseInt(args[0], 10, 64); err == nil {
+			chatId, _ := strconv.ParseInt(args[0], 10, 64)
+			chat, err := b.GetChat(chatId, nil)
 			if err != nil {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				text, _ := tr.GetString("extraction_chat_not_found")

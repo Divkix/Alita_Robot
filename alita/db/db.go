@@ -151,10 +151,15 @@ func GetRecord(model any, where any) error {
 }
 
 // ChatExists checks if a chat with the given ID exists in the database.
+// Any error (including connection failures) is treated as "not exists" so callers
+// that ensure the chat will attempt recovery instead of skipping FK setup.
 func ChatExists(chatID int64) bool {
 	chatExists := &Chat{}
 	err := GetRecord(chatExists, Chat{ChatId: chatID})
-	return !errors.Is(err, gorm.ErrRecordNotFound)
+	if err != nil {
+		return false // not found OR any other error → treat as absent
+	}
+	return true
 }
 
 // GetRecords retrieves multiple database records matching the where clause.

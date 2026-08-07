@@ -704,7 +704,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText, ShowAlert: true})
 		return ext.EndGroups
 	}
-	userId, err := strconv.Atoi(userIDRaw)
+	userId, err := strconv.ParseInt(userIDRaw, 10, 64)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"callbackData": query.Data,
@@ -720,7 +720,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	var helpText string
 
-	actionUser, err := b.GetChat(int64(userId), nil)
+	actionUser, err := b.GetChat(userId, nil)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -728,17 +728,17 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 
 	switch action {
 	case "kick":
-		if err := kickMember(b, chat.Id, int64(userId)); err != nil {
+		if err := kickMember(b, chat.Id, userId); err != nil {
 			log.Error(err)
 			return err
 		}
 		temp, _ := tr.GetString("bans_restrict_kicked")
 		helpText = fmt.Sprintf(temp,
 			formatting.MentionHtml(user.Id, user.FirstName),
-			formatting.MentionHtml(int64(userId), actionUser.FirstName),
+			formatting.MentionHtml(userId, actionUser.FirstName),
 		)
 	case "mute":
-		_, err := chat.RestrictMember(b, int64(userId),
+		_, err := chat.RestrictMember(b, userId,
 			MutedPermissions,
 			nil,
 		)
@@ -923,7 +923,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: errText, ShowAlert: true})
 		return ext.EndGroups
 	}
-	userId, err := strconv.Atoi(userIDRaw)
+	userId, err := strconv.ParseInt(userIDRaw, 10, 64)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"callbackData": query.Data,
@@ -949,7 +949,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		}
 		unmutePermissions := resolveUnmutePermissions(c)
 
-		_, err = chat.RestrictMember(b, int64(userId),
+		_, err = chat.RestrictMember(b, userId,
 			unmutePermissions,
 			nil,
 		)
@@ -961,18 +961,18 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		temp, _ := tr.GetString("bans_unrestrict_unmuted")
 		helpText = fmt.Sprintf(temp, formatting.MentionHtml(user.Id, user.FirstName))
 	case "unban":
-		if chat_status.IsChannelId(int64(userId)) {
+		if chat_status.IsChannelId(userId) {
 			// Anonymous channel bans use BanChatSenderChat; unban must use the
 			// matching sender-chat endpoint, not UnbanChatMember (which rejects
 			// channel IDs and leaves the channel permanently banned).
-			_, err := chat.UnbanSenderChat(b, int64(userId), nil)
+			_, err := chat.UnbanSenderChat(b, userId, nil)
 			if err != nil {
 				log.Error(err)
 				return err
 			}
 		} else {
 			_, err := chat.Unban(b,
-				int64(userId),
+				userId,
 				&gotgbot.UnbanChatMemberOpts{
 					OnlyIfBanned: true,
 				},

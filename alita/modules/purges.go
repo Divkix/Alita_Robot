@@ -296,7 +296,7 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 
 	// Parse message ID from callback data
-	msgId, err := strconv.Atoi(msgIDRaw)
+	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
 	if err != nil {
 		log.Warnf("[Purges] Invalid message ID in callback: %s", msgIDRaw)
 		errText, _ := tr.GetString("purges_invalid_message_id")
@@ -314,8 +314,7 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, int64(msgId)); err != nil {
-		log.Error(err)
+	if err := helpers.DeleteMessageWithErrorHandling(b, chat.Id, msgId); err != nil {
 		return err
 	}
 

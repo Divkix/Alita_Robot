@@ -67,7 +67,7 @@ func main() {
 		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.21.2" // Fallback to hardcoded version if config wasn't loaded
+			version = "v2.21.3" // Fallback to hardcoded version if config wasn't loaded
 		}
 		fmt.Println(version)
 		os.Exit(0)
@@ -256,6 +256,12 @@ func main() {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
+		// Register HTTP server shutdown handler BEFORE start so SIGTERM in window is handled
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping HTTP server...")
+			return httpServer.Stop()
+		})
+
 		postInit(b, dispatcher, botUsername, "webhook")
 
 		// Start the unified HTTP server
@@ -266,18 +272,18 @@ func main() {
 		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.AppConfig.HTTPPort)
 		config.AppConfig.WorkingMode = "webhook"
 
-		// Register HTTP server shutdown handler
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping HTTP server...")
-			return httpServer.Stop()
-		})
-
 		go shutdownManager.WaitForShutdown()
 
 		// Wait for shutdown signal (blocking)
 		select {}
 	} else {
 		// Use polling mode (default)
+
+		// Register HTTP server shutdown handler BEFORE start
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Shutdown] Stopping HTTP server...")
+			return httpServer.Stop()
+		})
 
 		// Start the unified HTTP server (health and metrics only in polling mode)
 		if err := httpServer.Start(); err != nil {
@@ -286,13 +292,19 @@ func main() {
 
 		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.AppConfig.HTTPPort)
 
-		// Register HTTP server shutdown handler
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Shutdown] Stopping HTTP server...")
-			return httpServer.Stop()
-		})
-
 		updater := ext.NewUpdater(dispatcher, nil) // create updater with dispatcher
+
+		// Register handler to stop the updater BEFORE start so SIGTERM is handled
+		shutdownManager.RegisterHandler(func() error {
+			log.Info("[Polling] Stopping updater...")
+			err := updater.Stop()
+			if err != nil {
+				log.Errorf("[Polling] Error stopping updater: %v", err)
+				return err
+			}
+			log.Info("[Polling] Updater stopped successfully")
+			return nil
+		})
 
 		if _, err = b.DeleteWebhook(nil); err != nil {
 			log.Fatalf("[Polling] Failed to remove webhook: %v", err)
@@ -314,18 +326,6 @@ func main() {
 			log.Fatalf("[Polling] Failed to start polling: %v", err)
 		}
 		log.Info("[Polling] Started Polling...!")
-
-		// Register handler to stop the updater on shutdown
-		shutdownManager.RegisterHandler(func() error {
-			log.Info("[Polling] Stopping updater...")
-			err := updater.Stop()
-			if err != nil {
-				log.Errorf("[Polling] Error stopping updater: %v", err)
-				return err
-			}
-			log.Info("[Polling] Updater stopped successfully")
-			return nil
-		})
 
 		go shutdownManager.WaitForShutdown()
 

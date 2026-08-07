@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 var (
 	cacheGroup      singleflight.Group
 	cacheGeneration atomic.Uint64
+	loadWaitTimeout = 30 * time.Second
 )
 
 // GetFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.
@@ -79,26 +81,24 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 			}{result, err}
 			return
 		}
-
 		resCh <- struct {
 			val T
 			err error
 		}{v.(T), nil}
 	}()
 
-	timer := time.NewTimer(30 * time.Second)
+	timer := time.NewTimer(loadWaitTimeout)
 	defer timer.Stop()
 	select {
 	case res := <-resCh:
 		return res.val, res.err
 	case <-timer.C:
 		cacheGroup.Forget(key)
-		log.Errorf("[Cache] Timeout loading key %s after 30s", key)
-		val, lerr := loader()
-		return val, lerr
+		log.Errorf("[Cache] Timeout loading key %s after %s", key, loadWaitTimeout)
+		var zero T
+		return zero, fmt.Errorf("cache load timed out for key %s", key)
 	}
 }
-
 // DeleteCache is a helper to delete a value from cache.
 // Logs debug information if deletion fails but does not return errors.
 func DeleteCache(key string) {
@@ -112,9 +112,15 @@ func DeleteCache(key string) {
 	}
 
 	ctx, cancel := cache.ContextWithTimeout()
-	defer cancel()
 	err := m.Delete(ctx, key)
+	cancel()
 	if err != nil {
-		log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
+		// Retry once with fresh context
+		ctx2, cancel2 := cache.ContextWithTimeout()
+		err2 := m.Delete(ctx2, key)
+		cancel2()
+		if err2 != nil {
+			log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err2)
+		}
 	}
 }

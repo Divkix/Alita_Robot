@@ -27,6 +27,7 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	}
 
 	const negativeAdminCacheTTL = 2 * time.Minute
+	const botStatusErrorAdminCacheTTL = 30 * time.Second
 
 	storeWithTTL := func(adminCache AdminCache, ttl time.Duration) AdminCache {
 		if m := GetMarshal(); m != nil {
@@ -56,12 +57,12 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 			"botId":  b.Id,
 			"error":  botErr,
 		}).Warning("LoadAdminCache: Could not verify bot admin status")
-		// If we can't even check bot status, likely not admin - return empty cache
-		return AdminCache{
+		// Store short-TTL negative to damp storm but allow quick retry on flaky API
+		return storeWithTTL(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
 			Cached:   true,
-		}
+		}, botStatusErrorAdminCacheTTL)
 	}
 
 	botStatus := botMember.GetStatus()

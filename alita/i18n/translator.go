@@ -135,8 +135,6 @@ func extractOrderedValues(params TranslationParams) []any {
 
 	// If no numbered keys found, try a predefined order of common keys
 	if len(values) == 0 {
-		// Extended list of common keys in a predictable order
-		// This covers the current usage patterns in the codebase
 		commonKeys := []string{
 			// Most common patterns from the codebase
 			"first", "second", "third", "fourth", "fifth",
@@ -150,8 +148,9 @@ func extractOrderedValues(params TranslationParams) []any {
 			"arg1", "arg2", "arg3",
 			// Single letter keys
 			"s", "d", "v", "f",
+			// Extended keys for legacy % formatting (append at end to preserve order)
+			"duration", "threshold", "error", "user_id", "expires_in", "raid_time", "action_time", "auto_threshold", "mode", "reason", "limit",
 		}
-
 		for _, key := range commonKeys {
 			if value, exists := params[key]; exists {
 				values = append(values, value)

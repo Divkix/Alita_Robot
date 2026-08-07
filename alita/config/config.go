@@ -6,13 +6,13 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/utils/logredact"
 )
-
 // isCliModeActive returns true if the program is running with CLI flags
 // that should skip database initialization (--version, --health, -v).
 // This allows init() functions to return early without requiring DB connection.
@@ -87,6 +87,21 @@ func getRedisPassword() string {
 	}
 
 	return ""
+}
+
+func parseRedisDB() (int, error) {
+	raw := os.Getenv("REDIS_DB")
+	if raw == "" {
+		return 1, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("REDIS_DB must be an integer 0-15")
+	}
+	if v < 0 || v > 15 {
+		return 0, fmt.Errorf("REDIS_DB must be an integer 0-15")
+	}
+	return v, nil
 }
 
 func getHTTPPort() int {
@@ -230,6 +245,10 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("DB_CONN_MAX_IDLE_TIME_MIN must be between 1 and 60 minutes")
 	}
 
+	if cfg.RedisDB < 0 || cfg.RedisDB > 15 {
+		return fmt.Errorf("REDIS_DB must be an integer 0-15")
+	}
+
 	return nil
 }
 
@@ -239,10 +258,15 @@ func LoadConfig() (*Config, error) {
 	// load goenv config
 	_ = godotenv.Load() // Ignore error as .env file is optional
 
+	redisDB, err := parseRedisDB()
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{
 		// Core configuration
 		BotToken:    os.Getenv("BOT_TOKEN"),
-		BotVersion:  "2.21.2",
+		BotVersion:  "2.21.3",
 		ApiServer:   os.Getenv("API_SERVER"),
 		WorkingMode: "worker",
 		Debug:       typeConvertor{str: os.Getenv("DEBUG")}.Bool(),
@@ -268,7 +292,7 @@ func LoadConfig() (*Config, error) {
 		RedisAddress:  getRedisAddress(),
 		RedisURL:      getRedisURL(),
 		RedisPassword: getRedisPassword(),
-		RedisDB:       typeConvertor{str: os.Getenv("REDIS_DB")}.Int(),
+		RedisDB:       redisDB,
 
 		// HTTP Server configuration
 		HTTPPort: getHTTPPort(),

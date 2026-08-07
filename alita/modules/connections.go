@@ -429,7 +429,7 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		return ext.EndGroups
 	}
 
-	chatID, err := strconv.Atoi(parts[1])
+	chatID, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_invalid_deep_link")
@@ -437,7 +437,7 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 		return ext.EndGroups
 	}
 
-	cochat, err := b.GetChat(int64(chatID), nil)
+	cochat, err := b.GetChat(chatID, nil)
 	if err != nil || cochat == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_chat_not_found")

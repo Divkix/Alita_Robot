@@ -92,12 +92,12 @@ func cleanupExpiredAntiSpam(now time.Time) {
 	}
 	// legacy map cleanup for test compatibility
 	antiSpamMutex.Lock()
+	defer antiSpamMutex.Unlock()
 	for key, info := range antiSpamMap {
 		if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
 			delete(antiSpamMap, key)
 		}
 	}
-	antiSpamMutex.Unlock()
 }
 
 // spamCheck performs spam detection for a specific user in a chat.

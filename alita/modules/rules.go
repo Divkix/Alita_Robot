@@ -356,7 +356,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 		return ext.EndGroups
 	}
 
-	chatID, err := strconv.Atoi(parts[1])
+	chatID, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_invalid_deep_link")
@@ -364,7 +364,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 		return ext.EndGroups
 	}
 
-	chatinfo, err := b.GetChat(int64(chatID), nil)
+	chatinfo, err := b.GetChat(chatID, nil)
 	if err != nil || chatinfo == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("helpers_chat_not_found")
@@ -380,7 +380,7 @@ func rulesDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, 
 		return ext.EndGroups
 	}
 
-	rulesrc := rules.GetChatRulesInfo(int64(chatID))
+	rulesrc := rules.GetChatRulesInfo(chatID)
 	normalizedRules := normalizeRulesForHTML(rulesrc.Rules)
 
 	if normalizedRules == "" {

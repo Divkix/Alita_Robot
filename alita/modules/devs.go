@@ -48,8 +48,8 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString("devs_specify_user")
 	} else {
 		_chatId := args[1]
-		chatId, _ := strconv.Atoi(_chatId)
-		chat, err := b.GetChat(int64(chatId), nil)
+		chatId, _ := strconv.ParseInt(_chatId, 10, 64)
+		chat, err := b.GetChat(chatId, nil)
 		if err != nil {
 			_, _ = msg.Reply(b, err.Error(), nil)
 			return ext.EndGroups

@@ -36,6 +36,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var captchaMemberRetryDelay = 300 * time.Millisecond
+
+func isTransientMemberError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "user not found") || strings.Contains(s, "user_id_invalid") || strings.Contains(s, "participant_id_invalid")
+}
+
 var captchaModule = moduleStruct{moduleName: "Captcha"}
 
 // fixedStringCaptchaDriver wraps DriverString so captcha.Generate renders
@@ -1009,32 +1019,44 @@ func generateMathImageCaptcha() (string, []byte, []string, error) {
 func buildCaptchaKeyboard(attemptID uint, userID int64, refreshCount int, options []string, includeRefresh bool, refreshBtnText string) gotgbot.InlineKeyboardMarkup {
 	var buttons [][]gotgbot.InlineKeyboardButton
 	for _, option := range options {
+		data, ok := mustCallbackData(
+			"captcha_verify",
+			map[string]string{
+				"a": fmt.Sprint(attemptID),
+				"r": fmt.Sprint(refreshCount),
+				"u": fmt.Sprint(userID),
+				"s": option,
+			},
+		)
+		if !ok {
+			log.WithFields(log.Fields{
+				"attemptID": attemptID,
+				"option":    option,
+			}).Warn("[Captcha] Failed to encode verify button, omitting")
+			continue
+		}
 		button := gotgbot.InlineKeyboardButton{
-			Text: option,
-			CallbackData: encodeCallbackData(
-				"captcha_verify",
-				map[string]string{
-					"a": fmt.Sprint(attemptID),
-					"r": fmt.Sprint(refreshCount),
-					"u": fmt.Sprint(userID),
-					"s": option,
-				},
-			),
+			Text:         option,
+			CallbackData: data,
 		}
 		buttons = append(buttons, []gotgbot.InlineKeyboardButton{button})
 	}
 	if includeRefresh {
-		buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
-			Text: refreshBtnText,
-			CallbackData: encodeCallbackData(
-				"captcha_refresh",
-				map[string]string{
-					"a": fmt.Sprint(attemptID),
-					"r": fmt.Sprint(refreshCount),
-					"u": fmt.Sprint(userID),
-				},
-			),
-		}})
+		if data, ok := mustCallbackData(
+			"captcha_refresh",
+			map[string]string{
+				"a": fmt.Sprint(attemptID),
+				"r": fmt.Sprint(refreshCount),
+				"u": fmt.Sprint(userID),
+			},
+		); ok {
+			buttons = append(buttons, []gotgbot.InlineKeyboardButton{{
+				Text:         refreshBtnText,
+				CallbackData: data,
+			}})
+		} else {
+			log.WithField("attemptID", attemptID).Warn("[Captcha] Failed to encode refresh button, omitting")
+		}
 	}
 	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: buttons}
 }
@@ -1114,11 +1136,17 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 	// Validate user and chat exist in Telegram before creating DB records
 	// This prevents FK constraint violations for non-existent entities
 
-	// Validate user exists via Telegram API
+	// Validate user exists via Telegram API (retry once on transient membership lag)
 	userMember, err := bot.GetChatMember(chat.Id, userID, nil)
 	if err != nil {
-		log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
-		return fmt.Errorf("user %d does not exist or is not accessible: %w", userID, err)
+		if isTransientMemberError(err) {
+			time.Sleep(captchaMemberRetryDelay)
+			userMember, err = bot.GetChatMember(chat.Id, userID, nil)
+		}
+		if err != nil {
+			log.Errorf("Failed to validate user %d via Telegram API: %v", userID, err)
+			return fmt.Errorf("user %d does not exist or is not accessible: %w", userID, err)
+		}
 	}
 
 	// Extract validated user info from API response
@@ -1172,6 +1200,15 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		refreshBtnText, _ = tr.GetString("captcha_refresh_button")
 	}
 	keyboard := buildCaptchaKeyboard(preAttempt.ID, userID, preAttempt.RefreshCount, options, includeRefresh, refreshBtnText)
+	// If no verify options could be encoded, fail before sending — rollback mute
+	verifyCount := len(keyboard.InlineKeyboard)
+	if includeRefresh && verifyCount > 0 {
+		verifyCount--
+	}
+	if verifyCount == 0 {
+		log.Errorf("[Captcha] No verify buttons could be encoded for attempt %d", preAttempt.ID)
+		return errors.Join(errors.New("captcha keyboard empty: no encodable options"), rollbackCaptchaAttempt(bot, preAttempt))
+	}
 
 	// Prepare message text/caption
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
