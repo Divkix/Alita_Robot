@@ -275,9 +275,7 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.From != nil {
 		userId = msg.From.Id
 	}
-	_, _, err = sentMsg.EditText(b, text, &gotgbot.EditMessageTextOpts{
-		ParseMode: formatting.HTML,
-	})
+	_, _, err = sentMsg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML})
 	if err != nil {
 		log.WithError(err).Error("[Ping] Failed to edit ping response")
 		return err

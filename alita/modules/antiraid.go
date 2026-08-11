@@ -841,9 +841,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		}
 		text, _ := tr.GetString("antiraid_enabled", i18n.TranslationParams{"duration": formatDuration(settings.RaidTime)})
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		})
+		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: tgmd2html.MD2HTMLV2(text), ParseMode: formatting.HTML})
 	case "off":
 		disabled, err := a.disableRaid(chatID)
 		if err != nil {
@@ -858,9 +856,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		}
 		text, _ := tr.GetString("antiraid_disabled")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		_, _, _ = msg.EditText(bot, tgmd2html.MD2HTMLV2(text), &gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		})
+		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: tgmd2html.MD2HTMLV2(text), ParseMode: formatting.HTML})
 	default:
 		text, _ := tr.GetString("common_callback_invalid_request")
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})

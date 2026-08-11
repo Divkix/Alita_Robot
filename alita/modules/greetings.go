@@ -143,6 +143,7 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 
 	recentJoinProcessing.Delete(key)
 }
+
 // displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
 // It consolidates common logic between welcome() and goodbye() commands.
 //
@@ -1122,12 +1123,7 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 	m.clearPendingJoins(chat.Id, joinUser.Id)
 
-	_, _, err = msg.EditText(b,
-		fmt.Sprintf(helpText, formatting.MentionHtml(joinUser.Id, joinUser.FirstName)),
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: fmt.Sprintf(helpText, formatting.MentionHtml(joinUser.Id, joinUser.FirstName)), ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

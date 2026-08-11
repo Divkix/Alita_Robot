@@ -264,13 +264,8 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		replyKb = keyboard.InitButtons(b, chat.Id, user.Id)
 	}
 
-	_, _, err := msg.EditText(b,
-		replyText,
-		&gotgbot.EditMessageTextOpts{
-			ReplyMarkup: replyKb,
-			ParseMode:   formatting.HTML,
-		},
-	)
+	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ReplyMarkup: replyKb,
+		ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

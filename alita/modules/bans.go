@@ -764,12 +764,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		)
 	}
 
-	_, _, err = query.Message.EditText(b,
-		helpText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -995,13 +990,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		updatedText = "<s>" + updatedText + "</s>\n\n"
 	}
 
-	_, _, err = msg.EditText(
-		b,
-		updatedText+helpText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: updatedText + helpText, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

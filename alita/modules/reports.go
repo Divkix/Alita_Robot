@@ -552,14 +552,8 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
-	_, _, err = msg.EditText(
-		b,
-		replyText,
-		&gotgbot.EditMessageTextOpts{
-			ChatId:    chat.Id,
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err = msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ChatId: chat.Id,
+		ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

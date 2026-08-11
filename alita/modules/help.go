@@ -215,16 +215,11 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		_, _, err := query.Message.EditText(b,
-			currText,
-			&gotgbot.EditMessageTextOpts{
-				ReplyMarkup: currKb,
-				LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-					IsDisabled: true,
-				},
-				ParseMode: formatting.HTML,
+		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: currText, ReplyMarkup: currKb,
+			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
+				IsDisabled: true,
 			},
-		)
+			ParseMode: formatting.HTML})
 		if err != nil {
 			log.Error(err)
 			return err
@@ -339,17 +334,11 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	// Edit the main message, the main querymessage
-	_, _, err := query.Message.EditText(
-		b,
-		helpText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode:   parsemode,
-			ReplyMarkup: replyKb,
-			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-				IsDisabled: true,
-			},
-		},
-	)
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: parsemode,
+		ReplyMarkup: replyKb,
+		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
+			IsDisabled: true,
+		}})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -467,7 +456,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.GetChat().Type != "private" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("help_config_private_only")
-		_, _, err := msg.EditText(b, text, nil)
+		_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if err != nil {
 			log.Error(err)
 			return err
@@ -540,19 +529,13 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
-	_, _, err := msg.EditText(
-		b,
-		text,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-				IsDisabled: true,
-			},
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: iKeyboard,
-			},
+	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML,
+		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
+			IsDisabled: true,
 		},
-	)
+		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+			InlineKeyboard: iKeyboard,
+		}})
 	if err != nil {
 		log.Error(err)
 		return err

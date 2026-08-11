@@ -382,7 +382,7 @@ msg.Reply(b, "Response text", &gotgbot.SendMessageOpts{
 b.SendMessage(chat.Id, "Message text", nil)
 
 // Edit existing message
-msg.EditText(b, "New text", nil)
+msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: "New text"})
 
 // Delete message
 msg.Delete(b, nil)

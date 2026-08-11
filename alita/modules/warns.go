@@ -499,13 +499,7 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, _, err := query.Message.EditText(
-		b,
-		replyText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
@@ -765,11 +759,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, _, err := query.Message.EditText(
-		b,
-		replyText,
-		nil,
-	)
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText})
 	if err != nil {
 		log.Error(err)
 		return err
