@@ -169,16 +169,10 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 	}
 
-	_, _, err = query.Message.EditText(
-		b,
-		replyString,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
-				IsDisabled: true,
-			},
-		},
-	)
+	_, _, err = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyString, ParseMode: formatting.HTML,
+		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
+			IsDisabled: true,
+		}})
 	if err != nil {
 		log.Error(err)
 		return err

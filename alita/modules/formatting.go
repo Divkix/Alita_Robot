@@ -191,7 +191,8 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		},
 		ParseMode: formatting.HTML,
 	}
-	_, _, err := msg.EditText(b, m.getMarkdownHelp(tr, module), opts)
+	opts.Text = m.getMarkdownHelp(tr, module)
+	_, _, err := msg.EditText(b, opts)
 	if err != nil {
 		log.Error(err)
 		return err

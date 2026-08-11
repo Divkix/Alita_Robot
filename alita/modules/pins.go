@@ -177,7 +177,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		_, _, erredit := query.Message.EditText(b, text, nil)
+		_, _, erredit := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if erredit != nil {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, erredit)
 			return erredit
@@ -190,7 +190,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 			return ext.EndGroups
 		}
-		_, _, err := query.Message.EditText(b, text, nil)
+		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: text})
 		if err != nil {
 			log.Errorf("[Pin] EditText failed for chat %d: %v", chat.Id, err)
 			return err

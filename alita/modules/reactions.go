@@ -107,23 +107,17 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	backText, _ := tr.GetString("common_back")
-	_, _, err := query.Message.EditText(
-		b,
-		helpText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML,
+		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+			InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+				{
 					{
-						{
-							Text:         backText,
-							CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Reactions"}),
-						},
+						Text:         backText,
+						CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Reactions"}),
 					},
 				},
 			},
-		},
-	)
+		}})
 	if err != nil {
 		log.Error(err)
 		return err

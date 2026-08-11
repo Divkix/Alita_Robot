@@ -429,13 +429,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	stats := devs.LoadAllStats()
-	_, _, err = edits.EditText(
-		b,
-		stats,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err = edits.EditText(b, &gotgbot.EditMessageTextOpts{Text: stats, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err

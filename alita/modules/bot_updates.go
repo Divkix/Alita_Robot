@@ -174,7 +174,7 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if errCache != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		expiredText, _ := tr.GetString("bot_updates_button_expired")
-		_, _, err := qmsg.EditText(b, expiredText, nil)
+		_, _, err := qmsg.EditText(b, &gotgbot.EditMessageTextOpts{Text: expiredText})
 		if err != nil {
 			log.Error(err)
 			return err

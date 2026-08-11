@@ -488,12 +488,7 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, _, err := query.Message.EditText(b,
-		helpText,
-		&gotgbot.EditMessageTextOpts{
-			ParseMode: formatting.HTML,
-		},
-	)
+	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: formatting.HTML})
 	if err != nil {
 		log.Error(err)
 		return err
