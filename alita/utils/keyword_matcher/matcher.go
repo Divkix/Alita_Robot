@@ -42,6 +42,7 @@ func newKeywordMatcher(patterns []string) *KeywordMatcher {
 
 // build compiles the patterns into an Aho-Corasick matcher
 func (km *KeywordMatcher) build() {
+	start := time.Now()
 	if len(km.patterns) == 0 {
 		km.matcher = nil
 		return
@@ -58,16 +59,22 @@ func (km *KeywordMatcher) build() {
 
 	log.WithFields(log.Fields{
 		"patterns_count": len(km.patterns),
-		"build_time":     time.Since(km.lastBuild),
+		"build_time":     time.Since(start),
 	}).Debug("Built Aho-Corasick matcher")
 }
-
 // FirstMatch returns the first pattern that matches the given text.
 // ahocorasick.Matcher.Match is not safe for concurrent use, so we hold an
 // exclusive lock across the Match call. ToLower is done outside the lock to
 // reduce contention.
 func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 	lowerText := strings.ToLower(text)
+
+	km.mu.RLock()
+	isNil := km.matcher == nil || len(km.patterns) == 0
+	km.mu.RUnlock()
+	if isNil {
+		return "", false
+	}
 
 	km.mu.Lock()
 	defer km.mu.Unlock()
@@ -76,6 +83,7 @@ func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 		return "", false
 	}
 
+	// ponytail: safe copy retained, switch to unsafe.Slice if pprof shows alloc
 	hits := km.matcher.Match([]byte(lowerText))
 	if len(hits) == 0 {
 		return "", false

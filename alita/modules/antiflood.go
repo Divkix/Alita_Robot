@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -228,6 +229,12 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	userId := user.Id()
 	chatId := chat.Id
+
+	if ok, cached := cache.GetAdminCacheList(chatId); ok && cached.Cached {
+		if _, ok := cached.UserMap[userId]; ok {
+			return ext.ContinueGroups
+		}
+	}
 
 	// Use semaphore to limit concurrent admin checks and add timeout
 	select {

@@ -1,9 +1,11 @@
 package backup
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
@@ -251,16 +253,22 @@ func replaceChatSetting[T any](tx *gorm.DB, chatID int64, setting *T) error {
 	if err := json.Unmarshal(raw, &desired); err != nil {
 		return err
 	}
-	if err := tx.Omit("ID").Create(setting).Error; err != nil {
+	// Use GORM schema to build map preserving zero values (json omitempty and
+	// struct default handling would clobber false/0). Single bulk insert.
+	stmt := &gorm.Statement{DB: tx}
+	if err := stmt.Parse(&desired); err != nil {
 		return err
 	}
-	// GORM applies tagged database defaults to zero-valued fields on CREATE.
-	// The explicit update is required for backed-up false/0 values.
-	return tx.Model(new(T)).
-		Where("chat_id = ?", chatID).
-		Select("*").
-		Omit("ID", "CreatedAt").
-		Updates(&desired).Error
+	m := make(map[string]interface{}, len(stmt.Schema.Fields))
+	rv := reflect.ValueOf(&desired).Elem()
+	for _, field := range stmt.Schema.Fields {
+		if field.Name == "ID" || field.DBName == "created_at" {
+			continue
+		}
+		val, _ := field.ValueOf(context.Background(), rv)
+		m[field.DBName] = val
+	}
+	return tx.Model(new(T)).Create(m).Error
 }
 
 func replaceChatRows[T any](tx *gorm.DB, chatID int64, rows []T) error {
@@ -278,18 +286,25 @@ func replaceChatRows[T any](tx *gorm.DB, chatID int64, rows []T) error {
 	if err := json.Unmarshal(raw, &desired); err != nil {
 		return err
 	}
-	if err := tx.Omit("ID").Create(&rows).Error; err != nil {
-		return err
-	}
-	for i := range rows {
-		if err := tx.Model(&rows[i]).
-			Select("*").
-			Omit("ID", "CreatedAt").
-			Updates(&desired[i]).Error; err != nil {
+	// Build slice of maps via schema to preserve zero values and avoid N Updates.
+	maps := make([]map[string]interface{}, len(desired))
+	for i := range desired {
+		stmt := &gorm.Statement{DB: tx}
+		if err := stmt.Parse(&desired[i]); err != nil {
 			return err
 		}
+		m := make(map[string]interface{}, len(stmt.Schema.Fields))
+		rv := reflect.ValueOf(&desired[i]).Elem()
+		for _, field := range stmt.Schema.Fields {
+			if field.Name == "ID" || field.DBName == "created_at" {
+				continue
+			}
+			val, _ := field.ValueOf(context.Background(), rv)
+			m[field.DBName] = val
+		}
+		maps[i] = m
 	}
-	return nil
+	return tx.Model(new(T)).Create(&maps).Error
 }
 
 func decodeModuleData(data interface{}, module string, target interface{}) error {
