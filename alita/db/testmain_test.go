@@ -8,6 +8,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func TestMain(m *testing.M) {
@@ -38,33 +40,33 @@ func TestMain(m *testing.M) {
 		err := DB.AutoMigrate(
 			&User{},
 			&Chat{},
-			&WarnSettings{},
-			&Warns{},
-			&GreetingSettings{},
+			&models.WarnSettings{},
+			&models.Warns{},
+			&models.GreetingSettings{},
 			&ChatFilters{},
-			&AdminSettings{},
-			&BlacklistSettings{},
-			&PinSettings{},
-			&ReportChatSettings{},
-			&ReportUserSettings{},
+			&models.AdminSettings{},
+			&models.BlacklistSettings{},
+			&models.PinSettings{},
+			&models.ReportChatSettings{},
+			&models.ReportUserSettings{},
 			&DevSettings{},
-			&ChannelSettings{},
+			&models.ChannelSettings{},
 			&AntifloodSettings{},
-			&ConnectionSettings{},
-			&ConnectionChatSettings{},
-			&DisableSettings{},
-			&DisableChatSettings{},
-			&RulesSettings{},
+			&models.ConnectionSettings{},
+			&models.ConnectionChatSettings{},
+			&models.DisableSettings{},
+			&models.DisableChatSettings{},
+			&models.RulesSettings{},
 			&LockSettings{},
 			&NotesSettings{},
 			&Notes{},
 			&CaptchaSettings{},
 			&CaptchaAttempts{},
-			&StoredMessages{},
-			&CaptchaMutedUsers{},
+			&models.StoredMessages{},
+			&models.CaptchaMutedUsers{},
 			&ApprovedUsers{},
-			&AntiRaidSettings{},
-			&Reactions{},
+			&models.AntiRaidSettings{},
+			&models.Reactions{},
 		)
 		if err != nil {
 			fmt.Printf("AutoMigrate failed: %v\n", err)

@@ -38,10 +38,6 @@ func setNoteOverwriteCache(token string, data overwriteNote) error {
 	return setOverwriteCache(noteOverwriteCacheKey(token), data)
 }
 
-func getNoteOverwriteCache(token string) (*overwriteNote, error) {
-	return getOverwriteCache[overwriteNote](noteOverwriteCacheKey(token))
-}
-
 func consumeNoteOverwriteCache(token string) (*overwriteNote, error) {
 	return consumeOverwriteCache[overwriteNote](noteOverwriteCacheKey(token))
 }

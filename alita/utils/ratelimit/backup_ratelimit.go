@@ -46,18 +46,6 @@ const (
 	DefaultResetCooldown  = 1 * time.Hour
 )
 
-// CanExport checks if an export operation is allowed for the given chat
-// Returns true if allowed, and remaining cooldown if not
-func (r *BackupRateLimiter) CanExport(chatID int64) (bool, time.Duration) {
-	return r.canOperate(exportRatePrefix+strconv.FormatInt(chatID, 10), DefaultExportCooldown)
-}
-
-// RecordExport records an export operation for rate limiting
-func (r *BackupRateLimiter) RecordExport(chatID int64) {
-	cacheKey := exportRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey, DefaultExportCooldown)
-}
-
 // AcquireExport atomically reserves the export cooldown for a chat.
 func (r *BackupRateLimiter) AcquireExport(chatID int64) (bool, time.Duration) {
 	return r.acquireOperation(exportRatePrefix+strconv.FormatInt(chatID, 10), DefaultExportCooldown)
@@ -68,26 +56,9 @@ func (r *BackupRateLimiter) CanImport(chatID int64) (bool, time.Duration) {
 	return r.canOperate(importRatePrefix+strconv.FormatInt(chatID, 10), DefaultImportCooldown)
 }
 
-// RecordImport records an import operation for rate limiting
-func (r *BackupRateLimiter) RecordImport(chatID int64) {
-	cacheKey := importRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey, DefaultImportCooldown)
-}
-
 // AcquireImport atomically reserves the import cooldown for a chat.
 func (r *BackupRateLimiter) AcquireImport(chatID int64) (bool, time.Duration) {
 	return r.acquireOperation(importRatePrefix+strconv.FormatInt(chatID, 10), DefaultImportCooldown)
-}
-
-// CanReset checks if a reset operation is allowed for the given chat
-func (r *BackupRateLimiter) CanReset(chatID int64) (bool, time.Duration) {
-	return r.canOperate(resetRatePrefix+strconv.FormatInt(chatID, 10), DefaultResetCooldown)
-}
-
-// RecordReset records a reset operation for rate limiting
-func (r *BackupRateLimiter) RecordReset(chatID int64) {
-	cacheKey := resetRatePrefix + strconv.FormatInt(chatID, 10)
-	r.recordOperation(cacheKey, DefaultResetCooldown)
 }
 
 // AcquireReset atomically reserves the reset cooldown for a chat.

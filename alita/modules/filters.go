@@ -44,11 +44,6 @@ func setFilterOverwriteCache(token string, data overwriteFilter) error {
 	return setOverwriteCache(filterOverwriteCacheKey(token), data)
 }
 
-// getFilterOverwriteCache retrieves filter overwrite data from cache.
-func getFilterOverwriteCache(token string) (*overwriteFilter, error) {
-	return getOverwriteCache[overwriteFilter](filterOverwriteCacheKey(token))
-}
-
 func consumeFilterOverwriteCache(token string) (*overwriteFilter, error) {
 	return consumeOverwriteCache[overwriteFilter](filterOverwriteCacheKey(token))
 }

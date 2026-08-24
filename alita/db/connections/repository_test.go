@@ -129,40 +129,6 @@ func TestGetConnection(t *testing.T) {
 	}
 }
 
-func TestReconnect(t *testing.T) {
-	skipIfNoDb(t)
-
-	base := time.Now().UnixNano()
-	userID := base + 30
-	chatID := base + 31
-
-	t.Cleanup(func() {
-		db.DB.Where("user_id = ?", userID).Delete(&models.ConnectionSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.ConnectionChatSettings{})
-	})
-
-	// Set up connection record
-	_ = Connection(userID)
-	ConnectId(userID, chatID)
-	DisconnectId(userID)
-
-	got := Connection(userID)
-	if got.Connected {
-		t.Fatal("expected Connected=false after DisconnectId")
-	}
-
-	// Reconnect
-	reconnectedChat := ReconnectId(userID)
-	if reconnectedChat != chatID {
-		t.Fatalf("ReconnectId() returned chatID=%d, want %d", reconnectedChat, chatID)
-	}
-
-	got = Connection(userID)
-	if !got.Connected {
-		t.Fatal("expected Connected=true after ReconnectId")
-	}
-}
-
 func TestSetAllowConnect(t *testing.T) {
 	skipIfNoDb(t)
 

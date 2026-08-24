@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,11 +77,11 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 
 	chatID := time.Now().UnixNano()
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&WarnSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
 	})
 
 	// Test valid positive limit
-	settings := &WarnSettings{
+	settings := &models.WarnSettings{
 		ChatId:    chatID,
 		WarnLimit: 3,
 	}
@@ -89,14 +90,14 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 	assert.Greater(t, settings.WarnLimit, 0, "Warn limit should be positive")
 
 	// Test that zero limit violates constraint
-	err = DB.Model(&WarnSettings{}).Create(map[string]any{
+	err = DB.Model(&models.WarnSettings{}).Create(map[string]any{
 		"chat_id":    chatID + 1,
 		"warn_limit": 0,
 	}).Error
 	assert.Error(t, err, "Creating warn settings with zero limit should fail due to CHECK constraint")
 
 	// Test that negative limit violates constraint
-	invalidSettings2 := &WarnSettings{
+	invalidSettings2 := &models.WarnSettings{
 		ChatId:    chatID + 2,
 		WarnLimit: -1,
 	}
@@ -276,12 +277,12 @@ func TestWarnsUsersConstraint_NonNegativeNumWarns(t *testing.T) {
 	userID := base + 200
 	chatID := base + 201
 	t.Cleanup(func() {
-		_ = DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&Warns{}).Error
+		_ = DB.Where("user_id = ? AND chat_id = ?", userID, chatID).Delete(&models.Warns{}).Error
 	})
 
 	// Test valid non-negative values
 	for _, numWarns := range []int{0, 1, 5, 10} {
-		warn := &Warns{
+		warn := &models.Warns{
 			UserId:   userID + int64(numWarns),
 			ChatId:   chatID,
 			NumWarns: numWarns,
@@ -291,7 +292,7 @@ func TestWarnsUsersConstraint_NonNegativeNumWarns(t *testing.T) {
 	}
 
 	// Test invalid negative value
-	invalidWarn := &Warns{
+	invalidWarn := &models.Warns{
 		UserId:   userID + 9999,
 		ChatId:   chatID + 1,
 		NumWarns: -1,
@@ -334,12 +335,12 @@ func TestBlacklistConstraint_ValidActions(t *testing.T) {
 
 	chatID := time.Now().UnixNano()
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&BlacklistSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&models.BlacklistSettings{}).Error
 	})
 
 	validActions := []string{"warn", "mute", "ban", "kick", "tban", "tmute", "delete"}
 	for _, action := range validActions {
-		settings := &BlacklistSettings{
+		settings := &models.BlacklistSettings{
 			ChatId: chatID + int64(hashCode(action)),
 			Word:   "test_word_" + action,
 			Action: action,
@@ -349,7 +350,7 @@ func TestBlacklistConstraint_ValidActions(t *testing.T) {
 	}
 
 	// Test invalid action
-	invalidSettings := &BlacklistSettings{
+	invalidSettings := &models.BlacklistSettings{
 		ChatId: chatID + 99999,
 		Word:   "test_word_invalid",
 		Action: "invalid_action",
@@ -364,11 +365,11 @@ func TestWarnModeConstraint_ValidModes(t *testing.T) {
 
 	chatID := time.Now().UnixNano()
 	t.Cleanup(func() {
-		_ = DB.Where("chat_id = ?", chatID).Delete(&WarnSettings{}).Error
+		_ = DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
 	})
 
 	// Test NULL warn_mode (should be valid)
-	settings1 := &WarnSettings{
+	settings1 := &models.WarnSettings{
 		ChatId:   chatID,
 		WarnMode: "",
 	}
@@ -378,7 +379,7 @@ func TestWarnModeConstraint_ValidModes(t *testing.T) {
 	// Test valid modes
 	validModes := []string{"ban", "kick", "mute", "tban", "tmute"}
 	for _, mode := range validModes {
-		settings := &WarnSettings{
+		settings := &models.WarnSettings{
 			ChatId:   chatID + int64(hashCode(mode)),
 			WarnMode: mode,
 		}
@@ -387,7 +388,7 @@ func TestWarnModeConstraint_ValidModes(t *testing.T) {
 	}
 
 	// Test invalid mode
-	invalidSettings := &WarnSettings{
+	invalidSettings := &models.WarnSettings{
 		ChatId:   chatID + 99999,
 		WarnMode: "invalid_mode",
 	}

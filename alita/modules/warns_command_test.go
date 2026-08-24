@@ -9,6 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 )
 
@@ -203,11 +204,11 @@ func TestWarnsListsCountWhenReasonsAreEmpty(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
-	if err := db.DB.Create(&db.Warns{
+	if err := db.DB.Create(&models.Warns{
 		UserId:   42,
 		ChatId:   chat.Id,
 		NumWarns: 2,
-		Reasons:  db.StringArray{},
+		Reasons:  models.StringArray{},
 	}).Error; err != nil {
 		t.Fatalf("create warns fixture: %v", err)
 	}

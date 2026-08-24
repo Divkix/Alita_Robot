@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func TestMain(m *testing.M) {
@@ -38,10 +39,10 @@ func TestMain(m *testing.M) {
 	}
 
 	if err := db.DB.AutoMigrate(
-		&db.AdminSettings{},
+		&models.AdminSettings{},
 		&db.ApprovedUsers{},
-		&db.DisableSettings{},
-		&db.DisableChatSettings{},
+		&models.DisableSettings{},
+		&models.DisableChatSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

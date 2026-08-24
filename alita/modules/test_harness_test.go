@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -322,33 +323,33 @@ func TestMain(m *testing.M) {
 	if err := db.DB.AutoMigrate(
 		&db.User{},
 		&db.Chat{},
-		&db.ConnectionSettings{},
-		&db.ConnectionChatSettings{},
-		&db.AdminSettings{},
-		&db.DisableSettings{},
-		&db.DisableChatSettings{},
-		&db.RulesSettings{},
-		&db.PinSettings{},
-		&db.WarnSettings{},
-		&db.Warns{},
+		&models.ConnectionSettings{},
+		&models.ConnectionChatSettings{},
+		&models.AdminSettings{},
+		&models.DisableSettings{},
+		&models.DisableChatSettings{},
+		&models.RulesSettings{},
+		&models.PinSettings{},
+		&models.WarnSettings{},
+		&models.Warns{},
 		&db.NotesSettings{},
 		&db.Notes{},
-		&db.GreetingSettings{},
+		&models.GreetingSettings{},
 		&db.CaptchaSettings{},
 		&db.CaptchaAttempts{},
-		&db.StoredMessages{},
-		&db.CaptchaMutedUsers{},
+		&models.StoredMessages{},
+		&models.CaptchaMutedUsers{},
 		&db.ApprovedUsers{},
 		&db.ChatFilters{},
-		&db.BlacklistSettings{},
+		&models.BlacklistSettings{},
 		&db.LockSettings{},
-		&db.ChannelSettings{},
-		&db.ReportChatSettings{},
-		&db.ReportUserSettings{},
+		&models.ChannelSettings{},
+		&models.ReportChatSettings{},
+		&models.ReportUserSettings{},
 		&db.AntifloodSettings{},
-		&db.AntiRaidSettings{},
+		&models.AntiRaidSettings{},
 		&db.DevSettings{},
-		&db.Reactions{},
+		&models.Reactions{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

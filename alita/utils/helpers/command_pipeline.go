@@ -67,8 +67,7 @@ type CommandDescriptor struct {
 // the pipeline short-circuits with ext.EndGroups.
 //
 // The handler receives a pre-built *CommandContext containing Bot, Ctx, Chat,
-// Msg, User, and Tr. Use this for new handlers; for gradual migration of
-// legacy handlers that still expect raw (b, ctx), see WrapCommandRaw.
+// Msg, User, and Tr.
 func WrapCommand(
 	dispatcher *ext.Dispatcher,
 	desc CommandDescriptor,
@@ -86,34 +85,6 @@ func WrapCommand(
 			}
 		}
 		return handler(c)
-	}
-	register(dispatcher, desc, h)
-}
-
-// WrapCommandRaw registers a command with the dispatcher, running all declared
-// checks before invoking the business logic handler. If a check returns false,
-// the pipeline short-circuits with ext.EndGroups.
-//
-// The handler receives the original (b, ctx) pair and must construct its own
-// CommandContext or translator. This supports gradual migration; prefer
-// WrapCommand for new handlers.
-func WrapCommandRaw(
-	dispatcher *ext.Dispatcher,
-	desc CommandDescriptor,
-	handler func(b *gotgbot.Bot, ctx *ext.Context) error,
-) {
-	h := func(b *gotgbot.Bot, ctx *ext.Context) error {
-		defer error_handling.RecoverFromPanic("command_pipeline", "WrapCommandRaw")
-		c, err := BuildCommandContext(b, ctx)
-		if err != nil {
-			return ext.EndGroups
-		}
-		for _, check := range desc.RequiredChecks {
-			if !check(c) {
-				return ext.EndGroups
-			}
-		}
-		return handler(b, ctx)
 	}
 	register(dispatcher, desc, h)
 }
@@ -188,21 +159,6 @@ func RequireUserAdmin() CheckFunc {
 	}
 }
 
-// RequireUserOwner returns a CheckFunc that ensures the invoking user
-// is the chat creator/owner.
-func RequireUserOwner() CheckFunc {
-	return func(c *CommandContext) bool {
-		if c.User == nil {
-			return false
-		}
-		result := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
-		}
-		return result
-	}
-}
-
 // CanUserPromote returns a CheckFunc that ensures the invoking user
 // can promote/demote other members.
 func CanUserPromote() CheckFunc {
@@ -230,33 +186,6 @@ func CanBotPromote() CheckFunc {
 	}
 }
 
-// CanUserRestrict returns a CheckFunc that ensures the invoking user
-// can restrict other members.
-func CanUserRestrict() CheckFunc {
-	return func(c *CommandContext) bool {
-		if c.User == nil {
-			return false
-		}
-		result := chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-		}
-		return result
-	}
-}
-
-// CanBotRestrict returns a CheckFunc that ensures the bot can restrict
-// members.
-func CanBotRestrict() CheckFunc {
-	return func(c *CommandContext) bool {
-		result := chat_status.CanBotRestrict(c.Bot, c.Ctx, nil)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
-		}
-		return result
-	}
-}
-
 // CanUserPin returns a CheckFunc that ensures the invoking user
 // can pin messages.
 func CanUserPin() CheckFunc {
@@ -278,47 +207,6 @@ func CanBotPin() CheckFunc {
 		result := chat_status.CanBotPin(c.Bot, c.Ctx, nil)
 		if !result {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_pin_bot_error", "")
-		}
-		return result
-	}
-}
-
-// CanUserChangeInfo returns a CheckFunc that ensures the invoking user
-// can change chat information.
-func CanUserChangeInfo() CheckFunc {
-	return func(c *CommandContext) bool {
-		if c.User == nil {
-			return false
-		}
-		result := chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
-		}
-		return result
-	}
-}
-
-// CanBotDelete returns a CheckFunc that ensures the bot can delete messages.
-func CanBotDelete() CheckFunc {
-	return func(c *CommandContext) bool {
-		result := chat_status.CanBotDelete(c.Bot, c.Ctx, nil)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
-		}
-		return result
-	}
-}
-
-// CanUserDelete returns a CheckFunc that ensures the invoking user
-// can delete messages.
-func CanUserDelete() CheckFunc {
-	return func(c *CommandContext) bool {
-		if c.User == nil {
-			return false
-		}
-		result := chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id)
-		if !result {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		}
 		return result
 	}

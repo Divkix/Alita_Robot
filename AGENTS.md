@@ -364,7 +364,7 @@ uses `RegisterLegacyModule`.
 - **New declarative pipeline** (`alita/utils/helpers/command_pipeline.go`) — used by
   `admin.go` and `pins.go`: `WrapCommand(dispatcher, CommandDescriptor, handler)`
   runs panic-recovery → `BuildCommandContext` → ordered `RequiredChecks`
-  (`CheckFunc` builders like `RequireGroup`, `RequireUserAdmin`, `CanUserRestrict`)
+  (`CheckFunc` builders like `RequireGroup`, `RequireUserAdmin`, `CanUserPromote`)
   → handler. `BuildCommandContext`'s "error" sentinel **is `ext.EndGroups`**, not a
   real error. `Disableable:true` registers every alias as disableable.
 - **Legacy** — everything else: `dispatcher.AddHandler(handlers.NewCommand(...))`,
@@ -744,7 +744,7 @@ m != nil`) — every helper bails when it's nil.
 ## 15. Error handling & logging
 
 - **Four-layer recovery**: dispatcher (`dispatcherErrorHandler`) → gotgbot worker
-  goroutines → decorator (`WrapCommand`/`WrapCommandRaw`) → handler/goroutine. Use
+  goroutines → decorator (`WrapCommand`) → handler/goroutine. Use
   `defer error_handling.RecoverFromPanic(funcName, modName)` in every fire-and-forget
   goroutine (it logs + stack, invokes the global `onErrorCallback`, swallows the
   panic — it does not propagate, so forgetting the `defer` crashes the process).

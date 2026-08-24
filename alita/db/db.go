@@ -19,40 +19,19 @@ import (
 type (
 	Button                 = models.Button
 	ButtonArray            = models.ButtonArray
-	StringArray            = models.StringArray
 	Int64Array             = models.Int64Array
 	User                   = models.User
 	Chat                   = models.Chat
-	WarnSettings           = models.WarnSettings
-	Warns                  = models.Warns
-	GreetingSettings       = models.GreetingSettings
-	WelcomeSettings        = models.WelcomeSettings
-	GoodbyeSettings        = models.GoodbyeSettings
 	ChatFilters            = models.ChatFilters
-	AdminSettings          = models.AdminSettings
-	BlacklistSettings      = models.BlacklistSettings
 	BlacklistSettingsSlice = models.BlacklistSettingsSlice
-	PinSettings            = models.PinSettings
-	ReportChatSettings     = models.ReportChatSettings
-	ReportUserSettings     = models.ReportUserSettings
 	DevSettings            = models.DevSettings
-	ChannelSettings        = models.ChannelSettings
 	AntifloodSettings      = models.AntifloodSettings
-	ConnectionSettings     = models.ConnectionSettings
-	ConnectionChatSettings = models.ConnectionChatSettings
-	DisableSettings        = models.DisableSettings
-	DisableChatSettings    = models.DisableChatSettings
-	RulesSettings          = models.RulesSettings
 	LockSettings           = models.LockSettings
 	NotesSettings          = models.NotesSettings
 	Notes                  = models.Notes
 	ApprovedUsers          = models.ApprovedUsers
 	CaptchaSettings        = models.CaptchaSettings
 	CaptchaAttempts        = models.CaptchaAttempts
-	StoredMessages         = models.StoredMessages
-	CaptchaMutedUsers      = models.CaptchaMutedUsers
-	AntiRaidSettings       = models.AntiRaidSettings
-	Reactions              = models.Reactions
 )
 
 // Message type constants - maintain compatibility with existing code

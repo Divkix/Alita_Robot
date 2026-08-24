@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/divkix/Alita_Robot/alita/db/migrations"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 //nolint:dupl // Scan test patterns are intentionally similar across types
@@ -216,7 +217,7 @@ func TestStringArray_Scan(t *testing.T) {
 		wantErr     bool
 		errContains string
 		wantLen     int
-		validate    func(t *testing.T, sa StringArray)
+		validate    func(t *testing.T, sa models.StringArray)
 	}{
 		{
 			name:      "nil value returns empty no error",
@@ -229,7 +230,7 @@ func TestStringArray_Scan(t *testing.T) {
 			input:   []byte(`["hello","world"]`),
 			wantErr: false,
 			wantLen: 2,
-			validate: func(t *testing.T, sa StringArray) {
+			validate: func(t *testing.T, sa models.StringArray) {
 				t.Helper()
 				if sa[0] != "hello" {
 					t.Fatalf("expected sa[0]=hello, got %q", sa[0])
@@ -261,7 +262,7 @@ func TestStringArray_Scan(t *testing.T) {
 			input:   []byte(`["日本語","한국어","العربية"]`),
 			wantErr: false,
 			wantLen: 3,
-			validate: func(t *testing.T, sa StringArray) {
+			validate: func(t *testing.T, sa models.StringArray) {
 				t.Helper()
 				if sa[0] != "日本語" {
 					t.Fatalf("expected unicode string, got %q", sa[0])
@@ -279,7 +280,7 @@ func TestStringArray_Scan(t *testing.T) {
 			input:   []byte(`["only"]`),
 			wantErr: false,
 			wantLen: 1,
-			validate: func(t *testing.T, sa StringArray) {
+			validate: func(t *testing.T, sa models.StringArray) {
 				t.Helper()
 				if sa[0] != "only" {
 					t.Fatalf("expected sa[0]=only, got %q", sa[0])
@@ -291,7 +292,7 @@ func TestStringArray_Scan(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			var sa StringArray
+			var sa models.StringArray
 			err := sa.Scan(tc.input)
 
 			if tc.wantErr {
@@ -328,13 +329,13 @@ func TestStringArray_Value(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   StringArray
+		input   models.StringArray
 		wantStr string
 		wantErr bool
 	}{
 		{
 			name:    "empty array returns empty JSON array string",
-			input:   StringArray{},
+			input:   models.StringArray{},
 			wantStr: "[]",
 		},
 		{
@@ -344,17 +345,17 @@ func TestStringArray_Value(t *testing.T) {
 		},
 		{
 			name:    "multiple elements produce valid JSON",
-			input:   StringArray{"hello", "world", "foo"},
+			input:   models.StringArray{"hello", "world", "foo"},
 			wantErr: false,
 		},
 		{
 			name:    "empty string element produces valid JSON",
-			input:   StringArray{""},
+			input:   models.StringArray{""},
 			wantErr: false,
 		},
 		{
 			name:  "unicode elements produce valid JSON",
-			input: StringArray{"日本語", "한국어"},
+			input: models.StringArray{"日本語", "한국어"},
 		},
 	}
 
@@ -385,7 +386,7 @@ func TestStringArray_Value(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected []byte value for non-empty array, got %T", val)
 			}
-			var result StringArray
+			var result models.StringArray
 			if err := json.Unmarshal(b, &result); err != nil {
 				t.Fatalf("Value() produced invalid JSON: %v", err)
 			}
@@ -615,30 +616,30 @@ func TestTableNames(t *testing.T) {
 	}{
 		{"User", User{}, "users"},
 		{"Chat", Chat{}, "chats"},
-		{"WarnSettings", WarnSettings{}, "warns_settings"},
-		{"Warns", Warns{}, "warns_users"},
-		{"GreetingSettings", GreetingSettings{}, "greetings"},
+		{"WarnSettings", models.WarnSettings{}, "warns_settings"},
+		{"Warns", models.Warns{}, "warns_users"},
+		{"GreetingSettings", models.GreetingSettings{}, "greetings"},
 		{"ChatFilters", ChatFilters{}, "filters"},
-		{"AdminSettings", AdminSettings{}, "admin"},
-		{"BlacklistSettings", BlacklistSettings{}, "blacklists"},
-		{"PinSettings", PinSettings{}, "pins"},
-		{"ReportChatSettings", ReportChatSettings{}, "report_chat_settings"},
-		{"ReportUserSettings", ReportUserSettings{}, "report_user_settings"},
+		{"AdminSettings", models.AdminSettings{}, "admin"},
+		{"BlacklistSettings", models.BlacklistSettings{}, "blacklists"},
+		{"PinSettings", models.PinSettings{}, "pins"},
+		{"ReportChatSettings", models.ReportChatSettings{}, "report_chat_settings"},
+		{"ReportUserSettings", models.ReportUserSettings{}, "report_user_settings"},
 		{"DevSettings", DevSettings{}, "devs"},
-		{"ChannelSettings", ChannelSettings{}, "channels"},
+		{"ChannelSettings", models.ChannelSettings{}, "channels"},
 		{"AntifloodSettings", AntifloodSettings{}, "antiflood_settings"},
-		{"ConnectionSettings", ConnectionSettings{}, "connection"},
-		{"ConnectionChatSettings", ConnectionChatSettings{}, "connection_settings"},
-		{"DisableSettings", DisableSettings{}, "disable"},
-		{"DisableChatSettings", DisableChatSettings{}, "disable_chat_settings"},
-		{"RulesSettings", RulesSettings{}, "rules"},
+		{"ConnectionSettings", models.ConnectionSettings{}, "connection"},
+		{"ConnectionChatSettings", models.ConnectionChatSettings{}, "connection_settings"},
+		{"DisableSettings", models.DisableSettings{}, "disable"},
+		{"DisableChatSettings", models.DisableChatSettings{}, "disable_chat_settings"},
+		{"RulesSettings", models.RulesSettings{}, "rules"},
 		{"LockSettings", LockSettings{}, "locks"},
 		{"NotesSettings", NotesSettings{}, "notes_settings"},
 		{"Notes", Notes{}, "notes"},
 		{"CaptchaSettings", CaptchaSettings{}, "captcha_settings"},
 		{"CaptchaAttempts", CaptchaAttempts{}, "captcha_attempts"},
-		{"StoredMessages", StoredMessages{}, "stored_messages"},
-		{"CaptchaMutedUsers", CaptchaMutedUsers{}, "captcha_muted_users"},
+		{"StoredMessages", models.StoredMessages{}, "stored_messages"},
+		{"CaptchaMutedUsers", models.CaptchaMutedUsers{}, "captcha_muted_users"},
 		{"SchemaMigration", migrations.SchemaMigration{}, "schema_migrations"},
 	}
 

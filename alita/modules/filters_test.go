@@ -39,8 +39,8 @@ func TestFilterOverwriteCacheNoCacheFallbacks(t *testing.T) {
 	if err := setFilterOverwriteCache("token", data); err == nil {
 		t.Fatal("setFilterOverwriteCache() error = nil, want cache not initialized")
 	}
-	if _, err := getFilterOverwriteCache("token"); err == nil {
-		t.Fatal("getFilterOverwriteCache() error = nil, want cache not initialized")
+	if _, err := getOverwriteCache[overwriteFilter](filterOverwriteCacheKey("token")); err == nil {
+		t.Fatal("getOverwriteCache[overwriteFilter]() error = nil, want cache not initialized")
 	}
 
 	deleteFilterOverwriteCache("token")
@@ -60,15 +60,15 @@ func TestFilterOverwriteCacheRoundTripsCurrentData(t *testing.T) {
 	if err := setFilterOverwriteCache("token-current", current); err != nil {
 		t.Fatalf("setFilterOverwriteCache() error = %v", err)
 	}
-	got, err := getFilterOverwriteCache("token-current")
+	got, err := getOverwriteCache[overwriteFilter](filterOverwriteCacheKey("token-current"))
 	if err != nil {
-		t.Fatalf("getFilterOverwriteCache() error = %v", err)
+		t.Fatalf("getOverwriteCache[overwriteFilter]() error = %v", err)
 	}
 	if got.ChatID != current.ChatID || got.ItemName != current.ItemName || got.Text != current.Text {
-		t.Fatalf("getFilterOverwriteCache() = %+v, want %+v", got, current)
+		t.Fatalf("getOverwriteCache[overwriteFilter]() = %+v, want %+v", got, current)
 	}
 	deleteFilterOverwriteCache("token-current")
-	if _, err := getFilterOverwriteCache("token-current"); err == nil {
-		t.Fatal("getFilterOverwriteCache(deleted) error = nil, want cache miss")
+	if _, err := getOverwriteCache[overwriteFilter](filterOverwriteCacheKey("token-current")); err == nil {
+		t.Fatal("getOverwriteCache[overwriteFilter](deleted) error = nil, want cache miss")
 	}
 }

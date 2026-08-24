@@ -9,6 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -22,11 +23,11 @@ rules_set_successfully: saved
 	}
 	t.Cleanup(restoreI18n)
 
-	if err := db.DB.Migrator().DropTable(&db.RulesSettings{}); err != nil {
+	if err := db.DB.Migrator().DropTable(&models.RulesSettings{}); err != nil {
 		t.Fatalf("DropTable RulesSettings: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := db.DB.AutoMigrate(&db.RulesSettings{}); err != nil {
+		if err := db.DB.AutoMigrate(&models.RulesSettings{}); err != nil {
 			t.Fatalf("restore RulesSettings: %v", err)
 		}
 	})

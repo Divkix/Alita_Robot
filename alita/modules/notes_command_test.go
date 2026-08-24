@@ -407,7 +407,7 @@ func TestNoteOverwriteHandlerCancelAndSuccess(t *testing.T) {
 	if err := notesModule.noteOverWriteHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("noteOverWriteHandler(cancel) error = %v, want EndGroups", err)
 	}
-	if _, err := getNoteOverwriteCache(cancelToken); err == nil {
+	if _, err := getOverwriteCache[overwriteNote](noteOverwriteCacheKey(cancelToken)); err == nil {
 		t.Fatal("cancelled overwrite token remained in cache")
 	}
 	if got := notes.GetNote(chat.Id, "rules").NoteContent; got != "old" {

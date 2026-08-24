@@ -536,7 +536,6 @@ helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 | `CommandContext` | Context passed through the command pipeline |
 | `CheckFunc` | Permission check function signature |
 | `WrapCommand` | Main pipeline builder with automatic check execution |
-| `WrapCommandRaw` | Raw handler variant without automatic checks |
 
 **Pre-built CheckFunc builders**:
 
@@ -546,11 +545,6 @@ helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 | `RequirePrivate()` | Ensures command is used in private chat |
 | `RequireBotAdmin()` | Ensures bot is admin |
 | `RequireUserAdmin()` | Ensures user is admin |
-| `RequireUserOwner()` | Ensures user is group owner |
-| `CanUserRestrict()` | Checks user can restrict members |
-| `CanBotRestrict()` | Checks bot can restrict members |
-| `CanUserDelete()` | Checks user can delete messages |
-| `CanBotDelete()` | Checks bot can delete messages |
 | `CanUserPromote()` | Checks user can promote members |
 | `CanBotPromote()` | Checks bot can promote members |
 | `CanUserPin()` | Checks user can pin messages |

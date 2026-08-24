@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -151,7 +152,7 @@ func TestMain(m *testing.M) {
 	}
 	db.DB = sqliteDB
 
-	if err := db.DB.AutoMigrate(&db.User{}, &db.Chat{}, &db.ChannelSettings{}); err != nil {
+	if err := db.DB.AutoMigrate(&db.User{}, &db.Chat{}, &models.ChannelSettings{}); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -718,7 +719,7 @@ func TestGetUserInfoChecksUsersAndChannels(t *testing.T) {
 	if err := db.DB.Create(&db.User{UserId: 888123, UserName: "infouser", Name: "Info User"}).Error; err != nil {
 		t.Fatalf("Create info user failed: %v", err)
 	}
-	if err := db.DB.Create(&db.ChannelSettings{
+	if err := db.DB.Create(&models.ChannelSettings{
 		ChatId:      -1001234567891,
 		Username:    "infochannel",
 		ChannelName: "Info Channel",

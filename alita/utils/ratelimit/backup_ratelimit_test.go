@@ -70,9 +70,7 @@ func TestBackupRateLimiter_CanMethods_NilCache(t *testing.T) {
 		name string
 		fn   func(*BackupRateLimiter, int64) (bool, time.Duration)
 	}{
-		{"CanExport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanExport(id) }},
 		{"CanImport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanImport(id) }},
-		{"CanReset", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanReset(id) }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -85,29 +83,6 @@ func TestBackupRateLimiter_CanMethods_NilCache(t *testing.T) {
 			if remaining != 0 {
 				t.Errorf("expected remaining=0 when cache is nil, got %v", remaining)
 			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Record methods with nil cache — must not panic
-// ---------------------------------------------------------------------------
-
-func TestBackupRateLimiter_RecordMethods_NilCache_NoPanic(t *testing.T) {
-	tests := []struct {
-		name string
-		fn   func(*BackupRateLimiter, int64)
-	}{
-		{"RecordExport", func(l *BackupRateLimiter, id int64) { l.RecordExport(id) }},
-		{"RecordImport", func(l *BackupRateLimiter, id int64) { l.RecordImport(id) }},
-		{"RecordReset", func(l *BackupRateLimiter, id int64) { l.RecordReset(id) }},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			limiter := &BackupRateLimiter{}
-			// Must not panic
-			tc.fn(limiter, 12345)
 		})
 	}
 }
@@ -154,36 +129,8 @@ func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// CanExport / CanImport / CanReset with working cache
+// CanImport with working cache
 // ---------------------------------------------------------------------------
-
-func TestBackupRateLimiter_CanExport_AllowedThenBlocked(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99902)
-
-	// First call — should be allowed (no previous export).
-	allowed, remaining := limiter.CanExport(chatID)
-	if !allowed {
-		t.Fatal("expected CanExport to be allowed on first call")
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 on first call, got %v", remaining)
-	}
-
-	// Record the export.
-	limiter.RecordExport(chatID)
-
-	// Second call immediately — should be blocked.
-	allowed, remaining = limiter.CanExport(chatID)
-	if allowed {
-		t.Fatal("expected CanExport to be blocked immediately after RecordExport")
-	}
-	if remaining <= 0 || remaining > DefaultExportCooldown {
-		t.Errorf("expected remaining in (0, %v], got %v", DefaultExportCooldown, remaining)
-	}
-}
 
 func TestBackupRateLimiter_AcquireExportIsAtomic(t *testing.T) {
 	cache.SetupTestMemoryMarshaler(t)
@@ -236,62 +183,14 @@ func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
 		t.Errorf("expected remaining=0 on first call, got %v", remaining)
 	}
 
-	limiter.RecordImport(chatID)
+	limiter.AcquireImport(chatID)
 
 	allowed, remaining = limiter.CanImport(chatID)
 	if allowed {
-		t.Fatal("expected CanImport to be blocked immediately after RecordImport")
+		t.Fatal("expected CanImport to be blocked immediately after AcquireImport")
 	}
 	if remaining <= 0 || remaining > DefaultImportCooldown {
 		t.Errorf("expected remaining in (0, %v], got %v", DefaultImportCooldown, remaining)
-	}
-}
-
-func TestBackupRateLimiter_CanReset_AllowedThenBlocked(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99904)
-
-	allowed, remaining := limiter.CanReset(chatID)
-	if !allowed {
-		t.Fatal("expected CanReset to be allowed on first call")
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 on first call, got %v", remaining)
-	}
-
-	limiter.RecordReset(chatID)
-
-	allowed, remaining = limiter.CanReset(chatID)
-	if allowed {
-		t.Fatal("expected CanReset to be blocked immediately after RecordReset")
-	}
-	if remaining <= 0 || remaining > DefaultResetCooldown {
-		t.Errorf("expected remaining in (0, %v], got %v", DefaultResetCooldown, remaining)
-	}
-}
-
-func TestBackupRateLimiter_CanExport_AfterCooldown(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99905)
-	cacheKey := exportRatePrefix + fmt.Sprint(chatID)
-
-	// Manually seed cache with a timestamp well in the past.
-	past := time.Now().Add(-DefaultExportCooldown - time.Second)
-	// marshaler stores time values via msgpack, so we must store via marshaler
-	if err := cache.GetMarshal().Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultExportCooldown)); err != nil {
-		t.Fatalf("failed to seed cache: %v", err)
-	}
-
-	allowed, remaining := limiter.CanExport(chatID)
-	if !allowed {
-		t.Fatalf("expected CanExport to be allowed after cooldown, got remaining=%v", remaining)
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 after cooldown, got %v", remaining)
 	}
 }
 
@@ -310,27 +209,6 @@ func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
 	allowed, remaining := limiter.CanImport(chatID)
 	if !allowed {
 		t.Fatalf("expected CanImport to be allowed after cooldown, got remaining=%v", remaining)
-	}
-	if remaining != 0 {
-		t.Errorf("expected remaining=0 after cooldown, got %v", remaining)
-	}
-}
-
-func TestBackupRateLimiter_CanReset_AfterCooldown(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99907)
-	cacheKey := resetRatePrefix + fmt.Sprint(chatID)
-
-	past := time.Now().Add(-DefaultResetCooldown - time.Second)
-	if err := cache.GetMarshal().Set(context.Background(), cacheKey, past, store.WithExpiration(DefaultResetCooldown)); err != nil {
-		t.Fatalf("failed to seed cache: %v", err)
-	}
-
-	allowed, remaining := limiter.CanReset(chatID)
-	if !allowed {
-		t.Fatalf("expected CanReset to be allowed after cooldown, got remaining=%v", remaining)
 	}
 	if remaining != 0 {
 		t.Errorf("expected remaining=0 after cooldown, got %v", remaining)

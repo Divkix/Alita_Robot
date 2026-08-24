@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 )
 
@@ -102,7 +103,7 @@ func TestFormattingReplacerAddsRulesButtons(t *testing.T) {
 		}
 		db.DB = originalDB
 	})
-	if err := db.DB.AutoMigrate(&db.Chat{}, &db.RulesSettings{}); err != nil {
+	if err := db.DB.AutoMigrate(&db.Chat{}, &models.RulesSettings{}); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func TestCaptchaCommandTogglesAndDisplaysSettings(t *testing.T) {
@@ -317,7 +318,7 @@ func TestRunOrphanedCaptchaRecoveryResumesValidAttempts(t *testing.T) {
 	banChat := uniqueModuleChatID()
 	validChat := uniqueModuleChatID()
 
-	if err := db.DB.Where("1 = 1").Delete(&db.StoredMessages{}).Error; err != nil {
+	if err := db.DB.Where("1 = 1").Delete(&models.StoredMessages{}).Error; err != nil {
 		t.Fatalf("stored message cleanup setup error = %v", err)
 	}
 	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
@@ -381,7 +382,7 @@ func TestRunOrphanedCaptchaRecoveryResumesValidAttempts(t *testing.T) {
 		t.Fatalf("remaining captcha attempts = %d, want valid attempt retained", remainingAttempts)
 	}
 	var remainingMessages int64
-	if err := db.DB.Model(&db.StoredMessages{}).Count(&remainingMessages).Error; err != nil {
+	if err := db.DB.Model(&models.StoredMessages{}).Count(&remainingMessages).Error; err != nil {
 		t.Fatalf("count stored messages error = %v", err)
 	}
 	if remainingMessages != 1 {
@@ -402,7 +403,7 @@ func TestCleanupExpiredCaptchaAttemptsDeletesMessagesAndRecords(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 
-	if err := db.DB.Where("1 = 1").Delete(&db.StoredMessages{}).Error; err != nil {
+	if err := db.DB.Where("1 = 1").Delete(&models.StoredMessages{}).Error; err != nil {
 		t.Fatalf("stored message cleanup setup error = %v", err)
 	}
 	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaAttempts{}).Error; err != nil {
@@ -531,7 +532,7 @@ func TestUnmuteExpiredCaptchaUsersGrantsPermissionsAndCleansRecords(t *testing.T
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 
-	if err := db.DB.Where("1 = 1").Delete(&db.CaptchaMutedUsers{}).Error; err != nil {
+	if err := db.DB.Where("1 = 1").Delete(&models.CaptchaMutedUsers{}).Error; err != nil {
 		t.Fatalf("muted user cleanup setup error = %v", err)
 	}
 	if err := captcha.CreateMutedUser(7301, uniqueModuleChatID(), time.Now().Add(-time.Minute)); err != nil {
@@ -563,7 +564,7 @@ func TestUnmuteExpiredCaptchaUsersKeepsTransientFailures(t *testing.T) {
 			client.errors["restrictChatMember"] = errors.New(telegramError)
 			bot := newModuleTestBot(client)
 
-			if err := db.DB.Where("1 = 1").Delete(&db.CaptchaMutedUsers{}).Error; err != nil {
+			if err := db.DB.Where("1 = 1").Delete(&models.CaptchaMutedUsers{}).Error; err != nil {
 				t.Fatalf("muted user cleanup setup error = %v", err)
 			}
 			if err := captcha.CreateMutedUser(7401, uniqueModuleChatID(), time.Now().Add(-time.Minute)); err != nil {

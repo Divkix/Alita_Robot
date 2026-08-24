@@ -102,7 +102,7 @@ func ConnectId(UserID, chatID int64) error {
 }
 
 // DisconnectId disconnects a user from their current chat connection.
-// It deliberately retains chat_id so ReconnectId can restore the connection.
+// It deliberately retains chat_id so users can reconnect to the same chat later.
 func DisconnectId(UserID int64) error {
 	err := db.DB.Model(&models.ConnectionSettings{}).
 		Where("user_id = ?", UserID).
@@ -111,27 +111,6 @@ func DisconnectId(UserID int64) error {
 		log.Errorf("[Database] DisconnectId: %v - %d", err, UserID)
 	}
 	return err
-}
-
-// ReconnectId reconnects a user to their previously connected chat.
-// Returns the chat ID the user was reconnected to, or 0 if an error occurs.
-func ReconnectId(UserID int64) int64 {
-	result := db.DB.Model(&models.ConnectionSettings{}).
-		Where("user_id = ?", UserID).
-		Update("connected", true)
-	if result.Error != nil {
-		log.Errorf("[Database] ReconnectId: %v - %d", result.Error, UserID)
-		return 0
-	}
-	if result.RowsAffected == 0 {
-		return 0
-	}
-
-	connectionUpdate := Connection(UserID)
-	if connectionUpdate.ChatId == 0 {
-		return 0
-	}
-	return connectionUpdate.ChatId
 }
 
 // LoadConnectionStats returns statistics about connection usage.

@@ -103,14 +103,6 @@ func TestCheckFuncNilGuards(t *testing.T) {
 			},
 		},
 		{
-			name:  "RequireUserOwner with nil User",
-			check: RequireUserOwner(),
-			c: &CommandContext{
-				Bot:  &gotgbot.Bot{Token: "test"},
-				User: nil,
-			},
-		},
-		{
 			name:  "CanUserPromote with nil User",
 			check: CanUserPromote(),
 			c: &CommandContext{
@@ -119,32 +111,8 @@ func TestCheckFuncNilGuards(t *testing.T) {
 			},
 		},
 		{
-			name:  "CanUserRestrict with nil User",
-			check: CanUserRestrict(),
-			c: &CommandContext{
-				Bot:  &gotgbot.Bot{Token: "test"},
-				User: nil,
-			},
-		},
-		{
 			name:  "CanUserPin with nil User",
 			check: CanUserPin(),
-			c: &CommandContext{
-				Bot:  &gotgbot.Bot{Token: "test"},
-				User: nil,
-			},
-		},
-		{
-			name:  "CanUserChangeInfo with nil User",
-			check: CanUserChangeInfo(),
-			c: &CommandContext{
-				Bot:  &gotgbot.Bot{Token: "test"},
-				User: nil,
-			},
-		},
-		{
-			name:  "CanUserDelete with nil User",
-			check: CanUserDelete(),
 			c: &CommandContext{
 				Bot:  &gotgbot.Bot{Token: "test"},
 				User: nil,
@@ -266,20 +234,8 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			want:  true,
 		},
 		{
-			name:  "CanBotRestrict when bot has permission",
-			check: CanBotRestrict(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")},
-			want:  true,
-		},
-		{
 			name:  "CanBotPin when bot has permission",
 			check: CanBotPin(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")},
-			want:  true,
-		},
-		{
-			name:  "CanBotDelete when bot has permission",
-			check: CanBotDelete(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")},
 			want:  true,
 		},
@@ -299,38 +255,14 @@ func TestCheckFuncTrueBranches(t *testing.T) {
 			want:  true,
 		},
 		{
-			name:  "RequireUserOwner when user is owner",
-			check: RequireUserOwner(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 12), User: &gotgbot.User{Id: 12}},
-			want:  true,
-		},
-		{
 			name:  "CanUserPromote when user has permission",
 			check: CanUserPromote(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
 			want:  true,
 		},
 		{
-			name:  "CanUserRestrict when user has permission",
-			check: CanUserRestrict(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
-			want:  true,
-		},
-		{
 			name:  "CanUserPin when user has permission",
 			check: CanUserPin(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
-			want:  true,
-		},
-		{
-			name:  "CanUserChangeInfo when user has permission",
-			check: CanUserChangeInfo(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
-			want:  true,
-		},
-		{
-			name:  "CanUserDelete when user has permission",
-			check: CanUserDelete(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}},
 			want:  true,
 		},
@@ -372,33 +304,13 @@ func TestCheckFuncFalseBranches(t *testing.T) {
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}},
 		},
 		{
-			name:  "RequireUserOwner when user is NOT owner",
-			check: RequireUserOwner(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}},
-		},
-		{
 			name:  "CanUserPromote when user lacks permission",
 			check: CanUserPromote(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
 		},
 		{
-			name:  "CanUserRestrict when user lacks permission",
-			check: CanUserRestrict(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
-		},
-		{
 			name:  "CanUserPin when user lacks permission",
 			check: CanUserPin(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
-		},
-		{
-			name:  "CanUserChangeInfo when user lacks permission",
-			check: CanUserChangeInfo(),
-			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
-		},
-		{
-			name:  "CanUserDelete when user lacks permission",
-			check: CanUserDelete(),
 			c:     &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 998), User: &gotgbot.User{Id: 998}},
 		},
 		{
@@ -424,18 +336,8 @@ func TestCheckFuncFalseBranches(t *testing.T) {
 			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
 		},
 		{
-			name:  "CanBotRestrict when bot lacks permission",
-			check: CanBotRestrict(),
-			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
-		},
-		{
 			name:  "CanBotPin when bot lacks permission",
 			check: CanBotPin(),
-			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
-		},
-		{
-			name:  "CanBotDelete when bot lacks permission",
-			check: CanBotDelete(),
 			c:     &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")},
 		},
 	}
@@ -447,72 +349,6 @@ func TestCheckFuncFalseBranches(t *testing.T) {
 				t.Fatalf("%s returned %v, want false", tc.name, got)
 			}
 		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// WrapCommandRaw success path
-// ---------------------------------------------------------------------------
-
-func TestWrapCommandRawSuccess(t *testing.T) {
-	d := ext.NewDispatcher(&ext.DispatcherOpts{})
-
-	called := false
-	handler := func(_ *gotgbot.Bot, _ *ext.Context) error {
-		called = true
-		return nil
-	}
-
-	WrapCommandRaw(d, CommandDescriptor{
-		Name:           "testraw",
-		RequiredChecks: []CheckFunc{RequireGroup()},
-	}, handler)
-
-	bot := newCpBot(999)
-	update := &gotgbot.Update{
-		Message: &gotgbot.Message{
-			Chat:     gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Test"},
-			From:     &gotgbot.User{Id: 42, FirstName: "Member"},
-			Text:     "/testraw",
-			Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 8}},
-		},
-	}
-	if err := d.ProcessUpdate(bot, update, nil); err != nil {
-		t.Fatalf("ProcessUpdate error: %v", err)
-	}
-	if !called {
-		t.Fatal("expected handler to be called")
-	}
-}
-
-func TestWrapCommandRawShortCircuitsOnCheckFailure(t *testing.T) {
-	d := ext.NewDispatcher(&ext.DispatcherOpts{})
-
-	called := false
-	handler := func(_ *gotgbot.Bot, _ *ext.Context) error {
-		called = true
-		return nil
-	}
-
-	WrapCommandRaw(d, CommandDescriptor{
-		Name:           "testrawfail",
-		RequiredChecks: []CheckFunc{RequireGroup()},
-	}, handler)
-
-	bot := newCpBot(999)
-	update := &gotgbot.Update{
-		Message: &gotgbot.Message{
-			Chat:     gotgbot.Chat{Id: 42, Type: "private", FirstName: "Tester"},
-			From:     &gotgbot.User{Id: 42, FirstName: "Member"},
-			Text:     "/testrawfail",
-			Entities: []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 12}},
-		},
-	}
-	if err := d.ProcessUpdate(bot, update, nil); err != nil {
-		t.Fatalf("ProcessUpdate error: %v", err)
-	}
-	if called {
-		t.Fatal("expected handler NOT to be called when check fails")
 	}
 }
 

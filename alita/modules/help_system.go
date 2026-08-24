@@ -20,11 +20,6 @@ import (
 // markup is the global help menu keyboard.
 var markup gotgbot.InlineKeyboardMarkup
 
-// listModules returns a sorted slice of all currently enabled bot modules.
-func listModules() []string {
-	return listModulesFrom(DefaultHelpRegistry())
-}
-
 func listModulesFrom(registry *moduleStruct) []string {
 	var modules []string
 	for module, enabled := range registry.AbleMap {

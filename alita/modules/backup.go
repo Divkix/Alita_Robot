@@ -98,17 +98,6 @@ func storePendingImport(chatID int64, bkp *backup.BackupFormat, modules []string
 	return token, nil
 }
 
-func getPendingImport(chatID int64) (*backup.BackupFormat, []string, bool) {
-	pendingMu.Lock()
-	defer pendingMu.Unlock()
-	pending, ok := pendingImports[chatID]
-	if !ok || !time.Now().Before(pending.expiresAt) {
-		delete(pendingImports, chatID)
-		return nil, nil, false
-	}
-	return pending.backup, pending.modules, true
-}
-
 func consumePendingImport(chatID int64, token string) (*backup.BackupFormat, []string, bool) {
 	pendingMu.Lock()
 	defer pendingMu.Unlock()
@@ -132,12 +121,6 @@ func discardPendingImport(chatID int64, token string) bool {
 	return ok
 }
 
-func clearPendingImport(chatID int64) {
-	pendingMu.Lock()
-	defer pendingMu.Unlock()
-	delete(pendingImports, chatID)
-}
-
 func storePendingReset(chatID int64, modules []string) (string, error) {
 	token, err := newPendingToken()
 	if err != nil {
@@ -152,17 +135,6 @@ func storePendingReset(chatID int64, modules []string) (string, error) {
 		expiresAt: time.Now().Add(pendingBackupTTL),
 	}
 	return token, nil
-}
-
-func getPendingReset(chatID int64) ([]string, bool) {
-	pendingMu.Lock()
-	defer pendingMu.Unlock()
-	pending, ok := pendingResets[chatID]
-	if !ok || !time.Now().Before(pending.expiresAt) {
-		delete(pendingResets, chatID)
-		return nil, false
-	}
-	return pending.modules, true
 }
 
 func consumePendingReset(chatID int64, token string) ([]string, bool) {
@@ -186,12 +158,6 @@ func consumePendingReset(chatID int64, token string) ([]string, bool) {
 func discardPendingReset(chatID int64, token string) bool {
 	_, ok := consumePendingReset(chatID, token)
 	return ok
-}
-
-func clearPendingReset(chatID int64) {
-	pendingMu.Lock()
-	defer pendingMu.Unlock()
-	delete(pendingResets, chatID)
 }
 
 func cleanupExpiredPending() {
@@ -361,19 +327,6 @@ func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, 
 	}
 
 	return msg, chat, user, tr, true
-}
-
-// checkImportRateLimit checks rate limit for import operation
-func checkImportRateLimit(chatID int64, tr *i18n.Translator) (bool, string) {
-	limiter := ratelimit.GetBackupRateLimiter()
-	if allowed, cooldown := limiter.CanImport(chatID); !allowed {
-		cooldownStr := ratelimit.FormatCooldown(cooldown)
-		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
-			"time": cooldownStr,
-		})
-		return false, text
-	}
-	return true, ""
 }
 
 // downloadBackupFile downloads the backup file from Telegram

@@ -69,15 +69,15 @@ func TestListModulesViaDefaultRegistry(t *testing.T) {
 		defaultHelpRegistry = previousRegistry
 	}()
 
-	result := listModules()
+	result := listModulesFrom(DefaultHelpRegistry())
 	if len(result) != 3 {
-		t.Fatalf("listModules() = %v (len %d), want 3 elements", result, len(result))
+		t.Fatalf("listModulesFrom(DefaultHelpRegistry()) = %v (len %d), want 3 elements", result, len(result))
 	}
 
 	expected := []string{"Admin", "Bans", "Filters"}
 	for i, name := range expected {
 		if result[i] != name {
-			t.Fatalf("listModules()[%d] = %q, want %q; full result: %v", i, result[i], name, result)
+			t.Fatalf("listModulesFrom(DefaultHelpRegistry())[%d] = %q, want %q; full result: %v", i, result[i], name, result)
 		}
 	}
 }
