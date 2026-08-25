@@ -49,7 +49,7 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 		err = db.DB.Transaction(func(tx *gorm.DB) error {
 			if username != "" {
 				if err := tx.Model(&models.ChannelSettings{}).
-					Where("chat_id <> ? AND LOWER(username) = ?", channelId, username).
+					Where("chat_id <> ? AND username <> '' AND LOWER(username) = ?", channelId, username).
 					Pluck("chat_id", &reassignedChatIDs).Error; err != nil {
 					return err
 				}
