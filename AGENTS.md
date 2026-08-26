@@ -665,9 +665,12 @@ m != nil`) — every helper bails when it's nil.
   a fed may subscribe to at most **5** others (`federation_subs`). The watcher
   fbans newly-seen users against the local fed **and** subscribed feds. Cache
   prefixes: `fed`, `fed_chat`, `fed_admins`, `fed_ban`, `fed_subs`.
-  `DeleteFederation` lists ban user IDs and subscriber feds **before** the
-  delete transaction, then `invalidateBan` / `fed_subs` those keys — otherwise
-  `GetFedBan` / `FindBanInFedTree` keep enforcing deleted bans for the 30m TTL.
+  `DeleteFederation` locks the federation row, then lists chat IDs, ban user
+  IDs, and subscriber feds **inside** the delete transaction so a concurrent
+  `SubscribeFed`/`Fban` cannot leave a live `fed_subs`/`fed_ban` cache after
+  the matching row is deleted. After commit it `invalidateBan` / `fed_subs`
+  those keys — otherwise `GetFedBan` / `FindBanInFedTree` keep enforcing
+  deleted bans for the 30m TTL.
   Chat backups
   export **membership only** (`fed_id` + `quiet`), not the federation itself.
 - **Log channels** (`logchannels.go`, group **11**, priority 55): `/setlog` in a
