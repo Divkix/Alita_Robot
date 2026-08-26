@@ -2502,3 +2502,163 @@ antiraid_invalid_threshold: "Limite inválido. Dê um número positivo ou 'off'.
 antiraid_auto_triggered: "Raid automático ativado! %s usuários entraram/min — novos entrantes banidos temporariamente."
 antiraid_btn_enable: "Ativar AntiRaid"
 antiraid_btn_disable: "Desativar AntiRaid"
+
+# Rose feature-parity keys (federations, log channels, extras)
+federations_help_msg: |
+  Federations share a ban list across groups you own.
+
+  *Owner (PM):*
+  × /newfed <name>: Create a federation (one per user).
+  × /renamefed <name>: Rename your federation.
+  × /delfed: Delete your federation (confirm).
+  × /fedpromote /feddemote: Manage fed admins.
+  × /fedreason on/off: Require a reason for fbans.
+  × /fednotif on/off: PM the owner on fbans.
+  × /subfed /unsubfed /fedsubs: Subscribe to another fed (max 5).
+  × /fbanlist [csv|json|minicsv]: Export fbans.
+  × /importfbans: Import from a replied CSV/JSON file.
+  × /setfedlog /unsetfedlog: Federation log chat.
+
+  *Group owner:*
+  × /joinfed <fed_id>: Join this chat to a federation.
+  × /leavefed: Leave the federation.
+  × /quietfed on/off: Suppress passive fban notices.
+
+  *Fed admins:*
+  × /fban /unfban /funban: Federation ban/unban.
+  × /fedstat /fbanstat: Check a user's fban.
+
+  *Anyone:*
+  × /fedinfo /fedadmins /chatfed /myfeds
+logchannels_help_msg: |
+  Send admin actions to a dedicated log channel.
+
+  1. Add the bot to a channel as admin.
+  2. In that channel, send /setlog.
+  3. Forward that message to the group.
+
+  *Admin commands:*
+  × /unsetlog: Remove the log channel.
+  × /logchannel: Show the current log channel.
+  × /logcategories: List categories.
+  × /log <category>: Enable a category.
+  × /nolog <category>: Disable a category.
+
+  Categories: settings, admin, user, automated, reports, other.
+feds_pm_only: "This command can only be used in private chat with me."
+feds_group_only: "This command can only be used in groups."
+feds_need_name: "Give your federation a name."
+feds_already_own: "You already own a federation. Delete it first with /delfed."
+feds_create_failed: "Could not complete that federation action. Try again."
+feds_created: "Created federation <b>{name}</b>.\nID: <code>{id}</code>\nKeep this ID — group owners use it with /joinfed."
+feds_no_fed: "You don't own a federation. Create one with /newfed."
+feds_rename_failed: "Could not rename the federation."
+feds_renamed: "Federation renamed to <b>{name}</b>."
+feds_delfed_confirm: "Delete federation <b>{name}</b>? This cannot be undone."
+feds_delfed_confirm_btn: "Yes, delete"
+feds_delfed_cancel_btn: "Cancel"
+feds_deleted: "Federation deleted."
+feds_delete_failed: "Could not delete the federation."
+feds_owner_only_join: "Only the group creator can join or leave a federation."
+feds_invalid_id: "That doesn't look like a federation ID."
+feds_not_found: "I couldn't find that federation."
+feds_already_joined: "This chat is already in a federation. /leavefed first."
+feds_join_failed: "Could not join that federation."
+feds_joined: "This chat joined federation <b>{name}</b> (<code>{id}</code>)."
+feds_not_in_fed: "This chat is not in a federation."
+feds_left: "This chat left its federation."
+feds_invalid_toggle: "Use on or off."
+feds_quiet_on: "Quiet federation is on. Passive fbans will not be announced here."
+feds_quiet_off: "Quiet federation is off. Passive fbans will be announced."
+feds_info: "<b>{name}</b>\nID: <code>{id}</code>\nOwner: <code>{owner}</code>\nChats: {chats}\nBans: {bans}\nAdmins: {admins}\nSubscriptions: {subs}\nRequire reason: {reason}\nNotify owner: {notify}"
+feds_admins_header: "Admins of <b>{name}</b>:"
+feds_chatfed: "This chat is in <b>{name}</b> (<code>{id}</code>)."
+feds_myfeds_none: "You don't own or admin any federations."
+feds_myfeds_header: "Your federations:"
+feds_cannot_promote_self: "You already own this federation."
+feds_cannot_promote_owner: "The owner is already a federation admin."
+feds_already_admin: "That user is already a federation admin."
+feds_promoted: "Promoted {user} to federation admin."
+feds_not_fed_admin: "That user is not a federation admin."
+feds_demoted: "Demoted {user} from federation admin."
+feds_demoteme_not_admin: "You are not a federation admin of that fed."
+feds_demoteme_ok: "You are no longer a federation admin there."
+feds_fedreason_on: "Fbans now require a reason."
+feds_fedreason_off: "Fbans no longer require a reason."
+feds_fednotif_on: "You will be notified of fbans."
+feds_fednotif_off: "You will not be notified of fbans."
+feds_not_admin: "You are not a federation admin here."
+feds_cannot_fban_self: "You cannot fban yourself."
+feds_cannot_fban_owner: "You cannot fban the federation owner."
+feds_cannot_fban_admin: "You cannot fban a federation admin."
+feds_need_reason: "This federation requires a reason for fbans."
+feds_fban_failed: "Could not fban that user."
+feds_fban_already: "That user is already fbanned. Reason updated."
+feds_fban_ok: "Fbanned {user} in <b>{name}</b>.\nReason: {reason}"
+feds_unfban_not_banned: "That user is not fbanned."
+feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+feds_fedstat_none: "That user is not fbanned in any federation I know."
+feds_fedstat_reason: "Banned in <b>{name}</b>: {reason}"
+feds_fedstat_header: "Federation bans for {user}:"
+feds_sub_self: "A federation cannot subscribe to itself."
+feds_already_sub: "Already subscribed to that federation."
+feds_sub_max: "A federation can subscribe to at most 5 others."
+feds_sub_ok: "Subscribed to that federation's ban list."
+feds_not_sub: "Not subscribed to that federation."
+feds_unsub_ok: "Unsubscribed from that federation."
+feds_subs_none: "This federation has no subscriptions."
+feds_subs_header: "Subscriptions:"
+feds_setfedlog_need_id: "Give a federation ID, or use this in a group that is in your fed."
+feds_not_owner: "Only the federation owner can set the fed log."
+feds_setfedlog_ok: "Federation log chat set."
+feds_unsetfedlog_ok: "Federation log chat cleared."
+feds_export_wait: "Please wait before exporting again."
+feds_export_empty: "This federation has no bans to export."
+feds_import_need_file: "Reply to a CSV or JSON fban list."
+feds_import_failed: "Could not import that fban list."
+feds_import_ok: "Imported {count} federation bans."
+feds_passive_ban: "{user} is fbanned in <b>{name}</b> and was removed.\nReason: {reason}"
+feds_callback_denied: "You cannot use this button."
+feds_callback_stale: "This button is no longer valid."
+logs_need_channel: "Use /setlog in a channel, then forward that message to the group."
+logs_forward_to_group: "Forward this message to the group you want to log."
+logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
+logs_unset_ok: "Log channel removed."
+logs_not_set: "No log channel is set for this chat."
+logs_current: "Log channel: <code>{id}</code>"
+logs_categories: "Categories: settings, admin, user, automated, reports, other."
+logs_enabled: "Enabled logging for: {cats}"
+logs_disabled: "Disabled logging for: {cats}"
+logs_unknown_category: "Unknown category. See /logcategories."
+logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_group_only: "This command can only be used in groups."
+bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
+bans_banme_ok: "As you wish. You are banned."
+bans_unbanall_ask: "Unban every known user in this chat? This cannot be undone easily."
+bans_unbanall_done: "Issued unban for {count} known users."
+bans_unbanall_cancel: "Cancelled."
+admin_setgtitle_need_title: "Give me a new group title."
+admin_setgtitle_ok: "Group title updated."
+admin_setgtitle_failed: "I couldn't change the group title. Make sure I can change group info."
+admin_setgpic_need_photo: "Reply to a photo to set it as the group picture."
+admin_setgpic_ok: "Group picture updated."
+admin_setgpic_failed: "I couldn't change the group picture."
+admin_setgdesc_ok: "Group description updated."
+admin_setgdesc_failed: "I couldn't change the group description."
+misc_stickerid_need_sticker: "Reply to a sticker to get its file ID."
+misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
+misc_zombies_scanning: "Scanning for deleted accounts…"
+misc_zombies_none: "No deleted accounts found among known members."
+misc_zombies_cleaned: "Removed {count} deleted accounts."
+misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_not_found: "I couldn't find that GitHub user or repository."
+misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_not_found: "No Wikipedia result for that."
+misc_ud_usage: "Usage: /ud <term>"
+misc_ud_not_found: "No Urban Dictionary result for that."
+misc_runs:
+  - "Runs away."
+  - "Nope."
+  - "I'm out."
+  - "Catch me if you can."
+chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
