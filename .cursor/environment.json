@@ -2,5 +2,9 @@
   "name": "Alita Robot",
   "install": "bash .cursor/install.sh",
   "start": "bash .cursor/start.sh",
-  "ports": [8080, 5432, 6379]
+  "ports": [
+    { "name": "http", "port": 8080 },
+    { "name": "postgres", "port": 5432 },
+    { "name": "redis", "port": 6379 }
+  ]
 }
