@@ -389,3 +389,46 @@ func TestBlacklistWatcherSkipsBotAdminCallWhenNoTriggers(t *testing.T) {
 		t.Fatalf("getChatMember calls = %d, want 0 when no triggers are set", len(calls))
 	}
 }
+
+func TestBlacklistWatcherUsesMatchedTriggerAction(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	if err := blacklists.AddBlacklist(chat.Id, "oldword"); err != nil {
+		t.Fatalf("AddBlacklist(oldword) error = %v", err)
+	}
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
+		t.Fatalf("SetBlacklistAction error = %v", err)
+	}
+	if err := blacklists.AddBlacklist(chat.Id, "newword"); err != nil {
+		t.Fatalf("AddBlacklist(newword) error = %v", err)
+	}
+	settings := blacklists.GetBlacklistSettings(chat.Id)
+	if got := settings.Find("oldword"); got == nil || got.Action != "mute" {
+		t.Fatalf("oldword settings = %+v, want mute", got)
+	}
+	if got := settings.Find("newword"); got == nil || got.Action != "warn" {
+		t.Fatalf("newword settings = %+v, want warn", got)
+	}
+
+	warnMember := gotgbot.User{Id: 42, FirstName: "Member"}
+	warnCtx := newModuleMessageContext(bot, chat, warnMember, "please newword here")
+	if err := blacklistsModule.blacklistWatcher(bot, warnCtx); err != ext.EndGroups {
+		t.Fatalf("blacklistWatcher(newword) error = %v, want EndGroups from warn", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d after newword, want 0 (warn)", len(calls))
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) == 0 {
+		t.Fatal("newword match did not send a warn notice")
+	}
+
+	muteMember := gotgbot.User{Id: 43, FirstName: "Other"}
+	muteCtx := newModuleMessageContext(bot, chat, muteMember, "please oldword here")
+	if err := blacklistsModule.blacklistWatcher(bot, muteCtx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(oldword) error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
+		t.Fatalf("restrictChatMember calls = %d after oldword, want mute action", len(calls))
+	}
+}

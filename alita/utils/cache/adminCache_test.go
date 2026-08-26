@@ -35,7 +35,8 @@ func TestAdminCacheHelpersHandleNilMarshal(t *testing.T) {
 }
 
 type adminCacheBotClient struct {
-	responses map[string]json.RawMessage
+	responses           map[string]json.RawMessage
+	lastAdminListParams map[string]any
 }
 
 func newAdminCacheBot(client *adminCacheBotClient) *gotgbot.Bot {
@@ -51,6 +52,9 @@ func newAdminCacheBot(client *adminCacheBotClient) *gotgbot.Bot {
 }
 
 func (c *adminCacheBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		c.lastAdminListParams = params
+	}
 	if response, ok := c.responses[method+":"+fmt.Sprint(params["user_id"])]; ok {
 		return response, nil
 	}
@@ -84,6 +88,9 @@ func TestLoadAdminCacheFetchesAndStoresAdminMap(t *testing.T) {
 	}}
 	got := LoadAdminCache(newAdminCacheBot(client), -100123)
 
+	if client.lastAdminListParams["return_bots"] != true {
+		t.Fatalf("getChatAdministrators return_bots = %#v, want true", client.lastAdminListParams["return_bots"])
+	}
 	if !got.Cached || len(got.UserInfo) != 2 {
 		t.Fatalf("LoadAdminCache() = %+v, want cached admin list", got)
 	}

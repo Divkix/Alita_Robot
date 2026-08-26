@@ -191,6 +191,7 @@ func upsertGreetingSettings(chatID int64, updates map[string]any) error {
 		Updates(updates).Error; err != nil {
 		return alitaerrors.Wrapf(err, "update greeting settings for chat %d", chatID)
 	}
+	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -212,8 +213,6 @@ func SetWelcomeText(chatID int64, welcometxt, fileId string, buttons []models.Bu
 		return err
 	}
 
-	// Invalidate cache after updating welcome text
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -230,8 +229,6 @@ func SetWelcomeToggle(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating welcome toggle
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -253,8 +250,6 @@ func SetGoodbyeText(chatID int64, goodbyetext, fileId string, buttons []models.B
 		return err
 	}
 
-	// Invalidate cache after updating goodbye text
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -271,8 +266,6 @@ func SetGoodbyeToggle(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating goodbye toggle
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -289,8 +282,6 @@ func SetShouldCleanService(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating clean service setting
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -307,8 +298,6 @@ func SetShouldAutoApprove(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating auto approve setting
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -325,8 +314,6 @@ func SetCleanWelcomeSetting(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating clean welcome setting
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -343,8 +330,6 @@ func SetCleanWelcomeMsgId(chatId, msgId int64) error {
 		return err
 	}
 
-	// Invalidate cache after updating welcome message ID
-	cache.DeleteCache(cache.CacheKey("greetings", chatId))
 	return nil
 }
 
@@ -361,8 +346,6 @@ func SetCleanGoodbyeSetting(chatID int64, pref bool) error {
 		return err
 	}
 
-	// Invalidate cache after updating clean goodbye setting
-	cache.DeleteCache(cache.CacheKey("greetings", chatID))
 	return nil
 }
 
@@ -379,8 +362,6 @@ func SetCleanGoodbyeMsgId(chatId, msgId int64) error {
 		return err
 	}
 
-	// Invalidate cache after updating goodbye message ID
-	cache.DeleteCache(cache.CacheKey("greetings", chatId))
 	return nil
 }
 

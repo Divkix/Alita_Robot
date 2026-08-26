@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 Alita Robot is a Telegram group-management bot written in **Go 1.26** on top of
-the **gotgbot/v2** library (`v2.0.0-rc.35`). It provides admin tools, filters,
+the **gotgbot/v2** library (`v2.0.0-rc.36`). It provides admin tools, filters,
 notes, greetings, anti-flood / anti-raid / anti-spam, captcha verification,
 warns, locks, backups, connections, reactions and multi-language support
 (en, es, fr, hi, ru, pt, id).
@@ -219,8 +219,8 @@ use a token-in-URL
 (`https://x-access-token:$GITHUB_TOKEN@…`) because checkout keeps
 `persist-credentials: false`. `GITHUB_TOKEN` pushes don't re-trigger workflows,
 so there's no double release. `--version` reads `config.AppConfig.BotVersion`
-(patched by the bump script; currently `"2.21.3"`), with a hard-coded local
-fallback `version = "v2.21.3"` in `main.go` (used only when
+(patched by the bump script; currently `"2.22.0"`), with a hard-coded local
+fallback `version = "v2.22.0"` in `main.go` (used only when
 config didn't load). There are **no** `-X main.version/commit/date` ldflags anymore
 (they were no-ops — `package main` declares no such vars). ⚠️ After the bump step,
 `goreleaser` runs a **"Verify BotVersion matches tag"** gate that `grep`s **both**
@@ -342,8 +342,9 @@ uses `RegisterLegacyModule`.
   module's state **and** the cross-module registry. Each module, at the end of its
   `LoadXxx`, sets `DefaultHelpRegistry().AbleMap[name] = true` and optionally sets
   `helpableKb[Name]` / `AltHelpOptions[Name]`. `AbleMap` is a plain
-  `map[string]bool` (**not** `sync.Map`, no mutex) — safe only because all writes
-  happen during single-threaded startup. Do not write it from a handler.
+  `map[string]bool` (**not** `sync.Map`); `ableMapMu` guards snapshot reads via
+  `GetAbleMap` / `ResetHelpRegistry`. Writes still happen during single-threaded
+  startup — do not write it from a handler.
 - `helpableKb` keys are the **Title-cased** module name; per-module help text comes
   from i18n key `<lowercase>_help_msg` rendered via `tgmd2html.MD2HTMLV2`.
 - ⚠️ `moduleStruct` is passed **by value** to handler methods, so it must never
@@ -465,8 +466,9 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   persist `false`/`0`/`""` (e.g. turn a toggle OFF) you **must** use
   `UpdateRecordWithZeroValues` with a `map[string]any`. This is a recurring footgun.
 - `UpdateRecord*` returns `gorm.ErrRecordNotFound` when `RowsAffected==0` (devs
-  add/update path relies on this). `ChatExists` treats any non-not-found error as
-  "exists" — not authoritative under DB stress.
+  add/update path relies on this). `ChatExists` treats **any error as absent**
+  (not-found *and* connection failures) so callers that ensure the chat will
+  attempt recovery instead of skipping FK setup.
 
 ### Models & schema (`alita/db/models/`)
 
@@ -495,6 +497,8 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   per `user_id`, one `captcha_attempts` and `captcha_muted_users` row per
   `(user_id,chat_id)`, and one case-insensitive non-empty `channels.username`
   owner. Connection disconnects retain `chat_id` so `/reconnect` can restore it.
+  `/reconnect` uses the same `canUserConnectToChat` gate as `/connect` (admin, or
+  `AllowConnect` plus membership) — membership alone is not enough.
 - Captcha attempt lifecycle timestamps are timezone-aware; migration
   `20260730030000_use_timestamptz_for_captcha_attempts.sql` interprets the legacy
   captcha attempt timestamps as UTC before converting them to `timestamptz`.
@@ -584,7 +588,11 @@ m != nil`) — every helper bails when it's nil.
   invalidation cannot be undone by a stale background write. Concurrent callers
   for the same chat share one in-flight Telegram fetch via `singleflight` — do
   not drop that coalescing or a cache miss will stampede `getChatAdministrators`.
-  Two paths invalidate the key (`InvalidateAdminCache` + a raw delete in `admin.go`).
+  `getChatAdministrators` is always called with `ReturnBots: true`; Telegram omits
+  other administrator bots by default, and a warm `IsUserAdmin` trusts `UserMap`
+  with no `GetChatMember` fallback, so missing that flag treats other admin bots
+  as regular members. Two paths invalidate the key (`InvalidateAdminCache` + a
+  raw delete in `admin.go`).
 - **Restricted-chat cache** (`restrictedCache.go`, `alita:restricted:<chat>`, 30-min):
   tracks chats where the bot can't send; 5-min probe window with a Redis `SETNX`
   single-flight (`alita:restricted_probe:<chat>`). Fails **open** (returns false) on
@@ -646,7 +654,7 @@ m != nil`) — every helper bails when it's nil.
   are reported separately from “not active.” The 30s expiry poller is started by
   `StartAntiRaidExpiryPoller`; `StopAntiRaidExpiryPoller` cancels and joins it.
   `parseDuration`
-  treats a bare number as **seconds**, accepts `s/m/h/d/w`, and caps persisted
+  **rejects a bare number** (a unit `s/m/h/d/w` is required) and caps persisted
   raid/action durations at **366 days**. Defaults `RaidTime=21600s`,
   `RaidActionTime=3600s`, `AutoAntiRaidThreshold=0` (off). Once a multi-member
   update triggers auto-raid, every later eligible member in that update is acted on.
@@ -656,18 +664,30 @@ m != nil`) — every helper bails when it's nil.
   `subfed`/`fbanlist`/`importfbans`. A chat joins exactly one fed (`federation_chats`);
   a fed may subscribe to at most **5** others (`federation_subs`). The watcher
   fbans newly-seen users against the local fed **and** subscribed feds. Cache
-  prefixes: `fed`, `fed_chat`, `fed_admins`, `fed_ban`, `fed_subs`. Chat backups
+  prefixes: `fed`, `fed_chat`, `fed_admins`, `fed_ban`, `fed_subs`.
+  `DeleteFederation` locks the federation row, then lists chat IDs, ban user
+  IDs, and subscriber feds **inside** the delete transaction so a concurrent
+  `SubscribeFed`/`Fban` cannot leave a live `fed_subs`/`fed_ban` cache after
+  the matching row is deleted. After commit it `invalidateBan` / `fed_subs`
+  those keys — otherwise `GetFedBan` / `FindBanInFedTree` keep enforcing
+  deleted bans for the 30m TTL.
+  Chat backups
   export **membership only** (`fed_id` + `quiet`), not the federation itself.
 - **Log channels** (`logchannels.go`, group **11**, priority 55): `/setlog` in a
-  channel stores a pending Redis marker (`alita:setlog:<channel>:<msgId>` plus
-  `:0`); forwarding that message into a group binds `log_channels`. Categories
+  channel stores a pending Redis marker for **that exact message**
+  (`alita:setlog:<channel>:<msgId>`, 1h). There is **no** `:0` wildcard — capture
+  matches `origin.MessageId` only. A nil marshaler or Redis write failure replies
+  `common_settings_save_failed` instead of instructing the user to forward.
+  Forwarding that message into a group binds `log_channels`. Categories
   (`settings`/`admin`/`user`/`automated`/`reports`/`other`) default all-on.
   `alita/utils/actionlog` fans out HTML lines and must key off `chat.Type ==
   "channel"` (not `IsChannelId`) because supergroup IDs are channel-shaped.
 - **Antispam** (`antispam.go`, group -2): ⚠️ a **local** in-memory rate limiter
   (18 msgs/sec) used for telemetry only; it always returns `ContinueGroups`, so
   exceeding the threshold never bypasses antiflood/locks/filters. It is **not** a
-  CAS/Spamwatch global-ban integration.
+  CAS/Spamwatch global-ban integration. Live state is 16 `antiSpamShards` (no
+  global map). Cleanup recovers per tick and `defer`s each shard unlock so a
+  panic cannot pin a shard.
 - **Captcha** (`captcha.go`, ~2100 lines): math-image/text verification with refresh
   (cooldown 5s, max 3), timeout, max-attempts. `StartCaptchaLifecycle` recovers
   persisted attempts before updates start; `StopCaptchaLifecycle` cancels and joins
@@ -696,8 +716,9 @@ m != nil`) — every helper bails when it's nil.
   caches** (`GetNamedCache("filters")` / `"blacklists"`) so they never evict each
   other — do not revert to the shared global cache. Each named cache's cleanup
   ticker recovers per tick so a panic cannot disable matcher eviction. Watchers
-  use `FirstMatch`.
-  Search text is built by `buildModerationMatchText`
+  use `FirstMatch`, then `BlacklistSettingsSlice.Find` for that trigger's
+  `Action`/`Reason` — `Action()` is first-row only and is for `/blaction` display.
+  Mute uses `MutedPermissions`. Search text is built by `buildModerationMatchText`
   (text + caption + URL entities from **both** `Entities` and `CaptionEntities`);
   raw Telegram entity offsets are UTF-16 code units, so slice them through
   `extractEntityText`, never as Go byte or rune indexes.
@@ -935,8 +956,8 @@ and `env:` struct tags are decorative — `ValidateConfig` is hand-written):
   `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
 - `OTEL_*` (service name, sample rate, OTLP endpoint, console/insecure) are read via
   raw `os.Getenv`, not config, and are intentionally not in `sample.env`.
-- `BotVersion` lives in `config.go` (currently `"2.21.3"`), mirrored by a CLI
-  fallback `version = "v2.21.3"` in `main.go`. **Don't hand-edit it** —
+- `BotVersion` lives in `config.go` (currently `"2.22.0"`), mirrored by a CLI
+  fallback `version = "v2.22.0"` in `main.go`. **Don't hand-edit it** —
   `scripts/bump_version.sh <vX.Y.Z>` patches both, and the release workflow runs it
   automatically on `workflow_dispatch`; the `goreleaser` job then re-greps both files
   and fails on mismatch. For a manual tag-push release, run the script (or
@@ -954,8 +975,7 @@ Additional env vars present in `config.go` (defaults in parens) not covered abov
 
 ## 21. Dependency risks (tracked, not oversights)
 
-- **`gotgbot/v2 v2.0.0-rc.35`** — a release candidate; a future `rc.36`/`v2.0.0`
-  may break the hot path (handler signatures, Update parsing). Evaluate/migrate when
+- **`gotgbot/v2 v2.0.0-rc.36`** — a release candidate; evaluate/migrate when
   `v2.0.0` final ships. **Do not auto-merge** Dependabot PRs that bump its major or
   RC number without a code-compatibility review.
 - **`gotg_md2html v0.0.0-20260314092343-…`** — an untagged pseudo-version; a force-

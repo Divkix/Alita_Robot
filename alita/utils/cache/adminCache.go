@@ -24,6 +24,9 @@ func adminCacheKey(chatId int64) string {
 // It fetches the current administrators from Telegram API and stores them in cache
 // with a 30-minute expiration. Returns an AdminCache struct containing the admin list.
 // Concurrent callers for the same chat share one in-flight Telegram fetch.
+// getChatAdministrators is called with ReturnBots so other administrator bots
+// are included; without it Telegram omits them and IsUserAdmin treats them as
+// regular members.
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
@@ -103,7 +106,11 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		attemptCtx, attemptCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
-		adminList, err = b.GetChatAdministratorsWithContext(attemptCtx, chatId, nil)
+		adminList, err = b.GetChatAdministratorsWithContext(
+			attemptCtx,
+			chatId,
+			&gotgbot.GetChatAdministratorsOpts{ReturnBots: true},
+		)
 		attemptCancel()
 		if err != nil {
 			log.WithFields(log.Fields{

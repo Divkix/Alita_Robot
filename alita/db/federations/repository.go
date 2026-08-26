@@ -127,11 +127,30 @@ func DeleteFederation(fedID string) error {
 	if fedID == "" {
 		return fmt.Errorf("federation id is required")
 	}
-	chatIDs, err := ListFedChatIDs(fedID)
-	if err != nil {
-		return err
-	}
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
+	var chatIDs []int64
+	var bans []models.FederationBan
+	var subscribers []models.FederationSub
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		// Lock the federation row so concurrent JoinFed/Fban/SubscribeFed cannot
+		// commit children that the later DELETE would remove without invalidation.
+		var fed models.Federation
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("fed_id = ?", fedID).
+			Take(&fed).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if err := tx.Model(&models.FederationChat{}).
+			Where("fed_id = ?", fedID).
+			Pluck("chat_id", &chatIDs).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("fed_id = ?", fedID).Find(&bans).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("subscribed_fed_id = ?", fedID).Find(&subscribers).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("fed_id = ?", fedID).Delete(&models.FederationBan{}).Error; err != nil {
 			return err
 		}
@@ -154,6 +173,12 @@ func DeleteFederation(fedID string) error {
 	invalidateFed(fedID)
 	for _, chatID := range chatIDs {
 		invalidateChat(chatID)
+	}
+	for _, ban := range bans {
+		invalidateBan(fedID, ban.UserID)
+	}
+	for _, sub := range subscribers {
+		cache.DeleteCache(cache.CacheKey(cachePrefixFedSubs, sub.FedID))
 	}
 	return nil
 }

@@ -98,8 +98,8 @@ func TestAntiSpamCleanupDefersUnlockAndRecovers(t *testing.T) {
 	if !strings.Contains(source, "error_handling.RecoverFromPanic") {
 		t.Fatal("antiSpamCleanupLoop must recover from panics")
 	}
-	if !strings.Contains(source, "defer antiSpamMutex.Unlock()") {
-		t.Fatal("antiSpamCleanupLoop must defer mutex unlock after locking")
+	if !strings.Contains(source, "defer shard.mu.Unlock()") {
+		t.Fatal("antiSpam cleanup must defer unlock after locking each shard")
 	}
 }
 

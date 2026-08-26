@@ -194,15 +194,7 @@ func TestModuleValidation(t *testing.T) {
 		assert.True(t, IsValidModule("filters"))
 		assert.False(t, IsValidModule("invalid"))
 		assert.False(t, IsValidModule(""))
-	})
-
-	t.Run("FilterValidModules filters correctly", func(t *testing.T) {
-		input := []string{"notes", "filters", "invalid", "rules"}
-		filtered := FilterValidModules(input)
-		assert.Contains(t, filtered, "notes")
-		assert.Contains(t, filtered, "filters")
-		assert.Contains(t, filtered, "rules")
-		assert.NotContains(t, filtered, "invalid")
+		assert.True(t, IsValidModule("rules"))
 	})
 }
 

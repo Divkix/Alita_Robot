@@ -563,17 +563,25 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 	i := firstPattern
+	matched := blSettings.Find(i)
+	if matched == nil {
+		return ext.ContinueGroups
+	}
+	reason := matched.Reason
+	if reason == "" {
+		reason = "Blacklisted word: '%s'"
+	}
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
 	var err error
-	switch blSettings.Action() {
+	switch matched.Action {
 	case "mute":
 		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
 
-		_, err = b.RestrictChatMember(chat.Id, user.Id(), gotgbot.ChatPermissions{CanSendMessages: false}, nil)
+		_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, nil)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -582,7 +590,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_muted_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -604,7 +612,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_banned_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -625,7 +633,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(blSettings.Reason(), i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -638,7 +646,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.ContinueGroups
 		}
 
-		err = warnsModule.warnThisUser(b, ctx, user.Id(), fmt.Sprintf(blSettings.Reason(), i), "warn")
+		err = warnsModule.warnThisUser(b, ctx, user.Id(), fmt.Sprintf(reason, i), "warn")
 		if err != nil {
 			log.Error(err)
 			return err

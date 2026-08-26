@@ -837,70 +837,7 @@ rules_help_msg: |
   × /resetrulesbutton: Atur ulang teks tombol aturan ke default.
 
   × /resetrulesbtn: Sama seperti di atas."
-utils_chat_status_anon_admin_btn: Konfirmasi Identitas Anda
-utils_chat_status_anon_admin_string: |
-  Sepertinya Anda anonim. Ketuk tombol ini
-  untuk mengonfirmasi identitas Anda.
-utils_chat_status_bot_no_permission_delete: Saya tidak memiliki Izin untuk Menghapus Pesan!
-utils_chat_status_bot_no_permission_pin: |
-  Saya tidak dapat menyematkan pesan di sini! Pastikan saya
-  admin dan dapat menyematkan pesan.
-utils_chat_status_bot_no_permission_promote: |
-  Saya tidak dapat mempromosikan/menurunkan orang di sini! Pastikan
-  saya admin dan dapat menunjuk admin baru.
-utils_chat_status_bot_no_permission_restrict: |
-  Saya tidak memiliki izin untuk membatasi
-  anggota!
-utils_chat_status_bot_no_permission_restrict_group: |
-  Saya tidak dapat membatasi orang di sini!
-  Pastikan saya admin dan dapat membatasi anggota lain.
-utils_chat_status_bot_require_admin: |
-  Saya bukan admin! Pastikan saya admin dan
-  memiliki izin yang sesuai.
-utils_chat_status_require_group: |
-  Perintah ini dibuat untuk digunakan di grup obrolan, bukan
-  di PM!
-utils_chat_status_require_private: Perintah ini dibuat untuk PM, bukan obrolan grup!
-utils_chat_status_user_no_permission_change_info_btn: |
-  Anda tidak memiliki izin untuk
-  mengubah info!!
-utils_chat_status_user_no_permission_change_info_cmd: |
-  Anda tidak memiliki izin untuk
-  mengubah info di grup ini!
-utils_chat_status_user_no_permission_delete: Anda tidak memiliki Izin untuk Menghapus Pesan!
-utils_chat_status_user_no_permission_pin: |
-  Anda tidak dapat menyematkan pesan di sini! Pastikan Anda
-  admin dan dapat menyematkan pesan.
-utils_chat_status_user_no_permission_promote_btn: |
-  Anda tidak memiliki izin untuk mempromosikan/menurunkan
-  anggota!!
-utils_chat_status_user_no_permission_promote_cmd: |
-  Anda tidak dapat mempromosikan/menurunkan orang
-  di sini! Pastikan Anda memiliki hak yang sesuai!
-utils_chat_status_user_no_permission_restrict_btn: |
-  Anda tidak memiliki izin untuk membatasi
-  anggota!
-utils_chat_status_user_no_permission_restrict_cmd: |
-  Anda tidak memiliki izin untuk membatasi
-  anggota di grup ini!
-utils_chat_status_user_require_admin_btn: Anda perlu menjadi admin untuk melakukan ini!
-utils_chat_status_user_require_admin_cmd: Hanya admin yang dapat mengeksekusi perintah ini!
-utils_chat_status_user_require_owner_btn: Anda perlu menjadi pembuat grup untuk melakukan ini!
-utils_chat_status_user_require_owner_cmd: Hanya pembuat grup yang dapat melakukan ini!
-utils_extraction_extract_chat_badrequest_failed_getchat: |
-  "gagal terhubung ke obrolan:
-  gagal mendapatkan obrolan: tidak dapat getChat: Bad Request: obrolan tidak ditemukan"
-utils_extraction_extract_chat_fail_need_chat: Saya memerlukan ID Obrolan untuk terhubung!
-utils_extraction_extract_chat_fail_need_chat_id: |
-  Saya mengharapkan ID Obrolan, tetapi ini bukan
-  bilangan bulat yang valid.
-utils_extraction_extract_user_badrequest_failed_getchatmember: |
-  "gagal mendapatkan pengguna:
-  tidak dapat getChatMember: Bad Request: obrolan tidak ditemukan"
 bot_updates_creators_plug: "\nIkuti @DivideProjects untuk bot yang lebih berguna dari kreator saya."
-utils_extraction_extract_user_no_user_found: |
-  Tidak dapat menemukan pengguna dengan nama ini; apakah
-  Anda yakin saya pernah melihat mereka sebelumnya?
 utils_string_handling_extract_time_invalid_time_amount: Jumlah waktu yang ditentukan tidak valid.
 utils_string_handling_extract_time_invalid_time_type: |
   "Tipe waktu yang ditentukan tidak valid.
@@ -1585,16 +1522,6 @@ helpers_module_help_header: "Berikut adalah bantuan untuk modul *%s*:\n\n"
 helpers_invalid_deep_link: "Deep link tidak valid atau salah format. Silakan periksa URL dan coba lagi."
 helpers_chat_not_found: "Tidak dapat menemukan obrolan yang terkait dengan tautan ini. Obrolan mungkin sudah tidak ada atau saya mungkin tidak memiliki akses ke sana."
 
-# Repository validation errors
-repo_user_nil_error: "pengguna tidak boleh nil"
-repo_user_id_zero_error: "id pengguna tidak boleh nol"
-repo_username_empty_error: "nama pengguna tidak boleh kosong"
-repo_user_not_found: "pengguna %d tidak ditemukan"
-repo_user_at_index_nil: "pengguna di indeks %d tidak boleh nil"
-repo_user_at_index_zero_id: "pengguna di indeks %d memiliki id nol"
-repo_chat_nil_error: "obrolan tidak boleh nil"
-repo_chat_id_zero_error: "id obrolan tidak boleh nol"
-repo_chat_not_found: "obrolan %d tidak ditemukan"
 
 # Formatting strings
 format_user_info: "Pengguna: %s"
@@ -1607,10 +1534,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "manajer keselamatan sedang mematikan"
 system_timeout_worker: "batas waktu mendapatkan slot pekerja untuk %s"
 system_shutdown_acquisition: "manajer keselamatan mati saat akuisisi slot"
-pipeline_no_processor: "tidak ada prosesor yang terdaftar untuk tahap: %s"
-pipeline_shutting_down: "pipeline sedang mati, melewatkan tahap: %s"
-pipeline_processor_timeout: "batas waktu prosesor untuk tahap: %s"
-pipeline_results_timeout: "batas waktu menunggu hasil pemrosesan"
 
 # Captcha additional validation
 captcha_no_active_attempt: "tidak ada percobaan captcha aktif yang ditemukan"
@@ -1762,15 +1685,8 @@ antiflood_button_unban_admins: "Buka Blokir (Khusus Admin)"
 # Helpers module strings
 helpers_notes_current_header: "Ini adalah catatan saat ini di Obrolan ini:\n"
 
-# Validation errors
 
 # Configuration errors
-config_bot_token_required: "BOT_TOKEN diperlukan"
-config_owner_id_required: "OWNER_ID diperlukan dan harus lebih besar dari 0"
-config_message_dump_required: "MESSAGE_DUMP diperlukan dan harus lebih besar dari 0"
-config_database_url_required: "DATABASE_URL diperlukan"
-config_redis_address_required: "REDIS_ADDRESS diperlukan"
-config_webhook_domain_required: "WEBHOOK_DOMAIN diperlukan ketika USE_WEBHOOKS diaktifkan"
 config_workers_invalid: "%s harus antara %d dan %d"
 
 # System messages
@@ -1778,13 +1694,6 @@ system_db_connected: "Terhubung ke database PostgreSQL dengan sukses!"
 system_config_loaded: "Konfigurasi dimuat dan divalidasi dengan sukses"
 
 # Database query errors
-db_lock_queries_not_initialized: "kunci query tidak diinisialisasi"
-db_user_queries_not_initialized: "query pengguna tidak diinisialisasi"
-db_chat_queries_not_initialized: "query obrolan tidak diinisialisasi"
-db_antiflood_queries_not_initialized: "query antiflood tidak diinisialisasi"
-db_filter_queries_not_initialized: "query filter tidak diinisialisasi"
-db_blacklist_queries_not_initialized: "query daftar hitam tidak diinisialisasi"
-db_channel_queries_not_initialized: "query kanal tidak diinisialisasi"
 db_type_assertion_failed: "aserti tipe ke []byte gagal"
 
 # Default button texts
@@ -2452,12 +2361,6 @@ reactions_button_remove: "Hapus Reaksi"
 # Database default strings
 db_blacklist_default_reason: "Kata di daftar hitam: '%s'"
 
-# Duration formatting strings
-duration_format_seconds: "%d detik"
-duration_format_minutes_seconds: "%d menit %d detik"
-duration_format_minutes: "%d menit"
-duration_format_hours_minutes: "%d jam %d menit"
-duration_format_hours: "%d jam"
 
 approvals_help_msg: |
   <b>👤 Persetujuan</b>

@@ -17,21 +17,18 @@ import (
 
 // Re-export model types for backward compatibility
 type (
-	Button                 = models.Button
-	ButtonArray            = models.ButtonArray
-	Int64Array             = models.Int64Array
-	User                   = models.User
-	Chat                   = models.Chat
-	ChatFilters            = models.ChatFilters
-	BlacklistSettingsSlice = models.BlacklistSettingsSlice
-	DevSettings            = models.DevSettings
-	AntifloodSettings      = models.AntifloodSettings
-	LockSettings           = models.LockSettings
-	NotesSettings          = models.NotesSettings
-	Notes                  = models.Notes
-	ApprovedUsers          = models.ApprovedUsers
-	CaptchaSettings        = models.CaptchaSettings
-	CaptchaAttempts        = models.CaptchaAttempts
+	Button            = models.Button
+	User              = models.User
+	Chat              = models.Chat
+	ChatFilters       = models.ChatFilters
+	DevSettings       = models.DevSettings
+	AntifloodSettings = models.AntifloodSettings
+	LockSettings      = models.LockSettings
+	NotesSettings     = models.NotesSettings
+	Notes             = models.Notes
+	ApprovedUsers     = models.ApprovedUsers
+	CaptchaSettings   = models.CaptchaSettings
+	CaptchaAttempts   = models.CaptchaAttempts
 )
 
 // Message type constants - maintain compatibility with existing code

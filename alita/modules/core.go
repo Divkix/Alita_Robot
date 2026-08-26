@@ -22,13 +22,6 @@ type moduleStruct struct {
 	helpableKb        map[string][][]gotgbot.InlineKeyboardButton
 }
 
-// SetAbleMap marks a module as enabled under lock.
-func SetAbleMap(name string) {
-	ableMapMu.Lock()
-	defer ableMapMu.Unlock()
-	defaultHelpRegistry.AbleMap[name] = true
-}
-
 // GetAbleMap returns a snapshot copy of AbleMap under RLock.
 func GetAbleMap() map[string]bool {
 	ableMapMu.RLock()

@@ -844,65 +844,6 @@ rules_help_msg:
   × /resetrulesbutton: Restablecer el texto del botón de reglas a predeterminado.
 
   × /resetrulesbtn: Igual que arriba."
-utils_chat_status_anon_admin_btn: Confirma tu Identidad
-utils_chat_status_anon_admin_string: Parece que eres anónimo. Toca este botón
-  para confirmar tu identidad.
-utils_chat_status_bot_no_permission_delete: ¡No tengo Permiso para Eliminar Mensajes!
-utils_chat_status_bot_no_permission_pin:
-  ¡No puedo anclar mensajes aquí! Asegúrate de que soy
-  administrador y puedo anclar mensajes.
-utils_chat_status_bot_no_permission_promote:
-  ¡No puedo promover/degradar personas aquí! Asegúrate
-  de que soy administrador y puedo nombrar nuevos administradores.
-utils_chat_status_bot_no_permission_restrict: ¡No tengo permiso para restringir
-  miembros!
-utils_chat_status_bot_no_permission_restrict_group:
-  ¡No puedo restringir personas aquí!
-  Asegúrate de que soy administrador y puedo restringir a otros miembros.
-utils_chat_status_bot_require_admin:
-  ¡No soy administrador! Asegúrate de que soy administrador y
-  tengo los permisos apropiados.
-utils_chat_status_require_group:
-  Este comando está hecho para usarse en chats de grupo, ¡no
-  en PM!
-utils_chat_status_require_private: ¡Este comando está hecho para PM, no chat de grupo!
-utils_chat_status_user_no_permission_change_info_btn: ¡No tienes permiso para
-  cambiar información!!
-utils_chat_status_user_no_permission_change_info_cmd: ¡No tienes permiso para
-  cambiar información en este grupo!
-utils_chat_status_user_no_permission_delete: ¡No tienes Permiso para Eliminar Mensajes!
-utils_chat_status_user_no_permission_pin:
-  ¡No puedes anclar mensajes aquí! Asegúrate de ser
-  administrador y poder anclar mensajes.
-utils_chat_status_user_no_permission_promote_btn:
-  ¡No tienes permiso para promover/degradar
-  miembros!!
-utils_chat_status_user_no_permission_promote_cmd:
-  ¡No puedes promover/degradar personas
-  aquí! ¡Asegúrate de tener los derechos apropiados!
-utils_chat_status_user_no_permission_restrict_btn:
-  ¡No tienes permiso para restringir
-  miembros!
-utils_chat_status_user_no_permission_restrict_cmd:
-  ¡No tienes permiso para restringir
-  miembros en este grupo!
-utils_chat_status_user_require_admin_btn: ¡Necesitas ser administrador para hacer esto!
-utils_chat_status_user_require_admin_cmd: ¡Solo los administradores pueden ejecutar este comando!
-utils_chat_status_user_require_owner_btn: ¡Necesitas ser el creador del grupo para hacer esto!
-utils_chat_status_user_require_owner_cmd: ¡Solo el creador del grupo puede hacer esto!
-utils_extraction_extract_chat_badrequest_failed_getchat:
-  "error al conectar al chat:
-  error al obtener chat: no se puede getChat: Solicitud incorrecta: chat no encontrado"
-utils_extraction_extract_chat_fail_need_chat: ¡Necesito un ID de Chat para conectarme!
-utils_extraction_extract_chat_fail_need_chat_id:
-  Esperaba un ID de Chat, pero esto no es
-  un entero válido.
-utils_extraction_extract_user_badrequest_failed_getchatmember:
-  "error al obtener usuario:
-  no se puede getChatMember: Solicitud incorrecta: chat no encontrado"
-utils_extraction_extract_user_no_user_found:
-  No pude encontrar un usuario con este nombre; ¿estás
-  seguro de que lo he visto antes?
 utils_string_handling_extract_time_invalid_time_amount: Cantidad de tiempo especificada inválida.
 utils_string_handling_extract_time_invalid_time_type:
   "Tipo de tiempo especificado inválido.
@@ -1589,16 +1530,6 @@ helpers_module_help_header: "Aquí está la ayuda para el módulo *%s*:\n\n"
 helpers_invalid_deep_link: "Enlace profundo inválido o mal formado. Verifica la URL e inténtalo de nuevo."
 helpers_chat_not_found: "No se pudo encontrar el chat asociado a este enlace. Es posible que el chat ya no exista o que no tenga acceso a él."
 
-# Repository validation errors
-repo_user_nil_error: "el usuario no puede ser nulo"
-repo_user_id_zero_error: "el ID del usuario no puede ser cero"
-repo_username_empty_error: "el nombre de usuario no puede estar vacío"
-repo_user_not_found: "usuario %d no encontrado"
-repo_user_at_index_nil: "el usuario en el índice %d no puede ser nulo"
-repo_user_at_index_zero_id: "el usuario en el índice %d tiene ID cero"
-repo_chat_nil_error: "el chat no puede ser nulo"
-repo_chat_id_zero_error: "el ID del chat no puede ser cero"
-repo_chat_not_found: "chat %d no encontrado"
 
 # Formatting strings
 format_user_info: "Usuario: %s"
@@ -1611,10 +1542,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "el administrador de seguridad se está cerrando"
 system_timeout_worker: "tiempo de espera adquiriendo ranura de trabajador para %s"
 system_shutdown_acquisition: "cierre del administrador de seguridad durante la adquisición de ranura"
-pipeline_no_processor: "no hay procesador registrado para etapa: %s"
-pipeline_shutting_down: "tubería cerrándose, saltando etapa: %s"
-pipeline_processor_timeout: "tiempo de espera del procesador para etapa: %s"
-pipeline_results_timeout: "tiempo de espera esperando resultados de procesamiento"
 
 # Captcha additional validation
 captcha_no_active_attempt: "no se encontró intento de captcha activo"
@@ -1770,12 +1697,6 @@ antiflood_button_unban_admins: "Desbanear (Solo Administradores)"
 helpers_notes_current_header: "Estas son las notas actuales en este Chat:\n"
 
 # Configuration errors
-config_bot_token_required: "BOT_TOKEN es requerido"
-config_owner_id_required: "OWNER_ID es requerido y debe ser mayor que 0"
-config_message_dump_required: "MESSAGE_DUMP es requerido y debe ser mayor que 0"
-config_database_url_required: "DATABASE_URL es requerido"
-config_redis_address_required: "REDIS_ADDRESS es requerido"
-config_webhook_domain_required: "WEBHOOK_DOMAIN es requerido cuando USE_WEBHOOKS está habilitado"
 config_workers_invalid: "%s debe estar entre %d y %d"
 
 # System messages
@@ -1783,13 +1704,6 @@ system_db_connected: "¡Conectado a la base de datos PostgreSQL exitosamente!"
 system_config_loaded: "Configuración cargada y validada exitosamente"
 
 # Database query errors
-db_lock_queries_not_initialized: "consultas de bloqueo no inicializadas"
-db_user_queries_not_initialized: "consultas de usuario no inicializadas"
-db_chat_queries_not_initialized: "consultas de chat no inicializadas"
-db_antiflood_queries_not_initialized: "consultas antiflood no inicializadas"
-db_filter_queries_not_initialized: "consultas de filtro no inicializadas"
-db_blacklist_queries_not_initialized: "consultas de lista negra no inicializadas"
-db_channel_queries_not_initialized: "consultas de canal no inicializadas"
 db_type_assertion_failed: "aserción de tipo a []byte falló"
 
 # Default button texts
@@ -2457,12 +2371,6 @@ reactions_button_remove: "Eliminar Reacción"
 # Database default strings
 db_blacklist_default_reason: "Palabra en lista negra: '%s'"
 
-# Duration formatting strings
-duration_format_seconds: "%d segundos"
-duration_format_minutes_seconds: "%d minutos %d segundos"
-duration_format_minutes: "%d minutos"
-duration_format_hours_minutes: "%d horas %d minutos"
-duration_format_hours: "%d horas"
 
 approvals_help_msg: |
   <b>👤 Aprobaciones</b>

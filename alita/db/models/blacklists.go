@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // BlacklistSettings represents blacklist settings for a chat
 type BlacklistSettings struct {
@@ -26,11 +29,22 @@ func (bss BlacklistSettingsSlice) Triggers() []string {
 }
 
 // Action returns the action for the first blacklist setting in the slice.
+// Used by /blaction to display the chat-wide default; watchers must use Find.
 func (bss BlacklistSettingsSlice) Action() string {
 	if len(bss) > 0 {
 		return bss[0].Action
 	}
 	return "warn" // default
+}
+
+// Find returns the blacklist row whose word matches trigger, ignoring case.
+func (bss BlacklistSettingsSlice) Find(trigger string) *BlacklistSettings {
+	for _, bs := range bss {
+		if bs != nil && strings.EqualFold(bs.Word, trigger) {
+			return bs
+		}
+	}
+	return nil
 }
 
 // Reason returns the reason for the first blacklist setting in the slice.

@@ -56,32 +56,21 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	var replyText string
 
 	if len(args) > 0 {
-		switch strings.ToLower(args[0]) {
-		case "ban":
-			if err := warns.SetWarnMode(chat.Id, "ban"); err != nil {
+		mode := strings.ToLower(args[0])
+		modeKeys := map[string]string{
+			"ban":  "warns_mode_updated_ban",
+			"kick": "warns_mode_updated_kick",
+			"mute": "warns_mode_updated_mute",
+		}
+		if key, ok := modeKeys[mode]; ok {
+			if err := warns.SetWarnMode(chat.Id, mode); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
-			replyText, _ = tr.GetString("warns_mode_updated_ban")
-		case "kick":
-			if err := warns.SetWarnMode(chat.Id, "kick"); err != nil {
-				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			replyText, _ = tr.GetString("warns_mode_updated_kick")
-		case "mute":
-			if err := warns.SetWarnMode(chat.Id, "mute"); err != nil {
-				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
-				errText, _ := tr.GetString("common_settings_save_failed")
-				_, _ = msg.Reply(b, errText, formatting.Shtml())
-				return ext.EndGroups
-			}
-			replyText, _ = tr.GetString("warns_mode_updated_mute")
-		default:
+			replyText, _ = tr.GetString(key)
+		} else {
 			temp, _ := tr.GetString("warns_mode_unknown")
 			replyText = fmt.Sprintf(temp, args[0])
 		}

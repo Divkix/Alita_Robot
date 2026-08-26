@@ -20,7 +20,7 @@ func TestButtonArray_Scan(t *testing.T) {
 		wantErr     bool
 		errContains string
 		wantLen     int
-		validate    func(t *testing.T, ba ButtonArray)
+		validate    func(t *testing.T, ba models.ButtonArray)
 	}{
 		{
 			name:      "nil value returns empty no error",
@@ -33,7 +33,7 @@ func TestButtonArray_Scan(t *testing.T) {
 			input:   []byte(`[{"name":"btn1","url":"https://example.com","btn_sameline":true}]`),
 			wantErr: false,
 			wantLen: 1,
-			validate: func(t *testing.T, ba ButtonArray) {
+			validate: func(t *testing.T, ba models.ButtonArray) {
 				t.Helper()
 				if ba[0].Name != "btn1" {
 					t.Fatalf("expected Name=btn1, got %q", ba[0].Name)
@@ -68,7 +68,7 @@ func TestButtonArray_Scan(t *testing.T) {
 			input:   []byte(`[{"name":"a","url":"http://a.com"},{"name":"b","url":"http://b.com","btn_sameline":true}]`),
 			wantErr: false,
 			wantLen: 2,
-			validate: func(t *testing.T, ba ButtonArray) {
+			validate: func(t *testing.T, ba models.ButtonArray) {
 				t.Helper()
 				if ba[0].Name != "a" {
 					t.Fatalf("expected Name=a, got %q", ba[0].Name)
@@ -83,7 +83,7 @@ func TestButtonArray_Scan(t *testing.T) {
 			input:   []byte(`[{"name":"btn <&> special","url":"https://example.com/?q=a&b=c"}]`),
 			wantErr: false,
 			wantLen: 1,
-			validate: func(t *testing.T, ba ButtonArray) {
+			validate: func(t *testing.T, ba models.ButtonArray) {
 				t.Helper()
 				if ba[0].Name != "btn <&> special" {
 					t.Fatalf("expected special name, got %q", ba[0].Name)
@@ -101,7 +101,7 @@ func TestButtonArray_Scan(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			var ba ButtonArray
+			var ba models.ButtonArray
 			err := ba.Scan(tc.input)
 
 			if tc.wantErr {
@@ -119,7 +119,7 @@ func TestButtonArray_Scan(t *testing.T) {
 			}
 
 			if tc.wantEmpty && len(ba) != 0 {
-				t.Fatalf("expected empty ButtonArray, got len=%d", len(ba))
+				t.Fatalf("expected empty models.ButtonArray, got len=%d", len(ba))
 			}
 
 			if tc.wantLen > 0 && len(ba) != tc.wantLen {
@@ -138,13 +138,13 @@ func TestButtonArray_Value(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   ButtonArray
+		input   models.ButtonArray
 		wantStr string
 		wantErr bool
 	}{
 		{
 			name:    "empty array returns empty JSON array string",
-			input:   ButtonArray{},
+			input:   models.ButtonArray{},
 			wantStr: "[]",
 		},
 		{
@@ -154,17 +154,17 @@ func TestButtonArray_Value(t *testing.T) {
 		},
 		{
 			name:    "single element produces valid JSON",
-			input:   ButtonArray{{Name: "btn1", Url: "https://example.com", SameLine: false}},
+			input:   models.ButtonArray{{Name: "btn1", Url: "https://example.com", SameLine: false}},
 			wantErr: false,
 		},
 		{
 			name:    "empty string fields produce valid JSON",
-			input:   ButtonArray{{Name: "", Url: "", SameLine: false}},
+			input:   models.ButtonArray{{Name: "", Url: "", SameLine: false}},
 			wantErr: false,
 		},
 		{
 			name:  "multiple elements produce valid JSON",
-			input: ButtonArray{{Name: "a", Url: "http://a.com"}, {Name: "b", Url: "http://b.com", SameLine: true}},
+			input: models.ButtonArray{{Name: "a", Url: "http://a.com"}, {Name: "b", Url: "http://b.com", SameLine: true}},
 		},
 	}
 
@@ -196,7 +196,7 @@ func TestButtonArray_Value(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected []byte value for non-empty array, got %T", val)
 			}
-			var result ButtonArray
+			var result models.ButtonArray
 			if err := json.Unmarshal(b, &result); err != nil {
 				t.Fatalf("Value() produced invalid JSON: %v", err)
 			}
@@ -407,7 +407,7 @@ func TestInt64Array_Scan(t *testing.T) {
 		wantErr     bool
 		errContains string
 		wantLen     int
-		validate    func(t *testing.T, ia Int64Array)
+		validate    func(t *testing.T, ia models.Int64Array)
 	}{
 		{
 			name:      "nil value returns empty no error",
@@ -420,7 +420,7 @@ func TestInt64Array_Scan(t *testing.T) {
 			input:   []byte(`[1,2,3]`),
 			wantErr: false,
 			wantLen: 3,
-			validate: func(t *testing.T, ia Int64Array) {
+			validate: func(t *testing.T, ia models.Int64Array) {
 				t.Helper()
 				if ia[0] != 1 || ia[1] != 2 || ia[2] != 3 {
 					t.Fatalf("expected [1,2,3], got %v", ia)
@@ -449,7 +449,7 @@ func TestInt64Array_Scan(t *testing.T) {
 			input:   []byte(`[9223372036854775807]`),
 			wantErr: false,
 			wantLen: 1,
-			validate: func(t *testing.T, ia Int64Array) {
+			validate: func(t *testing.T, ia models.Int64Array) {
 				t.Helper()
 				if ia[0] != math.MaxInt64 {
 					t.Fatalf("expected MaxInt64=%d, got %d", int64(math.MaxInt64), ia[0])
@@ -461,7 +461,7 @@ func TestInt64Array_Scan(t *testing.T) {
 			input:   []byte(`[-9223372036854775808]`),
 			wantErr: false,
 			wantLen: 1,
-			validate: func(t *testing.T, ia Int64Array) {
+			validate: func(t *testing.T, ia models.Int64Array) {
 				t.Helper()
 				if ia[0] != math.MinInt64 {
 					t.Fatalf("expected MinInt64=%d, got %d", int64(math.MinInt64), ia[0])
@@ -473,7 +473,7 @@ func TestInt64Array_Scan(t *testing.T) {
 			input:   []byte(`[-100, 0, 100]`),
 			wantErr: false,
 			wantLen: 3,
-			validate: func(t *testing.T, ia Int64Array) {
+			validate: func(t *testing.T, ia models.Int64Array) {
 				t.Helper()
 				if ia[0] != -100 {
 					t.Fatalf("expected ia[0]=-100, got %d", ia[0])
@@ -497,7 +497,7 @@ func TestInt64Array_Scan(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			var ia Int64Array
+			var ia models.Int64Array
 			err := ia.Scan(tc.input)
 
 			if tc.wantErr {
@@ -515,7 +515,7 @@ func TestInt64Array_Scan(t *testing.T) {
 			}
 
 			if tc.wantEmpty && len(ia) != 0 {
-				t.Fatalf("expected empty Int64Array, got len=%d", len(ia))
+				t.Fatalf("expected empty models.Int64Array, got len=%d", len(ia))
 			}
 
 			if tc.wantLen > 0 && len(ia) != tc.wantLen {
@@ -534,13 +534,13 @@ func TestInt64Array_Value(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   Int64Array
+		input   models.Int64Array
 		wantStr string
 		wantErr bool
 	}{
 		{
 			name:    "empty array returns empty JSON array string",
-			input:   Int64Array{},
+			input:   models.Int64Array{},
 			wantStr: "[]",
 		},
 		{
@@ -550,17 +550,17 @@ func TestInt64Array_Value(t *testing.T) {
 		},
 		{
 			name:    "MaxInt64 produces valid JSON",
-			input:   Int64Array{math.MaxInt64},
+			input:   models.Int64Array{math.MaxInt64},
 			wantErr: false,
 		},
 		{
 			name:    "MinInt64 produces valid JSON",
-			input:   Int64Array{math.MinInt64},
+			input:   models.Int64Array{math.MinInt64},
 			wantErr: false,
 		},
 		{
 			name:  "multiple elements produce valid JSON",
-			input: Int64Array{-100, 0, 100, math.MaxInt64},
+			input: models.Int64Array{-100, 0, 100, math.MaxInt64},
 		},
 	}
 
@@ -591,7 +591,7 @@ func TestInt64Array_Value(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected []byte value for non-empty array, got %T", val)
 			}
-			var result Int64Array
+			var result models.Int64Array
 			if err := json.Unmarshal(b, &result); err != nil {
 				t.Fatalf("Value() produced invalid JSON: %v", err)
 			}
@@ -656,7 +656,7 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		slice    BlacklistSettingsSlice
+		slice    models.BlacklistSettingsSlice
 		wantLen  int
 		contains []string
 	}{
@@ -667,12 +667,12 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 		},
 		{
 			name:    "empty slice returns empty triggers",
-			slice:   BlacklistSettingsSlice{},
+			slice:   models.BlacklistSettingsSlice{},
 			wantLen: 0,
 		},
 		{
 			name: "single entry returns word",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "spam", Action: "warn"},
 			},
 			wantLen:  1,
@@ -680,7 +680,7 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 		},
 		{
 			name: "multiple entries returns all words",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "badword1", Action: "ban"},
 				{Word: "badword2", Action: "kick"},
 				{Word: "badword3", Action: "warn"},
@@ -690,7 +690,7 @@ func TestBlacklistSettingsSlice_Triggers(t *testing.T) {
 		},
 		{
 			name: "entries with empty word included",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "", Action: "warn"},
 				{Word: "foo", Action: "ban"},
 			},
@@ -725,7 +725,7 @@ func TestBlacklistSettingsSlice_Action(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		slice      BlacklistSettingsSlice
+		slice      models.BlacklistSettingsSlice
 		wantAction string
 	}{
 		{
@@ -735,19 +735,19 @@ func TestBlacklistSettingsSlice_Action(t *testing.T) {
 		},
 		{
 			name:       "empty slice returns default warn",
-			slice:      BlacklistSettingsSlice{},
+			slice:      models.BlacklistSettingsSlice{},
 			wantAction: "warn",
 		},
 		{
 			name: "single entry returns its action",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "spam", Action: "ban"},
 			},
 			wantAction: "ban",
 		},
 		{
 			name: "multiple entries returns first action",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "a", Action: "kick"},
 				{Word: "b", Action: "ban"},
 			},
@@ -755,14 +755,14 @@ func TestBlacklistSettingsSlice_Action(t *testing.T) {
 		},
 		{
 			name: "empty action field on first entry returns empty string",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "spam", Action: ""},
 			},
 			wantAction: "",
 		},
 		{
 			name: "mute action preserved",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "x", Action: "mute"},
 			},
 			wantAction: "mute",
@@ -784,7 +784,7 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		slice      BlacklistSettingsSlice
+		slice      models.BlacklistSettingsSlice
 		wantReason string
 	}{
 		{
@@ -794,26 +794,26 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 		},
 		{
 			name:       "empty slice returns default format string",
-			slice:      BlacklistSettingsSlice{},
+			slice:      models.BlacklistSettingsSlice{},
 			wantReason: "Blacklisted word: '%s'",
 		},
 		{
 			name: "entry with empty reason returns default format string",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "spam", Reason: ""},
 			},
 			wantReason: "Blacklisted word: '%s'",
 		},
 		{
 			name: "entry with non-empty reason returns it",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "spam", Reason: "No spamming allowed"},
 			},
 			wantReason: "No spamming allowed",
 		},
 		{
 			name: "multiple entries returns first entry reason",
-			slice: BlacklistSettingsSlice{
+			slice: models.BlacklistSettingsSlice{
 				{Word: "a", Reason: "first reason"},
 				{Word: "b", Reason: "second reason"},
 			},
@@ -829,6 +829,27 @@ func TestBlacklistSettingsSlice_Reason(t *testing.T) {
 				t.Fatalf("Reason()=%q, want %q", got, tc.wantReason)
 			}
 		})
+	}
+}
+
+func TestBlacklistSettingsSlice_Find(t *testing.T) {
+	slice := models.BlacklistSettingsSlice{
+		{Word: "oldword", Action: "mute", Reason: "old reason"},
+		{Word: "newword", Action: "warn", Reason: "new reason"},
+	}
+	got := slice.Find("NEWWORD")
+	if got == nil || got.Action != "warn" || got.Reason != "new reason" {
+		t.Fatalf("Find(newword) = %+v, want warn/new reason", got)
+	}
+	got = slice.Find("oldword")
+	if got == nil || got.Action != "mute" {
+		t.Fatalf("Find(oldword) = %+v, want mute", got)
+	}
+	if slice.Find("absent") != nil {
+		t.Fatal("Find(absent) returned a row")
+	}
+	if (models.BlacklistSettingsSlice{}).Find("x") != nil {
+		t.Fatal("empty slice Find returned a row")
 	}
 }
 
