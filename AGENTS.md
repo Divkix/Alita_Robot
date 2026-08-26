@@ -682,7 +682,9 @@ m != nil`) — every helper bails when it's nil.
 - **Antispam** (`antispam.go`, group -2): ⚠️ a **local** in-memory rate limiter
   (18 msgs/sec) used for telemetry only; it always returns `ContinueGroups`, so
   exceeding the threshold never bypasses antiflood/locks/filters. It is **not** a
-  CAS/Spamwatch global-ban integration.
+  CAS/Spamwatch global-ban integration. Live state is 16 `antiSpamShards` (no
+  global map). Cleanup recovers per tick and `defer`s each shard unlock so a
+  panic cannot pin a shard.
 - **Captcha** (`captcha.go`, ~2100 lines): math-image/text verification with refresh
   (cooldown 5s, max 3), timeout, max-attempts. `StartCaptchaLifecycle` recovers
   persisted attempts before updates start; `StopCaptchaLifecycle` cancels and joins

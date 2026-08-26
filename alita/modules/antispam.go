@@ -69,14 +69,16 @@ func antiSpamCleanupLoop() {
 
 func cleanupExpiredAntiSpam(now time.Time) {
 	for i := range antiSpamShards {
-		shard := &antiSpamShards[i]
-		shard.mu.Lock()
-		for key, info := range shard.m {
-			if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
-				delete(shard.m, key)
+		func() {
+			shard := &antiSpamShards[i]
+			shard.mu.Lock()
+			defer shard.mu.Unlock()
+			for key, info := range shard.m {
+				if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
+					delete(shard.m, key)
+				}
 			}
-		}
-		shard.mu.Unlock()
+		}()
 	}
 }
 
