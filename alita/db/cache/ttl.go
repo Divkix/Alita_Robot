@@ -20,4 +20,6 @@ const (
 	CacheTTLAntiRaid        = 30 * time.Minute
 	CacheTTLChannels        = 30 * time.Minute
 	CacheTTLReactions       = 30 * time.Minute
+	CacheTTLFederation      = 30 * time.Minute
+	CacheTTLLogChannel      = 30 * time.Minute
 )
