@@ -167,6 +167,36 @@ func defaultOrphanChecks() []orphanCheck {
 			cleanup: "DELETE FROM warns_users WHERE chat_id NOT IN (SELECT chat_id FROM chats) " +
 				"OR user_id NOT IN (SELECT user_id FROM users);",
 		},
+		{
+			table:     "federations",
+			condition: "owner_id NOT IN (SELECT user_id FROM users)",
+			issue:     "Records with non-existent owner_id",
+			cleanup:   "DELETE FROM federations WHERE owner_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table:     "federation_admins",
+			condition: "user_id NOT IN (SELECT user_id FROM users)",
+			issue:     "Records with non-existent user_id",
+			cleanup:   "DELETE FROM federation_admins WHERE user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table:     "federation_bans",
+			condition: "user_id NOT IN (SELECT user_id FROM users)",
+			issue:     "Records with non-existent user_id",
+			cleanup:   "DELETE FROM federation_bans WHERE user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
+			table:     "federation_chats",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM federation_chats WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
+		{
+			table:     "log_channels",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats)",
+			issue:     "Records with non-existent chat_id",
+			cleanup:   "DELETE FROM log_channels WHERE chat_id NOT IN (SELECT chat_id FROM chats);",
+		},
 	}
 }
 

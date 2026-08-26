@@ -103,13 +103,13 @@ Big architectural facts an agent must hold in mind:
     - `conn.go` — Postgres connection (opened in `init()`), pool tuning, optional `AUTO_MIGRATE`.
     - `models/` — **all GORM structs** (one file per table) + `types.go` (JSONB types).
     - `<domain>/` — per-domain repositories: `admin, antiflood, antiraid, approvals,
-      blacklists, captcha, channels, chats, connections, devs, disabling, filters,
-      greetings, lang, locks, notes, pins, reports, rules, user, warns`
+      blacklists, captcha, channels, chats, connections, devs, disabling, federations,
+      filters, greetings, lang, locks, logchannels, notes, pins, reports, rules, user, warns`
       (usually `repository.go` + optional `optimized.go`).
     - `cache/` — `CacheKey`, `GetFromCacheOrLoad` (singleflight read-through), `DeleteCache`, TTL constants.
     - `migrations/` — `runner.go` (custom SQL migration engine).
     - `monitoring/` — `metrics.go` (DB pool metrics for `/db_metrics`).
-    - `backup/` — `backup.go` + `types.go` (per-module export/import/clear, **17 modules**).
+    - `backup/` — `backup.go` + `types.go` (per-module export/import/clear, **19 modules**).
   - `i18n/` — singleton `LocaleManager`, per-language `Translator`, `go:embed` locales.
     Locale YAML is parsed into `map[string]any` (yaml.v3); key lookup is a dot-path
     descent with case-insensitive fallback (for `alt_names.<Module>`). **No viper.**
@@ -117,7 +117,7 @@ Big architectural facts an agent must hold in mind:
   - `utils/` — `chat_status` (permissions), `helpers` (command pipeline), `cache`,
     `callbackcodec`, `formatting`, `keyboard`, `keyword_matcher`, `media`, `content`,
     `extraction`, `error_handling`, `errors`, `logredact`, `ratelimit`, `constants`,
-    `monitoring`, `shutdown`, `tracing`, `httpserver`.
+    `monitoring`, `shutdown`, `tracing`, `httpserver`, `actionlog` (log-channel fan-out).
 - **`locales/`** — `en/es/fr/hi/ru/pt/id.yml` translations + **`config.yml`** (loaded
   as a pseudo-language `"config"`; holds `alt_names.<Module>` and `db_default_*`).
 - **`migrations/`** — timestamped `.sql` schema files (source of truth).
@@ -317,16 +317,17 @@ tracing, DB monitoring and application monitors, and finally the DB pool.
 
 | Pri | Module | Pri | Module | Pri | Module |
 |----:|--------|----:|--------|----:|--------|
-| -10 | BotUpdates | 80 | Mutes | 180 | Disabling |
-| 10 | Antispam | 90 | Purges | 190 | Rules |
-| 20 | Languages | 100 | Users | 200 | Warns |
-| 30 | Admin | 110 | Reports | 210 | Greetings |
-| 40 | Approvals | 120 | Dev | 220 | Captcha |
-| 50 | Pins | 130 | Locks | 230 | AntiRaid |
-| 60 | Misc | 140 | Filters | 240 | Blacklists |
-| 70 | Bans | 150 | Antiflood | 250 | Reactions |
-|     |        | 160 | Notes | 260 | Formatting |
+| -10 | BotUpdates | 80 | Mutes | 190 | Rules |
+| 10 | Antispam | 90 | Purges | 200 | Warns |
+| 20 | Languages | 100 | Users | 210 | Greetings |
+| 30 | Admin | 110 | Reports | 220 | Captcha |
+| 40 | Approvals | 120 | Dev | 230 | AntiRaid |
+| 50 | Pins | 130 | Locks | 235 | Federations |
+| 55 | LogChannels | 140 | Filters | 240 | Blacklists |
+| 60 | Misc | 150 | Antiflood | 250 | Reactions |
+| 70 | Bans | 160 | Notes | 260 | Formatting |
 |     |        | 170 | Connections | 270 | Backup |
+|     |        | 180 | Disabling |     |        |
 
 Help is not in the registry (deferred-last). Every module, including BotUpdates,
 uses `RegisterLegacyModule`.
@@ -375,10 +376,11 @@ uses `RegisterLegacyModule`.
 ## 7. Handler, callback & routing patterns
 
 - **Handler groups**: negative (early interceptors), 0 (commands), positive
-  (watchers). In use: captcha-pending **-10**, antiraid module **-5**, antispam
-  **-2**, Users tracker **-1**; locks perm **5** / restr **6**; blacklists **7**;
-  reports `@admin` watcher & reactions **8**; filters **9**; pins & some watchers
-  **10**; antiflood **4**.
+  (watchers). In use: captcha-pending **-10**, federations fban watcher **-6**,
+  antiraid module **-5**, antispam **-2**, Users tracker **-1**; locks perm **5** /
+  restr **6**; blacklists **7**; reports `@admin` watcher & reactions **8**;
+  filters **9**; pins & some watchers **10**; antiflood **4**; log-channel
+  `/setlog` forward capture **11**.
 - **Return values**: commands return `ext.EndGroups`; watchers return
   `ext.ContinueGroups` (so multiple watchers fire on one message). The Users
   tracker (group -1, every message) **must** return `ContinueGroups`.
@@ -512,7 +514,9 @@ OTel-traced: `GetRecord`/`GetRecords`/`CreateRecord`/`UpdateRecord`/
   `notes→"notes_settings"`, `disabling→"disabled_cmds"`, `warns→"warns"` (per-user)
   + `"warn_settings"` (per-chat), `filters→"filter_list"` + `"filters_optimized"`,
   `locks→"lock"` + `"locks_map"`, `lang→"chat_lang"`/`"user_lang"` (also invalidates
-  `"chat_settings"`/`"chat"`/`"user"`). The `admin`, `connections`, `devs`, `pins`,
+  `"chat_settings"`/`"chat"`/`"user"`), `federations→"fed"` (fed row) + `"fed_chat"`
+  (per-chat membership) + `"fed_admins"` + `"fed_ban"` + `"fed_subs"`,
+  `logchannels→"log_channel"`. The `admin`, `connections`, `devs`, `pins`,
   `reports`, `rules` packages have **no cache** at all. Reuse the exact existing
   literal when invalidating.
 - Upserts that must survive concurrent writers use `clause.OnConflict`: locks,
@@ -646,6 +650,20 @@ m != nil`) — every helper bails when it's nil.
   raid/action durations at **366 days**. Defaults `RaidTime=21600s`,
   `RaidActionTime=3600s`, `AutoAntiRaidThreshold=0` (off). Once a multi-member
   update triggers auto-raid, every later eligible member in that update is acted on.
+- **Federations** (`federations.go`, group **-6**, priority 235): shared ban lists
+  owned by one user (`federations` table; one fed per `owner_id`). Commands include
+  `newfed`/`delfed`/`joinfed`/`leavefed`/`fban`/`unfban`/`fedinfo`/`fedadmins`/
+  `subfed`/`fbanlist`/`importfbans`. A chat joins exactly one fed (`federation_chats`);
+  a fed may subscribe to at most **5** others (`federation_subs`). The watcher
+  fbans newly-seen users against the local fed **and** subscribed feds. Cache
+  prefixes: `fed`, `fed_chat`, `fed_admins`, `fed_ban`, `fed_subs`. Chat backups
+  export **membership only** (`fed_id` + `quiet`), not the federation itself.
+- **Log channels** (`logchannels.go`, group **11**, priority 55): `/setlog` in a
+  channel stores a pending Redis marker (`alita:setlog:<channel>:<msgId>` plus
+  `:0`); forwarding that message into a group binds `log_channels`. Categories
+  (`settings`/`admin`/`user`/`automated`/`reports`/`other`) default all-on.
+  `alita/utils/actionlog` fans out HTML lines and must key off `chat.Type ==
+  "channel"` (not `IsChannelId`) because supergroup IDs are channel-shaped.
 - **Antispam** (`antispam.go`, group -2): ⚠️ a **local** in-memory rate limiter
   (18 msgs/sec) used for telemetry only; it always returns `ContinueGroups`, so
   exceeding the threshold never bypasses antiflood/locks/filters. It is **not** a
@@ -782,14 +800,19 @@ m != nil`) — every helper bails when it's nil.
 
 ## 16. Backups & rate limiting
 
-- `alita/db/backup` exports/imports/clears **17 modules**:
+- `alita/db/backup` exports/imports/clears **19 modules**:
   admin, antiflood, antiraid, approvals, blacklists, captcha, connections,
   disabling, filters, greetings, locks, notes, pins, reactions, reports, rules,
-  warns. `BackupFormatVersion = "1.1"`; legacy `1.0` remains accepted. Current
-  backups require payloads for every named module. Export aborts on any module
+  warns, **federations**, **logchannels**. `BackupFormatVersion = "1.1"`; legacy
+  `1.0` remains accepted. Current backups require payloads for every named
+  module; older 17-module files still validate because `Validate` only checks
+  listed modules. Federations backup is **chat membership only** (`fed_id` +
+  `quiet`) — importing a `fed_id` that does not exist on this bot fails the
+  `federation_chats.fed_id` FK on Postgres. Export aborts on any module
   failure; import validates first, replaces requested module data in one
   transaction, invalidates affected caches after commit, and round-trips complete
-  filter/note/greeting/pin/report/warn/reaction state.
+  filter/note/greeting/pin/report/warn/reaction/federation-membership/log-channel
+  state.
 - `alita/modules/backup.go` adds Telegram UI, **in-memory** pending-import/reset
   confirmation state with one-use random nonces and a 10-minute TTL (lost on
   restart, not cross-instance), and rate limiting via
@@ -805,16 +828,21 @@ m != nil`) — every helper bails when it's nil.
 
 - **`scripts/generate_docs/`** — `package main` in the **root module** (`go run .`),
   regex/text parsers (not AST) of locales/modules/locks → Blume Markdown. Normal
-  generation updates only `commands/users/index.md` and `api-reference/lock-types.md`;
-  frozen files are hand-maintained. Lock descriptions are hardcoded in
-  `getLockDescription()`. `-inventory` separately parses commands, callbacks, and
-  message watchers, then writes `.planning/INVENTORY.{json,md}`.
+  generation updates unfrozen files: `commands/users/index.md`,
+  `commands/federations/index.md`, `commands/logchannels/index.md`, and
+  `api-reference/lock-types.md`. Frozen files (sentinel
+  `<!-- MANUALLY MAINTAINED: do not regenerate -->`) are skipped. New modules
+  without that sentinel **must** commit their generated pages or `make check-docs`
+  fails. Lock descriptions are hardcoded in `getLockDescription()`. `-inventory`
+  separately parses commands, callbacks, and message watchers, then writes
+  `.planning/INVENTORY.{json,md}`.
 - **`scripts/check_translations/`** — a **separate Go module** (own `go.mod`); cannot
   import `alita`; uses hardcoded `../../alita` and `../../locales`. Only validates
   **string-literal** keys passed to `tr.GetString`/`GetStringSlice`.
-- **`scripts/validate_orphaned_data.go`** — 21 referential-integrity checks
+- **`scripts/validate_orphaned_data.go`** — 26 referential-integrity checks
   (`defaultOrphanChecks()`); keep in sync with
-  `migrations/20250805204145_add_foreign_key_relations.sql` step 1.
+  `migrations/20250805204145_add_foreign_key_relations.sql` step 1 plus
+  `migrations/20260826000000_add_federations_and_log_channels.sql`.
 - **`internal/repo_checks/`** — test-only structural-invariant assertions (string/
   regex over source files via `../..`); **sensitive to renames/reformatting** of the
   functions it inspects — update expectations alongside refactors.

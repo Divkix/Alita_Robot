@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -452,6 +453,72 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
+// setGTitle handles /setgtitle to change the current group's title.
+func (moduleStruct) setGTitle(c *helpers.CommandContext) error {
+	msg := c.Msg
+	tr := c.Tr
+	title := strings.TrimSpace(strings.Join(c.Ctx.Args()[1:], " "))
+	if title == "" {
+		text, _ := tr.GetString("admin_setgtitle_need_title")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	if _, err := c.Bot.SetChatTitle(c.Chat.Id, title, nil); err != nil {
+		log.Error(err)
+		text, _ := tr.GetString("admin_setgtitle_failed")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	text, _ := tr.GetString("admin_setgtitle_ok")
+	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+	return ext.EndGroups
+}
+
+// setGPic handles /setgpic to set the group photo from a replied photo.
+func (moduleStruct) setGPic(c *helpers.CommandContext) error {
+	msg := c.Msg
+	tr := c.Tr
+	if msg.ReplyToMessage == nil || len(msg.ReplyToMessage.Photo) == 0 {
+		text, _ := tr.GetString("admin_setgpic_need_photo")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	photo := msg.ReplyToMessage.Photo
+	fileID := photo[len(photo)-1].FileId
+	data, err := downloadTelegramFile(c.Bot, fileID)
+	if err != nil || len(data) == 0 {
+		log.Error(err)
+		text, _ := tr.GetString("admin_setgpic_failed")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	if _, err := c.Bot.SetChatPhoto(c.Chat.Id, gotgbot.InputFileByReader("photo.jpg", bytes.NewReader(data)), nil); err != nil {
+		log.Error(err)
+		text, _ := tr.GetString("admin_setgpic_failed")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	text, _ := tr.GetString("admin_setgpic_ok")
+	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+	return ext.EndGroups
+}
+
+// setGDesc handles /setgdesc to change the current group's description.
+func (moduleStruct) setGDesc(c *helpers.CommandContext) error {
+	msg := c.Msg
+	tr := c.Tr
+	desc := strings.TrimSpace(strings.Join(c.Ctx.Args()[1:], " "))
+	if _, err := c.Bot.SetChatDescription(c.Chat.Id, &gotgbot.SetChatDescriptionOpts{Description: desc}); err != nil {
+		log.Error(err)
+		text, _ := tr.GetString("admin_setgdesc_failed")
+		_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	text, _ := tr.GetString("admin_setgdesc_ok")
+	_, _ = msg.Reply(c.Bot, text, formatting.Shtml())
+	return ext.EndGroups
+}
+
 /*
 Sets a custom title for an admin.
 Only works with admins whom bot has promoted.*/
@@ -758,6 +825,39 @@ var (
 			helpers.RequireBotAdmin(),
 		},
 	}
+	setGTitleDesc = helpers.CommandDescriptor{
+		Name:    "setgtitle",
+		Aliases: []string{"setgrouptitle"},
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			helpers.RequireUserAdmin(),
+			helpers.CanUserChangeInfo(),
+			helpers.CanBotChangeInfo(),
+		},
+	}
+	setGPicDesc = helpers.CommandDescriptor{
+		Name:    "setgpic",
+		Aliases: []string{"setgrouppic"},
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			helpers.RequireUserAdmin(),
+			helpers.CanUserChangeInfo(),
+			helpers.CanBotChangeInfo(),
+		},
+	}
+	setGDescDesc = helpers.CommandDescriptor{
+		Name:    "setgdesc",
+		Aliases: []string{"setgroupdesc", "setdescription"},
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			helpers.RequireUserAdmin(),
+			helpers.CanUserChangeInfo(),
+			helpers.CanBotChangeInfo(),
+		},
+	}
 )
 
 // LoadAdmin registers all admin module command handlers with the dispatcher.
@@ -772,6 +872,9 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, getinvitelinkDesc, adminModule.getinvitelink)
 	helpers.WrapCommand(dispatcher, clearAdminCacheDesc, adminModule.clearAdminCache)
 	helpers.WrapCommand(dispatcher, anonAdminDesc, adminModule.anonAdmin)
+	helpers.WrapCommand(dispatcher, setGTitleDesc, adminModule.setGTitle)
+	helpers.WrapCommand(dispatcher, setGPicDesc, adminModule.setGPic)
+	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
 
 	// adminCache uses custom permission checking (direct member status lookup),
 	// so it remains a raw handler.

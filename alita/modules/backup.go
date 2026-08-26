@@ -2,14 +2,11 @@ package modules
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -347,65 +344,14 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 		return nil, text
 	}
 
-	// Get the file
-	file, err := b.GetFile(doc.FileId, &gotgbot.GetFileOpts{})
-	if err != nil {
-		log.Errorf("[Backup] Failed to get file: %v", err)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-
-	// Download file content
-	baseURL, err := url.Parse(backupDownloadBaseURL)
-	if err != nil {
-		log.Errorf("[Backup] Failed to parse download base URL: %v", err)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-	downloadURL, err := url.Parse(fmt.Sprintf("%s%s/%s", backupDownloadBaseURL, b.Token, file.FilePath))
-	if err != nil {
-		log.Errorf("[Backup] Failed to parse download URL: %v", err)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-	if downloadURL.Scheme != baseURL.Scheme || downloadURL.Host != baseURL.Host {
-		log.Errorf("[Backup] Unexpected download URL host: %s", downloadURL.Host)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL.String(), nil)
-	if err != nil {
-		log.Errorf("[Backup] Failed to create download request: %v", err)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-
-	resp, err := backupDownloadHTTPClient.Do(req)
+	fileData, err := downloadTelegramFile(b, doc.FileId)
 	if err != nil {
 		log.Errorf("[Backup] Failed to download file: %v", err)
+		if errors.Is(err, errTelegramFileTooLarge) {
+			text, _ := tr.GetString("backup_import_file_too_large")
+			return nil, text
+		}
 		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		log.Errorf("[Backup] Failed to download file: status %d", resp.StatusCode)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-
-	fileData, err := io.ReadAll(io.LimitReader(resp.Body, maxBackupFileSize+1))
-	if err != nil {
-		log.Errorf("[Backup] Failed to read file: %v", err)
-		text, _ := tr.GetString("backup_import_download_failed")
-		return nil, text
-	}
-	if len(fileData) > maxBackupFileSize {
-		text, _ := tr.GetString("backup_import_file_too_large")
 		return nil, text
 	}
 

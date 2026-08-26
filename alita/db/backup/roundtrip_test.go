@@ -10,6 +10,8 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
@@ -21,6 +23,8 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	dstChat := srcChat + 1
 	warnUserID := srcChat + 2
 	staleWarnUserID := srcChat + 3
+	fedOwnerID := srcChat + 4
+	logChannelID := srcChat + 5
 	require.NoError(t, chats.EnsureChatInDb(srcChat, "backup_source"))
 	require.NoError(t, chats.EnsureChatInDb(dstChat, "backup_destination"))
 	require.NoError(t, user.EnsureUserInDb(warnUserID, "", ""))
@@ -28,7 +32,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	t.Cleanup(func() {
 		cleanupBackupChat(t, srcChat)
 		cleanupBackupChat(t, dstChat)
-		require.NoError(t, db.DB.Where("user_id IN ?", []int64{warnUserID, staleWarnUserID}).Delete(&models.User{}).Error)
+		require.NoError(t, db.DB.Where("user_id IN ?", []int64{warnUserID, staleWarnUserID, fedOwnerID}).Delete(&models.User{}).Error)
 	})
 
 	buttons := models.ButtonArray{{Name: "docs", Url: "https://example.com", SameLine: true}}
@@ -134,6 +138,14 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	require.NoError(t, db.DB.Create(&models.Warns{
 		UserId: staleWarnUserID, ChatId: dstChat, NumWarns: 1, Reasons: models.StringArray{"stale"},
 	}).Error)
+
+	fed, err := federations.CreateFederation(fedOwnerID, "Backup Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	require.NoError(t, federations.JoinFed(srcChat, "backup_source", fed.FedID))
+	require.NoError(t, federations.SetQuietFed(srcChat, true))
+	require.NoError(t, logchannels.Set(srcChat, "backup_source", logChannelID))
+	require.NoError(t, logchannels.SetCategory(srcChat, "admin", false))
 
 	exported, err := ExportChatData(srcChat, "source", 42, nil)
 	require.NoError(t, err)
@@ -292,6 +304,19 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	assert.Equal(t, warnUserID, warnsData.Warns[0].UserId)
 	assert.Equal(t, 2, warnsData.Warns[0].NumWarns)
 	assert.Equal(t, models.StringArray{"one", "two"}, warnsData.Warns[0].Reasons)
+
+	fedsData, err := exportFederationsData(dstChat)
+	require.NoError(t, err)
+	require.NotNil(t, fedsData.Membership)
+	assert.Equal(t, fed.FedID, fedsData.Membership.FedID)
+	assert.True(t, fedsData.Membership.Quiet)
+
+	logsData, err := exportLogChannelsData(dstChat)
+	require.NoError(t, err)
+	require.NotNil(t, logsData.Settings)
+	assert.Equal(t, logChannelID, logsData.Settings.LogChannelID)
+	assert.False(t, logsData.Settings.CatAdmin)
+	assert.True(t, logsData.Settings.CatReports)
 }
 
 func TestExportChatDataReturnsDatabaseErrors(t *testing.T) {

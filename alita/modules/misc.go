@@ -529,6 +529,7 @@ func LoadMisc(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("tr", miscModule.translate))
 	helpers.AddCmdToDisableable("tr")
 	dispatcher.AddHandler(handlers.NewCommand("removebotkeyboard", miscModule.removeBotKeyboard))
+	registerMiscExtras(dispatcher)
 }
 
 func init() {

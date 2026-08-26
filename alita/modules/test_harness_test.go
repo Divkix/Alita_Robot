@@ -350,6 +350,12 @@ func TestMain(m *testing.M) {
 		&models.AntiRaidSettings{},
 		&db.DevSettings{},
 		&models.Reactions{},
+		&models.Federation{},
+		&models.FederationAdmin{},
+		&models.FederationChat{},
+		&models.FederationBan{},
+		&models.FederationSub{},
+		&models.LogChannel{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

@@ -369,6 +369,8 @@ func TestAllExportableModules(t *testing.T) {
 		BackupModuleReports,
 		BackupModuleRules,
 		BackupModuleWarns,
+		BackupModuleFederations,
+		BackupModuleLogChannels,
 	}
 
 	if len(modules) != len(expected) {

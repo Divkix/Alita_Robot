@@ -4,14 +4,14 @@ db_default_welcome: "Hey {first}, how are you?"
 db_default_goodbye: "Sad to see you leaving {first}"
 db_warn_no_reason: "No Reason"
 alt_names:
-  Admin: [admins, promote, demote, title]
+  Admin: [admins, promote, demote, title, setgtitle, setgpic, setgdesc]
   Approvals: [approval, approve, unapprove]
   AntiRaid: [antiraid, raid]
-  Antiflood: [flood]
+  Antiflood: [flood, clearflood]
   Bans:
-    [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban]
+    [ban, kick, dkick, restrict, kickme, unrestrict, sban, dban, tban, unban, skick, banme, unbanall]
   Backup: [export, import, reset]
-  Blacklists: [blacklist, unblacklist]
+  Blacklists: [blacklist, unblacklist, blocklist, addblocklist]
   Connections: [connection, connect]
   Disabling: [disable, enable]
   Filters: [filter]
@@ -19,7 +19,7 @@ alt_names:
   Greetings: [welcome, goodbye, greeting]
   Locks: [lock, unlock]
   Languages: [language, lang]
-  Misc: [extra, extras]
+  Misc: [extra, extras, stickerid, github, wiki, ud, runs, zombies]
   Mutes: [mute, unmute, tmute, smute, dmute]
   Notes: [note, notes]
   Pins: [antichannelpin, cleanlinked, pins]
@@ -28,3 +28,5 @@ alt_names:
   Reports: [report, reporting]
   Rules: [rule]
   Warns: [warn, warning, warnings]
+  Federations: [fed, feds, fban, unfban, newfed, joinfed]
+  LogChannels: [setlog, logchannel, logcategories]

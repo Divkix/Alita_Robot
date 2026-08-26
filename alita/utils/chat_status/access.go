@@ -130,6 +130,23 @@ func CanBotPin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return botMember.CanPinMessages
 }
 
+// CanBotChangeInfo reports whether the bot can change chat title, photo, or description.
+func CanBotChangeInfo(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
+	if b == nil {
+		return false
+	}
+	chat = extractChatFromContext(ctx, chat)
+	if chat == nil {
+		return false
+	}
+
+	botMember, ok := getUserMemberWithCache(b, chat, b.Id, "canBotChangeInfo")
+	if !ok {
+		return false
+	}
+	return botMember.CanChangeInfo
+}
+
 // CanBotDelete reports whether the bot can delete messages.
 func CanBotDelete(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	if b == nil {

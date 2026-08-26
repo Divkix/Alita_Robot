@@ -39,3 +39,6 @@ specs/.current-spec
 
 # Git worktrees
 .worktrees/
+
+# Local make inventory output
+.planning/

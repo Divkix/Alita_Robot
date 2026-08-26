@@ -162,6 +162,7 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
+		logAction: "tmute",
 	}
 }
 
@@ -176,7 +177,8 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
 			return err
 		},
-		reply: muteReplyWithButton,
+		reply:     muteReplyWithButton,
+		logAction: "mute",
 	}
 }
 
@@ -195,6 +197,7 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 			_ = helpers.DeleteMessageWithErrorHandling(c.Bot, c.Chat.Id, c.Msg.MessageId)
 			return nil
 		},
+		logAction: "smute",
 	}
 }
 
@@ -228,7 +231,8 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 			_, err = c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions, nil)
 			return err
 		},
-		reply: muteReplyWithButton,
+		reply:     muteReplyWithButton,
+		logAction: "dmute",
 	}
 }
 
@@ -290,6 +294,7 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 			}
 			return nil
 		},
+		logAction: "unmute",
 	}
 }
 

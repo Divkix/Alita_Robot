@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -185,12 +186,14 @@ type replyFn func(c *moderationCtx, t *target) error
 //
 // It eliminates the 30+ lines of boilerplate that every moderation command repeats.
 type moderationCommand struct {
-	gates    []gateFn
-	extract  func(*moderationCtx) (target, error)
-	validate validateTargetFn
-	execute  actionFn
-	reply    replyFn
-	module   *moduleStruct
+	gates     []gateFn
+	extract   func(*moderationCtx) (target, error)
+	validate  validateTargetFn
+	execute   actionFn
+	reply     replyFn
+	module    *moduleStruct
+	logAction string
+	logUser   bool
 }
 
 // buildModerationCtx creates the common decomposed context from a gotgbot update.
@@ -249,6 +252,14 @@ func (cmd *moderationCommand) run(b *gotgbot.Bot, ctx *ext.Context) error {
 		if err := cmd.reply(mc, &tgt); err != nil {
 			log.Error(err)
 			return err
+		}
+	}
+
+	if cmd.logAction != "" {
+		if cmd.logUser {
+			actionlog.User(mc.Bot, mc.Chat, mc.User, cmd.logAction)
+		} else {
+			actionlog.Admin(mc.Bot, mc.Chat, mc.User, cmd.logAction, tgt.userID, tgt.reason)
 		}
 	}
 	return ext.EndGroups

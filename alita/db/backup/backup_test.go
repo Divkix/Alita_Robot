@@ -377,6 +377,12 @@ func cleanupBackupChat(t *testing.T, chatID int64) {
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Reactions{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting Reactions: %v", err)
 	}
+	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.FederationChat{}).Error; err != nil {
+		t.Errorf("cleanup failed deleting FederationChat: %v", err)
+	}
+	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.LogChannel{}).Error; err != nil {
+		t.Errorf("cleanup failed deleting LogChannel: %v", err)
+	}
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
 		t.Errorf("cleanup failed deleting Chat: %v", err)
 	}
