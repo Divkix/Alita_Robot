@@ -51,6 +51,10 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 		return exportRulesData(chatID)
 	case BackupModuleWarns:
 		return exportWarnsData(chatID)
+	case BackupModuleFederations:
+		return exportFederationsData(chatID)
+	case BackupModuleLogChannels:
+		return exportLogChannelsData(chatID)
 	default:
 		return nil, fmt.Errorf("unknown module: %s", module)
 	}
@@ -475,6 +479,22 @@ func exportWarnsData(chatID int64) (*WarnsBackup, error) {
 	return &WarnsBackup{WarnSettings: settings, Warns: rows}, nil
 }
 
+func exportFederationsData(chatID int64) (*FederationsBackup, error) {
+	row, err := findChatSetting[models.FederationChat](chatID)
+	if err != nil {
+		return nil, err
+	}
+	return &FederationsBackup{Membership: row}, nil
+}
+
+func exportLogChannelsData(chatID int64) (*LogChannelsBackup, error) {
+	settings, err := findChatSetting[models.LogChannel](chatID)
+	if err != nil {
+		return nil, err
+	}
+	return &LogChannelsBackup{Settings: settings}, nil
+}
+
 func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}, preserveLegacyOmissions bool) ([]string, error) {
 	if err := ensureBackupChat(tx, chatID); err != nil {
 		return nil, err
@@ -514,6 +534,10 @@ func importModuleData(tx *gorm.DB, chatID int64, module string, data interface{}
 		return importRules(tx, chatID, data)
 	case BackupModuleWarns:
 		return importWarns(tx, chatID, data, preserveLegacyOmissions)
+	case BackupModuleFederations:
+		return importFederations(tx, chatID, data)
+	case BackupModuleLogChannels:
+		return importLogChannels(tx, chatID, data)
 	default:
 		return nil, fmt.Errorf("unknown module: %s", module)
 	}
@@ -926,6 +950,10 @@ func clearModuleData(tx *gorm.DB, chatID int64, module string) ([]string, error)
 		return clearRules(tx, chatID)
 	case BackupModuleWarns:
 		return clearWarns(tx, chatID)
+	case BackupModuleFederations:
+		return clearFederations(tx, chatID)
+	case BackupModuleLogChannels:
+		return clearLogChannels(tx, chatID)
 	default:
 		return nil, fmt.Errorf("unknown module: %s", module)
 	}
@@ -1084,4 +1112,53 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 		keys = append(keys, dbcache.CacheKey("warns", userID, chatID))
 	}
 	return keys, nil
+}
+
+func importFederations(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data FederationsBackup
+	if err := decodeModuleData(payload, BackupModuleFederations, &data); err != nil {
+		return nil, err
+	}
+	if err := tx.Where("chat_id = ?", chatID).Delete(&models.FederationChat{}).Error; err != nil {
+		return nil, err
+	}
+	if data.Membership != nil && data.Membership.FedID != "" {
+		row := models.FederationChat{
+			FedID:  data.Membership.FedID,
+			ChatID: chatID,
+			Quiet:  data.Membership.Quiet,
+		}
+		if err := tx.Create(&row).Error; err != nil {
+			return nil, fmt.Errorf("restore federation membership: %w", err)
+		}
+	}
+	return []string{cacheKey("fed_chat", chatID)}, nil
+}
+
+func importLogChannels(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
+	var data LogChannelsBackup
+	if err := decodeModuleData(payload, BackupModuleLogChannels, &data); err != nil {
+		return nil, err
+	}
+	if data.Settings != nil {
+		data.Settings.ChatID = chatID
+	}
+	if err := replaceChatSetting(tx, chatID, data.Settings); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("log_channel", chatID)}, nil
+}
+
+func clearFederations(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := tx.Where("chat_id = ?", chatID).Delete(&models.FederationChat{}).Error; err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("fed_chat", chatID)}, nil
+}
+
+func clearLogChannels(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := replaceChatSetting(tx, chatID, (*models.LogChannel)(nil)); err != nil {
+		return nil, err
+	}
+	return []string{cacheKey("log_channel", chatID)}, nil
 }

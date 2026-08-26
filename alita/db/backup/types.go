@@ -116,6 +116,8 @@ const (
 	BackupModuleReports     = "reports"
 	BackupModuleRules       = "rules"
 	BackupModuleWarns       = "warns"
+	BackupModuleFederations = "federations"
+	BackupModuleLogChannels = "logchannels"
 )
 
 // AllExportableModules returns a list of all module names that support export
@@ -138,6 +140,8 @@ func AllExportableModules() []string {
 		BackupModuleReports,
 		BackupModuleRules,
 		BackupModuleWarns,
+		BackupModuleFederations,
+		BackupModuleLogChannels,
 	}
 }
 
@@ -256,4 +260,14 @@ type ApprovalsBackup struct {
 // ReactionsBackup represents keyword reaction mappings.
 type ReactionsBackup struct {
 	Reactions []models.Reactions `json:"reactions,omitempty"`
+}
+
+// FederationsBackup stores this chat's federation membership only.
+type FederationsBackup struct {
+	Membership *models.FederationChat `json:"membership,omitempty"`
+}
+
+// LogChannelsBackup stores the group's log-channel binding and categories.
+type LogChannelsBackup struct {
+	Settings *models.LogChannel `json:"settings,omitempty"`
 }
