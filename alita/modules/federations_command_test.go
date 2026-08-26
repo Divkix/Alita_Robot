@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -547,5 +548,80 @@ func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
 	}
 	if got := federations.GetChatFed(group.Id); got == nil || got.FedID != first.FedID {
 		t.Fatalf("should stay in first fed, got %+v", got)
+	}
+}
+
+func TestFedCommandErrorPaths(t *testing.T) {
+	bot := newModuleTestBot(newModuleBotClient())
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Errors Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Err Group"}
+	quietGroup := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Quiet Group"}
+	require.NoError(t, federations.JoinFed(quietGroup.Id, quietGroup.Title, fed.FedID))
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	cases := []struct {
+		name string
+		chat gotgbot.Chat
+		from gotgbot.User
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{"newfed empty", pm, owner, "/newfed", federationsModule.newFed},
+		{"newfed already owns", pm, owner, "/newfed Another", federationsModule.newFed},
+		{"rename empty", pm, owner, "/renamefed", federationsModule.renameFed},
+		{"rename missing", pm, member, "/renamefed X", federationsModule.renameFed},
+		{"delfed group", group, owner, "/delfed", federationsModule.delFed},
+		{"delfed none", pm, member, "/delfed", federationsModule.delFed},
+		{"join missing fed", group, creator, "/joinfed 550e8400-e29b-41d4-a716-446655440000", federationsModule.joinFed},
+		{"leave private", pm, creator, "/leavefed", federationsModule.leaveFed},
+		{"leave member", group, member, "/leavefed", federationsModule.leaveFed},
+		{"leave none", group, creator, "/leavefed", federationsModule.leaveFed},
+		{"quiet private", pm, creator, "/quietfed on", federationsModule.quietFed},
+		{"quiet member", group, member, "/quietfed on", federationsModule.quietFed},
+		{"quiet none", group, creator, "/quietfed on", federationsModule.quietFed},
+		{"quiet junk", quietGroup, creator, "/quietfed maybe", federationsModule.quietFed},
+		{"info invalid", pm, owner, "/fedinfo nope", federationsModule.fedInfo},
+		{"info missing", pm, member, "/fedinfo", federationsModule.fedInfo},
+		{"admins invalid", pm, owner, "/fedadmins nope", federationsModule.fedAdmins},
+		{"admins none", pm, member, "/fedadmins", federationsModule.fedAdmins},
+		{"chatfed private", pm, owner, "/chatfed", federationsModule.chatFed},
+		{"chatfed none", group, creator, "/chatfed", federationsModule.chatFed},
+		{"myfeds none", pm, member, "/myfeds", federationsModule.myFeds},
+		{"promote none", pm, owner, "/fedpromote", federationsModule.fedPromote},
+		{"promote self", pm, owner, "/fedpromote " + strconv.FormatInt(ownerID, 10), federationsModule.fedPromote},
+		{"demoteme invalid", pm, member, "/feddemoteme nope", federationsModule.fedDemoteMe},
+		{"reason missing", pm, owner, "/fedreason", federationsModule.fedReason},
+		{"reason junk", pm, owner, "/fedreason maybe", federationsModule.fedReason},
+		{"fban missing user", pm, owner, "/fban", federationsModule.fban},
+		{"fban self", pm, owner, "/fban " + strconv.FormatInt(ownerID, 10), federationsModule.fban},
+		{"unfban missing", pm, owner, "/unfban 1", federationsModule.unfban},
+		{"sub self", pm, owner, "/subfed " + fed.FedID, federationsModule.subFed},
+		{"sub invalid", pm, owner, "/subfed nope", federationsModule.subFed},
+		{"unsub missing", pm, owner, "/unsubfed 550e8400-e29b-41d4-a716-446655440000", federationsModule.unsubFed},
+		{"setfedlog private", pm, owner, "/setfedlog", federationsModule.setFedLog},
+		{"setfedlog channel no id", gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "C"}, owner, "/setfedlog", federationsModule.setFedLog},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := newModuleMessageContext(bot, tc.chat, tc.from, tc.text)
+			if err := tc.run(bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+		})
+	}
+
+	noop := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "noop"})
+	if err := federationsModule.fedCallback(bot, newModuleCallbackContext(bot, pm, owner, noop)); err != ext.EndGroups {
+		t.Fatalf("callback noop: %v", err)
+	}
+	stale := encodeCallbackData(fedCallbackNamespace, map[string]string{"a": "nope"})
+	if err := federationsModule.fedCallback(bot, newModuleCallbackContext(bot, pm, owner, stale)); err != ext.EndGroups {
+		t.Fatalf("callback stale: %v", err)
 	}
 }
