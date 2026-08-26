@@ -403,8 +403,12 @@ func TestBlacklistWatcherUsesMatchedTriggerAction(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "newword"); err != nil {
 		t.Fatalf("AddBlacklist(newword) error = %v", err)
 	}
-	if got := blacklists.GetBlacklistSettings(chat.Id).Action(); got != "mute" {
-		t.Fatalf("chat-wide Action() = %q, want mute for /blaction display", got)
+	settings := blacklists.GetBlacklistSettings(chat.Id)
+	if got := settings.Find("oldword"); got == nil || got.Action != "mute" {
+		t.Fatalf("oldword settings = %+v, want mute", got)
+	}
+	if got := settings.Find("newword"); got == nil || got.Action != "warn" {
+		t.Fatalf("newword settings = %+v, want warn", got)
 	}
 
 	warnMember := gotgbot.User{Id: 42, FirstName: "Member"}

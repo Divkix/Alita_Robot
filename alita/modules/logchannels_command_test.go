@@ -161,13 +161,14 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	if err := logChannelsModule.setLog(nilBot, nilSet); err != ext.EndGroups {
 		t.Fatalf("setLog with nil marshaler: %v", err)
 	}
-	calls := nilClient.callsFor("sendMessage")
-	if len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want failure reply", len(calls))
+	nilFwd := newModuleMessageContext(nilBot, group, admin, "forwarded")
+	nilFwd.EffectiveMessage.ForwardOrigin = gotgbot.MessageOriginChannel{
+		Date:      1,
+		Chat:      channel,
+		MessageId: nilSet.EffectiveMessage.MessageId,
 	}
-	text, _ := calls[0].Params["text"].(string)
-	if text == "" {
-		t.Fatal("nil-marshaler setLog replied with empty text")
+	if err := logChannelsModule.captureSetLogForward(nilBot, nilFwd); err != ext.ContinueGroups {
+		t.Fatalf("captureSetLogForward(nil marshaler): %v", err)
 	}
 	if got := logchannels.Get(chatID); got != nil {
 		t.Fatal("nil-marshaler setLog bound a log channel")
