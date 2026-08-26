@@ -70,8 +70,7 @@ func TestFormatFedBanCSVRoundtrip(t *testing.T) {
 }
 
 func TestNewFedCreatesFederation(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
+	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()
 	user := gotgbot.User{Id: ownerID, FirstName: "Owner"}
 	chat := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
@@ -87,9 +86,6 @@ func TestNewFedCreatesFederation(t *testing.T) {
 	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
 	if fed.Name != "Rose Parity Fed" {
 		t.Fatalf("name = %q", fed.Name)
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 

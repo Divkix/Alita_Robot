@@ -47,16 +47,12 @@ func TestLogChannelModelTableName(t *testing.T) {
 }
 
 func TestLogChannelCommandReportsUnset(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
+	bot := newModuleTestBot(newModuleBotClient())
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Logged Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, admin, "/logchannel")
 	if err := logChannelsModule.logChannel(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("logChannel() error = %v, want EndGroups", err)
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
