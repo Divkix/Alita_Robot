@@ -1,6 +1,7 @@
 package federations
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -137,5 +138,149 @@ func TestFederationSubscriptions(t *testing.T) {
 	found, _ = FindBanInFedTree(a.FedID, 4242)
 	if found != nil {
 		t.Fatal("ban still visible after unsubscribe")
+	}
+}
+
+func TestFederationAdminFlagsAndImport(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+	ownerID := time.Now().UnixNano() + 50
+	adminID := ownerID + 1
+	memberID := ownerID + 2
+	fed, err := CreateFederation(ownerID, "Admin Flags Fed")
+	if err != nil {
+		t.Fatalf("CreateFederation: %v", err)
+	}
+	t.Cleanup(func() { _ = DeleteFederation(fed.FedID) })
+
+	if err := PromoteFedAdmin(fed.FedID, ownerID); err == nil {
+		t.Fatal("promoting the owner should fail")
+	}
+	if err := PromoteFedAdmin(fed.FedID, adminID); err != nil {
+		t.Fatalf("PromoteFedAdmin: %v", err)
+	}
+	if err := PromoteFedAdmin(fed.FedID, adminID); err == nil {
+		t.Fatal("second promote should fail")
+	}
+	listed := ListFedsForAdmin(adminID)
+	if len(listed) != 1 || listed[0].FedID != fed.FedID {
+		t.Fatalf("ListFedsForAdmin = %+v", listed)
+	}
+	owned := ListFedsForAdmin(ownerID)
+	if len(owned) != 1 || owned[0].FedID != fed.FedID {
+		t.Fatalf("owner ListFedsForAdmin = %+v", owned)
+	}
+
+	if err := SetRequireReason(fed.FedID, true); err != nil {
+		t.Fatalf("SetRequireReason: %v", err)
+	}
+	if err := SetNotifyOwner(fed.FedID, false); err != nil {
+		t.Fatalf("SetNotifyOwner: %v", err)
+	}
+	if err := SetFedLogChat(fed.FedID, -100123); err != nil {
+		t.Fatalf("SetFedLogChat: %v", err)
+	}
+	updated := GetFed(fed.FedID)
+	if updated == nil || !updated.RequireReason || updated.NotifyOwner || updated.LogChatID != -100123 {
+		t.Fatalf("updated flags = %+v", updated)
+	}
+	if err := SetFedLogChat(fed.FedID, 0); err != nil {
+		t.Fatalf("clear SetFedLogChat: %v", err)
+	}
+	if GetFed(fed.FedID).LogChatID != 0 {
+		t.Fatal("log chat id not cleared")
+	}
+
+	written, err := ImportBans(fed.FedID, []models.FederationBan{
+		{UserID: memberID, Reason: "import"},
+		{UserID: 0, Reason: "skip"},
+	})
+	if err != nil || written != 1 {
+		t.Fatalf("ImportBans written=%d err=%v", written, err)
+	}
+	if CountFedBans(fed.FedID) != 1 {
+		t.Fatalf("CountFedBans = %d", CountFedBans(fed.FedID))
+	}
+	bans, err := ListFedBans(fed.FedID)
+	if err != nil || len(bans) != 1 || bans[0].UserID != memberID {
+		t.Fatalf("ListFedBans = %+v err=%v", bans, err)
+	}
+	userBans, err := ListUserFedBans(memberID)
+	if err != nil || len(userBans) != 1 {
+		t.Fatalf("ListUserFedBans = %+v err=%v", userBans, err)
+	}
+
+	if err := DemoteFedAdmin(fed.FedID, adminID); err != nil {
+		t.Fatalf("DemoteFedAdmin: %v", err)
+	}
+	if IsFedAdmin(fed.FedID, adminID) {
+		t.Fatal("demoted admin still has access")
+	}
+	if err := DemoteFedAdmin(fed.FedID, adminID); err == nil {
+		t.Fatal("demoting a missing admin should fail")
+	}
+}
+
+func TestFederationChatMembershipHelpers(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+	ownerID := time.Now().UnixNano() + 90
+	memberID := ownerID + 3
+	fed, err := CreateFederation(ownerID, "Chat Helpers Fed")
+	if err != nil {
+		t.Fatalf("CreateFederation: %v", err)
+	}
+	t.Cleanup(func() { _ = DeleteFederation(fed.FedID) })
+
+	chatID := -time.Now().UnixNano()
+	if err := chats.EnsureChatInDb(chatID, "member chat"); err != nil {
+		t.Fatalf("EnsureChatInDb: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
+		Update("users", models.Int64Array{memberID}).Error; err != nil {
+		t.Fatalf("set users: %v", err)
+	}
+	if err := JoinFed(chatID, "member chat", fed.FedID); err != nil {
+		t.Fatalf("JoinFed: %v", err)
+	}
+	if CountFedChats(fed.FedID) != 1 {
+		t.Fatalf("CountFedChats = %d", CountFedChats(fed.FedID))
+	}
+	ids, err := ListFedChatIDs(fed.FedID)
+	if err != nil || len(ids) != 1 || ids[0] != chatID {
+		t.Fatalf("ListFedChatIDs = %v err=%v", ids, err)
+	}
+	if found := ChatsContainingUser(memberID, ids); len(found) != 1 || found[0] != chatID {
+		t.Fatalf("ChatsContainingUser = %v", found)
+	}
+	if found := ChatsContainingUser(memberID+99, ids); len(found) != 0 {
+		t.Fatalf("unexpected membership %v", found)
+	}
+	if ChatsContainingUser(memberID, nil) != nil {
+		t.Fatal("empty chat list should return nil")
+	}
+
+	otherOwner := ownerID + 10
+	other, err := CreateFederation(otherOwner, "Other Fed")
+	if err != nil {
+		t.Fatalf("CreateFederation other: %v", err)
+	}
+	t.Cleanup(func() { _ = DeleteFederation(other.FedID) })
+	if err := JoinFed(chatID, "member chat", other.FedID); err == nil {
+		t.Fatal("joining a second federation should fail")
+	}
+	if err := JoinFed(chatID, "member chat", fed.FedID); err != nil {
+		t.Fatalf("idempotent JoinFed: %v", err)
+	}
+
+	longName := strings.Repeat("n", 80)
+	renamed, err := RenameFederation(ownerID, longName)
+	if err != nil || len(renamed.Name) != 64 {
+		t.Fatalf("long rename name=%q err=%v", renamed.Name, err)
 	}
 }

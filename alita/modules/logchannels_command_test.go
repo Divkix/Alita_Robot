@@ -74,3 +74,54 @@ func TestNologTogglesCategory(t *testing.T) {
 	require.NotNil(t, got)
 	require.False(t, got.CatAdmin)
 }
+
+func TestLogChannelCommandsAndForwardBind(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	channelID := uniqueModuleChatID()
+	require.NoError(t, chats.EnsureChatInDb(chatID, "logged group"))
+	require.NoError(t, chats.EnsureChatInDb(channelID, "log channel"))
+
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	channel := gotgbot.Chat{Id: channelID, Type: "channel", Title: "Log Channel"}
+	group := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Logged Group"}
+
+	if err := logChannelsModule.setLog(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
+		t.Fatalf("setLog group: %v", err)
+	}
+	setCtx := newModuleMessageContext(bot, channel, admin, "/setlog")
+	if err := logChannelsModule.setLog(bot, setCtx); err != ext.EndGroups {
+		t.Fatalf("setLog channel: %v", err)
+	}
+
+	fwd := newModuleMessageContext(bot, group, admin, "forwarded")
+	fwd.EffectiveMessage.ForwardOrigin = gotgbot.MessageOriginChannel{
+		Date:      1,
+		Chat:      channel,
+		MessageId: setCtx.EffectiveMessage.MessageId,
+	}
+	if err := logChannelsModule.captureSetLogForward(bot, fwd); err != ext.ContinueGroups {
+		t.Fatalf("captureSetLogForward: %v", err)
+	}
+	got := logchannels.Get(chatID)
+	require.NotNil(t, got)
+	require.Equal(t, channelID, got.LogChannelID)
+
+	if err := logChannelsModule.logChannel(bot, newModuleMessageContext(bot, group, admin, "/logchannel")); err != ext.EndGroups {
+		t.Fatalf("logChannel: %v", err)
+	}
+	if err := logChannelsModule.logCategories(bot, newModuleMessageContext(bot, group, admin, "/logcategories")); err != ext.EndGroups {
+		t.Fatalf("logCategories: %v", err)
+	}
+	if err := logChannelsModule.enableLog(bot, newModuleMessageContext(bot, group, admin, "/log reports")); err != ext.EndGroups {
+		t.Fatalf("enableLog: %v", err)
+	}
+	if err := logChannelsModule.disableLog(bot, newModuleMessageContext(bot, group, admin, "/nolog nope")); err != ext.EndGroups {
+		t.Fatalf("disableLog unknown: %v", err)
+	}
+	if err := logChannelsModule.unsetLog(bot, newModuleMessageContext(bot, group, admin, "/unsetlog")); err != ext.EndGroups {
+		t.Fatalf("unsetLog: %v", err)
+	}
+	require.Nil(t, logchannels.Get(chatID))
+}

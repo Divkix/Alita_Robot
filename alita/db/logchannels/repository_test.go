@@ -46,3 +46,46 @@ func TestLogChannelSetCategoryAndUnset(t *testing.T) {
 		t.Fatal("log channel remained after unset")
 	}
 }
+
+func TestLogChannelCategoryHelpers(t *testing.T) {
+	if !IsValidCategory("ADMIN") || IsValidCategory("nope") {
+		t.Fatal("IsValidCategory mismatch")
+	}
+	if categoryColumn("settings") != "cat_settings" ||
+		categoryColumn("admin") != "cat_admin" ||
+		categoryColumn("user") != "cat_user" ||
+		categoryColumn("automated") != "cat_automated" ||
+		categoryColumn("reports") != "cat_reports" ||
+		categoryColumn("other") != "cat_other" ||
+		categoryColumn("nope") != "" {
+		t.Fatal("categoryColumn mismatch")
+	}
+
+	settings := &models.LogChannel{
+		CatSettings:  true,
+		CatAdmin:     true,
+		CatUser:      true,
+		CatAutomated: true,
+		CatReports:   true,
+		CatOther:     true,
+	}
+	for _, name := range AllCategories {
+		if !CategoryEnabled(settings, name) {
+			t.Fatalf("%s should be enabled", name)
+		}
+	}
+	if CategoryEnabled(nil, CategoryAdmin) || CategoryEnabled(settings, "nope") {
+		t.Fatal("CategoryEnabled should reject nil settings and unknown names")
+	}
+	settings.CatSettings = false
+	settings.CatAdmin = false
+	settings.CatUser = false
+	settings.CatAutomated = false
+	settings.CatReports = false
+	settings.CatOther = false
+	for _, name := range AllCategories {
+		if CategoryEnabled(settings, name) {
+			t.Fatalf("%s should be disabled", name)
+		}
+	}
+}
