@@ -1152,15 +1152,15 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		return ext.EndGroups
 	}
+	if (action == "yes" || action == "no") && query.Message == nil {
+		text, _ := tr.GetString("common_callback_message_unavailable")
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return ext.EndGroups
+	}
+	defer error_handling.RecoverFromPanic("unbanall", "bans")
 	var helpText string
 	switch action {
 	case "yes":
-		if query.Message == nil {
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
-		defer error_handling.RecoverFromPanic("unbanall", "bans")
 		chatID := query.Message.GetChat().Id
 		known := chats.GetChatSettings(chatID)
 		unbanned := 0
@@ -1176,11 +1176,6 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		helpText, _ = tr.GetString("bans_unbanall_done", i18n.TranslationParams{"count": unbanned})
 	case "no":
-		if query.Message == nil {
-			text, _ := tr.GetString("common_callback_message_unavailable")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
-		}
 		helpText, _ = tr.GetString("bans_unbanall_cancel")
 	default:
 		helpText, _ = tr.GetString("bans_unbanall_cancel")

@@ -102,33 +102,36 @@ func Unset(chatID int64) error {
 	return nil
 }
 
+type categoryMeta struct {
+	column string
+	get    func(*models.LogChannel) bool
+}
+
+var logCategories = map[string]categoryMeta{
+	CategorySettings:  {column: "cat_settings", get: func(s *models.LogChannel) bool { return s.CatSettings }},
+	CategoryAdmin:     {column: "cat_admin", get: func(s *models.LogChannel) bool { return s.CatAdmin }},
+	CategoryUser:      {column: "cat_user", get: func(s *models.LogChannel) bool { return s.CatUser }},
+	CategoryAutomated: {column: "cat_automated", get: func(s *models.LogChannel) bool { return s.CatAutomated }},
+	CategoryReports:   {column: "cat_reports", get: func(s *models.LogChannel) bool { return s.CatReports }},
+	CategoryOther:     {column: "cat_other", get: func(s *models.LogChannel) bool { return s.CatOther }},
+}
+
+func categoryName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
 // IsValidCategory reports whether name is a documented log category.
 func IsValidCategory(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case CategorySettings, CategoryAdmin, CategoryUser, CategoryAutomated, CategoryReports, CategoryOther:
-		return true
-	default:
-		return false
-	}
+	_, ok := logCategories[categoryName(name)]
+	return ok
 }
 
 func categoryColumn(name string) string {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case CategorySettings:
-		return "cat_settings"
-	case CategoryAdmin:
-		return "cat_admin"
-	case CategoryUser:
-		return "cat_user"
-	case CategoryAutomated:
-		return "cat_automated"
-	case CategoryReports:
-		return "cat_reports"
-	case CategoryOther:
-		return "cat_other"
-	default:
+	meta, ok := logCategories[categoryName(name)]
+	if !ok {
 		return ""
 	}
+	return meta.column
 }
 
 // SetCategory enables or disables one category. The chat must already have a
@@ -159,20 +162,9 @@ func CategoryEnabled(settings *models.LogChannel, name string) bool {
 	if settings == nil {
 		return false
 	}
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case CategorySettings:
-		return settings.CatSettings
-	case CategoryAdmin:
-		return settings.CatAdmin
-	case CategoryUser:
-		return settings.CatUser
-	case CategoryAutomated:
-		return settings.CatAutomated
-	case CategoryReports:
-		return settings.CatReports
-	case CategoryOther:
-		return settings.CatOther
-	default:
+	meta, ok := logCategories[categoryName(name)]
+	if !ok {
 		return false
 	}
+	return meta.get(settings)
 }

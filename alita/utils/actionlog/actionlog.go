@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // Log sends htmlText to the chat's log channel when the category is enabled.
@@ -28,10 +29,9 @@ func Log(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string) {
 	}
 	title := html.EscapeString(chat.Title)
 	header := fmt.Sprintf("<b>%s</b> (<code>%d</code>)\n", title, chat.Id)
-	_, err := b.SendMessage(settings.LogChannelID, header+htmlText, &gotgbot.SendMessageOpts{
+	if _, err := helpers.SendMessageWithErrorHandling(b, settings.LogChannelID, header+htmlText, &gotgbot.SendMessageOpts{
 		ParseMode: formatting.HTML,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Debugf("[ActionLog] failed to send %s log for chat %d: %v", category, chat.Id, err)
 	}
 }

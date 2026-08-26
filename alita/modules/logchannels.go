@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,13 +14,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 const logHandlerGroup = 11
@@ -29,19 +28,6 @@ var logChannelsModule = moduleStruct{
 	handlerGroup: logHandlerGroup,
 }
 
-func logsTr(ctx *ext.Context) *i18n.Translator {
-	return i18n.MustNewTranslator(lang.GetLanguage(ctx))
-}
-
-func replyLogs(b *gotgbot.Bot, msg *gotgbot.Message, text string) {
-	if msg == nil || text == "" {
-		return
-	}
-	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-		log.Error(err)
-	}
-}
-
 func setlogPendingKey(channelID, messageID int64) string {
 	return fmt.Sprintf("alita:setlog:%d:%d", channelID, messageID)
 }
@@ -49,12 +35,11 @@ func setlogPendingKey(channelID, messageID int64) string {
 func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	from := chat_status.RequireUser(b, ctx)
+	from := requireUser(b, ctx)
 	if from == nil {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "common_cannot_identify_user", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	if chat == nil || msg == nil {
 		return ext.EndGroups
 	}
@@ -78,11 +63,11 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 		}
 		text, _ := tr.GetString("logs_forward_to_group")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_need_channel")
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
@@ -93,10 +78,10 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	if from == nil {
 		return ext.EndGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	if chat == nil || chat.Type == "private" {
 		text, _ := tr.GetString("logs_group_only")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
@@ -105,11 +90,11 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if err := logchannels.Unset(chat.Id); err != nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_unset_ok")
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	actionlog.Settings(b, chat, from, "unset log channel")
 	return ext.EndGroups
 }
@@ -120,27 +105,23 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	if chat == nil || chat.Type == "private" {
 		text, _ := tr.GetString("logs_group_only")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	settings := logchannels.Get(chat.Id)
 	if settings == nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_current", i18n.TranslationParams{
-		"id": strconv64(settings.LogChannelID),
+		"id": strconv.FormatInt(settings.LogChannelID, 10),
 	})
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
-}
-
-func strconv64(id int64) string {
-	return fmt.Sprintf("%d", id)
 }
 
 func (moduleStruct) logCategories(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -148,9 +129,9 @@ func (moduleStruct) logCategories(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.RequireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	text, _ := tr.GetString("logs_categories")
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
@@ -169,10 +150,10 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	if from == nil {
 		return ext.EndGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	if chat == nil || chat.Type == "private" {
 		text, _ := tr.GetString("logs_group_only")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
@@ -181,13 +162,13 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	}
 	if logchannels.Get(chat.Id) == nil {
 		text, _ := tr.GetString("logs_not_set")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
 		text, _ := tr.GetString("logs_usage")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	var unknown []string
@@ -201,7 +182,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		if err := logchannels.SetCategory(chat.Id, name, enable); err != nil {
 			if err == gorm.ErrRecordNotFound {
 				text, _ := tr.GetString("logs_not_set")
-				replyLogs(b, msg, text)
+				replyHTML(b, msg, text)
 				return ext.EndGroups
 			}
 			log.Error(err)
@@ -211,7 +192,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	}
 	if len(unknown) > 0 && len(changed) == 0 {
 		text, _ := tr.GetString("logs_unknown_category")
-		replyLogs(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	key := "logs_disabled"
@@ -221,7 +202,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 	text, _ := tr.GetString(key, i18n.TranslationParams{
 		"cats": strings.Join(changed, ", "),
 	})
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	actionlog.Settings(b, chat, from, key+" "+strings.Join(changed, ", "))
 	return ext.EndGroups
 }
@@ -267,9 +248,9 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 		log.Errorf("[LogChannels] Set: %v", err)
 		return ext.ContinueGroups
 	}
-	tr := logsTr(ctx)
+	tr := ctxTr(ctx)
 	text, _ := tr.GetString("logs_set_ok")
-	replyLogs(b, msg, text)
+	replyHTML(b, msg, text)
 	actionlog.Settings(b, chat, from, "set log channel")
 	return ext.ContinueGroups
 }

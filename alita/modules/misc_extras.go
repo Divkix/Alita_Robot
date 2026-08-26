@@ -17,18 +17,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
-
-func replyMisc(b *gotgbot.Bot, msg *gotgbot.Message, text string) {
-	if msg == nil || text == "" {
-		return
-	}
-	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
-		log.Error(err)
-	}
-}
 
 func fetchJSON(rawURL string, dest any) error {
 	resp, err := httpClient.Get(rawURL)
@@ -46,10 +36,9 @@ func fetchJSON(rawURL string, dest any) error {
 	return json.Unmarshal(body, dest)
 }
 
-func isDeletedAccount(firstName, username string) bool {
+func isDeletedAccount(firstName string) bool {
 	name := strings.TrimSpace(firstName)
-	return name == "" || strings.EqualFold(name, "Deleted Account") ||
-		(username == "" && strings.EqualFold(name, "Deleted Account"))
+	return name == "" || strings.EqualFold(name, "Deleted Account")
 }
 
 func (moduleStruct) stickerID(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -60,13 +49,13 @@ func (moduleStruct) stickerID(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if msg == nil || msg.ReplyToMessage == nil || msg.ReplyToMessage.Sticker == nil {
 		text, _ := tr.GetString("misc_stickerid_need_sticker")
-		replyMisc(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("misc_stickerid_result", i18n.TranslationParams{
 		"id": html.EscapeString(msg.ReplyToMessage.Sticker.FileId),
 	})
-	replyMisc(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
@@ -91,7 +80,7 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	scanText, _ := tr.GetString("misc_zombies_scanning")
-	replyMisc(b, msg, scanText)
+	replyHTML(b, msg, scanText)
 	cleaned := 0
 	for _, userID := range chats.GetChatSettings(chat.Id).Users {
 		if !chat_status.IsValidUserId(userID) || userID == b.Id {
@@ -102,7 +91,7 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 		merged := member.MergeChatMember()
-		if !isDeletedAccount(merged.User.FirstName, merged.User.Username) {
+		if !isDeletedAccount(merged.User.FirstName) {
 			continue
 		}
 		if err := kickMember(b, chat.Id, userID); err != nil {
@@ -113,47 +102,26 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if cleaned == 0 {
 		text, _ := tr.GetString("misc_zombies_none")
-		replyMisc(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("misc_zombies_cleaned", i18n.TranslationParams{"count": cleaned})
-	replyMisc(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
 func (moduleStruct) github(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, "github") {
-		return ext.EndGroups
-	}
-	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
-	if query == "" {
-		text, _ := tr.GetString("misc_github_usage")
-		replyMisc(b, msg, text)
-		return ext.EndGroups
-	}
+	return lookupAndReply(b, ctx, "github", "misc_github_usage", "misc_github_not_found", lookupGitHub)
+}
+
+func lookupGitHub(query string) (string, error) {
 	query = strings.TrimPrefix(query, "https://github.com/")
 	query = strings.Trim(query, "/")
 	if strings.Contains(query, "/") {
 		parts := strings.SplitN(query, "/", 2)
-		info, err := lookupGitHubRepo(parts[0], parts[1])
-		if err != nil {
-			text, _ := tr.GetString("misc_github_not_found")
-			replyMisc(b, msg, text)
-			return ext.EndGroups
-		}
-		replyMisc(b, msg, info)
-		return ext.EndGroups
+		return lookupGitHubRepo(parts[0], parts[1])
 	}
-	info, err := lookupGitHubUser(query)
-	if err != nil {
-		text, _ := tr.GetString("misc_github_not_found")
-		replyMisc(b, msg, text)
-		return ext.EndGroups
-	}
-	replyMisc(b, msg, info)
-	return ext.EndGroups
+	return lookupGitHubUser(query)
 }
 
 func lookupGitHubUser(login string) (string, error) {
@@ -227,16 +195,16 @@ func lookupAndReply(
 	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if query == "" {
 		text, _ := tr.GetString(usageKey)
-		replyMisc(b, msg, text)
+		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
 	text, err := lookup(query)
 	if err != nil {
 		fail, _ := tr.GetString(failKey)
-		replyMisc(b, msg, fail)
+		replyHTML(b, msg, fail)
 		return ext.EndGroups
 	}
-	replyMisc(b, msg, text)
+	replyHTML(b, msg, text)
 	return ext.EndGroups
 }
 
@@ -326,7 +294,7 @@ func (moduleStruct) runs(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		idx = 0
 	}
-	replyMisc(b, msg, html.EscapeString(lines[idx]))
+	replyHTML(b, msg, html.EscapeString(lines[idx]))
 	return ext.EndGroups
 }
 

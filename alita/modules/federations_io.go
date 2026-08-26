@@ -20,6 +20,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
+var errTelegramFileTooLarge = fmt.Errorf("file too large")
+
 func parseFedBanFile(name string, data []byte) ([]models.FederationBan, error) {
 	lower := strings.ToLower(name)
 	switch {
@@ -224,7 +226,7 @@ func downloadTelegramFile(b *gotgbot.Bot, fileID string) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) > maxBackupFileSize {
-		return nil, fmt.Errorf("file too large")
+		return nil, errTelegramFileTooLarge
 	}
 	return data, nil
 }

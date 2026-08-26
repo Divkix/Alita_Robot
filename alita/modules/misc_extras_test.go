@@ -16,10 +16,10 @@ import (
 )
 
 func TestIsDeletedAccount(t *testing.T) {
-	if !isDeletedAccount("", "") || !isDeletedAccount("Deleted Account", "") {
+	if !isDeletedAccount("") || !isDeletedAccount("Deleted Account") {
 		t.Fatal("expected deleted-account detection")
 	}
-	if isDeletedAccount("Alice", "alice") {
+	if isDeletedAccount("Alice") {
 		t.Fatal("live accounts must not be treated as deleted")
 	}
 }

@@ -1,6 +1,7 @@
 package federations
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -35,8 +36,8 @@ func TestFederationLifecycle(t *testing.T) {
 	if got := GetFedByOwner(ownerID); got == nil || got.FedID != fed.FedID {
 		t.Fatal("GetFedByOwner mismatch")
 	}
-	if _, err := CreateFederation(ownerID, "other"); err == nil {
-		t.Fatal("second federation for same owner should fail")
+	if _, err := CreateFederation(ownerID, "other"); !errors.Is(err, ErrAlreadyOwnsFed) {
+		t.Fatalf("second federation for same owner should fail: %v", err)
 	}
 
 	renamed, err := RenameFederation(ownerID, "Renamed")
@@ -271,8 +272,8 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 		t.Fatalf("CreateFederation other: %v", err)
 	}
 	t.Cleanup(func() { _ = DeleteFederation(other.FedID) })
-	if err := JoinFed(chatID, "member chat", other.FedID); err == nil {
-		t.Fatal("joining a second federation should fail")
+	if err := JoinFed(chatID, "member chat", other.FedID); !errors.Is(err, ErrAlreadyJoined) {
+		t.Fatalf("joining a second federation should fail: %v", err)
 	}
 	if err := JoinFed(chatID, "member chat", fed.FedID); err != nil {
 		t.Fatalf("idempotent JoinFed: %v", err)
@@ -282,5 +283,38 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 	renamed, err := RenameFederation(ownerID, longName)
 	if err != nil || len(renamed.Name) != 64 {
 		t.Fatalf("long rename name=%q err=%v", renamed.Name, err)
+	}
+}
+
+func TestGetChatFedAndBanNegativeCache(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+	chatID := -time.Now().UnixNano()
+	if GetChatFed(chatID) != nil {
+		t.Fatal("missing chat membership should be nil")
+	}
+	if GetChatFed(chatID) != nil {
+		t.Fatal("negative-cached chat membership should stay nil")
+	}
+
+	ownerID := time.Now().UnixNano()
+	fed, err := CreateFederation(ownerID, "cache fed")
+	if err != nil {
+		t.Fatalf("CreateFederation: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DeleteFederation(fed.FedID)
+		_ = db.DB.Where("user_id = ?", ownerID).Delete(&models.User{}).Error
+	})
+	missingUser := ownerID + 99
+	if GetFedBan(fed.FedID, missingUser) != nil {
+		t.Fatal("missing ban should be nil")
+	}
+	if GetFedBan(fed.FedID, missingUser) != nil {
+		t.Fatal("negative-cached ban should stay nil")
+	}
+	if found, _ := FindBanInFedTree(fed.FedID, missingUser); found != nil {
+		t.Fatal("FindBanInFedTree should miss after negative cache")
 	}
 }

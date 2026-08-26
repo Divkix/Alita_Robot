@@ -25,6 +25,17 @@ const (
 	cachePrefixFedAdmin = "fed_admins"
 	cachePrefixFedBan   = "fed_ban"
 	cachePrefixFedSubs  = "fed_subs"
+	missingBanUserID    = -9999
+)
+
+var (
+	ErrAlreadyOwnsFed = errors.New("user already owns a federation")
+	ErrAlreadyJoined  = errors.New("chat already joined to a federation")
+	ErrAlreadyAdmin   = errors.New("user is already a federation admin")
+	ErrOwnerIsAdmin   = errors.New("owner is already a federation admin")
+	ErrSubSelf        = errors.New("cannot subscribe a federation to itself")
+	ErrAlreadySub     = errors.New("already subscribed")
+	ErrSubLimit       = errors.New("subscription limit reached")
 )
 
 // MaxSubscriptions is the Rose-compatible per-federation subscription cap.
@@ -69,7 +80,7 @@ func CreateFederation(ownerID int64, name string) (*models.Federation, error) {
 		return nil, err
 	}
 	if existing := GetFedByOwner(ownerID); existing != nil {
-		return nil, fmt.Errorf("user already owns a federation")
+		return nil, ErrAlreadyOwnsFed
 	}
 
 	fed := &models.Federation{
@@ -188,15 +199,19 @@ func GetChatFed(chatID int64) *models.FederationChat {
 	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefixFedChat, chatID), cache.CacheTTLFederation, func() (models.FederationChat, error) {
 		var row models.FederationChat
 		err := db.GetRecord(&row, models.FederationChat{ChatID: chatID})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.FederationChat{}, nil
+		}
 		if err != nil {
 			return models.FederationChat{}, err
 		}
 		return row, nil
 	})
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[Federations] GetChatFed: %v", err)
-		}
+		log.Errorf("[Federations] GetChatFed: %v", err)
+		return nil
+	}
+	if result.ChatID == 0 {
 		return nil
 	}
 	return &result
@@ -216,7 +231,7 @@ func JoinFed(chatID int64, chatName, fedID string) error {
 		if existing.FedID == fed.FedID {
 			return nil
 		}
-		return fmt.Errorf("chat already joined to a federation")
+		return ErrAlreadyJoined
 	}
 	row := &models.FederationChat{FedID: fed.FedID, ChatID: chatID}
 	if err := db.CreateRecord(row); err != nil {
@@ -348,10 +363,10 @@ func ListFedAdmins(fedID string) []int64 {
 // PromoteFedAdmin adds a federation admin. Only the owner should call this.
 func PromoteFedAdmin(fedID string, userID int64) error {
 	if IsFedOwner(fedID, userID) {
-		return fmt.Errorf("owner is already a federation admin")
+		return ErrOwnerIsAdmin
 	}
 	if IsFedAdmin(fedID, userID) {
-		return fmt.Errorf("user is already a federation admin")
+		return ErrAlreadyAdmin
 	}
 	if err := user.EnsureUserInDb(userID, "", ""); err != nil {
 		return err
@@ -409,58 +424,36 @@ func ListFedsForAdmin(userID int64) []models.Federation {
 	return out
 }
 
-// SetRequireReason toggles the fedreason enforcement flag.
-func SetRequireReason(fedID string, required bool) error {
+func updateFedField(fedID string, fields map[string]any) error {
 	if GetFed(fedID) == nil {
 		return gorm.ErrRecordNotFound
 	}
 	err := db.UpdateRecordWithZeroValues(
 		&models.Federation{},
 		models.Federation{FedID: fedID},
-		map[string]any{"require_reason": required},
+		fields,
 	)
 	if err != nil {
-		log.Errorf("[Federations] SetRequireReason: %v", err)
+		log.Errorf("[Federations] updateFedField: %v", err)
 		return err
 	}
 	invalidateFed(fedID)
 	return nil
+}
+
+// SetRequireReason toggles the fedreason enforcement flag.
+func SetRequireReason(fedID string, required bool) error {
+	return updateFedField(fedID, map[string]any{"require_reason": required})
 }
 
 // SetNotifyOwner toggles owner PM notifications.
 func SetNotifyOwner(fedID string, notify bool) error {
-	if GetFed(fedID) == nil {
-		return gorm.ErrRecordNotFound
-	}
-	err := db.UpdateRecordWithZeroValues(
-		&models.Federation{},
-		models.Federation{FedID: fedID},
-		map[string]any{"notify_owner": notify},
-	)
-	if err != nil {
-		log.Errorf("[Federations] SetNotifyOwner: %v", err)
-		return err
-	}
-	invalidateFed(fedID)
-	return nil
+	return updateFedField(fedID, map[string]any{"notify_owner": notify})
 }
 
 // SetFedLogChat stores the federation log destination. Zero clears it.
 func SetFedLogChat(fedID string, logChatID int64) error {
-	if GetFed(fedID) == nil {
-		return gorm.ErrRecordNotFound
-	}
-	err := db.UpdateRecordWithZeroValues(
-		&models.Federation{},
-		models.Federation{FedID: fedID},
-		map[string]any{"log_chat_id": logChatID},
-	)
-	if err != nil {
-		log.Errorf("[Federations] SetFedLogChat: %v", err)
-		return err
-	}
-	invalidateFed(fedID)
-	return nil
+	return updateFedField(fedID, map[string]any{"log_chat_id": logChatID})
 }
 
 // Fban upserts a federation ban.
@@ -514,6 +507,9 @@ func GetFedBan(fedID string, userID int64) *models.FederationBan {
 		func() (models.FederationBan, error) {
 			var row models.FederationBan
 			err := db.GetRecord(&row, models.FederationBan{FedID: fedID, UserID: userID})
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return models.FederationBan{UserID: missingBanUserID}, nil
+			}
 			if err != nil {
 				return models.FederationBan{}, err
 			}
@@ -521,9 +517,10 @@ func GetFedBan(fedID string, userID int64) *models.FederationBan {
 		},
 	)
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Errorf("[Federations] GetFedBan: %v", err)
-		}
+		log.Errorf("[Federations] GetFedBan: %v", err)
+		return nil
+	}
+	if result.UserID == missingBanUserID {
 		return nil
 	}
 	return &result
@@ -566,7 +563,7 @@ func ListUserFedBans(userID int64) ([]models.FederationBan, error) {
 // SubscribeFed subscribes subscriberFedID to targetFedID. Cap is 5.
 func SubscribeFed(subscriberFedID, targetFedID string) error {
 	if subscriberFedID == targetFedID {
-		return fmt.Errorf("cannot subscribe a federation to itself")
+		return ErrSubSelf
 	}
 	if GetFed(subscriberFedID) == nil || GetFed(targetFedID) == nil {
 		return gorm.ErrRecordNotFound
@@ -574,11 +571,11 @@ func SubscribeFed(subscriberFedID, targetFedID string) error {
 	subs := ListSubscribedFedIDs(subscriberFedID)
 	for _, id := range subs {
 		if id == targetFedID {
-			return fmt.Errorf("already subscribed")
+			return ErrAlreadySub
 		}
 	}
 	if len(subs) >= maxFedSubs {
-		return fmt.Errorf("subscription limit reached")
+		return ErrSubLimit
 	}
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "fed_id"}, {Name: "subscribed_fed_id"}},
@@ -649,9 +646,6 @@ func ImportBans(fedID string, bans []models.FederationBan) (int, error) {
 	for _, ban := range bans {
 		if ban.UserID <= 0 {
 			continue
-		}
-		if err := user.EnsureUserInDb(ban.UserID, "", ""); err != nil {
-			return written, err
 		}
 		if _, _, err := Fban(fedID, ban.UserID, ban.BannedBy, ban.Reason); err != nil {
 			return written, err
