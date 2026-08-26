@@ -1,6 +1,9 @@
 package modules
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -10,6 +13,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func uniquePositiveUserID() int64 {
@@ -441,4 +445,107 @@ func TestAnyToInt64ViaJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(777), bans[0].UserID)
 	require.Equal(t, int64(12), bans[1].UserID)
+}
+
+func TestImportFBansFromCSVDocument(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("id,reason\n4242,imported\n"))
+	}))
+	t.Cleanup(server.Close)
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+	})
+
+	client := newModuleBotClient()
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"fed-bans","file_path":"fbans/bans.csv"}`,
+	)
+	bot := newModuleTestBot(client)
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Import CSV Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, pm, owner, "/importfbans")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 77,
+		Date:      1,
+		Chat:      pm,
+		Document:  &gotgbot.Document{FileId: "fed-bans", FileName: "bans.csv", FileSize: 24},
+	}
+	if err := federationsModule.importFBans(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("importFBans: %v", err)
+	}
+	if federations.GetFedBan(fed.FedID, 4242) == nil {
+		t.Fatal("imported ban missing")
+	}
+
+	tr := i18n.MustNewTranslator("en")
+	tooBig, _ := downloadFedBanDocument(bot, &gotgbot.Document{
+		FileId: "x", FileName: "bans.csv", FileSize: maxBackupFileSize + 1,
+	}, tr)
+	if tooBig != nil {
+		t.Fatal("oversized import should be rejected")
+	}
+}
+
+func TestFbanInPrivateAndEmptyExport(t *testing.T) {
+	bot := newModuleTestBot(newModuleBotClient())
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Private Fban Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist")); err != ext.EndGroups {
+		t.Fatalf("empty fbanList: %v", err)
+	}
+	if err := federationsModule.fban(bot, newModuleMessageContext(bot, pm, owner, "/fban 888 spam")); err != ext.EndGroups {
+		t.Fatalf("private fban: %v", err)
+	}
+	if federations.GetFedBan(fed.FedID, 888) == nil {
+		t.Fatal("private fban did not persist")
+	}
+	if err := federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist csv")); err != ext.EndGroups {
+		t.Fatalf("csv fbanList: %v", err)
+	}
+	if err := federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist minicsv")); err != ext.EndGroups {
+		t.Fatalf("minicsv fbanList: %v", err)
+	}
+
+	require.NoError(t, federations.SetRequireReason(fed.FedID, true))
+	if err := federationsModule.fban(bot, newModuleMessageContext(bot, pm, owner, "/fban 889")); err != ext.EndGroups {
+		t.Fatalf("fban missing reason: %v", err)
+	}
+	if federations.GetFedBan(fed.FedID, 889) != nil {
+		t.Fatal("reason-required fban should not persist")
+	}
+}
+
+func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
+	bot := newModuleTestBot(newModuleBotClient())
+	first, err := federations.CreateFederation(uniquePositiveUserID(), "First")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(first.FedID) })
+	second, err := federations.CreateFederation(uniquePositiveUserID(), "Second")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(second.FedID) })
+
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Two Feds"}
+	creator := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	require.NoError(t, federations.JoinFed(group.Id, group.Title, first.FedID))
+	if err := federationsModule.joinFed(bot, newModuleMessageContext(bot, group, creator, "/joinfed "+second.FedID)); err != ext.EndGroups {
+		t.Fatalf("joinFed other: %v", err)
+	}
+	if got := federations.GetChatFed(group.Id); got == nil || got.FedID != first.FedID {
+		t.Fatalf("should stay in first fed, got %+v", got)
+	}
 }
