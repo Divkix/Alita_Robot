@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"math/rand/v2"
 	"net/url"
 	"strings"
 
@@ -332,7 +331,11 @@ func (moduleStruct) runs(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil || len(lines) == 0 {
 		lines = []string{"Run."}
 	}
-	replyMisc(b, msg, html.EscapeString(lines[rand.IntN(len(lines))]))
+	idx, err := secureIntn(len(lines))
+	if err != nil {
+		idx = 0
+	}
+	replyMisc(b, msg, html.EscapeString(lines[idx]))
 	return ext.EndGroups
 }
 
