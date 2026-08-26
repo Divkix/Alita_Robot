@@ -226,3 +226,34 @@ func CanInvite() CheckFunc {
 		return result
 	}
 }
+
+// CanUserChangeInfo returns a CheckFunc that ensures the invoking user
+// can change chat title, photo, or description.
+func CanUserChangeInfo() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
+			return false
+		}
+		result := chat_status.CanUserChangeInfo(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(
+				c.Ctx,
+				"chat_status_change_info_cmd_error",
+				"chat_status_change_info_button_error",
+			)
+		}
+		return result
+	}
+}
+
+// CanBotChangeInfo returns a CheckFunc that ensures the bot can change
+// chat title, photo, or description.
+func CanBotChangeInfo() CheckFunc {
+	return func(c *CommandContext) bool {
+		result := chat_status.CanBotChangeInfo(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_change_info_error", "")
+		}
+		return result
+	}
+}

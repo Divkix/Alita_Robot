@@ -663,6 +663,7 @@ func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))
 	dispatcher.AddHandler(handlers.NewCommand("delflood", antifloodModule.setFloodDeleter))
+	dispatcher.AddHandler(handlers.NewCommand("clearflood", antifloodModule.setFloodDeleter))
 	dispatcher.AddHandler(handlers.NewCommand("flood", antifloodModule.flood))
 	helpers.AddCmdToDisableable("flood")
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, antifloodModule.checkFlood), antifloodModule.handlerGroup)
