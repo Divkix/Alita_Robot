@@ -294,8 +294,9 @@ func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
 	member := gotgbot.User{Id: 46, FirstName: "Flooder"}
 	seedCallbackAdmins(t, chat.Id, gotgbot.MergedChatMember{
-		Status: "administrator",
-		User:   gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
+		Status:             "administrator",
+		User:               gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
+		CanRestrictMembers: true,
 	})
 	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
 		t.Fatalf("SetFlood() error = %v", err)
