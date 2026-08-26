@@ -158,10 +158,9 @@ type Config struct {
 	EnablePerformanceMonitoring bool
 	EnableBackgroundStats       bool
 	DispatcherMaxRoutines       int `validate:"min=1,max=1000"` // Max concurrent goroutines for dispatcher
-
 	// Cache configuration - Redis only (no local cache configuration needed)
 	ClearCacheOnStartup bool // Whether to clear all caches on bot startup
-
+	DisableCache        bool // When true, bypass read-through cache (all DB reads go direct); also makes Redis optional for load testing. Env: DISABLE_CACHE
 	// Activity monitoring configuration
 	InactivityThresholdDays int  `validate:"min=1,max=365"` // Days before marking a chat as inactive
 	ActivityCheckInterval   int  `validate:"min=1,max=24"`  // Hours between activity checks
@@ -207,9 +206,10 @@ func ValidateConfig(cfg *Config) error {
 	if cfg.DatabaseURL == "" {
 		return fmt.Errorf("DATABASE_URL is required")
 	}
-	if cfg.RedisAddress == "" {
+	if !cfg.DisableCache && cfg.RedisAddress == "" {
 		return fmt.Errorf("REDIS_ADDRESS or REDIS_URL is required")
 	}
+	// RedisDB validated below even in DisableCache mode; only address requirement is relaxed above
 
 	// Validate webhook configuration if webhooks are enabled
 	if cfg.UseWebhooks {
@@ -309,6 +309,7 @@ func LoadConfig() (*Config, error) {
 
 		// Cache configuration - Redis only
 		ClearCacheOnStartup: typeConvertor{str: os.Getenv("CLEAR_CACHE_ON_STARTUP")}.Bool(),
+		DisableCache:        typeConvertor{str: os.Getenv("DISABLE_CACHE")}.Bool(),
 
 		// Activity monitoring configuration
 		InactivityThresholdDays: typeConvertor{str: os.Getenv("INACTIVITY_THRESHOLD_DAYS")}.Int(),

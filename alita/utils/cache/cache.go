@@ -53,9 +53,18 @@ type AdminCache struct {
 
 // InitCache initializes the Redis-only cache system.
 // It establishes connection to Redis and returns an error if initialization fails.
+// When DISABLE_CACHE=true, Redis is optional: if unreachable it logs a warning and continues
+// with caching disabled (all DB reads go direct, antiraid/join state degrades to in-memory).
 func InitCache() error {
+	if config.AppConfig != nil && config.AppConfig.DisableCache {
+		log.Warn("[Cache] DISABLE_CACHE=true — bypassing read-through cache; every DB read will hit Postgres directly")
+	}
 	options, err := newRedisOptions(config.AppConfig)
 	if err != nil {
+		if config.AppConfig != nil && config.AppConfig.DisableCache {
+			log.Warnf("[Cache] Redis options error in bypass mode, continuing without Redis: %v", err)
+			return nil
+		}
 		return err
 	}
 	redisClient = redis.NewClient(options)
@@ -63,7 +72,7 @@ func InitCache() error {
 	// Test Redis connection with retry logic
 	maxRetries := 5
 	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		pingErr = redisClient.Ping(Context).Err()
 		if pingErr == nil {
 			break
@@ -80,6 +89,11 @@ func InitCache() error {
 		}
 	}
 	if pingErr != nil {
+		if config.AppConfig != nil && config.AppConfig.DisableCache {
+			log.Warnf("[Cache] Redis unavailable in DISABLE_CACHE mode — continuing without Redis (caching/states degraded): %v", pingErr)
+			redisClient = nil
+			return nil
+		}
 		return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, pingErr)
 	}
 

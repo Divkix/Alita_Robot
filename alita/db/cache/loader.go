@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/eko/gocache/lib/v4/store"
@@ -22,6 +23,10 @@ var (
 func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var result T
 
+	// Bypass mode for load testing — every read hits Postgres directly, no cache lookup/insert
+	if config.AppConfig != nil && config.AppConfig.DisableCache {
+		return loader()
+	}
 	m := cache.GetMarshal()
 	if m == nil {
 		return loader()
@@ -102,10 +107,14 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 // DeleteCache is a helper to delete a value from cache.
 // Logs debug information if deletion fails but does not return errors.
 func DeleteCache(key string) {
+	if config.AppConfig != nil && config.AppConfig.DisableCache {
+		// Bypass mode — no cache entry to invalidate; still bump generation to keep singleflight consistent if any loader races
+		cacheGeneration.Add(1)
+		return
+	}
 	// Increment before deleting so an already-running loader cannot repopulate
 	// the key with a database snapshot read before the write committed.
 	cacheGeneration.Add(1)
-
 	m := cache.GetMarshal()
 	if m == nil {
 		return
