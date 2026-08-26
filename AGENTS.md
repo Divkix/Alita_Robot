@@ -128,7 +128,9 @@ Big architectural facts an agent must hold in mind:
   build to Cloudflare Workers). Content in `docs/src/content/docs/`, config in
   `docs/blume.config.ts`; sidebar groups inferred from the folder tree with
   per-folder `meta.ts`. Built-in AI artifacts (llms.txt, llms-full.txt, .md
-  mirrors) on by default.
+  mirrors) on by default. The Miss Rose parity map is
+  `docs/src/content/docs/getting-started/feature-comparison.md` — update the
+  matching row in the same change when you add a Rose-like feature.
 - **`.github/workflows/`** — `ci.yml`, `release.yml`, `docs.yml`, `dependabot-native-merge.yml`, `pullfrog.yml`.
 - **`docker/`** — `alpine` (prod), `alpine.debug`, `goreleaser`, `pr-build`.
 
