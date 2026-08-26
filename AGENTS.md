@@ -828,10 +828,14 @@ m != nil`) — every helper bails when it's nil.
 
 - **`scripts/generate_docs/`** — `package main` in the **root module** (`go run .`),
   regex/text parsers (not AST) of locales/modules/locks → Blume Markdown. Normal
-  generation updates only `commands/users/index.md` and `api-reference/lock-types.md`;
-  frozen files are hand-maintained. Lock descriptions are hardcoded in
-  `getLockDescription()`. `-inventory` separately parses commands, callbacks, and
-  message watchers, then writes `.planning/INVENTORY.{json,md}`.
+  generation updates unfrozen files: `commands/users/index.md`,
+  `commands/federations/index.md`, `commands/logchannels/index.md`, and
+  `api-reference/lock-types.md`. Frozen files (sentinel
+  `<!-- MANUALLY MAINTAINED: do not regenerate -->`) are skipped. New modules
+  without that sentinel **must** commit their generated pages or `make check-docs`
+  fails. Lock descriptions are hardcoded in `getLockDescription()`. `-inventory`
+  separately parses commands, callbacks, and message watchers, then writes
+  `.planning/INVENTORY.{json,md}`.
 - **`scripts/check_translations/`** — a **separate Go module** (own `go.mod`); cannot
   import `alita`; uses hardcoded `../../alita` and `../../locales`. Only validates
   **string-literal** keys passed to `tr.GetString`/`GetStringSlice`.
