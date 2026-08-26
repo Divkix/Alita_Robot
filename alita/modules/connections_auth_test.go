@@ -8,6 +8,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func TestCanUserConnectToChatAllowsTelegramServiceAdmins(t *testing.T) {
@@ -433,6 +434,17 @@ func TestReconnectPrivateAuthorizesBeforeConnecting(t *testing.T) {
 }
 
 func TestReconnectPrivateDeniesWhenAllowConnectOff(t *testing.T) {
+	restoreI18n, err := i18n.OverrideManagerForTest(`
+connections_connect_connection_disabled: connect disabled
+connections_stale_connection: stale connection
+connections_reconnect_reconnected: reconnected to %s
+common_settings_save_failed: save failed
+`)
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42453, FirstName: "Member"}
@@ -455,8 +467,12 @@ func TestReconnectPrivateDeniesWhenAllowConnectOff(t *testing.T) {
 	if connections.Connection(user.Id).Connected {
 		t.Fatal("non-admin was reconnected while allowconnect is off")
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want deny reply", len(calls))
+	}
+	if text := calls[0].Params["text"]; text != "connect disabled" {
+		t.Fatalf("reconnect reply = %q, want deny key text, not stale-connection", text)
 	}
 }
 
