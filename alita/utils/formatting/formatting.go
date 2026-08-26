@@ -53,21 +53,37 @@ type memberCountEntry struct {
 	at    time.Time
 }
 
-var memberCountCache sync.Map // map[int64]memberCountEntry
+const defaultMemberCountCacheTTL = 60 * time.Second
 
-// cachedMemberCount returns member count with 60s TTL per chat to avoid API call per message.
+var (
+	memberCountCache    sync.Map // map[int64]memberCountEntry
+	memberCountCacheTTL = defaultMemberCountCacheTTL
+)
+
+// cachedMemberCount returns member count with a short TTL per chat to avoid an
+// API call per message. Expired entries are deleted on read and via AfterFunc
+// so idle chats cannot accumulate forever.
 func cachedMemberCount(b *gotgbot.Bot, chat *gotgbot.Chat) string {
 	if v, ok := memberCountCache.Load(chat.Id); ok {
-		if e, ok := v.(memberCountEntry); ok && time.Since(e.at) < 60*time.Second {
+		if e, ok := v.(memberCountEntry); ok && time.Since(e.at) < memberCountCacheTTL {
 			return strconv.Itoa(e.count)
 		}
+		memberCountCache.Delete(chat.Id)
 	}
 	count, err := chat.GetMemberCount(b, nil)
 	if err != nil {
 		return "0"
 	}
-	memberCountCache.Store(chat.Id, memberCountEntry{count: int(count), at: time.Now()})
+	entry := memberCountEntry{count: int(count), at: time.Now()}
+	memberCountCache.Store(chat.Id, entry)
+	expireMemberCount(chat.Id, entry)
 	return strconv.Itoa(int(count))
+}
+
+func expireMemberCount(chatID int64, entry memberCountEntry) {
+	time.AfterFunc(memberCountCacheTTL, func() {
+		memberCountCache.CompareAndDelete(chatID, entry)
+	})
 }
 
 // Shtml returns SendMessageOpts configured with HTML parse mode, disabled link preview,

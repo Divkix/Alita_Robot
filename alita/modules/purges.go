@@ -9,6 +9,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 
@@ -217,6 +218,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
+					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
 					time.Sleep(3 * time.Second)
 					_, _ = msgToDelete.Delete(bot, nil)
 				}(pMsg)
@@ -377,6 +379,7 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		// Run cleanup in background goroutine to avoid blocking the handler
 		go func(chatId, toDelId int64, msgToDelete *gotgbot.Message) {
+			defer error_handling.RecoverFromPanic("purgeFromCleanup", "purges")
 			time.Sleep(30 * time.Second)
 			// Only clean up if the stored ID is still the same (not overwritten by another purgefrom)
 			if existingId, ok := delMsgs.Load(chatId); ok {
@@ -489,6 +492,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			} else {
 				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
+					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
 					time.Sleep(3 * time.Second)
 					_, _ = msgToDelete.Delete(bot, nil)
 				}(pMsg)

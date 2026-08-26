@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/eko/gocache/lib/v4/store"
@@ -13,19 +14,30 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
-// LoadAdminCache retrieves and caches the list of administrators for a given chat.
-// It fetches the current administrators from Telegram API and stores them in cache
-// with a 30-minute expiration. Returns an AdminCache struct containing the admin list.
+var adminCacheGroup singleflight.Group
+
 func adminCacheKey(chatId int64) string {
 	return fmt.Sprintf("alita:adminCache:%d", chatId)
 }
 
+// LoadAdminCache retrieves and caches the list of administrators for a given chat.
+// It fetches the current administrators from Telegram API and stores them in cache
+// with a 30-minute expiration. Returns an AdminCache struct containing the admin list.
+// Concurrent callers for the same chat share one in-flight Telegram fetch.
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
 		return AdminCache{}
 	}
 
+	v, _, _ := adminCacheGroup.Do(adminCacheKey(chatId), func() (any, error) {
+		return loadAdminCacheFromTelegram(b, chatId), nil
+	})
+	ac, _ := v.(AdminCache)
+	return ac
+}
+
+func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 	const negativeAdminCacheTTL = 2 * time.Minute
 	const botStatusErrorAdminCacheTTL = 30 * time.Second
 

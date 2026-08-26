@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -148,7 +149,10 @@ func (m *AutoRemediationManager) monitorAndRemediate() {
 	for {
 		select {
 		case <-ticker.C:
-			m.checkAndRemediate()
+			func() {
+				defer error_handling.RecoverFromPanic("checkAndRemediate", "AutoRemediation")
+				m.checkAndRemediate()
+			}()
 		case <-m.ctx.Done():
 			return
 		}
