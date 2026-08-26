@@ -766,6 +766,66 @@ func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 	}
 }
 
+func TestSetGroupTitlePicAndDescription(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	missingTitle, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgtitle"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext: %v", err)
+	}
+	if err := adminModule.setGTitle(missingTitle); err != ext.EndGroups {
+		t.Fatalf("setGTitle missing: %v", err)
+	}
+
+	okTitle, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgtitle New Title"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext: %v", err)
+	}
+	if err := adminModule.setGTitle(okTitle); err != ext.EndGroups {
+		t.Fatalf("setGTitle: %v", err)
+	}
+	if calls := client.callsFor("setChatTitle"); len(calls) != 1 {
+		t.Fatalf("setChatTitle calls = %d", len(calls))
+	}
+
+	okDesc, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgdesc Hello group"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext: %v", err)
+	}
+	if err := adminModule.setGDesc(okDesc); err != ext.EndGroups {
+		t.Fatalf("setGDesc: %v", err)
+	}
+	if calls := client.callsFor("setChatDescription"); len(calls) != 1 {
+		t.Fatalf("setChatDescription calls = %d", len(calls))
+	}
+
+	needPhoto, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgpic"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext: %v", err)
+	}
+	if err := adminModule.setGPic(needPhoto); err != ext.EndGroups {
+		t.Fatalf("setGPic missing: %v", err)
+	}
+
+	picCtx := newModuleMessageContext(bot, chat, admin, "/setgpic")
+	picCtx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 55,
+		Date:      1,
+		Chat:      chat,
+		Photo:     []gotgbot.PhotoSize{{FileId: "photo-1", FileUniqueId: "u1", Width: 64, Height: 64}},
+	}
+	picCmd, err := helpers.BuildCommandContext(bot, picCtx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext: %v", err)
+	}
+	if err := adminModule.setGPic(picCmd); err != ext.EndGroups {
+		t.Fatalf("setGPic: %v", err)
+	}
+}
+
 func fmtInt(value int64) string {
 	return strconv.FormatInt(value, 10)
 }

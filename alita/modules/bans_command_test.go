@@ -468,6 +468,69 @@ func TestKickMeRemovesRequesterAndReplies(t *testing.T) {
 	}
 }
 
+func TestBanMeBansRequester(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := bansModule.banme(bot, newModuleMessageContext(bot, chat, member, "/banme")); err != ext.EndGroups {
+		t.Fatalf("banme: %v", err)
+	}
+	calls := client.callsFor("banChatMember")
+	if len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
+	}
+}
+
+func TestBanMeRejectsAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := bansModule.banme(bot, newModuleMessageContext(bot, chat, admin, "/banme")); err != ext.EndGroups {
+		t.Fatalf("banme admin: %v", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("admin banme should not ban, got %d", len(calls))
+	}
+}
+
+func TestSKickRemovesTargetAndDeletesCommand(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+	ctx := newBanReplyContext(bot, chat, admin, target, "/skick")
+	if err := bansModule.sKick(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("sKick: %v", err)
+	}
+	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
+		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestUnbanAllConfirmFlow(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := bansModule.unbanAllHandler(bot, newModuleMessageContext(bot, chat, owner, "/unbanall")); err != ext.EndGroups {
+		t.Fatalf("unbanAllHandler: %v", err)
+	}
+	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
+	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, data)); err != ext.EndGroups {
+		t.Fatalf("unbanAllCallback yes: %v", err)
+	}
+	cancel := encodeCallbackData("unbanall", map[string]string{"a": "no"})
+	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, cancel)); err != ext.EndGroups {
+		t.Fatalf("unbanAllCallback no: %v", err)
+	}
+}
+
 func TestKickMePropagatesGotgbotRequestErrors(t *testing.T) {
 	requestErr := errors.New("telegram request failed")
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}

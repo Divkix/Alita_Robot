@@ -117,6 +117,42 @@ func TestJoinFedAndFban(t *testing.T) {
 	}
 }
 
+func TestImportFBansNeedsFileAndSetFedLogInChannel(t *testing.T) {
+	bot := newModuleTestBot(newModuleBotClient())
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "IO Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.importFBans(bot, newModuleMessageContext(bot, pm, owner, "/importfbans")); err != ext.EndGroups {
+		t.Fatalf("importFBans: %v", err)
+	}
+	if _, err := downloadTelegramFile(nil, ""); err == nil {
+		t.Fatal("downloadTelegramFile should reject missing file")
+	}
+
+	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Fed Log"}
+	if err := federationsModule.setFedLog(bot, newModuleMessageContext(bot, channel, owner, "/setfedlog "+fed.FedID)); err != ext.EndGroups {
+		t.Fatalf("setFedLog channel: %v", err)
+	}
+	if federations.GetFed(fed.FedID).LogChatID != channel.Id {
+		t.Fatal("channel setfedlog did not persist")
+	}
+
+	if ownedFedOrReply(bot, newModuleMessageContext(bot, pm, owner, "/noop")) == nil {
+		t.Fatal("ownedFedOrReply should find the fed")
+	}
+	stranger := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Other"}
+	if ownedFedOrReply(bot, newModuleMessageContext(bot, pm, stranger, "/noop")) != nil {
+		t.Fatal("ownedFedOrReply should be nil for a non-owner")
+	}
+
+	notifyFedAction(bot, federations.GetFed(fed.FedID), &stranger, "notify")
+	applyActiveFban(bot, fed.FedID, 42)
+}
+
 func TestJoinFedRejectsNonOwner(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
