@@ -152,7 +152,10 @@ func GetNamedCache(name string) *Cache {
 		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			c.cleanupExpired()
+			func() {
+				defer error_handling.RecoverFromPanic("GetNamedCache.cleanupTick["+name+"]", "keyword_matcher")
+				c.cleanupExpired()
+			}()
 		}
 	}()
 

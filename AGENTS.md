@@ -577,8 +577,10 @@ m != nil`) — every helper bails when it's nil.
   Telegram admin lists with an O(1) `UserMap` + linear fallback; negative results
   (bot-not-admin or an empty admin list) are cached with `Cached:true` to avoid
   retry storms; `LoadAdminCache` stores the result before returning so later
-  invalidation cannot be undone by a stale background write. Two paths
-  invalidate the key (`InvalidateAdminCache` + a raw delete in `admin.go`).
+  invalidation cannot be undone by a stale background write. Concurrent callers
+  for the same chat share one in-flight Telegram fetch via `singleflight` — do
+  not drop that coalescing or a cache miss will stampede `getChatAdministrators`.
+  Two paths invalidate the key (`InvalidateAdminCache` + a raw delete in `admin.go`).
 - **Restricted-chat cache** (`restrictedCache.go`, `alita:restricted:<chat>`, 30-min):
   tracks chats where the bot can't send; 5-min probe window with a Redis `SETNX`
   single-flight (`alita:restricted_probe:<chat>`). Fails **open** (returns false) on
@@ -622,9 +624,15 @@ m != nil`) — every helper bails when it's nil.
 
 - **Antiflood** (`antiflood.go`, group 4): per-user count via a per-key `*sync.Mutex`
   (`floodMu`) + `syncHelperMap`, both cleaned together every 5 min. `/setflood`
-  accepts `off`/`0` (disable) or `3..100`. Admin check **fails open** on timeout/
-  semaphore-full (banning a real admin is worse than missing a flood). Mute/ban
-  inline buttons reuse the `unrestrict` callback namespace handled in `bans.go`.
+  accepts `off`/`0` (disable) or `3..100`. A warm admin cache (including negative
+  lookups) is trusted so non-admins do not take a semaphore slot or spawn
+  `IsUserAdmin` per message. Cache-miss admin checks **fail open** on timeout/
+  semaphore-full (banning a real admin is worse than missing a flood) and the
+  semaphore is released **before** flood tracking or mute/ban/delete — holding it
+  across punishment lets 50 slow Telegram calls starve later messages. Cleanup
+  recovers per tick so a panic cannot disable `syncHelperMap`/`floodMu` eviction.
+  Mute/ban inline buttons reuse the `unrestrict` callback namespace handled in
+  `bans.go`.
 - **Antiraid** (`antiraid.go`, group -5): **Redis-only** live state
   (`alita:antiraid:state:<chat>`, TTL covering the requested expiry) + a join
   sorted-set that expires after its 60s counting window; enable/disable/duration/
@@ -667,8 +675,10 @@ m != nil`) — every helper bails when it's nil.
 ## 13. Content modules (concise)
 
 - **Filters/Blacklists** use Aho-Corasick (`keyword_matcher`) with **separate named
-  caches** (`GetNamedCache("filters")` / `"blacklists")`) so they never evict each
-  other — do not revert to the shared global cache. Watchers use `FirstMatch`.
+  caches** (`GetNamedCache("filters")` / `"blacklists"`) so they never evict each
+  other — do not revert to the shared global cache. Each named cache's cleanup
+  ticker recovers per tick so a panic cannot disable matcher eviction. Watchers
+  use `FirstMatch`.
   Search text is built by `buildModerationMatchText`
   (text + caption + URL entities from **both** `Entities` and `CaptionEntities`);
   raw Telegram entity offsets are UTF-16 code units, so slice them through
@@ -693,7 +703,10 @@ m != nil`) — every helper bails when it's nil.
 - **Reactions** accept only Telegram's documented built-in reaction emoji; keyword
   and emoji values are HTML-escaped in replies. `FormattingReplacer` recognizes
   `{rules[:up|same]}` only in the stored template, never in user-substituted text,
-  and removes the directive when no rules exist.
+  and removes the directive when no rules exist. `{count}` is served from
+  `cachedMemberCount` (`formatting.go`), a process-local `sync.Map` with a 60s TTL;
+  expired entries are deleted on read and via `time.AfterFunc` — do not store
+  unbounded chat IDs there without eviction.
 - **Media** (`utils/media`): `Send` dispatches on `MsgType` (TEXT=1…VIDEO_NOTE=8;
   0/unknown → text; empty `FileID` → text fallback), short-circuits on
   `IsChatRestricted`, and marks chats restricted on permission errors. `SendNote`/

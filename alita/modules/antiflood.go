@@ -128,11 +128,82 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			a.cleanupOnce(time.Now().Unix())
+			func() {
+				defer error_handling.RecoverFromPanic("cleanupOnce", "antiflood")
+				a.cleanupOnce(time.Now().Unix())
+			}()
 		case <-ctx.Done():
 			log.Info("Antiflood cleanup goroutine shutting down gracefully")
 			return
 		}
+	}
+}
+
+// cachedAdminStatus reports whether a warm admin cache already knows this user.
+// known=false means the cache missed and the caller must ask Telegram.
+func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
+	ok, cached := cache.GetAdminCacheList(chatId)
+	if !ok || !cached.Cached {
+		return false, false
+	}
+	if cached.UserMap != nil {
+		_, isAdmin = cached.UserMap[userId]
+		return true, isAdmin
+	}
+	for i := range cached.UserInfo {
+		if cached.UserInfo[i].User.Id == userId {
+			return true, true
+		}
+	}
+	return true, false
+}
+
+// userIsFloodExempt is true when the sender should skip flood tracking.
+// A warm admin cache (including negative lookups) is trusted so non-admins do
+// not take a semaphore slot or spawn an IsUserAdmin goroutine per message.
+// Cache misses use a bounded Telegram check; timeout and a full semaphore
+// fail open. The semaphore is released before flood tracking or punishment.
+func (a *antifloodStruct) userIsFloodExempt(b *gotgbot.Bot, chatId, userId int64) bool {
+	if known, isAdmin := cachedAdminStatus(chatId, userId); known {
+		return isAdmin
+	}
+	return a.adminCheckWithTimeout(b, chatId, userId)
+}
+
+func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId int64) bool {
+	select {
+	case a.adminCheckSemaphore <- struct{}{}:
+		defer func() { <-a.adminCheckSemaphore }()
+	default:
+		log.WithFields(log.Fields{
+			"chatId": chatId,
+			"userId": userId,
+		}).Warn("Admin check semaphore full - assuming admin to prevent false positives")
+		return true
+	}
+
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result := make(chan bool, 1)
+	go func() {
+		defer error_handling.RecoverFromPanic("adminCheck", "antiflood")
+		isAdmin := chat_status.IsUserAdmin(b, chatId, userId)
+		select {
+		case result <- isAdmin:
+		case <-ctxTimeout.Done():
+		}
+	}()
+
+	select {
+	case isAdmin := <-result:
+		return isAdmin
+	case <-ctxTimeout.Done():
+		log.WithFields(log.Fields{
+			"chatId": chatId,
+			"userId": userId,
+		}).Warn("Admin check timed out, skipping flood check to prevent false positives")
+		return true
 	}
 }
 
@@ -230,77 +301,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	userId := user.Id()
 	chatId := chat.Id
 
-	if ok, cached := cache.GetAdminCacheList(chatId); ok && cached.Cached {
-		if _, ok := cached.UserMap[userId]; ok {
-			return ext.ContinueGroups
-		}
-	}
-
-	// Use semaphore to limit concurrent admin checks and add timeout
-	select {
-	case antifloodModule.adminCheckSemaphore <- struct{}{}:
-		// Got semaphore, proceed with admin check
-		defer func() { <-antifloodModule.adminCheckSemaphore }()
-
-		// Create context with timeout for admin check
-		ctx_timeout, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		// Check if user is admin with timeout and proper goroutine cleanup
-		isAdmin := make(chan bool, 1)
-		done := make(chan struct{})
-
-		go func() {
-			defer func() {
-				close(done) // Signal completion to prevent goroutine leak
-			}()
-			defer error_handling.RecoverFromPanic("adminCheck", "antiflood")
-
-			select {
-			case isAdmin <- chat_status.IsUserAdmin(b, chatId, userId):
-				// Successfully sent result
-			case <-ctx_timeout.Done():
-				// Context cancelled, exit goroutine early
-				return
-			}
-		}()
-
-		select {
-		case admin := <-isAdmin:
-			if admin {
-				// Admins are exempt from flood tracking
-				return ext.ContinueGroups
-			}
-		case <-ctx_timeout.Done():
-			// Admin check timed out, fail open to prevent false positives
-			// It's better to occasionally miss a flood from an admin than to ban actual admins on timeout
-			log.WithFields(log.Fields{
-				"chatId": chatId,
-				"userId": userId,
-			}).Warn("Admin check timed out, skipping flood check to prevent false positives")
-
-			// Wait for goroutine cleanup with timeout to prevent indefinite blocking
-			select {
-			case <-done:
-				// Goroutine completed cleanly
-			case <-time.After(1 * time.Second):
-				// Log if goroutine takes too long to cleanup
-				log.WithFields(log.Fields{
-					"chatId": chatId,
-					"userId": userId,
-				}).Warn("Admin check goroutine cleanup timeout")
-			}
-
-			// Skip flood check on timeout - fail open like semaphore full case
-			return ext.ContinueGroups
-		}
-	default:
-		// CRITICAL FIX: Semaphore full - fail open to prevent false positives
-		// It's better to occasionally miss a flood from an admin than to ban actual admins under load
-		log.WithFields(log.Fields{
-			"chatId": chatId,
-			"userId": userId,
-		}).Warn("Admin check semaphore full - assuming admin to prevent false positives")
+	if antifloodModule.userIsFloodExempt(b, chatId, userId) {
 		return ext.ContinueGroups
 	}
 
@@ -359,6 +360,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				go func(messageId int64) {
 					defer wg.Done()
 					defer func() { <-sem }()
+					defer error_handling.RecoverFromPanic("floodMsgDelete", "antiflood")
 
 					err := helpers.DeleteMessageWithErrorHandling(b, chatId, messageId)
 					recordError(err, messageId)

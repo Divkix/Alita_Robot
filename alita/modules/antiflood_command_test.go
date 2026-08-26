@@ -287,6 +287,47 @@ func TestAntifloodWatcherFailsOpenWhenAdminSemaphoreFull(t *testing.T) {
 	}
 }
 
+func TestAntifloodWatcherTrustsCachedNonAdminWithoutSemaphore(t *testing.T) {
+	resetAntifloodState(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
+	member := gotgbot.User{Id: 46, FirstName: "Flooder"}
+	seedCallbackAdmins(t, chat.Id, gotgbot.MergedChatMember{
+		Status:             "administrator",
+		User:               gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"},
+		CanRestrictMembers: true,
+	})
+	if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+		t.Fatalf("SetFlood() error = %v", err)
+	}
+	if err := antiflood.SetFloodMode(chat.Id, "ban"); err != nil {
+		t.Fatalf("SetFloodMode() error = %v", err)
+	}
+
+	for i := 0; i < maxConcurrentAdminChecks; i++ {
+		antifloodModule.adminCheckSemaphore <- struct{}{}
+	}
+	t.Cleanup(func() {
+		for i := 0; i < maxConcurrentAdminChecks; i++ {
+			<-antifloodModule.adminCheckSemaphore
+		}
+	})
+
+	firstCtx := newModuleMessageContext(bot, chat, member, "one")
+	if err := antifloodModule.checkFlood(bot, firstCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkFlood first error = %v, want ContinueGroups", err)
+	}
+	secondCtx := newModuleMessageContext(bot, chat, member, "two")
+	secondCtx.EffectiveMessage.MessageId = 202
+	if err := antifloodModule.checkFlood(bot, secondCtx); err != ext.ContinueGroups {
+		t.Fatalf("checkFlood second error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
+		t.Fatalf("banChatMember calls = %d, want punishment despite full semaphore", len(calls))
+	}
+}
+
 func TestAntifloodWatcherSkipsUntargetableMessages(t *testing.T) {
 	resetAntifloodState(t)
 	client := newModuleBotClient()

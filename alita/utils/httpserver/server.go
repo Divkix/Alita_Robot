@@ -416,10 +416,12 @@ func (s *Server) Start() error {
 	}()
 
 	// Wait briefly to catch immediate startup errors (e.g., port conflicts)
+	startupTimer := time.NewTimer(100 * time.Millisecond)
+	defer startupTimer.Stop()
 	select {
 	case err := <-errChan:
 		return fmt.Errorf("failed to start HTTP server: %w", err)
-	case <-time.After(100 * time.Millisecond):
+	case <-startupTimer.C:
 		return nil
 	}
 }

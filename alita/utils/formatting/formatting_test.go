@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"gorm.io/driver/sqlite"
@@ -317,4 +318,74 @@ func TestGetFullName(t *testing.T) {
 			t.Fatalf("expected 'Alice', got %q", name)
 		}
 	})
+}
+
+func clearMemberCountCache() {
+	memberCountCache.Range(func(key, _ any) bool {
+		memberCountCache.Delete(key)
+		return true
+	})
+}
+
+func TestCachedMemberCountEvictsExpiredEntries(t *testing.T) {
+	clearMemberCountCache()
+	oldTTL := memberCountCacheTTL
+	memberCountCacheTTL = 15 * time.Millisecond
+	t.Cleanup(func() {
+		memberCountCacheTTL = oldTTL
+		clearMemberCountCache()
+	})
+
+	bot := &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: formattingBotClient{},
+		User:      gotgbot.User{Id: 123, IsBot: true, Username: "FormatBot"},
+	}
+	chat := &gotgbot.Chat{Id: -100999001, Type: "supergroup", Title: "Count Chat"}
+
+	if got := cachedMemberCount(bot, chat); got != "42" {
+		t.Fatalf("cachedMemberCount() = %q, want 42", got)
+	}
+	if _, ok := memberCountCache.Load(chat.Id); !ok {
+		t.Fatal("fresh member count was not stored")
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := memberCountCache.Load(chat.Id); !ok {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("expired member count cache entry was not evicted")
+}
+
+func TestCachedMemberCountReplacesStaleEntryOnRead(t *testing.T) {
+	clearMemberCountCache()
+	t.Cleanup(clearMemberCountCache)
+
+	chatID := int64(-100999002)
+	memberCountCache.Store(chatID, memberCountEntry{
+		count: 1,
+		at:    time.Now().Add(-time.Hour),
+	})
+
+	bot := &gotgbot.Bot{
+		Token:     "123:test",
+		BotClient: formattingBotClient{},
+		User:      gotgbot.User{Id: 123, IsBot: true, Username: "FormatBot"},
+	}
+	chat := &gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Count Chat"}
+
+	if got := cachedMemberCount(bot, chat); got != "42" {
+		t.Fatalf("cachedMemberCount() = %q, want refreshed 42", got)
+	}
+	v, ok := memberCountCache.Load(chatID)
+	if !ok {
+		t.Fatal("refreshed member count was not stored")
+	}
+	entry, ok := v.(memberCountEntry)
+	if !ok || entry.count != 42 {
+		t.Fatalf("stored entry = %#v, want count 42", v)
+	}
 }

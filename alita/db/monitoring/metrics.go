@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 // ErrDatabaseNotInitialized is returned when database operations are attempted
@@ -42,6 +43,7 @@ func StartMonitoring(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
+		defer error_handling.RecoverFromPanic("DBMonitoring", "metrics")
 
 		for {
 			select {
@@ -49,8 +51,11 @@ func StartMonitoring(ctx context.Context, interval time.Duration) {
 				log.Info("[DBMonitoring] Stopping database monitoring")
 				return
 			case <-ticker.C:
-				metrics := collectMetrics(sqlDB)
-				logMetrics(metrics)
+				func() {
+					defer error_handling.RecoverFromPanic("DBMonitoringTick", "metrics")
+					metrics := collectMetrics(sqlDB)
+					logMetrics(metrics)
+				}()
 			}
 		}
 	}()

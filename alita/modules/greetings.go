@@ -893,7 +893,8 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 				go func(member gotgbot.User) {
 					defer wg.Done()
-					defer func() { <-sem }() // Release semaphore
+					defer func() { <-sem }()
+					defer error_handling.RecoverFromPanic("processNewMember", "Greetings") // Release semaphore
 
 					// Local chat copy per goroutine so we don't share pointer
 					chatCopy := chatCopyBase

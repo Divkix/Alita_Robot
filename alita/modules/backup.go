@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
@@ -178,10 +179,14 @@ func cleanupExpiredPending() {
 
 func startPendingCleanupTicker() {
 	go func() {
+		defer error_handling.RecoverFromPanic("pendingBackupCleanup", "backup")
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			cleanupExpiredPending()
+			func() {
+				defer error_handling.RecoverFromPanic("pendingBackupCleanupTick", "backup")
+				cleanupExpiredPending()
+			}()
 		}
 	}()
 }

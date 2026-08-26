@@ -6,7 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -122,5 +125,81 @@ func TestLoadAdminCacheHandlesNilBotNonAdminBotAndEmptyAdminList(t *testing.T) {
 	}
 	if found, _ := GetAdminCacheList(-100125); !found {
 		t.Fatal("LoadAdminCache did not store the empty admin-list result")
+	}
+}
+
+type delayedAdminCacheClient struct {
+	inner            *adminCacheBotClient
+	adminListStarted chan struct{}
+	releaseAdminList chan struct{}
+	adminListCalls   atomic.Int32
+}
+
+func (c *delayedAdminCacheClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		if c.adminListCalls.Add(1) == 1 {
+			close(c.adminListStarted)
+			<-c.releaseAdminList
+		}
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *delayedAdminCacheClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *delayedAdminCacheClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+func TestLoadAdminCacheCoalescesConcurrentFetches(t *testing.T) {
+	withMemoryMarshaler(t)
+
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(
+			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`,
+		),
+		"getChatAdministrators": json.RawMessage(
+			`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}]`,
+		),
+	}}
+	client := &delayedAdminCacheClient{
+		inner:            inner,
+		adminListStarted: make(chan struct{}),
+		releaseAdminList: make(chan struct{}),
+	}
+	bot := &gotgbot.Bot{
+		Token:     "999:test",
+		BotClient: client,
+		User: gotgbot.User{
+			Id:       999,
+			IsBot:    true,
+			Username: "AlitaTestBot",
+		},
+	}
+
+	const workers = 8
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			<-start
+			got := LoadAdminCache(bot, -100777)
+			if !got.Cached || len(got.UserInfo) != 1 {
+				t.Errorf("LoadAdminCache() = %+v, want cached admin list", got)
+			}
+		}()
+	}
+	close(start)
+	<-client.adminListStarted
+	time.Sleep(50 * time.Millisecond)
+	close(client.releaseAdminList)
+	wg.Wait()
+
+	if got := client.adminListCalls.Load(); got != 1 {
+		t.Fatalf("getChatAdministrators calls = %d, want 1 coalesced fetch", got)
 	}
 }

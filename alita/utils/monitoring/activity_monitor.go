@@ -97,7 +97,10 @@ func (am *ActivityMonitor) monitorLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			am.performActivityCheck()
+			func() {
+				defer error_handling.RecoverFromPanic("performActivityCheck", "ActivityMonitor")
+				am.performActivityCheck()
+			}()
 		case <-am.ctx.Done():
 			return
 		}

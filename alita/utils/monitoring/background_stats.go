@@ -9,6 +9,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -115,7 +116,10 @@ func (collector *BackgroundStatsCollector) systemStatsCollector() {
 	for {
 		select {
 		case <-ticker.C:
-			collector.collectSystemStats()
+			func() {
+				defer error_handling.RecoverFromPanic("collectSystemStats", "BackgroundStats")
+				collector.collectSystemStats()
+			}()
 		case <-collector.ctx.Done():
 			return
 		}
@@ -132,7 +136,10 @@ func (collector *BackgroundStatsCollector) databaseStatsCollector() {
 	for {
 		select {
 		case <-ticker.C:
-			collector.collectDatabaseStats()
+			func() {
+				defer error_handling.RecoverFromPanic("collectDatabaseStats", "BackgroundStats")
+				collector.collectDatabaseStats()
+			}()
 		case <-collector.ctx.Done():
 			return
 		}
@@ -224,7 +231,10 @@ func (collector *BackgroundStatsCollector) reportingWorker() {
 	for {
 		select {
 		case <-ticker.C:
-			collector.reportStats()
+			func() {
+				defer error_handling.RecoverFromPanic("reportStats", "BackgroundStats")
+				collector.reportStats()
+			}()
 		case <-collector.ctx.Done():
 			return
 		}
