@@ -1149,6 +1149,10 @@ func (m moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.greetingToggle(bot, ctx, autoApproveToggleConfig)
 }
 
+func pendingJoinsKey(chatId, userId int64) string {
+	return fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId)
+}
+
 // loadPendingJoins checks if a join request notification has already been sent for a user.
 // Prevents duplicate join request messages by checking cache for recent requests.
 func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
@@ -1156,7 +1160,7 @@ func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
 	if m == nil {
 		return false
 	}
-	alreadyAsked, err := m.Get(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), new(bool))
+	alreadyAsked, err := m.Get(cache.Context, pendingJoinsKey(chatId, userId), new(bool))
 	if err != nil || alreadyAsked == nil {
 		return false
 	}
@@ -1174,12 +1178,12 @@ func (moduleStruct) setPendingJoins(chatId, userId int64) {
 	if m == nil {
 		return
 	}
-	_ = m.Set(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId), true, store.WithExpiration(5*time.Minute))
+	_ = m.Set(cache.Context, pendingJoinsKey(chatId, userId), true, store.WithExpiration(5*time.Minute))
 }
 
 func (moduleStruct) clearPendingJoins(chatId, userId int64) {
 	if m := cache.GetMarshal(); m != nil {
-		_ = m.Delete(cache.Context, fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId))
+		_ = m.Delete(cache.Context, pendingJoinsKey(chatId, userId))
 	}
 }
 

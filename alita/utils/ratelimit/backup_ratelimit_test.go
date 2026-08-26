@@ -65,12 +65,12 @@ func TestGetBackupRateLimiter_Singleton(t *testing.T) {
 	}
 }
 
-func TestBackupRateLimiter_CanMethods_NilCache(t *testing.T) {
+func TestBackupRateLimiter_AcquireMethods_NilCache(t *testing.T) {
 	tests := []struct {
 		name string
 		fn   func(*BackupRateLimiter, int64) (bool, time.Duration)
 	}{
-		{"CanImport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.CanImport(id) }},
+		{"AcquireImport", func(l *BackupRateLimiter, id int64) (bool, time.Duration) { return l.AcquireImport(id) }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -86,51 +86,6 @@ func TestBackupRateLimiter_CanMethods_NilCache(t *testing.T) {
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// recordOperation / getLastOperation with in-memory cache
-// ---------------------------------------------------------------------------
-
-func TestBackupRateLimiter_recordOperationAndGetLastOperation(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99901)
-	cacheKey := exportRatePrefix + fmt.Sprint(chatID)
-
-	// No operation recorded yet → getLastOperation should error.
-	_, err := limiter.getLastOperation(cacheKey)
-	if err == nil {
-		t.Fatal("expected error for missing key")
-	}
-
-	// Record an operation.
-	limiter.recordOperation(cacheKey, DefaultExportCooldown)
-
-	// Now getLastOperation should succeed.
-	ts, err := limiter.getLastOperation(cacheKey)
-	if err != nil {
-		t.Fatalf("unexpected error after record: %v", err)
-	}
-	if ts.IsZero() {
-		t.Error("expected non-zero timestamp")
-	}
-
-	// Record again; timestamp should be updated (or at least not older).
-	before := time.Now()
-	limiter.recordOperation(cacheKey, DefaultExportCooldown)
-	ts2, err := limiter.getLastOperation(cacheKey)
-	if err != nil {
-		t.Fatalf("unexpected error on second record: %v", err)
-	}
-	if ts2.Before(before) {
-		t.Error("expected updated timestamp not to be before time of second record")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// CanImport with working cache
-// ---------------------------------------------------------------------------
 
 func TestBackupRateLimiter_AcquireExportIsAtomic(t *testing.T) {
 	cache.SetupTestMemoryMarshaler(t)
@@ -169,32 +124,30 @@ func TestBackupRateLimiter_AcquireExportIsAtomic(t *testing.T) {
 	}
 }
 
-func TestBackupRateLimiter_CanImport_AllowedThenBlocked(t *testing.T) {
+func TestBackupRateLimiter_AcquireImport_AllowedThenBlocked(t *testing.T) {
 	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
 	const chatID = int64(99903)
 
-	allowed, remaining := limiter.CanImport(chatID)
+	allowed, remaining := limiter.AcquireImport(chatID)
 	if !allowed {
-		t.Fatal("expected CanImport to be allowed on first call")
+		t.Fatal("expected AcquireImport to be allowed on first call")
 	}
 	if remaining != 0 {
 		t.Errorf("expected remaining=0 on first call, got %v", remaining)
 	}
 
-	limiter.AcquireImport(chatID)
-
-	allowed, remaining = limiter.CanImport(chatID)
+	allowed, remaining = limiter.AcquireImport(chatID)
 	if allowed {
-		t.Fatal("expected CanImport to be blocked immediately after AcquireImport")
+		t.Fatal("expected AcquireImport to be blocked immediately after a reservation")
 	}
 	if remaining <= 0 || remaining > DefaultImportCooldown {
 		t.Errorf("expected remaining in (0, %v], got %v", DefaultImportCooldown, remaining)
 	}
 }
 
-func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
+func TestBackupRateLimiter_AcquireImport_AfterCooldown(t *testing.T) {
 	cache.SetupTestMemoryMarshaler(t)
 
 	limiter := &BackupRateLimiter{}
@@ -206,47 +159,11 @@ func TestBackupRateLimiter_CanImport_AfterCooldown(t *testing.T) {
 		t.Fatalf("failed to seed cache: %v", err)
 	}
 
-	allowed, remaining := limiter.CanImport(chatID)
+	allowed, remaining := limiter.AcquireImport(chatID)
 	if !allowed {
-		t.Fatalf("expected CanImport to be allowed after cooldown, got remaining=%v", remaining)
+		t.Fatalf("expected AcquireImport to be allowed after cooldown, got remaining=%v", remaining)
 	}
 	if remaining != 0 {
 		t.Errorf("expected remaining=0 after cooldown, got %v", remaining)
-	}
-}
-
-func TestBackupRateLimiter_recordOperation_UnknownPrefix(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	cacheKey := "backup:unknown:12345"
-
-	// Should not panic and should store with the provided 1-hour TTL.
-	limiter.recordOperation(cacheKey, time.Hour)
-
-	ts, err := limiter.getLastOperation(cacheKey)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if ts.IsZero() {
-		t.Error("expected non-zero timestamp for unknown-prefix key")
-	}
-}
-
-func TestBackupRateLimiter_getLastOperation_CacheError(t *testing.T) {
-	cache.SetupTestMemoryMarshaler(t)
-
-	limiter := &BackupRateLimiter{}
-	const chatID = int64(99908)
-	cacheKey := exportRatePrefix + fmt.Sprint(chatID)
-
-	// Seed cache with non-time data so unmarshalling fails.
-	if err := cache.GetMarshal().Set(context.Background(), cacheKey, "not-a-time"); err != nil {
-		t.Fatalf("failed to seed cache: %v", err)
-	}
-
-	_, err := limiter.getLastOperation(cacheKey)
-	if err == nil {
-		t.Fatal("expected error when cached value is not a time.Time")
 	}
 }

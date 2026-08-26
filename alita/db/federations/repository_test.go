@@ -318,3 +318,52 @@ func TestGetChatFedAndBanNegativeCache(t *testing.T) {
 		t.Fatal("FindBanInFedTree should miss after negative cache")
 	}
 }
+
+func TestDeleteFederationInvalidatesBanAndSubscriberCaches(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+	ownerA := time.Now().UnixNano()
+	ownerB := ownerA + 1
+	a, err := CreateFederation(ownerA, "delete-src")
+	if err != nil {
+		t.Fatalf("CreateFederation A: %v", err)
+	}
+	b, err := CreateFederation(ownerB, "delete-sub")
+	if err != nil {
+		t.Fatalf("CreateFederation B: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DeleteFederation(a.FedID)
+		_ = DeleteFederation(b.FedID)
+		_ = db.DB.Where("user_id IN ?", []int64{ownerA, ownerB}).Delete(&models.User{}).Error
+	})
+
+	bannedUser := ownerA + 50
+	if _, _, err := Fban(a.FedID, bannedUser, ownerA, "cached"); err != nil {
+		t.Fatalf("Fban: %v", err)
+	}
+	if GetFedBan(a.FedID, bannedUser) == nil {
+		t.Fatal("expected ban to be readable before delete")
+	}
+	if err := SubscribeFed(b.FedID, a.FedID); err != nil {
+		t.Fatalf("SubscribeFed: %v", err)
+	}
+	subs := ListSubscribedFedIDs(b.FedID)
+	if len(subs) != 1 || subs[0] != a.FedID {
+		t.Fatalf("ListSubscribedFedIDs = %v, want [%s]", subs, a.FedID)
+	}
+
+	if err := DeleteFederation(a.FedID); err != nil {
+		t.Fatalf("DeleteFederation: %v", err)
+	}
+	if GetFedBan(a.FedID, bannedUser) != nil {
+		t.Fatal("cached ban survived DeleteFederation")
+	}
+	if found, _ := FindBanInFedTree(b.FedID, bannedUser); found != nil {
+		t.Fatal("subscriber still sees deleted federation ban")
+	}
+	if got := ListSubscribedFedIDs(b.FedID); len(got) != 0 {
+		t.Fatalf("subscriber fed_subs cache = %v, want empty after target delete", got)
+	}
+}

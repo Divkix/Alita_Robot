@@ -626,52 +626,7 @@ rules_help_msg: |
     × /resetrulesbutton: Сбросить текст кнопки правил на стандартный.
   
     × /resetrulesbtn: То же, что и выше."
-utils_chat_status_anon_admin_btn: Подтвердите свою личность
-utils_chat_status_anon_admin_string: |
-  Похоже, вы анонимны. Нажмите эту кнопку, чтобы подтвердить свою личность.
-utils_chat_status_bot_no_permission_delete: У меня нет разрешения на удаление сообщений!
-utils_chat_status_bot_no_permission_pin: |
-  Я не могу закреплять сообщения здесь! Убедитесь, что я администратор и могу закреплять сообщения.
-utils_chat_status_bot_no_permission_promote: |
-  Я не могу повышать/понижать людей здесь! Убедитесь, что я администратор и могу назначать новых администраторов.
-utils_chat_status_bot_no_permission_restrict: |
-  У меня нет разрешения ограничивать участников!
-utils_chat_status_bot_no_permission_restrict_group: |
-  Я не могу ограничивать людей здесь! Убедитесь, что я администратор и могу ограничивать других участников.
-utils_chat_status_bot_require_admin: |
-  Я не администратор! Убедитесь, что я администратор и имею соответствующие права.
-utils_chat_status_require_group: |
-  Эта команда предназначена для использования в группах, а не в ЛС!
-utils_chat_status_require_private: Эта команда предназначена для ЛС, а не группового чата!
-utils_chat_status_user_no_permission_change_info_btn: |
-  У вас нет разрешения изменять информацию!!
-utils_chat_status_user_no_permission_change_info_cmd: |
-  У вас нет разрешения изменять информацию в этой группе!
-utils_chat_status_user_no_permission_delete: У вас нет разрешения на удаление сообщений!
-utils_chat_status_user_no_permission_pin: |
-  Вы не можете закреплять сообщения здесь! Убедитесь, что вы администратор и можете закреплять сообщения.
-utils_chat_status_user_no_permission_promote_btn: |
-  У вас нет разрешения повышать/понижать участников!!
-utils_chat_status_user_no_permission_promote_cmd: |
-  Вы не можете повышать/понижать людей здесь! Убедитесь, что у вас есть соответствующие права!
-utils_chat_status_user_no_permission_restrict_btn: |
-  У вас нет разрешения ограничивать участников!
-utils_chat_status_user_no_permission_restrict_cmd: |
-  У вас нет разрешения ограничивать участников в этой группе!
-utils_chat_status_user_require_admin_btn: Вам нужно быть администратором, чтобы сделать это!
-utils_chat_status_user_require_admin_cmd: Только администраторы могут выполнять эту команду!
-utils_chat_status_user_require_owner_btn: Вам нужно быть создателем группы, чтобы сделать это!
-utils_chat_status_user_require_owner_cmd: Только создатель группы может это сделать!
-utils_extraction_extract_chat_badrequest_failed_getchat: |
-  "Не удалось подключиться к чату: не удалось получить чат: unable to getChat: Bad Request: chat not found"
-utils_extraction_extract_chat_fail_need_chat: Мне нужен ID чата для подключения!
-utils_extraction_extract_chat_fail_need_chat_id: |
-  Я ожидал ID чата, но это не действительное целое число.
-utils_extraction_extract_user_badrequest_failed_getchatmember: |
-  "Не удалось получить пользователя: unable to getChatMember: Bad Request: chat not found"
 bot_updates_creators_plug: "\nПодписывайтесь на @DivideProjects для большего количества полезных ботов от моих создателей."
-utils_extraction_extract_user_no_user_found: |
-  Не удалось найти пользователя с этим именем; вы уверены, что я видел его раньше?
 utils_string_handling_extract_time_invalid_time_amount: Указано неверное количество времени.
 utils_string_handling_extract_time_invalid_time_type: |
   "Указан неверный тип времени.
@@ -1329,16 +1284,6 @@ helpers_module_help_header: "Вот справка для модуля *%s*:\n\n
 helpers_invalid_deep_link: "Неверная или некорректная прямая ссылка. Пожалуйста, проверьте URL и попробуйте снова."
 helpers_chat_not_found: "Не удалось найти чат, связанный с этой ссылкой. Чат может больше не существовать или у меня нет к нему доступа."
 
-# Repository validation errors
-repo_user_nil_error: "пользователь не может быть nil"
-repo_user_id_zero_error: "ID пользователя не может быть нулём"
-repo_username_empty_error: "имя пользователя не может быть пустым"
-repo_user_not_found: "пользователь %d не найден"
-repo_user_at_index_nil: "пользователь с индексом %d не может быть nil"
-repo_user_at_index_zero_id: "пользователь с индексом %d имеет нулевой ID"
-repo_chat_nil_error: "чат не может быть nil"
-repo_chat_id_zero_error: "ID чата не может быть нулём"
-repo_chat_not_found: "чат %d не найден"
 
 # Formatting strings
 format_user_info: "Пользователь: %s"
@@ -1351,10 +1296,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "менеджер безопасности выключается"
 system_timeout_worker: "таймаут получения слота для %s"
 system_shutdown_acquisition: "выключение менеджера безопасности во время получения слота"
-pipeline_no_processor: "нет обработчика для этапа: %s"
-pipeline_shutting_down: "конвейер выключается, пропускается этап: %s"
-pipeline_processor_timeout: "таймаут обработчика для этапа: %s"
-pipeline_results_timeout: "таймаут ожидания результатов обработки"
 
 # Captcha additional validation
 captcha_no_active_attempt: "не найдена активная попытка капчи"
@@ -1492,12 +1433,6 @@ antiflood_button_unban_admins: "Разбанить (только для адми
 helpers_notes_current_header: "Это текущие заметки в этом чате:\n"
 
 # Configuration errors
-config_bot_token_required: "BOT_TOKEN обязателен"
-config_owner_id_required: "OWNER_ID обязателен и должен быть больше 0"
-config_message_dump_required: "MESSAGE_DUMP обязателен и должен быть больше 0"
-config_database_url_required: "DATABASE_URL обязателен"
-config_redis_address_required: "REDIS_ADDRESS обязателен"
-config_webhook_domain_required: "WEBHOOK_DOMAIN обязателен, когда USE_WEBHOOKS включён"
 config_workers_invalid: "%s должен быть между %d и %d"
 
 # System messages
@@ -1505,13 +1440,6 @@ system_db_connected: "Успешно подключено к базе данны
 system_config_loaded: "Конфигурация успешно загружена и проверена"
 
 # Database query errors
-db_lock_queries_not_initialized: "запросы блокировок не инициализированы"
-db_user_queries_not_initialized: "запросы пользователей не инициализированы"
-db_chat_queries_not_initialized: "запросы чатов не инициализированы"
-db_antiflood_queries_not_initialized: "запросы антифлуда не инициализированы"
-db_filter_queries_not_initialized: "запросы фильтров не инициализированы"
-db_blacklist_queries_not_initialized: "запросы чёрного списка не инициализированы"
-db_channel_queries_not_initialized: "запросы каналов не инициализированы"
 db_type_assertion_failed: "утверждение типа на []byte не удалось"
 
 # Default button texts
@@ -2180,12 +2108,6 @@ reactions_button_remove: "Удалить Реакцию"
 # Database default strings
 db_blacklist_default_reason: "Слово в черном списке: '%s'"
 
-# Duration formatting strings
-duration_format_seconds: "%d секунд"
-duration_format_minutes_seconds: "%d минут %d секунд"
-duration_format_minutes: "%d минут"
-duration_format_hours_minutes: "%d часов %d минут"
-duration_format_hours: "%d часов"
 
 approvals_help_msg: |
   <b>👤 Одобрения</b>

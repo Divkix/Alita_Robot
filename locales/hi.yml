@@ -65,67 +65,8 @@ admin_notes_docs: |
   • एडमिन अनुमति परिवर्तन उचित त्रुटि हैंडलिंग और पैनिक रिकवरी के साथ चलते हैं
 
 # Utils/Chat Status strings
-utils_chat_status_anon_admin_btn: अपनी पहचान की पुष्टि करें
-utils_chat_status_anon_admin_string: |
-  ऐसा लगता है कि आप गुमनाम हैं। अपनी पहचान की पुष्टि
-  के लिए इस बटन पर टैप करें।
-utils_chat_status_bot_no_permission_delete: मुझे संदेश हटाने की अनुमति नहीं है!
-utils_chat_status_bot_no_permission_pin: |
-  मैं यहाँ संदेश पिन नहीं कर सकता! सुनिश्चित करें कि
-  मैं एडमिन हूं और संदेश पिन कर सकता हूं।
-utils_chat_status_bot_no_permission_promote: |
-  मैं यहाँ लोगों को प्रमोट/डिमोट नहीं कर सकता! सुनिश्चित
-  करें कि मैं एडमिन हूं और नए एडमिन नियुक्त कर सकता हूं।
-utils_chat_status_bot_no_permission_restrict: |
-  मुझे सदस्यों को प्रतिबंधित करने की
-  अनुमति नहीं है!
-utils_chat_status_bot_no_permission_restrict_group: |
-  मैं यहाँ लोगों को प्रतिबंधित नहीं कर सकता!
-  सुनिश्चित करें कि मैं एडमिन हूं और अन्य सदस्यों को प्रतिबंधित कर सकता हूं।
-utils_chat_status_bot_require_admin: |
-  मैं एडमिन नहीं हूं! सुनिश्चित करें कि मैं एडमिन हूं
-  और उचित अनुमतियां हैं।
-utils_chat_status_require_group: |
-  यह कमांड ग्रुप चैट में उपयोग के लिए बनाया गया है,
-  PM में नहीं!
-utils_chat_status_require_private: यह कमांड PM के लिए है, ग्रुप चैट के लिए नहीं!
-utils_chat_status_user_no_permission_change_info_btn: |
-  आपके पास जानकारी बदलने की
-  अनुमति नहीं है!!
-utils_chat_status_user_no_permission_change_info_cmd: |
-  आपके पास इस ग्रुप में जानकारी बदलने
-  की अनुमति नहीं है!
-utils_chat_status_user_no_permission_delete: आपके पास संदेश हटाने की अनुमति नहीं है!
-utils_chat_status_user_no_permission_pin: |
-  आप यहाँ संदेश पिन नहीं कर सकते! सुनिश्चित करें कि
-  आप एडमिन हैं और संदेश पिन कर सकते हैं।
-utils_chat_status_user_no_permission_promote_btn: |
-  आपके पास सदस्यों को प्रमोट/डिमोट करने
-  की अनुमति नहीं है!!
-utils_chat_status_user_no_permission_promote_cmd: |
-  आप यहाँ लोगों को प्रमोट/डिमोट नहीं कर सकते!
-  सुनिश्चित करें कि आपके पास उचित अधिकार हैं!
-utils_chat_status_user_no_permission_restrict_btn: |
-  आपके पास सदस्यों को प्रतिबंधित करने
-  की अनुमति नहीं है!
-utils_chat_status_user_no_permission_restrict_cmd: |
-  आपके पास इस ग्रुप में सदस्यों को प्रतिबंधित
-  करने की अनुमति नहीं है!
-utils_chat_status_user_require_admin_btn: इसके लिए आपको एडमिन होना चाहिए!
-utils_chat_status_user_require_admin_cmd: केवल एडमिन ही इस कमांड को चला सकते हैं!
-utils_chat_status_user_require_owner_btn: इसके लिए आपको ग्रुप क्रिएटर होना चाहिए!
-utils_chat_status_user_require_owner_cmd: केवल ग्रुप क्रिएटर ही ऐसा कर सकते हैं!
 
 # Utils/Extraction strings
-utils_extraction_extract_chat_badrequest_failed_getchat: "चैट से कनेक्ट करने में विफल: चैट प्राप्त करने में विफल: getChat करने में असमर्थ: Bad Request: chat not found"
-utils_extraction_extract_chat_fail_need_chat: मुझे कनेक्ट करने के लिए एक चैट ID चाहिए!
-utils_extraction_extract_chat_fail_need_chat_id: |
-  मुझे एक चैट ID की उम्मीद थी, लेकिन यह
-  एक मान्य पूर्णांक नहीं है।
-utils_extraction_extract_user_badrequest_failed_getchatmember: "उपयोगकर्ता प्राप्त करने में विफल: getChatMember करने में असमर्थ: Bad Request: chat not found"
-utils_extraction_extract_user_no_user_found: |
-  इस नाम से कोई उपयोगकर्ता नहीं मिला; क्या आप
-  सुनिश्चित हैं कि मैंने उन्हें पहले देखा है?
 utils_string_handling_extract_time_invalid_time_amount: अमान्य समय राशि निर्दिष्ट।
 utils_string_handling_extract_time_invalid_time_type: "अमान्य समय प्रकार निर्दिष्ट। अपेक्षित m, h, या d मिला: %s"
 
@@ -1826,25 +1767,8 @@ db_default_welcome: "हेलो {first}, आप कैसे हैं?"
 db_default_goodbye: "आपको जाते देखकर दुख हुआ {first}"
 db_warn_no_reason: "कोई कारण नहीं"
 db_not_initialized: "डेटाबेस आरंभ नहीं हुआ"
-db_lock_queries_not_initialized: "लॉक क्वेरीज़ आरंभ नहीं हुईं"
-db_user_queries_not_initialized: "उपयोगकर्ता क्वेरीज़ आरंभ नहीं हुईं"
-db_chat_queries_not_initialized: "चैट क्वेरीज़ आरंभ नहीं हुईं"
-db_antiflood_queries_not_initialized: "एंटीफ्लड क्वेरीज़ आरंभ नहीं हुईं"
-db_filter_queries_not_initialized: "फ़िल्टर क्वेरीज़ आरंभ नहीं हुईं"
-db_blacklist_queries_not_initialized: "ब्लैकलिस्ट क्वेरीज़ आरंभ नहीं हुईं"
-db_channel_queries_not_initialized: "चैनल क्वेरीज़ आरंभ नहीं हुईं"
 db_type_assertion_failed: "[]byte में टाइप असर्शन विफल"
 
-# Repository validation errors
-repo_user_nil_error: "उपयोगकर्ता nil नहीं हो सकता"
-repo_user_id_zero_error: "उपयोगकर्ता ID शून्य नहीं हो सकती"
-repo_username_empty_error: "यूज़रनेम खाली नहीं हो सकता"
-repo_user_not_found: "उपयोगकर्ता %d नहीं मिला"
-repo_user_at_index_nil: "इंडेक्स %d पर उपयोगकर्ता nil नहीं हो सकता"
-repo_user_at_index_zero_id: "इंडेक्स %d पर उपयोगकर्ता की ID शून्य है"
-repo_chat_nil_error: "चैट nil नहीं हो सकता"
-repo_chat_id_zero_error: "चैट ID शून्य नहीं हो सकती"
-repo_chat_not_found: "चैट %d नहीं मिला"
 
 # System messages
 system_safety_shutdown: "सेफ्टी मैनेजर बंद हो रहा है"
@@ -1870,12 +1794,6 @@ message_type_video_note: "वीडियो नोट"
 message_type_unknown: "अज्ञात"
 
 # Config error messages
-config_bot_token_required: "BOT_TOKEN आवश्यक है"
-config_owner_id_required: "OWNER_ID आवश्यक है और 0 से अधिक होना चाहिए"
-config_message_dump_required: "MESSAGE_DUMP आवश्यक है और 0 से अधिक होना चाहिए"
-config_database_url_required: "DATABASE_URL आवश्यक है"
-config_redis_address_required: "REDIS_ADDRESS आवश्यक है"
-config_webhook_domain_required: "USE_WEBHOOKS सक्षम होने पर WEBHOOK_DOMAIN आवश्यक है"
 config_workers_invalid: "%s %d और %d के बीच होना चाहिए"
 help_pm_intro: |
   हेलो %s!
@@ -1933,10 +1851,6 @@ main_bot_command_help: कमांड और मदद प्राप्त �
 main_bot_command_start: बॉट शुरू करें
 
 # Pipeline strings
-pipeline_no_processor: "स्टेज के लिए कोई प्रोसेसर पंजीकृत नहीं है: %s"
-pipeline_processor_timeout: "स्टेज के लिए प्रोसेसर टाइमआउट: %s"
-pipeline_results_timeout: परिणाम टाइमआउट
-pipeline_shutting_down: "पाइपलाइन बंद हो रही है, स्टेज को छोड़ रहा है: %s"
 
 # Warns extended documentation
 warns_extended_docs: |
@@ -2133,12 +2047,6 @@ reactions_button_remove: "प्रतिक्रिया हटाएं"
 # Database default strings
 db_blacklist_default_reason: "ब्लैकलिस्टेड शब्द: '%s'"
 
-# Duration formatting strings
-duration_format_seconds: "%d सेकंड"
-duration_format_minutes_seconds: "%d मिनट %d सेकंड"
-duration_format_minutes: "%d मिनट"
-duration_format_hours_minutes: "%d घंटे %d मिनट"
-duration_format_hours: "%d घंटे"
 
 approvals_help_msg: |
   <b>👤 स्वीकृतियाँ</b>

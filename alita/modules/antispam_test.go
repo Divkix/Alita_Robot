@@ -12,25 +12,17 @@ import (
 
 func resetAntiSpamMapForTest(t *testing.T) {
 	t.Helper()
-	// Clear all shards and legacy map for test isolation.
 	for i := range antiSpamShards {
 		antiSpamShards[i].mu.Lock()
 		antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
 		antiSpamShards[i].mu.Unlock()
 	}
-	antiSpamMutex.Lock()
-	previous := antiSpamMap
-	antiSpamMap = make(map[spamKey]*antiSpamInfo)
-	antiSpamMutex.Unlock()
 	t.Cleanup(func() {
 		for i := range antiSpamShards {
 			antiSpamShards[i].mu.Lock()
 			antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
 			antiSpamShards[i].mu.Unlock()
 		}
-		antiSpamMutex.Lock()
-		antiSpamMap = previous
-		antiSpamMutex.Unlock()
 	})
 }
 
@@ -39,9 +31,6 @@ func setAntiSpamInfoForTest(key spamKey, info *antiSpamInfo) {
 	shard.mu.Lock()
 	shard.m[key] = info
 	shard.mu.Unlock()
-	antiSpamMutex.Lock()
-	antiSpamMap[key] = info
-	antiSpamMutex.Unlock()
 }
 
 func getAntiSpamInfoForTest(key spamKey) (*antiSpamInfo, bool) {
@@ -156,7 +145,7 @@ func TestLoadAntispamRegisteredHandlerAllowsDownstreamModeration(t *testing.T) {
 	key := spamKey{chatId: chat.Id, userId: user.Id}
 	info, _ := getAntiSpamInfoForTest(key)
 	if info == nil || info.Count != antiSpamLimit {
-		t.Fatalf("antiSpamMap[%+v] = %#v, want count %d", key, info, antiSpamLimit)
+		t.Fatalf("antiSpam shard[%+v] = %#v, want count %d", key, info, antiSpamLimit)
 	}
 	if processed != antiSpamLimit {
 		t.Fatalf("downstream messages = %d, want all %d messages", processed, antiSpamLimit)

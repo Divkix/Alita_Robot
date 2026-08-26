@@ -44,23 +44,22 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if chat.Type == "channel" {
-		if m := cache.GetMarshal(); m != nil {
-			if err := m.Set(
-				cache.Context,
-				setlogPendingKey(chat.Id, msg.MessageId),
-				[]byte("1"),
-				store.WithExpiration(time.Hour),
-			); err != nil {
-				log.Debugf("[LogChannels] failed to store pending setlog: %v", err)
-			}
-			if err := m.Set(
-				cache.Context,
-				setlogPendingKey(chat.Id, 0),
-				[]byte("1"),
-				store.WithExpiration(time.Hour),
-			); err != nil {
-				log.Debugf("[LogChannels] failed to store pending setlog channel: %v", err)
-			}
+		m := cache.GetMarshal()
+		if m == nil {
+			text, _ := tr.GetString("common_settings_save_failed")
+			replyHTML(b, msg, text)
+			return ext.EndGroups
+		}
+		if err := m.Set(
+			cache.Context,
+			setlogPendingKey(chat.Id, msg.MessageId),
+			[]byte("1"),
+			store.WithExpiration(time.Hour),
+		); err != nil {
+			log.Errorf("[LogChannels] failed to store pending setlog: %v", err)
+			text, _ := tr.GetString("common_settings_save_failed")
+			replyHTML(b, msg, text)
+			return ext.EndGroups
 		}
 		text, _ := tr.GetString("logs_forward_to_group")
 		replyHTML(b, msg, text)
@@ -227,18 +226,16 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {
 		return ext.ContinueGroups
 	}
-	keys := []string{setlogPendingKey(origin.Chat.Id, 0)}
-	if origin.MessageId != 0 {
-		keys = append([]string{setlogPendingKey(origin.Chat.Id, origin.MessageId)}, keys...)
+	if origin.MessageId == 0 {
+		return ext.ContinueGroups
 	}
 	pending := false
 	if m := cache.GetMarshal(); m != nil {
-		for _, key := range keys {
-			var marker []byte
-			if _, err := m.Get(cache.Context, key, &marker); err == nil {
-				pending = true
-				_ = m.Delete(cache.Context, key)
-			}
+		key := setlogPendingKey(origin.Chat.Id, origin.MessageId)
+		var marker []byte
+		if _, err := m.Get(cache.Context, key, &marker); err == nil {
+			pending = true
+			_ = m.Delete(cache.Context, key)
 		}
 	}
 	if !pending {

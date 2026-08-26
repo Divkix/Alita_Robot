@@ -363,6 +363,8 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 				} else {
 					text, _ = tr.GetString("connections_stale_connection")
 				}
+			} else if allowed, denyKey := canUserConnectToChat(b, chatId, user.Id); !allowed {
+				text, _ = tr.GetString(denyKey)
 			} else if err := connections.ConnectId(user.Id, chatId); err != nil {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {

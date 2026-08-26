@@ -67,12 +67,7 @@ func callbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 // checkAnonAdmin handles anonymous admin checks.
 // Returns true if user should be treated as admin (anon bypass enabled),
 // false if anon keyboard was sent, and a bool indicating if caller should return immediately.
-// skipKeyboard prevents spamming keyboards when called from high-volume watchers.
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
-	return checkAnonAdminWithOptions(b, chat, msg, sender, false)
-}
-
-func checkAnonAdminWithOptions(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender, skipKeyboard bool) (isAdmin bool, shouldReturn bool) {
 	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
 	}
@@ -83,11 +78,9 @@ func checkAnonAdminWithOptions(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.
 		return false, true
 	}
 	setAnonAdminCache(chat.Id, msg)
-	if !skipKeyboard {
-		_, err := sendAnonAdminKeyboard(b, msg, chat)
-		if err != nil {
-			log.Error(err)
-		}
+	_, err := sendAnonAdminKeyboard(b, msg, chat)
+	if err != nil {
+		log.Error(err)
 	}
 	return false, true
 }

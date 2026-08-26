@@ -131,6 +131,14 @@ func DeleteFederation(fedID string) error {
 	if err != nil {
 		return err
 	}
+	bans, err := ListFedBans(fedID)
+	if err != nil {
+		return err
+	}
+	var subscribers []models.FederationSub
+	if err := db.GetRecords(&subscribers, models.FederationSub{SubscribedFedID: fedID}); err != nil {
+		return err
+	}
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("fed_id = ?", fedID).Delete(&models.FederationBan{}).Error; err != nil {
 			return err
@@ -154,6 +162,12 @@ func DeleteFederation(fedID string) error {
 	invalidateFed(fedID)
 	for _, chatID := range chatIDs {
 		invalidateChat(chatID)
+	}
+	for _, ban := range bans {
+		invalidateBan(fedID, ban.UserID)
+	}
+	for _, sub := range subscribers {
+		cache.DeleteCache(cache.CacheKey(cachePrefixFedSubs, sub.FedID))
 	}
 	return nil
 }

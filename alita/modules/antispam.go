@@ -44,18 +44,6 @@ func shardFor(key spamKey) *spamShard {
 	return &antiSpamShards[hash%16]
 }
 
-func syncLegacyMap(key spamKey, info *antiSpamInfo) {
-	antiSpamMutex.Lock()
-	antiSpamMap[key] = info
-	antiSpamMutex.Unlock()
-}
-
-// legacy aliases kept for test compatibility (go vet: antispam_test.go references these)
-var (
-	antiSpamMutex sync.Mutex
-	antiSpamMap   = make(map[spamKey]*antiSpamInfo)
-)
-
 func init() {
 	for i := range antiSpamShards {
 		antiSpamShards[i].m = make(map[spamKey]*antiSpamInfo)
@@ -90,14 +78,6 @@ func cleanupExpiredAntiSpam(now time.Time) {
 		}
 		shard.mu.Unlock()
 	}
-	// legacy map cleanup for test compatibility
-	antiSpamMutex.Lock()
-	defer antiSpamMutex.Unlock()
-	for key, info := range antiSpamMap {
-		if info == nil || now.Sub(info.WindowStart) >= 2*antiSpamWindow {
-			delete(antiSpamMap, key)
-		}
-	}
 }
 
 // spamCheck performs spam detection for a specific user in a chat.
@@ -112,7 +92,6 @@ func spamCheck(key spamKey) bool {
 	if !ok || info == nil {
 		info = &antiSpamInfo{Count: 1, WindowStart: now}
 		shard.m[key] = info
-		syncLegacyMap(key, info)
 		return false
 	}
 
@@ -122,7 +101,6 @@ func spamCheck(key spamKey) bool {
 	}
 
 	info.Count++
-	syncLegacyMap(key, info)
 	return info.Count >= antiSpamLimit
 }
 

@@ -909,70 +909,7 @@ rules_help_msg:
   × /resetrulesbutton: Reset the text of the rules button to default.
 
   × /resetrulesbtn: Same as above."
-utils_chat_status_anon_admin_btn: Confirm your Identity
-utils_chat_status_anon_admin_string:
-  It looks like you're anonymous. Tap this button
-  to confirm your identity.
-utils_chat_status_bot_no_permission_delete: I don't have Permission to Delete Messages!
-utils_chat_status_bot_no_permission_pin:
-  I can't pin messages here! Make sure I'm
-  admin and can pin messages.
-utils_chat_status_bot_no_permission_promote:
-  I can't promote/demote people here! Make
-  sure I'm an admin and can appoint new admins.
-utils_chat_status_bot_no_permission_restrict:
-  I don't have permission to restrict
-  members!
-utils_chat_status_bot_no_permission_restrict_group:
-  I can't restrict people here!
-  Make sure I'm admin and can restrict other members.
-utils_chat_status_bot_require_admin:
-  I'm not an admin! Make sure I'm an admin and
-  have appropriate permissions.
-utils_chat_status_require_group:
-  This command is made to be used in group chats, not
-  in PM!
-utils_chat_status_require_private: This command is made for PM, not group chat!
-utils_chat_status_user_no_permission_change_info_btn:
-  You don't have permission to
-  change info!!
-utils_chat_status_user_no_permission_change_info_cmd:
-  You don't have permission to
-  change info in this group!
-utils_chat_status_user_no_permission_delete: You don't have Permission to Delete Messages!
-utils_chat_status_user_no_permission_pin:
-  You can't pin messages here! Make sure you're
-  an admin and can pin messages.
-utils_chat_status_user_no_permission_promote_btn:
-  You don't have permission to promote/demote
-  members!!
-utils_chat_status_user_no_permission_promote_cmd:
-  You can't promote/demote people
-  here! Make sure you have appropriate rights!
-utils_chat_status_user_no_permission_restrict_btn:
-  You don't have permission to restrict
-  members!
-utils_chat_status_user_no_permission_restrict_cmd:
-  You don't have permission to restrict
-  members in this group!
-utils_chat_status_user_require_admin_btn: You need to be an admin to do this!
-utils_chat_status_user_require_admin_cmd: Only admins can execute this command!
-utils_chat_status_user_require_owner_btn: You need to be the group creator to do this!
-utils_chat_status_user_require_owner_cmd: Only group creator to do this!
-utils_extraction_extract_chat_badrequest_failed_getchat:
-  "failed to connect to chat:
-  failed to get chat: unable to getChat: Bad Request: chat not found"
-utils_extraction_extract_chat_fail_need_chat: I need a Chat ID to connect!
-utils_extraction_extract_chat_fail_need_chat_id:
-  I expected a Chat ID, but this isn't
-  a valid integer.
-utils_extraction_extract_user_badrequest_failed_getchatmember:
-  "failed to get user:
-  unable to getChatMember: Bad Request: chat not found"
 bot_updates_creators_plug: "\nFollow @DivideProjects for more useful bots from my creators."
-utils_extraction_extract_user_no_user_found:
-  Could not find a user by this name; are
-  you sure I've seen them before?
 utils_string_handling_extract_time_invalid_time_amount: Invalid time amount specified.
 utils_string_handling_extract_time_invalid_time_type:
   "Invalid time type specified.
@@ -1660,16 +1597,6 @@ helpers_module_help_header: "Here is the help for the *%s* module:\n\n"
 helpers_invalid_deep_link: "Invalid or malformed deep link. Please check the URL and try again."
 helpers_chat_not_found: "Could not find the chat associated with this link. The chat may no longer exist or I may not have access to it."
 
-# Repository validation errors
-repo_user_nil_error: "user cannot be nil"
-repo_user_id_zero_error: "user ID cannot be zero"
-repo_username_empty_error: "username cannot be empty"
-repo_user_not_found: "user %d not found"
-repo_user_at_index_nil: "user at index %d cannot be nil"
-repo_user_at_index_zero_id: "user at index %d has zero ID"
-repo_chat_nil_error: "chat cannot be nil"
-repo_chat_id_zero_error: "chat ID cannot be zero"
-repo_chat_not_found: "chat %d not found"
 
 # Formatting strings
 format_user_info: "User: %s"
@@ -1682,10 +1609,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "safety manager is shutting down"
 system_timeout_worker: "timeout acquiring worker slot for %s"
 system_shutdown_acquisition: "safety manager shutdown during slot acquisition"
-pipeline_no_processor: "no processor registered for stage: %s"
-pipeline_shutting_down: "pipeline shutting down, skipping stage: %s"
-pipeline_processor_timeout: "processor timeout for stage: %s"
-pipeline_results_timeout: "timeout waiting for processing results"
 
 # Captcha additional validation
 captcha_no_active_attempt: "no active captcha attempt found"
@@ -1839,15 +1762,8 @@ antiflood_button_unban_admins: "Unban (Admins Only)"
 # Helpers module strings
 helpers_notes_current_header: "These are the current notes in this Chat:\n"
 
-# Validation errors
 
 # Configuration errors
-config_bot_token_required: "BOT_TOKEN is required"
-config_owner_id_required: "OWNER_ID is required and must be greater than 0"
-config_message_dump_required: "MESSAGE_DUMP is required and must be greater than 0"
-config_database_url_required: "DATABASE_URL is required"
-config_redis_address_required: "REDIS_ADDRESS is required"
-config_webhook_domain_required: "WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled"
 config_workers_invalid: "%s must be between %d and %d"
 
 # System messages
@@ -1855,13 +1771,6 @@ system_db_connected: "Connected to PostgreSQL database successfully!"
 system_config_loaded: "Configuration loaded and validated successfully"
 
 # Database query errors
-db_lock_queries_not_initialized: "lock queries not initialized"
-db_user_queries_not_initialized: "user queries not initialized"
-db_chat_queries_not_initialized: "chat queries not initialized"
-db_antiflood_queries_not_initialized: "antiflood queries not initialized"
-db_filter_queries_not_initialized: "filter queries not initialized"
-db_blacklist_queries_not_initialized: "blacklist queries not initialized"
-db_channel_queries_not_initialized: "channel queries not initialized"
 db_type_assertion_failed: "type assertion to []byte failed"
 
 # Default button texts
@@ -2530,12 +2439,6 @@ reactions_button_remove: "Remove Reaction"
 # Database default strings
 db_blacklist_default_reason: "Blacklisted word: '%s'"
 
-# Duration formatting strings
-duration_format_seconds: "%d seconds"
-duration_format_minutes_seconds: "%d minutes %d seconds"
-duration_format_minutes: "%d minutes"
-duration_format_hours_minutes: "%d hours %d minutes"
-duration_format_hours: "%d hours"
 
 # AntiRaid module strings
 antiraid_help_msg: |

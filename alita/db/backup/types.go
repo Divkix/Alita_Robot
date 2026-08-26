@@ -155,17 +155,6 @@ func IsValidModule(module string) bool {
 	return false
 }
 
-// FilterValidModules returns only valid module names from a list
-func FilterValidModules(modules []string) []string {
-	var valid []string
-	for _, m := range modules {
-		if IsValidModule(m) {
-			valid = append(valid, m)
-		}
-	}
-	return valid
-}
-
 // Per-module backup data structures - using existing db types
 
 // AdminBackup represents admin settings backup data
