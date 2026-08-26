@@ -314,24 +314,35 @@ func IsFedAdmin(fedID string, userID int64) bool {
 	return false
 }
 
-// ListFedAdmins returns promoted admin user IDs (not including the owner).
-func ListFedAdmins(fedID string) []int64 {
-	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefixFedAdmin, fedID), cache.CacheTTLFederation, func() ([]int64, error) {
-		var rows []models.FederationAdmin
-		if err := db.GetRecords(&rows, models.FederationAdmin{FedID: fedID}); err != nil {
+// listCachedColumn loads rows matching filter through the read-through cache
+// and returns the values selected by pick.
+func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick func(Row) ID) []ID {
+	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLFederation, func() ([]ID, error) {
+		var rows []Row
+		if err := db.GetRecords(&rows, filter); err != nil {
 			return nil, err
 		}
-		ids := make([]int64, 0, len(rows))
+		ids := make([]ID, 0, len(rows))
 		for _, row := range rows {
-			ids = append(ids, row.UserID)
+			ids = append(ids, pick(row))
 		}
 		return ids, nil
 	})
 	if err != nil {
-		log.Errorf("[Federations] ListFedAdmins: %v", err)
+		log.Errorf("[Federations] %s: %v", op, err)
 		return nil
 	}
 	return result
+}
+
+// ListFedAdmins returns promoted admin user IDs (not including the owner).
+func ListFedAdmins(fedID string) []int64 {
+	return listCachedColumn(
+		cache.CacheKey(cachePrefixFedAdmin, fedID),
+		"ListFedAdmins",
+		models.FederationAdmin{FedID: fedID},
+		func(row models.FederationAdmin) int64 { return row.UserID },
+	)
 }
 
 // PromoteFedAdmin adds a federation admin. Only the owner should call this.
@@ -598,26 +609,12 @@ func UnsubscribeFed(subscriberFedID, targetFedID string) error {
 
 // ListSubscribedFedIDs returns federations subscriberFedID is subscribed to.
 func ListSubscribedFedIDs(subscriberFedID string) []string {
-	result, err := cache.GetFromCacheOrLoad(
+	return listCachedColumn(
 		cache.CacheKey(cachePrefixFedSubs, subscriberFedID),
-		cache.CacheTTLFederation,
-		func() ([]string, error) {
-			var rows []models.FederationSub
-			if err := db.GetRecords(&rows, models.FederationSub{FedID: subscriberFedID}); err != nil {
-				return nil, err
-			}
-			ids := make([]string, 0, len(rows))
-			for _, row := range rows {
-				ids = append(ids, row.SubscribedFedID)
-			}
-			return ids, nil
-		},
+		"ListSubscribedFedIDs",
+		models.FederationSub{FedID: subscriberFedID},
+		func(row models.FederationSub) string { return row.SubscribedFedID },
 	)
-	if err != nil {
-		log.Errorf("[Federations] ListSubscribedFedIDs: %v", err)
-		return nil
-	}
-	return result
 }
 
 // ChatsContainingUser returns the subset of chatIDs whose stored members

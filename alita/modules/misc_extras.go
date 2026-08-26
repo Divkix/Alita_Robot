@@ -213,26 +213,35 @@ func lookupGitHubRepo(owner, repo string) (string, error) {
 	), nil
 }
 
-func (moduleStruct) wiki(b *gotgbot.Bot, ctx *ext.Context) error {
+func lookupAndReply(
+	b *gotgbot.Bot,
+	ctx *ext.Context,
+	cmd, usageKey, failKey string,
+	lookup func(string) (string, error),
+) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, "wiki") {
+	if chat_status.CheckDisabledCmd(b, msg, cmd) {
 		return ext.EndGroups
 	}
 	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
 	if query == "" {
-		text, _ := tr.GetString("misc_wiki_usage")
+		text, _ := tr.GetString(usageKey)
 		replyMisc(b, msg, text)
 		return ext.EndGroups
 	}
-	text, err := lookupWikipedia(query)
+	text, err := lookup(query)
 	if err != nil {
-		fail, _ := tr.GetString("misc_wiki_not_found")
+		fail, _ := tr.GetString(failKey)
 		replyMisc(b, msg, fail)
 		return ext.EndGroups
 	}
 	replyMisc(b, msg, text)
 	return ext.EndGroups
+}
+
+func (moduleStruct) wiki(b *gotgbot.Bot, ctx *ext.Context) error {
+	return lookupAndReply(b, ctx, "wiki", "misc_wiki_usage", "misc_wiki_not_found", lookupWikipedia)
 }
 
 func lookupWikipedia(query string) (string, error) {
@@ -272,25 +281,7 @@ func lookupWikipedia(query string) (string, error) {
 }
 
 func (moduleStruct) urbanDict(b *gotgbot.Bot, ctx *ext.Context) error {
-	msg := ctx.EffectiveMessage
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	if chat_status.CheckDisabledCmd(b, msg, "ud") {
-		return ext.EndGroups
-	}
-	query := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
-	if query == "" {
-		text, _ := tr.GetString("misc_ud_usage")
-		replyMisc(b, msg, text)
-		return ext.EndGroups
-	}
-	text, err := lookupUrbanDictionary(query)
-	if err != nil {
-		fail, _ := tr.GetString("misc_ud_not_found")
-		replyMisc(b, msg, fail)
-		return ext.EndGroups
-	}
-	replyMisc(b, msg, text)
-	return ext.EndGroups
+	return lookupAndReply(b, ctx, "ud", "misc_ud_usage", "misc_ud_not_found", lookupUrbanDictionary)
 }
 
 func lookupUrbanDictionary(query string) (string, error) {

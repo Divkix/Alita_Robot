@@ -418,13 +418,13 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	bld.WriteString(header)
 	bld.WriteString("\n")
-	bld.WriteString(fmt.Sprintf("• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, "owner"), fed.OwnerID))
+	fmt.Fprintf(&bld, "• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, "owner"), fed.OwnerID)
 	for _, adminID := range federations.ListFedAdmins(fed.FedID) {
 		_, name, found := user.GetUserInfoById(adminID)
 		if !found || name == "" {
 			name = strconv.FormatInt(adminID, 10)
 		}
-		bld.WriteString(fmt.Sprintf("\n• %s (<code>%d</code>)", formatting.MentionHtml(adminID, name), adminID))
+		fmt.Fprintf(&bld, "\n• %s (<code>%d</code>)", formatting.MentionHtml(adminID, name), adminID)
 	}
 	replyFed(b, msg, bld.String())
 	return ext.EndGroups
@@ -486,7 +486,7 @@ func (moduleStruct) myFeds(b *gotgbot.Bot, ctx *ext.Context) error {
 		if fed.OwnerID == from.Id {
 			role = "owner"
 		}
-		bld.WriteString(fmt.Sprintf("\n• <b>%s</b> (<code>%s</code>) — %s", html.EscapeString(fed.Name), fed.FedID, role))
+		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>) — %s", html.EscapeString(fed.Name), fed.FedID, role)
 	}
 	replyFed(b, msg, bld.String())
 	return ext.EndGroups
@@ -874,7 +874,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 		if fed := federations.GetFed(ban.FedID); fed != nil {
 			name = fed.Name
 		}
-		bld.WriteString(fmt.Sprintf("\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), ban.FedID))
+		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), ban.FedID)
 	}
 	replyFed(b, msg, bld.String())
 	return ext.EndGroups
@@ -970,7 +970,7 @@ func (moduleStruct) fedSubs(b *gotgbot.Bot, ctx *ext.Context) error {
 		if sub := federations.GetFed(id); sub != nil {
 			name = sub.Name
 		}
-		bld.WriteString(fmt.Sprintf("\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), id))
+		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), id)
 	}
 	replyFed(b, msg, bld.String())
 	return ext.EndGroups
