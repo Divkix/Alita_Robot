@@ -636,10 +636,10 @@ m != nil`) — every helper bails when it's nil.
   and must be converted with `formatting.ToTelegramHTML` (which uses
   `tgmd2html.MD2HTMLV2`). Newer module help (reactions, backup, approvals, antispam)
   and most status strings are already HTML — `ToTelegramHTML` keeps Telegram tags
-  (`<b>`, `<code>`, …) and only escapes leftover `<keyword>` placeholders. Some
-  short status strings are sent as HTML without conversion; whether to convert
-  depends on the specific key. Never run `MD2HTMLV2` on a concatenated
-  markdown-header + HTML-body string.
+  (`<b>`, `<code>`, …) when both an opener and closer are present, and only
+  escapes leftover `<keyword>` placeholders. Some short status strings are sent
+  as HTML without conversion; whether to convert depends on the specific key.
+  Never run `MD2HTMLV2` on a concatenated markdown-header + HTML-body string.
 - Adding a user-facing string: add the key to **all 7** locale files (en-only works
   via fallback but is silent English leakage). `%d` needs a real int.
 
