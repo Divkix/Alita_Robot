@@ -15,9 +15,16 @@ var telegramHTMLTagRe = regexp.MustCompile(
 	`(?i)</?(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|span|tg-emoji|a)(?:\s[^>]*)?>`,
 )
 
-// telegramHTMLCloseTagRe detects already-authored Telegram HTML. Closing tags
-// are the signal: markdown help uses placeholders like <trigger>, which would
-// otherwise look like opening tags.
+// telegramHTMLOpenTagRe matches opening Telegram HTML tags. Combined with
+// telegramHTMLCloseTagRe, this avoids treating a markdown code span such as
+// `</b>` as an HTML-authored string.
+var telegramHTMLOpenTagRe = regexp.MustCompile(
+	`(?i)<(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|span|tg-emoji|a)(?:\s[^>]*)?>`,
+)
+
+// telegramHTMLCloseTagRe matches closing Telegram HTML tags. Markdown help
+// uses placeholders like <trigger>, which would otherwise look like opening
+// tags, so a closer alone is not enough to select the HTML path.
 var telegramHTMLCloseTagRe = regexp.MustCompile(
 	`(?i)</(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|span|tg-emoji|a)>`,
 )
@@ -41,12 +48,16 @@ func ToTelegramHTML(s string) string {
 		return s
 	}
 	var out string
-	if telegramHTMLCloseTagRe.MatchString(core) {
+	if looksLikeTelegramHTML(core) {
 		out = preserveTelegramHTML(core)
 	} else {
 		out = tgmd2html.MD2HTMLV2(core)
 	}
 	return leading + out + trailing
+}
+
+func looksLikeTelegramHTML(s string) bool {
+	return telegramHTMLOpenTagRe.MatchString(s) && telegramHTMLCloseTagRe.MatchString(s)
 }
 
 func splitEdgeNewlines(s string) (leading, core, trailing string) {

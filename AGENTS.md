@@ -352,7 +352,9 @@ uses `RegisterLegacyModule`.
   `_help_msg` strings (reactions, backup, approvals, antispam) are already HTML,
   and that path escapes `<b>` into visible tags. Markdown bodies still convert
   through `MD2HTMLV2`; HTML bodies keep Telegram tags and escape leftover
-  placeholders like `<keyword>`.
+  placeholders like `<keyword>`. HTML is detected only when both an opening and
+  a closing Telegram tag are present, so a markdown code span like `` `</b>` ``
+  stays on the markdown path.
 - ⚠️ `moduleStruct` is passed **by value** to handler methods, so it must never
   embed a mutex/`sync.Map`. Temporary note/filter overwrite payloads live in
   Redis, outside the copied module value.

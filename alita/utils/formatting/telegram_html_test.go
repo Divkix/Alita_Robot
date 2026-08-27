@@ -105,3 +105,30 @@ func TestToTelegramHTMLEmpty(t *testing.T) {
 		t.Fatalf("ToTelegramHTML(newlines) = %q, want unchanged newlines", got)
 	}
 }
+
+func TestToTelegramHTMLMarkdownCloseTagInCodeSpanStaysMarkdown(t *testing.T) {
+	t.Parallel()
+
+	got := ToTelegramHTML("Use `</b>` to end *bold* text.")
+	if strings.Contains(got, "`") {
+		t.Fatalf("ToTelegramHTML() treated markdown as HTML: %q", got)
+	}
+	if !strings.Contains(got, "<code>") || !strings.Contains(got, "&lt;/b&gt;") {
+		t.Fatalf("ToTelegramHTML() = %q, want markdown code span around escaped </b>", got)
+	}
+	if !strings.Contains(got, "<b>bold</b>") {
+		t.Fatalf("ToTelegramHTML() = %q, want converted markdown bold", got)
+	}
+}
+
+func TestToTelegramHTMLOpenTagWithoutCloserStaysMarkdown(t *testing.T) {
+	t.Parallel()
+
+	got := ToTelegramHTML("Mention <b> in *help* text")
+	if !strings.Contains(got, "&lt;b&gt;") {
+		t.Fatalf("ToTelegramHTML() = %q, want escaped standalone <b>", got)
+	}
+	if !strings.Contains(got, "<b>help</b>") {
+		t.Fatalf("ToTelegramHTML() = %q, want converted markdown bold", got)
+	}
+}

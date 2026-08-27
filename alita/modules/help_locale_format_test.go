@@ -5,11 +5,14 @@ package modules
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
+
+var leftoverMarkdownBold = regexp.MustCompile(`\*[^*\s][^*]*\*`)
 
 func TestAllLocaleHelpMessagesKeepHTMLTags(t *testing.T) {
 	t.Parallel()
@@ -54,11 +57,27 @@ func TestAllLocaleHelpMessagesKeepHTMLTags(t *testing.T) {
 					break
 				}
 			}
+			if isHTMLAuthoredHelp(helpMsg) {
+				if strings.Contains(helpMsg, "`") {
+					t.Errorf("%s %s HTML help contains markdown backticks", path, key)
+				}
+				if leftoverMarkdownBold.MatchString(helpMsg) {
+					t.Errorf("%s %s HTML help contains leftover *bold* markdown", path, key)
+				}
+			}
 		}
 	}
 	if checked == 0 {
 		t.Fatal("no *_help_msg keys found in locales")
 	}
+}
+
+func isHTMLAuthoredHelp(s string) bool {
+	hasOpen := strings.Contains(s, "<b>") || strings.Contains(s, "<code>") ||
+		strings.Contains(s, "<i>") || strings.Contains(s, "<u>")
+	hasClose := strings.Contains(s, "</b>") || strings.Contains(s, "</code>") ||
+		strings.Contains(s, "</i>") || strings.Contains(s, "</u>")
+	return hasOpen && hasClose
 }
 
 func findLocalesDir(t *testing.T) string {
