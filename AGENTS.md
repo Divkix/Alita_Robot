@@ -346,7 +346,15 @@ uses `RegisterLegacyModule`.
   `GetAbleMap` / `ResetHelpRegistry`. Writes still happen during single-threaded
   startup — do not write it from a handler.
 - `helpableKb` keys are the **Title-cased** module name; per-module help text comes
-  from i18n key `<lowercase>_help_msg` rendered via `tgmd2html.MD2HTMLV2`.
+  from i18n key `<lowercase>_help_msg`. `getModuleHelpAndKb` converts the markdown
+  header (`helpers_module_help_header`) and the body **independently** via
+  `formatting.ToTelegramHTML`. Do **not** concatenate then run `MD2HTMLV2` — newer
+  `_help_msg` strings (reactions, backup, approvals, antispam) are already HTML,
+  and that path escapes `<b>` into visible tags. Markdown bodies still convert
+  through `MD2HTMLV2`; HTML bodies keep Telegram tags and escape leftover
+  placeholders like `<keyword>`. HTML is detected only when both an opening and
+  a closing Telegram tag are present, so a markdown code span like `` `</b>` ``
+  stays on the markdown path.
 - ⚠️ `moduleStruct` is passed **by value** to handler methods, so it must never
   embed a mutex/`sync.Map`. Temporary note/filter overwrite payloads live in
   Redis, outside the copied module value.
@@ -624,9 +632,14 @@ m != nil`) — every helper bails when it's nil.
   `extractOrderedValues` (`first,second,…,question,answer,number,count,value,name,
   user,username,…`). If you use a `%verb` with a param name not in that list, the
   mapping is dropped/misordered — extend `commonKeys`.
-- **Parse mode**: locale strings are authored in Markdown but the bot sends HTML —
-  convert via `tgmd2html.MD2HTMLV2`. Some short status strings are already authored
-  in HTML; whether to convert depends on the specific key.
+- **Parse mode**: locale strings are mixed. Legacy `_help_msg` strings are Markdown
+  and must be converted with `formatting.ToTelegramHTML` (which uses
+  `tgmd2html.MD2HTMLV2`). Newer module help (reactions, backup, approvals, antispam)
+  and most status strings are already HTML — `ToTelegramHTML` keeps Telegram tags
+  (`<b>`, `<code>`, …) when both an opener and closer are present, and only
+  escapes leftover `<keyword>` placeholders. Some short status strings are sent
+  as HTML without conversion; whether to convert depends on the specific key.
+  Never run `MD2HTMLV2` on a concatenated markdown-header + HTML-body string.
 - Adding a user-facing string: add the key to **all 7** locale files (en-only works
   via fallback but is silent English leakage). `%d` needs a real int.
 
@@ -925,7 +938,8 @@ locale files for user-facing changes. Never commit secrets/`.env`.
 
 **i18n**
 - Double-quote YAML with escapes; `%d` needs a real int; verify keys exist in **all**
-  locale files; convert Markdown→HTML for sends.
+  locale files; convert Markdown→HTML with `formatting.ToTelegramHTML` (do not run
+  `MD2HTMLV2` on strings that already contain `<b>`/`<code>`).
 
 **Boolean logic**
 - `IsAnonymousChannel() || IsLinkedChannel()` matches almost everything — test lock/
