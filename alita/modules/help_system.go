@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
@@ -62,7 +61,10 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 	tr := i18n.MustNewTranslator(lang)
 	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
 	headerTemplate, _ := tr.GetString("helpers_module_help_header")
-	helpText = tgmd2html.MD2HTMLV2(fmt.Sprintf(headerTemplate, ModName) + helpMsg)
+	// Convert the markdown header and the body independently. Concatenating
+	// first then running MD2HTMLV2 escapes already-HTML _help_msg strings
+	// (reactions/backup/approvals/antispam) into visible <b> tags.
+	helpText = renderModuleHelp(headerTemplate, ModName, helpMsg)
 
 	backText, _ := tr.GetString("common_back_arrow")
 	homeText, _ := tr.GetString("common_home")
@@ -82,6 +84,14 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 		InlineKeyboard: append(kb, backBtnSuffix),
 	}
 	return
+}
+
+// renderModuleHelp converts the markdown help header and the module body to
+// Telegram HTML independently so HTML-authored _help_msg strings keep their
+// tags instead of being escaped into visible <b> text.
+func renderModuleHelp(headerTemplate, modName, helpMsg string) string {
+	return formatting.ToTelegramHTML(fmt.Sprintf(headerTemplate, modName)) +
+		formatting.ToTelegramHTML(helpMsg)
 }
 
 // sendHelpkb sends help information for a specific module with navigation keyboard.

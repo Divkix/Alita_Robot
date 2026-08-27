@@ -133,3 +133,58 @@ func TestGetBotUsernameCachesStructAndGetMeFallbacks(t *testing.T) {
 		t.Fatalf("getBotUsername(nil) = %q, want empty", got)
 	}
 }
+
+func TestRenderModuleHelpHTMLBodyKeepsBoldTags(t *testing.T) {
+	t.Parallel()
+
+	header := "Here is the help for the *%s* module:\n\n"
+	body := `<b>🎭 Auto-Reactions</b>
+
+Automatically react to messages with specific keywords!
+
+<b>Admin Commands:</b>
+• /addreaction <keyword> <emoji> - Add an auto-reaction
+<b>Example:</b>
+• /addreaction hello 👋`
+
+	got := renderModuleHelp(header, "Reactions", body)
+	if strings.Contains(got, "&lt;b&gt;") || strings.Contains(got, "*Reactions*") {
+		t.Fatalf("renderModuleHelp() escaped HTML or left markdown: %q", got)
+	}
+	if !strings.Contains(got, "<b>Reactions</b>") {
+		t.Fatalf("renderModuleHelp() missing converted header bold: %q", got)
+	}
+	if !strings.Contains(got, "<b>🎭 Auto-Reactions</b>") {
+		t.Fatalf("renderModuleHelp() missing body heading: %q", got)
+	}
+	if !strings.Contains(got, "<b>Admin Commands:</b>") {
+		t.Fatalf("renderModuleHelp() missing Admin Commands heading: %q", got)
+	}
+	if !strings.Contains(got, "<b>Example:</b>") {
+		t.Fatalf("renderModuleHelp() missing Example heading: %q", got)
+	}
+	if !strings.Contains(got, "module:</b>\n\n<b>🎭 Auto-Reactions</b>") &&
+		!strings.Contains(got, "module:\n\n<b>🎭 Auto-Reactions</b>") {
+		t.Fatalf("renderModuleHelp() missing blank line between header and body: %q", got)
+	}
+	if !strings.Contains(got, "&lt;keyword&gt;") || !strings.Contains(got, "&lt;emoji&gt;") {
+		t.Fatalf("renderModuleHelp() did not escape placeholders: %q", got)
+	}
+}
+
+func TestRenderModuleHelpMarkdownBodyConvertsBold(t *testing.T) {
+	t.Parallel()
+
+	header := "Here is the help for the *%s* module:\n\n"
+	body := "*Admin Commands:*\n× /promote `<reply/username>`: Promote a user."
+	got := renderModuleHelp(header, "Admin", body)
+	if !strings.Contains(got, "<b>Admin</b>") {
+		t.Fatalf("renderModuleHelp(markdown) missing header bold: %q", got)
+	}
+	if !strings.Contains(got, "<b>Admin Commands:</b>") && !strings.Contains(got, "<b>Admin Commands</b>") {
+		t.Fatalf("renderModuleHelp(markdown) missing converted section heading: %q", got)
+	}
+	if strings.Contains(got, "<reply/username>") {
+		t.Fatalf("renderModuleHelp(markdown) left raw placeholder: %q", got)
+	}
+}
