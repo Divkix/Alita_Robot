@@ -146,14 +146,10 @@ func GetUserInfoById(userId int64) (username, name string, found bool) {
 }
 
 // LoadUsersStats returns the total count of users in the database.
-// Used for generating system statistics and monitoring.
+// On PostgreSQL, uses pg_class.reltuples estimate (O(1)) instead of COUNT(*)
+// to avoid a full-table-scan on the 39 MB users table.
 func LoadUsersStats() (count int64) {
-	result := db.DB.Model(&models.User{}).Count(&count)
-	if result.Error != nil {
-		log.Errorf("[Database] loadStats: %v", result.Error)
-		return
-	}
-	return
+	return db.TableRowCount("users")
 }
 
 // LoadUserActivityStats returns Daily Active Users, Weekly Active Users, and Monthly Active Users.

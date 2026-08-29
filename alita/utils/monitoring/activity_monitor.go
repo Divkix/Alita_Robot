@@ -193,8 +193,9 @@ func (am *ActivityMonitor) calculateMetrics() {
 		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).Count(&monthlyGroups).Error
 	}, "Error counting monthly active groups")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.Chat{}).Count(&totalGroups).Error
-	}, "Error counting total groups")
+		totalGroups = db.TableRowCount("chats")
+		return nil
+	}, "Error estimating total groups")
 	countAsync(&wg, func() error {
 		return db.DB.Model(&db.Chat{}).Where("is_inactive = ?", true).Count(&inactiveGroups).Error
 	}, "Error counting inactive groups")
@@ -208,8 +209,9 @@ func (am *ActivityMonitor) calculateMetrics() {
 		return db.DB.Model(&db.User{}).Where("last_activity >= ?", monthAgo).Count(&monthlyUsers).Error
 	}, "Error counting monthly active users")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.User{}).Count(&totalUsers).Error
-	}, "Error counting total users")
+		totalUsers = db.TableRowCount("users")
+		return nil
+	}, "Error estimating total users")
 
 	// Wait for all queries to complete
 	wg.Wait()

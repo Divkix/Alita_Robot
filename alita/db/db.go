@@ -138,6 +138,25 @@ func ChatExists(chatID int64) bool {
 	return true
 }
 
+// TableRowCount returns an estimated row count for the given table.
+// On PostgreSQL it uses pg_class.reltuples (O(1), maintained by ANALYZE),
+// avoiding the full-table-scan that COUNT(*) requires under MVCC.
+// On other databases (e.g. SQLite in tests) the pg_class query fails and it
+// falls back to COUNT(*).
+func TableRowCount(tableName string) int64 {
+	if DB == nil {
+		return 0
+	}
+	// Try PostgreSQL's pg_class.reltuples first (O(1) estimate).
+	var count int64
+	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil {
+		return count
+	}
+	// Fall back to COUNT(*) on non-PostgreSQL or on error.
+	DB.Table(tableName).Count(&count)
+	return count
+}
+
 // GetRecords retrieves multiple database records matching the where clause.
 func GetRecords(models any, where any) error {
 	ctx := context.Background()
