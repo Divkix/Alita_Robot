@@ -140,8 +140,13 @@ func TestGetChatSettings(t *testing.T) {
 	if settings.ChatName != chatName {
 		t.Errorf("GetChatSettings() ChatName = %q, want %q", settings.ChatName, chatName)
 	}
-	if !slices.Contains(settings.Users, userID) {
-		t.Errorf("GetChatSettings() Users = %v, want to contain %d", settings.Users, userID)
+	// Users is now fetched via GetChatUsersCached to avoid hot-path egress on GetChatSettings.
+	users, err := GetChatUsersCached(chatID)
+	if err != nil {
+		t.Fatalf("GetChatUsersCached() error = %v", err)
+	}
+	if !slices.Contains(users, userID) {
+		t.Errorf("GetChatUsersCached() Users = %v, want to contain %d", users, userID)
 	}
 }
 

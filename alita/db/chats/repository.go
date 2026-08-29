@@ -50,6 +50,7 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 		return fmt.Errorf("failed to ensure chat %d in database: %w", chatId, err)
 	}
 	cache.DeleteCache(cache.CacheKey("chat", chatId))
+	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
 	return nil
 }
 
@@ -79,6 +80,7 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		return err
 	}
 	defer cache.DeleteCache(cache.CacheKey("chat", chatId))
+	defer cache.DeleteCache(cache.CacheKey("chat_users", chatId))
 
 	// Atomically append userid only if not already present in the JSON array
 	result := db.DB.Exec(

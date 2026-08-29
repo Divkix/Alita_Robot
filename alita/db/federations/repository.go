@@ -646,7 +646,7 @@ func ChatsContainingUser(userID int64, chatIDs []int64) []int64 {
 		return nil
 	}
 	var rows []models.Chat
-	if err := db.DB.Where("chat_id IN ?", chatIDs).Find(&rows).Error; err != nil {
+	if err := db.DB.Model(&models.Chat{}).Select("chat_id, users").Where("chat_id IN ?", chatIDs).Find(&rows).Error; err != nil {
 		log.Errorf("[Federations] ChatsContainingUser: %v", err)
 		return nil
 	}

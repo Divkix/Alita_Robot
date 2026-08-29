@@ -82,7 +82,8 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	scanText, _ := tr.GetString("misc_zombies_scanning")
 	replyHTML(b, msg, scanText)
 	cleaned := 0
-	for _, userID := range chats.GetChatSettings(chat.Id).Users {
+	users, _ := chats.GetChatUsersCached(chat.Id)
+	for _, userID := range users {
 		if !chat_status.IsValidUserId(userID) || userID == b.Id {
 			continue
 		}

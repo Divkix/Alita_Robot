@@ -25,7 +25,7 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 
 	var chat models.Chat
 	err := db.DB.Model(&models.Chat{}).
-		Select("id, chat_id, chat_name, language, users, is_inactive, last_activity").
+		Select("id, chat_id, chat_name, language, is_inactive, last_activity").
 		Where("chat_id = ?", chatID).
 		First(&chat).Error
 
@@ -68,4 +68,67 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 	}
 
 	return cached.Chat, nil
+}
+
+// ChatUsersCacheEntry is an explicit cache payload for the users array.
+type ChatUsersCacheEntry struct {
+	Found bool
+	Users models.Int64Array
+}
+
+// GetChatUsers retrieves only the users array for a chat.
+// Optimized to avoid fetching large columns on the hot path.
+func GetChatUsers(chatID int64) (models.Int64Array, error) {
+	if db.DB == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var chat models.Chat
+	err := db.DB.Model(&models.Chat{}).
+		Select("users").
+		Where("chat_id = ?", chatID).
+		First(&chat).Error
+
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Errorf("[chats.GetChatUsers] GetChatUsers: %v", err)
+		}
+		return nil, err
+	}
+
+	return chat.Users, nil
+}
+
+// GetChatUsersCached retrieves the users array with caching layer for improved performance.
+// Uses cache.CacheTTLChatSettings TTL and falls back to direct query if cache fails.
+func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
+	cacheKey := cache.CacheKey("chat_users", chatID)
+
+	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (ChatUsersCacheEntry, error) {
+		users, err := GetChatUsers(chatID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ChatUsersCacheEntry{Found: false, Users: nil}, nil
+		}
+		if err != nil {
+			return ChatUsersCacheEntry{}, err
+		}
+		return ChatUsersCacheEntry{Found: true, Users: users}, nil
+	})
+	if err != nil {
+		// Cache/serialization error: fall back to direct DB query.
+		users, dbErr := GetChatUsers(chatID)
+		if dbErr == nil {
+			return users, nil
+		}
+		if errors.Is(dbErr, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, dbErr
+	}
+
+	if !cached.Found {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return cached.Users, nil
 }

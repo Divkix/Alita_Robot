@@ -1162,9 +1162,13 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	switch action {
 	case "yes":
 		chatID := query.Message.GetChat().Id
-		known := chats.GetChatSettings(chatID)
+		users, err := chats.GetChatUsersCached(chatID)
+		if err != nil {
+			log.Debugf("[Bans] unbanall GetChatUsersCached %d: %v", chatID, err)
+			users = nil
+		}
 		unbanned := 0
-		for _, userID := range known.Users {
+		for _, userID := range users {
 			if !chat_status.IsValidUserId(userID) || userID == b.Id {
 				continue
 			}
