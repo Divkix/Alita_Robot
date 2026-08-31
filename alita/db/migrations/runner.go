@@ -905,6 +905,9 @@ func (m *MigrationRunner) verifyIndexes() error {
 		"captcha_attempts": {
 			"uk_captcha_user_chat": {"user_id", "chat_id"},
 		},
+		"approved_users": {
+			"idx_approved_users_chat_id": {"chat_id"}, // Restored by 20260831230000; dropped once as "unused" and missed
+		},
 	}
 
 	verified := 0
