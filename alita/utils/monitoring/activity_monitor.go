@@ -183,35 +183,48 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	var wg sync.WaitGroup
 
+	// Windowed activity counts (distinct buckets; runs concurrently via
+	// countAsync). The daily/weekly/monthly predicates are index-friendly
+	// on (is_inactive, last_activity).
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).Count(&dailyGroups).Error
+		return db.DB.Model(&db.Chat{}).
+			Where("is_inactive = ? AND last_activity >= ?", false, dayAgo).
+			Count(&dailyGroups).Error
 	}, "Error counting daily active groups")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).Count(&weeklyGroups).Error
+		return db.DB.Model(&db.Chat{}).
+			Where("is_inactive = ? AND last_activity >= ?", false, weekAgo).
+			Count(&weeklyGroups).Error
 	}, "Error counting weekly active groups")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.Chat{}).Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).Count(&monthlyGroups).Error
+		return db.DB.Model(&db.Chat{}).
+			Where("is_inactive = ? AND last_activity >= ?", false, monthAgo).
+			Count(&monthlyGroups).Error
 	}, "Error counting monthly active groups")
-	countAsync(&wg, func() error {
-		totalGroups = db.TableRowCount("chats")
-		return nil
-	}, "Error estimating total groups")
 	countAsync(&wg, func() error {
 		return db.DB.Model(&db.Chat{}).Where("is_inactive = ?", true).Count(&inactiveGroups).Error
 	}, "Error counting inactive groups")
+	// Windowless total: cheap reltuples estimate (pg_class) instead of an
+	// exact COUNT(*) scan.
+	totalGroups = db.TableRowCount("chats")
+
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.User{}).Where("last_activity >= ?", dayAgo).Count(&dailyUsers).Error
+		return db.DB.Model(&db.User{}).
+			Where("last_activity >= ?", dayAgo).
+			Count(&dailyUsers).Error
 	}, "Error counting daily active users")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.User{}).Where("last_activity >= ?", weekAgo).Count(&weeklyUsers).Error
+		return db.DB.Model(&db.User{}).
+			Where("last_activity >= ?", weekAgo).
+			Count(&weeklyUsers).Error
 	}, "Error counting weekly active users")
 	countAsync(&wg, func() error {
-		return db.DB.Model(&db.User{}).Where("last_activity >= ?", monthAgo).Count(&monthlyUsers).Error
+		return db.DB.Model(&db.User{}).
+			Where("last_activity >= ?", monthAgo).
+			Count(&monthlyUsers).Error
 	}, "Error counting monthly active users")
-	countAsync(&wg, func() error {
-		totalUsers = db.TableRowCount("users")
-		return nil
-	}, "Error estimating total users")
+	// Windowless total: cheap reltuples estimate (pg_class).
+	totalUsers = db.TableRowCount("users")
 
 	// Wait for all queries to complete
 	wg.Wait()

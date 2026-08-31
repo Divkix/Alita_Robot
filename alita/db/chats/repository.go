@@ -3,6 +3,7 @@ package chats
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -81,6 +82,12 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	}
 	defer cache.DeleteCache(cache.CacheKey("chat", chatId))
 	defer cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+
+	// Fast path: skip the atomic append when the user is already a member
+	// (99.3% of calls). Uses the cached chat-users list (30 min TTL).
+	if users, err := GetChatUsersCached(chatId); err == nil && slices.Contains(users, userid) {
+		return nil
+	}
 
 	// Atomically append userid only if not already present in the JSON array
 	result := db.DB.Exec(

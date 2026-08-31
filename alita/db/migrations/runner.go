@@ -67,6 +67,18 @@ func (m *MigrationRunner) RunMigrations() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
+	// Fast path: skip ~2N per-file status queries when every migration file
+	// already has an applied record (count matches file count).
+	var appliedCount int64
+	if err := m.db.Model(&SchemaMigration{}).Count(&appliedCount).Error; err != nil {
+		return fmt.Errorf("failed to count applied migrations: %w", err)
+	}
+	if appliedCount == int64(len(files)) {
+		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
+		m.logMigrationStatus()
+		return nil
+	}
+
 	// Track statistics
 	applied := 0
 	skipped := 0
