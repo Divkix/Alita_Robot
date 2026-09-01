@@ -221,6 +221,67 @@ func TestUpdateChatReturnsAtomicAppendError(t *testing.T) {
 	}
 }
 
+func TestUpdateChatThrottlesActivityRefresh(t *testing.T) {
+	withChatSQLite(t)
+
+	const (
+		chatID  = int64(-100555)
+		userID  = int64(555)
+		name    = "throttle-chat"
+		renamed = "throttle-chat-renamed"
+	)
+
+	loadChat := func() models.Chat {
+		t.Helper()
+		var chat models.Chat
+		if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
+			t.Fatalf("load chat: %v", err)
+		}
+		return chat
+	}
+	// SQLite stores these timestamps as text and compares them lexicographically,
+	// so pinned values must keep the local representation the driver writes.
+	pinActivity := func(at time.Time) {
+		t.Helper()
+		if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
+			Update("last_activity", at).Error; err != nil {
+			t.Fatalf("pin last_activity: %v", err)
+		}
+	}
+
+	if err := UpdateChat(chatID, name, userID); err != nil {
+		t.Fatalf("initial UpdateChat() error = %v", err)
+	}
+
+	// Inside the throttle window the row must not be rewritten.
+	fresh := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+	pinActivity(fresh)
+	if err := UpdateChat(chatID, name, userID); err != nil {
+		t.Fatalf("throttled UpdateChat() error = %v", err)
+	}
+	if got := loadChat().LastActivity; !got.Equal(fresh) {
+		t.Errorf("last_activity = %v, want it left at %v inside the throttle window", got, fresh)
+	}
+
+	// A rename still has to land even while the timestamp is throttled.
+	if err := UpdateChat(chatID, renamed, userID); err != nil {
+		t.Fatalf("rename UpdateChat() error = %v", err)
+	}
+	if got := loadChat().ChatName; got != renamed {
+		t.Errorf("chat name = %q, want %q", got, renamed)
+	}
+
+	// Once the stored timestamp is stale, the refresh happens again.
+	stale := time.Now().Add(-2 * chatTouchInterval).Truncate(time.Second)
+	pinActivity(stale)
+	if err := UpdateChat(chatID, renamed, userID); err != nil {
+		t.Fatalf("stale UpdateChat() error = %v", err)
+	}
+	if got := loadChat().LastActivity; !got.After(stale) {
+		t.Errorf("last_activity = %v, want a refresh newer than %v", got, stale)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // GetAllChats
 // ---------------------------------------------------------------------------

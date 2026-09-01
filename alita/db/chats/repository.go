@@ -14,6 +14,11 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// chatTouchInterval bounds how often an incoming message may refresh
+// chats.last_activity. The inactivity sweep works in days, so hourly
+// granularity is indistinguishable downstream.
+const chatTouchInterval = time.Hour
+
 // GetChatSettings retrieves chat settings using optimized cached queries.
 // Returns an empty Chat struct if not found or on error.
 func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
@@ -73,15 +78,30 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		IsInactive:   false,
 		LastActivity: now,
 	}
-	if err := db.DB.Clauses(clause.OnConflict{
+	// Refresh an existing row only when the stored timestamp is stale, the chat
+	// needs reactivating, or its name changed. Inactivity is measured in days,
+	// so rewriting the row (and its indexes) on every message bought nothing.
+	touch := "chats.last_activity < ? OR chats.is_inactive"
+	if chatname != "" {
+		touch += " OR coalesce(chats.chat_name, '') <> excluded.chat_name"
+	}
+
+	upsert := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
 		DoUpdates: clause.AssignmentColumns(columns),
-	}).Create(chat).Error; err != nil {
-		log.Errorf("[Database] UpdateChat upsert failed for chat %d: %v", chatId, err)
-		return err
+		Where: clause.Where{Exprs: []clause.Expression{
+			clause.Expr{SQL: touch, Vars: []any{now.Add(-chatTouchInterval)}},
+		}},
+	}).Create(chat)
+	if upsert.Error != nil {
+		log.Errorf("[Database] UpdateChat upsert failed for chat %d: %v", chatId, upsert.Error)
+		return upsert.Error
 	}
-	defer cache.DeleteCache(cache.CacheKey("chat", chatId))
-	defer cache.DeleteCache(cache.CacheKey("chat_users", chatId))
+	// A throttled no-op leaves the cached copy accurate, so only evict after a
+	// real write; evicting unconditionally would cold-start the lookup below.
+	if upsert.RowsAffected > 0 {
+		cache.DeleteCache(cache.CacheKey("chat", chatId))
+	}
 
 	// Fast path: skip the atomic append when the user is already a member
 	// (99.3% of calls). Uses the cached chat-users list (30 min TTL).
@@ -98,6 +118,9 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		log.Errorf("[Database] UpdateChat atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
 		return result.Error
 	}
+	// Reaching here means the cached list lacked this user, so evict either way:
+	// the append added them, or the row already had them and the entry is stale.
+	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
 
 	log.Debugf("[Database] UpdateChat: %d", chatId)
 	return nil
