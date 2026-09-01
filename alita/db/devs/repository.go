@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -146,7 +147,8 @@ func RemSudo(userID int64) error {
 }
 
 // LoadAllStats generates a comprehensive statistics report for the bot.
-// Includes user counts, chat statistics, feature usage, activity metrics, and system information.
+// Includes user counts, chat statistics, feature usage (including federations),
+// activity metrics, and system information.
 func LoadAllStats() string {
 	totalUsers := user.LoadUsersStats()
 	activeChats, inactiveChats := chats.LoadChatStats()
@@ -162,6 +164,7 @@ func LoadAllStats() string {
 	filtersNum, filtersChats := filters.LoadFilterStats()
 	enabledWelcome, enabledGoodbye, cleanServiceEnabled, cleanWelcomeEnabled, cleanGoodbyeEnabled := greetings.LoadGreetingsStats()
 	notesNum, notesChats := notes.LoadNotesStats()
+	fedCount, fedChats, fedAdmins, fedBans, fedSubs := federations.LoadFederationStats()
 	numChannels := channels.LoadChannelStats()
 
 	// Get webhook status information
@@ -238,6 +241,12 @@ func LoadAllStats() string {
 			humanize.Comma(notesNum),
 			humanize.Comma(notesChats),
 		) +
+		"\n<b>Federations:</b>" +
+		fmt.Sprintf("\n    <b>Total:</b> %s", humanize.Comma(fedCount)) +
+		fmt.Sprintf("\n    <b>Chats:</b> %s", humanize.Comma(fedChats)) +
+		fmt.Sprintf("\n    <b>Admins:</b> %s", humanize.Comma(fedAdmins)) +
+		fmt.Sprintf("\n    <b>Bans:</b> %s", humanize.Comma(fedBans)) +
+		fmt.Sprintf("\n    <b>Subscriptions:</b> %s", humanize.Comma(fedSubs)) +
 		fmt.Sprintf("\n<b>Channels Stored</b>: %s", humanize.Comma(numChannels))
 
 	return result

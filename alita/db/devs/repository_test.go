@@ -1,11 +1,15 @@
 package devs
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
@@ -243,12 +247,86 @@ func TestLoadAllStats(t *testing.T) {
 		"CleanWelcome",
 		"CleanGoodbye",
 		"Notes",
+		"Federations",
+		"Total",
+		"Chats",
+		"Admins",
+		"Bans",
+		"Subscriptions",
 		"Channels Stored",
 	}
 
 	for _, section := range expectedSections {
 		if !strings.Contains(stats, section) {
 			t.Errorf("LoadAllStats() missing expected section %q", section)
+		}
+	}
+}
+
+func TestLoadAllStats_IncludesFederationCounts(t *testing.T) {
+	skipIfNoDb(t)
+
+	ownerA := time.Now().UnixNano()
+	ownerB := ownerA + 1
+	adminID := ownerA + 2
+	bannedID := ownerA + 3
+	chatID := -ownerA
+
+	fedA, err := federations.CreateFederation(ownerA, "Stats Fed A")
+	if err != nil {
+		t.Fatalf("CreateFederation A: %v", err)
+	}
+	fedB, err := federations.CreateFederation(ownerB, "Stats Fed B")
+	if err != nil {
+		t.Fatalf("CreateFederation B: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = federations.DeleteFederation(fedA.FedID)
+		_ = federations.DeleteFederation(fedB.FedID)
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		_ = db.DB.Where("user_id IN ?", []int64{ownerA, ownerB, adminID, bannedID}).
+			Delete(&models.User{}).Error
+	})
+
+	if err := federations.JoinFed(chatID, "stats chat", fedA.FedID); err != nil {
+		t.Fatalf("JoinFed: %v", err)
+	}
+	if err := federations.PromoteFedAdmin(fedA.FedID, adminID); err != nil {
+		t.Fatalf("PromoteFedAdmin: %v", err)
+	}
+	if _, _, err := federations.Fban(fedA.FedID, bannedID, ownerA, "stats"); err != nil {
+		t.Fatalf("Fban: %v", err)
+	}
+	if err := federations.SubscribeFed(fedA.FedID, fedB.FedID); err != nil {
+		t.Fatalf("SubscribeFed: %v", err)
+	}
+
+	feds, fedChats, admins, bans, subs := federations.LoadFederationStats()
+	if feds < 2 || fedChats < 1 || admins < 1 || bans < 1 || subs < 1 {
+		t.Fatalf("LoadFederationStats() = (%d, %d, %d, %d, %d), want at least (2, 1, 1, 1, 1)",
+			feds, fedChats, admins, bans, subs)
+	}
+
+	stats := LoadAllStats()
+	idx := strings.Index(stats, "<b>Federations:</b>")
+	if idx < 0 {
+		t.Fatal("LoadAllStats() missing Federations section")
+	}
+	section := stats[idx:]
+	if end := strings.Index(section, "<b>Channels Stored"); end >= 0 {
+		section = section[:end]
+	}
+
+	want := []string{
+		fmt.Sprintf("<b>Total:</b> %s", humanize.Comma(feds)),
+		fmt.Sprintf("<b>Chats:</b> %s", humanize.Comma(fedChats)),
+		fmt.Sprintf("<b>Admins:</b> %s", humanize.Comma(admins)),
+		fmt.Sprintf("<b>Bans:</b> %s", humanize.Comma(bans)),
+		fmt.Sprintf("<b>Subscriptions:</b> %s", humanize.Comma(subs)),
+	}
+	for _, line := range want {
+		if !strings.Contains(section, line) {
+			t.Errorf("Federations section missing %q\nsection=%q", line, section)
 		}
 	}
 }

@@ -367,3 +367,114 @@ func TestDeleteFederationInvalidatesBanAndSubscriberCaches(t *testing.T) {
 		t.Fatalf("subscriber fed_subs cache = %v, want empty after target delete", got)
 	}
 }
+
+func TestLoadFederationStats(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+
+	feds, chats, admins, bans, subs := LoadFederationStats()
+	if feds < 0 || chats < 0 || admins < 0 || bans < 0 || subs < 0 {
+		t.Fatalf("LoadFederationStats() = (%d, %d, %d, %d, %d), want all >= 0",
+			feds, chats, admins, bans, subs)
+	}
+}
+
+func TestLoadFederationStats_ReflectsNewEntries(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+
+	ownerA := time.Now().UnixNano() + 700
+	ownerB := ownerA + 1
+	adminID := ownerA + 2
+	bannedID := ownerA + 3
+	chatID := -ownerA
+
+	baseFeds, baseChats, baseAdmins, baseBans, baseSubs := LoadFederationStats()
+
+	fedA, err := CreateFederation(ownerA, "Stats Fed A")
+	if err != nil {
+		t.Fatalf("CreateFederation A: %v", err)
+	}
+	fedB, err := CreateFederation(ownerB, "Stats Fed B")
+	if err != nil {
+		t.Fatalf("CreateFederation B: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = DeleteFederation(fedA.FedID)
+		_ = DeleteFederation(fedB.FedID)
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		_ = db.DB.Where("user_id IN ?", []int64{ownerA, ownerB, adminID, bannedID}).
+			Delete(&models.User{}).Error
+	})
+
+	if err := chats.EnsureChatInDb(chatID, "stats fed chat"); err != nil {
+		t.Fatalf("EnsureChatInDb: %v", err)
+	}
+	if err := JoinFed(chatID, "stats fed chat", fedA.FedID); err != nil {
+		t.Fatalf("JoinFed: %v", err)
+	}
+	if err := PromoteFedAdmin(fedA.FedID, adminID); err != nil {
+		t.Fatalf("PromoteFedAdmin: %v", err)
+	}
+	if _, _, err := Fban(fedA.FedID, bannedID, ownerA, "stats"); err != nil {
+		t.Fatalf("Fban: %v", err)
+	}
+	if err := SubscribeFed(fedA.FedID, fedB.FedID); err != nil {
+		t.Fatalf("SubscribeFed: %v", err)
+	}
+
+	feds, fedChats, admins, bans, subs := LoadFederationStats()
+	if feds < baseFeds+2 {
+		t.Errorf("feds = %d, want >= %d", feds, baseFeds+2)
+	}
+	if fedChats < baseChats+1 {
+		t.Errorf("chats = %d, want >= %d", fedChats, baseChats+1)
+	}
+	if admins < baseAdmins+1 {
+		t.Errorf("admins = %d, want >= %d", admins, baseAdmins+1)
+	}
+	if bans < baseBans+1 {
+		t.Errorf("bans = %d, want >= %d", bans, baseBans+1)
+	}
+	if subs < baseSubs+1 {
+		t.Errorf("subs = %d, want >= %d", subs, baseSubs+1)
+	}
+}
+
+func TestLoadFederationStatsErrorBranch(t *testing.T) {
+	if db.DB == nil {
+		t.Skip("DB not initialized")
+	}
+
+	tables := []any{
+		&models.FederationSub{},
+		&models.FederationBan{},
+		&models.FederationAdmin{},
+		&models.FederationChat{},
+		&models.Federation{},
+	}
+	for _, table := range tables {
+		if err := db.DB.Migrator().DropTable(table); err != nil {
+			t.Fatalf("DropTable %T: %v", table, err)
+		}
+	}
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(
+			&models.Federation{},
+			&models.FederationAdmin{},
+			&models.FederationChat{},
+			&models.FederationBan{},
+			&models.FederationSub{},
+		); err != nil {
+			t.Errorf("AutoMigrate failed: %v", err)
+		}
+	})
+
+	feds, fedChats, admins, bans, subs := LoadFederationStats()
+	if feds != 0 || fedChats != 0 || admins != 0 || bans != 0 || subs != 0 {
+		t.Fatalf("LoadFederationStats() = (%d, %d, %d, %d, %d), want all 0 on error",
+			feds, fedChats, admins, bans, subs)
+	}
+}
