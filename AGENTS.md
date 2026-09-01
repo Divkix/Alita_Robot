@@ -686,6 +686,10 @@ m != nil`) — every helper bails when it's nil.
   deleted bans for the 30m TTL.
   Chat backups
   export **membership only** (`fed_id` + `quiet`), not the federation itself.
+  `/stats` (`devs.LoadAllStats`) includes global federation totals via
+  `federations.LoadFederationStats` (feds, chats, promoted admins, bans,
+  subscriptions) — the same numbers `/fedinfo` shows per-fed. `/fedstat` is a
+  per-user ban lookup, not bot-wide stats.
 - **Log channels** (`logchannels.go`, group **11**, priority 55): `/setlog` in a
   channel stores a pending Redis marker for **that exact message**
   (`alita:setlog:<channel>:<msgId>`, 1h). There is **no** `:0` wildcard — capture

@@ -335,6 +335,27 @@ func CountFedBans(fedID string) int {
 	return int(count)
 }
 
+func countModel(model any, op string) int64 {
+	var count int64
+	if err := db.DB.Model(model).Count(&count).Error; err != nil {
+		log.Errorf("[Federations] %s: %v", op, err)
+		return 0
+	}
+	return count
+}
+
+// LoadFederationStats returns bot-wide federation totals for /stats.
+// Counts match the per-fed numbers already used by /fedinfo:
+// federations, joined chats, promoted admins, bans, and subscriptions.
+func LoadFederationStats() (feds, chats, admins, bans, subs int64) {
+	feds = countModel(&models.Federation{}, "LoadFederationStats (feds)")
+	chats = countModel(&models.FederationChat{}, "LoadFederationStats (chats)")
+	admins = countModel(&models.FederationAdmin{}, "LoadFederationStats (admins)")
+	bans = countModel(&models.FederationBan{}, "LoadFederationStats (bans)")
+	subs = countModel(&models.FederationSub{}, "LoadFederationStats (subs)")
+	return
+}
+
 // IsFedOwner reports whether userID owns the federation.
 func IsFedOwner(fedID string, userID int64) bool {
 	fed := GetFed(fedID)
