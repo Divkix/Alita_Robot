@@ -95,10 +95,7 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := query.From
 	if chat == nil || user.Id == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	language := ""

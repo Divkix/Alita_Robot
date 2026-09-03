@@ -1032,25 +1032,16 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 	if response == "" || joinUserIDRaw == "" {
 		log.Warnf("[Greetings] Invalid callback data format: %s", query.Data)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	if response != "accept" && response != "decline" && response != "ban" {
 		log.Warnf("[Greetings] Invalid join request action: %s", response)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	joinUserId, err := strconv.ParseInt(joinUserIDRaw, 10, 64)
 	if err != nil {
 		log.Errorf("[Greetings] Failed to parse join user ID '%s': %v", joinUserIDRaw, err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	if response == "ban" {

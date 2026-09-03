@@ -5,15 +5,15 @@ package formatting
 
 import (
 	"fmt"
+	"github.com/PaulSonOfLars/gotgbot/v2"
 	"html"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
-
-	"github.com/PaulSonOfLars/gotgbot/v2"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
@@ -150,11 +150,8 @@ func SplitMessage(msg string) []string {
 				smallMsg = ""
 				smallMsgRunes = 0
 			}
-			runes := []rune(line)
-			for len(runes) > 0 {
-				chunkSize := min(MaxMessageLength, len(runes))
-				result = append(result, string(runes[:chunkSize]))
-				runes = runes[chunkSize:]
+			for chunk := range slices.Chunk([]rune(line), MaxMessageLength) {
+				result = append(result, string(chunk))
 			}
 		} else {
 			if smallMsg != "" {

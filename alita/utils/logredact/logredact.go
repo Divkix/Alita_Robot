@@ -24,7 +24,7 @@ package logredact
 
 import (
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -110,9 +110,7 @@ func RegisterSecret(values ...string) {
 
 	// Longest-first ensures we redact the most specific (largest) secret before
 	// any of its substrings.
-	sort.Slice(registry.secrets, func(i, j int) bool {
-		return len(registry.secrets[i]) > len(registry.secrets[j])
-	})
+	slices.SortFunc(registry.secrets, func(a, b string) int { return len(b) - len(a) })
 }
 
 // reset clears all registered secrets. It exists for tests.

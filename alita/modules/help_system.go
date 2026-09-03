@@ -11,9 +11,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // markup is the global help menu keyboard.
@@ -57,7 +54,10 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 
 // getModuleHelpAndKb retrieves help text and keyboard for a specific module.
 func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
-	ModName := cases.Title(language.English).String(module)
+	ModName := module
+	if ModName != "" {
+		ModName = strings.ToUpper(ModName[:1]) + ModName[1:]
+	}
 	tr := i18n.MustNewTranslator(lang)
 	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
 	headerTemplate, _ := tr.GetString("helpers_module_help_header")

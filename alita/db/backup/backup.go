@@ -60,44 +60,36 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	}
 }
 
-// ImportModuleData imports one module atomically into a chat.
-func ImportModuleData(chatID int64, module string, data interface{}) error {
+// withBackupTx runs fn inside a DB transaction, invalidating returned cache keys.
+func withBackupTx(fn func(tx *gorm.DB) ([]string, error)) error {
 	database, err := backupDB()
 	if err != nil {
 		return err
 	}
-
 	var keys []string
-	err = database.Transaction(func(tx *gorm.DB) error {
-		var importErr error
-		keys, importErr = importModuleData(tx, chatID, module, data, false)
-		return importErr
-	})
-	if err != nil {
+	if err := database.Transaction(func(tx *gorm.DB) error {
+		var err error
+		keys, err = fn(tx)
+		return err
+	}); err != nil {
 		return err
 	}
 	invalidate(keys...)
 	return nil
 }
 
+// ImportModuleData imports one module atomically into a chat.
+func ImportModuleData(chatID int64, module string, data interface{}) error {
+	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
+		return importModuleData(tx, chatID, module, data, false)
+	})
+}
+
 // ClearModuleData clears one module atomically from a chat.
 func ClearModuleData(chatID int64, module string) error {
-	database, err := backupDB()
-	if err != nil {
-		return err
-	}
-
-	var keys []string
-	err = database.Transaction(func(tx *gorm.DB) error {
-		var clearErr error
-		keys, clearErr = clearModuleData(tx, chatID, module)
-		return clearErr
+	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
+		return clearModuleData(tx, chatID, module)
 	})
-	if err != nil {
-		return err
-	}
-	invalidate(keys...)
-	return nil
 }
 
 // ExportChatData exports the selected modules. A failed module aborts the
@@ -142,28 +134,18 @@ func ImportChatData(chatID int64, backup *BackupFormat, modules []string) error 
 		}
 	}
 
-	database, err := backupDB()
-	if err != nil {
-		return err
-	}
-
-	var keys []string
-	err = database.Transaction(func(tx *gorm.DB) error {
+	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
+		var keys []string
 		for _, module := range modules {
 			data := backup.Data[module]
 			moduleKeys, err := importModuleData(tx, chatID, module, data, backup.Version == legacyFormatVersion)
 			if err != nil {
-				return fmt.Errorf("failed to import module %s: %w", module, err)
+				return nil, fmt.Errorf("failed to import module %s: %w", module, err)
 			}
 			keys = append(keys, moduleKeys...)
 		}
-		return nil
+		return keys, nil
 	})
-	if err != nil {
-		return err
-	}
-	invalidate(keys...)
-	return nil
 }
 
 // ClearChatData clears every selected module in one transaction.
@@ -172,27 +154,17 @@ func ClearChatData(chatID int64, modules []string) error {
 	if err != nil {
 		return err
 	}
-	database, err := backupDB()
-	if err != nil {
-		return err
-	}
-
-	var keys []string
-	err = database.Transaction(func(tx *gorm.DB) error {
+	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
+		var keys []string
 		for _, module := range modules {
 			moduleKeys, err := clearModuleData(tx, chatID, module)
 			if err != nil {
-				return fmt.Errorf("failed to clear module %s: %w", module, err)
+				return nil, fmt.Errorf("failed to clear module %s: %w", module, err)
 			}
 			keys = append(keys, moduleKeys...)
 		}
-		return nil
+		return keys, nil
 	})
-	if err != nil {
-		return err
-	}
-	invalidate(keys...)
-	return nil
 }
 
 func checkedModules(modules []string) ([]string, error) {

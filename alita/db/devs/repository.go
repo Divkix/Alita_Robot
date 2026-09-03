@@ -3,10 +3,11 @@ package devs
 import (
 	"errors"
 	"fmt"
-	"runtime"
-
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -25,8 +26,36 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/user"
-	"github.com/dustin/go-humanize"
 )
+
+// comma formats an int64 with thousands separators (e.g. 1234567 -> "1,234,567").
+func comma(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	neg := ""
+	if strings.HasPrefix(s, "-") {
+		neg, s = "-", s[1:]
+	}
+	if len(s) <= 3 {
+		return neg + s
+	}
+	// ponytail: simple grouping, fast enough for /stats rendering
+	var b strings.Builder
+	b.WriteString(neg)
+	rem := len(s) % 3
+	if rem > 0 {
+		b.WriteString(s[:rem])
+		if len(s) > rem {
+			b.WriteByte(',')
+		}
+	}
+	for i := rem; i < len(s); i += 3 {
+		b.WriteString(s[i : i+3])
+		if i+3 < len(s) {
+			b.WriteByte(',')
+		}
+	}
+	return b.String()
+}
 
 // GetTeamMemInfo retrieves developer settings for a user.
 // Returns default settings (not a dev) if not found or on error.
@@ -184,70 +213,70 @@ func LoadAllStats() string {
 	result := "<u>Alita's Stats:</u>" +
 		fmt.Sprintf("\n\n<b>Deployment Mode:</b> %s%s", deploymentMode, webhookInfo) +
 		fmt.Sprintf("\n<b>Go Version:</b> %s", runtime.Version()) +
-		fmt.Sprintf("\n<b>Goroutines:</b> %s", humanize.Comma(int64(runtime.NumGoroutine()))) +
-		fmt.Sprintf("\n<b>Antiflood:</b> enabled in %s chats", humanize.Comma(antiCount)) +
+		fmt.Sprintf("\n<b>Goroutines:</b> %s", comma(int64(runtime.NumGoroutine()))) +
+		fmt.Sprintf("\n<b>Antiflood:</b> enabled in %s chats", comma(antiCount)) +
 		fmt.Sprintf(
 			"\n<b>Users:</b> %s users found in %s active Chats (%s Inactive, %s Total)",
-			humanize.Comma(totalUsers),
-			humanize.Comma(int64(activeChats)),
-			humanize.Comma(int64(inactiveChats)),
-			humanize.Comma(int64(activeChats+inactiveChats)),
+			comma(totalUsers),
+			comma(int64(activeChats)),
+			comma(int64(inactiveChats)),
+			comma(int64(activeChats+inactiveChats)),
 		) +
 		"\n<b>Group Activity Metrics:</b>" +
-		fmt.Sprintf("\n    <b>Daily Active Groups (DAG):</b> %s", humanize.Comma(dag)) +
-		fmt.Sprintf("\n    <b>Weekly Active Groups (WAG):</b> %s", humanize.Comma(wag)) +
-		fmt.Sprintf("\n    <b>Monthly Active Groups (MAG):</b> %s", humanize.Comma(mag)) +
+		fmt.Sprintf("\n    <b>Daily Active Groups (DAG):</b> %s", comma(dag)) +
+		fmt.Sprintf("\n    <b>Weekly Active Groups (WAG):</b> %s", comma(wag)) +
+		fmt.Sprintf("\n    <b>Monthly Active Groups (MAG):</b> %s", comma(mag)) +
 		"\n<b>User Activity Metrics:</b>" +
-		fmt.Sprintf("\n    <b>Daily Active Users (DAU):</b> %s", humanize.Comma(dau)) +
-		fmt.Sprintf("\n    <b>Weekly Active Users (WAU):</b> %s", humanize.Comma(wau)) +
-		fmt.Sprintf("\n    <b>Monthly Active Users (MAU):</b> %s", humanize.Comma(mau)) +
+		fmt.Sprintf("\n    <b>Daily Active Users (DAU):</b> %s", comma(dau)) +
+		fmt.Sprintf("\n    <b>Weekly Active Users (WAU):</b> %s", comma(wau)) +
+		fmt.Sprintf("\n    <b>Monthly Active Users (MAU):</b> %s", comma(mau)) +
 		"\n<b>Pins:</b>" +
-		fmt.Sprintf("\n    <b>CleanLinked Enabled:</b> %s", humanize.Comma(ClCount)) +
-		fmt.Sprintf("\n    <b>AntiChannelPin Enabled:</b> %s", humanize.Comma(AcCount)) +
+		fmt.Sprintf("\n    <b>CleanLinked Enabled:</b> %s", comma(ClCount)) +
+		fmt.Sprintf("\n    <b>AntiChannelPin Enabled:</b> %s", comma(AcCount)) +
 		fmt.Sprintf(
 			"\n<b>Reports:</b> %s users enabled reports in %s Chats",
-			humanize.Comma(uRCount),
-			humanize.Comma(gRCount),
+			comma(uRCount),
+			comma(gRCount),
 		) +
 		"\n<b>Rules:</b>" +
-		fmt.Sprintf("\n    <b>Set:</b> %s", humanize.Comma(setRules)) +
-		fmt.Sprintf("\n    <b>Private:</b> %s", humanize.Comma(pvtRules)) +
+		fmt.Sprintf("\n    <b>Set:</b> %s", comma(setRules)) +
+		fmt.Sprintf("\n    <b>Private:</b> %s", comma(pvtRules)) +
 		fmt.Sprintf(
 			"\n<b>Blacklists:</b> %s triggers in %s chats",
-			humanize.Comma(blacklistTriggers),
-			humanize.Comma(blacklistChats),
+			comma(blacklistTriggers),
+			comma(blacklistChats),
 		) +
 		"\n<b>Connections:</b>" +
-		fmt.Sprintf("\n    %s users connected to chats", humanize.Comma(connectedUsers)) +
-		fmt.Sprintf("\n    %s chats allow user connections", humanize.Comma(connectedChats)) +
+		fmt.Sprintf("\n    %s users connected to chats", comma(connectedUsers)) +
+		fmt.Sprintf("\n    %s chats allow user connections", comma(connectedChats)) +
 		fmt.Sprintf(
 			"\n<b>Disabling:</b> %s commands disabled in %s chats",
-			humanize.Comma(disabledCmds),
-			humanize.Comma(disableEnabledChats),
+			comma(disabledCmds),
+			comma(disableEnabledChats),
 		) +
 		fmt.Sprintf(
 			"\n<b>Filters:</b> %s filters saved in %s chats",
-			humanize.Comma(filtersNum),
-			humanize.Comma(filtersChats),
+			comma(filtersNum),
+			comma(filtersChats),
 		) +
 		"\n<b>Greetings:</b>" +
-		fmt.Sprintf("\n    <b>Welcome Enabled:</b> %s", humanize.Comma(enabledWelcome)) +
-		fmt.Sprintf("\n    <b>Goodbye Enabled:</b> %s", humanize.Comma(enabledGoodbye)) +
-		fmt.Sprintf("\n    <b>CleanService:</b> %s", humanize.Comma(cleanServiceEnabled)) +
-		fmt.Sprintf("\n    <b>CleanWelcome:</b> %s", humanize.Comma(cleanWelcomeEnabled)) +
-		fmt.Sprintf("\n    <b>CleanGoodbye:</b> %s", humanize.Comma(cleanGoodbyeEnabled)) +
+		fmt.Sprintf("\n    <b>Welcome Enabled:</b> %s", comma(enabledWelcome)) +
+		fmt.Sprintf("\n    <b>Goodbye Enabled:</b> %s", comma(enabledGoodbye)) +
+		fmt.Sprintf("\n    <b>CleanService:</b> %s", comma(cleanServiceEnabled)) +
+		fmt.Sprintf("\n    <b>CleanWelcome:</b> %s", comma(cleanWelcomeEnabled)) +
+		fmt.Sprintf("\n    <b>CleanGoodbye:</b> %s", comma(cleanGoodbyeEnabled)) +
 		fmt.Sprintf(
 			"\n<b>Notes:</b> %s notes saved in %s chats",
-			humanize.Comma(notesNum),
-			humanize.Comma(notesChats),
+			comma(notesNum),
+			comma(notesChats),
 		) +
 		"\n<b>Federations:</b>" +
-		fmt.Sprintf("\n    <b>Total:</b> %s", humanize.Comma(fedCount)) +
-		fmt.Sprintf("\n    <b>Chats:</b> %s", humanize.Comma(fedChats)) +
-		fmt.Sprintf("\n    <b>Admins:</b> %s", humanize.Comma(fedAdmins)) +
-		fmt.Sprintf("\n    <b>Bans:</b> %s", humanize.Comma(fedBans)) +
-		fmt.Sprintf("\n    <b>Subscriptions:</b> %s", humanize.Comma(fedSubs)) +
-		fmt.Sprintf("\n<b>Channels Stored</b>: %s", humanize.Comma(numChannels))
+		fmt.Sprintf("\n    <b>Total:</b> %s", comma(fedCount)) +
+		fmt.Sprintf("\n    <b>Chats:</b> %s", comma(fedChats)) +
+		fmt.Sprintf("\n    <b>Admins:</b> %s", comma(fedAdmins)) +
+		fmt.Sprintf("\n    <b>Bans:</b> %s", comma(fedBans)) +
+		fmt.Sprintf("\n    <b>Subscriptions:</b> %s", comma(fedSubs)) +
+		fmt.Sprintf("\n<b>Channels Stored</b>: %s", comma(numChannels))
 
 	return result
 }

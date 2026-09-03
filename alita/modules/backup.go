@@ -592,9 +592,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if chat == nil {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	// Only creator can confirm import/reset
@@ -610,9 +608,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	// Decode callback data
 	decoded, ok := decodeCallbackData(query.Data, "backup")
 	if !ok {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	action, _ := decoded.Field("a")
@@ -624,9 +620,7 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		action == backupActionConfirmReset ||
 		action == backupActionCancelReset
 	if err != nil || chatID != chat.Id || token == "" || !validAction {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	switch action {

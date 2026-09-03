@@ -1,6 +1,7 @@
 package keyword_matcher
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -30,14 +31,12 @@ func newCache(ttl time.Duration) *Cache {
 // Uses RWMutex for concurrent read access and only takes write lock when
 // creating a new matcher or when patterns have changed.
 func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatcher {
-	h := hashPatterns(patterns)
-
 	// Fast path: read-only check with RLock
 	c.mu.RLock()
 	matcher, exists := c.matchers[chatID]
 	if exists {
-		// O(1) hash comparison avoids copying patterns
-		if matcher.patternHash == h {
+		// ponytail: O(n) compare, patterns are typically tens per chat
+		if slices.Equal(matcher.patterns, patterns) {
 			c.mu.RUnlock()
 			c.touchLastUsed(chatID)
 			return matcher
@@ -50,7 +49,7 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 
 	// Double-check after acquiring write lock
 	if matcher, exists := c.matchers[chatID]; exists {
-		if matcher.patternHash == h {
+		if slices.Equal(matcher.patterns, patterns) {
 			c.mu.Unlock()
 			c.touchLastUsed(chatID)
 			return matcher

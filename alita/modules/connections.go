@@ -215,9 +215,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	msg := query.Message
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if msg == nil {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	userType := ""
@@ -228,9 +226,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	case "Admin", "User", "Main":
 	default:
 		log.Warnf("[Connections] Invalid callback data format: %s", query.Data)
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	backText, _ := tr.GetString("button_back")

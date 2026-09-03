@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/go-humanize"
-
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -318,11 +316,11 @@ func TestLoadAllStats_IncludesFederationCounts(t *testing.T) {
 	}
 
 	want := []string{
-		fmt.Sprintf("<b>Total:</b> %s", humanize.Comma(feds)),
-		fmt.Sprintf("<b>Chats:</b> %s", humanize.Comma(fedChats)),
-		fmt.Sprintf("<b>Admins:</b> %s", humanize.Comma(admins)),
-		fmt.Sprintf("<b>Bans:</b> %s", humanize.Comma(bans)),
-		fmt.Sprintf("<b>Subscriptions:</b> %s", humanize.Comma(subs)),
+		fmt.Sprintf("<b>Total:</b> %s", comma(feds)),
+		fmt.Sprintf("<b>Chats:</b> %s", comma(fedChats)),
+		fmt.Sprintf("<b>Admins:</b> %s", comma(admins)),
+		fmt.Sprintf("<b>Bans:</b> %s", comma(bans)),
+		fmt.Sprintf("<b>Subscriptions:</b> %s", comma(subs)),
 	}
 	for _, line := range want {
 		if !strings.Contains(section, line) {

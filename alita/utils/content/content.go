@@ -313,15 +313,15 @@ func ConvertButtonV2ToDbButton(buttons []tgmd2html.ButtonV2) (btns []db.Button) 
 // RevertButtons converts database button format back to markdown button string format.
 // Generates markdown buttonurl syntax for each button with proper same-line handling.
 func RevertButtons(buttons []db.Button) string {
-	res := ""
+	var sb strings.Builder
 	for _, btn := range buttons {
 		if btn.SameLine {
-			res += fmt.Sprintf("\n[%s](buttonurl://%s:same)", btn.Name, btn.Url)
+			fmt.Fprintf(&sb, "\n[%s](buttonurl://%s:same)", btn.Name, btn.Url)
 		} else {
-			res += fmt.Sprintf("\n[%s](buttonurl://%s)", btn.Name, btn.Url)
+			fmt.Fprintf(&sb, "\n[%s](buttonurl://%s)", btn.Name, btn.Url)
 		}
 	}
-	return res
+	return sb.String()
 }
 
 // inlineKeyboardToButtonV2 converts Telegram inline keyboard to markdown button format.

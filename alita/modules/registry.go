@@ -1,7 +1,7 @@
 package modules
 
 import (
-	"sort"
+	"slices"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	log "github.com/sirupsen/logrus"
@@ -35,10 +35,7 @@ func RegisterLegacyModule(name string, priority int, load func(*ext.Dispatcher))
 func LoadAllModules(dispatcher *ext.Dispatcher) {
 	mods := append([]registeredModule(nil), registry...)
 
-	sort.SliceStable(mods, func(i, j int) bool {
-		return mods[i].priority < mods[j].priority
-	})
-
+	slices.SortStableFunc(mods, func(a, b registeredModule) int { return a.priority - b.priority })
 	for _, m := range mods {
 		log.Debugf("Loading module: %s (priority=%d)", m.name, m.priority)
 		if m.load != nil {

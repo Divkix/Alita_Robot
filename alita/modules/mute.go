@@ -19,40 +19,7 @@ var mutesModule = moduleStruct{moduleName: "Mutes"}
 // muteTargetValidation validates the target for mute commands.
 // Checks: user is in chat, not ban-protected, not the bot itself.
 func muteTargetValidation(c *moderationCtx, t *target) error {
-	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
-		text, _ := c.Tr.GetString("common_user_not_in_chat")
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errUserNotInChat
-	}
-	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
-		text, _ := c.Tr.GetString("mutes_mute_admin_error")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_admin")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errAdminTarget
-	}
-	if t.userID == c.Bot.Id {
-		text, _ := c.Tr.GetString("mutes_restrict_self_error")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_self")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errTargetIsBot
-	}
-	return nil
+	return validateTarget(c, t.userID, true, "common_user_not_in_chat", "mutes_mute_admin_error", "mutes_restrict_self_error")
 }
 
 // muteReplyWithButton builds and sends the success reply for mute commands
@@ -130,12 +97,10 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: muteTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
+			_time := extractTemporalTarget(c, t)
 			if _time == -1 {
 				return ext.EndGroups
 			}
-			t.timeVal = timeVal
-			t.reason = reason
 			_, err := c.Chat.RestrictMember(c.Bot, t.userID, MutedPermissions,
 				&gotgbot.RestrictChatMemberOpts{UntilDate: _time},
 			)
