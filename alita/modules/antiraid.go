@@ -857,8 +857,7 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
 		_, _, _ = msg.EditText(bot, &gotgbot.EditMessageTextOpts{Text: formatting.ToTelegramHTML(text), ParseMode: formatting.HTML})
 	default:
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{Text: text})
+		return answerInvalidCallback(bot, ctx, query)
 	}
 
 	return ext.EndGroups

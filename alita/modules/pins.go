@@ -125,11 +125,8 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	chat := ctx.EffectiveChat
 	user := query.From
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if user.Id == 0 {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	// Re-check permissions in callback to prevent non-admin users from executing
@@ -197,9 +194,7 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		_, _ = query.Answer(b, nil)
 	default:
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	return ext.EndGroups
 }

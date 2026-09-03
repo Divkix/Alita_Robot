@@ -58,21 +58,26 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 	return attrs
 }
 
-// CreateRecord creates a new database record using the provided model.
-func CreateRecord(model any) error {
-	ctx := context.Background()
-	ctx, span := tracing.StartSpan(ctx, "db.create",
+// withSpan starts a traced span for a DB operation and runs fn inside it.
+func withSpan(ctx context.Context, op string, model any, fn func(ctx context.Context, span trace.Span) error) error {
+	ctx, span := tracing.StartSpan(ctx, op,
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
 	defer span.End()
+	return fn(ctx, span)
+}
 
-	result := DB.WithContext(ctx).Create(model)
-	if result.Error != nil {
-		log.Errorf("[Database][CreateRecord]: %v", result.Error)
-		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
-	}
-	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
-	return nil
+// CreateRecord creates a new database record using the provided model.
+func CreateRecord(model any) error {
+	return withSpan(context.Background(), "db.create", model, func(ctx context.Context, span trace.Span) error {
+		result := DB.WithContext(ctx).Create(model)
+		if result.Error != nil {
+			log.Errorf("[Database][CreateRecord]: %v", result.Error)
+			span.SetStatus(codes.Error, result.Error.Error())
+			return result.Error
+		}
+		span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
+		return nil
+	})
 }
 
 // UpdateRecord updates an existing database record with the provided updates.
@@ -107,23 +112,20 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 
 // GetRecord retrieves a single database record matching the where clause.
 func GetRecord(model any, where any) error {
-	ctx := context.Background()
-	ctx, span := tracing.StartSpan(ctx, "db.get",
-		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
-	defer span.End()
-
-	result := DB.WithContext(ctx).Where(where).First(model)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			span.SetAttributes(attribute.Bool("db.record_found", false))
+	return withSpan(context.Background(), "db.get", model, func(ctx context.Context, span trace.Span) error {
+		result := DB.WithContext(ctx).Where(where).First(model)
+		if result.Error != nil {
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				span.SetAttributes(attribute.Bool("db.record_found", false))
+				return result.Error
+			}
+			log.Errorf("[Database][GetRecord]: %v", result.Error)
+			span.SetStatus(codes.Error, result.Error.Error())
 			return result.Error
 		}
-		log.Errorf("[Database][GetRecord]: %v", result.Error)
-		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
-	}
-	span.SetAttributes(attribute.Bool("db.record_found", true))
-	return nil
+		span.SetAttributes(attribute.Bool("db.record_found", true))
+		return nil
+	})
 }
 
 // ChatExists checks if a chat with the given ID exists in the database.
@@ -159,17 +161,14 @@ func TableRowCount(tableName string) int64 {
 
 // GetRecords retrieves multiple database records matching the where clause.
 func GetRecords(models any, where any) error {
-	ctx := context.Background()
-	ctx, span := tracing.StartSpan(ctx, "db.find",
-		trace.WithAttributes(append(getSpanAttributes(models), tracing.WorkingModeAttribute())...))
-	defer span.End()
-
-	result := DB.WithContext(ctx).Where(where).Find(models)
-	if result.Error != nil {
-		log.Errorf("[Database][GetRecords]: %v", result.Error)
-		span.SetStatus(codes.Error, result.Error.Error())
-		return result.Error
-	}
-	span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
-	return nil
+	return withSpan(context.Background(), "db.find", models, func(ctx context.Context, span trace.Span) error {
+		result := DB.WithContext(ctx).Where(where).Find(models)
+		if result.Error != nil {
+			log.Errorf("[Database][GetRecords]: %v", result.Error)
+			span.SetStatus(codes.Error, result.Error.Error())
+			return result.Error
+		}
+		span.SetAttributes(attribute.Int64("db.rows_affected", result.RowsAffected))
+		return nil
+	})
 }

@@ -166,10 +166,13 @@ type AdminBackup struct {
 	ConnectionSettings *models.ConnectionChatSettings `json:"connection_settings,omitempty"`
 }
 
-// AntifloodBackup represents antiflood settings backup data
-type AntifloodBackup struct {
-	Settings *models.AntifloodSettings `json:"settings,omitempty"`
+// SettingBackup is the shared shape for single-setting modules.
+type SettingBackup[T any] struct {
+	Settings *T `json:"settings,omitempty"`
 }
+
+// AntifloodBackup represents antiflood settings backup data
+type AntifloodBackup = SettingBackup[models.AntifloodSettings]
 
 // BlacklistsBackup represents blacklist settings and entries backup data
 type BlacklistsBackup struct {
@@ -179,14 +182,10 @@ type BlacklistsBackup struct {
 }
 
 // CaptchaBackup represents captcha settings backup data
-type CaptchaBackup struct {
-	Settings *models.CaptchaSettings `json:"settings,omitempty"`
-}
+type CaptchaBackup = SettingBackup[models.CaptchaSettings]
 
 // ConnectionsBackup represents connection settings backup data
-type ConnectionsBackup struct {
-	Settings *models.ConnectionChatSettings `json:"settings,omitempty"`
-}
+type ConnectionsBackup = SettingBackup[models.ConnectionChatSettings]
 
 // DisablingBackup represents disabled commands backup data
 type DisablingBackup struct {
@@ -200,9 +199,7 @@ type FiltersBackup struct {
 }
 
 // GreetingsBackup represents greetings/welcome settings backup data
-type GreetingsBackup struct {
-	Settings *models.GreetingSettings `json:"settings,omitempty"`
-}
+type GreetingsBackup = SettingBackup[models.GreetingSettings]
 
 // LocksBackup represents lock settings backup data
 type LocksBackup struct {
@@ -216,19 +213,13 @@ type NotesBackup struct {
 }
 
 // PinsBackup represents pin settings backup data
-type PinsBackup struct {
-	Settings *models.PinSettings `json:"settings,omitempty"`
-}
+type PinsBackup = SettingBackup[models.PinSettings]
 
 // ReportsBackup represents report settings backup data
-type ReportsBackup struct {
-	Settings *models.ReportChatSettings `json:"settings,omitempty"`
-}
+type ReportsBackup = SettingBackup[models.ReportChatSettings]
 
 // RulesBackup represents rules backup data
-type RulesBackup struct {
-	Settings *models.RulesSettings `json:"settings,omitempty"`
-}
+type RulesBackup = SettingBackup[models.RulesSettings]
 
 // WarnsBackup represents warning settings backup data
 type WarnsBackup struct {
@@ -237,9 +228,7 @@ type WarnsBackup struct {
 }
 
 // AntiraidBackup represents anti-raid settings backup data
-type AntiraidBackup struct {
-	Settings *models.AntiRaidSettings `json:"settings,omitempty"`
-}
+type AntiraidBackup = SettingBackup[models.AntiRaidSettings]
 
 // ApprovalsBackup represents approved users backup data
 type ApprovalsBackup struct {
@@ -257,6 +246,4 @@ type FederationsBackup struct {
 }
 
 // LogChannelsBackup stores the group's log-channel binding and categories.
-type LogChannelsBackup struct {
-	Settings *models.LogChannel `json:"settings,omitempty"`
-}
+type LogChannelsBackup = SettingBackup[models.LogChannel]

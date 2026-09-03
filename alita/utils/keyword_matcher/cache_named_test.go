@@ -3,6 +3,7 @@
 package keyword_matcher
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -48,8 +49,8 @@ func TestNamedCachesDoNotCollide(t *testing.T) {
 		t.Error("filters and blacklists caches returned the same matcher pointer for the same chatID — namespacing is broken")
 	}
 
-	// Verify pattern hashes differ (the core fix: each cache keeps its own hash).
-	if mA1.patternHash == mB1.patternHash {
-		t.Errorf("expected different patternHash for different pattern sets; got same hash %x", mA1.patternHash)
+	// Verify stored patterns differ (each cache keeps its own patterns).
+	if slices.Equal(mA1.patterns, mB1.patterns) {
+		t.Errorf("expected different patterns for different pattern sets; got %v", mA1.patterns)
 	}
 }

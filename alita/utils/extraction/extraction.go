@@ -53,8 +53,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 	if len(args) != 0 {
-		if _, err := strconv.ParseInt(args[0], 10, 64); err == nil {
-			chatId, _ := strconv.ParseInt(args[0], 10, 64)
+		if chatId, err := strconv.ParseInt(args[0], 10, 64); err == nil {
 			chat, err := b.GetChat(chatId, nil)
 			if err != nil {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

@@ -46,12 +46,6 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 // Sentinel errors
 var ErrNoPermission = fmt.Errorf("bot lacks permission to send messages")
 
-// ParseMode constants
-const (
-	HTML = "HTML"
-	None = ""
-)
-
 // Content represents the media content to be sent.
 type Content struct {
 	Text    string // Text content or caption
@@ -83,9 +77,9 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	}
 
 	// Determine parse mode
-	parseMode := HTML
+	parseMode := formatting.HTML
 	if opts.NoFormat {
-		parseMode = None
+		parseMode = ""
 	}
 
 	// Build reply parameters if reply message ID is set
@@ -140,7 +134,7 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for STICKER '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, HTML, replyParams)
+		return sendText(b, content, opts, formatting.HTML, replyParams)
 	}
 	msg, err := b.SendSticker(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendStickerOpts{
 		ReplyParameters:     replyParams,
@@ -246,7 +240,7 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for VideoNote '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
-		return sendText(b, content, opts, HTML, replyParams)
+		return sendText(b, content, opts, formatting.HTML, replyParams)
 	}
 	msg, err := b.SendVideoNote(opts.ChatID, gotgbot.InputFileByID(content.FileID), &gotgbot.SendVideoNoteOpts{
 		ReplyParameters:     replyParams,

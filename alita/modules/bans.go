@@ -43,43 +43,8 @@ func (m moduleStruct) dkick(b *gotgbot.Bot, ctx *ext.Context) error {
 // kickTargetValidation validates the target for kick commands.
 // Checks: user in chat, not ban-protected, not the bot itself.
 func kickTargetValidation(c *moderationCtx, t *target) error {
-	if !chat_status.IsUserInChat(c.Bot, c.Chat, t.userID) {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_user_not_in_chat")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_user_not_in_chat")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errUserNotInChat
-	}
-	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_cannot_kick_admin")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_admin")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errAdminTarget
-	}
-	if t.userID == c.Bot.Id {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_kick_is_bot_itself")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_self")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errTargetIsBot
-	}
-	return nil
+	prefix := strings.ToLower(c.Module.moduleName)
+	return validateTarget(c, t.userID, true, prefix+"_kick_user_not_in_chat", prefix+"_kick_cannot_kick_admin", prefix+"_kick_is_bot_itself")
 }
 
 // kickReply builds and sends the success reply for kick commands.
@@ -112,31 +77,8 @@ func kickReply(c *moderationCtx, t *target) error {
 // banTargetValidation validates the target for ban commands.
 // Checks: not ban-protected, not the bot itself.
 func banTargetValidation(c *moderationCtx, t *target) error {
-	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, t.userID) {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_is_admin")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_admin")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errAdminTarget
-	}
-	if t.userID == c.Bot.Id {
-		text, _ := c.Tr.GetString(strings.ToLower(c.Module.moduleName) + "_ban_is_bot_itself")
-		if text == "" {
-			text, _ = c.Tr.GetString("common_cannot_target_self")
-		}
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return errTargetIsBot
-	}
-	return nil
+	prefix := strings.ToLower(c.Module.moduleName)
+	return validateTarget(c, t.userID, false, "", prefix+"_ban_is_admin", prefix+"_ban_is_bot_itself")
 }
 
 // moderationDkick is the shared moderationCommand definition for /dkick.
@@ -168,12 +110,10 @@ func moderationTban(m *moduleStruct) *moderationCommand {
 		extract:  extractFromArgs,
 		validate: banTargetValidation,
 		execute: func(c *moderationCtx, t *target) error {
-			_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
+			_time := extractTemporalTarget(c, t)
 			if _time == -1 {
 				return ext.EndGroups
 			}
-			t.timeVal = timeVal
-			t.reason = reason
 			_, err := c.Chat.BanMember(c.Bot, t.userID, &gotgbot.BanChatMemberOpts{UntilDate: _time})
 			return err
 		},
@@ -675,10 +615,7 @@ func (moduleStruct) restrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 	if query.Message == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
@@ -896,9 +833,7 @@ func (moduleStruct) unrestrictButtonHandler(b *gotgbot.Bot, ctx *ext.Context) er
 	msg := query.Message
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if msg == nil {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	// permissions check
@@ -1148,9 +1083,7 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		action, _ = decoded.Field("a")
 	}
 	if action == "" {
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	if (action == "yes" || action == "no") && query.Message == nil {
 		text, _ := tr.GetString("common_callback_message_unavailable")

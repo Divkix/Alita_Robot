@@ -271,3 +271,64 @@ var (
 	errAdminTarget   = fmt.Errorf("target is a protected admin")
 	errTargetIsBot   = fmt.Errorf("target is the bot itself")
 )
+
+// replyValidationError sends a validation failure reply, logging send errors.
+func replyValidationError(c *moderationCtx, text string) error {
+	_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
+// validateTarget runs the shared target checks: optional in-chat membership,
+// admin-protection, and bot-self. Each key falls back to the shared common_*
+// string when the module-specific key is empty. Returns the sentinel for the
+// first failing check, nil when the target is actionable.
+func validateTarget(c *moderationCtx, userID int64, checkInChat bool, notInChatKey, adminKey, selfKey string) error {
+	if checkInChat && !chat_status.IsUserInChat(c.Bot, c.Chat, userID) {
+		text, _ := c.Tr.GetString(notInChatKey)
+		if text == "" {
+			text, _ = c.Tr.GetString("common_user_not_in_chat")
+		}
+		if err := replyValidationError(c, text); err != nil {
+			return err
+		}
+		return errUserNotInChat
+	}
+	if chat_status.IsUserBanProtected(c.Bot, c.Ctx, nil, userID) {
+		text, _ := c.Tr.GetString(adminKey)
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_admin")
+		}
+		if err := replyValidationError(c, text); err != nil {
+			return err
+		}
+		return errAdminTarget
+	}
+	if userID == c.Bot.Id {
+		text, _ := c.Tr.GetString(selfKey)
+		if text == "" {
+			text, _ = c.Tr.GetString("common_cannot_target_self")
+		}
+		if err := replyValidationError(c, text); err != nil {
+			return err
+		}
+		return errTargetIsBot
+	}
+	return nil
+}
+
+// extractTemporalTarget parses the duration from the target reason via
+// ExtractTime, storing the normalized timeVal/reason back on the target.
+// Returns the Telegram until_date, or -1 when extraction already replied.
+func extractTemporalTarget(c *moderationCtx, t *target) int64 {
+	_time, timeVal, reason := extraction.ExtractTime(c.Bot, c.Ctx, t.reason)
+	if _time == -1 {
+		return -1
+	}
+	t.timeVal = timeVal
+	t.reason = reason
+	return _time
+}

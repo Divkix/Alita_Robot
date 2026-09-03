@@ -178,9 +178,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if query, ok := callbackQueryFromContext(ctx); ok {
 		if query.Message == nil {
-			text, _ := tr.GetString("common_callback_invalid_request")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
+			return answerInvalidCallback(b, ctx, query)
 		}
 		response := ""
 		if decoded, ok := decodeCallbackData(query.Data, "about"); ok {
@@ -211,9 +209,7 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 				},
 			}
 		default:
-			text, _ := tr.GetString("common_callback_invalid_request")
-			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-			return ext.EndGroups
+			return answerInvalidCallback(b, ctx, query)
 		}
 		_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: currText, ReplyMarkup: currKb,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
@@ -294,10 +290,7 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	if query.Message == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	module := ""
 	if decoded, ok := decodeCallbackData(query.Data, "helpq"); ok {
@@ -446,10 +439,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	msg := query.Message
 	if msg == nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	// just in case
@@ -525,9 +515,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ = tr.GetString("help_configuration_step-3")
 	default:
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{

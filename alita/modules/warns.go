@@ -460,16 +460,12 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if userMatch == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	userId, parseErr := strconv.ParseInt(userMatch, 10, 64)
 	if parseErr != nil {
 		log.Errorf("[Warns] Failed to parse user ID from callback: %v", parseErr)
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	var replyText string
 
@@ -711,9 +707,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	if response == "" {
 		log.Warnf("[Warns] Invalid callback data format: %s", query.Data)
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 	var helpText string
 
@@ -738,9 +732,7 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		helpText, _ = tr.GetString("warns_reset_all_cancelled")
 		replyText = helpText
 	default:
-		text, _ := tr.GetString("common_callback_invalid_request")
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text})
-		return ext.EndGroups
+		return answerInvalidCallback(b, ctx, query)
 	}
 
 	if query.Message == nil {
