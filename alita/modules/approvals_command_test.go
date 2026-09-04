@@ -172,7 +172,6 @@ func TestUnapproveAllCallbackCancelInvalidAndUnavailableMessage(t *testing.T) {
 		t.Fatal("cancel callback removed approved user")
 	}
 
-	// Invalid (non-codec) data hits the "missing action" path.
 	invalidCtx := newModuleCallbackContext(bot, chat, owner, "not-a-valid-callback")
 	if err := approvalsModule.unapproveAllCallback(bot, invalidCtx); err != ext.EndGroups {
 		t.Fatalf("unapproveAllCallback invalid error = %v, want EndGroups", err)

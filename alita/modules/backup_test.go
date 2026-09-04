@@ -451,7 +451,6 @@ func TestBuildImportKeyboard(t *testing.T) {
 	assert.Equal(t, "Cancel Import", cancelBtn.Text)
 	assert.NotEmpty(t, cancelBtn.CallbackData)
 
-	// Verify callback data decodes correctly
 	decodedConfirm, ok := decodeCallbackData(confirmBtn.CallbackData, "backup")
 	require.True(t, ok)
 	action, _ := decodedConfirm.Field("a")
@@ -491,7 +490,6 @@ func TestBuildResetKeyboard(t *testing.T) {
 	assert.Equal(t, "Cancel Reset", cancelBtn.Text)
 	assert.NotEmpty(t, cancelBtn.CallbackData)
 
-	// Verify callback data decodes correctly
 	decodedConfirm, ok := decodeCallbackData(confirmBtn.CallbackData, "backup")
 	require.True(t, ok)
 	action, _ := decodedConfirm.Field("a")
@@ -551,7 +549,6 @@ func dropPendingReset(chatID int64) {
 
 func TestPendingImportsMaps(t *testing.T) {
 	t.Run("pending imports maps exist", func(t *testing.T) {
-		// Just verify the maps are initialized
 		assert.NotNil(t, pendingImports)
 		assert.NotNil(t, pendingResets)
 	})
@@ -949,7 +946,7 @@ func TestModuleNames(t *testing.T) {
 		}
 
 		for _, module := range modules {
-			assert.Equal(t, module, module) // Just checking they exist
+			assert.Equal(t, module, module)
 		}
 	})
 }

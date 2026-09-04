@@ -1236,7 +1236,6 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// LoadFederations registers federation commands and the passive fban watcher.
 func LoadFederations(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[federationsModule.moduleName] = true
 

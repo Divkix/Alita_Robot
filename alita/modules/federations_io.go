@@ -58,7 +58,6 @@ func parseFedBanCSV(data []byte) ([]models.FederationBan, error) {
 	}
 	start := 1
 	if idIdx < 0 {
-		// Treat the first row as data if there is no header.
 		idIdx = 0
 		start = 0
 	}

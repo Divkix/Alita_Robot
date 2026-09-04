@@ -35,22 +35,17 @@ var supportedReactionEmoji = []string{
 	"🤷‍♀", "😡",
 }
 
-// LoadReactions loads the reactions module with all command handlers
 func LoadReactions(dispatcher *ext.Dispatcher) {
-	// Admin commands
 	dispatcher.AddHandler(handlers.NewCommand("addreaction", reactionsModule.addReaction))
 	dispatcher.AddHandler(handlers.NewCommand("removereaction", reactionsModule.removeReaction))
 	dispatcher.AddHandler(handlers.NewCommand("reactions", reactionsModule.listReactions))
 	dispatcher.AddHandler(handlers.NewCommand("resetreactions", reactionsModule.resetReactions))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("reactions_help"), reactionsModule.reactionsHelpHandler))
 
-	// Message watcher for reactions (positive handler group for monitoring)
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
 
-	// Register module as disableable
 	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
 
-	// Add help text
 	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
 	DefaultHelpRegistry().helpableKb["Reactions"] = [][]gotgbot.InlineKeyboardButton{
 		{
@@ -68,7 +63,6 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 	log.Info("[Modules] Reactions module loaded")
 }
 
-// reactionsHelpHandler handles inline help callbacks for reaction commands.
 func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -128,7 +122,6 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	return ext.EndGroups
 }
 
-// addReaction handles /addreaction <keyword> <emoji> command
 func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -143,7 +136,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check permission - only admins can add reactions
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -176,7 +168,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Store in DB (cache is invalidated by the repository).
 	if err := reactions.AddReaction(chat.Id, keyword, emoji); err != nil {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -199,7 +190,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// removeReaction handles /removereaction <keyword> command
 func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -214,7 +204,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check permission
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -236,7 +225,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	reactionsMap := reactions.GetReactions(chat.Id)
 
-	// Check if keyword exists
 	if _, exists := reactionsMap[keyword]; !exists {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_keyword_not_found", i18n.TranslationParams{
@@ -246,7 +234,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Remove reaction from DB (cache is invalidated by the repository).
 	if err := reactions.RemoveReaction(chat.Id, keyword); err != nil {
 		log.Errorf("[Reactions] Failed to update reactions: %v", err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -268,7 +255,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// listReactions handles /reactions command
 func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -287,7 +273,6 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Build list
 	var sb strings.Builder
 	for keyword, emoji := range reactionsMap {
 		fmt.Fprintf(&sb, "• %s → %s\n", html.EscapeString(keyword), html.EscapeString(emoji))
@@ -306,7 +291,6 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetReactions handles /resetreactions command
 func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -321,13 +305,11 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check permission
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
-	// Delete all reactions from DB (cache is invalidated by the repository).
 	if err := reactions.ResetReactions(chat.Id); err != nil {
 		log.Errorf("[Reactions] Failed to reset reactions: %v", err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -347,7 +329,6 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// checkReactions checks incoming messages and reacts with emojis when keywords match
 func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -365,14 +346,11 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Get reactions for this chat (read-through cache backed by the DB).
 	reactionsMap := reactions.GetReactions(chat.Id)
 	if len(reactionsMap) == 0 {
 		return ext.ContinueGroups
 	}
 
-	// Check if message text contains any keywords (case-insensitive).
-	// Collect all matching keywords first, then sort them for deterministic selection.
 	lowerText := strings.ToLower(msg.Text)
 	var matchedKeywords []string
 	for keyword := range reactionsMap {
