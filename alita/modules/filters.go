@@ -34,12 +34,10 @@ var filtersModule = moduleStruct{
 	handlerGroup: 9,
 }
 
-// filterOverwriteCacheKey generates a cache key for filter overwrite confirmations.
 func filterOverwriteCacheKey(token string) string {
 	return overwriteCacheKey("filter", token)
 }
 
-// setFilterOverwriteCache stores filter overwrite data in cache with TTL.
 func setFilterOverwriteCache(token string, data overwriteFilter) error {
 	return setOverwriteCache(filterOverwriteCacheKey(token), data)
 }
@@ -48,20 +46,10 @@ func consumeFilterOverwriteCache(token string) (*overwriteFilter, error) {
 	return consumeOverwriteCache[overwriteFilter](filterOverwriteCacheKey(token))
 }
 
-// deleteFilterOverwriteCache removes filter overwrite data from cache.
 func deleteFilterOverwriteCache(token string) {
 	deleteOverwriteCache(filterOverwriteCacheKey(token))
 }
 
-/*
-	Used to add a filter to a specific keyword in chat!
-
-# Connection - true, true
-
-Only admin can add new filters in the chat
-*/
-// addFilter creates a new filter with a keyword trigger and response content.
-// Only admins can add filters. Supports text, media, and buttons with a limit of 150 filters per chat.
 //nolint:dupl // addFilter shares validation logic with notes module by design
 func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer func() {
@@ -70,7 +58,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}()
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -83,7 +70,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	args := ctx.Args()
 
-	// check permission
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -133,9 +119,8 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	filterWord = strings.ToLower(filterWord) // convert string to it's lower form
+	filterWord = strings.ToLower(filterWord)
 
-	// Validate keyword length - max 100 characters
 	if len([]rune(filterWord)) > 100 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("filters_keyword_too_long")
@@ -157,7 +142,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		// Store in cache instead of in-memory map
 		err := setFilterOverwriteCache(token, overwriteFilter{
 			overwriteBase: overwriteBase{
 				ChatID:   chat.Id,
@@ -215,7 +199,6 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Perform DB operation synchronously to ensure completion before confirmation
 	if err := db_filters.AddFilter(chat.Id, filterWord, text, fileid, buttons, dataType); err != nil {
 		log.Errorf("[Filters] AddFilter failed for chat %d: %v", chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -235,17 +218,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to remove a filter to a specific keyword in chat!
-
-# Connection - true, true
-
-Only admin can remove filters in the chat
-*/
-// rmFilter removes an existing filter by its keyword trigger.
-// Only admins can remove filters. Requires the exact filter keyword as argument.
 func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -259,7 +232,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	args := ctx.Args()[1:]
 
-	// check permission
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -286,7 +258,6 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		} else {
-			// Perform DB operation synchronously to ensure completion before confirmation
 			if err := db_filters.RemoveFilter(chat.Id, strings.ToLower(filterWord)); err != nil {
 				log.Errorf("[Filters] RemoveFilter failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
@@ -304,22 +275,11 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to view all filters in the chat!
-
-# Connection - false, true
-
-Any user can view users in a chat
-*/
-// filtersList displays all active filter keywords in the current chat.
-// Any user can view the list of available filters with their trigger keywords.
 func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "filters") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -367,13 +327,6 @@ func (moduleStruct) filtersList(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to remove all filters from the current chat
-
-Only owner can remove all filters from the chat
-*/
-// rmAllFilters removes all filters from the current chat with confirmation.
-// Only chat owners can use this command. Shows confirmation buttons before deletion.
 //nolint:dupl // rmAllFilters shares confirmation pattern with notes module by design
 func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
@@ -428,9 +381,6 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// CallbackQuery handler for rmAllFilters
-// filtersButtonHandler handles callback queries for filter-related button interactions.
-// Processes confirmation dialogs for removing all filters from a chat.
 func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -442,7 +392,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.EndGroups
 	}
 
-	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
@@ -499,9 +448,6 @@ func (moduleStruct) filtersButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	return ext.EndGroups
 }
 
-// CallbackQuery handler for filters_overwite. query
-// filterOverWriteHandler handles callback queries for filter overwrite confirmations.
-// Processes admin decisions when attempting to overwrite existing filter keywords.
 func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -513,7 +459,6 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	// permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -531,18 +476,15 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	}
 	var helpText string
 
-	// Handle cancel — atomically consume and validate
 	if action == "cancel" {
 		if token != "" {
 			if data, err := consumeFilterOverwriteCache(token); err == nil {
 				if data.UserID != 0 && data.UserID != user.Id {
-					// Wrong user consumed another user's token — already deleted atomically
 					helpText, _ = tr.GetString("filters_overwrite_expired")
 					if query.Message != nil {
 						_, _, _ = query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText})
 					}
 					_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
-					// Re-store is not attempted; token is already consumed (one-time)
 					return ext.EndGroups
 				}
 				if data.ChatID != 0 && data.ChatID != chat.Id {
@@ -569,7 +511,6 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 		return ext.EndGroups
 	}
 
-	// Atomically consume — no prior get check (TOCTOU fix)
 	filterData, err := consumeFilterOverwriteCache(token)
 	if err != nil || filterData == nil {
 		log.Debugf("[Filters] Failed to retrieve overwrite data from cache: %v", err)
@@ -636,15 +577,7 @@ func (m moduleStruct) filterOverWriteHandler(b *gotgbot.Bot, ctx *ext.Context) e
 	return ext.EndGroups
 }
 
-/*
-	Watchers for filter
-
-Replies with appropriate data to the filter.
-*/
-// filtersWatcher monitors incoming messages for filter keyword matches.
-// Automatically responds with filter content when keywords are detected in messages.
 func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
-	// Defensive nil check for EffectiveSender to prevent panics on channel messages
 	if ctx == nil || ctx.EffectiveSender == nil {
 		return ext.ContinueGroups
 	}
@@ -660,7 +593,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Use optimized cached query to fetch all filters at once (no N+1 query)
 	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
 	if err != nil {
 		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
@@ -671,7 +603,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Build keyword list for Aho-Corasick matching
 	filterKeys := make([]string, len(allFilters))
 	filterMap := make(map[string]*db.ChatFilters, len(allFilters))
 	for i, filter := range allFilters {
@@ -679,41 +610,33 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		filterMap[filter.KeyWord] = filter
 	}
 
-	// Use Aho-Corasick for efficient multi-pattern matching
 	cache := keyword_matcher.GetNamedCache("filters")
 	matcher := cache.GetOrCreateMatcher(chat.Id, filterKeys)
 
-	// Find first matching filter using optimized path
 	firstPattern, found := matcher.FirstMatch(matchText)
 	if !found {
 		return ext.ContinueGroups
 	}
 	i := firstPattern
 
-	// Check for noformat pattern using simpler string matching
 	noformatPattern := i + " noformat"
 	noformatMatch := strings.Contains(strings.ToLower(matchText), strings.ToLower(noformatPattern))
 
-	// Get filter data from pre-loaded map (no additional DB query)
 	filtData, exists := filterMap[i]
 	if !exists {
 		return ext.ContinueGroups
 	}
 
 	if noformatMatch {
-		// check if user is admin or not
 		if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 
-		// Reverse notedata
 		filtData.FilterReply = formatting.ReverseHTML2MD(filtData.FilterReply)
 
-		// show the buttons back as text
 		filtData.FilterReply += content.RevertButtons(filtData.Buttons)
 
-		// using true as last argument to prevent the message from being formatted
 		var err error
 		_, err = media.Send(b, media.Content{
 			Text:    filtData.FilterReply,
@@ -746,8 +669,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// LoadFilters registers all filter-related handlers with the dispatcher.
-// Sets up commands for managing filters and the message watcher for automatic responses.
 func LoadFilters(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[filtersModule.moduleName] = true
 
@@ -762,7 +683,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},
-	} // Adds Formatting kb button to Filters Menu
+	}
 	dispatcher.AddHandler(handlers.NewCommand("filter", filtersModule.addFilter))
 	dispatcher.AddHandler(handlers.NewCommand("addfilter", filtersModule.addFilter))
 	dispatcher.AddHandler(handlers.NewCommand("stop", filtersModule.rmFilter))

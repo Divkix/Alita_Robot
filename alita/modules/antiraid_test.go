@@ -189,18 +189,15 @@ func TestAntiRaidStateMachine(t *testing.T) {
 
 	chatID := time.Now().UnixNano()
 
-	// Initial state
 	if antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid to be inactive initially")
 	}
 
-	// Enable
 	antiRaidModule.enableRaid(chatID, 3600)
 	if !antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid to be active after enable")
 	}
 
-	// Disable
 	disabled, err := antiRaidModule.disableRaid(chatID)
 	if err != nil {
 		t.Fatalf("disableRaid() error = %v", err)
@@ -212,7 +209,6 @@ func TestAntiRaidStateMachine(t *testing.T) {
 		t.Fatal("expected raid to be inactive after disable")
 	}
 
-	// Disable when already disabled
 	disabled, err = antiRaidModule.disableRaid(chatID)
 	if err != nil {
 		t.Fatalf("disableRaid(inactive) error = %v", err)
@@ -318,7 +314,7 @@ func TestAntiRaidAutoExpiry(t *testing.T) {
 
 	chatID := time.Now().UnixNano() + 1
 
-	antiRaidModule.enableRaid(chatID, 1) // 1 second
+	antiRaidModule.enableRaid(chatID, 1)
 	if !antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid active immediately")
 	}
@@ -804,21 +800,16 @@ func TestAntiRaidOnJoinSkipsIneligibleUpdates(t *testing.T) {
 	}
 }
 
-// TestAntiRaidTrackJoinTriggersAtThreshold characterizes the join-counting logic in
-// trackJoin: the count must stay below T for the first T-1 joins and reach T on
-// the T-th join, with no overlap between distinct chat IDs.
 func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 	withMiniredis(t)
 
 	chatID := uniqueModuleChatID()
 	threshold := 3
 
-	// Clean up join tracking state for the chat after the test.
 	t.Cleanup(func() {
 		clearJoinTracking(chatID)
 	})
 
-	// First T-1 joins must not meet the threshold.
 	for i := 0; i < threshold-1; i++ {
 		userID := int64(1000 + i)
 		count, err := trackJoin(chatID, userID)
@@ -830,7 +821,6 @@ func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 		}
 	}
 
-	// T-th join must meet or exceed the threshold.
 	count, err := trackJoin(chatID, int64(1000+threshold-1))
 	if err != nil {
 		t.Fatalf("trackJoin (T-th) error = %v", err)
@@ -846,7 +836,6 @@ func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 		t.Fatalf("join tracking TTL = %v, want within the join window", ttl)
 	}
 
-	// A separate chat ID must have an independent counter.
 	otherChatID := uniqueModuleChatID()
 	t.Cleanup(func() {
 		clearJoinTracking(otherChatID)
@@ -860,9 +849,6 @@ func TestAntiRaidTrackJoinTriggersAtThreshold(t *testing.T) {
 	}
 }
 
-// TestAntiRaidOnJoinAppliesConfiguredAction characterizes two key onJoin branches:
-//  1. No action when raid is inactive and AutoAntiRaidThreshold is 0.
-//  2. Ban + raid activation when the threshold is reached (via miniredis).
 func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 	t.Run("no action when raid inactive and threshold disabled", func(t *testing.T) {
 		client := newModuleBotClient()
@@ -870,7 +856,6 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
 		raider := gotgbot.User{Id: 5001, FirstName: "Raider"}
 
-		// Ensure threshold is 0 (default) so no auto-raid logic runs.
 		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 0); err != nil {
 			t.Fatalf("SetAutoAntiRaidThreshold setup error = %v", err)
 		}
@@ -899,7 +884,6 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Raid Chat"}
 		raider := gotgbot.User{Id: 5002, FirstName: "Raider"}
 
-		// Set threshold to 1: the very first tracked join must trigger auto-raid.
 		if err := antiraid.SetAutoAntiRaidThreshold(chat.Id, 1); err != nil {
 			t.Fatalf("SetAutoAntiRaidThreshold(1) error = %v", err)
 		}
@@ -920,11 +904,9 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 			t.Fatalf("onJoin(auto-trigger) error = %v, want ContinueGroups", err)
 		}
 
-		// The raid must now be active.
 		if !antiRaidModule.isRaidActive(chat.Id) {
 			t.Fatal("isRaidActive = false after threshold reached, want true")
 		}
-		// The triggering joiner must have been banned.
 		if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 			t.Fatalf("banChatMember calls = %d, want 1 (triggering joiner)", len(calls))
 		}
@@ -970,14 +952,11 @@ func TestAntiRaidOnJoinAppliesConfiguredAction(t *testing.T) {
 	})
 }
 
-// TestAntiRaidCheckExpiredRaidsReleasesAfterWindow verifies that the poller
-// persists expiry while leaving a live raid untouched.
 func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
 	withMiniredis(t)
 
 	rdb := cache.GetRedisClient()
 
-	// --- Scenario A: expired raid ---
 	expiredChatID := uniqueModuleChatID()
 	t.Cleanup(func() {
 		_, _ = antiRaidModule.disableRaid(expiredChatID)
@@ -990,13 +969,12 @@ func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
 	expiredState := &raidState{
 		Active:    true,
 		StartedAt: time.Now().Add(-2 * time.Hour).Unix(),
-		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(), // expired 1 hour ago
+		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(),
 	}
 	if err := setRaidState(expiredChatID, expiredState); err != nil {
 		t.Fatalf("setRaidState(expired) setup error = %v", err)
 	}
 
-	// --- Scenario B: still-active raid ---
 	activeChatID := uniqueModuleChatID()
 	t.Cleanup(func() {
 		_, _ = antiRaidModule.disableRaid(activeChatID)
@@ -1009,16 +987,14 @@ func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
 	activeState := &raidState{
 		Active:    true,
 		StartedAt: time.Now().Unix(),
-		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(), // expires 1 hour from now
+		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
 	}
 	if err := setRaidState(activeChatID, activeState); err != nil {
 		t.Fatalf("setRaidState(active) setup error = %v", err)
 	}
 
-	// Run the expiry check — must not return an error or panic.
 	antiRaidModule.checkExpiredRaids(context.Background())
 
-	// The expired state is persisted as inactive.
 	expiredSt := getRaidState(expiredChatID)
 	if expiredSt.Active {
 		t.Fatalf("getRaidState(expired).Active = true after checkExpiredRaids, want false")
@@ -1027,7 +1003,6 @@ func TestAntiRaidCheckExpiredRaidsReleasesAfterWindow(t *testing.T) {
 		t.Fatal("isRaidActive(expired) = true after checkExpiredRaids, want false")
 	}
 
-	// A non-expired raid remains active.
 	activeSt := getRaidState(activeChatID)
 	if !activeSt.Active {
 		t.Fatalf("getRaidState(active).Active = false after checkExpiredRaids, want true (non-expired raid must not be released)")
