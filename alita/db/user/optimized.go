@@ -11,8 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetUserBasicInfo retrieves only essential user information with minimal column selection.
-// Optimized for high-frequency calls (61K+ calls) by selecting only necessary fields.
 func GetUserBasicInfo(userID int64) (*models.User, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -31,8 +29,6 @@ func GetUserBasicInfo(userID int64) (*models.User, error) {
 	return &user, err
 }
 
-// GetUserBasicInfoCached retrieves user information with caching layer for improved performance.
-// Uses 1-hour cache TTL and falls back to direct query if cache fails.
 func GetUserBasicInfoCached(userID int64) (*models.User, error) {
 	cacheKey := cache.CacheKey("user", userID)
 

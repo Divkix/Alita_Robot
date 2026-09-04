@@ -35,10 +35,6 @@ func setupMonitoringDB(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// NewActivityMonitor
-// ---------------------------------------------------------------------------
-
 func TestNewActivityMonitor(t *testing.T) {
 	// Cannot run in parallel because NewActivityMonitor reads global config.
 
@@ -76,7 +72,7 @@ func TestNewActivityMonitor(t *testing.T) {
 		am2 := NewActivityMonitor()
 		// sync.Once has no exported state, but we can verify Stop() works twice
 		am2.Stop()
-		am2.Stop() // should not panic
+		am2.Stop()
 	})
 
 	t.Run("metrics fields are zero value", func(t *testing.T) {
@@ -251,10 +247,6 @@ func requireCleanMonitoringTables(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Start
-// ---------------------------------------------------------------------------
-
 func TestStart(t *testing.T) {
 	if db.DB == nil {
 		t.Skip("requires PostgreSQL connection")
@@ -264,9 +256,6 @@ func TestStart(t *testing.T) {
 	am.Start()
 	defer am.Stop()
 
-	// Verify the monitor is running: lastMetrics should eventually be populated.
-	// calculateMetrics runs synchronously inside Start, so lastMetricsCalculated
-	// should be set immediately (or very shortly, since it spawns goroutines).
 	done := make(chan struct{})
 	quit := make(chan struct{})
 	go func() {
@@ -289,7 +278,6 @@ func TestStart(t *testing.T) {
 
 	select {
 	case <-done:
-		// success
 	case <-time.After(5 * time.Second):
 		close(quit)
 		t.Fatal("timeout waiting for metrics calculation after Start()")
@@ -304,17 +292,11 @@ func TestStart_DoesNotPanic(t *testing.T) {
 	am := NewActivityMonitor()
 	defer am.Stop()
 
-	// The sole purpose of this test is to ensure Start() itself does not panic.
 	am.Start()
 }
 
-// ---------------------------------------------------------------------------
-// Stop
-// ---------------------------------------------------------------------------
-
 func TestStop_WithoutStart(t *testing.T) {
 	am := NewActivityMonitor()
-	// Should not panic even if Start() was never called.
 	am.Stop()
 }
 
@@ -326,7 +308,7 @@ func TestStop_Idempotent(t *testing.T) {
 	am := NewActivityMonitor()
 	am.Start()
 	am.Stop()
-	am.Stop() // second call must not panic
+	am.Stop()
 }
 
 func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
@@ -337,7 +319,6 @@ func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
 	am := NewActivityMonitor()
 	am.Start()
 
-	// Stop should complete without hanging.
 	done := make(chan struct{})
 	go func() {
 		am.Stop()
@@ -346,15 +327,10 @@ func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
 
 	select {
 	case <-done:
-		// success
 	case <-time.After(5 * time.Second):
 		t.Fatal("Stop() hung or timed out")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// monitorLoop lifecycle (no DB required)
-// ---------------------------------------------------------------------------
 
 func TestMonitorLoop_ExitsOnCancel(t *testing.T) {
 	am := NewActivityMonitor()
@@ -369,12 +345,10 @@ func TestMonitorLoop_ExitsOnCancel(t *testing.T) {
 		close(done)
 	}()
 
-	// cancel the context to trigger monitorLoop exit
 	am.cancel()
 
 	select {
 	case <-done:
-		// success
 	case <-time.After(2 * time.Second):
 		t.Fatal("monitorLoop did not exit after context cancellation")
 	}
@@ -393,15 +367,10 @@ func TestMonitorLoop_ExitsViaStop(t *testing.T) {
 
 	select {
 	case <-done:
-		// success
 	case <-time.After(2 * time.Second):
 		t.Fatal("Stop() did not complete after starting monitorLoop")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ActivityMetrics struct fields
-// ---------------------------------------------------------------------------
 
 func TestActivityMetrics_Fields(t *testing.T) {
 	t.Parallel()

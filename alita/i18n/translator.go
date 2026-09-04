@@ -9,30 +9,23 @@ import (
 )
 
 var (
-	// Regex for parameter interpolation {key} style
-	paramRegex = regexp.MustCompile(`\{([^}]+)\}`)
-	// Regex for legacy parameter interpolation %s, %d, etc.
+	paramRegex       = regexp.MustCompile(`\{([^}]+)\}`)
 	legacyParamRegex = regexp.MustCompile(`%[sdvfbtoxX]`)
 )
 
-// GetString retrieves a translated string with optional parameter interpolation.
 func (t *Translator) GetString(key string, params ...TranslationParams) (string, error) {
 	if t.manager == nil {
 		return "", NewI18nError("get_string", t.langCode, key, "manager not initialized", ErrManagerNotInit)
 	}
 
-	// Get string from the parsed locale map
 	result := lookupString(t.data, key)
 
-	// Check if key exists
 	if result == "" || result == "<nil>" {
-		// Try fallback to default language if not already using it
 		if t.langCode != t.manager.defaultLang {
 			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
 			if err != nil {
 				return "", NewI18nError("get_string", t.langCode, key, "fallback failed", err)
 			}
-			// Prevent infinite recursion
 			if defaultTranslator.langCode == t.langCode {
 				return "", NewI18nError("get_string", t.langCode, key, "recursive fallback detected", ErrRecursiveFallback)
 			}
@@ -41,7 +34,6 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 		return "", NewI18nError("get_string", t.langCode, key, "translation not found", ErrKeyNotFound)
 	}
 
-	// Apply parameter interpolation if params provided
 	if len(params) > 0 {
 		var err error
 		result, err = t.interpolateParams(result, params[0])
@@ -53,7 +45,6 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 	return result, nil
 }
 
-// GetStringSlice retrieves a translated string slice.
 func (t *Translator) GetStringSlice(key string) ([]string, error) {
 	if t.manager == nil {
 		return nil, NewI18nError("get_string_slice", t.langCode, key, "manager not initialized", ErrManagerNotInit)
@@ -61,9 +52,7 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 
 	result := lookupStringSlice(t.data, key)
 
-	// Check if key exists
 	if len(result) == 0 {
-		// Try fallback to default language
 		if t.langCode != t.manager.defaultLang {
 			defaultTranslator, err := t.manager.GetTranslator(t.manager.defaultLang)
 			if err != nil {
@@ -80,7 +69,6 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 	return result, nil
 }
 
-// interpolateParams performs parameter interpolation on a string.
 func (t *Translator) interpolateParams(text string, params TranslationParams) (string, error) {
 	if params == nil {
 		return text, nil
@@ -88,20 +76,15 @@ func (t *Translator) interpolateParams(text string, params TranslationParams) (s
 
 	result := text
 
-	// Handle {key} style parameters
 	result = paramRegex.ReplaceAllStringFunc(result, func(match string) string {
-		// Extract key name (remove { and })
 		keyName := match[1 : len(match)-1]
 		if value, exists := params[keyName]; exists {
 			return fmt.Sprintf("%v", value)
 		}
-		return match // Keep original if no replacement found
+		return match
 	})
 
-	// Handle legacy %s style parameters (for backward compatibility)
-	// This is more complex as we need to maintain order
 	if legacyParamRegex.MatchString(result) {
-		// For legacy support, try to find numbered parameters or use order
 		if orderedValues := extractOrderedValues(params); len(orderedValues) > 0 {
 			specCount := len(legacyParamRegex.FindAllString(result, -1))
 			if specCount <= len(orderedValues) {
@@ -115,7 +98,6 @@ func (t *Translator) interpolateParams(text string, params TranslationParams) (s
 	return result, nil
 }
 
-// extractOrderedValues extracts values from params in a predictable order for legacy sprintf.
 func extractOrderedValues(params TranslationParams) []any {
 	if params == nil {
 		return nil
@@ -123,7 +105,6 @@ func extractOrderedValues(params TranslationParams) []any {
 
 	var values []any
 
-	// Try common numbered keys first (0, 1, 2, etc.)
 	for i := 0; i < 10; i++ {
 		key := strconv.Itoa(i)
 		if value, exists := params[key]; exists {
@@ -133,22 +114,14 @@ func extractOrderedValues(params TranslationParams) []any {
 		}
 	}
 
-	// If no numbered keys found, try a predefined order of common keys
 	if len(values) == 0 {
 		commonKeys := []string{
-			// Most common patterns from the codebase
 			"first", "second", "third", "fourth", "fifth",
-			// Question/answer patterns (before number to match captcha_welcome_math_text order)
 			"question", "answer",
-			// Common numeric-related keys
 			"number", "count", "value",
-			// User/name patterns
 			"name", "user", "username",
-			// Generic argument patterns
 			"arg1", "arg2", "arg3",
-			// Single letter keys
 			"s", "d", "v", "f",
-			// Extended keys for legacy % formatting (append at end to preserve order)
 			"duration", "threshold", "error", "user_id", "expires_in", "raid_time", "action_time", "auto_threshold", "mode", "reason", "limit",
 		}
 		for _, key := range commonKeys {

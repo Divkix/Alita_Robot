@@ -10,8 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// GetChatLocksOptimized retrieves all locks for a chat with minimal column selection.
-// Returns a map of lock types to their boolean status for improved performance.
 func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -40,9 +38,6 @@ func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
 	return result, nil
 }
 
-// GetChatLocksCached retrieves all locks for a chat with a caching layer for improved performance.
-// Caches the full lock map under a single key, eliminating repeated DB round-trips per message.
-// Uses 1-hour cache TTL and falls back to direct query if cache fails.
 func GetChatLocksCached(chatID int64) (map[string]bool, error) {
 	cacheKey := cache.CacheKey("locks_map", chatID)
 

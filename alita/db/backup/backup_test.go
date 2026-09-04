@@ -258,7 +258,6 @@ func TestExportChatData(t *testing.T) {
 	})
 
 	t.Run("ExportChatData with empty modules exports all", func(t *testing.T) {
-		// Just verify it doesn't error with nil modules
 		backup := NewBackupFormat(12345, "Test", 67890, AllExportableModules())
 		assert.NotNil(t, backup)
 	})
@@ -387,7 +386,6 @@ func TestExportAdminData(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_export_admin"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Configure admin-related settings
 	require.NoError(t, admin.SetAnonAdminMode(chatID, true))
 	require.NoError(t, antiflood.SetFlood(chatID, 7))
 	require.NoError(t, antiflood.SetFloodMode(chatID, "ban"))
@@ -418,7 +416,6 @@ func TestImportAdminData(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_admin"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Ensure admin settings record exists before import
 	_ = admin.GetAdminSettings(chatID)
 
 	// Build import payload as map (mimics JSON round-trip)
@@ -479,13 +476,11 @@ func TestExportFiltersData(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_export_filters"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Empty filters → returns empty backup
 	backup, err := exportFiltersData(chatID)
 	require.NoError(t, err)
 	require.NotNil(t, backup)
 	assert.Empty(t, backup.Filters)
 
-	// Add filters
 	require.NoError(t, filters.AddFilter(chatID, "hello", "hi there", "", nil, db.TEXT))
 	require.NoError(t, filters.AddFilter(chatID, "bye", "see ya", "", nil, db.TEXT))
 
@@ -558,22 +553,18 @@ func TestExportImportNotesRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	// Add notes to source chat
 	require.NoError(t, notes.AddNote(srcChat, "welcome", "Welcome!", "", nil, db.TEXT, false, false, false, true, false, false))
 	require.NoError(t, notes.AddNote(srcChat, "rules", "Follow the rules", "", nil, db.TEXT, false, false, false, true, false, false))
 
-	// Export
 	exported, err := exportNotesData(srcChat)
 	require.NoError(t, err)
 	require.NotNil(t, exported)
 	assert.Len(t, exported.Notes, 2)
 
-	// Convert to map for import
 	payload := map[string]interface{}{
 		"notes": exported.Notes,
 	}
 
-	// Import into destination
 	require.NoError(t, ImportModuleData(dstChat, BackupModuleNotes, payload))
 
 	list := notes.GetNotesList(dstChat, true)
@@ -643,18 +634,15 @@ func TestExportImportLocksRoundTrip(t *testing.T) {
 	require.NoError(t, locks.UpdateLock(srcChat, " stickers", true))
 	require.NoError(t, locks.UpdateLock(srcChat, " url", false))
 
-	// Export
 	exported, err := exportLocksData(srcChat)
 	require.NoError(t, err)
 	require.NotNil(t, exported)
 	assert.Len(t, exported.Locks, 2)
 
-	// Convert to map for import
 	payload := map[string]interface{}{
 		"locks": exported.Locks,
 	}
 
-	// Import into destination
 	require.NoError(t, ImportModuleData(dstChat, BackupModuleLocks, payload))
 
 	lockMap := locks.GetChatLocks(dstChat)
@@ -925,7 +913,6 @@ func TestExportImportGreetingsRoundTrip(t *testing.T) {
 	require.NotNil(t, exported.Settings.GoodbyeSettings)
 	assert.Equal(t, "Bye {first}!", exported.Settings.GoodbyeSettings.GoodbyeText)
 
-	// Ensure greeting record exists in dst before import
 	_ = greetings.GetGreetingSettings(dstChat)
 
 	// Build payload from exported JSON so keys match struct tags exactly
@@ -960,7 +947,6 @@ func TestExportImportPinsRoundTrip(t *testing.T) {
 	_ = pins.GetPinData(srcChat)
 	require.NoError(t, pins.SetAntiChannelPin(srcChat, true))
 
-	// Ensure dst has record before import
 	_ = pins.GetPinData(dstChat)
 
 	exported, err := exportPinsData(srcChat)
@@ -995,7 +981,6 @@ func TestExportImportReportsRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	// Ensure src record exists, then disable
 	_ = reports.GetChatReportSettings(srcChat)
 	require.NoError(t, reports.SetChatReportStatus(srcChat, false))
 
@@ -1005,7 +990,6 @@ func TestExportImportReportsRoundTrip(t *testing.T) {
 	require.NotNil(t, exported.Settings)
 	assert.False(t, exported.Settings.Enabled)
 
-	// Ensure dst record exists before import (create if missing)
 	_ = reports.GetChatReportSettings(dstChat)
 
 	payload := map[string]interface{}{
@@ -1099,12 +1083,10 @@ func TestClearChatData_SpecificModules(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_clear_specific"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Set up data for multiple modules
 	require.NoError(t, filters.AddFilter(chatID, "hello", "hi", "", nil, db.TEXT))
 	require.NoError(t, antiflood.SetFlood(chatID, 5))
 	rules.SetChatRules(chatID, "rules text")
 
-	// Clear only filters
 	require.NoError(t, ClearChatData(chatID, []string{BackupModuleFilters}))
 
 	assert.Empty(t, filters.GetFiltersList(chatID))
@@ -1119,7 +1101,6 @@ func TestClearChatData_AllModules(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_clear_all"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Set up data
 	require.NoError(t, filters.AddFilter(chatID, "hello", "hi", "", nil, db.TEXT))
 	require.NoError(t, blacklists.AddBlacklist(chatID, "bad"))
 	require.NoError(t, antiflood.SetFlood(chatID, 5))
@@ -1130,7 +1111,6 @@ func TestClearChatData_AllModules(t *testing.T) {
 	_ = reports.GetChatReportSettings(chatID)
 	_ = admin.GetAdminSettings(chatID)
 
-	// Clear all (empty modules)
 	require.NoError(t, ClearChatData(chatID, nil))
 
 	assert.Empty(t, filters.GetFiltersList(chatID))
@@ -1163,39 +1143,32 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_clear_individual"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// --- Filters ---
 	require.NoError(t, filters.AddFilter(chatID, "f", "r", "", nil, db.TEXT))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleFilters))
 	assert.Empty(t, filters.GetFiltersList(chatID))
 
-	// --- Blacklists ---
 	require.NoError(t, blacklists.AddBlacklist(chatID, "badword"))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleBlacklists))
 	assert.Empty(t, blacklists.GetBlacklistSettings(chatID))
 
-	// --- Notes ---
 	require.NoError(t, notes.AddNote(chatID, "n1", "c1", "", nil, db.TEXT, false, false, false, true, false, false))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleNotes))
 	assert.Empty(t, notes.GetNotesList(chatID, true))
 
-	// --- Rules ---
 	rules.SetChatRules(chatID, "some rules")
 	require.NoError(t, ClearModuleData(chatID, BackupModuleRules))
 	assert.Equal(t, "", rules.GetChatRulesInfo(chatID).Rules)
 
-	// --- Warns ---
 	require.NoError(t, warns.SetWarnLimit(chatID, 10))
 	require.NoError(t, warns.SetWarnMode(chatID, "ban"))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleWarns))
 	assert.Equal(t, 3, warns.GetWarnSetting(chatID).WarnLimit)
 	assert.Equal(t, "", warns.GetWarnSetting(chatID).WarnMode)
 
-	// --- Locks ---
 	require.NoError(t, locks.UpdateLock(chatID, " stickers", true))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleLocks))
 	assert.False(t, locks.GetChatLocks(chatID)[" stickers"])
 
-	// --- Greetings ---
 	require.NoError(t, greetings.SetWelcomeToggle(chatID, true))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleGreetings))
 	settings := greetings.GetGreetingSettings(chatID)
@@ -1203,19 +1176,16 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 		assert.False(t, settings.WelcomeSettings.ShouldWelcome)
 	}
 
-	// --- Pins ---
 	_ = pins.GetPinData(chatID)
 	require.NoError(t, pins.SetAntiChannelPin(chatID, true))
 	require.NoError(t, ClearModuleData(chatID, BackupModulePins))
 	assert.False(t, pins.GetPinData(chatID).AntiChannelPin)
 
-	// --- Reports ---
 	_ = reports.GetChatReportSettings(chatID)
 	require.NoError(t, reports.SetChatReportStatus(chatID, false))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleReports))
 	assert.True(t, reports.GetChatReportSettings(chatID).Enabled)
 
-	// --- Captcha ---
 	_, _ = captcha.GetCaptchaSettings(chatID)
 	_ = captcha.SetCaptchaEnabled(chatID, true)
 	require.NoError(t, ClearModuleData(chatID, BackupModuleCaptcha))
@@ -1224,7 +1194,6 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 		assert.False(t, captchaSettings.Enabled)
 	}
 
-	// --- Antiflood ---
 	require.NoError(t, antiflood.SetFlood(chatID, 8))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleAntiflood))
 	assert.Equal(t, 0, antiflood.GetFlood(chatID).Limit)
@@ -1237,7 +1206,6 @@ func TestExportModuleData_EdgeCases(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_export_edge"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// No data exists yet → exports should return non-nil empty structs
 	adminData, err := exportAdminData(chatID)
 	require.NoError(t, err)
 	require.NotNil(t, adminData)
@@ -1303,7 +1271,6 @@ func TestExportChatData_Full(t *testing.T) {
 	require.NoError(t, chats.EnsureChatInDb(chatID, "test_export_chat_full"))
 	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
 
-	// Populate multiple modules
 	require.NoError(t, admin.SetAnonAdminMode(chatID, true))
 	require.NoError(t, antiflood.SetFlood(chatID, 4))
 	require.NoError(t, filters.AddFilter(chatID, "hi", "hello", "", nil, db.TEXT))
@@ -1322,7 +1289,6 @@ func TestExportChatData_Full(t *testing.T) {
 	assert.Equal(t, "Test Chat", backup.ChatName)
 	assert.Len(t, backup.Modules, 4)
 
-	// Verify data is present
 	assert.NotNil(t, backup.Data[BackupModuleAdmin])
 	assert.NotNil(t, backup.Data[BackupModuleFilters])
 	assert.NotNil(t, backup.Data[BackupModuleRules])
@@ -1343,7 +1309,6 @@ func TestExportChatData_EmptyModulesExportsAll(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, backup)
 
-	// Should contain all modules (even if some have empty data)
 	assert.Equal(t, len(AllExportableModules()), len(backup.Modules))
 }
 
@@ -1356,13 +1321,11 @@ func TestImportChatData_RejectsMissingLegacyModuleData(t *testing.T) {
 
 	backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleFilters, BackupModuleNotes})
 	backup.Version = legacyFormatVersion
-	// Only provide data for filters
 	backup.Data[BackupModuleFilters] = map[string]interface{}{
 		"filters": []map[string]interface{}{
 			{"chat_id": float64(chatID), "keyword": "k", "filter_reply": "r", "msgtype": float64(db.TEXT)},
 		},
 	}
-	// Notes module has no data in backup
 
 	err := ImportChatData(chatID, backup, nil)
 	require.ErrorContains(t, err, "missing data for module: notes")
@@ -1381,12 +1344,10 @@ func TestAntiraidBackupRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	// Configure non-default antiraid settings on srcChat
 	require.NoError(t, antiraid.SetRaidTime(srcChat, 3600))
 	require.NoError(t, antiraid.SetRaidActionTime(srcChat, 7200))
 	require.NoError(t, antiraid.SetAutoAntiRaidThreshold(srcChat, 10))
 
-	// Export
 	exported, err := exportAntiraidData(srcChat)
 	require.NoError(t, err)
 	require.NotNil(t, exported)
@@ -1395,14 +1356,12 @@ func TestAntiraidBackupRoundTrip(t *testing.T) {
 	assert.Equal(t, 7200, exported.Settings.RaidActionTime)
 	assert.Equal(t, 10, exported.Settings.AutoAntiRaidThreshold)
 
-	// Clear srcChat to defaults
 	require.NoError(t, ClearModuleData(srcChat, BackupModuleAntiraid))
 	cleared := antiraid.GetAntiRaidSettings(srcChat)
 	assert.Equal(t, 21600, cleared.RaidTime)
 	assert.Equal(t, 3600, cleared.RaidActionTime)
 	assert.Equal(t, 0, cleared.AutoAntiRaidThreshold)
 
-	// Import into dstChat
 	exportedJSON, err := json.Marshal(exported)
 	require.NoError(t, err)
 	var payload map[string]interface{}
@@ -1429,14 +1388,12 @@ func TestApprovalsBackupRoundTrip(t *testing.T) {
 		cleanupBackupChat(t, dstChat)
 	})
 
-	// Add two approved users
 	const approverID = int64(999)
 	userA := int64(111)
 	userB := int64(222)
 	require.NoError(t, approvals.AddApprovedUser(srcChat, userA, approverID, "reason A"))
 	require.NoError(t, approvals.AddApprovedUser(srcChat, userB, approverID, "reason B"))
 
-	// Export
 	exported, err := exportApprovalsData(srcChat)
 	require.NoError(t, err)
 	require.NotNil(t, exported)
@@ -1449,11 +1406,9 @@ func TestApprovalsBackupRoundTrip(t *testing.T) {
 	assert.Contains(t, exportedUserIDs, userA)
 	assert.Contains(t, exportedUserIDs, userB)
 
-	// Clear srcChat approvals
 	require.NoError(t, ClearModuleData(srcChat, BackupModuleApprovals))
 	assert.Empty(t, approvals.GetApprovedUsers(srcChat))
 
-	// Import into dstChat
 	exportedJSON, err := json.Marshal(exported)
 	require.NoError(t, err)
 	var payload map[string]interface{}
@@ -1471,7 +1426,6 @@ func TestApprovalsBackupRoundTrip(t *testing.T) {
 	assert.Contains(t, restoredIDs, userA)
 	assert.Contains(t, restoredIDs, userB)
 
-	// Verify approvals recognizes the restored users
 	assert.True(t, approvals.IsUserApproved(dstChat, userA))
 	assert.True(t, approvals.IsUserApproved(dstChat, userB))
 }

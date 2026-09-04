@@ -8,7 +8,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
-// canUserConnectToChat enforces the same authorization gate for /connect, /reconnect, and deep-link connect.
 func canUserConnectToChat(b *gotgbot.Bot, chatID, userID int64) (bool, string) {
 	settings := connections.GetChatConnectionSetting(chatID)
 	if chat_status.IsUserAdmin(b, chatID, userID) {

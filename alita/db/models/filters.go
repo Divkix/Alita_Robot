@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// ChatFilters represents chat filters
 type ChatFilters struct {
 	ID          uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId      int64       `gorm:"column:chat_id;not null;uniqueIndex:uk_filters_chat_keyword" json:"chat_id,omitempty"`

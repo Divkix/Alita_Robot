@@ -404,7 +404,6 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 	}
 }
 
-// countFloodMuEntries returns the number of entries currently held in floodMu.
 func countFloodMuEntries() int {
 	n := 0
 	floodMu.Range(func(_, _ any) bool {
@@ -414,13 +413,9 @@ func countFloodMuEntries() int {
 	return n
 }
 
-// TestAntifloodCleanupRemovesMutexEntries verifies that cleanupOnce removes both
-// the syncHelperMap entry and the corresponding floodMu entry when the entry has
-// been idle for more than 600 seconds, and that a non-idle entry is left intact.
 func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 	resetAntifloodState(t)
 
-	// Also clear any floodMu entries left over from other tests.
 	floodMu.Range(func(key, _ any) bool {
 		floodMu.Delete(key)
 		return true
@@ -430,14 +425,12 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 	freshKey := floodKey{chatId: -9001, userId: 1002}
 
 	now := int64(1_000_000)
-	staleActivity := now - 601 // idle > 600 s → must be removed
-	freshActivity := now - 10  // idle 10 s → must survive
+	staleActivity := now - 601
+	freshActivity := now - 10
 
-	// Populate syncHelperMap.
 	antifloodModule.syncHelperMap.Store(staleKey, floodControl{userId: 1001, lastActivity: staleActivity})
 	antifloodModule.syncHelperMap.Store(freshKey, floodControl{userId: 1002, lastActivity: freshActivity})
 
-	// Populate floodMu (mirrors what updateFlood does via LoadOrStore).
 	floodMu.Store(staleKey, &sync.Mutex{})
 	floodMu.Store(freshKey, &sync.Mutex{})
 
@@ -445,10 +438,8 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 		t.Fatalf("pre-cleanup floodMu entries = %d, want >= 2", got)
 	}
 
-	// Run exactly one cleanup pass at the synthetic "now".
 	antifloodModule.cleanupOnce(now)
 
-	// Stale entry must be gone from both maps.
 	if _, ok := antifloodModule.syncHelperMap.Load(staleKey); ok {
 		t.Error("stale key still present in syncHelperMap after cleanup")
 	}
@@ -456,7 +447,6 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 		t.Error("stale key still present in floodMu after cleanup")
 	}
 
-	// Fresh entry must still be present in both maps.
 	if _, ok := antifloodModule.syncHelperMap.Load(freshKey); !ok {
 		t.Error("fresh key was incorrectly removed from syncHelperMap")
 	}
@@ -464,7 +454,6 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 		t.Error("fresh key was incorrectly removed from floodMu")
 	}
 
-	// Cleanup after test.
 	antifloodModule.syncHelperMap.Delete(freshKey)
 	floodMu.Delete(freshKey)
 }

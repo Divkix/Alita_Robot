@@ -6,8 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// EnsureUserInDb ensures that a user exists in the database.
-// This is a test helper to avoid circular imports between db and user packages.
 func EnsureUserInDb(userId int64, username, firstName string) error {
 	userUpdate := &User{
 		UserId:   userId,
@@ -22,8 +20,6 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 	return nil
 }
 
-// EnsureChatInDb ensures that a chat exists in the database.
-// This is a test helper to avoid circular imports between db and chats packages.
 func EnsureChatInDb(chatId int64, chatName string) error {
 	chatUpdate := &Chat{
 		ChatId:   chatId,

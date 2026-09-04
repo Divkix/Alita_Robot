@@ -13,18 +13,15 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-// BackupRateLimiter provides rate limiting for backup operations
 type BackupRateLimiter struct {
 	mu sync.RWMutex
 }
 
 var (
-	// Singleton instance
 	backupLimiter *BackupRateLimiter
 	once          = &sync.Once{}
 )
 
-// GetBackupRateLimiter returns the singleton rate limiter instance
 func GetBackupRateLimiter() *BackupRateLimiter {
 	once.Do(func() {
 		backupLimiter = &BackupRateLimiter{}
@@ -32,31 +29,26 @@ func GetBackupRateLimiter() *BackupRateLimiter {
 	return backupLimiter
 }
 
-// Cache key prefixes for rate limiting
 const (
 	exportRatePrefix = "backup:export:"
 	importRatePrefix = "backup:import:"
 	resetRatePrefix  = "backup:reset:"
 )
 
-// Default cooldown periods
 const (
 	DefaultExportCooldown = 5 * time.Minute
 	DefaultImportCooldown = 10 * time.Minute
 	DefaultResetCooldown  = 1 * time.Hour
 )
 
-// AcquireExport atomically reserves the export cooldown for a chat.
 func (r *BackupRateLimiter) AcquireExport(chatID int64) (bool, time.Duration) {
 	return r.acquireOperation(exportRatePrefix+strconv.FormatInt(chatID, 10), DefaultExportCooldown)
 }
 
-// AcquireImport atomically reserves the import cooldown for a chat.
 func (r *BackupRateLimiter) AcquireImport(chatID int64) (bool, time.Duration) {
 	return r.acquireOperation(importRatePrefix+strconv.FormatInt(chatID, 10), DefaultImportCooldown)
 }
 
-// AcquireReset atomically reserves the reset cooldown for a chat.
 func (r *BackupRateLimiter) AcquireReset(chatID int64) (bool, time.Duration) {
 	return r.acquireOperation(resetRatePrefix+strconv.FormatInt(chatID, 10), DefaultResetCooldown)
 }
@@ -97,7 +89,6 @@ func (r *BackupRateLimiter) acquireOperation(cacheKey string, cooldown time.Dura
 	return true, 0
 }
 
-// FormatCooldown formats a duration as a human-readable string
 func FormatCooldown(duration time.Duration) string {
 	if duration < time.Minute {
 		seconds := int(duration.Seconds())

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Federation is a shared ban list owned by one user.
 type Federation struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	FedID         string    `gorm:"column:fed_id;uniqueIndex;not null;size:36" json:"fed_id"`
@@ -19,8 +18,6 @@ func (Federation) TableName() string {
 	return "federations"
 }
 
-// FederationAdmin is a user who can fban in a federation. Only the owner can
-// promote or demote admins.
 type FederationAdmin struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	FedID     string    `gorm:"column:fed_id;not null;uniqueIndex:idx_fed_admins_fed_user;size:36" json:"fed_id"`
@@ -32,7 +29,6 @@ func (FederationAdmin) TableName() string {
 	return "federation_admins"
 }
 
-// FederationChat links a Telegram chat to exactly one federation.
 type FederationChat struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	FedID     string    `gorm:"column:fed_id;not null;index;size:36" json:"fed_id"`
@@ -46,7 +42,6 @@ func (FederationChat) TableName() string {
 	return "federation_chats"
 }
 
-// FederationBan is a user banned from a federation.
 type FederationBan struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	FedID     string    `gorm:"column:fed_id;not null;uniqueIndex:idx_fed_bans_fed_user;size:36" json:"fed_id"`
@@ -61,8 +56,6 @@ func (FederationBan) TableName() string {
 	return "federation_bans"
 }
 
-// FederationSub is a subscription from one federation to another federation's
-// ban list. A federation may subscribe to at most five others.
 type FederationSub struct {
 	ID              uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	FedID           string    `gorm:"column:fed_id;not null;uniqueIndex:idx_fed_subs_pair;size:36" json:"fed_id"`

@@ -15,34 +15,27 @@ import (
 
 var globalCollector atomic.Value
 
-// SystemMetrics holds various system performance metrics
 type SystemMetrics struct {
-	// Runtime metrics
 	GoroutineCount int
 	MemoryAllocMB  float64
 	MemorySysMB    float64
 	GCPauseMs      float64
 	CPUCount       int
 
-	// Database metrics
 	DatabaseConnections int
 
-	// Bot metrics
 	ProcessedMessages int64
 	ErrorCount        int64
 
-	// Performance metrics
 	PeakMemoryUsageMB float64
 	UptimeSeconds     int64
 
-	// Cache metrics
 	RestrictedChatHits   int64
 	RestrictedChatMisses int64
 
 	Timestamp time.Time
 }
 
-// BackgroundStatsCollector collects and reports system statistics
 type BackgroundStatsCollector struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -52,28 +45,23 @@ type BackgroundStatsCollector struct {
 	metrics     SystemMetrics
 	metricsLock sync.RWMutex
 
-	// Collection intervals
 	systemStatsInterval   time.Duration
 	databaseStatsInterval time.Duration
 	reportingInterval     time.Duration
 
-	// Counters for runtime metrics
 	messageCounter int64
 	errorCounter   int64
 	startTime      time.Time
 
-	// Performance tracking
 	peakMemoryUsage uint64
 }
 
-// DatabaseStats holds database-specific metrics
 type DatabaseStats struct {
 	ActiveConnections int
 	IdleConnections   int
 	Timestamp         time.Time
 }
 
-// NewBackgroundStatsCollector creates a new background statistics collector
 func NewBackgroundStatsCollector() *BackgroundStatsCollector {
 	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 
@@ -87,7 +75,6 @@ func NewBackgroundStatsCollector() *BackgroundStatsCollector {
 	}
 }
 
-// Start begins the background statistics collection
 func (collector *BackgroundStatsCollector) Start() {
 	if !collector.started.CompareAndSwap(false, true) {
 		log.Warn("BackgroundStatsCollector already started, ignoring duplicate Start")
@@ -95,7 +82,6 @@ func (collector *BackgroundStatsCollector) Start() {
 	}
 	log.Info("Starting background statistics collection")
 
-	// Start collection goroutines
 	collector.wg.Add(1)
 	go collector.systemStatsCollector()
 
@@ -106,7 +92,6 @@ func (collector *BackgroundStatsCollector) Start() {
 	go collector.reportingWorker()
 }
 
-// systemStatsCollector collects system-level statistics
 func (collector *BackgroundStatsCollector) systemStatsCollector() {
 	defer collector.wg.Done()
 
@@ -126,7 +111,6 @@ func (collector *BackgroundStatsCollector) systemStatsCollector() {
 	}
 }
 
-// databaseStatsCollector collects database statistics
 func (collector *BackgroundStatsCollector) databaseStatsCollector() {
 	defer collector.wg.Done()
 
@@ -146,7 +130,6 @@ func (collector *BackgroundStatsCollector) databaseStatsCollector() {
 	}
 }
 
-// collectSystemStats gathers system-level metrics
 func (collector *BackgroundStatsCollector) collectSystemStats() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -163,27 +146,22 @@ func (collector *BackgroundStatsCollector) collectSystemStats() {
 		Timestamp:         time.Now(),
 	}
 
-	// Track peak memory usage
 	currentMemory := m.Alloc
 	if currentMemory > atomic.LoadUint64(&collector.peakMemoryUsage) {
 		atomic.StoreUint64(&collector.peakMemoryUsage, currentMemory)
 	}
 	metrics.PeakMemoryUsageMB = float64(atomic.LoadUint64(&collector.peakMemoryUsage)) / 1024 / 1024
 
-	// Pull restricted chat cache counters for monitoring.
 	metrics.RestrictedChatHits, metrics.RestrictedChatMisses = cache.GetRestrictedCacheStats()
 
 	collector.updateSystemMetrics(metrics)
 }
 
-// collectDatabaseStats gathers database-specific metrics
 func (collector *BackgroundStatsCollector) collectDatabaseStats() {
-	// Get database statistics (this requires extending the database package)
 	stats := DatabaseStats{
 		Timestamp: time.Now(),
 	}
 
-	// Try to get database connection pool stats
 	if sqlDB, err := db.DB.DB(); err == nil {
 		dbStats := sqlDB.Stats()
 		stats.ActiveConnections = dbStats.OpenConnections
@@ -193,12 +171,10 @@ func (collector *BackgroundStatsCollector) collectDatabaseStats() {
 	collector.updateDatabaseMetrics(stats)
 }
 
-// updateSystemMetrics updates the stored system metrics
 func (collector *BackgroundStatsCollector) updateSystemMetrics(metrics SystemMetrics) {
 	collector.metricsLock.Lock()
 	defer collector.metricsLock.Unlock()
 
-	// Update system metrics
 	collector.metrics.GoroutineCount = metrics.GoroutineCount
 	collector.metrics.MemoryAllocMB = metrics.MemoryAllocMB
 	collector.metrics.MemorySysMB = metrics.MemorySysMB
@@ -213,7 +189,6 @@ func (collector *BackgroundStatsCollector) updateSystemMetrics(metrics SystemMet
 	collector.metrics.RestrictedChatMisses = metrics.RestrictedChatMisses
 }
 
-// updateDatabaseMetrics updates the stored database metrics
 func (collector *BackgroundStatsCollector) updateDatabaseMetrics(dbStats DatabaseStats) {
 	collector.metricsLock.Lock()
 	defer collector.metricsLock.Unlock()
@@ -221,7 +196,6 @@ func (collector *BackgroundStatsCollector) updateDatabaseMetrics(dbStats Databas
 	collector.metrics.DatabaseConnections = dbStats.ActiveConnections
 }
 
-// reportingWorker periodically reports collected statistics
 func (collector *BackgroundStatsCollector) reportingWorker() {
 	defer collector.wg.Done()
 
@@ -241,7 +215,6 @@ func (collector *BackgroundStatsCollector) reportingWorker() {
 	}
 }
 
-// reportStats logs the current statistics
 func (collector *BackgroundStatsCollector) reportStats() {
 	collector.metricsLock.RLock()
 	metrics := collector.metrics
@@ -262,17 +235,14 @@ func (collector *BackgroundStatsCollector) reportStats() {
 	}).Info("Background system statistics")
 }
 
-// RecordError increments the error counter
 func (collector *BackgroundStatsCollector) RecordError() {
 	atomic.AddInt64(&collector.errorCounter, 1)
 }
 
-// RecordMessage increments the processed message counter
 func (collector *BackgroundStatsCollector) RecordMessage() {
 	atomic.AddInt64(&collector.messageCounter, 1)
 }
 
-// GetCurrentMetrics returns the current metrics (thread-safe)
 func (collector *BackgroundStatsCollector) GetCurrentMetrics() SystemMetrics {
 	collector.metricsLock.RLock()
 	defer collector.metricsLock.RUnlock()
@@ -280,36 +250,30 @@ func (collector *BackgroundStatsCollector) GetCurrentMetrics() SystemMetrics {
 	return collector.metrics
 }
 
-// Stop gracefully shuts down the background stats collector
 func (collector *BackgroundStatsCollector) Stop() {
 	collector.stopOnce.Do(func() {
 		log.Info("Stopping background statistics collection")
 
 		collector.cancel()
 
-		// Wait for the collector goroutines to exit before the final report.
 		collector.wg.Wait()
 
-		// Log final statistics
 		collector.reportStats()
 
 		log.Info("Background statistics collection stopped")
 	})
 }
 
-// SetGlobalCollector sets the global stats collector instance
 func SetGlobalCollector(collector *BackgroundStatsCollector) {
 	globalCollector.Store(collector)
 }
 
-// GlobalRecordError increments the global error counter if collector is initialized
 func GlobalRecordError() {
 	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
 		c.RecordError()
 	}
 }
 
-// GlobalRecordMessage increments the global message counter if collector is initialized
 func GlobalRecordMessage() {
 	if c, ok := globalCollector.Load().(*BackgroundStatsCollector); ok && c != nil {
 		c.RecordMessage()

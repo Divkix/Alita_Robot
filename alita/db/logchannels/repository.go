@@ -26,7 +26,6 @@ const (
 	CategoryOther     = "other"
 )
 
-// AllCategories is the documented default set; all are enabled by default.
 var AllCategories = []string{
 	CategorySettings,
 	CategoryAdmin,
@@ -40,7 +39,6 @@ func invalidate(chatID int64) {
 	cache.DeleteCache(cache.CacheKey(cachePrefix, chatID))
 }
 
-// Get returns the log-channel binding for a chat, or nil.
 func Get(chatID int64) *models.LogChannel {
 	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefix, chatID), cache.CacheTTLLogChannel, func() (models.LogChannel, error) {
 		var row models.LogChannel
@@ -59,7 +57,6 @@ func Get(chatID int64) *models.LogChannel {
 	return &result
 }
 
-// Set binds a group chat to a log channel. Categories default to all-on.
 func Set(chatID int64, chatName string, logChannelID int64) error {
 	if err := chats.EnsureChatInDb(chatID, chatName); err != nil {
 		return err
@@ -88,7 +85,6 @@ func Set(chatID int64, chatName string, logChannelID int64) error {
 	return nil
 }
 
-// Unset removes the log-channel binding.
 func Unset(chatID int64) error {
 	result := db.DB.Where("chat_id = ?", chatID).Delete(&models.LogChannel{})
 	if result.Error != nil {
@@ -120,7 +116,6 @@ func categoryName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
 
-// IsValidCategory reports whether name is a documented log category.
 func IsValidCategory(name string) bool {
 	_, ok := logCategories[categoryName(name)]
 	return ok
@@ -134,8 +129,6 @@ func categoryColumn(name string) string {
 	return meta.column
 }
 
-// SetCategory enables or disables one category. The chat must already have a
-// log channel configured.
 func SetCategory(chatID int64, name string, enabled bool) error {
 	col := categoryColumn(name)
 	if col == "" {
@@ -157,7 +150,6 @@ func SetCategory(chatID int64, name string, enabled bool) error {
 	return nil
 }
 
-// CategoryEnabled reports whether a category is currently logged.
 func CategoryEnabled(settings *models.LogChannel, name string) bool {
 	if settings == nil {
 		return false

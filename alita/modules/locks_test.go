@@ -11,7 +11,6 @@ func TestGetLockMapAsArray(t *testing.T) {
 	var m moduleStruct
 	got := m.getLockMapAsArray()
 
-	// Compute expected keys from lockMap + restrMap
 	expected := make(map[string]struct{}, len(lockMap)+len(restrMap))
 	for k := range lockMap {
 		expected[k] = struct{}{}
@@ -24,12 +23,10 @@ func TestGetLockMapAsArray(t *testing.T) {
 		t.Fatalf("expected %d lock types, got %d", len(expected), len(got))
 	}
 
-	// Ensure sorted
 	if !slices.IsSorted(got) {
 		t.Fatalf("expected sorted slice, got %v", got)
 	}
 
-	// Ensure every expected key is present
 	for k := range expected {
 		if !slices.Contains(got, k) {
 			t.Fatalf("expected lock type %q missing from %v", k, got)

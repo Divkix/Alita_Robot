@@ -79,14 +79,12 @@ type antiRaidStruct struct {
 	moduleStruct
 }
 
-// raidState stores the serialized raid state in Redis.
 type raidState struct {
 	Active    bool  `json:"active"`
-	StartedAt int64 `json:"started_at"` // unix seconds
-	ExpiresAt int64 `json:"expires_at"` // unix seconds
+	StartedAt int64 `json:"started_at"`
+	ExpiresAt int64 `json:"expires_at"`
 }
 
-// StartAntiRaidExpiryPoller starts the background expiry poller after cache is available.
 func StartAntiRaidExpiryPoller() {
 	if !cache.IsRedisAvailable() {
 		log.Warn("[AntiRaid] Redis not available, skipping expiry poller start")
@@ -95,7 +93,6 @@ func StartAntiRaidExpiryPoller() {
 	antiRaidPollerMu.Lock()
 	defer antiRaidPollerMu.Unlock()
 	if antiRaidCancel != nil {
-		// Already started
 		return
 	}
 	antiRaidCtx, antiRaidCancel = context.WithCancel(context.Background())
@@ -107,7 +104,6 @@ func StartAntiRaidExpiryPoller() {
 	}(antiRaidCtx)
 }
 
-// StopAntiRaidExpiryPoller stops and joins the background expiry poller.
 func StopAntiRaidExpiryPoller() {
 	antiRaidPollerMu.Lock()
 	defer antiRaidPollerMu.Unlock()
@@ -134,7 +130,6 @@ func trackJoin(chatID, userID int64) (count int, err error) {
 	now := time.Now().Unix()
 	ctx := cache.Context
 	rdb := cache.GetRedisClient()
-	// Use unique member to count events, not distinct users (multiple joins from same user in window count separately)
 	member := fmt.Sprintf("%d:%d:%d", userID, now, time.Now().UnixNano())
 	window := antiraidJoinWindowSeconds
 	cutoff := now - int64(antiraidJoinWindowSeconds)
@@ -496,8 +491,6 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			isActive = true
 			if !enabled {
-				// Another update crossed the threshold first. Apply the active
-				// raid without resetting its expiry or sending a duplicate alert.
 				banRaidMember(bot, chat, member.Id, settings.RaidActionTime)
 				continue
 			}
@@ -871,7 +864,6 @@ func parseDuration(input string) (seconds int, ok bool) {
 
 	var duration int64
 	unit := input[len(input)-1]
-	// Bare number without unit is invalid — require explicit s/m/h/d/w
 	if unit >= '0' && unit <= '9' {
 		return 0, false
 	}

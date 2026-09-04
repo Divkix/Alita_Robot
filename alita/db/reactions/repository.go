@@ -8,15 +8,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// reactionsCacheKey returns the cache key for a chat's reaction map.
-// Kept identical to the legacy Redis key (alita:reactions:<chat>) so any
-// pre-existing entries remain valid.
 func reactionsCacheKey(chatID int64) string {
 	return cache.CacheKey("reactions", chatID)
 }
 
-// GetReactions returns the keyword->emoji map for a chat, read-through cache.
-// Returns an empty (non-nil) map when no reactions are configured.
 func GetReactions(chatID int64) map[string]string {
 	cacheKey := reactionsCacheKey(chatID)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLReactions, func() (map[string]string, error) {
@@ -37,7 +32,6 @@ func GetReactions(chatID int64) map[string]string {
 	return result
 }
 
-// AddReaction adds or updates a keyword->emoji reaction for a chat.
 func AddReaction(chatID int64, keyword, emoji string) error {
 	r := &models.Reactions{
 		ChatID:  chatID,
@@ -56,7 +50,6 @@ func AddReaction(chatID int64, keyword, emoji string) error {
 	return nil
 }
 
-// RemoveReaction removes a single keyword reaction for a chat.
 func RemoveReaction(chatID int64, keyword string) error {
 	result := db.DB.Where("chat_id = ? AND keyword = ?", chatID, keyword).Delete(&models.Reactions{})
 	if result.Error != nil {
@@ -67,7 +60,6 @@ func RemoveReaction(chatID int64, keyword string) error {
 	return nil
 }
 
-// ResetReactions removes all reactions for a chat.
 func ResetReactions(chatID int64) error {
 	if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Reactions{}).Error; err != nil {
 		log.Errorf("[Database] ResetReactions: %v - chat:%d", err, chatID)

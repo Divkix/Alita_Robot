@@ -11,24 +11,21 @@ import (
 )
 
 const (
-	// BackupFormatVersion is the current backup format version.
 	BackupFormatVersion = "1.1"
 	legacyFormatVersion = "1.0"
 )
 
-// BackupFormat represents the structure of an exported backup file
 type BackupFormat struct {
-	Version    string                 `json:"version"`     // Backup format version (e.g., "1.0")
-	ExportedAt time.Time              `json:"exported_at"` // Timestamp of export
-	BotName    string                 `json:"bot_name"`    // Bot identifier (e.g., "AlitaRobot")
-	ChatID     int64                  `json:"chat_id"`     // Source chat ID
-	ChatName   string                 `json:"chat_name"`   // Source chat name
-	ExportedBy int64                  `json:"exported_by"` // User ID who exported
-	Modules    []string               `json:"modules"`     // List of exported module names
-	Data       map[string]interface{} `json:"data"`        // Module-specific data
+	Version    string                 `json:"version"`
+	ExportedAt time.Time              `json:"exported_at"`
+	BotName    string                 `json:"bot_name"`
+	ChatID     int64                  `json:"chat_id"`
+	ChatName   string                 `json:"chat_name"`
+	ExportedBy int64                  `json:"exported_by"`
+	Modules    []string               `json:"modules"`
+	Data       map[string]interface{} `json:"data"`
 }
 
-// NewBackupFormat creates a new backup format instance
 func NewBackupFormat(chatID int64, chatName string, exportedBy int64, modules []string) *BackupFormat {
 	return &BackupFormat{
 		Version:    BackupFormatVersion,
@@ -42,7 +39,6 @@ func NewBackupFormat(chatID int64, chatName string, exportedBy int64, modules []
 	}
 }
 
-// Validate checks if the backup format is valid
 func (b *BackupFormat) Validate() error {
 	if b == nil {
 		return fmt.Errorf("backup cannot be nil")
@@ -73,17 +69,14 @@ func (b *BackupFormat) Validate() error {
 	return nil
 }
 
-// IsCompatibleVersion checks if the backup version is compatible
 func (b *BackupFormat) IsCompatibleVersion() bool {
 	return b.Version == BackupFormatVersion || b.Version == legacyFormatVersion
 }
 
-// ToJSON marshals the backup format to JSON bytes
 func (b *BackupFormat) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(b, "", "  ")
 }
 
-// BackupFormatFromJSON unmarshals JSON bytes to BackupFormat
 func BackupFormatFromJSON(data []byte) (*BackupFormat, error) {
 	var backup BackupFormat
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -97,7 +90,6 @@ func BackupFormatFromJSON(data []byte) (*BackupFormat, error) {
 	return &backup, nil
 }
 
-// Module names for export/import
 const (
 	BackupModuleAdmin       = "admin"
 	BackupModuleAntiflood   = "antiflood"
@@ -120,7 +112,6 @@ const (
 	BackupModuleLogChannels = "logchannels"
 )
 
-// AllExportableModules returns a list of all module names that support export
 func AllExportableModules() []string {
 	return []string{
 		BackupModuleAdmin,
@@ -145,7 +136,6 @@ func AllExportableModules() []string {
 	}
 }
 
-// IsValidModule checks if a module name is valid for export
 func IsValidModule(module string) bool {
 	for _, m := range AllExportableModules() {
 		if m == module {
@@ -155,9 +145,6 @@ func IsValidModule(module string) bool {
 	return false
 }
 
-// Per-module backup data structures - using existing db types
-
-// AdminBackup represents admin settings backup data
 type AdminBackup struct {
 	AdminSettings      *models.AdminSettings          `json:"admin_settings,omitempty"`
 	AntifloodSettings  *models.AntifloodSettings      `json:"antiflood_settings,omitempty"`
@@ -166,84 +153,65 @@ type AdminBackup struct {
 	ConnectionSettings *models.ConnectionChatSettings `json:"connection_settings,omitempty"`
 }
 
-// SettingBackup is the shared shape for single-setting modules.
 type SettingBackup[T any] struct {
 	Settings *T `json:"settings,omitempty"`
 }
 
-// AntifloodBackup represents antiflood settings backup data
 type AntifloodBackup = SettingBackup[models.AntifloodSettings]
 
-// BlacklistsBackup represents blacklist settings and entries backup data
 type BlacklistsBackup struct {
 	Settings      *models.BlacklistSettings  `json:"settings,omitempty"`
 	BlacklistMode string                     `json:"blacklist_mode,omitempty"`
 	Entries       []models.BlacklistSettings `json:"entries,omitempty"`
 }
 
-// CaptchaBackup represents captcha settings backup data
 type CaptchaBackup = SettingBackup[models.CaptchaSettings]
 
-// ConnectionsBackup represents connection settings backup data
 type ConnectionsBackup = SettingBackup[models.ConnectionChatSettings]
 
-// DisablingBackup represents disabled commands backup data
 type DisablingBackup struct {
 	ChatSettings *models.DisableChatSettings `json:"chat_settings,omitempty"`
 	Commands     []models.DisableSettings    `json:"commands,omitempty"`
 }
 
-// FiltersBackup represents filters backup data
 type FiltersBackup struct {
 	Filters []models.ChatFilters `json:"filters,omitempty"`
 }
 
-// GreetingsBackup represents greetings/welcome settings backup data
 type GreetingsBackup = SettingBackup[models.GreetingSettings]
 
-// LocksBackup represents lock settings backup data
 type LocksBackup struct {
 	Locks []models.LockSettings `json:"locks,omitempty"`
 }
 
-// NotesBackup represents notes backup data
 type NotesBackup struct {
 	Settings *models.NotesSettings `json:"settings,omitempty"`
 	Notes    []models.Notes        `json:"notes,omitempty"`
 }
 
-// PinsBackup represents pin settings backup data
 type PinsBackup = SettingBackup[models.PinSettings]
 
-// ReportsBackup represents report settings backup data
 type ReportsBackup = SettingBackup[models.ReportChatSettings]
 
-// RulesBackup represents rules backup data
 type RulesBackup = SettingBackup[models.RulesSettings]
 
-// WarnsBackup represents warning settings backup data
 type WarnsBackup struct {
 	WarnSettings *models.WarnSettings `json:"warn_settings,omitempty"`
 	Warns        []models.Warns       `json:"warns,omitempty"`
 }
 
-// AntiraidBackup represents anti-raid settings backup data
 type AntiraidBackup = SettingBackup[models.AntiRaidSettings]
 
-// ApprovalsBackup represents approved users backup data
 type ApprovalsBackup struct {
 	ApprovedUsers []models.ApprovedUsers `json:"approved_users,omitempty"`
 }
 
-// ReactionsBackup represents keyword reaction mappings.
 type ReactionsBackup struct {
 	Reactions []models.Reactions `json:"reactions,omitempty"`
 }
 
-// FederationsBackup stores this chat's federation membership only.
 type FederationsBackup struct {
 	Membership *models.FederationChat `json:"membership,omitempty"`
 }
 
-// LogChannelsBackup stores the group's log-channel binding and categories.
 type LogChannelsBackup = SettingBackup[models.LogChannel]

@@ -26,13 +26,9 @@ var rulesModule = moduleStruct{
 	defaultRulesBtn: "Rules",
 }
 
-// clearRules handles commands to completely remove all rules
-// from the chat, requiring admin permissions.
-//
 //nolint:dupl // clearRules has similar structure to resetRulesBtn
 func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -56,11 +52,8 @@ func (moduleStruct) clearRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// privaterules handles the /privaterules command to toggle whether
-// rules are sent privately or in the group chat.
 func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -109,15 +102,11 @@ func (moduleStruct) privaterules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// sendRules handles the /rules command to display chat rules
-// either in the group or privately based on settings.
 func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(bot, msg, "rules") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -184,11 +173,8 @@ func (m moduleStruct) sendRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// setRules handles the /setrules command to create or update
-// chat rules with markdown formatting support.
 func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -204,12 +190,10 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if msg.ReplyToMessage != nil {
 			text = msg.ReplyToMessage.OriginalMDV2()
 		} else {
-			// Extract text safely to prevent panic and avoid setting empty rules
 			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
 			if len(parts) >= 2 {
 				text = parts[1]
 			} else {
-				// No text provided after command - show error
 				text, _ = tr.GetString("rules_need_text")
 				_, err := msg.Reply(bot, text, formatting.Shtml())
 				if err != nil {
@@ -236,11 +220,8 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// rulesBtn handles the /rulesbutton command to set or view
-// the custom button text for private rules links.
 func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -292,13 +273,9 @@ func (m moduleStruct) rulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetRulesBtn handles commands to reset the custom rules button
-// text back to the default value.
-//
 //nolint:dupl // resetRulesBtn has similar structure to clearRules
 func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -322,8 +299,6 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadRules registers all rules module handlers with the dispatcher,
-// including rules management and display commands.
 func LoadRules(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[rulesModule.moduleName] = true
 

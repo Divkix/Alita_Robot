@@ -97,7 +97,7 @@ func TestRegisterSecretIgnoresShortAndEmpty(t *testing.T) {
 	reset()
 	t.Cleanup(reset)
 
-	RegisterSecret("", "abc") // both below minSecretLen / empty
+	RegisterSecret("", "abc")
 	registry.mu.RLock()
 	n := len(registry.secrets)
 	registry.mu.RUnlock()

@@ -78,7 +78,6 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Close DB handle before removing temp file.
 	if db.DB != nil {
 		sqlDB, err := db.DB.DB()
 		if err != nil {
@@ -88,7 +87,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
 			fmt.Printf("temp file remove failed: %v\n", rmErr)
@@ -147,7 +145,6 @@ func TestSetRules_SetAndGet(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Create default settings first
 	_ = GetChatRulesInfo(chatID)
 
 	SetChatRules(chatID, rulesText)
@@ -172,10 +169,8 @@ func TestSetRules_OverwriteWithNewValue(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Create default settings first
 	_ = GetChatRulesInfo(chatID)
 
-	// Set rules then overwrite with different non-empty value
 	SetChatRules(chatID, "original rules")
 	SetChatRules(chatID, "updated rules")
 
@@ -201,7 +196,6 @@ func TestSetChatRulesButton_SetAndGet(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Create default settings first
 	_ = GetChatRulesInfo(chatID)
 
 	SetChatRulesButton(chatID, buttonText)
@@ -226,17 +220,14 @@ func TestTogglePrivateRules_ZeroValueBoolean(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Create default settings first
 	_ = GetChatRulesInfo(chatID)
 
-	// Enable private rules
 	SetPrivateRules(chatID, true)
 	rulesrc := GetChatRulesInfo(chatID)
 	if !rulesrc.Private {
 		t.Fatal("expected Private=true after SetPrivateRules(true)")
 	}
 
-	// Disable private rules — zero value boolean must persist
 	SetPrivateRules(chatID, false)
 	rulesrc = GetChatRulesInfo(chatID)
 	if rulesrc.Private {
@@ -296,7 +287,6 @@ func TestGetRulesSettings_Defaults(t *testing.T) {
 func TestLoadRulesStats(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Just verify the function executes without error and returns non-negative values
 	setRules, pvtRules := LoadRulesStats()
 	if setRules < 0 {
 		t.Fatalf("expected non-negative setRules, got %d", setRules)
@@ -320,7 +310,6 @@ func TestLoadRulesStats_ReflectsNewEntries(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Create default settings and set rules text
 	_ = GetChatRulesInfo(chatID)
 	SetChatRules(chatID, "test rules for stat counting")
 	SetPrivateRules(chatID, true)
@@ -348,7 +337,6 @@ func TestSetRules_EmptyString(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize settings (default rules = "")
 	_ = GetChatRulesInfo(chatID)
 
 	if err := SetChatRules(chatID, ""); err != nil {
@@ -379,7 +367,6 @@ func TestClearRules(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize and set rules to something non-empty
 	_ = GetChatRulesInfo(chatID)
 	SetChatRules(chatID, "Some rules text")
 

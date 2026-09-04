@@ -9,25 +9,19 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-// respondCfg holds per-call options for PermissionResponder.Respond.
 type respondCfg struct {
 	useReply              bool
 	fallbackToSendMessage bool
 }
 
-// respondOpt configures a single Respond call.
 type respondOpt func(*respondCfg)
 
-// WithReply makes the responder use msg.Reply instead of b.SendMessage.
-// This preserves the exact behaviour of functions like RequireBotAdmin.
 func WithReply() respondOpt {
 	return func(c *respondCfg) {
 		c.useReply = true
 	}
 }
 
-// WithReplyFallback makes the responder try msg.Reply first and fall back to
-// b.SendMessage with ReplyParameters if Reply fails. Used by RequireUserAdmin.
 func WithReplyFallback() respondOpt {
 	return func(c *respondCfg) {
 		c.useReply = true
@@ -35,29 +29,14 @@ func WithReplyFallback() respondOpt {
 	}
 }
 
-// PermissionResponder centralises the response choreography for failed
-// permission checks. Callers perform the pure check; when it fails they
-// delegate error messaging to Respond.
 type PermissionResponder struct {
 	bot *gotgbot.Bot
 }
 
-// NewPermissionResponder creates a PermissionResponder for the given bot.
 func NewPermissionResponder(b *gotgbot.Bot) *PermissionResponder {
 	return &PermissionResponder{bot: b}
 }
 
-// Respond sends the correct error response for a failed permission check.
-//
-//   - If btnKey is non-empty and the update is a callback query, the text is
-//     answered via query.Answer with btnKey translation.
-//   - Otherwise the text is sent as a chat message using cmdKey translation.
-//     By default SendMessage with ReplyParameters{AllowSendingWithoutReply:true}
-//     is used. Callers that previously used msg.Reply can pass WithReply().
-//     RequireUserAdmin passes WithReplyFallback().
-//
-// It always returns false so the permission check function can return it
-// directly.
 func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, opts ...respondOpt) bool {
 	cfg := respondCfg{}
 	for _, o := range opts {
@@ -71,7 +50,6 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Callback query path.
 	if btnKey != "" {
 		query, _ := callbackQueryFromContext(ctx)
 		if query != nil {

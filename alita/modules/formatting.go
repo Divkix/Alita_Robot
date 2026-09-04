@@ -18,13 +18,10 @@ import (
 
 var formattingModule = moduleStruct{moduleName: "Formatting"}
 
-// markdownHelp provides markdown formatting help and examples to users.
-// Shows formatting options in private messages or sends a button to open help in PM.
 func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check of group or pm
 	if !chat_status.RequirePrivate(b, ctx, nil) {
 		reply := msg.Reply
 		if msg.ReplyToMessage != nil {
@@ -57,7 +54,6 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		backText, _ := tr.GetString("common_back")
 
-		// Keyboard for markdown help menu
 		Mkdkb := append(m.genFormattingKb(lang.GetLanguage(ctx)),
 			[]gotgbot.InlineKeyboardButton{
 				{
@@ -69,7 +65,6 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		largeOptionsText, _ := tr.GetString("formatting_large_options")
 		_, err := msg.Reply(b,
-			// Uses localized largeOptionsText for the formatting help message.
 			largeOptionsText,
 			&gotgbot.SendMessageOpts{
 				ParseMode: formatting.HTML,
@@ -87,9 +82,6 @@ func (m moduleStruct) markdownHelp(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// genFormattingKb generates the inline keyboard layout for formatting help options.
-// Creates buttons for different formatting categories like markdown, fillings, and random content.
-// If lang is empty, defaults to "en".
 func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButton {
 	if lang == "" {
 		lang = "en"
@@ -106,7 +98,6 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 	fillingsText, _ := tr.GetString("help_fillings_button")
 	randomContentText, _ := tr.GetString("help_random_content_button")
 
-	// First row
 	keyboard[0][0] = gotgbot.InlineKeyboardButton{
 		Text:         markdownFormattingText,
 		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "md_formatting"}),
@@ -116,7 +107,6 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "fillings"}),
 	}
 
-	// Second Row
 	keyboard[1][0] = gotgbot.InlineKeyboardButton{
 		Text:         randomContentText,
 		CallbackData: encodeCallbackData("formatting", map[string]string{"m": "random"}),
@@ -125,8 +115,6 @@ func (moduleStruct) genFormattingKb(lang string) [][]gotgbot.InlineKeyboardButto
 	return keyboard
 }
 
-// getMarkdownHelp retrieves the appropriate help text for a specific formatting module.
-// Returns localized help content based on the requested formatting category.
 func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 	var helpTxt string
 	switch module {
@@ -140,8 +128,6 @@ func (moduleStruct) getMarkdownHelp(tr *i18n.Translator, module string) string {
 	return helpTxt
 }
 
-// formattingHandler processes callback queries for formatting help navigation.
-// Updates help messages based on user selections from the formatting keyboard.
 func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -169,7 +155,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 
 	backText, _ := tr.GetString("common_back")
 
-	// Edit the help as per sub-module selected in markdownhelp
 	opts := &gotgbot.EditMessageTextOpts{
 		MessageId: msg.GetMessageId(),
 		ReplyMarkup: gotgbot.InlineKeyboardMarkup{
@@ -199,8 +184,6 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-// LoadMkdCmd registers markdown and formatting command handlers with the dispatcher.
-// Sets up help commands and callback handlers for formatting assistance.
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[formattingModule.moduleName] = true
 	DefaultHelpRegistry().helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")

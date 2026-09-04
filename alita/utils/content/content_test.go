@@ -13,10 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 )
 
-// ---------------------------------------------------------------------------
-// ExtractNoteAndFilter
-// ---------------------------------------------------------------------------
-
 func TestExtractNoteAndFilterNilMessage(t *testing.T) {
 	t.Parallel()
 
@@ -102,7 +98,6 @@ func TestExtractNoteAndFilterFilterMode(t *testing.T) {
 	if result.DataType != db.TEXT {
 		t.Fatalf("expected dataType=%d for filter, got %d", db.TEXT, result.DataType)
 	}
-	// Filters should not parse note options
 	if result.PvtOnly {
 		t.Fatal("expected PvtOnly=false for filter")
 	}
@@ -110,10 +105,6 @@ func TestExtractNoteAndFilterFilterMode(t *testing.T) {
 		t.Fatal("expected AdminOnly=false for filter")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ExtractWelcome
-// ---------------------------------------------------------------------------
 
 func TestExtractWelcomeDirectText(t *testing.T) {
 	t.Parallel()
@@ -165,10 +156,6 @@ func TestExtractWelcomeNoContent(t *testing.T) {
 		t.Fatal("expected errorMsg for no content")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// extractMediaFromReply
-// ---------------------------------------------------------------------------
 
 func TestExtractMediaFromReply(t *testing.T) {
 	tests := []struct {
@@ -267,10 +254,6 @@ func TestExtractMediaFromReply(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// setRawText
-// ---------------------------------------------------------------------------
-
 func TestSetRawText(t *testing.T) {
 	tests := []struct {
 		name string
@@ -324,10 +307,6 @@ func TestSetRawText(t *testing.T) {
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// preFixes
-// ---------------------------------------------------------------------------
 
 func TestPreFixesTextTooLong(t *testing.T) {
 	t.Parallel()
@@ -427,10 +406,6 @@ func TestPreFixesEmptyTextWithFile(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// NotesParser
-// ---------------------------------------------------------------------------
-
 func TestNotesParser(t *testing.T) {
 	t.Parallel()
 
@@ -455,7 +430,6 @@ func TestNotesParser(t *testing.T) {
 	if !noNotif {
 		t.Fatal("expected noNotif=true")
 	}
-	// Each tag is replaced by an empty string, leaving spaces between them.
 	if clean != "Hello      " {
 		t.Fatalf("expected clean text %q, got %q", "Hello      ", clean)
 	}
@@ -474,10 +448,6 @@ func TestNotesParserNone(t *testing.T) {
 		t.Fatalf("expected clean text unchanged, got %q", clean)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ConvertButtonV2ToDbButton
-// ---------------------------------------------------------------------------
 
 func TestConvertButtonV2ToDbButton(t *testing.T) {
 	t.Parallel()
@@ -498,10 +468,6 @@ func TestConvertButtonV2ToDbButton(t *testing.T) {
 		t.Fatal("second button mismatch")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// RevertButtons
-// ---------------------------------------------------------------------------
 
 func TestRevertButtons(t *testing.T) {
 	t.Parallel()
@@ -527,10 +493,6 @@ func TestRevertButtonsEmpty(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// InlineKeyboardToDbButtons
-// ---------------------------------------------------------------------------
-
 func TestInlineKeyboardToDbButtons(t *testing.T) {
 	t.Parallel()
 
@@ -548,7 +510,6 @@ func TestInlineKeyboardToDbButtons(t *testing.T) {
 	}
 
 	buttons := InlineKeyboardToDbButtons(replyMarkup)
-	// Invalid URL is filtered by empty check; bad URL is filtered by URL validation.
 	if len(buttons) != 2 {
 		t.Fatalf("expected 2 valid buttons (filtered invalid), got %d", len(buttons))
 	}
@@ -560,7 +521,6 @@ func TestInlineKeyboardToDbButtons(t *testing.T) {
 	}
 }
 
-// isValidURL checks if a button URL is a valid HTTP/HTTPS URL with a non-empty host.
 func isValidURL(rawURL string) bool {
 	if rawURL == "" {
 		return false
@@ -572,9 +532,6 @@ func isValidURL(rawURL string) bool {
 	return true
 }
 
-// InlineKeyboardToDbButtons converts Telegram inline keyboard directly to database button format.
-// Filters out non-URL buttons, validates URLs, and handles same-line button positioning.
-// This is a test helper - not used in production code.
 func InlineKeyboardToDbButtons(replyMarkup *gotgbot.InlineKeyboardMarkup) []db.Button {
 	if replyMarkup == nil {
 		return nil
@@ -631,10 +588,6 @@ func TestInlineKeyboardToDbButtonsSameLine(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// inlineKeyboardToButtonV2
-// ---------------------------------------------------------------------------
-
 func TestInlineKeyboardToButtonV2(t *testing.T) {
 	t.Parallel()
 
@@ -651,7 +604,6 @@ func TestInlineKeyboardToButtonV2(t *testing.T) {
 	}
 
 	buttons := inlineKeyboardToButtonV2(replyMarkup)
-	// Callback button has no URL, so it is filtered out.
 	if len(buttons) != 2 {
 		t.Fatalf("expected 2 buttons (callback filtered), got %d", len(buttons))
 	}

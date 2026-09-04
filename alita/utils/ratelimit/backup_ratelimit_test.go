@@ -41,7 +41,6 @@ func TestFormatCooldown(t *testing.T) {
 }
 
 func TestGetBackupRateLimiter_Singleton(t *testing.T) {
-	// Save original limiter and once for restoration.
 	origBackupLimiter := backupLimiter
 	origOnce := once
 
@@ -50,7 +49,6 @@ func TestGetBackupRateLimiter_Singleton(t *testing.T) {
 		once = origOnce
 	})
 
-	// Reset the singleton state for a clean test.
 	once = &sync.Once{}
 	backupLimiter = nil
 

@@ -21,30 +21,18 @@ import (
 
 var disablingModule = moduleStruct{moduleName: "Disabling"}
 
-/*
-	To disable or enable commands
-
-# Connection - true, true
-
-Only Admin can use this command to disable/enable usage of a command in the chat
-*/
-
-// toggleCmdConfig holds configuration for disable/enable command operations.
 type toggleCmdConfig struct {
 	emptyArgsMsgKey  string
 	noCmdMsgKey      string
 	successMsgKey    string
 	unknownCmdMsgKey string
 	dbOp             func(int64, string) error
-	actionName       string // for logging: "disable" or "enable"
+	actionName       string
 }
 
-// toggleCommands handles both disabling and enabling commands.
-// Only admins can use this command. Accepts multiple command names as arguments.
 func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context) error {
 	return func(b *gotgbot.Bot, ctx *ext.Context) error {
 		msg := ctx.EffectiveMessage
-		// connection status
 		connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 		if connectedChat == nil {
 			return ext.EndGroups
@@ -85,7 +73,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			return ext.EndGroups
 		}
 
-		// Collect valid and invalid commands
 		toToggle := make([]string, 0, len(args))
 		unknownCmds := make([]string, 0, len(args))
 
@@ -98,7 +85,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			}
 		}
 
-		// First, toggle all valid commands in the database
 		failedCmds := make([]string, 0, len(toToggle))
 		for _, cmd := range toToggle {
 			if err := cfg.dbOp(chat.Id, cmd); err != nil {
@@ -107,7 +93,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			}
 		}
 
-		// Remove failed commands from success list
 		successCmds := make([]string, 0, len(toToggle))
 		for _, cmd := range toToggle {
 			if !slices.Contains(failedCmds, cmd) {
@@ -115,7 +100,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			}
 		}
 
-		// Send success message for successfully toggled commands
 		if len(successCmds) > 0 {
 			temp, _ := tr.GetString(cfg.successMsgKey)
 			text := fmt.Sprintf(temp, "\n - "+strings.Join(successCmds, "\n - "))
@@ -126,7 +110,6 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 			}
 		}
 
-		// Send error message for unknown commands
 		for _, cmd := range unknownCmds {
 			temp, _ := tr.GetString(cfg.unknownCmdMsgKey)
 			text := fmt.Sprintf(temp, cmd)
@@ -141,25 +124,14 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 	}
 }
 
-// disable disables one or more bot commands in the current chat.
-// Only admins can use this command. Accepts multiple command names as arguments.
 func (m moduleStruct) disable(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.toggleCommands(false)(b, ctx)
 }
 
-// enable re-enables one or more previously disabled bot commands in the chat.
-// Only admins can use this command. Accepts multiple command names as arguments.
 func (m moduleStruct) enable(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.toggleCommands(true)(b, ctx)
 }
 
-/*
-	To check the disableable commands
-
-Anyone can use this command to check the disableable commands
-*/
-// disableable shows a list of all commands that can be disabled in the chat.
-// Any user can view this list to see which commands support disabling functionality.
 func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
@@ -180,22 +152,11 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	To list all disabled commands in chat
-
-# Connection - false, true
-
-Any user in can use this command to check the disabled commands in the current chat.
-*/
-// disabled displays all currently disabled commands in the chat.
-// Any user can view the list of disabled commands for the current chat.
 func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "disabled") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -247,19 +208,8 @@ func (moduleStruct) disabled(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	To either delete or not to delete the disabled command in the chat
-
-# Connection - true, true
-
-Only admins can use this command to either choose to delete the disabled command
-or not to. If no argument is given, the current chat setting is returned
-*/
-// disabledel toggles whether disabled commands should be automatically deleted.
-// Only admins can use this. With no args, shows current setting; with args, changes it.
 func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -275,7 +225,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 		param := strings.ToLower(args[0])
 		switch param {
 		case "on", "true", "yes":
-			// Execute DB operation synchronously before sending confirmation
 			if err := disabling.ToggleDel(chat.Id, true); err != nil {
 				log.Errorf("[Disabling] Failed to enable delete mode for chat %d: %v", chat.Id, err)
 				text = "Failed to update setting. Please try again."
@@ -283,7 +232,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 				text, _ = tr.GetString("disabling_delete_enabled")
 			}
 		case "off", "false", "no":
-			// Execute DB operation synchronously before sending confirmation
 			if err := disabling.ToggleDel(chat.Id, false); err != nil {
 				log.Errorf("[Disabling] Failed to disable delete mode for chat %d: %v", chat.Id, err)
 				text = "Failed to update setting. Please try again."
@@ -311,8 +259,6 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadDisabling registers all disabling-related command handlers with the dispatcher.
-// Sets up commands for managing which bot commands are enabled or disabled in chats.
 func LoadDisabling(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[disablingModule.moduleName] = true
 

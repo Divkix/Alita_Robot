@@ -19,9 +19,6 @@ var (
 	DB *gorm.DB
 )
 
-// isCliModeActive returns true if the program is running with CLI flags
-// that should skip database initialization (--version, --health, -v). Tests
-// also skip it unless ALITA_TEST_DATABASE explicitly opts into PostgreSQL.
 func isCliModeActive() bool {
 	testBinary := strings.TrimSuffix(os.Args[0], ".exe")
 	if strings.HasSuffix(testBinary, ".test") &&
@@ -124,7 +121,6 @@ func init() {
 	}
 }
 
-// Close closes the database connection gracefully.
 func Close() error {
 	if DB != nil {
 		sqlDB, err := DB.DB()

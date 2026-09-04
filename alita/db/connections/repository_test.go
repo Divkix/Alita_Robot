@@ -28,7 +28,6 @@ func TestConnectChat(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.ConnectionChatSettings{})
 	})
 
-	// Ensure user connection record exists
 	conn := Connection(userID)
 	if conn == nil {
 		t.Fatal("Connection() returned nil")
@@ -89,7 +88,6 @@ func TestDisconnectChat(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.ConnectionChatSettings{})
 	})
 
-	// Connect first
 	_ = Connection(userID)
 	ConnectId(userID, chatID)
 
@@ -98,7 +96,6 @@ func TestDisconnectChat(t *testing.T) {
 		t.Fatal("expected Connected=true after ConnectId")
 	}
 
-	// Now disconnect
 	DisconnectId(userID)
 
 	got = Connection(userID)
@@ -143,20 +140,17 @@ func TestSetAllowConnect(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Get default settings first (creates the record)
 	settings := GetChatConnectionSetting(chatID)
 	if settings == nil {
 		t.Fatal("GetChatConnectionSetting() returned nil")
 	}
 
-	// Toggle to true
 	ToggleAllowConnect(chatID, true)
 	settings = GetChatConnectionSetting(chatID)
 	if !settings.AllowConnect {
 		t.Fatal("expected AllowConnect=true after ToggleAllowConnect(true)")
 	}
 
-	// Toggle to false -- zero-value boolean round-trip
 	ToggleAllowConnect(chatID, false)
 	settings = GetChatConnectionSetting(chatID)
 	if settings.AllowConnect {
@@ -281,7 +275,6 @@ func TestConnectionForNewUser(t *testing.T) {
 		db.DB.Where("user_id = ?", userID).Delete(&models.ConnectionSettings{})
 	})
 
-	// Connection() for a brand-new user must return a non-nil record with Connected=false
 	conn := Connection(userID)
 	if conn == nil {
 		t.Fatal("Connection() returned nil for new user")
@@ -306,7 +299,6 @@ func TestDisconnectId(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.ConnectionChatSettings{})
 	})
 
-	// Establish a connection
 	_ = Connection(userID)
 	ConnectId(userID, chatID)
 
@@ -318,7 +310,6 @@ func TestDisconnectId(t *testing.T) {
 		t.Fatalf("expected ChatId=%d after ConnectId, got %d", chatID, got.ChatId)
 	}
 
-	// Disconnect and verify
 	DisconnectId(userID)
 
 	got = Connection(userID)

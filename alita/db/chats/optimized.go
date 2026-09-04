@@ -10,14 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// ChatCacheEntry is an explicit cache payload that avoids magic sentinel values.
 type ChatCacheEntry struct {
 	Found bool
 	Chat  *models.Chat
 }
 
-// GetChatBasicInfo retrieves only essential chat information with minimal column selection.
-// Optimized for high-frequency calls by selecting only necessary fields.
 func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -36,8 +33,6 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 	return &chat, err
 }
 
-// GetChatBasicInfoCached retrieves chat information with caching layer for improved performance.
-// Uses cache.CacheTTLChatSettings TTL and falls back to direct query if cache fails.
 func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 	cacheKey := cache.CacheKey("chat", chatID)
 
@@ -52,7 +47,6 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 		return ChatCacheEntry{Found: true, Chat: chat}, nil
 	})
 	if err != nil {
-		// Cache/serialization error: fall back to direct DB query.
 		chat, dbErr := GetChatBasicInfo(chatID)
 		if dbErr == nil {
 			return chat, nil
@@ -70,14 +64,11 @@ func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
 	return cached.Chat, nil
 }
 
-// ChatUsersCacheEntry is an explicit cache payload for the users array.
 type ChatUsersCacheEntry struct {
 	Found bool
 	Users models.Int64Array
 }
 
-// GetChatUsers retrieves only the users array for a chat.
-// Optimized to avoid fetching large columns on the hot path.
 func GetChatUsers(chatID int64) (models.Int64Array, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -99,8 +90,6 @@ func GetChatUsers(chatID int64) (models.Int64Array, error) {
 	return chat.Users, nil
 }
 
-// GetChatUsersCached retrieves the users array with caching layer for improved performance.
-// Uses cache.CacheTTLChatSettings TTL and falls back to direct query if cache fails.
 func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
 	cacheKey := cache.CacheKey("chat_users", chatID)
 
@@ -115,7 +104,6 @@ func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
 		return ChatUsersCacheEntry{Found: true, Users: users}, nil
 	})
 	if err != nil {
-		// Cache/serialization error: fall back to direct DB query.
 		users, dbErr := GetChatUsers(chatID)
 		if dbErr == nil {
 			return users, nil

@@ -1,5 +1,3 @@
-// Package media provides a unified interface for sending different types of Telegram media.
-// It consolidates the duplicate logic from NotesEnumFuncMap, GreetingsEnumFuncMap, and FiltersEnumFuncMap.
 package media
 
 import (
@@ -20,9 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
-// resolveSendResult handles the shared error-handling path for all send methods.
-// It marks the chat as restricted on permission errors, clears it on success,
-// and wraps unhandled errors with context.
 func resolveSendResult[T any](result T, err error, chatID int64, mediaType string) (T, error) {
 	if err == nil {
 		cache.MarkChatNotRestricted(chatID)
@@ -43,46 +38,38 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 	return result, errors.Wrapf(err, "failed to send %s to chat %d", mediaType, chatID)
 }
 
-// Sentinel errors
 var ErrNoPermission = fmt.Errorf("bot lacks permission to send messages")
 
-// Content represents the media content to be sent.
 type Content struct {
-	Text    string // Text content or caption
-	FileID  string // File ID for media types
-	MsgType int    // One of db.TEXT, db.STICKER, etc.
-	Name    string // Optional name for logging (note name, filter keyword, etc.)
+	Text    string
+	FileID  string
+	MsgType int
+	Name    string
 }
 
-// Options configures how the media is sent.
 type Options struct {
 	ChatID            int64
 	ReplyMsgID        int64
 	ThreadID          int64
 	Keyboard          *gotgbot.InlineKeyboardMarkup
-	NoFormat          bool // If true, don't parse HTML
-	NoNotif           bool // Disable notification
-	WebPreview        bool // Enable link preview (TEXT only)
-	IsProtected       bool // Protect content from forwarding
-	AllowWithoutReply bool // Allow sending if reply message is deleted
+	NoFormat          bool
+	NoNotif           bool
+	WebPreview        bool
+	IsProtected       bool
+	AllowWithoutReply bool
 }
 
-// Send sends media content using the appropriate Telegram API method.
-// Returns the sent message and any error encountered.
 func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, error) {
-	// Short-circuit if bot is known to be restricted in this chat.
 	if cache.IsChatRestricted(opts.ChatID) {
 		log.WithField("chat_id", opts.ChatID).Debug("[Media] Skipping send to restricted chat")
 		return nil, ErrNoPermission
 	}
 
-	// Determine parse mode
 	parseMode := formatting.HTML
 	if opts.NoFormat {
 		parseMode = ""
 	}
 
-	// Build reply parameters if reply message ID is set
 	var replyParams *gotgbot.ReplyParameters
 	if opts.ReplyMsgID > 0 {
 		replyParams = &gotgbot.ReplyParameters{
@@ -92,7 +79,7 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	}
 
 	switch content.MsgType {
-	case db.TEXT, 0: // 0 is fallback for uninitialized/legacy records
+	case db.TEXT, 0:
 		return sendText(b, content, opts, parseMode, replyParams)
 	case db.STICKER:
 		return sendSticker(b, content, opts, replyParams)
@@ -114,7 +101,6 @@ func Send(b *gotgbot.Bot, content Content, opts Options) (*gotgbot.Message, erro
 	}
 }
 
-// sendText sends a text message with error handling for expected permission errors.
 func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	msg, err := b.SendMessage(opts.ChatID, content.Text, &gotgbot.SendMessageOpts{
 		ParseMode: parseMode,
@@ -130,7 +116,6 @@ func sendText(b *gotgbot.Bot, content Content, opts Options, parseMode string, r
 	return resolveSendResult(msg, err, opts.ChatID, "text")
 }
 
-// sendSticker sends a sticker or falls back to text if FileID is empty.
 func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for STICKER '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -146,7 +131,6 @@ func sendSticker(b *gotgbot.Bot, content Content, opts Options, replyParams *got
 	return resolveSendResult(msg, err, opts.ChatID, "sticker")
 }
 
-// sendDocument sends a document or falls back to text if FileID is empty.
 func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for DOCUMENT '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -164,7 +148,6 @@ func sendDocument(b *gotgbot.Bot, content Content, opts Options, parseMode strin
 	return resolveSendResult(msg, err, opts.ChatID, "document")
 }
 
-// sendPhoto sends a photo or falls back to text if FileID is empty.
 func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for PHOTO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -182,7 +165,6 @@ func sendPhoto(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "photo")
 }
 
-// sendAudio sends an audio file or falls back to text if FileID is empty.
 func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for AUDIO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -200,7 +182,6 @@ func sendAudio(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "audio")
 }
 
-// sendVoice sends a voice message or falls back to text if FileID is empty.
 func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for VOICE '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -218,7 +199,6 @@ func sendVoice(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "voice")
 }
 
-// sendVideo sends a video or falls back to text if FileID is empty.
 func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for VIDEO '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -236,7 +216,6 @@ func sendVideo(b *gotgbot.Bot, content Content, opts Options, parseMode string, 
 	return resolveSendResult(msg, err, opts.ChatID, "video")
 }
 
-// sendVideoNote sends a video note or falls back to text if FileID is empty.
 func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *gotgbot.ReplyParameters) (*gotgbot.Message, error) {
 	if content.FileID == "" {
 		log.Warnf("[Media] Empty FileID for VideoNote '%s' in chat %d, falling back to text", content.Name, opts.ChatID)
@@ -252,19 +231,14 @@ func sendVideoNote(b *gotgbot.Bot, content Content, opts Options, replyParams *g
 	return resolveSendResult(msg, err, opts.ChatID, "video note")
 }
 
-// SendNote sends a note with full preprocessing (randomization, formatting, keyboard, options).
-// The chat parameter provides the group context for formatting placeholders like {chatname};
-// ctx.EffectiveChat is used as the actual send target.
 func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Notes, replyMsgID, threadID int64) (*gotgbot.Message, error) {
 	var (
 		buttons []db.Button
 		sent    string
 	)
 
-	// copy just in case
 	buttons = note.Buttons
 
-	// Random data selection
 	rstrings := strings.Split(note.NoteContent, "%%%")
 	if len(rstrings) == 1 {
 		sent = rstrings[0]
@@ -273,7 +247,6 @@ func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Not
 		sent = rstrings[n]
 	}
 
-	// Avoid mutating the original note
 	noteCopy := *note
 	noteCopy.NoteContent, buttons = formatting.FormattingReplacer(b, chat, ctx.EffectiveUser, sent, buttons)
 	_, _, _, _, _, _, noteCopy.NoteContent = content.NotesParser(noteCopy.NoteContent)
@@ -291,7 +264,7 @@ func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Not
 		ReplyMsgID:        replyMsgID,
 		ThreadID:          threadID,
 		Keyboard:          &keyboardMarkup,
-		NoFormat:          false, // Notes use formatting by default
+		NoFormat:          false,
 		NoNotif:           noteCopy.NoNotif,
 		WebPreview:        noteCopy.WebPreview,
 		IsProtected:       noteCopy.IsProtected,
@@ -299,7 +272,6 @@ func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Not
 	})
 }
 
-// SendFilter sends a filter with full preprocessing (randomization, formatting, keyboard).
 func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filter *db.ChatFilters, replyMsgID int64) (*gotgbot.Message, error) {
 	if filter == nil {
 		return nil, fmt.Errorf("filter data is nil")
@@ -315,7 +287,6 @@ func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filter *db.ChatFilters, replyM
 	tmpfilterData = *filter
 	buttons = tmpfilterData.Buttons
 
-	// Random data selection
 	rstrings := strings.Split(tmpfilterData.FilterReply, "%%%")
 	if len(rstrings) == 1 {
 		sent = rstrings[0]
@@ -338,15 +309,14 @@ func SendFilter(b *gotgbot.Bot, ctx *ext.Context, filter *db.ChatFilters, replyM
 		ReplyMsgID:        replyMsgID,
 		ThreadID:          ctx.Message.MessageThreadId,
 		Keyboard:          &keyboardMarkup,
-		NoFormat:          false, // Filters use formatting by default
+		NoFormat:          false,
 		NoNotif:           tmpfilterData.NoNotif,
-		WebPreview:        false, // Filters disable web preview by default
-		IsProtected:       false, // Filters don't support protection
+		WebPreview:        false,
+		IsProtected:       false,
 		AllowWithoutReply: true,
 	})
 }
 
-// SendGreeting is a convenience function for sending welcome/goodbye messages.
 func SendGreeting(b *gotgbot.Bot, chatID int64, text, fileID string, msgType int, keyboard *gotgbot.InlineKeyboardMarkup, threadID int64) (*gotgbot.Message, error) {
 	return Send(b, Content{
 		Text:    text,
@@ -355,13 +325,13 @@ func SendGreeting(b *gotgbot.Bot, chatID int64, text, fileID string, msgType int
 		Name:    "greeting",
 	}, Options{
 		ChatID:            chatID,
-		ReplyMsgID:        0, // Greetings don't reply to messages
+		ReplyMsgID:        0,
 		ThreadID:          threadID,
 		Keyboard:          keyboard,
-		NoFormat:          false, // Greetings use formatting
-		NoNotif:           false, // Greetings notify by default
-		WebPreview:        false, // Greetings disable web preview
-		IsProtected:       false, // Greetings don't support protection
+		NoFormat:          false,
+		NoNotif:           false,
+		WebPreview:        false,
+		IsProtected:       false,
 		AllowWithoutReply: true,
 	})
 }

@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ActivityMonitor handles automatic tracking and cleanup of chat activity
 type ActivityMonitor struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
@@ -25,7 +24,6 @@ type ActivityMonitor struct {
 	lastMetricsCalculated time.Time
 }
 
-// ActivityMetrics holds calculated activity metrics
 type ActivityMetrics struct {
 	DailyActiveGroups   int64
 	WeeklyActiveGroups  int64
@@ -39,15 +37,12 @@ type ActivityMetrics struct {
 	CalculatedAt        time.Time
 }
 
-// NewActivityMonitor creates a new activity monitor instance
 func NewActivityMonitor() *ActivityMonitor {
 	ctx, cancel := context.WithCancel(context.Background()) // #nosec G118 -- cancel stored in struct field, called in Stop()
 
-	// Default values, can be overridden by environment variables
 	checkInterval := 1 * time.Hour
-	inactivityThreshold := 30 * 24 * time.Hour // 30 days
+	inactivityThreshold := 30 * 24 * time.Hour
 
-	// Check for environment variable overrides
 	if config.AppConfig.ActivityCheckInterval > 0 {
 		checkInterval = time.Duration(config.AppConfig.ActivityCheckInterval) * time.Hour
 	}
@@ -65,7 +60,6 @@ func NewActivityMonitor() *ActivityMonitor {
 	}
 }
 
-// Start begins the activity monitoring background job
 func (am *ActivityMonitor) Start() {
 	log.Info("[ActivityMonitor] Starting activity monitoring service")
 	log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
@@ -74,11 +68,9 @@ func (am *ActivityMonitor) Start() {
 	am.wg.Add(1)
 	go am.monitorLoop()
 
-	// Calculate initial metrics
 	am.calculateMetrics()
 }
 
-// Stop gracefully stops the activity monitor
 func (am *ActivityMonitor) Stop() {
 	am.stopOnce.Do(func() {
 		log.Info("[ActivityMonitor] Stopping activity monitoring service")
@@ -87,7 +79,6 @@ func (am *ActivityMonitor) Stop() {
 	})
 }
 
-// monitorLoop runs the periodic activity check
 func (am *ActivityMonitor) monitorLoop() {
 	defer am.wg.Done()
 
@@ -107,12 +98,10 @@ func (am *ActivityMonitor) monitorLoop() {
 	}
 }
 
-// performActivityCheck checks all chats for activity and marks inactive ones
 func (am *ActivityMonitor) performActivityCheck() {
 	startTime := time.Now()
 	log.Info("[ActivityMonitor] Starting activity check")
 
-	// Calculate current metrics
 	am.calculateMetrics()
 
 	if !am.enableAutoCleanup {
@@ -120,7 +109,6 @@ func (am *ActivityMonitor) performActivityCheck() {
 		return
 	}
 
-	// Find and mark inactive chats
 	inactiveThreshold := time.Now().Add(-am.inactivityThreshold)
 
 	result := db.DB.Model(&db.Chat{}).
@@ -137,7 +125,6 @@ func (am *ActivityMonitor) performActivityCheck() {
 			result.RowsAffected, am.inactivityThreshold)
 	}
 
-	// Reactivate chats that have recent activity
 	reactivateResult := db.DB.Model(&db.Chat{}).
 		Where("is_inactive = ? AND last_activity >= ?", true, inactiveThreshold).
 		Update("is_inactive", false)
@@ -155,7 +142,6 @@ func (am *ActivityMonitor) performActivityCheck() {
 	log.Infof("[ActivityMonitor] Activity check completed in %v", elapsed)
 }
 
-// countAsync runs a single COUNT query in a goroutine and logs on error.
 func countAsync(wg *sync.WaitGroup, query func() error, errMsg string) {
 	wg.Add(1)
 	go func() {
@@ -167,9 +153,6 @@ func countAsync(wg *sync.WaitGroup, query func() error, errMsg string) {
 	}()
 }
 
-// calculateMetrics calculates activity metrics in parallel for improved performance.
-// Executes 9 database COUNT queries concurrently using goroutines.
-// Each goroutine writes to its own local variable to avoid data races on struct fields.
 func (am *ActivityMonitor) calculateMetrics() {
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
@@ -183,8 +166,7 @@ func (am *ActivityMonitor) calculateMetrics() {
 
 	var wg sync.WaitGroup
 
-	// Windowed activity counts (distinct buckets; runs concurrently via
-	// countAsync). The daily/weekly/monthly predicates are index-friendly
+	// The daily/weekly/monthly predicates are index-friendly
 	// on (is_inactive, last_activity).
 	countAsync(&wg, func() error {
 		return db.DB.Model(&db.Chat{}).
@@ -226,7 +208,6 @@ func (am *ActivityMonitor) calculateMetrics() {
 	// Windowless total: cheap reltuples estimate (pg_class).
 	totalUsers = db.TableRowCount("users")
 
-	// Wait for all queries to complete
 	wg.Wait()
 
 	metrics := &ActivityMetrics{
@@ -242,7 +223,6 @@ func (am *ActivityMonitor) calculateMetrics() {
 		CalculatedAt:        now,
 	}
 
-	// Store metrics
 	am.metricsLock.Lock()
 	am.lastMetrics = metrics
 	am.lastMetricsCalculated = now

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// DisableSettings represents disable settings for commands
 type DisableSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;not null;uniqueIndex:idx_disable_chat_command" json:"chat_id,omitempty"`
@@ -16,7 +15,6 @@ func (DisableSettings) TableName() string {
 	return "disable"
 }
 
-// DisableChatSettings represents chat-level disable settings
 type DisableChatSettings struct {
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId         int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`

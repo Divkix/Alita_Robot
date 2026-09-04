@@ -28,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
-// Module instance
 var backupModule = moduleStruct{
 	moduleName: "Backup",
 }
@@ -46,10 +45,6 @@ type pendingResetState struct {
 	expiresAt time.Time
 }
 
-// Pending backup operations are stored in memory per chat. The callback token
-// prevents an older confirmation button from acting on newer pending state.
-// NOTE: single-instance requirement — pending maps are in-memory and lost on
-// restart; not suitable for multi-instance deployments without shared storage.
 var (
 	pendingMu        sync.Mutex
 	pendingImports   = make(map[int64]pendingImportState)
@@ -188,7 +183,6 @@ func startPendingCleanupTicker() {
 	}()
 }
 
-// exportHandler handles the /export command
 func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -198,19 +192,16 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if in a group
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
-	// Check if user is admin
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
 
-	// Check if bot is admin
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -218,7 +209,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Parse module arguments
 	var modules []string
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
@@ -233,8 +223,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// Reserve before starting work. The cooldown remains after a failure so an
-	// expired operation cannot delete a newer caller's reservation.
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireExport(chat.Id); !allowed {
 		cooldownStr := ratelimit.FormatCooldown(cooldown)
@@ -245,7 +233,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Export data
 	bkp, err := backup.ExportChatData(chat.Id, chat.Title, user.Id, modules)
 	if err != nil {
 		log.Errorf("[Backup] Export failed for chat %d: %v", chat.Id, err)
@@ -254,14 +241,12 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if any data was exported
 	if len(bkp.Data) == 0 {
 		text, _ := tr.GetString("backup_export_no_modules")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	// Convert to JSON
 	jsonData, err := bkp.ToJSON()
 	if err != nil {
 		log.Errorf("[Backup] Failed to marshal backup: %v", err)
@@ -270,7 +255,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Send as document
 	fileName := fmt.Sprintf("alita_backup_%d_%s.json", chat.Id, time.Now().Format("20060102_150405"))
 	caption := buildExportCaption(tr, bkp)
 
@@ -285,7 +269,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	if err != nil {
 		log.Errorf("[Backup] Failed to send document: %v", err)
-		// Fallback: send as text
 		text, _ := tr.GetString("backup_export_success_text", i18n.TranslationParams{
 			"modules": fmt.Sprintf("%d", len(bkp.Data)),
 		})
@@ -297,7 +280,6 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// validateImportRequest checks all permissions and prerequisites for import
 func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, *gotgbot.Chat, *gotgbot.User, *i18n.Translator, bool) {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -307,13 +289,11 @@ func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, 
 		return nil, nil, nil, nil, false
 	}
 
-	// Check if in a group
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return nil, nil, nil, nil, false
 	}
 
-	// Check if bot is admin
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return nil, nil, nil, nil, false
@@ -321,7 +301,6 @@ func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, 
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check if user is the group creator
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -331,9 +310,7 @@ func validateImportRequest(b *gotgbot.Bot, ctx *ext.Context) (*gotgbot.Message, 
 	return msg, chat, user, tr, true
 }
 
-// downloadBackupFile downloads the backup file from Telegram
 func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translator) ([]byte, string) {
-	// Check file type
 	if !strings.HasSuffix(strings.ToLower(doc.FileName), ".json") {
 		text, _ := tr.GetString("backup_import_invalid_file")
 		return nil, text
@@ -358,7 +335,6 @@ func downloadBackupFile(b *gotgbot.Bot, doc *gotgbot.Document, tr *i18n.Translat
 	return fileData, ""
 }
 
-// parseImportModules parses module arguments from command text.
 func parseImportModules(text string, backupData map[string]interface{}) ([]string, error) {
 	if text != "" {
 		args := strings.Fields(text)
@@ -395,14 +371,12 @@ func parseModuleArgs(args []string, valid func(string) bool) ([]string, error) {
 	return modules, nil
 }
 
-// importHandler handles the /import command
 func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg, chat, _, tr, ok := validateImportRequest(b, ctx)
 	if !ok {
 		return ext.EndGroups
 	}
 
-	// Check if this is a reply to a document (validate before burning cooldown)
 	if msg.ReplyToMessage == nil || msg.ReplyToMessage.Document == nil {
 		text, _ := tr.GetString("backup_import_no_reply")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
@@ -411,14 +385,12 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	doc := msg.ReplyToMessage.Document
 
-	// Download the backup file
 	fileData, errText := downloadBackupFile(b, doc, tr)
 	if fileData == nil {
 		_, _ = msg.Reply(b, errText, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	// Parse backup file
 	bkp, err := backup.BackupFormatFromJSON(fileData)
 	if err != nil {
 		log.Errorf("[Backup] Failed to parse backup: %v", err)
@@ -427,7 +399,6 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Validate backup
 	if err := bkp.Validate(); err != nil {
 		log.Errorf("[Backup] Invalid backup: %v", err)
 		text, _ := tr.GetString("backup_import_invalid_file")
@@ -441,7 +412,6 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Parse module arguments
 	importModules, parseErr := parseImportModules(msg.Text, bkp.Data)
 	if parseErr != nil {
 		text, _ := tr.GetString("backup_import_invalid_file")
@@ -449,12 +419,10 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// If no modules specified, use all from backup
 	if len(importModules) == 0 {
 		importModules = bkp.Modules
 	}
 
-	// Reserve cooldown after validation to avoid burning on malformed input.
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireImport(chat.Id); !allowed {
 		text, _ := tr.GetString("backup_import_rate_limited", i18n.TranslationParams{
@@ -464,7 +432,6 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Store pending import
 	token, err := storePendingImport(chat.Id, bkp, importModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending import: %v", err)
@@ -473,7 +440,6 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_import_confirm", i18n.TranslationParams{
 		"modules": fmt.Sprintf("%d", len(importModules)),
 		"list":    buildModuleList(importModules),
@@ -493,7 +459,6 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetHandler handles the /reset command
 func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -503,13 +468,11 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if in a group
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
-	// Check if bot is admin
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -517,13 +480,11 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check if user is the group creator
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
 	}
 
-	// Parse module arguments (validate before burning cooldown)
 	var resetModules []string
 	if msg.Text != "" {
 		args := strings.Fields(msg.Text)
@@ -538,12 +499,10 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// If no modules specified, reset all
 	if len(resetModules) == 0 {
 		resetModules = backup.AllExportableModules()
 	}
 
-	// Reserve after validation to avoid burning cooldown on malformed input.
 	limiter := ratelimit.GetBackupRateLimiter()
 	if allowed, cooldown := limiter.AcquireReset(chat.Id); !allowed {
 		text, _ := tr.GetString("backup_reset_rate_limited", i18n.TranslationParams{
@@ -553,7 +512,6 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Store pending reset
 	token, err := storePendingReset(chat.Id, resetModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending reset: %v", err)
@@ -562,7 +520,6 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Show confirmation with keyboard
 	confirmText, _ := tr.GetString("backup_reset_confirm", i18n.TranslationParams{
 		"modules": fmt.Sprintf("%d", len(resetModules)),
 		"list":    buildModuleList(resetModules),
@@ -582,7 +539,6 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// backupCallbackHandler handles callback queries for backup operations
 func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -595,7 +551,6 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	// Only creator can confirm import/reset
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		text, _ := tr.GetString("backup_import_creator_only")
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
@@ -605,7 +560,6 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return ext.EndGroups
 	}
 
-	// Decode callback data
 	decoded, ok := decodeCallbackData(query.Data, "backup")
 	if !ok {
 		return answerInvalidCallback(b, ctx, query)
@@ -647,9 +601,6 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
-	// Rate limit already acquired at importHandler entry; no second Acquire here
-	// to keep operation atomic (handler entry reserves the cooldown).
-	// Perform import
 	if err := backup.ImportChatData(chat.Id, bkp, modules); err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{
@@ -659,7 +610,6 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
-	// Success message
 	text, _ := tr.GetString("backup_import_success", i18n.TranslationParams{
 		"modules": fmt.Sprintf("%d", len(modules)),
 		"list":    buildModuleList(modules),
@@ -673,8 +623,6 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	return ext.EndGroups
 }
 
-// handleCancelPending atomically discards matching pending state and
-// acknowledges the cancelled backup callback.
 func (m moduleStruct) handleCancelPending(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, token string, discard func(int64, string) bool, cancelKey, expiredKey string) error {
 	chat := ctx.EffectiveChat
 
@@ -709,8 +657,6 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 		return ext.EndGroups
 	}
 
-	// Rate limit already acquired at resetHandler entry.
-	// Perform reset
 	if err := backup.ClearChatData(chat.Id, modules); err != nil {
 		log.Errorf("[Backup] Reset failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{
@@ -720,7 +666,6 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 		return ext.EndGroups
 	}
 
-	// Success message
 	text, _ := tr.GetString("backup_reset_success", i18n.TranslationParams{
 		"modules": fmt.Sprintf("%d", len(modules)),
 		"list":    buildModuleList(modules),
@@ -737,8 +682,6 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, query *gotgbot.CallbackQuery, token string) error {
 	return m.handleCancelPending(b, ctx, tr, query, token, discardPendingReset, "backup_reset_cancelled", "backup_reset_expired")
 }
-
-// Helper functions
 
 func buildExportCaption(tr *i18n.Translator, backup *backup.BackupFormat) string {
 	modulesList := buildModuleList(backup.Modules)
@@ -810,23 +753,18 @@ func buildResetKeyboard(tr *i18n.Translator, chatID int64, token string) gotgbot
 	}
 }
 
-// LoadBackup registers all backup module handlers with the dispatcher.
 func LoadBackup(dispatcher *ext.Dispatcher) {
-	// Register module in enabled map
 	DefaultHelpRegistry().AbleMap[backupModule.moduleName] = true
 
-	// Register command handlers
 	dispatcher.AddHandler(handlers.NewCommand("export", backupModule.exportHandler))
 	dispatcher.AddHandler(handlers.NewCommand("import", backupModule.importHandler))
 	dispatcher.AddHandler(handlers.NewCommand("reset", backupModule.resetHandler))
 
-	// Register callback query handlers
 	dispatcher.AddHandler(handlers.NewCallback(
 		callbackquery.Prefix("backup"),
 		backupModule.backupCallbackHandler,
 	))
 
-	// Add disableable commands
 	helpers.AddCmdToDisableable("export")
 	helpers.AddCmdToDisableable("import")
 

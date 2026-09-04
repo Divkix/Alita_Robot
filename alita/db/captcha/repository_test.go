@@ -139,7 +139,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		}
 	})
 
-	// Verify defaults when no record exists
 	settings, err := GetCaptchaSettings(chatID)
 	if err != nil {
 		t.Fatalf("GetCaptchaSettings() error = %v", err)
@@ -151,7 +150,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected default CaptchaMode='math', got %q", settings.CaptchaMode)
 	}
 
-	// SetCaptchaEnabled should create record and invalidate cache
 	if err := SetCaptchaEnabled(chatID, true); err != nil {
 		t.Fatalf("SetCaptchaEnabled(true) error = %v", err)
 	}
@@ -173,7 +171,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Enabled=true after SetCaptchaEnabled(true)")
 	}
 
-	// SetCaptchaEnabled(false) — zero-value boolean round-trip
 	if err := SetCaptchaEnabled(chatID, false); err != nil {
 		t.Fatalf("SetCaptchaEnabled(false) error = %v", err)
 	}
@@ -185,7 +182,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Enabled=false after SetCaptchaEnabled(false)")
 	}
 
-	// SetCaptchaMode invalidates cache
 	if err := SetCaptchaMode(chatID, "text"); err != nil {
 		t.Fatalf("SetCaptchaMode() error = %v", err)
 	}
@@ -197,7 +193,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected CaptchaMode='text', got %q", settings.CaptchaMode)
 	}
 
-	// SetCaptchaTimeout invalidates cache
 	if err := SetCaptchaTimeout(chatID, 5); err != nil {
 		t.Fatalf("SetCaptchaTimeout() error = %v", err)
 	}
@@ -209,7 +204,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected Timeout=5, got %d", settings.Timeout)
 	}
 
-	// SetCaptchaMaxAttempts invalidates cache
 	if err := SetCaptchaMaxAttempts(chatID, 7); err != nil {
 		t.Fatalf("SetCaptchaMaxAttempts() error = %v", err)
 	}
@@ -221,7 +215,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected MaxAttempts=7, got %d", settings.MaxAttempts)
 	}
 
-	// SetCaptchaFailureAction invalidates cache
 	if err := SetCaptchaFailureAction(chatID, "ban"); err != nil {
 		t.Fatalf("SetCaptchaFailureAction() error = %v", err)
 	}
@@ -233,7 +226,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected FailureAction='ban', got %q", settings.FailureAction)
 	}
 
-	// Verify cache key uses correct prefix
 	expectedKey := fmt.Sprintf("alita:captcha_settings:%d", chatID)
 	actualKey := dbcache.CacheKey("captcha_settings", chatID)
 	if actualKey != expectedKey {
@@ -262,7 +254,6 @@ func TestCaptchaAttempt_Lifecycle(t *testing.T) {
 		}
 	})
 
-	// Read back by ID
 	fetched, err := GetCaptchaAttemptByID(attempt.ID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID() error = %v", err)
@@ -271,7 +262,6 @@ func TestCaptchaAttempt_Lifecycle(t *testing.T) {
 		t.Fatal("GetCaptchaAttemptByID() returned nil")
 	}
 
-	// Verify answer
 	if fetched.Answer != "42" {
 		t.Fatalf("Answer = %q, want %q", fetched.Answer, "42")
 	}
@@ -298,12 +288,10 @@ func TestCaptchaAttempt_IncrementAttempts(t *testing.T) {
 		}
 	})
 
-	// Initial Attempts == 0
 	if attempt.Attempts != 0 {
 		t.Fatalf("initial Attempts = %d, want 0", attempt.Attempts)
 	}
 
-	// Increment to 1
 	updated, err := IncrementCaptchaAttempts(
 		attempt.ID,
 		userID,
@@ -319,7 +307,6 @@ func TestCaptchaAttempt_IncrementAttempts(t *testing.T) {
 		t.Fatalf("after first increment Attempts = %d, want 1", updated.Attempts)
 	}
 
-	// Increment to 2
 	updated, err = IncrementCaptchaAttempts(
 		updated.ID,
 		userID,
@@ -394,14 +381,12 @@ func TestStoredMessages_CRUD(t *testing.T) {
 		}
 	})
 
-	// Store 3 messages
 	for i := 0; i < 3; i++ {
 		if err := StoreMessageForCaptcha(userID, chatID, attempt.ID, 1, fmt.Sprintf("msg%d", i), "", ""); err != nil {
 			t.Fatalf("StoreMessageForCaptcha() msg%d error = %v", i, err)
 		}
 	}
 
-	// Get stored messages by attemptID -> should have 3
 	messages, err := GetStoredMessagesForAttempt(attempt.ID)
 	if err != nil {
 		t.Fatalf("GetStoredMessagesForAttempt() error = %v", err)
@@ -418,19 +403,16 @@ func TestCaptchaMutedUsers_CleanupExpired(t *testing.T) {
 	userID := base + 400
 	chatID := base + 401
 
-	// Insert a muted user with a past UnmuteAt time (already expired)
 	pastTime := time.Now().Add(-1 * time.Hour)
 	if err := CreateMutedUser(userID, chatID, pastTime); err != nil {
 		t.Fatalf("CreateMutedUser() error = %v", err)
 	}
 
-	// GetUsersToUnmute should find this user
 	expired, err := GetUsersToUnmute()
 	if err != nil {
 		t.Fatalf("GetUsersToUnmute() error = %v", err)
 	}
 
-	// Find our muted user in the results
 	var foundID uint
 	for _, u := range expired {
 		if u.UserID == userID && u.ChatID == chatID {
@@ -442,12 +424,10 @@ func TestCaptchaMutedUsers_CleanupExpired(t *testing.T) {
 		t.Fatalf("muted user (userID=%d, chatID=%d) not found in GetUsersToUnmute() results", userID, chatID)
 	}
 
-	// Delete the muted user (simulates cleanup)
 	if _, err := DeleteMutedUsersByIDs([]uint{foundID}); err != nil {
 		t.Fatalf("DeleteMutedUsersByIDs() error = %v", err)
 	}
 
-	// Verify gone
 	afterExpired, err := GetUsersToUnmute()
 	if err != nil {
 		t.Fatalf("GetUsersToUnmute() after cleanup error = %v", err)
@@ -724,7 +704,6 @@ func TestGetCaptchaAttempt_ExistingAndMissing(t *testing.T) {
 	userID := base + 500
 	chatID := base + 501
 
-	// No attempt exists yet — should return nil
 	attempt, err := GetCaptchaAttempt(userID, chatID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt() error = %v", err)
@@ -733,7 +712,6 @@ func TestGetCaptchaAttempt_ExistingAndMissing(t *testing.T) {
 		t.Fatalf("expected nil for missing attempt, got %+v", attempt)
 	}
 
-	// Create an attempt
 	created, err := CreateCaptchaAttemptPreMessage(userID, chatID, "88", 5)
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
@@ -745,7 +723,6 @@ func TestGetCaptchaAttempt_ExistingAndMissing(t *testing.T) {
 		}
 	})
 
-	// Now it should be found
 	attempt, err = GetCaptchaAttempt(userID, chatID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt() error = %v", err)
@@ -765,7 +742,6 @@ func TestGetCaptchaAttempt_Expired(t *testing.T) {
 	userID := base + 600
 	chatID := base + 601
 
-	// Create an attempt with a 1-minute timeout, then backdate expires_at
 	created, err := CreateCaptchaAttemptPreMessage(userID, chatID, "11", 1)
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
@@ -786,7 +762,6 @@ func TestGetCaptchaAttempt_Expired(t *testing.T) {
 		t.Fatalf("failed to backdate timestamps: %v", err)
 	}
 
-	// Expired attempt should not be returned
 	attempt, err := GetCaptchaAttempt(userID, chatID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttempt() error = %v", err)
@@ -803,7 +778,6 @@ func TestGetCaptchaAttemptByID_ExistingAndMissing(t *testing.T) {
 	userID := base + 700
 	chatID := base + 701
 
-	// Missing ID — should return nil
 	attempt, err := GetCaptchaAttemptByID(99999999)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID() error = %v", err)
@@ -812,7 +786,6 @@ func TestGetCaptchaAttemptByID_ExistingAndMissing(t *testing.T) {
 		t.Fatalf("expected nil for missing ID, got %+v", attempt)
 	}
 
-	// Create an attempt
 	created, err := CreateCaptchaAttemptPreMessage(userID, chatID, "22", 5)
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
@@ -824,7 +797,6 @@ func TestGetCaptchaAttemptByID_ExistingAndMissing(t *testing.T) {
 		}
 	})
 
-	// Read back by ID
 	attempt, err = GetCaptchaAttemptByID(created.ID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID() error = %v", err)
@@ -844,13 +816,11 @@ func TestDeleteCaptchaAttempt(t *testing.T) {
 	userID := base + 800
 	chatID := base + 801
 
-	// Create an attempt
 	created, err := CreateCaptchaAttemptPreMessage(userID, chatID, "33", 5)
 	if err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
 
-	// Verify it exists
 	attempt, err := GetCaptchaAttemptByID(created.ID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID() error = %v", err)
@@ -859,12 +829,10 @@ func TestDeleteCaptchaAttempt(t *testing.T) {
 		t.Fatal("expected non-nil attempt before deletion")
 	}
 
-	// Delete it
 	if err := DeleteCaptchaAttempt(userID, chatID); err != nil {
 		t.Fatalf("DeleteCaptchaAttempt() error = %v", err)
 	}
 
-	// Verify it's gone
 	attempt, err = GetCaptchaAttemptByID(created.ID)
 	if err != nil {
 		t.Fatalf("GetCaptchaAttemptByID() after delete error = %v", err)
@@ -880,7 +848,6 @@ func TestDeleteAllCaptchaAttempts(t *testing.T) {
 	base := time.Now().UnixNano()
 	chatID := base + 900
 
-	// Create multiple attempts for the same chat with different users
 	for i := int64(0); i < 3; i++ {
 		_, err := CreateCaptchaAttemptPreMessage(base+1000+i, chatID, fmt.Sprintf("ans%d", i), 5)
 		if err != nil {
@@ -894,7 +861,6 @@ func TestDeleteAllCaptchaAttempts(t *testing.T) {
 		}
 	})
 
-	// Verify all 3 exist
 	var count int64
 	if err := db.DB.Model(&dbmodels.CaptchaAttempts{}).Where("chat_id = ?", chatID).Count(&count).Error; err != nil {
 		t.Fatalf("count before delete error = %v", err)
@@ -903,12 +869,10 @@ func TestDeleteAllCaptchaAttempts(t *testing.T) {
 		t.Fatalf("expected 3 attempts, got %d", count)
 	}
 
-	// Delete all for this chat
 	if err := DeleteAllCaptchaAttempts(chatID); err != nil {
 		t.Fatalf("DeleteAllCaptchaAttempts() error = %v", err)
 	}
 
-	// Verify all gone
 	if err := db.DB.Model(&dbmodels.CaptchaAttempts{}).Where("chat_id = ?", chatID).Count(&count).Error; err != nil {
 		t.Fatalf("count after delete error = %v", err)
 	}
@@ -941,14 +905,12 @@ func TestStoreMessageForCaptchaAndGetStoredMessagesForUser(t *testing.T) {
 		}
 	})
 
-	// Store 3 messages for this user/chat
 	for i := 0; i < 3; i++ {
 		if err := StoreMessageForCaptcha(userID, chatID, attempt.ID, 1, fmt.Sprintf("content%d", i), "", ""); err != nil {
 			t.Fatalf("StoreMessageForCaptcha() msg %d error = %v", i, err)
 		}
 	}
 
-	// Get stored messages via GetStoredMessagesForUser
 	messages, err := GetStoredMessagesForUser(userID, chatID)
 	if err != nil {
 		t.Fatalf("GetStoredMessagesForUser() error = %v", err)
@@ -999,14 +961,12 @@ func TestDeleteStoredMessagesForAttempt(t *testing.T) {
 		}
 	})
 
-	// Store 2 messages
 	for i := 0; i < 2; i++ {
 		if err := StoreMessageForCaptcha(userID, chatID, attempt.ID, 1, fmt.Sprintf("msg%d", i), "", ""); err != nil {
 			t.Fatalf("StoreMessageForCaptcha() msg %d error = %v", i, err)
 		}
 	}
 
-	// Verify they exist
 	messages, err := GetStoredMessagesForAttempt(attempt.ID)
 	if err != nil {
 		t.Fatalf("GetStoredMessagesForAttempt() error = %v", err)
@@ -1015,12 +975,10 @@ func TestDeleteStoredMessagesForAttempt(t *testing.T) {
 		t.Fatalf("before delete: expected 2 messages, got %d", len(messages))
 	}
 
-	// Delete them
 	if err := DeleteStoredMessagesForAttempt(attempt.ID); err != nil {
 		t.Fatalf("DeleteStoredMessagesForAttempt() error = %v", err)
 	}
 
-	// Verify they're gone
 	messages, err = GetStoredMessagesForAttempt(attempt.ID)
 	if err != nil {
 		t.Fatalf("GetStoredMessagesForAttempt() after delete error = %v", err)
@@ -1037,7 +995,6 @@ func TestIncrementCaptchaAttempts_NoActiveCaptcha(t *testing.T) {
 	userID := base + 1300
 	chatID := base + 1301
 
-	// No active attempt — should return ErrNoActiveCaptcha
 	updated, err := IncrementCaptchaAttempts(999999, userID, chatID, "missing", 0, 0)
 	if err == nil {
 		t.Fatal("expected error for missing attempt, got nil")

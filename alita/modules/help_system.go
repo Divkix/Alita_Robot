@@ -13,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
-// markup is the global help menu keyboard.
 var markup gotgbot.InlineKeyboardMarkup
 
 func listModulesFrom(registry *moduleStruct) []string {
@@ -27,12 +26,10 @@ func listModulesFrom(registry *moduleStruct) []string {
 	return modules
 }
 
-// initHelpButtons initializes the help menu keyboard with all enabled modules.
 func initHelpButtons() {
 	markup = initHelpButtonsFrom(DefaultHelpRegistry())
 }
 
-// initHelpButtonsFrom builds a help menu keyboard from the given registry.
 func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 	var kb []gotgbot.InlineKeyboardButton
 
@@ -52,7 +49,6 @@ func initHelpButtonsFrom(registry *moduleStruct) gotgbot.InlineKeyboardMarkup {
 	return gotgbot.InlineKeyboardMarkup{InlineKeyboard: zb}
 }
 
-// getModuleHelpAndKb retrieves help text and keyboard for a specific module.
 func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText string, replyMarkup gotgbot.InlineKeyboardMarkup) {
 	ModName := module
 	if ModName != "" {
@@ -61,9 +57,6 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 	tr := i18n.MustNewTranslator(lang)
 	helpMsg, _ := tr.GetString(fmt.Sprintf("%s_help_msg", strings.ToLower(ModName)))
 	headerTemplate, _ := tr.GetString("helpers_module_help_header")
-	// Convert the markdown header and the body independently. Concatenating
-	// first then running MD2HTMLV2 escapes already-HTML _help_msg strings
-	// (reactions/backup/approvals/antispam) into visible <b> tags.
 	helpText = renderModuleHelp(headerTemplate, ModName, helpMsg)
 
 	backText, _ := tr.GetString("common_back_arrow")
@@ -86,15 +79,11 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 	return
 }
 
-// renderModuleHelp converts the markdown help header and the module body to
-// Telegram HTML independently so HTML-authored _help_msg strings keep their
-// tags instead of being escaped into visible <b> text.
 func renderModuleHelp(headerTemplate, modName, helpMsg string) string {
 	return formatting.ToTelegramHTML(fmt.Sprintf(headerTemplate, modName)) +
 		formatting.ToTelegramHTML(helpMsg)
 }
 
-// sendHelpkb sends help information for a specific module with navigation keyboard.
 func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *moduleStruct) (msg *gotgbot.Message, err error) {
 	module = strings.ToLower(module)
 	if module == "help" {
@@ -123,7 +112,6 @@ func sendHelpkb(b *gotgbot.Bot, ctx *ext.Context, module string, registry *modul
 	return
 }
 
-// getModuleNameFromAltName resolves alternative module names to their canonical form.
 func getModuleNameFromAltName(altName string, registry *moduleStruct) string {
 	for _, modName := range listModulesFrom(registry) {
 		altNames := getAltNamesOfModule(modName)
@@ -136,14 +124,12 @@ func getModuleNameFromAltName(altName string, registry *moduleStruct) string {
 	return ""
 }
 
-// getAltNamesOfModule returns all alternative names for a given module.
 func getAltNamesOfModule(moduleName string) []string {
 	tr := i18n.MustNewTranslator("config")
 	altNamesFromConfig, _ := tr.GetStringSlice(fmt.Sprintf("alt_names.%s", moduleName))
 	return append(altNamesFromConfig, strings.ToLower(moduleName))
 }
 
-// getHelpTextAndMarkup generates help content and keyboard for a module or main help.
 func getHelpTextAndMarkup(ctx *ext.Context, module string, registry *moduleStruct) (helpText string, kbmarkup gotgbot.InlineKeyboardMarkup, _parsemode string) {
 	var moduleName string
 	userOrGroupLanguage := lang.GetLanguage(ctx)

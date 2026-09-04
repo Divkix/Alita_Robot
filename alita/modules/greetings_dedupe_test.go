@@ -38,7 +38,6 @@ func TestRecentJoinProcessingNoCacheFallback(t *testing.T) {
 // join-dedup claim for a given (chat, user) pair — both in the sequential case
 // and when N goroutines race concurrently.
 func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
-	// Use unique IDs so this test doesn't collide with others.
 	chatID := -time.Now().UnixNano() / 1e6 // negative to avoid valid Telegram chat IDs
 	userID := time.Now().UnixNano()/1e6 + 1
 
@@ -46,7 +45,6 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 		clearRecentJoinProcessing(chatID, userID)
 	})
 
-	// Sequential: first call must win, second must lose.
 	if !claimRecentJoinProcessing(chatID, userID) {
 		t.Fatal("first claimRecentJoinProcessing() = false, want true")
 	}
@@ -54,10 +52,8 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 		t.Fatal("second claimRecentJoinProcessing() = true, want false (duplicate)")
 	}
 
-	// Reset for the concurrent sub-test.
 	clearRecentJoinProcessing(chatID, userID)
 
-	// Concurrent: N goroutines race; exactly one must win.
 	const N = 20
 	var wg sync.WaitGroup
 	var wins atomic.Int64

@@ -19,8 +19,6 @@ import (
 
 var languagesModule = moduleStruct{moduleName: "Languages"}
 
-// genFullLanguageKb generates the complete language selection keyboard.
-// Creates inline buttons for all available languages plus a translation contribution link.
 func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 	keyboard := keyboard.MakeLanguageKeyboard()
 	tr := i18n.MustNewTranslator("en")
@@ -37,8 +35,6 @@ func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 	return keyboard
 }
 
-// changeLanguage displays the language selection menu for users or groups.
-// Shows current language and allows users/admins to select a different interface language.
 func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -56,7 +52,6 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
 
-		// language won't be changed if user is not admin
 		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
@@ -82,8 +77,6 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// langBtnHandler processes language selection callback queries from the language menu.
-// Updates user or group language preferences based on admin permissions and context.
 func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -120,16 +113,13 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(language)
 
-	// For group chats, check admin permissions first before any language operations
 	if chat.Type != "private" {
-		// Permission denied - callback answer is handled by PermissionResponder
 		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 			chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 			return ext.EndGroups
 		}
 	}
 
-	// Now we can safely create translator for the target language
 	var replyString string
 
 	if chat.Type == "private" {
@@ -141,7 +131,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		replyString, _ = tr.GetString("language_changed_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(language)})
 	} else {
-		// User is admin (already verified above)
 		if err := lang.ChangeGroupLanguage(chat.Id, language); err != nil {
 			log.Errorf("[Language] ChangeGroupLanguage failed for chat %d: %v", chat.Id, err)
 			errText, _ := tr.GetString("common_settings_save_failed")
@@ -160,7 +149,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Answer the callback query to stop the loading spinner.
 	_, err := query.Answer(b, nil)
 	if err != nil {
 		log.Error(err)
@@ -178,8 +166,6 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadLanguage registers language-related command and callback handlers.
-// Sets up language selection commands and keyboard navigation for internationalization.
 func LoadLanguage(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[languagesModule.moduleName] = true
 	DefaultHelpRegistry().helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()

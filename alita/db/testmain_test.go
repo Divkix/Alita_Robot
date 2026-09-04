@@ -82,7 +82,6 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Close DB handle before removing temp file.
 	if DB != nil {
 		sqlDB, err := DB.DB()
 		if err != nil {
@@ -92,7 +91,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
 			fmt.Printf("temp file remove failed: %v\n", rmErr)

@@ -26,19 +26,8 @@ var blacklistsModule = moduleStruct{
 	handlerGroup: 7,
 }
 
-// Use the shared global regex cache from filters module
-
-/*
-	Used to add a blacklist to group!
-
-Connection - true, true
-Admin can add a blacklist to the chat
-*/
-// addBlacklist handles the /addblacklist command to add blacklisted words to a group.
-// Admins can add words that will trigger automatic moderation actions.
 func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -56,7 +45,6 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		text                             string
 	)
 
-	// Permission Checks
 	if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 		return ext.EndGroups
 	}
@@ -83,13 +71,11 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else if len(args) >= 1 {
 		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
 
-		// OPTIMIZATION: Convert blacklist slice to map for O(1) lookups
 		blWordSet := make(map[string]struct{}, len(allBlWords))
 		for _, w := range allBlWords {
 			blWordSet[w] = struct{}{}
 		}
 
-		// Validate word lengths - reject words over 100 characters
 		var tooLong []string
 		validArgs := make([]string, 0, len(args))
 		for _, word := range args {
@@ -159,17 +145,8 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to remove a blacklist from group!
-
-Connection - true, true
-Admin can add a blacklist to the chat
-*/
-// removeBlacklist handles the /rmblacklist command to remove blacklisted words.
-// Allows admins to remove previously blacklisted words from the group.
 func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -184,7 +161,6 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	var removedBlacklists []string
 
-	// Permission Checks
 	if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 		return ext.EndGroups
 	}
@@ -243,22 +219,12 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to list all blacklists of a group!
-
-Connection - false, true
-Anyone can view blacklists in group
-*/
-// listBlacklists handles the /blacklists command to display all blacklisted words.
-// Shows a sorted list of all currently blacklisted words in the group.
 func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "blacklists") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -310,18 +276,8 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to set mode for blacklists in chat
-
-# Connection - true, true
-
-Admin with restriction permission can set blacklist action in group out of - ick, ban, mute
-*/
-// setBlacklistAction handles the /blaction command to configure blacklist punishment.
-// Sets the action (mute/kick/warn/ban/none) taken when blacklisted words are detected.
 func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -336,7 +292,6 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 
 	var rMsg string
 
-	// Permission Checks
 	if !chat_status.CanUserRestrict(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		return ext.EndGroups
@@ -378,13 +333,6 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	return ext.EndGroups
 }
 
-/*
-	Used to remove all blacklists from a group
-
-Only chat creator can use this command to remove all blacklists aat once from the current chat
-*/
-// rmAllBlacklists handles the /rmallbl command to remove all blacklisted words.
-// Only chat owners can use this command with confirmation via inline keyboard.
 func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
@@ -394,7 +342,6 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// permission checks
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -433,9 +380,6 @@ func (m moduleStruct) rmAllBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// Callback Handler for rmallblacklist
-// buttonHandler processes confirmation callbacks for removing all blacklists.
-// Handles the yes/no confirmation when owners attempt to clear all blacklisted words.
 func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -449,7 +393,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
@@ -502,13 +445,6 @@ func (m moduleStruct) buttonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Blacklist watcher
-
-Watcher for blacklisted words, if any of the sentence contains the word, it will remove and use the appropriate action
-*/
-// blacklistWatcher monitors all messages for blacklisted words.
-// Automatically applies configured punishment when blacklisted content is detected.
 func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
@@ -519,15 +455,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Fast path: if no triggers are configured, bail out before any API call.
 	blSettings := blacklists.GetBlacklistSettings(chat.Id)
 	triggers := blSettings.Triggers()
 	if len(triggers) == 0 {
 		return ext.ContinueGroups
 	}
 
-	// skip admins and creator + approved users and anonymous channel
-	// Only check admin status for actual users, not anonymous channels
 	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
 		return ext.ContinueGroups
 	}
@@ -535,8 +468,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check if bot has admin permissions to take action
-	// This prevents wasted API calls when bot can't delete/restrict
 	if !chat_status.IsBotAdmin(b, ctx, chat) {
 		return ext.ContinueGroups
 	}
@@ -548,11 +479,9 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Use Aho-Corasick for efficient multi-pattern matching
 	cache := keyword_matcher.GetNamedCache("blacklists")
 	matcher := cache.GetOrCreateMatcher(chat.Id, triggers)
 
-	// Find first matching blacklist trigger using optimized path
 	firstPattern, found := matcher.FirstMatch(matchText)
 	if !found {
 		return ext.ContinueGroups
@@ -571,7 +500,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	var err error
 	switch matched.Action {
 	case "mute":
-		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -593,7 +521,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "ban":
-		// ban anonymous channels as well
 		if user.IsAnonymousChannel() {
 			_, err = b.BanChatSenderChat(chat.Id, user.Id(), nil)
 		} else {
@@ -615,7 +542,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "kick":
-		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -636,7 +562,6 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "warn":
-		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -647,15 +572,12 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "none":
-		// Message already deleted, no further action needed
 		return ext.ContinueGroups
 	}
 
 	return ext.ContinueGroups
 }
 
-// LoadBlacklists registers all blacklist module handlers with the dispatcher.
-// Sets up commands for managing blacklists and the message watcher for enforcement.
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[blacklistsModule.moduleName] = true
 

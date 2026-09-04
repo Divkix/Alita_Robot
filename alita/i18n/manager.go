@@ -21,12 +21,10 @@ func GetManager() *LocaleManager {
 	return managerInstance
 }
 
-// Initialize initializes the LocaleManager with the provided configuration.
 func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config ManagerConfig) error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	// Prevent re-initialization
 	if lm.localeFS != nil {
 		return fmt.Errorf("locale manager already initialized")
 	}
@@ -35,16 +33,13 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 	lm.localePath = localePath
 	lm.defaultLang = config.Loader.DefaultLanguage
 
-	// Load all locale files
 	if err := lm.loadLocaleFiles(); err != nil {
 		if config.Loader.StrictMode {
 			return NewI18nError("initialize", "", "", "failed to load locale files", err)
 		}
-		// In non-strict mode, log error but continue
 		fmt.Printf("Warning: failed to load some locale files: %v\n", err)
 	}
 
-	// Validate default language exists
 	if _, exists := lm.localeMaps[lm.defaultLang]; !exists {
 		return NewI18nError("initialize", lm.defaultLang, "", "default language not found", ErrLocaleNotFound)
 	}
@@ -52,7 +47,6 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 	return nil
 }
 
-// GetTranslator returns a translator for the specified language.
 func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
@@ -61,11 +55,9 @@ func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 		return nil, NewI18nError("get_translator", langCode, "", "manager not initialized", ErrManagerNotInit)
 	}
 
-	// Check if language exists, fallback to default if not
 	targetLang := langCode
 	data, exists := lm.localeMaps[langCode]
 	if !exists {
-		// Fallback to default language
 		targetLang = lm.defaultLang
 		data = lm.localeMaps[lm.defaultLang]
 		if data == nil {
@@ -80,7 +72,6 @@ func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 	}, nil
 }
 
-// GetAvailableLanguages returns a slice of all available language codes.
 func (lm *LocaleManager) GetAvailableLanguages() []string {
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()

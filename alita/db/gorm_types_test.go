@@ -191,7 +191,6 @@ func TestButtonArray_Value(t *testing.T) {
 				return
 			}
 
-			// Validate it's valid JSON bytes for non-empty arrays
 			b, ok := val.([]byte)
 			if !ok {
 				t.Fatalf("expected []byte value for non-empty array, got %T", val)

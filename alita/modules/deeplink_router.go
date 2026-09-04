@@ -49,7 +49,6 @@ func HandleDeepLink(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg st
 	return sendDefaultHelp(b, ctx, user)
 }
 
-// sendDefaultHelp sends the default start/help message.
 func sendDefaultHelp(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	startHelpText := getStartHelp(tr)

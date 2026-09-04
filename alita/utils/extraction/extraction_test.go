@@ -776,7 +776,6 @@ func TestIdFromReply_NilReply(t *testing.T) {
 	msg := &gotgbot.Message{
 		ReplyToMessage: nil,
 	}
-	// Should not panic, should return zero values
 	gotId, gotText := IdFromReply(msg)
 	if gotId != 0 {
 		t.Errorf("expected userId=0 for nil reply, got %d", gotId)

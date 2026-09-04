@@ -54,7 +54,6 @@ func TestNewPermissionResponder(t *testing.T) {
 	}
 }
 
-// TestPermissionResponderRespondNegativeCases verifies that Respond returns false for nil context or nil EffectiveMessage.
 func TestPermissionResponderRespondNegativeCases(t *testing.T) {
 	tests := []struct {
 		name string
@@ -77,18 +76,15 @@ func TestPermissionResponderRespondNegativeCases(t *testing.T) {
 func TestPermissionResponderRespond(t *testing.T) {
 	bot := newChatStatusBot(999)
 
-	// Test 1: Callback Query path
 	t.Run("CallbackQuery", func(t *testing.T) {
 		ctx := makeCtxWithCallbackQuery()
 		r := NewPermissionResponder(bot)
-		// btnKey is non-empty, and update has callback query
 		res := r.Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		if res != false {
 			t.Fatal("Respond should return false")
 		}
 	})
 
-	// Test 2: Reply path (WithReply)
 	t.Run("WithReply", func(t *testing.T) {
 		ctx := makeCtxWithMessage("supergroup")
 		r := NewPermissionResponder(bot)
@@ -98,7 +94,6 @@ func TestPermissionResponderRespond(t *testing.T) {
 		}
 	})
 
-	// Test 3: Reply path with fallback (WithReplyFallback)
 	t.Run("WithReplyFallback", func(t *testing.T) {
 		ctx := makeCtxWithMessage("supergroup")
 		r := NewPermissionResponder(bot)

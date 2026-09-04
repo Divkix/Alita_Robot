@@ -8,7 +8,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-// findAction returns the built-in action with the given name, or fails the test.
 func findAction(t *testing.T, m *AutoRemediationManager, name string) remediationAction {
 	t.Helper()
 	for _, a := range m.actions {
@@ -19,10 +18,6 @@ func findAction(t *testing.T, m *AutoRemediationManager, name string) remediatio
 	t.Fatalf("action %q not found in manager.actions", name)
 	return remediationAction{}
 }
-
-// ---------------------------------------------------------------------------
-// Built-in action ordering
-// ---------------------------------------------------------------------------
 
 func TestBuiltInActionsAreSeverityOrdered(t *testing.T) {
 	// Cannot run in parallel because it reads global config.AppConfig.
@@ -53,10 +48,6 @@ func TestBuiltInActionsAreSeverityOrdered(t *testing.T) {
 		}
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Threshold conditions select the right action
-// ---------------------------------------------------------------------------
 
 func TestActionThresholds(t *testing.T) {
 	// Cannot run in parallel because it reads global config.AppConfig.
@@ -127,10 +118,6 @@ func TestActionThresholds(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// Built-in execute bodies do not panic
-// ---------------------------------------------------------------------------
-
 func TestBuiltInActionsExecuteDoNotPanic(t *testing.T) {
 	// Cannot run in parallel because it reads global config.AppConfig.
 
@@ -141,10 +128,6 @@ func TestBuiltInActionsExecuteDoNotPanic(t *testing.T) {
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Disabled monitoring — Start does nothing, Stop does not deadlock
-// ---------------------------------------------------------------------------
 
 func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
@@ -161,15 +144,9 @@ func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 		t.Fatal("expected manager.enabled to be false when EnablePerformanceMonitoring is false")
 	}
 
-	// Start() should return immediately without spawning goroutines.
 	manager.Start()
-	// Stop should not deadlock even though Start() did nothing.
 	manager.Stop()
 }
-
-// ---------------------------------------------------------------------------
-// Constructor wiring
-// ---------------------------------------------------------------------------
 
 func TestNewAutoRemediationManager_WithCollector(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
@@ -191,32 +168,21 @@ func TestNewAutoRemediationManager_WithCollector(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Cooldown prevents re-execution
-// ---------------------------------------------------------------------------
-
 func TestAutoRemediationManager_Cooldown(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
 
 	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
 
-	// First execution should be allowed.
 	if !manager.shouldExecuteAction("garbage_collection") {
 		t.Fatal("expected shouldExecuteAction to be true on first call")
 	}
 
-	// Record execution.
 	manager.markActionExecuted("garbage_collection")
 
-	// Second execution should be blocked by cooldown.
 	if manager.shouldExecuteAction("garbage_collection") {
 		t.Fatal("expected shouldExecuteAction to be false immediately after execution")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// checkAndRemediate behavior
-// ---------------------------------------------------------------------------
 
 func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
@@ -254,12 +220,8 @@ func TestCheckAndRemediateHandlesNilCollector(t *testing.T) {
 	t.Parallel()
 
 	manager := NewAutoRemediationManager(nil)
-	manager.checkAndRemediate() // must not panic
+	manager.checkAndRemediate()
 }
-
-// ---------------------------------------------------------------------------
-// Start runs the monitor loop on the configured interval
-// ---------------------------------------------------------------------------
 
 func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.

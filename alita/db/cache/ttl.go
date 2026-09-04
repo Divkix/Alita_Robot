@@ -2,9 +2,6 @@ package cache
 
 import "time"
 
-// TTL constants for cache entries. Most domains share DefaultCacheTTL (30m);
-// language uses LangCacheTTL (1h). Per-domain aliases remain for call-site
-// clarity and grep-ability.
 const (
 	DefaultCacheTTL = 30 * time.Minute
 	LangCacheTTL    = 1 * time.Hour
