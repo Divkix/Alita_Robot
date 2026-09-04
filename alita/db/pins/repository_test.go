@@ -50,10 +50,8 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.PinSettings{}).Error
 	})
 
-	// Create default settings first
 	_ = GetPinData(chatID)
 
-	// Enable CleanLinked
 	if err := SetCleanLinked(chatID, true); err != nil {
 		t.Fatalf("SetCleanLinked(true) failed: %v", err)
 	}
@@ -62,7 +60,6 @@ func TestSetCleanLinked_BooleanRoundTrip(t *testing.T) {
 		t.Fatal("expected CleanLinked=true after SetCleanLinked(true)")
 	}
 
-	// Disable CleanLinked — zero value boolean must persist
 	if err := SetCleanLinked(chatID, false); err != nil {
 		t.Fatalf("SetCleanLinked(false) failed: %v", err)
 	}
@@ -82,10 +79,8 @@ func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.PinSettings{}).Error
 	})
 
-	// Create default settings first
 	_ = GetPinData(chatID)
 
-	// Enable AntiChannelPin
 	if err := SetAntiChannelPin(chatID, true); err != nil {
 		t.Fatalf("SetAntiChannelPin(true) failed: %v", err)
 	}
@@ -94,7 +89,6 @@ func TestSetAntiChannelPin_BooleanRoundTrip(t *testing.T) {
 		t.Fatal("expected AntiChannelPin=true after SetAntiChannelPin(true)")
 	}
 
-	// Disable AntiChannelPin — zero value boolean must persist
 	if err := SetAntiChannelPin(chatID, false); err != nil {
 		t.Fatalf("SetAntiChannelPin(false) failed: %v", err)
 	}
@@ -113,7 +107,6 @@ func TestGetPinData_IdempotentCreate(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.PinSettings{}).Error
 	})
 
-	// Call multiple times — should not produce duplicate records
 	for i := range 3 {
 		data := GetPinData(chatID)
 		if data == nil {
@@ -137,7 +130,6 @@ func TestConcurrentPinSettings(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.PinSettings{}).Error
 	})
 
-	// Create default settings first
 	_ = GetPinData(chatID)
 
 	const workers = 10
@@ -167,7 +159,6 @@ func TestConcurrentPinSettings(t *testing.T) {
 		t.Fatalf("concurrent pin update error: %v", err)
 	}
 
-	// Verify record still exists and is accessible
 	data := GetPinData(chatID)
 	if data == nil {
 		t.Fatal("expected non-nil PinSettings after concurrent updates")
@@ -183,7 +174,6 @@ func TestConcurrentPinSettings(t *testing.T) {
 func TestLoadPinStats_Returns(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Just verify the function executes without error and returns non-negative values
 	acCount, clCount := LoadPinStats()
 	if acCount < 0 {
 		t.Fatalf("expected non-negative acCount, got %d", acCount)

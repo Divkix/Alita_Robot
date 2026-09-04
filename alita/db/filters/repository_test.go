@@ -42,13 +42,11 @@ func TestAddAndGetFiltersList(t *testing.T) {
 		}
 	})
 
-	// Initially empty
 	list := GetFiltersList(chatID)
 	if len(list) != 0 {
 		t.Fatalf("expected empty filter list for new chat, got %d items", len(list))
 	}
 
-	// Add two filters
 	if err := AddFilter(chatID, "spam", "spam reply", "", nil, 1); err != nil {
 		t.Fatalf("AddFilter failed: %v", err)
 	}
@@ -101,7 +99,6 @@ func TestDoesFilterExists(t *testing.T) {
 		t.Fatal("expected DoesFilterExists=true after adding filter")
 	}
 
-	// Case-insensitive check
 	if !DoesFilterExists(chatID, "HELLO") {
 		t.Fatal("expected DoesFilterExists=true for uppercase variant (case-insensitive)")
 	}
@@ -136,7 +133,6 @@ func TestRemoveFilter(t *testing.T) {
 		t.Fatal("expected keep_me filter to still exist")
 	}
 
-	// Removing non-existent filter should not error
 	if err := RemoveFilter(chatID, "does_not_exist"); err != nil {
 		t.Fatalf("RemoveFilter(nonexistent) failed: %v", err)
 	}
@@ -196,7 +192,6 @@ func TestCountFilters(t *testing.T) {
 func TestLoadFilterStats(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Just verify it returns non-negative values without panicking
 	total, chats := LoadFilterStats()
 	if total < 0 {
 		t.Errorf("LoadFilterStats total = %d, want >= 0", total)

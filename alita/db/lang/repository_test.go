@@ -27,7 +27,6 @@ func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
 	})
 
-	// No chat record -> should return "en"
 	lang := getGroupLanguage(chatID)
 	if lang != "en" {
 		t.Fatalf("expected default language 'en', got %q", lang)
@@ -44,7 +43,6 @@ func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("user_lang", userID))
 	})
 
-	// No user record -> should return "en"
 	lang := getUserLanguage(userID)
 	if lang != "en" {
 		t.Fatalf("expected default language 'en', got %q", lang)
@@ -63,7 +61,6 @@ func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("chat", chatID))
 	})
 
-	// Set language to "es"
 	_ = ChangeGroupLanguage(chatID, "es")
 
 	lang := getGroupLanguage(chatID)
@@ -83,7 +80,6 @@ func TestChangeUserLanguage_SetAndGet(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("user", userID))
 	})
 
-	// Set language to "fr"
 	_ = ChangeUserLanguage(userID, "fr")
 
 	lang := getUserLanguage(userID)
@@ -105,10 +101,8 @@ func TestChangeGroupLanguage_Update(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("chat", chatID))
 	})
 
-	// Create with "en"
 	_ = ChangeGroupLanguage(chatID, "en")
 
-	// Update to "hi"
 	_ = ChangeGroupLanguage(chatID, "hi")
 
 	lang := getGroupLanguage(chatID)
@@ -128,10 +122,8 @@ func TestChangeUserLanguage_Update(t *testing.T) {
 		cache.DeleteCache(cache.CacheKey("user", userID))
 	})
 
-	// Create with "en"
 	_ = ChangeUserLanguage(userID, "en")
 
-	// Update to "es"
 	_ = ChangeUserLanguage(userID, "es")
 
 	lang := getUserLanguage(userID)

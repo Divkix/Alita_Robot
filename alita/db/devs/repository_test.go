@@ -17,10 +17,6 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// AddDev / RemDev
-// ---------------------------------------------------------------------------
-
 func TestAddDev(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -64,10 +60,6 @@ func TestRemoveDev(t *testing.T) {
 		t.Errorf("GetTeamMemInfo(%d).IsDev = true, want false after RemDev", userID)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// AddSudo / RemSudo
-// ---------------------------------------------------------------------------
 
 func TestAddSudo(t *testing.T) {
 	skipIfNoDb(t)
@@ -113,14 +105,9 @@ func TestRemoveSudo(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetTeamMemInfo (GetDevSettings equivalent)
-// ---------------------------------------------------------------------------
-
 func TestGetDevSettings(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Non-existent user should return defaults (not a dev)
 	const nonExistentID = int64(9876543210987)
 	devrc := GetTeamMemInfo(nonExistentID)
 	if devrc == nil {
@@ -133,10 +120,6 @@ func TestGetDevSettings(t *testing.T) {
 		t.Errorf("GetTeamMemInfo(%d).Sudo = true for non-existent user, want false", nonExistentID)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// GetTeamMembers
-// ---------------------------------------------------------------------------
 
 func TestGetTeamMembers(t *testing.T) {
 	skipIfNoDb(t)
@@ -185,7 +168,6 @@ func TestGetTeamMembers(t *testing.T) {
 func TestGetTeamMembersEmpty(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Ensure no leftover dev/sudo rows from other tests by deleting all DevSettings
 	if err := db.DB.Where("1 = 1").Delete(&models.DevSettings{}).Error; err != nil {
 		t.Fatalf("failed to clean DevSettings: %v", err)
 	}
@@ -199,10 +181,6 @@ func TestGetTeamMembersEmpty(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// LoadAllStats
-// ---------------------------------------------------------------------------
-
 func TestLoadAllStats(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -211,7 +189,6 @@ func TestLoadAllStats(t *testing.T) {
 		t.Fatal("LoadAllStats() returned empty string, want non-empty HTML stats")
 	}
 
-	// Verify expected sections are present
 	expectedSections := []string{
 		"Alita's Stats",
 		"Deployment Mode",

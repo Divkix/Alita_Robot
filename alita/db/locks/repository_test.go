@@ -36,7 +36,6 @@ func TestUpdateLockCreatesNewRecord(t *testing.T) {
 		t.Fatalf("UpdateLock() error = %v", err)
 	}
 
-	// Verify the record was actually created
 	var lock models.LockSettings
 	err = db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).First(&lock).Error
 	if err != nil {
@@ -60,7 +59,6 @@ func TestUpdateLockHandlesZeroValueBoolean(t *testing.T) {
 		}
 	})
 
-	// Create with Locked=true
 	if err := UpdateLock(chatID, perm, true); err != nil {
 		t.Fatalf("UpdateLock(true) error = %v", err)
 	}
@@ -73,7 +71,6 @@ func TestUpdateLockHandlesZeroValueBoolean(t *testing.T) {
 		t.Fatalf("expected Locked=true after first call")
 	}
 
-	// Update to Locked=false — zero value must be persisted
 	if err := UpdateLock(chatID, perm, false); err != nil {
 		t.Fatalf("UpdateLock(false) error = %v", err)
 	}
@@ -98,14 +95,12 @@ func TestUpdateLockIdempotent(t *testing.T) {
 		}
 	})
 
-	// Call 3 times with same value
 	for i := range 3 {
 		if err := UpdateLock(chatID, perm, true); err != nil {
 			t.Fatalf("UpdateLock() call %d error = %v", i+1, err)
 		}
 	}
 
-	// Should produce exactly 1 record
 	var count int64
 	db.DB.Model(&models.LockSettings{}).Where("chat_id = ? AND lock_type = ?", chatID, perm).Count(&count)
 	if count != 1 {
@@ -147,7 +142,6 @@ func TestUpdateLockConcurrentCreation(t *testing.T) {
 		t.Fatalf("UpdateLock() concurrent error: %v", err)
 	}
 
-	// All goroutines should converge to exactly 1 record
 	var count int64
 	db.DB.Model(&models.LockSettings{}).Where("chat_id = ? AND lock_type = ?", chatID, perm).Count(&count)
 	if count != 1 {
@@ -163,10 +157,6 @@ func TestUpdateLockConcurrentCreation(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// IsPermLocked (GetLockSetting equivalent)
-// ---------------------------------------------------------------------------
-
 func TestIsPermLocked(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -179,12 +169,10 @@ func TestIsPermLocked(t *testing.T) {
 		}
 	})
 
-	// No record yet -> should be false
 	if IsPermLocked(chatID, perm) {
 		t.Fatal("IsPermLocked() = true for non-existent record, want false")
 	}
 
-	// Create locked record
 	if err := UpdateLock(chatID, perm, true); err != nil {
 		t.Fatalf("UpdateLock(true) error = %v", err)
 	}
@@ -193,7 +181,6 @@ func TestIsPermLocked(t *testing.T) {
 		t.Fatal("IsPermLocked() = false after locking, want true")
 	}
 
-	// Unlock
 	if err := UpdateLock(chatID, perm, false); err != nil {
 		t.Fatalf("UpdateLock(false) error = %v", err)
 	}
@@ -202,10 +189,6 @@ func TestIsPermLocked(t *testing.T) {
 		t.Fatal("IsPermLocked() = true after unlocking, want false")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// GetChatLocks (GetAllLocks equivalent)
-// ---------------------------------------------------------------------------
 
 func TestGetChatLocks(t *testing.T) {
 	skipIfNoDb(t)
@@ -221,13 +204,11 @@ func TestGetChatLocks(t *testing.T) {
 		}
 	})
 
-	// No locks -> empty map
 	locks := GetChatLocks(chatID)
 	if len(locks) != 0 {
 		t.Fatalf("GetChatLocks() empty chat len = %d, want 0", len(locks))
 	}
 
-	// Create multiple locks
 	for _, lt := range lockTypes {
 		if err := UpdateLock(chatID, lt, true); err != nil {
 			t.Fatalf("UpdateLock(%q, true) error = %v", lt, err)
@@ -288,8 +269,6 @@ func TestInvalidateLockCacheNilMarshal(t *testing.T) {
 	InvalidateLockCache(-100123)
 }
 
-// TestGetChatLocksCacheInvalidation verifies that UpdateLock invalidates the whole-map
-// cache so that a subsequent GetChatLocks call reflects the updated value.
 func TestGetChatLocksCacheInvalidation(t *testing.T) {
 	skipIfNoDb(t)
 	cache.SetupTestMemoryMarshaler(t)
@@ -303,7 +282,6 @@ func TestGetChatLocksCacheInvalidation(t *testing.T) {
 		}
 	})
 
-	// Step 1: write initial value and populate the map cache via GetChatLocks.
 	if err := UpdateLock(chatID, perm, true); err != nil {
 		t.Fatalf("UpdateLock(true) error = %v", err)
 	}
@@ -312,12 +290,10 @@ func TestGetChatLocksCacheInvalidation(t *testing.T) {
 		t.Fatalf("GetChatLocks() after first UpdateLock = %v, want locked %q", locks, perm)
 	}
 
-	// Step 2: update the lock to a different value; cache must be invalidated.
 	if err := UpdateLock(chatID, perm, false); err != nil {
 		t.Fatalf("UpdateLock(false) error = %v", err)
 	}
 
-	// Step 3: GetChatLocks must reflect the new value, not serve the stale cached map.
 	locks = GetChatLocks(chatID)
 	if locks[perm] {
 		t.Fatalf("GetChatLocks() after second UpdateLock = %v, want unlocked %q (cache invalidation failed)", locks, perm)

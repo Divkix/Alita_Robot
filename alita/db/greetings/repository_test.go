@@ -63,7 +63,6 @@ func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	if err := SetWelcomeToggle(chatID, true); err != nil {
@@ -95,7 +94,6 @@ func TestSetWelcomeText(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	buttons := []models.Button{{Name: "btn1", Url: "https://example.com", SameLine: false}}
@@ -136,7 +134,6 @@ func TestSetGoodbyeText(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	buttons := []models.Button{{Name: "bye", Url: "https://example.com/bye", SameLine: true}}
@@ -175,7 +172,6 @@ func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	if err := SetGoodbyeToggle(chatID, true); err != nil {
@@ -208,7 +204,6 @@ func TestSetShouldCleanService(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	if err := SetShouldCleanService(chatID, true); err != nil {
@@ -241,7 +236,6 @@ func TestSetShouldAutoApprove(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	if err := SetShouldAutoApprove(chatID, true); err != nil {
@@ -274,7 +268,6 @@ func TestSetCleanWelcomeSetting(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	if err := SetCleanWelcomeSetting(chatID, true); err != nil {
@@ -435,10 +428,8 @@ func TestGetGoodbyeButtons_Empty(t *testing.T) {
 func TestLoadGreetingsStats_EmptyDB(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Just verify the function returns without error and returns int64 values.
 	// The DB may have other rows from other tests, so we just check the function runs.
 	enabledWelcome, enabledGoodbye, cleanService, cleanWelcome, cleanGoodbye := LoadGreetingsStats()
-	// All values should be >= 0
 	if enabledWelcome < 0 {
 		t.Fatalf("enabledWelcome is negative: %d", enabledWelcome)
 	}
@@ -468,7 +459,6 @@ func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
 	const workers = 10
@@ -499,7 +489,6 @@ func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
 		t.Fatalf("concurrent greeting update error: %v", err)
 	}
 
-	// Verify the record is still consistent (no corruption/panic)
 	settings := GetGreetingSettings(chatID)
 	if settings == nil {
 		t.Fatalf("GetGreetingSettings() returned nil after concurrent writes")
@@ -512,19 +501,12 @@ func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Additional Tests
-// ---------------------------------------------------------------------------
-
-// TestGetGreetingSettings_NonExistentChat verifies that GetGreetingSettings returns
-// default values for a chatID with no records (chat does not exist in DB).
 func TestGetGreetingSettings_NonExistentChat(t *testing.T) {
 	skipIfNoDb(t)
 
 	// Use a large negative ID that will never exist (not a valid chat)
 	chatID := -time.Now().UnixNano()
 
-	// Ensure cleanup in case the function creates a record
 	t.Cleanup(func() {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
@@ -548,8 +530,6 @@ func TestGetGreetingSettings_NonExistentChat(t *testing.T) {
 	}
 }
 
-// TestSetWelcomeText_EmptyText verifies that an empty welcome text is stored correctly
-// and round-trips through the DB without being replaced by the default.
 func TestSetWelcomeText_EmptyText(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -562,10 +542,8 @@ func TestSetWelcomeText_EmptyText(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	// Set welcome text to empty
 	if err := SetWelcomeText(chatID, "", "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText(empty) failed: %v", err)
 	}
@@ -576,15 +554,12 @@ func TestSetWelcomeText_EmptyText(t *testing.T) {
 	}
 	// Note: checkGreetingSettings replaces empty text with DefaultWelcome on read
 	// So an empty text will be re-populated with DefaultWelcome on next read
-	// This tests that the function doesn't panic and returns a consistent result
 	if settings.WelcomeSettings.WelcomeText == "" {
 		// If empty text is preserved, that's fine; or if replaced with default, verify it's the default
 		t.Logf("WelcomeText is empty string after SetWelcomeText empty - this may be expected")
 	}
 }
 
-// TestWelcomeAndGoodbye_Independent verifies that setting welcome text doesn't
-// affect goodbye text and vice versa.
 func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -597,16 +572,13 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	// Set custom welcome text
 	customWelcome := "Custom welcome for {first}"
 	if err := SetWelcomeText(chatID, customWelcome, "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText(custom welcome) failed: %v", err)
 	}
 
-	// Set custom goodbye text
 	customGoodbye := "Custom goodbye for {first}"
 	if err := SetGoodbyeText(chatID, customGoodbye, "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetGoodbyeText(custom goodbye) failed: %v", err)
@@ -620,7 +592,6 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 		t.Fatalf("GoodbyeSettings is nil")
 	}
 
-	// Verify both texts are independent
 	if settings.WelcomeSettings.WelcomeText != customWelcome {
 		t.Fatalf("expected WelcomeText=%q, got %q", customWelcome, settings.WelcomeSettings.WelcomeText)
 	}
@@ -628,7 +599,6 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 		t.Fatalf("expected GoodbyeText=%q, got %q", customGoodbye, settings.GoodbyeSettings.GoodbyeText)
 	}
 
-	// Modify welcome, verify goodbye unchanged
 	newWelcome := "Modified welcome"
 	if err := SetWelcomeText(chatID, newWelcome, "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText(modified) failed: %v", err)
@@ -643,8 +613,6 @@ func TestWelcomeAndGoodbye_Independent(t *testing.T) {
 	}
 }
 
-// TestResetWelcomeText verifies that setting the welcome text back to DefaultWelcome
-// works correctly.
 func TestResetWelcomeText(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -657,10 +625,8 @@ func TestResetWelcomeText(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
 	})
 
-	// Ensure initial record exists
 	_ = GetGreetingSettings(chatID)
 
-	// Set a custom welcome
 	customText := "This is a custom welcome message for {first}!"
 	if err := SetWelcomeText(chatID, customText, "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText(custom) failed: %v", err)
@@ -671,7 +637,6 @@ func TestResetWelcomeText(t *testing.T) {
 		t.Fatalf("expected WelcomeText=%q, got %q", customText, settings.WelcomeSettings.WelcomeText)
 	}
 
-	// Reset to DefaultWelcome
 	if err := SetWelcomeText(chatID, db.DefaultWelcome, "", []models.Button{}, db.TEXT); err != nil {
 		t.Fatalf("SetWelcomeText(default) failed: %v", err)
 	}

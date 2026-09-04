@@ -19,11 +19,9 @@ var (
 	loadWaitTimeout = 30 * time.Second
 )
 
-// GetFromCacheOrLoad is a generic helper to get from cache or load from database with stampede protection.
 func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var result T
 
-	// Bypass mode for load testing — every read hits Postgres directly, no cache lookup/insert
 	if config.AppConfig != nil && config.AppConfig.DisableCache {
 		return loader()
 	}
@@ -63,8 +61,6 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 				if setErr != nil {
 					log.Debugf("[Cache] Failed to set cache for key %s: %v", key, setErr)
 				} else if generation != cacheGeneration.Load() {
-					// An invalidation raced with Set after the first check. Delete
-					// the value so an old database snapshot cannot survive it.
 					ctxDel, cancelDel := cache.ContextWithTimeout()
 					if err := m.Delete(ctxDel, key); err != nil {
 						log.Debugf("[Cache] Failed to delete raced cache value for key %s: %v", key, err)
@@ -104,16 +100,11 @@ func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, 
 		return zero, fmt.Errorf("cache load timed out for key %s", key)
 	}
 }
-// DeleteCache is a helper to delete a value from cache.
-// Logs debug information if deletion fails but does not return errors.
 func DeleteCache(key string) {
 	if config.AppConfig != nil && config.AppConfig.DisableCache {
-		// Bypass mode — no cache entry to invalidate; still bump generation to keep singleflight consistent if any loader races
 		cacheGeneration.Add(1)
 		return
 	}
-	// Increment before deleting so an already-running loader cannot repopulate
-	// the key with a database snapshot read before the write committed.
 	cacheGeneration.Add(1)
 	m := cache.GetMarshal()
 	if m == nil {
@@ -124,7 +115,6 @@ func DeleteCache(key string) {
 	err := m.Delete(ctx, key)
 	cancel()
 	if err != nil {
-		// Retry once with fresh context
 		ctx2, cancel2 := cache.ContextWithTimeout()
 		err2 := m.Delete(ctx2, key)
 		cancel2()

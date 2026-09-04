@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// CacheKey generates a cache key with the alita prefix and any number of ID segments.
 func CacheKey(module string, ids ...any) string {
 	var b strings.Builder
 	b.Grow(32 + len(ids)*20)

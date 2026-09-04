@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// AntifloodSettings represents antiflood settings for a chat
 type AntifloodSettings struct {
 	ID                     uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId                 int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`

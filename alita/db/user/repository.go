@@ -15,15 +15,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
-// EnsureBotInDb ensures that the bot's information is stored in the database.
-// Creates or updates the bot's user record with current username and name.
-// Returns error if database operation fails.
 func EnsureBotInDb(b *gotgbot.Bot) error {
-	// Ensure we have accurate bot identity from Telegram API.
 	me, errGet := b.GetMe(nil)
 	if errGet != nil {
 		log.Errorf("[Database] EnsureBotInDb: failed to fetch bot identity via GetMe: %v", errGet)
-		// Continue with whatever is available to avoid blocking startup.
 	}
 
 	botID := b.Id
@@ -45,9 +40,6 @@ func EnsureBotInDb(b *gotgbot.Bot) error {
 	return nil
 }
 
-// EnsureUserInDb ensures that a user exists in the database.
-// Creates the user record if it doesn't exist, or updates it if it does.
-// This is essential for foreign key constraints that reference the users table.
 func EnsureUserInDb(userId int64, username, firstName string) error {
 	userUpdate := &models.User{
 		UserId:   userId,
@@ -78,10 +70,7 @@ func EnsureUserInDb(userId int64, username, firstName string) error {
 	return nil
 }
 
-// checkUserInfo retrieves user information using optimized cached queries.
-// Returns nil if the user doesn't exist, or a default User struct on error.
 func checkUserInfo(userId int64) (userc *models.User) {
-	// Use optimized cached query instead of SELECT *
 	userc, err := GetUserBasicInfoCached(userId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -93,7 +82,6 @@ func checkUserInfo(userId int64) (userc *models.User) {
 	return userc
 }
 
-// UpdateUser atomically creates or updates user metadata and activity.
 func UpdateUser(userId int64, username, name string) error {
 	now := time.Now()
 	userRecord := &models.User{
@@ -116,11 +104,8 @@ func UpdateUser(userId int64, username, name string) error {
 	return nil
 }
 
-// GetUserIdByUserName retrieves a user ID by their username.
-// Returns 0 if the user is not found or an error occurs.
 func GetUserIdByUserName(username string) int64 {
 	var userId int64
-	// Only fetch the user_id column
 	err := db.DB.Model(&models.User{}).Select("user_id").Where("username = ?", username).Scan(&userId).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0
@@ -132,8 +117,6 @@ func GetUserIdByUserName(username string) int64 {
 	return userId
 }
 
-// GetUserInfoById retrieves username and name for a given user ID.
-// Returns empty strings and false if the user is not found.
 func GetUserInfoById(userId int64) (username, name string, found bool) {
 	user := checkUserInfo(userId)
 	if user != nil {
@@ -145,22 +128,16 @@ func GetUserInfoById(userId int64) (username, name string, found bool) {
 	return
 }
 
-// LoadUsersStats returns the total count of users in the database.
-// On PostgreSQL, uses pg_class.reltuples estimate (O(1)) instead of COUNT(*)
-// to avoid a full-table-scan on the 39 MB users table.
 func LoadUsersStats() (count int64) {
 	return db.TableRowCount("users")
 }
 
-// LoadUserActivityStats returns Daily Active Users, Weekly Active Users, and Monthly Active Users.
-// These metrics are based on last_activity timestamps within the respective time periods.
 func LoadUserActivityStats() (dau, wau, mau int64) {
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 	monthAgo := now.Add(-30 * 24 * time.Hour)
 
-	// Count daily active users
 	err := db.DB.Model(&models.User{}).
 		Where("last_activity >= ?", dayAgo).
 		Count(&dau).Error
@@ -168,7 +145,6 @@ func LoadUserActivityStats() (dau, wau, mau int64) {
 		log.Errorf("[Database][LoadUserActivityStats] counting daily active users: %v", err)
 	}
 
-	// Count weekly active users
 	err = db.DB.Model(&models.User{}).
 		Where("last_activity >= ?", weekAgo).
 		Count(&wau).Error
@@ -176,7 +152,6 @@ func LoadUserActivityStats() (dau, wau, mau int64) {
 		log.Errorf("[Database][LoadUserActivityStats] counting weekly active users: %v", err)
 	}
 
-	// Count monthly active users
 	err = db.DB.Model(&models.User{}).
 		Where("last_activity >= ?", monthAgo).
 		Count(&mau).Error

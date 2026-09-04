@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Reactions stores per-chat keyword-to-emoji reaction mappings.
 type Reactions struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID    int64     `gorm:"column:chat_id;not null;uniqueIndex:idx_reactions_chat_keyword" json:"chat_id,omitempty"`

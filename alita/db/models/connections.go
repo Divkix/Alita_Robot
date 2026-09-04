@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// ConnectionSettings represents connection settings
 type ConnectionSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64     `gorm:"column:user_id;not null;uniqueIndex:uk_connection_user_id" json:"user_id,omitempty"`
@@ -16,8 +15,6 @@ func (ConnectionSettings) TableName() string {
 	return "connection"
 }
 
-// ConnectionChatSettings represents connection chat settings for a chat.
-// AllowConnect determines whether users can connect to this chat remotely.
 type ConnectionChatSettings struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId       int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`

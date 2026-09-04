@@ -88,7 +88,6 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Close DB handle before removing temp file.
 	if db.DB != nil {
 		sqlDB, err := db.DB.DB()
 		if err != nil {
@@ -98,7 +97,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
 			fmt.Printf("temp file remove failed: %v\n", rmErr)
@@ -231,7 +229,6 @@ func TestWarnUserReachesLimit(t *testing.T) {
 
 	setting := GetWarnSetting(chatID)
 	if lastCount >= setting.WarnLimit {
-		// Limit reached — this is expected behavior.
 	} else {
 		t.Fatalf("expected to reach warn limit %d, got %d", setting.WarnLimit, lastCount)
 	}
@@ -253,7 +250,6 @@ func TestRemoveWarn(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	// Add two warns then remove one
 	WarnUser(userID, chatID, "first")
 	WarnUser(userID, chatID, "second")
 
@@ -440,7 +436,6 @@ func TestResetWarns_NoWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	// Reset when user has no warns — should return false (nothing was reset)
 	ok, err := ResetUserWarns(userID, chatID)
 	if err != nil {
 		t.Fatalf("ResetUserWarns() error = %v", err)
@@ -555,7 +550,6 @@ func TestWarnUserCreatesSettingsWithDefaultMode(t *testing.T) {
 	// must create the WarnSettings row itself inside its transaction.
 	WarnUser(userID, chatID, "trigger settings creation")
 
-	// Load the persisted WarnSettings row directly from the DB.
 	var settings models.WarnSettings
 	if err := db.DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
 		t.Fatalf("WarnSettings row not found after WarnUser: %v", err)
@@ -581,7 +575,6 @@ func TestRemoveWarn_NoWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	// RemoveWarn on user with no prior warns should return false gracefully
 	removed, err := RemoveWarn(userID, chatID)
 	if err != nil {
 		t.Fatalf("RemoveWarn() error = %v", err)

@@ -225,7 +225,6 @@ func TestToggleNotesPrivate(t *testing.T) {
 		}
 	})
 
-	// Ensure settings record is created
 	_ = GetNotes(chatID)
 
 	if err := TooglePrivateNote(chatID, true); err != nil {
@@ -266,7 +265,6 @@ func TestAddNotePreservesExistingNote(t *testing.T) {
 		}
 	})
 
-	// First add
 	if err := AddNote(chatID, "dupnote", "original content", "", models.ButtonArray{}, db.TEXT, false, false, false, false, false, false); err != nil {
 		t.Fatalf("AddNote() first call error = %v", err)
 	}
@@ -333,7 +331,6 @@ func TestRemoveNonExistentNote(t *testing.T) {
 		}
 	})
 
-	// Removing a non-existent note should not return an error
 	if err := RemoveNote(chatID, "ghost-note"); err != nil {
 		t.Fatalf("RemoveNote() non-existent note error = %v", err)
 	}
@@ -504,18 +501,15 @@ func TestAddNoteWithAdminOnly(t *testing.T) {
 		}
 	})
 
-	// Add a note with adminOnly=true
 	if err := AddNote(chatID, "admin-note", "secret content", "", models.ButtonArray{}, db.TEXT, false, false, true, false, false, false); err != nil {
 		t.Fatalf("AddNote() adminOnly error = %v", err)
 	}
 
-	// Admin view (admin=true) should include admin-only notes
 	adminList := GetNotesList(chatID, true)
 	if !slices.Contains(adminList, "admin-note") {
 		t.Fatalf("GetNotesList(chatID, true) = %v, expected to contain 'admin-note'", adminList)
 	}
 
-	// Non-admin view (admin=false) should exclude admin-only notes
 	nonAdminList := GetNotesList(chatID, false)
 	if slices.Contains(nonAdminList, "admin-note") {
 		t.Fatalf("GetNotesList(chatID, false) = %v, must not contain 'admin-note' (admin-only)", nonAdminList)
@@ -592,7 +586,6 @@ func TestAddNotePreservesExistingUntilExplicitUpdate(t *testing.T) {
 		t.Fatalf("UpdateNote() did not persist replacement fields: %+v", note)
 	}
 
-	// Verify no duplicate entries
 	list := GetNotesList(chatID, false)
 	count := 0
 	for _, n := range list {
@@ -688,31 +681,26 @@ func TestNotesSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("failed to seed stale cache: %v", err)
 	}
 
-	// Toggle private notes on — must invalidate cache.
 	if err := TooglePrivateNote(chatID, true); err != nil {
 		t.Fatalf("TooglePrivateNote(true) error = %v", err)
 	}
 
-	// Verify the stale cache entry was evicted.
 	var cached models.NotesSettings
 	_, cacheErr := utilsCache.GetMarshal().Get(utilsCache.Context, cache.CacheKey("notes_settings", chatID), &cached)
 	if cacheErr == nil && !cached.Private {
 		t.Fatalf("cache was not invalidated after TooglePrivateNote(true)")
 	}
 
-	// GetNotes must reflect the toggled value, not a stale cache entry.
 	settings = GetNotes(chatID)
 	if settings == nil || !settings.Private {
 		t.Fatalf("expected Private=true after toggle, got %+v", settings)
 	}
 
-	// Corrupt cache again to test toggle(false) invalidation.
 	stale = &models.NotesSettings{ChatId: chatID, Private: true}
 	if err := utilsCache.GetMarshal().Set(utilsCache.Context, cache.CacheKey("notes_settings", chatID), stale); err != nil {
 		t.Fatalf("failed to seed stale cache for false toggle: %v", err)
 	}
 
-	// Toggle back to false.
 	if err := TooglePrivateNote(chatID, false); err != nil {
 		t.Fatalf("TooglePrivateNote(false) error = %v", err)
 	}
@@ -756,7 +744,6 @@ func TestNotesSettingsCacheDefaultsForMissingChat(t *testing.T) {
 		t.Fatalf("expected default Private=false for non-existent chat")
 	}
 
-	// Ensure the call was safe even when chat does not exist.
 	if settings.ChatId != chatID {
 		t.Fatalf("expected ChatId=%d, got %d", chatID, settings.ChatId)
 	}

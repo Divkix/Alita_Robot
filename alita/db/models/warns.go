@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// WarnSettings represents warning settings for a chat
 type WarnSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
@@ -16,7 +15,6 @@ func (WarnSettings) TableName() string {
 	return "warns_settings"
 }
 
-// Warns represents user warnings in a chat
 type Warns struct {
 	ID        uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64       `gorm:"column:user_id;not null;uniqueIndex:uk_warns_users_user_chat" json:"user_id,omitempty"`

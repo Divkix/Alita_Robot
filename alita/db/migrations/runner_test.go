@@ -42,8 +42,6 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-// newTestRunner returns a MigrationRunner with nil db suitable for testing
-// splitSQLStatements.
 func newTestRunner() *MigrationRunner {
 	return &MigrationRunner{db: nil, migrationsPath: ""}
 }
@@ -56,10 +54,6 @@ func migrationApplied(t *testing.T, runner *MigrationRunner, version string) boo
 	}
 	return applied
 }
-
-// ---------------------------------------------------------------------------
-// SchemaMigration.TableName
-// ---------------------------------------------------------------------------
 
 func TestSchemaMigrationTableName(t *testing.T) {
 
@@ -123,10 +117,6 @@ func TestVerifyMigrationChecksumPropagatesBackfillError(t *testing.T) {
 		t.Fatalf("verifyMigrationChecksum() error = %v, want %v", err, wantErr)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// cleanSupabaseSQL
-// ---------------------------------------------------------------------------
 
 func TestCleanSupabaseSQL(t *testing.T) {
 
@@ -386,10 +376,6 @@ func TestIsTransactionControlStatement(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// splitSQLStatements
-// ---------------------------------------------------------------------------
-
 func TestSplitSQLStatements(t *testing.T) {
 
 	runner := newTestRunner()
@@ -522,10 +508,6 @@ func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// getMigrationFiles
-// ---------------------------------------------------------------------------
-
 func TestGetMigrationFiles(t *testing.T) {
 
 	t.Run("empty directory returns empty slice no error", func(t *testing.T) {
@@ -560,7 +542,6 @@ func TestGetMigrationFiles(t *testing.T) {
 		if len(files) != 3 {
 			t.Fatalf("expected 3 files, got %d: %v", len(files), files)
 		}
-		// Verify sorted order
 		if !strings.HasSuffix(files[0], "001_a.sql") {
 			t.Errorf("expected first file to be 001_a.sql, got %s", files[0])
 		}
@@ -641,10 +622,6 @@ func TestGetMigrationFiles(t *testing.T) {
 		}
 	})
 }
-
-// ---------------------------------------------------------------------------
-// RunMigrations and applyMigration
-// ---------------------------------------------------------------------------
 
 func TestRunMigrations_RecordsAndSkipsAppliedFiles(t *testing.T) {
 	skipIfNoDb(t)
@@ -955,10 +932,6 @@ func TestNewMigrationRunnerUsesConfiguredPath(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// findDollarQuoteBlocks
-// ---------------------------------------------------------------------------
-
 func TestFindDollarQuoteBlocks(t *testing.T) {
 
 	tests := []struct {
@@ -1062,7 +1035,6 @@ SELECT 1;`,
 				if tc.wantStart != nil && got[i].start != tc.wantStart[i] {
 					t.Errorf("block[%d].start = %d, want %d", i, got[i].start, tc.wantStart[i])
 				}
-				// Verify end > start and within input bounds
 				if got[i].end <= got[i].start {
 					t.Errorf("block[%d].end (%d) should be > start (%d)", i, got[i].end, got[i].start)
 				}
@@ -1083,13 +1055,11 @@ func TestFindDollarQuoteBlocks_ByteOffsets(t *testing.T) {
 		t.Fatalf("expected 1 block, got %d", len(got))
 	}
 
-	// start should be byte offset of first '$' after "DO "
 	wantStart := 3 // byte offset of first '$'
 	if got[0].start != wantStart {
 		t.Errorf("start = %d, want %d", got[0].start, wantStart)
 	}
 
-	// Verify end > start and end <= len(input)
 	if got[0].end <= got[0].start {
 		t.Errorf("end (%d) should be > start (%d)", got[0].end, got[0].start)
 	}
@@ -1098,12 +1068,6 @@ func TestFindDollarQuoteBlocks_ByteOffsets(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Checksum verification tests
-// ---------------------------------------------------------------------------
-
-// TestApplyMigrationStoresChecksum verifies that applying a migration records a
-// non-empty checksum equal to the SHA-256 hex of the raw file bytes.
 func TestApplyMigrationStoresChecksum(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -1146,9 +1110,6 @@ func TestApplyMigrationStoresChecksum(t *testing.T) {
 	}
 }
 
-// TestRunMigrationsDetectsChecksumMismatch verifies that, after a migration is
-// applied, modifying its stored checksum causes RunMigrations to return an error
-// when AutoMigrateSilentFail is false.
 func TestRunMigrationsDetectsChecksumMismatch(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -1174,14 +1135,12 @@ func TestRunMigrationsDetectsChecksumMismatch(t *testing.T) {
 		t.Fatalf("RunMigrations() first run error = %v", err)
 	}
 
-	// Corrupt the stored checksum to simulate content drift.
 	if err := getTestDB().Model(&SchemaMigration{}).
 		Where("version = ?", version).
 		Update("checksum", "deadbeefdeadbeefdeadbeefdeadbeef").Error; err != nil {
 		t.Fatalf("failed to corrupt checksum: %v", err)
 	}
 
-	// Second run must detect the mismatch and return an error.
 	err := runner.RunMigrations()
 	if err == nil {
 		t.Fatal("RunMigrations() second run error = nil, want checksum mismatch error")
@@ -1191,9 +1150,6 @@ func TestRunMigrationsDetectsChecksumMismatch(t *testing.T) {
 	}
 }
 
-// TestLegacyRowWithoutChecksumDoesNotFalseAlarm verifies that an already-applied
-// migration whose stored checksum is empty (i.e., applied before this feature
-// existed) is not flagged as a mismatch.  Instead its checksum is backfilled.
 func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -1219,18 +1175,15 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
 	}
 
-	// Insert a legacy migration record with an empty checksum.
 	legacyRec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: ""}
 	if err := getTestDB().Create(&legacyRec).Error; err != nil {
 		t.Fatalf("failed to insert legacy migration record: %v", err)
 	}
 
-	// RunMigrations must NOT error and must NOT apply the migration again.
 	if err := runner.RunMigrations(); err != nil {
 		t.Fatalf("RunMigrations() with legacy empty-checksum row error = %v", err)
 	}
 
-	// The checksum should now be backfilled.
 	rec, err := runner.getMigrationRecord(version)
 	if err != nil {
 		t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
@@ -1245,5 +1198,4 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 	}
 }
 
-// timeNow is a simple helper used by tests to get the current UTC time.
 func timeNow() time.Time { return time.Now().UTC() }

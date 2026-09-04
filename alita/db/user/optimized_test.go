@@ -44,12 +44,10 @@ func TestGetUserBasicInfo(t *testing.T) {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
-	// Insert a user
 	if err := db.EnsureUserInDb(userID, username, name); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
 
-	// Get user by ID
 	user, err := GetUserBasicInfo(userID)
 	if err != nil {
 		t.Fatalf("GetUserBasicInfo() error = %v", err)
@@ -58,7 +56,6 @@ func TestGetUserBasicInfo(t *testing.T) {
 		t.Fatalf("GetUserBasicInfo() UserId = %d, want %d", user.UserId, userID)
 	}
 
-	// Non-existent user -> ErrRecordNotFound
 	nonExistentID := userID + 999999
 	_, err = GetUserBasicInfo(nonExistentID)
 	if err == nil {
@@ -81,12 +78,10 @@ func TestGetUserBasicInfoCached(t *testing.T) {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
-	// Insert a user
 	if err := db.EnsureUserInDb(userID, username, name); err != nil {
 		t.Fatalf("EnsureUserInDb() error = %v", err)
 	}
 
-	// First call should load from DB
 	user, err := GetUserBasicInfoCached(userID)
 	if err != nil {
 		t.Fatalf("GetUserBasicInfoCached() error = %v", err)
@@ -100,7 +95,6 @@ func TestGetUserBasicInfoCached(t *testing.T) {
 		t.Fatalf("Failed to directly update user row: %v", err)
 	}
 
-	// Second call should use cache and return original username
 	user2, err := GetUserBasicInfoCached(userID)
 	if err != nil {
 		t.Fatalf("GetUserBasicInfoCached() cached error = %v", err)
@@ -119,7 +113,6 @@ func TestGetUserBasicInfoCached_RecordNotFound(t *testing.T) {
 
 	userID := time.Now().UnixNano()
 
-	// Non-existent user -> ErrRecordNotFound
 	_, err := GetUserBasicInfoCached(userID)
 	if err == nil {
 		t.Fatal("GetUserBasicInfoCached() nonexistent expected error, got nil")

@@ -4,7 +4,6 @@ import (
 	"testing"
 )
 
-// TestGetSpanAttributes verifies span attribute generation for various inputs.
 func TestGetSpanAttributes(t *testing.T) {
 	tests := []struct {
 		name         string

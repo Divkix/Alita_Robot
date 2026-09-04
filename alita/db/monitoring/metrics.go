@@ -16,7 +16,6 @@ import (
 // before the database has been initialized
 var ErrDatabaseNotInitialized = errors.New("database not initialized")
 
-// DatabaseMetrics holds database performance metrics
 type DatabaseMetrics struct {
 	OpenConnections   int           `json:"open_connections"`
 	InUse             int           `json:"in_use"`
@@ -27,7 +26,6 @@ type DatabaseMetrics struct {
 	MaxLifetimeClosed int64         `json:"max_lifetime_closed"`
 }
 
-// StartMonitoring begins periodic database metrics collection
 func StartMonitoring(ctx context.Context, interval time.Duration) {
 	if db.DB == nil {
 		log.Warn("[DBMonitoring] Database not initialized, skipping monitoring")
@@ -63,7 +61,6 @@ func StartMonitoring(ctx context.Context, interval time.Duration) {
 	log.Info("[DBMonitoring] Started database performance monitoring")
 }
 
-// newDatabaseMetrics maps sql.DBStats into a DatabaseMetrics value.
 func newDatabaseMetrics(stats sql.DBStats) DatabaseMetrics {
 	return DatabaseMetrics{
 		OpenConnections:   stats.OpenConnections,
@@ -76,12 +73,10 @@ func newDatabaseMetrics(stats sql.DBStats) DatabaseMetrics {
 	}
 }
 
-// collectMetrics gathers current database pool statistics
 func collectMetrics(db *sql.DB) DatabaseMetrics {
 	return newDatabaseMetrics(db.Stats())
 }
 
-// logMetrics logs database metrics in a structured format
 func logMetrics(metrics DatabaseMetrics) {
 	log.Debugf("[DBMonitoring] Connections: %d open, %d in-use, %d idle | Wait: %d calls, %v total | Closed: %d (max idle), %d (max lifetime)",
 		metrics.OpenConnections,
@@ -94,7 +89,6 @@ func logMetrics(metrics DatabaseMetrics) {
 	)
 }
 
-// GetCurrentMetrics returns current database pool metrics
 func GetCurrentMetrics() (*DatabaseMetrics, error) {
 	if db.DB == nil {
 		return nil, ErrDatabaseNotInitialized

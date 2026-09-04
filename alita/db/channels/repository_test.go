@@ -54,10 +54,6 @@ func withChannelSQLite(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// EnsureChannelInDb (via UpdateChannel)
-// ---------------------------------------------------------------------------
-
 func TestEnsureChannelInDb(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -82,10 +78,6 @@ func TestEnsureChannelInDb(t *testing.T) {
 		t.Errorf("channel name = %q, want %q", ch.ChannelName, channelName)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// GetChannelIdByUserName
-// ---------------------------------------------------------------------------
 
 func TestGetChannelIdByUserName(t *testing.T) {
 	skipIfNoDb(t)
@@ -125,10 +117,6 @@ func TestGetChannelIdByUserName_Empty(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetChannelInfoById
-// ---------------------------------------------------------------------------
-
 func TestGetChannelInfoById(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -165,10 +153,6 @@ func TestGetChannelInfoById_NotFound(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// UpdateChannel
-// ---------------------------------------------------------------------------
-
 func TestUpdateChannel(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -183,7 +167,6 @@ func TestUpdateChannel(t *testing.T) {
 	}
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", channelID).Delete(&models.ChannelSettings{}) })
 
-	// Update the channel name
 	updatedName := "updated-name"
 	if err := UpdateChannel(channelID, updatedName, username); err != nil {
 		t.Fatalf("UpdateChannel() update error = %v", err)
@@ -257,10 +240,6 @@ func TestUpdateChannelClearsAndReassignsNormalizedUsername(t *testing.T) {
 		t.Fatal("case-insensitive username uniqueness was not enforced")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// LoadChannelStats
-// ---------------------------------------------------------------------------
 
 func TestLoadChannelStats_ErrorBranch(t *testing.T) {
 	skipIfNoDb(t)

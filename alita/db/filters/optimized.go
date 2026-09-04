@@ -10,9 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// GetChatFiltersOptimized retrieves filters with minimal column selection.
-// Optimized for high-frequency calls (34K+ calls) by selecting only essential filter fields.
-// Includes all fields needed by filtersWatcher: keyword, filter_reply, msgtype, fileid, filter_buttons, nonotif.
 func GetChatFiltersOptimized(chatID int64) ([]*models.ChatFilters, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -31,8 +28,6 @@ func GetChatFiltersOptimized(chatID int64) ([]*models.ChatFilters, error) {
 	return filters, nil
 }
 
-// GetChatFiltersCached retrieves filters with caching layer for improved performance.
-// Uses 15-minute cache TTL and falls back to direct query if cache fails.
 func GetChatFiltersCached(chatID int64) ([]*models.ChatFilters, error) {
 	cacheKey := cache.CacheKey("filters_optimized", chatID)
 

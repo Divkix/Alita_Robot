@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// AdminSettings represents admin settings for a chat
 type AdminSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`

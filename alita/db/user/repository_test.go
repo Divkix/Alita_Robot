@@ -82,7 +82,6 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Close DB handle before removing temp file.
 	if db.DB != nil {
 		sqlDB, err := db.DB.DB()
 		if err != nil {
@@ -92,7 +91,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
 			fmt.Printf("temp file remove failed: %v\n", rmErr)
@@ -108,10 +106,6 @@ func skipIfNoDb(t *testing.T) {
 		t.Skip("requires database connection")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// EnsureBotInDb
-// ---------------------------------------------------------------------------
 
 type fakeBotClient struct {
 	response json.RawMessage
@@ -206,10 +200,6 @@ func TestEnsureBotInDbFallsBackToEmbeddedBotOnGetMeError(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// EnsureUserInDb
-// ---------------------------------------------------------------------------
-
 func TestEnsureUserInDb(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -255,10 +245,6 @@ func TestEnsureUserInDb_Idempotent(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// UpdateUser
-// ---------------------------------------------------------------------------
-
 func TestUpdateUser(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -285,10 +271,6 @@ func TestUpdateUser(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetUserIdByUserName
-// ---------------------------------------------------------------------------
-
 func TestGetUserIdByUserName(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -314,10 +296,6 @@ func TestGetUserIdByUserName_NotFound(t *testing.T) {
 		t.Errorf("GetUserIdByUserName() = %d for non-existent user, want 0", gotID)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// GetUserInfoById
-// ---------------------------------------------------------------------------
 
 func TestGetUserInfoById(t *testing.T) {
 	skipIfNoDb(t)
@@ -352,10 +330,6 @@ func TestGetUserInfoById_NotFound(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// LoadUsersStats
-// ---------------------------------------------------------------------------
-
 func TestLoadUserStats(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -376,10 +350,6 @@ func TestLoadUserStats(t *testing.T) {
 		t.Errorf("LoadUsersStats() delta = %d, want 1 (baseline=%d, after=%d)", count-baseline, baseline, count)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// LoadUserActivityStats
-// ---------------------------------------------------------------------------
 
 func TestLoadUsersStatsErrorBranch(t *testing.T) {
 	skipIfNoDb(t)
@@ -403,7 +373,6 @@ func TestLoadUserActivityStats(t *testing.T) {
 
 	now := time.Now()
 
-	// Create users with different last_activity times
 	users := []models.User{
 		{UserId: now.UnixNano(), UserName: "daily_user", Name: "Daily", LastActivity: now.Add(-2 * time.Hour)},                 // DAU, WAU, MAU
 		{UserId: now.UnixNano() + 1, UserName: "weekly_user", Name: "Weekly", LastActivity: now.Add(-3 * 24 * time.Hour)},      // WAU, MAU
@@ -411,7 +380,6 @@ func TestLoadUserActivityStats(t *testing.T) {
 		{UserId: now.UnixNano() + 3, UserName: "inactive_user", Name: "Inactive", LastActivity: now.Add(-45 * 24 * time.Hour)}, // none
 	}
 
-	// Capture baseline before inserting test users.
 	baseDau, baseWau, baseMau := LoadUserActivityStats()
 
 	for i := range users {
@@ -420,7 +388,6 @@ func TestLoadUserActivityStats(t *testing.T) {
 		}
 	}
 
-	// Cleanup
 	t.Cleanup(func() {
 		for _, u := range users {
 			res := db.DB.Where("user_id = ?", u.UserId).Delete(&models.User{})
@@ -443,10 +410,6 @@ func TestLoadUserActivityStats(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// ConcurrentUserCreation
-// ---------------------------------------------------------------------------
-
 func TestConcurrentUserCreation(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -465,7 +428,6 @@ func TestConcurrentUserCreation(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Exactly one record should exist
 	var count int64
 	db.DB.Model(&models.User{}).Where("user_id = ?", userID).Count(&count)
 	if count != 1 {

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// ApprovedUsers represents approved users per chat who are immune to anti-spam measures
 type ApprovedUsers struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserID     int64     `gorm:"column:user_id;not null;uniqueIndex:idx_approved_users_chat_user" json:"user_id,omitempty"`

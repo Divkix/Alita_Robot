@@ -27,7 +27,6 @@ func TestSetFloodMsgDelZeroValueBoolean(t *testing.T) {
 		}
 	})
 
-	// Set to true first
 	if err := SetFloodMsgDel(chatID, true); err != nil {
 		t.Fatalf("SetFloodMsgDel(true) failed: %v", err)
 	}
@@ -64,7 +63,6 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 		}
 	})
 
-	// Set limit to 5 (enable flood detection)
 	if err := SetFlood(chatID, 5); err != nil {
 		t.Fatalf("SetFlood(5) failed: %v", err)
 	}
@@ -101,7 +99,6 @@ func TestSetFloodMsgDelCreatesRecord(t *testing.T) {
 		}
 	})
 
-	// First-time call on a fresh chat should create a record
 	if err := SetFloodMsgDel(chatID, true); err != nil {
 		t.Fatalf("SetFloodMsgDel(true) failed: %v", err)
 	}
@@ -228,7 +225,6 @@ func TestLoadAntifloodStats(t *testing.T) {
 	skipIfNoDb(t)
 
 	t.Run("empty table returns zero", func(t *testing.T) {
-		// Ensure table is empty for this assertion
 		if err := db.DB.Where("1 = 1").Delete(&models.AntifloodSettings{}).Error; err != nil {
 			t.Fatalf("cleanup failed: %v", err)
 		}
@@ -250,7 +246,6 @@ func TestLoadAntifloodStats(t *testing.T) {
 			}
 		})
 
-		// chat1: enabled (limit > 0)
 		if err := SetFlood(chat1, 5); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}
@@ -269,7 +264,6 @@ func TestLoadAntifloodStats(t *testing.T) {
 			t.Fatalf("SetFloodMode failed: %v", err)
 		}
 
-		// chat3: enabled (limit > 0)
 		if err := SetFlood(chat3, 10); err != nil {
 			t.Fatalf("SetFlood failed: %v", err)
 		}

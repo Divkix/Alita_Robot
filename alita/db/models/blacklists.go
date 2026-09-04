@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// BlacklistSettings represents blacklist settings for a chat
 type BlacklistSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;not null;index:idx_blacklist_chat_word" json:"chat_id,omitempty"`
@@ -16,10 +15,8 @@ type BlacklistSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// BlacklistSettingsSlice is a custom type for []*BlacklistSettings with additional methods
 type BlacklistSettingsSlice []*BlacklistSettings
 
-// Triggers returns all blacklisted words as a slice of strings for compatibility.
 func (bss BlacklistSettingsSlice) Triggers() []string {
 	triggers := make([]string, 0, len(bss))
 	for _, bs := range bss {
@@ -28,16 +25,13 @@ func (bss BlacklistSettingsSlice) Triggers() []string {
 	return triggers
 }
 
-// Action returns the action for the first blacklist setting in the slice.
-// Used by /blaction to display the chat-wide default; watchers must use Find.
 func (bss BlacklistSettingsSlice) Action() string {
 	if len(bss) > 0 {
 		return bss[0].Action
 	}
-	return "warn" // default
+	return "warn"
 }
 
-// Find returns the blacklist row whose word matches trigger, ignoring case.
 func (bss BlacklistSettingsSlice) Find(trigger string) *BlacklistSettings {
 	for _, bs := range bss {
 		if bs != nil && strings.EqualFold(bs.Word, trigger) {
@@ -47,12 +41,11 @@ func (bss BlacklistSettingsSlice) Find(trigger string) *BlacklistSettings {
 	return nil
 }
 
-// Reason returns the reason for the first blacklist setting in the slice.
 func (bss BlacklistSettingsSlice) Reason() string {
 	if len(bss) > 0 && bss[0].Reason != "" {
 		return bss[0].Reason
 	}
-	return "Blacklisted word: '%s'" // default format string with placeholder for trigger word
+	return "Blacklisted word: '%s'"
 }
 
 func (BlacklistSettings) TableName() string {

@@ -14,7 +14,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ExportModuleData exports data for a specific module from a chat.
 func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	switch module {
 	case BackupModuleAdmin:
@@ -60,7 +59,6 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	}
 }
 
-// withBackupTx runs fn inside a DB transaction, invalidating returned cache keys.
 func withBackupTx(fn func(tx *gorm.DB) ([]string, error)) error {
 	database, err := backupDB()
 	if err != nil {
@@ -78,22 +76,18 @@ func withBackupTx(fn func(tx *gorm.DB) ([]string, error)) error {
 	return nil
 }
 
-// ImportModuleData imports one module atomically into a chat.
 func ImportModuleData(chatID int64, module string, data interface{}) error {
 	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
 		return importModuleData(tx, chatID, module, data, false)
 	})
 }
 
-// ClearModuleData clears one module atomically from a chat.
 func ClearModuleData(chatID int64, module string) error {
 	return withBackupTx(func(tx *gorm.DB) ([]string, error) {
 		return clearModuleData(tx, chatID, module)
 	})
 }
 
-// ExportChatData exports the selected modules. A failed module aborts the
-// export so callers never receive a backup that only looks complete.
 func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string) (*BackupFormat, error) {
 	modules, err := checkedModules(modules)
 	if err != nil {
@@ -111,7 +105,6 @@ func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []s
 	return backup, nil
 }
 
-// ImportChatData imports every selected module in one transaction.
 func ImportChatData(chatID int64, backup *BackupFormat, modules []string) error {
 	if backup == nil {
 		return fmt.Errorf("invalid backup: backup cannot be nil")
@@ -148,7 +141,6 @@ func ImportChatData(chatID int64, backup *BackupFormat, modules []string) error 
 	})
 }
 
-// ClearChatData clears every selected module in one transaction.
 func ClearChatData(chatID int64, modules []string) error {
 	modules, err := checkedModules(modules)
 	if err != nil {
@@ -229,8 +221,6 @@ func replaceChatSetting[T any](tx *gorm.DB, chatID int64, setting *T) error {
 	if err := json.Unmarshal(raw, &desired); err != nil {
 		return err
 	}
-	// Use GORM schema to build map preserving zero values (json omitempty and
-	// struct default handling would clobber false/0). Single bulk insert.
 	stmt := &gorm.Statement{DB: tx}
 	if err := stmt.Parse(&desired); err != nil {
 		return err
@@ -262,7 +252,6 @@ func replaceChatRows[T any](tx *gorm.DB, chatID int64, rows []T) error {
 	if err := json.Unmarshal(raw, &desired); err != nil {
 		return err
 	}
-	// Build slice of maps via schema to preserve zero values and avoid N Updates.
 	maps := make([]map[string]interface{}, len(desired))
 	for i := range desired {
 		stmt := &gorm.Statement{DB: tx}
@@ -306,8 +295,6 @@ func invalidate(keys ...string) {
 func cacheKey(module string, chatID int64) string {
 	return dbcache.CacheKey(module, chatID)
 }
-
-// Exporters query complete rows instead of lossy summary getters.
 
 func exportAdminData(chatID int64) (*AdminBackup, error) {
 	adminSettings, err := findChatSetting[models.AdminSettings](chatID)
