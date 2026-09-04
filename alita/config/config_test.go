@@ -32,7 +32,6 @@ func TestValidateConfig(t *testing.T) {
 		setup   func(*Config)
 		wantErr bool
 	}{
-		// Required field validations
 		{
 			name:    "valid base config succeeds",
 			setup:   func(_ *Config) {},
@@ -63,7 +62,6 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.RedisAddress = "" },
 			wantErr: true,
 		},
-		// Webhook validations
 		{
 			name: "UseWebhooks with empty domain returns error",
 			setup: func(c *Config) {
@@ -100,7 +98,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// HTTP port validations
 		{
 			name:    "HTTPPort zero returns error",
 			setup:   func(c *Config) { c.HTTPPort = 0 },
@@ -121,7 +118,6 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.HTTPPort = 1 },
 			wantErr: false,
 		},
-		// Dispatcher optional field validation
 		{
 			name:    "DispatcherMaxRoutines zero is allowed",
 			setup:   func(c *Config) { c.DispatcherMaxRoutines = 0 },
@@ -137,7 +133,6 @@ func TestValidateConfig(t *testing.T) {
 			setup:   func(c *Config) { c.DispatcherMaxRoutines = 1000 },
 			wantErr: false,
 		},
-		// DB pool optional field validation
 		{
 			name:    "DBMaxIdleConns 101 returns error",
 			setup:   func(c *Config) { c.DBMaxIdleConns = 101 },
@@ -345,7 +340,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
-// TestClearCacheOnStartupEnvVar tests that CLEAR_CACHE_ON_STARTUP env var is respected.
 // These tests do NOT call t.Parallel() because t.Setenv() is incompatible with parallel execution.
 func TestClearCacheOnStartupEnvVar(t *testing.T) {
 	t.Run("defaults to true when env var not set", func(t *testing.T) {
@@ -399,7 +393,6 @@ func TestGetHTTPPort(t *testing.T) {
 	})
 }
 
-// TestGetRedisAddress tests the getRedisAddress() helper. The top-level test does
 // NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
 // parallel execution at the enclosing level — Go enforces this at runtime.
 func TestGetRedisAddress(t *testing.T) {
@@ -459,7 +452,6 @@ func TestGetRedisAddress(t *testing.T) {
 	})
 }
 
-// TestGetRedisPassword tests the getRedisPassword() helper. The top-level test does
 // NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
 // parallel execution at the enclosing level — Go enforces this at runtime.
 func TestGetRedisPassword(t *testing.T) {

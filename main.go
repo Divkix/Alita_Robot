@@ -38,12 +38,7 @@ import (
 //go:embed locales
 var Locales embed.FS
 
-// main initializes and starts the Alita Robot Telegram bot.
-// It sets up monitoring, database connections, webhook/polling mode,
-// loads all modules, and handles graceful shutdown.
 func main() {
-	// Capture process start time for accurate uptime reporting in health checks.
-	// This must be captured before any initialization work begins.
 	appStartTime := time.Now()
 
 	// Health check mode for Docker healthcheck (distroless images have no curl/wget)
@@ -53,27 +48,22 @@ func main() {
 		if err != nil {
 			os.Exit(1)
 		}
-		_ = resp.Body.Close() // Ignore close error since we're exiting immediately
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			os.Exit(1)
 		}
 		os.Exit(0)
 	}
 
-	// Version check - print version and exit without requiring services
-	// Note: init() functions in config/db now detect CLI mode and skip heavy initialization
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
-		// Config always has BotVersion set (it's a hardcoded default in LoadConfig)
-		// If BOT_TOKEN is not set, config init sets AppConfig to empty Config{}, so we need to check
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.22.6" // Fallback to hardcoded version if config wasn't loaded
+			version = "v2.22.6"
 		}
 		fmt.Println(version)
 		os.Exit(0)
 	}
 
-	// Setup panic recovery for main goroutine
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("[Main] Panic recovered: %v", r)
@@ -81,37 +71,29 @@ func main() {
 		}
 	}()
 
-	// logs if bot is running in debug mode or not
 	if config.AppConfig.Debug {
 		log.Info("Running in DEBUG Mode...")
 	} else {
 		log.Info("Running in RELEASE Mode...")
 	}
 
-	// Initialize Redis-backed application caches before other services.
 	if err := cache.InitCache(); err != nil {
 		log.Fatalf("Failed to initialize cache: %v", err)
 	}
 	log.Info("Cache system initialized successfully")
 
-	// Initialize the process-local locale maps.
 	localeManager := i18n.GetManager()
 	if err := localeManager.Initialize(&Locales, "locales", i18n.DefaultManagerConfig()); err != nil {
 		log.Fatalf("Failed to initialize locale manager: %v", err)
 	}
 	log.Infof("Locale manager initialized with %d languages: %v", len(localeManager.GetAvailableLanguages()), localeManager.GetAvailableLanguages())
 
-	// Initialize OpenTelemetry tracing
 	if err := tracing.InitTracing(); err != nil {
 		log.Warnf("Failed to initialize tracing: %v - continuing without distributed tracing", err)
 	} else {
 		log.Info("Distributed tracing initialized successfully")
 	}
 
-	// Create optimized HTTP transport with connection pooling for better performance
-	// IMPORTANT: We create a transport pointer that will be shared across all requests
-	// This ensures connection pooling works correctly (the http.Client struct is copied by value in BaseBotClient)
-	// Use configurable values for optimal performance
 	maxIdleConns := config.AppConfig.HTTPMaxIdleConns
 	maxIdleConnsPerHost := config.AppConfig.HTTPMaxIdleConnsPerHost
 
@@ -119,12 +101,11 @@ func main() {
 
 	log.Infof("[Main] HTTP transport configured with MaxIdleConns: %d, MaxIdleConnsPerHost: %d", maxIdleConns, maxIdleConnsPerHost)
 
-	// Create bot with optimized HTTP client using BaseBotClient
 	log.Info("[Main] Initializing bot with optimized HTTP client (connection pooling enabled)")
 	b, err := gotgbot.NewBot(config.AppConfig.BotToken, &gotgbot.BotOpts{
 		BotClient: &gotgbot.BaseBotClient{
 			Client: http.Client{
-				Transport: transport, // Use the shared transport
+				Transport: transport,
 				Timeout:   constants.LongTimeout,
 			},
 			UseTestEnvironment: false,
@@ -139,18 +120,14 @@ func main() {
 	}
 	log.Infof("[Main] Bot initialized with optimized connection pooling (MaxIdleConns: %d, MaxIdleConnsPerHost: %d, HTTP/2 enabled)", maxIdleConns, maxIdleConnsPerHost)
 
-	// Retrieve bot identity early for logging and downstream components that reference username
 	botUsername := resolveBotUsername(b)
 
-	// some initial checks before running bot
 	if err := alita.InitialChecks(b); err != nil {
 		log.Fatalf("Initial checks failed: %v", err)
 	}
 
-	// Create dispatcher with limited max routines and proper error recovery
 	dispatcher := newConfiguredDispatcher(config.AppConfig.DispatcherMaxRoutines)
 
-	// Initialize monitoring systems
 	var statsCollector *monitoring.BackgroundStatsCollector
 	var autoRemediation *monitoring.AutoRemediationManager
 	var activityMonitor *monitoring.ActivityMonitor
@@ -175,11 +152,9 @@ func main() {
 		autoRemediation.Start()
 	}
 
-	// Initialize activity monitoring for automatic group activity tracking
 	activityMonitor = monitoring.NewActivityMonitor()
 	activityMonitor.Start()
 
-	// Setup graceful shutdown
 	shutdownManager := shutdown.NewManager()
 
 	shutdownManager.RegisterHandler(func() error {
@@ -200,8 +175,6 @@ func main() {
 		return nil
 	})
 
-	// DB-using workers are registered after closeDBConnections so LIFO stops
-	// them before the pool is closed.
 	if dbMonitoringCancel != nil {
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Stopping database monitoring...")
@@ -210,13 +183,11 @@ func main() {
 		})
 	}
 
-	// Register tracing shutdown handler
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Shutting down tracer provider...")
 		return tracing.Shutdown(context.Background())
 	})
 
-	// Register anti-raid expiry poller shutdown handler
 	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping anti-raid expiry poller...")
 		modules.StopAntiRaidExpiryPoller()
@@ -228,22 +199,18 @@ func main() {
 		return nil
 	})
 
-	// Create unified HTTP server for health, metrics, and webhook endpoints
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
 	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
 	httpServer.RegisterMetrics()
 	httpServer.RegisterDBMetrics()
 
-	// Register pprof endpoints if enabled (development only)
 	if config.AppConfig.EnablePPROF {
 		httpServer.RegisterPPROF()
 		log.Warn("[Main] pprof endpoints enabled - DO NOT enable in production!")
 	}
 
-	// Check if we should use webhooks or polling
 	if config.AppConfig.UseWebhooks {
-		// Validate webhook configuration
 		if config.AppConfig.WebhookDomain == "" {
 			log.Fatal("[Webhook] WEBHOOK_DOMAIN is required when USE_WEBHOOKS is enabled")
 		}
@@ -251,12 +218,10 @@ func main() {
 			log.Fatal("[Webhook] WEBHOOK_SECRET is required when USE_WEBHOOKS is enabled for security")
 		}
 
-		// Register webhook endpoint on the unified HTTP server
 		if err := httpServer.RegisterWebhook(b, dispatcher, config.AppConfig.WebhookSecret, config.AppConfig.WebhookDomain); err != nil {
 			log.Fatalf("[HTTPServer] Failed to register webhook: %v", err)
 		}
 
-		// Register HTTP server shutdown handler BEFORE start so SIGTERM in window is handled
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Stopping HTTP server...")
 			return httpServer.Stop()
@@ -264,7 +229,6 @@ func main() {
 
 		postInit(b, dispatcher, botUsername, "webhook")
 
-		// Start the unified HTTP server
 		if err := httpServer.Start(); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
@@ -274,27 +238,22 @@ func main() {
 
 		go shutdownManager.WaitForShutdown()
 
-		// Wait for shutdown signal (blocking)
 		select {}
 	} else {
-		// Use polling mode (default)
 
-		// Register HTTP server shutdown handler BEFORE start
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Shutdown] Stopping HTTP server...")
 			return httpServer.Stop()
 		})
 
-		// Start the unified HTTP server (health and metrics only in polling mode)
 		if err := httpServer.Start(); err != nil {
 			log.Fatalf("[HTTPServer] Failed to start HTTP server: %v", err)
 		}
 
 		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics)", config.AppConfig.HTTPPort)
 
-		updater := ext.NewUpdater(dispatcher, nil) // create updater with dispatcher
+		updater := ext.NewUpdater(dispatcher, nil)
 
-		// Register handler to stop the updater BEFORE start so SIGTERM is handled
 		shutdownManager.RegisterHandler(func() error {
 			log.Info("[Polling] Stopping updater...")
 			err := updater.Stop()
@@ -313,7 +272,6 @@ func main() {
 
 		postInit(b, dispatcher, botUsername, "polling")
 
-		// start the bot in polling mode
 		err = updater.StartPolling(b,
 			&ext.PollingOpts{
 				DropPendingUpdates: config.AppConfig.DropPendingUpdates,
@@ -329,7 +287,6 @@ func main() {
 
 		go shutdownManager.WaitForShutdown()
 
-		// Idle, to keep updates coming in, and avoid bot stopping.
 		updater.Idle()
 	}
 }
@@ -403,10 +360,8 @@ func resolveBotUsername(b *gotgbot.Bot) string {
 
 func newConfiguredDispatcher(maxRoutines int) *ext.Dispatcher {
 	return ext.NewDispatcher(&ext.DispatcherOpts{
-		// Use TracingProcessor to inject trace context into every update.
-		Processor: tracing.TracingProcessor{},
-		Error:     dispatcherErrorHandler,
-		// Configurable max concurrent goroutines.
+		Processor:   tracing.TracingProcessor{},
+		Error:       dispatcherErrorHandler,
 		MaxRoutines: maxRoutines,
 	})
 }
@@ -439,9 +394,6 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 	return ext.DispatcherActionNoop
 }
 
-// postInit runs shared initialization before either update transport starts.
-// It loads modules, restores captcha state, sets bot commands, and sends the
-// startup notification.
 func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	alita.LoadModules(d)
 	if err := modules.StartCaptchaLifecycle(b); err != nil {
@@ -451,7 +403,6 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 
 	config.AppConfig.WorkingMode = mode
 
-	// Set Commands of Bot (use English for bot commands)
 	tr := i18n.MustNewTranslator("en")
 	startDesc, _ := tr.GetString("main_bot_command_start")
 	helpDesc, _ := tr.GetString("main_bot_command_help")
@@ -470,7 +421,6 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	}
 	log.Info("Custom bot commands set for private chats")
 
-	// send startup message to log group
 	_, err = b.SendMessage(config.AppConfig.MessageDump,
 		fmt.Sprintf("<b>Started Bot!</b>\n<b>Mode:</b> %s\n<b>Loaded Modules:</b>\n%s", mode, alita.ListModules()),
 		&gotgbot.SendMessageOpts{
@@ -489,8 +439,6 @@ func postInit(b *gotgbot.Bot, d *ext.Dispatcher, username string, mode string) {
 	}
 }
 
-// closeDBConnections closes all database connections gracefully during shutdown.
-// It returns an error if the database connections cannot be closed properly.
 func closeDBConnections() error {
 	err := db.Close()
 	if err != nil {

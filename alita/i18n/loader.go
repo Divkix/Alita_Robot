@@ -8,7 +8,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// loadLocaleFiles loads all locale files from the embedded filesystem.
 func (lm *LocaleManager) loadLocaleFiles() error {
 	if lm.localeFS == nil || lm.localePath == "" {
 		return NewI18nError("load_files", "", "", "filesystem or path not set", fmt.Errorf("invalid configuration"))
@@ -26,7 +25,6 @@ func (lm *LocaleManager) loadLocaleFiles() error {
 			continue
 		}
 
-		// Only process YAML files
 		fileName := entry.Name()
 		if !isYAMLFile(fileName) {
 			continue
@@ -37,7 +35,6 @@ func (lm *LocaleManager) loadLocaleFiles() error {
 
 		if err := lm.loadSingleLocaleFile(filePath, langCode); err != nil {
 			loadErrors = append(loadErrors, err)
-			// Continue loading other files even if one fails
 			continue
 		}
 	}
@@ -49,9 +46,7 @@ func (lm *LocaleManager) loadLocaleFiles() error {
 	return nil
 }
 
-// loadSingleLocaleFile loads and validates a single locale file.
 func (lm *LocaleManager) loadSingleLocaleFile(filePath, langCode string) error {
-	// Read file content
 	content, err := lm.localeFS.ReadFile(filePath)
 	if err != nil {
 		return NewI18nError("load_file", langCode, "", "failed to read file", err)
@@ -83,10 +78,8 @@ func parseYAML(content []byte) (map[string]any, error) {
 	return parsed, nil
 }
 
-// extractLangCode extracts the language code from a filename.
 func extractLangCode(fileName string) string {
 	langCode := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	// Handle common YAML extensions
 	langCode = strings.TrimSuffix(langCode, ".yml")
 	langCode = strings.TrimSuffix(langCode, ".yaml")
 	return langCode
@@ -168,7 +161,6 @@ func lookupStringSlice(data map[string]any, key string) []string {
 	}
 }
 
-// isYAMLFile checks if a filename has a YAML extension.
 func isYAMLFile(fileName string) bool {
 	ext := strings.ToLower(filepath.Ext(fileName))
 	return ext == ".yml" || ext == ".yaml"

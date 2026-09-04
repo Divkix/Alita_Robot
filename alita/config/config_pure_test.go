@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// TestIsCliModeActive tests the isCliModeActive helper. It does NOT call
 // t.Parallel() because it mutates os.Args and must run sequentially.
 func TestIsCliModeActive(t *testing.T) {
 	saveArgs := os.Args
@@ -69,11 +68,9 @@ func TestIsCliModeActive(t *testing.T) {
 	})
 }
 
-// TestLoadConfig tests the LoadConfig helper. The top-level test does NOT call
 // t.Parallel() because t.Setenv() is incompatible with parallel execution.
 func TestLoadConfig(t *testing.T) {
 	t.Run("returns error when required fields missing", func(t *testing.T) {
-		// Ensure required env vars are empty
 		t.Setenv("BOT_TOKEN", "")
 		t.Setenv("OWNER_ID", "")
 		t.Setenv("MESSAGE_DUMP", "")
@@ -120,18 +117,15 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.HTTPPort != 9090 {
 			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 9090)
 		}
-		// Defaults should have been applied
 		if cfg.ApiServer != "https://api.telegram.org" {
 			t.Errorf("ApiServer: got %q, want %q", cfg.ApiServer, "https://api.telegram.org")
 		}
 		if cfg.BotVersion == "" {
 			t.Errorf("BotVersion: got empty string, want non-empty")
 		}
-		// AllowedUpdates should be populated
 		if len(cfg.AllowedUpdates) == 0 {
 			t.Errorf("AllowedUpdates: expected non-empty slice")
 		}
-		// ValidLangCodes should default to ["en"]
 		if len(cfg.ValidLangCodes) != 1 || cfg.ValidLangCodes[0] != "en" {
 			t.Errorf("ValidLangCodes: got %v, want [en]", cfg.ValidLangCodes)
 		}

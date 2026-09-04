@@ -6,8 +6,6 @@ import (
 	"embed"
 )
 
-// NewTestTranslator creates a Translator backed by inline YAML content for tests.
-// It is guarded by the `testtools` build tag so it is excluded from production builds.
 func NewTestTranslator(yamlContent string) (*Translator, error) {
 	data, err := parseYAML([]byte(yamlContent))
 	if err != nil {
