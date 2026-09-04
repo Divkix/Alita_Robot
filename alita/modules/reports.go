@@ -28,12 +28,8 @@ var reportsModule = moduleStruct{
 	handlerGroup: 8,
 }
 
-// adminMentionRegex matches @admin and @admins mentions in messages.
-// Pre-compiled once at init time to avoid per-message compilation overhead.
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
 
-// report handles the /report command and @admin mentions to notify
-// administrators about problematic messages with action buttons.
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
@@ -43,7 +39,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := sender.User
 	msg := ctx.EffectiveMessage
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "report") {
 		return ext.EndGroups
 	}
@@ -55,7 +50,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if From is nil (channel posts, deleted users)
 	if msg.ReplyToMessage.From == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_cannot_report_channel")
@@ -83,7 +77,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	reportprefs := reports.GetChatReportSettings(chat.Id)
 
-	// don't let blocked users report
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
 		if chat_status.CanBotDelete(b, ctx, nil) {
 			_, err := msg.Delete(b, nil)
@@ -259,12 +252,8 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// reports handles the /reports command to manage reporting settings
-// for both users and chats, including blocking and status changes.
-//
 //nolint:dupl // reports has symmetric block/unblock logic
 func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -336,7 +325,6 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				replyText, _ = tr.GetString("reports_group_only")
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
-					// Check if From is nil (channel posts, deleted users, etc.)
 					if reply.From == nil {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
@@ -360,7 +348,6 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 				replyText, _ = tr.GetString("reports_group_only")
 			} else {
 				if reply := msg.ReplyToMessage; reply != nil {
-					// Check if From is nil (channel posts, deleted users, etc.)
 					if reply.From == nil {
 						replyText, _ = tr.GetString("reports_cannot_report_channel")
 					} else {
@@ -388,7 +375,7 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 					replyText, _ = tr.GetString("reports_no_blocked_users")
 				} else {
 					var builder strings.Builder
-					builder.Grow(256) // Pre-allocate capacity
+					builder.Grow(256)
 					headerText, _ := tr.GetString("reports_blocked_users_header")
 					builder.WriteString(headerText)
 					for _, blockUserId := range blockedUsers {
@@ -436,8 +423,6 @@ func (moduleStruct) reports(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// markResolvedButtonHandler processes callback queries from report action buttons
-// to kick, ban, delete messages, or mark reports as resolved.
 func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -455,7 +440,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	}
 	var replyQuery, replyText string
 
-	// permissions check
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -571,8 +555,6 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 	return ext.EndGroups
 }
 
-// LoadReports registers all reports module handlers with the dispatcher,
-// including report commands and @admin mention monitoring.
 func LoadReports(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[reportsModule.moduleName] = true
 

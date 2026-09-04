@@ -36,8 +36,6 @@ type pinType struct {
 	DataType int
 }
 
-// checkPinned monitors channel messages and handles them according to
-// AntiChannelPin and CleanLinked settings - either unpinning or deleting.
 func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -63,8 +61,6 @@ func (moduleStruct) checkPinned(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// unpin handles the /unpin command to unpin messages, either the latest
-// pinned message or a specific replied message, requiring admin permissions.
 func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -113,8 +109,6 @@ func (moduleStruct) unpin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// unpinallCallback processes callback queries for the unpin all confirmation
-// dialog, handling the user's yes/no response.
 func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -129,8 +123,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	// Re-check permissions in callback to prevent non-admin users from executing
-	// an action from a forwarded/stale confirmation button.
 	if !chat_status.RequireGroup(b, ctx, chat) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -199,8 +191,6 @@ func (moduleStruct) unpinallCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// unpinAll handles the /unpinall command to unpin all messages in the chat
-// with a confirmation dialog, requiring admin permissions.
 func (moduleStruct) unpinAll(c *helpers.CommandContext) error {
 	text, _ := c.Tr.GetString("pins_unpin_all_confirm")
 	yesText, _ := c.Tr.GetString("button_yes")
@@ -224,14 +214,11 @@ func (moduleStruct) unpinAll(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// permaPin handles the /permapin command to create and pin a new message
-// with custom content and buttons, requiring admin permissions.
 func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
 	args := c.Ctx.Args()
 
-	// if command is empty (i.e. Without Arguments) not replied to a message, return and end group
 	if len(args) == 1 && msg.ReplyToMessage == nil {
 		text, _ := c.Tr.GetString("pins_permapin_reply_or_text")
 		_, err := msg.Reply(c.Bot, text, formatting.Shtml())
@@ -308,8 +295,6 @@ func (m moduleStruct) permaPin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// pin handles the /pin command to pin a replied message with options
-// for silent or loud pinning, requiring admin permissions.
 func (moduleStruct) pin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -360,13 +345,9 @@ func (moduleStruct) pin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// antichannelpin handles the /antichannelpin command to toggle automatic
-// unpinning of channel-pinned messages, requiring admin permissions.
-//
 //nolint:dupl // antichannelpin has symmetric logic with cleanlinked
 func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -440,13 +421,9 @@ func (moduleStruct) antichannelpin(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// cleanlinked handles the /cleanlinked command to toggle automatic
-// deletion of linked channel messages, requiring admin permissions.
-//
 //nolint:dupl // cleanlinked has symmetric logic with antichannelpin
 func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -520,8 +497,6 @@ func (moduleStruct) cleanlinked(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// pinned handles the /pinned command to display a link to the latest
-// pinned message in the chat with a convenient button.
 func (moduleStruct) pinned(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -587,10 +562,8 @@ func (moduleStruct) pinned(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// GetPinType analyzes a message to determine its content type and extract
-// relevant data for pinning, including file IDs, text, and buttons.
 func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataType int, buttons []tgmd2html.ButtonV2) {
-	dataType = -1 // not defined datatype; invalid filter
+	dataType = -1
 	var (
 		rawText string
 		args    = strings.Split(msg.Text, " ")[1:]
@@ -603,7 +576,6 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 			rawText = reply.OriginalMDV2()
 		}
 	} else {
-		// Extract text safely to prevent panic on malformed input
 		var parts []string
 		if msg.Text == "" {
 			parts = strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
@@ -613,10 +585,8 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 		if len(parts) >= 2 {
 			rawText = parts[1]
 		}
-		// If len(parts) < 2, rawText stays empty - handled by later validation
 	}
 
-	// get text and buttons
 	text, buttons = tgmd2html.MD2HTMLButtonsV2(rawText)
 
 	if len(args) >= 1 && msg.ReplyToMessage == nil {
@@ -634,7 +604,7 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 			fileid = msg.ReplyToMessage.Animation.FileId
 			dataType = db.DOCUMENT
 		} else if len(msg.ReplyToMessage.Photo) > 0 {
-			fileid = msg.ReplyToMessage.Photo[len(msg.ReplyToMessage.Photo)-1].FileId // using -1 index to get best photo quality
+			fileid = msg.ReplyToMessage.Photo[len(msg.ReplyToMessage.Photo)-1].FileId
 			dataType = db.PHOTO
 		} else if msg.ReplyToMessage.Audio != nil {
 			fileid = msg.ReplyToMessage.Audio.FileId
@@ -672,7 +642,6 @@ func enforcePinChecks(c *helpers.CommandContext) bool {
 	return true
 }
 
-// anonymousAdmin wrappers for pins.go
 func (m moduleStruct) pinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	c, err := helpers.BuildCommandContext(b, ctx)
 	if err != nil {
@@ -772,8 +741,6 @@ var (
 	}
 )
 
-// LoadPin registers all pins module handlers with the dispatcher,
-// including pin management commands and channel message monitoring.
 func LoadPin(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[pinsModule.moduleName] = true
 
@@ -783,7 +750,6 @@ func LoadPin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, permaPinDesc, pinsModule.permaPin)
 	helpers.WrapCommand(dispatcher, pinnedDesc, pinsModule.pinned)
 
-	// antichannelpin and cleanlinked modify ctx.EffectiveChat so keep raw
 	dispatcher.AddHandler(handlers.NewCommand("antichannelpin", pinsModule.antichannelpin))
 	dispatcher.AddHandler(handlers.NewCommand("cleanlinked", pinsModule.cleanlinked))
 

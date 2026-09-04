@@ -21,7 +21,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
-// asyncUpdateUser wraps user.UpdateUser for async execution with error logging.
 func asyncUpdateUser(userId int64, username, name string) {
 	if err := user.UpdateUser(userId, username, name); err != nil {
 		userUpdateCache.Delete(userId)
@@ -29,7 +28,6 @@ func asyncUpdateUser(userId int64, username, name string) {
 	}
 }
 
-// asyncUpdateChat wraps chats.UpdateChat for async execution with error logging.
 func asyncUpdateChat(chatId int64, chatname string, userid int64) {
 	if err := chats.UpdateChat(chatId, chatname, userid); err != nil {
 		chatUpdateCache.Delete([2]int64{chatId, userid})
@@ -37,7 +35,6 @@ func asyncUpdateChat(chatId int64, chatname string, userid int64) {
 	}
 }
 
-// asyncUpdateChannel wraps channels.UpdateChannel for async execution with error logging.
 func asyncUpdateChannel(channelId int64, channelName, username string) {
 	if err := channels.UpdateChannel(channelId, channelName, username); err != nil {
 		channelUpdateCache.Delete(channelId)
@@ -51,22 +48,17 @@ var (
 		handlerGroup: -1,
 	}
 
-	// Rate limiting for database updates
-	// Maps user/channel IDs or chat/user pairs to their last update timestamp.
 	userUpdateCache    = &sync.Map{}
 	chatUpdateCache    = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
 	userUpdateGroup    singleflight.Group
 	chatUpdateGroup    singleflight.Group
 
-	// Update intervals
 	userUpdateInterval    = constants.UserUpdateInterval
 	chatUpdateInterval    = constants.ChatUpdateInterval
 	channelUpdateInterval = constants.ChannelUpdateInterval
 )
 
-// shouldUpdateKey checks if enough time has passed since the last update
-// for rate limiting database operations to prevent excessive writes.
 func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
 	now := time.Now()
 	for {
@@ -118,8 +110,6 @@ func updateCurrentChat(chatID int64, chatName string, userID int64) {
 	})
 }
 
-// logUsers handles automatic user and chat tracking by updating
-// database records with rate limiting for all message events.
 func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -128,10 +118,8 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if user != nil {
 		if user.IsAnonymousChannel() {
-			// Only update if enough time has passed
 			if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
 				log.Debugf("Updating channel %d in db", user.Id())
-				// update when users send a message
 				go asyncUpdateChannel(
 					user.Id(),
 					user.Name(),
@@ -139,19 +127,14 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 				)
 			}
 		} else {
-			// Don't add user to chat entry
 			if chat_status.RequireGroup(bot, ctx, chat) {
-				// The group -1 tracker must create the parent synchronously before
-				// later handlers write tables with chat foreign keys.
 				updateCurrentChat(chat.Id, chat.Title, user.Id())
 			}
 
-			// The same ordering protects user foreign keys on first-ever commands.
 			updateCurrentUser(user.Id(), user.Username(), user.Name())
 		}
 	}
 
-	// update if message is replied
 	if repliedMsg != nil {
 		replySender := repliedMsg.GetSender()
 		if replySender != nil {
@@ -177,7 +160,6 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// update if message is forwarded
 	if msg.ForwardOrigin != nil {
 		forwarded := msg.ForwardOrigin.MergeMessageOrigin()
 		if forwarded.Chat != nil && forwarded.Chat.Type != "group" {
@@ -189,7 +171,6 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 				)
 			}
 		} else if forwarded.SenderUser != nil {
-			// if chat type is not group
 			if shouldUpdate(userUpdateCache, forwarded.SenderUser.Id, userUpdateInterval) {
 				go asyncUpdateUser(
 					forwarded.SenderUser.Id,
@@ -206,8 +187,6 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// LoadUsers registers the user logging handler with the dispatcher
-// to automatically track users and chats across all messages.
 func LoadUsers(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, usersModule.logUsers), usersModule.handlerGroup)
 }

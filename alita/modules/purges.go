@@ -31,11 +31,9 @@ type delMsgEntry struct {
 
 var (
 	purgesModule = moduleStruct{moduleName: "Purges"}
-	delMsgs      = sync.Map{} // Concurrent-safe map for tracking messages to delete (value is delMsgEntry)
+	delMsgs      = sync.Map{}
 )
 
-// checkPurgePermissions verifies all permissions required for purge/delete commands.
-// Returns the user and true if all checks pass, nil and false otherwise (response already sent).
 func checkPurgePermissions(bot *gotgbot.Bot, ctx *ext.Context) (*gotgbot.User, bool) {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
@@ -65,17 +63,13 @@ func checkPurgePermissions(bot *gotgbot.Bot, ctx *ext.Context) (*gotgbot.User, b
 	return user, true
 }
 
-// PurgeWorker collects errors from concurrent message deletion.
 type PurgeWorker struct {
-	errors     []error // Collect errors
-	errorCount int     // Count of errors
+	errors     []error
+	errorCount int
 	mu         sync.Mutex
 }
 
-// purgeMsgsConcurrent performs concurrent message deletion with rate limiting.
-// Uses a fixed worker pool to avoid spawning up to 1000 goroutines.
 func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, msgId, deleteTo int64) bool {
-	// Handle the starting message if not pFrom
 	if !pFrom {
 		_, err := bot.DeleteMessage(chat.Id, msgId, nil)
 		if err != nil {
@@ -101,19 +95,16 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		}
 	}
 
-	// When !pFrom, msgId was already deleted above; skip it in the loop.
 	loopFrom := msgId
 	if !pFrom {
 		loopFrom = msgId + 1
 	}
 
-	// Calculate total messages to delete
 	totalMessages := deleteTo - loopFrom + 1
 	if totalMessages <= 0 {
 		return true
 	}
 
-	// For small ranges, use sequential deletion
 	if totalMessages <= 10 {
 		for mId := deleteTo; mId >= loopFrom; mId-- {
 			_ = helpers.DeleteMessageWithErrorHandling(bot, chat.Id, mId)
@@ -121,7 +112,6 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 		return true
 	}
 
-	// For larger ranges, use fixed worker pool
 	const maxConcurrentMsgDeletions = 10
 	worker := &PurgeWorker{
 		errors: make([]error, 0),
@@ -152,7 +142,6 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 	}
 	wg.Wait()
 
-	// Log errors if any (excluding "not found" errors)
 	if len(worker.errors) > 0 {
 		log.WithFields(log.Fields{
 			"chat_id":       chat.Id,
@@ -164,15 +153,10 @@ func (moduleStruct) purgeMsgsConcurrent(bot *gotgbot.Bot, chat *gotgbot.Chat, pF
 	return true
 }
 
-// purgeMsgs performs the actual message deletion operation for purge commands,
-// deleting messages in the specified range with error handling for old messages.
-// This is a wrapper that calls the concurrent version for better performance.
 func (moduleStruct) purgeMsgs(bot *gotgbot.Bot, chat *gotgbot.Chat, pFrom bool, msgId, deleteTo int64) bool {
 	return purgesModule.purgeMsgsConcurrent(bot, chat, pFrom, msgId, deleteTo)
 }
 
-// purge handles the /purge command to delete all messages from a replied
-// message up to the command message, requiring admin permissions.
 func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
@@ -185,9 +169,8 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.ReplyToMessage != nil {
 		msgId := msg.ReplyToMessage.MessageId
 		deleteTo := msg.MessageId - 1
-		totalMsgs := deleteTo - msgId + 1 // adding 1 because we want to delete the message we are replying to
+		totalMsgs := deleteTo - msgId + 1
 
-		// Limit purge range to prevent abuse and API overload
 		const maxPurgeMessages = 1000
 		if totalMsgs > maxPurgeMessages {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -216,7 +199,6 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				log.Error(err)
 			} else {
-				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
 					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
 					time.Sleep(3 * time.Second)
@@ -237,8 +219,6 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// delCmd handles the /del command to delete a specific replied message
-// along with the command message, requiring admin permissions.
 func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
@@ -265,8 +245,6 @@ func (moduleStruct) delCmd(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// deleteButtonHandler processes callback queries from delete buttons
-// to remove specific messages, requiring admin permissions.
 func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -297,7 +275,6 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	// Parse message ID from callback data
 	msgId, err := strconv.ParseInt(msgIDRaw, 10, 64)
 	if err != nil {
 		log.Warnf("[Purges] Invalid message ID in callback: %s", msgIDRaw)
@@ -306,7 +283,6 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	// permissions check
 	if !chat_status.CanUserDelete(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
 		return ext.EndGroups
@@ -329,8 +305,6 @@ func (moduleStruct) deleteButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-// purgeFrom handles the /purgefrom command to mark a starting message
-// for range deletion, requiring admin permissions.
 func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	user, ok := checkPurgePermissions(bot, ctx)
 	if !ok {
@@ -349,7 +323,6 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 				_, _ = msg.Reply(bot, text, nil)
 				return ext.EndGroups
 			}
-			// Reject overwrite — inform user to use purgefrom again or clear
 			if existing != nil {
 				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 				text, _ := tr.GetString("purges_message_marked")
@@ -377,11 +350,9 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		delMsgs.Store(chat.Id, delMsgEntry{userID: user.Id, timestamp: time.Now(), msgID: TodelId})
 
-		// Run cleanup in background goroutine to avoid blocking the handler
 		go func(chatId, toDelId int64, msgToDelete *gotgbot.Message) {
 			defer error_handling.RecoverFromPanic("purgeFromCleanup", "purges")
 			time.Sleep(30 * time.Second)
-			// Only clean up if the stored ID is still the same (not overwritten by another purgefrom)
 			if existingId, ok := delMsgs.Load(chatId); ok {
 				if entry, ok := existingId.(delMsgEntry); ok && entry.msgID == toDelId {
 					delMsgs.Delete(chatId)
@@ -407,8 +378,6 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// purgeTo handles the /purgeto command to complete range deletion
-// from a previously marked message, requiring admin permissions.
 func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if _, ok := checkPurgePermissions(bot, ctx); !ok {
 		return ext.EndGroups
@@ -449,15 +418,12 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			return ext.EndGroups
 		}
-		// Ensure msgId is the lower bound and deleteTo is the upper bound
-		// This normalizes the range regardless of which message was marked first
 		startId, endId := msgId, deleteTo
 		if deleteTo < msgId {
 			startId, endId = deleteTo, msgId
 		}
 		totalMsgs := endId - startId + 1
 
-		// Enforce same limit as /purge command to prevent abuse
 		const maxPurgeMessages = 1000
 		if totalMsgs > maxPurgeMessages {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -469,7 +435,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		// Clear the stored purgefrom marker since we're using it now
 		delMsgs.Delete(chat.Id)
 
 		purge := m.purgeMsgs(bot, chat, true, startId, endId)
@@ -490,7 +455,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			if err != nil {
 				log.Error(err)
 			} else {
-				// Delete notification message after 3 seconds in background
 				go func(msgToDelete *gotgbot.Message) {
 					defer error_handling.RecoverFromPanic("purgeNotifyDelete", "purges")
 					time.Sleep(3 * time.Second)
@@ -510,8 +474,6 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadPurges registers all purges module handlers with the dispatcher,
-// including message deletion commands and callback handlers.
 func LoadPurges(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[purgesModule.moduleName] = true
 
