@@ -11,7 +11,6 @@ import (
 func TestUpdateRecordReturnsErrorOnNoMatch(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Use a chat ID that doesn't exist in the database
 	nonExistentChatID := time.Now().UnixNano()
 
 	err := UpdateRecord(
@@ -55,12 +54,10 @@ func TestUpdateRecordWithZeroValuesUpdatesZeroValues(t *testing.T) {
 		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
 	})
 
-	// Create a record with Locked=true
 	if err := DB.Create(&LockSettings{ChatId: chatID, LockType: perm, Locked: true}).Error; err != nil {
 		t.Fatalf("failed to create test record: %v", err)
 	}
 
-	// Update to Locked=false using UpdateRecordWithZeroValues
 	err := UpdateRecordWithZeroValues(
 		&LockSettings{},
 		LockSettings{ChatId: chatID, LockType: perm},
@@ -89,12 +86,10 @@ func TestUpdateRecordSucceedsWhenRowsAffected(t *testing.T) {
 		_ = DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&LockSettings{}).Error
 	})
 
-	// Create a record
 	if err := DB.Create(&LockSettings{ChatId: chatID, LockType: perm, Locked: false}).Error; err != nil {
 		t.Fatalf("failed to create test record: %v", err)
 	}
 
-	// Update it — should succeed (rows affected > 0)
 	err := UpdateRecord(
 		&LockSettings{},
 		LockSettings{ChatId: chatID, LockType: perm},

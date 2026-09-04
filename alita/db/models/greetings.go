@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// WelcomeSettings represents welcome message settings
 type WelcomeSettings struct {
 	CleanWelcome  bool        `gorm:"column:clean_old;default:false" json:"clean_old" default:"false"`
 	LastMsgId     int64       `gorm:"column:last_msg_id" json:"last_msg_id,omitempty"`
@@ -13,7 +12,6 @@ type WelcomeSettings struct {
 	Button        ButtonArray `gorm:"column:btns;type:jsonb" json:"btns,omitempty"`
 }
 
-// GoodbyeSettings represents goodbye message settings
 type GoodbyeSettings struct {
 	CleanGoodbye  bool        `gorm:"column:clean_old;default:false" json:"clean_old" default:"false"`
 	LastMsgId     int64       `gorm:"column:last_msg_id" json:"last_msg_id,omitempty"`
@@ -24,7 +22,6 @@ type GoodbyeSettings struct {
 	Button        ButtonArray `gorm:"column:btns;type:jsonb" json:"btns,omitempty"`
 }
 
-// GreetingSettings represents greeting settings for a chat
 type GreetingSettings struct {
 	ID                 uint             `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID             int64            `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`

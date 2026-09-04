@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// PinSettings represents pin settings for a chat
 type PinSettings struct {
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId         int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`

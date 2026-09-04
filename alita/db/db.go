@@ -15,7 +15,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
-// Re-export model types for backward compatibility
 type (
 	Button            = models.Button
 	User              = models.User
@@ -31,7 +30,6 @@ type (
 	CaptchaAttempts   = models.CaptchaAttempts
 )
 
-// Message type constants - maintain compatibility with existing code
 const (
 	TEXT       int = 1
 	STICKER    int = 2
@@ -43,13 +41,11 @@ const (
 	VIDEO_NOTE int = 8
 )
 
-// Default greeting messages used when no custom greetings are configured.
 const (
 	DefaultWelcome = "Hey {first}, how are you?"
 	DefaultGoodbye = "Sad to see you leaving {first}"
 )
 
-// getSpanAttributes returns common span attributes for database operations.
 func getSpanAttributes(model any) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{}
 	if model != nil {
@@ -58,7 +54,6 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 	return attrs
 }
 
-// withSpan starts a traced span for a DB operation and runs fn inside it.
 func withSpan(ctx context.Context, op string, model any, fn func(ctx context.Context, span trace.Span) error) error {
 	ctx, span := tracing.StartSpan(ctx, op,
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
@@ -66,7 +61,6 @@ func withSpan(ctx context.Context, op string, model any, fn func(ctx context.Con
 	return fn(ctx, span)
 }
 
-// CreateRecord creates a new database record using the provided model.
 func CreateRecord(model any) error {
 	return withSpan(context.Background(), "db.create", model, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Create(model)
@@ -80,17 +74,14 @@ func CreateRecord(model any) error {
 	})
 }
 
-// UpdateRecord updates an existing database record with the provided updates.
 func UpdateRecord(model any, where any, updates any) error {
 	return updateRecordInternal(context.Background(), model, where, updates, "UpdateRecord")
 }
 
-// UpdateRecordWithZeroValues updates a database record including zero values.
 func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) error {
 	return updateRecordInternal(context.Background(), model, where, updates, "UpdateRecordWithZeroValues")
 }
 
-// updateRecordInternal is the shared implementation for record updates.
 func updateRecordInternal(ctx context.Context, model any, where any, updates any, logPrefix string) error {
 	ctx, span := tracing.StartSpan(ctx, "db.update",
 		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
@@ -110,7 +101,6 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 	return nil
 }
 
-// GetRecord retrieves a single database record matching the where clause.
 func GetRecord(model any, where any) error {
 	return withSpan(context.Background(), "db.get", model, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Where(where).First(model)
@@ -128,14 +118,11 @@ func GetRecord(model any, where any) error {
 	})
 }
 
-// ChatExists checks if a chat with the given ID exists in the database.
-// Any error (including connection failures) is treated as "not exists" so callers
-// that ensure the chat will attempt recovery instead of skipping FK setup.
 func ChatExists(chatID int64) bool {
 	chatExists := &Chat{}
 	err := GetRecord(chatExists, Chat{ChatId: chatID})
 	if err != nil {
-		return false // not found OR any other error → treat as absent
+		return false
 	}
 	return true
 }
@@ -149,17 +136,14 @@ func TableRowCount(tableName string) int64 {
 	if DB == nil {
 		return 0
 	}
-	// Try PostgreSQL's pg_class.reltuples first (O(1) estimate).
 	var count int64
 	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil {
 		return count
 	}
-	// Fall back to COUNT(*) on non-PostgreSQL or on error.
 	DB.Table(tableName).Count(&count)
 	return count
 }
 
-// GetRecords retrieves multiple database records matching the where clause.
 func GetRecords(models any, where any) error {
 	return withSpan(context.Background(), "db.find", models, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Where(where).Find(models)

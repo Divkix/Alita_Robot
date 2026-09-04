@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-// ---------------------------------------------------------------------------
-// BackupFormat
-// ---------------------------------------------------------------------------
-
 func TestNewBackupFormat(t *testing.T) {
 
 	chatID := int64(123456)
@@ -244,13 +240,11 @@ func TestBackupFormat_ToJSON(t *testing.T) {
 		t.Fatalf("ToJSON() error: %v", err)
 	}
 
-	// Verify valid JSON
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("ToJSON() produced invalid JSON: %v", err)
 	}
 
-	// Verify key fields present
 	if parsed["version"] != BackupFormatVersion {
 		t.Fatalf("JSON version = %v, want %v", parsed["version"], BackupFormatVersion)
 	}
@@ -261,7 +255,6 @@ func TestBackupFormat_ToJSON(t *testing.T) {
 		t.Fatalf("JSON chat_id = %v, want 123", parsed["chat_id"])
 	}
 
-	// Verify indent formatting (contains newlines for readability)
 	if !strings.Contains(string(data), "\n") {
 		t.Fatalf("JSON missing indentation/newlines: got %q", string(data))
 	}
@@ -339,10 +332,6 @@ func TestBackupFormatFromJSON(t *testing.T) {
 		t.Fatalf("nested user_id = %v (%T), want exact json.Number(%s)", got, got, largeID)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Backup module helpers
-// ---------------------------------------------------------------------------
 
 func TestAllExportableModules(t *testing.T) {
 

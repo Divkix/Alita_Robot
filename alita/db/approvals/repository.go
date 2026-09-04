@@ -7,8 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// AddApprovedUser adds a user to the approved list for a chat.
-// Approved users are immune from anti-spam measures.
 func AddApprovedUser(chatID, userID, approvedBy int64, reason string) error {
 	approval := &models.ApprovedUsers{
 		ChatID:     chatID,
@@ -27,7 +25,6 @@ func AddApprovedUser(chatID, userID, approvedBy int64, reason string) error {
 	return nil
 }
 
-// IsUserApproved checks if a user is in the approved list for a chat.
 func IsUserApproved(chatID, userID int64) bool {
 	for _, u := range GetApprovedUsers(chatID) {
 		if u.UserID == userID {
@@ -37,7 +34,6 @@ func IsUserApproved(chatID, userID int64) bool {
 	return false
 }
 
-// GetApprovedUsers returns all approved users for a chat.
 func GetApprovedUsers(chatID int64) []*models.ApprovedUsers {
 	cacheKey := cache.CacheKey("approvals", chatID)
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLApprovals, func() ([]*models.ApprovedUsers, error) {
@@ -55,7 +51,6 @@ func GetApprovedUsers(chatID int64) []*models.ApprovedUsers {
 	return result
 }
 
-// RemoveApprovedUser removes a user from the approved list for a chat.
 func RemoveApprovedUser(chatID, userID int64) error {
 	result := db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Delete(&models.ApprovedUsers{})
 	if result.Error != nil {
@@ -67,7 +62,6 @@ func RemoveApprovedUser(chatID, userID int64) error {
 	return nil
 }
 
-// RemoveAllApprovedUsers removes all approved users for a chat.
 func RemoveAllApprovedUsers(chatID int64) error {
 	err := db.DB.Where("chat_id = ?", chatID).Delete(&models.ApprovedUsers{}).Error
 	if err != nil {

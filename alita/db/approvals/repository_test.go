@@ -23,12 +23,10 @@ func TestIsUserApproved(t *testing.T) {
 		_ = RemoveAllApprovedUsers(chatID)
 	})
 
-	// User should not be approved initially
 	if IsUserApproved(chatID, 12345) {
 		t.Fatalf("IsUserApproved() = true, expected false for non-existent user")
 	}
 
-	// Approve user and check
 	if err := AddApprovedUser(chatID, 12345, 99999, "trusted member"); err != nil {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
@@ -36,12 +34,10 @@ func TestIsUserApproved(t *testing.T) {
 		t.Fatalf("IsUserApproved() = false, expected true after approval")
 	}
 
-	// Different user should not be approved
 	if IsUserApproved(chatID, 99999) {
 		t.Fatalf("IsUserApproved() = true for unapproved user")
 	}
 
-	// Different chat should not have user approved
 	if IsUserApproved(-888888888888, 12345) {
 		t.Fatalf("IsUserApproved() = true in wrong chat")
 	}
@@ -84,7 +80,6 @@ func TestRemoveApprovedUser(t *testing.T) {
 		_ = RemoveAllApprovedUsers(chatID)
 	})
 
-	// Add two users, remove one
 	if err := AddApprovedUser(chatID, 100, 1, ""); err != nil {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
@@ -113,7 +108,6 @@ func TestGetApprovedUsers(t *testing.T) {
 		_ = RemoveAllApprovedUsers(chatID)
 	})
 
-	// Empty chat returns empty slice, not nil
 	users := GetApprovedUsers(chatID)
 	if users == nil {
 		t.Fatalf("GetApprovedUsers() returned nil, expected empty slice")
@@ -122,7 +116,6 @@ func TestGetApprovedUsers(t *testing.T) {
 		t.Fatalf("expected 0 approved users for new chat, got %d", len(users))
 	}
 
-	// Add users and verify
 	if err := AddApprovedUser(chatID, 10, 1, "reason1"); err != nil {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
@@ -170,18 +163,15 @@ func TestCacheInvalidationOnWrite(t *testing.T) {
 		_ = RemoveAllApprovedUsers(chatID)
 	})
 
-	// Add initial user
 	if err := AddApprovedUser(chatID, 5555, 1, ""); err != nil {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
 
-	// Populate cache
 	users1 := GetApprovedUsers(chatID)
 	if len(users1) != 1 {
 		t.Fatalf("expected 1 user, got %d", len(users1))
 	}
 
-	// Add another user and verify cache invalidated
 	if err := AddApprovedUser(chatID, 6666, 1, ""); err != nil {
 		t.Fatalf("AddApprovedUser() error = %v", err)
 	}
@@ -191,7 +181,6 @@ func TestCacheInvalidationOnWrite(t *testing.T) {
 		t.Fatalf("cache not invalidated: expected 2 users after add, got %d", len(users2))
 	}
 
-	// Remove user and verify cache invalidated
 	if err := RemoveApprovedUser(chatID, 5555); err != nil {
 		t.Fatalf("RemoveApprovedUser() error = %v", err)
 	}
@@ -201,7 +190,6 @@ func TestCacheInvalidationOnWrite(t *testing.T) {
 		t.Fatalf("cache not invalidated: expected 1 user after remove, got %d", len(users3))
 	}
 
-	// RemoveAll and verify cache invalidated
 	if err := RemoveAllApprovedUsers(chatID); err != nil {
 		t.Fatalf("RemoveAllApprovedUsers() error = %v", err)
 	}

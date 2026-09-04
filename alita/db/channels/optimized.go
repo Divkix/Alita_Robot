@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// getChannelSettingsRaw retrieves channel settings with all relevant columns.
-// Returns channel settings for the specified chat or nil if not found.
 func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
@@ -34,8 +32,6 @@ func getChannelSettingsRaw(chatID int64) (*models.ChannelSettings, error) {
 	return &settings, nil
 }
 
-// GetChannelSettingsCached retrieves channel settings with caching layer for improved performance.
-// Uses 30-minute cache TTL and falls back to direct query if cache fails.
 func GetChannelSettingsCached(chatID int64) (*models.ChannelSettings, error) {
 	cacheKey := cache.CacheKey("channel", chatID)
 

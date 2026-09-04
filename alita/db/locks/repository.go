@@ -8,11 +8,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// GetChatLocks retrieves all lock settings for a specific chat ID.
-// Uses optimized queries with caching for better performance.
-// Returns an empty map if no locks are found or an error occurs.
 func GetChatLocks(chatID int64) map[string]bool {
-	// Use cached whole-map query to avoid per-message DB round-trips
 	locks, err := GetChatLocksCached(chatID)
 	if err != nil {
 		log.Errorf("[Database] GetChatLocks: %v - %d", err, chatID)
@@ -22,10 +18,6 @@ func GetChatLocks(chatID int64) map[string]bool {
 	return locks
 }
 
-// UpdateLock atomically upserts a lock record for the given chat and permission type.
-// Uses INSERT ... ON CONFLICT DO UPDATE for atomicity under concurrent writes.
-// Invalidates the cache after successful update to ensure immediate enforcement.
-// Returns an error if the database operation fails.
 func UpdateLock(chatID int64, perm string, val bool) error {
 	record := models.LockSettings{
 		ChatId:   chatID,
@@ -42,21 +34,14 @@ func UpdateLock(chatID int64, perm string, val bool) error {
 		return err
 	}
 
-	// Invalidate cache to ensure immediate enforcement
 	InvalidateLockCache(chatID)
 	return nil
 }
 
-// InvalidateLockCache removes the cached whole-map lock status for a chat so that
-// GetChatLocks reflects the change immediately.
-// Should be called after updating a lock to ensure immediate enforcement.
 func InvalidateLockCache(chatID int64) {
 	cache.DeleteCache(cache.CacheKey("locks_map", chatID))
 }
 
-// IsPermLocked checks whether a specific permission type is locked in the given chat.
-// Uses the cached whole-map lock query for better performance.
-// Returns false if the permission is not locked or an error occurs.
 func IsPermLocked(chatID int64, perm string) bool {
 	return GetChatLocks(chatID)[perm]
 }

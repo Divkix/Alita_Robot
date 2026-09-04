@@ -28,7 +28,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
-// comma formats an int64 with thousands separators (e.g. 1234567 -> "1,234,567").
 func comma(n int64) string {
 	s := strconv.FormatInt(n, 10)
 	neg := ""
@@ -57,8 +56,6 @@ func comma(n int64) string {
 	return b.String()
 }
 
-// GetTeamMemInfo retrieves developer settings for a user.
-// Returns default settings (not a dev) if not found or on error.
 func GetTeamMemInfo(userID int64) (devrc *models.DevSettings) {
 	devrc = &models.DevSettings{}
 	err := db.GetRecord(devrc, models.DevSettings{UserId: userID})
@@ -72,36 +69,29 @@ func GetTeamMemInfo(userID int64) (devrc *models.DevSettings) {
 	return
 }
 
-// GetTeamMembers returns a map of all team members with their roles.
-// Queries for both dev and sudo users, combining results.
-// A user can have both roles, in which case "dev" takes precedence.
 func GetTeamMembers() map[int64]string {
 	var devArray []*models.DevSettings
 	var sudoArray []*models.DevSettings
 	array := make(map[int64]string)
 
-	// Get all dev users
 	err := db.GetRecords(&devArray, models.DevSettings{IsDev: true})
 	if err != nil {
 		log.Error(err)
 		return nil
 	}
 
-	// Get all sudo users
 	err = db.GetRecords(&sudoArray, models.DevSettings{Sudo: true})
 	if err != nil {
 		log.Error(err)
 		return nil
 	}
 
-	// First, add sudo users
 	for _, result := range sudoArray {
 		if result.Sudo {
 			array[result.UserId] = "sudo"
 		}
 	}
 
-	// Then add/override with dev users (dev takes precedence)
 	for _, result := range devArray {
 		if result.IsDev {
 			array[result.UserId] = "dev"
@@ -111,15 +101,11 @@ func GetTeamMembers() map[int64]string {
 	return array
 }
 
-// AddDev adds a user as a developer or updates existing record to dev status.
-// Creates a new record if the user doesn't exist in DevSettings.
 func AddDev(userID int64) error {
 	devSettings := &models.DevSettings{UserId: userID, IsDev: true}
 
-	// Try to update existing record first
 	err := db.UpdateRecord(&models.DevSettings{}, models.DevSettings{UserId: userID}, models.DevSettings{IsDev: true})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create new record if not exists
 		err = db.CreateRecord(devSettings)
 	}
 
@@ -131,8 +117,6 @@ func AddDev(userID int64) error {
 	return nil
 }
 
-// RemDev removes developer status from a user by setting IsDev to false.
-// Does not delete the record as the user might still have Sudo privileges.
 func RemDev(userID int64) error {
 	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, models.DevSettings{UserId: userID}, map[string]any{"is_dev": false})
 	if err != nil {
@@ -143,15 +127,11 @@ func RemDev(userID int64) error {
 	return nil
 }
 
-// AddSudo adds a user as a sudo user or updates existing record to sudo status.
-// Creates a new record if the user doesn't exist in DevSettings.
 func AddSudo(userID int64) error {
 	sudoSettings := &models.DevSettings{UserId: userID, Sudo: true}
 
-	// Try to update existing record first
 	err := db.UpdateRecord(&models.DevSettings{}, models.DevSettings{UserId: userID}, models.DevSettings{Sudo: true})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Create new record if not exists
 		err = db.CreateRecord(sudoSettings)
 	}
 
@@ -163,8 +143,6 @@ func AddSudo(userID int64) error {
 	return nil
 }
 
-// RemSudo removes sudo status from a user by setting Sudo to false.
-// Does not delete the record as the user might still be a Dev.
 func RemSudo(userID int64) error {
 	err := db.UpdateRecordWithZeroValues(&models.DevSettings{}, models.DevSettings{UserId: userID}, map[string]any{"sudo": false})
 	if err != nil {
@@ -175,9 +153,6 @@ func RemSudo(userID int64) error {
 	return nil
 }
 
-// LoadAllStats generates a comprehensive statistics report for the bot.
-// Includes user counts, chat statistics, feature usage (including federations),
-// activity metrics, and system information.
 func LoadAllStats() string {
 	totalUsers := user.LoadUsersStats()
 	activeChats, inactiveChats := chats.LoadChatStats()
@@ -196,7 +171,6 @@ func LoadAllStats() string {
 	fedCount, fedChats, fedAdmins, fedBans, fedSubs := federations.LoadFederationStats()
 	numChannels := channels.LoadChannelStats()
 
-	// Get webhook status information
 	var deploymentMode, webhookInfo string
 	if config.AppConfig.UseWebhooks {
 		deploymentMode = "🌐 Webhook"

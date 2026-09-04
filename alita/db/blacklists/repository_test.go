@@ -88,7 +88,6 @@ func TestGetBlacklistSettings(t *testing.T) {
 		_ = RemoveAllBlacklist(chatID)
 	})
 
-	// Empty chat should return empty slice, not nil
 	settings := GetBlacklistSettings(chatID)
 	if settings == nil {
 		t.Fatalf("GetBlacklistSettings() returned nil, expected empty slice")

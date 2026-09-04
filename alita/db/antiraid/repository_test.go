@@ -51,7 +51,6 @@ func TestSetRaidTimeZeroValue(t *testing.T) {
 		}
 	})
 
-	// Set to non-zero first, then set to 0 (zero value must persist)
 	if err := SetRaidTime(chatID, 10800); err != nil {
 		t.Fatalf("SetRaidTime(10800) failed: %v", err)
 	}
@@ -78,11 +77,9 @@ func TestSetRaidTimeNoOp(t *testing.T) {
 		}
 	})
 
-	// First call creates record
 	if err := SetRaidTime(chatID, 7200); err != nil {
 		t.Fatalf("SetRaidTime(7200) failed: %v", err)
 	}
-	// Second call with same value should be no-op but not error
 	if err := SetRaidTime(chatID, 7200); err != nil {
 		t.Fatalf("no-op SetRaidTime(7200) failed: %v", err)
 	}
@@ -218,7 +215,6 @@ func TestGetAntiRaidSettingsDefault(t *testing.T) {
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
-	// No record created, should return defaults
 
 	settings := GetAntiRaidSettings(chatID)
 	if settings == nil {
@@ -248,7 +244,6 @@ func TestGetAntiRaidSettingsWithRecord(t *testing.T) {
 		}
 	})
 
-	// Use FirstOrCreate to set custom values
 	updates := map[string]any{
 		"chat_id":                 chatID,
 		"raid_time":               7200,
@@ -303,12 +298,10 @@ func TestAntiRaidSettingsCacheInvalidation(t *testing.T) {
 		}
 	})
 
-	// Create initial record via setter (populates cache)
 	if err := SetRaidTime(chatID, 3600); err != nil {
 		t.Fatalf("SetRaidTime failed: %v", err)
 	}
 
-	// Populate cache with the initial value
 	first := GetAntiRaidSettings(chatID)
 	if first.RaidTime != 3600 {
 		t.Fatalf("expected cached RaidTime=3600, got %d", first.RaidTime)
@@ -319,18 +312,15 @@ func TestAntiRaidSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("direct DB update failed: %v", err)
 	}
 
-	// Stale cached value should still reflect 3600
 	stale := GetAntiRaidSettings(chatID)
 	if stale.RaidTime != 3600 {
 		t.Fatalf("expected stale cached RaidTime=3600, got %d", stale.RaidTime)
 	}
 
-	// Setter should invalidate cache and persist the new value
 	if err := SetRaidTime(chatID, 10800); err != nil {
 		t.Fatalf("SetRaidTime(10800) failed: %v", err)
 	}
 
-	// After cache invalidation, read should reflect the DB update (10800)
 	fresh := GetAntiRaidSettings(chatID)
 	if fresh.RaidTime != 10800 {
 		t.Fatalf("expected RaidTime=10800 after cache invalidation, got %d", fresh.RaidTime)

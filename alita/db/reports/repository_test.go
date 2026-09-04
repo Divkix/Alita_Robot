@@ -85,7 +85,6 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Close DB handle before removing temp file.
 	if db.DB != nil {
 		sqlDB, err := db.DB.DB()
 		if err != nil {
@@ -95,7 +94,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Remove temp file before exit.
 	if dbFileName != "" {
 		if rmErr := os.Remove(dbFileName); rmErr != nil {
 			fmt.Printf("temp file remove failed: %v\n", rmErr)
@@ -152,10 +150,8 @@ func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize default settings
 	_ = GetChatReportSettings(chatID)
 
-	// Disable reports — zero value boolean must persist
 	if err := SetChatReportStatus(chatID, false); err != nil {
 		t.Fatalf("SetChatReportStatus() error = %v", err)
 	}
@@ -164,7 +160,6 @@ func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
 		t.Fatal("expected Enabled=false after SetChatReportStatus(false)")
 	}
 
-	// Re-enable reports
 	if err := SetChatReportStatus(chatID, true); err != nil {
 		t.Fatalf("SetChatReportStatus() error = %v", err)
 	}
@@ -210,10 +205,8 @@ func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
 		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 
-	// Initialize default settings
 	_ = GetUserReportSettings(userID)
 
-	// Disable user reports — zero value boolean must persist
 	if err := SetUserReportSettings(userID, false); err != nil {
 		t.Fatalf("SetUserReportSettings() error = %v", err)
 	}
@@ -222,7 +215,6 @@ func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
 		t.Fatal("expected Enabled=false after SetUserReportSettings(false)")
 	}
 
-	// Re-enable user reports
 	if err := SetUserReportSettings(userID, true); err != nil {
 		t.Fatalf("SetUserReportSettings() error = %v", err)
 	}
@@ -268,10 +260,8 @@ func TestAddBlockedReport_AddAndVerify(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize default settings
 	_ = GetChatReportSettings(chatID)
 
-	// Block a user
 	if err := BlockReportUser(chatID, userID); err != nil {
 		t.Fatalf("BlockReportUser() error = %v", err)
 	}
@@ -306,7 +296,6 @@ func TestRemoveBlockedReport_UnblockOneOfTwo(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize default settings
 	_ = GetChatReportSettings(chatID)
 
 	// Block two users, then unblock one — list stays non-nil so GORM persists it
@@ -355,14 +344,11 @@ func TestBlockReportUser_IdempotentAdd(t *testing.T) {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
 
-	// Initialize default settings
 	_ = GetChatReportSettings(chatID)
 
-	// Add the same user twice
 	if err := BlockReportUser(chatID, userID); err != nil {
 		t.Fatalf("BlockReportUser() error = %v", err)
 	}
-	// Second call should return nil error (idempotent)
 	if err := BlockReportUser(chatID, userID); err != nil {
 		t.Fatalf("BlockReportUser() second call error = %v", err)
 	}
@@ -382,7 +368,6 @@ func TestBlockReportUser_IdempotentAdd(t *testing.T) {
 func TestLoadReportStats_Returns(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Just verify the function executes without error and returns non-negative values
 	uRCount, gRCount := LoadReportStats()
 	if uRCount < 0 {
 		t.Fatalf("expected non-negative uRCount, got %d", uRCount)

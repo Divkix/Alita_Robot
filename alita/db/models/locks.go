@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// LockSettings represents lock settings for a chat
 type LockSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;not null;uniqueIndex:idx_lock_chat_type" json:"chat_id,omitempty"`

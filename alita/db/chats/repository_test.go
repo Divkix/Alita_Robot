@@ -51,10 +51,6 @@ func withChatSQLite(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// EnsureChatInDb
-// ---------------------------------------------------------------------------
-
 func TestEnsureChatInDb(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -67,7 +63,6 @@ func TestEnsureChatInDb(t *testing.T) {
 	}
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}) })
 
-	// Verify chat was created
 	var chat models.Chat
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
 		t.Fatalf("expected chat %d to exist, got error: %v", chatID, err)
@@ -85,7 +80,6 @@ func TestEnsureChatInDb_Idempotent(t *testing.T) {
 
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}) })
 
-	// Call twice -- must not error
 	if err := EnsureChatInDb(chatID, chatName); err != nil {
 		t.Fatalf("first EnsureChatInDb() error = %v", err)
 	}
@@ -93,7 +87,6 @@ func TestEnsureChatInDb_Idempotent(t *testing.T) {
 		t.Fatalf("second EnsureChatInDb() error = %v", err)
 	}
 
-	// Only one record should exist
 	var count int64
 	db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).Count(&count)
 	if count != 1 {
@@ -101,16 +94,11 @@ func TestEnsureChatInDb_Idempotent(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetChatSettings
-// ---------------------------------------------------------------------------
-
 func TestGetChatSettings(t *testing.T) {
 	skipIfNoDb(t)
 
 	unknownChatID := time.Now().UnixNano()
 
-	// Unknown chat must return an empty struct
 	settings := GetChatSettings(unknownChatID)
 	if settings == nil {
 		t.Fatal("GetChatSettings() returned nil for unknown chat, want empty struct")
@@ -119,7 +107,6 @@ func TestGetChatSettings(t *testing.T) {
 		t.Errorf("GetChatSettings() ChatId = %d, want 0 for unknown chat", settings.ChatId)
 	}
 
-	// Known chat must return correct struct
 	chatID := unknownChatID + 1
 	chatName := fmt.Sprintf("settings-chat-%d", chatID)
 	userID := chatID + 100
@@ -150,10 +137,6 @@ func TestGetChatSettings(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// UpdateChat
-// ---------------------------------------------------------------------------
-
 func TestUpdateChat(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -165,7 +148,6 @@ func TestUpdateChat(t *testing.T) {
 
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}) })
 
-	// Create new chat
 	if err := UpdateChat(chatID, chatName, userID); err != nil {
 		t.Fatalf("initial UpdateChat() error = %v", err)
 	}
@@ -181,7 +163,6 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("chat users = %v, want to contain %d", chat.Users, userID)
 	}
 
-	// Update existing chat name
 	if err := UpdateChat(chatID, updatedName, userID); err != nil {
 		t.Fatalf("UpdateChat() with new name error = %v", err)
 	}
@@ -193,7 +174,6 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("chat name after update = %q, want %q", chat.ChatName, updatedName)
 	}
 
-	// Add another user
 	if err := UpdateChat(chatID, updatedName, userID2); err != nil {
 		t.Fatalf("UpdateChat() adding user2 error = %v", err)
 	}
@@ -282,10 +262,6 @@ func TestUpdateChatThrottlesActivityRefresh(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetAllChats
-// ---------------------------------------------------------------------------
-
 func TestGetAllChats(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -297,7 +273,6 @@ func TestGetAllChats(t *testing.T) {
 		db.DB.Where("chat_id IN ?", []int64{id1, id2}).Delete(&models.Chat{})
 	})
 
-	// Should be empty before creating chats
 	before := GetAllChats()
 	if _, exists := before[id1]; exists {
 		t.Errorf("GetAllChats() should not contain id %d before creation", id1)
@@ -330,10 +305,6 @@ func TestGetAllChats(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// ChatExists
-// ---------------------------------------------------------------------------
-
 func TestChatExists(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -358,14 +329,9 @@ func TestChatExists(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// LoadChatStats
-// ---------------------------------------------------------------------------
-
 func TestLoadChatStats(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Record baseline
 	baseActive, baseInactive := LoadChatStats()
 
 	chatIDActive := time.Now().UnixNano()
@@ -375,16 +341,13 @@ func TestLoadChatStats(t *testing.T) {
 		db.DB.Where("chat_id IN ?", []int64{chatIDActive, chatIDInactive}).Delete(&models.Chat{})
 	})
 
-	// Create an active chat
 	if err := EnsureChatInDb(chatIDActive, "active-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(active) error = %v", err)
 	}
-	// Ensure it is active (default is_inactive=false)
 	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatIDActive).Update("is_inactive", false).Error; err != nil {
 		t.Fatalf("failed to mark chat active: %v", err)
 	}
 
-	// Create an inactive chat
 	if err := EnsureChatInDb(chatIDInactive, "inactive-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(inactive) error = %v", err)
 	}
@@ -402,14 +365,9 @@ func TestLoadChatStats(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// LoadActivityStats
-// ---------------------------------------------------------------------------
-
 func TestLoadActivityStats(t *testing.T) {
 	skipIfNoDb(t)
 
-	// Record baseline
 	baseDag, baseWag, baseMag := LoadActivityStats()
 
 	now := time.Now()
@@ -422,7 +380,6 @@ func TestLoadActivityStats(t *testing.T) {
 		db.DB.Where("chat_id IN ?", []int64{chatIDDaily, chatIDWeekly, chatIDMonthly, chatIDOld}).Delete(&models.Chat{})
 	})
 
-	// Chat active within last 24 hours
 	if err := EnsureChatInDb(chatIDDaily, "daily-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(daily) error = %v", err)
 	}
@@ -433,7 +390,6 @@ func TestLoadActivityStats(t *testing.T) {
 		t.Fatalf("failed to set daily chat activity: %v", err)
 	}
 
-	// Chat active within last week but not last day
 	if err := EnsureChatInDb(chatIDWeekly, "weekly-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(weekly) error = %v", err)
 	}
@@ -444,7 +400,6 @@ func TestLoadActivityStats(t *testing.T) {
 		t.Fatalf("failed to set weekly chat activity: %v", err)
 	}
 
-	// Chat active within last month but not last week
 	if err := EnsureChatInDb(chatIDMonthly, "monthly-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(monthly) error = %v", err)
 	}
@@ -455,7 +410,6 @@ func TestLoadActivityStats(t *testing.T) {
 		t.Fatalf("failed to set monthly chat activity: %v", err)
 	}
 
-	// Chat older than a month (should not count in any bucket)
 	if err := EnsureChatInDb(chatIDOld, "old-chat"); err != nil {
 		t.Fatalf("EnsureChatInDb(old) error = %v", err)
 	}

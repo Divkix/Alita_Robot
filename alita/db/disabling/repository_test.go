@@ -126,7 +126,6 @@ func TestToggleDeleteEnabled_ZeroValueBoolean(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.DisableChatSettings{})
 	})
 
-	// Create the record first
 	if err := ToggleDel(chatID, true); err != nil {
 		t.Fatalf("ToggleDel(true) error = %v", err)
 	}
@@ -134,7 +133,6 @@ func TestToggleDeleteEnabled_ZeroValueBoolean(t *testing.T) {
 		t.Fatal("expected ShouldDel=true after ToggleDel(true)")
 	}
 
-	// Toggle back to false -- zero-value round-trip
 	if err := ToggleDel(chatID, false); err != nil {
 		t.Fatalf("ToggleDel(false) error = %v", err)
 	}
@@ -153,7 +151,6 @@ func TestDisableNonExistentCommand(t *testing.T) {
 		db.DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&models.DisableSettings{})
 	})
 
-	// Disabling a command that was never enabled should still succeed
 	if err := DisableCMD(chatID, cmd); err != nil {
 		t.Fatalf("DisableCMD() on nonexistent command error = %v", err)
 	}
@@ -198,7 +195,6 @@ func TestGetDisableSettings_Defaults(t *testing.T) {
 		db.DB.Where("chat_id = ?", chatID).Delete(&models.DisableChatSettings{})
 	})
 
-	// New chat should not have delete_commands enabled by default
 	if ShouldDel(chatID) {
 		t.Fatal("expected ShouldDel=false for new chat")
 	}
@@ -255,12 +251,10 @@ func TestDisableSameCommandTwice(t *testing.T) {
 		t.Fatalf("DisableCMD() second call error = %v", err)
 	}
 
-	// Verify the command is reported as disabled
 	if !IsCommandDisabled(chatID, cmd) {
 		t.Fatalf("IsCommandDisabled() = false after two DisableCMD calls, want true")
 	}
 
-	// Verify it appears exactly once in the list (no duplicate rows)
 	cmds := GetChatDisabledCMDs(chatID)
 	var count int
 	for _, c := range cmds {

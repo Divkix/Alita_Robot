@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetAntifloodSettings retrieves antiflood settings with minimal column selection.
-// Optimized for high-frequency calls (58K+ calls) and returns default settings if none exist.
 func GetAntifloodSettings(chatID int64) (*models.AntifloodSettings, error) {
 	if db.DB == nil {
 		return &models.AntifloodSettings{
@@ -42,8 +40,6 @@ func GetAntifloodSettings(chatID int64) (*models.AntifloodSettings, error) {
 	return &settings, nil
 }
 
-// GetAntifloodSettingsCached retrieves antiflood settings with caching layer for improved performance.
-// Uses cache.CacheTTLAntiflood TTL and falls back to direct query if cache fails.
 func GetAntifloodSettingsCached(chatID int64) (*models.AntifloodSettings, error) {
 	cacheKey := cache.CacheKey("antiflood", chatID)
 

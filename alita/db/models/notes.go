@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// NotesSettings represents notes settings for a chat
 type NotesSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id,omitempty"`
@@ -11,7 +10,6 @@ type NotesSettings struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
-// PrivateNotesEnabled returns whether private notes are enabled for the chat.
 func (ns *NotesSettings) PrivateNotesEnabled() bool {
 	return ns.Private
 }
@@ -20,7 +18,6 @@ func (NotesSettings) TableName() string {
 	return "notes_settings"
 }
 
-// Notes represents notes in a chat
 type Notes struct {
 	ID          uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId      int64       `gorm:"column:chat_id;not null;uniqueIndex:uk_notes_chat_name" json:"chat_id,omitempty"`

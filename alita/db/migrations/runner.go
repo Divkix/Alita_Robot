@@ -19,25 +19,21 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-// MigrationRunner handles automatic database migrations
 type MigrationRunner struct {
 	db             *gorm.DB
 	migrationsPath string
 }
 
-// SchemaMigration represents a migration record in the database
 type SchemaMigration struct {
 	Version    string    `gorm:"primaryKey;column:version"`
 	ExecutedAt time.Time `gorm:"column:executed_at"`
 	Checksum   string    `gorm:"column:checksum"`
 }
 
-// TableName returns the table name for schema migrations
 func (SchemaMigration) TableName() string {
 	return "schema_migrations"
 }
 
-// NewMigrationRunner creates a new migration runner instance
 func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 	return &MigrationRunner{
 		db:             db,
@@ -45,16 +41,13 @@ func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 	}
 }
 
-// RunMigrations executes all pending database migrations
 func (m *MigrationRunner) RunMigrations() error {
 	log.Info("[Migrations] Starting automatic database migration...")
 
-	// Ensure migrations table exists
 	if err := m.ensureMigrationsTable(); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
-	// Get migration files
 	files, err := m.getMigrationFiles()
 	if err != nil {
 		return fmt.Errorf("failed to get migration files: %w", err)
@@ -67,8 +60,6 @@ func (m *MigrationRunner) RunMigrations() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
-	// Fast path: skip ~2N per-file status queries when every migration file
-	// already has an applied record (count matches file count).
 	var appliedCount int64
 	if err := m.db.Model(&SchemaMigration{}).Count(&appliedCount).Error; err != nil {
 		return fmt.Errorf("failed to count applied migrations: %w", err)
@@ -79,11 +70,9 @@ func (m *MigrationRunner) RunMigrations() error {
 		return nil
 	}
 
-	// Track statistics
 	applied := 0
 	skipped := 0
 
-	// Apply each migration
 	for _, file := range files {
 		version := filepath.Base(file)
 
@@ -94,7 +83,6 @@ func (m *MigrationRunner) RunMigrations() error {
 			return fmt.Errorf("failed to read migration file %s: %w", version, err)
 		}
 
-		// Check if already applied
 		isApplied, err := m.isMigrationApplied(version)
 		if err != nil {
 			return fmt.Errorf("failed to check migration %s status: %w", version, err)
@@ -109,29 +97,22 @@ func (m *MigrationRunner) RunMigrations() error {
 			continue
 		}
 
-		// Apply migration
 		log.Infof("[Migrations] Applying %s...", version)
 		if err := m.applyMigration(file, version); err != nil {
-			// Note: We return immediately on failure, so failed count would always be 1
-			// Keeping for potential future use where we might continue on certain errors
 			return fmt.Errorf("failed to apply migration %s: %w", version, err)
 		}
 		applied++
 		log.Infof("[Migrations] Successfully applied %s", version)
 	}
 
-	// Log summary
 	log.Infof("[Migrations] Migration complete - Applied: %d, Skipped: %d",
 		applied, skipped)
 
-	// Log current migration status
 	m.logMigrationStatus()
 
-	// Verify indexes after successful migrations
 	if applied > 0 {
 		if err := m.verifyIndexes(); err != nil {
 			log.Warnf("[Migrations] Index verification failed: %v", err)
-			// Don't fail the migration, just warn
 		}
 	}
 
@@ -157,14 +138,11 @@ func (m *MigrationRunner) ensureMigrationsTable() error {
 	return m.db.Exec(alterSQL).Error
 }
 
-// getMigrationFiles returns a sorted list of migration SQL files
 func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
-	// Check if migrations path exists
 	if _, err := os.Stat(m.migrationsPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("migrations path does not exist: %s", m.migrationsPath)
 	}
 
-	// Find all SQL files
 	pattern := filepath.Join(m.migrationsPath, "*.sql")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -175,12 +153,10 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 		return strings.HasSuffix(filepath.Base(file), ".rollback.sql")
 	})
 
-	// Sort files to ensure consistent order
 	slices.Sort(files)
 	return files, nil
 }
 
-// isMigrationApplied checks if a migration version has already been applied
 func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {
 	var count int64
 	if err := m.db.Model(&SchemaMigration{}).Where("version = ?", version).Count(&count).Error; err != nil {
@@ -189,8 +165,6 @@ func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {
 	return count > 0, nil
 }
 
-// getMigrationRecord fetches the stored migration record for the given version.
-// Returns nil if the version is not found.
 func (m *MigrationRunner) getMigrationRecord(version string) (*SchemaMigration, error) {
 	var rec SchemaMigration
 	if err := m.db.Where("version = ?", version).First(&rec).Error; err != nil {
@@ -244,15 +218,7 @@ func (m *MigrationRunner) verifyMigrationChecksum(version string, content []byte
 	return nil
 }
 
-// splitSQLStatements splits a SQL string into individual statements
-// It handles various edge cases including:
-// - Quoted strings (single quotes, double quotes)
-// - Dollar-quoted strings (PostgreSQL specific)
-// - Comments (single-line and multi-line)
-// - Semicolons inside strings
 func (m *MigrationRunner) splitSQLStatements(sql string) []string {
-	// NOTE: This function shares the same SQL tokenization logic with findDollarQuoteBlocks.
-	// If you modify the parsing rules here, update findDollarQuoteBlocks as well to stay consistent.
 	var statements []string
 	var currentStmt strings.Builder
 
@@ -273,7 +239,6 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			nextChar = runes[i+1]
 		}
 
-		// Handle line comments
 		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inBlockComment {
 			if char == '-' && nextChar == '-' {
 				inLineComment = true
@@ -290,7 +255,6 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			continue
 		}
 
-		// Handle block comments
 		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inLineComment {
 			if char == '/' && nextChar == '*' {
 				inBlockComment = true
@@ -309,10 +273,8 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			continue
 		}
 
-		// Handle dollar quotes (PostgreSQL)
 		if !inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment {
 			if char == '$' {
-				// Check if this is the start or end of a dollar quote
 				tagEnd := i + 1
 				for tagEnd < length && (runes[tagEnd] != '$' && runes[tagEnd] != ' ' && runes[tagEnd] != '\n' && runes[tagEnd] != ';') {
 					tagEnd++
@@ -321,18 +283,15 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 				if tagEnd < length && runes[tagEnd] == '$' {
 					tag := string(runes[i : tagEnd+1])
 					if inDollarQuote {
-						// Check if this closes the current dollar quote
 						if tag == dollarQuoteTag {
 							inDollarQuote = false
 							dollarQuoteTag = ""
 						}
 					} else {
-						// Start a new dollar quote
 						inDollarQuote = true
 						dollarQuoteTag = tag
 					}
 
-					// Add the entire tag to the current statement
 					for j := i; j <= tagEnd; j++ {
 						currentStmt.WriteRune(runes[j])
 					}
@@ -342,10 +301,8 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			}
 		}
 
-		// Handle single quotes
 		if !inDoubleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
 			if char == '\'' {
-				// Check for escaped single quote
 				if i+1 < length && runes[i+1] == '\'' {
 					currentStmt.WriteRune(char)
 					currentStmt.WriteRune(runes[i+1])
@@ -356,10 +313,8 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			}
 		}
 
-		// Handle double quotes
 		if !inSingleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
 			if char == '"' {
-				// Check for escaped double quote
 				if i+1 < length && runes[i+1] == '"' {
 					currentStmt.WriteRune(char)
 					currentStmt.WriteRune(runes[i+1])
@@ -370,9 +325,7 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 			}
 		}
 
-		// Handle semicolons (statement separator)
 		if char == ';' && !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
-			// End of statement
 			stmt := strings.TrimSpace(currentStmt.String())
 			if stmt != "" {
 				statements = append(statements, stmt)
@@ -383,7 +336,6 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 		}
 	}
 
-	// Add any remaining statement
 	if currentStmt.Len() > 0 {
 		stmt := strings.TrimSpace(currentStmt.String())
 		if stmt != "" {
@@ -394,9 +346,6 @@ func (m *MigrationRunner) splitSQLStatements(sql string) []string {
 	return statements
 }
 
-// isTransactionControlStatement reports whether stmt is a top-level transaction
-// boundary. Migration files may contain their own BEGIN/COMMIT pairs, but the
-// runner owns the transaction so those boundaries must not be executed.
 func isTransactionControlStatement(stmt string) bool {
 	stmt = strings.TrimSpace(stmt)
 	for {
@@ -428,30 +377,23 @@ func isTransactionControlStatement(stmt string) bool {
 	}
 }
 
-// applyMigration reads, cleans, and applies a single migration file
 func (m *MigrationRunner) applyMigration(filepath, version string) error {
-	// Validate that the file path is within the migrations directory to prevent path traversal
 	if !strings.HasPrefix(filepath, m.migrationsPath) {
 		return fmt.Errorf("invalid migration file path: %s", filepath)
 	}
 
-	// Additional validation: ensure the path doesn't contain suspicious patterns
 	cleanPath := path.Clean(filepath)
 	if cleanPath != filepath || strings.Contains(filepath, "..") {
 		return fmt.Errorf("potentially unsafe migration file path: %s", filepath)
 	}
 
-	// Read migration file
 	content, err := os.ReadFile(filepath) // #nosec G304 - path validation performed above
 	if err != nil {
 		return fmt.Errorf("failed to read migration file: %w", err)
 	}
 
-	// Clean Supabase-specific SQL before splitting statements.
 	sql := cleanSupabaseSQL(string(content))
 
-	// Split SQL into individual statements. The runner owns one transaction per
-	// file, so discard transaction boundaries embedded in legacy migrations.
 	statements := m.splitSQLStatements(sql)
 	statements = slices.DeleteFunc(statements, isTransactionControlStatement)
 	if len(statements) == 0 {
@@ -461,30 +403,24 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 
 	log.Debugf("[Migrations] Migration %s contains %d statements", version, len(statements))
 
-	// Begin transaction for atomicity
 	tx := m.db.Begin()
 	if tx.Error != nil {
 		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
 	}
 
-	// Apply each statement individually
 	for i, stmt := range statements {
-		// Skip empty statements
 		if strings.TrimSpace(stmt) == "" {
 			continue
 		}
 
-		// Log progress for large migrations
 		if len(statements) > 50 && i%50 == 0 {
 			log.Debugf("[Migrations] Progress: %d/%d statements executed", i, len(statements))
 		}
 
-		// Execute the statement
 		if err := tx.Exec(stmt).Error; err != nil {
 			if rollbackErr := tx.Rollback().Error; rollbackErr != nil {
 				log.Errorf("[Migrations] Failed to rollback transaction: %v", rollbackErr)
 			}
-			// Include statement preview in error for debugging
 			preview := stmt
 			if len(preview) > 100 {
 				preview = preview[:100] + "..."
@@ -501,7 +437,6 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 	sum := sha256.Sum256(content)
 	checksum := hex.EncodeToString(sum[:])
 
-	// Record migration
 	migration := SchemaMigration{
 		Version:    version,
 		ExecutedAt: time.Now().UTC(),
@@ -514,7 +449,6 @@ func (m *MigrationRunner) applyMigration(filepath, version string) error {
 		return fmt.Errorf("failed to record migration: %w", err)
 	}
 
-	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -527,36 +461,26 @@ func cleanSupabaseSQL(sql string) string {
 	// List of Supabase-specific extensions that are not available in standard PostgreSQL
 	// These extensions are pre-installed in Supabase but will fail on regular PostgreSQL
 	supabaseOnlyExtensions := []string{
-		"hypopg",          // Hypothetical indexes extension
-		"index_advisor",   // Index advisor that depends on hypopg
-		"pg_graphql",      // GraphQL extension
-		"pg_stat_monitor", // Enhanced monitoring (Supabase specific build)
-		"pgaudit",         // Audit logging (may not be available)
-		"plv8",            // JavaScript language (rarely available)
-		"pgsodium",        // Encryption extension (Supabase specific)
-		"vault",           // Secrets management (Supabase specific)
-		"wrappers",        // Foreign data wrappers (Supabase specific)
+		"hypopg",
+		"index_advisor",
+		"pg_graphql",
+		"pg_stat_monitor",
+		"pgaudit",
+		"plv8",
+		"pgsodium",
+		"vault",
+		"wrappers",
 	}
 
-	// Pattern to match GRANT statements for Supabase roles (now handles quotes properly)
 	grantPattern := regexp.MustCompile(`(?i)grant\s+[^;]+\s+to\s+[\"']?(anon|authenticated|service_role)[\"']?\s*;`)
 
-	// Pattern to match policy creation for Supabase roles
 	policyPattern := regexp.MustCompile(`(?i)create\s+policy\s+[^;]+\s+to\s+[\"']?(anon|authenticated|service_role)[\"']?\s*;`)
 
-	// Clean the SQL
 	cleaned := sql
 
-	// === IDEMPOTENCY TRANSFORMATIONS ===
-	// Make DDL statements idempotent to handle re-running migrations on existing databases
-
-	// Make CREATE TABLE idempotent (handles optional schema prefix)
-	// Matches: CREATE TABLE [IF NOT EXISTS] ["schema".]"table" or CREATE TABLE [IF NOT EXISTS] schema.table
 	createTablePattern := regexp.MustCompile(`(?i)create\s+table\s+(?:if\s+not\s+exists\s+)?`)
 	cleaned = createTablePattern.ReplaceAllString(cleaned, "CREATE TABLE IF NOT EXISTS ")
 
-	// Make CREATE INDEX idempotent
-	// Handles: CREATE INDEX, CREATE UNIQUE INDEX, CREATE INDEX CONCURRENTLY
 	createIndexPattern := regexp.MustCompile(`(?i)create\s+(unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?`)
 	cleaned = createIndexPattern.ReplaceAllStringFunc(cleaned, func(match string) string {
 		hasUnique := regexp.MustCompile(`(?i)unique`).MatchString(match)
@@ -610,7 +534,6 @@ END $$;`, typeName, enumValues)
 			matchStart := matchIdx[0]
 			matchEnd := matchIdx[1]
 
-			// Check if this match falls inside any dollar-quoted block.
 			insideBlock := false
 			for _, block := range dollarBlocks {
 				if matchStart >= block.start && matchEnd <= block.end {
@@ -619,14 +542,11 @@ END $$;`, typeName, enumValues)
 				}
 			}
 
-			// Copy text before this match.
 			result.WriteString(cleaned[lastEnd:matchStart])
 
 			if insideBlock {
-				// Already inside a DO/dollar-quoted block — leave unchanged.
 				result.WriteString(cleaned[matchStart:matchEnd])
 			} else {
-				// Wrap in a new DO block for idempotency.
 				submatches := addConstraintPattern.FindStringSubmatch(cleaned[matchStart:matchEnd])
 				if len(submatches) >= 4 {
 					tableName := submatches[1]
@@ -660,19 +580,13 @@ END;`)
 
 	log.Debugf("[Migrations] SQL cleaning: Applied idempotency transformations")
 
-	// === SUPABASE-SPECIFIC CLEANUP ===
-
-	// Remove GRANT statements (handles both quoted and unquoted role names)
 	cleaned = grantPattern.ReplaceAllString(cleaned, "")
 
-	// Remove policy statements
 	cleaned = policyPattern.ReplaceAllString(cleaned, "")
 
-	// Remove "with schema extensions" clauses
 	cleaned = strings.ReplaceAll(cleaned, ` with schema "extensions"`, "")
 	cleaned = strings.ReplaceAll(cleaned, ` WITH SCHEMA "extensions"`, "")
 
-	// Process line by line to handle CREATE EXTENSION statements
 	lines := strings.Split(cleaned, "\n")
 	var processedLines []string
 	removedExtensions := []string{}
@@ -680,7 +594,6 @@ END;`)
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Check if this line creates a Supabase-specific extension
 		isSupabaseExtension := false
 		extensionPattern := regexp.MustCompile(`(?i)create\s+extension\s+(?:if\s+not\s+exists\s+)?[\"']?(\w+)[\"']?`)
 		if matches := extensionPattern.FindStringSubmatch(trimmedLine); len(matches) > 1 {
@@ -696,17 +609,13 @@ END;`)
 			}
 		}
 
-		// If it's not a Supabase-specific extension, process normally
 		if !isSupabaseExtension {
-			// Make other CREATE EXTENSION statements idempotent
 			hasIfNotExistsPattern := regexp.MustCompile(`(?i)create\s+extension\s+if\s+not\s+exists\s+`)
 			noIfNotExistsPattern := regexp.MustCompile(`(?i)create\s+extension\s+`)
 
 			if hasIfNotExistsPattern.MatchString(line) {
-				// Already has IF NOT EXISTS, just normalize to uppercase
 				line = hasIfNotExistsPattern.ReplaceAllString(line, "CREATE EXTENSION IF NOT EXISTS ")
 			} else if noIfNotExistsPattern.MatchString(line) {
-				// Doesn't have IF NOT EXISTS, add it
 				line = noIfNotExistsPattern.ReplaceAllString(line, "CREATE EXTENSION IF NOT EXISTS ")
 			}
 
@@ -714,7 +623,6 @@ END;`)
 		}
 	}
 
-	// Log removed extensions if any
 	if len(removedExtensions) > 0 {
 		log.Debugf("[Migrations] Removed %d Supabase-specific extensions: %v",
 			len(removedExtensions), removedExtensions)
@@ -722,12 +630,11 @@ END;`)
 
 	cleaned = strings.Join(processedLines, "\n")
 
-	// Remove empty lines created by cleaning (but keep comments)
 	lines = strings.Split(cleaned, "\n")
 	var nonEmptyLines []string
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed != "" || strings.Contains(line, "--") { // Keep comments and non-empty lines
+		if trimmed != "" || strings.Contains(line, "--") {
 			nonEmptyLines = append(nonEmptyLines, line)
 		}
 	}
@@ -735,7 +642,6 @@ END;`)
 	return strings.Join(nonEmptyLines, "\n")
 }
 
-// dqBlock represents a dollar-quoted block boundary in a SQL string.
 type dqBlock struct {
 	start int // byte offset of opening $tag$
 	end   int // byte offset of closing $tag$ (inclusive of closing $)
@@ -747,8 +653,6 @@ type dqBlock struct {
 //
 //nolint:gocyclo // State machine parser with many states - complexity is inherent
 func findDollarQuoteBlocks(sql string) []dqBlock {
-	// NOTE: This function shares the same SQL tokenization logic with splitSQLStatements.
-	// If you modify the parsing rules here, update splitSQLStatements as well to stay consistent.
 	var blocks []dqBlock
 	runes := []rune(sql)
 	length := len(runes)
@@ -768,7 +672,6 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 			nextChar = runes[i+1]
 		}
 
-		// Handle line comments
 		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inBlockComment {
 			if char == '-' && nextChar == '-' {
 				inLineComment = true
@@ -783,11 +686,10 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 			continue
 		}
 
-		// Handle block comments
 		if !inSingleQuote && !inDoubleQuote && !inDollarQuote && !inLineComment {
 			if char == '/' && nextChar == '*' {
 				inBlockComment = true
-				i++ // skip the '*'
+				i++
 				continue
 			}
 		}
@@ -795,12 +697,11 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 		if inBlockComment {
 			if char == '*' && nextChar == '/' {
 				inBlockComment = false
-				i++ // skip the '/'
+				i++
 			}
 			continue
 		}
 
-		// Handle dollar quotes
 		if !inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment {
 			if char == '$' {
 				tagEnd := i + 1
@@ -830,22 +731,20 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 			}
 		}
 
-		// Handle single quotes
 		if !inDoubleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
 			if char == '\'' {
 				if i+1 < length && runes[i+1] == '\'' {
-					i++ // skip escaped quote
+					i++
 				} else {
 					inSingleQuote = !inSingleQuote
 				}
 			}
 		}
 
-		// Handle double quotes
 		if !inSingleQuote && !inDollarQuote && !inLineComment && !inBlockComment {
 			if char == '"' {
 				if i+1 < length && runes[i+1] == '"' {
-					i++ // skip escaped quote
+					i++
 				} else {
 					inDoubleQuote = !inDoubleQuote
 				}
@@ -862,7 +761,6 @@ func findDollarQuoteBlocks(sql string) []dqBlock {
 	return blocks
 }
 
-// logMigrationStatus logs the current migration status
 func (m *MigrationRunner) logMigrationStatus() {
 	var migrations []SchemaMigration
 	m.db.Order("executed_at DESC").Limit(5).Find(&migrations)
@@ -874,17 +772,14 @@ func (m *MigrationRunner) logMigrationStatus() {
 		}
 	}
 
-	// Count total migrations
 	var count int64
 	m.db.Model(&SchemaMigration{}).Count(&count)
 	log.Infof("[Migrations] Total migrations applied: %d", count)
 }
 
-// verifyIndexes checks that expected composite indexes are created
 func (m *MigrationRunner) verifyIndexes() error {
 	log.Info("[Migrations] Verifying database indexes...")
 
-	// Define expected indexes (table -> index_name -> columns)
 	// Note: Some indexes were intentionally dropped as unused - see migration history:
 	// - idx_users_user_id → replaced by uk_users_user_id (unique constraint)
 	// - idx_chats_chat_id → replaced by uk_chats_chat_id (unique constraint)
@@ -914,7 +809,6 @@ func (m *MigrationRunner) verifyIndexes() error {
 	missing := 0
 
 	for tableName, tableIndexes := range expectedIndexes {
-		// Check if table exists first
 		var tableExists bool
 		err := m.db.Raw(`
 			SELECT EXISTS (
@@ -934,7 +828,6 @@ func (m *MigrationRunner) verifyIndexes() error {
 		}
 
 		for indexName, expectedColumns := range tableIndexes {
-			// Check if index exists and has correct columns
 			type IndexInfo struct {
 				IndexName       string
 				ColumnName      string
@@ -974,13 +867,11 @@ func (m *MigrationRunner) verifyIndexes() error {
 				continue
 			}
 
-			// Verify columns match
 			actualColumns := make([]string, len(indexColumns))
 			for i, col := range indexColumns {
 				actualColumns[i] = col.ColumnName
 			}
 
-			// Compare expected vs actual columns
 			if len(expectedColumns) != len(actualColumns) {
 				log.Warnf("[Migrations] Index %s on table %s has wrong number of columns: expected %v, got %v",
 					indexName, tableName, expectedColumns, actualColumns)

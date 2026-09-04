@@ -12,8 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// defaultAntiRaidSettings returns default settings for a chat when no record exists.
-// Raid time: 6h (21600s), action time: 1h (3600s), auto threshold: 0 (disabled).
 func defaultAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	return &models.AntiRaidSettings{
 		ChatID:                chatID,
@@ -23,8 +21,6 @@ func defaultAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	}
 }
 
-// GetAntiRaidSettings retrieves anti-raid settings for a chat.
-// Returns defaults if no record exists.
 func GetAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	settings, err := GetAntiRaidSettingsCached(chatID)
 	if err != nil {
@@ -37,8 +33,6 @@ func GetAntiRaidSettings(chatID int64) *models.AntiRaidSettings {
 	return settings
 }
 
-// upsertChatField upserts the given column updates for a chat's anti-raid settings
-// and invalidates the antiraid cache. Callers handle any validation guards.
 func upsertChatField(chatID int64, updates map[string]any) error {
 	if err := db.DB.Where("chat_id = ?", chatID).
 		Assign(updates).
@@ -50,7 +44,6 @@ func upsertChatField(chatID int64, updates map[string]any) error {
 	return nil
 }
 
-// SetRaidTime sets the raid duration (in seconds) for a chat.
 func SetRaidTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid time must be non-negative, got %d", seconds)
@@ -66,7 +59,6 @@ func SetRaidTime(chatID int64, seconds int) error {
 	return upsertChatField(chatID, updates)
 }
 
-// SetRaidActionTime sets the ban/restriction duration during a raid (in seconds).
 func SetRaidActionTime(chatID int64, seconds int) error {
 	if seconds < 0 {
 		return fmt.Errorf("raid action time must be non-negative, got %d", seconds)
@@ -82,8 +74,6 @@ func SetRaidActionTime(chatID int64, seconds int) error {
 	return upsertChatField(chatID, updates)
 }
 
-// SetAutoAntiRaidThreshold sets the auto-trigger join-rate threshold.
-// 0 disables auto-trigger.
 func SetAutoAntiRaidThreshold(chatID int64, threshold int) error {
 	if threshold < 0 {
 		return fmt.Errorf("threshold must be non-negative, got %d", threshold)

@@ -22,14 +22,12 @@ func TestGetChatLocksOptimized(t *testing.T) {
 		}
 	})
 
-	// Insert 3 locks
 	for _, lt := range lockTypes {
 		if err := db.DB.Create(&models.LockSettings{ChatId: chatID, LockType: lt, Locked: true}).Error; err != nil {
 			t.Fatalf("DB.Create() lock %q error = %v", lt, err)
 		}
 	}
 
-	// Get all locks for chatID -> map with 3 entries
 	result, err := GetChatLocksOptimized(chatID)
 	if err != nil {
 		t.Fatalf("GetChatLocksOptimized() error = %v", err)
@@ -43,7 +41,6 @@ func TestGetChatLocksOptimized(t *testing.T) {
 		}
 	}
 
-	// Different chatID -> empty map
 	differentChatID := chatID + 1
 	emptyResult, err := GetChatLocksOptimized(differentChatID)
 	if err != nil {

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// User represents a user in the system
 type User struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId       int64     `gorm:"column:user_id;uniqueIndex;not null" json:"_id,omitempty"`
@@ -12,15 +11,12 @@ type User struct {
 	LastActivity time.Time `gorm:"column:last_activity" json:"last_activity,omitempty"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
-
-	// Note: Chat membership is managed via JSONB users field in chats table
 }
 
 func (User) TableName() string {
 	return "users"
 }
 
-// Chat represents a chat/group in the system
 type Chat struct {
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId       int64      `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
@@ -31,8 +27,6 @@ type Chat struct {
 	LastActivity time.Time  `gorm:"column:last_activity" json:"last_activity,omitempty"`
 	CreatedAt    time.Time  `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at" json:"updated_at,omitempty"`
-
-	// Note: User membership is managed via JSONB users field
 }
 
 func (Chat) TableName() string {

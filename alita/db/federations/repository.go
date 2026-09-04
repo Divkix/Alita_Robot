@@ -69,8 +69,6 @@ func trimFedName(name string) string {
 	return name
 }
 
-// CreateFederation creates a federation owned by userID. One federation per
-// owner. The name is trimmed to 64 characters.
 func CreateFederation(ownerID int64, name string) (*models.Federation, error) {
 	name = trimFedName(name)
 	if name == "" {
@@ -97,7 +95,6 @@ func CreateFederation(ownerID int64, name string) (*models.Federation, error) {
 	return fed, nil
 }
 
-// RenameFederation updates the owner's federation name.
 func RenameFederation(ownerID int64, name string) (*models.Federation, error) {
 	name = trimFedName(name)
 	if name == "" {
@@ -121,7 +118,6 @@ func RenameFederation(ownerID int64, name string) (*models.Federation, error) {
 	return fed, nil
 }
 
-// DeleteFederation removes a federation and all related rows.
 func DeleteFederation(fedID string) error {
 	fedID = strings.TrimSpace(fedID)
 	if fedID == "" {
@@ -131,8 +127,6 @@ func DeleteFederation(fedID string) error {
 	var bans []models.FederationBan
 	var subscribers []models.FederationSub
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		// Lock the federation row so concurrent JoinFed/Fban/SubscribeFed cannot
-		// commit children that the later DELETE would remove without invalidation.
 		var fed models.Federation
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("fed_id = ?", fedID).
@@ -183,7 +177,6 @@ func DeleteFederation(fedID string) error {
 	return nil
 }
 
-// GetFed returns a federation by FedID.
 func GetFed(fedID string) *models.Federation {
 	fedID = strings.TrimSpace(fedID)
 	if fedID == "" {
@@ -206,7 +199,6 @@ func GetFed(fedID string) *models.Federation {
 	return &result
 }
 
-// GetFedByOwner returns the federation owned by userID, if any.
 func GetFedByOwner(ownerID int64) *models.Federation {
 	var fed models.Federation
 	err := db.GetRecord(&fed, models.Federation{OwnerID: ownerID})
@@ -219,7 +211,6 @@ func GetFedByOwner(ownerID int64) *models.Federation {
 	return &fed
 }
 
-// GetChatFed returns the federation membership for a chat.
 func GetChatFed(chatID int64) *models.FederationChat {
 	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefixFedChat, chatID), cache.CacheTTLFederation, func() (models.FederationChat, error) {
 		var row models.FederationChat
@@ -242,7 +233,6 @@ func GetChatFed(chatID int64) *models.FederationChat {
 	return &result
 }
 
-// JoinFed attaches a chat to a federation. A chat can only belong to one fed.
 func JoinFed(chatID int64, chatName, fedID string) error {
 	fed := GetFed(fedID)
 	if fed == nil {
@@ -267,7 +257,6 @@ func JoinFed(chatID int64, chatName, fedID string) error {
 	return nil
 }
 
-// LeaveFed removes a chat from its federation.
 func LeaveFed(chatID int64) error {
 	existing := GetChatFed(chatID)
 	if existing == nil {
@@ -282,7 +271,6 @@ func LeaveFed(chatID int64) error {
 	return nil
 }
 
-// SetQuietFed toggles the per-chat quietfed announcement setting.
 func SetQuietFed(chatID int64, quiet bool) error {
 	existing := GetChatFed(chatID)
 	if existing == nil {
@@ -301,7 +289,6 @@ func SetQuietFed(chatID int64, quiet bool) error {
 	return nil
 }
 
-// ListFedChatIDs returns every chat currently joined to a federation.
 func ListFedChatIDs(fedID string) ([]int64, error) {
 	var rows []models.FederationChat
 	if err := db.GetRecords(&rows, models.FederationChat{FedID: fedID}); err != nil {
@@ -315,7 +302,6 @@ func ListFedChatIDs(fedID string) ([]int64, error) {
 	return ids, nil
 }
 
-// CountFedChats returns the number of chats joined to a federation.
 func CountFedChats(fedID string) int {
 	var count int64
 	if err := db.DB.Model(&models.FederationChat{}).Where("fed_id = ?", fedID).Count(&count).Error; err != nil {
@@ -325,7 +311,6 @@ func CountFedChats(fedID string) int {
 	return int(count)
 }
 
-// CountFedBans returns the number of bans in a federation.
 func CountFedBans(fedID string) int {
 	var count int64
 	if err := db.DB.Model(&models.FederationBan{}).Where("fed_id = ?", fedID).Count(&count).Error; err != nil {
@@ -344,9 +329,6 @@ func countModel(model any, op string) int64 {
 	return count
 }
 
-// LoadFederationStats returns bot-wide federation totals for /stats.
-// Counts match the per-fed numbers already used by /fedinfo:
-// federations, joined chats, promoted admins, bans, and subscriptions.
 func LoadFederationStats() (feds, chats, admins, bans, subs int64) {
 	feds = countModel(&models.Federation{}, "LoadFederationStats (feds)")
 	chats = countModel(&models.FederationChat{}, "LoadFederationStats (chats)")
@@ -356,13 +338,11 @@ func LoadFederationStats() (feds, chats, admins, bans, subs int64) {
 	return
 }
 
-// IsFedOwner reports whether userID owns the federation.
 func IsFedOwner(fedID string, userID int64) bool {
 	fed := GetFed(fedID)
 	return fed != nil && fed.OwnerID == userID
 }
 
-// IsFedAdmin reports whether userID is the owner or a promoted admin.
 func IsFedAdmin(fedID string, userID int64) bool {
 	if IsFedOwner(fedID, userID) {
 		return true
@@ -375,8 +355,6 @@ func IsFedAdmin(fedID string, userID int64) bool {
 	return false
 }
 
-// listCachedColumn loads rows matching filter through the read-through cache
-// and returns the values selected by pick.
 func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick func(Row) ID) []ID {
 	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLFederation, func() ([]ID, error) {
 		var rows []Row
@@ -396,7 +374,6 @@ func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick fun
 	return result
 }
 
-// ListFedAdmins returns promoted admin user IDs (not including the owner).
 func ListFedAdmins(fedID string) []int64 {
 	return listCachedColumn(
 		cache.CacheKey(cachePrefixFedAdmin, fedID),
@@ -406,7 +383,6 @@ func ListFedAdmins(fedID string) []int64 {
 	)
 }
 
-// PromoteFedAdmin adds a federation admin. Only the owner should call this.
 func PromoteFedAdmin(fedID string, userID int64) error {
 	if IsFedOwner(fedID, userID) {
 		return ErrOwnerIsAdmin
@@ -429,7 +405,6 @@ func PromoteFedAdmin(fedID string, userID int64) error {
 	return nil
 }
 
-// DemoteFedAdmin removes a federation admin.
 func DemoteFedAdmin(fedID string, userID int64) error {
 	result := db.DB.Where("fed_id = ? AND user_id = ?", fedID, userID).Delete(&models.FederationAdmin{})
 	if result.Error != nil {
@@ -443,7 +418,6 @@ func DemoteFedAdmin(fedID string, userID int64) error {
 	return nil
 }
 
-// ListFedsForAdmin returns federations the user owns or is an admin of.
 func ListFedsForAdmin(userID int64) []models.Federation {
 	var owned []models.Federation
 	if err := db.GetRecords(&owned, models.Federation{OwnerID: userID}); err != nil {
@@ -487,22 +461,18 @@ func updateFedField(fedID string, fields map[string]any) error {
 	return nil
 }
 
-// SetRequireReason toggles the fedreason enforcement flag.
 func SetRequireReason(fedID string, required bool) error {
 	return updateFedField(fedID, map[string]any{"require_reason": required})
 }
 
-// SetNotifyOwner toggles owner PM notifications.
 func SetNotifyOwner(fedID string, notify bool) error {
 	return updateFedField(fedID, map[string]any{"notify_owner": notify})
 }
 
-// SetFedLogChat stores the federation log destination. Zero clears it.
 func SetFedLogChat(fedID string, logChatID int64) error {
 	return updateFedField(fedID, map[string]any{"log_chat_id": logChatID})
 }
 
-// Fban upserts a federation ban.
 func Fban(fedID string, userID, bannedBy int64, reason string) (*models.FederationBan, bool, error) {
 	if GetFed(fedID) == nil {
 		return nil, false, gorm.ErrRecordNotFound
@@ -531,7 +501,6 @@ func Fban(fedID string, userID, bannedBy int64, reason string) (*models.Federati
 	return &row, created, nil
 }
 
-// Unfban removes a federation ban.
 func Unfban(fedID string, userID int64) error {
 	result := db.DB.Where("fed_id = ? AND user_id = ?", fedID, userID).Delete(&models.FederationBan{})
 	if result.Error != nil {
@@ -545,7 +514,6 @@ func Unfban(fedID string, userID int64) error {
 	return nil
 }
 
-// GetFedBan returns a ban in a specific federation.
 func GetFedBan(fedID string, userID int64) *models.FederationBan {
 	result, err := cache.GetFromCacheOrLoad(
 		cache.CacheKey(cachePrefixFedBan, fedID, userID),
@@ -572,8 +540,6 @@ func GetFedBan(fedID string, userID int64) *models.FederationBan {
 	return &result
 }
 
-// FindBanInFedTree checks the federation and its subscriptions for a ban.
-// The returned string is the fed that actually holds the ban.
 func FindBanInFedTree(fedID string, userID int64) (*models.FederationBan, string) {
 	if ban := GetFedBan(fedID, userID); ban != nil {
 		return ban, fedID
@@ -586,7 +552,6 @@ func FindBanInFedTree(fedID string, userID int64) (*models.FederationBan, string
 	return nil, ""
 }
 
-// ListFedBans returns every ban in a federation.
 func ListFedBans(fedID string) ([]models.FederationBan, error) {
 	var rows []models.FederationBan
 	if err := db.GetRecords(&rows, models.FederationBan{FedID: fedID}); err != nil {
@@ -596,7 +561,6 @@ func ListFedBans(fedID string) ([]models.FederationBan, error) {
 	return rows, nil
 }
 
-// ListUserFedBans returns every federation ban targeting userID.
 func ListUserFedBans(userID int64) ([]models.FederationBan, error) {
 	var rows []models.FederationBan
 	if err := db.GetRecords(&rows, models.FederationBan{UserID: userID}); err != nil {
@@ -606,7 +570,6 @@ func ListUserFedBans(userID int64) ([]models.FederationBan, error) {
 	return rows, nil
 }
 
-// SubscribeFed subscribes subscriberFedID to targetFedID. Cap is 5.
 func SubscribeFed(subscriberFedID, targetFedID string) error {
 	if subscriberFedID == targetFedID {
 		return ErrSubSelf
@@ -635,7 +598,6 @@ func SubscribeFed(subscriberFedID, targetFedID string) error {
 	return nil
 }
 
-// UnsubscribeFed removes a subscription.
 func UnsubscribeFed(subscriberFedID, targetFedID string) error {
 	result := db.DB.Where("fed_id = ? AND subscribed_fed_id = ?", subscriberFedID, targetFedID).
 		Delete(&models.FederationSub{})
@@ -650,7 +612,6 @@ func UnsubscribeFed(subscriberFedID, targetFedID string) error {
 	return nil
 }
 
-// ListSubscribedFedIDs returns federations subscriberFedID is subscribed to.
 func ListSubscribedFedIDs(subscriberFedID string) []string {
 	return listCachedColumn(
 		cache.CacheKey(cachePrefixFedSubs, subscriberFedID),
@@ -660,8 +621,6 @@ func ListSubscribedFedIDs(subscriberFedID string) []string {
 	)
 }
 
-// ChatsContainingUser returns the subset of chatIDs whose stored members
-// include userID. Membership is the chats.users JSONB array.
 func ChatsContainingUser(userID int64, chatIDs []int64) []int64 {
 	if len(chatIDs) == 0 {
 		return nil
@@ -683,7 +642,6 @@ func ChatsContainingUser(userID int64, chatIDs []int64) []int64 {
 	return out
 }
 
-// ImportBans upserts bans from an external list. Returns how many were written.
 func ImportBans(fedID string, bans []models.FederationBan) (int, error) {
 	if GetFed(fedID) == nil {
 		return 0, gorm.ErrRecordNotFound

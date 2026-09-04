@@ -12,10 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetChannelSettings retrieves channel settings from cache or database.
-// Returns nil if the channel is not found or an error occurs.
 func GetChannelSettings(channelId int64) (channelSrc *models.ChannelSettings) {
-	// Use optimized cached query instead of SELECT *
 	channelSrc, err := GetChannelSettingsCached(channelId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -27,9 +24,6 @@ func GetChannelSettings(channelId int64) (channelSrc *models.ChannelSettings) {
 	return channelSrc
 }
 
-// UpdateChannel updates or creates a channel record with full metadata.
-// Stores channel name and username, and invalidates cache after updates.
-// Returns error if database operation fails.
 func UpdateChannel(channelId int64, channelName, username string) error {
 	username = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 	now := time.Now()
@@ -68,8 +62,6 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 		if err == nil || username == "" {
 			break
 		}
-		// A concurrent first observation can win the unique username insert
-		// after our ownership lookup. Retrying clears that owner transactionally.
 	}
 	if err != nil {
 		log.Errorf("[Database] UpdateChannel: failed to store %d (%s): %v", channelId, username, err)
@@ -84,8 +76,6 @@ func UpdateChannel(channelId int64, channelName, username string) error {
 	return nil
 }
 
-// GetChannelIdByUserName finds a channel ID by username.
-// Returns 0 if the channel is not found or an error occurs.
 func GetChannelIdByUserName(username string) int64 {
 	username = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 	if username == "" {
@@ -107,8 +97,6 @@ func GetChannelIdByUserName(username string) int64 {
 	return chatId
 }
 
-// GetChannelInfoById retrieves channel information by channel ID.
-// Returns username, name, and whether the channel was found.
 func GetChannelInfoById(channelId int64) (username, name string, found bool) {
 	channel := GetChannelSettings(channelId)
 	if channel != nil && channel.ChatId != 0 {
@@ -119,7 +107,6 @@ func GetChannelInfoById(channelId int64) (username, name string, found bool) {
 	return
 }
 
-// LoadChannelStats returns the total count of channel settings records.
 func LoadChannelStats() (count int64) {
 	err := db.DB.Model(&models.ChannelSettings{}).Count(&count).Error
 	if err != nil {

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// LogChannel binds a group chat to a Telegram channel that receives admin logs.
 type LogChannel struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatID       int64     `gorm:"column:chat_id;uniqueIndex;not null" json:"chat_id"`
