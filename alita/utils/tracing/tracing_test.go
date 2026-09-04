@@ -8,8 +8,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 )
 
-// resetTracingState saves the current tracing globals, resets them to nil/false,
-// and registers a t.Cleanup to restore the original values.
 func resetTracingState(t *testing.T) {
 	t.Helper()
 	origTracerProvider := tracerProvider
@@ -28,7 +26,6 @@ func resetTracingState(t *testing.T) {
 	enabled = false
 }
 
-// ensureAppConfig initializes config.AppConfig if it is nil.
 func ensureAppConfig(t *testing.T) {
 	t.Helper()
 	if config.AppConfig == nil {
@@ -50,8 +47,6 @@ func TestWorkingModeAttribute_ReturnsCorrectKeyAndValue(t *testing.T) {
 		t.Errorf("expected key 'bot.working_mode', got %q", attr.Key)
 	}
 
-	// When config.AppConfig.WorkingMode is unset (empty string in test env),
-	// the value should still be a valid string attribute.
 	_, ok := attr.Value.AsInterface().(string)
 	if !ok {
 		t.Errorf("expected attribute value to be a string, got %T", attr.Value.AsInterface())
@@ -64,17 +59,14 @@ func TestStartSpan_WhenDisabled_ReturnsSameContext(t *testing.T) {
 	inputCtx := context.Background()
 	ctx, span := StartSpan(inputCtx, "test-span")
 
-	// When disabled, StartSpan must return the exact same context, not a new one.
 	if ctx != inputCtx {
 		t.Error("expected StartSpan to return the same context when tracing is disabled")
 	}
 
-	// Span should be a no-op (from trace.SpanFromContext on background context).
 	if span == nil {
 		t.Fatal("expected span to be non-nil")
 	}
 
-	// A no-op span has empty SpanContext.
 	if span.SpanContext().IsValid() {
 		t.Error("expected no-op span to have an invalid SpanContext")
 	}
@@ -96,7 +88,7 @@ func TestSetOnProcessUpdateCallback_StoresCallback(t *testing.T) {
 	SetOnProcessUpdateCallback(func() {
 		called.Add(1)
 	})
-	defer SetOnProcessUpdateCallback(nil) // cleanup
+	defer SetOnProcessUpdateCallback(nil)
 
 	runOnProcessUpdateCallback()
 	if called.Load() != 1 {
@@ -111,15 +103,13 @@ func TestRunOnProcessUpdateCallback_CallsStoredCallback(t *testing.T) {
 	SetOnProcessUpdateCallback(func() {
 		counter.Add(1)
 	})
-	defer SetOnProcessUpdateCallback(nil) // cleanup
+	defer SetOnProcessUpdateCallback(nil)
 
-	// First call
 	runOnProcessUpdateCallback()
 	if counter.Load() != 1 {
 		t.Errorf("expected counter=1 after first call, got %d", counter.Load())
 	}
 
-	// Second call
 	runOnProcessUpdateCallback()
 	if counter.Load() != 2 {
 		t.Errorf("expected counter=2 after second call, got %d", counter.Load())
@@ -131,14 +121,12 @@ func TestRunOnProcessUpdateCallback_NoCallback_DoesNotPanic(t *testing.T) {
 
 	SetOnProcessUpdateCallback(nil)
 
-	// Should not panic when no callback is registered
 	runOnProcessUpdateCallback()
 }
 
 func TestWorkingModeAttribute_ValueReflectsConfig(t *testing.T) {
 	ensureAppConfig(t)
 
-	// Save original pointer to restore after test
 	origApp := config.AppConfig
 	defer func() {
 		config.AppConfig = origApp
@@ -165,7 +153,6 @@ func TestWorkingModeAttribute_ValueReflectsConfig(t *testing.T) {
 }
 
 func TestInitTracing_NoEndpoint_NoConsoleExporter(t *testing.T) {
-	// Clear all tracing environment variables
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
 	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "")
@@ -262,11 +249,9 @@ func TestInitTracingConsoleExporterEnablesTracingAndShutdown(t *testing.T) {
 }
 
 func TestShutdown_AfterFailedInit_ReturnsNil(t *testing.T) {
-	// Simulate the state after a failed InitTracing: tracerProvider is nil.
 	ensureAppConfig(t)
 	resetTracingState(t)
 
-	// Shutdown should return nil when tracerProvider is nil.
 	err := Shutdown(context.Background())
 	if err != nil {
 		t.Errorf("expected Shutdown to return nil after failed init, got %v", err)

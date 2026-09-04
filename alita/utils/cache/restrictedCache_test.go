@@ -13,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
-// TestMain gives cache tests an isolated Redis instance.
 func TestMain(m *testing.M) {
 	redisServer, err := miniredis.Run()
 	if err != nil {
@@ -39,17 +38,12 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-// skipIfNoCache skips the current test when the cache is not initialized.
 func skipIfNoCache(t *testing.T) {
 	t.Helper()
 	if GetMarshal() == nil {
 		t.Skip("requires Redis connection")
 	}
 }
-
-// ---------------------------------------------------------------------------
-// restrictedChatKey
-// ---------------------------------------------------------------------------
 
 func TestRestrictedCacheKey_Format(t *testing.T) {
 	t.Parallel()
@@ -74,10 +68,6 @@ func TestRestrictedCacheKey_Format(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// restrictedProbeKey
-// ---------------------------------------------------------------------------
-
 func TestRestrictedProbeKey_Format(t *testing.T) {
 	t.Parallel()
 
@@ -101,12 +91,7 @@ func TestRestrictedProbeKey_Format(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetRestrictedCacheStats — no Redis needed (atomic counters)
-// ---------------------------------------------------------------------------
-
 func TestGetRestrictedCacheStats_InitialZero(t *testing.T) {
-	// Save and restore counters to avoid side effects from other tests.
 	origHits := restrictedCacheHits.Load()
 	origMisses := restrictedCacheMisses.Load()
 	defer func() {
@@ -129,14 +114,11 @@ func TestGetRestrictedCacheStats_InitialZero(t *testing.T) {
 func TestGetRestrictedCacheStats_BothCounters(t *testing.T) {
 	skipIfNoCache(t)
 
-	// Use a unique chat ID to avoid collisions with parallel tests.
 	const chatA = int64(-10099901)
 	const chatB = int64(-10099902)
 
-	// Record baseline to isolate this test from others.
 	baseHits, baseMisses := GetRestrictedCacheStats()
 
-	// Mark chatA restricted, then check it → hit.
 	MarkChatRestricted(chatA)
 	defer MarkChatNotRestricted(chatA)
 
@@ -144,7 +126,6 @@ func TestGetRestrictedCacheStats_BothCounters(t *testing.T) {
 		t.Fatal("IsChatRestricted(chatA) should return true after MarkChatRestricted")
 	}
 
-	// Check chatB (never marked) → miss.
 	if IsChatRestricted(chatB) {
 		t.Fatal("IsChatRestricted(chatB) should return false for unknown chat")
 	}
@@ -157,10 +138,6 @@ func TestGetRestrictedCacheStats_BothCounters(t *testing.T) {
 		t.Errorf("expected at least 1 new miss, got delta=%d", misses-baseMisses)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// MarkChatRestricted / IsChatRestricted
-// ---------------------------------------------------------------------------
 
 func TestMarkChatRestricted(t *testing.T) {
 	skipIfNoCache(t)
@@ -256,12 +233,10 @@ func TestIsChatRestricted_ProbeSingleFlight(t *testing.T) {
 		t.Fatalf("failed to seed restricted cache: %v", err)
 	}
 
-	// First check after probe interval should allow one send attempt.
 	if IsChatRestricted(chatID) {
 		t.Fatal("first check after probe interval should allow probe attempt")
 	}
 
-	// Immediate second check should be blocked by probe lock.
 	if !IsChatRestricted(chatID) {
 		t.Fatal("second check should be blocked while probe lock is active")
 	}
@@ -274,16 +249,12 @@ func TestMarkChatRestricted_Idempotent(t *testing.T) {
 	defer MarkChatNotRestricted(chatID)
 
 	MarkChatRestricted(chatID)
-	MarkChatRestricted(chatID) // second call must not cause an error or flip state
+	MarkChatRestricted(chatID)
 
 	if !IsChatRestricted(chatID) {
 		t.Errorf("IsChatRestricted(%d) = false after double MarkChatRestricted, want true", chatID)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Stats counters
-// ---------------------------------------------------------------------------
 
 func TestIsChatRestricted_StatsIncrementHit(t *testing.T) {
 	skipIfNoCache(t)
@@ -320,10 +291,6 @@ func TestIsChatRestricted_StatsIncrementMiss(t *testing.T) {
 		t.Errorf("expected misses delta=1, got %d", misses-baseMisses)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Nil-safety: functions must not panic when Marshal is nil
-// ---------------------------------------------------------------------------
 
 func TestRestrictedChatKey_NilSafe(t *testing.T) {
 	t.Parallel()

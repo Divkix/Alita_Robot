@@ -35,8 +35,6 @@ const (
 	maxTemporaryDurationSeconds int64 = 366 * 24 * 60 * 60
 )
 
-// TemporaryUntilDate returns a Telegram-safe until_date for a temporary
-// moderation action.
 func TemporaryUntilDate(now, durationSeconds int64) (int64, bool) {
 	if durationSeconds < minTemporaryDurationSeconds ||
 		durationSeconds > maxTemporaryDurationSeconds ||
@@ -46,9 +44,6 @@ func TemporaryUntilDate(now, durationSeconds int64) (int64, bool) {
 	return now + durationSeconds, true
 }
 
-// ExtractChat extracts and validates a chat from command arguments.
-// Supports both numeric chat IDs and chat usernames for chat identification.
-// Returns nil if chat is not found or arguments are invalid.
 func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
@@ -65,7 +60,7 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 				}
 				return nil
 			}
-			_chat := chat.ToChat() // need to convert to Chat type
+			_chat := chat.ToChat()
 			return &_chat
 		} else {
 			chat, err := chat_status.GetChat(b, args[0])
@@ -92,17 +87,11 @@ func ExtractChat(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.Chat {
 	return nil
 }
 
-// ExtractUser extracts a user ID from the message context.
-// Uses ExtractUserAndText internally, returning only the user ID.
 func ExtractUser(b *gotgbot.Bot, ctx *ext.Context) int64 {
 	userId, _ := ExtractUserAndText(b, ctx)
 	return userId
 }
 
-// ExtractUserAndText extracts both user ID and accompanying text from various message formats.
-// Handles text mentions, usernames, numeric IDs, and reply messages.
-// Returns user ID and associated text. Validation of user existence is delegated to the calling
-// command, which can verify membership when needed via Telegram API.
 func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()
@@ -110,7 +99,6 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 
 	splitText := strings.SplitN(msg.Text, " ", 2)
 
-	// Early return if no arguments provided
 	if len(splitText) < 2 {
 		return IdFromReply(msg)
 	}
@@ -118,7 +106,6 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	textToParse := splitText[1]
 	hasArgs := len(args) >= 2
 
-	// trimTextNewline trims leading/trailing newlines to fix parsing issues with '\n' before and after text
 	trimTextNewline := func(str string) string {
 		return strings.Trim(str, "\n")
 	}
@@ -139,7 +126,6 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		ent = nil
 	}
 
-	// only parse if the entity is a text mention
 	if entities != nil && ent != nil && int(ent.Offset) == (len(msg.Text)-len(textToParse)) {
 		ent = &entities[0]
 		userId = ent.User.Id
@@ -192,9 +178,6 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 		}
 	}
 
-	// Only validate DB existence for username lookups, not for numeric IDs or text mentions.
-	// Numeric IDs from replies, text_mention entities, or direct input are trusted.
-	// The actual command will verify membership via Telegram API when executing the action.
 	if userId == 0 {
 		return 0, ""
 	}
@@ -202,20 +185,13 @@ func ExtractUserAndText(b *gotgbot.Bot, ctx *ext.Context) (int64, string) {
 	return userId, trimTextNewline(text)
 }
 
-// GetUserId retrieves a user ID from a username string.
-// Searches both user and channel databases for the username.
-// If not found in DB, queries Telegram API as fallback.
-// Returns 0 if username is invalid or not found.
 func GetUserId(b *gotgbot.Bot, username string) int64 {
-	// Remove '@' prefix first
 	username = strings.TrimPrefix(username, "@")
 
-	// Telegram usernames must be at least 5 characters
 	if len(username) < 5 {
 		return 0
 	}
 
-	// Try local database first for performance
 	user := user.GetUserIdByUserName(username)
 	if user != 0 {
 		return user
@@ -226,27 +202,19 @@ func GetUserId(b *gotgbot.Bot, username string) int64 {
 		return channel
 	}
 
-	// Fallback to Telegram API if not in local database
 	chat, err := chat_status.GetChat(b, "@"+username)
 	if err != nil {
 		log.Debugf("[Extraction] Failed to get user @%s from Telegram API: %v", username, err)
 		return 0
 	}
 
-	// Successfully found user via Telegram API
 	userId := chat.Id
 
-	// Optionally cache the user for future lookups
-	// Note: The bot's message handlers should already be caching users
-	// when they interact with the bot, but this provides a fallback
 	log.Debugf("[Extraction] Found user @%s (ID: %d) via Telegram API", username, userId)
 
 	return userId
 }
 
-// GetUserInfo retrieves user information (username and name) from a user ID.
-// Searches both user and channel databases for the ID.
-// Returns username, display name, and whether the user was found.
 func GetUserInfo(userId int64) (username, name string, found bool) {
 	username, name, found = user.GetUserInfoById(userId)
 	if found {
@@ -261,9 +229,6 @@ func GetUserInfo(userId int64) (username, name string, found bool) {
 	return "", "", false
 }
 
-// IdFromReply extracts user ID and text from a replied-to message.
-// Gets the sender ID from the reply and remaining command text.
-// Returns (0, "") if no reply message exists.
 func IdFromReply(m *gotgbot.Message) (int64, string) {
 	prevMessage := m.ReplyToMessage
 
@@ -273,7 +238,6 @@ func IdFromReply(m *gotgbot.Message) (int64, string) {
 		return 0, ""
 	}
 
-	// get's the Id for both user and channel
 	replySender := prevMessage.GetSender()
 	if replySender == nil {
 		return 0, ""
@@ -287,18 +251,12 @@ func IdFromReply(m *gotgbot.Message) (int64, string) {
 	return userId, res[1]
 }
 
-// ExtractQuotes extracts quoted text or words from a sentence using regex patterns.
-// When matchQuotes is true, extracts text between double quotes.
-// When matchWord is true, extracts the first word/token and remaining text.
 func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afterWord string) {
-	// Check for empty string to prevent panic
 	if len(sentence) == 0 {
 		return
 	}
 
-	// if first character is a double quote and matchQuotes is true
 	if sentence[0] == '"' && matchQuotes {
-		// regex pattern to match text between strings
 		pattern, err := regexp.Compile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)
 		if err != nil {
 			log.Error(err)
@@ -306,13 +264,10 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 		}
 		if pattern.MatchString(sentence) {
 			pat := pattern.FindStringSubmatch(sentence)
-			// pat[0] would be the whole matched string
-			// pat[1] is the spaces
 			inQuotes, afterWord = pat[2], pat[3]
 			return
 		}
 	} else if matchWord {
-		// regex pattern to detect all words and special character which do not have spaces but can contain special characters
 		pattern, err := regexp.Compile(`(?s)(\s+)?([A-Za-z0-9-_+=}\][{;:'",<.>?/|*\\()]+)\s?(.*)?`)
 		if err != nil {
 			log.Error(err)
@@ -320,8 +275,6 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 		}
 		if pattern.MatchString(sentence) {
 			pat := pattern.FindStringSubmatch(sentence)
-			// pat[0] would be the whole matched string
-			// pat[1] is the spaces
 			inQuotes, afterWord = pat[2], pat[3]
 			return
 		}
@@ -330,9 +283,6 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 	return
 }
 
-// ExtractTime parses time duration strings for temporary actions like bans.
-// Supports formats: Nm (minutes), Nh (hours), Nd (days), Nw (weeks).
-// Returns Unix timestamp, formatted time string, and reason text.
 func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int64, timeStr, reason string) {
 	msg := ctx.EffectiveMessage
 	timeNow := time.Now().Unix()

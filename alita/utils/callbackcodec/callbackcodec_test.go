@@ -190,7 +190,6 @@ func TestEncodeSkipsEmptyKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Encode() with empty key error = %v", err)
 	}
-	// empty key skipped -> payload collapses to "_"
 	if result != "ns|v1|_" {
 		t.Fatalf("expected \"ns|v1|_\" (empty key skipped), got %q", result)
 	}
@@ -266,7 +265,6 @@ func TestDecodeRejectsCorruptBase64(t *testing.T) {
 func TestDecodeRejectsMissingVersionField(t *testing.T) {
 	t.Parallel()
 
-	// Only 2 pipe-separated parts instead of 3
 	_, err := Decode("ns|v1")
 	if !errors.Is(err, ErrInvalidFormat) {
 		t.Fatalf("expected ErrInvalidFormat for missing payload segment, got %v", err)
@@ -285,7 +283,6 @@ func TestDecodeRejectsEmptyVersion(t *testing.T) {
 func TestDecodeRejectsPipeOnlyPayload(t *testing.T) {
 	t.Parallel()
 
-	// Too few parts after splitting
 	_, err := Decode("|")
 	if !errors.Is(err, ErrInvalidFormat) {
 		t.Fatalf("expected ErrInvalidFormat for single pipe, got %v", err)
@@ -299,10 +296,6 @@ func TestDecodeRejectsPipeOnlyPayload(t *testing.T) {
 func TestEncodeNearMaxLength(t *testing.T) {
 	t.Parallel()
 
-	// Construct a payload that approaches MaxCallbackDataLen
-	// Namespace "test" + version separator "|v1|" = 5 chars for "|v1|"
-	// So max field payload = 64 - len("test") - 5 = 55
-	// The payload is URL-encoded, so we need to stay within bounds
 	result, err := Encode("ns", map[string]string{"k": "v"})
 	if err != nil {
 		t.Fatalf("Encode() for small payload error = %v", err)

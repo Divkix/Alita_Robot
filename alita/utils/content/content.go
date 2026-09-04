@@ -13,7 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-// ExtractResult holds the parsed content and metadata from a note or filter message.
 type ExtractResult struct {
 	KeyWord     string
 	FileID      string
@@ -29,7 +28,6 @@ type ExtractResult struct {
 	ErrorMsg    string
 }
 
-// WelcomeResult holds the parsed content and metadata from a welcome/greeting message.
 type WelcomeResult struct {
 	Text     string
 	DataType int
@@ -38,21 +36,16 @@ type WelcomeResult struct {
 	ErrorMsg string
 }
 
-// ExtractNoteAndFilter extracts and processes note or filter content from a Telegram message.
-// Handles text, media files, and reply messages with button parsing and content validation.
-// Returns parsed content with metadata like data type, buttons, and special options.
-//
 //nolint:dupl // ExtractNoteAndFilter shares media detection logic with ExtractWelcome
 func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) ExtractResult {
 	var result ExtractResult
-	result.DataType = -1 // not defined datatype; invalid note
+	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
 
-	// Check for nil message to prevent panic
 	if msg == nil {
 		result.ErrorMsg, _ = tr.GetString("content_invalid_message")
 		if result.ErrorMsg == "" {
-			result.ErrorMsg = "Invalid message: message is nil" // fallback
+			result.ErrorMsg = "Invalid message: message is nil"
 		}
 		return result
 	}
@@ -60,12 +53,12 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	if isFilter {
 		result.ErrorMsg, _ = tr.GetString("content_need_filter_content")
 		if result.ErrorMsg == "" {
-			result.ErrorMsg = "You need to give the filter some content!" // fallback
+			result.ErrorMsg = "You need to give the filter some content!"
 		}
 	} else {
 		result.ErrorMsg, _ = tr.GetString("content_need_note_content")
 		if result.ErrorMsg == "" {
-			result.ErrorMsg = "You need to give the note some content!" // fallback
+			result.ErrorMsg = "You need to give the note some content!"
 		}
 	}
 
@@ -73,15 +66,12 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 		rawText string
 		args    = strings.Fields(msg.Text)[1:]
 	)
-	_buttons := make([]tgmd2html.ButtonV2, 0) // make a slice for buttons
+	_buttons := make([]tgmd2html.ButtonV2, 0)
 	replyMsg := msg.ReplyToMessage
 
-	// set rawText from helper function
 	setRawText(msg, args, &rawText)
 
-	// extract the noteword
 	if len(args) >= 2 && replyMsg == nil {
-		// Uses inline extraction to avoid circular dependency with the extraction package.
 		if len(args) > 0 {
 			result.KeyWord = args[0]
 			if len(args) > 1 {
@@ -91,7 +81,6 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(result.Text)
 		result.DataType = db.TEXT
 	} else if replyMsg != nil && len(args) >= 1 {
-		// Uses inline extraction to avoid circular dependency with the extraction package.
 		result.KeyWord = strings.Join(args, " ")
 
 		if replyMsg.ReplyMarkup == nil {
@@ -108,21 +97,15 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 		}
 	}
 
-	// pre-fix the data before sending it back
 	preFixes(_buttons, result.KeyWord, &result.Text, &result.DataType, result.FileID, &result.Buttons, &result.ErrorMsg, language)
 
-	// return if datatype is invalid
 	if result.DataType != -1 && !isFilter {
-		// parse options such as pvtOnly, adminOnly, webPrev and replace them
 		result.PvtOnly, result.GrpOnly, result.AdminOnly, result.WebPreview, result.IsProtected, result.NoNotif, _ = NotesParser(result.Text)
 	}
 
 	return result
 }
 
-// extractMediaFromReply extracts media file ID and data type from a reply message.
-// Checks for sticker, document, photo, audio, voice, video, animation, and video note in order.
-// Returns empty fileid and -1 dataType if no media is found.
 func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
 	if replyMsg == nil {
 		return "", -1
@@ -147,16 +130,13 @@ func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType i
 	return "", -1
 }
 
-// ExtractWelcome extracts and processes welcome/greeting content from a Telegram message.
-// Similar to ExtractNoteAndFilter but specifically for greeting messages.
-// Returns processed content with data type, file ID, and buttons for the greeting.
 func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) WelcomeResult {
 	var result WelcomeResult
 	result.DataType = -1
 	tr := i18n.MustNewTranslator(language)
 	template, _ := tr.GetString("content_need_content")
 	if template == "" {
-		template = "You need to give me some content to %s users!" // fallback
+		template = "You need to give me some content to %s users!"
 	}
 	result.ErrorMsg = fmt.Sprintf(template, greetingType)
 	var (
@@ -166,7 +146,6 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 	_buttons := make([]tgmd2html.ButtonV2, 0)
 	replyMsg := msg.ReplyToMessage
 
-	// set rawText from helper function
 	setRawText(msg, args, &rawText)
 
 	if len(args) >= 1 && msg.ReplyToMessage == nil {
@@ -187,15 +166,11 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 		}
 	}
 
-	// pre-fix the data before sending it back
 	preFixes(_buttons, "Greeting", &result.Text, &result.DataType, result.FileID, &result.Buttons, &result.ErrorMsg, language)
 
 	return result
 }
 
-// NotesParser parses special note options from message text using regex patterns.
-// Detects {private}, {noprivate}, {admin}, {preview}, {protect}, {nonotif} tags.
-// Returns boolean flags for each option and the text with tags removed.
 func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif bool, sentBack string) {
 	pvtOnly = strings.Contains(sent, "{private}")
 	grpOnly = strings.Contains(sent, "{noprivate}")
@@ -216,13 +191,9 @@ func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedCo
 	return pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif, sent
 }
 
-// preFixes validates and preprocesses message content before database storage.
-// Checks message length limits using UTF-8 character count (not bytes), validates button URLs,
-// sets default button names, and filters invalid content. Modifies parameters by reference.
 func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *string, dataType *int, fileid string, dbButtons *[]db.Button, errorMsg *string, language string) {
 	tr := i18n.MustNewTranslator(language)
 
-	// Use utf8.RuneCountInString to count UTF-8 characters instead of len() for bytes
 	textRuneCount := utf8.RuneCountInString(*text)
 
 	if *dataType == db.TEXT && textRuneCount > 4096 {
@@ -240,9 +211,7 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 			}
 		}
 
-		// buttonUrlFixer filters out non-URL buttons from the keyboard, keeping only valid URL buttons.
 		buttonUrlFixer := func(_buttons *[]tgmd2html.ButtonV2) {
-			// Validate URLs using Go's net/url parser instead of regex for proper validation
 			validButtons := make([]tgmd2html.ButtonV2, 0, len(*_buttons))
 			for _, btn := range *_buttons {
 				u, err := url.Parse(btn.Content)
@@ -256,8 +225,6 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 		buttonUrlFixer(&buttons)
 		*dbButtons = ConvertButtonV2ToDbButton(buttons)
 
-		// trim the characters \n, \t, \r and space from the text
-		// also, set the dataType to -1 to make note invalid
 		*text = strings.Trim(*text, "\n\t\r ")
 		if *text == "" && fileid == "" {
 			*dataType = -1
@@ -265,21 +232,18 @@ func preFixes(buttons []tgmd2html.ButtonV2, defaultNameButton string, text *stri
 	}
 }
 
-// setRawText extracts raw markdown text from a Telegram message.
-// Handles both direct message text/caption and replied message content.
-// Sets rawText parameter by reference with the extracted content.
 func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		if msg.Text == "" && msg.Caption != "" {
 			parts := strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
 			if len(parts) >= 2 {
-				*rawText = parts[1] // remove the command
+				*rawText = parts[1]
 			}
 		} else if msg.Text != "" && msg.Caption == "" {
 			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
 			if len(parts) >= 2 {
-				*rawText = parts[1] // remove the command
+				*rawText = parts[1]
 			}
 		}
 	} else {
@@ -288,7 +252,7 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 		} else if replyMsg.Caption == "" && len(args) >= 2 {
 			parts := strings.SplitN(msg.OriginalMDV2(), " ", 3)
 			if len(parts) >= 3 {
-				*rawText = parts[2] // remove the command and first arg
+				*rawText = parts[2]
 			}
 		} else {
 			*rawText = replyMsg.OriginalMDV2()
@@ -296,8 +260,6 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 	}
 }
 
-// convertButtonV2ToDbButton converts markdown parser button format to database button format.
-// Maps ButtonV2 fields to corresponding db.Button fields.
 func ConvertButtonV2ToDbButton(buttons []tgmd2html.ButtonV2) (btns []db.Button) {
 	btns = make([]db.Button, len(buttons))
 	for i, btn := range buttons {
@@ -310,8 +272,6 @@ func ConvertButtonV2ToDbButton(buttons []tgmd2html.ButtonV2) (btns []db.Button) 
 	return
 }
 
-// RevertButtons converts database button format back to markdown button string format.
-// Generates markdown buttonurl syntax for each button with proper same-line handling.
 func RevertButtons(buttons []db.Button) string {
 	var sb strings.Builder
 	for _, btn := range buttons {
@@ -324,15 +284,11 @@ func RevertButtons(buttons []db.Button) string {
 	return sb.String()
 }
 
-// inlineKeyboardToButtonV2 converts Telegram inline keyboard to markdown button format.
-// Filters out non-URL buttons and handles same-line button positioning.
 func inlineKeyboardToButtonV2(replyMarkup *gotgbot.InlineKeyboardMarkup) (btns []tgmd2html.ButtonV2) {
 	btns = make([]tgmd2html.ButtonV2, 0)
 	for _, inlineKeyboard := range replyMarkup.InlineKeyboard {
 		if len(inlineKeyboard) > 1 {
 			for i, button := range inlineKeyboard {
-				// if any button has anything other than url, it's not a valid button
-				// skip options such as CallbackData, CallbackUrl, etc.
 				if button.Url == "" {
 					continue
 				}

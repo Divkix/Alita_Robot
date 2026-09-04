@@ -33,7 +33,6 @@ import (
 // This prevents DoS attacks where attackers send gigabytes of data to cause OOM
 const maxRequestBodySize = 10 * 1024 * 1024
 
-// Server represents a unified HTTP server that consolidates health, webhook, and metrics endpoints
 type Server struct {
 	mux              *http.ServeMux
 	server           *http.Server
@@ -48,9 +47,6 @@ type Server struct {
 	dispatchWG       sync.WaitGroup
 }
 
-// New creates a new unified HTTP server on the specified port
-// The startTime parameter should be the application's process start time,
-// used for accurate uptime reporting in health checks.
 func New(port int, startTime time.Time) *Server {
 	return &Server{
 		mux:       http.NewServeMux(),
@@ -59,7 +55,6 @@ func New(port int, startTime time.Time) *Server {
 	}
 }
 
-// HealthStatus represents the health status of the application
 type HealthStatus struct {
 	Status  string          `json:"status"`
 	Checks  map[string]bool `json:"checks"`
@@ -67,7 +62,6 @@ type HealthStatus struct {
 	Uptime  string          `json:"uptime"`
 }
 
-// checkDatabase checks if the database connection is healthy
 func checkDatabase() bool {
 	if db.DB == nil {
 		return false
@@ -84,7 +78,6 @@ func checkDatabase() bool {
 	return sqlDB.PingContext(ctx) == nil
 }
 
-// checkRedis checks if the Redis connection is healthy
 func checkRedis() bool {
 	if cache.Manager == nil {
 		return false
@@ -93,7 +86,6 @@ func checkRedis() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// Try to set and get a test key
 	testKey := "health_check_test"
 	err := cache.Manager.Set(ctx, testKey, "ok", store.WithExpiration(5*time.Second))
 	if err != nil {
@@ -101,13 +93,11 @@ func checkRedis() bool {
 	}
 
 	_, err = cache.Manager.Get(ctx, testKey)
-	// Delete the test key
 	_ = cache.Manager.Delete(ctx, testKey)
 
 	return err == nil
 }
 
-// RegisterHealth registers the /health endpoint
 func (s *Server) RegisterHealth() {
 	s.mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -138,19 +128,15 @@ func (s *Server) RegisterHealth() {
 	log.Info("[HTTPServer] Registered /health endpoint")
 }
 
-// SetMetricsAuthToken configures the bearer token required to access /metrics and /db_metrics.
-// When empty, the endpoints are registered but a warning is logged.
 func (s *Server) SetMetricsAuthToken(token string) {
 	s.metricsAuthToken = token
 }
 
 // requireMetricsAuth is a middleware that enforces bearer-token authentication
 // for metrics endpoints using constant-time comparison to prevent timing attacks.
-// When no token is configured it allows the request through (with a startup warning).
 func (s *Server) requireMetricsAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.metricsAuthToken == "" {
-			// No token configured — allow access (startup warning already logged).
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -169,9 +155,6 @@ func (s *Server) requireMetricsAuth(next http.Handler) http.Handler {
 	})
 }
 
-// RegisterMetrics registers the /metrics endpoint for Prometheus.
-// If a MetricsAuthToken is configured (via SetMetricsAuthToken), requests must supply
-// "Authorization: Bearer <token>". Otherwise the endpoint is open but a warning is logged.
 func (s *Server) RegisterMetrics() {
 	if s.metricsAuthToken == "" {
 		log.Warn("[HTTPServer] METRICS_AUTH_TOKEN is not set — /metrics is unauthenticated")
@@ -180,9 +163,6 @@ func (s *Server) RegisterMetrics() {
 	log.Info("[HTTPServer] Registered /metrics endpoint")
 }
 
-// RegisterDBMetrics registers the /db_metrics endpoint for database monitoring.
-// If a MetricsAuthToken is configured (via SetMetricsAuthToken), requests must supply
-// "Authorization: Bearer <token>". Otherwise the endpoint is open but a warning is logged.
 func (s *Server) RegisterDBMetrics() {
 	if s.metricsAuthToken == "" {
 		log.Warn("[HTTPServer] METRICS_AUTH_TOKEN is not set — /db_metrics is unauthenticated")
@@ -202,8 +182,6 @@ func (s *Server) RegisterDBMetrics() {
 	log.Info("[HTTPServer] Registered /db_metrics endpoint")
 }
 
-// RegisterPPROF registers pprof endpoints for performance profiling.
-// This should only be enabled in development environments.
 func (s *Server) RegisterPPROF() {
 	s.mux.Handle("/debug/pprof/", http.DefaultServeMux)
 
@@ -211,34 +189,27 @@ func (s *Server) RegisterPPROF() {
 	log.Info("[HTTPServer] Registered /debug/pprof/* endpoints")
 }
 
-// RegisterWebhook registers the webhook endpoint and configures the Telegram webhook
 func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, secret, domain string) error {
 	s.bot = bot
 	s.dispatcher = dispatcher
 	s.secret = secret
 	s.webhookEnabled = true
 
-	// Register the webhook handler at a static path — the secret is NOT in the URL.
-	// Authentication is enforced by validateWebhook via the X-Telegram-Bot-Api-Secret-Token header.
 	webhookPath := "/webhook"
 	s.mux.HandleFunc(webhookPath, s.webhookHandler)
 
-	// Set the webhook URL on Telegram — safe to log because the path is now secret-free.
 	webhookURL := fmt.Sprintf("%s%s", domain, webhookPath)
 	log.Infof("[HTTPServer] Setting webhook URL: %s", webhookURL)
 
-	// Configure webhook options
 	webhookOpts := &gotgbot.SetWebhookOpts{
 		AllowedUpdates:     config.AppConfig.AllowedUpdates,
 		DropPendingUpdates: config.AppConfig.DropPendingUpdates,
 	}
 
-	// Set secret token if configured
 	if secret != "" {
 		webhookOpts.SecretToken = secret
 	}
 
-	// Set the webhook with Telegram
 	if _, err := bot.SetWebhook(webhookURL, webhookOpts); err != nil {
 		return fmt.Errorf("failed to set webhook: %w", err)
 	}
@@ -247,9 +218,7 @@ func (s *Server) RegisterWebhook(bot *gotgbot.Bot, dispatcher *ext.Dispatcher, s
 	return nil
 }
 
-// webhookHandler handles incoming webhook requests from Telegram
 func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
-	// Extract trace context from the incoming request and record the stable route.
 	ctx := tracing.GetPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	_, span := tracing.StartSpan(
 		ctx,
@@ -270,16 +239,12 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the webhook secret BEFORE reading the body. The secret is in a
-	// header available without consuming the body, so rejecting early avoids
-	// buffering up to 10MB for unauthenticated requests (resource exhaustion).
 	if !s.validateWebhook(r) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		span.SetStatus(codes.Error, "unauthorized")
 		return
 	}
 
-	// Read the request body with size limit to prevent DoS attacks
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodySize))
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -295,7 +260,6 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Parse the update
 	var update gotgbot.Update
 	if err := json.Unmarshal(body, &update); err != nil {
 		log.WithFields(log.Fields{
@@ -306,7 +270,6 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add update-specific attributes without recording message or callback content.
 	if update.Message != nil {
 		text := update.Message.Text
 		attrs := []attribute.KeyValue{
@@ -324,26 +287,17 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	// Process the update through the dispatcher with trace context
-	// NOTE: ProcessUpdate does not support context cancellation. Long-running handlers
-	// will complete even if the HTTP response has already been sent. This is by design
-	// as Telegram expects a quick 200 OK response while processing happens async.
-	// Pass the trace context to the goroutine for proper span parenting
 	s.dispatchWG.Add(1)
 	go func(requestCtx context.Context) {
 		defer s.dispatchWG.Done()
 		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
 
-		// Bound the async span and the context exposed to opt-in handlers.
-		// ProcessUpdate itself does not observe this cancellation.
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(requestCtx), 30*time.Second)
 		defer cancel()
 
-		// Start a new child span for the async processing using the request context
 		asyncCtx, asyncSpan := tracing.StartSpan(ctx, "dispatcher.processUpdate")
 		defer asyncSpan.End()
 
-		// Pass context in the data map for handlers to use
 		data := map[string]any{
 			tracing.ContextDataKey: asyncCtx,
 		}
@@ -355,21 +309,18 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}(ctx)
 
-	// Send OK response to Telegram
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte("OK")); err != nil {
 		log.Errorf("[HTTPServer] Failed to write response: %v", err)
 	}
 }
 
-// validateWebhook validates the incoming webhook request using the secret token
 func (s *Server) validateWebhook(r *http.Request) bool {
 	if s.secret == "" {
 		log.Error("[HTTPServer] Webhook secret is required but not configured - rejecting request")
 		return false
 	}
 
-	// Get the X-Telegram-Bot-Api-Secret-Token header
 	secretToken := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
 	if subtle.ConstantTimeCompare([]byte(secretToken), []byte(s.secret)) != 1 {
 		log.Error("[HTTPServer] Invalid secret token")
@@ -379,7 +330,6 @@ func (s *Server) validateWebhook(r *http.Request) bool {
 	return true
 }
 
-// Start starts the unified HTTP server
 func (s *Server) Start() error {
 	s.server = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),
@@ -389,7 +339,6 @@ func (s *Server) Start() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Log the registered endpoints
 	endpoints := []string{"/health", "/metrics"}
 	if s.pprofEnabled {
 		endpoints = append(endpoints, "/debug/pprof/*")
@@ -399,14 +348,11 @@ func (s *Server) Start() error {
 	}
 	log.Infof("[HTTPServer] Starting unified HTTP server on port %d with endpoints: %v", s.port, endpoints)
 
-	// Use a channel to communicate startup errors
 	errChan := make(chan error, 1)
 
-	// Start the server in a goroutine
 	go func() {
 		defer error_handling.RecoverFromPanic("HTTPServer", "main")
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// Non-blocking send to prevent goroutine leak if error occurs after timeout
 			select {
 			case errChan <- err:
 			default:
@@ -415,7 +361,6 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	// Wait briefly to catch immediate startup errors (e.g., port conflicts)
 	startupTimer := time.NewTimer(100 * time.Millisecond)
 	defer startupTimer.Stop()
 	select {
@@ -426,7 +371,6 @@ func (s *Server) Start() error {
 	}
 }
 
-// Stop gracefully stops the HTTP server
 func (s *Server) Stop() error {
 	log.Info("[HTTPServer] Shutting down server...")
 

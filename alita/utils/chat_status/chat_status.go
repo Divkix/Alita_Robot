@@ -37,19 +37,15 @@ var (
 	anonChatMapExpiration = 20 * time.Second
 )
 
-// IsValidUserId checks if an ID represents a valid Telegram user.
 // User IDs are always positive (> 0).
 // Channel IDs are negative with format -100XXXXXXXXXX (< -1000000000000).
 // Regular chat/group IDs are negative but in a different range.
 func IsValidUserId(id int64) bool {
-	// Valid user IDs are always positive
 	return id > 0
 }
 
-// IsChannelId checks if an ID represents a Telegram channel.
 // Channel IDs have the format -100XXXXXXXXXX (-100 prefix followed by 10+ digits).
 func IsChannelId(id int64) bool {
-	// Channel IDs are < -1000000000000 (-100 followed by 10+ digits)
 	return id < -1000000000000
 }
 
@@ -64,9 +60,6 @@ func callbackQueryFromContext(ctx *ext.Context) (*gotgbot.CallbackQuery, bool) {
 	return update.CallbackQuery, true
 }
 
-// checkAnonAdmin handles anonymous admin checks.
-// Returns true if user should be treated as admin (anon bypass enabled),
-// false if anon keyboard was sent, and a bool indicating if caller should return immediately.
 func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, sender *gotgbot.Sender) (isAdmin bool, shouldReturn bool) {
 	if sender == nil || !sender.IsAnonymousAdmin() {
 		return false, false
@@ -85,18 +78,6 @@ func checkAnonAdmin(b *gotgbot.Bot, chat *gotgbot.Chat, msg *gotgbot.Message, se
 	return false, true
 }
 
-// extractChatFromContext extracts the chat from the context.
-// It handles callback queries, regular messages, and MyChatMember updates.
-// If chat parameter is already provided (non-nil), it returns it directly.
-//
-// SAFETY NOTE: This function returns pointers to values within the context struct
-// or local variables. Go's escape analysis ensures these are heap-allocated when
-// their addresses escape, making the returned pointers valid for the lifetime of
-// the context. The caller must ensure the context remains valid while using the
-// returned pointer. This pattern is safe because:
-//  1. Go's compiler escape analysis moves address-taken variables to the heap
-//  2. The gotgbot.Chat struct is a value type that gets copied when assigned
-//  3. All returned pointers point to stable memory locations
 func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat {
 	if chat != nil {
 		return chat
@@ -127,8 +108,6 @@ func extractChatFromContext(ctx *ext.Context, chat *gotgbot.Chat) *gotgbot.Chat 
 	return nil
 }
 
-// getUserMemberWithCache retrieves a chat member, using cache if available.
-// Returns the merged chat member and a boolean indicating if the lookup was successful.
 func getUserMemberWithCache(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, funcName string) (gotgbot.MergedChatMember, bool) {
 	found, userMember := cache.GetAdminCacheUser(chat.Id, userId)
 	if found {
@@ -142,8 +121,6 @@ func getUserMemberWithCache(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64, fu
 	return tmpUserMember.MergeChatMember(), true
 }
 
-// GetChat retrieves chat information by chat ID or username.
-// Makes a direct API request to support username-based chat retrieval.
 func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
 	r, err := bot.Request("getChat", map[string]any{"chat_id": chatId}, nil)
 	if err != nil {
@@ -154,17 +131,11 @@ func GetChat(bot *gotgbot.Bot, chatId string) (*gotgbot.Chat, error) {
 	return &c, json.Unmarshal(r, &c)
 }
 
-// CheckDisabledCmd checks if a command is disabled in the chat and handles deletion if configured.
-// Returns true if the command should be blocked, false if it should proceed.
-// Skips checks for private chats and admin users.
-// If command is disabled for non-admin users, optionally deletes the message based on chat settings.
 func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
-	// Private chats don't have disabled commands
 	if msg.Chat.Type == "private" {
 		return false
 	}
 
-	// Check if command is disabled in this chat
 	if !disabling.IsCommandDisabled(msg.Chat.Id, cmd) {
 		return false
 	}
@@ -174,13 +145,10 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 		return false
 	}
 
-	// Admins and creators can bypass disabled commands
 	if IsUserAdmin(bot, msg.Chat.Id, msg.From.Id) {
 		return false
 	}
 
-	// Command is disabled and user is not admin - block the command
-	// Optionally delete the message if chat has deletion enabled
 	if disabling.ShouldDel(msg.Chat.Id) {
 		_, err := msg.Delete(bot, nil)
 		if err != nil {
@@ -188,25 +156,15 @@ func CheckDisabledCmd(bot *gotgbot.Bot, msg *gotgbot.Message, cmd string) bool {
 		}
 	}
 
-	// Return true to indicate command is blocked (regardless of whether deletion succeeded)
 	return true
 }
 
-// IsApproved checks if a user is in the approved whitelist for a chat.
-// Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha, antispam).
-// This is a simple delegation to the DB layer for consistent usage in watcher handlers.
 func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
 	return approvals.IsUserApproved(chatID, userID)
 }
 
-// IsUserAdmin checks if a user has administrator privileges in a chat.
-// Uses caching system to avoid repeated API calls and handles special Telegram admin accounts.
-// Returns true if the user is an admin, creator, or special Telegram account.
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
-	// Validate user ID - channel IDs and other invalid IDs should not be checked
-	// User IDs in Telegram are always positive, negative IDs are chat/channel IDs
 	if !IsValidUserId(userId) {
-		// Provide more specific error messages based on ID type
 		if IsChannelId(userId) {
 			log.WithFields(log.Fields{
 				"chatID": chatID,
@@ -221,22 +179,18 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return false
 	}
 
-	// Placing this first would not make additional queries if check is success!
 	if slices.Contains(tgAdminList, userId) {
 		return true
 	}
 
-	// Check cache first - avoid GetChat call if possible
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
 	if adminsAvail && admins.Cached {
-		// O(1) lookup via map when available
 		if admins.UserMap != nil {
 			if admin, found := admins.UserMap[userId]; found && admin.User.Id != 0 {
 				return true
 			}
 			return false
 		}
-		// Fallback to linear scan for backwards compatibility (cached data without UserMap)
 		for i := range admins.UserInfo {
 			if admins.UserInfo[i].User.Id == userId {
 				return true
@@ -245,7 +199,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return false
 	}
 
-	// Only make GetChat call if cache miss - use fresh context per API call
 	ctxGetChat, cancelGetChat := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelGetChat()
 	chat, err := b.GetChatWithContext(ctxGetChat, chatID, nil)
@@ -258,21 +211,17 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return false
 	}
 
-	// Don't allow check if not a group/supergroup
 	if chat.Type != "group" && chat.Type != "supergroup" {
 		return false
 	}
 
-	// Load admin cache with timeout protection
 	adminList := cache.LoadAdminCache(b, chatID)
 
-	// Check if user is in admin list via O(1) map lookup
 	if adminList.UserMap != nil {
 		if admin, found := adminList.UserMap[userId]; found && admin.User.Id != 0 {
 			return true
 		}
 	} else {
-		// Fallback to linear scan for backwards compatibility
 		for i := range adminList.UserInfo {
 			if adminList.UserInfo[i].User.Id == userId {
 				return true
@@ -280,8 +229,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		}
 	}
 
-	// Fallback: If admin cache is empty but we know this is a group/supergroup,
-	// try a direct GetChatMember call as backup with a fresh context
 	if len(adminList.UserInfo) == 0 {
 		log.WithFields(log.Fields{
 			"chatID": chatID,
@@ -292,7 +239,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		defer cancelMember()
 		member, err := b.GetChatMemberWithContext(ctxMember, chatID, userId, nil)
 		if err != nil {
-			// Check for context timeout
 			if ctxMember.Err() != nil {
 				log.WithFields(log.Fields{
 					"chatID": chatID,
@@ -300,7 +246,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 				}).Warn("IsUserAdmin: GetChatMember fallback timed out, assuming non-admin")
 				return false
 			}
-			// Check for specific permission errors to avoid spam
 			errStr := err.Error()
 			if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {
 				log.WithFields(log.Fields{
@@ -339,9 +284,6 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	return false
 }
 
-// IsBotAdmin checks if the bot has administrator privileges in the specified chat.
-// Returns true for private chats (bot is always "admin" in private).
-// For groups, verifies the bot's actual admin status.
 func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -361,9 +303,6 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return mem.Status == "administrator"
 }
 
-// CanInvite checks if the bot and user have permissions to generate invite links.
-// Returns true immediately if the chat has a public username.
-// Validates both bot and user permissions for invite link generation.
 func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -429,7 +368,6 @@ func IsUserInChatWithError(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) (bo
 	}
 }
 
-// IsUserInChat checks if a user is currently a member of the specified chat.
 func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 	isMember, err := IsUserInChatWithError(b, chat, userId)
 	if err != nil {
@@ -439,9 +377,6 @@ func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool {
 	return isMember
 }
 
-// IsUserConnected checks if a user is connected to a chat and validates permissions.
-// Handles both private messages (with connection system) and group messages.
-// Returns the effective chat if all checks pass, nil otherwise.
 func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool) (chat *gotgbot.Chat) {
 	msg := ctx.EffectiveMessage
 	user := ctx.EffectiveUser
@@ -559,9 +494,6 @@ func IsUserConnected(b *gotgbot.Bot, ctx *ext.Context, chatAdmin, botAdmin bool)
 	return chat
 }
 
-// IsUserBanProtected checks if a user is protected from being banned.
-// Returns true for private chats, admins, and special Telegram accounts.
-// Used to prevent banning of administrators and system accounts.
 func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, userId int64) bool {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
@@ -576,9 +508,6 @@ func IsUserBanProtected(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, us
 	return IsUserAdmin(b, ctx.EffectiveChat.Id, userId) || slices.Contains(tgAdminList, userId)
 }
 
-// setAnonAdminCache stores anonymous admin message information in cache.
-// Used to track anonymous admin verification requests with expiration.
-// Logs errors but doesn't fail since cache is non-critical.
 func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
 	m := cache.GetMarshal()
 	if m == nil || msg == nil {
@@ -587,12 +516,10 @@ func setAnonAdminCache(chatId int64, msg *gotgbot.Message) {
 	}
 	err := m.Set(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chatId, msg.MessageId), msg, store.WithExpiration(anonChatMapExpiration))
 	if err != nil {
-		// Log error but don't fail the operation since cache is not critical
 		log.Errorf("Failed to set anonymous admin cache: %v", err)
 	}
 }
 
-// GetEffectiveUser safely extracts the user from context.
 // Returns nil for channel posts and cases where user is unavailable.
 func GetEffectiveUser(ctx *ext.Context) *gotgbot.User {
 	if ctx == nil || ctx.EffectiveSender == nil {
@@ -601,19 +528,13 @@ func GetEffectiveUser(ctx *ext.Context) *gotgbot.User {
 	return ctx.EffectiveSender.User
 }
 
-// RequireUser ensures a valid user exists in context.
-// Returns the user or nil.
 func RequireUser(b *gotgbot.Bot, ctx *ext.Context) *gotgbot.User {
 	return GetEffectiveUser(ctx)
 }
 
-// GetMessageLinkFromMessageId generates a Telegram message link from chat and message ID.
-// Handles both public groups (with username) and private groups (without username).
 // NOTE: msg.GetLink() only works for supergroups/channels. This custom implementation
 // also handles private groups and non-supergroups by constructing the link manually.
 func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLink string) {
-	// This function expects group/supergroup/channel chats (negative IDs).
-	// For user chats or invalid contexts, return empty string.
 	if chat == nil || chat.Id >= 0 {
 		return ""
 	}
@@ -625,7 +546,6 @@ func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLi
 		if IsChannelId(chat.Id) {
 			linkId = strings.ReplaceAll(chatIdStr, "-100", "")
 		} else if strings.HasPrefix(chatIdStr, "-") && !IsChannelId(chat.Id) {
-			// this is for non-supergroups
 			linkId = strings.ReplaceAll(chatIdStr, "-", "")
 		}
 		messageLink += fmt.Sprintf("c/%s/%d", linkId, messageId)
@@ -635,11 +555,7 @@ func GetMessageLinkFromMessageId(chat *gotgbot.Chat, messageId int64) (messageLi
 	return
 }
 
-// ExtractJoinLeftStatusChange analyzes ChatMemberUpdated events to detect join/leave status changes.
-// Returns (was_member, is_member) booleans indicating membership status transition.
-// Returns (false, false) for channels or if no status change occurred.
 func ExtractJoinLeftStatusChange(u *gotgbot.ChatMemberUpdated) (bool, bool) {
-	// return false for channels
 	if u.Chat.Type == "channel" {
 		return false, false
 	}
@@ -666,11 +582,7 @@ func ExtractJoinLeftStatusChange(u *gotgbot.ChatMemberUpdated) (bool, bool) {
 	return wasMember, isMember
 }
 
-// ExtractAdminUpdateStatusChange detects admin status changes from ChatMemberUpdated events.
-// Returns true if there was a transition to/from administrator or creator status.
-// Returns false for channels or if no admin status change occurred.
 func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
-	// return false for channels
 	if u.Chat.Type == "channel" {
 		return false
 	}
@@ -678,7 +590,6 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 	oldMemberStatus := u.OldChatMember.MergeChatMember().Status
 	newMemberStatus := u.NewChatMember.MergeChatMember().Status
 
-	// status remains same
 	if oldMemberStatus == newMemberStatus {
 		return false
 	}
@@ -701,10 +612,7 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 	return adminStatusChanged
 }
 
-// sendAnonAdminKeyboard sends an inline keyboard to verify anonymous admin identity.
-// Creates a callback button that anonymous admins can click to prove their admin status.
 func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat) (*gotgbot.Message, error) {
-	// Create a minimal context to get the language
 	ctx := &ext.Context{
 		EffectiveMessage: msg,
 	}

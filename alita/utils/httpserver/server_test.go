@@ -393,8 +393,6 @@ func TestRegisterHealth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 
-	// This test intentionally calls a handler that may panic with nil db/cache.
-	// We catch the panic and report it via Logf because the route still responds.
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("recovered panic in /health handler: %v", r)
@@ -413,7 +411,6 @@ func TestRegisterHealth(t *testing.T) {
 }
 
 func TestRegisterMetrics(t *testing.T) {
-	// No token configured: endpoint should be open (with a startup warning).
 	s := New(8080, time.Now())
 	s.RegisterMetrics()
 
@@ -433,7 +430,6 @@ func TestRegisterMetrics(t *testing.T) {
 func TestRegisterDBMetrics(t *testing.T) {
 	setupHTTPServerDB(t)
 
-	// No token configured: endpoint should be open (with a startup warning).
 	s := New(8080, time.Now())
 	s.RegisterDBMetrics()
 
@@ -452,8 +448,6 @@ func TestRegisterDBMetrics(t *testing.T) {
 	}
 }
 
-// TestMetricsRequiresToken verifies that /metrics returns 401 without the correct bearer
-// token and 200 when the correct bearer token is supplied.
 func TestMetricsRequiresToken(t *testing.T) {
 	t.Parallel()
 
@@ -463,7 +457,6 @@ func TestMetricsRequiresToken(t *testing.T) {
 	s.SetMetricsAuthToken(token)
 	s.RegisterMetrics()
 
-	// No Authorization header → 401.
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
@@ -471,7 +464,6 @@ func TestMetricsRequiresToken(t *testing.T) {
 		t.Errorf("no auth header: expected 401, got %d", rr.Code)
 	}
 
-	// Wrong token → 401.
 	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Bearer wrong-token")
 	rr = httptest.NewRecorder()
@@ -480,7 +472,6 @@ func TestMetricsRequiresToken(t *testing.T) {
 		t.Errorf("wrong token: expected 401, got %d", rr.Code)
 	}
 
-	// Correct token → 200.
 	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rr = httptest.NewRecorder()
@@ -490,8 +481,6 @@ func TestMetricsRequiresToken(t *testing.T) {
 	}
 }
 
-// TestDBMetricsRequiresToken verifies that /db_metrics returns 401 without the correct bearer
-// token and 200 when the correct bearer token is supplied.
 func TestDBMetricsRequiresToken(t *testing.T) {
 	setupHTTPServerDB(t)
 
@@ -501,7 +490,6 @@ func TestDBMetricsRequiresToken(t *testing.T) {
 	s.SetMetricsAuthToken(token)
 	s.RegisterDBMetrics()
 
-	// No Authorization header → 401.
 	req := httptest.NewRequest(http.MethodGet, "/db_metrics", nil)
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
@@ -509,7 +497,6 @@ func TestDBMetricsRequiresToken(t *testing.T) {
 		t.Errorf("no auth header: expected 401, got %d", rr.Code)
 	}
 
-	// Wrong token → 401.
 	req = httptest.NewRequest(http.MethodGet, "/db_metrics", nil)
 	req.Header.Set("Authorization", "Bearer wrong-token")
 	rr = httptest.NewRecorder()
@@ -518,7 +505,6 @@ func TestDBMetricsRequiresToken(t *testing.T) {
 		t.Errorf("wrong token: expected 401, got %d", rr.Code)
 	}
 
-	// Correct token → 200.
 	req = httptest.NewRequest(http.MethodGet, "/db_metrics", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rr = httptest.NewRecorder()
@@ -528,13 +514,9 @@ func TestDBMetricsRequiresToken(t *testing.T) {
 	}
 }
 
-// TestDBMetricsDoesNotLeakError verifies that when GetCurrentMetrics fails the response body
-// contains the static string "internal error" and NOT the raw Go error string.
 func TestDBMetricsDoesNotLeakError(t *testing.T) {
 	t.Parallel()
 
-	// Build a server without setting up a real DB, so monitoring.GetCurrentMetrics will fail.
-	// Temporarily nil out db.DB to force an error.
 	s := New(9102, time.Now())
 	s.RegisterDBMetrics()
 
@@ -542,8 +524,6 @@ func TestDBMetricsDoesNotLeakError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
 
-	// The handler either returns 200 (DB is set up via shared test DB) or 500 (no DB).
-	// We only check the error-path guarantee when it actually errors.
 	if rr.Code == http.StatusInternalServerError {
 		body := strings.TrimSpace(rr.Body.String())
 		if body != "internal error" {
@@ -602,7 +582,6 @@ func TestRegisterWebhookConfiguresTelegramWebhook(t *testing.T) {
 		t.Fatal("setWebhook was not called")
 	}
 
-	// The webhook is now registered at the static path /webhook (no secret in URL).
 	req := httptest.NewRequest(http.MethodGet, "/webhook", nil)
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
@@ -610,7 +589,6 @@ func TestRegisterWebhookConfiguresTelegramWebhook(t *testing.T) {
 		t.Fatalf("registered webhook route status = %d, want 405 for GET", rr.Code)
 	}
 
-	// The old secret-bearing path must NOT be registered.
 	req2 := httptest.NewRequest(http.MethodGet, "/webhook/secret-token", nil)
 	rr2 := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr2, req2)
@@ -670,9 +648,6 @@ func TestStopWaitsForWebhookDispatches(t *testing.T) {
 	}
 }
 
-// TestWebhookValidatesHeaderNotPath verifies that the webhook endpoint is served at the
-// static path /webhook (with no secret in the URL) and that access control is enforced
-// entirely via the X-Telegram-Bot-Api-Secret-Token header, not by the URL path.
 func TestWebhookValidatesHeaderNotPath(t *testing.T) {
 	t.Parallel()
 
@@ -717,7 +692,6 @@ func TestWebhookValidatesHeaderNotPath(t *testing.T) {
 	})
 
 	t.Run("secret-bearing path is not routed", func(t *testing.T) {
-		// The old /webhook/<secret> path must not be registered.
 		req := httptest.NewRequest(http.MethodPost, "/webhook/my-secret", strings.NewReader(validBody))
 		req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "my-secret")
 		rr := httptest.NewRecorder()

@@ -1,4 +1,3 @@
-// Package keyboard provides utilities for building Telegram inline keyboards.
 package keyboard
 
 import (
@@ -14,8 +13,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
 
-// GetLangFormat returns a formatted language display string with name and flag emoji.
-// Uses i18n system to get localized language name and flag for the given language code.
 func GetLangFormat(langCode string) string {
 	tr := i18n.MustNewTranslator(langCode)
 	langName, _ := tr.GetString("language_name")
@@ -23,8 +20,6 @@ func GetLangFormat(langCode string) string {
 	return langName + " " + langFlag
 }
 
-// BuildKeyboard constructs an inline keyboard from a slice of database button objects.
-// Handles button grouping based on the SameLine property for proper layout.
 func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 	keyb := make([][]gotgbot.InlineKeyboardButton, 0)
 	for _, btn := range buttons {
@@ -39,8 +34,6 @@ func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 	return keyb
 }
 
-// MakeLanguageKeyboard creates an inline keyboard with all available language options.
-// Uses valid language codes from config and chunks them into 2-column layout.
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 	var kb []gotgbot.InlineKeyboardButton
 
@@ -62,17 +55,15 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 	return slices.Collect(slices.Chunk(kb, 2))
 }
 
-// InitButtons creates an inline keyboard markup for the connection menu.
-// Shows admin commands button if the user is an admin, otherwise shows only user commands.
 func InitButtons(b *gotgbot.Bot, chatId, userId int64) gotgbot.InlineKeyboardMarkup {
 	tr := i18n.MustNewTranslator("en")
 	adminText, _ := tr.GetString("helpers_admin_commands")
 	if adminText == "" {
-		adminText = "Admin commands" // fallback
+		adminText = "Admin commands"
 	}
 	userText, _ := tr.GetString("helpers_user_commands")
 	if userText == "" {
-		userText = "User commands" // fallback
+		userText = "User commands"
 	}
 
 	var connButtons [][]gotgbot.InlineKeyboardButton

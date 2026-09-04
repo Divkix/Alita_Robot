@@ -99,7 +99,6 @@ func TestGetOrCreateMatcher(t *testing.T) {
 
 		wg.Wait()
 
-		// All should have received a non-nil matcher
 		for i, m := range matchers {
 			if m == nil {
 				t.Errorf("goroutine %d got nil matcher", i)
@@ -117,7 +116,6 @@ func TestCleanupExpired(t *testing.T) {
 		c := newCache(time.Millisecond)
 		c.GetOrCreateMatcher(1001, []string{"pattern"})
 
-		// Wait for TTL to expire
 		time.Sleep(5 * time.Millisecond)
 
 		c.cleanupExpired()
@@ -152,7 +150,6 @@ func TestCleanupExpired(t *testing.T) {
 		t.Parallel()
 
 		c := newCache(time.Minute)
-		// Should not panic or have side effects on empty cache
 		c.cleanupExpired()
 
 		c.mu.RLock()
@@ -186,7 +183,6 @@ func TestCleanupExpired(t *testing.T) {
 	})
 }
 
-// patternsEqual checks if two pattern slices are equal using O(n) direct comparison.
 func patternsEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

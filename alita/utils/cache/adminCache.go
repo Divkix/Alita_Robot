@@ -20,10 +20,6 @@ func adminCacheKey(chatId int64) string {
 	return fmt.Sprintf("alita:adminCache:%d", chatId)
 }
 
-// LoadAdminCache retrieves and caches the list of administrators for a given chat.
-// It fetches the current administrators from Telegram API and stores them in cache
-// with a 30-minute expiration. Returns an AdminCache struct containing the admin list.
-// Concurrent callers for the same chat share one in-flight Telegram fetch.
 // getChatAdministrators is called with ReturnBots so other administrator bots
 // are included; without it Telegram omits them and IsUserAdmin treats them as
 // regular members.
@@ -62,7 +58,6 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		return storeWithTTL(ac, negativeAdminCacheTTL)
 	}
 
-	// Check if bot itself is admin with a dedicated timeout context
 	botCtx, botCancel := context.WithTimeout(context.Background(), constants.DefaultTimeout)
 	botMember, botErr := b.GetChatMemberWithContext(botCtx, chatId, b.Id, nil)
 	botCancel()
@@ -72,7 +67,6 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 			"botId":  b.Id,
 			"error":  botErr,
 		}).Warning("LoadAdminCache: Could not verify bot admin status")
-		// Store short-TTL negative to damp storm but allow quick retry on flaky API
 		return storeWithTTL(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
@@ -89,8 +83,6 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		})
 	}
 
-	// Bot has admin rights — clear any stale restricted flag so sends are
-	// no longer short-circuited for this chat.
 	MarkChatNotRestricted(chatId)
 
 	log.WithFields(log.Fields{
@@ -99,7 +91,6 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		"botStatus": botStatus,
 	}).Debug("LoadAdminCache: Bot has admin privileges")
 
-	// Retry logic for API call — per-attempt timeout to avoid deadline exceeded after sleeps
 	maxRetries := 3
 	var adminList []gotgbot.ChatMember
 	var err error
@@ -121,7 +112,7 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 			}).Warning("LoadAdminCache: Failed to get chat administrators, retrying...")
 
 			if attempt < maxRetries-1 {
-				time.Sleep(time.Duration(attempt+1) * time.Second) // Exponential backoff
+				time.Sleep(time.Duration(attempt+1) * time.Second)
 				continue
 			}
 
@@ -131,15 +122,13 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 			}).Error("LoadAdminCache: Failed to get chat administrators after all retries")
 			return AdminCache{}
 		}
-		break // Success
+		break
 	}
 
 	if len(adminList) == 0 {
 		log.WithFields(log.Fields{
 			"chatId": chatId,
 		}).Warning("LoadAdminCache: No administrators found - this is unusual for a valid group")
-		// Empty admin list is unusual but not necessarily an error
-		// Return empty cache but mark it as cached to avoid infinite retries
 		return storeResult(AdminCache{
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
@@ -147,13 +136,11 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 		})
 	}
 
-	// Convert ChatMember to MergedChatMember and build lookup map
 	userList := make([]gotgbot.MergedChatMember, 0, len(adminList))
 	userMap := make(map[int64]gotgbot.MergedChatMember, len(adminList))
 	for _, admin := range adminList {
 		merged := admin.MergeChatMember()
 		userList = append(userList, merged)
-		// GetUser returns User by value, so check if ID is valid (non-zero)
 		user := admin.GetUser()
 		if user.Id != 0 {
 			userMap[user.Id] = merged
@@ -170,8 +157,6 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 	return storeResult(adminCache)
 }
 
-// GetAdminCacheList retrieves the cached administrator list for a specific chat.
-// Returns true and the AdminCache if found in cache, false and empty AdminCache if cache miss.
 func GetAdminCacheList(chatId int64) (bool, AdminCache) {
 	m := GetMarshal()
 	if m == nil {
@@ -198,32 +183,25 @@ func GetAdminCacheList(chatId int64) (bool, AdminCache) {
 	return true, *gotAdminlist.(*AdminCache)
 }
 
-// GetAdminCacheUser searches for a specific user in the cached administrator list of a chat.
-// Returns true and the MergedChatMember if the user is found as an admin,
-// false and empty MergedChatMember if not found or cache miss.
 func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 	m := GetMarshal()
 	if m == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
-	// Use consistent string key format matching LoadAdminCache
 	adminList, err := m.Get(Context, adminCacheKey(chatId), new(AdminCache))
 	if err != nil || adminList == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
 
-	// Type assert with check to prevent panic
 	adminCache, ok := adminList.(*AdminCache)
 	if !ok || adminCache == nil {
 		return false, gotgbot.MergedChatMember{}
 	}
 
-	// O(1) lookup via map (primary method)
 	if admin, found := adminCache.UserMap[userId]; found {
 		return true, admin
 	}
 
-	// Fallback to linear search for backwards compatibility (e.g., cached data without UserMap)
 	for i := range adminCache.UserInfo {
 		admin := &adminCache.UserInfo[i]
 		if admin.User.Id == userId {
@@ -233,8 +211,6 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 	return false, gotgbot.MergedChatMember{}
 }
 
-// InvalidateAdminCache removes the cached admin list for a chat.
-// Should be called when admins are promoted/demoted to ensure fresh data.
 func InvalidateAdminCache(chatId int64) {
 	m := GetMarshal()
 	if m == nil {
