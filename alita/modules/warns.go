@@ -25,11 +25,8 @@ import (
 
 var warnsModule = moduleStruct{moduleName: "Warns"}
 
-// setWarnMode handles the /setwarnmode command to configure the action
-// taken when users reach the warning limit (ban, kick, or mute).
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -43,7 +40,6 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// permissions check
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -86,8 +82,6 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// warnThisUser is a helper function that performs the actual warning process,
-// including limit checking and enforcement of warn mode actions.
 func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string) (err error) {
 	var (
 		reply    string
@@ -98,11 +92,9 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Get translated button texts
 	removeWarnText, _ := tr.GetString("warns_remove_button")
 	rulesButtonText, _ := tr.GetString("common_rules_button_emoji")
 
-	// permissions check
 	if chat_status.IsUserAdmin(b, chat.Id, userId) {
 		text, _ := tr.GetString("warns_admin_warning_error")
 		_, err = msg.Reply(b, text, nil)
@@ -244,9 +236,6 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	return ext.EndGroups
 }
 
-// dispatchWarn runs the standard moderation gate check then dispatches a warn
-// action of the given warnType ("warn", "swarn", or "dwarn").
-// Extracted from the three formerly-identical warnUser/sWarnUser/dWarnUser bodies.
 func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType string) error {
 	mc, err := buildModerationCtx(&warnsModule, b, ctx)
 	if err != nil {
@@ -294,26 +283,18 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 	return m.warnThisUser(b, ctx, warnusr, reason, warnType)
 }
 
-// warnUser handles the /warn command to issue warnings to users
-// with optional reasons, requiring admin permissions.
 func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.dispatchWarn(b, ctx, "warn")
 }
 
-// sWarnUser handles the /swarn command to silently warn users
-// by deleting the command message, requiring admin permissions.
 func (m moduleStruct) sWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.dispatchWarn(b, ctx, "swarn")
 }
 
-// dWarnUser handles the /dwarn command to warn users and delete
-// the message they replied to, requiring admin permissions.
 func (m moduleStruct) dWarnUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.dispatchWarn(b, ctx, "dwarn")
 }
 
-// warnings handles the /warnings command to display current
-// warning settings including limit and enforcement mode.
 func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -323,7 +304,6 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -348,14 +328,11 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// warns handles the /warns command to check the warning count
-// and reasons for a specific user or the command sender.
 func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "warns") {
 		return ext.EndGroups
 	}
@@ -430,8 +407,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// rmWarnButton processes callback queries from remove warning buttons
-// to remove the latest warning from a user, requiring admin permissions.
 func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -444,7 +419,6 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check permissions
 	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -499,11 +473,8 @@ func (moduleStruct) rmWarnButton(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// setWarnLimit handles the /setwarnlimit command to configure
-// the maximum number of warnings before enforcement action.
 func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -517,7 +488,6 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()[1:]
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check permissions
 	if !chat_status.RequireBotAdmin(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -561,8 +531,6 @@ func (moduleStruct) setWarnLimit(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetWarns handles the /resetwarns command to clear all warnings
-// for a specific user, requiring admin permissions.
 func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -572,7 +540,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -625,8 +592,6 @@ func (moduleStruct) resetWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetAllWarns handles the /resetallwarns command to clear all warnings
-// for all users in the chat with confirmation, restricted to owners.
 func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -636,11 +601,9 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Get translated button texts
 	yesText, _ := tr.GetString("common_yes")
 	noText, _ := tr.GetString("common_no")
 
-	// Check if group or not
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -686,8 +649,6 @@ func (moduleStruct) resetAllWarns(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// warnsButtonHandler processes callback queries for the reset all warnings
-// confirmation dialog, restricted to chat owners.
 func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -759,8 +720,6 @@ func (moduleStruct) warnsButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// removeWarn handles /rmwarn and /unwarn commands to remove the latest warning
-// from a specific user. Requires bot and user admin permissions.
 func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -770,7 +729,6 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Check permissions
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -824,18 +782,14 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadWarns registers all warns module handlers with the dispatcher,
-// including warning commands and callback handlers.
 func LoadWarns(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[warnsModule.moduleName] = true
 
 	dispatcher.AddHandler(handlers.NewCommand("warn", warnsModule.warnUser))
 	dispatcher.AddHandler(handlers.NewCommand("swarn", warnsModule.sWarnUser))
 	dispatcher.AddHandler(handlers.NewCommand("dwarn", warnsModule.dWarnUser))
-	// Aliases for reset warnings (docs mention /resetwarn as well)
 	dispatcher.AddHandler(handlers.NewCommand("resetwarns", warnsModule.resetWarns))
 	dispatcher.AddHandler(handlers.NewCommand("resetwarn", warnsModule.resetWarns))
-	// Add commands to remove latest warn for a user
 	dispatcher.AddHandler(handlers.NewCommand("rmwarn", warnsModule.removeWarn))
 	dispatcher.AddHandler(handlers.NewCommand("unwarn", warnsModule.removeWarn))
 	dispatcher.AddHandler(handlers.NewCommand("warns", warnsModule.warns))

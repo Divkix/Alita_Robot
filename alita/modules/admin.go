@@ -24,13 +24,6 @@ import (
 
 var adminModule = moduleStruct{moduleName: "Admin"}
 
-/*
-	Used to list all the admin in a group
-
-Connection - false, false
-*/
-// adminlist handles the /adminlist command to display all admins in a group.
-// It returns a cached or fresh list of group administrators excluding bots and anonymous admins.
 func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -52,7 +45,6 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 		admin := &admins.UserInfo[i]
 		user := admin.User
 		if user.IsBot || admin.IsAnonymous {
-			// don't list bots and anonymous admins
 			continue
 		}
 		if user.Username != "" {
@@ -62,7 +54,6 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 		}
 	}
 	if sb.Len() == 0 {
-		// All admins are bots or anonymous
 		noVisibleText, _ := tr.GetString("admin_no_visible_admins")
 		text += noVisibleText
 	} else {
@@ -84,15 +75,6 @@ func (m moduleStruct) adminlist(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-/* Used to Demote a member in chat
-
-connection = true, true
-
-Bot can only Demote people it promoted! */
-
-// loadAdminCacheOrFail returns the cached admin list, or loads it from
-// Telegram. If the cache is empty after loading, it replies with an error
-// and returns a nil pointer so the caller can early-return.
 func (m moduleStruct) loadAdminCacheOrFail(c *helpers.CommandContext) *cache.AdminCache {
 	adminsAvail, admins := cache.GetAdminCacheList(c.Chat.Id)
 	if !adminsAvail {
@@ -109,9 +91,6 @@ func (m moduleStruct) loadAdminCacheOrFail(c *helpers.CommandContext) *cache.Adm
 	return &admins
 }
 
-// validateDemotionTarget checks the extracted user ID for demotion.
-// It returns the validated user ID and an error sentinel if the target is
-// invalid (the caller should return ext.EndGroups).
 func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, error) {
 	userId := extraction.ExtractUser(c.Bot, c.Ctx)
 	if userId == -1 {
@@ -152,8 +131,6 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 		}
 		return 0, ext.EndGroups
 	}
-	// Using IsUserAdmin (not RequireUserAdmin) because we need a custom error message
-	// specific to the demote context rather than the generic permission error.
 	if !chat_status.IsUserAdmin(c.Bot, c.Chat.Id, userId) {
 		text, _ := c.Tr.GetString(strings.ToLower(m.moduleName) + "_demote_not_admin")
 		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
@@ -167,8 +144,6 @@ func (m moduleStruct) validateDemotionTarget(c *helpers.CommandContext) (int64, 
 	return userId, nil
 }
 
-// performDemotion removes admin privileges from the target user and sends
-// a success confirmation.
 func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) error {
 	bb, err := c.Chat.PromoteMember(c.Bot,
 		userId,
@@ -222,8 +197,6 @@ func (m moduleStruct) performDemotion(c *helpers.CommandContext, userId int64) e
 	return ext.EndGroups
 }
 
-// demote handles the /demote command to remove admin privileges from a user.
-// The bot can only demote users it has previously promoted.
 func (m moduleStruct) demote(c *helpers.CommandContext) error {
 	admins := m.loadAdminCacheOrFail(c)
 	if admins == nil {
@@ -238,14 +211,6 @@ func (m moduleStruct) demote(c *helpers.CommandContext) error {
 	return m.performDemotion(c, userId)
 }
 
-/* Used to Promote a member in chat
-
-connection = true, true
-
-Bot will give promoted user permissions of bot*/
-
-// validatePromotionTarget extracts and validates the target user for promotion.
-// It returns the user ID, custom title, and an error sentinel (ext.EndGroups) on failure.
 func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64, string, error) {
 	userId, customTitle := extraction.ExtractUserAndText(c.Bot, c.Ctx)
 	if userId == -1 {
@@ -297,14 +262,10 @@ func (m moduleStruct) validatePromotionTarget(c *helpers.CommandContext) (int64,
 	return userId, customTitle, nil
 }
 
-// canGrantPerm returns whether the bot can grant a specific permission,
-// considering both the bot's own capability and the promoter privileges.
 func canGrantPerm(botHas, promoterHas, bypass bool) bool {
 	return botHas && (promoterHas || bypass)
 }
 
-// buildPromoteOpts constructs the permission options for PromoteMember
-// based on bot and promoter capabilities.
 func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbot.User, c *helpers.CommandContext) *gotgbot.PromoteChatMemberOpts {
 	bMem := botMember.MergeChatMember()
 	pMem := promoterMember.MergeChatMember()
@@ -327,8 +288,6 @@ func buildPromoteOpts(botMember, promoterMember gotgbot.ChatMember, user *gotgbo
 	}
 }
 
-// handlePromotionSuccess sends the success reply after a promotion,
-// optionally setting a custom title and truncating it if needed.
 func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId int64, customTitle string, userMember gotgbot.ChatMember) error {
 	tr := c.Tr
 	msg := c.Msg
@@ -370,8 +329,6 @@ func (m moduleStruct) handlePromotionSuccess(c *helpers.CommandContext, userId i
 	return ext.EndGroups
 }
 
-// promote handles the /promote command to grant admin privileges to a user.
-// The bot grants permissions based on its own capabilities and the promoter's status.
 func (m moduleStruct) promote(c *helpers.CommandContext) error {
 	admins := m.loadAdminCacheOrFail(c)
 	if admins == nil {
@@ -431,8 +388,6 @@ func (m moduleStruct) promote(c *helpers.CommandContext) error {
 	return m.handlePromotionSuccess(c, userId, customTitle, userMember)
 }
 
-// getinvitelink handles the /invitelink command to retrieve the chat's invite link.
-// Returns either the public username or generates an invite link for private groups.
 func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -453,7 +408,6 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// setGTitle handles /setgtitle to change the current group's title.
 func (moduleStruct) setGTitle(c *helpers.CommandContext) error {
 	msg := c.Msg
 	tr := c.Tr
@@ -474,7 +428,6 @@ func (moduleStruct) setGTitle(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// setGPic handles /setgpic to set the group photo from a replied photo.
 func (moduleStruct) setGPic(c *helpers.CommandContext) error {
 	msg := c.Msg
 	tr := c.Tr
@@ -503,7 +456,6 @@ func (moduleStruct) setGPic(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// setGDesc handles /setgdesc to change the current group's description.
 func (moduleStruct) setGDesc(c *helpers.CommandContext) error {
 	msg := c.Msg
 	tr := c.Tr
@@ -519,12 +471,6 @@ func (moduleStruct) setGDesc(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-/*
-Sets a custom title for an admin.
-Only works with admins whom bot has promoted.*/
-
-// setTitle handles the /title command to set a custom administrator title.
-// Only works with admins that the bot has promoted and titles are limited to 16 characters.
 func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -581,7 +527,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		return ext.EndGroups
 	}
 
-	// for managing custom title
 	var extraText string
 	if customTitle == "" {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_errors_title_empty")
@@ -592,7 +537,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 		}
 		return ext.EndGroups
 	} else if len([]rune(customTitle)) > 16 {
-		// trim title to 16 characters (telegram restriction) and notify user
 		runes := []rune(customTitle)
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_title_truncated")
 		extraText = fmt.Sprintf(temp, len(runes))
@@ -639,8 +583,6 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// anonAdmin handles the /anonadmin command to toggle anonymous admin mode in groups.
-// Only chat owners can modify this setting which affects how anonymous admins are handled.
 func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -661,7 +603,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		}
 	} else {
-		// only need owner if you want to change value
 		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id) {
 			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 			return ext.EndGroups
@@ -672,7 +613,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_enabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				// Synchronous DB write - confirm success before sending message
 				if err := admin.SetAnonAdminMode(chat.Id, true); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
@@ -687,7 +627,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_already_disabled")
 				text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			} else {
-				// Synchronous DB write - confirm success before sending message
 				if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 					log.Errorf("[Admin] Failed to set anon admin mode for chat %d: %v", chat.Id, err)
 					errorText, _ := tr.GetString(strings.ToLower(m.moduleName) + "_anon_admin_db_error")
@@ -711,8 +650,6 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// adminCache handles the /admincache command to refresh the admin cache for a chat.
-// Forces a reload of admin permissions from Telegram's API.
 func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 	b := c.Bot
 	chat := c.Chat
@@ -724,7 +661,6 @@ func (moduleStruct) adminCache(c *helpers.CommandContext) error {
 
 	var err error
 
-	// permission checks
 	userMember, err := chat.GetMember(b, user.Id, nil)
 	if err != nil {
 		log.Errorf("[Admin] Failed to get member %d: %v", user.Id, err)
@@ -860,8 +796,6 @@ var (
 	}
 )
 
-// LoadAdmin registers all admin module command handlers with the dispatcher.
-// Sets up commands for promotion, demotion, title setting, and admin management.
 func LoadAdmin(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap["Admin"] = true
 
@@ -876,8 +810,6 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	helpers.WrapCommand(dispatcher, setGPicDesc, adminModule.setGPic)
 	helpers.WrapCommand(dispatcher, setGDescDesc, adminModule.setGDesc)
 
-	// adminCache uses custom permission checking (direct member status lookup),
-	// so it remains a raw handler.
 	dispatcher.AddHandler(handlers.NewCommand("admincache", func(b *gotgbot.Bot, ctx *ext.Context) error {
 		defer error_handling.RecoverFromPanic("admincache", "admin")
 		c, err := helpers.BuildCommandContext(b, ctx)
@@ -888,8 +820,6 @@ func LoadAdmin(dispatcher *ext.Dispatcher) {
 	}))
 }
 
-// clearAdminCache handles the /clearadmincache command to delete the cached admin list.
-// Requires admin permissions and provides user feedback on success.
 func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	chat := c.Chat
 	msg := c.Msg
@@ -915,15 +845,11 @@ func (moduleStruct) clearAdminCache(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
-// anonymousAdmin wrappers for admin.go
 func (m moduleStruct) promoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	c, err := helpers.BuildCommandContext(b, ctx)
 	if err != nil {
 		return ext.EndGroups
 	}
-	// Anonymous admins bypass WrapCommand's RequiredChecks, so enforce promote
-	// authorization explicitly: the anon admin must have CanPromoteMembers rights
-	// and the bot must have CanPromoteMembers rights.
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
 		return ext.EndGroups
 	}
@@ -938,8 +864,6 @@ func (m moduleStruct) demoteAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		return ext.EndGroups
 	}
-	// Same authorization gate as promoteAnonAdmin: demoting also requires
-	// CanPromoteMembers on both the caller and the bot.
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
 		return ext.EndGroups
 	}
@@ -954,9 +878,6 @@ func (m moduleStruct) setTitleAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error 
 	if err != nil {
 		return ext.EndGroups
 	}
-	// Anonymous admins bypass WrapCommand's RequiredChecks, so enforce promote
-	// authorization explicitly (setTitle requires CanPromoteMembers), matching
-	// promoteAnonAdmin/demoteAnonAdmin.
 	if !chat_status.CanUserPromote(b, ctx, nil, ctx.EffectiveUser.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_promote_cmd_error", "chat_status_promote_button_error")
 		return ext.EndGroups

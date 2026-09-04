@@ -31,7 +31,6 @@ import (
 
 var (
 	miscModule = moduleStruct{moduleName: "Misc"}
-	// HTTP client with timeout and connection pooling for external requests
 	httpClient = &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
@@ -67,8 +66,6 @@ func parseTranslateResponse(body []byte) (detectedLang, translatedText string, e
 	return detectedLang, translatedText, nil
 }
 
-// echomsg handles the /tell command to make the bot echo a message
-// as a reply to another message, requiring admin permissions.
 func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
@@ -90,8 +87,6 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if len(args) > 0 {
-		// Send the echo first; only delete the command on success so a failed
-		// send does not destroy the admin's command with no content echoed.
 		echoText := strings.Join(strings.Split(msg.OriginalHTML(), " ")[1:], " ")
 		_, err := msg.Reply(b,
 			echoText,
@@ -104,7 +99,6 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 		)
 		if err != nil {
 			log.Error(err)
-			// Leave the command message in place so the admin can see the echo failed.
 			return ext.EndGroups
 		}
 		if _, derr := msg.Delete(b, nil); derr != nil {
@@ -119,8 +113,6 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// getId handles the /id command to display IDs of users, chats,
-// files, and forwarded messages with detailed information.
 func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	userId := extraction.ExtractUser(b, ctx)
@@ -128,9 +120,8 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	var builder strings.Builder
-	builder.Grow(512) // Pre-allocate capacity for better performance
+	builder.Grow(512)
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "id") {
 		return ext.EndGroups
 	}
@@ -230,18 +221,15 @@ func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// ping handles the /ping command to measure bot-to-Telegram API round-trip time
 func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
-	// Check if command is disabled
 	if chat_status.CheckDisabledCmd(b, msg, "ping") {
 		return ext.EndGroups
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Step 1: Measure sendMessage RTT (includes Telegram message processing)
 	pingingText, _ := tr.GetString("misc_pinging")
 	sendStart := time.Now()
 	sentMsg, err := msg.Reply(b, pingingText, &gotgbot.SendMessageOpts{
@@ -253,7 +241,6 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	// Step 2: Measure getMe RTT (lightweight call, baseline network latency)
 	getMeStart := time.Now()
 	_, getMeErr := b.GetMe(nil)
 	getMeLatency := time.Since(getMeStart)
@@ -261,7 +248,6 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.WithError(getMeErr).Error("[Ping] Failed to call getMe")
 	}
 
-	// Step 3: Edit with detailed breakdown
 	text := fmt.Sprintf(
 		"🏓 <b>Pong!</b>\n\n"+
 			"<b>API RTT</b> (getMe): <code>%dms</code>\n"+
@@ -290,8 +276,6 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// info handles the /info command to display detailed information
-// about a user or channel including ID, name, and special roles.
 func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
@@ -300,14 +284,12 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	case -1:
 		return ext.EndGroups
 	case 0:
-		// 0 id is for self
 		if sender == nil {
 			return ext.EndGroups
 		}
 		userId = sender.Id()
 	}
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "info") {
 		return ext.EndGroups
 	}
@@ -326,7 +308,6 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 			FirstName: name,
 		}
 
-		// If channel then this info
 		if chat_status.IsChannelId(userId) {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			textTemplate, _ := tr.GetString("misc_channel_info_header")
@@ -368,13 +349,10 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// translate handles the /tr command to translate text using
-// Google Translate API with automatic language detection.
 func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	args := ctx.Args()[1:]
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "tr") {
 		return ext.EndGroups
 	}
@@ -412,14 +390,12 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			toLang = args[0]
 		}
 	} else {
-		// args[1:] leaves the language code and takes rest of the text
 		if len(args[1:]) < 1 {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("misc_provide_text_translate")
 			_, _ = msg.Reply(b, text, formatting.Shtml())
 			return ext.EndGroups
 		}
-		// args[0] is the language code
 		toLang = args[0]
 		origText = strings.Join(args[1:], " ")
 	}
@@ -436,7 +412,6 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 		}
 	}(req.Body)
-	// Limit response size to 1MB to prevent memory exhaustion from malicious responses
 	all, err := io.ReadAll(io.LimitReader(req.Body, 1*1024*1024))
 	if err != nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -462,8 +437,6 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// removeBotKeyboard handles the /removebotkeyboard command to
-// remove stuck bot keyboards from the chat interface.
 func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -489,8 +462,6 @@ func (moduleStruct) removeBotKeyboard(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// stat handles the /stat command to display the total number
-// of messages in the current group chat.
 func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -498,7 +469,6 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
 	}
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "stat") {
 		return ext.EndGroups
 	}
@@ -512,8 +482,6 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadMisc registers all miscellaneous module handlers with the dispatcher,
-// including utility commands for IDs, ping, translation, and stats.
 func LoadMisc(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[miscModule.moduleName] = true
 

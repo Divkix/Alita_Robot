@@ -16,14 +16,10 @@ import (
 
 var mutesModule = moduleStruct{moduleName: "Mutes"}
 
-// muteTargetValidation validates the target for mute commands.
-// Checks: user is in chat, not ban-protected, not the bot itself.
 func muteTargetValidation(c *moderationCtx, t *target) error {
 	return validateTarget(c, t.userID, true, "common_user_not_in_chat", "mutes_mute_admin_error", "mutes_restrict_self_error")
 }
 
-// muteReplyWithButton builds and sends the success reply for mute commands
-// with an inline unmute button.
 func muteReplyWithButton(c *moderationCtx, t *target) error {
 	muteUser, err := c.Bot.GetChat(t.userID, nil)
 	if err != nil {
@@ -60,8 +56,6 @@ func muteReplyWithButton(c *moderationCtx, t *target) error {
 	return nil
 }
 
-// extractUserOnly resolves the target from command arguments using ExtractUser.
-// It rejects channel IDs and validates the user ID.
 func extractUserOnly(c *moderationCtx) (target, error) {
 	uid := extraction.ExtractUser(c.Bot, c.Ctx)
 	if uid == -1 {
@@ -89,7 +83,6 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 	return target{userID: uid}, nil
 }
 
-// moderationTmute is the shared moderationCommand definition for /tmute.
 func moderationTmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:   m,
@@ -131,7 +124,6 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 	}
 }
 
-// moderationMute is the shared moderationCommand definition for /mute.
 func moderationMute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:   m,
@@ -147,7 +139,6 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 	}
 }
 
-// moderationSmute is the shared moderationCommand definition for /smute.
 func moderationSmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:   m,
@@ -166,7 +157,6 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 	}
 }
 
-// moderationDmute is the shared moderationCommand definition for /dmute.
 func moderationDmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:  m,
@@ -201,7 +191,6 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 	}
 }
 
-// moderationUnmute is the shared moderationCommand definition for /unmute.
 func moderationUnmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
 		module:  m,
@@ -263,38 +252,26 @@ func moderationUnmute(m *moduleStruct) *moderationCommand {
 	}
 }
 
-// tMute handles the /tmute command to temporarily mute a user
-// with a specified time duration, requiring admin permissions.
 func (m moduleStruct) tMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationTmute(&m).run(b, ctx)
 }
 
-// mute handles the /mute command to permanently mute a user
-// from the group, requiring admin permissions.
 func (m moduleStruct) mute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationMute(&m).run(b, ctx)
 }
 
-// sMute handles the /smute command to silently mute a user
-// and delete the command message, requiring admin permissions.
 func (m moduleStruct) sMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationSmute(&m).run(b, ctx)
 }
 
-// dMute handles the /dmute command to mute a user and delete
-// the replied message, requiring admin permissions.
 func (m moduleStruct) dMute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationDmute(&m).run(b, ctx)
 }
 
-// unmute handles the /unmute command to restore chat permissions
-// to a previously muted user, requiring admin permissions.
 func (m moduleStruct) unmute(b *gotgbot.Bot, ctx *ext.Context) error {
 	return moderationUnmute(&m).run(b, ctx)
 }
 
-// LoadMutes registers all mute module handlers with the dispatcher,
-// including various mute commands and their variants.
 func LoadMutes(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[mutesModule.moduleName] = true
 

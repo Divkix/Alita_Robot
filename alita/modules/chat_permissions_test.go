@@ -6,7 +6,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
-// derefBool safely dereferences a *bool, returning defaultVal if nil.
 func derefBool(ptr *bool, defaultVal bool) bool {
 	if ptr == nil {
 		return defaultVal

@@ -24,8 +24,6 @@ import (
 
 var devsModule = moduleStruct{moduleName: "Dev"}
 
-// chatInfo retrieves and displays detailed information about a specific chat.
-// Only accessible by bot owner and dev users. Returns chat name, ID, member count, and invite link.
 func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -33,7 +31,6 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	memStatus := devs.GetTeamMemInfo(user.Id)
 
-	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
@@ -54,7 +51,6 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 			_, _ = msg.Reply(b, err.Error(), nil)
 			return ext.EndGroups
 		}
-		// need to convert chat to group chat to use GetMemberCount
 		_chat := chat.ToChat()
 		gChat := &_chat
 		con, _ := gChat.GetMemberCount(b, nil)
@@ -72,8 +68,6 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// chatList generates and sends a document containing all active chats the bot is in.
-// Only accessible by bot owner and dev users. Creates a temporary file with chat IDs and names.
 func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -81,7 +75,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	memStatus := devs.GetTeamMemInfo(user.Id)
 
-	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
@@ -135,8 +128,6 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// leaveChat makes the bot leave a specified chat.
-// Only accessible by bot owner and dev users. Requires chat ID as argument.
 func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -144,7 +135,6 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	memStatus := devs.GetTeamMemInfo(user.Id)
 
-	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
@@ -182,26 +172,17 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-/*
-	Functions used to manage sudo/dev users in database of bot
-
-Can only be used by OWNER
-*/
-
-// teamRoleConfig holds configuration for team role management operations.
 type teamRoleConfig struct {
-	roleName      string                     // "sudo" or "dev"
-	add           bool                       // true for add, false for remove
-	checkRole     func(*db.DevSettings) bool // checks if user has role
-	alreadyMsgKey string                     // i18n key for "already has role"
-	notRoleMsgKey string                     // i18n key for "doesn't have role"
-	failMsgKey    string                     // i18n key for operation failure
-	successMsgKey string                     // i18n key for operation success
-	dbOp          func(int64) error          // database operation (AddSudo, RemDev, etc.)
+	roleName      string
+	add           bool
+	checkRole     func(*db.DevSettings) bool
+	alreadyMsgKey string
+	notRoleMsgKey string
+	failMsgKey    string
+	successMsgKey string
+	dbOp          func(int64) error
 }
 
-// manageTeamRole handles adding/removing team roles (sudo/dev).
-// Only accessible by bot owner.
 func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamRoleConfig) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -229,7 +210,6 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var txt string
 
-	// Check if operation is valid based on current role status
 	hasRole := cfg.checkRole(memStatus)
 	if cfg.add && hasRole {
 		txt, _ = tr.GetString(cfg.alreadyMsgKey)
@@ -254,8 +234,6 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 	return ext.ContinueGroups
 }
 
-// addSudo adds a user to the sudo users list in the bot's database.
-// Only accessible by bot owner. Grants elevated permissions to the specified user.
 func (m moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "sudo",
@@ -268,8 +246,6 @@ func (m moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 }
 
-// addDev adds a user to the developer users list in the bot's database.
-// Only accessible by bot owner. Grants developer-level permissions to the specified user.
 func (m moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "dev",
@@ -282,8 +258,6 @@ func (m moduleStruct) addDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 }
 
-// remSudo removes a user from the sudo users list in the bot's database.
-// Only accessible by bot owner. Revokes elevated permissions from the specified user.
 func (m moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "sudo",
@@ -296,8 +270,6 @@ func (m moduleStruct) remSudo(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 }
 
-// remDev removes a user from the developer users list in the bot's database.
-// Only accessible by bot owner. Revokes developer-level permissions from the specified user.
 func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	return m.manageTeamRole(b, ctx, teamRoleConfig{
 		roleName:      "dev",
@@ -310,13 +282,6 @@ func (m moduleStruct) remDev(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 }
 
-/*
-	Function used to list all members of bot's development team
-
-Can only be used by existing team members
-*/
-// listTeam displays all current team members including developers and sudo users.
-// Only accessible by existing team members. Shows user mentions organized by permission level.
 func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -394,13 +359,6 @@ func (moduleStruct) listTeam(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Function used to fetch stats of bot
-
-Can only be used by OWNER
-*/
-// getStats retrieves and displays bot statistics including user counts, chat counts, and other metrics.
-// Only accessible by bot owner and dev users. Shows comprehensive bot usage statistics.
 func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -408,7 +366,6 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	memStatus := devs.GetTeamMemInfo(user.Id)
 
-	// only devs and owner can access this
 	if user.Id != config.AppConfig.OwnerId && !memStatus.IsDev {
 		return ext.ContinueGroups
 	}
@@ -437,8 +394,6 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// LoadDev registers all development-related command handlers with the dispatcher.
-// Sets up admin commands for bot management, user management, and statistics.
 func LoadDev(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("stats", devsModule.getStats))
 	dispatcher.AddHandler(handlers.NewCommand("addsudo", devsModule.addSudo))
