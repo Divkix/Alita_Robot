@@ -6,11 +6,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
 
-// ableMapMu protects AbleMap/helpableKb/AltHelpOptions on the singleton help registry.
-// All writes happen during init-only LoadModules; readers in help.go use RLock.
 var ableMapMu sync.RWMutex
 
-// module struct for all modules
 type moduleStruct struct {
 	moduleName        string
 	handlerGroup      int
@@ -22,7 +19,6 @@ type moduleStruct struct {
 	helpableKb        map[string][][]gotgbot.InlineKeyboardButton
 }
 
-// GetAbleMap returns a snapshot copy of AbleMap under RLock.
 func GetAbleMap() map[string]bool {
 	ableMapMu.RLock()
 	defer ableMapMu.RUnlock()
@@ -33,8 +29,6 @@ func GetAbleMap() map[string]bool {
 	return out
 }
 
-// ResetHelpRegistry clears AbleMap, helpableKb and AltHelpOptions under lock.
-// Call only during single-threaded startup (LoadModules).
 func ResetHelpRegistry() {
 	ableMapMu.Lock()
 	defer ableMapMu.Unlock()
@@ -52,7 +46,6 @@ func newHelpRegistry() *moduleStruct {
 	}
 }
 
-// DefaultHelpRegistry returns the default help registry.
 func DefaultHelpRegistry() *moduleStruct {
 	return defaultHelpRegistry
 }

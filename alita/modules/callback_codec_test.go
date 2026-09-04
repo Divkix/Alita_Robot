@@ -11,7 +11,6 @@ func TestEncodeCallbackData(t *testing.T) {
 		t.Parallel()
 
 		result := encodeCallbackData("test_ns", map[string]string{"k": "v"})
-		// Result must not be empty and must contain the namespace.
 		if result == "" {
 			t.Fatal("expected non-empty encoded data")
 		}
@@ -20,7 +19,6 @@ func TestEncodeCallbackData(t *testing.T) {
 	t.Run("encode error with empty namespace returns empty string", func(t *testing.T) {
 		t.Parallel()
 
-		// Empty namespace triggers ErrInvalidNamespace in the codec.
 		result := encodeCallbackData("", map[string]string{"k": "v"})
 		if result != "" {
 			t.Fatalf("expected empty string on encode error, got %q", result)
@@ -30,7 +28,6 @@ func TestEncodeCallbackData(t *testing.T) {
 	t.Run("nil fields map", func(t *testing.T) {
 		t.Parallel()
 
-		// Nil map should produce a valid encoded string (empty payload becomes "_").
 		result := encodeCallbackData("test_ns", nil)
 		if result == "" {
 			t.Fatal("nil fields map should encode successfully")

@@ -22,7 +22,6 @@ func TestNormalizeRulesForHTML(t *testing.T) {
 		}
 	})
 
-	// HTML passthrough cases: function must return rawRules unchanged (not trimmed)
 	htmlPassthroughCases := []struct {
 		name  string
 		input string
@@ -36,14 +35,12 @@ func TestNormalizeRulesForHTML(t *testing.T) {
 		t.Run(tc.name+" passthrough", func(t *testing.T) {
 			t.Parallel()
 			got := normalizeRulesForHTML(tc.input)
-			// Must return rawRules (the original, not trimmed)
 			if got != tc.input {
 				t.Fatalf("normalizeRulesForHTML(%q) = %q, want unchanged %q", tc.input, got, tc.input)
 			}
 		})
 	}
 
-	// Markdown conversion cases: output must contain expected HTML
 	t.Run("markdown bold converted to HTML b tag", func(t *testing.T) {
 		t.Parallel()
 		input := "*bold*"
@@ -68,13 +65,11 @@ func TestNormalizeRulesForHTML(t *testing.T) {
 		t.Parallel()
 		input := "1 < 2 > 0"
 		got := normalizeRulesForHTML(input)
-		// htmlTagPattern does not match "< 2", so goes to MD2HTMLV2 which preserves plain text
 		if got == "" {
 			t.Fatalf("normalizeRulesForHTML(%q) returned empty, want non-empty", input)
 		}
 	})
 
-	// HTML entities without tags: not detected as HTML, processed as markdown
 	t.Run("HTML entities without tags processed as markdown", func(t *testing.T) {
 		t.Parallel()
 		input := "&amp; stuff"

@@ -32,17 +32,8 @@ var approvalsModule = moduleStruct{
 
 const approvedUsersInlineLimit = 50
 
-/*
-	Used to approve a user in the group!
-
-Connection - true, true
-Admin can approve a user in the chat
-*/
-// approveUser handles the /approve command to add a user to the approved list.
-// Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha, antispam).
 func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -54,7 +45,6 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -74,7 +64,6 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if already approved
 	if approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_already_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
@@ -85,13 +74,11 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Resolve approved_by user name for display
 	_, approverName, found := extraction.GetUserInfo(user.Id)
 	if !found {
 		approverName = user.FirstName
 	}
 
-	// Reason is optional; default to empty string
 	if err := approvals.AddApprovedUser(chat.Id, targetUserID, user.Id, reason); err != nil {
 		log.Errorf("[Approvals] Failed to approve user %d in chat %d: %v", targetUserID, chat.Id, err)
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_approve_error")
@@ -127,16 +114,8 @@ func (m moduleStruct) approveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to remove a user from the approved list!
-
-Connection - true, true
-Admin can unapprove a user in the chat
-*/
-// unapproveUser handles the /unapprove command to remove a user from the approved list.
 func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -148,7 +127,6 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -168,7 +146,6 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Check if actually approved
 	if !approvals.IsUserApproved(chat.Id, targetUserID) {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_approved")
 		_, err := msg.Reply(b, fmt.Sprintf(text, formatting.MentionHtml(targetUserID, "")), formatting.Shtml())
@@ -197,16 +174,8 @@ func (m moduleStruct) unapproveUser(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-/*
-	Used to check a user's approval status!
-
-Connection - true, true
-Admin can check a user's approval status in the chat
-*/
-// checkApprovalStatus handles the /approval command to check if a user is approved.
 func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -218,7 +187,6 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -259,7 +227,6 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 
-	// Resolve names for display
 	_, approverName, approverFound := extraction.GetUserInfo(foundUser.ApprovedBy)
 	if !approverFound {
 		approverName = strconv.FormatInt(foundUser.ApprovedBy, 10)
@@ -289,17 +256,8 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 	return ext.EndGroups
 }
 
-/*
-	Used to list all approved users in the chat!
-
-Connection - true, true
-Admin can list all approved users in the chat
-*/
-// listApprovedUsers handles the /approved command to list all approved users.
-// If the list exceeds 50 users, sends a .txt file instead of an inline message.
 func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -311,7 +269,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -328,7 +285,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	// If the list is small, send it inline
 	if len(approvedUsers) <= approvedUsersInlineLimit {
 		listHeader, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_header")
 		listItem, _ := tr.GetString(strings.ToLower(m.moduleName) + "_list_item")
@@ -354,7 +310,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	// Large list: send as .txt file
 	tmpFile, err := os.CreateTemp("", "approved-*.txt")
 	if err != nil {
 		log.Errorf("[Approvals] Failed to create temp file: %v", err)
@@ -416,13 +371,6 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 	return ext.EndGroups
 }
 
-/*
-	Used to remove all approved users from the chat!
-
-Only chat creator can use this command with a confirmation button.
-*/
-// unapproveAllHandler handles the /unapproveall command.
-// Sends an inline keyboard for confirmation before bulk removal.
 //nolint:dupl // Similar to other rmAll handlers with distinct callback data and messages
 func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
@@ -433,7 +381,6 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireGroup(b, ctx, nil) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
 		return ext.EndGroups
@@ -472,7 +419,6 @@ func (m moduleStruct) unapproveAllHandler(b *gotgbot.Bot, ctx *ext.Context) erro
 	return ext.EndGroups
 }
 
-// unapproveAllCallback processes the confirmation callback for /unapproveall.
 func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -481,7 +427,6 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 	user := query.From
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	// Permission checks
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
 		return ext.EndGroups
@@ -552,8 +497,6 @@ func (m moduleStruct) unapproveAllCallback(b *gotgbot.Bot, ctx *ext.Context) err
 	return ext.EndGroups
 }
 
-// extractDisplayName returns a display name for a user ID by looking up in DB.
-// Falls back to the raw numeric ID if not found in database.
 func extractDisplayName(userID int64) string {
 	_, name, found := extraction.GetUserInfo(userID)
 	if found && name != "" {
@@ -562,8 +505,6 @@ func extractDisplayName(userID int64) string {
 	return strconv.FormatInt(userID, 10)
 }
 
-// LoadApprovals registers all approvals module handlers with the dispatcher.
-//
 //nolint:dupl // Pattern matches other LoadXxx functions
 func LoadApprovals(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[approvalsModule.moduleName] = true

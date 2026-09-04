@@ -252,7 +252,6 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 	return ext.ContinueGroups
 }
 
-// LoadLogChannels registers log-channel commands and the forward watcher.
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[logChannelsModule.moduleName] = true
 

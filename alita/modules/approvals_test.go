@@ -13,7 +13,6 @@ func TestApprovalsModuleName(t *testing.T) {
 }
 
 func TestExtractDisplayName(t *testing.T) {
-	// Pure function: should not panic with unknown IDs.
 	// Known users may or may not be in the test DB depending on test ordering.
 	name := extractDisplayName(99999999999)
 	assert.NotEmpty(t, name)

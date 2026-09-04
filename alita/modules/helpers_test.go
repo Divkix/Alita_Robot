@@ -50,7 +50,6 @@ func TestListModules(t *testing.T) {
 		t.Fatalf("listModules() = %v (len %d), want 3 elements", result, len(result))
 	}
 
-	// Result must be sorted alphabetically.
 	expected := []string{"admin", "filters", "help"}
 	for i, name := range expected {
 		if result[i] != name {
@@ -368,8 +367,6 @@ func TestHandleDeepLinkSendsAboutAndDefaultHelp(t *testing.T) {
 	}
 }
 
-// TestGetModuleHelpAndKb_UsesPassedRegistry proves that getModuleHelpAndKb honors
-// the passed *moduleStruct registry instead of reaching for the global HelpModule.
 func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
 	localRegistry.AbleMap["Admin"] = true
@@ -384,7 +381,6 @@ func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 		t.Fatalf("inline keyboard rows = %d, want at least module row + navigation", len(kb.InlineKeyboard))
 	}
 
-	// Verify the first row comes from the local registry.
 	firstRow := kb.InlineKeyboard[0]
 	if len(firstRow) != 1 {
 		t.Fatalf("first module row len = %d, want 1", len(firstRow))
@@ -396,7 +392,6 @@ func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 		t.Fatalf("button[0].CallbackData = %q, want test-admin", firstRow[0].CallbackData)
 	}
 
-	// Verify the second module row.
 	secondRow := kb.InlineKeyboard[1]
 	if len(secondRow) != 1 {
 		t.Fatalf("second module row len = %d, want 1", len(secondRow))
@@ -405,15 +400,12 @@ func TestGetModuleHelpAndKb_UsesPassedRegistry(t *testing.T) {
 		t.Fatalf("button[1].Text = %q, want FakeAdminBtn2", secondRow[0].Text)
 	}
 
-	// Verify that back + home navigation buttons are present in last row.
 	lastRow := kb.InlineKeyboard[len(kb.InlineKeyboard)-1]
 	if len(lastRow) != 2 {
 		t.Fatalf("last row len = %d, want 2 (back + home)", len(lastRow))
 	}
 }
 
-// TestGetModuleNameFromAltName_UsesPassedRegistry proves getModuleNameFromAltName
-// resolves against the registry passed as parameter rather than the global HelpModule.
 func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
 	localRegistry.AbleMap["Filters"] = true
@@ -440,13 +432,10 @@ func TestGetModuleNameFromAltName_UsesPassedRegistry(t *testing.T) {
 	}
 }
 
-// TestGetHelpTextAndMarkup_UsesPassedRegistry proves getHelpTextAndMarkup resolves
-// the module list and keyboard from the passed registry, not from the global.
 func TestGetHelpTextAndMarkup_UsesPassedRegistry(t *testing.T) {
 	localRegistry := newHelpRegistry()
 	localRegistry.AbleMap["Admin"] = true
 	localRegistry.AbleMap["Filters"] = true
-	// Do NOT store "Warns" — querying "warns" should miss in local registry.
 	localRegistry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "CustomAdmin", CallbackData: "custom-admin"}},
 	}
@@ -525,8 +514,6 @@ func TestHandleDeepLinkPropagatesAboutAndDefaultSendErrors(t *testing.T) {
 // The test harness maps user ID 13 to {"status":"left"} and user ID 14 to
 // {"status":"kicked"}, so both IDs represent non-members.
 func TestDeepLinkNonMemberDenied(t *testing.T) {
-	// Override the global i18n manager so MustNewTranslator returns real strings.
-	// This lets us assert that the rejection text IS sent and content is NOT.
 	restore, err := i18n.OverrideManagerForTest(deepLinkTestYAML)
 	if err != nil {
 		t.Fatalf("OverrideManagerForTest() error = %v", err)
@@ -535,7 +522,6 @@ func TestDeepLinkNonMemberDenied(t *testing.T) {
 
 	chatID := uniqueModuleChatID()
 
-	// Seed the target chat and some content.
 	if err := chats.EnsureChatInDb(chatID, "Secure Chat"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
@@ -548,7 +534,6 @@ func TestDeepLinkNonMemberDenied(t *testing.T) {
 		_ = notes.RemoveNote(chatID, "secret")
 	})
 
-	// Non-member: user ID 13 (status:"left" in test harness).
 	nonMemberUser := gotgbot.User{Id: 13, FirstName: "Left User"}
 	privateChat := gotgbot.Chat{Id: nonMemberUser.Id, Type: "private", FirstName: "Left User"}
 
@@ -580,18 +565,13 @@ func TestDeepLinkNonMemberDenied(t *testing.T) {
 				t.Fatalf("sendMessage calls = %d, want 1 (rejection notice)", len(calls))
 			}
 
-			// The sent text MUST be the rejection message (not the served content).
 			text, _ := calls[0].Params["text"].(string)
 			if !strings.Contains(text, "Could not find the chat") {
 				t.Fatalf("non-member received unexpected message (not the rejection): %q", text)
 			}
-			// The sent text MUST NOT contain any seeded content that would indicate
-			// the security gate was bypassed and content was leaked.
 			if strings.Contains(text, "No spam.") || strings.Contains(text, "Secret content") || strings.Contains(text, "secret") {
 				t.Fatalf("non-member leaked content via deep link: %q", text)
 			}
-			// For the note subtest: verify no alternative content-delivery call fired
-			// (e.g. sendDocument or sendPhoto that media.SendNote might use for media notes).
 			for _, call := range client.calls {
 				if call.Method == "sendDocument" || call.Method == "sendPhoto" || call.Method == "sendAudio" || call.Method == "sendVideo" {
 					t.Fatalf("non-member triggered content-delivery call %q — gate was bypassed", call.Method)
@@ -606,8 +586,6 @@ func TestDeepLinkNonMemberDenied(t *testing.T) {
 //
 // The test harness maps user ID 42 to {"status":"member"} — a legitimate member.
 func TestDeepLinkMemberAllowed(t *testing.T) {
-	// Override the global i18n manager so MustNewTranslator returns real strings.
-	// This lets us assert that actual content (not a rejection) is delivered.
 	restore, err := i18n.OverrideManagerForTest(deepLinkTestYAML)
 	if err != nil {
 		t.Fatalf("OverrideManagerForTest() error = %v", err)
@@ -634,8 +612,8 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 	cases := []struct {
 		name       string
 		arg        string
-		wantText   string // substring that must appear in the sent text
-		forbidText string // substring that must NOT appear (the rejection)
+		wantText   string
+		forbidText string
 	}{
 		{
 			name:       "rules allowed for member",
@@ -676,7 +654,6 @@ func TestDeepLinkMemberAllowed(t *testing.T) {
 				t.Fatalf("sendMessage calls = %d, want 1 (content reply)", len(calls))
 			}
 
-			// The sent text MUST contain actual content, not the rejection message.
 			text, _ := calls[0].Params["text"].(string)
 			if strings.Contains(text, tc.forbidText) {
 				t.Fatalf("member was wrongly denied — got rejection text in response: %q", text)

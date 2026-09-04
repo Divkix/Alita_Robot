@@ -9,7 +9,6 @@ import (
 
 var htmlTagPattern = regexp.MustCompile(`(?i)<\/?[a-z][^>]*>`)
 
-// normalizeRulesForHTML ensures legacy markdown rules render correctly in HTML mode.
 func normalizeRulesForHTML(rawRules string) string {
 	trimmed := strings.TrimSpace(rawRules)
 	if trimmed == "" {

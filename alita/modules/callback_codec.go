@@ -48,8 +48,6 @@ func decodeCallbackData(data string, expectedNamespaces ...string) (*callbackcod
 	return nil, false
 }
 
-// answerInvalidCallback answers a malformed callback with the shared
-// "invalid request" string and ends group dispatch.
 func answerInvalidCallback(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQuery) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("common_callback_invalid_request")

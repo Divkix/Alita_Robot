@@ -20,7 +20,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-// cachedBotUsernameMu protects cachedBotUsername against concurrent reads/writes.
 var (
 	cachedBotUsername   string
 	cachedBotUsernameMu sync.RWMutex
@@ -33,7 +32,6 @@ func getBotUsername(b *gotgbot.Bot) string {
 	if cached != "" {
 		return cached
 	}
-	// Fetch outside lock to avoid holding lock over network RTT
 	if b != nil && b.Username != "" {
 		cachedBotUsernameMu.Lock()
 		if cachedBotUsername == "" {
@@ -54,13 +52,11 @@ func getBotUsername(b *gotgbot.Bot) string {
 			return cached
 		}
 	}
-	// Re-check under RLock in case another goroutine populated it
 	cachedBotUsernameMu.RLock()
 	defer cachedBotUsernameMu.RUnlock()
 	return cachedBotUsername
 }
 
-// Dynamic strings that will be loaded using i18n
 func getAboutText(tr *i18n.Translator) string {
 	text, _ := tr.GetString("help_info_about_header")
 	return text
@@ -78,7 +74,6 @@ func getMainHelp(tr *i18n.Translator, firstName string) string {
 	return text1 + text2
 }
 
-// Dynamic keyboard generation functions
 func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 	aboutMeText, _ := tr.GetString("help_button_about_me")
 	newsChannelText, _ := tr.GetString("help_button_news_channel")
@@ -127,7 +122,6 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	commandsHelpText, _ := tr.GetString("help_button_commands_help")
 	languageText, _ := tr.GetString("help_button_language")
 
-	// Build the add to chat URL dynamically using the bot's username
 	addToChatUrl := fmt.Sprintf("https://t.me/%s?startgroup=botstart", botUsername)
 
 	return gotgbot.InlineKeyboardMarkup{
@@ -164,8 +158,6 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	}
 }
 
-// about displays information about the bot including version and features.
-// Shows bot details, links to support channels, and configuration options.
 func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 
@@ -279,8 +271,6 @@ func (moduleStruct) about(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// helpButtonHandler processes callback queries from help menu button interactions.
-// Navigates between help sections and displays appropriate help content for modules.
 func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -307,26 +297,21 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyKb             gotgbot.InlineKeyboardMarkup
 	)
 
-	// Sort the module names
 	if slices.Contains([]string{"BackStart", "Help"}, module) {
 		parsemode = formatting.HTML
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		switch module {
 		case "Help":
-			// This shows the main start menu
 			helpText = getMainHelp(tr, html.EscapeString(query.From.FirstName))
 			replyKb = markup
 		case "BackStart":
-			// This shows the modules menu
 			helpText = getStartHelp(tr)
 			replyKb = getStartMarkup(tr, getBotUsername(b))
 		}
 	} else {
-		// For all remaining modules
 		helpText, replyKb, parsemode = getHelpTextAndMarkup(ctx, strings.ToLower(module), DefaultHelpRegistry())
 	}
 
-	// Edit the main message, the main querymessage
 	_, _, err := query.Message.EditText(b, &gotgbot.EditMessageTextOpts{Text: helpText, ParseMode: parsemode,
 		ReplyMarkup: replyKb,
 		LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
@@ -346,9 +331,6 @@ func (moduleStruct) helpButtonHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// start introduces the bot
-// start handles the /start command and displays welcome message with navigation options.
-// Shows different content in private vs group chats and handles start parameters.
 func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
@@ -397,8 +379,6 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// donate displays information about supporting the bot and its development.
-// Shows donation links and ways users can contribute to bot maintenance.
 func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -427,8 +407,6 @@ func (moduleStruct) donate(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// botConfig provides step-by-step configuration guidance for new users.
-// Walks users through adding the bot to chats and basic setup procedures.
 func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	query, ok := callbackQueryFromContext(ctx)
 	if !ok {
@@ -442,7 +420,6 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	// just in case
 	if msg.GetChat().Type != "private" {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("help_config_private_only")
@@ -538,8 +515,6 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// help displays the main help menu or specific module help information.
-// Shows module list in private messages or provides links to PM help in groups.
 func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -628,8 +603,6 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadHelp registers all help-related command and callback handlers.
-// Sets up the help system including start, about, donate, and configuration commands.
 func LoadHelp(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
 	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
