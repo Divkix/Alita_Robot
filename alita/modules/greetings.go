@@ -32,8 +32,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
-// Concurrency limit for processing multiple new members
-const maxConcurrentMemberProcessing = 5 // Maximum concurrent member welcome/captcha processing
+const maxConcurrentMemberProcessing = 5
 
 var recentJoinProcessTTL = 5 * time.Second
 
@@ -92,11 +91,9 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 			TTL:  recentJoinProcessTTL,
 		}).Result()
 		if err == nil {
-			// Key did not exist; we set it — claim is ours.
 			return true
 		}
 		if errors.Is(err, redis.Nil) {
-			// Key already existed; another instance/goroutine claimed this join.
 			return false
 		}
 		// Genuine Redis error — fail closed to avoid double welcome/captcha in multi-instance.
@@ -115,13 +112,11 @@ func claimRecentJoinProcessing(chatID, userID int64) bool {
 		if c, ok := actual.(joinClaim); ok && now.Before(c.exp) {
 			return false
 		}
-		// expired — try to take over atomically so only one caller wins
 		newClaim = joinClaim{exp: time.Now().Add(recentJoinProcessTTL)}
 		if recentJoinProcessing.CompareAndSwap(key, actual, newClaim) {
 			expireRecentJoinClaim(key, newClaim)
 			return true
 		}
-		// CAS lost to a concurrent takeover — re-evaluate fresh state
 		now = time.Now()
 	}
 }
@@ -144,13 +139,9 @@ func clearRecentJoinProcessing(chatID, userID int64) {
 	recentJoinProcessing.Delete(key)
 }
 
-// displayGreeting is a shared helper function that handles both welcome and goodbye greeting display/toggling.
-// It consolidates common logic between welcome() and goodbye() commands.
-//
 //nolint:dupl // displayGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config greetingConfig) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -169,7 +160,6 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		noformat := len(args) > 0 && strings.ToLower(args[0]) == "noformat"
 		greetPrefs := greetings.GetGreetingSettings(chat.Id)
 
-		// Get the appropriate settings based on greeting type
 		var buttons []db.Button
 		var fileID string
 		var greetingDataType int
@@ -302,21 +292,14 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 	return ext.EndGroups
 }
 
-// welcome manages welcome message settings and displays current welcome configuration.
-// Admins can toggle welcome messages on/off or view current settings with 'noformat' option.
-//
 //nolint:dupl // welcome delegates to displayGreeting with different config
 func (m moduleStruct) welcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.displayGreeting(bot, ctx, welcomeConfig)
 }
 
-// setWelcome allows admins to set a custom welcome message for new chat members.
-// Supports text, media, and inline buttons with formatting and placeholder variables.
-//
 //nolint:dupl // setWelcome is similar to setGoodbye but uses different DB calls and translation keys
 func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -328,7 +311,6 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -362,13 +344,9 @@ func (moduleStruct) setWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetGreeting is a shared helper for resetting welcome or goodbye messages to defaults.
-// It consolidates the common logic between resetWelcome and resetGoodbye.
-//
 //nolint:dupl // resetGreeting has symmetric welcome/goodbye logic by design
 func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome bool) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -379,13 +357,11 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	if user == nil {
 		return ext.EndGroups
 	}
-	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
 	}
 
-	// Reset greeting text synchronously to ensure DB write completes before sending success
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if isWelcome {
 		if dbErr := greetings.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT); dbErr != nil {
@@ -416,27 +392,18 @@ func (moduleStruct) resetGreeting(bot *gotgbot.Bot, ctx *ext.Context, isWelcome 
 	return ext.EndGroups
 }
 
-// resetWelcome resets the welcome message back to the default bot welcome message.
-// Only admins can use this command to restore the original welcome text.
 func (m moduleStruct) resetWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.resetGreeting(bot, ctx, true)
 }
 
-// goodbye manages goodbye message settings and displays current goodbye configuration.
-// Admins can toggle goodbye messages on/off or view current settings with 'noformat' option.
-//
 //nolint:dupl // goodbye delegates to displayGreeting with different config
 func (m moduleStruct) goodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.displayGreeting(bot, ctx, goodbyeConfig)
 }
 
-// setGoodbye allows admins to set a custom goodbye message for members leaving the chat.
-// Supports text, media, and inline buttons with formatting and placeholder variables.
-//
 //nolint:dupl // setGoodbye is similar to setWelcome but uses different DB calls and translation keys
 func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, false)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -447,7 +414,6 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -480,34 +446,20 @@ func (moduleStruct) setGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// resetGoodbye resets the goodbye message back to the default bot goodbye message.
-// Only admins can use this command to restore the original goodbye text.
 func (m moduleStruct) resetGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.resetGreeting(bot, ctx, false)
 }
 
-// greetingToggleConfig captures the per-command differences between the four
-// near-identical on/off/show greeting toggle handlers (cleanWelcome, cleanGoodbye,
-// delJoined, autoApprove), so they can share a single skeleton in greetingToggle.
 type greetingToggleConfig struct {
-	// getPref returns the current setting; for clean* it also emits the
-	// "settings nil" warn log and returns false in that case.
-	getPref func(chatID int64) bool
-	// setPref persists the new setting.
-	setPref func(chatID int64, val bool) error
-	// saveErrLog is the setter name used in the DB-error log line.
-	saveErrLog string
-	// connectBotAdmin is the botAdmin arg passed to IsUserConnected.
-	connectBotAdmin bool
-	// Message keys for each branch.
-	showEnabled  string
-	showDisabled string
-	setEnabled   string
-	setDisabled  string
-	invalid      string
-	// useMarkdownOnEnabled renders the enabled "show" branch with Smarkdown
-	// instead of Shtml (delJoined/autoApprove quirk); disabled show + all other
-	// branches always use Shtml.
+	getPref              func(chatID int64) bool
+	setPref              func(chatID int64, val bool) error
+	saveErrLog           string
+	connectBotAdmin      bool
+	showEnabled          string
+	showDisabled         string
+	setEnabled           string
+	setDisabled          string
+	invalid              string
 	useMarkdownOnEnabled bool
 }
 
@@ -581,11 +533,8 @@ var autoApproveToggleConfig = greetingToggleConfig{
 	useMarkdownOnEnabled: true,
 }
 
-// greetingToggle is the shared skeleton for the on/off/show greeting toggle
-// commands. Per-command differences are supplied via cfg.
 func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greetingToggleConfig) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(bot, ctx, true, cfg.connectBotAdmin)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -598,7 +547,6 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 	if user == nil {
 		return ext.EndGroups
 	}
-	// check permission
 	if !chat_status.CanUserChangeInfo(bot, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
 		return ext.EndGroups
@@ -656,26 +604,19 @@ func (moduleStruct) greetingToggle(bot *gotgbot.Bot, ctx *ext.Context, cfg greet
 	return ext.EndGroups
 }
 
-// cleanWelcome toggles automatic deletion of old welcome messages.
-// Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
 func (m moduleStruct) cleanWelcome(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.greetingToggle(bot, ctx, cleanWelcomeToggleConfig)
 }
 
-// cleanGoodbye toggles automatic deletion of old goodbye messages.
-// Admins can enable/disable cleanup or check current setting. Helps keep chats tidy.
 func (m moduleStruct) cleanGoodbye(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.greetingToggle(bot, ctx, cleanGoodbyeToggleConfig)
 }
 
-// delJoined toggles automatic deletion of service messages when users join the chat.
-// Admins can enable/disable cleanup of 'user joined' messages or check current setting.
 func (m moduleStruct) delJoined(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.greetingToggle(bot, ctx, delJoinedToggleConfig)
 }
 
 // SendWelcomeMessage sends the configured welcome message for a user in a chat.
-// This is extracted as a separate function to be reusable after captcha verification.
 func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstName string) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -685,14 +626,12 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 	chat := ctx.EffectiveChat
 	greetPrefs := greetings.GetGreetingSettings(chat.Id)
 
-	// Nil check for WelcomeSettings
 	if greetPrefs.WelcomeSettings == nil {
 		log.Warnf("[Greetings][SendWelcomeMessage] WelcomeSettings is nil for chat %d, skipping welcome message", chat.Id)
 		return nil
 	}
 
 	if greetPrefs.WelcomeSettings.ShouldWelcome {
-		// Create a user object for formatting
 		user := &gotgbot.User{
 			Id:        userID,
 			FirstName: firstName,
@@ -725,8 +664,6 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 	return nil
 }
 
-// newMember handles welcome messages when new members join the chat.
-// Automatically sends welcome message and manages cleanup based on chat settings.
 func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	newMember := ctx.ChatMember.NewChatMember.MergeChatMember().User
@@ -746,26 +683,21 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// leftMember handles goodbye messages when members leave the chat.
-// Automatically sends goodbye message and manages cleanup based on chat settings.
 func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	leftMember := ctx.ChatMember.OldChatMember.MergeChatMember().User
 	greetPrefs := greetings.GetGreetingSettings(chat.Id)
 
-	// when bot leaves stop all updates of the groups
 	if leftMember.Id == bot.Id {
 		return ext.EndGroups
 	}
 
 	clearRecentJoinProcessing(chat.Id, leftMember.Id)
 
-	// Clean up any pending captcha for the leaving user
 	captchaAttempt, err := captcha.GetCaptchaAttemptIncludingExpired(leftMember.Id, chat.Id)
 	if err != nil {
 		log.Errorf("Failed to get captcha attempt for leaving user %d: %v", leftMember.Id, err)
 	} else if captchaAttempt != nil {
-		// Delete the captcha message if it exists
 		if captchaAttempt.MessageID > 0 {
 			if delErr := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, captchaAttempt.MessageID); delErr != nil {
 				log.Debugf("Failed to delete captcha message for leaving user %d: %v", leftMember.Id, delErr)
@@ -779,7 +711,6 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		log.Errorf("Failed to delete scheduled captcha unmute for leaving user %d: %v", leftMember.Id, err)
 	}
 
-	// Nil check for GoodbyeSettings
 	if greetPrefs.GoodbyeSettings == nil {
 		log.Warnf("[Greetings][leftMember] GoodbyeSettings is nil for chat %d, skipping goodbye message", chat.Id)
 		return ext.EndGroups
@@ -809,7 +740,6 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// processSingleNewMember handles a single new member joining (mute, captcha, welcome).
 func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
 	if newMember.Id == bot.Id {
 		return nil
@@ -827,7 +757,6 @@ func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64
 		}
 		if err := SendCaptcha(bot, &ctxCopy, newMember.Id, newMember.FirstName); err != nil {
 			if errors.Is(err, errCaptchaDisabled) {
-				// captcha turned off mid-flight — welcome normally
 			} else {
 				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
 				return err
@@ -843,9 +772,6 @@ func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64
 	return SendWelcomeMessage(bot, &ctxCopy, newMember.Id, newMember.FirstName)
 }
 
-// cleanService automatically deletes service messages about members joining/leaving.
-// Runs when service messages are posted and deletes them if cleanup is enabled.
-// Also handles captcha for users joining via invite links or being added.
 func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
@@ -858,29 +784,23 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Handle new members joining via invite links or being added
 	if msg.NewChatMembers != nil {
 		captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
 		if err != nil {
 			log.Errorf("[Greetings][cleanService] Failed to get captcha settings for chat %d: %v", chat.Id, err)
-			// Default to disabled captcha on error
 			captchaSettings = &db.CaptchaSettings{Enabled: false}
 		}
 		captchaEnabled := captchaSettings != nil && captchaSettings.Enabled
 
-		// Capture chat identity and thread before fanning out
 		var threadID int64
 		if msg != nil {
 			threadID = msg.MessageThreadId
 		}
 		chatCopyBase := *chat
 
-		// Process multiple members concurrently for better performance
 		numMembers := len(msg.NewChatMembers)
 		if numMembers > 1 {
-			// Use goroutines for multiple members
 			var wg sync.WaitGroup
-			// Limit concurrent processing to prevent overwhelming the API
 			sem := make(chan struct{}, maxConcurrentMemberProcessing)
 
 			for _, newMember := range msg.NewChatMembers {
@@ -889,14 +809,13 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 				}
 
 				wg.Add(1)
-				sem <- struct{}{} // Acquire semaphore
+				sem <- struct{}{}
 
 				go func(member gotgbot.User) {
 					defer wg.Done()
 					defer func() { <-sem }()
-					defer error_handling.RecoverFromPanic("processNewMember", "Greetings") // Release semaphore
+					defer error_handling.RecoverFromPanic("processNewMember", "Greetings")
 
-					// Local chat copy per goroutine so we don't share pointer
 					chatCopy := chatCopyBase
 					if err := processSingleNewMember(bot, &chatCopy, threadID, member, captchaEnabled); err != nil {
 						log.Error(err)
@@ -906,7 +825,6 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 			wg.Wait()
 		} else if numMembers == 1 {
-			// For single member, process directly without goroutine (copy for consistency)
 			chatCopy := chatCopyBase
 			if err := processSingleNewMember(bot, &chatCopy, threadID, msg.NewChatMembers[0], captchaEnabled); err != nil {
 				log.Error(err)
@@ -926,8 +844,6 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// pendingJoins handles chat join requests and creates approval buttons for admins.
-// Auto-approves if enabled, otherwise presents approve/decline/ban options to admins.
 func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("Greetings", "pendingJoins")
 
@@ -937,7 +853,6 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if !m.loadPendingJoins(chat.Id, user.Id) {
 
-		// auto approve join requests
 		if greetings.GetGreetingSettings(chat.Id).ShouldAutoApprove {
 			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
 				if helpers.IsExpectedTelegramError(err) {
@@ -1000,9 +915,6 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// joinRequestHandler processes admin responses to join request approval buttons.
-// Handles accept, decline, and ban actions for pending chat join requests.
-//
 //nolint:gocyclo // Validation and one-shot action handling stay together to prevent partial flows.
 func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	defer error_handling.RecoverFromPanic("Greetings", "joinRequestHandler")
@@ -1018,7 +930,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	chat := ctx.EffectiveChat
 	msg := query.Message
 
-	// permission checks
 	if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
@@ -1134,8 +1045,6 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	return ext.EndGroups
 }
 
-// autoApprove toggles automatic approval of chat join requests.
-// Admins can enable/disable auto-approval or check current setting for new join requests.
 func (m moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return m.greetingToggle(bot, ctx, autoApproveToggleConfig)
 }
@@ -1144,8 +1053,6 @@ func pendingJoinsKey(chatId, userId int64) string {
 	return fmt.Sprintf("alita:pendingJoins:%d:%d", chatId, userId)
 }
 
-// loadPendingJoins checks if a join request notification has already been sent for a user.
-// Prevents duplicate join request messages by checking cache for recent requests.
 func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
 	m := cache.GetMarshal()
 	if m == nil {
@@ -1155,15 +1062,12 @@ func (moduleStruct) loadPendingJoins(chatId, userId int64) bool {
 	if err != nil || alreadyAsked == nil {
 		return false
 	}
-	// Safe type assertion
 	if boolVal, ok := alreadyAsked.(*bool); ok && boolVal != nil {
 		return *boolVal
 	}
 	return false
 }
 
-// setPendingJoins marks a join request as processed in cache with expiration.
-// Stores request info for 5 minutes to prevent duplicate approval notifications.
 func (moduleStruct) setPendingJoins(chatId, userId int64) {
 	m := cache.GetMarshal()
 	if m == nil {
@@ -1178,12 +1082,9 @@ func (moduleStruct) clearPendingJoins(chatId, userId int64) {
 	}
 }
 
-// LoadGreetings registers all greeting-related handlers with the dispatcher.
-// Sets up welcome/goodbye messages, join requests, and service message cleanup.
 func LoadGreetings(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[greetingsModule.moduleName] = true
 
-	// Adds Formatting kb button to Greetings Menu
 	DefaultHelpRegistry().helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
 		{
 			{
@@ -1193,14 +1094,12 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		},
 	}
 
-	// this is used when user join, and creates a join request
 	dispatcher.AddHandler(
 		handlers.NewChatJoinRequest(
 			chatjoinrequest.All, greetingsModule.pendingJoins,
 		),
 	)
 
-	// this is for chat member joined the chat
 	dispatcher.AddHandler(
 		handlers.NewChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
@@ -1211,7 +1110,6 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	// this is for chat member left the chat
 	dispatcher.AddHandler(
 		handlers.NewChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {
@@ -1222,7 +1120,6 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	// for cleaning service messages
 	dispatcher.AddHandler(
 		handlers.NewMessage(
 			func(msg *gotgbot.Message) bool {

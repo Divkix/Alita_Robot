@@ -26,23 +26,19 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
-// Concurrency limits for flood protection operations
 const (
-	maxConcurrentAdminChecks  = 50 // Maximum concurrent admin permission checks
-	maxConcurrentMsgDeletions = 5  // Maximum concurrent message deletions during flood cleanup
+	maxConcurrentAdminChecks  = 50
+	maxConcurrentMsgDeletions = 5
 )
 
-// floodKey is a type-safe composite key for flood tracking
-// Uses struct instead of string concatenation to avoid collisions
 type floodKey struct {
 	chatId int64
 	userId int64
 }
 
 type antifloodStruct struct {
-	moduleStruct  // inheritance
-	syncHelperMap sync.Map
-	// Add semaphore to limit concurrent admin checks
+	moduleStruct
+	syncHelperMap       sync.Map
 	adminCheckSemaphore chan struct{}
 }
 
@@ -50,10 +46,9 @@ type floodControl struct {
 	userId       int64
 	messageCount int
 	messageIDs   []int64
-	lastActivity int64 // Unix timestamp for cleanup
+	lastActivity int64
 }
 
-// floodMu stores per-key *sync.Mutex values to protect the RMW cycle in updateFlood.
 var floodMu sync.Map
 
 var _normalAntifloodModule = moduleStruct{
@@ -67,7 +62,6 @@ var antifloodModule = antifloodStruct{
 	adminCheckSemaphore: make(chan struct{}, maxConcurrentAdminChecks),
 }
 
-// init starts cleanup goroutine for antiflood cache
 func init() {
 	RegisterLegacyModule("Antiflood", 150, LoadAntiflood)
 	go func() {
@@ -76,31 +70,23 @@ func init() {
 	}()
 }
 
-// cleanupOnce performs a single cleanup pass, removing entries idle for more
-// than 600 seconds (10 minutes) from syncHelperMap and floodMu.
-// It is called by cleanupLoop on each ticker tick and is also directly
-// callable in tests for deterministic verification.
 func (a *antifloodStruct) cleanupOnce(now int64) {
 	a.syncHelperMap.Range(func(key, value any) bool {
 		floodData, ok := value.(floodControl)
 		if !ok || now-floodData.lastActivity <= 600 {
 			return true
 		}
-		// Acquire per-key mutex before deleting to avoid racing with updateFlood's RMW cycle.
-		// If the mutex is busy, skip this key and retry next tick.
 		if muVal, hasMu := floodMu.Load(key); hasMu {
 			if mu, ok := muVal.(*sync.Mutex); ok {
 				if !mu.TryLock() {
 					return true
 				}
-				// Re-validate after acquiring lock - entry may have been refreshed.
 				if cur, ok := a.syncHelperMap.Load(key); ok {
 					if curFC, ok := cur.(floodControl); ok && now-curFC.lastActivity <= 600 {
 						mu.Unlock()
 						return true
 					}
 				} else {
-					// Already deleted by concurrent writer
 					floodMu.Delete(key)
 					mu.Unlock()
 					return true
@@ -110,7 +96,6 @@ func (a *antifloodStruct) cleanupOnce(now int64) {
 				mu.Unlock()
 				return true
 			}
-			// Unexpected type - delete the entry
 			floodMu.Delete(key)
 		}
 		a.syncHelperMap.Delete(key)
@@ -118,9 +103,6 @@ func (a *antifloodStruct) cleanupOnce(now int64) {
 	})
 }
 
-// cleanupLoop periodically removes old flood control entries from memory.
-// Runs every 5 minutes to clean entries older than 10 minutes.
-// Accepts a context for graceful shutdown.
 func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -139,8 +121,6 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 	}
 }
 
-// cachedAdminStatus reports whether a warm admin cache already knows this user.
-// known=false means the cache missed and the caller must ask Telegram.
 func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
 	ok, cached := cache.GetAdminCacheList(chatId)
 	if !ok || !cached.Cached {
@@ -158,11 +138,6 @@ func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
 	return true, false
 }
 
-// userIsFloodExempt is true when the sender should skip flood tracking.
-// A warm admin cache (including negative lookups) is trusted so non-admins do
-// not take a semaphore slot or spawn an IsUserAdmin goroutine per message.
-// Cache misses use a bounded Telegram check; timeout and a full semaphore
-// fail open. The semaphore is released before flood tracking or punishment.
 func (a *antifloodStruct) userIsFloodExempt(b *gotgbot.Bot, chatId, userId int64) bool {
 	if known, isAdmin := cachedAdminStatus(chatId, userId); known {
 		return isAdmin
@@ -207,20 +182,14 @@ func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId i
 	}
 }
 
-// updateFlood tracks message counts per user and determines if flood limit exceeded.
-// Returns true if user has exceeded flood limit and should be restricted,
-// along with the flood control data and flood settings from the database.
-// This eliminates redundant database calls by fetching settings once.
 func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
 	floodSettings = antiflood.GetFlood(chatId)
 
 	if floodSettings.Limit != 0 {
 		currentTime := time.Now().Unix()
 
-		// Use type-safe struct key instead of string concatenation
 		key := floodKey{chatId: chatId, userId: userId}
 
-		// Acquire per-key mutex to protect the Load → mutate → Store RMW cycle
 		muVal, _ := floodMu.LoadOrStore(key, &sync.Mutex{})
 		mu := muVal.(*sync.Mutex)
 		mu.Lock()
@@ -230,31 +199,23 @@ func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish
 		if valExists && tmpInterface != nil {
 			floodCrc = tmpInterface.(floodControl)
 
-			// Clean up old entries (older than 1 minute)
 			if currentTime-floodCrc.lastActivity > 60 {
 				floodCrc = floodControl{}
 			}
 		}
 
-		// No need to check userId mismatch since key includes userId
 		if floodCrc.userId == 0 {
 			floodCrc.userId = userId
 			floodCrc.messageCount = 0
-			floodCrc.messageIDs = make([]int64, 0, floodSettings.Limit+5) // Pre-allocate with capacity
+			floodCrc.messageIDs = make([]int64, 0, floodSettings.Limit+5)
 		}
 
 		floodCrc.messageCount++
 		floodCrc.lastActivity = currentTime
 
-		// PERFORMANCE FIX: Append to end instead of prepending
-		// This avoids slice reallocation and copying on every message (O(1) amortized vs O(n))
 		floodCrc.messageIDs = append(floodCrc.messageIDs, msgId)
 
-		// Trim old messages if we exceed the limit
-		// Keep only the most recent messages within the flood window
 		if len(floodCrc.messageIDs) > floodSettings.Limit+5 {
-			// Slice from the end to keep recent messages
-			// This is O(1) operation since it just adjusts the slice header
 			floodCrc.messageIDs = floodCrc.messageIDs[len(floodCrc.messageIDs)-(floodSettings.Limit+5):]
 		}
 
@@ -276,8 +237,6 @@ func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish
 	return
 }
 
-// checkFlood monitors incoming messages for flood violations.
-// Applies configured flood actions (mute/kick/ban) when limits are exceeded.
 func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
@@ -305,19 +264,15 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check if user is approved (immune to anti-spam)
 	if chat_status.IsApproved(b, chatId, userId) {
 		return ext.ContinueGroups
 	}
 
-	// PERFORMANCE FIX: Update flood and get settings in one call to eliminate redundant DB query
-	// Previously this was calling antiflood.GetFlood again after updateFlood, doubling the DB load
 	flooded, floodCrc, flood := antifloodModule.updateFlood(chatId, userId, msg.MessageId)
 	if !flooded {
 		return ext.ContinueGroups
 	}
 
-	// No need to call antiflood.GetFlood again - we already have the settings from updateFlood
 	if flood.Action == "mute" || flood.Action == "kick" || flood.Action == "ban" {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
@@ -343,13 +298,11 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 
 		if len(floodCrc.messageIDs) <= 3 {
-			// Sequential deletion - continue on error
 			for _, i := range floodCrc.messageIDs {
 				err := helpers.DeleteMessageWithErrorHandling(b, chatId, i)
 				recordError(err, i)
 			}
 		} else {
-			// Concurrent deletion with rate limiting
 			sem := make(chan struct{}, maxConcurrentMsgDeletions)
 			var wg sync.WaitGroup
 
@@ -379,7 +332,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch flood.Action {
 	case "mute":
-		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -402,7 +354,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "kick":
-		// don't work on anonymous channels
 		if user.IsAnonymousChannel() {
 			return ext.ContinueGroups
 		}
@@ -456,11 +407,8 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// setFlood handles the /setflood command to configure flood detection limits.
-// Sets the maximum number of messages allowed before triggering flood protection.
 func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -513,17 +461,13 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// flood handles the /flood command to display current flood protection settings.
-// Shows the flood limit and action (mute/kick/ban) for the chat.
 func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 	msg := ctx.EffectiveMessage
 
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "flood") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -556,11 +500,8 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// setFloodMode handles the /setfloodmode command to configure flood protection actions.
-// Allows setting the punishment type (ban/kick/mute) for flood violations.
 func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -602,11 +543,8 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// setFloodDeleter handles the /delflood command to toggle message deletion on flood.
-// Configures whether to delete all flood messages or just the triggering message.
 func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -655,8 +593,6 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// LoadAntiflood registers all antiflood module handlers with the dispatcher.
-// Sets up flood detection commands and message monitoring handlers.
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[antifloodModule.moduleName] = true
 

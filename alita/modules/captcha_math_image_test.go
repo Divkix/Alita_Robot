@@ -25,8 +25,6 @@ message_type_video_note: "video note"
 message_type_unknown: "unknown"
 `
 
-// ---- isPermanentTelegramError ----
-
 func TestIsPermanentTelegramError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -56,8 +54,6 @@ func TestIsPermanentTelegramError(t *testing.T) {
 		})
 	}
 }
-
-// ---- isPermanentUnmuteError ----
 
 func TestIsPermanentUnmuteError(t *testing.T) {
 	tests := []struct {
@@ -91,8 +87,6 @@ func TestIsPermanentUnmuteError(t *testing.T) {
 	}
 }
 
-// ---- messageTypeToString ----
-
 func TestMessageTypeToString(t *testing.T) {
 	tr, err := i18n.NewTestTranslator(mockMessageTypesYAML)
 	if err != nil {
@@ -125,8 +119,6 @@ func TestMessageTypeToString(t *testing.T) {
 		})
 	}
 }
-
-// ---- secureIntn ----
 
 func TestSecureIntn(t *testing.T) {
 	t.Run("max zero returns zero", func(t *testing.T) {
@@ -175,8 +167,6 @@ func TestSecureIntn(t *testing.T) {
 	})
 }
 
-// ---- secureShuffleStrings ----
-
 func TestSecureShuffleStrings(t *testing.T) {
 	t.Run("empty slice", func(t *testing.T) {
 		empty := []string{}
@@ -216,8 +206,6 @@ func TestSecureShuffleStrings(t *testing.T) {
 		}
 	})
 }
-
-// ---- generateMathCaptcha ----
 
 func TestGenerateMathCaptcha(t *testing.T) {
 	for i := 0; i < 20; i++ {
@@ -306,8 +294,6 @@ func assertCaptchaChallenge(t *testing.T, answer string, imageBytes []byte, opti
 	}
 }
 
-// ---- noopCaptchaStore ----
-
 func TestNoopCaptchaStore(t *testing.T) {
 	store := noopCaptchaStore{}
 
@@ -336,8 +322,6 @@ func TestNoopCaptchaStore(t *testing.T) {
 	})
 }
 
-// ---- newMathImageCaptchaDriver ----
-
 func TestNewMathImageCaptchaDriver(t *testing.T) {
 	const question = "12 + 34"
 
@@ -359,8 +343,6 @@ func TestNewMathImageCaptchaDriver(t *testing.T) {
 		t.Fatalf("expected Width=240, got %d", driver.Width)
 	}
 }
-
-// ---- formatMathQuestion ----
 
 func TestFormatMathQuestion(t *testing.T) {
 	tests := []struct {
@@ -384,8 +366,6 @@ func TestFormatMathQuestion(t *testing.T) {
 		})
 	}
 }
-
-// ---- fixedStringCaptchaDriver.GenerateIdQuestionAnswer ----
 
 func TestFixedStringCaptchaDriverGenerateIdQuestionAnswer(t *testing.T) {
 	const question = "12 + 34"
@@ -458,12 +438,12 @@ func TestParseInt64ForLargeUserIDs(t *testing.T) {
 		},
 		{
 			name:    "large user ID exceeding 32-bit max",
-			userID:  "2147483648", // 2^31
+			userID:  "2147483648",
 			wantErr: false,
 		},
 		{
 			name:    "very large user ID near 64-bit range",
-			userID:  "9223372036854775807", // math.MaxInt64
+			userID:  "9223372036854775807",
 			wantErr: false,
 		},
 		{
@@ -487,7 +467,6 @@ func TestParseInt64ForLargeUserIDs(t *testing.T) {
 				t.Fatalf("failed to parse userID %s: %v", tc.userID, err)
 			}
 
-			// Verify the parsed value matches the original
 			if strconv.FormatInt(parsedID, 10) != tc.userID {
 				t.Fatalf("round-trip failed: got %d, want %s", parsedID, tc.userID)
 			}

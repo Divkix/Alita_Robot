@@ -30,7 +30,7 @@ var (
 		permHandlerGroup:  5,
 		restrHandlerGroup: 6,
 	}
-	arabmatch, _                 = regexp.Compile("[\u0600-\u06FF]") // the regex detects the arabic language
+	arabmatch, _                 = regexp.Compile("[\u0600-\u06FF]")
 	OTHER        filters.Message = func(msg *gotgbot.Message) bool {
 		return msg.Game != nil || msg.Sticker != nil || message.Animation(msg)
 	}
@@ -77,7 +77,6 @@ var (
 		},
 		"anonchannel": func(msg *gotgbot.Message) bool {
 			sender := msg.GetSender()
-			// Block messages from anonymous channels OR linked channels (channel posts forwarded to discussion)
 			return sender.IsAnonymousChannel() || sender.IsLinkedChannel()
 		},
 	}
@@ -91,14 +90,10 @@ var (
 		"all":      message.All,
 	}
 
-	// Cached lock types - computed once and reused
 	cachedLockTypes     []string
 	cachedLockTypesOnce sync.Once
 )
 
-// getLockMapAsArray returns a sorted array of all available lock types
-// by combining restriction types and permission lock types.
-// Uses sync.Once to cache the result since lock types never change.
 func (moduleStruct) getLockMapAsArray() []string {
 	cachedLockTypesOnce.Do(func() {
 		tmpMap := make(map[string]filters.Message, len(lockMap)+len(restrMap))
@@ -121,8 +116,6 @@ func (moduleStruct) getLockMapAsArray() []string {
 	return cachedLockTypes
 }
 
-// buildLockTypesMessage constructs a formatted string showing all locks
-// currently enabled in the specified chat.
 func (moduleStruct) buildLockTypesMessage(chatID int64) (res string) {
 	chatLocks := locks.GetChatLocks(chatID)
 
@@ -144,15 +137,11 @@ func (moduleStruct) buildLockTypesMessage(chatID int64) (res string) {
 	return
 }
 
-// locktypes handles the /locktypes command by displaying all available
-// lock types that can be used in the chat.
 func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "locktypes") {
 		return ext.EndGroups
 	}
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -171,15 +160,11 @@ func (m moduleStruct) locktypes(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// locks handles the /locks command by showing all currently enabled
-// locks in the chat with their status.
 func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// if command is disabled, return
 	if chat_status.CheckDisabledCmd(b, msg, "locks") {
 		return ext.EndGroups
 	}
-	// connection status
 	chat := chat_status.IsUserConnected(b, ctx, true, true)
 	if chat == nil {
 		return ext.EndGroups
@@ -195,13 +180,9 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// lockPerm handles the /lock command to enable specific lock types
-// in the chat, requiring admin permissions.
-//
 //nolint:dupl // lockPerm has symmetric logic with unlockPerm
 func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -210,7 +191,6 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
-	// Get sender for admin check
 	sender := ctx.EffectiveSender
 	if sender == nil {
 		return ext.EndGroups
@@ -236,7 +216,6 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Validate all lock types first
 	toLock := make([]string, 0, len(args))
 	for _, perm := range args {
 		if !slices.Contains(m.getLockMapAsArray(), perm) {
@@ -253,7 +232,6 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		toLock = append(toLock, perm)
 	}
 
-	// Update locks synchronously to ensure success before sending confirmation
 	failedLocks := make([]string, 0, len(toLock))
 	for _, perm := range toLock {
 		if err := locks.UpdateLock(chat.Id, perm, true); err != nil {
@@ -262,10 +240,8 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// Send appropriate response based on success/failure
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if len(failedLocks) > 0 {
-		// Some locks failed
 		text, _ := tr.GetString("locks_lock_failed")
 		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
 		if err != nil {
@@ -273,7 +249,6 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		// All locks succeeded
 		temp, _ := tr.GetString("locks_locked_successfully")
 		text := fmt.Sprintf(temp, strings.Join(toLock, "\n - "))
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -286,13 +261,9 @@ func (m moduleStruct) lockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// unlockPerm handles the /unlock command to disable specific lock types
-// in the chat, requiring admin permissions.
-//
 //nolint:dupl // unlockPerm has symmetric logic with lockPerm
 func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	// connection status
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
 		return ext.EndGroups
@@ -301,7 +272,6 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	args := ctx.Args()[1:]
 
-	// Get sender for admin check
 	sender := ctx.EffectiveSender
 	if sender == nil {
 		return ext.EndGroups
@@ -327,7 +297,6 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	// Validate all lock types first
 	toUnlock := make([]string, 0, len(args))
 	for _, perm := range args {
 		if !slices.Contains(m.getLockMapAsArray(), perm) {
@@ -344,7 +313,6 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		toUnlock = append(toUnlock, perm)
 	}
 
-	// Update locks synchronously to ensure success before sending confirmation
 	failedLocks := make([]string, 0, len(toUnlock))
 	for _, perm := range toUnlock {
 		if err := locks.UpdateLock(chat.Id, perm, false); err != nil {
@@ -353,10 +321,8 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	// Send appropriate response based on success/failure
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	if len(failedLocks) > 0 {
-		// Some unlocks failed
 		text, _ := tr.GetString("locks_unlock_failed")
 		_, err := msg.Reply(b, fmt.Sprintf(text, strings.Join(failedLocks, ", ")), formatting.Shtml())
 		if err != nil {
@@ -364,7 +330,6 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	} else {
-		// All unlocks succeeded
 		temp, _ := tr.GetString("locks_unlocked_successfully")
 		text := fmt.Sprintf(temp, strings.Join(toUnlock, "\n - "))
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -377,19 +342,15 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-// restHandler monitors messages and deletes them if they match
-// restricted content types that are locked in the chat.
 func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
 
-	// Skip if sender is nil (shouldn't happen but be safe)
 	if sender == nil {
 		return ext.ContinueGroups
 	}
 
-	// Early exit: skip API call if no restriction-type locks are active for this chat.
 	chatLocks := locks.GetChatLocks(chat.Id)
 	hasActiveLock := false
 	for restrKey := range restrMap {
@@ -402,10 +363,8 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Get sender ID - works for both users and channels
 	senderID := sender.Id()
 
-	// Skip for admins and approved users (IsUserAdmin handles channel IDs safely)
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
@@ -413,7 +372,6 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check bot delete permission once before scanning restrictions
 	if !chat_status.CanBotDelete(b, ctx, nil) {
 		return ext.ContinueGroups
 	}
@@ -423,41 +381,32 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		// Special handling for comments lock:
-		// Delete messages from users who aren't members of the chat (discussion comments)
 		// but skip Telegram's system account (777000) which forwards channel posts
 		if restr == "comments" {
-			// Skip if from Telegram's system account
 			if msg.From != nil && msg.From.Id == 777000 {
 				continue
 			}
-			// Only delete if sender is not a member of the chat
 			if chat_status.IsUserInChat(b, chat, senderID) {
 				continue
 			}
 		}
 
 		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-		// Message deleted, no need to check other restrictions
 		break
 	}
 
 	return ext.ContinueGroups
 }
 
-// permHandler monitors messages and deletes them if they match
-// specific permission locks that are enabled in the chat.
 func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
 
-	// Skip if sender is nil (shouldn't happen but be safe)
 	if sender == nil {
 		return ext.ContinueGroups
 	}
 
-	// Early exit: skip API call if no permission-type locks are active for this chat.
 	chatLocks := locks.GetChatLocks(chat.Id)
 	hasActiveLock := false
 	for permKey := range lockMap {
@@ -470,10 +419,8 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Get sender ID - works for both users and channels
 	senderID := sender.Id()
 
-	// Skip for admins and approved users (IsUserAdmin handles channel IDs safely)
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
@@ -481,7 +428,6 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check bot delete permission once before scanning locks
 	if !chat_status.CanBotDelete(b, ctx, nil) {
 		return ext.ContinueGroups
 	}
@@ -491,38 +437,31 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		// Skip "bots" lock - handled separately by botLockHandler for new member joins
 		if perm == "bots" {
 			continue
 		}
 
 		_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)
-		// Message deleted, no need to check other locks
 		break
 	}
 
 	return ext.ContinueGroups
 }
 
-// botLockHandler handles the bots lock by automatically banning
-// bots that are added to the chat when bots lock is enabled.
 func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	sender := ctx.EffectiveSender
 	mem := ctx.ChatMember.NewChatMember.MergeChatMember().User
 
-	// Check if bots lock is enabled first (most common case: it's not)
 	if !locks.IsPermLocked(chat.Id, "bots") {
 		return ext.ContinueGroups
 	}
 
-	// Get sender ID for admin check - the person who added the bot
 	var senderID int64
 	if sender != nil {
 		senderID = sender.Id()
 	}
 
-	// Allow admins to add bots even when bots lock is enabled
 	if senderID > 0 && chat_status.IsUserAdmin(b, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
@@ -530,7 +469,6 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Check if bot has necessary permissions
 	if !chat_status.IsBotAdmin(b, ctx, nil) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: chat}))
 		text, _ := tr.GetString("locks_bot_lock_no_permission")
@@ -546,7 +484,6 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	// Ban the bot that was added
 	_, err := chat.BanMember(b, mem.Id, nil)
 	if err != nil {
 		log.Error(err)
@@ -564,8 +501,6 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-// LoadLocks registers all locks module handlers with the dispatcher,
-// including commands and message filters for lock enforcement.
 func LoadLocks(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[locksModule.moduleName] = true
 
@@ -582,7 +517,7 @@ func LoadLocks(dispatcher *ext.Dispatcher) {
 			func(u *gotgbot.ChatMemberUpdated) bool {
 				mem := u.NewChatMember.MergeChatMember()
 				oldMem := u.OldChatMember.MergeChatMember()
-				return mem.User.IsBot && mem.Status == "member" && oldMem.Status == "left" // new bot being added to group
+				return mem.User.IsBot && mem.Status == "member" && oldMem.Status == "left"
 			},
 			locksModule.botLockHandler,
 		),

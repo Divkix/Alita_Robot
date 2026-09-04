@@ -14,7 +14,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-// spamKey is a composite key for rate limiting per user per chat
 type spamKey struct {
 	chatId int64
 	userId int64
@@ -25,7 +24,6 @@ const (
 	antiSpamWindow = time.Second
 )
 
-// antiSpamInfo tracks a user's current fixed spam window.
 type antiSpamInfo struct {
 	Count       int
 	WindowStart time.Time
@@ -39,7 +37,6 @@ type spamShard struct {
 var antiSpamShards [16]spamShard
 
 func shardFor(key spamKey) *spamShard {
-	// Mix both chat and user to spread users in the same chat across shards.
 	hash := uint64(key.chatId)*31 + uint64(key.userId)
 	return &antiSpamShards[hash%16]
 }
@@ -52,7 +49,6 @@ func init() {
 	go antiSpamCleanupLoop()
 }
 
-// antiSpamCleanupLoop periodically removes expired entries to prevent memory leaks.
 func antiSpamCleanupLoop() {
 	defer error_handling.RecoverFromPanic("antiSpamCleanupLoop", "antispam")
 
@@ -82,8 +78,6 @@ func cleanupExpiredAntiSpam(now time.Time) {
 	}
 }
 
-// spamCheck performs spam detection for a specific user in a chat.
-// The eighteenth message within one second is spam.
 func spamCheck(key spamKey) bool {
 	shard := shardFor(key)
 	shard.mu.Lock()
@@ -106,24 +100,17 @@ func spamCheck(key spamKey) bool {
 	return info.Count >= antiSpamLimit
 }
 
-// LoadAntispam registers the antispam message handler with the dispatcher.
-// Sets up spam detection monitoring for all incoming messages.
 func LoadAntispam(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(
 			message.All,
 			func(bot *gotgbot.Bot, ctx *ext.Context) error {
-				// Skip if no user (channel posts, etc.)
 				if ctx.EffectiveUser == nil {
 					return ext.ContinueGroups
 				}
-				// Skip approved users (immune to anti-spam)
 				if chat_status.IsApproved(bot, ctx.EffectiveChat.Id, ctx.EffectiveUser.Id) {
 					return ext.ContinueGroups
 				}
-				// Skip admins: every other anti-abuse module exempts admins, and
-				// silently dropping an admin's messages (including legitimate
-				// command bursts) is worse than letting them through.
 				if chat_status.IsUserAdmin(bot, ctx.EffectiveChat.Id, ctx.EffectiveUser.Id) {
 					return ext.ContinueGroups
 				}
