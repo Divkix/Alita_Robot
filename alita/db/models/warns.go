@@ -18,7 +18,7 @@ func (WarnSettings) TableName() string {
 type Warns struct {
 	ID        uint        `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64       `gorm:"column:user_id;not null;uniqueIndex:uk_warns_users_user_chat" json:"user_id,omitempty"`
-	ChatId    int64       `gorm:"column:chat_id;not null;uniqueIndex:uk_warns_users_user_chat" json:"chat_id,omitempty"`
+	ChatId    int64       `gorm:"column:chat_id;not null;uniqueIndex:uk_warns_users_user_chat;index:idx_warns_users_chat_id" json:"chat_id,omitempty"`
 	NumWarns  int         `gorm:"column:num_warns;default:0;check:chk_warns_num_warns,num_warns >= 0" json:"num_warns,omitempty"`
 	Reasons   StringArray `gorm:"column:warns;type:jsonb" json:"warns" default:"[]"`
 	CreatedAt time.Time   `gorm:"column:created_at" json:"created_at,omitempty"`

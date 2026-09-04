@@ -21,7 +21,7 @@ func (CaptchaSettings) TableName() string {
 type CaptchaAttempts struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserID       int64     `gorm:"column:user_id;not null;uniqueIndex:uk_captcha_user_chat" json:"user_id,omitempty"`
-	ChatID       int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_user_chat" json:"chat_id,omitempty"`
+	ChatID       int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_user_chat;index:idx_captcha_attempts_chat_id" json:"chat_id,omitempty"`
 	Answer       string    `gorm:"column:answer;not null" json:"answer,omitempty"`
 	Attempts     int       `gorm:"column:attempts;default:0" json:"attempts,omitempty"`
 	MessageID    int64     `gorm:"column:message_id" json:"message_id,omitempty"`
@@ -45,7 +45,7 @@ type StoredMessages struct {
 	Content     string    `gorm:"column:content;type:text" json:"content,omitempty"`
 	FileID      string    `gorm:"column:file_id" json:"file_id,omitempty"`
 	Caption     string    `gorm:"column:caption;type:text" json:"caption,omitempty"`
-	AttemptID   uint      `gorm:"column:attempt_id;not null" json:"attempt_id,omitempty"`
+	AttemptID   uint      `gorm:"column:attempt_id;not null;index:idx_stored_attempt" json:"attempt_id,omitempty"`
 	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
 }
 
@@ -56,7 +56,7 @@ func (StoredMessages) TableName() string {
 type CaptchaMutedUsers struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserID    int64     `gorm:"column:user_id;not null;uniqueIndex:uk_captcha_muted_user_chat" json:"user_id,omitempty"`
-	ChatID    int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_muted_user_chat" json:"chat_id,omitempty"`
+	ChatID    int64     `gorm:"column:chat_id;not null;uniqueIndex:uk_captcha_muted_user_chat;index:idx_captcha_muted_users_chat_id" json:"chat_id,omitempty"`
 	UnmuteAt  time.Time `gorm:"column:unmute_at;not null;index:idx_captcha_unmute_at" json:"unmute_at,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at,omitempty"`
 }

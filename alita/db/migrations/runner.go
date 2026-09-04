@@ -798,7 +798,32 @@ func (m *MigrationRunner) verifyIndexes() error {
 			"idx_antiflood_settings_chat_id": {"chat_id"},
 		},
 		"captcha_attempts": {
-			"uk_captcha_user_chat": {"user_id", "chat_id"},
+			"uk_captcha_user_chat":         {"user_id", "chat_id"},
+			"idx_captcha_attempts_chat_id": {"chat_id"}, // FK backing (20260904000000)
+		},
+		"captcha_muted_users": {
+			"idx_captcha_muted_users_chat_id": {"chat_id"}, // FK backing (20260904000000)
+		},
+		"warns_users": {
+			"idx_warns_users_chat_id": {"chat_id"}, // FK backing (20260904000000)
+		},
+		"connection": {
+			"idx_connection_chat_id": {"chat_id"}, // FK backing (20260904000000)
+		},
+		"stored_messages": {
+			"idx_stored_attempt": {"attempt_id"}, // FK backing (20260904000000)
+		},
+		"federation_admins": {
+			"idx_federation_admins_user_id": {"user_id"}, // FK backing (20260904000000)
+		},
+		"federation_bans": {
+			"idx_federation_bans_user_id": {"user_id"}, // FK backing (20260904000000)
+		},
+		"federation_chats": {
+			"idx_federation_chats_fed_id": {"fed_id"}, // FK backing (20260904000000)
+		},
+		"federation_subs": {
+			"idx_federation_subs_subscribed_fed_id": {"subscribed_fed_id"}, // FK backing (20260904000000)
 		},
 		"approved_users": {
 			"idx_approved_users_chat_id": {"chat_id"}, // Restored by 20260831230000; dropped once as "unused" and missed
