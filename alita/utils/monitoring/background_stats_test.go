@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-// ---------------------------------------------------------------------------
-// NewBackgroundStatsCollector
-// ---------------------------------------------------------------------------
-
 func TestNewBackgroundStatsCollector(t *testing.T) {
 	t.Parallel()
 
@@ -51,10 +47,6 @@ func TestNewBackgroundStatsCollector(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// RecordMessage
-// ---------------------------------------------------------------------------
-
 func TestRecordMessage(t *testing.T) {
 	t.Parallel()
 
@@ -69,10 +61,6 @@ func TestRecordMessage(t *testing.T) {
 		t.Fatalf("expected messageCounter >= %d, got %d", calls, c.messageCounter)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// RecordError
-// ---------------------------------------------------------------------------
 
 func TestRecordError(t *testing.T) {
 	t.Parallel()
@@ -89,17 +77,12 @@ func TestRecordError(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetCurrentMetrics
-// ---------------------------------------------------------------------------
-
 func TestGetCurrentMetrics(t *testing.T) {
 	t.Parallel()
 
 	c := NewBackgroundStatsCollector()
 	metrics := c.GetCurrentMetrics()
 
-	// Initial metrics should be zero-value
 	if metrics.GoroutineCount != 0 {
 		t.Fatalf("expected GoroutineCount=0 initially, got %d", metrics.GoroutineCount)
 	}
@@ -165,10 +148,6 @@ func TestUpdateDatabaseMetricsAndReport(t *testing.T) {
 	c.reportStats()
 }
 
-// ---------------------------------------------------------------------------
-// ConcurrentRecordMessage
-// ---------------------------------------------------------------------------
-
 func TestConcurrentRecordMessage(t *testing.T) {
 	t.Parallel()
 
@@ -199,12 +178,6 @@ func TestConcurrentRecordMessage(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Additional: TestCollectSystemStats
-// ---------------------------------------------------------------------------
-
-// TestCollectSystemStats verifies that collectSystemStats stores metrics with
-// sensible runtime values (goroutines > 0, memory >= 0).
 func TestCollectSystemStats(t *testing.T) {
 	t.Parallel()
 
@@ -227,18 +200,11 @@ func TestCollectSystemStats(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Additional: TestRecordMessageAndError
-// ---------------------------------------------------------------------------
-
-// TestRecordMessageAndError verifies that RecordMessage and RecordError
-// increment their respective counters independently.
 func TestRecordMessageAndError(t *testing.T) {
 	t.Parallel()
 
 	c := NewBackgroundStatsCollector()
 
-	// Record 3 messages and 2 errors
 	c.RecordMessage()
 	c.RecordMessage()
 	c.RecordMessage()
@@ -252,7 +218,6 @@ func TestRecordMessageAndError(t *testing.T) {
 		t.Fatalf("expected errorCounter=2, got %d", c.errorCounter)
 	}
 
-	// Verify counters are independent
 	c.RecordMessage()
 	if c.errorCounter != 2 {
 		t.Fatalf("RecordMessage() should not affect errorCounter, got %d", c.errorCounter)
@@ -264,10 +229,6 @@ func TestRecordMessageAndError(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GetCurrentMetrics with recorded values
-// ---------------------------------------------------------------------------
-
 func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	t.Parallel()
 
@@ -277,7 +238,6 @@ func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	c.RecordMessage()
 	c.RecordError()
 
-	// collectSystemStats reads atomic counters and stores them.
 	c.collectSystemStats()
 
 	result := c.GetCurrentMetrics()
@@ -296,17 +256,11 @@ func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Global recorders (wiring tests for main.go callback setup)
-// ---------------------------------------------------------------------------
-
 func TestGlobalRecorders_NoCollector_NoOp(t *testing.T) {
 	// Do not use t.Parallel() - tests global state
 
-	// Ensure no collector is set
 	SetGlobalCollector(nil)
 
-	// These should not panic
 	GlobalRecordError()
 	GlobalRecordMessage()
 }
@@ -316,9 +270,8 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 
 	collector := NewBackgroundStatsCollector()
 	SetGlobalCollector(collector)
-	defer SetGlobalCollector(nil) // cleanup
+	defer SetGlobalCollector(nil)
 
-	// Initial state
 	if collector.errorCounter != 0 {
 		t.Fatal("expected initial errorCounter to be 0")
 	}
@@ -326,11 +279,9 @@ func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 		t.Fatal("expected initial messageCounter to be 0")
 	}
 
-	// Record via global functions
 	GlobalRecordError()
 	GlobalRecordMessage()
 
-	// Verify
 	if collector.errorCounter != 1 {
 		t.Errorf("expected errorCounter=1 after GlobalRecordError, got %d", collector.errorCounter)
 	}
@@ -355,7 +306,6 @@ func TestSetGlobalCollector_ReplacesCollector(t *testing.T) {
 		t.Errorf("expected collectorB.messageCounter=0, got %d", collectorB.messageCounter)
 	}
 
-	// Replace with collectorB
 	SetGlobalCollector(collectorB)
 	GlobalRecordMessage()
 
@@ -366,12 +316,8 @@ func TestSetGlobalCollector_ReplacesCollector(t *testing.T) {
 		t.Errorf("expected collectorB.messageCounter=1, got %d", collectorB.messageCounter)
 	}
 
-	defer SetGlobalCollector(nil) // cleanup
+	defer SetGlobalCollector(nil)
 }
-
-// ---------------------------------------------------------------------------
-// SystemMetrics — RestrictedChatHits / RestrictedChatMisses fields
-// ---------------------------------------------------------------------------
 
 func TestSystemMetrics_RestrictedChatCounters(t *testing.T) {
 	t.Parallel()

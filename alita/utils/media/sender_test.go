@@ -408,7 +408,6 @@ func TestSendNoteRandomization(t *testing.T) {
 		MsgType:     db.TEXT,
 	}
 
-	// Call many times to verify all options are possible outcomes.
 	seen := make(map[string]bool)
 	for i := 0; i < 50; i++ {
 		_, err := SendNote(bot, ctx, ctx.EffectiveChat, note, 0, 0)
@@ -542,12 +541,10 @@ func TestSendNoteUsesChatForFormattingButCtxForSendTarget(t *testing.T) {
 		t.Fatalf("send error = %v", err)
 	}
 
-	// Verify formatting used the group chat title
 	if got := client.params["text"]; got != "Welcome to "+groupTitle+"!" {
 		t.Fatalf("formatted text = %q, want %q", got, "Welcome to "+groupTitle+"!")
 	}
 
-	// Verify the message was sent to the private chat (ctx.EffectiveChat)
 	if got := client.params["chat_id"]; got != privateChatID {
 		t.Fatalf("chat_id = %v, want %d", got, privateChatID)
 	}

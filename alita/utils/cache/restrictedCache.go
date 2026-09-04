@@ -18,18 +18,14 @@ var (
 	restrictedCacheMisses atomic.Int64
 )
 
-// restrictedChatKey returns the Redis key for a restricted chat.
 func restrictedChatKey(chatID int64) string {
 	return fmt.Sprintf("alita:restricted:%d", chatID)
 }
 
-// restrictedProbeKey returns the Redis key used to coordinate probe attempts.
 func restrictedProbeKey(chatID int64) string {
 	return fmt.Sprintf("alita:restricted_probe:%d", chatID)
 }
 
-// MarkChatRestricted marks a chat as restricted (bot can't send messages).
-// The restriction expires after RestrictedCacheTTL (30 min).
 func MarkChatRestricted(chatID int64) {
 	m := GetMarshal()
 	if m == nil {
@@ -48,10 +44,6 @@ func MarkChatRestricted(chatID int64) {
 	}
 }
 
-// IsChatRestricted checks if a chat is currently in the restricted cache.
-// Returns true if the bot should skip sending to this chat.
-// A periodic probe window allows retries so stale restrictions don't block sends
-// for the full key TTL.
 func IsChatRestricted(chatID int64) bool {
 	m := GetMarshal()
 	if m == nil {
@@ -66,7 +58,6 @@ func IsChatRestricted(chatID int64) bool {
 
 	restrictedSince, parseErr := time.Parse(time.RFC3339, ts)
 	if parseErr != nil {
-		// Allow a probe when cache payload is malformed to avoid hard lockout.
 		restrictedCacheMisses.Add(1)
 		log.WithFields(log.Fields{
 			"chat_id": chatID,
@@ -77,8 +68,6 @@ func IsChatRestricted(chatID int64) bool {
 	}
 
 	if time.Since(restrictedSince) >= constants.RestrictedProbeInterval {
-		// Coordinate a single probe attempt across concurrent workers so only one
-		// sender retries Telegram when probe window opens.
 		if redisClient != nil {
 			_, claimErr := redisClient.SetArgs(
 				Context,
@@ -119,8 +108,6 @@ func IsChatRestricted(chatID int64) bool {
 	return true
 }
 
-// MarkChatNotRestricted removes the restricted flag for a chat.
-// Called when the bot's permissions are upgraded (e.g., admin cache load detects bot is admin).
 func MarkChatNotRestricted(chatID int64) {
 	m := GetMarshal()
 	if m == nil {
@@ -136,7 +123,6 @@ func MarkChatNotRestricted(chatID int64) {
 	}
 }
 
-// GetRestrictedCacheStats returns cumulative hit/miss counters for monitoring.
 func GetRestrictedCacheStats() (hits, misses int64) {
 	return restrictedCacheHits.Load(), restrictedCacheMisses.Load()
 }

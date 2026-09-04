@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// KeywordMatcher provides efficient multi-pattern matching using Aho-Corasick algorithm
 type KeywordMatcher struct {
 	matcher   *ahocorasick.Matcher
 	patterns  []string
@@ -17,7 +16,6 @@ type KeywordMatcher struct {
 	lastBuild time.Time
 }
 
-// newKeywordMatcher creates a keyword matcher with the given patterns.
 func newKeywordMatcher(patterns []string) *KeywordMatcher {
 	km := &KeywordMatcher{
 		patterns: make([]string, len(patterns)),
@@ -27,7 +25,6 @@ func newKeywordMatcher(patterns []string) *KeywordMatcher {
 	return km
 }
 
-// build compiles the patterns into an Aho-Corasick matcher
 func (km *KeywordMatcher) build() {
 	start := time.Now()
 	if len(km.patterns) == 0 {
@@ -35,7 +32,6 @@ func (km *KeywordMatcher) build() {
 		return
 	}
 
-	// Convert patterns to lowercase for case-insensitive matching
 	lowerPatterns := make([]string, len(km.patterns))
 	for i, pattern := range km.patterns {
 		lowerPatterns[i] = strings.ToLower(pattern)
@@ -50,10 +46,6 @@ func (km *KeywordMatcher) build() {
 	}).Debug("Built Aho-Corasick matcher")
 }
 
-// FirstMatch returns the first pattern that matches the given text.
-// ahocorasick.Matcher.Match is not safe for concurrent use, so we hold an
-// exclusive lock across the Match call. ToLower is done outside the lock to
-// reduce contention.
 func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 	lowerText := strings.ToLower(text)
 

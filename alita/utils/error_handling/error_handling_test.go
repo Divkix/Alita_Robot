@@ -88,7 +88,7 @@ func TestRecoverFromPanic_InvokesOnErrorCallback(t *testing.T) {
 	SetOnErrorCallback(func() {
 		called.Store(true)
 	})
-	defer SetOnErrorCallback(nil) // cleanup
+	defer SetOnErrorCallback(nil)
 
 	done := make(chan struct{})
 	go func() {
@@ -110,10 +110,9 @@ func TestRecoverFromPanic_DoesNotInvokeOnErrorCallbackWithoutPanic(t *testing.T)
 	SetOnErrorCallback(func() {
 		called.Store(true)
 	})
-	defer SetOnErrorCallback(nil) // cleanup
+	defer SetOnErrorCallback(nil)
 
 	defer RecoverFromPanic("testFunc", "testMod")
-	// No panic
 
 	if called.Load() {
 		t.Error("onErrorCallback should NOT have been invoked when no panic occurs")

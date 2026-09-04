@@ -10,7 +10,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-// Cache manages keyword matchers for different chats
 type Cache struct {
 	matchers   map[int64]*KeywordMatcher
 	mu         sync.RWMutex
@@ -27,11 +26,7 @@ func newCache(ttl time.Duration) *Cache {
 	}
 }
 
-// GetOrCreateMatcher gets or creates a keyword matcher for the given chat.
-// Uses RWMutex for concurrent read access and only takes write lock when
-// creating a new matcher or when patterns have changed.
 func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatcher {
-	// Fast path: read-only check with RLock
 	c.mu.RLock()
 	matcher, exists := c.matchers[chatID]
 	if exists {
@@ -44,10 +39,8 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	}
 	c.mu.RUnlock()
 
-	// Slow path: need write lock to create or update
 	c.mu.Lock()
 
-	// Double-check after acquiring write lock
 	if matcher, exists := c.matchers[chatID]; exists {
 		if slices.Equal(matcher.patterns, patterns) {
 			c.mu.Unlock()
@@ -56,7 +49,6 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 		}
 	}
 
-	// Create new matcher
 	matcher = newKeywordMatcher(patterns)
 	c.matchers[chatID] = matcher
 	c.mu.Unlock()
@@ -70,20 +62,15 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	return matcher
 }
 
-// touchLastUsed records the current time for a chat under a separate mutex.
-// The lastUsed map is read by the cleanup goroutine but written by many
-// concurrent request handlers, so it needs its own lock.
 func (c *Cache) touchLastUsed(chatID int64) {
 	c.lastUsedMu.Lock()
 	c.lastUsed[chatID] = time.Now()
 	c.lastUsedMu.Unlock()
 }
 
-// cleanupExpired removes expired matchers based on TTL.
 func (c *Cache) cleanupExpired() {
 	now := time.Now()
 
-	// Step 1: snapshot expired IDs under lastUsedMu
 	c.lastUsedMu.Lock()
 	expiredChats := make([]int64, 0)
 	for chatID, lastUsed := range c.lastUsed {
@@ -97,7 +84,6 @@ func (c *Cache) cleanupExpired() {
 		return
 	}
 
-	// Step 2: delete from matchers under mu (re-check to avoid deleting revived chats)
 	c.mu.Lock()
 	for _, chatID := range expiredChats {
 		c.lastUsedMu.Lock()
@@ -111,7 +97,6 @@ func (c *Cache) cleanupExpired() {
 	}
 	c.mu.Unlock()
 
-	// Step 3: delete from lastUsed under lastUsedMu (re-check)
 	c.lastUsedMu.Lock()
 	for _, chatID := range expiredChats {
 		if lu, ok := c.lastUsed[chatID]; ok && time.Since(lu) > c.ttl {
@@ -123,16 +108,11 @@ func (c *Cache) cleanupExpired() {
 	log.WithField("expired_count", len(expiredChats)).Debug("Cleaned up expired keyword matchers")
 }
 
-// namedCaches is a registry of named caches, each isolated from the others.
 var (
 	namedCaches   = make(map[string]*Cache)
 	namedCachesMu sync.Mutex
 )
 
-// GetNamedCache returns a per-name singleton keyword matcher cache.
-// Each distinct name gets its own independent Cache instance with its own
-// 30-minute TTL and cleanup goroutine, so consumers with different pattern
-// sets (e.g. "filters" vs "blacklists") can never evict each other's entries.
 func GetNamedCache(name string) *Cache {
 	namedCachesMu.Lock()
 	c, ok := namedCaches[name]
@@ -144,8 +124,6 @@ func GetNamedCache(name string) *Cache {
 	namedCaches[name] = c
 	namedCachesMu.Unlock()
 
-	// Start the cleanup goroutine outside the mutex to avoid holding it
-	// for the goroutine's lifetime.
 	go func() {
 		defer error_handling.RecoverFromPanic("GetNamedCache.cleanupRoutine["+name+"]", "keyword_matcher")
 		ticker := time.NewTicker(10 * time.Minute)

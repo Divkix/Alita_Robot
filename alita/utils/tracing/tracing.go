@@ -27,16 +27,9 @@ var (
 	enabled        bool
 )
 
-// InitTracing initializes the OpenTelemetry tracing provider.
-// It configures exporters based on environment variables:
-// - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP gRPC endpoint (e.g., localhost:4317)
-// - OTEL_EXPORTER_CONSOLE: Enable console exporter (true/false, default: false)
-// - OTEL_SERVICE_NAME: Service name (default: alita_robot)
-// - OTEL_TRACES_SAMPLE_RATE: Trace sample rate (default: 1.0)
 func InitTracing() error {
 	ctx := context.Background()
 
-	// Get configuration from environment
 	serviceName := os.Getenv("OTEL_SERVICE_NAME")
 	if serviceName == "" {
 		serviceName = "alita_robot"
@@ -48,7 +41,6 @@ func InitTracing() error {
 			log.Warnf("[Tracing] Failed to parse OTEL_TRACES_SAMPLE_RATE: %v, using default 1.0", err)
 			sampleRate = 1.0
 		}
-		// Clamp sampleRate to [0.0, 1.0] to ensure a safe sampling ratio
 		if sampleRate < 0.0 {
 			log.Warnf("[Tracing] OTEL_TRACES_SAMPLE_RATE %.4f is less than 0.0, clamping to 0.0", sampleRate)
 			sampleRate = 0.0
@@ -58,7 +50,6 @@ func InitTracing() error {
 		}
 	}
 
-	// Create resource with service name
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
@@ -69,14 +60,12 @@ func InitTracing() error {
 		return fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// Determine which exporter to use
 	var exporter sdktrace.SpanExporter
 	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	useConsole := os.Getenv("OTEL_EXPORTER_CONSOLE") == "true"
 	otlpInsecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == "true"
 
 	if otlpEndpoint != "" {
-		// Use OTLP exporter
 		log.Infof("[Tracing] Using OTLP exporter with endpoint: %s", otlpEndpoint)
 		opts := []otlptracegrpc.Option{
 			otlptracegrpc.WithEndpoint(otlpEndpoint),
@@ -90,7 +79,6 @@ func InitTracing() error {
 			return fmt.Errorf("failed to create OTLP exporter: %w", err)
 		}
 	} else if useConsole {
-		// Use console exporter for debugging
 		log.Info("[Tracing] Using console exporter")
 		exporter, err = stdouttrace.New(
 			stdouttrace.WithPrettyPrint(),
@@ -100,7 +88,6 @@ func InitTracing() error {
 			return fmt.Errorf("failed to create console exporter: %w", err)
 		}
 	} else {
-		// No exporter configured, tracing disabled but we still set up the propagator
 		log.Info("[Tracing] No OTLP endpoint or console exporter configured, tracing is disabled")
 		propagator = propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{},
@@ -111,25 +98,21 @@ func InitTracing() error {
 		return nil
 	}
 
-	// Create tracer provider with sampling
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
 		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRate))),
 	)
 
-	// Set global tracer provider
 	otel.SetTracerProvider(tp)
 	tracerProvider = tp
 
-	// Set up propagator for trace context propagation
 	propagator = propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	)
 	otel.SetTextMapPropagator(propagator)
 
-	// Create tracer instance
 	tracer = otel.Tracer(serviceName)
 	enabled = true
 
@@ -138,7 +121,6 @@ func InitTracing() error {
 	return nil
 }
 
-// Shutdown gracefully shuts down the tracer provider.
 func Shutdown(ctx context.Context) error {
 	if tracerProvider == nil {
 		return nil
@@ -156,7 +138,6 @@ func Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// GetPropagator returns the global text map propagator for trace context propagation.
 func GetPropagator() propagation.TextMapPropagator {
 	if propagator == nil {
 		return propagation.NewCompositeTextMapPropagator(
@@ -167,16 +148,10 @@ func GetPropagator() propagation.TextMapPropagator {
 	return propagator
 }
 
-// WorkingModeAttribute returns a span attribute for the current working mode.
-// This reads config.AppConfig.WorkingMode at call time, so it reflects the
-// actual runtime value (webhook/polling) rather than the default set at init.
 func WorkingModeAttribute() attribute.KeyValue {
 	return attribute.String("bot.working_mode", config.AppConfig.WorkingMode)
 }
 
-// StartSpan starts a new span with the given name and options.
-// It uses the global tracer if available.
-// When tracing is disabled, returns the input context and a no-op span to avoid overhead.
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if !enabled {
 		return ctx, trace.SpanFromContext(ctx)

@@ -779,7 +779,6 @@ func TestRequirePrivate(t *testing.T) {
 
 func TestRequireGroup_NilChat(t *testing.T) {
 	ctx := makeCtxWithMessage("group")
-	// When chat is nil, extractChatFromContext pulls from ctx's embedded Update.Message.Chat
 	if !RequireGroup(nil, ctx, nil) {
 		t.Fatal("RequireGroup(nil, ctxWithGroup, nil) should be true")
 	}
@@ -806,7 +805,6 @@ func TestRequirePrivate_NilContextAndChat(t *testing.T) {
 
 func TestIsBotAdmin_NilBot(t *testing.T) {
 	ctx := makeCtxWithMessage("private")
-	// Private chats always return true from IsBotAdmin.
 	if !IsBotAdmin(nil, ctx, nil) {
 		t.Fatal("IsBotAdmin(nil, privateCtx, nil) should be true for private chats")
 	}

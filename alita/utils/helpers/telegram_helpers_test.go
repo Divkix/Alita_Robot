@@ -293,9 +293,7 @@ func TestIsPermissionError(t *testing.T) {
 	}
 }
 
-// TestIsExpectedTelegramError_ErrNoPermission verifies that the ErrNoPermission
-// sentinel value from the media package is classified as an expected Telegram error
-// so the dispatcher logs it at Warn instead of Error.
+// ErrNoPermission is classified as expected so the dispatcher logs it at Warn instead of Error.
 func TestIsExpectedTelegramError_ErrNoPermission(t *testing.T) {
 	t.Parallel()
 

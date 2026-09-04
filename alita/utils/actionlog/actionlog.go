@@ -12,14 +12,11 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
-// Log sends htmlText to the chat's log channel when the category is enabled.
 // Failures are swallowed so logging never blocks a user-facing command.
 func Log(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string) {
 	if b == nil || chat == nil || htmlText == "" {
 		return
 	}
-	// Skip channel *chats* (broadcast channels). Supergroup IDs are also
-	// channel-shaped numerically, so do not use IsChannelId here.
 	if chat.Type == "channel" {
 		return
 	}
@@ -36,7 +33,6 @@ func Log(b *gotgbot.Bot, chat *gotgbot.Chat, category, htmlText string) {
 	}
 }
 
-// Admin logs a human admin action (ban/mute/kick/warn).
 func Admin(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string, targetID int64, reason string) {
 	if actor == nil {
 		return
@@ -53,7 +49,6 @@ func Admin(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action strin
 	Log(b, chat, logchannels.CategoryAdmin, text)
 }
 
-// User logs a user-initiated action such as kickme.
 func User(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string) {
 	if actor == nil {
 		return
@@ -66,7 +61,6 @@ func User(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, action string
 	Log(b, chat, logchannels.CategoryUser, text)
 }
 
-// Reports logs a /report or @admin event.
 func Reports(b *gotgbot.Bot, chat *gotgbot.Chat, reporter *gotgbot.User, targetID int64) {
 	if reporter == nil {
 		return
@@ -79,7 +73,6 @@ func Reports(b *gotgbot.Bot, chat *gotgbot.Chat, reporter *gotgbot.User, targetI
 	Log(b, chat, logchannels.CategoryReports, text)
 }
 
-// Settings logs a settings change.
 func Settings(b *gotgbot.Bot, chat *gotgbot.Chat, actor *gotgbot.User, summary string) {
 	actorBit := "unknown"
 	if actor != nil {

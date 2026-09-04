@@ -9,10 +9,6 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 )
 
-// ---------------------------------------------------------------------------
-// AddCmdToDisableable
-// ---------------------------------------------------------------------------
-
 func TestAddCmdToDisableable(t *testing.T) {
 	const testCmd = "test_disableable_cmd_42"
 
@@ -76,10 +72,6 @@ func TestAddCmdToDisableableThreadSafe(t *testing.T) {
 		t.Fatalf("expected %d commands in DisableCmds, got %d", len(orig)+n, count)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// MultiCommand
-// ---------------------------------------------------------------------------
 
 func TestMultiCommand(t *testing.T) {
 	t.Parallel()

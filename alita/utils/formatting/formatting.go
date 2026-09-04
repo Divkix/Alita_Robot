@@ -1,6 +1,3 @@
-// Package formatting provides text-formatting helpers for Telegram messages,
-// including HTML / Markdown option builders, message splitting, HTML↔Markdown
-// conversion, and user/chat placeholder replacement.
 package formatting
 
 import (
@@ -20,18 +17,15 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
-// Parse-mode constants and the Telegram message length limit.
 const (
 	Markdown             = "Markdown"
 	HTML                 = "HTML"
 	MaxMessageLength int = 4096
 )
 
-// precompiled regexes and replacer for ReverseHTML2MD.
 var (
-	linkRegex     = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
-	rulesBtnRegex = regexp.MustCompile(`(?s){rules(:(same|up))?}`)
-	// htmlToMdReplacer efficiently replaces HTML tags with Markdown in a single pass.
+	linkRegex        = regexp.MustCompile(`<a href="(.*?)">(.*?)</a>`)
+	rulesBtnRegex    = regexp.MustCompile(`(?s){rules(:(same|up))?}`)
 	htmlToMdReplacer = strings.NewReplacer(
 		"<b>", "*",
 		"</b>", "*",
@@ -56,13 +50,10 @@ type memberCountEntry struct {
 const defaultMemberCountCacheTTL = 60 * time.Second
 
 var (
-	memberCountCache    sync.Map // map[int64]memberCountEntry
+	memberCountCache    sync.Map
 	memberCountCacheTTL = defaultMemberCountCacheTTL
 )
 
-// cachedMemberCount returns member count with a short TTL per chat to avoid an
-// API call per message. Expired entries are deleted on read and via AfterFunc
-// so idle chats cannot accumulate forever.
 func cachedMemberCount(b *gotgbot.Bot, chat *gotgbot.Chat) string {
 	if v, ok := memberCountCache.Load(chat.Id); ok {
 		if e, ok := v.(memberCountEntry); ok && time.Since(e.at) < memberCountCacheTTL {
@@ -86,8 +77,6 @@ func expireMemberCount(chatID int64, entry memberCountEntry) {
 	})
 }
 
-// Shtml returns SendMessageOpts configured with HTML parse mode, disabled link preview,
-// and reply parameters that allow sending without reply.
 func Shtml() *gotgbot.SendMessageOpts {
 	return &gotgbot.SendMessageOpts{
 		ParseMode: HTML,
@@ -100,8 +89,6 @@ func Shtml() *gotgbot.SendMessageOpts {
 	}
 }
 
-// Smarkdown returns SendMessageOpts configured with Markdown parse mode, disabled link preview,
-// and reply parameters that allow sending without reply.
 func Smarkdown() *gotgbot.SendMessageOpts {
 	return &gotgbot.SendMessageOpts{
 		ParseMode: Markdown,
@@ -114,9 +101,6 @@ func Smarkdown() *gotgbot.SendMessageOpts {
 	}
 }
 
-// SplitMessage splits a message into multiple messages if it exceeds MaxMessageLength.
-// It splits on newlines to preserve message structure when possible.
-// Uses utf8.RuneCountInString to correctly count UTF-8 characters instead of bytes.
 func SplitMessage(msg string) []string {
 	totalRunes := utf8.RuneCountInString(msg)
 	if totalRunes <= MaxMessageLength {
@@ -128,7 +112,6 @@ func SplitMessage(msg string) []string {
 		lines = lines[:len(lines)-1]
 	}
 
-	// Pre-allocate result with a heuristic capacity
 	result := make([]string, 0, totalRunes/MaxMessageLength+1)
 
 	smallMsg := ""
@@ -169,25 +152,18 @@ func SplitMessage(msg string) []string {
 	return result
 }
 
-// MentionHtml creates an HTML mention link for a user using their Telegram user ID.
 func MentionHtml(userId int64, name string) string {
 	return MentionUrl(fmt.Sprintf("tg://user?id=%d", userId), name)
 }
 
-// MentionUrl creates an HTML link with the given URL and display name.
-// Both the URL and name are HTML-escaped for safety.
 func MentionUrl(url, name string) string {
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", html.EscapeString(url), html.EscapeString(name))
 }
 
-// HtmlEscape escapes special HTML characters in a string to prevent injection.
-// Used when inserting untrusted content into HTML-formatted messages.
 func HtmlEscape(s string) string {
 	return html.EscapeString(s)
 }
 
-// ReverseHTML2MD converts HTML-formatted text back to markdown format.
-// Handles common HTML tags like bold, italic, underline, strikethrough, code, pre, and links.
 func ReverseHTML2MD(text string) string {
 	if linkRegex.MatchString(text) {
 		matches := linkRegex.FindAllStringSubmatch(text, -1)
@@ -203,9 +179,6 @@ func ReverseHTML2MD(text string) string {
 	return htmlToMdReplacer.Replace(text)
 }
 
-// FormattingReplacer processes message text and replaces placeholders with actual user/chat data.
-// Handles variables like {first}, {last}, {username}, {mention}, {count}, {chatname}, {id}.
-// Also processes rules button insertion with various positioning options.
 func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
 	const language = "en"
 	var (
@@ -271,7 +244,6 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 	}
 
 	res = r.Replace(rulesBtnRegex.ReplaceAllString(oldMsg, ""))
-	// Copy buttons to avoid mutating cached slice underlying array.
 	btns = append([]db.Button(nil), buttons...)
 
 	rulesDb := rules.GetChatRulesInfo(chat.Id)
@@ -305,8 +277,6 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 	return res, btns
 }
 
-// GetFullName combines first name and last name into a full name.
-// If last name is empty, returns only the first name.
 func GetFullName(firstName, lastName string) string {
 	if lastName != "" {
 		return firstName + " " + lastName

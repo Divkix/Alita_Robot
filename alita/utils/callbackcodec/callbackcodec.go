@@ -8,31 +8,23 @@ import (
 )
 
 const (
-	// Version identifies the current callback payload format.
 	Version = "v1"
 	// MaxCallbackDataLen matches Telegram's callback_data limit.
 	MaxCallbackDataLen = 64
 )
 
 var (
-	// ErrInvalidFormat indicates callback data is not in codec format.
-	ErrInvalidFormat = errors.New("invalid callback format")
-	// ErrUnsupportedVersion indicates the callback version is not supported.
+	ErrInvalidFormat      = errors.New("invalid callback format")
 	ErrUnsupportedVersion = errors.New("unsupported callback version")
-	// ErrInvalidNamespace indicates callback namespace is invalid.
-	ErrInvalidNamespace = errors.New("invalid callback namespace")
-	// ErrDataTooLong indicates encoded callback data exceeds Telegram limits.
-	ErrDataTooLong = errors.New("callback data exceeds max length")
+	ErrInvalidNamespace   = errors.New("invalid callback namespace")
+	ErrDataTooLong        = errors.New("callback data exceeds max length")
 )
 
-// Decoded represents a decoded callback payload.
 type Decoded struct {
 	Namespace string
 	Fields    map[string]string
 }
 
-// Encode serializes callback payload fields into a compact versioned format.
-// Format: <namespace>|v1|<query-encoded fields>
 func Encode(namespace string, fields map[string]string) (string, error) {
 	if namespace == "" || strings.Contains(namespace, "|") {
 		return "", ErrInvalidNamespace
@@ -58,7 +50,6 @@ func Encode(namespace string, fields map[string]string) (string, error) {
 	return data, nil
 }
 
-// EncodeOrFallback returns encoded data, or fallback when encoding fails.
 func EncodeOrFallback(namespace string, fields map[string]string, fallback string) string {
 	data, err := Encode(namespace, fields)
 	if err != nil {
@@ -67,7 +58,6 @@ func EncodeOrFallback(namespace string, fields map[string]string, fallback strin
 	return data
 }
 
-// Decode parses callback data in codec format.
 func Decode(data string) (*Decoded, error) {
 	parts := strings.SplitN(data, "|", 3)
 	if len(parts) != 3 {
@@ -106,7 +96,6 @@ func Decode(data string) (*Decoded, error) {
 	}, nil
 }
 
-// Field returns a decoded field value and whether it exists.
 func (d *Decoded) Field(key string) (string, bool) {
 	if d == nil {
 		return "", false

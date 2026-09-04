@@ -13,7 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Manager handles graceful shutdown of the application
 type Manager struct {
 	handlers        []func() error
 	mu              sync.RWMutex
@@ -28,14 +27,12 @@ var (
 	shutdownTimeout = 60 * time.Second
 )
 
-// NewManager creates a new shutdown manager
 func NewManager() *Manager {
 	return &Manager{
 		handlers: make([]func() error, 0),
 	}
 }
 
-// RegisterHandler registers a shutdown handler
 func (m *Manager) RegisterHandler(handler func() error) {
 	if m.shutdownStarted.Load() {
 		log.Warn("[Shutdown] RegisterHandler called after shutdown started - handler may not run")
@@ -45,24 +42,19 @@ func (m *Manager) RegisterHandler(handler func() error) {
 	m.handlers = append(m.handlers, handler)
 }
 
-// WaitForShutdown waits for shutdown signals and executes handlers
 func (m *Manager) WaitForShutdown() {
 	sigChan := make(chan os.Signal, 1)
 	notifySignals(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
-	// Wait for signal
 	sig := <-sigChan
 	log.Infof("[Shutdown] Received signal: %v", sig)
 
-	// Stop receiving signals - prevents duplicate shutdown calls
 	stopSignals(sigChan)
 	close(sigChan)
 
 	m.shutdown()
 }
 
-// executeHandler safely executes a single shutdown handler with panic recovery.
-// Returns the error from the handler, or nil if the handler panicked (panic is logged separately).
 func (m *Manager) executeHandler(handler func() error, index int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -72,7 +64,6 @@ func (m *Manager) executeHandler(handler func() error, index int) (err error) {
 	return handler()
 }
 
-// shutdown performs graceful shutdown
 func (m *Manager) shutdown() {
 	m.once.Do(func() {
 		defer error_handling.RecoverFromPanic("shutdown", "shutdown")
@@ -80,19 +71,14 @@ func (m *Manager) shutdown() {
 		m.shutdownStarted.Store(true)
 		log.Info("[Shutdown] Starting graceful shutdown...")
 
-		// Create context with timeout for shutdown
-		// Use 60 seconds to allow time for database connections and large cleanup tasks
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
-		// Execute shutdown handlers in reverse order - need exclusive lock to
-		// copy safely while preventing concurrent RegisterHandler races.
 		m.mu.Lock()
 		handlers := make([]func() error, len(m.handlers))
 		copy(handlers, m.handlers)
 		m.mu.Unlock()
 
-		// Execute handlers in reverse order (LIFO) with per-handler timeout
 		for i := len(handlers) - 1; i >= 0; i-- {
 			hCtx, hCancel := context.WithTimeout(ctx, 10*time.Second)
 			done := make(chan error, 1)

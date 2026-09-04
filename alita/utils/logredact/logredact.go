@@ -31,13 +31,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Placeholder is the token substituted in place of redacted secrets.
 const Placeholder = "[REDACTED]"
 
-// minSecretLen is the shortest exact secret we will register for redaction.
-// Very short values (e.g. a 2-character password) are too likely to collide
-// with ordinary log text, so we skip them to avoid corrupting messages. The
-// structural patterns below still cover credentials embedded in URLs.
 const minSecretLen = 6
 
 // structuralPatterns redacts credentials that are identifiable by their shape,
@@ -74,20 +69,11 @@ var structuralPatterns = []struct {
 	},
 }
 
-// registry holds exact secret strings registered from configuration. It is
-// guarded by a RWMutex because RegisterSecret may run during startup while log
-// entries are concurrently scrubbed by the hook.
 var registry = struct {
 	mu      sync.RWMutex
 	secrets []string
 }{}
 
-// RegisterSecret records one or more exact secret values that must be redacted
-// from all subsequent log output. Empty values, and values shorter than
-// minSecretLen, are ignored. Duplicate values are deduplicated. Secrets are
-// matched longest-first so that a secret which is a substring of another (for
-// example a password that also appears inside a DSN) does not leave a partial
-// leak behind.
 func RegisterSecret(values ...string) {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
@@ -108,28 +94,20 @@ func RegisterSecret(values ...string) {
 		registry.secrets = append(registry.secrets, v)
 	}
 
-	// Longest-first ensures we redact the most specific (largest) secret before
-	// any of its substrings.
 	slices.SortFunc(registry.secrets, func(a, b string) int { return len(b) - len(a) })
 }
 
-// reset clears all registered secrets. It exists for tests.
 func reset() {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 	registry.secrets = nil
 }
 
-// Scrub returns s with all known secrets and credential-shaped substrings
-// replaced by Placeholder. It is safe for concurrent use and is the single
-// entry point used by both the logrus hook and any caller that wants to
-// pre-sanitize a string (such as a URL) before logging it.
 func Scrub(s string) string {
 	if s == "" {
 		return s
 	}
 
-	// Exact registered secrets first: these are guaranteed leaks.
 	registry.mu.RLock()
 	for _, secret := range registry.secrets {
 		if strings.Contains(s, secret) {
@@ -138,11 +116,6 @@ func Scrub(s string) string {
 	}
 	registry.mu.RUnlock()
 
-	// Then structural patterns for secrets we cannot enumerate. Guard each
-	// replacement with MatchString: unlike strings.ReplaceAll, regexp's
-	// ReplaceAllString always copies the input even when nothing matches, so on
-	// the common (no-secret) path the guard avoids three full-length string
-	// allocations per log field at the cost of one extra (allocation-free) scan.
 	for _, p := range structuralPatterns {
 		if p.re.MatchString(s) {
 			s = p.re.ReplaceAllString(s, p.repl)
@@ -152,18 +125,12 @@ func Scrub(s string) string {
 	return s
 }
 
-// hook is a logrus.Hook that scrubs the message and string fields of every log
-// entry before it is written to any output.
 type hook struct{}
 
-// Levels reports that the hook fires for all log levels.
 func (hook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
-// Fire scrubs the entry message and every string-valued field in place. Errors
-// stored in fields are re-wrapped as scrubbed strings because their underlying
-// type cannot be mutated.
 func (hook) Fire(entry *logrus.Entry) error {
 	entry.Message = Scrub(entry.Message)
 
@@ -181,16 +148,8 @@ func (hook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-// stdInstallOnce ensures the hook is registered on the logrus standard logger
-// at most once, since logrus.AddHook unconditionally appends and the empty
-// hook struct has no identity to deduplicate on.
 var stdInstallOnce sync.Once
 
-// Install registers the redaction hook on the supplied logger. Passing nil
-// installs the hook on the logrus standard logger; that path is guarded by a
-// sync.Once so repeated calls do not stack duplicate hooks (which would scrub
-// every entry multiple times). For an explicit logger the caller owns
-// deduplication, so the hook is added directly.
 func Install(logger *logrus.Logger) {
 	if logger == nil {
 		stdInstallOnce.Do(func() {

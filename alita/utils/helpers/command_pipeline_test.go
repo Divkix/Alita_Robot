@@ -139,10 +139,6 @@ func TestCheckFuncNilGuards(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Bot client mock for true-branch coverage
-// ---------------------------------------------------------------------------
-
 type cpBotClient struct{}
 
 func (cpBotClient) RequestWithContext(_ context.Context, _ string, method string, params map[string]any, _ *gotgbot.RequestOpts) (json.RawMessage, error) {
@@ -203,10 +199,6 @@ func makeCpContextWithUser(chatType string, userId int64) *ext.Context {
 	}
 	return ext.NewContext(newCpBot(999), &gotgbot.Update{Message: msg}, nil)
 }
-
-// ---------------------------------------------------------------------------
-// True-branch CheckFunc tests
-// ---------------------------------------------------------------------------
 
 func TestCheckFuncTrueBranches(t *testing.T) {
 	tests := []struct {

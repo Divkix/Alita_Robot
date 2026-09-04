@@ -35,7 +35,6 @@ func TestRegisterHandler(t *testing.T) {
 		t.Fatalf("expected 3 handlers, got %d", len(m.handlers))
 	}
 
-	// Verify registration order (FIFO) by executing directly
 	for i, h := range m.handlers {
 		if err := h(); err != nil {
 			t.Fatalf("handler %d returned error: %v", i, err)
@@ -116,7 +115,6 @@ func TestExecuteHandler(t *testing.T) {
 func TestExecuteHandlerPanicRecovery(t *testing.T) {
 	m := NewManager()
 
-	// Test panic recovery - handler should not propagate panic
 	executed := false
 	err := m.executeHandler(func() error {
 		executed = true
@@ -134,20 +132,17 @@ func TestExecuteHandlerPanicRecovery(t *testing.T) {
 func TestHandlersExecuteInLIFOOrder(t *testing.T) {
 	m := NewManager()
 
-	// Use a channel to record execution order
 	orderCh := make(chan int, 3)
 
 	m.RegisterHandler(func() error { orderCh <- 1; return nil })
 	m.RegisterHandler(func() error { orderCh <- 2; return nil })
 	m.RegisterHandler(func() error { orderCh <- 3; return nil })
 
-	// Simulate shutdown's reverse iteration without calling shutdown() directly
 	m.mu.RLock()
 	handlers := make([]func() error, len(m.handlers))
 	copy(handlers, m.handlers)
 	m.mu.RUnlock()
 
-	// Execute in reverse order (LIFO) as shutdown() does
 	for i := len(handlers) - 1; i >= 0; i-- {
 		if err := m.executeHandler(handlers[i], i); err != nil {
 			t.Fatalf("handler %d returned error: %v", i, err)
@@ -165,7 +160,6 @@ func TestHandlersExecuteInLIFOOrder(t *testing.T) {
 		t.Fatalf("expected 3 executions, got %d", len(order))
 	}
 
-	// LIFO: last registered (3) should execute first
 	expected := []int{3, 2, 1}
 	for i, v := range expected {
 		if order[i] != v {
