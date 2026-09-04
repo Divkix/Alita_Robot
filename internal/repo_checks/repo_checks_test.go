@@ -49,11 +49,15 @@ func TestPollingLoadsModulesBeforeStartingPolling(t *testing.T) {
 
 	source := readRepoFile(t, "main.go")
 
-	// Find the polling branch in main().
-	pollingStart := strings.Index(source, "// Use polling mode")
+	webhookStart := strings.Index(source, "if config.AppConfig.UseWebhooks {")
+	if webhookStart == -1 {
+		t.Fatal("webhook/polling branch is missing")
+	}
+	pollingStart := strings.Index(source[webhookStart:], "} else {")
 	if pollingStart == -1 {
 		t.Fatal("polling branch marker is missing")
 	}
+	pollingStart += webhookStart
 
 	// The polling block in main() calls postInit(...) then updater.StartPolling(...).
 	// postInit itself (defined after main()) calls alita.LoadModules(dispatcher).

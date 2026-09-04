@@ -11,8 +11,6 @@ import (
 //go:embed testdata/locales/* testdata/locales/nested/* testdata/badlocales/* testdata/nodefault/*
 var testLocaleFS embed.FS
 
-// ---- Loader utilities ----
-
 func TestExtractLangCode(t *testing.T) {
 	t.Parallel()
 
@@ -126,8 +124,6 @@ func TestParseYAML(t *testing.T) {
 	}
 }
 
-// ---- Error types ----
-
 func TestI18nErrorFormatWithErr(t *testing.T) {
 	t.Parallel()
 
@@ -235,8 +231,6 @@ func TestPredefinedErrorsChain(t *testing.T) {
 	}
 }
 
-// ---- Translator utilities ----
-
 func TestExtractOrderedValues(t *testing.T) {
 	t.Parallel()
 
@@ -294,9 +288,6 @@ func TestExtractOrderedValues(t *testing.T) {
 	}
 }
 
-// ---- Translator.GetString ----
-
-// newTestTranslator creates a Translator backed by inline YAML content for tests.
 func newTestTranslator(t *testing.T, yamlContent string) *Translator {
 	t.Helper()
 	data, err := parseYAML([]byte(yamlContent))
@@ -365,7 +356,6 @@ templ: "Hello, %s!"
 		t.Parallel()
 
 		tr := newTestTranslator(t, yamlContent)
-		// Calling with explicit nil params should not panic
 		result, err := tr.GetString("greeting", nil)
 		if err != nil {
 			t.Fatalf("GetString(greeting, nil) error = %v", err)
@@ -375,8 +365,6 @@ templ: "Hello, %s!"
 		}
 	})
 }
-
-// ---- LocaleManager.GetTranslator ----
 
 func TestLocaleManagerGetTranslator(t *testing.T) {
 	t.Parallel()
@@ -388,16 +376,6 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 		t.Fatalf("parseYAML() error = %v", err)
 	}
 
-	// Use a local (non-singleton) LocaleManager to avoid contaminating global state.
-	// We embed a minimal FS pointer placeholder — use the trick of setting localeFS
-	// to a non-nil value via the embed pointer is not straightforward without go:embed.
-	// Instead, we bypass the localeFS nil check by setting localeMaps so GetTranslator
-	// can succeed when localeFS check is bypassed. Since GetTranslator checks localeFS,
-	// we test via the singleton initialized from main, or use MustNewTranslator.
-
-	// Verify MustNewTranslator returns a non-nil translator for known language.
-	// The singleton may or may not be initialized (no embed FS in unit tests),
-	// so MustNewTranslator returns a bare translator — that is still non-nil.
 	t.Run("MustNewTranslator returns non-nil translator", func(t *testing.T) {
 		t.Parallel()
 
@@ -424,8 +402,6 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 			localeMaps:  map[string]map[string]any{"en": data},
 		}
 
-		// localeFS is nil so GetTranslator returns ErrManagerNotInit.
-		// Verify the error is correct.
 		_, getErr := lm.GetTranslator("en")
 		if getErr == nil {
 			t.Fatal("expected error when localeFS is nil, got nil")
@@ -436,12 +412,9 @@ func TestLocaleManagerGetTranslator(t *testing.T) {
 	})
 }
 
-// ---- LocaleManager.GetAvailableLocales ----
-
 func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 	t.Parallel()
 
-	// Build a local LocaleManager with known locales.
 	lm := &LocaleManager{
 		defaultLang: "en",
 		localeMaps: map[string]map[string]any{
@@ -457,7 +430,6 @@ func TestLocaleManagerGetAvailableLocales(t *testing.T) {
 		t.Fatalf("GetAvailableLanguages() returned %d languages, want at least 4: %v", len(langs), langs)
 	}
 
-	// Verify all 4 known locales are present.
 	langSet := make(map[string]bool, len(langs))
 	for _, l := range langs {
 		langSet[l] = true
@@ -580,8 +552,6 @@ func TestLocaleManagerLoadLocaleFilesRejectsInvalidConfig(t *testing.T) {
 	}
 }
 
-// ---- New expanded tests ----
-
 func TestTranslator_GetString_NilManager(t *testing.T) {
 	t.Parallel()
 
@@ -598,10 +568,6 @@ func TestTranslator_GetString_NilManager(t *testing.T) {
 func TestTranslator_GetString_FallbackToDefault(t *testing.T) {
 	t.Parallel()
 
-	// "en" has the key, "es" does not — "es" translator should fall back to "en" value.
-	// Note: localeFS is nil so GetTranslator returns ErrManagerNotInit, which means
-	// we can't truly test multi-lang fallback without an embedded FS.
-	// Instead we verify that a translator with the default lang returns the correct value.
 	const enYAML = "fallback_key: \"en value\"\n"
 	tr := newTestTranslator(t, enYAML)
 
