@@ -32,8 +32,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/media"
 )
 
-const maxConcurrentMemberProcessing = 5
-
 var recentJoinProcessTTL = 5 * time.Second
 
 var greetingsModule = moduleStruct{moduleName: "Greetings"}
@@ -740,36 +738,45 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
-	if newMember.Id == bot.Id {
-		return nil
-	}
-
-	if !claimRecentJoinProcessing(chat.Id, newMember.Id) {
-		log.Debugf("[Greetings][cleanService] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
-		return nil
-	}
-
-	if captchaEnabled && !chat_status.IsApproved(bot, chat.Id, newMember.Id) {
-		ctxCopy := ext.Context{EffectiveChat: chat}
-		if threadID != 0 {
-			ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
-		}
-		if err := SendCaptcha(bot, &ctxCopy, newMember.Id, newMember.FirstName); err != nil {
-			if errors.Is(err, errCaptchaDisabled) {
-			} else {
-				log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
+func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64) MembershipDeps {
+	return MembershipDeps{
+		Claim: claimRecentJoinProcessing,
+		IsApproved: func(chatID, userID int64) bool {
+			return chat_status.IsApproved(bot, chatID, userID)
+		},
+		Challenge: func(user gotgbot.User) error {
+			ctxCopy := ext.Context{EffectiveChat: chat}
+			if threadID != 0 {
+				ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
+			}
+			if err := SendCaptcha(bot, &ctxCopy, user.Id, user.FirstName); err != nil {
+				if errors.Is(err, errCaptchaDisabled) {
+					return ErrChallengeDisabled
+				}
 				return err
 			}
-		} else {
 			return nil
-		}
+		},
+		Welcome: func(user gotgbot.User) error {
+			ctxCopy := ext.Context{EffectiveChat: chat}
+			if threadID != 0 {
+				ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
+			}
+			return SendWelcomeMessage(bot, &ctxCopy, user.Id, user.FirstName)
+		},
 	}
-	ctxCopy := ext.Context{EffectiveChat: chat}
-	if threadID != 0 {
-		ctxCopy.EffectiveMessage = &gotgbot.Message{Chat: *chat, MessageThreadId: threadID}
+}
+
+func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
+	outcome, err := ProcessSingleJoin(chat.Id, bot.Id, newMember, captchaEnabled, membershipDepsForJoin(bot, chat, threadID))
+	if err != nil {
+		log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
+		return err
 	}
-	return SendWelcomeMessage(bot, &ctxCopy, newMember.Id, newMember.FirstName)
+	if outcome == JoinIgnore && newMember.Id != bot.Id {
+		log.Debugf("[Greetings][cleanService] Skipping duplicate join processing for user %d in chat %d", newMember.Id, chat.Id)
+	}
+	return nil
 }
 
 func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
@@ -798,36 +805,12 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		chatCopyBase := *chat
 
-		numMembers := len(msg.NewChatMembers)
-		if numMembers > 1 {
-			var wg sync.WaitGroup
-			sem := make(chan struct{}, maxConcurrentMemberProcessing)
-
-			for _, newMember := range msg.NewChatMembers {
-				if newMember.Id == bot.Id {
+		if len(msg.NewChatMembers) > 0 {
+			deps := membershipDepsForJoin(bot, &chatCopyBase, threadID)
+			for _, outcome := range ProcessJoins(chat.Id, bot.Id, msg.NewChatMembers, captchaEnabled, deps) {
+				if outcome == JoinIgnore {
 					continue
 				}
-
-				wg.Add(1)
-				sem <- struct{}{}
-
-				go func(member gotgbot.User) {
-					defer wg.Done()
-					defer func() { <-sem }()
-					defer error_handling.RecoverFromPanic("processNewMember", "Greetings")
-
-					chatCopy := chatCopyBase
-					if err := processSingleNewMember(bot, &chatCopy, threadID, member, captchaEnabled); err != nil {
-						log.Error(err)
-					}
-				}(newMember)
-			}
-
-			wg.Wait()
-		} else if numMembers == 1 {
-			chatCopy := chatCopyBase
-			if err := processSingleNewMember(bot, &chatCopy, threadID, msg.NewChatMembers[0], captchaEnabled); err != nil {
-				log.Error(err)
 			}
 		}
 	}
@@ -1129,16 +1112,27 @@ func LoadGreetings(dispatcher *ext.Dispatcher) {
 		),
 	)
 
-	dispatcher.AddHandler(handlers.NewCommand("welcome", greetingsModule.welcome))
-	dispatcher.AddHandler(handlers.NewCommand("setwelcome", greetingsModule.setWelcome))
-	dispatcher.AddHandler(handlers.NewCommand("resetwelcome", greetingsModule.resetWelcome))
-	dispatcher.AddHandler(handlers.NewCommand("goodbye", greetingsModule.goodbye))
-	dispatcher.AddHandler(handlers.NewCommand("setgoodbye", greetingsModule.setGoodbye))
-	dispatcher.AddHandler(handlers.NewCommand("resetgoodbye", greetingsModule.resetGoodbye))
-	dispatcher.AddHandler(handlers.NewCommand("cleanwelcome", greetingsModule.cleanWelcome))
-	dispatcher.AddHandler(handlers.NewCommand("cleangoodbye", greetingsModule.cleanGoodbye))
-	dispatcher.AddHandler(handlers.NewCommand("cleanservice", greetingsModule.delJoined))
-	dispatcher.AddHandler(handlers.NewCommand("autoapprove", greetingsModule.autoApprove))
+	for _, cfg := range []struct {
+		name    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{"welcome", greetingsModule.welcome},
+		{"setwelcome", greetingsModule.setWelcome},
+		{"resetwelcome", greetingsModule.resetWelcome},
+		{"goodbye", greetingsModule.goodbye},
+		{"setgoodbye", greetingsModule.setGoodbye},
+		{"resetgoodbye", greetingsModule.resetGoodbye},
+		{"cleanwelcome", greetingsModule.cleanWelcome},
+		{"cleangoodbye", greetingsModule.cleanGoodbye},
+		{"cleanservice", greetingsModule.delJoined},
+		{"autoapprove", greetingsModule.autoApprove},
+	} {
+		desc := helpers.CommandDescriptor{
+			Name:           cfg.name,
+			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+		}
+		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
+	}
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("join_request"), greetingsModule.joinRequestHandler))
 }
 

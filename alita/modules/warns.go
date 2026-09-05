@@ -333,10 +333,6 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if chat_status.CheckDisabledCmd(b, msg, "warns") {
-		return ext.EndGroups
-	}
-
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		if ctx.EffectiveUser == nil {
@@ -782,29 +778,74 @@ func (moduleStruct) removeWarn(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+var (
+	warnDesc        = helpers.CommandDescriptor{Name: "warn"}
+	swarnDesc       = helpers.CommandDescriptor{Name: "swarn"}
+	dwarnDesc       = helpers.CommandDescriptor{Name: "dwarn"}
+	resetWarnsDesc  = helpers.CommandDescriptor{Name: "resetwarns", Aliases: []string{"resetwarn"}}
+	removeWarnDesc  = helpers.CommandDescriptor{Name: "rmwarn", Aliases: []string{"unwarn"}}
+	warnsStatusDesc = helpers.CommandDescriptor{Name: "warns", Disableable: true}
+)
+
+func adminBotUserChecks(cmd string) []helpers.CheckFunc {
+	return []helpers.CheckFunc{
+		helpers.CheckDisabled(cmd),
+		helpers.RequireGroup(),
+		helpers.RequireBotAdmin(),
+		helpers.RequireUserAdmin(),
+	}
+}
+
+func initWarnDescs() {
+	warnDesc.RequiredChecks = restrictChecks("warn")
+	swarnDesc.RequiredChecks = restrictChecks("swarn")
+	dwarnDesc.RequiredChecks = restrictChecks("dwarn")
+	resetWarnsDesc.RequiredChecks = adminBotUserChecks("resetwarns")
+	removeWarnDesc.RequiredChecks = adminBotUserChecks("rmwarn")
+	warnsStatusDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("warns")}
+}
+
 func LoadWarns(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[warnsModule.moduleName] = true
+	initWarnDescs()
 
-	dispatcher.AddHandler(handlers.NewCommand("warn", warnsModule.warnUser))
-	dispatcher.AddHandler(handlers.NewCommand("swarn", warnsModule.sWarnUser))
-	dispatcher.AddHandler(handlers.NewCommand("dwarn", warnsModule.dWarnUser))
-	dispatcher.AddHandler(handlers.NewCommand("resetwarns", warnsModule.resetWarns))
-	dispatcher.AddHandler(handlers.NewCommand("resetwarn", warnsModule.resetWarns))
-	dispatcher.AddHandler(handlers.NewCommand("rmwarn", warnsModule.removeWarn))
-	dispatcher.AddHandler(handlers.NewCommand("unwarn", warnsModule.removeWarn))
-	dispatcher.AddHandler(handlers.NewCommand("warns", warnsModule.warns))
-	helpers.AddCmdToDisableable("warns")
-	dispatcher.AddHandler(handlers.NewCommand("setwarnlimit", warnsModule.setWarnLimit))
-	dispatcher.AddHandler(handlers.NewCommand("setwarnmode", warnsModule.setWarnMode))
-	dispatcher.AddHandler(handlers.NewCommand("resetallwarns", warnsModule.resetAllWarns))
+	helpers.WrapCommand(dispatcher, warnDesc, pipelineHandler(warnsModule.warnUser))
+	helpers.WrapCommand(dispatcher, swarnDesc, pipelineHandler(warnsModule.sWarnUser))
+	helpers.WrapCommand(dispatcher, dwarnDesc, pipelineHandler(warnsModule.dWarnUser))
+	helpers.WrapCommand(dispatcher, resetWarnsDesc, pipelineHandler(warnsModule.resetWarns))
+	helpers.WrapCommand(dispatcher, removeWarnDesc, pipelineHandler(warnsModule.removeWarn))
+	helpers.WrapCommand(dispatcher, warnsStatusDesc, pipelineHandler(warnsModule.warns))
+	for _, cfg := range []struct {
+		name    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{"setwarnlimit", warnsModule.setWarnLimit},
+		{"setwarnmode", warnsModule.setWarnMode},
+		{"resetallwarns", warnsModule.resetAllWarns},
+	} {
+		desc := helpers.CommandDescriptor{
+			Name:           cfg.name,
+			RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)},
+		}
+		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
+	}
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmAllChatWarns"), warnsModule.warnsButtonHandler))
-	dispatcher.AddHandler(handlers.NewCommand("warnings", warnsModule.warnings))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+		Name: "warnings",
+		RequiredChecks: []helpers.CheckFunc{
+			helpers.CheckDisabled("warnings"),
+			helpers.RequireGroup(),
+			helpers.RequireBotAdmin(),
+			helpers.RequireUserAdmin(),
+		},
+	}, pipelineHandler(warnsModule.warnings))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("rmWarn"), warnsModule.rmWarnButton))
 }
 
 func init() {
 	RegisterLegacyModule("Warns", 200, LoadWarns)
-	RegisterAnonymousAdminHandler("warn", warnsModule.warnUser)
-	RegisterAnonymousAdminHandler("swarn", warnsModule.sWarnUser)
-	RegisterAnonymousAdminHandler("dwarn", warnsModule.dWarnUser)
+	initWarnDescs()
+	RegisterAnonymousAdminHandler("warn", anonPipelineHandler(warnDesc, warnsModule.warnUser))
+	RegisterAnonymousAdminHandler("swarn", anonPipelineHandler(swarnDesc, warnsModule.sWarnUser))
+	RegisterAnonymousAdminHandler("dwarn", anonPipelineHandler(dwarnDesc, warnsModule.dWarnUser))
 }

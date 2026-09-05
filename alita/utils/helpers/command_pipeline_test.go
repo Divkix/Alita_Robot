@@ -455,3 +455,73 @@ func TestRegisterWithGroup(t *testing.T) {
 		}
 	}
 }
+
+func TestNewChecksTrueBranches(t *testing.T) {
+	cases := []struct {
+		name  string
+		check CheckFunc
+		c     *CommandContext
+	}{
+		{"CanUserRestrict admin", CanUserRestrict(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}}},
+		{"CanBotRestrict full bot", CanBotRestrict(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")}},
+		{"RequireUserOwner owner", RequireUserOwner(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 12), User: &gotgbot.User{Id: 12}}},
+		{"CanUserDelete admin", CanUserDelete(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}}},
+		{"CanBotDelete full bot", CanBotDelete(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContext("supergroup")}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.check(tc.c); !got {
+				t.Fatalf("%s returned false, want true", tc.name)
+			}
+		})
+	}
+}
+
+func TestNewChecksFalseBranches(t *testing.T) {
+	cases := []struct {
+		name  string
+		check CheckFunc
+		c     *CommandContext
+	}{
+		{"CanUserRestrict member", CanUserRestrict(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}}},
+		{"CanBotRestrict limited bot", CanBotRestrict(), &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")}},
+		{"RequireUserOwner non-owner", RequireUserOwner(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 10), User: &gotgbot.User{Id: 10}}},
+		{"CanUserDelete member", CanUserDelete(), &CommandContext{Bot: newCpBot(999), Ctx: makeCpContextWithUser("supergroup", 42), User: &gotgbot.User{Id: 42}}},
+		{"CanBotDelete limited bot", CanBotDelete(), &CommandContext{Bot: newCpBot(998), Ctx: makeCpContext("supergroup")}},
+		{"CanUserRestrict nil user", CanUserRestrict(), &CommandContext{Bot: newCpBot(999)}},
+		{"RequireUserOwner nil user", RequireUserOwner(), &CommandContext{Bot: newCpBot(999)}},
+		{"CanUserDelete nil user", CanUserDelete(), &CommandContext{Bot: newCpBot(999)}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.check(tc.c); got {
+				t.Fatalf("%s returned true, want false", tc.name)
+			}
+		})
+	}
+}
+
+func TestRunChecksOrder(t *testing.T) {
+	calls := []string{}
+	mk := func(name string, ret bool) CheckFunc {
+		return func(_ *CommandContext) bool {
+			calls = append(calls, name)
+			return ret
+		}
+	}
+	c := &CommandContext{}
+	if !RunChecks(c, []CheckFunc{mk("a", true), mk("b", true)}) {
+		t.Fatal("RunChecks all-true = false, want true")
+	}
+	calls = nil
+	if RunChecks(c, []CheckFunc{mk("a", true), mk("b", false), mk("c", true)}) {
+		t.Fatal("RunChecks with false = true, want false")
+	}
+	if len(calls) != 2 || calls[0] != "a" || calls[1] != "b" {
+		t.Fatalf("RunChecks calls = %v, want [a b] (short-circuit)", calls)
+	}
+}
