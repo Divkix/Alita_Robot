@@ -2049,14 +2049,25 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 
-	dispatcher.AddHandler(handlers.NewCommand("captcha", captchaModule.captchaCommand))
-	dispatcher.AddHandler(handlers.NewCommand("captchamode", captchaModule.captchaModeCommand))
-	dispatcher.AddHandler(handlers.NewCommand("captchatime", captchaModule.captchaTimeCommand))
-	dispatcher.AddHandler(handlers.NewCommand("captchaaction", captchaModule.captchaActionCommand))
-	dispatcher.AddHandler(handlers.NewCommand("captchamaxattempts", captchaModule.captchaMaxAttemptsCommand))
-
-	dispatcher.AddHandler(handlers.NewCommand("captchapending", captchaModule.viewPendingMessages))
-	dispatcher.AddHandler(handlers.NewCommand("captchaclear", captchaModule.clearPendingMessages))
+	fullAdmin := []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
+	userAdmin := []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin()}
+	userOnly := []helpers.CheckFunc{helpers.RequireUserAdmin()}
+	for _, cfg := range []struct {
+		name    string
+		checks  []helpers.CheckFunc
+		handler func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{"captcha", append([]helpers.CheckFunc{helpers.CheckDisabled("captcha")}, fullAdmin...), captchaModule.captchaCommand},
+		{"captchamode", append([]helpers.CheckFunc{helpers.CheckDisabled("captchamode")}, userAdmin...), captchaModule.captchaModeCommand},
+		{"captchatime", append([]helpers.CheckFunc{helpers.CheckDisabled("captchatime")}, userAdmin...), captchaModule.captchaTimeCommand},
+		{"captchaaction", append([]helpers.CheckFunc{helpers.CheckDisabled("captchaaction")}, userAdmin...), captchaModule.captchaActionCommand},
+		{"captchamaxattempts", append([]helpers.CheckFunc{helpers.CheckDisabled("captchamaxattempts")}, fullAdmin...), captchaModule.captchaMaxAttemptsCommand},
+		{"captchapending", append([]helpers.CheckFunc{helpers.CheckDisabled("captchapending")}, userOnly...), captchaModule.viewPendingMessages},
+		{"captchaclear", append([]helpers.CheckFunc{helpers.CheckDisabled("captchaclear")}, userOnly...), captchaModule.clearPendingMessages},
+	} {
+		desc := helpers.CommandDescriptor{Name: cfg.name, RequiredChecks: cfg.checks}
+		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
+	}
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_verify"), captchaModule.captchaVerifyCallback))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("captcha_refresh"), captchaModule.captchaRefreshCallback))

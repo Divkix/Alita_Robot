@@ -1055,39 +1055,86 @@ func (m moduleStruct) unbanAllCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+func restrictChecks(cmd string) []helpers.CheckFunc {
+	return []helpers.CheckFunc{
+		helpers.CheckDisabled(cmd),
+		helpers.RequireGroup(),
+		helpers.RequireUserAdmin(),
+		helpers.RequireBotAdmin(),
+		helpers.CanUserRestrict(),
+		helpers.CanBotRestrict(),
+	}
+}
+
+func deleteRestrictChecks(cmd string) []helpers.CheckFunc {
+	return append(restrictChecks(cmd), helpers.CanBotDelete(), helpers.CanUserDelete())
+}
+
+var (
+	banDesc        = helpers.CommandDescriptor{Name: "ban", RequiredChecks: []helpers.CheckFunc(nil)}
+	sbanDesc       = helpers.CommandDescriptor{Name: "sban"}
+	tbanDesc       = helpers.CommandDescriptor{Name: "tban"}
+	dbanDesc       = helpers.CommandDescriptor{Name: "dban"}
+	unbanDesc      = helpers.CommandDescriptor{Name: "unban"}
+	banmeDesc      = helpers.CommandDescriptor{Name: "banme", Disableable: true}
+	unbanAllDesc   = helpers.CommandDescriptor{Name: "unbanall"}
+	kickDesc       = helpers.CommandDescriptor{Name: "kick"}
+	dkickDesc      = helpers.CommandDescriptor{Name: "dkick"}
+	skickDesc      = helpers.CommandDescriptor{Name: "skick"}
+	kickmeDesc     = helpers.CommandDescriptor{Name: "kickme", Disableable: true}
+	restrictDesc   = helpers.CommandDescriptor{Name: "restrict"}
+	unrestrictDesc = helpers.CommandDescriptor{Name: "unrestrict"}
+)
+
+func initBanDescs() {
+	banDesc.RequiredChecks = restrictChecks("ban")
+	sbanDesc.RequiredChecks = deleteRestrictChecks("sban")
+	tbanDesc.RequiredChecks = restrictChecks("tban")
+	dbanDesc.RequiredChecks = deleteRestrictChecks("dban")
+	unbanDesc.RequiredChecks = restrictChecks("unban")
+	banmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("banme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
+	unbanAllDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unbanall"), helpers.RequireGroup(), helpers.RequireUserOwner(), helpers.CanBotRestrict()}
+	kickDesc.RequiredChecks = restrictChecks("kick")
+	dkickDesc.RequiredChecks = deleteRestrictChecks("dkick")
+	skickDesc.RequiredChecks = deleteRestrictChecks("skick")
+	kickmeDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("kickme"), helpers.RequireGroup(), helpers.CanBotRestrict()}
+	restrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("restrict"), helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+	unrestrictDesc.RequiredChecks = []helpers.CheckFunc{helpers.CheckDisabled("unrestrict"), helpers.RequireGroup(), helpers.CanUserRestrict(), helpers.CanBotRestrict()}
+}
+
 func LoadBans(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[bansModule.moduleName] = true
+	initBanDescs()
 
-	dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))
-	dispatcher.AddHandler(handlers.NewCommand("sban", bansModule.sBan))
-	dispatcher.AddHandler(handlers.NewCommand("tban", bansModule.tBan))
-	dispatcher.AddHandler(handlers.NewCommand("dban", bansModule.dBan))
-	dispatcher.AddHandler(handlers.NewCommand("unban", bansModule.unban))
-	dispatcher.AddHandler(handlers.NewCommand("banme", bansModule.banme))
-	helpers.AddCmdToDisableable("banme")
-	dispatcher.AddHandler(handlers.NewCommand("unbanall", bansModule.unbanAllHandler))
+	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))
+	helpers.WrapCommand(dispatcher, sbanDesc, pipelineHandler(bansModule.sBan))
+	helpers.WrapCommand(dispatcher, tbanDesc, pipelineHandler(bansModule.tBan))
+	helpers.WrapCommand(dispatcher, dbanDesc, pipelineHandler(bansModule.dBan))
+	helpers.WrapCommand(dispatcher, unbanDesc, pipelineHandler(bansModule.unban))
+	helpers.WrapCommand(dispatcher, banmeDesc, pipelineHandler(bansModule.banme))
+	helpers.WrapCommand(dispatcher, unbanAllDesc, pipelineHandler(bansModule.unbanAllHandler))
 
-	dispatcher.AddHandler(handlers.NewCommand("kick", bansModule.kick))
-	dispatcher.AddHandler(handlers.NewCommand("dkick", bansModule.dkick))
-	dispatcher.AddHandler(handlers.NewCommand("skick", bansModule.sKick))
-	dispatcher.AddHandler(handlers.NewCommand("kickme", bansModule.kickme))
-	helpers.AddCmdToDisableable("kickme")
+	helpers.WrapCommand(dispatcher, kickDesc, pipelineHandler(bansModule.kick))
+	helpers.WrapCommand(dispatcher, dkickDesc, pipelineHandler(bansModule.dkick))
+	helpers.WrapCommand(dispatcher, skickDesc, pipelineHandler(bansModule.sKick))
+	helpers.WrapCommand(dispatcher, kickmeDesc, pipelineHandler(bansModule.kickme))
 
-	dispatcher.AddHandler(handlers.NewCommand("restrict", bansModule.restrict))
+	helpers.WrapCommand(dispatcher, restrictDesc, pipelineHandler(bansModule.restrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("restrict"), bansModule.restrictButtonHandler))
-	dispatcher.AddHandler(handlers.NewCommand("unrestrict", bansModule.unrestrict))
+	helpers.WrapCommand(dispatcher, unrestrictDesc, pipelineHandler(bansModule.unrestrict))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unrestrict"), bansModule.unrestrictButtonHandler))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("unbanall|"), bansModule.unbanAllCallback))
 }
 
 func init() {
 	RegisterLegacyModule("Bans", 70, LoadBans)
-	RegisterAnonymousAdminHandler("ban", bansModule.ban)
-	RegisterAnonymousAdminHandler("dban", bansModule.dBan)
-	RegisterAnonymousAdminHandler("sban", bansModule.sBan)
-	RegisterAnonymousAdminHandler("tban", bansModule.tBan)
-	RegisterAnonymousAdminHandler("unban", bansModule.unban)
-	RegisterAnonymousAdminHandler("skick", bansModule.sKick)
-	RegisterAnonymousAdminHandler("restrict", bansModule.restrict)
-	RegisterAnonymousAdminHandler("unrestrict", bansModule.unrestrict)
+	initBanDescs()
+	RegisterAnonymousAdminHandler("ban", anonPipelineHandler(banDesc, bansModule.ban))
+	RegisterAnonymousAdminHandler("dban", anonPipelineHandler(dbanDesc, bansModule.dBan))
+	RegisterAnonymousAdminHandler("sban", anonPipelineHandler(sbanDesc, bansModule.sBan))
+	RegisterAnonymousAdminHandler("tban", anonPipelineHandler(tbanDesc, bansModule.tBan))
+	RegisterAnonymousAdminHandler("unban", anonPipelineHandler(unbanDesc, bansModule.unban))
+	RegisterAnonymousAdminHandler("skick", anonPipelineHandler(skickDesc, bansModule.sKick))
+	RegisterAnonymousAdminHandler("restrict", anonPipelineHandler(restrictDesc, bansModule.restrict))
+	RegisterAnonymousAdminHandler("unrestrict", anonPipelineHandler(unrestrictDesc, bansModule.unrestrict))
 }

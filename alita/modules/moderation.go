@@ -13,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // moderationCtx holds the decomposed context for a moderation command.
@@ -331,4 +332,29 @@ func extractTemporalTarget(c *moderationCtx, t *target) int64 {
 	t.timeVal = timeVal
 	t.reason = reason
 	return _time
+}
+
+// pipelineHandler adapts a legacy (bot,ctx) moderation handler to the command
+// pipeline. WrapCommand already ran desc.RequiredChecks; the domain handler
+// keeps its legacy gates as a redundant safety net during migration.
+func pipelineHandler(domain func(*gotgbot.Bot, *ext.Context) error) func(*helpers.CommandContext) error {
+	return func(c *helpers.CommandContext) error {
+		return domain(c.Bot, c.Ctx)
+	}
+}
+
+// anonPipelineHandler is the post-proof anonymous-admin entry point for migrated
+// commands. It re-runs the same pipeline checks via helpers.RunChecks, making
+// migrated commands anon-safe by default without per-module re-enforcement.
+func anonPipelineHandler(desc helpers.CommandDescriptor, domain func(*gotgbot.Bot, *ext.Context) error) AnonymousAdminHandler {
+	return func(b *gotgbot.Bot, ctx *ext.Context) error {
+		c, err := helpers.BuildCommandContext(b, ctx)
+		if err != nil {
+			return ext.EndGroups
+		}
+		if !helpers.RunChecks(c, desc.RequiredChecks) {
+			return ext.EndGroups
+		}
+		return domain(b, ctx)
+	}
 }

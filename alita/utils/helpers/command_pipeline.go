@@ -210,3 +210,73 @@ func CanBotChangeInfo() CheckFunc {
 		return result
 	}
 }
+
+func CanUserRestrict() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
+			return false
+		}
+		result := chat_status.CanUserRestrict(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
+		}
+		return result
+	}
+}
+
+func CanBotRestrict() CheckFunc {
+	return func(c *CommandContext) bool {
+		result := chat_status.CanBotRestrict(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_restrict_group_error", "chat_status_bot_restrict_error")
+		}
+		return result
+	}
+}
+
+func RequireUserOwner() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
+			return false
+		}
+		result := chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+		}
+		return result
+	}
+}
+
+func CanUserDelete() CheckFunc {
+	return func(c *CommandContext) bool {
+		if c.User == nil {
+			return false
+		}
+		result := chat_status.CanUserDelete(c.Bot, c.Ctx, nil, c.User.Id)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error", chat_status.WithReply())
+		}
+		return result
+	}
+}
+
+func CanBotDelete() CheckFunc {
+	return func(c *CommandContext) bool {
+		result := chat_status.CanBotDelete(c.Bot, c.Ctx, nil)
+		if !result {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_bot_delete_error", "", chat_status.WithReply())
+		}
+		return result
+	}
+}
+
+// RunChecks re-runs pipeline checks, for anonymous-admin post-proof handlers
+// which bypass WrapCommand's RequiredChecks. Returns false on first failure.
+func RunChecks(c *CommandContext, checks []CheckFunc) bool {
+	for _, check := range checks {
+		if !check(c) {
+			return false
+		}
+	}
+	return true
+}

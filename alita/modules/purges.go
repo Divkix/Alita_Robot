@@ -474,18 +474,45 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+func purgeChecks(cmd string) []helpers.CheckFunc {
+	return []helpers.CheckFunc{
+		helpers.CheckDisabled(cmd),
+		helpers.RequireGroup(),
+		helpers.RequireBotAdmin(),
+		helpers.CanBotDelete(),
+		helpers.RequireUserAdmin(),
+		helpers.CanUserDelete(),
+	}
+}
+
+var (
+	delDesc       = helpers.CommandDescriptor{Name: "del"}
+	purgeDesc     = helpers.CommandDescriptor{Name: "purge"}
+	purgeFromDesc = helpers.CommandDescriptor{Name: "purgefrom"}
+	purgeToDesc   = helpers.CommandDescriptor{Name: "purgeto"}
+)
+
+func initPurgeDescs() {
+	delDesc.RequiredChecks = purgeChecks("del")
+	purgeDesc.RequiredChecks = purgeChecks("purge")
+	purgeFromDesc.RequiredChecks = purgeChecks("purgefrom")
+	purgeToDesc.RequiredChecks = purgeChecks("purgeto")
+}
+
 func LoadPurges(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[purgesModule.moduleName] = true
+	initPurgeDescs()
 
-	dispatcher.AddHandler(handlers.NewCommand("del", purgesModule.delCmd))
-	dispatcher.AddHandler(handlers.NewCommand("purge", purgesModule.purge))
-	dispatcher.AddHandler(handlers.NewCommand("purgefrom", purgesModule.purgeFrom))
-	dispatcher.AddHandler(handlers.NewCommand("purgeto", purgesModule.purgeTo))
+	helpers.WrapCommand(dispatcher, delDesc, pipelineHandler(purgesModule.delCmd))
+	helpers.WrapCommand(dispatcher, purgeDesc, pipelineHandler(purgesModule.purge))
+	helpers.WrapCommand(dispatcher, purgeFromDesc, pipelineHandler(purgesModule.purgeFrom))
+	helpers.WrapCommand(dispatcher, purgeToDesc, pipelineHandler(purgesModule.purgeTo))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("deleteMsg"), purgesModule.deleteButtonHandler))
 }
 
 func init() {
 	RegisterLegacyModule("Purges", 90, LoadPurges)
-	RegisterAnonymousAdminHandler("purge", purgesModule.purge)
-	RegisterAnonymousAdminHandler("del", purgesModule.delCmd)
+	initPurgeDescs()
+	RegisterAnonymousAdminHandler("purge", anonPipelineHandler(purgeDesc, purgesModule.purge))
+	RegisterAnonymousAdminHandler("del", anonPipelineHandler(delDesc, purgesModule.delCmd))
 }

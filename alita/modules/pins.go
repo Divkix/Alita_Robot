@@ -630,16 +630,11 @@ func (moduleStruct) GetPinType(msg *gotgbot.Message) (fileid, text string, dataT
 // could pin/unpin via the anon flow (the bot issues the API call, so Telegram
 // only checks the bot's rights, not the caller's).
 func enforcePinChecks(c *helpers.CommandContext) bool {
-	for _, check := range []helpers.CheckFunc{
+	return helpers.RunChecks(c, []helpers.CheckFunc{
 		helpers.RequireBotAdmin(),
 		helpers.CanUserPin(),
 		helpers.CanBotPin(),
-	} {
-		if !check(c) {
-			return false
-		}
-	}
-	return true
+	})
 }
 
 func (m moduleStruct) pinAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
