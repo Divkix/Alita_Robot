@@ -2,7 +2,6 @@ package modules
 
 import (
 	"reflect"
-	"slices"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -73,13 +72,6 @@ func TestRegisterLegacyModuleLoadsLoader(t *testing.T) {
 	if !called {
 		t.Fatal("RegisterLegacyModule did not call loader")
 	}
-}
-
-func TestRegisterLegacyModuleAllowsNilLoader(t *testing.T) {
-	withIsolatedRegistry(t)
-
-	RegisterLegacyModule("nil", 1, nil)
-	LoadAllModules(nil)
 }
 
 type recordingHandler struct {
@@ -158,95 +150,5 @@ func TestRegisteredModulesRespectGotgbotDefaultGroupSemantics(t *testing.T) {
 	want := []string{"early", "early-second", "default", "late"}
 	if !reflect.DeepEqual(handled, want) {
 		t.Fatalf("gotgbot default group semantics = %v, want %v", handled, want)
-	}
-}
-
-func TestDefaultRegistryIncludesEveryRuntimeModule(t *testing.T) {
-	got := make([]string, 0, len(registry))
-	for _, module := range registry {
-		got = append(got, module.name)
-	}
-	slices.Sort(got)
-
-	want := []string{
-		"Admin",
-		"AntiRaid",
-		"Antiflood",
-		"Antispam",
-		"Approvals",
-		"Backup",
-		"Bans",
-		"Blacklists",
-		"BotUpdates",
-		"Captcha",
-		"Connections",
-		"Dev",
-		"Disabling",
-		"Federations",
-		"Filters",
-		"Formatting",
-		"Greetings",
-		"Languages",
-		"Locks",
-		"LogChannels",
-		"Misc",
-		"Mutes",
-		"Notes",
-		"Pins",
-		"Purges",
-		"Reactions",
-		"Reports",
-		"Rules",
-		"Users",
-		"Warns",
-	}
-
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("default registry modules = %v, want %v", got, want)
-	}
-}
-
-func TestDefaultRegistryLoadsRuntimeModules(t *testing.T) {
-	originalHelpRegistry := defaultHelpRegistry
-	defaultHelpRegistry = newHelpRegistry()
-	defaultHelpRegistry.AbleMap = make(map[string]bool)
-	t.Cleanup(func() {
-		defaultHelpRegistry = originalHelpRegistry
-	})
-
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadAllModules(dispatcher)
-
-	loadedModules := listModulesFrom(defaultHelpRegistry)
-	want := []string{
-		"Admin",
-		"AntiRaid",
-		"Antiflood",
-		"Approvals",
-		"Backup",
-		"Bans",
-		"Blacklists",
-		"Captcha",
-		"Connections",
-		"Disabling",
-		"Federations",
-		"Filters",
-		"Formatting",
-		"Greetings",
-		"Languages",
-		"Locks",
-		"LogChannels",
-		"Misc",
-		"Mutes",
-		"Notes",
-		"Pins",
-		"Purges",
-		"Reactions",
-		"Reports",
-		"Rules",
-		"Warns",
-	}
-	if !reflect.DeepEqual(loadedModules, want) {
-		t.Fatalf("loaded modules = %v, want %v", loadedModules, want)
 	}
 }

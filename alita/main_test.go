@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/modules"
 )
 
 type alitaTestBotClient struct{}
@@ -55,45 +53,6 @@ func setupAlitaMainDB(t *testing.T) {
 	})
 	if alitaMainDBErr != nil {
 		t.Fatalf("setup alita main DB: %v", alitaMainDBErr)
-	}
-}
-
-func resetHelpRegistryForTest(t *testing.T) {
-	t.Helper()
-
-	registry := modules.DefaultHelpRegistry()
-	registry.AbleMap = make(map[string]bool)
-	registry.AltHelpOptions = make(map[string][]string)
-	t.Cleanup(func() {
-		registry.AbleMap = make(map[string]bool)
-		registry.AltHelpOptions = make(map[string][]string)
-	})
-}
-
-func TestListModulesSortsEnabledModuleNames(t *testing.T) {
-	resetHelpRegistryForTest(t)
-
-	registry := modules.DefaultHelpRegistry()
-
-	registry.AbleMap["Warns"] = true
-	registry.AbleMap["Admin"] = true
-	registry.AbleMap["Filters"] = true
-
-	if got, want := ListModules(), "[Admin, Filters, Warns]"; got != want {
-		t.Fatalf("ListModules() = %q, want %q", got, want)
-	}
-}
-
-func TestLoadModulesLoadsRegistryAndHelp(t *testing.T) {
-	resetHelpRegistryForTest(t)
-
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadModules(dispatcher)
-
-	for _, moduleName := range []string{"Admin", "Captcha", "Filters", "Greetings", "Warns"} {
-		if !modules.DefaultHelpRegistry().AbleMap[moduleName] {
-			t.Fatalf("%s was not enabled after LoadModules", moduleName)
-		}
 	}
 }
 

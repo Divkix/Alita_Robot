@@ -9,39 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWarnSettingsConstraint_PositiveLimit(t *testing.T) {
-	t.Skip("Requires database connection - add to integration test suite")
-}
-
-func TestAntifloodSettingsConstraint_ValidActions(t *testing.T) {
-	validActions := []string{"mute", "ban", "kick", "warn", "tban", "tmute"}
-	for _, action := range validActions {
-		assert.Contains(t, []string{"mute", "ban", "kick", "warn", "tban", "tmute"}, action)
-	}
-}
-
-func TestCaptchaSettingsConstraint_TimeoutRange(t *testing.T) {
-	validValues := []int{1, 5, 10}
-	for _, timeout := range validValues {
-		assert.True(t, timeout >= 1 && timeout <= 10, "Timeout %d should be valid", timeout)
-	}
-
-	invalidValues := []int{0, 11, -1, 100}
-	for _, timeout := range invalidValues {
-		assert.False(t, timeout >= 1 && timeout <= 10, "Timeout %d should be invalid", timeout)
-	}
-}
-
-func TestCaptchaAttemptsConstraint_Expiration(t *testing.T) {
-	now := time.Now()
-
-	expiresValid := now.Add(5 * time.Minute)
-	assert.True(t, expiresValid.After(now), "Expiration 5 minutes in future should be valid")
-
-	expiresInvalid := now.Add(-5 * time.Minute)
-	assert.False(t, expiresInvalid.After(now), "Expiration in past should be invalid")
-}
-
 func testIntRangeConstraint(t *testing.T, chatID int64, fieldName string, validValues []int, invalidValues []int, createFunc func(int64, int) error) {
 	t.Run(fieldName+"_Valid", func(t *testing.T) {
 		for _, val := range validValues {

@@ -315,51 +315,50 @@ func TestResetWarns(t *testing.T) {
 	}
 }
 
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetWarnLimit(t *testing.T) {
+func TestWarnSettingsSetters(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
-
-	if err := chats.EnsureChatInDb(chatID, "test-set-warn-limit"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := SetWarnLimit(chatID, 5); err != nil {
-		t.Fatalf("SetWarnLimit failed: %v", err)
-	}
-
-	settings := GetWarnSetting(chatID)
-	if settings.WarnLimit != 5 {
-		t.Fatalf("expected WarnLimit=5, got %d", settings.WarnLimit)
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetWarnMode(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	if err := chats.EnsureChatInDb(chatID, "test-set-warn-mode"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := SetWarnMode(chatID, "ban"); err != nil {
-		t.Fatalf("SetWarnMode failed: %v", err)
+	cases := []struct {
+		name  string
+		set   func(chatID int64) error
+		check func(*models.WarnSettings) bool
+		want  string
+	}{
+		{
+			name:  "limit",
+			set:   func(id int64) error { return SetWarnLimit(id, 5) },
+			check: func(s *models.WarnSettings) bool { return s.WarnLimit == 5 },
+			want:  "WarnLimit=5",
+		},
+		{
+			name:  "mode",
+			set:   func(id int64) error { return SetWarnMode(id, "ban") },
+			check: func(s *models.WarnSettings) bool { return s.WarnMode == "ban" },
+			want:  "WarnMode=ban",
+		},
 	}
 
-	settings := GetWarnSetting(chatID)
-	if settings.WarnMode != "ban" {
-		t.Fatalf("expected WarnMode='ban', got %q", settings.WarnMode)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+
+			if err := chats.EnsureChatInDb(chatID, "test-set-warn-"+tc.name); err != nil {
+				t.Fatalf("EnsureChatInDb() error = %v", err)
+			}
+			t.Cleanup(func() {
+				_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+				_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+			})
+
+			if err := tc.set(chatID); err != nil {
+				t.Fatalf("set failed: %v", err)
+			}
+
+			settings := GetWarnSetting(chatID)
+			if !tc.check(settings) {
+				t.Fatalf("expected %s, got %+v", tc.want, settings)
+			}
+		})
 	}
 }
 

@@ -214,21 +214,6 @@ func TestVerifyAnonymousAdminRejectsMalformedCallbackData(t *testing.T) {
 	}
 }
 
-func TestVerifyAnonymousAdminSkipsMissingCallbackQuery(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	ctx := newModuleMessageContext(bot, chat, admin, "/ban 42")
-
-	if err := verifyAnonymousAdmin(bot, ctx); err != ext.EndGroups {
-		t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
-	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 0 {
-		t.Fatalf("answerCallbackQuery calls = %d, want none without callback query", len(calls))
-	}
-}
-
 func TestVerifyAnonymousAdminRejectsNonAdmin(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

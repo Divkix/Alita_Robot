@@ -108,15 +108,6 @@ func TestGetChannelIdByUserName_NotFound(t *testing.T) {
 	}
 }
 
-func TestGetChannelIdByUserName_Empty(t *testing.T) {
-	skipIfNoDb(t)
-
-	gotID := GetChannelIdByUserName("")
-	if gotID != 0 {
-		t.Errorf("GetChannelIdByUserName(\"\") = %d, want 0", gotID)
-	}
-}
-
 func TestGetChannelInfoById(t *testing.T) {
 	skipIfNoDb(t)
 

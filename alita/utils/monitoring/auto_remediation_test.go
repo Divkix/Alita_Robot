@@ -1,9 +1,13 @@
 package monitoring
 
 import (
+	"bytes"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 )
@@ -118,17 +122,6 @@ func TestActionThresholds(t *testing.T) {
 	})
 }
 
-func TestBuiltInActionsExecuteDoNotPanic(t *testing.T) {
-	// Cannot run in parallel because it reads global config.AppConfig.
-
-	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
-	for _, a := range manager.actions {
-		t.Run(a.name, func(t *testing.T) {
-			a.execute()
-		})
-	}
-}
-
 func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
 
@@ -184,6 +177,29 @@ func TestAutoRemediationManager_Cooldown(t *testing.T) {
 	}
 }
 
+func TestBuiltInActionsLogOnExtremeMetrics(t *testing.T) {
+	// Do not use t.Parallel() - tests global config state.
+
+	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
+	extreme := SystemMetrics{GoroutineCount: 1 << 30, MemoryAllocMB: 1 << 30, GCPauseMs: 1e6}
+
+	var buf bytes.Buffer
+	prev := log.StandardLogger().Out
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	for _, name := range []string{"log_warning", "restart_recommendation"} {
+		a := findAction(t, manager, name)
+		if !a.canExecute(extreme) {
+			t.Fatalf("action %q should trip on extreme metrics", name)
+		}
+		a.execute()
+	}
+
+	if out := buf.String(); !strings.Contains(out, "High resource usage") || !strings.Contains(out, "CRITICAL") {
+		t.Fatalf("expected warning + critical remediation logs, got %q", out)
+	}
+}
+
 func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
 	// Do not use t.Parallel() - tests global config state.
 
@@ -214,13 +230,6 @@ func TestCheckAndRemediateExecutesLowestSeverityAction(t *testing.T) {
 	if manager.shouldExecuteAction("low") {
 		t.Fatal("executed action was not put on cooldown")
 	}
-}
-
-func TestCheckAndRemediateHandlesNilCollector(t *testing.T) {
-	t.Parallel()
-
-	manager := NewAutoRemediationManager(nil)
-	manager.checkAndRemediate()
 }
 
 func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {

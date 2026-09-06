@@ -1,8 +1,6 @@
 package greetings
 
 import (
-	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -50,35 +48,81 @@ func TestGetGreetingSettings_Defaults(t *testing.T) {
 	}
 }
 
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetWelcomeToggle_ZeroValueBoolean(t *testing.T) {
+func TestGreetingToggleSettingsCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
+	cases := []struct {
+		name string
+		set  func(chatID int64, val bool) error
+		get  func(*models.GreetingSettings) bool
+	}{
+		{
+			name: "WelcomeToggle",
+			set:  SetWelcomeToggle,
+			get: func(s *models.GreetingSettings) bool {
+				return s.WelcomeSettings != nil && s.WelcomeSettings.ShouldWelcome
+			},
+		},
+		{
+			name: "GoodbyeToggle",
+			set:  SetGoodbyeToggle,
+			get: func(s *models.GreetingSettings) bool {
+				return s.GoodbyeSettings != nil && s.GoodbyeSettings.ShouldGoodbye
+			},
+		},
+		{
+			name: "ShouldCleanService",
+			set:  SetShouldCleanService,
+			get:  func(s *models.GreetingSettings) bool { return s.ShouldCleanService },
+		},
+		{
+			name: "ShouldAutoApprove",
+			set:  SetShouldAutoApprove,
+			get:  func(s *models.GreetingSettings) bool { return s.ShouldAutoApprove },
+		},
+		{
+			name: "CleanWelcome",
+			set:  SetCleanWelcomeSetting,
+			get: func(s *models.GreetingSettings) bool {
+				return s.WelcomeSettings != nil && s.WelcomeSettings.CleanWelcome
+			},
+		},
+		{
+			name: "CleanGoodbye",
+			set:  SetCleanGoodbyeSetting,
+			get: func(s *models.GreetingSettings) bool {
+				return s.GoodbyeSettings != nil && s.GoodbyeSettings.CleanGoodbye
+			},
+		},
 	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
 
-	_ = GetGreetingSettings(chatID)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
+				t.Fatalf("EnsureChatInDb() error = %v", err)
+			}
+			t.Cleanup(func() {
+				db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
+				db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
+			})
 
-	if err := SetWelcomeToggle(chatID, true); err != nil {
-		t.Fatalf("SetWelcomeToggle(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if settings.WelcomeSettings == nil || !settings.WelcomeSettings.ShouldWelcome {
-		t.Fatalf("expected ShouldWelcome=true after SetWelcomeToggle(true)")
-	}
+			_ = GetGreetingSettings(chatID)
 
-	if err := SetWelcomeToggle(chatID, false); err != nil {
-		t.Fatalf("SetWelcomeToggle(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.WelcomeSettings == nil || settings.WelcomeSettings.ShouldWelcome {
-		t.Fatalf("expected ShouldWelcome=false after SetWelcomeToggle(false)")
+			if err := tc.set(chatID, true); err != nil {
+				t.Fatalf("%s(true) failed: %v", tc.name, err)
+			}
+			if !tc.get(GetGreetingSettings(chatID)) {
+				t.Fatalf("expected %s=true after set(true)", tc.name)
+			}
+
+			if err := tc.set(chatID, false); err != nil {
+				t.Fatalf("%s(false) failed: %v", tc.name, err)
+			}
+			if tc.get(GetGreetingSettings(chatID)) {
+				t.Fatalf("expected %s=false after set(false)", tc.name)
+			}
+		})
 	}
 }
 
@@ -159,134 +203,6 @@ func TestSetGoodbyeText(t *testing.T) {
 	}
 }
 
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetGoodbyeToggle_ZeroValueBoolean(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	if err := SetGoodbyeToggle(chatID, true); err != nil {
-		t.Fatalf("SetGoodbyeToggle(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if settings.GoodbyeSettings == nil || !settings.GoodbyeSettings.ShouldGoodbye {
-		t.Fatalf("expected ShouldGoodbye=true after SetGoodbyeToggle(true)")
-	}
-
-	if err := SetGoodbyeToggle(chatID, false); err != nil {
-		t.Fatalf("SetGoodbyeToggle(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.GoodbyeSettings == nil || settings.GoodbyeSettings.ShouldGoodbye {
-		t.Fatalf("expected ShouldGoodbye=false after SetGoodbyeToggle(false)")
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetShouldCleanService(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	if err := SetShouldCleanService(chatID, true); err != nil {
-		t.Fatalf("SetShouldCleanService(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if !settings.ShouldCleanService {
-		t.Fatalf("expected ShouldCleanService=true, got false")
-	}
-
-	if err := SetShouldCleanService(chatID, false); err != nil {
-		t.Fatalf("SetShouldCleanService(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.ShouldCleanService {
-		t.Fatalf("expected ShouldCleanService=false after reset")
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetShouldAutoApprove(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	if err := SetShouldAutoApprove(chatID, true); err != nil {
-		t.Fatalf("SetShouldAutoApprove(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if !settings.ShouldAutoApprove {
-		t.Fatalf("expected ShouldAutoApprove=true, got false")
-	}
-
-	if err := SetShouldAutoApprove(chatID, false); err != nil {
-		t.Fatalf("SetShouldAutoApprove(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.ShouldAutoApprove {
-		t.Fatalf("expected ShouldAutoApprove=false after reset")
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetCleanWelcomeSetting(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	if err := SetCleanWelcomeSetting(chatID, true); err != nil {
-		t.Fatalf("SetCleanWelcomeSetting(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if settings.WelcomeSettings == nil || !settings.WelcomeSettings.CleanWelcome {
-		t.Fatalf("expected CleanWelcome=true, got false")
-	}
-
-	if err := SetCleanWelcomeSetting(chatID, false); err != nil {
-		t.Fatalf("SetCleanWelcomeSetting(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.WelcomeSettings == nil || settings.WelcomeSettings.CleanWelcome {
-		t.Fatalf("expected CleanWelcome=false after reset")
-	}
-}
-
 func TestSetCleanMsgId(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -346,38 +262,6 @@ func TestSetCleanMsgId(t *testing.T) {
 				t.Fatalf("expected LastMsgId=0 after reset, got %d", tc.getLastMsg(settings))
 			}
 		})
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetCleanGoodbyeSetting(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	if err := SetCleanGoodbyeSetting(chatID, true); err != nil {
-		t.Fatalf("SetCleanGoodbyeSetting(true) failed: %v", err)
-	}
-	settings := GetGreetingSettings(chatID)
-	if settings.GoodbyeSettings == nil || !settings.GoodbyeSettings.CleanGoodbye {
-		t.Fatalf("expected CleanGoodbye=true, got false")
-	}
-
-	if err := SetCleanGoodbyeSetting(chatID, false); err != nil {
-		t.Fatalf("SetCleanGoodbyeSetting(false) failed: %v", err)
-	}
-	settings = GetGreetingSettings(chatID)
-	if settings.GoodbyeSettings == nil || settings.GoodbyeSettings.CleanGoodbye {
-		t.Fatalf("expected CleanGoodbye=false after reset")
 	}
 }
 
@@ -444,60 +328,6 @@ func TestLoadGreetingsStats_EmptyDB(t *testing.T) {
 	}
 	if cleanGoodbye < 0 {
 		t.Fatalf("cleanGoodbye is negative: %d", cleanGoodbye)
-	}
-}
-
-func TestGreetingSettings_ConcurrentWrites(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test_greetings"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
-	})
-
-	_ = GetGreetingSettings(chatID)
-
-	const workers = 10
-	var wg sync.WaitGroup
-	wg.Add(workers)
-
-	errs := make(chan error, workers)
-
-	for i := 0; i < workers; i++ {
-		go func(i int) {
-			defer wg.Done()
-			if i%2 == 0 {
-				if err := SetWelcomeToggle(chatID, true); err != nil {
-					errs <- fmt.Errorf("SetWelcomeToggle: %w", err)
-				}
-			} else {
-				if err := SetGoodbyeToggle(chatID, true); err != nil {
-					errs <- fmt.Errorf("SetGoodbyeToggle: %w", err)
-				}
-			}
-		}(i)
-	}
-
-	wg.Wait()
-	close(errs)
-
-	for err := range errs {
-		t.Fatalf("concurrent greeting update error: %v", err)
-	}
-
-	settings := GetGreetingSettings(chatID)
-	if settings == nil {
-		t.Fatalf("GetGreetingSettings() returned nil after concurrent writes")
-	}
-	if settings.WelcomeSettings == nil {
-		t.Fatalf("WelcomeSettings is nil after concurrent writes")
-	}
-	if settings.GoodbyeSettings == nil {
-		t.Fatalf("GoodbyeSettings is nil after concurrent writes")
 	}
 }
 

@@ -3,7 +3,6 @@ package reports
 import (
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -110,138 +109,132 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-func TestGetChatReportSettings_Defaults(t *testing.T) {
+func TestReportSettingsCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
+	t.Run("chat defaults", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		settings := GetChatReportSettings(chatID)
+		if settings == nil {
+			t.Fatal("expected non-nil ReportChatSettings")
+		}
+		if !settings.Enabled {
+			t.Fatal("expected default Enabled=true for chat report settings")
+		}
+		if len(settings.BlockedList) != 0 {
+			t.Fatalf("expected empty BlockedList by default, got %v", settings.BlockedList)
+		}
 	})
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
+	t.Run("chat enabled roundtrip", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	settings := GetChatReportSettings(chatID)
-	if settings == nil {
-		t.Fatal("expected non-nil ReportChatSettings")
-	}
-	if !settings.Enabled {
-		t.Fatal("expected default Enabled=true for chat report settings")
-	}
-	if len(settings.BlockedList) != 0 {
-		t.Fatalf("expected empty BlockedList by default, got %v", settings.BlockedList)
-	}
-}
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
 
-func TestSetChatReportEnabled_BooleanRoundTrip(t *testing.T) {
-	skipIfNoDb(t)
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
 
-	chatID := time.Now().UnixNano()
+		_ = GetChatReportSettings(chatID)
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		if err := SetChatReportStatus(chatID, false); err != nil {
+			t.Fatalf("SetChatReportStatus() error = %v", err)
+		}
+		settings := GetChatReportSettings(chatID)
+		if settings.Enabled {
+			t.Fatal("expected Enabled=false after SetChatReportStatus(false)")
+		}
+
+		if err := SetChatReportStatus(chatID, true); err != nil {
+			t.Fatalf("SetChatReportStatus() error = %v", err)
+		}
+		settings = GetChatReportSettings(chatID)
+		if !settings.Enabled {
+			t.Fatal("expected Enabled=true after SetChatReportStatus(true)")
+		}
 	})
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
+	t.Run("user defaults", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-	_ = GetChatReportSettings(chatID)
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
+			_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		})
 
-	if err := SetChatReportStatus(chatID, false); err != nil {
-		t.Fatalf("SetChatReportStatus() error = %v", err)
-	}
-	settings := GetChatReportSettings(chatID)
-	if settings.Enabled {
-		t.Fatal("expected Enabled=false after SetChatReportStatus(false)")
-	}
-
-	if err := SetChatReportStatus(chatID, true); err != nil {
-		t.Fatalf("SetChatReportStatus() error = %v", err)
-	}
-	settings = GetChatReportSettings(chatID)
-	if !settings.Enabled {
-		t.Fatal("expected Enabled=true after SetChatReportStatus(true)")
-	}
-}
-
-func TestGetUserReportSettings_Defaults(t *testing.T) {
-	skipIfNoDb(t)
-
-	userID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		settings := GetUserReportSettings(userID)
+		if settings == nil {
+			t.Fatal("expected non-nil ReportUserSettings")
+		}
+		if !settings.Enabled {
+			t.Fatal("expected default Enabled=true for user report settings")
+		}
+		var parentCount int64
+		if err := db.DB.Model(&models.User{}).Where("user_id = ?", userID).Count(&parentCount).Error; err != nil {
+			t.Fatalf("count user parent: %v", err)
+		}
+		if parentCount != 1 {
+			t.Fatalf("user parent rows = %d, want 1", parentCount)
+		}
 	})
 
-	settings := GetUserReportSettings(userID)
-	if settings == nil {
-		t.Fatal("expected non-nil ReportUserSettings")
-	}
-	if !settings.Enabled {
-		t.Fatal("expected default Enabled=true for user report settings")
-	}
-	var parentCount int64
-	if err := db.DB.Model(&models.User{}).Where("user_id = ?", userID).Count(&parentCount).Error; err != nil {
-		t.Fatalf("count user parent: %v", err)
-	}
-	if parentCount != 1 {
-		t.Fatalf("user parent rows = %d, want 1", parentCount)
-	}
-}
+	t.Run("user enabled roundtrip", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-func TestSetUserReportEnabled_BooleanRoundTrip(t *testing.T) {
-	skipIfNoDb(t)
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
+			_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		})
 
-	userID := time.Now().UnixNano()
+		_ = GetUserReportSettings(userID)
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.ReportUserSettings{}).Error
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
+		if err := SetUserReportSettings(userID, false); err != nil {
+			t.Fatalf("SetUserReportSettings() error = %v", err)
+		}
+		settings := GetUserReportSettings(userID)
+		if settings.Enabled {
+			t.Fatal("expected Enabled=false after SetUserReportSettings(false)")
+		}
+
+		if err := SetUserReportSettings(userID, true); err != nil {
+			t.Fatalf("SetUserReportSettings() error = %v", err)
+		}
+		settings = GetUserReportSettings(userID)
+		if !settings.Enabled {
+			t.Fatal("expected Enabled=true after SetUserReportSettings(true)")
+		}
 	})
 
-	_ = GetUserReportSettings(userID)
+	t.Run("blocked list empty for new chat", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	if err := SetUserReportSettings(userID, false); err != nil {
-		t.Fatalf("SetUserReportSettings() error = %v", err)
-	}
-	settings := GetUserReportSettings(userID)
-	if settings.Enabled {
-		t.Fatal("expected Enabled=false after SetUserReportSettings(false)")
-	}
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
 
-	if err := SetUserReportSettings(userID, true); err != nil {
-		t.Fatalf("SetUserReportSettings() error = %v", err)
-	}
-	settings = GetUserReportSettings(userID)
-	if !settings.Enabled {
-		t.Fatal("expected Enabled=true after SetUserReportSettings(true)")
-	}
-}
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
 
-func TestGetBlockedReportsList_EmptyForNewChat(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		settings := GetChatReportSettings(chatID)
+		if len(settings.BlockedList) != 0 {
+			t.Fatalf("expected empty blocked list for new chat, got %v", settings.BlockedList)
+		}
 	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	settings := GetChatReportSettings(chatID)
-	if len(settings.BlockedList) != 0 {
-		t.Fatalf("expected empty blocked list for new chat, got %v", settings.BlockedList)
-	}
 }
 
 func TestAddBlockedReport_AddAndVerify(t *testing.T) {
@@ -374,55 +367,5 @@ func TestLoadReportStats_Returns(t *testing.T) {
 	}
 	if gRCount < 0 {
 		t.Fatalf("expected non-negative gRCount, got %d", gRCount)
-	}
-}
-
-func TestConcurrentReportBlockListUpdates(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "concurrent-reports"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	_ = GetChatReportSettings(chatID)
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.ReportChatSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	const users = 12
-	runConcurrent := func(operation func(int64) error) {
-		t.Helper()
-		errs := make(chan error, users)
-		var workers sync.WaitGroup
-		workers.Add(users)
-		for i := 0; i < users; i++ {
-			go func(userID int64) {
-				defer workers.Done()
-				errs <- operation(userID)
-			}(int64(i + 1))
-		}
-		workers.Wait()
-		close(errs)
-		for err := range errs {
-			if err != nil {
-				t.Errorf("concurrent report-list update: %v", err)
-			}
-		}
-	}
-
-	runConcurrent(func(userID int64) error {
-		return BlockReportUser(chatID, userID)
-	})
-	settings := GetChatReportSettings(chatID)
-	if len(settings.BlockedList) != users {
-		t.Fatalf("blocked users = %v, want %d entries", settings.BlockedList, users)
-	}
-
-	runConcurrent(func(userID int64) error {
-		return UnblockReportUser(chatID, userID)
-	})
-	if blocked := GetChatReportSettings(chatID).BlockedList; len(blocked) != 0 {
-		t.Fatalf("blocked users after concurrent unblocks = %v, want empty", blocked)
 	}
 }

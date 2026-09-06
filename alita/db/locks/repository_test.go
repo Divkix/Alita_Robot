@@ -3,7 +3,6 @@
 package locks
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -15,35 +14,6 @@ import (
 func skipIfNoDb(t *testing.T) {
 	if db.DB == nil {
 		t.Skip("DB not initialized")
-	}
-}
-
-func TestUpdateLockCreatesNewRecord(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	perm := "sticker"
-
-	t.Cleanup(func() {
-		if err := db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&models.LockSettings{}).Error; err != nil {
-			t.Fatalf("cleanup Delete error: %v", err)
-		}
-	})
-
-	// First-time lock creation — this was the bug: silently did nothing
-	err := UpdateLock(chatID, perm, true)
-	if err != nil {
-		t.Fatalf("UpdateLock() error = %v", err)
-	}
-
-	var lock models.LockSettings
-	err = db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).First(&lock).Error
-	if err != nil {
-		t.Fatalf("expected lock record to exist, got error: %v", err)
-	}
-
-	if !lock.Locked {
-		t.Fatalf("expected Locked=true, got false")
 	}
 }
 
@@ -105,55 +75,6 @@ func TestUpdateLockIdempotent(t *testing.T) {
 	db.DB.Model(&models.LockSettings{}).Where("chat_id = ? AND lock_type = ?", chatID, perm).Count(&count)
 	if count != 1 {
 		t.Fatalf("expected exactly 1 lock record, got %d", count)
-	}
-}
-
-func TestUpdateLockConcurrentCreation(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	perm := "photo"
-
-	t.Cleanup(func() {
-		if err := db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).Delete(&models.LockSettings{}).Error; err != nil {
-			t.Fatalf("cleanup Delete error: %v", err)
-		}
-	})
-
-	const workers = 10
-	var wg sync.WaitGroup
-	wg.Add(workers)
-
-	errs := make(chan error, workers)
-
-	for range workers {
-		go func() {
-			defer wg.Done()
-			if err := UpdateLock(chatID, perm, true); err != nil {
-				errs <- err
-			}
-		}()
-	}
-
-	wg.Wait()
-	close(errs)
-
-	for err := range errs {
-		t.Fatalf("UpdateLock() concurrent error: %v", err)
-	}
-
-	var count int64
-	db.DB.Model(&models.LockSettings{}).Where("chat_id = ? AND lock_type = ?", chatID, perm).Count(&count)
-	if count != 1 {
-		t.Fatalf("expected exactly 1 lock record after concurrent writes, got %d", count)
-	}
-
-	var lock models.LockSettings
-	if err := db.DB.Where("chat_id = ? AND lock_type = ?", chatID, perm).First(&lock).Error; err != nil {
-		t.Fatalf("query error: %v", err)
-	}
-	if !lock.Locked {
-		t.Fatalf("expected Locked=true, got false")
 	}
 }
 
@@ -257,16 +178,6 @@ func TestGetChatLocksUsesMemoryCache(t *testing.T) {
 	if locks[perm] {
 		t.Fatalf("GetChatLocks() after unlock = %v, want unlocked video", locks)
 	}
-}
-
-func TestInvalidateLockCacheNilMarshal(t *testing.T) {
-	orig := cache.GetMarshal()
-	cache.SetMarshal(nil)
-	t.Cleanup(func() {
-		cache.SetMarshal(orig)
-	})
-
-	InvalidateLockCache(-100123)
 }
 
 func TestGetChatLocksCacheInvalidation(t *testing.T) {

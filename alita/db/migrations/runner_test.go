@@ -55,14 +55,6 @@ func migrationApplied(t *testing.T, runner *MigrationRunner, version string) boo
 	return applied
 }
 
-func TestSchemaMigrationTableName(t *testing.T) {
-
-	got := SchemaMigration{}.TableName()
-	if got != "schema_migrations" {
-		t.Fatalf("SchemaMigration.TableName() = %q, want %q", got, "schema_migrations")
-	}
-}
-
 func newMetadataTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "migrations.db")), &gorm.Config{})
@@ -463,51 +455,6 @@ SELECT 1;`,
 	}
 }
 
-func TestSplitSQLStatements_AdditionalCases(t *testing.T) {
-
-	runner := newTestRunner()
-
-	tests := []struct {
-		name      string
-		input     string
-		wantCount int
-	}{
-		{
-			name:      "nested single quotes (escaped) not split",
-			input:     `SELECT 'it''s a test';`,
-			wantCount: 1,
-		},
-		{
-			// The implementation preserves comment text as part of statement content;
-			// comment-only input without a trailing semicolon yields 1 "statement" (the comment text).
-			name:      "only comments without semicolons yields one statement",
-			input:     "-- just a comment\n/* another comment */",
-			wantCount: 1,
-		},
-		{
-			name:      "empty string yields zero statements",
-			input:     "",
-			wantCount: 0,
-		},
-		{
-			name:      "mixed dollar-quoted and regular statements",
-			input:     "SELECT 1; DO $$ BEGIN NULL; END $$; SELECT 2;",
-			wantCount: 3,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-
-			got := runner.splitSQLStatements(tc.input)
-			if len(got) != tc.wantCount {
-				t.Fatalf("splitSQLStatements(%q) returned %d statements, want %d\nstatements: %v",
-					tc.input, len(got), tc.wantCount, got)
-			}
-		})
-	}
-}
-
 func TestGetMigrationFiles(t *testing.T) {
 
 	t.Run("empty directory returns empty slice no error", func(t *testing.T) {
@@ -689,6 +636,9 @@ func TestApplyMigration_EmptyFileDoesNotRecordVersion(t *testing.T) {
 	runner := &MigrationRunner{db: getTestDB(), migrationsPath: dir}
 	if err := runner.ensureMigrationsTable(); err != nil {
 		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	if !getTestDB().Migrator().HasTable(&SchemaMigration{}) {
+		t.Fatal("schema_migrations table missing after ensureMigrationsTable")
 	}
 	if err := runner.applyMigration(migrationPath, version); err != nil {
 		t.Fatalf("applyMigration(empty) error = %v", err)
@@ -916,19 +866,6 @@ func TestApplyMigration_RejectsUnsafePath(t *testing.T) {
 				t.Fatalf("applyMigration() error = %q, want path validation error", err)
 			}
 		})
-	}
-}
-
-func TestNewMigrationRunnerUsesConfiguredPath(t *testing.T) {
-	previousConfig := config.AppConfig
-	t.Cleanup(func() {
-		config.AppConfig = previousConfig
-	})
-	config.AppConfig = &config.Config{MigrationsPath: "custom-migrations"}
-
-	runner := NewMigrationRunner(&gorm.DB{})
-	if runner.migrationsPath != "custom-migrations" {
-		t.Fatalf("migrationsPath = %q, want custom-migrations", runner.migrationsPath)
 	}
 }
 

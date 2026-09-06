@@ -1,7 +1,6 @@
 package keyword_matcher
 
 import (
-	"sync"
 	"testing"
 )
 
@@ -97,29 +96,6 @@ func TestFirstMatch(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestConcurrentAccess(t *testing.T) {
-	t.Parallel()
-
-	km := newKeywordMatcher([]string{"hello", "world", "concurrent"})
-
-	const goroutines = 10
-	const callsEach = 100
-
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for range goroutines {
-		go func() {
-			defer wg.Done()
-			for range callsEach {
-				_, _ = km.FirstMatch("hello world concurrent test")
-			}
-		}()
-	}
-
-	wg.Wait()
 }
 
 func TestSpecialCharacterPatterns(t *testing.T) {

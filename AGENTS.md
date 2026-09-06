@@ -240,6 +240,7 @@ Command registration:
 - Naming: exported PascalCase, unexported camelCase, tests `TestXxx`, `_test.go` same package. Handler methods value receiver, named `(m moduleStruct)` only when accessing fields.
 - `helpers.Ptr[T]` for `*bool`/`*int` in gotgbot opts.
 - Commits: `feat:` `fix:` `refactor:` `perf:` `test:` `docs:` `chore:` `deps:` + scope. Before commit: `git status`, `git diff`, stage only relevant, `make lint` + `make test`, add keys to all locales, never commit secrets.
+- Tests: assert externally observable behavior (reply sent, row persisted, cache invalidated, gate enforced), never literals, source substrings, or test-double internals. One behavior gets one home — table subtests beat copy-pasted functions; no-panic-only and constant-echo tests get deleted, not kept for coverage.
 
 ---
 

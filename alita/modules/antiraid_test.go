@@ -178,10 +178,6 @@ func TestAntiRaidPollerReturnsOnCancelledContext(t *testing.T) {
 	}
 }
 
-func TestAntiRaidCheckExpiredRaidsNoRedisIsNoop(t *testing.T) {
-	antiRaidModule.checkExpiredRaids(context.Background())
-}
-
 func TestAntiRaidStateMachine(t *testing.T) {
 	if cache.GetMarshal() == nil {
 		t.Skip("requires Redis cache")

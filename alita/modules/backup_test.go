@@ -623,25 +623,6 @@ func TestPendingResetRejectsStaleAndExpiredTokens(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestBackupCallbackHandlerNilCallbackQuery(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		ctx  *ext.Context
-	}{
-		{name: "nil context", ctx: nil},
-		{name: "nil update", ctx: &ext.Context{}},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := backupModule.backupCallbackHandler(nil, tc.ctx)
-			assert.Equal(t, ext.EndGroups, err)
-		})
-	}
-}
-
 func TestImportHandlerRequiresReplyDocument(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -922,31 +903,4 @@ func TestBackupCallbackCancelImportAndResetCleanup(t *testing.T) {
 	assert.False(t, ok)
 
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 2)
-}
-
-func TestModuleNames(t *testing.T) {
-	t.Run("all module names are lowercase", func(t *testing.T) {
-		modules := []string{
-			backup.BackupModuleAdmin,
-			backup.BackupModuleAntiflood,
-			backup.BackupModuleAntiraid,
-			backup.BackupModuleApprovals,
-			backup.BackupModuleBlacklists,
-			backup.BackupModuleCaptcha,
-			backup.BackupModuleConnections,
-			backup.BackupModuleDisabling,
-			backup.BackupModuleFilters,
-			backup.BackupModuleGreetings,
-			backup.BackupModuleLocks,
-			backup.BackupModuleNotes,
-			backup.BackupModulePins,
-			backup.BackupModuleReports,
-			backup.BackupModuleRules,
-			backup.BackupModuleWarns,
-		}
-
-		for _, module := range modules {
-			assert.Equal(t, module, module)
-		}
-	})
 }

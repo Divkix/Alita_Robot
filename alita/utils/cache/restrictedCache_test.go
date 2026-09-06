@@ -322,14 +322,6 @@ func TestGetRestrictedCacheStats_NilSafe(t *testing.T) {
 	}
 }
 
-func TestMarkChatRestricted_NilMarshal_NoPanic(t *testing.T) {
-	orig := GetMarshal()
-	SetMarshal(nil)
-	defer func() { SetMarshal(orig) }()
-
-	MarkChatRestricted(-999)
-}
-
 func TestIsChatRestricted_NilMarshal_ReturnsFalse(t *testing.T) {
 	orig := GetMarshal()
 	SetMarshal(nil)
@@ -338,12 +330,4 @@ func TestIsChatRestricted_NilMarshal_ReturnsFalse(t *testing.T) {
 	if IsChatRestricted(-999) {
 		t.Error("IsChatRestricted with nil marshaler should return false")
 	}
-}
-
-func TestMarkChatNotRestricted_NilMarshal_NoPanic(t *testing.T) {
-	orig := GetMarshal()
-	SetMarshal(nil)
-	defer func() { SetMarshal(orig) }()
-
-	MarkChatNotRestricted(-999)
 }

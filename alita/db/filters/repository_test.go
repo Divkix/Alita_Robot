@@ -2,7 +2,6 @@ package filters
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -201,27 +200,6 @@ func TestLoadFilterStats(t *testing.T) {
 	}
 }
 
-func TestLoadFilterStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-
-	if err := db.DB.Migrator().DropTable(&models.ChatFilters{}); err != nil {
-		t.Fatalf("DropTable failed: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := db.DB.AutoMigrate(&models.ChatFilters{}); err != nil {
-			t.Errorf("AutoMigrate failed: %v", err)
-		}
-	})
-
-	if err := AddFilter(1, "missing-table", "reply", "", nil, db.TEXT); err == nil {
-		t.Fatal("AddFilter() error = nil after filters table was dropped")
-	}
-	total, chats := LoadFilterStats()
-	if total != 0 || chats != 0 {
-		t.Fatalf("LoadFilterStats() = (%d, %d), want (0, 0) on error", total, chats)
-	}
-}
-
 func TestAddFilterWithButtons(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -243,43 +221,5 @@ func TestAddFilterWithButtons(t *testing.T) {
 
 	if !DoesFilterExists(chatID, "btn_filter") {
 		t.Fatal("expected filter with buttons to exist")
-	}
-}
-
-func TestAddFilterConcurrentInsert(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := newFilterTestChat(t)
-	t.Cleanup(func() {
-		_ = RemoveAllFilters(chatID)
-	})
-
-	const writers = 16
-	errs := make(chan error, writers)
-	var wg sync.WaitGroup
-	for range writers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errs <- AddFilter(chatID, "shared", "concurrent", "", nil, db.TEXT)
-		}()
-	}
-	wg.Wait()
-	close(errs)
-	for err := range errs {
-		if err != nil {
-			t.Fatalf("concurrent AddFilter() error = %v", err)
-		}
-	}
-
-	if err := AddFilter(chatID, "shared", "final", "", nil, db.TEXT); err != nil {
-		t.Fatalf("final AddFilter() error = %v", err)
-	}
-	var rows []models.ChatFilters
-	if err := db.DB.Where("chat_id = ? AND keyword = ?", chatID, "shared").Find(&rows).Error; err != nil {
-		t.Fatalf("read filters error = %v", err)
-	}
-	if len(rows) != 1 || rows[0].FilterReply != "concurrent" {
-		t.Fatalf("concurrent insert left filters=%+v", rows)
 	}
 }

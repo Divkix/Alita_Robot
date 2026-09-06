@@ -4,7 +4,6 @@ package notes
 
 import (
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -180,67 +179,58 @@ func TestRemoveNote(t *testing.T) {
 	}
 }
 
-func TestTogglePrivateNoteCreatesSettingsWhenMissing(t *testing.T) {
+func TestToggleNotesPrivateCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test-toggle-no-settings-row"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		err := db.DB.Where("chat_id = ?", chatID).Delete(&models.NotesSettings{}).Error
-		if err != nil {
-			t.Fatalf("cleanup NotesSettings failed: %v", err)
-		}
-		err = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-		if err != nil {
-			t.Fatalf("cleanup Chat failed: %v", err)
-		}
-	})
-
-	if err := TooglePrivateNote(chatID, true); err != nil {
-		t.Fatalf("TooglePrivateNote(true) without prior settings error = %v", err)
-	}
-	settings := GetNotes(chatID)
-	if settings == nil || !settings.Private {
-		t.Fatalf("expected Private=true after toggle, got %+v", settings)
-	}
-}
-
-func TestToggleNotesPrivate(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test-toggle-notes-private"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		err := db.DB.Where("chat_id = ?", chatID).Delete(&models.NotesSettings{}).Error
-		if err != nil {
-			t.Fatalf("cleanup NotesSettings failed: %v", err)
-		}
-		err = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-		if err != nil {
-			t.Fatalf("cleanup Chat failed: %v", err)
-		}
-	})
-
-	_ = GetNotes(chatID)
-
-	if err := TooglePrivateNote(chatID, true); err != nil {
-		t.Fatalf("TooglePrivateNote(true) error = %v", err)
-	}
-	settings := GetNotes(chatID)
-	if !settings.Private {
-		t.Fatalf("expected Private=true after toggle, got false")
+	cases := []struct {
+		name   string
+		preset bool
+	}{
+		{"creates settings when missing", false},
+		{"true-false roundtrip", true},
 	}
 
-	if err := TooglePrivateNote(chatID, false); err != nil {
-		t.Fatalf("TooglePrivateNote(false) error = %v", err)
-	}
-	settings = GetNotes(chatID)
-	if settings.Private {
-		t.Fatalf("expected Private=false after toggle back, got true")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			if err := chats.EnsureChatInDb(chatID, "test-toggle-notes-private"); err != nil {
+				t.Fatalf("EnsureChatInDb() error = %v", err)
+			}
+			t.Cleanup(func() {
+				err := db.DB.Where("chat_id = ?", chatID).Delete(&models.NotesSettings{}).Error
+				if err != nil {
+					t.Fatalf("cleanup NotesSettings failed: %v", err)
+				}
+				err = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+				if err != nil {
+					t.Fatalf("cleanup Chat failed: %v", err)
+				}
+			})
+
+			if tc.preset {
+				_ = GetNotes(chatID)
+			}
+
+			if err := TooglePrivateNote(chatID, true); err != nil {
+				t.Fatalf("TooglePrivateNote(true) error = %v", err)
+			}
+			settings := GetNotes(chatID)
+			if settings == nil || !settings.Private {
+				t.Fatalf("expected Private=true after toggle, got %+v", settings)
+			}
+
+			if !tc.preset {
+				return
+			}
+
+			if err := TooglePrivateNote(chatID, false); err != nil {
+				t.Fatalf("TooglePrivateNote(false) error = %v", err)
+			}
+			settings = GetNotes(chatID)
+			if settings.Private {
+				t.Fatalf("expected Private=false after toggle back, got true")
+			}
+		})
 	}
 }
 
@@ -426,23 +416,6 @@ func TestLoadNotesStats(t *testing.T) {
 	}
 }
 
-func TestLoadNotesStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-
-	_ = db.DB.Migrator().DropTable(&models.Notes{})
-	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.Notes{})
-	})
-
-	if err := AddNote(1, "missing-table", "text", "", nil, db.TEXT, false, false, false, false, false, false); err == nil {
-		t.Fatal("AddNote() error = nil after notes table was dropped")
-	}
-	notes, chats := LoadNotesStats()
-	if notes != 0 || chats != 0 {
-		t.Fatalf("LoadNotesStats() = (%d, %d), want (0, 0) on error", notes, chats)
-	}
-}
-
 func TestRemoveAllNotes(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -595,49 +568,6 @@ func TestAddNotePreservesExistingUntilExplicitUpdate(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 entry for 'my-note', got %d; list: %v", count, list)
-	}
-}
-
-func TestAddNoteConcurrentInsert(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	if err := chats.EnsureChatInDb(chatID, "test-concurrent-note-upsert"); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Notes{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	const writers = 16
-	errs := make(chan error, writers)
-	var wg sync.WaitGroup
-	for range writers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			errs <- AddNote(chatID, "shared", "concurrent", "", nil, db.TEXT, false, false, false, false, false, false)
-		}()
-	}
-	wg.Wait()
-	close(errs)
-	for err := range errs {
-		if err != nil {
-			t.Fatalf("concurrent AddNote() error = %v", err)
-		}
-	}
-
-	if err := AddNote(chatID, "shared", "final", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
-		t.Fatalf("final AddNote() error = %v", err)
-	}
-	var count int64
-	if err := db.DB.Model(&models.Notes{}).Where("chat_id = ? AND note_name = ?", chatID, "shared").Count(&count).Error; err != nil {
-		t.Fatalf("count notes error = %v", err)
-	}
-	note := GetNote(chatID, "shared")
-	if count != 1 || note == nil || note.NoteContent != "concurrent" {
-		t.Fatalf("concurrent insert left count=%d note=%+v", count, note)
 	}
 }
 

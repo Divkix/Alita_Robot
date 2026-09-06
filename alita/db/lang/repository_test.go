@@ -17,163 +17,149 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-func TestGetGroupLanguage_DefaultsToEn(t *testing.T) {
+func TestLanguageCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
+	t.Run("group defaults to en", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
-		cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
+			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
+		})
+
+		lang := getGroupLanguage(chatID)
+		if lang != "en" {
+			t.Fatalf("expected default language 'en', got %q", lang)
+		}
 	})
 
-	lang := getGroupLanguage(chatID)
-	if lang != "en" {
-		t.Fatalf("expected default language 'en', got %q", lang)
-	}
-}
+	t.Run("user defaults to en", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-func TestGetUserLanguage_DefaultsToEn(t *testing.T) {
-	skipIfNoDb(t)
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
+			cache.DeleteCache(cache.CacheKey("user_lang", userID))
+		})
 
-	userID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
-		cache.DeleteCache(cache.CacheKey("user_lang", userID))
+		lang := getUserLanguage(userID)
+		if lang != "en" {
+			t.Fatalf("expected default language 'en', got %q", lang)
+		}
 	})
 
-	lang := getUserLanguage(userID)
-	if lang != "en" {
-		t.Fatalf("expected default language 'en', got %q", lang)
-	}
-}
+	t.Run("group set and get", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-func TestChangeGroupLanguage_SetAndGet(t *testing.T) {
-	skipIfNoDb(t)
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
+			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
+			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
+			cache.DeleteCache(cache.CacheKey("chat", chatID))
+		})
 
-	chatID := time.Now().UnixNano()
+		_ = ChangeGroupLanguage(chatID, "es")
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
-		cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-		cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
-		cache.DeleteCache(cache.CacheKey("chat", chatID))
+		lang := getGroupLanguage(chatID)
+		if lang != "es" {
+			t.Fatalf("expected language 'es', got %q", lang)
+		}
 	})
 
-	_ = ChangeGroupLanguage(chatID, "es")
+	t.Run("user set and get", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-	lang := getGroupLanguage(chatID)
-	if lang != "es" {
-		t.Fatalf("expected language 'es', got %q", lang)
-	}
-}
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
+			cache.DeleteCache(cache.CacheKey("user_lang", userID))
+			cache.DeleteCache(cache.CacheKey("user", userID))
+		})
 
-func TestChangeUserLanguage_SetAndGet(t *testing.T) {
-	skipIfNoDb(t)
+		_ = ChangeUserLanguage(userID, "fr")
 
-	userID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
-		cache.DeleteCache(cache.CacheKey("user_lang", userID))
-		cache.DeleteCache(cache.CacheKey("user", userID))
+		lang := getUserLanguage(userID)
+		if lang != "fr" {
+			t.Fatalf("expected language 'fr', got %q", lang)
+		}
 	})
 
-	_ = ChangeUserLanguage(userID, "fr")
+	t.Run("group overwrite", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	lang := getUserLanguage(userID)
-	if lang != "fr" {
-		t.Fatalf("expected language 'fr', got %q", lang)
-	}
-}
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
+			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
+			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
+			cache.DeleteCache(cache.CacheKey("chat", chatID))
+		})
 
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestChangeGroupLanguage_Update(t *testing.T) {
-	skipIfNoDb(t)
+		_ = ChangeGroupLanguage(chatID, "en")
 
-	chatID := time.Now().UnixNano()
+		_ = ChangeGroupLanguage(chatID, "hi")
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
-		cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-		cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
-		cache.DeleteCache(cache.CacheKey("chat", chatID))
+		lang := getGroupLanguage(chatID)
+		if lang != "hi" {
+			t.Fatalf("expected language 'hi', got %q", lang)
+		}
 	})
 
-	_ = ChangeGroupLanguage(chatID, "en")
+	t.Run("user overwrite", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-	_ = ChangeGroupLanguage(chatID, "hi")
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
+			cache.DeleteCache(cache.CacheKey("user_lang", userID))
+			cache.DeleteCache(cache.CacheKey("user", userID))
+		})
 
-	lang := getGroupLanguage(chatID)
-	if lang != "hi" {
-		t.Fatalf("expected language 'hi', got %q", lang)
-	}
-}
+		_ = ChangeUserLanguage(userID, "en")
 
-func TestChangeUserLanguage_Update(t *testing.T) {
-	skipIfNoDb(t)
+		_ = ChangeUserLanguage(userID, "es")
 
-	userID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
-		cache.DeleteCache(cache.CacheKey("user_lang", userID))
-		cache.DeleteCache(cache.CacheKey("user", userID))
+		lang := getUserLanguage(userID)
+		if lang != "es" {
+			t.Fatalf("expected language 'es', got %q", lang)
+		}
 	})
 
-	_ = ChangeUserLanguage(userID, "en")
+	t.Run("group noop when same", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	_ = ChangeUserLanguage(userID, "es")
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
+			cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
+			cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
+			cache.DeleteCache(cache.CacheKey("chat", chatID))
+		})
 
-	lang := getUserLanguage(userID)
-	if lang != "es" {
-		t.Fatalf("expected language 'es', got %q", lang)
-	}
-}
+		_ = ChangeGroupLanguage(chatID, "en")
+		// Calling again with same value should be a no-op (no error)
+		_ = ChangeGroupLanguage(chatID, "en")
 
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestChangeGroupLanguage_NoopWhenSame(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&db.Chat{}).Error
-		cache.DeleteCache(cache.CacheKey("chat_lang", chatID))
-		cache.DeleteCache(cache.CacheKey("chat_settings", chatID))
-		cache.DeleteCache(cache.CacheKey("chat", chatID))
+		lang := getGroupLanguage(chatID)
+		if lang != "en" {
+			t.Fatalf("expected language 'en', got %q", lang)
+		}
 	})
 
-	_ = ChangeGroupLanguage(chatID, "en")
-	// Calling again with same value should be a no-op (no error)
-	_ = ChangeGroupLanguage(chatID, "en")
+	t.Run("user noop when same", func(t *testing.T) {
+		userID := time.Now().UnixNano()
 
-	lang := getGroupLanguage(chatID)
-	if lang != "en" {
-		t.Fatalf("expected language 'en', got %q", lang)
-	}
-}
+		t.Cleanup(func() {
+			_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
+			cache.DeleteCache(cache.CacheKey("user_lang", userID))
+			cache.DeleteCache(cache.CacheKey("user", userID))
+		})
 
-func TestChangeUserLanguage_NoopWhenSame(t *testing.T) {
-	skipIfNoDb(t)
+		_ = ChangeUserLanguage(userID, "fr")
+		// Calling again with same value should be a no-op
+		_ = ChangeUserLanguage(userID, "fr")
 
-	userID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&db.User{}).Error
-		cache.DeleteCache(cache.CacheKey("user_lang", userID))
-		cache.DeleteCache(cache.CacheKey("user", userID))
+		lang := getUserLanguage(userID)
+		if lang != "fr" {
+			t.Fatalf("expected language 'fr', got %q", lang)
+		}
 	})
-
-	_ = ChangeUserLanguage(userID, "fr")
-	// Calling again with same value should be a no-op
-	_ = ChangeUserLanguage(userID, "fr")
-
-	lang := getUserLanguage(userID)
-	if lang != "fr" {
-		t.Fatalf("expected language 'fr', got %q", lang)
-	}
 }
 
 func TestGetLanguageFromPrivateAndGroupContexts(t *testing.T) {

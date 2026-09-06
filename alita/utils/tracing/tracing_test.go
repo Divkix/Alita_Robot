@@ -116,14 +116,6 @@ func TestRunOnProcessUpdateCallback_CallsStoredCallback(t *testing.T) {
 	}
 }
 
-func TestRunOnProcessUpdateCallback_NoCallback_DoesNotPanic(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	SetOnProcessUpdateCallback(nil)
-
-	runOnProcessUpdateCallback()
-}
-
 func TestWorkingModeAttribute_ValueReflectsConfig(t *testing.T) {
 	ensureAppConfig(t)
 

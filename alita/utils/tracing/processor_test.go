@@ -184,11 +184,3 @@ func TestRunOnProcessUpdateCallback_InvokesRegisteredCallback(t *testing.T) {
 		t.Errorf("expected callback to be called twice, got %d calls", called.Load())
 	}
 }
-
-func TestRunOnProcessUpdateCallback_NoCallback_NoOp(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	SetOnProcessUpdateCallback(nil)
-
-	runOnProcessUpdateCallback()
-}

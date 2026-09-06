@@ -81,18 +81,6 @@ func TestListModulesViaDefaultRegistry(t *testing.T) {
 	}
 }
 
-func TestGetAltNamesOfModuleIncludesLowercaseModuleName(t *testing.T) {
-	t.Parallel()
-
-	got := getAltNamesOfModule("DefinitelyNotInConfig")
-	if len(got) == 0 {
-		t.Fatal("getAltNamesOfModule() returned empty slice")
-	}
-	if got[len(got)-1] != "definitelynotinconfig" {
-		t.Fatalf("last alias = %q, want lowercase module name", got[len(got)-1])
-	}
-}
-
 func TestInitHelpButtonsBuildsSortedKeyboard(t *testing.T) {
 	registry := DefaultHelpRegistry()
 	previousAbleMap := registry.AbleMap

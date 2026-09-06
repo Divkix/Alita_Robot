@@ -284,33 +284,6 @@ func TestStart(t *testing.T) {
 	}
 }
 
-func TestStart_DoesNotPanic(t *testing.T) {
-	if db.DB == nil {
-		t.Skip("requires PostgreSQL connection")
-	}
-
-	am := NewActivityMonitor()
-	defer am.Stop()
-
-	am.Start()
-}
-
-func TestStop_WithoutStart(t *testing.T) {
-	am := NewActivityMonitor()
-	am.Stop()
-}
-
-func TestStop_Idempotent(t *testing.T) {
-	if db.DB == nil {
-		t.Skip("requires PostgreSQL connection")
-	}
-
-	am := NewActivityMonitor()
-	am.Start()
-	am.Stop()
-	am.Stop()
-}
-
 func TestStop_GracefullyStopsRunningMonitor(t *testing.T) {
 	if db.DB == nil {
 		t.Skip("requires PostgreSQL connection")

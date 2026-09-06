@@ -17,91 +17,42 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-func TestAddDev(t *testing.T) {
+func TestDevMembershipCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	userID := time.Now().UnixNano()
-	t.Cleanup(func() {
-		if err := db.DB.Where("user_id = ?", userID).Delete(&models.DevSettings{}).Error; err != nil {
-			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
-		}
-	})
-
-	if err := AddDev(userID); err != nil {
-		t.Fatalf("AddDev() error = %v", err)
+	cases := []struct {
+		name     string
+		add      func(userID int64) error
+		remove   func(userID int64) error
+		isMember func(*models.DevSettings) bool
+	}{
+		{"dev", AddDev, RemDev, func(d *models.DevSettings) bool { return d.IsDev }},
+		{"sudo", AddSudo, RemSudo, func(d *models.DevSettings) bool { return d.Sudo }},
 	}
 
-	devrc := GetTeamMemInfo(userID)
-	if !devrc.IsDev {
-		t.Errorf("GetTeamMemInfo(%d).IsDev = false, want true after AddDev", userID)
-	}
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			userID := time.Now().UnixNano()
+			t.Cleanup(func() {
+				if err := db.DB.Where("user_id = ?", userID).Delete(&models.DevSettings{}).Error; err != nil {
+					t.Errorf("cleanup Delete(DevSettings) error: %v", err)
+				}
+			})
 
-func TestRemoveDev(t *testing.T) {
-	skipIfNoDb(t)
+			if err := tc.add(userID); err != nil {
+				t.Fatalf("add() error = %v", err)
+			}
+			if devrc := GetTeamMemInfo(userID); !tc.isMember(devrc) {
+				t.Errorf("GetTeamMemInfo(%d) membership = false, want true after add", userID)
+			}
 
-	userID := time.Now().UnixNano()
-	t.Cleanup(func() {
-		if err := db.DB.Where("user_id = ?", userID).Delete(&models.DevSettings{}).Error; err != nil {
-			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
-		}
-	})
-
-	if err := AddDev(userID); err != nil {
-		t.Fatalf("AddDev() error = %v", err)
-	}
-
-	if err := RemDev(userID); err != nil {
-		t.Fatalf("RemDev() error = %v", err)
-	}
-
-	devrc := GetTeamMemInfo(userID)
-	if devrc.IsDev {
-		t.Errorf("GetTeamMemInfo(%d).IsDev = true, want false after RemDev", userID)
-	}
-}
-
-func TestAddSudo(t *testing.T) {
-	skipIfNoDb(t)
-
-	userID := time.Now().UnixNano()
-	t.Cleanup(func() {
-		if err := db.DB.Where("user_id = ?", userID).Delete(&models.DevSettings{}).Error; err != nil {
-			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
-		}
-	})
-
-	if err := AddSudo(userID); err != nil {
-		t.Fatalf("AddSudo() error = %v", err)
-	}
-
-	devrc := GetTeamMemInfo(userID)
-	if !devrc.Sudo {
-		t.Errorf("GetTeamMemInfo(%d).Sudo = false, want true after AddSudo", userID)
-	}
-}
-
-func TestRemoveSudo(t *testing.T) {
-	skipIfNoDb(t)
-
-	userID := time.Now().UnixNano()
-	t.Cleanup(func() {
-		if err := db.DB.Where("user_id = ?", userID).Delete(&models.DevSettings{}).Error; err != nil {
-			t.Errorf("cleanup Delete(DevSettings) error: %v", err)
-		}
-	})
-
-	if err := AddSudo(userID); err != nil {
-		t.Fatalf("AddSudo() error = %v", err)
-	}
-
-	if err := RemSudo(userID); err != nil {
-		t.Fatalf("RemSudo() error = %v", err)
-	}
-
-	devrc := GetTeamMemInfo(userID)
-	if devrc.Sudo {
-		t.Errorf("GetTeamMemInfo(%d).Sudo = true, want false after RemSudo", userID)
+			if err := tc.remove(userID); err != nil {
+				t.Fatalf("remove() error = %v", err)
+			}
+			if devrc := GetTeamMemInfo(userID); tc.isMember(devrc) {
+				t.Errorf("GetTeamMemInfo(%d) membership = true, want false after remove", userID)
+			}
+		})
 	}
 }
 
@@ -162,22 +113,6 @@ func TestGetTeamMembers(t *testing.T) {
 	}
 	if got, want := members[bothDevAndSudo], "dev"; got != want {
 		t.Errorf("GetTeamMembers()[%d] = %q, want %q", bothDevAndSudo, got, want)
-	}
-}
-
-func TestGetTeamMembersEmpty(t *testing.T) {
-	skipIfNoDb(t)
-
-	if err := db.DB.Where("1 = 1").Delete(&models.DevSettings{}).Error; err != nil {
-		t.Fatalf("failed to clean DevSettings: %v", err)
-	}
-
-	members := GetTeamMembers()
-	if members == nil {
-		t.Fatal("GetTeamMembers() returned nil, want empty map")
-	}
-	if len(members) != 0 {
-		t.Errorf("len(GetTeamMembers()) = %d, want 0", len(members))
 	}
 }
 

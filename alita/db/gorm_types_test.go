@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/divkix/Alita_Robot/alita/db/migrations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
@@ -601,51 +600,6 @@ func TestInt64Array_Value(t *testing.T) {
 				if result[i] != v {
 					t.Fatalf("round-trip value mismatch at index %d: expected %d, got %d", i, v, result[i])
 				}
-			}
-		})
-	}
-}
-
-func TestTableNames(t *testing.T) {
-
-	tests := []struct {
-		name      string
-		model     interface{ TableName() string }
-		wantTable string
-	}{
-		{"User", User{}, "users"},
-		{"Chat", Chat{}, "chats"},
-		{"WarnSettings", models.WarnSettings{}, "warns_settings"},
-		{"Warns", models.Warns{}, "warns_users"},
-		{"GreetingSettings", models.GreetingSettings{}, "greetings"},
-		{"ChatFilters", ChatFilters{}, "filters"},
-		{"AdminSettings", models.AdminSettings{}, "admin"},
-		{"BlacklistSettings", models.BlacklistSettings{}, "blacklists"},
-		{"PinSettings", models.PinSettings{}, "pins"},
-		{"ReportChatSettings", models.ReportChatSettings{}, "report_chat_settings"},
-		{"ReportUserSettings", models.ReportUserSettings{}, "report_user_settings"},
-		{"DevSettings", DevSettings{}, "devs"},
-		{"ChannelSettings", models.ChannelSettings{}, "channels"},
-		{"AntifloodSettings", AntifloodSettings{}, "antiflood_settings"},
-		{"ConnectionSettings", models.ConnectionSettings{}, "connection"},
-		{"ConnectionChatSettings", models.ConnectionChatSettings{}, "connection_settings"},
-		{"DisableSettings", models.DisableSettings{}, "disable"},
-		{"DisableChatSettings", models.DisableChatSettings{}, "disable_chat_settings"},
-		{"RulesSettings", models.RulesSettings{}, "rules"},
-		{"LockSettings", LockSettings{}, "locks"},
-		{"NotesSettings", NotesSettings{}, "notes_settings"},
-		{"Notes", Notes{}, "notes"},
-		{"CaptchaSettings", CaptchaSettings{}, "captcha_settings"},
-		{"CaptchaAttempts", CaptchaAttempts{}, "captcha_attempts"},
-		{"StoredMessages", models.StoredMessages{}, "stored_messages"},
-		{"CaptchaMutedUsers", models.CaptchaMutedUsers{}, "captcha_muted_users"},
-		{"SchemaMigration", migrations.SchemaMigration{}, "schema_migrations"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.model.TableName(); got != tc.wantTable {
-				t.Fatalf("%s.TableName() = %q, want %q", tc.name, got, tc.wantTable)
 			}
 		})
 	}

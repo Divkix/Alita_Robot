@@ -175,22 +175,3 @@ formatting_random: "Random help"
 		})
 	}
 }
-
-func TestFormattingHandlerNilCallbackQuery(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		ctx  *ext.Context
-	}{
-		{name: "nil context", ctx: nil},
-		{name: "nil update", ctx: &ext.Context{}},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := formattingModule.formattingHandler(nil, tc.ctx)
-			assert.Equal(t, ext.EndGroups, err)
-		})
-	}
-}

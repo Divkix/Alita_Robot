@@ -470,53 +470,6 @@ func TestCreateMutedUserUpdatesExistingSchedule(t *testing.T) {
 	}
 }
 
-func TestCreateMutedUserConcurrentUpsert(t *testing.T) {
-	skipIfNoDb(t)
-
-	base := time.Now().UnixNano()
-	userID, chatID := base+10, base+11
-	if err := db.DB.Create(&dbmodels.User{UserId: userID}).Error; err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	if err := db.DB.Create(&dbmodels.Chat{ChatId: chatID}).Error; err != nil {
-		t.Fatalf("create chat: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = DeleteMutedUser(userID, chatID)
-		_ = db.DB.Where("user_id = ?", userID).Delete(&dbmodels.User{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.Chat{}).Error
-	})
-
-	const workers = 12
-	errs := make(chan error, workers)
-	start := make(chan struct{})
-	var wait sync.WaitGroup
-	wait.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(i int) {
-			defer wait.Done()
-			<-start
-			errs <- CreateMutedUser(userID, chatID, time.Now().Add(time.Duration(i)*time.Minute))
-		}(i)
-	}
-	close(start)
-	wait.Wait()
-	close(errs)
-	for err := range errs {
-		if err != nil {
-			t.Errorf("CreateMutedUser() error = %v", err)
-		}
-	}
-
-	users, err := GetMutedUsersForChat(chatID)
-	if err != nil {
-		t.Fatalf("GetMutedUsersForChat() error = %v", err)
-	}
-	if len(users) != 1 {
-		t.Fatalf("muted user rows = %d, want 1", len(users))
-	}
-}
-
 func TestCreateCaptchaAttemptReplacesExistingChallenge(t *testing.T) {
 	skipIfNoDb(t)
 

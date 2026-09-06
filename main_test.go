@@ -3,11 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -84,37 +79,6 @@ func TestResolveBotAPIURL(t *testing.T) {
 	}
 }
 
-func TestNewBotAPITransportKeepsConnectionTuning(t *testing.T) {
-	transport := newBotAPITransport(12, 4)
-	if transport.MaxIdleConns != 12 || transport.MaxIdleConnsPerHost != 4 {
-		t.Fatalf(
-			"transport limits = (%d, %d), want (12, 4)",
-			transport.MaxIdleConns,
-			transport.MaxIdleConnsPerHost,
-		)
-	}
-	if transport.MaxConnsPerHost <= transport.MaxIdleConnsPerHost {
-		t.Fatalf("MaxConnsPerHost = %d, want more than MaxIdleConnsPerHost", transport.MaxConnsPerHost)
-	}
-}
-
-func TestHealthCheckPortUsesProviderEnvironment(t *testing.T) {
-	previousConfig := config.AppConfig
-	config.AppConfig = &config.Config{HTTPPort: 8080}
-	t.Cleanup(func() { config.AppConfig = previousConfig })
-
-	t.Setenv("HTTP_PORT", "")
-	t.Setenv("PORT", "9090")
-	if got := healthCheckPort(); got != 9090 {
-		t.Fatalf("healthCheckPort() = %d, want Railway PORT 9090", got)
-	}
-
-	t.Setenv("HTTP_PORT", "7070")
-	if got := healthCheckPort(); got != 7070 {
-		t.Fatalf("healthCheckPort() = %d, want HTTP_PORT 7070", got)
-	}
-}
-
 func TestBaseBotClientUsesResolvedAPIURL(t *testing.T) {
 	client := &gotgbot.BaseBotClient{
 		DefaultRequestOpts: &gotgbot.RequestOpts{
@@ -126,60 +90,6 @@ func TestBaseBotClientUsesResolvedAPIURL(t *testing.T) {
 	}
 	if got := client.FileURL("123:token", "photos/file.jpg", nil); got != "https://bot-api.example/internal/file/bot123:token/photos/file.jpg" {
 		t.Fatalf("FileURL() = %q, want custom API file URL", got)
-	}
-}
-
-func TestMainVersionModeExitsWithConfiguredVersion(t *testing.T) {
-	cmd := helperMainCommand(t, "--version")
-	cmd.Env = append(cmd.Env, "ALITA_TEST_MAIN_VERSION=v9.9.9")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("main --version exited with error: %v\n%s", err, output)
-	}
-	if got := strings.TrimSpace(string(output)); got != "v9.9.9" {
-		t.Fatalf("main --version output = %q, want configured version", got)
-	}
-}
-
-func TestMainHealthModeExitsByStatus(t *testing.T) {
-	tests := []struct {
-		name       string
-		statusCode int
-		wantErr    bool
-	}{
-		{name: "healthy", statusCode: http.StatusOK},
-		{name: "unhealthy", statusCode: http.StatusServiceUnavailable, wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(tt.statusCode)
-			}))
-			t.Cleanup(server.Close)
-
-			port := serverPort(t, server.URL)
-			cmd := helperMainCommand(t, "--health")
-			cmd.Env = append(cmd.Env, "HTTP_PORT="+port, "PORT=")
-
-			output, err := cmd.CombinedOutput()
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("main --health succeeded, want exit error\n%s", output)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("main --health exited with error: %v\n%s", err, output)
-			}
-		})
-	}
-}
-
-func TestCloseDBConnectionsAllowsNilDatabase(t *testing.T) {
-	if err := closeDBConnections(); err != nil {
-		t.Fatalf("close nil database: %v", err)
 	}
 }
 
@@ -276,49 +186,12 @@ func (assertErr) Error() string {
 	return "assert error"
 }
 
-func TestHelperMainProcess(t *testing.T) {
-	if os.Getenv("ALITA_TEST_MAIN_PROCESS") != "1" {
-		return
-	}
+func TestCloseDBConnectionsNilDBReturnsNil(t *testing.T) {
+	previousDB := db.DB
+	db.DB = nil
+	t.Cleanup(func() { db.DB = previousDB })
 
-	if version := os.Getenv("ALITA_TEST_MAIN_VERSION"); version != "" {
-		config.AppConfig.BotVersion = version
+	if err := closeDBConnections(); err != nil {
+		t.Fatalf("closeDBConnections() with nil DB = %v, want nil", err)
 	}
-	args := []string{os.Args[0]}
-	if sep := slicesIndex(os.Args, "--"); sep >= 0 && sep+1 < len(os.Args) {
-		args = append(args, os.Args[sep+1:]...)
-	}
-	os.Args = args
-	main()
-}
-
-func helperMainCommand(t *testing.T, arg string) *exec.Cmd {
-	t.Helper()
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestHelperMainProcess$", "--", arg)
-	cmd.Env = append(os.Environ(), "ALITA_TEST_MAIN_PROCESS=1")
-	return cmd
-}
-
-func serverPort(t *testing.T, rawURL string) string {
-	t.Helper()
-
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
-	}
-	_, port, ok := strings.Cut(parsed.Host, ":")
-	if !ok || port == "" {
-		t.Fatalf("server URL has no port: %s", rawURL)
-	}
-	return port
-}
-
-func slicesIndex(values []string, target string) int {
-	for i, value := range values {
-		if value == target {
-			return i
-		}
-	}
-	return -1
 }

@@ -2,7 +2,6 @@ package disabling
 
 import (
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -172,20 +171,6 @@ func TestLoadDisableStats(t *testing.T) {
 	}
 }
 
-func TestLoadDisableStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-
-	_ = db.DB.Migrator().DropTable(&models.DisableSettings{})
-	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.DisableSettings{})
-	})
-
-	cmds, chats := LoadDisableStats()
-	if cmds != 0 || chats != 0 {
-		t.Fatalf("LoadDisableStats() = (%d, %d), want (0, 0) on error", cmds, chats)
-	}
-}
-
 func TestGetDisableSettings_Defaults(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -198,36 +183,6 @@ func TestGetDisableSettings_Defaults(t *testing.T) {
 	if ShouldDel(chatID) {
 		t.Fatal("expected ShouldDel=false for new chat")
 	}
-}
-
-func TestConcurrentDisableEnable(t *testing.T) {
-	skipIfNoDb(t)
-
-	base := time.Now().UnixNano() + 7000
-	const workers = 5
-
-	var wg sync.WaitGroup
-	wg.Add(workers)
-
-	for i := range workers {
-		chatID := base + int64(i)
-		cmd := "testcmd"
-		go func(cid int64) {
-			defer wg.Done()
-			t.Cleanup(func() {
-				db.DB.Where("chat_id = ? AND command = ?", cid, cmd).Delete(&models.DisableSettings{})
-			})
-			if err := DisableCMD(cid, cmd); err != nil {
-				t.Errorf("goroutine cid=%d: DisableCMD() error = %v", cid, err)
-				return
-			}
-			if err := EnableCMD(cid, cmd); err != nil {
-				t.Errorf("goroutine cid=%d: EnableCMD() error = %v", cid, err)
-			}
-		}(chatID)
-	}
-
-	wg.Wait()
 }
 
 func TestDisableSameCommandTwice(t *testing.T) {

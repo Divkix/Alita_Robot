@@ -311,11 +311,6 @@ func TestHelpButtonAndConfigCallbacksRejectInvalidMessages(t *testing.T) {
 	}
 }
 
-func TestLoadHelpRegistersHandlers(t *testing.T) {
-	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
-	LoadHelp(dispatcher)
-}
-
 func TestDonateSendsMessage(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

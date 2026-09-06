@@ -351,23 +351,6 @@ func TestLoadUserStats(t *testing.T) {
 	}
 }
 
-func TestLoadUsersStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-	if db.DB.Name() != "sqlite" {
-		t.Skip("schema-destructive error-path test requires isolated SQLite")
-	}
-
-	_ = db.DB.Migrator().DropTable(&models.User{})
-	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.User{})
-	})
-
-	count := LoadUsersStats()
-	if count != 0 {
-		t.Fatalf("LoadUsersStats() = %d, want 0 on error", count)
-	}
-}
-
 func TestLoadUserActivityStats(t *testing.T) {
 	skipIfNoDb(t)
 

@@ -664,10 +664,6 @@ func TestCheckAnonAdminHonorsBypassAndVerificationModes(t *testing.T) {
 	}
 }
 
-func TestSetAnonAdminCacheSkipsNilMessages(t *testing.T) {
-	setAnonAdminCache(-100123456791, nil)
-}
-
 func TestMembershipAndProtectionHelpers(t *testing.T) {
 	bot := newChatStatusBot(999)
 	chat := &gotgbot.Chat{Id: -1001, Type: "supergroup", Title: "Permission Chat"}

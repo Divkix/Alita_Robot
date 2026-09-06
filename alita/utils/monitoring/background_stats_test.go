@@ -256,15 +256,6 @@ func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
 	}
 }
 
-func TestGlobalRecorders_NoCollector_NoOp(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	SetGlobalCollector(nil)
-
-	GlobalRecordError()
-	GlobalRecordMessage()
-}
-
 func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
 	// Do not use t.Parallel() - tests global state
 

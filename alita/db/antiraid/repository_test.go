@@ -140,24 +140,6 @@ func TestSetAutoAntiRaidThreshold(t *testing.T) {
 	}
 }
 
-func TestDefaultAntiRaidSettings(t *testing.T) {
-	t.Parallel()
-
-	settings := defaultAntiRaidSettings(-100123)
-	if settings.ChatID != -100123 {
-		t.Fatalf("ChatID = %d, want -100123", settings.ChatID)
-	}
-	if settings.RaidTime != 21600 {
-		t.Fatalf("RaidTime = %d, want 21600", settings.RaidTime)
-	}
-	if settings.RaidActionTime != 3600 {
-		t.Fatalf("RaidActionTime = %d, want 3600", settings.RaidActionTime)
-	}
-	if settings.AutoAntiRaidThreshold != 0 {
-		t.Fatalf("AutoAntiRaidThreshold = %d, want 0", settings.AutoAntiRaidThreshold)
-	}
-}
-
 func TestAntiRaidSettersRejectNegativeValues(t *testing.T) {
 	t.Parallel()
 
@@ -266,22 +248,6 @@ func TestGetAntiRaidSettingsWithRecord(t *testing.T) {
 	}
 	if settings.AutoAntiRaidThreshold != 3 {
 		t.Fatalf("expected AutoAntiRaidThreshold=3, got %d", settings.AutoAntiRaidThreshold)
-	}
-}
-
-func TestSetAntiRaidThresholdNegativeRejection(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	t.Cleanup(func() {
-		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntiRaidSettings{}).Error; err != nil {
-			t.Fatalf("cleanup failed: %v", err)
-		}
-	})
-
-	err := SetAutoAntiRaidThreshold(chatID, -1)
-	if err == nil {
-		t.Fatal("expected error for negative threshold, got nil")
 	}
 }
 

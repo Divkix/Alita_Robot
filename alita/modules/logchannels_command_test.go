@@ -9,7 +9,6 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func TestLogChannelSetAndUnset(t *testing.T) {
@@ -40,10 +39,6 @@ func TestLogChannelUnknownCategory(t *testing.T) {
 	require.NoError(t, logchannels.Set(chatID, "logged2", channelID))
 	err := logchannels.SetCategory(chatID, "not-a-cat", false)
 	require.Error(t, err)
-}
-
-func TestLogChannelModelTableName(t *testing.T) {
-	require.Equal(t, "log_channels", models.LogChannel{}.TableName())
 }
 
 func TestLogChannelCommandReportsUnset(t *testing.T) {

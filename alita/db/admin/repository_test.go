@@ -37,34 +37,6 @@ func TestGetAdminSettings_Defaults(t *testing.T) {
 	}
 }
 
-func TestSetAnonAdmin(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano() + 1000
-
-	t.Cleanup(func() {
-		db.DB.Where("chat_id = ?", chatID).Delete(&models.AdminSettings{})
-	})
-
-	_ = GetAdminSettings(chatID)
-
-	if err := SetAnonAdminMode(chatID, true); err != nil {
-		t.Fatalf("SetAnonAdminMode(true) error = %v", err)
-	}
-	settings := GetAdminSettings(chatID)
-	if !settings.AnonAdmin {
-		t.Fatal("expected AnonAdmin=true after SetAnonAdminMode(true)")
-	}
-
-	if err := SetAnonAdminMode(chatID, false); err != nil {
-		t.Fatalf("SetAnonAdminMode(false) error = %v", err)
-	}
-	settings = GetAdminSettings(chatID)
-	if settings.AnonAdmin {
-		t.Fatal("expected AnonAdmin=false after SetAnonAdminMode(false)")
-	}
-}
-
 func TestLoadAdminStats(t *testing.T) {
 	skipIfNoDb(t)
 

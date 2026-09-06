@@ -103,185 +103,234 @@ func skipIfNoDb(t *testing.T) {
 	}
 }
 
-func TestGetRules_Defaults(t *testing.T) {
+func TestRulesCRUD(t *testing.T) {
 	skipIfNoDb(t)
 
-	chatID := time.Now().UnixNano()
+	t.Run("defaults", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc == nil {
-		t.Fatal("expected non-nil RulesSettings")
-	}
-	if rulesrc.Rules != "" {
-		t.Fatalf("expected empty default Rules, got %q", rulesrc.Rules)
-	}
-	if rulesrc.Private {
-		t.Fatal("expected default Private=false")
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetRules_SetAndGet(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	const rulesText = "Be kind. No spam. Respect each other."
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-
-	SetChatRules(chatID, rulesText)
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc.Rules != rulesText {
-		t.Fatalf("expected rules %q, got %q", rulesText, rulesrc.Rules)
-	}
-}
-
-func TestSetRules_OverwriteWithNewValue(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-
-	SetChatRules(chatID, "original rules")
-	SetChatRules(chatID, "updated rules")
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc.Rules != "updated rules" {
-		t.Fatalf("expected rules %q after overwrite, got %q", "updated rules", rulesrc.Rules)
-	}
-}
-
-//nolint:dupl // Test functions intentionally similar for clarity
-func TestSetChatRulesButton_SetAndGet(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-	const buttonText = "View Rules"
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-
-	SetChatRulesButton(chatID, buttonText)
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc.RulesBtn != buttonText {
-		t.Fatalf("expected RulesBtn %q, got %q", buttonText, rulesrc.RulesBtn)
-	}
-}
-
-func TestTogglePrivateRules_ZeroValueBoolean(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-
-	SetPrivateRules(chatID, true)
-	rulesrc := GetChatRulesInfo(chatID)
-	if !rulesrc.Private {
-		t.Fatal("expected Private=true after SetPrivateRules(true)")
-	}
-
-	SetPrivateRules(chatID, false)
-	rulesrc = GetChatRulesInfo(chatID)
-	if rulesrc.Private {
-		t.Fatal("expected Private=false after SetPrivateRules(false)")
-	}
-}
-
-func TestSetPrivateRulesCreatesMissingSettings(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano() + 500
-
-	t.Cleanup(func() {
-		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error; err != nil {
-			t.Fatalf("cleanup RulesSettings failed: %v", err)
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
 		}
-		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
-			t.Fatalf("cleanup Chat failed: %v", err)
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc == nil {
+			t.Fatal("expected non-nil RulesSettings")
+		}
+		if rulesrc.Rules != "" {
+			t.Fatalf("expected empty default Rules, got %q", rulesrc.Rules)
+		}
+		if rulesrc.Private {
+			t.Fatal("expected default Private=false")
 		}
 	})
 
-	SetPrivateRules(chatID, true)
+	t.Run("set and get", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+		const rulesText = "Be kind. No spam. Respect each other."
 
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc == nil {
-		t.Fatal("GetChatRulesInfo() returned nil")
-	}
-	if !rulesrc.Private {
-		t.Fatal("Private = false, want true after setting missing rules row")
-	}
-}
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
 
-func TestGetRulesSettings_Defaults(t *testing.T) {
-	skipIfNoDb(t)
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
 
-	chatID := time.Now().UnixNano()
+		_ = GetChatRulesInfo(chatID)
 
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		SetChatRules(chatID, rulesText)
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc.Rules != rulesText {
+			t.Fatalf("expected rules %q, got %q", rulesText, rulesrc.Rules)
+		}
 	})
 
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
+	t.Run("overwrite", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
 
-	// GetChatRulesInfo is the public wrapper for checkRulesSetting
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc == nil {
-		t.Fatal("expected non-nil RulesSettings from GetChatRulesInfo")
-	}
-	if rulesrc.ChatId != chatID {
-		t.Fatalf("expected ChatId=%d, got %d", chatID, rulesrc.ChatId)
-	}
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		_ = GetChatRulesInfo(chatID)
+
+		SetChatRules(chatID, "original rules")
+		SetChatRules(chatID, "updated rules")
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc.Rules != "updated rules" {
+			t.Fatalf("expected rules %q after overwrite, got %q", "updated rules", rulesrc.Rules)
+		}
+	})
+
+	t.Run("button set and get", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+		const buttonText = "View Rules"
+
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		_ = GetChatRulesInfo(chatID)
+
+		SetChatRulesButton(chatID, buttonText)
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc.RulesBtn != buttonText {
+			t.Fatalf("expected RulesBtn %q, got %q", buttonText, rulesrc.RulesBtn)
+		}
+	})
+
+	t.Run("private toggle roundtrip", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		_ = GetChatRulesInfo(chatID)
+
+		SetPrivateRules(chatID, true)
+		rulesrc := GetChatRulesInfo(chatID)
+		if !rulesrc.Private {
+			t.Fatal("expected Private=true after SetPrivateRules(true)")
+		}
+
+		SetPrivateRules(chatID, false)
+		rulesrc = GetChatRulesInfo(chatID)
+		if rulesrc.Private {
+			t.Fatal("expected Private=false after SetPrivateRules(false)")
+		}
+	})
+
+	t.Run("private set creates missing row", func(t *testing.T) {
+		chatID := time.Now().UnixNano() + 500
+
+		t.Cleanup(func() {
+			if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error; err != nil {
+				t.Fatalf("cleanup RulesSettings failed: %v", err)
+			}
+			if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error; err != nil {
+				t.Fatalf("cleanup Chat failed: %v", err)
+			}
+		})
+
+		SetPrivateRules(chatID, true)
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc == nil {
+			t.Fatal("GetChatRulesInfo() returned nil")
+		}
+		if !rulesrc.Private {
+			t.Fatal("Private = false, want true after setting missing rules row")
+		}
+	})
+
+	t.Run("settings carry chat id", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		// GetChatRulesInfo is the public wrapper for checkRulesSetting
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc == nil {
+			t.Fatal("expected non-nil RulesSettings from GetChatRulesInfo")
+		}
+		if rulesrc.ChatId != chatID {
+			t.Fatalf("expected ChatId=%d, got %d", chatID, rulesrc.ChatId)
+		}
+	})
+
+	t.Run("empty string persists", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		_ = GetChatRulesInfo(chatID)
+
+		if err := SetChatRules(chatID, ""); err != nil {
+			t.Fatalf("SetChatRules(empty) error = %v", err)
+		}
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc == nil {
+			t.Fatal("GetChatRulesInfo() returned nil")
+		}
+		// Default empty string persists whether or not the call is a no-op
+		if rulesrc.Rules != "" {
+			t.Fatalf("expected Rules='', got %q", rulesrc.Rules)
+		}
+	})
+
+	t.Run("clear", func(t *testing.T) {
+		chatID := time.Now().UnixNano()
+
+		t.Cleanup(func() {
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
+			_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		})
+
+		if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+			t.Fatalf("EnsureChatInDb() error = %v", err)
+		}
+
+		_ = GetChatRulesInfo(chatID)
+		SetChatRules(chatID, "Some rules text")
+
+		rulesrc := GetChatRulesInfo(chatID)
+		if rulesrc.Rules != "Some rules text" {
+			t.Fatalf("expected 'Some rules text', got %q", rulesrc.Rules)
+		}
+
+		if err := SetChatRules(chatID, ""); err != nil {
+			t.Fatalf("SetChatRules(clear) error = %v", err)
+		}
+
+		rulesrc = GetChatRulesInfo(chatID)
+		if rulesrc == nil {
+			t.Fatal("GetChatRulesInfo() returned nil after clearing")
+		}
+		if rulesrc.Rules != "" {
+			t.Fatalf("expected empty rules after clear, got %q", rulesrc.Rules)
+		}
+	})
 }
 
 func TestLoadRulesStats(t *testing.T) {
@@ -293,98 +342,6 @@ func TestLoadRulesStats(t *testing.T) {
 	}
 	if pvtRules < 0 {
 		t.Fatalf("expected non-negative pvtRules, got %d", pvtRules)
-	}
-}
-
-func TestLoadRulesStats_ReflectsNewEntries(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-	SetChatRules(chatID, "test rules for stat counting")
-	SetPrivateRules(chatID, true)
-
-	setRules, pvtRules := LoadRulesStats()
-	if setRules < 1 {
-		t.Fatalf("expected at least 1 chat with rules set, got %d", setRules)
-	}
-	if pvtRules < 1 {
-		t.Fatalf("expected at least 1 chat with private rules enabled, got %d", pvtRules)
-	}
-}
-
-func TestSetRules_EmptyString(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-
-	if err := SetChatRules(chatID, ""); err != nil {
-		t.Fatalf("SetChatRules(empty) error = %v", err)
-	}
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc == nil {
-		t.Fatal("GetChatRulesInfo() returned nil")
-	}
-	// Default empty string persists whether or not the call is a no-op
-	if rulesrc.Rules != "" {
-		t.Fatalf("expected Rules='', got %q", rulesrc.Rules)
-	}
-}
-
-func TestClearRules(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.RulesSettings{}).Error
-		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
-	})
-
-	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
-		t.Fatalf("EnsureChatInDb() error = %v", err)
-	}
-
-	_ = GetChatRulesInfo(chatID)
-	SetChatRules(chatID, "Some rules text")
-
-	rulesrc := GetChatRulesInfo(chatID)
-	if rulesrc.Rules != "Some rules text" {
-		t.Fatalf("expected 'Some rules text', got %q", rulesrc.Rules)
-	}
-
-	if err := SetChatRules(chatID, ""); err != nil {
-		t.Fatalf("SetChatRules(clear) error = %v", err)
-	}
-
-	rulesrc = GetChatRulesInfo(chatID)
-	if rulesrc == nil {
-		t.Fatal("GetChatRulesInfo() returned nil after clearing")
-	}
-	if rulesrc.Rules != "" {
-		t.Fatalf("expected empty rules after clear, got %q", rulesrc.Rules)
 	}
 }
 

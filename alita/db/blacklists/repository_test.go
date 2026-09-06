@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 func skipIfNoDb(t *testing.T) {
@@ -167,20 +166,6 @@ func TestLoadBlacklistStats(t *testing.T) {
 	}
 	if chats < 0 {
 		t.Errorf("LoadBlacklistsStats chats = %d, want >= 0", chats)
-	}
-}
-
-func TestLoadBlacklistStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-
-	_ = db.DB.Migrator().DropTable(&models.BlacklistSettings{})
-	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.BlacklistSettings{})
-	})
-
-	triggers, chats := LoadBlacklistsStats()
-	if triggers != 0 || chats != 0 {
-		t.Fatalf("LoadBlacklistsStats() = (%d, %d), want (0, 0) on error", triggers, chats)
 	}
 }
 

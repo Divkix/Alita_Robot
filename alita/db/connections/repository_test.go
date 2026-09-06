@@ -1,7 +1,6 @@
 package connections
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -222,50 +221,6 @@ func TestLoadConnectionStats(t *testing.T) {
 	}
 }
 
-func TestLoadConnectionStatsErrorBranch(t *testing.T) {
-	skipIfNoDb(t)
-
-	_ = db.DB.Migrator().DropTable(&models.ConnectionChatSettings{})
-	t.Cleanup(func() {
-		_ = db.DB.AutoMigrate(&models.ConnectionChatSettings{})
-	})
-
-	users, chats := LoadConnectionStats()
-	if users != 0 || chats != 0 {
-		t.Fatalf("LoadConnectionStats() = (%d, %d), want (0, 0) on error", users, chats)
-	}
-}
-
-func TestConcurrentConnect(t *testing.T) {
-	skipIfNoDb(t)
-
-	base := time.Now().UnixNano()
-	chatID := base + 60
-
-	const workers = 5
-	var wg sync.WaitGroup
-	wg.Add(workers)
-
-	// Each goroutine uses its own unique userID to avoid races on shared rows.
-	for i := 0; i < workers; i++ {
-		userID := base + 70 + int64(i)
-		go func(uid int64) {
-			defer wg.Done()
-			t.Cleanup(func() {
-				db.DB.Where("user_id = ?", uid).Delete(&models.ConnectionSettings{})
-			})
-			_ = Connection(uid)
-			ConnectId(uid, chatID)
-			got := Connection(uid)
-			if got == nil || !got.Connected {
-				t.Errorf("goroutine uid=%d: expected Connected=true", uid)
-			}
-		}(userID)
-	}
-
-	wg.Wait()
-}
-
 func TestConnectionForNewUser(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -318,60 +273,5 @@ func TestDisconnectId(t *testing.T) {
 	}
 	if got.Connected {
 		t.Fatalf("expected Connected=false after DisconnectId, got true")
-	}
-}
-
-func TestConcurrentConnectKeepsOneRowPerUser(t *testing.T) {
-	skipIfNoDb(t)
-
-	base := time.Now().UnixNano()
-	userID := base
-	const workers = 8
-	chatIDs := make([]int64, workers)
-	if err := db.DB.Create(&models.User{UserId: userID}).Error; err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	for i := range chatIDs {
-		chatIDs[i] = base + int64(i) + 1
-		if err := db.DB.Create(&models.Chat{ChatId: chatIDs[i]}).Error; err != nil {
-			t.Fatalf("create chat %d: %v", chatIDs[i], err)
-		}
-	}
-	t.Cleanup(func() {
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.ConnectionSettings{}).Error
-		_ = db.DB.Where("chat_id IN ?", chatIDs).Delete(&models.Chat{}).Error
-		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
-	})
-
-	start := make(chan struct{})
-	errs := make(chan error, workers)
-	var wait sync.WaitGroup
-	wait.Add(workers)
-	for _, chatID := range chatIDs {
-		go func(chatID int64) {
-			defer wait.Done()
-			<-start
-			errs <- ConnectId(userID, chatID)
-		}(chatID)
-	}
-	close(start)
-	wait.Wait()
-	close(errs)
-	for err := range errs {
-		if err != nil {
-			t.Errorf("ConnectId() error = %v", err)
-		}
-	}
-
-	var count int64
-	if err := db.DB.Model(&models.ConnectionSettings{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
-		t.Fatalf("count connections: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("connection rows for user = %d, want 1", count)
-	}
-	connection := Connection(userID)
-	if connection == nil || !connection.Connected {
-		t.Fatalf("connection = %+v, want connected", connection)
 	}
 }

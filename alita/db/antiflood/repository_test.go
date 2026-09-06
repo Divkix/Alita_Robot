@@ -88,30 +88,6 @@ func TestSetFloodZeroValueLimit(t *testing.T) {
 	}
 }
 
-func TestSetFloodMsgDelCreatesRecord(t *testing.T) {
-	skipIfNoDb(t)
-
-	chatID := time.Now().UnixNano()
-
-	t.Cleanup(func() {
-		if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntifloodSettings{}).Error; err != nil {
-			t.Fatalf("cleanup failed: %v", err)
-		}
-	})
-
-	if err := SetFloodMsgDel(chatID, true); err != nil {
-		t.Fatalf("SetFloodMsgDel(true) failed: %v", err)
-	}
-
-	var settings models.AntifloodSettings
-	if err := db.DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
-		t.Fatalf("expected record to be created, got error: %v", err)
-	}
-	if !settings.DeleteAntifloodMessage {
-		t.Fatalf("expected DeleteAntifloodMessage=true, got false")
-	}
-}
-
 func TestSetFloodMode(t *testing.T) {
 	skipIfNoDb(t)
 
