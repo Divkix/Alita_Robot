@@ -145,7 +145,9 @@ func TestRulesCRUD(t *testing.T) {
 
 		_ = GetChatRulesInfo(chatID)
 
-		SetChatRules(chatID, rulesText)
+		if err := SetChatRules(chatID, rulesText); err != nil {
+			t.Fatalf("SetChatRules() error = %v", err)
+		}
 
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc.Rules != rulesText {
@@ -167,8 +169,12 @@ func TestRulesCRUD(t *testing.T) {
 
 		_ = GetChatRulesInfo(chatID)
 
-		SetChatRules(chatID, "original rules")
-		SetChatRules(chatID, "updated rules")
+		if err := SetChatRules(chatID, "original rules"); err != nil {
+			t.Fatalf("SetChatRules() error = %v", err)
+		}
+		if err := SetChatRules(chatID, "updated rules"); err != nil {
+			t.Fatalf("SetChatRules() error = %v", err)
+		}
 
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc.Rules != "updated rules" {
@@ -191,7 +197,9 @@ func TestRulesCRUD(t *testing.T) {
 
 		_ = GetChatRulesInfo(chatID)
 
-		SetChatRulesButton(chatID, buttonText)
+		if err := SetChatRulesButton(chatID, buttonText); err != nil {
+			t.Fatalf("SetChatRulesButton() error = %v", err)
+		}
 
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc.RulesBtn != buttonText {
@@ -213,13 +221,17 @@ func TestRulesCRUD(t *testing.T) {
 
 		_ = GetChatRulesInfo(chatID)
 
-		SetPrivateRules(chatID, true)
+		if err := SetPrivateRules(chatID, true); err != nil {
+			t.Fatalf("SetPrivateRules(true) error = %v", err)
+		}
 		rulesrc := GetChatRulesInfo(chatID)
 		if !rulesrc.Private {
 			t.Fatal("expected Private=true after SetPrivateRules(true)")
 		}
 
-		SetPrivateRules(chatID, false)
+		if err := SetPrivateRules(chatID, false); err != nil {
+			t.Fatalf("SetPrivateRules(false) error = %v", err)
+		}
 		rulesrc = GetChatRulesInfo(chatID)
 		if rulesrc.Private {
 			t.Fatal("expected Private=false after SetPrivateRules(false)")
@@ -238,7 +250,9 @@ func TestRulesCRUD(t *testing.T) {
 			}
 		})
 
-		SetPrivateRules(chatID, true)
+		if err := SetPrivateRules(chatID, true); err != nil {
+			t.Fatalf("SetPrivateRules() error = %v", err)
+		}
 
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc == nil {
@@ -312,7 +326,9 @@ func TestRulesCRUD(t *testing.T) {
 		}
 
 		_ = GetChatRulesInfo(chatID)
-		SetChatRules(chatID, "Some rules text")
+		if err := SetChatRules(chatID, "Some rules text"); err != nil {
+			t.Fatalf("SetChatRules() error = %v", err)
+		}
 
 		rulesrc := GetChatRulesInfo(chatID)
 		if rulesrc.Rules != "Some rules text" {
