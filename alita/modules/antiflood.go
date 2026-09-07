@@ -251,8 +251,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
 	var (
 		fmode    string
 		keyboard [][]gotgbot.InlineKeyboardButton
@@ -272,6 +270,9 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !flooded {
 		return ext.ContinueGroups
 	}
+
+	// Translator is only needed for punishment replies; keep it off the fast path.
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if flood.Action == "mute" || flood.Action == "kick" || flood.Action == "ban" {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {

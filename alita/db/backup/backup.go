@@ -745,7 +745,7 @@ func importNotes(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 	if err := replaceChatRows(tx, chatID, data.Notes); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("notes_settings", chatID)}, nil
+	return []string{cacheKey("notes_settings", chatID), cacheKey("notes_list", chatID)}, nil
 }
 
 func importPins(tx *gorm.DB, chatID int64, payload interface{}) ([]string, error) {
@@ -1030,7 +1030,7 @@ func clearNotes(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := replaceChatSetting(tx, chatID, &models.NotesSettings{ChatId: chatID}); err != nil {
 		return nil, err
 	}
-	return []string{cacheKey("notes_settings", chatID)}, replaceChatRows[models.Notes](tx, chatID, nil)
+	return []string{cacheKey("notes_settings", chatID), cacheKey("notes_list", chatID)}, replaceChatRows[models.Notes](tx, chatID, nil)
 }
 
 func clearPins(tx *gorm.DB, chatID int64) ([]string, error) {

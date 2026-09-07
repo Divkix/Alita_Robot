@@ -60,16 +60,9 @@ func (m *MigrationRunner) RunMigrations() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
-	var appliedCount int64
-	if err := m.db.Model(&SchemaMigration{}).Count(&appliedCount).Error; err != nil {
-		return fmt.Errorf("failed to count applied migrations: %w", err)
-	}
-	if appliedCount == int64(len(files)) {
-		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
-		m.logMigrationStatus()
-		return nil
-	}
-
+	// No count-only shortcut: every file must be checked by name and checksum
+	// so tampered or swapped migrations are detected even when the total count
+	// already matches the number of applied rows.
 	applied := 0
 	skipped := 0
 
