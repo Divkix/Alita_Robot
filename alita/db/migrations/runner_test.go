@@ -1136,3 +1136,92 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 }
 
 func timeNow() time.Time { return time.Now().UTC() }
+
+func isolatedMigrationDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	skipIfNoDb(t)
+	tx := getTestDB().Begin()
+	if tx.Error != nil {
+		t.Fatal(tx.Error)
+	}
+	t.Cleanup(func() { _ = tx.Rollback().Error })
+	if err := (&MigrationRunner{db: tx}).ensureMigrationsTable(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Exec("DELETE FROM schema_migrations").Error; err != nil {
+		t.Fatal(err)
+	}
+	return tx
+}
+
+func TestRunMigrationsDetectsTamperedFileAfterFullApply(t *testing.T) {
+	database := isolatedMigrationDB(t)
+
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	dir := t.TempDir()
+	version := "903_tamper_after_apply.sql"
+	migrationPath := filepath.Join(dir, version)
+	original := []byte(`CREATE TABLE migration_tamper_after_apply_test (id INTEGER PRIMARY KEY);`)
+	if err := os.WriteFile(migrationPath, original, 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: database, migrationsPath: dir}
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() first run error = %v", err)
+	}
+
+	// Tamper after the DB is fully applied: file count still matches the
+	// applied-row count, so a count-only shortcut would miss this.
+	tampered := append(append([]byte(nil), original...), []byte("\n-- tampered after apply")...)
+	if err := os.WriteFile(migrationPath, tampered, 0o600); err != nil {
+		t.Fatalf("failed to tamper migration file: %v", err)
+	}
+
+	err := runner.RunMigrations()
+	if err == nil {
+		t.Fatal("RunMigrations() after tamper error = nil, want checksum mismatch error")
+	}
+	if !strings.Contains(err.Error(), "checksum mismatch") {
+		t.Errorf("RunMigrations() error = %q, want it to mention 'checksum mismatch'", err)
+	}
+}
+
+func TestRunMigrationsAppliesSwappedFileAtSameCount(t *testing.T) {
+	database := isolatedMigrationDB(t)
+
+	dir := t.TempDir()
+	versionA := "904_swap_a.sql"
+	versionB := "904_swap_b.sql"
+	if err := os.WriteFile(filepath.Join(dir, versionA),
+		[]byte(`CREATE TABLE migration_swap_a_test (id INTEGER PRIMARY KEY);`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: database, migrationsPath: dir}
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() first run error = %v", err)
+	}
+
+	// Swap identity at the same file count: a count-only shortcut skips this.
+	if err := os.Remove(filepath.Join(dir, versionA)); err != nil {
+		t.Fatalf("failed to remove migration file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, versionB),
+		[]byte(`CREATE TABLE migration_swap_b_test (id INTEGER PRIMARY KEY);`), 0o600); err != nil {
+		t.Fatalf("failed to write replacement migration file: %v", err)
+	}
+
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() after swap error = %v", err)
+	}
+	if !migrationApplied(t, runner, versionB) {
+		t.Fatalf("swapped migration %s was not applied", versionB)
+	}
+	if !database.Migrator().HasTable("migration_swap_b_test") {
+		t.Fatal("migration_swap_b_test table missing after RunMigrations")
+	}
+}

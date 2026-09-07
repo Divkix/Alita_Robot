@@ -18,9 +18,11 @@ func DisableCMD(chatID int64, cmd string) error {
 		Disabled: true,
 	}
 
+	// Backup imports preserve disabled=false rows, so a conflicting row must be
+	// flipped to true instead of ignored (mirrors locks.UpdateLock).
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}, {Name: "command"}},
-		DoNothing: true,
+		DoUpdates: clause.AssignmentColumns([]string{"disabled"}),
 	}).Create(disableSetting).Error
 	if err != nil {
 		log.Errorf("[Database][DisableCMD]: %v", err)

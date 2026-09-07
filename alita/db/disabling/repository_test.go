@@ -195,8 +195,8 @@ func TestDisableSameCommandTwice(t *testing.T) {
 		db.DB.Where("chat_id = ? AND command = ?", chatID, cmd).Delete(&models.DisableSettings{})
 	})
 
-	// Disable "start" twice -- DisableCMD uses ON CONFLICT DO NOTHING, so the
-	// second call is a no-op (no duplicate row, no error). The important
+	// Disable "start" twice -- DisableCMD uses ON CONFLICT DO UPDATE, so the
+	// second call is idempotent (no duplicate row, no error). The important
 	// invariant is that IsCommandDisabled returns true and exactly one row
 	// exists in the list.
 	if err := DisableCMD(chatID, cmd); err != nil {
