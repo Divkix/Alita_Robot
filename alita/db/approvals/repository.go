@@ -1,10 +1,13 @@
 package approvals
 
 import (
+	"context"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
 )
 
 func AddApprovedUser(chatID, userID, approvedBy int64, reason string) error {
@@ -35,10 +38,14 @@ func IsUserApproved(chatID, userID int64) bool {
 }
 
 func GetApprovedUsers(chatID int64) []*models.ApprovedUsers {
+	return GetApprovedUsersContext(context.Background(), chatID)
+}
+
+func GetApprovedUsersContext(ctx context.Context, chatID int64) []*models.ApprovedUsers {
 	cacheKey := cache.CacheKey("approvals", chatID)
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLApprovals, func() ([]*models.ApprovedUsers, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLApprovals, func(ctx context.Context) ([]*models.ApprovedUsers, error) {
 		var users []*models.ApprovedUsers
-		err := db.GetRecords(&users, models.ApprovedUsers{ChatID: chatID})
+		err := db.GetRecordsContext(ctx, &users, models.ApprovedUsers{ChatID: chatID})
 		if err != nil {
 			log.Errorf("[Database] GetApprovedUsers: %v - chat:%d", err, chatID)
 			return nil, err

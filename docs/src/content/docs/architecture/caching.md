@@ -7,62 +7,9 @@ Alita Robot uses Redis as its caching layer to reduce database load and improve 
 
 ## Cache Configuration
 
-The cache is initialized in `alita/utils/cache/cache.go`:
+`alita/utils/cache/cache.go` initializes Redis with connection retries and exposes a nil-safe marshaler. `alita/db/cache/` provides keys, TTLs, shared database loads, and invalidation.
 
-```go
-package cache
-
-import (
-    "context"
-
-    "github.com/eko/gocache/lib/v4/cache"
-    "github.com/eko/gocache/lib/v4/marshaler"
-    redis_store "github.com/eko/gocache/store/redis/v4"
-    "github.com/redis/go-redis/v9"
-)
-
-var (
-    Context     = context.Background()
-    marshal     *marshaler.Marshaler  // unexported
-    Manager     *cache.Cache[any]
-    redisClient *redis.Client
-)
-
-func InitCache() error {
-    // Initialize Redis client
-    redisClient = redis.NewClient(&redis.Options{
-        Addr:     config.AppConfig.RedisAddress,
-        Password: config.AppConfig.RedisPassword,
-        DB:       config.AppConfig.RedisDB,
-    })
-
-    // Test connection with retry logic
-    maxRetries := 5
-    for attempt := 0; attempt < maxRetries; attempt++ {
-        if err := redisClient.Ping(Context).Err(); err == nil {
-            break
-        }
-        time.Sleep(time.Duration(1<<attempt) * time.Second)  // Exponential backoff
-    }
-
-    // Clear cache on startup if configured
-    if config.AppConfig.ClearCacheOnStartup {
-        ClearAllCaches()
-    }
-
-    // Initialize cache manager
-    redisStore := redis_store.NewRedis(redisClient)
-    cacheManager := cache.New[any](redisStore)
-    SetMarshal(marshaler.New(cacheManager))
-    Manager = cacheManager
-
-    return nil
-}
-```
-
-:::note[Connection retry]
-The cache initialization uses exponential backoff (1s, 2s, 4s, 8s, 16s) for Redis connection retries. This handles transient network issues during startup, particularly in containerized environments where Redis may not be immediately available.
-:::
+`REDIS_URL` supports credentials in the URL; `REDIS_PASSWORD` overrides the password. `REDIS_ADDRESS` selects a direct address. `REDIS_DB` defaults to 1 and accepts an explicit 0. See the [environment reference](/api-reference/environment/) for configuration.
 
 ## TTL Values
 
@@ -84,24 +31,6 @@ Cache Time-To-Live (TTL) values are defined in `alita/db/cache/ttl.go`:
 | `CacheTTLApprovals` | 30 minutes | Approved users list |
 | `CacheTTLCaptchaSettings` | 30 minutes | Captcha verification settings |
 
-```go
-const (
-    CacheTTLChatSettings    = 30 * time.Minute
-    CacheTTLLanguage        = 1 * time.Hour
-    CacheTTLFilterList      = 30 * time.Minute
-    CacheTTLBlacklist       = 30 * time.Minute
-    CacheTTLGreetings       = 30 * time.Minute
-    CacheTTLNotesList       = 30 * time.Minute
-    CacheTTLNotesSettings   = 30 * time.Minute
-    CacheTTLWarnSettings    = 30 * time.Minute
-    CacheTTLAntiflood       = 30 * time.Minute
-    CacheTTLDisabledCmds    = 30 * time.Minute
-    CacheTTLAntiRaid        = 30 * time.Minute
-    CacheTTLApprovals       = 30 * time.Minute
-    CacheTTLCaptchaSettings = 30 * time.Minute
-)
-```
-
 :::tip[TTL selection strategy]
 Choose TTL based on how frequently data changes:
 - **Rarely changed** (language preferences): 1 hour
@@ -112,28 +41,28 @@ Choose TTL based on how frequently data changes:
 
 ## Key Patterns
 
-All cache keys use the `alita:` prefix for namespace isolation:
+Disposable snapshots use `alita:cache:`. Operational state uses its existing `alita:` domain keys:
 
 | Key Pattern | Description |
 |-------------|-------------|
-| `alita:chat_settings:{chatId}` | Legacy invalidation target only — settings are read via `alita:chat:{chatId}` |
-| `alita:user_lang:{userId}` | User language preference |
-| `alita:chat_lang:{chatId}` | Chat language preference |
-| `alita:filter_list:{chatId}` | List of filters for chat |
-| `alita:blacklist:{chatId}` | Blacklist settings |
-| `alita:warn_settings:{chatId}` | Warning settings |
-| `alita:disabled_cmds:{chatId}` | Disabled commands |
+| `alita:cache:chat_settings:{chatId}` | Legacy invalidation target only — settings are read via `alita:cache:chat:{chatId}` |
+| `alita:cache:user_lang:{userId}` | User language preference |
+| `alita:cache:chat_lang:{chatId}` | Chat language preference |
+| `alita:cache:filter_list:{chatId}` | List of filters for chat |
+| `alita:cache:blacklist:{chatId}` | Blacklist settings |
+| `alita:cache:warn_settings:{chatId}` | Warning settings |
+| `alita:cache:disabled_cmds:{chatId}` | Disabled commands |
 | `alita:anonAdmin:{chatId}:{msgId}` | Anonymous admin verification (20s TTL) |
-| `alita:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
-| `alita:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
-| `alita:approvals:{chatId}` | Approved users list (30 min TTL) |
-| `alita:antiraid:state:{chatId}` | Live anti-raid state (TTL covers the requested raid expiry, capped at 24h) |
+| `alita:cache:adminCache:{chatId}` | Cached admin list for a chat (30min TTL) |
+| `alita:cache:captcha_settings:{chatId}` | Captcha settings (30 min TTL) |
+| `alita:cache:approvals:{chatId}` | Approved users list (30 min TTL) |
+| `alita:antiraid:state:{chatId}` | Live anti-raid state (TTL covers the requested raid expiry plus one polling interval) |
 | `alita:antiraid:joins:{chatId}` | Anti-raid join tracking (60s counting window) |
-| `alita:locks_map:{chatId}` | Lock status (1 hour TTL, from optimized queries) |
-| `alita:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |
-| `alita:chat:{chatId}` | Chat basic info (30 min TTL, from optimized queries) |
-| `alita:antiflood:{chatId}` | Antiflood settings (30 min TTL, from optimized queries) |
-| `alita:channel:{chatId}` | Channel settings (30 min TTL, from optimized queries) |
+| `alita:cache:locks_map:{chatId}` | Lock status (1 hour TTL, from optimized queries) |
+| `alita:cache:user:{userId}` | User basic info (1 hour TTL, from optimized queries) |
+| `alita:cache:chat:{chatId}` | Chat basic info (30 min TTL, from optimized queries) |
+| `alita:cache:antiflood:{chatId}` | Antiflood settings (30 min TTL, from optimized queries) |
+| `alita:cache:channel:{chatId}` | Channel settings (30 min TTL, from optimized queries) |
 
 ### Anonymous Admin Verification Flow
 
@@ -165,132 +94,23 @@ _, err := cache.GetMarshal().Get(
 The anonymous admin verification window is intentionally short. If the admin does not click the verification button within 20 seconds, the cached message expires and the command is silently dropped. This prevents stale command executions and reduces cache memory usage.
 :::
 
-### Key Generator Functions
-
-```go
-func chatSettingsCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:chat_settings:%d", chatID)
-}
-
-func userLanguageCacheKey(userID int64) string {
-    return fmt.Sprintf("alita:user_lang:%d", userID)
-}
-
-func chatLanguageCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:chat_lang:%d", chatID)
-}
-
-func filterListCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:filter_list:%d", chatID)
-}
-
-func blacklistCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:blacklist:%d", chatID)
-}
-
-func warnSettingsCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:warn_settings:%d", chatID)
-}
-
-func disabledCommandsCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:disabled_cmds:%d", chatID)
-}
-
-func captchaSettingsCacheKey(chatID int64) string {
-    return fmt.Sprintf("alita:captcha_settings:%d", chatID)
-}
-```
+Generate database cache keys with `cache.CacheKey("domain", id, ...)` from `alita/db/cache`. The domain must match the corresponding writer's invalidation key; package names and cache domains sometimes differ.
 
 ## Stampede Protection
 
-The cache uses singleflight to prevent cache stampede (thundering herd problem):
+`alita/db/cache.GetFromCacheOrLoad(ctx, key, ttl, loader)` shares one database load among concurrent callers for the same key. Each caller keeps its own cancellation and deadline. The shared query has a 30-second deadline and is canceled when its last waiting caller leaves.
+
+The loader receives a `context.Context`; pass it to `DB.WithContext(ctx)` or the context-aware database wrappers. A cache read failure falls through to the loader once. Loader failures propagate to the caller, without a second database query. Failed or canceled loads are not cached. Invalidation prevents an older load from repopulating a stale value.
 
 ```go
-import "golang.org/x/sync/singleflight"
-
-var cacheGroup singleflight.Group
-
-func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
-    var result T
-
-    m := cache.GetMarshal()
-    if m == nil {
-        return loader()  // Cache not initialized
-    }
-
-    // Try cache first
-    _, err := m.Get(cache.Context, key, &result)
-    if err == nil {
-        return result, nil  // Cache hit
-    }
-
-    // Cache miss - use singleflight with timeout
-    resCh := make(chan struct {
-        val T
-        err error
-    }, 1)
-
-    go func() {
-        defer error_handling.RecoverFromPanic("cache", "GetFromCacheOrLoad")
-
-        // Only ONE goroutine executes this, others wait
-        v, err, shared := cacheGroup.Do(key, func() (interface{}, error) {
-            val, err := loader()
-            if err != nil {
-                return nil, err
-            }
-            if err := m.Set(cache.Context, key, val, store.WithExpiration(ttl)); err != nil {
-                log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
-            }
-            return val, nil
-        })
-
-        if shared {
-            log.Debugf("[Cache] Shared cache load for key: %s", key)
-        }
-
-        if err != nil {
-            resCh <- struct {
-                val T
-                err error
-            }{result, err}
-            return
-        }
-
-        resCh <- struct {
-            val T
-            err error
-        }{v.(T), nil}
-    }()
-
-    select {
-    case res := <-resCh:
-        return res.val, res.err
-    case <-time.After(30 * time.Second):
-        cacheGroup.Forget(key)  // Cleanup on timeout
-        log.Errorf("[Cache] Timeout loading key %s after 30s", key)
-        return result, fmt.Errorf("cache load timeout for key %s", key)
-    }
-}
+return cache.GetFromCacheOrLoad(ctx, cache.CacheKey("settings", chatID), time.Minute,
+    func(ctx context.Context) (*Settings, error) {
+        var settings Settings
+        err := database.WithContext(ctx).Where("chat_id = ?", chatID).First(&settings).Error
+        return &settings, err
+    },
+)
 ```
-
-:::tip[Singleflight explained]
-Without singleflight, if a cache key expires and 100 concurrent requests need that key, all 100 would hit the database simultaneously. With singleflight, only 1 request executes the database query while the other 99 wait and share the result. This is the primary defense against cache stampede.
-:::
-
-### How Singleflight Works
-
-```
-Request 1  ──┐
-Request 2  ──┼──> singleflight.Do(key) ──> loader() ──> result
-Request 3  ──┘                                  │
-                                                │
-                  All requests get same result <┘
-```
-
-Without singleflight, if cache expires and 100 requests arrive simultaneously:
-- **Bad**: 100 database queries
-- **Good**: 1 database query, 99 requests wait and share result
 
 ## Cache Invalidation
 
@@ -298,251 +118,33 @@ Without singleflight, if cache expires and 100 requests arrive simultaneously:
 Every database write function that modifies cached data MUST call the corresponding cache invalidation function. Missing invalidation is the most common caching bug and causes users to see stale data for up to the TTL duration (30 minutes to 1 hour).
 :::
 
-When data changes, invalidate the cache:
+After a successful write, call `cache.DeleteCache(cache.CacheKey("domain", id))` from `alita/db/cache`. This detaches older pending loads and prevents them from storing stale data. Direct marshaler deletion bypasses that protection.
 
-```go
-func deleteCache(key string) {
-    m := cache.GetMarshal()
-    if m == nil {
-        return
-    }
-
-    err := m.Delete(cache.Context, key)
-    if err != nil {
-        log.Debugf("[Cache] Failed to delete cache for key %s: %v", key, err)
-    }
-}
-```
-
-### Example: Updating Chat Settings
-
-```go
-func SetChatSettings(chatID int64, settings ChatSettings) error {
-    // Update database
-    tx := db.Session(&gorm.Session{}).Where("chat_id = ?", chatID).
-        Assign(settings).FirstOrCreate(&settings)
-    if tx.Error != nil {
-        return tx.Error
-    }
-
-    // Invalidate cache - IMPORTANT!
-    deleteCache(chatSettingsCacheKey(chatID))
-
-    return nil
-}
-```
+Invalidate every affected representation. For example, filter writes invalidate both `filter_list` and `filters_optimized`; language writes invalidate the language key and the associated chat or user snapshot.
 
 ## Admin Cache
 
-Admin lists are cached specially for performance:
+`alita/utils/cache/adminCache.go` verifies the bot's status before fetching administrators with `ReturnBots: true`. Concurrent lookups share one Telegram request. Results are stored synchronously and include a user-ID map for permission checks.
 
-```go
-type AdminCache struct {
-    ChatId   int64
-    UserInfo []gotgbot.MergedChatMember
-    UserMap  map[int64]gotgbot.MergedChatMember // O(1) lookup map
-    Cached   bool
-}
+`BotUpdates` invalidates permissions for both `ChatMember` and `MyChatMember` events involving an administrator or creator, including permission edits that keep the same status. Invalidation detaches pending requests and prevents a delayed response from restoring old permissions. Promotion, demotion, and manual clearing use the same invalidation path.
 
-// LoadAdminCache fetches and caches admin list (simplified)
-func LoadAdminCache(b *gotgbot.Bot, chatID int64) AdminCache {
-    // Fetch from Telegram API
-    admins, err := b.GetChatAdministrators(chatID, nil)
-    if err != nil {
-        return AdminCache{ChatId: chatID, Cached: false}
-    }
-
-    // Build cache
-    var memberList []gotgbot.MergedChatMember
-    userMap := make(map[int64]gotgbot.MergedChatMember, len(admins))
-    for _, admin := range admins {
-        merged := admin.MergeChatMember()
-        memberList = append(memberList, merged)
-        user := admin.GetUser()
-        if user.Id != 0 {
-            userMap[user.Id] = merged
-        }
-    }
-
-    adminCache := AdminCache{
-        ChatId:   chatID,
-        UserInfo: memberList,
-        UserMap:  userMap,
-        Cached:   true,
-    }
-
-    // Store in Redis via cache.GetMarshal().Set
-    cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:adminCache:%d", chatID),
-        adminCache, store.WithExpiration(30*time.Minute))
-
-    return adminCache
-}
-```
-
-:::note[Admin cache robustness]
-The actual implementation includes additional robustness features: bot admin verification before API calls, retry logic with exponential backoff, background cache storage with panic recovery, and graceful handling of non-admin bots.
-:::
-
-### Admin Cache Lookup
-
-```go
-func GetAdminCacheUser(chatID int64, userID int64) (bool, gotgbot.MergedChatMember) {
-    found, adminCache := GetAdminCacheList(chatID)
-    if !found || !adminCache.Cached {
-        return false, gotgbot.MergedChatMember{}
-    }
-
-    for _, member := range adminCache.UserInfo {
-        if member.User.Id == userID {
-            return true, member
-        }
-    }
-
-    return false, gotgbot.MergedChatMember{}
-}
-```
+Use `InvalidateAdminCache(chatID)` from `alita/utils/cache` for event handling, or `ClearAdminCache(chatID)` when the caller needs to report a deletion error.
 
 ## CLEAR_CACHE_ON_STARTUP
 
-The `CLEAR_CACHE_ON_STARTUP` environment variable controls cache clearing:
+`CLEAR_CACHE_ON_STARTUP` defaults to `false`. Normal restarts preserve cached data to avoid a burst of database queries.
 
-```go
-if config.AppConfig.ClearCacheOnStartup {
-    ClearAllCaches()
-}
+When explicitly enabled, `ClearAllCaches` uses Redis `SCAN` and `UNLINK` to remove only `alita:cache:*` entries. Anti-raid state, join tracking, pending confirmations, and unrelated application keys remain intact. Use this option when cached data needs to be rebuilt after a format change.
 
-func ClearAllCaches() error {
-    if redisClient == nil {
-        return fmt.Errorf("redis client not initialized")
-    }
+Old cache keys from versions predating the `alita:cache:` namespace expire through their existing TTLs. Deployments should finish replacing the old version before relying on invalidation across instances, because older instances still use the old cache keys.
 
-    log.Info("[Cache] Clearing all caches using FLUSHDB...")
+## Database Errors and Deadlines
 
-    // FLUSHDB clears all keys in current database
-    if err := redisClient.FlushDB(Context).Err(); err != nil {
-        return fmt.Errorf("failed to flush database: %w", err)
-    }
+A missing settings row may use documented defaults. A database outage is an error: return it from loaders and setters so handlers can report that a change could not be saved. Do not cache outage defaults or announce success from an equality check against them.
 
-    log.Info("[Cache] Successfully cleared all cache entries")
-    return nil
-}
-```
+Handlers obtain their context with `tracing.UpdateContext(ctx)` and pass it to context-aware repositories. Polling and webhook updates carry a 30-second context deadline. Database calls using that context stop when it expires; code that ignores the context must still finish on its own. Webhook shutdown drains accepted work, then cancels remaining update contexts if the shutdown deadline expires.
 
-:::caution[FLUSHDB is destructive]
-`CLEAR_CACHE_ON_STARTUP` triggers `FLUSHDB`, which wipes ALL keys in the Redis database. If other applications share the same Redis instance and database number, their data will be destroyed. Always use a dedicated Redis database number for the bot.
-:::
-
-**When to enable:**
-- After schema changes
-- When debugging cache issues
-- After significant code changes affecting cached data
-
-**When to disable (production):**
-- Normal operations
-- To preserve cache across restarts
-- To reduce database load during deployment
-
-## Best Practices
-
-### 1. Always Invalidate on Updates
-
-:::caution
-This is the single most important caching rule. Forgetting to invalidate causes stale data bugs that are difficult to diagnose because they only manifest intermittently (depending on TTL timing).
-:::
-
-```go
-// BAD - Cache becomes stale
-func UpdateSettings(chatID int64, settings Settings) {
-    db.Save(&settings)
-    // Missing cache invalidation!
-}
-
-// GOOD - Cache stays consistent
-func UpdateSettings(chatID int64, settings Settings) {
-    db.Save(&settings)
-    deleteCache(settingsCacheKey(chatID))  // Invalidate!
-}
-```
-
-### 2. Use Appropriate TTLs
-
-```go
-// Frequently accessed, rarely changed -> longer TTL
-CacheTTLLanguage = 1 * time.Hour
-
-// Frequently changed -> shorter TTL
-CacheTTLAntiflood = 30 * time.Minute
-
-// Highly dynamic -> very short or no cache
-anonChatMapExpiration = 20 * time.Second
-```
-
-### 3. Handle Cache Misses Gracefully
-
-:::tip
-Always return a safe default when the cache and database both fail. Never let a cache miss propagate as a nil pointer to the caller. The pattern below returns a disabled-by-default struct, which is the safest fallback for most settings.
-:::
-
-```go
-func GetSettings(chatID int64) *Settings {
-    result, err := getFromCacheOrLoad(
-        settingsCacheKey(chatID),
-        CacheTTLSettings,
-        func() (*Settings, error) {
-            var settings Settings
-            tx := db.Where("chat_id = ?", chatID).First(&settings)
-            if tx.Error != nil {
-                // Return default, not error
-                return &Settings{ChatID: chatID, Enabled: false}, nil
-            }
-            return &settings, nil
-        },
-    )
-    if err != nil {
-        // Return safe default on cache error
-        return &Settings{ChatID: chatID, Enabled: false}
-    }
-    return result
-}
-```
-
-### 4. Use Consistent Key Patterns
-
-```go
-// GOOD - Consistent prefix and format
-"alita:chat_settings:{chatId}"
-"alita:user_lang:{userId}"
-"alita:filter_list:{chatId}"
-
-// BAD - Inconsistent patterns
-"settings-{chatId}"
-"user:{userId}:language"
-"chatFilters{chatId}"
-```
-
-:::note[Key format convention]
-All keys follow the pattern `alita:{domain}:{identifier}`. Use underscores within domain names (e.g., `chat_settings`, `user_lang`). Use colons as separators between segments. This makes it easy to use Redis `KEYS alita:chat_settings:*` for debugging.
-:::
-
-### 5. Set Timeout on Cache Operations
-
-```go
-// Prevent hanging on Redis issues
-ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-defer cancel()
-
-select {
-case result := <-resultChan:
-    return result
-case <-ctx.Done():
-    cacheGroup.Forget(key)  // Cleanup
-    return defaultValue, ctx.Err()
-}
-```
-
-:::tip[Why 30-second timeout?]
-The 30-second timeout on cache operations ensures that if Redis becomes unresponsive, the application degrades gracefully by falling back to direct database queries rather than hanging indefinitely. The `cacheGroup.Forget(key)` call prevents the singleflight group from holding a stale entry.
-:::
+Database queries inherit loader deadlines through `WithContext`. Queries without an explicit deadline also receive a 30-second GORM default after startup migrations finish. Startup migrations retain their existing transaction behavior.
 
 ## Cache Monitoring
 
@@ -557,19 +159,17 @@ Monitor cache performance via:
 redis-cli DBSIZE
 
 # View all Alita keys
-redis-cli KEYS "alita:*"
+redis-cli --scan --pattern "alita:*"
 
 # Check specific key TTL
-redis-cli TTL "alita:chat_settings:123456789"
+redis-cli TTL "alita:cache:chat:123456789"
 
 # Memory usage
-redis-cli MEMORY USAGE "alita:chat_settings:123456789"
+redis-cli MEMORY USAGE "alita:cache:chat:123456789"
 ```
 
 :::tip[Cache operations]
-Use `cache.GetMarshal().Get/Set/Delete` for direct cache operations, and prefer
-`GetFromCacheOrLoad()` in `alita/db/cache/loader.go` for DB-backed cached reads
-with singleflight protection to prevent cache stampedes.
+Use `GetFromCacheOrLoad()` and `DeleteCache()` from `alita/db/cache` for database snapshots. Use `cache.GetMarshal()` from `alita/utils/cache` for operational state, and check for nil before access.
 :::
 
 ## Next Steps

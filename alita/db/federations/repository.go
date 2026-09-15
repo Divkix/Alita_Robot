@@ -1,6 +1,7 @@
 package federations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -178,13 +179,17 @@ func DeleteFederation(fedID string) error {
 }
 
 func GetFed(fedID string) *models.Federation {
+	return GetFedContext(context.Background(), fedID)
+}
+
+func GetFedContext(ctx context.Context, fedID string) *models.Federation {
 	fedID = strings.TrimSpace(fedID)
 	if fedID == "" {
 		return nil
 	}
-	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefixFed, fedID), cache.CacheTTLFederation, func() (models.Federation, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefixFed, fedID), cache.CacheTTLFederation, func(ctx context.Context) (models.Federation, error) {
 		var fed models.Federation
-		err := db.GetRecord(&fed, models.Federation{FedID: fedID})
+		err := db.GetRecordContext(ctx, &fed, models.Federation{FedID: fedID})
 		if err != nil {
 			return models.Federation{}, err
 		}
@@ -212,9 +217,13 @@ func GetFedByOwner(ownerID int64) *models.Federation {
 }
 
 func GetChatFed(chatID int64) *models.FederationChat {
-	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefixFedChat, chatID), cache.CacheTTLFederation, func() (models.FederationChat, error) {
+	return GetChatFedContext(context.Background(), chatID)
+}
+
+func GetChatFedContext(ctx context.Context, chatID int64) *models.FederationChat {
+	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefixFedChat, chatID), cache.CacheTTLFederation, func(ctx context.Context) (models.FederationChat, error) {
 		var row models.FederationChat
-		err := db.GetRecord(&row, models.FederationChat{ChatID: chatID})
+		err := db.GetRecordContext(ctx, &row, models.FederationChat{ChatID: chatID})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return models.FederationChat{}, nil
 		}
@@ -356,9 +365,9 @@ func IsFedAdmin(fedID string, userID int64) bool {
 }
 
 func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick func(Row) ID) []ID {
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLFederation, func() ([]ID, error) {
+	result, err := cache.GetFromCacheOrLoad(context.Background(), cacheKey, cache.CacheTTLFederation, func(ctx context.Context) ([]ID, error) {
 		var rows []Row
-		if err := db.GetRecords(&rows, filter); err != nil {
+		if err := db.GetRecordsContext(ctx, &rows, filter); err != nil {
 			return nil, err
 		}
 		ids := make([]ID, 0, len(rows))
@@ -515,12 +524,16 @@ func Unfban(fedID string, userID int64) error {
 }
 
 func GetFedBan(fedID string, userID int64) *models.FederationBan {
-	result, err := cache.GetFromCacheOrLoad(
+	return GetFedBanContext(context.Background(), fedID, userID)
+}
+
+func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.FederationBan {
+	result, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey(cachePrefixFedBan, fedID, userID),
 		cache.CacheTTLFederation,
-		func() (models.FederationBan, error) {
+		func(ctx context.Context) (models.FederationBan, error) {
 			var row models.FederationBan
-			err := db.GetRecord(&row, models.FederationBan{FedID: fedID, UserID: userID})
+			err := db.GetRecordContext(ctx, &row, models.FederationBan{FedID: fedID, UserID: userID})
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return models.FederationBan{UserID: missingBanUserID}, nil
 			}

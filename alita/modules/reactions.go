@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var reactionsModule = moduleStruct{
@@ -223,7 +224,7 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	keyword := strings.ToLower(strings.TrimSpace(args[1]))
 
-	reactionsMap := reactions.GetReactions(chat.Id)
+	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 
 	if _, exists := reactionsMap[keyword]; !exists {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -265,7 +266,7 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
 
-	reactionsMap := reactions.GetReactions(chat.Id)
+	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
@@ -346,7 +347,7 @@ func (m moduleStruct) checkReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	reactionsMap := reactions.GetReactions(chat.Id)
+	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
 		return ext.ContinueGroups
 	}

@@ -14,7 +14,7 @@ import (
 
 func skipIfNoDb(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 }
 
@@ -253,9 +253,7 @@ func TestGetAntiRaidSettingsWithRecord(t *testing.T) {
 
 func TestAntiRaidSettingsCacheInvalidation(t *testing.T) {
 	skipIfNoDb(t)
-	if !cache.IsRedisAvailable() {
-		t.Skip("requires Redis cache")
-	}
+	cache.SetupTestMemoryMarshaler(t)
 
 	chatID := time.Now().UnixNano()
 	t.Cleanup(func() {

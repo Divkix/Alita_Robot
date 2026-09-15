@@ -119,6 +119,7 @@ func init() {
 	} else {
 		log.Info("Database schema managed via SQL migrations - skipping auto-migration")
 	}
+	DB.DefaultContextTimeout = 30 * time.Second
 }
 
 func Close() error {

@@ -5,19 +5,20 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if db.DB == nil {
-		t.Skip("requires database connection")
+		t.Fatal("test database was not initialized")
 	}
 }
 

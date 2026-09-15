@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 const logHandlerGroup = 11
@@ -110,7 +111,7 @@ func (moduleStruct) logChannel(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	settings := logchannels.Get(chat.Id)
+	settings := logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id)
 	if settings == nil {
 		text, _ := tr.GetString("logs_not_set")
 		replyHTML(b, msg, text)
@@ -159,7 +160,7 @@ func (moduleStruct) setLogCategories(b *gotgbot.Bot, ctx *ext.Context, enable bo
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if logchannels.Get(chat.Id) == nil {
+	if logchannels.GetContext(tracing.UpdateContext(ctx), chat.Id) == nil {
 		text, _ := tr.GetString("logs_not_set")
 		replyHTML(b, msg, text)
 		return ext.EndGroups

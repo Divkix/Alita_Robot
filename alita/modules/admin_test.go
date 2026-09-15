@@ -596,7 +596,7 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	if m == nil {
 		t.Skip("cache not initialized")
 	}
-	if err := m.Set(cache.Context, "alita:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
+	if err := m.Set(cache.Context, "alita:cache:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
 		ChatId: clearChat.Id,
 		UserInfo: []gotgbot.MergedChatMember{
 			{

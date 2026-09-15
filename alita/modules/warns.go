@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
@@ -18,9 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var warnsModule = moduleStruct{moduleName: "Warns"}
@@ -108,7 +108,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	}
 
 	u := chatMember.MergeChatMember().User
-	warnrc := warns.GetWarnSetting(chat.Id)
+	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	numWarns, reasons, err := warns.WarnUser(userId, chat.Id, reason)
 	if err != nil {
 		text, _ := tr.GetString("common_settings_save_failed")
@@ -317,7 +317,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	warnrc := warns.GetWarnSetting(chat.Id)
+	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
 	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnrc.WarnMode)
 	_, err := msg.Reply(b, text, formatting.Shtml())
@@ -363,11 +363,11 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	numWarns, reasons := warns.GetWarns(userId, chat.Id)
+	numWarns, reasons := warns.GetWarnsContext(tracing.UpdateContext(ctx), userId, chat.Id)
 	text := ""
 
 	if numWarns != 0 {
-		warnrc := warns.GetWarnSetting(chat.Id)
+		warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 		if len(reasons) > 0 {
 			temp, _ := tr.GetString("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)

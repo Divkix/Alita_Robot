@@ -37,7 +37,7 @@ func TestAdminCacheRoundTripWithMemoryStore(t *testing.T) {
 		Cached:   true,
 	}
 
-	if err := GetMarshal().Set(Context, fmt.Sprintf("alita:adminCache:%d", chatID), adminCache); err != nil {
+	if err := GetMarshal().Set(Context, fmt.Sprintf("alita:cache:adminCache:%d", chatID), adminCache); err != nil {
 		t.Fatalf("cache set: %v", err)
 	}
 

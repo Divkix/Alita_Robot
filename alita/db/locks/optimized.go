@@ -1,16 +1,22 @@
 package locks
 
 import (
+	"context"
 	"errors"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
 )
 
 func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
+	return GetChatLocksOptimizedContext(context.Background(), chatID)
+}
+
+func GetChatLocksOptimizedContext(ctx context.Context, chatID int64) (map[string]bool, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
@@ -21,7 +27,7 @@ func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
 	}
 
 	var locks []LockResult
-	err := db.DB.Model(&models.LockSettings{}).
+	err := db.DB.WithContext(ctx).Model(&models.LockSettings{}).
 		Select("lock_type, locked").
 		Where("chat_id = ?", chatID).
 		Find(&locks).Error
@@ -39,13 +45,17 @@ func GetChatLocksOptimized(chatID int64) (map[string]bool, error) {
 }
 
 func GetChatLocksCached(chatID int64) (map[string]bool, error) {
+	return GetChatLocksCachedContext(context.Background(), chatID)
+}
+
+func GetChatLocksCachedContext(ctx context.Context, chatID int64) (map[string]bool, error) {
 	cacheKey := cache.CacheKey("locks_map", chatID)
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, 1*time.Hour, func() (map[string]bool, error) {
-		return GetChatLocksOptimized(chatID)
+	cached, err := cache.GetFromCacheOrLoad(ctx, cacheKey, 1*time.Hour, func(ctx context.Context) (map[string]bool, error) {
+		return GetChatLocksOptimizedContext(ctx, chatID)
 	})
 	if err != nil {
-		return GetChatLocksOptimized(chatID)
+		return nil, err
 	}
 
 	return cached, nil

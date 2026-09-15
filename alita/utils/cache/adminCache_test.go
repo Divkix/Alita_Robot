@@ -210,3 +210,45 @@ func TestLoadAdminCacheCoalescesConcurrentFetches(t *testing.T) {
 		t.Fatalf("getChatAdministrators calls = %d, want 1 coalesced fetch", got)
 	}
 }
+
+func TestAdminCacheInvalidationDiscardsPendingPermissions(t *testing.T) {
+	withMemoryMarshaler(t)
+	oldClient := &delayedAdminCacheClient{
+		inner: &adminCacheBotClient{responses: map[string]json.RawMessage{
+			"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+			"getChatAdministrators": json.RawMessage(`[{"status":"administrator","can_restrict_members":true,"user":{"id":42,"first_name":"Admin"}}]`),
+		}},
+		adminListStarted: make(chan struct{}),
+		releaseAdminList: make(chan struct{}),
+	}
+	oldBot := newAdminCacheBot(oldClient.inner)
+	oldBot.BotClient = oldClient
+	finished := make(chan struct{})
+	go func() {
+		LoadAdminCache(oldBot, -100778)
+		close(finished)
+	}()
+	release := sync.OnceFunc(func() { close(oldClient.releaseAdminList) })
+	t.Cleanup(func() { release(); <-finished })
+	<-oldClient.adminListStarted
+	InvalidateAdminCache(-100778)
+	newClient := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+		"getChatAdministrators": json.RawMessage(`[]`),
+	}}
+	fresh := make(chan AdminCache, 1)
+	go func() { fresh <- LoadAdminCache(newAdminCacheBot(newClient), -100778) }()
+	select {
+	case got := <-fresh:
+		if len(got.UserInfo) != 0 {
+			t.Fatalf("new lookup returned revoked administrators: %+v", got.UserInfo)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("lookup after invalidation joined an outdated request")
+	}
+	release()
+	<-finished
+	if found, got := GetAdminCacheList(-100778); !found || len(got.UserInfo) != 0 {
+		t.Fatalf("delayed lookup replaced updated permissions: found=%v, admins=%+v", found, got.UserInfo)
+	}
+}

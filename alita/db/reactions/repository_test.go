@@ -1,26 +1,17 @@
 package reactions
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 )
-
-func TestMain(m *testing.M) {
-	if db.DB != nil && db.DB.Name() == "sqlite" {
-		_ = db.DB.AutoMigrate(&models.Reactions{})
-	}
-	os.Exit(m.Run())
-}
 
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 }
 

@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -27,10 +28,14 @@ func invalidateFilterCaches(chatID int64) {
 }
 
 func GetFiltersList(chatID int64) (allFilterWords []string) {
+	return GetFiltersListContext(context.Background(), chatID)
+}
+
+func GetFiltersListContext(ctx context.Context, chatID int64) (allFilterWords []string) {
 	cacheKey := filterListCacheKey(chatID)
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLFilterList, func() ([]string, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLFilterList, func(ctx context.Context) ([]string, error) {
 		var results []*models.ChatFilters
-		err := db.GetRecords(&results, map[string]any{"chat_id": chatID})
+		err := db.GetRecordsContext(ctx, &results, map[string]any{"chat_id": chatID})
 		if err != nil {
 			log.Errorf("[Database] GetFiltersList: %v - %d", err, chatID)
 			return []string{}, err

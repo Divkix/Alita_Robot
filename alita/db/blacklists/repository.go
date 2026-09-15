@@ -1,12 +1,14 @@
 package blacklists
 
 import (
+	"context"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
 )
 
 func AddBlacklist(chatId int64, trigger string) error {
@@ -63,10 +65,14 @@ func SetBlacklistAction(chatId int64, action string) error {
 }
 
 func GetBlacklistSettings(chatId int64) models.BlacklistSettingsSlice {
+	return GetBlacklistSettingsContext(context.Background(), chatId)
+}
+
+func GetBlacklistSettingsContext(ctx context.Context, chatId int64) models.BlacklistSettingsSlice {
 	cacheKey := cache.CacheKey("blacklist", chatId)
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLBlacklist, func() (models.BlacklistSettingsSlice, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLBlacklist, func(ctx context.Context) (models.BlacklistSettingsSlice, error) {
 		var blacklists []*models.BlacklistSettings
-		err := db.GetRecords(&blacklists, models.BlacklistSettings{ChatId: chatId})
+		err := db.GetRecordsContext(ctx, &blacklists, models.BlacklistSettings{ChatId: chatId})
 		if err != nil {
 			log.Errorf("[Database] GetBlacklistSettings: %v - %d", err, chatId)
 			return models.BlacklistSettingsSlice{}, err

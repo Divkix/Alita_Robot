@@ -1,16 +1,8 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
-
-func skipIfNoConfig(t *testing.T) {
-	t.Helper()
-	if os.Getenv("BOT_TOKEN") == "" {
-		t.Skip("skipping: BOT_TOKEN not set (config.init() would fatalf)")
-	}
-}
 
 func validBaseConfig() *Config {
 	return &Config{
@@ -25,7 +17,6 @@ func validBaseConfig() *Config {
 
 func TestValidateConfig(t *testing.T) {
 	t.Parallel()
-	skipIfNoConfig(t)
 
 	tests := []struct {
 		name    string
@@ -220,8 +211,8 @@ func TestSetDefaults(t *testing.T) {
 		if cfg.MigrationsPath != "migrations" {
 			t.Errorf("MigrationsPath: got %q, want %q", cfg.MigrationsPath, "migrations")
 		}
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true")
+		if cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got true, want false")
 		}
 		if cfg.DispatcherMaxRoutines != 200 {
 			t.Errorf("DispatcherMaxRoutines: got %d, want %d", cfg.DispatcherMaxRoutines, 200)
@@ -281,14 +272,14 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("ClearCacheOnStartup defaults to true when not set", func(t *testing.T) {
+	t.Run("ClearCacheOnStartup defaults to false when not set", func(t *testing.T) {
 		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
 
 		cfg := &Config{}
 		cfg.setDefaults()
 
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true (default when env var not set)")
+		if cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got true, want false (default when env var not set)")
 		}
 	})
 
@@ -348,8 +339,8 @@ func TestClearCacheOnStartupEnvVar(t *testing.T) {
 		cfg := &Config{}
 		cfg.setDefaults()
 
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true (default when env var not set)")
+		if cfg.ClearCacheOnStartup {
+			t.Errorf("ClearCacheOnStartup: got true, want false (default when env var not set)")
 		}
 	})
 

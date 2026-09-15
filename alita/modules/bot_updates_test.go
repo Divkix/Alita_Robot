@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,7 +10,51 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 )
+
+func TestAdminPermissionUpdatesRefreshAuthorization(t *testing.T) {
+	for _, botUpdate := range []bool{false, true} {
+		t.Run(fmt.Sprintf("bot=%t", botUpdate), func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup"}
+			user := gotgbot.User{Id: 42}
+			if botUpdate {
+				user = bot.User
+			}
+			oldMember := gotgbot.ChatMemberAdministrator{User: user, CanRestrictMembers: true}
+			newMember := gotgbot.ChatMemberAdministrator{User: user, CanRestrictMembers: false}
+			key := fmt.Sprintf("alita:cache:adminCache:%d", chat.Id)
+			if err := cache.GetMarshal().Set(cache.Context, key, cache.AdminCache{
+				ChatId: chat.Id, Cached: true,
+				UserMap: map[int64]gotgbot.MergedChatMember{user.Id: oldMember.MergeChatMember()},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
+			response, err := json.Marshal([]gotgbot.ChatMemberAdministrator{newMember})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.responses["getChatAdministrators"] = response
+			event := &gotgbot.ChatMemberUpdated{Chat: chat, OldChatMember: oldMember, NewChatMember: newMember}
+			update := &gotgbot.Update{ChatMember: event}
+			if botUpdate {
+				update = &gotgbot.Update{MyChatMember: event}
+			}
+			dispatcher := ext.NewDispatcher(nil)
+			LoadBotUpdates(dispatcher)
+			if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+				t.Fatal(err)
+			}
+			ctx := newModuleMessageContext(bot, chat, user, "/ban 123")
+			if chat_status.CanUserRestrict(bot, ctx, &chat, user.Id) {
+				t.Fatal("revoked restriction permission is still authorized")
+			}
+		})
+	}
+}
 
 func TestBotJoinedGroupIgnoresPrivateChats(t *testing.T) {
 	client := newModuleBotClient()

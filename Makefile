@@ -30,14 +30,16 @@ lint:
 	@which $(GOLANGCI_LINT_CMD) > /dev/null || (echo "golangci-lint not found, install it from https://golangci-lint.run/usage/install/" && exit 1)
 	$(GOLANGCI_LINT_CMD) run
 
+test: SHELL := /bin/bash
+test: .SHELLFLAGS := -o pipefail -c
 test:
-	$(GO_CMD) test -tags testtools -v -race -coverprofile=coverage.out -coverpkg=$$(go list ./... | grep -v -E '(^github.com/divkix/Alita_Robot$$|scripts/)' | paste -sd, -) -count=1 -timeout 10m ./...
+	$(GO_CMD) test -tags testtools -json -race -coverprofile=coverage.out -coverpkg=$$(go list ./alita/... | paste -sd, -) -count=1 -timeout 10m ./... | $(GO_CMD) run ./scripts/check_test_results
 
 test-postgres-integrity:
 	$(GO_CMD) test -tags testtools -v -race -p 1 -count=1 -timeout 10m \
-		-run '^(TestAllModulesRoundTripEveryMeaningfulField|TestImportChatDataRollsBackEarlierModules|TestImportWarnsCreatesMissingParents|TestLegacyBackupPreservesFieldsThatVersionDidNotExport|TestDeleteCaptchaAttemptByIDAtomicSingleClaim|TestCreateMutedUserUpdatesExistingSchedule|TestCreateMutedUserConcurrentUpsert|TestCreateCaptchaAttemptReplacesExistingChallenge|TestCreateCaptchaAttemptIfEnabledRejectsDisabledChat|TestCaptchaAttemptClaimsSchedulePermissionRestore|TestDeleteMutedUserIfUnchangedPreservesNewerSchedule|TestIncrementCaptchaAttemptsRejectsRefreshedChallenge|TestUpdateChannelClearsAndReassignsNormalizedUsername|TestConcurrentConnectKeepsOneRowPerUser|TestAddFilterConcurrentInsert|TestAddNoteConcurrentInsert|TestGetUserReportSettings_Defaults|TestConcurrentReportBlockListUpdates|TestWarnUserCreatesMissingParentRows|TestConcurrentWarnAndRemovePreserveCount)$$' \
+		-run '^(TestAllModulesRoundTripEveryMeaningfulField|TestImportChatDataRollsBackEarlierModules|TestImportWarnsCreatesMissingParents|TestLegacyBackupPreservesFieldsThatVersionDidNotExport|TestDeleteCaptchaAttemptByIDAtomicSingleClaim|TestCreateMutedUserUpdatesExistingSchedule|TestCreateCaptchaAttemptReplacesExistingChallenge|TestCreateCaptchaAttemptIfEnabledRejectsDisabledChat|TestCaptchaAttemptClaimsSchedulePermissionRestore|TestDeleteMutedUserIfUnchangedPreservesNewerSchedule|TestIncrementCaptchaAttemptsRejectsRefreshedChallenge|TestUpdateChannelClearsAndReassignsNormalizedUsername|TestConnectChat|TestAddAndGetFiltersList|TestAddNotePreservesExistingUntilExplicitUpdate|TestReportSettingsCRUD|TestWarnUserCreatesMissingParentRows|TestConcurrentWarnAndRemovePreserveCount|TestUpdateChat)$$' \
 		./alita/db/backup ./alita/db/captcha ./alita/db/channels ./alita/db/connections \
-		./alita/db/filters ./alita/db/notes ./alita/db/reports ./alita/db/warns
+		./alita/db/filters ./alita/db/notes ./alita/db/reports ./alita/db/warns ./alita/db/chats
 
 check-translations:
 	@echo "🔍 Checking for missing translations..."

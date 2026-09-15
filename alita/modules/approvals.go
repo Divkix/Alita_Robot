@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var approvalsModule = moduleStruct{
@@ -206,7 +207,7 @@ func (m moduleStruct) checkApprovalStatus(b *gotgbot.Bot, ctx *ext.Context) erro
 		return ext.EndGroups
 	}
 
-	approvedUsers := approvals.GetApprovedUsers(chat.Id)
+	approvedUsers := approvals.GetApprovedUsersContext(tracing.UpdateContext(ctx), chat.Id)
 	var foundUser *db.ApprovedUsers
 	for _, a := range approvedUsers {
 		if a.UserID == targetUserID {
@@ -274,7 +275,7 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		return ext.EndGroups
 	}
 
-	approvedUsers := approvals.GetApprovedUsers(chat.Id)
+	approvedUsers := approvals.GetApprovedUsersContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(approvedUsers) == 0 {
 		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_none_approved")
 		_, err := msg.Reply(b, text, formatting.Shtml())

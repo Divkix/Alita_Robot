@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var blacklistsModule = moduleStruct{
@@ -69,7 +70,7 @@ func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else if len(args) >= 1 {
-		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
+		allBlWords := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id).Triggers()
 
 		blWordSet := make(map[string]struct{}, len(allBlWords))
 		for _, w := range allBlWords {
@@ -185,7 +186,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		return ext.EndGroups
 	} else {
-		allBlWords := blacklists.GetBlacklistSettings(chat.Id).Triggers()
+		allBlWords := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id).Triggers()
 		for _, blWord := range args {
 			blWord = strings.ToLower(blWord)
 			if slices.Contains(allBlWords, blWord) {
@@ -242,7 +243,7 @@ func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId = msg.MessageId
 	}
 
-	blSrc := blacklists.GetBlacklistSettings(chat.Id)
+	blSrc := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	triggers := blSrc.Triggers()
 	slices.Sort(triggers)
 	var sb strings.Builder
@@ -302,7 +303,7 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	if len(args) == 0 {
-		currAction := blacklists.GetBlacklistSettings(chat.Id).Action()
+		currAction := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id).Action()
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_set_bl_action_current_mode")
 		rMsg = fmt.Sprintf(temp, currAction)
 	} else if len(args) == 1 {
@@ -455,7 +456,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	blSettings := blacklists.GetBlacklistSettings(chat.Id)
+	blSettings := blacklists.GetBlacklistSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	triggers := blSettings.Triggers()
 	if len(triggers) == 0 {
 		return ext.ContinueGroups

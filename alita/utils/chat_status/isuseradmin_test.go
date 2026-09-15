@@ -219,7 +219,7 @@ func TestIsUserAdminUsesCache(t *testing.T) {
 	}
 	if err := cache.GetMarshal().Set(
 		cache.Context,
-		fmt.Sprintf("alita:adminCache:%d", chatID),
+		fmt.Sprintf("alita:cache:adminCache:%d", chatID),
 		seedCache,
 	); err != nil {
 		t.Fatalf("seeding admin cache: %v", err)
@@ -389,7 +389,7 @@ func TestIsUserAdminCacheHitLinearScan(t *testing.T) {
 	}
 	if err := cache.GetMarshal().Set(
 		cache.Context,
-		fmt.Sprintf("alita:adminCache:%d", chatID),
+		fmt.Sprintf("alita:cache:adminCache:%d", chatID),
 		seedCache,
 	); err != nil {
 		t.Fatalf("seeding admin cache without UserMap: %v", err)

@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -15,17 +16,21 @@ import (
 )
 
 func getNotesSettings(chatID int64) *models.NotesSettings {
-	settingsVal, err := cache.GetFromCacheOrLoad(cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func() (models.NotesSettings, error) {
+	return getNotesSettingsContext(context.Background(), chatID)
+}
+
+func getNotesSettingsContext(ctx context.Context, chatID int64) *models.NotesSettings {
+	settingsVal, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey("notes_settings", chatID), cache.CacheTTLNotesSettings, func(ctx context.Context) (models.NotesSettings, error) {
 		noteSrc := &models.NotesSettings{}
-		err := db.GetRecord(noteSrc, models.NotesSettings{ChatId: chatID})
+		err := db.GetRecordContext(ctx, noteSrc, models.NotesSettings{ChatId: chatID})
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if !db.ChatExists(chatID) {
+			if !db.ChatExistsContext(ctx, chatID) {
 				log.Warnf("[Database][getNotesSettings]: Chat %d doesn't exist, returning default settings", chatID)
 				return models.NotesSettings{ChatId: chatID, Private: false}, nil
 			}
 
 			noteSrc = &models.NotesSettings{ChatId: chatID, Private: false}
-			err := db.CreateRecord(noteSrc)
+			err := db.CreateRecordContext(ctx, noteSrc)
 			if err != nil {
 				log.Errorf("[Database][getNotesSettings]: %d - %v", chatID, err)
 			}
@@ -82,9 +87,16 @@ func invalidateNotesCache(chatID int64) {
 }
 
 func GetNotesList(chatID int64, admin bool) []string {
+	return GetNotesListContext(context.Background(), chatID, admin)
+}
+
+func GetNotesListContext(ctx context.Context, chatID int64, admin bool) []string {
 	cacheKey := notesListCacheKey(chatID)
-	entries, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLNotesList, func() ([]cachedNoteInfo, error) {
-		notes := getAllChatNotes(chatID)
+	entries, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLNotesList, func(ctx context.Context) ([]cachedNoteInfo, error) {
+		var notes []*models.Notes
+		if err := db.GetRecordsContext(ctx, &notes, models.Notes{ChatId: chatID}); err != nil {
+			return nil, err
+		}
 		infos := make([]cachedNoteInfo, 0, len(notes))
 		for _, n := range notes {
 			infos = append(infos, cachedNoteInfo{Name: n.NoteName, AdminOnly: n.AdminOnly})
@@ -92,14 +104,7 @@ func GetNotesList(chatID int64, admin bool) []string {
 		return infos, nil
 	})
 	if err != nil {
-		noteSrc := getAllChatNotes(chatID)
-		var out []string
-		for _, note := range noteSrc {
-			if admin || !note.AdminOnly {
-				out = append(out, note.NoteName)
-			}
-		}
-		return out
+		return nil
 	}
 	out := make([]string, 0, len(entries))
 	for _, e := range entries {

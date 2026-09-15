@@ -6,18 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/models"
-	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if db.DB == nil {
-		t.Skip("requires database connection")
+		t.Fatal("test database was not initialized")
 	}
 }
 
@@ -138,6 +139,9 @@ func TestGetChatSettings(t *testing.T) {
 }
 
 func TestUpdateChat(t *testing.T) {
+	if db.DB.Name() != "postgres" {
+		t.Skip("PostgreSQL JSONB integration: run make test-postgres-integrity")
+	}
 	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()

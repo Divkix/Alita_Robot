@@ -13,14 +13,79 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 	gocache "github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
+
+func TestWebhookLimitsProcessingAndRejectsOverflow(t *testing.T) {
+	s := New(0, time.Now())
+	bot := newHTTPServerTestBot(&httpServerBotClient{})
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: 1})
+	started := make(chan struct{}, 4)
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	dispatcher.AddHandler(handlers.NewMessage(message.All, func(*gotgbot.Bot, *ext.Context) error {
+		started <- struct{}{}
+		<-release
+		return ext.EndGroups
+	}))
+	if err := s.RegisterWebhook(bot, dispatcher, "test-secret", "https://example.test"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		releaseOnce()
+		if err := s.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
+	send := func(id int) int {
+		body := fmt.Sprintf(`{"update_id":%d,"message":{"message_id":%d,"date":1,"chat":{"id":-1001,"type":"supergroup"},"text":"hello"}}`, id, id)
+		req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body))
+		req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "test-secret")
+		rr := httptest.NewRecorder()
+		s.mux.ServeHTTP(rr, req)
+		return rr.Code
+	}
+	if status := send(1); status != http.StatusOK {
+		t.Fatalf("first update: %d", status)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("first update did not start")
+	}
+	if status := send(2); status != http.StatusOK {
+		t.Fatalf("queued update: %d", status)
+	}
+	if status := send(3); status != http.StatusServiceUnavailable {
+		t.Fatalf("overflow update: got %d, want 503", status)
+	}
+	select {
+	case <-started:
+		t.Fatal("second update started while the only worker was busy")
+	default:
+	}
+	releaseOnce()
+	if err := s.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	default:
+		t.Fatal("shutdown dropped an accepted queued update")
+	}
+	if status := send(4); status != http.StatusServiceUnavailable {
+		t.Fatalf("update after shutdown: got %d, want 503", status)
+	}
+}
 
 type httpServerBotClient struct {
 	mu      sync.Mutex
@@ -367,6 +432,11 @@ func TestWebhookHandlerRejectsOversizedBody(t *testing.T) {
 func TestWebhookHandlerAcceptsAuthorizedTelegramUpdate(t *testing.T) {
 	client := &httpServerBotClient{}
 	s := New(9006, time.Now())
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
 	s.secret = "mysecret"
 	s.bot = newHTTPServerTestBot(client)
 	s.dispatcher = ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
@@ -656,6 +726,11 @@ func TestWebhookValidatesHeaderNotPath(t *testing.T) {
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 
 	s := New(9200, time.Now())
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := s.RegisterWebhook(bot, dispatcher, "my-secret", "https://example.test"); err != nil {
 		t.Fatalf("RegisterWebhook() error = %v", err)
 	}

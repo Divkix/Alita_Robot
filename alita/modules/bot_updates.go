@@ -5,12 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -228,6 +227,9 @@ func getAnonAdminCache(chatId, msgId int64) (*gotgbot.Message, error) {
 // LoadBotUpdates registers bot event handlers for group management.
 // Sets up handlers for bot joins, admin updates, and anonymous admin verification.
 func LoadBotUpdates(dispatcher *ext.Dispatcher) {
+	dispatcher.AddHandlerToGroup(handlers.NewMyChatMember(
+		chat_status.ExtractAdminUpdateStatusChange, adminCacheAutoUpdate,
+	), -2)
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMyChatMember(
 			func(u *gotgbot.ChatMemberUpdated) bool {

@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	gocache_store "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/divkix/Alita_Robot/alita/config"
 )
 
 var (
@@ -23,6 +24,9 @@ var (
 	redisClient *redis.Client
 	marshalMu   sync.RWMutex
 )
+
+// DataCachePrefix separates replaceable snapshots from operational Redis state.
+const DataCachePrefix = "alita:cache:"
 
 func ContextWithTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(Context, 5*time.Second)
@@ -129,14 +133,24 @@ func ClearAllCaches() error {
 		return fmt.Errorf("redis client not initialized")
 	}
 
-	log.Info("[Cache] Clearing all caches using FLUSHDB...")
-
-	if err := redisClient.FlushDB(Context).Err(); err != nil {
-		return fmt.Errorf("failed to flush database: %w", err)
+	ctx, cancel := ContextWithTimeout()
+	defer cancel()
+	var cursor uint64
+	for {
+		keys, next, err := redisClient.Scan(ctx, cursor, DataCachePrefix+"*", 100).Result()
+		if err != nil {
+			return fmt.Errorf("failed to scan cached data: %w", err)
+		}
+		if len(keys) != 0 {
+			if err := redisClient.Unlink(ctx, keys...).Err(); err != nil {
+				return fmt.Errorf("failed to clear cached data: %w", err)
+			}
+		}
+		if next == 0 {
+			return nil
+		}
+		cursor = next
 	}
-
-	log.Info("[Cache] Successfully cleared all cache entries")
-	return nil
 }
 
 func GetRedisClient() *redis.Client {

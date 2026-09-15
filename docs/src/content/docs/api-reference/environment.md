@@ -396,13 +396,13 @@ Maximum memory usage in MB
 
 ### `CLEAR_CACHE_ON_STARTUP`
 
-Whether to clear all caches on bot startup
+Whether to clear disposable `alita:cache:*` entries on bot startup. Active anti-raid state and pending confirmations are preserved.
 
 | Property | Value |
 |----------|-------|
 | **Type** | `boolean` |
 | **Required** | No |
-| **Default** | `true` |
+| **Default** | `false` |
 
 ### `DISPATCHER_MAX_ROUTINES`
 
@@ -481,7 +481,7 @@ ACTIVITY_CHECK_INTERVAL=# hours between activity checks (default: 1)
 API_SERVER=# custom API server URL (default: https://api.telegram.org)
 AUTO_MIGRATE=# enable automatic database migrations (default: false)
 AUTO_MIGRATE_SILENT_FAIL=# continue even if migrations fail (default: false)
-CLEAR_CACHE_ON_STARTUP=# clear all caches on startup (default: true)
+CLEAR_CACHE_ON_STARTUP=false # clear disposable cached data on startup
 DB_CONN_MAX_IDLE_TIME_MIN=# max idle time in min (default: 60)
 DB_CONN_MAX_LIFETIME_MIN=# max lifetime in min (default: 240)
 DB_MAX_IDLE_CONNS=# (default: 50)

@@ -1,6 +1,7 @@
 package disabling
 
 import (
+	"context"
 	"slices"
 
 	log "github.com/sirupsen/logrus"
@@ -52,8 +53,12 @@ func GetChatDisabledCMDs(chatId int64) []string {
 }
 
 func getChatDisabledCMDs(chatId int64) ([]string, error) {
+	return getChatDisabledCMDsContext(context.Background(), chatId)
+}
+
+func getChatDisabledCMDsContext(ctx context.Context, chatId int64) ([]string, error) {
 	var disableSettings []*models.DisableSettings
-	err := db.GetRecords(&disableSettings, models.DisableSettings{ChatId: chatId, Disabled: true})
+	err := db.GetRecordsContext(ctx, &disableSettings, models.DisableSettings{ChatId: chatId, Disabled: true})
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +71,17 @@ func getChatDisabledCMDs(chatId int64) ([]string, error) {
 }
 
 func GetChatDisabledCMDsCached(chatId int64) []string {
+	return GetChatDisabledCMDsCachedContext(context.Background(), chatId)
+}
+
+func GetChatDisabledCMDsCachedContext(ctx context.Context, chatId int64) []string {
 	cacheKey := cache.CacheKey("disabled_cmds", chatId)
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLDisabledCmds, func() ([]string, error) {
-		return getChatDisabledCMDs(chatId)
+	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLDisabledCmds, func(ctx context.Context) ([]string, error) {
+		return getChatDisabledCMDsContext(ctx, chatId)
 	})
 	if err != nil {
 		log.Errorf("[Cache] Failed to get disabled commands from cache for chat %d: %v", chatId, err)
-		return GetChatDisabledCMDs(chatId)
+		return nil
 	}
 	return result
 }

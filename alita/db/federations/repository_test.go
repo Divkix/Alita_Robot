@@ -13,7 +13,7 @@ import (
 
 func TestFederationLifecycle(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	ownerID := time.Now().UnixNano()
 	t.Cleanup(func() {
@@ -104,7 +104,7 @@ func TestFederationLifecycle(t *testing.T) {
 
 func TestFederationSubscriptions(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	ownerA := time.Now().UnixNano()
 	ownerB := ownerA + 1
@@ -144,7 +144,7 @@ func TestFederationSubscriptions(t *testing.T) {
 
 func TestFederationAdminFlagsAndImport(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	ownerID := time.Now().UnixNano() + 50
 	adminID := ownerID + 1
@@ -225,7 +225,7 @@ func TestFederationAdminFlagsAndImport(t *testing.T) {
 
 func TestFederationChatMembershipHelpers(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	ownerID := time.Now().UnixNano() + 90
 	memberID := ownerID + 3
@@ -288,7 +288,7 @@ func TestFederationChatMembershipHelpers(t *testing.T) {
 
 func TestGetChatFedAndBanNegativeCache(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	chatID := -time.Now().UnixNano()
 	if GetChatFed(chatID) != nil {
@@ -321,7 +321,7 @@ func TestGetChatFedAndBanNegativeCache(t *testing.T) {
 
 func TestDeleteFederationInvalidatesBanAndSubscriberCaches(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 	ownerA := time.Now().UnixNano()
 	ownerB := ownerA + 1
@@ -370,7 +370,7 @@ func TestDeleteFederationInvalidatesBanAndSubscriberCaches(t *testing.T) {
 
 func TestLoadFederationStats(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 
 	feds, chats, admins, bans, subs := LoadFederationStats()

@@ -583,33 +583,15 @@ func ExtractJoinLeftStatusChange(u *gotgbot.ChatMemberUpdated) (bool, bool) {
 }
 
 func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
-	if u.Chat.Type == "channel" {
+	if u == nil || u.Chat.Type == "channel" || u.OldChatMember == nil || u.NewChatMember == nil {
 		return false
 	}
 
 	oldMemberStatus := u.OldChatMember.MergeChatMember().Status
 	newMemberStatus := u.NewChatMember.MergeChatMember().Status
 
-	if oldMemberStatus == newMemberStatus {
-		return false
-	}
-
-	adminStatusChanged := (slices.Contains(
-		[]string{"administrator", "creator"},
-		oldMemberStatus,
-	) && !slices.Contains(
-		[]string{"administrator", "creator"},
-		newMemberStatus,
-	)) ||
-		(slices.Contains(
-			[]string{"administrator", "creator"},
-			newMemberStatus,
-		) && !slices.Contains(
-			[]string{"administrator", "creator"},
-			oldMemberStatus,
-		))
-
-	return adminStatusChanged
+	return oldMemberStatus == "administrator" || oldMemberStatus == "creator" ||
+		newMemberStatus == "administrator" || newMemberStatus == "creator"
 }
 
 func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat) (*gotgbot.Message, error) {

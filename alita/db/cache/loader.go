@@ -1,106 +1,131 @@
 package cache
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/config"
-	"github.com/divkix/Alita_Robot/alita/utils/cache"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/singleflight"
+
+	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 var (
-	cacheGroup      singleflight.Group
 	cacheGeneration atomic.Uint64
 	loadWaitTimeout = 30 * time.Second
+	loadsMu         sync.Mutex
+	loads           = make(map[string]*cacheLoad)
 )
 
-func GetFromCacheOrLoad[T any](key string, ttl time.Duration, loader func() (T, error)) (T, error) {
-	var result T
+type cacheLoad struct {
+	done    chan struct{}
+	cancel  context.CancelFunc
+	waiters int
+	value   any
+	err     error
+}
 
-	if config.AppConfig != nil && config.AppConfig.DisableCache {
-		return loader()
+func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duration, loader func(context.Context) (T, error)) (T, error) {
+	var zero T
+	ctx, cancel := context.WithTimeout(ctx, loadWaitTimeout)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return zero, err
 	}
 	m := cache.GetMarshal()
-	if m == nil {
-		return loader()
+	if m == nil || (config.AppConfig != nil && config.AppConfig.DisableCache) {
+		return loader(ctx)
 	}
-
-	ctx, cancel := cache.ContextWithTimeout()
-	_, err := m.Get(ctx, key, &result)
-	cancel()
+	readCtx, readCancel := context.WithTimeout(ctx, 5*time.Second)
+	var cached T
+	_, err := m.Get(readCtx, key, &cached)
+	readCancel()
 	if err == nil {
-		return result, nil
+		return cached, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return zero, err
 	}
 
-	resCh := make(chan struct {
-		val T
-		err error
-	}, 1)
-
-	go func() {
-		defer error_handling.RecoverFromPanic("cache", "GetFromCacheOrLoad")
-
-		v, err, shared := cacheGroup.Do(key, func() (interface{}, error) {
-			generation := cacheGeneration.Load()
-			val, err := loader()
-			if err != nil {
-				return nil, err
+	loadsMu.Lock()
+	call := loads[key]
+	if call == nil {
+		loadCtx, loadCancel := context.WithTimeout(context.WithoutCancel(ctx), loadWaitTimeout)
+		call = &cacheLoad{done: make(chan struct{}), cancel: loadCancel}
+		loads[key] = call
+		go func() {
+			value, loadErr := runCacheLoader(loadCtx, key, ttl, loader)
+			loadsMu.Lock()
+			call.value, call.err = value, loadErr
+			if loads[key] == call {
+				delete(loads, key)
 			}
-
-			// ponytail: one global generation avoids unbounded per-key bookkeeping;
-			// shard it only if unrelated writes measurably suppress cache fills.
-			if generation == cacheGeneration.Load() {
-				ctxSet, cancelSet := cache.ContextWithTimeout()
-				setErr := m.Set(ctxSet, key, val, store.WithExpiration(ttl))
-				cancelSet()
-				if setErr != nil {
-					log.Debugf("[Cache] Failed to set cache for key %s: %v", key, setErr)
-				} else if generation != cacheGeneration.Load() {
-					ctxDel, cancelDel := cache.ContextWithTimeout()
-					if err := m.Delete(ctxDel, key); err != nil {
-						log.Debugf("[Cache] Failed to delete raced cache value for key %s: %v", key, err)
-					}
-					cancelDel()
-				}
+			close(call.done)
+			loadsMu.Unlock()
+			loadCancel()
+		}()
+	}
+	call.waiters++
+	loadsMu.Unlock()
+	defer func() {
+		loadsMu.Lock()
+		call.waiters--
+		if call.waiters == 0 {
+			call.cancel()
+			if loads[key] == call {
+				delete(loads, key)
 			}
-			return val, nil
-		})
-
-		if shared {
-			log.Debugf("[Cache] Shared cache load for key: %s", key)
 		}
-
-		if err != nil {
-			resCh <- struct {
-				val T
-				err error
-			}{result, err}
-			return
-		}
-		resCh <- struct {
-			val T
-			err error
-		}{v.(T), nil}
+		loadsMu.Unlock()
 	}()
-
-	timer := time.NewTimer(loadWaitTimeout)
-	defer timer.Stop()
 	select {
-	case res := <-resCh:
-		return res.val, res.err
-	case <-timer.C:
-		cacheGroup.Forget(key)
-		log.Errorf("[Cache] Timeout loading key %s after %s", key, loadWaitTimeout)
-		var zero T
-		return zero, fmt.Errorf("cache load timed out for key %s", key)
+	case <-ctx.Done():
+		return zero, ctx.Err()
+	case <-call.done:
+		if call.err != nil {
+			return zero, call.err
+		}
+		return call.value.(T), nil
 	}
 }
+
+func runCacheLoader[T any](ctx context.Context, key string, ttl time.Duration, loader func(context.Context) (T, error)) (value T, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("cache loader panic for %s: %v", key, recovered)
+			log.Error(err)
+		}
+	}()
+	generation := cacheGeneration.Load()
+	value, err = loader(ctx)
+	if err != nil {
+		return value, err
+	}
+	if err := ctx.Err(); err != nil {
+		return value, err
+	}
+	m := cache.GetMarshal()
+	if m != nil && generation == cacheGeneration.Load() {
+		setCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := m.Set(setCtx, key, value, store.WithExpiration(ttl))
+		cancel()
+		if err != nil {
+			log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
+		} else if generation != cacheGeneration.Load() {
+			DeleteCache(key)
+		}
+	}
+	return value, nil
+}
+
 func DeleteCache(key string) {
+	loadsMu.Lock()
+	delete(loads, key)
+	loadsMu.Unlock()
 	if config.AppConfig != nil && config.AppConfig.DisableCache {
 		cacheGeneration.Add(1)
 		return

@@ -28,6 +28,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 const (
@@ -201,7 +202,7 @@ func (moduleStruct) joinFed(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	fed := federations.GetFed(fedID)
+	fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 	if fed == nil {
 		text, _ := tr.GetString("feds_not_found")
 		replyHTML(b, msg, text)
@@ -271,7 +272,7 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
-	if federations.GetChatFed(chat.Id) == nil {
+	if federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id) == nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
@@ -337,10 +338,10 @@ func (moduleStruct) fedInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		fed = federations.GetFed(fedID)
+		fed = federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 	} else if !chat_status.RequirePrivate(b, ctx, chat) {
-		if membership := federations.GetChatFed(chat.Id); membership != nil {
-			fed = federations.GetFed(membership.FedID)
+		if membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id); membership != nil {
+			fed = federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 		}
 	}
 	if fed == nil {
@@ -374,12 +375,12 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		fed = federations.GetFed(fedID)
+		fed = federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 	} else {
 		fed = federations.GetFedByOwner(from.Id)
 		if fed == nil {
-			if membership := federations.GetChatFed(ctx.EffectiveChat.Id); membership != nil {
-				fed = federations.GetFed(membership.FedID)
+			if membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), ctx.EffectiveChat.Id); membership != nil {
+				fed = federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 			}
 		}
 	}
@@ -421,13 +422,13 @@ func (moduleStruct) chatFed(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	membership := federations.GetChatFed(chat.Id)
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id)
 	if membership == nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
-	fed := federations.GetFed(membership.FedID)
+	fed := federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 	if fed == nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, msg, text)
@@ -640,7 +641,7 @@ func resolveFbanFed(b *gotgbot.Bot, ctx *ext.Context, from *gotgbot.User) *model
 		}
 		return fed
 	}
-	membership := federations.GetChatFed(chat.Id)
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id)
 	if membership == nil {
 		text, _ := tr.GetString("feds_not_in_fed")
 		replyHTML(b, ctx.EffectiveMessage, text)
@@ -651,7 +652,7 @@ func resolveFbanFed(b *gotgbot.Bot, ctx *ext.Context, from *gotgbot.User) *model
 		replyHTML(b, ctx.EffectiveMessage, text)
 		return nil
 	}
-	return federations.GetFed(membership.FedID)
+	return federations.GetFedContext(tracing.UpdateContext(ctx), membership.FedID)
 }
 
 func (m moduleStruct) fban(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -810,13 +811,13 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if reasonFed != "" {
-		ban := federations.GetFedBan(reasonFed, targetID)
+		ban := federations.GetFedBanContext(tracing.UpdateContext(ctx), reasonFed, targetID)
 		if ban == nil {
 			text, _ := tr.GetString("feds_fedstat_none")
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		fed := federations.GetFed(reasonFed)
+		fed := federations.GetFedContext(tracing.UpdateContext(ctx), reasonFed)
 		name := reasonFed
 		if fed != nil {
 			name = fed.Name
@@ -843,7 +844,7 @@ func (moduleStruct) fedStat(b *gotgbot.Bot, ctx *ext.Context) error {
 	bld.WriteString(header)
 	for _, ban := range bans {
 		name := ban.FedID
-		if fed := federations.GetFed(ban.FedID); fed != nil {
+		if fed := federations.GetFedContext(tracing.UpdateContext(ctx), ban.FedID); fed != nil {
 			name = fed.Name
 		}
 		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), ban.FedID)
@@ -935,7 +936,7 @@ func (moduleStruct) fedSubs(b *gotgbot.Bot, ctx *ext.Context) error {
 	bld.WriteString(header)
 	for _, id := range subs {
 		name := id
-		if sub := federations.GetFed(id); sub != nil {
+		if sub := federations.GetFedContext(tracing.UpdateContext(ctx), id); sub != nil {
 			name = sub.Name
 		}
 		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>)", html.EscapeString(name), id)
@@ -960,7 +961,7 @@ func (moduleStruct) setFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 			replyHTML(b, msg, text)
 			return ext.EndGroups
 		}
-		fed := federations.GetFed(fedID)
+		fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
 		if fed == nil || fed.OwnerID != from.Id {
 			text, _ := tr.GetString("feds_not_owner")
 			replyHTML(b, msg, text)
@@ -1183,7 +1184,7 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	if chat == nil || chat_status.RequirePrivate(b, ctx, chat) || msg == nil {
 		return ext.ContinueGroups
 	}
-	membership := federations.GetChatFed(chat.Id)
+	membership := federations.GetChatFedContext(tracing.UpdateContext(ctx), chat.Id)
 	if membership == nil {
 		return ext.ContinueGroups
 	}
@@ -1208,7 +1209,7 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		tr := ctxTr(ctx)
 		fedName := sourceFed
-		if fed := federations.GetFed(sourceFed); fed != nil {
+		if fed := federations.GetFedContext(tracing.UpdateContext(ctx), sourceFed); fed != nil {
 			fedName = fed.Name
 		}
 		text, _ := tr.GetString("feds_passive_ban", i18n.TranslationParams{

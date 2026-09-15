@@ -1,6 +1,7 @@
 package logchannels
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -40,9 +41,13 @@ func invalidate(chatID int64) {
 }
 
 func Get(chatID int64) *models.LogChannel {
-	result, err := cache.GetFromCacheOrLoad(cache.CacheKey(cachePrefix, chatID), cache.CacheTTLLogChannel, func() (models.LogChannel, error) {
+	return GetContext(context.Background(), chatID)
+}
+
+func GetContext(ctx context.Context, chatID int64) *models.LogChannel {
+	result, err := cache.GetFromCacheOrLoad(ctx, cache.CacheKey(cachePrefix, chatID), cache.CacheTTLLogChannel, func(ctx context.Context) (models.LogChannel, error) {
 		var row models.LogChannel
-		err := db.GetRecord(&row, models.LogChannel{ChatID: chatID})
+		err := db.GetRecordContext(ctx, &row, models.LogChannel{ChatID: chatID})
 		if err != nil {
 			return models.LogChannel{}, err
 		}

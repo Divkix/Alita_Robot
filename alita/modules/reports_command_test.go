@@ -6,6 +6,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -21,7 +22,7 @@ func seedCallbackAdmins(t *testing.T, chatID int64, members ...gotgbot.MergedCha
 	for _, member := range members {
 		userMap[member.User.Id] = member
 	}
-	key := fmt.Sprintf("alita:adminCache:%d", chatID)
+	key := fmt.Sprintf("alita:cache:adminCache:%d", chatID)
 	if err := m.Set(cache.Context, key, cache.AdminCache{
 		ChatId:   chatID,
 		UserInfo: members,

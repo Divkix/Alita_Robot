@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 func fetchJSON(rawURL string, dest any) error {
@@ -82,7 +83,7 @@ func (moduleStruct) zombies(b *gotgbot.Bot, ctx *ext.Context) error {
 	scanText, _ := tr.GetString("misc_zombies_scanning")
 	replyHTML(b, msg, scanText)
 	cleaned := 0
-	users, _ := chats.GetChatUsersCached(chat.Id)
+	users, _ := chats.GetChatUsersCachedContext(tracing.UpdateContext(ctx), chat.Id)
 	for _, userID := range users {
 		if !chat_status.IsValidUserId(userID) || userID == b.Id {
 			continue

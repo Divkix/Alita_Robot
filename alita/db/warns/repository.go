@@ -1,8 +1,13 @@
 package warns
 
 import (
+	"context"
 	"errors"
 	"unicode/utf8"
+
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -10,30 +15,31 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
+	return checkWarnSettingsContext(context.Background(), chatID)
+}
+
+func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models.WarnSettings) {
 	defaultWarnSettings := &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}
 	warnrc = &models.WarnSettings{}
-	err := db.DB.Where("chat_id = ?", chatID).First(warnrc).Error
+	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if !db.ChatExists(chatID) {
+		if !db.ChatExistsContext(ctx, chatID) {
 			log.Warnf("[Database][checkWarnSettings]: Chat %d doesn't exist, returning default settings", chatID)
 			return defaultWarnSettings
 		}
 
 		warnrc = defaultWarnSettings
-		result := db.DB.Clauses(clause.OnConflict{
+		result := db.DB.WithContext(ctx).Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "chat_id"}},
 			DoNothing: true,
 		}).Create(warnrc)
 		if result.Error != nil {
 			log.Errorf("[Database] checkWarnSettings: %v", result.Error)
 		} else if result.RowsAffected == 0 {
-			if err := db.DB.Where("chat_id = ?", chatID).First(warnrc).Error; err != nil {
+			if err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error; err != nil {
 				log.Errorf("[Database] checkWarnSettings reload: %v", err)
 				warnrc = defaultWarnSettings
 			}
@@ -46,24 +52,28 @@ func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
 }
 
 func checkWarns(userId, chatId int64) (warnrc *models.Warns) {
+	return checkWarnsContext(context.Background(), userId, chatId)
+}
+
+func checkWarnsContext(ctx context.Context, userId, chatId int64) (warnrc *models.Warns) {
 	defaultWarnSrc := &models.Warns{UserId: userId, ChatId: chatId, NumWarns: 0, Reasons: make(models.StringArray, 0)}
 	warnrc = &models.Warns{}
-	err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error
+	err := db.DB.WithContext(ctx).Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if !db.ChatExists(chatId) {
+		if !db.ChatExistsContext(ctx, chatId) {
 			log.Warnf("[Database][checkWarns]: Chat %d doesn't exist, returning default settings", chatId)
 			return defaultWarnSrc
 		}
 
 		warnrc = defaultWarnSrc
-		result := db.DB.Clauses(clause.OnConflict{
+		result := db.DB.WithContext(ctx).Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "chat_id"}},
 			DoNothing: true,
 		}).Create(warnrc)
 		if result.Error != nil {
 			log.Errorf("[Database] checkWarns: %v", result.Error)
 		} else if result.RowsAffected == 0 {
-			if err := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
+			if err := db.DB.WithContext(ctx).Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error; err != nil {
 				log.Errorf("[Database] checkWarns reload: %v", err)
 				warnrc = defaultWarnSrc
 			}
@@ -229,21 +239,24 @@ func ResetUserWarns(userId, chatId int64) (bool, error) {
 }
 
 func GetWarns(userId, chatId int64) (int, []string) {
+	return GetWarnsContext(context.Background(), userId, chatId)
+}
+
+func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []string) {
 	type warnCache struct {
 		NumWarns int
 		Reasons  []string
 	}
-	cached, err := cache.GetFromCacheOrLoad(
+	cached, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey("warns", userId, chatId),
 		cache.CacheTTLWarnSettings,
-		func() (warnCache, error) {
-			w := checkWarns(userId, chatId)
+		func(ctx context.Context) (warnCache, error) {
+			w := checkWarnsContext(ctx, userId, chatId)
 			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
 		},
 	)
 	if err != nil {
-		w := checkWarns(userId, chatId)
-		return w.NumWarns, []string(w.Reasons)
+		return 0, nil
 	}
 	return cached.NumWarns, cached.Reasons
 }
@@ -273,16 +286,20 @@ func SetWarnMode(chatId int64, warnMode string) error {
 }
 
 func GetWarnSetting(chatId int64) *models.WarnSettings {
-	cached, err := cache.GetFromCacheOrLoad(
+	return GetWarnSettingContext(context.Background(), chatId)
+}
+
+func GetWarnSettingContext(ctx context.Context, chatId int64) *models.WarnSettings {
+	cached, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey("warn_settings", chatId),
 		cache.CacheTTLWarnSettings,
-		func() (models.WarnSettings, error) {
-			w := checkWarnSettings(chatId)
+		func(ctx context.Context) (models.WarnSettings, error) {
+			w := checkWarnSettingsContext(ctx, chatId)
 			return *w, nil
 		},
 	)
 	if err != nil {
-		return checkWarnSettings(chatId)
+		return &models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute"}
 	}
 	return &cached
 }

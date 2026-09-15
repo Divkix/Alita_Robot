@@ -105,7 +105,7 @@ func TestMain(m *testing.M) {
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if db.DB == nil {
-		t.Skip("requires database connection")
+		t.Fatal("test database was not initialized")
 	}
 }
 

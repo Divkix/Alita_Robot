@@ -3,16 +3,87 @@
 package antiflood
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
+
+func TestAntifloodReadDeadlineDoesNotRetryDatabase(t *testing.T) {
+	utilsCache.SetupTestMemoryMarshaler(t)
+	original := db.DB
+	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.DB = database
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.DB = original; _ = sqlDB.Close() })
+	sqlDB.SetMaxOpenConns(1)
+	connection, err := sqlDB.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := connection.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := GetAntifloodSettingsCachedContext(ctx, -1005); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("read error = %v, want deadline exceeded", err)
+	}
+	if waits := sqlDB.Stats().WaitCount; waits != 1 {
+		t.Fatalf("database connection waits = %d, want one query without a fallback retry", waits)
+	}
+}
+
+func TestFloodSettersPropagateReadFailure(t *testing.T) {
+	original := db.DB
+	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.DB = database
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.DB = original; _ = sqlDB.Close() })
+	want := errors.New("database read unavailable")
+	if err := database.Callback().Query().Before("gorm:query").Register("test:read_failure", func(tx *gorm.DB) {
+		_ = tx.AddError(want)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for name, set := range map[string]func() error{
+		"disable": func() error { return SetFlood(-1001, 0) },
+		"mode":    func() error { return SetFloodMode(-1001, "mute") },
+		"delete":  func() error { return SetFloodMsgDel(-1001, false) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := set(); !errors.Is(err, want) {
+				t.Fatalf("setter error = %v, want %v", err, want)
+			}
+		})
+	}
+}
 
 func skipIfNoDb(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 }
 

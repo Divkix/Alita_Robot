@@ -13,6 +13,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/eko/gocache/lib/v4/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,7 +27,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
-	"github.com/eko/gocache/lib/v4/store"
 )
 
 // maxRequestBodySize defines the maximum allowed request body size (10MB)
@@ -45,13 +45,26 @@ type Server struct {
 	pprofEnabled     bool
 	startTime        time.Time
 	dispatchWG       sync.WaitGroup
+	dispatchMu       sync.Mutex
+	dispatchQueue    chan webhookUpdate
+	dispatchStopped  bool
+	dispatchContext  context.Context
+	dispatchCancel   context.CancelFunc
+}
+
+type webhookUpdate struct {
+	ctx    context.Context
+	update gotgbot.Update
 }
 
 func New(port int, startTime time.Time) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		mux:       http.NewServeMux(),
-		port:      port,
-		startTime: startTime,
+		mux:             http.NewServeMux(),
+		port:            port,
+		startTime:       startTime,
+		dispatchContext: ctx,
+		dispatchCancel:  cancel,
 	}
 }
 
@@ -287,31 +300,62 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	s.dispatchWG.Add(1)
-	go func(requestCtx context.Context) {
-		defer s.dispatchWG.Done()
-		defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
-
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(requestCtx), 30*time.Second)
-		defer cancel()
-
-		asyncCtx, asyncSpan := tracing.StartSpan(ctx, "dispatcher.processUpdate")
-		defer asyncSpan.End()
-
-		data := map[string]any{
-			tracing.ContextDataKey: asyncCtx,
-		}
-		if err := s.dispatcher.ProcessUpdate(s.bot, &update, data); err != nil {
-			log.WithFields(log.Fields{
-				"trace_id": asyncSpan.SpanContext().TraceID().String(),
-			}).Error("[HTTPServer] Failed to process update: ", err)
-			asyncSpan.SetStatus(codes.Error, "failed to process update")
-		}
-	}(ctx)
+	if !s.enqueueUpdate(webhookUpdate{ctx: context.WithoutCancel(ctx), update: update}) {
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "Update queue unavailable", http.StatusServiceUnavailable)
+		span.SetStatus(codes.Error, "update queue unavailable")
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte("OK")); err != nil {
 		log.Errorf("[HTTPServer] Failed to write response: %v", err)
+	}
+}
+
+func (s *Server) enqueueUpdate(update webhookUpdate) bool {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+	if s.dispatchStopped || s.dispatcher == nil {
+		return false
+	}
+	if s.dispatchQueue == nil {
+		workers := s.dispatcher.MaxUsage()
+		if workers <= 0 {
+			workers = ext.DefaultMaxRoutines
+		}
+		s.dispatchQueue = make(chan webhookUpdate, workers)
+		for range workers {
+			s.dispatchWG.Add(1)
+			go func() {
+				defer s.dispatchWG.Done()
+				for update := range s.dispatchQueue {
+					if s.dispatchContext.Err() == nil {
+						s.processWebhookUpdate(update)
+					}
+				}
+			}()
+		}
+	}
+	select {
+	case s.dispatchQueue <- update:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Server) processWebhookUpdate(update webhookUpdate) {
+	defer error_handling.RecoverFromPanic("ProcessUpdate", "HTTPServer")
+	ctx, cancel := context.WithTimeout(update.ctx, 30*time.Second)
+	defer cancel()
+	stop := context.AfterFunc(s.dispatchContext, cancel)
+	defer stop()
+	ctx, span := tracing.StartSpan(ctx, "dispatcher.processUpdate")
+	defer span.End()
+	if err := s.dispatcher.ProcessUpdate(s.bot, &update.update, map[string]any{tracing.ContextDataKey: ctx}); err != nil {
+		log.WithField("trace_id", span.SpanContext().TraceID().String()).Error("[HTTPServer] Failed to process update: ", err)
+		span.SetStatus(codes.Error, "failed to process update")
 	}
 }
 
@@ -373,6 +417,15 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop() error {
 	log.Info("[HTTPServer] Shutting down server...")
+	s.dispatchMu.Lock()
+	if !s.dispatchStopped {
+		s.dispatchStopped = true
+		if s.dispatchQueue != nil {
+			close(s.dispatchQueue)
+		}
+	}
+	s.dispatchMu.Unlock()
+	defer s.dispatchCancel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

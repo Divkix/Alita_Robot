@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -12,6 +13,16 @@ import (
 var onProcessUpdateCallback atomic.Value
 
 const ContextDataKey = "context"
+
+// UpdateContext returns the update's cancellation, deadline, and trace context.
+func UpdateContext(ctx *ext.Context) context.Context {
+	if ctx != nil && ctx.Data != nil {
+		if updateCtx, ok := ctx.Data[ContextDataKey].(context.Context); ok {
+			return updateCtx
+		}
+	}
+	return context.Background()
+}
 
 func SetOnProcessUpdateCallback(cb func()) {
 	onProcessUpdateCallback.Store(cb)
@@ -39,7 +50,9 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 		}
 	}
 
-	traceCtx, span := StartSpan(context.Background(), "dispatcher.processUpdate")
+	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")
 	defer func() {
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())

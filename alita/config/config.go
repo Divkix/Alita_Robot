@@ -228,7 +228,7 @@ func LoadConfig() (*Config, error) {
 
 	cfg := &Config{
 		BotToken:    os.Getenv("BOT_TOKEN"),
-		BotVersion:  "2.22.9",
+		BotVersion:  "2.22.10",
 		ApiServer:   os.Getenv("API_SERVER"),
 		WorkingMode: "worker",
 		Debug:       typeConvertor{str: os.Getenv("DEBUG")}.Bool(),
@@ -358,10 +358,6 @@ func (cfg *Config) setDefaults() {
 
 	if cfg.DispatcherMaxRoutines == 0 {
 		cfg.DispatcherMaxRoutines = 200
-	}
-
-	if os.Getenv("CLEAR_CACHE_ON_STARTUP") == "" {
-		cfg.ClearCacheOnStartup = true
 	}
 
 	if !cfg.Debug {

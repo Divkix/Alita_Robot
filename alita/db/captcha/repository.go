@@ -1,16 +1,18 @@
 package captcha
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/divkix/Alita_Robot/alita/db"
-	"github.com/divkix/Alita_Robot/alita/db/cache"
-	"github.com/divkix/Alita_Robot/alita/db/models"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 var (
@@ -23,9 +25,13 @@ var (
 )
 
 func GetCaptchaSettings(chatID int64) (*models.CaptchaSettings, error) {
-	return cache.GetFromCacheOrLoad(cache.CacheKey("captcha_settings", chatID), cache.CacheTTLCaptchaSettings, func() (*models.CaptchaSettings, error) {
+	return GetCaptchaSettingsContext(context.Background(), chatID)
+}
+
+func GetCaptchaSettingsContext(ctx context.Context, chatID int64) (*models.CaptchaSettings, error) {
+	return cache.GetFromCacheOrLoad(ctx, cache.CacheKey("captcha_settings", chatID), cache.CacheTTLCaptchaSettings, func(ctx context.Context) (*models.CaptchaSettings, error) {
 		settings := &models.CaptchaSettings{}
-		err := db.GetRecord(settings, map[string]any{"chat_id": chatID})
+		err := db.GetRecordContext(ctx, settings, map[string]any{"chat_id": chatID})
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &models.CaptchaSettings{

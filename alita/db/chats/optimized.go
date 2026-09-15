@@ -1,27 +1,33 @@
 package chats
 
 import (
+	"context"
 	"errors"
+
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
-type ChatCacheEntry struct {
+type chatCacheEntry[T any] struct {
 	Found bool
-	Chat  *models.Chat
+	Value T
 }
 
 func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
+	return GetChatBasicInfoContext(context.Background(), chatID)
+}
+
+func GetChatBasicInfoContext(ctx context.Context, chatID int64) (*models.Chat, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
 
 	var chat models.Chat
-	err := db.DB.Model(&models.Chat{}).
+	err := db.DB.WithContext(ctx).Model(&models.Chat{}).
 		Select("id, chat_id, chat_name, language, is_inactive, last_activity").
 		Where("chat_id = ?", chatID).
 		First(&chat).Error
@@ -34,48 +40,45 @@ func GetChatBasicInfo(chatID int64) (*models.Chat, error) {
 }
 
 func GetChatBasicInfoCached(chatID int64) (*models.Chat, error) {
-	cacheKey := cache.CacheKey("chat", chatID)
-
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (ChatCacheEntry, error) {
-		chat, err := GetChatBasicInfo(chatID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ChatCacheEntry{Found: false, Chat: nil}, nil
-		}
-		if err != nil {
-			return ChatCacheEntry{}, err
-		}
-		return ChatCacheEntry{Found: true, Chat: chat}, nil
-	})
-	if err != nil {
-		chat, dbErr := GetChatBasicInfo(chatID)
-		if dbErr == nil {
-			return chat, nil
-		}
-		if errors.Is(dbErr, gorm.ErrRecordNotFound) {
-			return nil, gorm.ErrRecordNotFound
-		}
-		return nil, dbErr
-	}
-
-	if !cached.Found {
-		return nil, gorm.ErrRecordNotFound
-	}
-
-	return cached.Chat, nil
+	return GetChatBasicInfoCachedContext(context.Background(), chatID)
 }
 
-type ChatUsersCacheEntry struct {
-	Found bool
-	Users models.Int64Array
+func GetChatBasicInfoCachedContext(ctx context.Context, chatID int64) (*models.Chat, error) {
+	return loadChatCache(ctx, cache.CacheKey("chat", chatID), chatID, GetChatBasicInfoContext)
+}
+
+func loadChatCache[T any](ctx context.Context, key string, chatID int64, loader func(context.Context, int64) (T, error)) (T, error) {
+	var zero T
+	cached, err := cache.GetFromCacheOrLoad(ctx, key, cache.CacheTTLChatSettings, func(ctx context.Context) (chatCacheEntry[T], error) {
+		value, err := loader(ctx, chatID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return chatCacheEntry[T]{}, nil
+		}
+		if err != nil {
+			return chatCacheEntry[T]{}, err
+		}
+		return chatCacheEntry[T]{Found: true, Value: value}, nil
+	})
+	if err != nil {
+		return zero, err
+	}
+	if !cached.Found {
+		return zero, gorm.ErrRecordNotFound
+	}
+	return cached.Value, nil
 }
 
 func GetChatUsers(chatID int64) (models.Int64Array, error) {
+	return GetChatUsersContext(context.Background(), chatID)
+}
+
+func GetChatUsersContext(ctx context.Context, chatID int64) (models.Int64Array, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
 	}
 
 	var chat models.Chat
-	err := db.DB.Model(&models.Chat{}).
+	err := db.DB.WithContext(ctx).Model(&models.Chat{}).
 		Select("users").
 		Where("chat_id = ?", chatID).
 		First(&chat).Error
@@ -91,32 +94,9 @@ func GetChatUsers(chatID int64) (models.Int64Array, error) {
 }
 
 func GetChatUsersCached(chatID int64) (models.Int64Array, error) {
-	cacheKey := cache.CacheKey("chat_users", chatID)
+	return GetChatUsersCachedContext(context.Background(), chatID)
+}
 
-	cached, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLChatSettings, func() (ChatUsersCacheEntry, error) {
-		users, err := GetChatUsers(chatID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ChatUsersCacheEntry{Found: false, Users: nil}, nil
-		}
-		if err != nil {
-			return ChatUsersCacheEntry{}, err
-		}
-		return ChatUsersCacheEntry{Found: true, Users: users}, nil
-	})
-	if err != nil {
-		users, dbErr := GetChatUsers(chatID)
-		if dbErr == nil {
-			return users, nil
-		}
-		if errors.Is(dbErr, gorm.ErrRecordNotFound) {
-			return nil, gorm.ErrRecordNotFound
-		}
-		return nil, dbErr
-	}
-
-	if !cached.Found {
-		return nil, gorm.ErrRecordNotFound
-	}
-
-	return cached.Users, nil
+func GetChatUsersCachedContext(ctx context.Context, chatID int64) (models.Int64Array, error) {
+	return loadChatCache(ctx, cache.CacheKey("chat_users", chatID), chatID, GetChatUsersContext)
 }

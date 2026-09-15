@@ -6,24 +6,23 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
-	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
-
-	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/PaulSonOfLars/gotgbot/v2/ext"
-
-	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/content"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var notesModule = moduleStruct{
@@ -234,7 +233,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteWord)) {
+	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteWord)) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_not_exists")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -334,7 +333,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteKeys := notes.GetNotesList(chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
+	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, chat_status.RequireUserAdmin(b, ctx, nil, user.Id))
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	info, _ := tr.GetString("notes_none_in_chat")
 
@@ -349,7 +348,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if ctx.Message.Chat.Type == "private" {
 		admin := chat_status.IsUserAdmin(b, chat.Id, user.Id)
-		noteKeys := notes.GetNotesList(chat.Id, admin)
+		noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, admin)
 		listText, _ := tr.GetString("notes_list_for_chat")
 		info = fmt.Sprintf(listText, chat.Title)
 		var sb strings.Builder
@@ -425,7 +424,7 @@ func (moduleStruct) rmAllNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	noteKeys := notes.GetNotesList(chat.Id, true)
+	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true)
 	if len(noteKeys) == 0 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_none_in_chat")
@@ -690,7 +689,7 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	noteName := noteNameArgs[0]
 	noformatNote := len(noteNameArgs) == 2 && noteNameArgs[1] == "noformat"
 
-	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteName)) {
 		return ext.ContinueGroups
 	}
 
@@ -809,7 +808,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	noteName := args[0]
 
-	if !slices.Contains(notes.GetNotesList(chat.Id, true), strings.ToLower(noteName)) {
+	if !slices.Contains(notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, true), strings.ToLower(noteName)) {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("notes_does_not_exist")
 		_, err := msg.Reply(b, text, formatting.Shtml())
@@ -1012,7 +1011,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 	}
 
 	admin := chat_status.IsUserAdmin(b, chatinfo.Id, user.Id)
-	noteKeys := notes.GetNotesList(chatinfo.Id, admin)
+	noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chatinfo.Id, admin)
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	info, _ := tr.GetString("notes_none_in_chat")
 	if len(noteKeys) > 0 {

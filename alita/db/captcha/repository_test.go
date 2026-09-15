@@ -16,7 +16,7 @@ import (
 func skipIfNoDb(t *testing.T) {
 	t.Helper()
 	if db.DB == nil {
-		t.Skip("requires database connection")
+		t.Fatal("test database was not initialized")
 	}
 }
 
@@ -226,11 +226,6 @@ func TestCaptchaSettingsCacheInvalidation(t *testing.T) {
 		t.Fatalf("expected FailureAction='ban', got %q", settings.FailureAction)
 	}
 
-	expectedKey := fmt.Sprintf("alita:captcha_settings:%d", chatID)
-	actualKey := dbcache.CacheKey("captcha_settings", chatID)
-	if actualKey != expectedKey {
-		t.Fatalf("cache key mismatch: expected %q, got %q", expectedKey, actualKey)
-	}
 }
 
 func TestCaptchaAttempt_Lifecycle(t *testing.T) {

@@ -19,6 +19,10 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
+	"github.com/eko/gocache/lib/v4/store"
+	"github.com/mojocn/base64Captcha"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
@@ -31,9 +35,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
-	"github.com/eko/gocache/lib/v4/store"
-	"github.com/mojocn/base64Captcha"
-	log "github.com/sirupsen/logrus"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var captchaMemberRetryDelay = 300 * time.Millisecond
@@ -467,7 +469,7 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		settings, err := captcha.GetCaptchaSettings(chat.Id)
+		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
@@ -730,7 +732,7 @@ func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(args) == 0 {
-		settings, err := captcha.GetCaptchaSettings(chat.Id)
+		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 			return ext.EndGroups
@@ -1011,7 +1013,7 @@ func SendCaptcha(bot *gotgbot.Bot, ctx *ext.Context, userID int64, userName stri
 		}
 	}()
 	chat := ctx.EffectiveChat
-	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha][SendCaptcha] Failed to get settings for chat %d: %v", chat.Id, err)
 		return err
@@ -1481,7 +1483,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 		return err
 	}
 
-	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -1723,7 +1725,7 @@ func (moduleStruct) captchaRefreshCallback(bot *gotgbot.Bot, ctx *ext.Context) e
 
 	oldMessageID := attempt.MessageID
 
-	settings, err := captcha.GetCaptchaSettings(chat.Id)
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
 	}

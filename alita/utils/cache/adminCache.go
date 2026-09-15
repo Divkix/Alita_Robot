@@ -3,21 +3,22 @@ package cache
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
-
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/eko/gocache/lib/v4/store"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
 var adminCacheGroup singleflight.Group
+var adminCacheGeneration atomic.Uint64
 
 func adminCacheKey(chatId int64) string {
-	return fmt.Sprintf("alita:adminCache:%d", chatId)
+	return fmt.Sprintf("%sadminCache:%d", DataCachePrefix, chatId)
 }
 
 // getChatAdministrators is called with ReturnBots so other administrator bots
@@ -37,16 +38,19 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 }
 
 func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
+	generation := adminCacheGeneration.Load()
 	const negativeAdminCacheTTL = 2 * time.Minute
 	const botStatusErrorAdminCacheTTL = 30 * time.Second
 
 	storeWithTTL := func(adminCache AdminCache, ttl time.Duration) AdminCache {
-		if m := GetMarshal(); m != nil {
+		if m := GetMarshal(); m != nil && generation == adminCacheGeneration.Load() {
 			if err := m.Set(Context, adminCacheKey(chatId), adminCache, store.WithExpiration(ttl)); err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chatId,
 					"error":  err,
 				}).Error("LoadAdminCache: Failed to cache admin list")
+			} else if generation != adminCacheGeneration.Load() {
+				InvalidateAdminCache(chatId)
 			}
 		}
 		return adminCache
@@ -212,14 +216,17 @@ func GetAdminCacheUser(chatId, userId int64) (bool, gotgbot.MergedChatMember) {
 }
 
 func InvalidateAdminCache(chatId int64) {
-	m := GetMarshal()
-	if m == nil {
-		return
-	}
-	cacheKey := adminCacheKey(chatId)
-	if err := m.Delete(Context, cacheKey); err != nil {
+	if err := ClearAdminCache(chatId); err != nil {
 		log.Debugf("[AdminCache] Failed to invalidate cache for chat %d: %v", chatId, err)
-	} else {
-		log.Debugf("[AdminCache] Invalidated admin cache for chat %d", chatId)
 	}
+}
+
+// ClearAdminCache invalidates pending lookups and removes stored permissions.
+func ClearAdminCache(chatId int64) error {
+	adminCacheGeneration.Add(1)
+	adminCacheGroup.Forget(adminCacheKey(chatId))
+	if m := GetMarshal(); m != nil {
+		return m.Delete(Context, adminCacheKey(chatId))
+	}
+	return nil
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 const (
@@ -424,7 +425,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_expected_args")
 	} else {
 		if slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) {
-			if err := antiflood.SetFlood(chat.Id, 0); err != nil {
+			if err := antiflood.SetFloodContext(tracing.UpdateContext(ctx), chat.Id, 0); err != nil {
 				log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -439,7 +440,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				if num < 3 || num > 100 {
 					replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_errors_set_in_limit")
 				} else {
-					if err := antiflood.SetFlood(chat.Id, num); err != nil {
+					if err := antiflood.SetFloodContext(tracing.UpdateContext(ctx), chat.Id, num); err != nil {
 						log.Errorf("[Antiflood] SetFlood failed for chat %d: %v", chat.Id, err)
 						errText, _ := tr.GetString("common_settings_save_failed")
 						_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -477,7 +478,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	flood := antiflood.GetFlood(chat.Id)
+	flood := antiflood.GetFloodContext(tracing.UpdateContext(ctx), chat.Id)
 	if flood.Limit == 0 {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
@@ -514,7 +515,7 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		selectedMode := strings.ToLower(args[0])
 		if slices.Contains([]string{"ban", "kick", "mute"}, selectedMode) {
-			if err := antiflood.SetFloodMode(chat.Id, selectedMode); err != nil {
+			if err := antiflood.SetFloodModeContext(tracing.UpdateContext(ctx), chat.Id, selectedMode); err != nil {
 				log.Errorf("[Antiflood] SetFloodMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -559,7 +560,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 		selectedMode := strings.ToLower(args[0])
 		switch selectedMode {
 		case "on", "yes":
-			if err := antiflood.SetFloodMsgDel(chat.Id, true); err != nil {
+			if err := antiflood.SetFloodMsgDelContext(tracing.UpdateContext(ctx), chat.Id, true); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -567,7 +568,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			}
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_enabled")
 		case "off", "no":
-			if err := antiflood.SetFloodMsgDel(chat.Id, false); err != nil {
+			if err := antiflood.SetFloodMsgDelContext(tracing.UpdateContext(ctx), chat.Id, false); err != nil {
 				log.Errorf("[Antiflood] SetFloodMsgDel failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
@@ -578,7 +579,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_invalid_option")
 		}
 	} else {
-		currSet := antiflood.GetFlood(chat.Id).DeleteAntifloodMessage
+		currSet := antiflood.GetFloodContext(tracing.UpdateContext(ctx), chat.Id).DeleteAntifloodMessage
 		if currSet {
 			text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_deleter_already_enabled")
 		} else {

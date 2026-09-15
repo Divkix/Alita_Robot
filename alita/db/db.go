@@ -62,7 +62,11 @@ func withSpan(ctx context.Context, op string, model any, fn func(ctx context.Con
 }
 
 func CreateRecord(model any) error {
-	return withSpan(context.Background(), "db.create", model, func(ctx context.Context, span trace.Span) error {
+	return CreateRecordContext(context.Background(), model)
+}
+
+func CreateRecordContext(ctx context.Context, model any) error {
+	return withSpan(ctx, "db.create", model, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Create(model)
 		if result.Error != nil {
 			log.Errorf("[Database][CreateRecord]: %v", result.Error)
@@ -102,7 +106,11 @@ func updateRecordInternal(ctx context.Context, model any, where any, updates any
 }
 
 func GetRecord(model any, where any) error {
-	return withSpan(context.Background(), "db.get", model, func(ctx context.Context, span trace.Span) error {
+	return GetRecordContext(context.Background(), model, where)
+}
+
+func GetRecordContext(ctx context.Context, model any, where any) error {
+	return withSpan(ctx, "db.get", model, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Where(where).First(model)
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -119,8 +127,12 @@ func GetRecord(model any, where any) error {
 }
 
 func ChatExists(chatID int64) bool {
+	return ChatExistsContext(context.Background(), chatID)
+}
+
+func ChatExistsContext(ctx context.Context, chatID int64) bool {
 	chatExists := &Chat{}
-	err := GetRecord(chatExists, Chat{ChatId: chatID})
+	err := GetRecordContext(ctx, chatExists, Chat{ChatId: chatID})
 	if err != nil {
 		return false
 	}
@@ -145,7 +157,11 @@ func TableRowCount(tableName string) int64 {
 }
 
 func GetRecords(models any, where any) error {
-	return withSpan(context.Background(), "db.find", models, func(ctx context.Context, span trace.Span) error {
+	return GetRecordsContext(context.Background(), models, where)
+}
+
+func GetRecordsContext(ctx context.Context, models any, where any) error {
+	return withSpan(ctx, "db.find", models, func(ctx context.Context, span trace.Span) error {
 		result := DB.WithContext(ctx).Where(where).Find(models)
 		if result.Error != nil {
 			log.Errorf("[Database][GetRecords]: %v", result.Error)

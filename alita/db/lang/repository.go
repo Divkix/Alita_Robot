@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"context"
 	"errors"
 
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -12,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 func checkUserInfo(userId int64) (userc *models.User) {
@@ -46,41 +48,49 @@ func GetLanguage(ctx *ext.Context) string {
 		if user == nil {
 			return "en"
 		}
-		return getUserLanguage(user.Id)
+		return getUserLanguageContext(tracing.UpdateContext(ctx), user.Id)
 	}
-	return getGroupLanguage(chat.Id)
+	return getGroupLanguageContext(tracing.UpdateContext(ctx), chat.Id)
 }
 
 func getGroupLanguage(GroupID int64) string {
-	cacheKey := cache.CacheKey("chat_lang", GroupID)
-	lang, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLLanguage, func() (string, error) {
-		groupc := chats.GetChatSettings(GroupID)
-		if groupc.Language == "" {
-			return "en", nil
-		}
-		return groupc.Language, nil
-	})
-	if err != nil {
-		return "en"
-	}
-	return lang
+	return getGroupLanguageContext(context.Background(), GroupID)
 }
 
-func getUserLanguage(UserID int64) string {
-	cacheKey := cache.CacheKey("user_lang", UserID)
-	lang, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLLanguage, func() (string, error) {
-		userc := checkUserInfo(UserID)
-		if userc == nil {
-			return "en", nil
-		} else if userc.Language == "" {
+func getGroupLanguageContext(ctx context.Context, groupID int64) string {
+	return getCachedLanguage(ctx, cache.CacheKey("chat_lang", groupID), &models.Chat{}, "chat_id", groupID)
+}
+
+func getUserLanguage(userID int64) string {
+	return getUserLanguageContext(context.Background(), userID)
+}
+
+func getUserLanguageContext(ctx context.Context, userID int64) string {
+	return getCachedLanguage(ctx, cache.CacheKey("user_lang", userID), &models.User{}, "user_id", userID)
+}
+
+func getCachedLanguage(ctx context.Context, key string, model any, idColumn string, id int64) string {
+	language, err := cache.GetFromCacheOrLoad(ctx, key, cache.CacheTTLLanguage, func(ctx context.Context) (string, error) {
+		if db.DB == nil {
+			return "", errors.New("database not initialized")
+		}
+		var result struct{ Language string }
+		err := db.DB.WithContext(ctx).Model(model).Select("language").Where(map[string]any{idColumn: id}).Take(&result).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "en", nil
 		}
-		return userc.Language, nil
+		if err != nil {
+			return "", err
+		}
+		if result.Language == "" {
+			return "en", nil
+		}
+		return result.Language, nil
 	})
 	if err != nil {
 		return "en"
 	}
-	return lang
+	return language
 }
 
 func ChangeUserLanguage(UserID int64, lang string) error {

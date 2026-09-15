@@ -30,6 +30,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 var recentJoinProcessTTL = 5 * time.Second
@@ -670,7 +671,7 @@ func (moduleStruct) newMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		threadID = ctx.EffectiveMessage.MessageThreadId
 	}
 	chatCopy := *chat
-	captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
+	captchaSettings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 	if err != nil {
 		log.Errorf("[Greetings][newMember] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 		captchaSettings = &db.CaptchaSettings{Enabled: false}
@@ -792,7 +793,7 @@ func (moduleStruct) cleanService(bot *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if msg.NewChatMembers != nil {
-		captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
+		captchaSettings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
 		if err != nil {
 			log.Errorf("[Greetings][cleanService] Failed to get captcha settings for chat %d: %v", chat.Id, err)
 			captchaSettings = &db.CaptchaSettings{Enabled: false}

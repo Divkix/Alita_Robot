@@ -12,7 +12,7 @@ import (
 
 func skipIfNoDb(t *testing.T) {
 	if db.DB == nil {
-		t.Skip("DB not initialized")
+		t.Fatal("test database was not initialized")
 	}
 }
 

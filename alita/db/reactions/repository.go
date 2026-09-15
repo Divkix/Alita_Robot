@@ -1,11 +1,14 @@
 package reactions
 
 import (
+	"context"
+
+	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
+
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm/clause"
 )
 
 func reactionsCacheKey(chatID int64) string {
@@ -13,10 +16,14 @@ func reactionsCacheKey(chatID int64) string {
 }
 
 func GetReactions(chatID int64) map[string]string {
+	return GetReactionsContext(context.Background(), chatID)
+}
+
+func GetReactionsContext(ctx context.Context, chatID int64) map[string]string {
 	cacheKey := reactionsCacheKey(chatID)
-	result, err := cache.GetFromCacheOrLoad(cacheKey, cache.CacheTTLReactions, func() (map[string]string, error) {
+	result, err := cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLReactions, func(ctx context.Context) (map[string]string, error) {
 		var rows []*models.Reactions
-		if err := db.GetRecords(&rows, models.Reactions{ChatID: chatID}); err != nil {
+		if err := db.GetRecordsContext(ctx, &rows, models.Reactions{ChatID: chatID}); err != nil {
 			log.Errorf("[Database] GetReactions: %v - chat:%d", err, chatID)
 			return map[string]string{}, err
 		}
