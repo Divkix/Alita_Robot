@@ -262,9 +262,11 @@ func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []string) 
 }
 
 func SetWarnLimit(chatId int64, warnLimit int) error {
-	warnrc := checkWarnSettings(chatId)
-	warnrc.WarnLimit = warnLimit
-	err := db.DB.Save(warnrc).Error
+	// Single-statement upsert: no read-modify-write, concurrent limit/mode sets can't clobber.
+	err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"warn_limit"}),
+	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: warnLimit, WarnMode: "mute"}).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnLimit: %v", err)
 		return err
@@ -274,9 +276,11 @@ func SetWarnLimit(chatId int64, warnLimit int) error {
 }
 
 func SetWarnMode(chatId int64, warnMode string) error {
-	warnrc := checkWarnSettings(chatId)
-	warnrc.WarnMode = warnMode
-	err := db.DB.Save(warnrc).Error
+	// Single-statement upsert: see SetWarnLimit.
+	err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"warn_mode"}),
+	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode}).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
 		return err

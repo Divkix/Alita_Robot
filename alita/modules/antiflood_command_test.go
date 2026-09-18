@@ -2,13 +2,11 @@ package modules
 
 import (
 	"fmt"
-	"sync"
-	"testing"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"testing"
 )
 
 func resetAntifloodState(t *testing.T) {
@@ -138,7 +136,11 @@ func TestAntifloodUpdateFloodTracksLimitAndResetsAfterPunishment(t *testing.T) {
 	if !ok {
 		t.Fatal("flood state was not stored after punishment")
 	}
-	if got := stored.(floodControl); got.messageCount != 0 || got.userId != 0 {
+	got, ok := stored.(*floodControl)
+	if !ok || got == nil {
+		t.Fatalf("stored state type = %T, want *floodControl", stored)
+	}
+	if got.messageCount != 0 || got.userId != 0 {
 		t.Fatalf("stored state after punishment = %#v, want reset state", got)
 	}
 }
@@ -404,22 +406,8 @@ func TestAntifloodWatcherSkipsApprovedUsersAndBotRestrictFailures(t *testing.T) 
 	}
 }
 
-func countFloodMuEntries() int {
-	n := 0
-	floodMu.Range(func(_, _ any) bool {
-		n++
-		return true
-	})
-	return n
-}
-
-func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
+func TestAntifloodCleanupRemovesStaleEntries(t *testing.T) {
 	resetAntifloodState(t)
-
-	floodMu.Range(func(key, _ any) bool {
-		floodMu.Delete(key)
-		return true
-	})
 
 	staleKey := floodKey{chatId: -9001, userId: 1001}
 	freshKey := floodKey{chatId: -9001, userId: 1002}
@@ -428,34 +416,20 @@ func TestAntifloodCleanupRemovesMutexEntries(t *testing.T) {
 	staleActivity := now - 601
 	freshActivity := now - 10
 
-	antifloodModule.syncHelperMap.Store(staleKey, floodControl{userId: 1001, lastActivity: staleActivity})
-	antifloodModule.syncHelperMap.Store(freshKey, floodControl{userId: 1002, lastActivity: freshActivity})
-
-	floodMu.Store(staleKey, &sync.Mutex{})
-	floodMu.Store(freshKey, &sync.Mutex{})
-
-	if got := countFloodMuEntries(); got < 2 {
-		t.Fatalf("pre-cleanup floodMu entries = %d, want >= 2", got)
-	}
+	antifloodModule.syncHelperMap.Store(staleKey, &floodControl{userId: 1001, lastActivity: staleActivity})
+	antifloodModule.syncHelperMap.Store(freshKey, &floodControl{userId: 1002, lastActivity: freshActivity})
 
 	antifloodModule.cleanupOnce(now)
 
 	if _, ok := antifloodModule.syncHelperMap.Load(staleKey); ok {
 		t.Error("stale key still present in syncHelperMap after cleanup")
 	}
-	if _, ok := floodMu.Load(staleKey); ok {
-		t.Error("stale key still present in floodMu after cleanup")
-	}
 
 	if _, ok := antifloodModule.syncHelperMap.Load(freshKey); !ok {
 		t.Error("fresh key was incorrectly removed from syncHelperMap")
 	}
-	if _, ok := floodMu.Load(freshKey); !ok {
-		t.Error("fresh key was incorrectly removed from floodMu")
-	}
 
 	antifloodModule.syncHelperMap.Delete(freshKey)
-	floodMu.Delete(freshKey)
 }
 
 func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {

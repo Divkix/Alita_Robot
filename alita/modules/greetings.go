@@ -1067,16 +1067,16 @@ func (moduleStruct) clearPendingJoins(chatId, userId int64) {
 }
 
 func LoadGreetings(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[greetingsModule.moduleName] = true
+	SetModuleEnabled(greetingsModule.moduleName, true)
 
-	DefaultHelpRegistry().helpableKb[greetingsModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	SetModuleHelp(greetingsModule.moduleName, [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text:         trS(i18n.MustNewTranslator("en"), "button_formatting"),
 				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},
-	}
+	})
 
 	dispatcher.AddHandler(
 		handlers.NewChatJoinRequest(

@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -24,6 +25,15 @@ import (
 )
 
 var warnsModule = moduleStruct{moduleName: "Warns"}
+
+// Serializes limit-punish + reset per (chat,user): two concurrent limit hits must
+// not both punish and then wipe each other's freshly added warn with ResetUserWarns.
+// ponytail: fixed 32 shards; resize only if warn-punish contention shows up.
+var warnPunishShards [32]sync.Mutex
+
+func warnPunishLock(chatID, userID int64) *sync.Mutex {
+	return &warnPunishShards[uint64(chatID*31+userID)%uint64(len(warnPunishShards))]
+}
 
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
@@ -108,6 +118,9 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	}
 
 	u := chatMember.MergeChatMember().User
+	mu := warnPunishLock(chat.Id, userId)
+	mu.Lock()
+	defer mu.Unlock()
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	numWarns, reasons, err := warns.WarnUser(userId, chat.Id, reason)
 	if err != nil {
@@ -806,7 +819,7 @@ func initWarnDescs() {
 }
 
 func LoadWarns(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[warnsModule.moduleName] = true
+	SetModuleEnabled(warnsModule.moduleName, true)
 	initWarnDescs()
 
 	helpers.WrapCommand(dispatcher, warnDesc, pipelineHandler(warnsModule.warnUser))

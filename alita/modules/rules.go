@@ -300,7 +300,7 @@ func (moduleStruct) resetRulesBtn(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadRules(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[rulesModule.moduleName] = true
+	SetModuleEnabled(rulesModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("rules", rulesModule.sendRules))
 	helpers.AddCmdToDisableable("rules")

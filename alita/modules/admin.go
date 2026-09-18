@@ -795,7 +795,7 @@ var (
 )
 
 func LoadAdmin(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap["Admin"] = true
+	SetModuleEnabled("Admin", true)
 
 	helpers.WrapCommand(dispatcher, adminlistDesc, adminModule.adminlist)
 	helpers.WrapCommand(dispatcher, promoteDesc, adminModule.promote)

@@ -184,7 +184,7 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	}
 
 	adminsAvail, admins := cache.GetAdminCacheList(chatID)
-	if adminsAvail && admins.Cached {
+	if adminsAvail && admins.Cached && !admins.Negative && len(admins.UserInfo) != 0 {
 		if admins.UserMap != nil {
 			if admin, found := admins.UserMap[userId]; found && admin.User.Id != 0 {
 				return true

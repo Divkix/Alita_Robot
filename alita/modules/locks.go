@@ -502,7 +502,7 @@ func (moduleStruct) botLockHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadLocks(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[locksModule.moduleName] = true
+	SetModuleEnabled(locksModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("lock", locksModule.lockPerm))
 	dispatcher.AddHandler(handlers.NewCommand("unlock", locksModule.unlockPerm))

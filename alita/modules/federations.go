@@ -1238,7 +1238,7 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadFederations(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[federationsModule.moduleName] = true
+	SetModuleEnabled(federationsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("newfed", federationsModule.newFed))
 	dispatcher.AddHandler(handlers.NewCommand("renamefed", federationsModule.renameFed))

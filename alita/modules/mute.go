@@ -288,7 +288,7 @@ func initMuteDescs() {
 }
 
 func LoadMutes(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[mutesModule.moduleName] = true
+	SetModuleEnabled(mutesModule.moduleName, true)
 	initMuteDescs()
 
 	helpers.WrapCommand(dispatcher, muteDesc, pipelineHandler(mutesModule.mute))

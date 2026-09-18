@@ -737,7 +737,7 @@ var (
 )
 
 func LoadPin(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[pinsModule.moduleName] = true
+	SetModuleEnabled(pinsModule.moduleName, true)
 
 	helpers.WrapCommand(dispatcher, unpinDesc, pinsModule.unpin)
 	helpers.WrapCommand(dispatcher, unpinAllDesc, pinsModule.unpinAll)

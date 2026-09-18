@@ -44,11 +44,37 @@ func SetMarshal(m *marshaler.Marshaler) {
 	marshal = m
 }
 
+// GetCacheManager returns the gocache manager under the same lock as the
+// marshaler: split direct Manager reads/writes race InitCache and health probes.
+func GetCacheManager() *cache.Cache[any] {
+	marshalMu.RLock()
+	defer marshalMu.RUnlock()
+	return Manager
+}
+
+// SetCacheState swaps marshal+manager+redis client atomically.
+func SetCacheState(m *marshaler.Marshaler, mgr *cache.Cache[any], client *redis.Client) {
+	marshalMu.Lock()
+	defer marshalMu.Unlock()
+	marshal = m
+	Manager = mgr
+	redisClient = client
+}
+
+func GetCacheState() (*marshaler.Marshaler, *cache.Cache[any], *redis.Client) {
+	marshalMu.RLock()
+	defer marshalMu.RUnlock()
+	return marshal, Manager, redisClient
+}
+
 type AdminCache struct {
 	ChatId   int64
 	UserInfo []gotgbot.MergedChatMember
 	UserMap  map[int64]gotgbot.MergedChatMember
 	Cached   bool
+	// Negative marks an authoritative empty result (bot not admin). Transient
+	// failures leave Cached=false so callers fall back to per-user GetChatMember.
+	Negative bool
 }
 
 func InitCache() error {
@@ -63,12 +89,12 @@ func InitCache() error {
 		}
 		return err
 	}
-	redisClient = redis.NewClient(options)
+	client := redis.NewClient(options)
 
 	maxRetries := 5
 	var pingErr error
 	for attempt := range maxRetries {
-		pingErr = redisClient.Ping(Context).Err()
+		pingErr = client.Ping(Context).Err()
 		if pingErr == nil {
 			break
 		}
@@ -83,25 +109,25 @@ func InitCache() error {
 		}
 	}
 	if pingErr != nil {
+		_ = client.Close()
 		if config.AppConfig != nil && config.AppConfig.DisableCache {
 			log.Warnf("[Cache] Redis unavailable in DISABLE_CACHE mode — continuing without Redis (caching/states degraded): %v", pingErr)
-			redisClient = nil
 			return nil
 		}
 		return fmt.Errorf("failed to connect to Redis after %d attempts: %w", maxRetries, pingErr)
 	}
 
 	if config.AppConfig.ClearCacheOnStartup {
-		if err := ClearAllCaches(); err != nil {
+		if err := clearWithClient(client); err != nil {
 			log.Warnf("[Cache] Failed to clear caches on startup: %v", err)
 		}
 	}
 
-	redisStore := gocache_store.NewRedis(redisClient)
+	redisStore := gocache_store.NewRedis(client)
 	cacheManager := cache.New[any](redisStore)
 
-	SetMarshal(marshaler.New(cacheManager))
-	Manager = cacheManager
+	// Single locked publish: readers never observe marshal-without-manager.
+	SetCacheState(marshaler.New(cacheManager), cacheManager, client)
 
 	return nil
 }
@@ -129,20 +155,24 @@ func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 }
 
 func ClearAllCaches() error {
-	if redisClient == nil {
+	client := GetRedisClient()
+	if client == nil {
 		return fmt.Errorf("redis client not initialized")
 	}
+	return clearWithClient(client)
+}
 
+func clearWithClient(client *redis.Client) error {
 	ctx, cancel := ContextWithTimeout()
 	defer cancel()
 	var cursor uint64
 	for {
-		keys, next, err := redisClient.Scan(ctx, cursor, DataCachePrefix+"*", 100).Result()
+		keys, next, err := client.Scan(ctx, cursor, DataCachePrefix+"*", 100).Result()
 		if err != nil {
 			return fmt.Errorf("failed to scan cached data: %w", err)
 		}
 		if len(keys) != 0 {
-			if err := redisClient.Unlink(ctx, keys...).Err(); err != nil {
+			if err := client.Unlink(ctx, keys...).Err(); err != nil {
 				return fmt.Errorf("failed to clear cached data: %w", err)
 			}
 		}
@@ -154,17 +184,25 @@ func ClearAllCaches() error {
 }
 
 func GetRedisClient() *redis.Client {
+	marshalMu.RLock()
+	defer marshalMu.RUnlock()
 	return redisClient
 }
 
 func IsRedisAvailable() bool {
+	marshalMu.RLock()
+	defer marshalMu.RUnlock()
 	return redisClient != nil
 }
 
 func DisableRedisForTest() (restore func()) {
+	marshalMu.Lock()
 	previous := redisClient
 	redisClient = nil
+	marshalMu.Unlock()
 	return func() {
+		marshalMu.Lock()
 		redisClient = previous
+		marshalMu.Unlock()
 	}
 }

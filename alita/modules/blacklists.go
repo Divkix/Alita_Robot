@@ -580,7 +580,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadBlacklists(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[blacklistsModule.moduleName] = true
+	SetModuleEnabled(blacklistsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("blacklists", blacklistsModule.listBlacklists))
 	helpers.AddCmdToDisableable("blacklists")

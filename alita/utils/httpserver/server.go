@@ -92,7 +92,8 @@ func checkDatabase() bool {
 }
 
 func checkRedis() bool {
-	if cache.Manager == nil {
+	mgr := cache.GetCacheManager()
+	if mgr == nil {
 		return false
 	}
 
@@ -100,13 +101,13 @@ func checkRedis() bool {
 	defer cancel()
 
 	testKey := "health_check_test"
-	err := cache.Manager.Set(ctx, testKey, "ok", store.WithExpiration(5*time.Second))
+	err := mgr.Set(ctx, testKey, "ok", store.WithExpiration(5*time.Second))
 	if err != nil {
 		return false
 	}
 
-	_, err = cache.Manager.Get(ctx, testKey)
-	_ = cache.Manager.Delete(ctx, testKey)
+	_, err = mgr.Get(ctx, testKey)
+	_ = mgr.Delete(ctx, testKey)
 
 	return err == nil
 }

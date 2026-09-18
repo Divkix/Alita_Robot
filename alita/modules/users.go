@@ -21,6 +21,14 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
+func spawnAsyncUpdate(fn func()) {
+	usersAsyncWG.Add(1)
+	go func() {
+		defer usersAsyncWG.Done()
+		fn()
+	}()
+}
+
 func asyncUpdateUser(userId int64, username, name string) {
 	if err := user.UpdateUser(userId, username, name); err != nil {
 		userUpdateCache.Delete(userId)
@@ -54,10 +62,18 @@ var (
 	userUpdateGroup    singleflight.Group
 	chatUpdateGroup    singleflight.Group
 
+	// Tracked so shutdown can drain in-flight DB writes before db.Close().
+	usersAsyncWG sync.WaitGroup
+
 	userUpdateInterval    = constants.UserUpdateInterval
 	chatUpdateInterval    = constants.ChatUpdateInterval
 	channelUpdateInterval = constants.ChannelUpdateInterval
 )
+
+// DrainUsersAsyncWrites blocks until fire-and-forget user/chat/channel upserts finish.
+func DrainUsersAsyncWrites() {
+	usersAsyncWG.Wait()
+}
 
 func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
 	now := time.Now()
@@ -120,11 +136,8 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if user.IsAnonymousChannel() {
 			if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
 				log.Debugf("Updating channel %d in db", user.Id())
-				go asyncUpdateChannel(
-					user.Id(),
-					user.Name(),
-					user.Username(),
-				)
+				uid, uname, username := user.Id(), user.Name(), user.Username()
+				spawnAsyncUpdate(func() { asyncUpdateChannel(uid, uname, username) })
 			}
 		} else {
 			if chat_status.RequireGroup(bot, ctx, chat) {
@@ -141,20 +154,14 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 			if replySender.IsAnonymousChannel() {
 				if shouldUpdate(channelUpdateCache, replySender.Id(), channelUpdateInterval) {
 					log.Debugf("Updating channel %d in db", replySender.Id())
-					go asyncUpdateChannel(
-						replySender.Id(),
-						replySender.Name(),
-						replySender.Username(),
-					)
+					sid, sname, susername := replySender.Id(), replySender.Name(), replySender.Username()
+					spawnAsyncUpdate(func() { asyncUpdateChannel(sid, sname, susername) })
 				}
 			} else {
 				if shouldUpdate(userUpdateCache, replySender.Id(), userUpdateInterval) {
 					log.Debugf("Updating user %d in db", replySender.Id())
-					go asyncUpdateUser(
-						replySender.Id(),
-						replySender.Username(),
-						replySender.Name(),
-					)
+					sid, susername, sname := replySender.Id(), replySender.Username(), replySender.Name()
+					spawnAsyncUpdate(func() { asyncUpdateUser(sid, susername, sname) })
 				}
 			}
 		}
@@ -164,22 +171,15 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		forwarded := msg.ForwardOrigin.MergeMessageOrigin()
 		if forwarded.Chat != nil && forwarded.Chat.Type != "group" {
 			if shouldUpdate(channelUpdateCache, forwarded.Chat.Id, channelUpdateInterval) {
-				go asyncUpdateChannel(
-					forwarded.Chat.Id,
-					forwarded.Chat.Title,
-					forwarded.Chat.Username,
-				)
+				cid, ctitle, cusername := forwarded.Chat.Id, forwarded.Chat.Title, forwarded.Chat.Username
+				spawnAsyncUpdate(func() { asyncUpdateChannel(cid, ctitle, cusername) })
 			}
 		} else if forwarded.SenderUser != nil {
 			if shouldUpdate(userUpdateCache, forwarded.SenderUser.Id, userUpdateInterval) {
-				go asyncUpdateUser(
-					forwarded.SenderUser.Id,
-					forwarded.SenderUser.Username,
-					formatting.GetFullName(
-						forwarded.SenderUser.FirstName,
-						forwarded.SenderUser.LastName,
-					),
-				)
+				fuid := forwarded.SenderUser.Id
+				fusername := forwarded.SenderUser.Username
+				fname := formatting.GetFullName(forwarded.SenderUser.FirstName, forwarded.SenderUser.LastName)
+				spawnAsyncUpdate(func() { asyncUpdateUser(fuid, fusername, fname) })
 			}
 		}
 	}

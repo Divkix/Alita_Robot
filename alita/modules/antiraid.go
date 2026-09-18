@@ -106,12 +106,17 @@ func StartAntiRaidExpiryPoller() {
 
 func StopAntiRaidExpiryPoller() {
 	antiRaidPollerMu.Lock()
-	defer antiRaidPollerMu.Unlock()
-	if antiRaidCancel != nil {
-		antiRaidCancel()
+	cancel := antiRaidCancel
+	antiRaidPollerMu.Unlock()
+	if cancel != nil {
+		cancel()
+		// Wait without holding the mutex (cf. captcha lifecycle): a stalled
+		// Redis read must not wedge the shutdown loop past its 10s budget.
 		antiRaidPollerWG.Wait()
+		antiRaidPollerMu.Lock()
 		antiRaidCancel = nil
 		antiRaidCtx = nil
+		antiRaidPollerMu.Unlock()
 	}
 }
 
@@ -914,7 +919,7 @@ func formatDuration(seconds int) string {
 }
 
 func LoadAntiRaid(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[antiRaidModule.moduleName] = true
+	SetModuleEnabled(antiRaidModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("antiraid", antiRaidModule.antiraid))
 	dispatcher.AddHandler(handlers.NewCommand("raidtime", antiRaidModule.raidTime))

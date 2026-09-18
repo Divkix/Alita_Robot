@@ -30,10 +30,20 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 		return AdminCache{}
 	}
 
+	genBefore := adminCacheGeneration.Load()
 	v, _, _ := adminCacheGroup.Do(adminCacheKey(chatId), func() (any, error) {
 		return loadAdminCacheFromTelegram(b, chatId), nil
 	})
 	ac, _ := v.(AdminCache)
+	if genBefore != adminCacheGeneration.Load() {
+		// An invalidation landed while we waited on the shared load: the value
+		// predates a demotion/promote. Re-read once; on miss return empty so
+		// callers fall back to per-user GetChatMember instead of trusting stale.
+		if ok, fresh := GetAdminCacheList(chatId); ok {
+			return fresh
+		}
+		return AdminCache{}
+	}
 	return ac
 }
 
@@ -84,10 +94,9 @@ func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
 			ChatId:   chatId,
 			UserInfo: []gotgbot.MergedChatMember{},
 			Cached:   true,
+			Negative: true,
 		})
 	}
-
-	MarkChatNotRestricted(chatId)
 
 	log.WithFields(log.Fields{
 		"chatId":    chatId,

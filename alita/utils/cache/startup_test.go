@@ -18,14 +18,15 @@ func TestStartupClearingPreservesOperationalState(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	originalConfig, originalClient, originalManager, originalMarshal := config.AppConfig, redisClient, Manager, GetMarshal()
+	originalConfig := config.AppConfig
+	originalMarshal, originalManager, originalClient := GetCacheState()
 	config.AppConfig = &config.Config{RedisAddress: server.Addr(), ClearCacheOnStartup: true}
 	t.Cleanup(func() {
-		if redisClient != nil {
-			_ = redisClient.Close()
+		if client := GetRedisClient(); client != nil {
+			_ = client.Close()
 		}
-		config.AppConfig, redisClient, Manager = originalConfig, originalClient, originalManager
-		SetMarshal(originalMarshal)
+		config.AppConfig = originalConfig
+		SetCacheState(originalMarshal, originalManager, originalClient)
 	})
 	if err := InitCache(); err != nil {
 		t.Fatal(err)

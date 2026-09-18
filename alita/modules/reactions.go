@@ -45,7 +45,7 @@ func LoadReactions(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(message.All, reactionsModule.checkReactions), reactionsModule.handlerGroup)
 
-	DefaultHelpRegistry().AbleMap[reactionsModule.moduleName] = true
+	SetModuleEnabled(reactionsModule.moduleName, true)
 
 	DefaultHelpRegistry().AltHelpOptions["Reactions"] = []string{"reaction"}
 	DefaultHelpRegistry().helpableKb["Reactions"] = [][]gotgbot.InlineKeyboardButton{

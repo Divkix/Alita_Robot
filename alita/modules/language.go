@@ -167,8 +167,8 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadLanguage(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[languagesModule.moduleName] = true
-	DefaultHelpRegistry().helpableKb[languagesModule.moduleName] = languagesModule.genFullLanguageKb()
+	SetModuleEnabled(languagesModule.moduleName, true)
+	SetModuleHelp(languagesModule.moduleName, languagesModule.genFullLanguageKb())
 
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("change_language"), languagesModule.langBtnHandler))
 	dispatcher.AddHandler(handlers.NewCommand("lang", languagesModule.changeLanguage))

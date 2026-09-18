@@ -278,17 +278,17 @@ func TestCheckDatabaseWithHealthyConnection(t *testing.T) {
 }
 
 func TestCheckRedisWithNilAndHealthyManagers(t *testing.T) {
-	previousManager := cache.Manager
-	cache.Manager = nil
+	prevMarshal, prevManager, prevClient := cache.GetCacheState()
+	cache.SetCacheState(nil, nil, prevClient)
 	t.Cleanup(func() {
-		cache.Manager = previousManager
+		cache.SetCacheState(prevMarshal, prevManager, prevClient)
 	})
 
 	if checkRedis() {
 		t.Fatal("checkRedis() = true, want false with nil manager")
 	}
 
-	cache.Manager = gocache.New[any](newHTTPServerMemoryStore())
+	cache.SetCacheState(cache.GetMarshal(), gocache.New[any](newHTTPServerMemoryStore()), prevClient)
 	if !checkRedis() {
 		t.Fatal("checkRedis() = false, want true with memory manager")
 	}
