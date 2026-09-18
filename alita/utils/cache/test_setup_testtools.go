@@ -113,19 +113,13 @@ func (m *cacheMemoryStore) GetType() string {
 // InitTestMarshal installs an in-memory cache marshaler for package test suites.
 // The returned function restores the previous cache state.
 func InitTestMarshal() func() {
-	previousMarshal := GetMarshal()
-	previousManager := Manager
-	previousRedisClient := redisClient
+	previousMarshal, previousManager, previousRedisClient := GetCacheState()
 
 	manager := gocache.New[any](newCacheMemoryStore())
-	Manager = manager
-	SetMarshal(marshaler.New(manager))
-	redisClient = nil
+	SetCacheState(marshaler.New(manager), manager, nil)
 
 	return func() {
-		SetMarshal(previousMarshal)
-		Manager = previousManager
-		redisClient = previousRedisClient
+		SetCacheState(previousMarshal, previousManager, previousRedisClient)
 	}
 }
 
@@ -133,19 +127,13 @@ func InitTestMarshal() func() {
 func SetupTestMemoryMarshaler(t *testing.T) {
 	t.Helper()
 
-	previousMarshal := GetMarshal()
-	previousManager := Manager
-	previousRedisClient := redisClient
+	previousMarshal, previousManager, previousRedisClient := GetCacheState()
 
 	manager := gocache.New[any](newCacheMemoryStore())
-	Manager = manager
-	SetMarshal(marshaler.New(manager))
-	redisClient = nil
+	SetCacheState(marshaler.New(manager), manager, nil)
 
 	t.Cleanup(func() {
-		SetMarshal(previousMarshal)
-		Manager = previousManager
-		redisClient = previousRedisClient
+		SetCacheState(previousMarshal, previousManager, previousRedisClient)
 	})
 }
 
@@ -155,9 +143,10 @@ func SetupTestMemoryMarshaler(t *testing.T) {
 // without relying on a live Redis server.
 func SetRedisClientForTest(t *testing.T, client *redis.Client) {
 	t.Helper()
-	previous := redisClient
-	redisClient = client
+	prevMarshal, prevManager, previous := GetCacheState()
+	SetCacheState(prevMarshal, prevManager, client)
 	t.Cleanup(func() {
-		redisClient = previous
+		curMarshal, curManager, _ := GetCacheState()
+		SetCacheState(curMarshal, curManager, previous)
 	})
 }

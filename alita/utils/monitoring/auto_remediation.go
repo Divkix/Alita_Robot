@@ -32,6 +32,7 @@ type AutoRemediationManager struct {
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
 	stopOnce        sync.Once
+	startOnce       sync.Once
 	actions         []remediationAction
 	enabled         bool
 	lastActionTime  map[string]time.Time
@@ -112,16 +113,17 @@ func NewAutoRemediationManager(collector *BackgroundStatsCollector) *AutoRemedia
 
 	return manager
 }
-
 func (m *AutoRemediationManager) Start() {
 	if !m.enabled {
 		log.Info("[AutoRemediation] Auto-remediation is disabled")
 		return
 	}
 
-	log.Info("[AutoRemediation] Starting auto-remediation monitoring")
-	m.wg.Add(1)
-	go m.monitorAndRemediate()
+	m.startOnce.Do(func() {
+		log.Info("[AutoRemediation] Starting auto-remediation monitoring")
+		m.wg.Add(1)
+		go m.monitorAndRemediate()
+	})
 }
 
 func (m *AutoRemediationManager) monitorAndRemediate() {

@@ -44,6 +44,19 @@ func NewMigrationRunner(db *gorm.DB) *MigrationRunner {
 func (m *MigrationRunner) RunMigrations() error {
 	log.Info("[Migrations] Starting automatic database migration...")
 
+	// Serialize concurrent runners (rolling replicas share one Postgres): without
+	// this, two instances can each pass isMigrationApplied then both apply.
+	if m.db != nil && m.db.Name() == "postgres" {
+		if err := m.db.Exec("SELECT pg_advisory_lock(hashtextextended('alita:schema_migrations', 0))").Error; err != nil {
+			return fmt.Errorf("failed to acquire migration lock: %w", err)
+		}
+		defer func() {
+			if err := m.db.Exec("SELECT pg_advisory_unlock(hashtextextended('alita:schema_migrations', 0))").Error; err != nil {
+				log.Warnf("[Migrations] Failed to release migration lock: %v", err)
+			}
+		}()
+	}
+
 	if err := m.ensureMigrationsTable(); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
@@ -52,7 +65,6 @@ func (m *MigrationRunner) RunMigrations() error {
 	if err != nil {
 		return fmt.Errorf("failed to get migration files: %w", err)
 	}
-
 	if len(files) == 0 {
 		log.Info("[Migrations] No migration files found")
 		return nil

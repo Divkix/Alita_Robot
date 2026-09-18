@@ -33,14 +33,10 @@ func withMiniredis(t *testing.T) {
 	})
 	t.Cleanup(func() { _ = client.Close() })
 
-	previousMarshal := cache.GetMarshal()
-	previousManager := cache.Manager
+	previousMarshal, previousManager, previousClient := cache.GetCacheState()
 	manager := gocache.New[any](gocache_store.NewRedis(client))
-	cache.Manager = manager
-	cache.SetMarshal(marshaler.New(manager))
+	cache.SetCacheState(marshaler.New(manager), manager, client)
 	t.Cleanup(func() {
-		cache.Manager = previousManager
-		cache.SetMarshal(previousMarshal)
+		cache.SetCacheState(previousMarshal, previousManager, previousClient)
 	})
-	cache.SetRedisClientForTest(t, client)
 }

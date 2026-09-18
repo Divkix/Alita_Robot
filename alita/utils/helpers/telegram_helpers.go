@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -34,12 +35,12 @@ func IsPermissionError(errStr string) bool {
 		strings.Contains(errStr, "CHAT_RESTRICTED") ||
 		strings.Contains(errStr, "need administrator rights in the channel chat")
 }
-
 func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	if cache.IsChatRestricted(chatId) {
 		log.WithField("chat_id", chatId).Debug("[Helpers] Skipping send to restricted chat")
 		return nil, nil
 	}
+	sentAt := time.Now()
 	msg, err := bot.SendMessage(chatId, text, opts)
 	if err != nil {
 		errStr := err.Error()
@@ -53,7 +54,7 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
 	}
-	cache.MarkChatNotRestricted(chatId)
+	cache.MarkChatNotRestrictedIfOlder(chatId, sentAt)
 	return msg, nil
 }
 

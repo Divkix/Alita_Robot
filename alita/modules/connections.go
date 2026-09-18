@@ -347,7 +347,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadConnections(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[ConnectionsModule.moduleName] = true
+	SetModuleEnabled(ConnectionsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("connect", ConnectionsModule.connect))
 	dispatcher.AddHandler(handlers.NewCommand("disconnect", ConnectionsModule.disconnect))

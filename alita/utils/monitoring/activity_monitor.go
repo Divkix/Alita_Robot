@@ -16,6 +16,7 @@ type ActivityMonitor struct {
 	cancel                context.CancelFunc
 	wg                    sync.WaitGroup
 	stopOnce              sync.Once
+	startOnce             sync.Once
 	checkInterval         time.Duration
 	inactivityThreshold   time.Duration
 	enableAutoCleanup     bool
@@ -59,16 +60,17 @@ func NewActivityMonitor() *ActivityMonitor {
 		enableAutoCleanup:   enableAutoCleanup,
 	}
 }
-
 func (am *ActivityMonitor) Start() {
-	log.Info("[ActivityMonitor] Starting activity monitoring service")
-	log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
-		am.checkInterval, am.inactivityThreshold, am.enableAutoCleanup)
+	am.startOnce.Do(func() {
+		log.Info("[ActivityMonitor] Starting activity monitoring service")
+		log.Infof("[ActivityMonitor] Check interval: %v, Inactivity threshold: %v, Auto-cleanup: %v",
+			am.checkInterval, am.inactivityThreshold, am.enableAutoCleanup)
 
-	am.wg.Add(1)
-	go am.monitorLoop()
+		am.wg.Add(1)
+		go am.monitorLoop()
 
-	am.calculateMetrics()
+		am.calculateMetrics()
+	})
 }
 
 func (am *ActivityMonitor) Stop() {

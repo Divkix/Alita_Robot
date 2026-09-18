@@ -633,23 +633,26 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 
-		filtData.FilterReply = formatting.ReverseHTML2MD(filtData.FilterReply)
+		// Copy: filtData aliases the shared read-through cache entry (loader hands
+		// one pointer to all coalesced waiters); mutating it races concurrent watchers.
+		noformatData := *filtData
+		noformatData.FilterReply = formatting.ReverseHTML2MD(noformatData.FilterReply)
 
-		filtData.FilterReply += content.RevertButtons(filtData.Buttons)
+		noformatData.FilterReply += content.RevertButtons(noformatData.Buttons)
 
 		var err error
 		_, err = media.Send(b, media.Content{
-			Text:    filtData.FilterReply,
-			FileID:  filtData.FileID,
-			MsgType: filtData.MsgType,
-			Name:    filtData.KeyWord,
+			Text:    noformatData.FilterReply,
+			FileID:  noformatData.FileID,
+			MsgType: noformatData.MsgType,
+			Name:    noformatData.KeyWord,
 		}, media.Options{
 			ChatID:            ctx.Message.Chat.Id,
 			ReplyMsgID:        msg.MessageId,
 			ThreadID:          ctx.Message.MessageThreadId,
 			Keyboard:          &gotgbot.InlineKeyboardMarkup{InlineKeyboard: nil},
 			NoFormat:          true,
-			NoNotif:           filtData.NoNotif,
+			NoNotif:           noformatData.NoNotif,
 			AllowWithoutReply: true,
 		})
 		if err != nil {
@@ -670,9 +673,9 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadFilters(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[filtersModule.moduleName] = true
+	SetModuleEnabled(filtersModule.moduleName, true)
 
-	DefaultHelpRegistry().helpableKb[filtersModule.moduleName] = [][]gotgbot.InlineKeyboardButton{
+	SetModuleHelp(filtersModule.moduleName, [][]gotgbot.InlineKeyboardButton{
 		{
 			{
 				Text: func() string {
@@ -683,7 +686,7 @@ func LoadFilters(dispatcher *ext.Dispatcher) {
 				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
 			},
 		},
-	}
+	})
 	dispatcher.AddHandler(handlers.NewCommand("filter", filtersModule.addFilter))
 	dispatcher.AddHandler(handlers.NewCommand("addfilter", filtersModule.addFilter))
 	dispatcher.AddHandler(handlers.NewCommand("stop", filtersModule.rmFilter))

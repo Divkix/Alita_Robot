@@ -50,8 +50,6 @@ type floodControl struct {
 	lastActivity int64
 }
 
-var floodMu sync.Map
-
 var _normalAntifloodModule = moduleStruct{
 	moduleName:   "Antiflood",
 	handlerGroup: 4,
@@ -73,33 +71,15 @@ func init() {
 
 func (a *antifloodStruct) cleanupOnce(now int64) {
 	a.syncHelperMap.Range(func(key, value any) bool {
-		floodData, ok := value.(floodControl)
-		if !ok || now-floodData.lastActivity <= 600 {
+		// States are *floodControl so CompareAndDelete compares pointers:
+		// values hold slices and are not comparable.
+		floodData, ok := value.(*floodControl)
+		if !ok || floodData == nil || now-floodData.lastActivity <= 600 {
 			return true
 		}
-		if muVal, hasMu := floodMu.Load(key); hasMu {
-			if mu, ok := muVal.(*sync.Mutex); ok {
-				if !mu.TryLock() {
-					return true
-				}
-				if cur, ok := a.syncHelperMap.Load(key); ok {
-					if curFC, ok := cur.(floodControl); ok && now-curFC.lastActivity <= 600 {
-						mu.Unlock()
-						return true
-					}
-				} else {
-					floodMu.Delete(key)
-					mu.Unlock()
-					return true
-				}
-				a.syncHelperMap.Delete(key)
-				floodMu.Delete(key)
-				mu.Unlock()
-				return true
-			}
-			floodMu.Delete(key)
-		}
-		a.syncHelperMap.Delete(key)
+		// Delete only if still stale: a concurrent updateFlood CAS-stores a fresh
+		// value and CompareAndDelete fails, keeping the new burst intact.
+		a.syncHelperMap.CompareAndDelete(key, value)
 		return true
 	})
 }
@@ -124,7 +104,7 @@ func (a *antifloodStruct) cleanupLoop(ctx context.Context) {
 
 func cachedAdminStatus(chatId, userId int64) (known bool, isAdmin bool) {
 	ok, cached := cache.GetAdminCacheList(chatId)
-	if !ok || !cached.Cached {
+	if !ok || !cached.Cached || cached.Negative || len(cached.UserInfo) == 0 {
 		return false, false
 	}
 	if cached.UserMap != nil {
@@ -149,7 +129,6 @@ func (a *antifloodStruct) userIsFloodExempt(b *gotgbot.Bot, chatId, userId int64
 func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId int64) bool {
 	select {
 	case a.adminCheckSemaphore <- struct{}{}:
-		defer func() { <-a.adminCheckSemaphore }()
 	default:
 		log.WithFields(log.Fields{
 			"chatId": chatId,
@@ -163,6 +142,9 @@ func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId i
 
 	result := make(chan bool, 1)
 	go func() {
+		// Release the slot when the real work finishes, not when the caller
+		// times out: the old defer released early, unbounding live lookups.
+		defer func() { <-a.adminCheckSemaphore }()
 		defer error_handling.RecoverFromPanic("adminCheck", "antiflood")
 		isAdmin := chat_status.IsUserAdmin(b, chatId, userId)
 		select {
@@ -188,50 +170,66 @@ func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish
 
 	if floodSettings.Limit != 0 {
 		currentTime := time.Now().Unix()
-
 		key := floodKey{chatId: chatId, userId: userId}
 
-		muVal, _ := floodMu.LoadOrStore(key, &sync.Mutex{})
-		mu := muVal.(*sync.Mutex)
-		mu.Lock()
-		defer mu.Unlock()
-
-		tmpInterface, valExists := a.syncHelperMap.Load(key)
-		if valExists && tmpInterface != nil {
-			floodCrc = tmpInterface.(floodControl)
-
-			if currentTime-floodCrc.lastActivity > 60 {
-				floodCrc = floodControl{}
+		// Lock-free RMW on *floodControl (pointers are comparable for CAS; the
+		// old floodMu protocol let the cleaner mint a second mutex → lost counts).
+		for {
+			var cur floodControl
+			old, loaded := a.syncHelperMap.Load(key)
+			if loaded && old != nil {
+				if prev, ok := old.(*floodControl); ok && prev != nil {
+					cur = *prev
+					if currentTime-cur.lastActivity > 60 {
+						cur = floodControl{}
+						loaded = false
+					}
+				} else {
+					loaded = false
+				}
 			}
-		}
-
-		if floodCrc.userId == 0 {
-			floodCrc.userId = userId
-			floodCrc.messageCount = 0
-			floodCrc.messageIDs = make([]int64, 0, floodSettings.Limit+5)
-		}
-
-		floodCrc.messageCount++
-		floodCrc.lastActivity = currentTime
-
-		floodCrc.messageIDs = append(floodCrc.messageIDs, msgId)
-
-		if len(floodCrc.messageIDs) > floodSettings.Limit+5 {
-			floodCrc.messageIDs = floodCrc.messageIDs[len(floodCrc.messageIDs)-(floodSettings.Limit+5):]
-		}
-
-		if floodCrc.messageCount > floodSettings.Limit {
-			a.syncHelperMap.Store(key,
-				floodControl{
-					userId:       0,
-					messageCount: 0,
-					messageIDs:   make([]int64, 0),
-					lastActivity: currentTime,
-				},
-			)
-			shouldPunish = true
-		} else {
-			a.syncHelperMap.Store(key, floodCrc)
+			if cur.userId == 0 {
+				cur.userId = userId
+				cur.messageCount = 0
+				cur.messageIDs = make([]int64, 0, floodSettings.Limit+5)
+			} else {
+				next := make([]int64, len(cur.messageIDs), cap(cur.messageIDs))
+				copy(next, cur.messageIDs)
+				cur.messageIDs = next
+			}
+			cur.messageCount++
+			cur.lastActivity = currentTime
+			cur.messageIDs = append(cur.messageIDs, msgId)
+			if len(cur.messageIDs) > floodSettings.Limit+5 {
+				cur.messageIDs = cur.messageIDs[len(cur.messageIDs)-(floodSettings.Limit+5):]
+			}
+			next := cur
+			punish := false
+			if cur.messageCount > floodSettings.Limit {
+				// Reset the stored counter but hand the burst to the caller: it
+				// bulk-deletes the tracked IDs (the old reset returned an empty
+				// list, deleting nothing).
+				next = floodControl{lastActivity: currentTime, messageIDs: make([]int64, 0)}
+				punish = true
+			}
+			stored := &floodControl{
+				userId:       next.userId,
+				messageCount: next.messageCount,
+				messageIDs:   next.messageIDs,
+				lastActivity: next.lastActivity,
+			}
+			var swapped bool
+			if !loaded {
+				_, swapped = a.syncHelperMap.LoadOrStore(key, stored)
+				swapped = !swapped
+			} else {
+				swapped = a.syncHelperMap.CompareAndSwap(key, old, stored)
+			}
+			if swapped {
+				shouldPunish = punish
+				floodCrc = cur
+				break
+			}
 		}
 	}
 
@@ -595,7 +593,7 @@ func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadAntiflood(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[antifloodModule.moduleName] = true
+	SetModuleEnabled(antifloodModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("setflood", antifloodModule.setFlood))
 	dispatcher.AddHandler(handlers.NewCommand("setfloodmode", antifloodModule.setFloodMode))

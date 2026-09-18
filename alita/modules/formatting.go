@@ -185,8 +185,8 @@ func (m moduleStruct) formattingHandler(b *gotgbot.Bot, ctx *ext.Context) error 
 }
 
 func LoadMkdCmd(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[formattingModule.moduleName] = true
-	DefaultHelpRegistry().helpableKb[formattingModule.moduleName] = formattingModule.genFormattingKb("en")
+	SetModuleEnabled(formattingModule.moduleName, true)
+	SetModuleHelp(formattingModule.moduleName, formattingModule.genFormattingKb("en"))
 	helpers.MultiCommand(dispatcher, []string{"markdownhelp", "formatting"}, formattingModule.markdownHelp)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("formatting"), formattingModule.formattingHandler))
 }

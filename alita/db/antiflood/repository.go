@@ -55,15 +55,11 @@ func SetFloodContext(ctx context.Context, chatID int64, limit int) error {
 		return nil
 	}
 
-	action := floodSrc.Action
-	if action == "" {
-		action = defaultFloodsettingsMode
-	}
-
+	// Update only flood_limit: writing back the cached action would clobber a
+	// concurrent SetFloodMode with a stale value.
 	updates := map[string]any{
 		"chat_id":     chatID,
 		"flood_limit": limit,
-		"action":      action,
 	}
 	return upsertChatField(ctx, chatID, updates)
 }

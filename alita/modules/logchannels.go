@@ -231,8 +231,13 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 		return ext.ContinueGroups
 	}
 	pending := false
-	if m := cache.GetMarshal(); m != nil {
-		key := setlogPendingKey(origin.Chat.Id, origin.MessageId)
+	key := setlogPendingKey(origin.Chat.Id, origin.MessageId)
+	if rdb := cache.GetRedisClient(); rdb != nil {
+		// Atomic consume: concurrent forwards of the same channel message bind once.
+		if err := rdb.GetDel(cache.Context, key).Err(); err == nil {
+			pending = true
+		}
+	} else if m := cache.GetMarshal(); m != nil {
 		var marker []byte
 		if _, err := m.Get(cache.Context, key, &marker); err == nil {
 			pending = true
@@ -254,7 +259,7 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 }
 
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[logChannelsModule.moduleName] = true
+	SetModuleEnabled(logChannelsModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog))
 	dispatcher.AddHandler(handlers.NewCommand("unsetlog", logChannelsModule.unsetLog))

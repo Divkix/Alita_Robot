@@ -15,11 +15,18 @@ import (
 )
 
 var (
-	cacheGeneration atomic.Uint64
-	loadWaitTimeout = 30 * time.Second
-	loadsMu         sync.Mutex
-	loads           = make(map[string]*cacheLoad)
+	// Per-key epochs: a write in chat A must not discard an in-flight load for
+	// chat B. DeleteCache bumps only its own key.
+	cacheGenerations sync.Map // string -> *atomic.Uint64
+	loadWaitTimeout  = 30 * time.Second
+	loadsMu          sync.Mutex
+	loads            = make(map[string]*cacheLoad)
 )
+
+func generationFor(key string) *atomic.Uint64 {
+	gen, _ := cacheGenerations.LoadOrStore(key, &atomic.Uint64{})
+	return gen.(*atomic.Uint64)
+}
 
 type cacheLoad struct {
 	done    chan struct{}
@@ -92,7 +99,6 @@ func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duratio
 		return call.value.(T), nil
 	}
 }
-
 func runCacheLoader[T any](ctx context.Context, key string, ttl time.Duration, loader func(context.Context) (T, error)) (value T, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -100,7 +106,7 @@ func runCacheLoader[T any](ctx context.Context, key string, ttl time.Duration, l
 			log.Error(err)
 		}
 	}()
-	generation := cacheGeneration.Load()
+	generation := generationFor(key).Load()
 	value, err = loader(ctx)
 	if err != nil {
 		return value, err
@@ -109,13 +115,13 @@ func runCacheLoader[T any](ctx context.Context, key string, ttl time.Duration, l
 		return value, err
 	}
 	m := cache.GetMarshal()
-	if m != nil && generation == cacheGeneration.Load() {
+	if m != nil && generation == generationFor(key).Load() {
 		setCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		err := m.Set(setCtx, key, value, store.WithExpiration(ttl))
 		cancel()
 		if err != nil {
 			log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
-		} else if generation != cacheGeneration.Load() {
+		} else if generation != generationFor(key).Load() {
 			DeleteCache(key)
 		}
 	}
@@ -126,11 +132,10 @@ func DeleteCache(key string) {
 	loadsMu.Lock()
 	delete(loads, key)
 	loadsMu.Unlock()
+	generationFor(key).Add(1)
 	if config.AppConfig != nil && config.AppConfig.DisableCache {
-		cacheGeneration.Add(1)
 		return
 	}
-	cacheGeneration.Add(1)
 	m := cache.GetMarshal()
 	if m == nil {
 		return

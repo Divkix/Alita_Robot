@@ -78,7 +78,7 @@ func (moduleStruct) toggleCommands(enable bool) func(*gotgbot.Bot, *ext.Context)
 
 		for _, cmd := range args {
 			cmd = strings.ToLower(cmd)
-			if slices.Contains(helpers.DisableCmds, cmd) {
+			if helpers.IsDisableable(cmd) {
 				toToggle = append(toToggle, cmd)
 			} else {
 				unknownCmds = append(unknownCmds, cmd)
@@ -138,7 +138,7 @@ func (moduleStruct) disableable(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("disabling_disableable_commands")
 	var sb strings.Builder
-	for _, cmds := range helpers.DisableCmds {
+	for _, cmds := range helpers.DisableableCommands() {
 		fmt.Fprintf(&sb, "\n - `%s`", cmds)
 	}
 	text += sb.String()
@@ -260,7 +260,7 @@ func (moduleStruct) disabledel(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadDisabling(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[disablingModule.moduleName] = true
+	SetModuleEnabled(disablingModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("disable", disablingModule.disable))
 	dispatcher.AddHandler(handlers.NewCommand("disableable", disablingModule.disableable))

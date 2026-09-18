@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -132,7 +133,7 @@ func TestResolveSendResult(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := resolveSendResult(tc.result, tc.err, tc.chatID, tc.mediaType)
+			got, err := resolveSendResult(tc.result, tc.err, tc.chatID, tc.mediaType, time.Now())
 			if got != tc.wantResult {
 				t.Fatalf("resolveSendResult result = %q, want %q", got, tc.wantResult)
 			}

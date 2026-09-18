@@ -2047,7 +2047,7 @@ func startCaptchaWorkers(bot *gotgbot.Bot) {
 }
 
 func LoadCaptcha(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[captchaModule.moduleName] = true
+	SetModuleEnabled(captchaModule.moduleName, true)
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 

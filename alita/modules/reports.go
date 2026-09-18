@@ -556,7 +556,7 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 }
 
 func LoadReports(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[reportsModule.moduleName] = true
+	SetModuleEnabled(reportsModule.moduleName, true)
 
 	dispatcher.AddHandlerToGroup(
 		handlers.NewMessage(

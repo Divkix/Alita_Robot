@@ -37,6 +37,21 @@ func ResetHelpRegistry() {
 	defaultHelpRegistry.AltHelpOptions = make(map[string][]string)
 }
 
+// SetModuleEnabled records a module under the registry lock: direct
+// DefaultHelpRegistry().AbleMap writes bypass ableMapMu and race readers.
+func SetModuleEnabled(name string, enabled bool) {
+	ableMapMu.Lock()
+	defer ableMapMu.Unlock()
+	defaultHelpRegistry.AbleMap[name] = enabled
+}
+
+// SetModuleHelp records help buttons under the registry lock.
+func SetModuleHelp(name string, kb [][]gotgbot.InlineKeyboardButton) {
+	ableMapMu.Lock()
+	defer ableMapMu.Unlock()
+	defaultHelpRegistry.helpableKb[name] = kb
+}
+
 func newHelpRegistry() *moduleStruct {
 	return &moduleStruct{
 		moduleName:     "Help",

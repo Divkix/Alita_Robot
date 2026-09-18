@@ -483,7 +483,7 @@ func (moduleStruct) stat(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadMisc(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[miscModule.moduleName] = true
+	SetModuleEnabled(miscModule.moduleName, true)
 
 	dispatcher.AddHandler(handlers.NewCommand("stat", miscModule.stat))
 	helpers.AddCmdToDisableable("stat")

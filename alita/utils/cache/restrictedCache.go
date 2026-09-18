@@ -68,8 +68,8 @@ func IsChatRestricted(chatID int64) bool {
 	}
 
 	if time.Since(restrictedSince) >= constants.RestrictedProbeInterval {
-		if redisClient != nil {
-			_, claimErr := redisClient.SetArgs(
+		if client := GetRedisClient(); client != nil {
+			_, claimErr := client.SetArgs(
 				Context,
 				restrictedProbeKey(chatID),
 				time.Now().Format(time.RFC3339),
@@ -109,9 +109,22 @@ func IsChatRestricted(chatID int64) bool {
 }
 
 func MarkChatNotRestricted(chatID int64) {
+	MarkChatNotRestrictedIfOlder(chatID, time.Now())
+}
+
+// MarkChatNotRestrictedIfOlder clears the flag only when the recorded restriction
+// predates the successful send: a concurrent MarkChatRestricted after our request
+// must survive. Callers capture sentAt before the send attempt.
+func MarkChatNotRestrictedIfOlder(chatID int64, sentAt time.Time) {
 	m := GetMarshal()
 	if m == nil {
 		return
+	}
+	var ts string
+	if _, err := m.Get(Context, restrictedChatKey(chatID), &ts); err == nil {
+		if since, parseErr := time.Parse(time.RFC3339, ts); parseErr == nil && since.After(sentAt) {
+			return
+		}
 	}
 	if err := m.Delete(Context, restrictedChatKey(chatID)); err != nil {
 		log.WithField("chat_id", chatID).Debugf("[RestrictedCache] Failed to clear restricted flag: %v", err)

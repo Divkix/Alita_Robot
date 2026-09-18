@@ -1102,7 +1102,7 @@ func initBanDescs() {
 }
 
 func LoadBans(dispatcher *ext.Dispatcher) {
-	DefaultHelpRegistry().AbleMap[bansModule.moduleName] = true
+	SetModuleEnabled(bansModule.moduleName, true)
 	initBanDescs()
 
 	helpers.WrapCommand(dispatcher, banDesc, pipelineHandler(bansModule.ban))

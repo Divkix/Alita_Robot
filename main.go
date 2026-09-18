@@ -162,6 +162,11 @@ func main() {
 		return closeDBConnections()
 	})
 	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Draining users async writes...")
+		modules.DrainUsersAsyncWrites()
+		return nil
+	})
+	shutdownManager.RegisterHandler(func() error {
 		log.Info("[Shutdown] Stopping monitoring systems...")
 		if activityMonitor != nil {
 			activityMonitor.Stop()
@@ -234,7 +239,8 @@ func main() {
 		}
 
 		log.Infof("[HTTPServer] Unified HTTP server started on port %d (health, metrics, webhook)", config.AppConfig.HTTPPort)
-		config.AppConfig.WorkingMode = "webhook"
+		// WorkingMode already set by postInit before Start serves traffic; writing it
+		// here would race concurrent webhook-handler/tracing readers.
 
 		go shutdownManager.WaitForShutdown()
 
