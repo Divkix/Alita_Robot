@@ -1748,42 +1748,6 @@ aispam_globally_disabled: "❌ No puedo activar el filtro de spam con IA: el ope
 aispam_invalid_option: "Solo entiendo una opción de: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
 aispam_breaker_notice: "⚠️ Las revisiones de spam con IA están en pausa en este chat durante unos minutos tras fallos repetidos del proveedor de IA. Se reanudan solas y el filtro sigue activado."
 
-# Antispam module strings (no commands - automatic background protection)
-antispam_help_msg: |
-  El módulo antispam proporciona protección automática contra spam, funcionando en segundo plano para tus grupos.
-
-  A diferencia de otros módulos, opera automáticamente sin requerir comandos de usuario.
-
-  <b>Cómo funciona:</b>
-  La limitación de tasa por usuario y por chat evita el spam automáticamente.
-  • <b>Límite de tasa:</b> 18 mensajes por segundo por usuario y por chat
-  • <b>Automático:</b> No requiere configuración - funciona desde el primer momento
-  • <b>Transparente:</b> Descarta silenciosamente los mensajes excesivos sin interrumpir a usuarios normales
-  • <b>Seguimiento por usuario:</b> Grupos ocupados con muchos usuarios legítimos no generan falsos positivos
-
-antispam_extended_docs: |
-  <b>Detalles técnicos</b>
-
-  <b>Algoritmo de limitación de tasa:</b>
-  El módulo usa una ventana deslizante:
-  1. <b>Primer mensaje:</b> Comienza el seguimiento con contador = 1
-  2. <b>Mensajes posteriores:</b> Incrementa el contador dentro de la ventana de tiempo
-  3. <b>Vencimiento de la ventana:</b> El contador se reinicia cuando la ventana (1 segundo) expira
-  4. <b>Umbral excedido:</b> Los mensajes por encima de 18/segundo se descartan silenciosamente
-
-  <b>Gestión de memoria:</b>
-  • Limpieza automática: Las entradas de seguimiento expiradas se eliminan cada 5 minutos
-  • Sin fugas de memoria: Un goroutine en segundo plano evita crecimiento sin límites
-  • Almacenamiento eficiente: Solo se rastrean usuarios activos
-
-antispam_notes_docs: |
-  <b>Limitaciones</b>
-  • <b>Sin comandos de usuario:</b> No se puede habilitar/deshabilitar por chat
-  • <b>Umbral fijo:</b> 18 mensajes/segundo está codificado
-  • <b>Sin registros en el chat:</b> Los eventos de spam solo se registran en el servidor
-
-  Usa <b>Antispam</b> para protección automática en segundo plano y <b>Antiflood</b> para control de inundación configurable.
-
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Soporte para administradores anónimos</b>
@@ -2424,7 +2388,7 @@ approvals_help_msg: |
   × /approved: Listar todos los usuarios aprobados
   × /unapproveall: Eliminar todas las aprobaciones (solo creador)
 
-  Los usuarios aprobados están exentos de: antiflood, listas negras, bloqueos, CAPTCHA y antispam.
+  Los usuarios aprobados están exentos de: antiflood, listas negras, bloqueos y CAPTCHA.
 approvals_user_approved: "Aprobado %s por %s.%s"
 approvals_already_approved: "%s ya está aprobado en este chat."
 approvals_not_approved: "%s no está en la lista de aprobados."

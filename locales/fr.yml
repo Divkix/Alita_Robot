@@ -1567,42 +1567,6 @@ aispam_globally_disabled: "❌ Je ne peux pas activer le filtre anti-spam par IA
 aispam_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
 aispam_breaker_notice: "⚠️ Les analyses anti-spam par IA sont en pause dans ce chat pendant quelques minutes après des échecs répétés du fournisseur d'IA. Elles reprennent d'elles-mêmes et le filtre reste activé."
 
-# Antispam module documentation
-antispam_help_msg: |
-  Le module antispam fournit une protection automatique contre le spam en arrière-plan pour vos groupes.
-
-  Contrairement aux autres modules, il fonctionne automatiquement sans nécessiter de commandes utilisateur.
-
-  <b>Comment ça fonctionne :</b>
-  Limitation de débit par utilisateur par chat pour prévenir le spam automatiquement.
-  • <b>Limite de débit :</b> 18 messages par seconde par utilisateur par chat
-  • <b>Automatique :</b> Aucune configuration requise - fonctionne immédiatement
-  • <b>Transparent :</b> Supprime silencieusement les messages excessifs sans déranger les utilisateurs normaux
-  • <b>Suivi par utilisateur :</b> Les groupes occupés avec beaucoup d'utilisateurs légitimes ne déclenchent pas de faux positifs
-
-antispam_extended_docs: |
-  <b>Détails Techniques</b>
-
-  <b>Algorithme de limitation de débit :</b>
-  Le module utilise une approche de fenêtre glissante :
-  1. <b>Premier message :</b> Commence le suivi avec compteur = 1
-  2. <b>Messages suivants :</b> Incrémente le compteur dans la fenêtre de temps
-  3. <b>Expiration de fenêtre :</b> Le compteur se réinitialise quand la fenêtre de temps (1 seconde) expire
-  4. <b>Seuil dépassé :</b> Les messages au-delà de 18/seconde sont silencieusement ignorés
-
-  <b>Gestion de la mémoire :</b>
-  • Nettoyage automatique : Les entrées de suivi expirées sont supprimées toutes les 5 minutes
-  • Pas de fuites mémoire : Un goroutine en arrière-plan empêche la croissance mémoire illimitée
-  • Stockage efficace : Seuls les utilisateurs actifs sont suivis
-
-antispam_notes_docs: |
-  <b>Limitations</b>
-  • <b>Pas de commandes utilisateur :</b> Ne peut pas être activé/désactivé par chat
-  • <b>Seuil fixe :</b> 18 messages/seconde est codé en dur
-  • <b>Pas de journalisation dans le chat :</b> Les événements de spam sont uniquement journalisés côté serveur
-
-  Utilisez <b>Antispam</b> pour une protection automatique en arrière-plan et <b>Antiflood</b> pour un contrôle de flood configurable.
-
 # Locks module extended documentation
 locks_types_docs: |
   <b>Verrous de permission</b> (16 types)
@@ -2340,7 +2304,7 @@ approvals_help_msg: |
   × /approved: Lister tous les utilisateurs approuvés
   × /unapproveall: Supprimer toutes les approbations (créateur uniquement)
 
-  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous, CAPTCHA et antispam.
+  Les utilisateurs approuvés sont exempts de : antiflood, listes noires, verrous et CAPTCHA.
 approvals_user_approved: "Approuvé %s par %s.%s"
 approvals_already_approved: "%s est déjà approuvé dans ce chat."
 approvals_not_approved: "%s n'est pas dans la liste des approuvés."

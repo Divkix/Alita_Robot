@@ -50,10 +50,6 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/raidactiontime` | Set the ban duration for raiders | Admin | ❌ | — |
 | `/autoantiraid` | Set auto-raid trigger threshold | Admin | ❌ | — |
 
-#### 🛡️ Antispam
-
-This module has no user-facing commands. It runs as a passive background watcher.
-
 #### 🤖 Aispam
 
 | Command | Description | Permission | Disableable | Aliases |

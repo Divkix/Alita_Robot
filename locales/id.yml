@@ -1738,42 +1738,6 @@ aispam_globally_disabled: "❌ Saya tidak dapat mengaktifkan filter spam AI: ope
 aispam_invalid_option: "Saya hanya memahami salah satu opsi: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
 aispam_breaker_notice: "⚠️ Pemeriksaan spam AI dijeda di chat ini selama beberapa menit setelah penyedia AI gagal berulang kali. Pemeriksaan lanjut sendiri, dan filter tetap aktif."
 
-# Antispam module strings (no commands - automatic background protection)
-antispam_help_msg: |
-  Modul antispam menyediakan perlindungan spam otomatis di belakang layar untuk grup Anda.
-
-  Tidak seperti modul lain, modul ini beroperasi secara otomatis tanpa memerlukan perintah pengguna apa pun.
-
-  <b>Cara Kerja:</b>
-  Pembatasan rate per-pengguna-per-obrolan mencegah spam secara otomatis.
-  • <b>Batas Rate:</b> 18 pesan per detik per pengguna per obrolan
-  • <b>Otomatis:</b> Tidak diperlukan konfigurasi - berfungsi langsung
-  • <b>Transparan:</b> Secara diam-diam menghapus pesan berlebih tanpa mengganggu pengguna normal
-  • <b>Pelacakan Per-Pengguna:</b> Grup sibuk dengan banyak pengguna sah tidak akan memicu positif palsu
-
-antispam_extended_docs: |
-  <b>Detail Teknis</b>
-
-  <b>Algoritma Pembatasan Rate:</b>
-  Modul ini menggunakan pendekatan jendela geser:
-  1. <b>Pesan Pertama:</b> Memulai pelacakan dengan count = 1
-  2. <b>Pesan Berikutnya:</b> Menambah penghitung dalam jendela waktu
-  3. <b>Kedaluwarsa Jendela:</b> Penghitung diatur ulang ketika jendela waktu (1 detik) kedaluwarsa
-  4. <b>Ambang Terlampaui:</b> Pesan melebihi 18/detik dihapus secara diam-diam
-
-  <b>Manajemen Memori:</b>
-  • Pembersihan otomatis: Entri pelacakan kedaluwarsa dihapus setiap 5 menit
-  • Tidak ada kebocoran memori: Goroutine latar belakang mencegah pertumbuhan memori tak terbatas
-  • Penyimpanan efisien: Hanya pengguna aktif yang dilacak
-
-antispam_notes_docs: |
-  <b>Keterbatasan</b>
-  • <b>Tidak Ada Perintah Pengguna:</b> Tidak dapat diaktifkan/dinonaktifkan per obrolan
-  • <b>Ambang Tetap:</b> 18 pesan/detik adalah hardcoded
-  • <b>Tidak Ada Logging ke Obrolan:</b> Peristiwa spam hanya dicatat di sisi server
-
-  Gunakan <b>Antispam</b> untuk perlindungan latar belakang otomatis dan <b>Antiflood</b> untuk kontrol flood yang dapat dikonfigurasi.
-
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Dukungan Admin Anonim</b>
@@ -2414,7 +2378,7 @@ approvals_help_msg: |
   × /approved: Daftar semua pengguna yang disetujui
   × /unapproveall: Hapus semua persetujuan (hanya pembuat)
 
-  Pengguna yang disetujui dibebaskan dari: antiflood, blacklists, locks, CAPTCHA, dan antispam.
+  Pengguna yang disetujui dibebaskan dari: antiflood, blacklists, locks, dan CAPTCHA.
 approvals_user_approved: "%s disetujui oleh %s.%s"
 approvals_already_approved: "%s sudah disetujui di chat ini."
 approvals_not_approved: "%s tidak ada dalam daftar yang disetujui."

@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 Alita Robot — Telegram group-management bot in **Go 1.26** / **gotgbot/v2** `v2.0.0-rc.36`.
-Features: admin, filters, notes, greetings, antiflood/antiraid/antispam/aispam, captcha, warns, locks, backups, connections, reactions, i18n (en/es/fr/hi/ru/pt/id).
+Features: admin, filters, notes, greetings, antiflood/antiraid/aispam, captcha, warns, locks, backups, connections, reactions, i18n (en/es/fr/hi/ru/pt/id).
 
 > `CLAUDE.md` and `GEMINI.md` are symlinks to `AGENTS.md` — edit only this file.
 
@@ -114,8 +114,7 @@ Shutdown (`alita/utils/shutdown`): SIGTERM/SIGINT → LIFO handlers (reverse reg
 | Pri | Module | Pri | Module | Pri | Module |
 |----:|--------|----:|--------|----:|--------|
 | -10 | BotUpdates | 80 | Mutes | 190 | Rules |
-| 10 | Antispam | 90 | Purges | 200 | Warns |
-| 12 | AISpam |  |  |  |  |
+| 12 | AISpam | 90 | Purges | 200 | Warns |
 | 20 | Languages | 100 | Users | 210 | Greetings |
 | 30 | Admin | 110 | Reports | 220 | Captcha |
 | 40 | Approvals | 120 | Dev | 230 | AntiRaid |
@@ -138,7 +137,7 @@ Command registration:
 
 ## 7. Handlers, callbacks, routing, permissions
 
-**Handler groups:** -10 captcha-pending, -6 federations watcher, -5 antiraid, -2 antispam, -1 Users tracker (must return `ContinueGroups` and synchronously create/update chat+user parent rows via `updateCurrentChat`/`updateCurrentUser` before later groups write FK-dependent rows — do not move to goroutines); 3 aispam (enqueues a check off the update path, always `ContinueGroups`), 4 antiflood, 5 locks perm / 6 restr, 7 blacklists, 8 reports+reactions, 9 filters, 10 pins, 11 log-channel capture. Commands → `ext.EndGroups`, watchers → `ext.ContinueGroups`.
+**Handler groups:** -10 captcha-pending, -6 federations watcher, -5 antiraid, -1 Users tracker (must return `ContinueGroups` and synchronously create/update chat+user parent rows via `updateCurrentChat`/`updateCurrentUser` before later groups write FK-dependent rows — do not move to goroutines); 3 aispam (enqueues a check off the update path, always `ContinueGroups`), 4 antiflood, 5 locks perm / 6 restr, 7 blacklists, 8 reports+reactions, 9 filters, 10 pins, 11 log-channel capture. Commands → `ext.EndGroups`, watchers → `ext.ContinueGroups`.
 
 **Callbacks:** `alita/utils/callbackcodec` + `modules/callback_codec.go` → `<ns>|v1|<url-encoded>`, 64B cap. `encodeCallbackData` returns `""` on overflow (broken button). For user text use **token pattern** (store in Redis, short hex token in callback; filters/notes). `decodeCallbackData` is strict, rejects dot-notation. Guard every callback with `callbackQueryFromContext(ctx)` (nil-safe, also check `query.Message`); `CallbackQuery.Message` is a `gotgbot.Message` value not pointer — use interface methods + `ctx.EffectiveMessage`.
 
@@ -210,10 +209,9 @@ Command registration:
 - **Antiraid** (group -5, Redis-only `alita:antiraid:state:<chat>` + join zset, CAS scripts, 30s expiry poller `Start/StopAntiRaidExpiryPoller`). `parseDuration` needs unit `s/m/h/d/w`, cap 366d. Defaults `RaidTime 21600s`, `RaidActionTime 3600s`, `AutoAntiRaidThreshold 0`.
 - **Federations** (group -6, pri 235): one fed per owner, chat joins one fed, max 5 subs (`federation_subs`). Watcher fbans local + subscribed feds. `DeleteFederation` locks row + lists chat/ban/sub keys inside tx then invalidates. Backup: membership only (`fed_id`+`quiet`). `/stats` includes global federation totals via `federations.LoadFederationStats` (same as `/fedinfo` per-fed); `/fedstat` is per-user lookup.
 - **Log channels** (group 11): `/setlog` in channel stores `alita:setlog:<chan>:<msgId>` 1h (exact msgId, no `:0` wildcard); forward binds `log_channels`. Categories `settings/admin/user/automated/reports/other` default on. `actionlog` must check `chat.Type=="channel"`.
-- **Antispam** (group -2): local 18/sec telemetry only, always `ContinueGroups` — not a global ban.
 - **AISpam** (group 3, `alita/modules/aispam.go`): opt-in per-chat AI filter. Deletes only, judged by TypeSafe Jev off the update path (bounded queue + 4 workers, `DrainAISpamChecks` on shutdown), thresholds 0.8 English / 0.9 other languages from the chat's configured language, fails open, one retry on 429/5xx unless `Retry-After` exceeds 2s, 5 failures pause a chat 5m (one notice) without touching `ai_spam_settings`. Deletions mirror to `MESSAGE_DUMP`. Inert without `TYPESAFE_API_KEY` or with `ENABLE_AISPAM=false`.
 - **Captcha** (~2100 lines): math/image verification, refresh cooldown 5s max 3, single attempt per `(user,chat)`, callback carries `refresh_count` + attempt ID/answer/msg/version checks, atomic claim+retry row, `kick` via `unbanChatMember(only_if_banned=false)`, `mute` 24h; disabling/approval releases pending. Group -10 deletes pending msgs.
-- **Approvals:** whitelist skips antiflood/blacklists/locks/captcha/antispam. `/unapproveall` owner-only.
+- **Approvals:** whitelist skips antiflood/blacklists/locks/captcha. `/unapproveall` owner-only.
 - **Disabling:** `CheckDisabledCmd` (bypasses admins/PM, optional delete via `ShouldDel`); only cmds registered via `AddCmdToDisableable` are disableable.
 - **Filters/Blacklists:** Aho-Corasick (`keyword_matcher`) with separate named caches (`"filters"`/`"blacklists"`), `FirstMatch` + `Find` for action, `MutedPermissions`, match text from `text+caption+URL entities` (both `Entities`+`CaptionEntities`, slice via `extractEntityText` — offsets are UTF-16).
 - **Filters/Notes overwrite:** Redis token `alita:{filter|note}_overwrite:<token>` 5m, `GETDEL` on confirm, `ON CONFLICT DO NOTHING` preserves existing.

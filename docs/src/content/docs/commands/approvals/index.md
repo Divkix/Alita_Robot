@@ -18,7 +18,7 @@ Grant trusted members immunity from automated anti-spam measures without making 
 - `/approved`: List all approved users
 - `/unapproveall`: Remove all approvals (creator only)
 
-Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and antispam.
+Approved users are exempt from: antiflood, blacklists, locks, and CAPTCHA.
 
 
 ## Module Aliases

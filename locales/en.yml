@@ -87,7 +87,7 @@ approvals_help_msg: |
   × /approved: List all approved users
   × /unapproveall: Remove all approvals (creator only)
 
-  Approved users are exempt from: antiflood, blacklists, locks, CAPTCHA, and antispam.
+  Approved users are exempt from: antiflood, blacklists, locks, and CAPTCHA.
 approvals_user_approved: "Approved %s by %s.%s"
 approvals_already_approved: "%s is already approved in this chat."
 approvals_not_approved: "%s is not in the approved list."
@@ -1814,42 +1814,6 @@ aispam_no_key: "❌ I can't turn the AI spam filter on: the bot operator has not
 aispam_globally_disabled: "❌ I can't turn the AI spam filter on: the bot operator has switched it off globally. Nothing has changed."
 aispam_invalid_option: "I only understand an option from: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
 aispam_breaker_notice: "⚠️ AI spam checks are paused in this chat for a few minutes after repeated failures from the AI provider. They resume on their own, and the filter stays on."
-
-# Antispam module strings (no commands - automatic background protection)
-antispam_help_msg: |
-  The antispam module provides automatic, behind-the-scenes spam protection for your groups.
-
-  Unlike other modules, it operates automatically without requiring any user commands.
-
-  <b>How It Works:</b>
-  Per-user-per-chat rate limiting prevents spam automatically.
-  • <b>Rate Limit:</b> 18 messages per second per user per chat
-  • <b>Automatic:</b> No configuration required - works out of the box
-  • <b>Transparent:</b> Silently drops excessive messages without disrupting normal users
-  • <b>Per-User Tracking:</b> Busy groups with many legitimate users won't trigger false positives
-
-antispam_extended_docs: |
-  <b>Technical Details</b>
-
-  <b>Rate Limiting Algorithm:</b>
-  The module uses a sliding window approach:
-  1. <b>First Message:</b> Starts tracking with count = 1
-  2. <b>Subsequent Messages:</b> Increments counter within the time window
-  3. <b>Window Expiry:</b> Counter resets when the time window (1 second) expires
-  4. <b>Threshold Exceeded:</b> Messages beyond 18/second are silently dropped
-
-  <b>Memory Management:</b>
-  • Automatic cleanup: Expired tracking entries are removed every 5 minutes
-  • No memory leaks: Background goroutine prevents unbounded memory growth
-  • Efficient storage: Only active users are tracked
-
-antispam_notes_docs: |
-  <b>Limitations</b>
-  • <b>No User Commands:</b> Cannot be enabled/disabled per chat
-  • <b>Fixed Threshold:</b> 18 messages/second is hardcoded
-  • <b>No Logging to Chat:</b> Spam events are only logged server-side
-
-  Use <b>Antispam</b> for automatic background protection and <b>Antiflood</b> for configurable flood control.
 
 # Admin module extended documentation
 admin_extended_docs: |

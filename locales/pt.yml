@@ -1709,42 +1709,6 @@ aispam_globally_disabled: "❌ Não consigo ativar o filtro de spam com IA: o op
 aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
 aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas neste chat por alguns minutos após falhas repetidas do provedor de IA. Elas retomam sozinhas e o filtro continua ativado."
 
-# Antispam module strings (no commands - automatic background protection)
-antispam_help_msg: |
-  O módulo antispam fornece proteção automática contra spam nos bastidores para seus grupos.
-
-  Diferente de outros módulos, ele opera automaticamente sem requerer comandos de usuário.
-
-  <b>Como Funciona:</b>
-  Limitação de taxa por-usuário-por-chat previne spam automaticamente.
-  • <b>Limite de Taxa:</b> 18 mensagens por segundo por usuário por chat
-  • <b>Automático:</b> Nenhuma configuração necessária - funciona imediatamente
-  • <b>Transparente:</b> Silenciosamente descarta mensagens excessivas sem interromper usuários normais
-  • <b>Rastreamento Por-Usuário:</b> Grupos movimentados com muitos usuários legítimos não dispararão falsos positivos
-
-antispam_extended_docs: |
-  <b>Detalhes Técnicos</b>
-
-  <b>Algoritmo de Limitação de Taxa:</b>
-  O módulo usa uma abordagem de janela deslizante:
-  1. <b>Primeira Mensagem:</b> Inicia rastreamento com contador = 1
-  2. <b>Mensagens Subsequentes:</b> Incrementa contador dentro da janela de tempo
-  3. <b>Expiração da Janela:</b> Contador reseta quando a janela de tempo (1 segundo) expira
-  4. <b>Limite Excedido:</b> Mensagens além de 18/segundo são silenciosamente descartadas
-
-  <b>Gerenciamento de Memória:</b>
-  • Limpeza automática: Entradas de rastreamento expiradas são removidas a cada 5 minutos
-  • Sem vazamentos de memória: Goroutine de fundo previne crescimento de memória ilimitado
-  • Armazenamento eficiente: Apenas usuários ativos são rastreados
-
-antispam_notes_docs: |
-  <b>Limitações</b>
-  • <b>Sem Comandos de Usuário:</b> Não pode ser ativado/desativado por chat
-  • <b>Limite Fixo:</b> 18 mensagens/segundo está codificado
-  • <b>Sem Log no Chat:</b> Eventos de spam são logados apenas no servidor
-
-  Use <b>Antispam</b> para proteção automática nos bastidores e <b>Antiflood</b> para controle de flood configurável.
-
 # Admin module extended documentation
 admin_extended_docs: |
   <b>Suporte a Admin Anônimo</b>
@@ -2386,7 +2350,7 @@ approvals_help_msg: |
   × /approved: Listar todos os usuários aprovados
   × /unapproveall: Remover todas as aprovações (apenas criador)
 
-  Usuários aprovados estão isentos de: antiflood, blacklists, locks, CAPTCHA e antispam.
+  Usuários aprovados estão isentos de: antiflood, blacklists, locks e CAPTCHA.
 approvals_user_approved: "%s aprovado por %s.%s"
 approvals_already_approved: "%s já está aprovado neste chat."
 approvals_not_approved: "%s não está na lista de aprovados."
