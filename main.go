@@ -204,6 +204,12 @@ func main() {
 		return nil
 	})
 
+	shutdownManager.RegisterHandler(func() error {
+		log.Info("[Shutdown] Draining AI spam checks...")
+		modules.DrainAISpamChecks()
+		return nil
+	})
+
 	httpServer := httpserver.New(config.AppConfig.HTTPPort, appStartTime)
 	httpServer.RegisterHealth()
 	httpServer.SetMetricsAuthToken(config.AppConfig.MetricsAuthToken)
