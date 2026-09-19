@@ -1699,6 +1699,45 @@ db_type_assertion_failed: "aserti tipe ke []byte gagal"
 # Default button texts
 button_rules_default: "Aturan"
 
+# AI spam filter module strings
+aispam_help_msg: |
+  <b>🤖 Filter Spam AI</b>
+
+  Filter opsional yang menilai setiap pesan di chat ini dengan model AI dan menghapus pesan yang diyakininya sebagai spam.
+
+  Tidak ada hal lain yang terjadi: tidak ada peringatan, mute, balasan, atau pemberitahuan. Pesan yang diyakini model sebagai spam dihapus secara diam-diam, dan pengirimnya tidak pernah diberi tahu.
+
+  Chat berbahasa Inggris bertindak mulai keyakinan 80%, bahasa lain mulai 90%, karena model ini dioptimalkan untuk bahasa Inggris.
+
+
+  *Perintah admin:*
+
+  × /aispam: Menampilkan apakah filter aktif dan persisnya data apa yang dikirim ke model.
+
+  × /aispam `<on/off>`: Mengaktifkan atau menonaktifkan filter untuk chat ini.
+
+
+  Filter nonaktif di semua chat sampai seorang admin mengaktifkannya, dan memerlukan kunci API yang sudah dikonfigurasi oleh operator bot.
+aispam_status_enabled: "Filter spam AI sedang <b>aktif</b> di chat ini."
+aispam_status_disabled: "Filter spam AI sedang <b>nonaktif</b> di chat ini. Aktifkan dengan <code>/aispam on</code>."
+aispam_status_key_missing: "⚠️ Tidak tersedia: operator bot belum mengonfigurasi kunci API, jadi tidak ada pesan yang diperiksa."
+aispam_status_globally_disabled: "⚠️ Tidak tersedia: operator bot telah menonaktifkan filter spam AI secara global, jadi tidak ada pesan yang diperiksa."
+aispam_data_notice: |
+  <b>Yang dikirim untuk setiap pesan yang diperiksa:</b>
+  • Judul, deskripsi, aturan, dan bahasa chat
+  • Profil pengirim: berapa hari sejak bot pertama kali melihatnya, jumlah pesan dalam satu jam terakhir, jumlah peringatan
+  • Teks atau keterangan pesan, domain yang ditautkan, dan apakah pesan diteruskan atau balasan
+  • Beberapa pesan terbaru pengirim di chat ini
+
+
+  Nama, nama pengguna, ID pengguna, nomor telepon, atau pesan dari chat lain tidak dikirim.
+aispam_enabled_success: "✅ Filter spam AI sekarang <b>aktif</b>. Pesan yang diyakini model sebagai spam akan dihapus."
+aispam_disabled_success: "❌ Filter spam AI sekarang <b>nonaktif</b>."
+aispam_no_key: "❌ Saya tidak dapat mengaktifkan filter spam AI: operator bot belum mengonfigurasi kunci API TypeSafe. Tidak ada yang berubah."
+aispam_globally_disabled: "❌ Saya tidak dapat mengaktifkan filter spam AI: operator bot telah menonaktifkannya secara global. Tidak ada yang berubah."
+aispam_invalid_option: "Saya hanya memahami salah satu opsi: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_breaker_notice: "⚠️ Pemeriksaan spam AI dijeda di chat ini selama beberapa menit setelah penyedia AI gagal berulang kali. Pemeriksaan lanjut sendiri, dan filter tetap aktif."
+
 # Antispam module strings (no commands - automatic background protection)
 antispam_help_msg: |
   Modul antispam menyediakan perlindungan spam otomatis di belakang layar untuk grup Anda.

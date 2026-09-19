@@ -10,8 +10,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 29 (27 user-facing + 2 internal)
-- **Total Commands**: 158
+- **Total Modules**: 30 (28 user-facing + 2 internal)
+- **Total Commands**: 159
 
 ## Commands by Module
 
@@ -53,6 +53,12 @@ This page provides a complete reference of all commands available in Alita Robot
 #### 🛡️ Antispam
 
 This module has no user-facing commands. It runs as a passive background watcher.
+
+#### 🤖 Aispam
+
+| Command | Description | Permission | Disableable | Aliases |
+|---------|-------------|------------|-------------|---------|
+| `/aispam` | Show filter status, or turn it on/off (`on`/`off`) | Admin | ✅ | — |
 
 #### 👤 Approvals
 

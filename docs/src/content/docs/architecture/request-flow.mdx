@@ -239,7 +239,7 @@ attempts, and reschedules still-valid attempts. It then starts the periodic
 attempt-cleanup and scheduled-unmute workers. A recovery failure aborts startup
 instead of accepting updates with an unknown captcha state.
 
-Registered modules include: BotUpdates, Antispam, Languages, Admin, Approvals, Pins, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Blacklists, Reactions, Formatting, Backup.
+Registered modules include: BotUpdates, Antispam, AISpam, Languages, Admin, Approvals, Pins, Misc, Bans, Mutes, Purges, Users, Reports, Dev, Locks, Filters, Antiflood, Notes, Connections, Disabling, Rules, Warns, Greetings, Captcha, AntiRaid, Blacklists, Reactions, Formatting, Backup.
 
 ## Handler Registration Pattern
 
@@ -290,7 +290,7 @@ dispatcher.AddHandlerToGroup(handler, 10)
 :::tip[Handler group conventions]
 - **Negative groups**: Early interception — captcha (-10), antiraid (-5), antispam (-2), user logging (-1)
 - **Group 0**: Standard command handlers (default)
-- **Positive groups (4-10)**: Message watchers — antiflood (4), locks (5-6), blacklists (7), reports (8), filters (9), pins (10)
+- **Positive groups (3-10)**: Message watchers — aispam (3), antiflood (4), locks (5-6), blacklists (7), reports (8), filters (9), pins (10)
 
 For the complete precedence table with propagation behavior, see [Handler Group Precedence](/architecture/handler-groups).
 :::

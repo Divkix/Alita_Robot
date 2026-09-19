@@ -42,6 +42,31 @@ Days before marking a chat as inactive
 | **Default** | `30` |
 | **Validation** | min=1,max=365 |
 
+## 📂 AI spam filter configuration
+
+### `ENABLE_AISPAM`
+
+Global kill switch for the AI spam filter. When `false`, no chat runs AI spam
+checks regardless of its per-chat setting. The filter is inert without
+`TYPESAFE_API_KEY` either way.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `true` |
+
+### `TYPESAFE_API_KEY`
+
+TypeSafe API key used by every AI spam check. One credential for the whole bot;
+chats cannot bring their own. Leaving it empty disables the feature and makes
+`/aispam on` refuse.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `string` |
+| **Required** | No |
+
 ## 📂 Bot settings
 
 ### `MESSAGE_DUMP` (Required)
@@ -489,6 +514,7 @@ DB_MAX_OPEN_CONNS=# (default: 200)
 DEBUG=# enable debug logging (default: false)
 DISPATCHER_MAX_ROUTINES=# (default: 200)
 DROP_PENDING_UPDATES=# (default: false)
+ENABLE_AISPAM=# global AI spam filter kill switch (default: true)
 ENABLE_AUTO_CLEANUP=# (default: true)
 ENABLE_BACKGROUND_STATS=# (default: true in prod, false in debug)
 ENABLE_DB_MONITORING=# (default: false)
@@ -512,6 +538,7 @@ REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)
 RESOURCE_GC_THRESHOLD_MB=# GC threshold in MB (default: 400)
 RESOURCE_MAX_GOROUTINES=# max goroutines (default: 1000)
 RESOURCE_MAX_MEMORY_MB=# max memory in MB (default: 500)
+TYPESAFE_API_KEY=# TypeSafe API key for the AI spam filter
 USE_WEBHOOKS=# enable webhook mode (default: false)
 WEBHOOK_DOMAIN=# required if USE_WEBHOOKS=true
 WEBHOOK_SECRET=# required if USE_WEBHOOKS=true
