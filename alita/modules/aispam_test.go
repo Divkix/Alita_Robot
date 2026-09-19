@@ -648,3 +648,34 @@ func TestAISpamBreakerResumesAfterCooldown(t *testing.T) {
 		t.Fatalf("deleteMessage calls = %d, want 1", len(deletes))
 	}
 }
+
+// TestAISpamIsReachableFromHelp pins the user-visible integration: a watcher
+// alone does not put a module in the /help menu, and the name an admin types
+// must resolve to the module's own page rather than the main help.
+func TestAISpamIsReachableFromHelp(t *testing.T) {
+	registry := DefaultHelpRegistry()
+	previousEnabled, hadEnabled := registry.AbleMap[aispamModule.moduleName]
+	t.Cleanup(func() {
+		if hadEnabled {
+			registry.AbleMap[aispamModule.moduleName] = previousEnabled
+			return
+		}
+		delete(registry.AbleMap, aispamModule.moduleName)
+	})
+
+	LoadAISpam(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+
+	var button bool
+	for _, row := range initHelpButtonsFrom(registry).InlineKeyboard {
+		for _, each := range row {
+			button = button || each.Text == aispamModule.moduleName
+		}
+	}
+	if !button {
+		t.Fatalf("%s is missing from the /help menu", aispamModule.moduleName)
+	}
+
+	if got := getModuleNameFromAltName("aispam", registry); got != aispamModule.moduleName {
+		t.Fatalf("/help aispam resolves to %q, want %q", got, aispamModule.moduleName)
+	}
+}
