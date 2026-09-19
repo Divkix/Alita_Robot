@@ -1776,6 +1776,45 @@ db_type_assertion_failed: "type assertion to []byte failed"
 # Default button texts
 button_rules_default: "Rules"
 
+# AI spam filter module strings
+aispam_help_msg: |
+  <b>🤖 AI Spam Filter</b>
+
+  An opt-in filter that judges every message in this chat with an AI model and deletes the ones it is confident are spam.
+
+  Nothing else happens: no warn, no mute, no reply, no notice. A message the model is confident is spam is removed quietly, and the sender is never told.
+
+  English chats act from 80% confidence, other languages from 90%, because the model is English-first.
+
+
+  *Admin commands:*
+
+  × /aispam: Show whether the filter is on, and exactly what is sent to the model.
+
+  × /aispam `<on/off>`: Turn the filter on or off for this chat.
+
+
+  The filter is off in every chat until an admin turns it on, and needs the bot operator to have configured an API key.
+aispam_status_enabled: "The AI spam filter is <b>on</b> in this chat."
+aispam_status_disabled: "The AI spam filter is <b>off</b> in this chat. Turn it on with <code>/aispam on</code>."
+aispam_status_key_missing: "⚠️ Unavailable: the bot operator has not configured an API key, so no message is being checked."
+aispam_status_globally_disabled: "⚠️ Unavailable: the bot operator has switched the AI spam filter off globally, so no message is being checked."
+aispam_data_notice: |
+  <b>What is sent for each checked message:</b>
+  • The chat's title, description, rules and language
+  • The sender's profile: days since the bot first saw them, messages in the last hour, warn count
+  • The message text or caption, the domains it links to, and whether it is a forward or a reply
+  • The sender's few most recent messages in this chat
+
+
+  No names, usernames, user IDs, phone numbers or messages from other chats are sent.
+aispam_enabled_success: "✅ The AI spam filter is now <b>on</b>. Messages the model is confident are spam will be deleted."
+aispam_disabled_success: "❌ The AI spam filter is now <b>off</b>."
+aispam_no_key: "❌ I can't turn the AI spam filter on: the bot operator has not configured an API key. Nothing has changed."
+aispam_globally_disabled: "❌ I can't turn the AI spam filter on: the bot operator has switched it off globally. Nothing has changed."
+aispam_invalid_option: "I only understand an option from: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_breaker_notice: "⚠️ AI spam checks are paused in this chat for a few minutes after repeated failures from the AI provider. They resume on their own, and the filter stays on."
+
 # Antispam module strings (no commands - automatic background protection)
 antispam_help_msg: |
   The antispam module provides automatic, behind-the-scenes spam protection for your groups.

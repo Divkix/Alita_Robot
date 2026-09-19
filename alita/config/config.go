@@ -160,6 +160,11 @@ type Config struct {
 	EnablePPROF bool
 
 	MetricsAuthToken string
+
+	// AI spam filter (TypeSafe Jev). EnableAISpam is a global kill switch; the
+	// feature is inert without TypeSafeAPIKey.
+	EnableAISpam   bool
+	TypeSafeAPIKey string
 }
 
 var AppConfig *Config
@@ -282,6 +287,9 @@ func LoadConfig() (*Config, error) {
 		EnablePPROF: typeConvertor{str: os.Getenv("ENABLE_PPROF")}.Bool(),
 
 		MetricsAuthToken: os.Getenv("METRICS_AUTH_TOKEN"),
+
+		EnableAISpam:   typeConvertor{str: os.Getenv("ENABLE_AISPAM")}.Bool(),
+		TypeSafeAPIKey: os.Getenv("TYPESAFE_API_KEY"),
 	}
 
 	cfg.setDefaults()
@@ -389,6 +397,13 @@ func (cfg *Config) setDefaults() {
 	if cfg.ResourceGCThresholdMB == 0 {
 		cfg.ResourceGCThresholdMB = 400
 	}
+
+	// Global kill switch: on unless explicitly disabled. The feature stays
+	// inert without TYPESAFE_API_KEY, so an unset flag is not a decision to
+	// delete anything.
+	if os.Getenv("ENABLE_AISPAM") == "" {
+		cfg.EnableAISpam = true
+	}
 }
 
 func init() {
@@ -427,6 +442,7 @@ func init() {
 		cfg.RedisPassword,
 		cfg.WebhookSecret,
 		cfg.MetricsAuthToken,
+		cfg.TypeSafeAPIKey,
 	)
 
 	if cfg.Debug {

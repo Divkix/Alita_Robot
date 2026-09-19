@@ -5,7 +5,7 @@ import { defineConfig } from "blume";
 export default defineConfig({
 	title: "Alita Robot",
 	description:
-		"A modern Telegram group management bot built with Go — 29+ modules, 158+ commands, 7+ languages, and blazing-fast performance powered by Redis caching and PostgreSQL.",
+		"A modern Telegram group management bot built with Go — 30+ modules, 159+ commands, 7+ languages, and blazing-fast performance powered by Redis caching and PostgreSQL.",
 	logo: { image: "/favicon.svg", text: "Alita Robot" },
 	github: { owner: "divkix", repo: "Alita_Robot" },
 

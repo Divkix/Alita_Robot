@@ -1670,6 +1670,45 @@ db_type_assertion_failed: "asserção de tipo para []byte falhou"
 # Default button texts
 button_rules_default: "Regras"
 
+# AI spam filter module strings
+aispam_help_msg: |
+  <b>🤖 Filtro de spam com IA</b>
+
+  Um filtro opcional que avalia cada mensagem deste chat com um modelo de IA e apaga as que ele considera com confiança serem spam.
+
+  Nada mais acontece: nem advertência, nem silenciamento, nem resposta, nem aviso. Uma mensagem sobre a qual o modelo tem confiança de ser spam é apagada em silêncio, e o remetente nunca é avisado.
+
+  Chats em inglês agem a partir de 80% de confiança, os demais idiomas a partir de 90%, porque o modelo é otimizado para inglês.
+
+
+  *Comandos de administrador:*
+
+  × /aispam: Mostra se o filtro está ativo e exatamente o que é enviado ao modelo.
+
+  × /aispam `<on/off>`: Ativa ou desativa o filtro neste chat.
+
+
+  O filtro fica desativado em todos os chats até um administrador ativá-lo, e exige que o operador do bot tenha configurado uma chave de API.
+aispam_status_enabled: "O filtro de spam com IA está <b>ativado</b> neste chat."
+aispam_status_disabled: "O filtro de spam com IA está <b>desativado</b> neste chat. Ative-o com <code>/aispam on</code>."
+aispam_status_key_missing: "⚠️ Indisponível: o operador do bot não configurou uma chave de API, então nenhuma mensagem está sendo avaliada."
+aispam_status_globally_disabled: "⚠️ Indisponível: o operador do bot desativou o filtro de spam com IA globalmente, então nenhuma mensagem está sendo avaliada."
+aispam_data_notice: |
+  <b>O que é enviado a cada mensagem avaliada:</b>
+  • O título, a descrição, as regras e o idioma do chat
+  • O perfil do remetente: dias desde que o bot o viu pela primeira vez, mensagens na última hora, número de advertências
+  • O texto ou a legenda da mensagem, os domínios para os quais ela aponta e se é um encaminhamento ou uma resposta
+  • As poucas mensagens mais recentes do remetente neste chat
+
+
+  Nomes, nomes de usuário, identificadores, números de telefone ou mensagens de outros chats não são enviados.
+aispam_enabled_success: "✅ O filtro de spam com IA agora está <b>ativado</b>. Mensagens sobre as quais o modelo tem confiança de serem spam serão apagadas."
+aispam_disabled_success: "❌ O filtro de spam com IA agora está <b>desativado</b>."
+aispam_no_key: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot não configurou uma chave de API da TypeSafe. Nada mudou."
+aispam_globally_disabled: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot o desativou globalmente. Nada mudou."
+aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas neste chat por alguns minutos após falhas repetidas do provedor de IA. Elas retomam sozinhas e o filtro continua ativado."
+
 # Antispam module strings (no commands - automatic background protection)
 antispam_help_msg: |
   O módulo antispam fornece proteção automática contra spam nos bastidores para seus grupos.

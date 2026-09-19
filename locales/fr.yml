@@ -1528,6 +1528,45 @@ antiflood_notes_docs: |
   <b>Comportement par défaut</b>
   Antiflood est <b>désactivé par défaut</b>. Vous devez l'activer explicitement en utilisant <code>/setflood &lt;nombre&gt;</code>.
 
+# AI spam filter module strings
+aispam_help_msg: |
+  <b>🤖 Filtre anti-spam par IA</b>
+
+  Un filtre optionnel qui évalue chaque message de ce chat avec un modèle d'IA et supprime ceux qu'il juge manifestement indésirables.
+
+  Rien d'autre ne se produit : ni avertissement, ni silence, ni réponse, ni notification. Un message dont le modèle est sûr qu'il s'agit de spam est supprimé discrètement, et l'expéditeur n'est jamais prévenu.
+
+  Les chats en anglais agissent à partir de 80% de confiance, les autres langues à partir de 90%, car le modèle est optimisé pour l'anglais.
+
+
+  *Commandes d'administration :*
+
+  × /aispam : Indique si le filtre est actif et exactement ce qui est envoyé au modèle.
+
+  × /aispam `<on/off>` : Active ou désactive le filtre pour ce chat.
+
+
+  Le filtre est désactivé dans tous les chats tant qu'un administrateur ne l'active pas, et nécessite que l'opérateur du bot ait configuré une clé d'API.
+aispam_status_enabled: "Le filtre anti-spam par IA est <b>activé</b> dans ce chat."
+aispam_status_disabled: "Le filtre anti-spam par IA est <b>désactivé</b> dans ce chat. Activez-le avec <code>/aispam on</code>."
+aispam_status_key_missing: "⚠️ Indisponible : l'opérateur du bot n'a pas configuré de clé d'API, aucun message n'est donc analysé."
+aispam_status_globally_disabled: "⚠️ Indisponible : l'opérateur du bot a désactivé le filtre anti-spam par IA globalement, aucun message n'est donc analysé."
+aispam_data_notice: |
+  <b>Ce qui est envoyé pour chaque message analysé :</b>
+  • Le titre, la description, les règles et la langue du chat
+  • Le profil de l'expéditeur : jours depuis la première fois que le bot l'a vu, messages de la dernière heure, nombre d'avertissements
+  • Le texte ou la légende du message, les domaines vers lesquels il renvoie, et s'il s'agit d'un transfert ou d'une réponse
+  • Les quelques messages les plus récents de l'expéditeur dans ce chat
+
+
+  Aucun nom, nom d'utilisateur, identifiant, numéro de téléphone ni message provenant d'autres chats n'est envoyé.
+aispam_enabled_success: "✅ Le filtre anti-spam par IA est maintenant <b>activé</b>. Les messages dont le modèle est sûr qu'il s'agit de spam seront supprimés."
+aispam_disabled_success: "❌ Le filtre anti-spam par IA est maintenant <b>désactivé</b>."
+aispam_no_key: "❌ Je ne peux pas activer le filtre anti-spam par IA : l'opérateur du bot n'a pas configuré de clé d'API TypeSafe. Rien n'a changé."
+aispam_globally_disabled: "❌ Je ne peux pas activer le filtre anti-spam par IA : l'opérateur du bot l'a désactivé globalement. Rien n'a changé."
+aispam_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_breaker_notice: "⚠️ Les analyses anti-spam par IA sont en pause dans ce chat pendant quelques minutes après des échecs répétés du fournisseur d'IA. Elles reprennent d'elles-mêmes et le filtre reste activé."
+
 # Antispam module documentation
 antispam_help_msg: |
   Le module antispam fournit une protection automatique contre le spam en arrière-plan pour vos groupes.

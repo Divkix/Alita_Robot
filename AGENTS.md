@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 Alita Robot — Telegram group-management bot in **Go 1.26** / **gotgbot/v2** `v2.0.0-rc.36`.
-Features: admin, filters, notes, greetings, antiflood/antiraid/antispam, captcha, warns, locks, backups, connections, reactions, i18n (en/es/fr/hi/ru/pt/id).
+Features: admin, filters, notes, greetings, antiflood/antiraid/antispam/aispam, captcha, warns, locks, backups, connections, reactions, i18n (en/es/fr/hi/ru/pt/id).
 
 > `CLAUDE.md` and `GEMINI.md` are symlinks to `AGENTS.md` — edit only this file.
 
@@ -19,7 +19,7 @@ Features: admin, filters, notes, greetings, antiflood/antiraid/antispam, captcha
 ```
 Telegram ──► polling OR webhook /webhook POST
           ──► ext.Dispatcher (TracingProcessor span per update)
-          ──► handlers by group: -10..-1 interceptors → 0 commands (EndGroups) → 4..11 watchers (ContinueGroups)
+          ──► handlers by group: -10..-1 interceptors → 0 commands (EndGroups) → 3..11 watchers (ContinueGroups)
           ──► repo (GORM/Postgres + Redis read-through) → reply via i18n + media
 ```
 
@@ -37,7 +37,7 @@ Telegram ──► polling OR webhook /webhook POST
 - `main.go` — CLI flags, polling/webhook branch, dispatcher, shutdown, tuned Bot-API transport.
 - `alita/main.go` — `LoadModules`, `InitialChecks`, `ListModules`.
 - `alita/config/` — manual env load/validate + `logredact` wiring in `init()`. No viper. `types.go` has `typeConvertor`.
-- `alita/db/` — `db.go` (OTel CRUD wrappers + shim), `conn.go` (pool, `AUTO_MIGRATE`), `models/` (all GORM structs + `types.go` JSONB: `ButtonArray`/`StringArray`/`Int64Array`), `<domain>/` repos (`admin, antiflood, antiraid, approvals, blacklists, captcha, channels, chats, connections, devs, disabling, federations, filters, greetings, lang, locks, logchannels, notes, pins, reports, rules, user, warns`), `cache/` (`CacheKey`, `GetFromCacheOrLoad` singleflight, `DeleteCache`), `migrations/runner.go`, `monitoring/metrics.go`, `backup/` (19 modules).
+- `alita/db/` — `db.go` (OTel CRUD wrappers + shim), `conn.go` (pool, `AUTO_MIGRATE`), `models/` (all GORM structs + `types.go` JSONB: `ButtonArray`/`StringArray`/`Int64Array`), `<domain>/` repos (`admin, aispam, antiflood, antiraid, approvals, blacklists, captcha, channels, chats, connections, devs, disabling, federations, filters, greetings, lang, locks, logchannels, notes, pins, reports, rules, user, warns`), `cache/` (`CacheKey`, `GetFromCacheOrLoad` singleflight, `DeleteCache`), `migrations/runner.go`, `monitoring/metrics.go`, `backup/` (19 modules).
 - `alita/i18n/` — singleton `LocaleManager`, `go:embed` `locales/`, yaml→`map[string]any`, dot-path lookup + case-insensitive fallback. No viper.
 - `alita/modules/` — feature modules + `registry.go`/`core.go`.
 - `alita/utils/` — `chat_status`, `helpers` (command pipeline), `cache`, `callbackcodec`, `formatting`, `keyboard`, `keyword_matcher`, `media`, `content`, `extraction`, `error_handling`, `errors`, `logredact`, `ratelimit`, `constants`, `monitoring`, `shutdown`, `tracing`, `httpserver`, `actionlog`.
@@ -115,6 +115,7 @@ Shutdown (`alita/utils/shutdown`): SIGTERM/SIGINT → LIFO handlers (reverse reg
 |----:|--------|----:|--------|----:|--------|
 | -10 | BotUpdates | 80 | Mutes | 190 | Rules |
 | 10 | Antispam | 90 | Purges | 200 | Warns |
+| 12 | AISpam |  |  |  |  |
 | 20 | Languages | 100 | Users | 210 | Greetings |
 | 30 | Admin | 110 | Reports | 220 | Captcha |
 | 40 | Approvals | 120 | Dev | 230 | AntiRaid |
@@ -137,7 +138,7 @@ Command registration:
 
 ## 7. Handlers, callbacks, routing, permissions
 
-**Handler groups:** -10 captcha-pending, -6 federations watcher, -5 antiraid, -2 antispam, -1 Users tracker (must return `ContinueGroups` and synchronously create/update chat+user parent rows via `updateCurrentChat`/`updateCurrentUser` before later groups write FK-dependent rows — do not move to goroutines); 4 antiflood, 5 locks perm / 6 restr, 7 blacklists, 8 reports+reactions, 9 filters, 10 pins, 11 log-channel capture. Commands → `ext.EndGroups`, watchers → `ext.ContinueGroups`.
+**Handler groups:** -10 captcha-pending, -6 federations watcher, -5 antiraid, -2 antispam, -1 Users tracker (must return `ContinueGroups` and synchronously create/update chat+user parent rows via `updateCurrentChat`/`updateCurrentUser` before later groups write FK-dependent rows — do not move to goroutines); 3 aispam (enqueues a check off the update path, always `ContinueGroups`), 4 antiflood, 5 locks perm / 6 restr, 7 blacklists, 8 reports+reactions, 9 filters, 10 pins, 11 log-channel capture. Commands → `ext.EndGroups`, watchers → `ext.ContinueGroups`.
 
 **Callbacks:** `alita/utils/callbackcodec` + `modules/callback_codec.go` → `<ns>|v1|<url-encoded>`, 64B cap. `encodeCallbackData` returns `""` on overflow (broken button). For user text use **token pattern** (store in Redis, short hex token in callback; filters/notes). `decodeCallbackData` is strict, rejects dot-notation. Guard every callback with `callbackQueryFromContext(ctx)` (nil-safe, also check `query.Message`); `CallbackQuery.Message` is a `gotgbot.Message` value not pointer — use interface methods + `ctx.EffectiveMessage`.
 
@@ -174,7 +175,7 @@ Command registration:
 
 **Per-domain repos:**
 - Read-through `cache.GetFromCacheOrLoad(ctx, cache.CacheKey(module,id), ttl, loader)` — one shared load per key, independent caller deadlines, 30s query deadline; last waiter cancels the query. Pass the loader context into SQL; propagate failures without retrying the same read. Writes must `cache.DeleteCache` every affected key; don't bypass.
-- ⚠️ Key prefixes ≠ package names: `blacklists→"blacklist"`, `channels→"channel"`, `chats→"chat"`, `captcha→"captcha_settings"`, `notes→"notes_settings"`, `disabling→"disabled_cmds"`, `warns→"warns"`+`"warn_settings"`, `filters→"filter_list"`+`"filters_optimized"`, `locks→"lock"`+`"locks_map"`, `lang→"chat_lang"`/`"user_lang"` (also `"chat_settings"`/`"chat"`/`"user"`), `federations→"fed"`+`"fed_chat"`+`"fed_admins"`+`"fed_ban"`+`"fed_subs"`, `logchannels→"log_channel"`. `admin, connections, devs, pins, reports, rules` have **no cache**.
+- ⚠️ Key prefixes ≠ package names: `blacklists→"blacklist"`, `channels→"channel"`, `chats→"chat"`, `captcha→"captcha_settings"`, `notes→"notes_settings"`, `disabling→"disabled_cmds"`, `warns→"warns"`+`"warn_settings"`, `filters→"filter_list"`+`"filters_optimized"`, `locks→"lock"`+`"locks_map"`, `lang→"chat_lang"`/`"user_lang"` (also `"chat_settings"`/`"chat"`/`"user"`), `federations→"fed"`+`"fed_chat"`+`"fed_admins"`+`"fed_ban"`+`"fed_subs"`, `logchannels→"log_channel"`, `aispam→"ai_spam_settings"`. `admin, connections, devs, pins, reports, rules` have **no cache**.
 - Upserts use `clause.OnConflict` (locks, captcha, filters, notes, connections, user/chat anchors). Warns/reports lock parent row; channels clear prior owner+caches. `chats.UpdateChat` appends JSONB via `users || to_jsonb(...)` (pg-specific). Disabling load errors never cached as empty list. Most reads swallow errors and return defaults (`"en"`, empty slice) — don't rely on error to detect missing data. `user.GetUserBasicInfoCached` negative-caches missing as `UserId:-9999`.
 
 **Migrations** (`alita/db/migrations/runner.go`, manual `scripts/migrate_psql.sh`):
@@ -210,6 +211,7 @@ Command registration:
 - **Federations** (group -6, pri 235): one fed per owner, chat joins one fed, max 5 subs (`federation_subs`). Watcher fbans local + subscribed feds. `DeleteFederation` locks row + lists chat/ban/sub keys inside tx then invalidates. Backup: membership only (`fed_id`+`quiet`). `/stats` includes global federation totals via `federations.LoadFederationStats` (same as `/fedinfo` per-fed); `/fedstat` is per-user lookup.
 - **Log channels** (group 11): `/setlog` in channel stores `alita:setlog:<chan>:<msgId>` 1h (exact msgId, no `:0` wildcard); forward binds `log_channels`. Categories `settings/admin/user/automated/reports/other` default on. `actionlog` must check `chat.Type=="channel"`.
 - **Antispam** (group -2): local 18/sec telemetry only, always `ContinueGroups` — not a global ban.
+- **AISpam** (group 3, `alita/modules/aispam.go`): opt-in per-chat AI filter. Deletes only, judged by TypeSafe Jev off the update path (bounded queue + 4 workers, `DrainAISpamChecks` on shutdown), thresholds 0.8 English / 0.9 other languages from the chat's configured language, fails open, one retry on 429/5xx unless `Retry-After` exceeds 2s, 5 failures pause a chat 5m (one notice) without touching `ai_spam_settings`. Deletions mirror to `MESSAGE_DUMP`. Inert without `TYPESAFE_API_KEY` or with `ENABLE_AISPAM=false`.
 - **Captcha** (~2100 lines): math/image verification, refresh cooldown 5s max 3, single attempt per `(user,chat)`, callback carries `refresh_count` + attempt ID/answer/msg/version checks, atomic claim+retry row, `kick` via `unbanChatMember(only_if_banned=false)`, `mute` 24h; disabling/approval releases pending. Group -10 deletes pending msgs.
 - **Approvals:** whitelist skips antiflood/blacklists/locks/captcha/antispam. `/unapproveall` owner-only.
 - **Disabling:** `CheckDisabledCmd` (bypasses admins/PM, optional delete via `ShouldDel`); only cmds registered via `AddCmdToDisableable` are disableable.
@@ -228,7 +230,7 @@ Command registration:
 
 - **Monitoring** (`alita/utils/monitoring` not `db/monitoring`): `ActivityMonitor` (DAU/WAU/MAU), `BackgroundStatsCollector` (30s/1m/5m tickers under mutex), `AutoRemediationManager` (1/min, 4 tiers: LogWarning 0 at goroutines>0.8× or mem>0.5×, GC 1 at mem>0.6× or GCPause>50ms, MemoryCleanup 2 at `ResourceGCThresholdMB` raw MB, RestartRecommendation 10). Honors explicit `ENABLE_…=false`.
 - **Tracing:** OTel OTLP gRPC or stdout (`OTEL_*` via `os.Getenv`, not config); `TracingProcessor` 1 span/update. `tracing.UpdateContext` carries the 30s update deadline into context-aware repositories. GORM bounds queries without a deadline to 30s after startup migrations finish.
-- **Backups** (`alita/db/backup`, `BackupFormatVersion "1.1"` compat `1.0`): 19 modules (admin, antiflood, antiraid, approvals, blacklists, captcha, connections, disabling, filters, greetings, locks, notes, pins, reactions, reports, rules, warns, federations, logchannels). Validates first then replaces all requested modules in one transaction (all-or-nothing), invalidates caches. Federation membership only. Module `backup.go` adds one-use nonce 10m + Redis/in-mem rate limit (export 5m/import 10m/reset 1h, atomic `SETNX`, fail-open without Redis, 10MB Telegram file limit with host check).
+- **Backups** (`alita/db/backup`, `BackupFormatVersion "1.1"` compat `1.0`): 19 modules (admin, antiflood, antiraid, approvals, blacklists, captcha, connections, disabling, filters, greetings, locks, notes, pins, reactions, reports, rules, warns, federations, logchannels). Validates first then replaces all requested modules in one transaction (all-or-nothing), invalidates caches. Federation membership only. `ai_spam_settings` is deliberately not a backup module (opt-in flag, restored by an admin with one command). Module `backup.go` adds one-use nonce 10m + Redis/in-mem rate limit (export 5m/import 10m/reset 1h, atomic `SETNX`, fail-open without Redis, 10MB Telegram file limit with host check).
 - **Errors/logging:** 4-layer recovery (dispatcher→worker→`WrapCommand`→handler); fire-and-forget must `defer error_handling.RecoverFromPanic`. `errors.Wrap/Wrapf` via `runtime.Caller(1)`. `logredact` hook scrubs tokens/DSN/`Authorization` + `RegisterSecret` (≥6 chars, longest-first) — add new secrets there. Never ignore DB errors (`_`) on state-changing paths; `IsExpectedTelegramError` vs `IsPermissionError` are separate lists; `SendMessageWithErrorHandling` may return `(nil,nil)`.
 - **Scripts:** `generate_docs` (regex parsers) updates unfrozen `commands/users|` `federations|` `logchannels/index.md` + `api-reference/lock-types.md`; frozen files have `<!-- MANUALLY MAINTAINED: do not regenerate -->`. `check_translations` validates literal `GetString` keys only. `validate_orphaned_data.go` 26 FK checks. `bump_version.sh` patches both version strings.
 
@@ -267,7 +269,7 @@ Defaults / gotchas (`config.go` manual load; `validate:`/`env:` tags are decorat
 - Port `HTTP_PORT`→`PORT`→8080; `DISPATCHER_MAX_ROUTINES` 200; pool 50 idle / 200 open / 240m lifetime / 60m idle.
 - `REDIS_DB` **1** (explicit `0` honored); `CLEAR_CACHE_ON_STARTUP` false.
 - `ENABLE_PERFORMANCE_MONITORING`/`ENABLE_BACKGROUND_STATS` default true only when `DEBUG=false` (explicit `false` honored; in debug mode both default false), `ENABLE_AUTO_CLEANUP` always defaults true; `ENABLE_DB_MONITORING` false (gates `/db_metrics`).
-- `AUTO_MIGRATE`/`AUTO_MIGRATE_SILENT_FAIL`, `MIGRATIONS_PATH` `migrations`, `ENABLED_LOCALES` (picker only), `API_SERVER`, `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`.
+- `AUTO_MIGRATE`/`AUTO_MIGRATE_SILENT_FAIL`, `MIGRATIONS_PATH` `migrations`, `ENABLED_LOCALES` (picker only), `API_SERVER`, `DROP_PENDING_UPDATES`, `ENABLE_PPROF`, `METRICS_AUTH_TOKEN`, `DEBUG`, `TYPESAFE_API_KEY` (empty = AI spam filter inert), `ENABLE_AISPAM` (kill switch, default true).
 - `OTEL_*` via `os.Getenv` (not in sample.env), `INACTIVITY_THRESHOLD_DAYS` 30, `ACTIVITY_CHECK_INTERVAL` 1, HTTP idle 100 / per-host 50, `RESOURCE_MAX_GOROUTINES` 1000, `RESOURCE_MAX_MEMORY_MB` 500, `RESOURCE_GC_THRESHOLD_MB` 400 (raw MB trigger).
 
 ---

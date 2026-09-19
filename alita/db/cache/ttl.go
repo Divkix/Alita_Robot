@@ -25,4 +25,5 @@ const (
 	CacheTTLReactions       = DefaultCacheTTL
 	CacheTTLFederation      = DefaultCacheTTL
 	CacheTTLLogChannel      = DefaultCacheTTL
+	CacheTTLAISpam          = DefaultCacheTTL
 )

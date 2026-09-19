@@ -356,6 +356,7 @@ func TestMain(m *testing.M) {
 		&models.FederationBan{},
 		&models.FederationSub{},
 		&models.LogChannel{},
+		&models.AISpamSettings{},
 	); err != nil {
 		fmt.Printf("AutoMigrate failed: %v\n", err)
 		os.Exit(1)

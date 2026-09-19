@@ -19,6 +19,7 @@ This page documents every registered message watcher with its exact handler grou
 | -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
+| 3 | AISpam | `checkAISpam` | `message.All` | `ContinueGroups` (always) | Opt-in AI spam filter; enqueues a check and never blocks propagation |
 | 4 | Antiflood | `checkFlood` | `message.All` | `EndGroups` on flood, `ContinueGroups` otherwise | Flood control; skips anon admins and media groups |
 | 5 | Locks | `permHandler` | `message.All` | `EndGroups` on violation | Permission-based locks (can_send_messages, etc.) |
 | 6 | Locks | `restHandler` | `message.All` | `EndGroups` on violation | Restriction-based locks (stickers, animations, etc.) |

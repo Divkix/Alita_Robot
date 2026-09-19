@@ -10,7 +10,7 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Application Tables**: 29
+- **Application Tables**: 30
 - **Migration Metadata**: `schema_migrations`
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
@@ -57,6 +57,32 @@ Stores admin settings per chat.
 #### Foreign Keys
 
 - `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `ai_spam_settings`
+
+Stores the per-chat opt-in switch for the AI spam filter. A missing row means the filter is off, so only enabling writes a row.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | UNIQUE |
+| `enabled` | `BOOLEAN` | NO | `FALSE` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `UNIQUE(chat_id)` — no separate index; the constraint index serves every lookup.
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+> **Note:** The flag lives in the database rather than Redis: it is the chat's moderation policy, and a cache flush must not silently stop the filter in a chat an admin enabled it for.
 
 ---
 
