@@ -79,3 +79,9 @@ func RemoveAllApprovedUsers(chatID int64) error {
 	cache.DeleteCache(cache.CacheKey("approvals", chatID))
 	return nil
 }
+
+func LoadApprovalsStats() (approvedUsers, approvalChats int64) {
+	approvedUsers = db.CountRows(&models.ApprovedUsers{}, "")
+	approvalChats = db.CountDistinct(&models.ApprovedUsers{}, "chat_id", "")
+	return
+}

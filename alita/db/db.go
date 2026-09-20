@@ -140,18 +140,50 @@ func ChatExistsContext(ctx context.Context, chatID int64) bool {
 // TableRowCount returns an estimated row count for the given table.
 // On PostgreSQL it uses pg_class.reltuples (O(1), maintained by ANALYZE),
 // avoiding the full-table-scan that COUNT(*) requires under MVCC.
-// On other databases (e.g. SQLite in tests) the pg_class query fails and it
-// falls back to COUNT(*).
+// A never-analyzed table reports -1 there (row count unknown), so that falls
+// back to COUNT(*) too, as does any database without pg_class (e.g. SQLite in tests).
 func TableRowCount(tableName string) int64 {
 	if DB == nil {
 		return 0
 	}
 	var count int64
-	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil {
+	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil && count >= 0 {
 		return count
 	}
 	DB.Table(tableName).Count(&count)
 	return count
+}
+
+// CountRows returns how many rows of model match the where clause (empty where counts all rows).
+func CountRows(model any, where string, args ...any) int64 {
+	if DB == nil {
+		return 0
+	}
+	var count int64
+	if err := countQuery(model, where, args...).Count(&count).Error; err != nil {
+		log.Errorf("[Database][CountRows]: %v", err)
+	}
+	return count
+}
+
+// CountDistinct returns how many distinct values of column the matching rows of model span.
+func CountDistinct(model any, column, where string, args ...any) int64 {
+	if DB == nil {
+		return 0
+	}
+	var count int64
+	if err := countQuery(model, where, args...).Distinct(column).Count(&count).Error; err != nil {
+		log.Errorf("[Database][CountDistinct]: %v", err)
+	}
+	return count
+}
+
+func countQuery(model any, where string, args ...any) *gorm.DB {
+	query := DB.Model(model)
+	if where != "" {
+		query = query.Where(where, args...)
+	}
+	return query
 }
 
 func GetRecords(models any, where any) error {

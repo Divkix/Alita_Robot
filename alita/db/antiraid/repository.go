@@ -85,3 +85,9 @@ func SetAutoAntiRaidThreshold(chatID int64, threshold int) error {
 	}
 	return upsertChatField(chatID, updates)
 }
+
+func LoadAntiRaidStats() (configuredChats, autoChats int64) {
+	configuredChats = db.CountRows(&models.AntiRaidSettings{}, "")
+	autoChats = db.CountRows(&models.AntiRaidSettings{}, "auto_antiraid_threshold > ?", 0)
+	return
+}

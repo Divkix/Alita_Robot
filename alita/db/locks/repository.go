@@ -45,3 +45,9 @@ func InvalidateLockCache(chatID int64) {
 func IsPermLocked(chatID int64, perm string) bool {
 	return GetChatLocks(chatID)[perm]
 }
+
+func LoadLocksStats() (lockedPerms, lockChats int64) {
+	lockedPerms = db.CountRows(&models.LockSettings{}, "locked = ?", true)
+	lockChats = db.CountDistinct(&models.LockSettings{}, "chat_id", "locked = ?", true)
+	return
+}

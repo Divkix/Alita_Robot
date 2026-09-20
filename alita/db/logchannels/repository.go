@@ -165,3 +165,7 @@ func CategoryEnabled(settings *models.LogChannel, name string) bool {
 	}
 	return meta.get(settings)
 }
+
+func LoadLogChannelStats() (linkedChats int64) {
+	return db.CountRows(&models.LogChannel{}, "")
+}

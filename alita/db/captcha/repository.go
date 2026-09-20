@@ -662,3 +662,10 @@ func DeleteMutedUsersByIDs(ids []uint) (int64, error) {
 	result := db.DB.Delete(&models.CaptchaMutedUsers{}, ids)
 	return result.RowsAffected, result.Error
 }
+
+func LoadCaptchaStats() (enabledChats, pendingAttempts, mutedUsers int64) {
+	enabledChats = db.CountRows(&models.CaptchaSettings{}, "enabled = ?", true)
+	pendingAttempts = db.CountRows(&models.CaptchaAttempts{}, "expires_at > ?", time.Now())
+	mutedUsers = db.CountRows(&models.CaptchaMutedUsers{}, "unmute_at > ?", time.Now())
+	return
+}

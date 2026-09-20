@@ -164,6 +164,19 @@ func TestLoadAllStats(t *testing.T) {
 		"Bans",
 		"Subscriptions",
 		"Channels Stored",
+		"Captcha",
+		"Enabled",
+		"Pending",
+		"Muted",
+		"Approvals",
+		"Warns",
+		"Locks",
+		"AntiRaid",
+		"Configured",
+		"Auto AntiRaid",
+		"Log Channels",
+		"Reactions",
+		"AI Spam",
 	}
 
 	for _, section := range expectedSections {
@@ -237,6 +250,77 @@ func TestLoadAllStats_IncludesFederationCounts(t *testing.T) {
 	for _, line := range want {
 		if !strings.Contains(section, line) {
 			t.Errorf("Federations section missing %q\nsection=%q", line, section)
+		}
+	}
+}
+
+func TestLoadAllStats_IncludesModuleCounts(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	otherChat := chatID + 1
+	userID := chatID + 2
+
+	tables := []any{
+		&models.CaptchaSettings{}, &models.CaptchaAttempts{}, &models.CaptchaMutedUsers{},
+		&models.ApprovedUsers{}, &models.Warns{}, &models.LockSettings{}, &models.AntiRaidSettings{},
+		&models.LogChannel{}, &models.Reactions{}, &models.AISpamSettings{},
+	}
+	t.Cleanup(func() {
+		for _, model := range tables {
+			if err := db.DB.Where("chat_id IN ?", []int64{chatID, otherChat}).Delete(model).Error; err != nil {
+				t.Errorf("cleanup %T error: %v", model, err)
+			}
+		}
+	})
+
+	future := time.Now().Add(time.Hour)
+	past := time.Now().Add(-time.Hour)
+	seed := []any{
+		&models.CaptchaSettings{ChatID: chatID, Enabled: true},
+		&models.CaptchaSettings{ChatID: otherChat, Enabled: false},
+		&models.CaptchaAttempts{UserID: userID, ChatID: chatID, Answer: "5", ExpiresAt: future},
+		&models.CaptchaAttempts{UserID: userID + 1, ChatID: chatID, Answer: "7", ExpiresAt: future},
+		&models.CaptchaAttempts{UserID: userID, ChatID: otherChat, Answer: "9", CreatedAt: past.Add(-time.Hour), ExpiresAt: past},
+		&models.CaptchaMutedUsers{UserID: userID, ChatID: chatID, UnmuteAt: future},
+		&models.CaptchaMutedUsers{UserID: userID + 1, ChatID: chatID, UnmuteAt: future},
+		&models.CaptchaMutedUsers{UserID: userID, ChatID: otherChat, UnmuteAt: past},
+		&models.ApprovedUsers{ChatID: chatID, UserID: userID},
+		&models.ApprovedUsers{ChatID: chatID, UserID: userID + 1},
+		&models.Warns{UserId: userID, ChatId: chatID, NumWarns: 1},
+		&models.Warns{UserId: userID + 1, ChatId: chatID, NumWarns: 2},
+		&models.LockSettings{ChatId: chatID, LockType: "url", Locked: true},
+		&models.LockSettings{ChatId: chatID, LockType: "forward", Locked: true},
+		&models.LockSettings{ChatId: otherChat, LockType: "url", Locked: false},
+		&models.AntiRaidSettings{ChatID: chatID, AutoAntiRaidThreshold: 5},
+		&models.AntiRaidSettings{ChatID: otherChat},
+		&models.LogChannel{ChatID: chatID, LogChannelID: otherChat},
+		&models.Reactions{ChatID: chatID, Keyword: "hello", Emoji: "👋"},
+		&models.Reactions{ChatID: chatID, Keyword: "bye", Emoji: "🚀"},
+		&models.AISpamSettings{ChatID: chatID, Enabled: true},
+		&models.AISpamSettings{ChatID: otherChat, Enabled: false},
+	}
+	for _, row := range seed {
+		if err := db.DB.Create(row).Error; err != nil {
+			t.Fatalf("seeding %T error: %v", row, err)
+		}
+	}
+
+	stats := LoadAllStats()
+
+	want := []string{
+		"<b>Captcha:</b>\n    <b>Enabled:</b> 1 chats\n    <b>Pending:</b> 2\n    <b>Muted:</b> 2",
+		"<b>Approvals:</b> 2 users approved in 1 chats",
+		"<b>Warns:</b> 2 users warned in 1 chats",
+		"<b>Locks:</b> 2 locks set in 1 chats",
+		"<b>AntiRaid:</b>\n    <b>Configured:</b> 2 chats\n    <b>Auto AntiRaid:</b> 1 chats",
+		"<b>Log Channels:</b> 1 chats linked",
+		"<b>Reactions:</b> 2 reactions in 1 chats",
+		"<b>AI Spam:</b> enabled in 1 chats",
+	}
+	for _, line := range want {
+		if !strings.Contains(stats, line) {
+			t.Errorf("LoadAllStats() missing %q\nstats=%s", line, stats)
 		}
 	}
 }
