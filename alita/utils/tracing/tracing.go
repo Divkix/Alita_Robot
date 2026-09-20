@@ -152,11 +152,6 @@ func WorkingModeAttribute() attribute.KeyValue {
 	return attribute.String("bot.working_mode", config.AppConfig.WorkingMode)
 }
 
-// Enabled reports whether tracing was initialized with an exporter.
-func Enabled() bool {
-	return enabled
-}
-
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if !enabled {
 		return ctx, trace.SpanFromContext(ctx)
