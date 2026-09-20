@@ -32,6 +32,10 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 	lm.localeFS = fs
 	lm.localePath = localePath
 	lm.defaultLang = config.Loader.DefaultLanguage
+	// Derived state is rebuilt from the locale files below; drop anything a
+	// pre-populated manager carried.
+	lm.localeIndex = make(map[string]*lookupIndex)
+	lm.translators.Clear()
 
 	if err := lm.loadLocaleFiles(); err != nil {
 		if config.Loader.StrictMode {
@@ -48,10 +52,14 @@ func (lm *LocaleManager) Initialize(fs *embed.FS, localePath string, config Mana
 }
 
 func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
-	lm.mu.RLock()
-	defer lm.mu.RUnlock()
+	// Built translators are immutable, so a cache hit needs no locking.
+	if cached, ok := lm.translators.Load(langCode); ok {
+		return cached.(*Translator), nil
+	}
 
+	lm.mu.RLock()
 	if lm.localeFS == nil {
+		lm.mu.RUnlock()
 		return nil, NewI18nError("get_translator", langCode, "", "manager not initialized", ErrManagerNotInit)
 	}
 
@@ -61,15 +69,40 @@ func (lm *LocaleManager) GetTranslator(langCode string) (*Translator, error) {
 		targetLang = lm.defaultLang
 		data = lm.localeMaps[lm.defaultLang]
 		if data == nil {
+			lm.mu.RUnlock()
 			return nil, NewI18nError("get_translator", langCode, "", "default language data not found", ErrLocaleNotFound)
 		}
 	}
+	if cached, ok := lm.translators.Load(targetLang); ok {
+		lm.mu.RUnlock()
+		return cached.(*Translator), nil
+	}
+	lm.mu.RUnlock()
 
-	return &Translator{
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	if cached, ok := lm.translators.Load(targetLang); ok {
+		return cached.(*Translator), nil
+	}
+
+	index := lm.localeIndex[targetLang]
+	if index == nil && data != nil {
+		index = buildLookupIndex(data)
+		if lm.localeIndex == nil {
+			lm.localeIndex = make(map[string]*lookupIndex)
+		}
+		lm.localeIndex[targetLang] = index
+	}
+
+	translator := &Translator{
 		langCode: targetLang,
 		manager:  lm,
 		data:     data,
-	}, nil
+		index:    index,
+	}
+	lm.translators.Store(targetLang, translator)
+	return translator, nil
 }
 
 func (lm *LocaleManager) GetAvailableLanguages() []string {

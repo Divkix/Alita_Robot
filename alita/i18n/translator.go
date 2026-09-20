@@ -18,7 +18,7 @@ func (t *Translator) GetString(key string, params ...TranslationParams) (string,
 		return "", NewI18nError("get_string", t.langCode, key, "manager not initialized", ErrManagerNotInit)
 	}
 
-	result := lookupString(t.data, key)
+	result := t.lookupString(key)
 
 	if result == "" || result == "<nil>" {
 		if t.langCode != t.manager.defaultLang {
@@ -50,7 +50,7 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 		return nil, NewI18nError("get_string_slice", t.langCode, key, "manager not initialized", ErrManagerNotInit)
 	}
 
-	result := lookupStringSlice(t.data, key)
+	result := t.lookupStringSlice(key)
 
 	if len(result) == 0 {
 		if t.langCode != t.manager.defaultLang {

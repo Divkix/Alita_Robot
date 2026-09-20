@@ -58,6 +58,11 @@ func (lm *LocaleManager) loadSingleLocaleFile(filePath, langCode string) error {
 	}
 
 	lm.localeMaps[langCode] = parsed
+	if lm.localeIndex == nil {
+		lm.localeIndex = make(map[string]*lookupIndex)
+	}
+	lm.localeIndex[langCode] = buildLookupIndex(parsed)
+	lm.translators.Delete(langCode)
 
 	return nil
 }
@@ -83,6 +88,54 @@ func extractLangCode(fileName string) string {
 	langCode = strings.TrimSuffix(langCode, ".yml")
 	langCode = strings.TrimSuffix(langCode, ".yaml")
 	return langCode
+}
+
+// buildLookupIndex flattens a parsed locale into lowercase dot-path lookup tables so a
+// runtime lookup is a single map read: scalars holds the fmt.Sprint form of every leaf
+// (what lookupString would return), slices the resolved []string form of sequence
+// leaves. Segments containing "." are skipped because lookup splits queries on "." and
+// can never resolve such a segment.
+func buildLookupIndex(data map[string]any) *lookupIndex {
+	index := &lookupIndex{
+		scalars: make(map[string]string, len(data)),
+		slices:  make(map[string][]string),
+	}
+	index.addMap("", data)
+	return index
+}
+
+func (index *lookupIndex) addMap(prefix string, m map[string]any) {
+	for key, value := range m {
+		if strings.Contains(key, ".") {
+			continue
+		}
+		path := key
+		if prefix != "" {
+			path = prefix + "." + key
+		}
+		index.add(path, value)
+		if child, ok := value.(map[string]any); ok {
+			index.addMap(path, child)
+		}
+	}
+}
+
+// add records one path. Nil leaves are skipped (lookupString reports them as missing).
+// An already-lowercase path wins over a case variant of the same path, mirroring
+// lookupSegment's exact-match-first rule.
+func (index *lookupIndex) add(path string, value any) {
+	if value == nil {
+		return
+	}
+	key := strings.ToLower(path)
+	if _, exists := index.scalars[key]; exists && key != path {
+		return
+	}
+	index.scalars[key] = fmt.Sprint(value)
+	switch value.(type) {
+	case []any, []string:
+		index.slices[key] = toLookupSlice(value)
+	}
 }
 
 // lookup descends a parsed YAML map by a dot-separated key path and returns the
@@ -127,7 +180,8 @@ func lookupSegment(m map[string]any, seg string) (any, bool) {
 }
 
 // lookupString resolves a dot-path key to its scalar value, coercing the leaf to a
-// string via fmt.Sprint (mirroring viper.GetString). Missing keys yield "".
+// string via fmt.Sprint (mirroring viper.GetString). Missing keys yield "". It is the
+// fallback for translators without a precomputed index, see Translator.lookupString.
 func lookupString(data map[string]any, key string) string {
 	value, found := lookup(data, key)
 	if !found || value == nil {
@@ -144,7 +198,11 @@ func lookupStringSlice(data map[string]any, key string) []string {
 	if !found || value == nil {
 		return nil
 	}
+	return toLookupSlice(value)
+}
 
+// toLookupSlice coerces a non-nil leaf into the []string form GetStringSlice yields.
+func toLookupSlice(value any) []string {
 	switch v := value.(type) {
 	case []string:
 		return v
@@ -159,6 +217,33 @@ func lookupStringSlice(data map[string]any, key string) []string {
 	default:
 		return strings.Fields(fmt.Sprint(v))
 	}
+}
+
+// lookupString resolves a key through the translator's precomputed flat index when one
+// was built, avoiding both the dot-path split and the case-insensitive map scan. The
+// index covers every key the generic walk can reach, so a miss is a miss.
+func (t *Translator) lookupString(key string) string {
+	if t.index == nil {
+		return lookupString(t.data, key)
+	}
+	return t.index.scalars[strings.ToLower(key)]
+}
+
+// lookupStringSlice is lookupString's []string counterpart. Sequence leaves come from
+// the index; scalar leaves resolve through their cached scalar form, exactly as the
+// generic walk does.
+func (t *Translator) lookupStringSlice(key string) []string {
+	if t.index == nil {
+		return lookupStringSlice(t.data, key)
+	}
+	lowered := strings.ToLower(key)
+	if fields, ok := t.index.slices[lowered]; ok {
+		return fields
+	}
+	if scalar, ok := t.index.scalars[lowered]; ok {
+		return strings.Fields(scalar)
+	}
+	return nil
 }
 
 func isYAMLFile(fileName string) bool {
