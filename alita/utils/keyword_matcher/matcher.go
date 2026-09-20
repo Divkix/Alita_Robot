@@ -5,7 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/cloudflare/ahocorasick"
 	log "github.com/sirupsen/logrus"
@@ -70,12 +69,9 @@ func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 
 	// Matcher.Match is not safe for concurrent readers (it mutates m.counter and
 	// node counters); MatchThreadSafe is the library's concurrency-safe variant.
-	// It only reads the input, so hand it a zero-copy view of lowerText.
-	var haystack []byte
-	if lowerText != "" {
-		haystack = unsafe.Slice(unsafe.StringData(lowerText), len(lowerText))
-	}
-	hits := km.matcher.MatchThreadSafe(haystack)
+	// The []byte conversion does not escape, so it allocates nothing and measures
+	// no slower than an unsafe.StringData view; the plain copy is kept.
+	hits := km.matcher.MatchThreadSafe([]byte(lowerText))
 	if len(hits) == 0 {
 		return "", false
 	}
