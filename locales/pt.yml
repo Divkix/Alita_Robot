@@ -1678,7 +1678,7 @@ aispam_help_msg: |
 
   Nada mais acontece: nem advertência, nem silenciamento, nem resposta, nem aviso. Uma mensagem sobre a qual o modelo tem confiança de ser spam é apagada em silêncio, e o remetente nunca é avisado.
 
-  Chats em inglês agem a partir de 80% de confiança, os demais idiomas a partir de 90%, porque o modelo é otimizado para inglês.
+  Mensagens escritas em inglês agem a partir de 80% de confiança, e mensagens em qualquer outro idioma a partir de 90%, porque o modelo é otimizado para inglês.
 
 
   *Comandos de administrador:*

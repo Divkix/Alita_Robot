@@ -1536,7 +1536,7 @@ aispam_help_msg: |
 
   Rien d'autre ne se produit : ni avertissement, ni silence, ni réponse, ni notification. Un message dont le modèle est sûr qu'il s'agit de spam est supprimé discrètement, et l'expéditeur n'est jamais prévenu.
 
-  Les chats en anglais agissent à partir de 80% de confiance, les autres langues à partir de 90%, car le modèle est optimisé pour l'anglais.
+  Les messages écrits en anglais agissent à partir de 80% de confiance, et ceux dans toute autre langue à partir de 90%, car le modèle est optimisé pour l'anglais.
 
 
   *Commandes d'administration :*

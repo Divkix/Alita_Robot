@@ -34,13 +34,16 @@ text, which is the audit trail and the only feedback loop for tuning.
 
 ## Thresholds
 
-| Chat language | Minimum probability to delete |
-|---------------|------------------------------|
-| English (`en`) | 0.80 |
-| Any other language | 0.90 |
+| The model reads the message as | Minimum probability to delete |
+|-------------------------------|------------------------------|
+| English | 0.80 |
+| Anything else, including too short or mixed to tell | 0.90 |
 
-Jev is English-first, so a chat configured in another language only acts on the
-higher bar.
+Jev is English-first, so only a message it reads as English takes the lower bar.
+The message's own language decides, not the chat's configured language: an
+English chat still receives posts written in other languages, and those are held
+to the higher bar. If the language answer is missing or unreadable, the higher
+bar applies.
 
 ## What Is Skipped
 
@@ -62,8 +65,13 @@ For each checked message:
   hour, warn count.
 - The message text or caption, the domains it links to, and whether it is a
   forward or a reply.
-- The sender's few most recent messages in this chat (in memory only, never
-  persisted).
+- The sender's few most recent messages in this chat, and how many messages they
+  posted in the last hour.
+
+The sender window is kept in Redis for one hour, keyed per chat and user, and
+expires on its own. Nothing else about a message is stored. A message joins the
+window even when the check that follows it fails, and losing Redis costs the
+window rather than the check: the message is still judged, with no history.
 
 No names, usernames, user IDs, phone numbers, or messages from other chats are
 sent. `/aispam` prints this list in the chat.

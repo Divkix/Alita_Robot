@@ -1784,7 +1784,7 @@ aispam_help_msg: |
 
   Nothing else happens: no warn, no mute, no reply, no notice. A message the model is confident is spam is removed quietly, and the sender is never told.
 
-  English chats act from 80% confidence, other languages from 90%, because the model is English-first.
+  Messages written in English act from 80% confidence, and messages in any other language from 90%, because the model is English-first.
 
 
   *Admin commands:*

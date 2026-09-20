@@ -1707,7 +1707,7 @@ aispam_help_msg: |
 
   Tidak ada hal lain yang terjadi: tidak ada peringatan, mute, balasan, atau pemberitahuan. Pesan yang diyakini model sebagai spam dihapus secara diam-diam, dan pengirimnya tidak pernah diberi tahu.
 
-  Chat berbahasa Inggris bertindak mulai keyakinan 80%, bahasa lain mulai 90%, karena model ini dioptimalkan untuk bahasa Inggris.
+  Pesan yang ditulis dalam bahasa Inggris bertindak mulai keyakinan 80%, dan pesan dalam bahasa lain mulai 90%, karena model ini dioptimalkan untuk bahasa Inggris.
 
 
   *Perintah admin:*

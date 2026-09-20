@@ -6,7 +6,7 @@ import (
 	"html"
 	"net/url"
 	"regexp"
-	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +16,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -26,6 +27,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -41,16 +43,20 @@ const (
 	aispamQueueCapacity = 256
 	aispamWorkerCount   = 4
 
-	// Jev is English-first, so a chat configured in another language only acts
-	// on the higher bar.
+	// Jev is English-first, so only a message the model reads as English acts
+	// on the lower bar. The message's own language decides, not the chat's
+	// setting: an English chat still receives posts in other languages.
 	aispamThresholdEnglish    = 0.8
 	aispamThresholdNonEnglish = 0.9
+
+	// aispamLanguageEnglish is the language answer that takes the lower bar.
+	// Every other answer, including none at all, takes the higher one.
+	aispamLanguageEnglish = "english"
 
 	aispamBreakerFailures = 5
 
 	aispamHistoryTexts         = 5
 	aispamHistoryMaxTimestamps = 200
-	aispamHistoryMaxSenders    = 10000
 	aispamHistoryTextLen       = 400
 
 	aispamMaxTitleLen       = 200
@@ -67,7 +73,8 @@ const (
 var (
 	aispamBreakerCooldown = 5 * time.Minute
 	aispamDescriptionTTL  = 10 * time.Minute
-	aispamHistoryIdleTTL  = time.Hour
+	// aispamHistoryWindow bounds the counted window and the key lifetime alike.
+	aispamHistoryWindow = time.Hour
 )
 
 var (
@@ -103,23 +110,21 @@ var aispamDesc = helpers.CommandDescriptor{
 // aispamTask carries the cheap facts gathered on the update path. Everything
 // that costs a database or network read is resolved by the worker instead.
 type aispamTask struct {
-	bot              *gotgbot.Bot
-	chatID           int64
-	messageID        int64
-	userID           int64
-	userName         string
-	text             string
-	hasLink          bool
-	linkDomains      []string
-	isForward        bool
-	isReply          bool
-	title            string
-	language         string
-	recentFromSender []string
-	messagesLastHour int
+	bot         *gotgbot.Bot
+	chatID      int64
+	messageID   int64
+	userID      int64
+	userName    string
+	text        string
+	hasLink     bool
+	linkDomains []string
+	isForward   bool
+	isReply     bool
+	title       string
+	language    string
 }
 
-func (t aispamTask) state() aispamState {
+func (t aispamTask) state(recent []string, lastHour int) aispamState {
 	return aispamState{
 		Chat: aispamChatState{
 			Title:       aispamTruncate(t.title, aispamMaxTitleLen),
@@ -129,7 +134,7 @@ func (t aispamTask) state() aispamState {
 		},
 		Sender: aispamSenderState{
 			FirstSeenDaysAgo: aispamFirstSeenDaysAgo(t.userID),
-			MessagesLastHour: t.messagesLastHour,
+			MessagesLastHour: lastHour,
 			WarnCount:        aispamWarnCount(t.userID, t.chatID),
 		},
 		Message: aispamMessageState{
@@ -139,7 +144,7 @@ func (t aispamTask) state() aispamState {
 			IsForward:   t.isForward,
 			IsReply:     t.isReply,
 		},
-		RecentFromSender: t.recentFromSender,
+		RecentFromSender: recent,
 	}
 }
 
@@ -166,23 +171,20 @@ func (m moduleStruct) checkAISpam(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	domains := aispamLinkDomains(msg, text)
-	recent, lastHour := aispamHistoryStore.observe(aispamSenderKey{chatID: chat.Id, userID: user.Id}, text, time.Now())
 
 	aispamEnqueue(aispamTask{
-		bot:              b,
-		chatID:           chat.Id,
-		messageID:        msg.MessageId,
-		userID:           user.Id,
-		userName:         formatting.GetFullName(user.FirstName, user.LastName),
-		text:             text,
-		hasLink:          len(domains) > 0,
-		linkDomains:      domains,
-		isForward:        msg.ForwardOrigin != nil,
-		isReply:          msg.ReplyToMessage != nil,
-		title:            chat.Title,
-		language:         lang.GetLanguage(ctx),
-		recentFromSender: recent,
-		messagesLastHour: lastHour,
+		bot:         b,
+		chatID:      chat.Id,
+		messageID:   msg.MessageId,
+		userID:      user.Id,
+		userName:    formatting.GetFullName(user.FirstName, user.LastName),
+		text:        text,
+		hasLink:     len(domains) > 0,
+		linkDomains: domains,
+		isForward:   msg.ForwardOrigin != nil,
+		isReply:     msg.ReplyToMessage != nil,
+		title:       chat.Title,
+		language:    lang.GetLanguage(ctx),
 	})
 
 	return ext.ContinueGroups
@@ -250,7 +252,13 @@ func aispamMessageText(msg *gotgbot.Message) string {
 // rate limit, server error or unparseable answer produces no verdict and no
 // action, and counts towards the chat's breaker.
 func processAISpam(task aispamTask) {
-	verdict, err := aispamJevDecide(context.Background(), config.AppConfig.TypeSafeAPIKey, task.state())
+	// The window is read and written here rather than on the update path, so a
+	// Redis round trip never sits between a message arriving and the bot
+	// answering it. A message is recorded even when the check that follows
+	// fails: the next check still sees it.
+	recent, lastHour := observeAISpamSender(task.chatID, task.userID, task.messageID, aispamTruncate(task.text, aispamHistoryTextLen), time.Now())
+
+	verdict, err := aispamJevDecide(context.Background(), config.AppConfig.TypeSafeAPIKey, task.state(recent, lastHour))
 	if err != nil {
 		aispamFailed.Add(1)
 		log.WithFields(log.Fields{
@@ -268,9 +276,12 @@ func processAISpam(task aispamTask) {
 	aispamBreakerRecordSuccess(task.chatID)
 	aispamChecked.Add(1)
 
-	threshold := aispamThresholdEnglish
-	if task.language != "en" {
-		threshold = aispamThresholdNonEnglish
+	// The message's own language picks the bar, not the chat's setting: Jev is
+	// English-first, and an English chat still receives posts written in other
+	// languages. An answer the module cannot read takes the higher bar.
+	threshold := aispamThresholdNonEnglish
+	if verdict.Language == aispamLanguageEnglish {
+		threshold = aispamThresholdEnglish
 	}
 	deleting := verdict.DeleteProbability >= threshold
 
@@ -282,10 +293,11 @@ func processAISpam(task aispamTask) {
 		"probability":        verdict.DeleteProbability,
 		"threshold":          threshold,
 		"category":           verdict.Category,
+		"message_language":   verdict.Language,
 		"model":              verdict.Model,
 		"input_tokens":       verdict.InputTokens,
 		"output_tokens":      verdict.OutputTokens,
-		"messages_last_hour": task.messagesLastHour,
+		"messages_last_hour": lastHour,
 	}).Info("[AISpam] verdict")
 
 	if !deleting {
@@ -514,86 +526,87 @@ func aispamBreakerRecordSuccess(chatID int64) {
 }
 
 //
-// Sender history: a bounded in-memory buffer, never persisted. There is no
-// group-wide message history anywhere and no ring buffer in Redis.
+// Sender history: a bounded rolling window per sender, kept in Redis so every
+// replica sees the same one. Both keys expire on their own, and nothing else
+// about a message is stored anywhere.
 //
 
-type aispamSenderKey struct {
-	chatID int64
-	userID int64
+// aispamHistoryScript reads a sender's window and records this message in one
+// atomic round trip, so two replicas cannot interleave a read with a write. It
+// answers with the number of messages already inside the window, followed by
+// the recorded texts oldest first.
+//
+// ponytail: the count saturates at aispamHistoryMaxTimestamps, so a 200+/hour
+// poster reads as 200. It is a profile hint, and antiflood is what punishes
+// volume.
+var aispamHistoryScript = redis.NewScript(`
+local texts = redis.call('LRANGE', KEYS[2], 0, -1)
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[3])
+local prior = redis.call('ZCARD', KEYS[1])
+redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
+redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[6]) - 1)
+redis.call('EXPIRE', KEYS[1], ARGV[4])
+if ARGV[5] ~= '' then
+	redis.call('RPUSH', KEYS[2], ARGV[5])
+	redis.call('LTRIM', KEYS[2], -tonumber(ARGV[7]), -1)
+end
+redis.call('EXPIRE', KEYS[2], ARGV[4])
+local out = {prior}
+for i = 1, #texts do out[#out + 1] = texts[i] end
+return out
+`)
+
+// aispamMessagesKey holds the window's timestamps. Its members are message ids,
+// so a redelivered update is counted once rather than twice.
+func aispamMessagesKey(chatID, userID int64) string {
+	return fmt.Sprintf("alita:aispam:msgs:%d:%d", chatID, userID)
 }
 
-type aispamSenderEntry struct {
-	texts      []string
-	timestamps []time.Time
-	lastSeen   time.Time
+func aispamTextsKey(chatID, userID int64) string {
+	return fmt.Sprintf("alita:aispam:texts:%d:%d", chatID, userID)
 }
 
-type aispamHistory struct {
-	mu      sync.Mutex
-	entries map[aispamSenderKey]*aispamSenderEntry
-}
-
-var aispamHistoryStore = &aispamHistory{entries: make(map[aispamSenderKey]*aispamSenderEntry)}
-
-// observe returns the sender's prior texts and how many messages they posted
-// in the last hour, then records this message. Both come from one lock so the
-// snapshot cannot include the message being judged.
-func (h *aispamHistory) observe(key aispamSenderKey, text string, now time.Time) ([]string, int) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	entry, ok := h.entries[key]
-	if !ok {
-		if len(h.entries) >= aispamHistoryMaxSenders {
-			return nil, 1
-		}
-		entry = &aispamSenderEntry{}
-		h.entries[key] = entry
+// observeAISpamSender returns the sender's prior texts and how many messages
+// they posted in the last hour, this one included, then records this message.
+// Losing Redis costs the window and not the check: the message is still judged,
+// with no history and a count of one.
+func observeAISpamSender(chatID, userID, messageID int64, text string, now time.Time) ([]string, int) {
+	rdb := cache.GetRedisClient()
+	if rdb == nil {
+		return nil, 1
 	}
 
-	cutoff := now.Add(-time.Hour)
-	recent := slices.Clone(entry.texts)
-	lastHour := 1 // the message being judged
-	for _, at := range entry.timestamps {
-		if !at.Before(cutoff) {
-			lastHour++
-		}
+	millis := now.UnixMilli()
+	recorded, err := aispamHistoryScript.Run(
+		cache.Context,
+		rdb,
+		[]string{aispamMessagesKey(chatID, userID), aispamTextsKey(chatID, userID)},
+		millis,
+		strconv.FormatInt(messageID, 10),
+		millis-aispamHistoryWindow.Milliseconds(),
+		int(aispamHistoryWindow.Seconds()),
+		text,
+		aispamHistoryMaxTimestamps,
+		aispamHistoryTexts,
+	).Result()
+	if err != nil {
+		log.WithFields(log.Fields{"chat_id": chatID, "error": err}).Debug("[AISpam] sender history unavailable")
+		return nil, 1
 	}
 
-	entry.lastSeen = now
-	if text != "" {
-		entry.texts = append(entry.texts, aispamTruncate(text, aispamHistoryTextLen))
-		if len(entry.texts) > aispamHistoryTexts {
-			entry.texts = entry.texts[len(entry.texts)-aispamHistoryTexts:]
-		}
+	values, ok := recorded.([]any)
+	if !ok || len(values) == 0 {
+		return nil, 1
 	}
+	prior, _ := values[0].(int64)
 
-	kept := entry.timestamps[:0]
-	for _, at := range entry.timestamps {
-		if !at.Before(cutoff) {
-			kept = append(kept, at)
+	recent := make([]string, 0, len(values)-1)
+	for _, value := range values[1:] {
+		if priorText, ok := value.(string); ok {
+			recent = append(recent, priorText)
 		}
 	}
-	// ponytail: saturates at the cap, so a 200+/hour poster reads as 200. The
-	// count is a profile hint, and antiflood is what punishes volume.
-	if len(kept) < aispamHistoryMaxTimestamps {
-		kept = append(kept, now)
-	}
-	entry.timestamps = kept
-
-	return recent, lastHour
-}
-
-func (h *aispamHistory) prune(now time.Time) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for key, entry := range h.entries {
-		if now.Sub(entry.lastSeen) > aispamHistoryIdleTTL {
-			delete(h.entries, key)
-		}
-	}
+	return recent, int(prior) + 1
 }
 
 //
@@ -853,7 +866,6 @@ func aispamCleanupLoop() {
 }
 
 func aispamCleanupOnce(now time.Time) {
-	aispamHistoryStore.prune(now)
 	aispamPruneDescriptions(now)
 }
 

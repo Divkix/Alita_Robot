@@ -111,10 +111,12 @@ type aispamJevUsage struct {
 }
 
 // aispamVerdict is the answered check after validation. Category never drives
-// action; it exists only for the audit trail.
+// action; it exists only for the audit trail. Language picks the threshold,
+// and an answer the module cannot read takes the higher one.
 type aispamVerdict struct {
 	DeleteProbability float64
 	Category          string
+	Language          string
 	Model             string
 	InputTokens       int
 	OutputTokens      int
@@ -139,6 +141,14 @@ func aispamJevQuestions() map[string]aispamJevQuestion {
 				"link_spam":  "A link posted mainly to drive traffic rather than to contribute to the conversation",
 				"repetition": "The same or near-identical content posted repeatedly",
 				"none":       "Not spam",
+			},
+		},
+		"language": {
+			Type:         "choice",
+			Instructions: "Is the message text written in English?",
+			Criteria: map[string]string{
+				"english": "The message text is written in English",
+				"other":   "The message text is written in another language, or is too short or mixed to tell",
 			},
 		},
 	}
@@ -247,6 +257,7 @@ func aispamVerdictFromResponse(parsed *aispamJevResponse) (*aispamVerdict, error
 	return &aispamVerdict{
 		DeleteProbability: probability,
 		Category:          parsed.Answers["category"].Choice,
+		Language:          parsed.Answers["language"].Choice,
 		Model:             parsed.Model,
 		InputTokens:       parsed.Usage.InputTokens,
 		OutputTokens:      parsed.Usage.OutputTokens,

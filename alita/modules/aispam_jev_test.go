@@ -39,24 +39,43 @@ func aispamTestState() aispamState {
 	}
 }
 
+// aispamDecisionBody is a provider answer for a message the model reads as
+// English, which is what every test but the threshold one cares about.
 func aispamDecisionBody(deleteProbability float64, category string) string {
-	body, err := json.Marshal(map[string]any{
-		"model": "jev-1.13.0",
-		"answers": map[string]any{
-			"decision": map[string]any{
-				"type":          "choice",
-				"choice":        "delete",
-				"probabilities": map[string]float64{"delete": deleteProbability, "keep": 1 - deleteProbability},
-				"confidence":    0.9,
-			},
-			"category": map[string]any{
-				"type":          "choice",
-				"choice":        category,
-				"probabilities": map[string]float64{category: 0.9, "none": 0.1},
-				"confidence":    0.8,
-			},
+	return aispamDecisionBodyLanguage(deleteProbability, category, "english")
+}
+
+// aispamDecisionBodyLanguage builds the same answer with an explicit language
+// answer. An empty language omits it, which is what a provider that stops
+// answering the question looks like.
+func aispamDecisionBodyLanguage(deleteProbability float64, category, language string) string {
+	answers := map[string]any{
+		"decision": map[string]any{
+			"type":          "choice",
+			"choice":        "delete",
+			"probabilities": map[string]float64{"delete": deleteProbability, "keep": 1 - deleteProbability},
+			"confidence":    0.9,
 		},
-		"usage": map[string]int{"input_tokens": 412, "output_tokens": 18},
+		"category": map[string]any{
+			"type":          "choice",
+			"choice":        category,
+			"probabilities": map[string]float64{category: 0.9, "none": 0.1},
+			"confidence":    0.8,
+		},
+	}
+	if language != "" {
+		answers["language"] = map[string]any{
+			"type":          "choice",
+			"choice":        language,
+			"probabilities": map[string]float64{language: 0.93},
+			"confidence":    0.93,
+		}
+	}
+
+	body, err := json.Marshal(map[string]any{
+		"model":   "jev-1.13.0",
+		"answers": answers,
+		"usage":   map[string]int{"input_tokens": 412, "output_tokens": 18},
 	})
 	if err != nil {
 		panic(err)
@@ -94,7 +113,7 @@ func TestAISpamJevDecideParsesVerdict(t *testing.T) {
 		t.Fatalf("request model = %v, want %s", got, aispamJevModel)
 	}
 
-	// The contract the module depends on: two independent choice questions and
+	// The contract the module depends on: three independent choice questions and
 	// the chat's material under `state`, never inside the question text.
 	questions, ok := seenBody["questions"].(map[string]any)
 	if !ok {
@@ -114,6 +133,9 @@ func TestAISpamJevDecideParsesVerdict(t *testing.T) {
 	if _, ok := questions["category"]; !ok {
 		t.Fatal("request carried no category question")
 	}
+	if _, ok := questions["language"]; !ok {
+		t.Fatal("request carried no language question")
+	}
 	state, ok := seenBody["state"].(map[string]any)
 	if !ok {
 		t.Fatalf("request state = %#v, want an object", seenBody["state"])
@@ -129,6 +151,9 @@ func TestAISpamJevDecideParsesVerdict(t *testing.T) {
 	}
 	if verdict.Category != "promotion" {
 		t.Fatalf("Category = %q, want promotion", verdict.Category)
+	}
+	if verdict.Language != "english" {
+		t.Fatalf("Language = %q, want english", verdict.Language)
 	}
 	if verdict.Model != "jev-1.13.0" {
 		t.Fatalf("Model = %q, want the answering model version", verdict.Model)

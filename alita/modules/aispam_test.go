@@ -3,8 +3,10 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,15 +37,13 @@ func withAISpamTestConfig(t *testing.T, apiKey string, globallyEnabled bool, mes
 }
 
 // resetAISpamRuntime clears the module's process-wide state so each test sees
-// only its own chats, breakers and history.
+// only its own chats and breakers. The sender window lives in Redis under keys
+// scoped to one chat and user, so it needs no reset; a test that wants a fresh
+// process calls this and the window survives, which is the point of it.
 func resetAISpamRuntime() {
 	aispamBreakers.mu.Lock()
 	aispamBreakers.m = make(map[int64]*aispamBreaker)
 	aispamBreakers.mu.Unlock()
-
-	aispamHistoryStore.mu.Lock()
-	aispamHistoryStore.entries = make(map[aispamSenderKey]*aispamSenderEntry)
-	aispamHistoryStore.mu.Unlock()
 
 	aispamDescriptions.mu.Lock()
 	aispamDescriptions.entries = make(map[int64]aispamChatDescriptionEntry)
@@ -271,24 +271,30 @@ func TestCheckAISpamKeepsMessageBelowThreshold(t *testing.T) {
 	}
 }
 
-func TestCheckAISpamThresholdFollowsChatLanguage(t *testing.T) {
+// The bar is the model's own read of the message, not the chat's setting: an
+// English chat still receives posts written in other languages, and those are
+// the ones Jev was not measured on.
+func TestCheckAISpamThresholdFollowsMessageLanguage(t *testing.T) {
 	for _, tt := range []struct {
-		name        string
-		language    string
-		probability float64
-		deleted     bool
+		name          string
+		chatLanguage  string
+		messageAnswer string
+		probability   float64
+		deleted       bool
 	}{
-		{name: "english chat keeps 0.79", language: "en", probability: 0.79, deleted: false},
-		{name: "english chat deletes at 0.80", language: "en", probability: 0.80, deleted: true},
-		{name: "spanish chat keeps 0.89", language: "es", probability: 0.89, deleted: false},
-		{name: "spanish chat deletes at 0.90", language: "es", probability: 0.90, deleted: true},
+		{name: "english message keeps 0.79", chatLanguage: "en", messageAnswer: "english", probability: 0.79, deleted: false},
+		{name: "english message deletes at 0.80", chatLanguage: "en", messageAnswer: "english", probability: 0.80, deleted: true},
+		{name: "english message in a spanish chat deletes at 0.80", chatLanguage: "es", messageAnswer: "english", probability: 0.80, deleted: true},
+		{name: "spanish message in an english chat keeps 0.89", chatLanguage: "en", messageAnswer: "other", probability: 0.89, deleted: false},
+		{name: "spanish message deletes at 0.90", chatLanguage: "es", messageAnswer: "other", probability: 0.90, deleted: true},
+		{name: "unreadable language keeps 0.89", chatLanguage: "en", messageAnswer: "", probability: 0.89, deleted: false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			resetAISpamRuntime()
 			withAISpamTestConfig(t, "typesafe-test-key", true, 0)
 
 			withAISpamJevServer(t, func(w http.ResponseWriter, _ *http.Request) {
-				_, _ = fmt.Fprint(w, aispamDecisionBody(tt.probability, "promotion"))
+				_, _ = fmt.Fprint(w, aispamDecisionBodyLanguage(tt.probability, "promotion", tt.messageAnswer))
 			})
 
 			client := newModuleBotClient()
@@ -297,7 +303,7 @@ func TestCheckAISpamThresholdFollowsChatLanguage(t *testing.T) {
 			if err := aispam.SetAISpamEnabled(chat.Id, true); err != nil {
 				t.Fatalf("SetAISpamEnabled() error = %v", err)
 			}
-			if err := lang.ChangeGroupLanguage(chat.Id, tt.language); err != nil {
+			if err := lang.ChangeGroupLanguage(chat.Id, tt.chatLanguage); err != nil {
 				t.Fatalf("ChangeGroupLanguage() error = %v", err)
 			}
 
@@ -315,6 +321,71 @@ func TestCheckAISpamThresholdFollowsChatLanguage(t *testing.T) {
 				t.Fatalf("deleteMessage calls = %d, want 0", len(deletes))
 			}
 		})
+	}
+}
+
+// The sender window is what the filter remembers between messages, and it lives
+// in Redis: a deploy, a restart or a second replica must not blind repetition
+// detection. Clearing the process state stands in for all three.
+func TestCheckAISpamSenderHistorySurvivesProcessReset(t *testing.T) {
+	resetAISpamRuntime()
+	withMiniredis(t)
+	withAISpamTestConfig(t, "typesafe-test-key", true, 0)
+
+	var (
+		mu     sync.Mutex
+		states []map[string]any
+	)
+	withAISpamJevServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			State map[string]any `json:"state"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding request body: %v", err)
+		}
+		mu.Lock()
+		states = append(states, body.State)
+		mu.Unlock()
+		_, _ = fmt.Fprint(w, aispamDecisionBody(0.1, "none"))
+	})
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "History Chat"}
+	if err := aispam.SetAISpamEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetAISpamEnabled() error = %v", err)
+	}
+
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadAISpam(dispatcher)
+
+	sender := gotgbot.User{Id: 42, FirstName: "Member"}
+	aispamProcessUpdate(t, dispatcher, bot, chat, sender, 601, "first message about pizza")
+	DrainAISpamChecks()
+
+	resetAISpamRuntime()
+
+	aispamProcessUpdate(t, dispatcher, bot, chat, sender, 602, "second message about pizza")
+	DrainAISpamChecks()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(states) != 2 {
+		t.Fatalf("provider requests = %d, want 2", len(states))
+	}
+	if recent, ok := states[0]["recent_from_sender"]; ok {
+		t.Fatalf("first check carried history %#v, want none: a check must not see its own message", recent)
+	}
+	recent, _ := states[1]["recent_from_sender"].([]any)
+	if len(recent) != 1 || recent[0] != "first message about pizza" {
+		t.Fatalf("second check recent_from_sender = %#v, want the first message", recent)
+	}
+	senderState, ok := states[1]["sender"].(map[string]any)
+	if !ok {
+		t.Fatalf("second check sender state = %#v, want an object", states[1]["sender"])
+	}
+	if got := senderState["messages_last_hour"]; got != float64(2) {
+		t.Fatalf("second check messages_last_hour = %v, want 2", got)
 	}
 }
 
