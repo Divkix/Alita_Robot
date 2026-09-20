@@ -154,6 +154,38 @@ func TableRowCount(tableName string) int64 {
 	return count
 }
 
+// CountRows returns how many rows of model match the where clause (empty where counts all rows).
+func CountRows(model any, where string, args ...any) int64 {
+	if DB == nil {
+		return 0
+	}
+	var count int64
+	if err := countQuery(model, where, args...).Count(&count).Error; err != nil {
+		log.Errorf("[Database][CountRows]: %v", err)
+	}
+	return count
+}
+
+// CountDistinct returns how many distinct values of column the matching rows of model span.
+func CountDistinct(model any, column, where string, args ...any) int64 {
+	if DB == nil {
+		return 0
+	}
+	var count int64
+	if err := countQuery(model, where, args...).Distinct(column).Count(&count).Error; err != nil {
+		log.Errorf("[Database][CountDistinct]: %v", err)
+	}
+	return count
+}
+
+func countQuery(model any, where string, args ...any) *gorm.DB {
+	query := DB.Model(model)
+	if where != "" {
+		query = query.Where(where, args...)
+	}
+	return query
+}
+
 func GetRecords(models any, where any) error {
 	return GetRecordsContext(context.Background(), models, where)
 }

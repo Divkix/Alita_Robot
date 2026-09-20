@@ -11,8 +11,12 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
+	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
@@ -20,12 +24,16 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
+	"github.com/divkix/Alita_Robot/alita/db/locks"
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
 	"github.com/divkix/Alita_Robot/alita/db/pins"
+	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 )
 
 func comma(n int64) string {
@@ -170,6 +178,14 @@ func LoadAllStats() string {
 	notesNum, notesChats := notes.LoadNotesStats()
 	fedCount, fedChats, fedAdmins, fedBans, fedSubs := federations.LoadFederationStats()
 	numChannels := channels.LoadChannelStats()
+	enabledCaptcha, pendingCaptcha, mutedCaptcha := captcha.LoadCaptchaStats()
+	approvedUsers, approvalChats := approvals.LoadApprovalsStats()
+	warnedUsers, warnChats := warns.LoadWarnsStats()
+	lockedPerms, lockChats := locks.LoadLocksStats()
+	raidChats, autoRaidChats := antiraid.LoadAntiRaidStats()
+	logChannelChats := logchannels.LoadLogChannelStats()
+	reactionsNum, reactionChats := reactions.LoadReactionsStats()
+	aiSpamChats := aispam.LoadAISpamStats()
 
 	var deploymentMode, webhookInfo string
 	if config.AppConfig.UseWebhooks {
@@ -250,7 +266,36 @@ func LoadAllStats() string {
 		fmt.Sprintf("\n    <b>Admins:</b> %s", comma(fedAdmins)) +
 		fmt.Sprintf("\n    <b>Bans:</b> %s", comma(fedBans)) +
 		fmt.Sprintf("\n    <b>Subscriptions:</b> %s", comma(fedSubs)) +
-		fmt.Sprintf("\n<b>Channels Stored</b>: %s", comma(numChannels))
+		fmt.Sprintf("\n<b>Channels Stored</b>: %s", comma(numChannels)) +
+		"\n<b>Captcha:</b>" +
+		fmt.Sprintf("\n    <b>Enabled:</b> %s chats", comma(enabledCaptcha)) +
+		fmt.Sprintf("\n    <b>Pending:</b> %s", comma(pendingCaptcha)) +
+		fmt.Sprintf("\n    <b>Muted:</b> %s", comma(mutedCaptcha)) +
+		fmt.Sprintf(
+			"\n<b>Approvals:</b> %s users approved in %s chats",
+			comma(approvedUsers),
+			comma(approvalChats),
+		) +
+		fmt.Sprintf(
+			"\n<b>Warns:</b> %s users warned in %s chats",
+			comma(warnedUsers),
+			comma(warnChats),
+		) +
+		fmt.Sprintf(
+			"\n<b>Locks:</b> %s locks set in %s chats",
+			comma(lockedPerms),
+			comma(lockChats),
+		) +
+		"\n<b>AntiRaid:</b>" +
+		fmt.Sprintf("\n    <b>Configured:</b> %s chats", comma(raidChats)) +
+		fmt.Sprintf("\n    <b>Auto AntiRaid:</b> %s chats", comma(autoRaidChats)) +
+		fmt.Sprintf("\n<b>Log Channels:</b> %s chats linked", comma(logChannelChats)) +
+		fmt.Sprintf(
+			"\n<b>Reactions:</b> %s reactions in %s chats",
+			comma(reactionsNum),
+			comma(reactionChats),
+		) +
+		fmt.Sprintf("\n<b>AI Spam:</b> enabled in %s chats", comma(aiSpamChats))
 
 	return result
 }

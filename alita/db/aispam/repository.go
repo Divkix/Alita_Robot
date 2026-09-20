@@ -60,3 +60,7 @@ func getAISpamSettingsCachedContext(ctx context.Context, chatID int64) (*models.
 			return settings, nil
 		})
 }
+
+func LoadAISpamStats() (enabledChats int64) {
+	return db.CountRows(&models.AISpamSettings{}, "enabled = ?", true)
+}

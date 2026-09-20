@@ -75,3 +75,9 @@ func ResetReactions(chatID int64) error {
 	cache.DeleteCache(reactionsCacheKey(chatID))
 	return nil
 }
+
+func LoadReactionsStats() (reactionsNum, reactionChats int64) {
+	reactionsNum = db.CountRows(&models.Reactions{}, "")
+	reactionChats = db.CountDistinct(&models.Reactions{}, "chat_id", "")
+	return
+}

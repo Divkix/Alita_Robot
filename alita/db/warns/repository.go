@@ -336,3 +336,9 @@ func ResetAllChatWarns(chatId int64) error {
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	return nil
 }
+
+func LoadWarnsStats() (warnedUsers, warnChats int64) {
+	warnedUsers = db.CountRows(&models.Warns{}, "")
+	warnChats = db.CountDistinct(&models.Warns{}, "chat_id", "")
+	return
+}
