@@ -55,8 +55,7 @@ func getSpanAttributes(model any) []attribute.KeyValue {
 }
 
 func withSpan(ctx context.Context, op string, model any, fn func(ctx context.Context, span trace.Span) error) error {
-	ctx, span := tracing.StartSpan(ctx, op,
-		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
+	ctx, span := tracing.StartDBSpan(ctx, op, model)
 	defer span.End()
 	return fn(ctx, span)
 }
@@ -87,8 +86,7 @@ func UpdateRecordWithZeroValues(model any, where any, updates map[string]any) er
 }
 
 func updateRecordInternal(ctx context.Context, model any, where any, updates any, logPrefix string) error {
-	ctx, span := tracing.StartSpan(ctx, "db.update",
-		trace.WithAttributes(append(getSpanAttributes(model), tracing.WorkingModeAttribute())...))
+	ctx, span := tracing.StartDBSpan(ctx, "db.update", model)
 	defer span.End()
 
 	result := DB.WithContext(ctx).Model(model).Where(where).Updates(updates)

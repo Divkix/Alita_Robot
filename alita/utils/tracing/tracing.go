@@ -152,9 +152,29 @@ func WorkingModeAttribute() attribute.KeyValue {
 	return attribute.String("bot.working_mode", config.AppConfig.WorkingMode)
 }
 
+// Enabled reports whether tracing was initialized with an exporter.
+func Enabled() bool {
+	return enabled
+}
+
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if !enabled {
 		return ctx, trace.SpanFromContext(ctx)
 	}
 	return tracer.Start(ctx, name, opts...)
+}
+
+// StartDBSpan starts a database span. Attribute construction happens only when
+// tracing is enabled, so the disabled path stays allocation-free.
+func StartDBSpan(ctx context.Context, name string, model any) (context.Context, trace.Span) {
+	if !enabled {
+		return ctx, trace.SpanFromContext(ctx)
+	}
+
+	attrs := make([]attribute.KeyValue, 0, 2)
+	if model != nil {
+		attrs = append(attrs, attribute.String("db.model", fmt.Sprintf("%T", model)))
+	}
+	attrs = append(attrs, WorkingModeAttribute())
+	return StartSpan(ctx, name, trace.WithAttributes(attrs...))
 }
