@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 )
@@ -232,5 +233,58 @@ func TestExtractEntityText(t *testing.T) {
 				t.Fatalf("extractEntityText(%q, %d, %d) = %q, want %q", tc.source, tc.offset, tc.length, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestExtractEntityTextMatchesUTF16RoundTrip is a differential test over the
+// implementation extractEntityText replaced. The single-pass walk must agree
+// with the utf16.Encode/Decode reference for every (offset, length) pair,
+// including ranges that split a surrogate pair, so an off-by-one in the walk
+// shows up as a disagreement rather than as a silently shifted URL.
+func TestExtractEntityTextMatchesUTF16RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	reference := func(source string, offset, length int64) string {
+		if source == "" || offset < 0 || length <= 0 {
+			return ""
+		}
+		codeUnits := utf16.Encode([]rune(source))
+		if offset >= int64(len(codeUnits)) || length > int64(len(codeUnits))-offset {
+			return ""
+		}
+		start := int(offset)
+		return string(utf16.Decode(codeUnits[start : start+int(length)]))
+	}
+
+	corpus := []string{
+		"",
+		"a",
+		"hello world",
+		"привет мир",
+		"日本語のテキスト",
+		"😀",
+		"😀😀",
+		"😀 link",
+		"link 😀",
+		"a😀b",
+		"😀привет😀",
+		"👨‍👩‍👧‍👦 family",
+		"e\u0301clair",
+		"🇺🇸 flag",
+		"mixed 😀 текст 日本 end",
+	}
+
+	for _, source := range corpus {
+		units := int64(len(utf16.Encode([]rune(source))))
+		// Sweep past both ends so the guard clauses are exercised too.
+		for offset := int64(-2); offset <= units+2; offset++ {
+			for length := int64(-1); length <= units+2; length++ {
+				want := reference(source, offset, length)
+				got := extractEntityText(source, offset, length)
+				if got != want {
+					t.Fatalf("extractEntityText(%q, %d, %d) = %q, want %q", source, offset, length, got, want)
+				}
+			}
+		}
 	}
 }
