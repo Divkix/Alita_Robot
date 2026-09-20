@@ -26,9 +26,11 @@ func benchRealRedisCache(b *testing.B) {
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	redisStore := gocache_store.NewRedis(client)
 	manager := gocache.New[any](redisStore)
+	previousMarshal, previousManager, previousClient := utilsCache.GetCacheState()
 	utilsCache.SetCacheState(marshaler.New(manager), manager, client)
 	b.Cleanup(func() {
 		_ = client.Close()
+		utilsCache.SetCacheState(previousMarshal, previousManager, previousClient)
 	})
 }
 

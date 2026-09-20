@@ -75,7 +75,9 @@ func BenchmarkGetStringWithNamedParams(b *testing.B) {
 	}
 }
 
-func BenchmarkGetStringMissingKeyFallback(b *testing.B) {
+// BenchmarkGetStringMissingKey measures the miss path: no locale holds the key, so the
+// default-language translator reports ErrKeyNotFound.
+func BenchmarkGetStringMissingKey(b *testing.B) {
 	tr := benchTranslator(b)
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -84,12 +86,16 @@ func BenchmarkGetStringMissingKeyFallback(b *testing.B) {
 	}
 }
 
+// BenchmarkGetStringSlice hits a real sequence leaf, exercising the indexed slice lookup
+// and the copy handed to callers.
 func BenchmarkGetStringSlice(b *testing.B) {
 	tr := benchTranslator(b)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = tr.GetStringSlice("definitely_absent_key_xyz")
+		if _, err := tr.GetStringSlice("misc_runs"); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
