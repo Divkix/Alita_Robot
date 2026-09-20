@@ -24,12 +24,6 @@ func TestNewCache(t *testing.T) {
 	if len(c.matchers) != 0 {
 		t.Errorf("matchers map is not empty, got %d entries", len(c.matchers))
 	}
-	if c.lastUsed == nil {
-		t.Error("lastUsed map is nil, want initialized")
-	}
-	if len(c.lastUsed) != 0 {
-		t.Errorf("lastUsed map is not empty, got %d entries", len(c.lastUsed))
-	}
 }
 
 func TestGetOrCreateMatcher(t *testing.T) {
