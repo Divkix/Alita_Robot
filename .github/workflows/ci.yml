@@ -297,10 +297,14 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          # Own key family: -race/-coverpkg objects are disjoint from the plain
+          # build objects the other jobs use, and only one job per run_id can
+          # save under a key (the first to finish wins) — sharing a family with
+          # the plain-build jobs would leave this one permanently cold.
+          key: go-race-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
           restore-keys: |
-            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-${{ runner.os }}-
+            go-race-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-race-${{ runner.os }}-
 
       - name: Wait for PostgreSQL
         run: |
