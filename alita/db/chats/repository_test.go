@@ -139,10 +139,10 @@ func TestGetChatSettings(t *testing.T) {
 }
 
 func TestUpdateChat(t *testing.T) {
+	skipIfNoDb(t)
 	if db.DB.Name() != "postgres" {
 		t.Skip("PostgreSQL JSONB integration: run make test-postgres-integrity")
 	}
-	skipIfNoDb(t)
 
 	chatID := time.Now().UnixNano()
 	userID := chatID + 1
@@ -190,6 +190,17 @@ func TestUpdateChat(t *testing.T) {
 	}
 	if !slices.Contains(chat.Users, userID2) {
 		t.Errorf("chat users missing new user %d: %v", userID2, chat.Users)
+	}
+
+	if err := UpdateChat(chatID, updatedName, userID2); err != nil {
+		t.Fatalf("UpdateChat() re-adding an existing member error = %v", err)
+	}
+
+	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
+		t.Fatalf("expected chat to exist after re-adding member: %v", err)
+	}
+	if len(chat.Users) != 2 {
+		t.Errorf("chat users after re-adding an existing member = %v, want exactly [%d %d]: membership must not duplicate", chat.Users, userID, userID2)
 	}
 }
 
