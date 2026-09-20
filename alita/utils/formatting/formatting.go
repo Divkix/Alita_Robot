@@ -40,6 +40,9 @@ var (
 		"<pre>", "```",
 		"</pre>", "```",
 	)
+	formatPlaceholderTokens = [...]string{
+		"{first}", "{last}", "{fullname}", "{username}", "{mention}", "{count}", "{chatname}", "{id}",
+	}
 )
 
 type memberCountEntry struct {
@@ -179,8 +182,47 @@ func ReverseHTML2MD(text string) string {
 	return htmlToMdReplacer.Replace(text)
 }
 
+// replaceFormatPlaceholders substitutes formatPlaceholderTokens with values in a
+// single left-to-right pass; inserted values are never rescanned, matching the
+// strings.Replacer semantics it replaces.
+func replaceFormatPlaceholders(s string, values [len(formatPlaceholderTokens)]string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+
+	for {
+		i := strings.IndexByte(s, '{')
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		b.WriteString(s[:i])
+		s = s[i:]
+
+		matched := false
+		for j := range len(formatPlaceholderTokens) {
+			token := formatPlaceholderTokens[j]
+			if strings.HasPrefix(s, token) {
+				b.WriteString(values[j])
+				s = s[len(token):]
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			b.WriteByte('{')
+			s = s[1:]
+		}
+	}
+}
+
 func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, oldMsg string, buttons []db.Button) (res string, btns []db.Button) {
 	const language = "en"
+
+	if strings.IndexByte(oldMsg, '{') < 0 {
+		// No '{' means no placeholder can match: the body is returned untouched.
+		return oldMsg, buttons
+	}
+
 	var (
 		firstName string
 		lastName  string
@@ -227,23 +269,23 @@ func FormattingReplacer(b *gotgbot.Bot, chat *gotgbot.Chat, user *gotgbot.User, 
 		countStr = cachedMemberCount(b, chat)
 	}
 
-	r := strings.NewReplacer(
-		"{first}", html.EscapeString(firstName),
-		"{last}", html.EscapeString(lastName),
-		"{fullname}", html.EscapeString(fullName),
-		"{username}", username,
-		"{mention}", username,
-		"{count}", countStr,
-		"{chatname}", html.EscapeString(chat.Title),
-		"{id}", strconv.Itoa(int(userId)),
-	)
+	values := [len(formatPlaceholderTokens)]string{
+		html.EscapeString(firstName),
+		html.EscapeString(lastName),
+		html.EscapeString(fullName),
+		username,
+		username,
+		countStr,
+		html.EscapeString(chat.Title),
+		strconv.Itoa(int(userId)),
+	}
 
 	response := rulesBtnRegex.FindStringSubmatch(oldMsg)
 	if response == nil {
-		return r.Replace(oldMsg), buttons
+		return replaceFormatPlaceholders(oldMsg, values), buttons
 	}
 
-	res = r.Replace(rulesBtnRegex.ReplaceAllString(oldMsg, ""))
+	res = replaceFormatPlaceholders(rulesBtnRegex.ReplaceAllString(oldMsg, ""), values)
 	btns = append([]db.Button(nil), buttons...)
 
 	rulesDb := rules.GetChatRulesInfo(chat.Id)

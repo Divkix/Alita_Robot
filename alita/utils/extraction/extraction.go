@@ -30,6 +30,11 @@ var (
 	errTimeLimitExceeded = errors.New("time limit exceeded")
 )
 
+var (
+	quotedTextRegex = regexp.MustCompile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)
+	wordRegex       = regexp.MustCompile(`(?s)(\s+)?([A-Za-z0-9-_+=}\][{;:'",<.>?/|*\\()]+)\s?(.*)?`)
+)
+
 const (
 	minTemporaryDurationSeconds int64 = 30
 	maxTemporaryDurationSeconds int64 = 366 * 24 * 60 * 60
@@ -257,24 +262,12 @@ func ExtractQuotes(sentence string, matchQuotes, matchWord bool) (inQuotes, afte
 	}
 
 	if sentence[0] == '"' && matchQuotes {
-		pattern, err := regexp.Compile(`(?s)(\s+)?"(.*?)"\s?(.*)?`)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		if pattern.MatchString(sentence) {
-			pat := pattern.FindStringSubmatch(sentence)
+		if pat := quotedTextRegex.FindStringSubmatch(sentence); pat != nil {
 			inQuotes, afterWord = pat[2], pat[3]
 			return
 		}
 	} else if matchWord {
-		pattern, err := regexp.Compile(`(?s)(\s+)?([A-Za-z0-9-_+=}\][{;:'",<.>?/|*\\()]+)\s?(.*)?`)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		if pattern.MatchString(sentence) {
-			pat := pattern.FindStringSubmatch(sentence)
+		if pat := wordRegex.FindStringSubmatch(sentence); pat != nil {
 			inQuotes, afterWord = pat[2], pat[3]
 			return
 		}
