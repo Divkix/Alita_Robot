@@ -140,14 +140,14 @@ func ChatExistsContext(ctx context.Context, chatID int64) bool {
 // TableRowCount returns an estimated row count for the given table.
 // On PostgreSQL it uses pg_class.reltuples (O(1), maintained by ANALYZE),
 // avoiding the full-table-scan that COUNT(*) requires under MVCC.
-// On other databases (e.g. SQLite in tests) the pg_class query fails and it
-// falls back to COUNT(*).
+// A never-analyzed table reports -1 there (row count unknown), so that falls
+// back to COUNT(*) too, as does any database without pg_class (e.g. SQLite in tests).
 func TableRowCount(tableName string) int64 {
 	if DB == nil {
 		return 0
 	}
 	var count int64
-	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil {
+	if err := DB.Raw("SELECT reltuples::bigint FROM pg_class WHERE relname = ?", tableName).Scan(&count).Error; err == nil && count >= 0 {
 		return count
 	}
 	DB.Table(tableName).Count(&count)
