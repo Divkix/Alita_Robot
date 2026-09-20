@@ -114,17 +114,19 @@ func MarkChatNotRestricted(chatID int64) {
 
 // MarkChatNotRestrictedIfOlder clears the flag only when the recorded restriction
 // predates the successful send: a concurrent MarkChatRestricted after our request
-// must survive. Callers capture sentAt before the send attempt.
+// must survive. Callers capture sentAt before the send attempt. With no flag
+// recorded (the common case) it returns without issuing any deletes.
 func MarkChatNotRestrictedIfOlder(chatID int64, sentAt time.Time) {
 	m := GetMarshal()
 	if m == nil {
 		return
 	}
 	var ts string
-	if _, err := m.Get(Context, restrictedChatKey(chatID), &ts); err == nil {
-		if since, parseErr := time.Parse(time.RFC3339, ts); parseErr == nil && since.After(sentAt) {
-			return
-		}
+	if _, err := m.Get(Context, restrictedChatKey(chatID), &ts); err != nil {
+		return
+	}
+	if since, parseErr := time.Parse(time.RFC3339, ts); parseErr == nil && since.After(sentAt) {
+		return
 	}
 	if err := m.Delete(Context, restrictedChatKey(chatID)); err != nil {
 		log.WithField("chat_id", chatID).Debugf("[RestrictedCache] Failed to clear restricted flag: %v", err)
