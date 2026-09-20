@@ -584,10 +584,6 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	matchText := buildModerationMatchText(msg)
-	if matchText == "" {
-		return ext.ContinueGroups
-	}
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.ContinueGroups
@@ -603,11 +599,15 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Only build the match text once the chat is known to have filters.
+	matchText := buildModerationMatchText(msg)
+	if matchText == "" {
+		return ext.ContinueGroups
+	}
+
 	filterKeys := make([]string, len(allFilters))
-	filterMap := make(map[string]*db.ChatFilters, len(allFilters))
 	for i, filter := range allFilters {
 		filterKeys[i] = filter.KeyWord
-		filterMap[filter.KeyWord] = filter
 	}
 
 	cache := keyword_matcher.GetNamedCache("filters")
@@ -617,13 +617,20 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !found {
 		return ext.ContinueGroups
 	}
-	i := firstPattern
 
-	noformatPattern := i + " noformat"
+	noformatPattern := firstPattern + " noformat"
 	noformatMatch := strings.Contains(strings.ToLower(matchText), strings.ToLower(noformatPattern))
 
-	filtData, exists := filterMap[i]
-	if !exists {
+	// Keywords are unique per chat (uk_filters_chat_keyword), so the first
+	// keyword-identical entry is the one the previous keyword map returned.
+	var filtData *db.ChatFilters
+	for _, filter := range allFilters {
+		if filter.KeyWord == firstPattern {
+			filtData = filter
+			break
+		}
+	}
+	if filtData == nil {
 		return ext.ContinueGroups
 	}
 

@@ -377,7 +377,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	for restr, filter := range restrMap {
-		if !filter(msg) || !locks.IsPermLocked(chat.Id, restr) {
+		if !filter(msg) || !chatLocks[restr] {
 			continue
 		}
 
@@ -433,7 +433,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	for perm, filter := range lockMap {
-		if !filter(msg) || !locks.IsPermLocked(chat.Id, perm) {
+		if !filter(msg) || !chatLocks[perm] {
 			continue
 		}
 

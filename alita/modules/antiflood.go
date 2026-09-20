@@ -167,7 +167,13 @@ func (a *antifloodStruct) adminCheckWithTimeout(b *gotgbot.Bot, chatId, userId i
 
 func (a *antifloodStruct) updateFlood(chatId, userId, msgId int64) (shouldPunish bool, floodCrc floodControl, floodSettings *db.AntifloodSettings) {
 	floodSettings = antiflood.GetFlood(chatId)
+	shouldPunish, floodCrc = a.updateFloodWithSettings(chatId, userId, msgId, floodSettings)
+	return
+}
 
+// updateFloodWithSettings is updateFlood with the settings row already in hand,
+// so callers that loaded it (checkFlood) do not read the cache a second time.
+func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, floodSettings *db.AntifloodSettings) (shouldPunish bool, floodCrc floodControl) {
 	if floodSettings.Limit != 0 {
 		currentTime := time.Now().Unix()
 		key := floodKey{chatId: chatId, userId: userId}
@@ -250,6 +256,14 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	chatId := chat.Id
+	// Cheapest discriminator first: an unconfigured chat (Limit == 0) pays only
+	// this one cached read, not the translator/admin/approval lookups below.
+	flood := antiflood.GetFlood(chatId)
+	if flood.Limit == 0 {
+		return ext.ContinueGroups
+	}
+
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var (
@@ -257,7 +271,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		keyboard [][]gotgbot.InlineKeyboardButton
 	)
 	userId := user.Id()
-	chatId := chat.Id
 
 	if antifloodModule.userIsFloodExempt(b, chatId, userId) {
 		return ext.ContinueGroups
@@ -267,7 +280,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	flooded, floodCrc, flood := antifloodModule.updateFlood(chatId, userId, msg.MessageId)
+	flooded, floodCrc := antifloodModule.updateFloodWithSettings(chatId, userId, msg.MessageId, flood)
 	if !flooded {
 		return ext.ContinueGroups
 	}

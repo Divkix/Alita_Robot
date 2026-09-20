@@ -1839,6 +1839,15 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		return ext.ContinueGroups
 	}
 
+	// On lookup error fall through to the checks below, so a cache or DB
+	// failure cannot weaken enforcement.
+	settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)
+	if err != nil {
+		log.Errorf("[Captcha] Failed to get settings for chat %d: %v", chat.Id, err)
+	} else if settings != nil && !settings.Enabled {
+		return ext.ContinueGroups
+	}
+
 	if chat_status.IsUserAdmin(bot, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}

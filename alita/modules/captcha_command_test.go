@@ -888,6 +888,12 @@ func TestHandlePendingCaptchaMessageStoresAndDeletesUserMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+			// Production only creates attempts for enabled chats
+			// (CreateCaptchaAttemptPreMessageIfEnabled) and /captcha off releases
+			// every in-flight attempt, so enable the chat to reach a real state.
+			if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+				t.Fatalf("SetCaptchaEnabled() error = %v", err)
+			}
 			attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
 			if err != nil {
 				t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
