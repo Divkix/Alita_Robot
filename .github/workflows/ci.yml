@@ -36,12 +36,25 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false
+
+      - name: Restore Go module and build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.29.0
-        with:
-          args: -no-fail -fmt sarif -out gosec.sarif ./...
+        run: |
+          # gosec on the runner (not the docker action) so it reuses the cached
+          # type information instead of re-analysing from a cold container cache
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          "$(go env GOPATH)/bin/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
 
       - name: Upload Gosec SARIF
         continue-on-error: true # Gosec may produce SARIF with null artifactChanges which fails validation
@@ -70,7 +83,18 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false
+
+      - name: Restore Go module and build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-
 
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
@@ -190,7 +214,18 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true
+          cache: false
+
+      - name: Restore Go module and build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-
 
       - name: Build Go binary
         run: |
@@ -254,7 +289,18 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: stable
-          cache: true
+          cache: false
+
+      - name: Restore Go module and build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-
 
       - name: Wait for PostgreSQL
         run: |
@@ -273,11 +319,6 @@ jobs:
           done
           echo "Redis did not become ready in time"
           exit 1
-
-      - name: Ensure C toolchain for CGO
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential
 
       - name: Verify repository migration chain
         env:
