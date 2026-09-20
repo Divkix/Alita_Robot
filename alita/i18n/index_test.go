@@ -102,3 +102,70 @@ func TestTranslatorIndexMatchesFallbackWalk(t *testing.T) {
 	}
 	t.Logf("verified %d lookups across every locale file", checked)
 }
+
+// TestBuildLookupIndexCaseCollisions pins the fallback that keeps lookupSegment's
+// exact-case precedence. A lowercased table cannot hold "Foo" and "foo" apart, so a
+// colliding locale must resolve through the walk; case variants that never collide, such
+// as config.yml's "alt_names.<Module>" paths, must still be indexed.
+func TestBuildLookupIndexCaseCollisions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("colliding keys fall back to the walk", func(t *testing.T) {
+		t.Parallel()
+
+		const yamlContent = `
+Foo: upper
+foo: lower
+nested:
+  Bar: nested value
+`
+		data, err := parseYAML([]byte(yamlContent))
+		if err != nil {
+			t.Fatalf("parseYAML() error = %v", err)
+		}
+		if index := buildLookupIndex(data); index != nil {
+			t.Fatalf("buildLookupIndex() = %#v, want nil for case-colliding keys", index)
+		}
+
+		lm := &LocaleManager{defaultLang: "en", localeMaps: map[string]map[string]any{"en": data}}
+		tr := &Translator{langCode: "en", manager: lm, data: data, index: buildLookupIndex(data)}
+
+		for key, want := range map[string]string{
+			"Foo":        "upper",
+			"foo":        "lower",
+			"nested.Bar": "nested value",
+		} {
+			got, err := tr.GetString(key)
+			if err != nil {
+				t.Fatalf("GetString(%q) error = %v", key, err)
+			}
+			if got != want {
+				t.Fatalf("GetString(%q) = %q, want %q", key, got, want)
+			}
+		}
+	})
+
+	t.Run("mixed case without collisions stays indexed", func(t *testing.T) {
+		t.Parallel()
+
+		data, err := parseYAML([]byte("alt_names:\n  Admin:\n    - admin\n    - admins\n"))
+		if err != nil {
+			t.Fatalf("parseYAML() error = %v", err)
+		}
+		lm := &LocaleManager{defaultLang: "en", localeMaps: map[string]map[string]any{"en": data}}
+		tr := &Translator{langCode: "en", manager: lm, data: data, index: buildLookupIndex(data)}
+		if tr.index == nil {
+			t.Fatal("buildLookupIndex() = nil for mixed-case keys that never collide")
+		}
+
+		for _, key := range []string{"alt_names.Admin", "alt_names.admin", "alt_names.ADMIN"} {
+			got, err := tr.GetStringSlice(key)
+			if err != nil {
+				t.Fatalf("GetStringSlice(%q) error = %v", key, err)
+			}
+			if len(got) != 2 || got[0] != "admin" || got[1] != "admins" {
+				t.Fatalf("GetStringSlice(%q) = %v, want [admin admins]", key, got)
+			}
+		}
+	})
+}

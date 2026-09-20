@@ -95,13 +95,37 @@ func extractLangCode(fileName string) string {
 // (what lookupString would return), slices the resolved []string form of sequence
 // leaves. Segments containing "." are skipped because lookup splits queries on "." and
 // can never resolve such a segment.
+//
+// A locale holding two keys that differ only in case gets no index: lowering the tables
+// would merge the pair and make the exact-case key unreachable, while lookupSegment
+// matches exact case first. Those locales (none shipped today) fall back to the walk.
 func buildLookupIndex(data map[string]any) *lookupIndex {
+	if hasCaseCollidingKeys(data) {
+		return nil
+	}
 	index := &lookupIndex{
 		scalars: make(map[string]string, len(data)),
 		slices:  make(map[string][]string),
 	}
 	index.addMap("", data)
 	return index
+}
+
+// hasCaseCollidingKeys reports whether any map in the tree holds two keys that differ
+// only in case.
+func hasCaseCollidingKeys(m map[string]any) bool {
+	seen := make(map[string]struct{}, len(m))
+	for key, value := range m {
+		lowered := strings.ToLower(key)
+		if _, exists := seen[lowered]; exists {
+			return true
+		}
+		seen[lowered] = struct{}{}
+		if child, ok := value.(map[string]any); ok && hasCaseCollidingKeys(child) {
+			return true
+		}
+	}
+	return false
 }
 
 func (index *lookupIndex) addMap(prefix string, m map[string]any) {
@@ -121,16 +145,13 @@ func (index *lookupIndex) addMap(prefix string, m map[string]any) {
 }
 
 // add records one path. Nil leaves are skipped (lookupString reports them as missing).
-// An already-lowercase path wins over a case variant of the same path, mirroring
-// lookupSegment's exact-match-first rule.
+// Paths are stored lowered; buildLookupIndex rejects locales where lowering two paths
+// onto one key could let a case variant shadow a sibling.
 func (index *lookupIndex) add(path string, value any) {
 	if value == nil {
 		return
 	}
 	key := strings.ToLower(path)
-	if _, exists := index.scalars[key]; exists && key != path {
-		return
-	}
 	index.scalars[key] = fmt.Sprint(value)
 	switch value.(type) {
 	case []any, []string:

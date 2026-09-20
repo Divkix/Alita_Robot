@@ -3,6 +3,7 @@ package i18n
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -66,7 +67,9 @@ func (t *Translator) GetStringSlice(key string) ([]string, error) {
 		return nil, NewI18nError("get_string_slice", t.langCode, key, "translation not found", ErrKeyNotFound)
 	}
 
-	return result, nil
+	// The lookup may hand back storage the index or the parsed map still owns, so callers
+	// get a copy they can mutate.
+	return slices.Clone(result), nil
 }
 
 func (t *Translator) interpolateParams(text string, params TranslationParams) (string, error) {

@@ -689,3 +689,44 @@ func TestTranslator_GetStringSlice_FallsBackToDefaultLanguage(t *testing.T) {
 		t.Fatalf("GetStringSlice(items fallback) = %v, want [one two]", items)
 	}
 }
+
+// TestTranslator_GetStringSlice_ResultIsCallerOwned keeps callers free to mutate the
+// returned slice: the index caches one slice per locale, so sharing it would leak one
+// caller's edits into every later translation.
+func TestTranslator_GetStringSlice_ResultIsCallerOwned(t *testing.T) {
+	t.Parallel()
+
+	const yamlContent = `
+items:
+  - one
+  - two
+`
+	data, err := parseYAML([]byte(yamlContent))
+	if err != nil {
+		t.Fatalf("parseYAML() error = %v", err)
+	}
+	lm := &LocaleManager{defaultLang: "en", localeMaps: map[string]map[string]any{"en": data}}
+
+	for name, tr := range map[string]*Translator{
+		"indexed": {langCode: "en", manager: lm, data: data, index: buildLookupIndex(data)},
+		"walking": {langCode: "en", manager: lm, data: data},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			first, err := tr.GetStringSlice("items")
+			if err != nil {
+				t.Fatalf("GetStringSlice(items) error = %v", err)
+			}
+			first[0] = "mutated"
+
+			second, err := tr.GetStringSlice("items")
+			if err != nil {
+				t.Fatalf("second GetStringSlice(items) error = %v", err)
+			}
+			if second[0] != "one" {
+				t.Fatalf("GetStringSlice(items)[0] = %q after caller mutation, want %q", second[0], "one")
+			}
+		})
+	}
+}
