@@ -162,7 +162,7 @@ func TestCleanupExpired(t *testing.T) {
 		c.GetOrCreateMatcher(1003, []string{"pattern"})
 
 		// With zero TTL, any elapsed time > 0 means expired.
-		// Sleep a tiny bit to ensure time.Now().Sub(lastUsed) > 0.
+		// Sleep a tiny bit so time.Since(matcher.lastUsedTime()) > 0.
 		time.Sleep(time.Millisecond)
 
 		c.cleanupExpired()
