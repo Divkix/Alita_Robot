@@ -13,6 +13,15 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
+var notesDirectiveReplacer = strings.NewReplacer(
+	"{private}", "",
+	"{admin}", "",
+	"{preview}", "",
+	"{noprivate}", "",
+	"{protect}", "",
+	"{nonotif}", "",
+)
+
 type ExtractResult struct {
 	KeyWord     string
 	FileID      string
@@ -172,6 +181,10 @@ func ExtractWelcome(msg *gotgbot.Message, greetingType string, language string) 
 }
 
 func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif bool, sentBack string) {
+	if strings.IndexByte(sent, '{') < 0 {
+		return false, false, false, false, false, false, sent
+	}
+
 	pvtOnly = strings.Contains(sent, "{private}")
 	grpOnly = strings.Contains(sent, "{noprivate}")
 	adminOnly = strings.Contains(sent, "{admin}")
@@ -179,14 +192,7 @@ func NotesParser(sent string) (pvtOnly, grpOnly, adminOnly, webPrev, protectedCo
 	protectedContent = strings.Contains(sent, "{protect}")
 	noNotif = strings.Contains(sent, "{nonotif}")
 
-	sent = strings.NewReplacer(
-		"{private}", "",
-		"{admin}", "",
-		"{preview}", "",
-		"{noprivate}", "",
-		"{protect}", "",
-		"{nonotif}", "",
-	).Replace(sent)
+	sent = notesDirectiveReplacer.Replace(sent)
 
 	return pvtOnly, grpOnly, adminOnly, webPrev, protectedContent, noNotif, sent
 }

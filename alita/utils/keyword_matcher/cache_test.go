@@ -24,12 +24,6 @@ func TestNewCache(t *testing.T) {
 	if len(c.matchers) != 0 {
 		t.Errorf("matchers map is not empty, got %d entries", len(c.matchers))
 	}
-	if c.lastUsed == nil {
-		t.Error("lastUsed map is nil, want initialized")
-	}
-	if len(c.lastUsed) != 0 {
-		t.Errorf("lastUsed map is not empty, got %d entries", len(c.lastUsed))
-	}
 }
 
 func TestGetOrCreateMatcher(t *testing.T) {
@@ -168,7 +162,7 @@ func TestCleanupExpired(t *testing.T) {
 		c.GetOrCreateMatcher(1003, []string{"pattern"})
 
 		// With zero TTL, any elapsed time > 0 means expired.
-		// Sleep a tiny bit to ensure time.Now().Sub(lastUsed) > 0.
+		// Sleep a tiny bit so time.Since(matcher.lastUsedTime()) > 0.
 		time.Sleep(time.Millisecond)
 
 		c.cleanupExpired()

@@ -3,6 +3,7 @@ package keyword_matcher
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudflare/ahocorasick"
@@ -14,6 +15,7 @@ type KeywordMatcher struct {
 	patterns  []string
 	mu        sync.RWMutex
 	lastBuild time.Time
+	lastUsed  atomic.Int64
 }
 
 func newKeywordMatcher(patterns []string) *KeywordMatcher {
@@ -22,7 +24,16 @@ func newKeywordMatcher(patterns []string) *KeywordMatcher {
 	}
 	copy(km.patterns, patterns)
 	km.build()
+	km.lastUsed.Store(time.Now().UnixNano())
 	return km
+}
+
+func (km *KeywordMatcher) touch() {
+	km.lastUsed.Store(time.Now().UnixNano())
+}
+
+func (km *KeywordMatcher) lastUsedTime() time.Time {
+	return time.Unix(0, km.lastUsed.Load())
 }
 
 func (km *KeywordMatcher) build() {
@@ -50,21 +61,17 @@ func (km *KeywordMatcher) FirstMatch(text string) (string, bool) {
 	lowerText := strings.ToLower(text)
 
 	km.mu.RLock()
-	isNil := km.matcher == nil || len(km.patterns) == 0
-	km.mu.RUnlock()
-	if isNil {
-		return "", false
-	}
-
-	km.mu.Lock()
-	defer km.mu.Unlock()
+	defer km.mu.RUnlock()
 
 	if km.matcher == nil || len(km.patterns) == 0 {
 		return "", false
 	}
 
-	// ponytail: safe copy retained, switch to unsafe.Slice if pprof shows alloc
-	hits := km.matcher.Match([]byte(lowerText))
+	// Matcher.Match is not safe for concurrent readers (it mutates m.counter and
+	// node counters); MatchThreadSafe is the library's concurrency-safe variant.
+	// The []byte conversion does not escape, so it allocates nothing and measures
+	// no slower than an unsafe.StringData view; the plain copy is kept.
+	hits := km.matcher.MatchThreadSafe([]byte(lowerText))
 	if len(hits) == 0 {
 		return "", false
 	}

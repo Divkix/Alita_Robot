@@ -38,15 +38,16 @@ type cacheLoad struct {
 
 func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duration, loader func(context.Context) (T, error)) (T, error) {
 	var zero T
-	ctx, cancel := context.WithTimeout(ctx, loadWaitTimeout)
-	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
 	m := cache.GetMarshal()
 	if m == nil || (config.AppConfig != nil && config.AppConfig.DisableCache) {
+		// Cache disabled: run the loader with the caller's context, allocating no timers.
 		return loader(ctx)
 	}
+	// The read keeps its own short bound so a slow cache cannot eat the whole
+	// load budget, and a hit then allocates one timer instead of two.
 	readCtx, readCancel := context.WithTimeout(ctx, 5*time.Second)
 	var cached T
 	_, err := m.Get(readCtx, key, &cached)
@@ -57,6 +58,10 @@ func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duratio
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
+
+	// Only waiting on a concurrent load needs the wider budget.
+	ctx, cancel := context.WithTimeout(ctx, loadWaitTimeout)
+	defer cancel()
 
 	loadsMu.Lock()
 	call := loads[key]

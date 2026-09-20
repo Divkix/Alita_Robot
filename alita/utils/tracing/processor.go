@@ -50,6 +50,11 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 		}
 	}
 
+	// The 30-second deadline is load-bearing: tracing.UpdateContext hands this
+	// context to context-aware repositories, and
+	// docs/src/content/docs/architecture/caching.md documents that polling and
+	// webhook updates carry it. It is created unconditionally, not only when
+	// tracing is on.
 	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")

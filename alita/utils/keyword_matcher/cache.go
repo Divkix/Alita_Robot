@@ -11,17 +11,14 @@ import (
 )
 
 type Cache struct {
-	matchers   map[int64]*KeywordMatcher
-	mu         sync.RWMutex
-	ttl        time.Duration
-	lastUsed   map[int64]time.Time
-	lastUsedMu sync.Mutex
+	matchers map[int64]*KeywordMatcher
+	mu       sync.RWMutex
+	ttl      time.Duration
 }
 
 func newCache(ttl time.Duration) *Cache {
 	return &Cache{
 		matchers: make(map[int64]*KeywordMatcher),
-		lastUsed: make(map[int64]time.Time),
 		ttl:      ttl,
 	}
 }
@@ -33,7 +30,7 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 		// ponytail: O(n) compare, patterns are typically tens per chat
 		if slices.Equal(matcher.patterns, patterns) {
 			c.mu.RUnlock()
-			c.touchLastUsed(chatID)
+			matcher.touch()
 			return matcher
 		}
 	}
@@ -44,7 +41,7 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	if matcher, exists := c.matchers[chatID]; exists {
 		if slices.Equal(matcher.patterns, patterns) {
 			c.mu.Unlock()
-			c.touchLastUsed(chatID)
+			matcher.touch()
 			return matcher
 		}
 	}
@@ -52,7 +49,6 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	matcher = newKeywordMatcher(patterns)
 	c.matchers[chatID] = matcher
 	c.mu.Unlock()
-	c.touchLastUsed(chatID)
 
 	log.WithFields(log.Fields{
 		"chatID":        chatID,
@@ -62,23 +58,17 @@ func (c *Cache) GetOrCreateMatcher(chatID int64, patterns []string) *KeywordMatc
 	return matcher
 }
 
-func (c *Cache) touchLastUsed(chatID int64) {
-	c.lastUsedMu.Lock()
-	c.lastUsed[chatID] = time.Now()
-	c.lastUsedMu.Unlock()
-}
-
 func (c *Cache) cleanupExpired() {
 	now := time.Now()
 
-	c.lastUsedMu.Lock()
+	c.mu.RLock()
 	expiredChats := make([]int64, 0)
-	for chatID, lastUsed := range c.lastUsed {
-		if now.Sub(lastUsed) > c.ttl {
+	for chatID, matcher := range c.matchers {
+		if now.Sub(matcher.lastUsedTime()) > c.ttl {
 			expiredChats = append(expiredChats, chatID)
 		}
 	}
-	c.lastUsedMu.Unlock()
+	c.mu.RUnlock()
 
 	if len(expiredChats) == 0 {
 		return
@@ -86,43 +76,29 @@ func (c *Cache) cleanupExpired() {
 
 	c.mu.Lock()
 	for _, chatID := range expiredChats {
-		c.lastUsedMu.Lock()
-		lu, ok := c.lastUsed[chatID]
-		expired := ok && time.Since(lu) > c.ttl
-		c.lastUsedMu.Unlock()
-		if !expired {
+		matcher, ok := c.matchers[chatID]
+		if !ok || time.Since(matcher.lastUsedTime()) <= c.ttl {
 			continue
 		}
 		delete(c.matchers, chatID)
 	}
 	c.mu.Unlock()
 
-	c.lastUsedMu.Lock()
-	for _, chatID := range expiredChats {
-		if lu, ok := c.lastUsed[chatID]; ok && time.Since(lu) > c.ttl {
-			delete(c.lastUsed, chatID)
-		}
-	}
-	c.lastUsedMu.Unlock()
-
 	log.WithField("expired_count", len(expiredChats)).Debug("Cleaned up expired keyword matchers")
 }
 
-var (
-	namedCaches   = make(map[string]*Cache)
-	namedCachesMu sync.Mutex
-)
+var namedCaches sync.Map // name -> *Cache
 
 func GetNamedCache(name string) *Cache {
-	namedCachesMu.Lock()
-	c, ok := namedCaches[name]
-	if ok {
-		namedCachesMu.Unlock()
-		return c
+	if c, ok := namedCaches.Load(name); ok {
+		return c.(*Cache)
 	}
-	c = newCache(30 * time.Minute)
-	namedCaches[name] = c
-	namedCachesMu.Unlock()
+
+	c := newCache(30 * time.Minute)
+	actual, loaded := namedCaches.LoadOrStore(name, c)
+	if loaded {
+		return actual.(*Cache)
+	}
 
 	go func() {
 		defer error_handling.RecoverFromPanic("GetNamedCache.cleanupRoutine["+name+"]", "keyword_matcher")
