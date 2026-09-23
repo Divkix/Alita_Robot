@@ -771,7 +771,7 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
 	outcome, err := ProcessSingleJoin(chat.Id, bot.Id, newMember, captchaEnabled, membershipDepsForJoin(bot, chat, threadID))
 	if err != nil {
-		log.Errorf("Failed to send captcha to user %d: %v", newMember.Id, err)
+		log.Errorf("Failed to process new member join: %v", err)
 		return err
 	}
 	if outcome == JoinIgnore && newMember.Id != bot.Id {
