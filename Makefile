@@ -19,6 +19,7 @@ vendor:
 build:
 	$(GORELEASER_CMD) release --snapshot --skip=publish --clean --skip=sign
 
+# Prepare version files on a PR branch; merge the reviewed PR before tagging.
 bump-version:
 	@if [ -z "$(TAG)" ]; then \
 		echo "❌ Error: TAG is required, e.g. make bump-version TAG=v2.19.4"; \
