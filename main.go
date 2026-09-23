@@ -58,7 +58,7 @@ func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
 		version := config.AppConfig.BotVersion
 		if version == "" {
-			version = "v2.23.5"
+			version = "v2.23.6"
 		}
 		fmt.Println(version)
 		os.Exit(0)
