@@ -57,11 +57,11 @@ type joinStageError struct {
 func (e joinStageError) Error() string {
 	switch e.stage {
 	case joinErrorChallenge:
-		return "join challenge failed"
+		return "join challenge failed: " + e.cause.Error()
 	case joinErrorWelcome:
-		return "join welcome failed"
+		return "join welcome failed: " + e.cause.Error()
 	default:
-		return "join processing failed"
+		return "join processing failed: " + e.cause.Error()
 	}
 }
 

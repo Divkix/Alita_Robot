@@ -119,8 +119,8 @@ func TestProcessSingleJoinChallengeErrorContext(t *testing.T) {
 	if !errors.Is(err, cause) {
 		t.Fatalf("err = %v, want to wrap challenge cause", err)
 	}
-	if got, want := err.Error(), "join challenge failed"; got != want {
-		t.Fatalf("err = %q, want safe stage context %q", got, want)
+	if got, want := err.Error(), "join challenge failed: adapter failure"; got != want {
+		t.Fatalf("err = %q, want stage and underlying cause %q", got, want)
 	}
 }
 
@@ -136,8 +136,8 @@ func TestProcessSingleJoinWelcomeErrorContext(t *testing.T) {
 	if !errors.Is(err, cause) {
 		t.Fatalf("err = %v, want to wrap welcome cause", err)
 	}
-	if got, want := err.Error(), "join welcome failed"; got != want {
-		t.Fatalf("err = %q, want safe stage context %q", got, want)
+	if got, want := err.Error(), "join welcome failed: adapter failure"; got != want {
+		t.Fatalf("err = %q, want stage and underlying cause %q", got, want)
 	}
 }
 
