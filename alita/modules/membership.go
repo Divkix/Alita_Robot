@@ -42,6 +42,33 @@ type MembershipDeps struct {
 	Welcome    func(user gotgbot.User) error
 }
 
+type joinErrorStage uint8
+
+const (
+	joinErrorChallenge joinErrorStage = iota
+	joinErrorWelcome
+)
+
+type joinStageError struct {
+	stage joinErrorStage
+	cause error
+}
+
+func (e joinStageError) Error() string {
+	switch e.stage {
+	case joinErrorChallenge:
+		return "join challenge failed"
+	case joinErrorWelcome:
+		return "join welcome failed"
+	default:
+		return "join processing failed"
+	}
+}
+
+func (e joinStageError) Unwrap() error {
+	return e.cause
+}
+
 func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bool, deps MembershipDeps) (JoinOutcome, error) {
 	if user.Id == botID {
 		return JoinIgnore, nil
@@ -60,7 +87,7 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 				if errors.Is(err, ErrChallengeDisabled) {
 					break
 				}
-				return JoinIgnore, err
+				return JoinIgnore, joinStageError{stage: joinErrorChallenge, cause: err}
 			}
 			return JoinChallenge, nil
 		}
@@ -69,7 +96,7 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 	}
 	if deps.Welcome != nil {
 		if err := deps.Welcome(user); err != nil {
-			return JoinIgnore, err
+			return JoinIgnore, joinStageError{stage: joinErrorWelcome, cause: err}
 		}
 	}
 	return JoinWelcome, nil

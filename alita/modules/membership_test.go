@@ -111,6 +111,36 @@ func TestProcessSingleJoinChallengeError(t *testing.T) {
 	}
 }
 
+func TestProcessSingleJoinChallengeErrorContext(t *testing.T) {
+	cause := errors.New("adapter failure")
+	deps, _, _ := testMembershipDeps(nil, nil, cause)
+
+	_, err := ProcessSingleJoin(1, 999, gotgbot.User{Id: 5}, true, deps)
+	if !errors.Is(err, cause) {
+		t.Fatalf("err = %v, want to wrap challenge cause", err)
+	}
+	if got, want := err.Error(), "join challenge failed"; got != want {
+		t.Fatalf("err = %q, want safe stage context %q", got, want)
+	}
+}
+
+func TestProcessSingleJoinWelcomeErrorContext(t *testing.T) {
+	cause := errors.New("adapter failure")
+	deps := MembershipDeps{
+		Welcome: func(gotgbot.User) error {
+			return cause
+		},
+	}
+
+	_, err := ProcessSingleJoin(1, 999, gotgbot.User{Id: 5}, false, deps)
+	if !errors.Is(err, cause) {
+		t.Fatalf("err = %v, want to wrap welcome cause", err)
+	}
+	if got, want := err.Error(), "join welcome failed"; got != want {
+		t.Fatalf("err = %q, want safe stage context %q", got, want)
+	}
+}
+
 func TestProcessJoinsMultiMember(t *testing.T) {
 	claimed := map[int64]bool{2: true}
 	deps, challenged, welcomed := testMembershipDeps(
