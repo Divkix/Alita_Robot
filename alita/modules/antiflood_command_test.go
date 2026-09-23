@@ -2,11 +2,15 @@ package modules
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
-	"testing"
 )
 
 func resetAntifloodState(t *testing.T) {
@@ -460,5 +464,47 @@ func TestAntifloodWatcherPunishesAfterFloodMessageDeleteErrors(t *testing.T) {
 	}
 	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
 		t.Fatalf("banChatMember calls = %d, want punishment despite delete failure", len(calls))
+	}
+}
+
+// Idle counters stay in syncHelperMap until the 10-minute cleaner. A message
+// after the 60s burst window must replace that pointer and return. Treating
+// the idle entry as absent makes LoadOrStore fail and the handler spin.
+func TestUpdateFloodWithSettingsReplacesIdleCounter(t *testing.T) {
+	mod := antifloodStruct{}
+	key := floodKey{chatId: -4242, userId: 7}
+	mod.syncHelperMap.Store(key, &floodControl{
+		userId:       key.userId,
+		messageCount: 4,
+		messageIDs:   []int64{1, 2, 3, 4},
+		lastActivity: time.Now().Unix() - 61,
+	})
+	settings := &db.AntifloodSettings{ChatId: key.chatId, Limit: 5}
+
+	type result struct {
+		punish bool
+		state  floodControl
+	}
+	done := make(chan result, 1)
+	go func() {
+		punish, state := mod.updateFloodWithSettings(key.chatId, key.userId, 99, settings)
+		done <- result{punish: punish, state: state}
+	}()
+
+	select {
+	case got := <-done:
+		if got.punish {
+			t.Fatal("idle reset punished, want a fresh window")
+		}
+		if got.state.messageCount != 1 || len(got.state.messageIDs) != 1 || got.state.messageIDs[0] != 99 {
+			t.Fatalf("idle reset state = %#v, want count 1 tracking message 99", got.state)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("updateFloodWithSettings hung: idle counter is still present, so LoadOrStore never commits")
+	}
+
+	punish, state := mod.updateFloodWithSettings(key.chatId, key.userId, 100, settings)
+	if punish || state.messageCount != 2 || len(state.messageIDs) != 2 {
+		t.Fatalf("follow-up = punish:%v state:%#v, want punish false count 2", punish, state)
 	}
 }

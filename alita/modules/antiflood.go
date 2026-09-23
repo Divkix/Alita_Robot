@@ -184,14 +184,11 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 			var cur floodControl
 			old, loaded := a.syncHelperMap.Load(key)
 			if loaded && old != nil {
-				if prev, ok := old.(*floodControl); ok && prev != nil {
+				// Keep loaded set for an idle pointer. It stays in the map until the
+				// 10-minute cleaner, so treating it as absent makes LoadOrStore fail
+				// and this loop never returns. CompareAndSwap replaces it instead.
+				if prev, ok := old.(*floodControl); ok && prev != nil && currentTime-prev.lastActivity <= 60 {
 					cur = *prev
-					if currentTime-cur.lastActivity > 60 {
-						cur = floodControl{}
-						loaded = false
-					}
-				} else {
-					loaded = false
 				}
 			}
 			if cur.userId == 0 {

@@ -42,3 +42,6 @@ specs/.current-spec
 
 # Local make inventory output
 .planning/
+
+# Lean build cache
+formal/antiflood/lean/.lake/

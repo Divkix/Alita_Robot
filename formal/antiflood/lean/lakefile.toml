@@ -1,0 +1,6 @@
+name = "floodreset"
+version = "0.1.0"
+defaultTargets = ["FloodReset"]
+
+[[lean_lib]]
+name = "FloodReset"
