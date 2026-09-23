@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to release with v prefix (e.g., v2.19.4)"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -19,9 +13,6 @@ jobs:
     name: Release CI Checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    outputs:
-      tested-sha: ${{ steps.tested.outputs.sha }}
-      tested-tree: ${{ steps.tested.outputs.tree }}
     services:
       postgres:
         image: postgres:16
@@ -66,20 +57,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Prepare and record gated tree
-        id: tested
+      - name: Verify tag points to a merged main commit
         env:
-          EVENT: ${{ github.event_name }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            tag="v${INPUT_TAG#v}"
-            bash scripts/bump_version.sh "$tag"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::tag '$TAG' must be vMAJOR.MINOR.PATCH[-prerelease]" >&2
+            exit 1
           fi
-          git add alita/config/config.go main.go
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" origin/main; then
+            echo "::error::tag $TAG points to a commit that is not merged into main; merge the version-bump PR before tagging" >&2
+            exit 1
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -147,7 +139,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release-ci-checks.outputs.tested-sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -160,79 +152,16 @@ jobs:
       - name: Resolve release tag
         id: tag
         env:
-          EVENT: ${{ github.event_name }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            tag="v${INPUT_TAG#v}"
-          else
-            tag="$REF_NAME"
-          fi
+          tag="$REF_NAME"
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
             echo "::error::tag '$tag' must be vMAJOR.MINOR.PATCH[-prerelease]" >&2
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Resolved release tag: $tag"
-
-      - name: Bump bot version
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          TESTED_SHA: ${{ needs.release-ci-checks.outputs.tested-sha }}
-          TESTED_TREE: ${{ needs.release-ci-checks.outputs.tested-tree }}
-        run: |
-          set -euo pipefail
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git fetch origin refs/heads/main:refs/remotes/origin/main
-          if [ "$(git rev-parse HEAD)" != "$TESTED_SHA" ] || [ "$(git rev-parse origin/main)" != "$TESTED_SHA" ]; then
-            echo "::error::main moved after release checks; rerun the release workflow" >&2
-            exit 1
-          fi
-          bash scripts/bump_version.sh "$TAG"
-          git add alita/config/config.go main.go
-          if [ "$(git write-tree)" != "$TESTED_TREE" ]; then
-            echo "::error::release tree differs from the tree that passed checks" >&2
-            exit 1
-          fi
-          if ! git diff --cached --quiet; then
-            git commit -am "chore(release): set BotVersion to ${TAG}"
-            if ! git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main; then
-              echo "::error::main advanced while publishing the tested release tree; rerun the workflow" >&2
-              exit 1
-            fi
-          else
-            echo "BotVersion already at ${TAG}; nothing to commit"
-          fi
-
-      - name: Create and push tag
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          git fetch origin refs/heads/main:refs/remotes/origin/main
-          if [ "$(git rev-parse origin/main)" != "$(git rev-parse HEAD)" ]; then
-            echo "::error::main moved before tag creation; rerun the release workflow" >&2
-            exit 1
-          fi
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
-            if [ "$(git rev-list -n 1 "$TAG")" != "$(git rev-parse HEAD)" ]; then
-              echo "::error::tag $TAG already points to another commit" >&2
-              exit 1
-            fi
-            echo "Tag $TAG already points to this commit"
-          else
-            echo "Creating tag $TAG"
-            git tag -a "$TAG" -m "Release $TAG"
-            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$TAG"
-          fi
 
       - name: Verify BotVersion matches tag
         env:
@@ -241,11 +170,11 @@ jobs:
           set -euo pipefail
           ver="${TAG#v}"
           if ! grep -qF "BotVersion:  \"${ver}\"" alita/config/config.go; then
-            echo "::error::BotVersion in alita/config/config.go != ${ver} — run 'make bump-version TAG=${TAG}', commit, and re-tag" >&2
+            echo "::error::BotVersion in alita/config/config.go != ${ver} — prepare a version-bump PR with 'make bump-version TAG=${TAG}', merge it, then tag the merged commit" >&2
             exit 1
           fi
           if ! grep -qF "version = \"${TAG}\"" main.go; then
-            echo "::error::CLI version fallback in main.go != ${TAG} — run 'make bump-version TAG=${TAG}', commit, and re-tag" >&2
+            echo "::error::CLI version fallback in main.go != ${TAG} — prepare a version-bump PR with 'make bump-version TAG=${TAG}', merge it, then tag the merged commit" >&2
             exit 1
           fi
           echo "BotVersion matches release tag ${TAG}"
