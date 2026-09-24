@@ -110,7 +110,7 @@ func shouldUpdateChatMember(cache *sync.Map, chatID, userID int64, interval time
 func updateCurrentUser(userID int64, username, name string) {
 	_, _, _ = userUpdateGroup.Do(strconv.FormatInt(userID, 10), func() (any, error) {
 		if shouldUpdate(userUpdateCache, userID, userUpdateInterval) {
-			asyncUpdateUser(userID, username, name)
+			spawnAsyncUpdate(func() { asyncUpdateUser(userID, username, name) })
 		}
 		return nil, nil
 	})
@@ -120,7 +120,7 @@ func updateCurrentChat(chatID int64, chatName string, userID int64) {
 	key := strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
 	_, _, _ = chatUpdateGroup.Do(key, func() (any, error) {
 		if shouldUpdateChatMember(chatUpdateCache, chatID, userID, chatUpdateInterval) {
-			asyncUpdateChat(chatID, chatName, userID)
+			spawnAsyncUpdate(func() { asyncUpdateChat(chatID, chatName, userID) })
 		}
 		return nil, nil
 	})
