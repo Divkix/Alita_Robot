@@ -67,6 +67,8 @@ func init() {
 		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 			Logger:      gormLogger,
 			PrepareStmt: true,
+			// Single statements are already atomic in Postgres; multi-statement writes use explicit db.DB.Transaction.
+			SkipDefaultTransaction: true,
 			NowFunc: func() time.Time {
 				return time.Now().UTC()
 			},
