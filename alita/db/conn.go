@@ -88,6 +88,10 @@ func init() {
 		log.Fatalf("[Database][Connection] Failed after %d attempts: %v", maxRetries, err)
 	}
 
+	if err := registerQueryMetrics(DB); err != nil {
+		log.Fatalf("[Database][Metrics] Failed to register query metrics: %v", err)
+	}
+
 	sqlDB, err := DB.DB()
 	if err != nil {
 		log.Fatalf("[Database][SQL DB]: %v", err)

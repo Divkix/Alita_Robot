@@ -7,6 +7,9 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 func injectTraceContext(ctx *ext.Context) (skipped bool) {
@@ -182,5 +185,27 @@ func TestRunOnProcessUpdateCallback_InvokesRegisteredCallback(t *testing.T) {
 	runOnProcessUpdateCallback()
 	if called.Load() != 2 {
 		t.Errorf("expected callback to be called twice, got %d calls", called.Load())
+	}
+}
+
+func TestTracingProcessorProcessUpdateCountsTopLevelUpdatesOnly(t *testing.T) {
+	processor := TracingProcessor{}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	before := testutil.ToFloat64(metrics.UpdatesProcessed)
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, &ext.Context{}); err != nil {
+		t.Fatalf("ProcessUpdate() error = %v", err)
+	}
+	if got := testutil.ToFloat64(metrics.UpdatesProcessed) - before; got != 1 {
+		t.Fatalf("updates processed delta = %v, want 1", got)
+	}
+
+	nested := &ext.Context{Data: map[string]any{ContextDataKey: context.Background()}}
+	before = testutil.ToFloat64(metrics.UpdatesProcessed)
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, nested); err != nil {
+		t.Fatalf("nested ProcessUpdate() error = %v", err)
+	}
+	if got := testutil.ToFloat64(metrics.UpdatesProcessed) - before; got != 0 {
+		t.Fatalf("nested updates processed delta = %v, want 0", got)
 	}
 }
