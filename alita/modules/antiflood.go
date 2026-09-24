@@ -271,7 +271,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	if chat_status.IsApproved(b, chatId, userId) {
+	if chat_status.IsApprovedForUpdate(b, ctx, chatId, userId) {
 		return ext.ContinueGroups
 	}
 

@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/divkix/Alita_Robot/alita/utils/metrics"
+	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
 
 var onProcessUpdateCallback atomic.Value
@@ -74,6 +75,7 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 		ctx.Data = make(map[string]any)
 	}
 	ctx.Data[ContextDataKey] = traceCtx
+	ctx.Data[updatememo.DataKey] = updatememo.New()
 
 	err = tp.BaseProcessor.ProcessUpdate(d, b, ctx)
 	return err

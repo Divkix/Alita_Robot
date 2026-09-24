@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/divkix/Alita_Robot/alita/utils/metrics"
+	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 )
 
 func injectTraceContext(ctx *ext.Context) (skipped bool) {
@@ -124,6 +125,20 @@ func TestTracingProcessorProcessUpdateInjectsContext(t *testing.T) {
 	}
 	if _, ok := raw.(context.Context); !ok {
 		t.Fatalf("ProcessUpdate() context entry type = %T, want context.Context", raw)
+	}
+}
+
+func TestTracingProcessorProcessUpdateInjectsUpdateMemo(t *testing.T) {
+	ctx := &ext.Context{}
+	processor := TracingProcessor{}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+
+	if err := processor.ProcessUpdate(dispatcher, &gotgbot.Bot{}, ctx); err != nil {
+		t.Fatalf("ProcessUpdate() error = %v", err)
+	}
+
+	if updatememo.From(ctx) == nil {
+		t.Fatal("ProcessUpdate() did not inject a per-update memo")
 	}
 }
 

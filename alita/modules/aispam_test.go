@@ -541,14 +541,14 @@ func TestAISpamCarvedOutSeesAttemptCreatedAfterCachedNoPending(t *testing.T) {
 	const userID int64 = 42
 
 	// The first check caches "no pending attempt" for the chat.
-	if aispamCarvedOut(bot, chatID, userID) {
+	if aispamCarvedOut(bot, nil, chatID, userID) {
 		t.Fatal("aispamCarvedOut() = true for a plain member with no attempt, want false")
 	}
 
 	if _, err := captcha.CreateCaptchaAttemptPreMessage(userID, chatID, "7", 5); err != nil {
 		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
 	}
-	if !aispamCarvedOut(bot, chatID, userID) {
+	if !aispamCarvedOut(bot, nil, chatID, userID) {
 		t.Fatal("aispamCarvedOut() = false for a member solving a captcha, want true")
 	}
 }

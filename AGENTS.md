@@ -49,6 +49,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `alita/utils/chat_status` predicates return bools and never reply; use `PermissionResponder` to message.
   `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
 - `IsUserAdmin` returns false for channel and non-positive IDs. Never pass a chat ID as a user ID.
+- `*ForUpdate` predicates are memoised per update. Watchers only, never after a state change in the same update.
 
 ## Data
 

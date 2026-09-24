@@ -1197,7 +1197,7 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 		if ban == nil {
 			return
 		}
-		if chat_status.IsUserAdmin(b, chat.Id, userID) {
+		if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 			return
 		}
 		if _, err := b.BanChatMember(chat.Id, userID, nil); err != nil {
