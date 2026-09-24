@@ -1,6 +1,7 @@
 package captcha
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -1195,4 +1196,59 @@ func containsCaptchaAttemptID(attempts []*dbmodels.CaptchaAttempts, id uint) boo
 		}
 	}
 	return false
+}
+
+func TestHasPendingCaptchaAttemptsInvalidatedOnCreate(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	base := time.Now().UnixNano()
+	userID := base + 900
+	chatID := base + 901
+	ensureCaptchaParents(t, userID, chatID)
+	ctx := context.Background()
+
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&dbmodels.CaptchaAttempts{}).Error
+		dbcache.DeleteCache(captchaPendingCacheKey(chatID))
+	})
+
+	// Load once so the "no pending attempt" answer sits in the cache.
+	pending, err := HasPendingCaptchaAttemptsContext(ctx, chatID)
+	if err != nil {
+		t.Fatalf("HasPendingCaptchaAttemptsContext() error = %v", err)
+	}
+	if pending {
+		t.Fatal("HasPendingCaptchaAttemptsContext() = true for a chat with no attempts, want false")
+	}
+
+	if _, err := CreateCaptchaAttemptPreMessage(userID, chatID, "42", 5); err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+
+	pending, err = HasPendingCaptchaAttemptsContext(ctx, chatID)
+	if err != nil {
+		t.Fatalf("HasPendingCaptchaAttemptsContext() after create error = %v", err)
+	}
+	if !pending {
+		t.Fatal("HasPendingCaptchaAttemptsContext() = false after creating an attempt; cached false was not invalidated")
+	}
+
+	// Move the attempt into the past (created_at too, to satisfy the
+	// expires_at > created_at check) and drop the cached answer.
+	now := time.Now()
+	if err := db.DB.Model(&dbmodels.CaptchaAttempts{}).
+		Where("user_id = ? AND chat_id = ?", userID, chatID).
+		Updates(map[string]any{"created_at": now.Add(-2 * time.Hour), "expires_at": now.Add(-time.Hour)}).Error; err != nil {
+		t.Fatalf("expire captcha attempt: %v", err)
+	}
+	dbcache.DeleteCache(captchaPendingCacheKey(chatID))
+
+	pending, err = HasPendingCaptchaAttemptsContext(ctx, chatID)
+	if err != nil {
+		t.Fatalf("HasPendingCaptchaAttemptsContext() after expiry error = %v", err)
+	}
+	if pending {
+		t.Fatal("HasPendingCaptchaAttemptsContext() = true with only an expired attempt, want false")
+	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func TestCaptchaCommandTogglesAndDisplaysSettings(t *testing.T) {
@@ -944,6 +945,61 @@ func TestHandlePendingCaptchaMessageContinuesWithoutPendingAttempt(t *testing.T)
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
 		t.Fatalf("deleteMessage calls = %d, want 0", len(calls))
+	}
+}
+
+func TestHandlePendingCaptchaMessageSkipsLookupsWhenChatHasNoPendingAttempt(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+	ctx := newModuleMessageContext(bot, chat, member, "normal text")
+
+	if err := captchaModule.handlePendingCaptchaMessage(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("handlePendingCaptchaMessage() error = %v, want ContinueGroups", err)
+	}
+	for _, method := range []string{"getChat", "getChatAdministrators", "getChatMember", "deleteMessage"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %d, want 0", method, len(calls))
+		}
+	}
+}
+
+func TestHandlePendingCaptchaMessageCapturesAfterCachedNoPending(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+
+	// The first message caches "no pending attempt" for the chat.
+	if err := captchaModule.handlePendingCaptchaMessage(bot, newModuleMessageContext(bot, chat, member, "before join")); err != ext.ContinueGroups {
+		t.Fatalf("handlePendingCaptchaMessage() before attempt error = %v, want ContinueGroups", err)
+	}
+
+	attempt, err := captcha.CreateCaptchaAttemptPreMessage(member.Id, chat.Id, "7", 2)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+
+	if err := captchaModule.handlePendingCaptchaMessage(bot, newModuleMessageContext(bot, chat, member, "pending text")); err != ext.EndGroups {
+		t.Fatalf("handlePendingCaptchaMessage() with attempt error = %v, want EndGroups", err)
+	}
+	messages, err := captcha.GetStoredMessagesForAttempt(attempt.ID)
+	if err != nil {
+		t.Fatalf("GetStoredMessagesForAttempt() error = %v", err)
+	}
+	if len(messages) != 1 {
+		t.Fatalf("stored messages = %d, want 1", len(messages))
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want 1", len(calls))
 	}
 }
 

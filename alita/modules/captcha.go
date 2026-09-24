@@ -1848,6 +1848,12 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		return ext.ContinueGroups
 	}
 
+	// No unexpired attempt in the chat means the per-user lookup below cannot
+	// find one either. On error fall through, as for the settings lookup.
+	if pending, err := captcha.HasPendingCaptchaAttemptsContext(tracing.UpdateContext(ctx), chat.Id); err == nil && !pending {
+		return ext.ContinueGroups
+	}
+
 	if chat_status.IsUserAdmin(bot, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}

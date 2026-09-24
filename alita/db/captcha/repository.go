@@ -221,7 +221,33 @@ func createCaptchaAttemptPreMessage(userID, chatID int64, answer string, timeout
 		log.Errorf("[Database][CreateCaptchaAttemptPreMessage]: %v", err)
 		return nil, err
 	}
+	// Invalidate only after commit: inside the transaction a concurrent reader
+	// could reload "no pending attempt" before the insert is visible and cache it.
+	cache.DeleteCache(captchaPendingCacheKey(chatID))
 	return attempt, nil
+}
+
+const captchaPendingCacheTTL = 2 * time.Minute
+
+func captchaPendingCacheKey(chatID int64) string {
+	return cache.CacheKey("captcha_pending", chatID)
+}
+
+// HasPendingCaptchaAttemptsContext reports whether the chat has any unexpired
+// captcha attempt. A stale true is harmless (callers fall through to the
+// per-user query); a false is invalidated by every attempt creation.
+func HasPendingCaptchaAttemptsContext(ctx context.Context, chatID int64) (bool, error) {
+	return cache.GetFromCacheOrLoad(ctx, captchaPendingCacheKey(chatID), captchaPendingCacheTTL, func(ctx context.Context) (bool, error) {
+		var ids []uint
+		err := db.DB.WithContext(ctx).Model(&models.CaptchaAttempts{}).
+			Where("chat_id = ? AND expires_at > ?", chatID, time.Now()).
+			Limit(1).Pluck("id", &ids).Error
+		if err != nil {
+			log.Errorf("[Database][HasPendingCaptchaAttempts]: %v", err)
+			return false, err
+		}
+		return len(ids) > 0, nil
+	})
 }
 
 func UpdateCaptchaAttemptMessageID(attemptID uint, messageID int64) error {
