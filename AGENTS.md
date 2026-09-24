@@ -55,6 +55,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 - Repositories live in `alita/db/<domain>/`. Read via `cache.GetFromCacheOrLoad` with `cache.CacheKey` keys.
   **Every write must `cache.DeleteCache` the keys it affects.**
+- `GetFromCacheOrLoad` has an in-process layer (`CACHE_LOCAL_TTL`, default 10 s) in front of Redis. `DeleteCache`
+  evicts it on this replica only; list freshness-critical keys in `skipLocal` (`alita/db/cache/local.go`). Tests that
+  write rows directly must call `cache.ResetLocalForTest()` or `DeleteCache` before reading through the cache.
 - Two packages are named `cache`; the loader and generation guards are in `alita/db/cache`, not `alita/utils/cache`.
 - Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`) sit outside the `alita:cache:` prefix;
   `CLEAR_CACHE_ON_STARTUP` does not clear them.

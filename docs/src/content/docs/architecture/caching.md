@@ -112,6 +112,17 @@ return cache.GetFromCacheOrLoad(ctx, cache.CacheKey("settings", chatID), time.Mi
 )
 ```
 
+## Local Layer
+
+`GetFromCacheOrLoad` checks a short-TTL, size-bounded in-process LRU before Redis. A hit decodes stored msgpack bytes, so every caller gets its own copy and may mutate it safely. Entries are added after a Redis hit and after a successful load, and only if no `DeleteCache` for the key ran since the read started.
+
+- **TTL:** `CACHE_LOCAL_TTL` seconds (default `10`, `0` disables the layer). `CACHE_LOCAL_MAX_ENTRIES` (default `50000`) bounds its size. `DISABLE_CACHE=true` also disables it.
+- **Scope:** only `GetFromCacheOrLoad` keys. The admin cache, operational keys (`alita:antiraid:*`, `alita:anonAdmin:*`, ...) and keys listed in `skipLocal` (`alita/db/cache/local.go`), such as the captcha pending flag, always go to Redis.
+- **Multiple replicas:** `DeleteCache` evicts the local copy on the replica that performs the write, so that replica sees the change immediately. Other replicas can serve the old value for up to `CACHE_LOCAL_TTL` seconds. There is no cross-replica invalidation.
+- **Metrics:** `alita_cache_local_hits_total` and `alita_cache_local_misses_total`.
+
+If a key must be fresh across replicas, add its prefix to `skipLocal`.
+
 ## Cache Invalidation
 
 :::caution[The most important rule]

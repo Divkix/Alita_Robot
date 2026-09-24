@@ -382,6 +382,37 @@ Set `REDIS_DB=0` explicitly to select database zero.
 | **Type** | `string` |
 | **Required** | No |
 
+## 📂 Local cache layer
+
+Read-through lookups keep a short-lived copy in process memory in front of
+Redis. See [Caching Architecture](/architecture/caching/#local-layer).
+
+### `CACHE_LOCAL_TTL`
+
+Seconds a replica serves a cached value from memory before reading Redis
+again. Other replicas can see a change up to this long after a write; the
+replica that wrote sees it immediately. `0` disables the local layer. An
+unparsable value falls back to the default.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Default** | `10` |
+| **Validation** | min=0,max=300 |
+
+### `CACHE_LOCAL_MAX_ENTRIES`
+
+Maximum number of entries in the local layer; the least recently used entry is
+evicted first.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `integer` |
+| **Required** | No |
+| **Default** | `50000` |
+| **Validation** | min=100,max=1000000 |
+
 ## 📂 Resource monitoring limits
 
 ### `RESOURCE_GC_THRESHOLD_MB`

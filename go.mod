@@ -10,6 +10,7 @@ require (
 	github.com/eko/gocache/lib/v4 v4.4.0
 	github.com/eko/gocache/store/redis/v4 v4.2.12
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/joho/godotenv v1.5.1
 	github.com/mojocn/base64Captcha v1.3.8
 	github.com/prometheus/client_golang v1.24.1
