@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
@@ -80,23 +81,39 @@ func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
 	for {
 		lastUpdate, loaded := cache.LoadOrStore(key, now)
 		if !loaded {
-			expireUpdateKey(cache, key, now, interval)
 			return true
 		}
 		if now.Sub(lastUpdate.(time.Time)) < interval {
 			return false
 		}
 		if cache.CompareAndSwap(key, lastUpdate, now) {
-			expireUpdateKey(cache, key, now, interval)
 			return true
 		}
 	}
 }
 
-func expireUpdateKey(cache *sync.Map, key any, timestamp time.Time, interval time.Duration) {
-	time.AfterFunc(interval, func() {
-		cache.CompareAndDelete(key, timestamp)
+// sweepUpdateCache drops throttle entries older than interval; shouldUpdateKey
+// already treats them as expired, this only bounds memory.
+func sweepUpdateCache(cache *sync.Map, now time.Time, interval time.Duration) {
+	cache.Range(func(key, value any) bool {
+		if ts, ok := value.(time.Time); ok && now.Sub(ts) >= interval {
+			cache.CompareAndDelete(key, ts)
+		}
+		return true
 	})
+}
+
+func usersThrottleSweepLoop() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for now := range ticker.C {
+		func() {
+			defer error_handling.RecoverFromPanic("usersThrottleSweep", "users")
+			sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
+			sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
+			sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
+		}()
+	}
 }
 
 func shouldUpdate(cache *sync.Map, id int64, interval time.Duration) bool {
@@ -193,4 +210,5 @@ func LoadUsers(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Users", 100, LoadUsers)
+	go usersThrottleSweepLoop()
 }
