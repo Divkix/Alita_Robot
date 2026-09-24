@@ -19,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 // withAISpamTestConfig points the module at a test key and target dump chat.
@@ -529,6 +530,26 @@ func TestCheckAISpamSkipsCarveOuts(t *testing.T) {
 				t.Fatalf("deleteMessage calls = %d, want 0", len(deletes))
 			}
 		})
+	}
+}
+
+func TestAISpamCarvedOutSeesAttemptCreatedAfterCachedNoPending(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chatID := uniqueModuleChatID()
+	const userID int64 = 42
+
+	// The first check caches "no pending attempt" for the chat.
+	if aispamCarvedOut(bot, chatID, userID) {
+		t.Fatal("aispamCarvedOut() = true for a plain member with no attempt, want false")
+	}
+
+	if _, err := captcha.CreateCaptchaAttemptPreMessage(userID, chatID, "7", 5); err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	if !aispamCarvedOut(bot, chatID, userID) {
+		t.Fatal("aispamCarvedOut() = false for a member solving a captcha, want true")
 	}
 }
 

@@ -232,8 +232,13 @@ func aispamIsCommandForBot(text, botUsername string) bool {
 // solving captcha belong to the captcha module, and admins and approved users
 // are trusted by definition.
 func aispamCarvedOut(b *gotgbot.Bot, chatID, userID int64) bool {
-	if attempt, err := captcha.GetCaptchaAttempt(userID, chatID); err == nil && attempt != nil {
-		return true
+	// Only query the user's attempt when the chat has one pending (or the
+	// cached flag is unavailable).
+	pending, err := captcha.HasPendingCaptchaAttemptsContext(context.Background(), chatID)
+	if err != nil || pending {
+		if attempt, err := captcha.GetCaptchaAttempt(userID, chatID); err == nil && attempt != nil {
+			return true
+		}
 	}
 	return chat_status.IsUserAdmin(b, chatID, userID) || chat_status.IsApproved(b, chatID, userID)
 }
