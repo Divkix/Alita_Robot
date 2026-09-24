@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -31,4 +32,38 @@ func TestAsyncUserUpdateWrappersPersistRecords(t *testing.T) {
 		channelUsername, channelName, found := channels.GetChannelInfoById(channelID)
 		return found && channelUsername == "updates" && channelName == "Updates"
 	})
+}
+
+func TestShouldUpdateKeyStillThrottlesWithoutTimers(t *testing.T) {
+	m := &sync.Map{}
+	key := int64(42)
+	interval := time.Minute
+
+	if !shouldUpdateKey(m, key, interval) {
+		t.Fatal("first call should allow an update")
+	}
+	if shouldUpdateKey(m, key, interval) {
+		t.Fatal("immediate second call should be throttled")
+	}
+
+	m.Store(key, time.Now().Add(-2*interval))
+	if !shouldUpdateKey(m, key, interval) {
+		t.Fatal("call after interval elapsed should allow an update")
+	}
+}
+
+func TestSweepUpdateCacheDropsOnlyExpiredEntries(t *testing.T) {
+	m := &sync.Map{}
+	now := time.Now()
+	m.Store(1, now.Add(-10*time.Minute))
+	m.Store(2, now)
+
+	sweepUpdateCache(m, now, 5*time.Minute)
+
+	if _, ok := m.Load(1); ok {
+		t.Fatal("expired entry should have been swept")
+	}
+	if _, ok := m.Load(2); !ok {
+		t.Fatal("fresh entry should have been kept")
+	}
 }

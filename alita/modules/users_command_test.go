@@ -71,13 +71,17 @@ func TestShouldUpdateExpiresInactiveKeys(t *testing.T) {
 	cache := &sync.Map{}
 	const key = int64(10)
 
-	if !shouldUpdate(cache, key, time.Millisecond) {
+	if !shouldUpdate(cache, key, time.Minute) {
 		t.Fatal("first update should be allowed")
 	}
-	waitForModuleCondition(t, func() bool {
-		_, loaded := cache.Load(key)
-		return !loaded
-	})
+	sweepUpdateCache(cache, time.Now(), time.Minute)
+	if _, loaded := cache.Load(key); !loaded {
+		t.Fatal("active key should survive the sweep")
+	}
+	sweepUpdateCache(cache, time.Now().Add(2*time.Minute), time.Minute)
+	if _, loaded := cache.Load(key); loaded {
+		t.Fatal("inactive key should be swept")
+	}
 }
 
 func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
