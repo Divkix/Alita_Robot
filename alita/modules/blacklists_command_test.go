@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -424,5 +426,56 @@ func TestBlacklistWatcherUsesMatchedTriggerAction(t *testing.T) {
 	}
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
 		t.Fatalf("restrictChatMember calls = %d after oldword, want mute action", len(calls))
+	}
+}
+
+func TestBlacklistWatcherSkipsPermissionLookupsWhenNothingMatches(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "hello there")
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(no match) error = %v, want ContinueGroups", err)
+	}
+
+	for _, method := range []string{"getChat", "getChatAdministrators", "getChatMember"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %d, want 0 when no blacklist word matches", method, len(calls))
+		}
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want 0 when no blacklist word matches", len(calls))
+	}
+}
+
+func TestBlacklistWatcherDoesNothingWhenBotIsNotAdmin(t *testing.T) {
+	client := newModuleBotClient()
+	client.responses["getChatAdministrators"] = json.RawMessage(`[]`)
+	client.errors["getChatMember"] = errors.New("forbidden")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+	if err := blacklists.SetBlacklistAction(chat.Id, "mute"); err != nil {
+		t.Fatalf("SetBlacklistAction setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher(bot not admin) error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want 0 when bot is not admin", len(calls))
+	}
+	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
+		t.Fatalf("restrictChatMember calls = %d, want 0 when bot is not admin", len(calls))
 	}
 }

@@ -462,23 +462,11 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
-		return ext.ContinueGroups
-	}
-	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsApproved(b, chat.Id, user.Id()) {
-		return ext.ContinueGroups
-	}
-
-	if !chat_status.IsBotAdmin(b, ctx, chat) {
-		return ext.ContinueGroups
-	}
-
 	msg := ctx.EffectiveMessage
 	matchText := buildModerationMatchText(msg)
 	if matchText == "" {
 		return ext.ContinueGroups
 	}
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	cache := keyword_matcher.GetNamedCache("blacklists")
 	matcher := cache.GetOrCreateMatcher(chat.Id, triggers)
@@ -492,6 +480,19 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if matched == nil {
 		return ext.ContinueGroups
 	}
+
+	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsUserAdmin(b, chat.Id, user.Id()) {
+		return ext.ContinueGroups
+	}
+	if !user.IsAnonymousChannel() && user.IsUser() && user.Id() > 0 && chat_status.IsApproved(b, chat.Id, user.Id()) {
+		return ext.ContinueGroups
+	}
+
+	if !chat_status.IsBotAdmin(b, ctx, chat) {
+		return ext.ContinueGroups
+	}
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reason := matched.Reason
 	if reason == "" {
 		reason = "Blacklisted word: '%s'"
