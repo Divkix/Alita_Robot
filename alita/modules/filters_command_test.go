@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -11,7 +12,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/filters"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 func waitForModuleCondition(t *testing.T, condition func() bool) {
@@ -65,6 +68,47 @@ func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 	}
 	if filters.DoesFilterExists(chat.Id, "hello") {
 		t.Fatal("filter still exists after remove")
+	}
+}
+
+func TestFiltersWatcherDoesNotLoadFullFiltersWithoutMatch(t *testing.T) {
+	withMiniredis(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Filter Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	addCtx := newModuleMessageContext(bot, chat, admin, "/filter hello Hi there")
+	if err := filtersModule.addFilter(bot, addCtx); err != ext.EndGroups {
+		t.Fatalf("addFilter error = %v, want EndGroups", err)
+	}
+
+	fullKey := dbcache.CacheKey("filters_optimized", chat.Id)
+	dbcache.DeleteCache(fullKey)
+	sentBefore := len(client.callsFor("sendMessage"))
+
+	missCtx := newModuleMessageContext(bot, chat, member, "good morning")
+	if err := filtersModule.filtersWatcher(bot, missCtx); err != ext.ContinueGroups {
+		t.Fatalf("filtersWatcher miss error = %v, want ContinueGroups", err)
+	}
+	if _, err := cache.GetMarshal().Get(context.Background(), fullKey, new([]*db.ChatFilters)); err == nil {
+		t.Fatal("full filters were cached after a non-matching message")
+	}
+	if got := len(client.callsFor("sendMessage")); got != sentBefore {
+		t.Fatalf("sendMessage calls after miss = %d, want %d", got, sentBefore)
+	}
+
+	hitCtx := newModuleMessageContext(bot, chat, member, "hello all")
+	if err := filtersModule.filtersWatcher(bot, hitCtx); err != ext.ContinueGroups {
+		t.Fatalf("filtersWatcher hit error = %v, want ContinueGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) != sentBefore+1 {
+		t.Fatalf("sendMessage calls after hit = %d, want %d", len(calls), sentBefore+1)
+	}
+	if text := calls[len(calls)-1].Params["text"].(string); !strings.Contains(text, "Hi there") {
+		t.Fatalf("filter watcher text = %q, want stored reply", text)
 	}
 }
 

@@ -25,6 +25,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/media"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 
 	"github.com/divkix/Alita_Robot/alita/utils/keyword_matcher"
 )
@@ -589,13 +590,9 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
-	if err != nil {
-		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
-		return ext.ContinueGroups
-	}
-
-	if len(allFilters) == 0 {
+	// Match against the keyword-only list; filter bodies load only on a hit.
+	keywords := db_filters.GetFiltersListContext(tracing.UpdateContext(ctx), chat.Id)
+	if len(keywords) == 0 {
 		return ext.ContinueGroups
 	}
 
@@ -605,16 +602,15 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	filterKeys := make([]string, len(allFilters))
-	for i, filter := range allFilters {
-		filterKeys[i] = filter.KeyWord
-	}
-
-	cache := keyword_matcher.GetNamedCache("filters")
-	matcher := cache.GetOrCreateMatcher(chat.Id, filterKeys)
-
+	matcher := keyword_matcher.GetNamedCache("filters").GetOrCreateMatcher(chat.Id, keywords)
 	firstPattern, found := matcher.FirstMatch(matchText)
 	if !found {
+		return ext.ContinueGroups
+	}
+
+	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
+	if err != nil {
+		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
 		return ext.ContinueGroups
 	}
 
@@ -623,6 +619,8 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// Keywords are unique per chat (uk_filters_chat_keyword), so the first
 	// keyword-identical entry is the one the previous keyword map returned.
+	// nil also covers the keyword list and filter bodies briefly disagreeing
+	// during a write.
 	var filtData *db.ChatFilters
 	for _, filter := range allFilters {
 		if filter.KeyWord == firstPattern {
