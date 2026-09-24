@@ -11,6 +11,20 @@ import (
 	utilsCache "github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
+func TestGenerationForIsStablePerKey(t *testing.T) {
+	const key = "alita:cache:test:generation-stable"
+	first := generationFor(key)
+	if second := generationFor(key); first != second {
+		t.Fatalf("generationFor(%q) returned different counters: %p vs %p", key, first, second)
+	}
+
+	before := generationFor(key).Load()
+	generationFor(key).Add(1)
+	if after := generationFor(key).Load(); after != before+1 {
+		t.Fatalf("generation bump not visible through a later lookup: before=%d after=%d", before, after)
+	}
+}
+
 func TestCacheLoadCancellationReleasesDatabaseWork(t *testing.T) {
 	utilsCache.SetupTestMemoryMarshaler(t)
 	ctx, cancel := context.WithCancel(context.Background())

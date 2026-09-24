@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,18 +15,29 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
+const generationStripes = 4096
+
 var (
-	// Per-key epochs: a write in chat A must not discard an in-flight load for
-	// chat B. DeleteCache bumps only its own key.
-	cacheGenerations sync.Map // string -> *atomic.Uint64
+	// Per-stripe epochs: a fixed array of counters (32 KB) instead of one
+	// counter per key ever seen, so memory stays bounded. DeleteCache bumps
+	// only its own key's stripe.
+	cacheGenerations [generationStripes]atomic.Uint64
 	loadWaitTimeout  = 30 * time.Second
 	loadsMu          sync.Mutex
 	loads            = make(map[string]*cacheLoad)
 )
 
+// generationFor returns the generation counter for key's stripe.
+//
+// Two keys can share a stripe. A DeleteCache on one then also bumps the
+// other's counter, so an in-flight load of the other key skips caching its
+// result (or deletes what it just wrote). That costs at most one extra cache
+// miss; it can never make a stale value stick, which is all the guard exists
+// to prevent.
 func generationFor(key string) *atomic.Uint64 {
-	gen, _ := cacheGenerations.LoadOrStore(key, &atomic.Uint64{})
-	return gen.(*atomic.Uint64)
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return &cacheGenerations[h.Sum32()%generationStripes]
 }
 
 type cacheLoad struct {
