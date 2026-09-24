@@ -589,13 +589,8 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
-	if err != nil {
-		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
-		return ext.ContinueGroups
-	}
-
-	if len(allFilters) == 0 {
+	filterKeys := db_filters.GetFiltersList(chat.Id)
+	if len(filterKeys) == 0 {
 		return ext.ContinueGroups
 	}
 
@@ -605,16 +600,17 @@ func (moduleStruct) filtersWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	filterKeys := make([]string, len(allFilters))
-	for i, filter := range allFilters {
-		filterKeys[i] = filter.KeyWord
-	}
-
 	cache := keyword_matcher.GetNamedCache("filters")
 	matcher := cache.GetOrCreateMatcher(chat.Id, filterKeys)
 
 	firstPattern, found := matcher.FirstMatch(matchText)
 	if !found {
+		return ext.ContinueGroups
+	}
+
+	allFilters, err := db_filters.GetChatFiltersCached(chat.Id)
+	if err != nil {
+		log.WithField("chatId", chat.Id).WithError(err).Error("Failed to get chat filters")
 		return ext.ContinueGroups
 	}
 
