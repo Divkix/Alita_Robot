@@ -15,6 +15,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
+// userTouchInterval throttles last_activity refreshes: an unchanged user is
+// rewritten at most once per interval.
+const userTouchInterval = time.Hour
+
 func EnsureBotInDb(b *gotgbot.Bot) error {
 	me, errGet := b.GetMe(nil)
 	if errGet != nil {
@@ -90,16 +94,23 @@ func UpdateUser(userId int64, username, name string) error {
 		Name:         name,
 		LastActivity: now,
 	}
-	if err := db.DB.Clauses(clause.OnConflict{
+	upsert := db.DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "user_id"}},
 		DoUpdates: clause.AssignmentColumns(
 			[]string{"username", "name", "last_activity", "updated_at"},
 		),
-	}).Create(userRecord).Error; err != nil {
-		log.Errorf("[Database] UpdateUser: %v - %d", err, userId)
-		return err
+		Where: clause.Where{Exprs: []clause.Expression{clause.Expr{
+			SQL:  "users.last_activity < ? OR coalesce(users.username, '') <> excluded.username OR coalesce(users.name, '') <> excluded.name",
+			Vars: []any{now.Add(-userTouchInterval)},
+		}}},
+	}).Create(userRecord)
+	if upsert.Error != nil {
+		log.Errorf("[Database] UpdateUser: %v - %d", upsert.Error, userId)
+		return upsert.Error
 	}
-	cache.DeleteCache(cache.CacheKey("user", userId))
+	if upsert.RowsAffected > 0 {
+		cache.DeleteCache(cache.CacheKey("user", userId))
+	}
 	log.Debugf("[Database] UpdateUser: %d", userId)
 	return nil
 }
