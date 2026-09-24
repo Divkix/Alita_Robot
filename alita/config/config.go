@@ -104,6 +104,28 @@ func getHTTPPort() int {
 	return typeConvertor{str: value}.Int()
 }
 
+// Local read-through cache defaults (CACHE_LOCAL_TTL, CACHE_LOCAL_MAX_ENTRIES).
+const (
+	DefaultCacheLocalTTLSeconds = 10
+	DefaultCacheLocalMaxEntries = 50000
+)
+
+// getCacheLocalTTL reads CACHE_LOCAL_TTL. Unlike other integers, 0 is a real
+// setting (layer off), so only an unset or unparsable value falls back to the
+// default; a typo must not silently disable the layer.
+func getCacheLocalTTL() int {
+	raw := os.Getenv("CACHE_LOCAL_TTL")
+	if raw == "" {
+		return DefaultCacheLocalTTLSeconds
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		log.WithError(err).WithField("value", raw).Warn("Failed to convert CACHE_LOCAL_TTL to int, using default")
+		return DefaultCacheLocalTTLSeconds
+	}
+	return v
+}
+
 type Config struct {
 	BotToken    string `validate:"required"`
 	BotVersion  string
@@ -145,6 +167,12 @@ type Config struct {
 	InactivityThresholdDays     int `validate:"min=1,max=365"`
 	ActivityCheckInterval       int `validate:"min=1,max=24"`
 	EnableAutoCleanup           bool
+
+	// CacheLocalTTLSeconds bounds how long a replica serves a read-through
+	// value from process memory before asking Redis again; 0 turns the local
+	// layer off.
+	CacheLocalTTLSeconds int `validate:"min=0,max=300"`
+	CacheLocalMaxEntries int `validate:"min=100,max=1000000"`
 
 	HTTPMaxIdleConns        int `validate:"min=10,max=1000"`
 	HTTPMaxIdleConnsPerHost int `validate:"min=5,max=500"`
@@ -201,6 +229,13 @@ func ValidateConfig(cfg *Config) error {
 
 	if cfg.DispatcherMaxRoutines != 0 && (cfg.DispatcherMaxRoutines < 1 || cfg.DispatcherMaxRoutines > 1000) {
 		return fmt.Errorf("DISPATCHER_MAX_ROUTINES must be between 1 and 1000")
+	}
+
+	if cfg.CacheLocalTTLSeconds < 0 || cfg.CacheLocalTTLSeconds > 300 {
+		return fmt.Errorf("CACHE_LOCAL_TTL must be between 0 and 300 seconds")
+	}
+	if cfg.CacheLocalMaxEntries != 0 && (cfg.CacheLocalMaxEntries < 100 || cfg.CacheLocalMaxEntries > 1000000) {
+		return fmt.Errorf("CACHE_LOCAL_MAX_ENTRIES must be between 100 and 1000000")
 	}
 
 	if cfg.DBMaxIdleConns != 0 && (cfg.DBMaxIdleConns < 1 || cfg.DBMaxIdleConns > 100) {
@@ -268,6 +303,9 @@ func LoadConfig() (*Config, error) {
 
 		ClearCacheOnStartup: typeConvertor{str: os.Getenv("CLEAR_CACHE_ON_STARTUP")}.Bool(),
 		DisableCache:        typeConvertor{str: os.Getenv("DISABLE_CACHE")}.Bool(),
+
+		CacheLocalTTLSeconds: getCacheLocalTTL(),
+		CacheLocalMaxEntries: typeConvertor{str: os.Getenv("CACHE_LOCAL_MAX_ENTRIES")}.Int(),
 
 		InactivityThresholdDays: typeConvertor{str: os.Getenv("INACTIVITY_THRESHOLD_DAYS")}.Int(),
 		ActivityCheckInterval:   typeConvertor{str: os.Getenv("ACTIVITY_CHECK_INTERVAL")}.Int(),
@@ -368,6 +406,10 @@ func (cfg *Config) setDefaults() {
 		cfg.DispatcherMaxRoutines = 200
 	}
 
+	if cfg.CacheLocalMaxEntries == 0 {
+		cfg.CacheLocalMaxEntries = DefaultCacheLocalMaxEntries
+	}
+
 	if !cfg.Debug {
 		if os.Getenv("ENABLE_PERFORMANCE_MONITORING") == "" {
 			cfg.EnablePerformanceMonitoring = true
@@ -428,7 +470,12 @@ func init() {
 	cfg, err := LoadConfig()
 	if err != nil {
 		if os.Getenv("BOT_TOKEN") == "" {
-			AppConfig = &Config{}
+			// Keep the local cache layer at its production default so test
+			// binaries exercise the same read path as a deployed bot.
+			AppConfig = &Config{
+				CacheLocalTTLSeconds: DefaultCacheLocalTTLSeconds,
+				CacheLocalMaxEntries: DefaultCacheLocalMaxEntries,
+			}
 			return
 		}
 		log.Fatalf("[Config] Failed to load configuration: %v", err)

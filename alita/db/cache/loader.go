@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	log "github.com/sirupsen/logrus"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -58,6 +60,22 @@ func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duratio
 		// Cache disabled: run the loader with the caller's context, allocating no timers.
 		return loader(ctx)
 	}
+	lru := localFor(m)
+	if lru != nil && skipLocal(key) {
+		lru = nil
+	}
+	if lru != nil {
+		if raw, ok := localGet(lru, key); ok {
+			var v T
+			if err := msgpack.Unmarshal(raw, &v); err == nil {
+				return v, nil
+			}
+			localDelete(key) // corrupt entry: drop it and fall through
+		}
+	}
+	// Read before the Redis GET: a DeleteCache that races the read bumps it,
+	// and the local copy is then skipped (see localSet).
+	gen := generationFor(key).Load()
 	// The read keeps its own short bound so a slow cache cannot eat the whole
 	// load budget, and a hit then allocates one timer instead of two.
 	readCtx, readCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -65,6 +83,11 @@ func GetFromCacheOrLoad[T any](ctx context.Context, key string, ttl time.Duratio
 	_, err := m.Get(readCtx, key, &cached)
 	readCancel()
 	if err == nil {
+		if lru != nil {
+			if raw, encErr := msgpack.Marshal(cached); encErr == nil {
+				localSet(lru, key, raw, gen)
+			}
+		}
 		return cached, nil
 	}
 	if err := ctx.Err(); err != nil {
@@ -133,23 +156,44 @@ func runCacheLoader[T any](ctx context.Context, key string, ttl time.Duration, l
 	}
 	m := cache.GetMarshal()
 	if m != nil && generation == generationFor(key).Load() {
+		var lru *expirable.LRU[string, []byte]
+		if !skipLocal(key) {
+			lru = localFor(m)
+		}
+		// Encode once: Redis gets the bytes verbatim (RawMessage) and the
+		// local layer keeps the same bytes.
+		var toSet any = value
+		var encoded []byte
+		if lru != nil {
+			if raw, encErr := msgpack.Marshal(value); encErr == nil {
+				encoded = raw
+				toSet = msgpack.RawMessage(raw)
+			}
+		}
 		setCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		err := m.Set(setCtx, key, value, store.WithExpiration(ttl))
+		err := m.Set(setCtx, key, toSet, store.WithExpiration(ttl))
 		cancel()
 		if err != nil {
 			log.Debugf("[Cache] Failed to set cache for key %s: %v", key, err)
 		} else if generation != generationFor(key).Load() {
 			DeleteCache(key)
+		} else if encoded != nil {
+			localSet(lru, key, encoded, generation)
 		}
 	}
 	return value, nil
 }
 
 func DeleteCache(key string) {
+	// Evict locally first so this replica stops serving the old value at once.
+	localDelete(key)
 	loadsMu.Lock()
 	delete(loads, key)
 	loadsMu.Unlock()
 	generationFor(key).Add(1)
+	// And again after the bump: a reader that passed localSet's generation
+	// check before the bump may have added its copy after the first evict.
+	localDelete(key)
 	if config.AppConfig != nil && config.AppConfig.DisableCache {
 		return
 	}

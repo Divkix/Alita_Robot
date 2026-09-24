@@ -39,6 +39,19 @@ var (
 		Name: "alita_db_queries_total",
 		Help: "Database statements executed, by GORM operation.",
 	}, []string{"operation"})
+
+	// CacheLocalHits counts read-through lookups served from process memory.
+	CacheLocalHits = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "alita_cache_local_hits_total",
+		Help: "Read-through cache lookups served by the in-process layer.",
+	})
+
+	// CacheLocalMisses counts read-through lookups the in-process layer could
+	// not serve (they fall through to Redis).
+	CacheLocalMisses = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "alita_cache_local_misses_total",
+		Help: "Read-through cache lookups that missed the in-process layer.",
+	})
 )
 
 // RedisHook is a go-redis hook that counts every command, including each

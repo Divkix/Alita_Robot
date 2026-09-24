@@ -175,6 +175,55 @@ func TestLoadConfig(t *testing.T) {
 			t.Errorf("EnablePPROF: got false, want true")
 		}
 	})
+
+	t.Run("local cache settings", func(t *testing.T) {
+		cases := []struct {
+			name, ttl, maxEntries string
+			wantTTL, wantMax      int
+		}{
+			{name: "unset uses defaults", wantTTL: 10, wantMax: 50000},
+			{name: "explicit zero disables", ttl: "0", wantTTL: 0, wantMax: 50000},
+			{name: "typo falls back to default", ttl: "ten", maxEntries: "lots", wantTTL: 10, wantMax: 50000},
+			{name: "explicit values kept", ttl: "30", maxEntries: "1000", wantTTL: 30, wantMax: 1000},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Setenv("BOT_TOKEN", "tk")
+				t.Setenv("OWNER_ID", "1")
+				t.Setenv("MESSAGE_DUMP", "1")
+				t.Setenv("DATABASE_URL", "postgres://localhost/test")
+				t.Setenv("REDIS_ADDRESS", "localhost:6379")
+				t.Setenv("HTTP_PORT", "8080")
+				t.Setenv("CACHE_LOCAL_TTL", tc.ttl)
+				t.Setenv("CACHE_LOCAL_MAX_ENTRIES", tc.maxEntries)
+
+				cfg, err := LoadConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.CacheLocalTTLSeconds != tc.wantTTL {
+					t.Errorf("CacheLocalTTLSeconds: got %d, want %d", cfg.CacheLocalTTLSeconds, tc.wantTTL)
+				}
+				if cfg.CacheLocalMaxEntries != tc.wantMax {
+					t.Errorf("CacheLocalMaxEntries: got %d, want %d", cfg.CacheLocalMaxEntries, tc.wantMax)
+				}
+			})
+		}
+	})
+
+	t.Run("out-of-range CACHE_LOCAL_TTL is rejected", func(t *testing.T) {
+		t.Setenv("BOT_TOKEN", "tk")
+		t.Setenv("OWNER_ID", "1")
+		t.Setenv("MESSAGE_DUMP", "1")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("REDIS_ADDRESS", "localhost:6379")
+		t.Setenv("HTTP_PORT", "8080")
+		t.Setenv("CACHE_LOCAL_TTL", "301")
+
+		if _, err := LoadConfig(); err == nil {
+			t.Fatal("LoadConfig() error = nil, want CACHE_LOCAL_TTL range error")
+		}
+	})
 }
 
 func TestValidateConfigPure(t *testing.T) {
@@ -238,6 +287,30 @@ func TestValidateConfigPure(t *testing.T) {
 			name:    "invalid dispatcher routines",
 			setup:   func(c *Config) { c.DispatcherMaxRoutines = 1001 },
 			wantErr: "DISPATCHER_MAX_ROUTINES must be between 1 and 1000",
+		},
+		{
+			name:    "negative local cache TTL",
+			setup:   func(c *Config) { c.CacheLocalTTLSeconds = -1 },
+			wantErr: "CACHE_LOCAL_TTL must be between 0 and 300 seconds",
+		},
+		{
+			name:    "local cache TTL too long",
+			setup:   func(c *Config) { c.CacheLocalTTLSeconds = 301 },
+			wantErr: "CACHE_LOCAL_TTL must be between 0 and 300 seconds",
+		},
+		{
+			name:  "local cache TTL at bounds",
+			setup: func(c *Config) { c.CacheLocalTTLSeconds = 300 },
+		},
+		{
+			name:    "local cache too small",
+			setup:   func(c *Config) { c.CacheLocalMaxEntries = 99 },
+			wantErr: "CACHE_LOCAL_MAX_ENTRIES must be between 100 and 1000000",
+		},
+		{
+			name:    "local cache too large",
+			setup:   func(c *Config) { c.CacheLocalMaxEntries = 1000001 },
+			wantErr: "CACHE_LOCAL_MAX_ENTRIES must be between 100 and 1000000",
 		},
 		{
 			name:    "invalid idle connections",
