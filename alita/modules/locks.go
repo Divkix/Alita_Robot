@@ -363,6 +363,19 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// perf: pre-check whether the message trips any enabled restriction
+	// before hitting Redis/Telegram for admin/approval lookups
+	hit := false
+	for restr, filter := range restrMap {
+		if chatLocks[restr] && filter(msg) {
+			hit = true
+			break
+		}
+	}
+	if !hit {
+		return ext.ContinueGroups
+	}
+
 	senderID := sender.Id()
 
 	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
@@ -416,6 +429,19 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	if !hasActiveLock {
+		return ext.ContinueGroups
+	}
+
+	// perf: pre-check whether the message trips any enabled lock
+	// before hitting Redis/Telegram for admin/approval lookups
+	hit := false
+	for perm, filter := range lockMap {
+		if chatLocks[perm] && filter(msg) {
+			hit = true
+			break
+		}
+	}
+	if !hit {
 		return ext.ContinueGroups
 	}
 
