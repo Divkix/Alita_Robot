@@ -1854,10 +1854,10 @@ func (moduleStruct) handlePendingCaptchaMessage(bot *gotgbot.Bot, ctx *ext.Conte
 		return ext.ContinueGroups
 	}
 
-	if chat_status.IsUserAdmin(bot, chat.Id, user.Id) {
+	if chat_status.IsUserAdminForUpdate(bot, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
-	if chat_status.IsApproved(bot, chat.Id, user.Id) {
+	if chat_status.IsApprovedForUpdate(bot, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
 

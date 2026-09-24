@@ -166,7 +166,7 @@ func (m moduleStruct) checkAISpam(b *gotgbot.Bot, ctx *ext.Context) error {
 	if !aispam.IsAISpamEnabled(chat.Id) || aispamBreakerPaused(chat.Id) {
 		return ext.ContinueGroups
 	}
-	if aispamCarvedOut(b, chat.Id, user.Id) {
+	if aispamCarvedOut(b, ctx, chat.Id, user.Id) {
 		return ext.ContinueGroups
 	}
 
@@ -231,7 +231,7 @@ func aispamIsCommandForBot(text, botUsername string) bool {
 // aispamCarvedOut reports the carve-outs that need a lookup: members still
 // solving captcha belong to the captcha module, and admins and approved users
 // are trusted by definition.
-func aispamCarvedOut(b *gotgbot.Bot, chatID, userID int64) bool {
+func aispamCarvedOut(b *gotgbot.Bot, ctx *ext.Context, chatID, userID int64) bool {
 	// Only query the user's attempt when the chat has one pending (or the
 	// cached flag is unavailable).
 	pending, err := captcha.HasPendingCaptchaAttemptsContext(context.Background(), chatID)
@@ -240,7 +240,7 @@ func aispamCarvedOut(b *gotgbot.Bot, chatID, userID int64) bool {
 			return true
 		}
 	}
-	return chat_status.IsUserAdmin(b, chatID, userID) || chat_status.IsApproved(b, chatID, userID)
+	return chat_status.IsUserAdminForUpdate(b, ctx, chatID, userID) || chat_status.IsApprovedForUpdate(b, ctx, chatID, userID)
 }
 
 func aispamMessageText(msg *gotgbot.Message) string {

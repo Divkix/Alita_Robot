@@ -20,6 +20,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/updatememo"
 
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -342,6 +343,17 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+type chatLocksMemoKey struct{ chatID int64 }
+
+// chatLocksForUpdate is locks.GetChatLocks memoised for the current update, so
+// permHandler and restHandler share one lookup. The returned map is shared
+// between them and must be treated as read-only.
+func chatLocksForUpdate(ctx *ext.Context, chatID int64) map[string]bool {
+	return updatememo.Get(updatememo.From(ctx), chatLocksMemoKey{chatID}, func() map[string]bool {
+		return locks.GetChatLocks(chatID)
+	})
+}
+
 // anyLockHit reports whether msg trips any lock that is enabled in chatLocks.
 // It only inspects the message, so it never calls Telegram or the database.
 // The lock named skip is ignored.
@@ -363,7 +375,7 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	chatLocks := locks.GetChatLocks(chat.Id)
+	chatLocks := chatLocksForUpdate(ctx, chat.Id)
 	// Pure in-memory check first so unlocked content never pays for the
 	// admin/approval/bot-permission lookups below.
 	if !anyLockHit(chatLocks, restrMap, msg, "") {
@@ -372,10 +384,10 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
+	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
+	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
@@ -414,7 +426,7 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	chatLocks := locks.GetChatLocks(chat.Id)
+	chatLocks := chatLocksForUpdate(ctx, chat.Id)
 	// Pure in-memory check first so unlocked content never pays for the
 	// admin/approval/bot-permission lookups below.
 	if !anyLockHit(chatLocks, lockMap, msg, "bots") {
@@ -423,10 +435,10 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	senderID := sender.Id()
 
-	if chat_status.IsUserAdmin(b, chat.Id, senderID) {
+	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
-	if senderID > 0 && chat_status.IsApproved(b, chat.Id, senderID) {
+	if senderID > 0 && chat_status.IsApprovedForUpdate(b, ctx, chat.Id, senderID) {
 		return ext.ContinueGroups
 	}
 
