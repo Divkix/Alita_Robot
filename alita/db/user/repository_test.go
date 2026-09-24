@@ -270,6 +270,72 @@ func TestUpdateUser(t *testing.T) {
 	}
 }
 
+func TestUpdateUserThrottlesUnchangedTouches(t *testing.T) {
+	skipIfNoDb(t)
+
+	userID := time.Now().UnixNano()
+	t.Cleanup(func() { db.DB.Where("user_id = ?", userID).Delete(&models.User{}) })
+
+	loadUser := func() models.User {
+		t.Helper()
+		var user models.User
+		if err := db.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+			t.Fatalf("expected user to exist: %v", err)
+		}
+		return user
+	}
+	// SQLite stores these timestamps as text and compares them lexicographically,
+	// so pinned values must keep the local representation the driver writes.
+	pinActivity := func(at time.Time) {
+		t.Helper()
+		if err := db.DB.Model(&models.User{}).Where("user_id = ?", userID).
+			Update("last_activity", at).Error; err != nil {
+			t.Fatalf("pin last_activity: %v", err)
+		}
+	}
+
+	if err := UpdateUser(userID, "throttle_user", "ThrottleName"); err != nil {
+		t.Fatalf("initial UpdateUser() error = %v", err)
+	}
+
+	// Inside the throttle window an unchanged user must not be rewritten.
+	fresh := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+	pinActivity(fresh)
+	if err := UpdateUser(userID, "throttle_user", "ThrottleName"); err != nil {
+		t.Fatalf("throttled UpdateUser() error = %v", err)
+	}
+	if got := loadUser().LastActivity; !got.Equal(fresh) {
+		t.Errorf("last_activity = %v, want it left at %v inside the throttle window", got, fresh)
+	}
+
+	// A username change still has to land even while the timestamp is throttled.
+	if err := UpdateUser(userID, "renamed_user", "ThrottleName"); err != nil {
+		t.Fatalf("rename UpdateUser() error = %v", err)
+	}
+	if got := loadUser().UserName; got != "renamed_user" {
+		t.Errorf("username = %q, want %q", got, "renamed_user")
+	}
+
+	// A display-name change also has to land inside the window.
+	pinActivity(fresh)
+	if err := UpdateUser(userID, "renamed_user", "RenamedName"); err != nil {
+		t.Fatalf("name change UpdateUser() error = %v", err)
+	}
+	if got := loadUser().Name; got != "RenamedName" {
+		t.Errorf("name = %q, want %q", got, "RenamedName")
+	}
+
+	// Once the stored timestamp is stale, the refresh happens again.
+	stale := time.Now().Add(-2 * userTouchInterval).Truncate(time.Second)
+	pinActivity(stale)
+	if err := UpdateUser(userID, "renamed_user", "RenamedName"); err != nil {
+		t.Fatalf("stale UpdateUser() error = %v", err)
+	}
+	if got := loadUser().LastActivity; !got.After(stale) {
+		t.Errorf("last_activity = %v, want a refresh newer than %v", got, stale)
+	}
+}
+
 func TestGetUserIdByUserName(t *testing.T) {
 	skipIfNoDb(t)
 
