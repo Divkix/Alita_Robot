@@ -342,6 +342,18 @@ func (m moduleStruct) unlockPerm(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
+// anyLockHit reports whether msg trips any lock that is enabled in chatLocks.
+// It only inspects the message, so it never calls Telegram or the database.
+// The lock named skip is ignored.
+func anyLockHit(chatLocks map[string]bool, lockFilters map[string]filters.Message, msg *gotgbot.Message, skip string) bool {
+	for key, filter := range lockFilters {
+		if key != skip && chatLocks[key] && filter(msg) {
+			return true
+		}
+	}
+	return false
+}
+
 func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -352,14 +364,9 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	chatLocks := locks.GetChatLocks(chat.Id)
-	hasActiveLock := false
-	for restrKey := range restrMap {
-		if chatLocks[restrKey] {
-			hasActiveLock = true
-			break
-		}
-	}
-	if !hasActiveLock {
+	// Pure in-memory check first so unlocked content never pays for the
+	// admin/approval/bot-permission lookups below.
+	if !anyLockHit(chatLocks, restrMap, msg, "") {
 		return ext.ContinueGroups
 	}
 
@@ -408,14 +415,9 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	chatLocks := locks.GetChatLocks(chat.Id)
-	hasActiveLock := false
-	for permKey := range lockMap {
-		if chatLocks[permKey] {
-			hasActiveLock = true
-			break
-		}
-	}
-	if !hasActiveLock {
+	// Pure in-memory check first so unlocked content never pays for the
+	// admin/approval/bot-permission lookups below.
+	if !anyLockHit(chatLocks, lockMap, msg, "bots") {
 		return ext.ContinueGroups
 	}
 

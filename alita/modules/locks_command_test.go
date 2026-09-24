@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -181,6 +182,67 @@ func TestLockWatchersDeleteLockedContent(t *testing.T) {
 
 	if calls := client.callsFor("deleteMessage"); len(calls) != 2 {
 		t.Fatalf("deleteMessage calls = %d, want 2", len(calls))
+	}
+}
+
+func TestLockWatchersSkipPermissionLookupsWhenMessageIsNotLocked(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
+		t.Fatalf("UpdateLock url setup error = %v", err)
+	}
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
+		t.Fatalf("UpdateLock media setup error = %v", err)
+	}
+
+	permCtx := newModuleMessageContext(bot, chat, member, "hello")
+	if err := locksModule.permHandler(bot, permCtx); err != ext.ContinueGroups {
+		t.Fatalf("permHandler error = %v, want ContinueGroups", err)
+	}
+	restCtx := newModuleMessageContext(bot, chat, member, "hello")
+	if err := locksModule.restHandler(bot, restCtx); err != ext.ContinueGroups {
+		t.Fatalf("restHandler error = %v, want ContinueGroups", err)
+	}
+
+	for _, method := range []string{"getChat", "getChatAdministrators", "getChatMember", "deleteMessage"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %d, want none for unlocked content", method, len(calls))
+		}
+	}
+}
+
+func TestLockWatchersDoNotDeleteForAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	chatAdmin := gotgbot.User{Id: 4343, FirstName: "Chat Admin"}
+	client.responses["getChatAdministrators"] = json.RawMessage(
+		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true,"can_restrict_members":true},` +
+			`{"status":"administrator","user":{"id":4343,"is_bot":false,"first_name":"Chat Admin"},"can_delete_messages":true}]`,
+	)
+	if err := locks.UpdateLock(chat.Id, "url", true); err != nil {
+		t.Fatalf("UpdateLock url setup error = %v", err)
+	}
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
+		t.Fatalf("UpdateLock media setup error = %v", err)
+	}
+
+	urlCtx := newModuleMessageContext(bot, chat, chatAdmin, "https://example.com")
+	urlCtx.EffectiveMessage.Entities = []gotgbot.MessageEntity{{Type: "url", Offset: 0, Length: 19}}
+	if err := locksModule.permHandler(bot, urlCtx); err != ext.ContinueGroups {
+		t.Fatalf("permHandler error = %v, want ContinueGroups", err)
+	}
+
+	mediaCtx := newModuleMessageContext(bot, chat, chatAdmin, "photo")
+	mediaCtx.EffectiveMessage.Photo = []gotgbot.PhotoSize{{FileId: "photo-1"}}
+	if err := locksModule.restHandler(bot, mediaCtx); err != ext.ContinueGroups {
+		t.Fatalf("restHandler error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for admin", len(calls))
 	}
 }
 
