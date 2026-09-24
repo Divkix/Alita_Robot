@@ -8,6 +8,8 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/divkix/Alita_Robot/alita/utils/metrics"
 )
 
 var onProcessUpdateCallback atomic.Value
@@ -55,10 +57,13 @@ func (tp TracingProcessor) ProcessUpdate(d *ext.Dispatcher, b *gotgbot.Bot, ctx 
 	// docs/src/content/docs/architecture/caching.md documents that polling and
 	// webhook updates carry it. It is created unconditionally, not only when
 	// tracing is on.
+	start := time.Now()
 	baseCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	traceCtx, span := StartSpan(baseCtx, "dispatcher.processUpdate")
 	defer func() {
+		metrics.UpdatesProcessed.Inc()
+		metrics.UpdateDuration.Observe(time.Since(start).Seconds())
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 		}

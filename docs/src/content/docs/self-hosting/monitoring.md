@@ -89,6 +89,24 @@ The metrics endpoint exposes Prometheus-compatible metrics for monitoring.
 GET /metrics
 ```
 
+### Bot Metrics
+
+Besides the Go runtime metrics, the bot exports:
+
+| Metric | Type | Labels | Meaning |
+|--------|------|--------|---------|
+| `alita_updates_processed_total` | counter | none | Telegram updates processed |
+| `alita_update_duration_seconds` | histogram | none | Time to process one update |
+| `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
+| `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
+
+Per-update cost:
+
+```promql
+sum(rate(alita_redis_commands_total[5m])) / rate(alita_updates_processed_total[5m])
+sum(rate(alita_db_queries_total[5m])) / rate(alita_updates_processed_total[5m])
+```
+
 ### Prometheus Scrape Configuration
 
 Add to your `prometheus.yml`:
