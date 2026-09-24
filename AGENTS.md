@@ -1,157 +1,128 @@
-# Repository Guidelines
+# AGENTS.md
 
-Alita Robot — a Telegram group-management bot. **Go 1.26**, gotgbot/v2 `v2.0.0-rc.36`, PostgreSQL (GORM) + Redis.
-~30 feature modules, 7 locales. One binary serves long-polling *or* webhook plus `/health`, `/metrics`, `/db_metrics`.
+Alita Robot: Telegram group-management bot. Go module `github.com/divkix/Alita_Robot`; PostgreSQL (GORM) + Redis.
+Update this file in the same commit as any change that invalidates a rule below.
 
-> Couplings and traps only — nothing a quick file read already shows. Update this file in the same commit as the change it describes.
-
-## Project Overview
-
-- Single Go module `github.com/divkix/Alita_Robot`. `main.go` + `alita/` is the binary, `scripts/` is tooling, no `vendor/`.
-- `migrations/*.sql` is the schema source of truth; `gorm.AutoMigrate` is never used in production.
-- Deploy manifests all set `AUTO_MIGRATE=true` even though the code default is `false`.
-- `CONTEXT.md` is the domain glossary; `docs/agents/` holds process rules.
-
-## Architecture & Data Flow
-
-```
-Telegram (polling | POST /webhook) → dispatcher → handler groups ascending → module → repo → Postgres ⇄ Redis → reply
-```
-
-**Init order is load-bearing.** `alita/config` `init()` (env, logging, `logredact` secrets) → `alita/db` `init()`
-**connects to Postgres before `main()` runs** and applies migrations when `AUTO_MIGRATE=true` → `main()`: cache → i18n →
-tracing → bot → dispatcher → HTTP server → `postInit` (modules → captcha lifecycle → `WorkingMode` → commands).
-`--version`/`--health` short-circuit all of it, as does a `*.test` binary unless `ALITA_TEST_DATABASE=true`.
-
-**Shutdown is LIFO** (reverse registration, 60 s budget). Drains (`DrainUsersAsyncWrites`, `DrainAISpamChecks`, …) must
-happen before DB close — that's why DB-close is registered first.
-
-**Handler groups** — the numbers are ordering, not labels:
-`-10` captcha message sweeper · `-6` federations fed-ban · `-5` antiraid · `-2` admin-cache refresh · `-1` users tracker ·
-`0` commands/help/greetings · `3` aispam (after -1 so rows exist, before 4 so floods don't burn model calls) · `4` antiflood ·
-`5`/`6` locks perm/restr · `7` blacklists · `8` reports + reactions · `9` filters · `10` pins · `11` log-channel capture.
-
-⚠️ **gotgbot ends the group at the first matching handler.** Watchers must return `ext.ContinueGroups`; commands
-`ext.EndGroups`. A group-0 watcher returning `nil` silently disables every later group-0 handler for that update.
-
-**Modules** self-register in `init()` via `RegisterLegacyModule(name, priority, load)` — dedupe by name (duplicates are
-silently ignored), loaded ascending by priority, `LoadHelp` last. Priority also sets group-0 precedence.
-
-**Commands:** `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`; its checks send their own failure
-replies, and `Disableable: true` is what makes per-chat disabling possible. Legacy path: `handlers.NewCommand` +
-`helpers.MultiCommand` + `AddCmdToDisableable`. **Anonymous admins bypass the pipeline** — new admin commands that must
-work for them need `RegisterAnonymousAdminHandler` + `anonPipelineHandler`, which re-runs `helpers.RunChecks`.
-
-**Callbacks:** `alita/utils/callbackcodec` only — `<ns>|v1|<url-encoded>`, 64-byte cap; `encodeCallbackData` returns `""`
-on overflow, which ships a dead button. Never `strings.Split` callback data. User text goes in Redis behind a short token.
-
-**Permissions** (`alita/utils/chat_status`): predicates return bools and never reply; `PermissionResponder` messages;
-`helpers.CheckFunc` replies and is only valid inside `WrapCommand`. `IsUserAdmin` is false for channel and non-positive
-IDs — never pass a chat ID where a user ID is expected.
-
-**Reads/writes:** repositories in `alita/db/<domain>/`; reads via `cache.GetFromCacheOrLoad` with keys from
-`cache.CacheKey` (`alita:cache:` prefix, 30-minute TTLs). **Every write must `cache.DeleteCache` its keys.** Two packages
-are named `cache` — the loader and its generation guards live only in `alita/db/cache`. Operational keys
-(`alita:antiraid:*`, `alita:anonAdmin:*`, …) sit outside the prefix, so `CLEAR_CACHE_ON_STARTUP` can't wipe them.
-
-**Migrations are immutable** — SHA-256 over raw bytes, so editing an applied file aborts startup. Apply order is plain
-filename sort: always add a greater timestamp. One transaction per file, so no top-level `BEGIN`/`COMMIT`/`ROLLBACK` and
-no `CREATE INDEX CONCURRENTLY`. Both appliers (`alita/db/migrations/runner.go`, `scripts/migrate_psql.sh`) must agree.
-
-**Table names ≠ struct names** — check `TableName()` before raw SQL:
-`ConnectionSettings→connection` (per user) vs `ConnectionChatSettings→connection_settings` (per chat),
-`AdminSettings→admin`, `DisableSettings→disable`.
-
-**Subsystem traps**, one line each: approvals short-circuit antiflood/locks/blacklists/captcha · antiflood counters are
-in-process, so flood state is per replica · antiraid is Redis-only and silently inert without Redis · fed-ban lookups are
-cached per `(fed, user)` with a negative sentinel, so ban/unban writes must invalidate · a join arrives as *both* a
-`ChatMemberUpdated` and a service message, deduped via `claimRecentJoinProcessing` · entity offsets are UTF-16 (slice with
-`extractEntityText`) and matching must read `Entities` **and** `CaptionEntities` · captcha allows one attempt per
-`(user, chat)` and group `-10` stores the pending user's messages for replay.
-
-## Key Directories
-
-`alita/config` (env) · `alita/db` (+ `<domain>/` repos, `models/`, `cache/`, `migrations/`, `backup/`) · `alita/modules`
-(feature modules) · `alita/i18n` · `alita/utils` (`helpers`, `chat_status`, `cache`, `callbackcodec`, `media`, `tracing`,
-`monitoring`, `shutdown`, `httpserver`, `error_handling`, `logredact`) · `locales/` (7 locales + `config.yml`
-pseudo-locale) · `migrations/` · `internal/testdb/` (SQLite fixture) · `scripts/` · `docs/` (Blume site) · `docker/`.
-
-## Development Commands
+## Commands
 
 ```bash
-make test                     # full suite; gated by scripts/check_test_results (see Testing & QA)
-make lint                     # golangci-lint v2
-make build                    # goreleaser snapshot — needs goreleaser v2 + Docker, NOT plain `go build`
-make test-postgres-integrity  # needs DATABASE_URL AND ALITA_TEST_DATABASE=true
-make generate-docs            # after module/help changes; `make check-docs` fails on drift
-make check-translations       # missing-key gate (separate Go module)
-make psql-migrate             # manual migrations; PSQL_DB_* vars, reads scripts/.env
-make bump-version TAG=vX.Y.Z  # the only safe way to change version strings
-go test -tags testtools -race -count=1 -run '^TestName$' ./alita/db/warns   # single test
+make test                 # the only valid full test run (tags, race, coverage, skip gate)
+make lint                 # golangci-lint v2
+make check-translations   # missing locale keys
+make check-docs           # generated-docs drift; fix with `make generate-docs`
+make bump-version TAG=vX.Y.Z   # the only way to change version strings
+go test -tags testtools -race -count=1 -run '^TestName$' ./alita/db/warns   # one test
+CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2 + Docker
 ```
 
-## Code Conventions & Common Patterns
+## Startup and shutdown
 
-- `gofmt`; imports stdlib → third-party → internal, blank-line separated; `helpers.Ptr[T]` for option pointers.
-- Handler methods take value receivers on `moduleStruct`.
-- Never discard a DB error on a state-changing path. Every fire-and-forget goroutine needs
-  `defer error_handling.RecoverFromPanic(...)`, and async user/chat writers must join the WaitGroup drained by
-  `DrainUsersAsyncWrites`.
-- `UpdateRecord` skips zero values → use `UpdateRecordWithZeroValues` for `false`/`0`/`""`; both return
-  `gorm.ErrRecordNotFound` when nothing matched.
-- Register new secrets with `logredact.RegisterSecret` (≥6 chars) or they get logged verbatim.
-- i18n: new keys go in **all 7 locales**. A missing key returns `""` plus an error that callers ignore, so a typo ships an
-  empty message. `locales/config.yml` is the `"config"` pseudo-locale (help alt-names) and is not selectable.
-- Commits use Conventional Commits; the changelog drops `docs:`/`test:`/`chore:`/`ci:`/`deps:`, so user-visible work needs
-  `feat:`/`fix:`.
-- Adding a module: migration → model → repo → `LoadXxx` with `RegisterLegacyModule` → locale keys → `make generate-docs`.
-  Changing a model also means updating the `AutoMigrate` lists in the relevant `testmain_test.go` or `internal/testdb.Run` call.
+- `alita/config` `init()` → `alita/db` `init()` connects to Postgres **before `main()`** and runs migrations when
+  `AUTO_MIGRATE=true`. Never add DB access to an `init()` that can run before `alita/db`'s.
+- `--version`, `--health`, and `*.test` binaries (unless `ALITA_TEST_DATABASE=true`) skip DB init. Guard new pre-`main`
+  side effects with `isCliModeActive`.
+- Shutdown runs LIFO within 60 s. Register new drains *after* DB-close so they run before it.
+- Deploy manifests set `AUTO_MIGRATE=true`; the code default is `false`. Never call `gorm.AutoMigrate` in production code.
 
-## Important Files
+## Handlers
 
-| File | Why it matters |
-|---|---|
-| `main.go` | startup/shutdown order, `postInit`, webhook vs polling |
-| `alita/config/config.go` | env defaults, validation, `BotVersion` literal |
-| `alita/db/conn.go` | pre-`main()` connect, `isCliModeActive` guards |
-| `alita/db/db.go` | generic CRUD helpers, `RowsAffected == 0` semantics |
-| `alita/db/migrations/runner.go` | ordering, advisory lock, checksums |
-| `alita/db/cache/loader.go` | `GetFromCacheOrLoad` and generation invalidation |
-| `alita/utils/callbackcodec/` | callback encoding and the 64-byte cap |
-| `alita/modules/registry.go` / `core.go` | registration, priorities, help registry |
-| `alita/modules/users.go` | group -1 tracker whose rows every other group assumes |
-| `alita/utils/helpers/command_pipeline.go` | the `WrapCommand` command standard |
-| `Makefile` | the only sanctioned entry point for every gate |
+- Group numbers are execution order: `-10` captcha sweeper · `-6` fed-ban · `-5` antiraid · `-2` admin-cache ·
+  `-1` users tracker · `0` commands/help/greetings · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists ·
+  `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
+- gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
+  `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
+- Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are
+  dropped silently. Priority sets load order and group-0 precedence; `LoadHelp` loads last.
+- New commands use `helpers.WrapCommand(dispatcher, CommandDescriptor{...}, handler)`. Set `Disableable: true` for any
+  command chats may disable. Do not add replies for failed checks; the pipeline sends them.
+- Anonymous admins bypass `WrapCommand`. Admin commands that must work for them also need
+  `RegisterAnonymousAdminHandler` + `anonPipelineHandler`.
+- Handler methods use value receivers on `moduleStruct`.
 
-## Runtime/Tooling Preferences
+## Callbacks
 
-- **CGO split — do not unify:** production builds `CGO_ENABLED=0`; tests need `CGO_ENABLED=1` (go-sqlite3 fixtures).
-- Go 1.26.0, no `toolchain` directive. gotgbot and `gotg_md2html` are pinned deliberately — Dependabot won't auto-merge them.
-- Versions live in two string-shape-locked places (`BotVersion:` with two spaces in `alita/config/config.go`, `version =`
-  in `main.go`); release tags must match `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$`.
-- `.env` is auto-loaded from cwd and never overrides real env vars; CI runs `--version` from `/tmp` to avoid it.
-- Surprising defaults: `REDIS_DB=1`; `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); performance monitoring and
-  background stats default true only when `DEBUG=false`; `HTTP_PORT` falls back to `PORT` then 8080. `typeConvertor` is
-  lenient, so a typo'd integer silently becomes the default.
+- Encode/decode only through `alita/utils/callbackcodec` (`<ns>|v1|<url-encoded>`, 64-byte cap). Never `strings.Split`.
+- `encodeCallbackData` returns `""` on overflow, which ships a dead button. Put user text in Redis behind a short token.
 
-## Testing & QA
+## Permissions
 
-- `make test` is not plain `go test`: it pipes `go test -tags testtools -json -race -coverprofile=coverage.out
-  -coverpkg=<alita/...> -count=1 -timeout 10m ./...` into `scripts/check_test_results`, which fails on failures **and on
-  any `t.Skip` outside a two-entry allowlist** (`alita/db/migrations`; `alita/db/chats`/`TestUpdateChat`). A stray skip is a build break.
-- `-tags testtools` is effectively mandatory: ~40 files carry it, including three non-test helper files inside production
-  packages. Plain `go test ./...` silently runs a subset.
-- Fixtures are real, there is no mock library: SQLite via `internal/testdb.Run`, miniredis or an in-memory marshaler, and
-  hand-written `gotgbot.BotClient` fakes.
-- Postgres needs `DATABASE_URL` **and** `ALITA_TEST_DATABASE=true`; a `*.test` binary otherwise stays on SQLite even when
-  `DATABASE_URL` is exported.
-- Coverage gate is **78%**, measured over `./alita/...` only (root `main` and `scripts/` are excluded from the number).
-- CI runs the migration-chain test *before* `make test`; the `schema_migrations` rows it leaves are what keep the checksum
-  test meaningful. Don't reorder those steps.
-- Assert observable behavior (reply sent, row persisted, cache invalidated, gate enforced) — never literals, source
-  substrings, or test-double internals.
-- Lint: `godox`, `dupl` (100), `gocyclo` (20) with `issues.new: true`, so only new issues fail; `_test.go` is exempt from
-  the complexity linters.
-- Docs drift is a gate: changing module commands or `en.yml` help keys requires `make generate-docs`. The generator reads
-  **only `locales/en.yml`**. Frozen pages need `<!-- MANUALLY MAINTAINED: do not regenerate -->` in their first 512 bytes
-  (`api-reference/lock-types.md` ignores the sentinel entirely).
+- `alita/utils/chat_status` predicates return bools and never reply; use `PermissionResponder` to message.
+  `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
+- `IsUserAdmin` returns false for channel and non-positive IDs. Never pass a chat ID as a user ID.
+
+## Data
+
+- Repositories live in `alita/db/<domain>/`. Read via `cache.GetFromCacheOrLoad` with `cache.CacheKey` keys.
+  **Every write must `cache.DeleteCache` the keys it affects.**
+- Two packages are named `cache`; the loader and generation guards are in `alita/db/cache`, not `alita/utils/cache`.
+- Operational Redis keys (`alita:antiraid:*`, `alita:anonAdmin:*`) sit outside the `alita:cache:` prefix;
+  `CLEAR_CACHE_ON_STARTUP` does not clear them.
+- `UpdateRecord` skips zero values. Use `UpdateRecordWithZeroValues` to write `false`/`0`/`""`. Both return
+  `gorm.ErrRecordNotFound` when no row matched.
+- Check `TableName()` before raw SQL: `ConnectionSettings→connection` (per user), `ConnectionChatSettings→
+  connection_settings` (per chat), `AdminSettings→admin`, `DisableSettings→disable`.
+
+## Migrations
+
+- `migrations/*.sql` is the schema source of truth. Never edit an applied file; the SHA-256 checksum aborts startup.
+- Name new files with a timestamp greater than every existing one; order is plain filename sort.
+- Each file runs in one transaction: no top-level `BEGIN`/`COMMIT`/`ROLLBACK`, no `CREATE INDEX CONCURRENTLY`.
+- Change `alita/db/migrations/runner.go` and `scripts/migrate_psql.sh` together; both appliers must agree.
+
+## Adding a module
+
+1. Add a migration in `migrations/` (rules above).
+2. Add the model in `alita/db/models/` with `TableName()` returning the migration's table name.
+3. Add the repository in `alita/db/<domain>/`: reads through `cache.GetFromCacheOrLoad`, `cache.DeleteCache` on writes.
+4. Add the model to the `AutoMigrate` list in the affected `testmain_test.go` or `internal/testdb.Run` call. Do the same
+   whenever you change an existing model.
+5. Add `alita/modules/<name>.go` with `LoadXxx`, registered in `init()` via `RegisterLegacyModule`.
+6. Register commands with `helpers.WrapCommand`; add `RegisterAnonymousAdminHandler` for admin commands.
+7. Add locale keys to all 7 files in `locales/`.
+8. Run `make generate-docs`, `make check-translations`, `make test`, `make lint`.
+
+## Subsystem traps
+
+- Approved users skip antiflood, locks, blacklists, and captcha.
+- Antiflood counters are in-process (per replica). Antiraid is Redis-only and does nothing without Redis.
+- Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
+- A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
+- Entity offsets are UTF-16: slice with `extractEntityText`, and match against both `Entities` and `CaptionEntities`.
+- Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages for replay.
+
+## Go rules
+
+- Never discard a DB error on a state-changing path.
+- Every fire-and-forget goroutine starts with `defer error_handling.RecoverFromPanic(...)`. Async user/chat writers
+  join the WaitGroup drained by `DrainUsersAsyncWrites`.
+- Register every new secret with `logredact.RegisterSecret` (≥6 chars), or it is logged verbatim.
+- A missing i18n key returns `""` with an error callers ignore; a typo'd key in Go ships an empty message. Copy key
+  names from `locales/en.yml`. `locales/config.yml` is the help alt-name pseudo-locale, not a language.
+- The docs generator reads only `locales/en.yml`. Pages marked `<!-- MANUALLY MAINTAINED: do not regenerate -->` in
+  their first 512 bytes are frozen; `api-reference/lock-types.md` ignores the marker.
+- Imports: stdlib, third-party, internal, separated by blank lines. Use `helpers.Ptr[T]` for option pointers.
+
+## Toolchain
+
+- Production builds use `CGO_ENABLED=0`; tests need `CGO_ENABLED=1` (go-sqlite3). Do not unify them.
+- Go 1.26.0 with no `toolchain` directive. Do not bump `gotgbot/v2` or `gotg_md2html`; they are pinned on purpose.
+- Version strings are shape-locked (`BotVersion:` with two spaces in `alita/config/config.go`, `version =` in
+  `main.go`). Run `make bump-version` on a PR branch, merge, then tag. Tags match `^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$`.
+- `.env` in cwd auto-loads without overriding real env. Run `--version` smoke checks from `/tmp`.
+- Defaults that surprise: `REDIS_DB=1`; `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and
+  background stats are on only when `DEBUG=false`; `HTTP_PORT` falls back to `PORT` then 8080. Integer env parsing is
+  lenient, so a typo silently becomes the default.
+
+## Testing
+
+- Always pass `-tags testtools`; without it, ~40 files (including helpers in production packages) drop out silently.
+- Postgres tests need both `DATABASE_URL` and `ALITA_TEST_DATABASE=true`; otherwise they run on SQLite.
+- Use real fixtures: `internal/testdb.Run` (SQLite), miniredis, hand-written `gotgbot.BotClient` fakes. No mock libraries.
+- Assert observable behavior (reply sent, row persisted, cache invalidated, gate enforced). Never assert literals,
+  source substrings, or test-double internals.
+- In CI, keep the migration-chain step before `make test`; its `schema_migrations` rows back the checksum test.
+
+## Commits
+
+- Use Conventional Commits. The changelog drops `docs:`/`test:`/`chore:`/`ci:`/`deps:`, so user-visible changes need
+  `feat:` or `fix:`.

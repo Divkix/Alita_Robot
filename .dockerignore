@@ -14,7 +14,6 @@ docs/
 .devcontainer/
 .claude/
 .factory/
-supabase/
 
 # Scripts (not needed for build)
 scripts/
