@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 
@@ -26,7 +26,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	"github.com/divkix/Alita_Robot/alita/utils/errors"
+	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
@@ -391,10 +391,14 @@ func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.Dis
 		"error_type": fmt.Sprintf("%T", err),
 	}
 
-	if wrappedErr, ok := err.(*errors.WrappedError); ok {
+	if wrappedErr, ok := err.(*alitaerrors.WrappedError); ok {
 		logFields["file"] = wrappedErr.File
 		logFields["line"] = wrappedErr.Line
 		logFields["function"] = wrappedErr.Function
+	}
+
+	if errors.Is(err, ext.EndGroups) || errors.Is(err, ext.ContinueGroups) {
+		return ext.DispatcherActionNoop
 	}
 
 	if helpers.IsExpectedTelegramError(err) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -177,6 +179,37 @@ func TestNewDispatcherHandlesExpectedAndWrappedErrors(t *testing.T) {
 	action = dispatcher.Error(nil, ctx, alitaerrors.Wrap(assertErr{}, "wrapped failure"))
 	if action != ext.DispatcherActionNoop {
 		t.Fatalf("wrapped error action = %s, want noop", action)
+	}
+}
+
+func TestDispatcherErrorHandlerDoesNotLogControlFlowAsError(t *testing.T) {
+	var buf bytes.Buffer
+	previous := log.StandardLogger()
+	log.SetOutput(&buf)
+	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
+	log.SetLevel(log.DebugLevel)
+	t.Cleanup(func() {
+		log.SetOutput(previous.Out)
+		log.SetFormatter(previous.Formatter)
+		log.SetLevel(previous.GetLevel())
+	})
+
+	ctx := &ext.Context{Update: &gotgbot.Update{UpdateId: 42}}
+	action := dispatcherErrorHandler(nil, ctx, ext.EndGroups)
+	if action != ext.DispatcherActionNoop {
+		t.Fatalf("EndGroups action = %s, want noop", action)
+	}
+	if strings.Contains(buf.String(), "level=error") {
+		t.Fatalf("EndGroups was logged as an error: %s", buf.String())
+	}
+
+	buf.Reset()
+	action = dispatcherErrorHandler(nil, ctx, ext.ContinueGroups)
+	if action != ext.DispatcherActionNoop {
+		t.Fatalf("ContinueGroups action = %s, want noop", action)
+	}
+	if strings.Contains(buf.String(), "level=error") {
+		t.Fatalf("ContinueGroups was logged as an error: %s", buf.String())
 	}
 }
 
