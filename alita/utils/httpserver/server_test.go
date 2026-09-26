@@ -797,7 +797,7 @@ func TestWebhookAcceptsRecentRichBlockTypes(t *testing.T) {
 		t.Fatalf("RegisterWebhook() error = %v", err)
 	}
 
-	body := `{"update_id":31,"message":{"message_id":31,"date":1,"chat":{"id":-1001,"type":"supergroup"},"from":{"id":1,"is_bot":false,"first_name":"T"},"text":"hello","rich_message":{"blocks":[{"type":"buttons","buttons":[]},{"type":"expandable_blockquote","blocks":[]}]}}}`
+	body := `{"update_id":31,"message":{"message_id":31,"date":1,"chat":{"id":-1001,"type":"supergroup"},"from":{"id":1,"is_bot":false,"first_name":"T"},"text":"hello","rich_message":{"blocks":[{"type":"buttons","buttons":[{"text":"open","callback_data":"cb"}]},{"type":"expandable_blockquote","text":"quoted"}]}}}`
 	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body))
 	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "test-secret")
 	rr := httptest.NewRecorder()
