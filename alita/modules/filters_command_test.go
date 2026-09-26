@@ -1,3 +1,5 @@
+//go:build testtools
+
 package modules
 
 import (
@@ -6,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -16,18 +17,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/filters"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
-
-func waitForModuleCondition(t *testing.T, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if condition() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("condition was not met before timeout")
-}
 
 func TestAddListWatchAndRemoveTextFilter(t *testing.T) {
 	client := newModuleBotClient()
