@@ -776,3 +776,39 @@ func TestWebhookValidatesHeaderNotPath(t *testing.T) {
 		}
 	})
 }
+
+func TestWebhookAcceptsRecentRichBlockTypes(t *testing.T) {
+	client := &httpServerBotClient{}
+	bot := newHTTPServerTestBot(client)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: 1})
+	processed := make(chan struct{}, 1)
+	dispatcher.AddHandler(handlers.NewMessage(message.All, func(*gotgbot.Bot, *ext.Context) error {
+		processed <- struct{}{}
+		return ext.EndGroups
+	}))
+
+	s := New(9201, time.Now())
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := s.RegisterWebhook(bot, dispatcher, "test-secret", "https://example.test"); err != nil {
+		t.Fatalf("RegisterWebhook() error = %v", err)
+	}
+
+	body := `{"update_id":31,"message":{"message_id":31,"date":1,"chat":{"id":-1001,"type":"supergroup"},"from":{"id":1,"is_bot":false,"first_name":"T"},"text":"hello","rich_message":{"blocks":[{"type":"buttons","buttons":[]},{"type":"expandable_blockquote","blocks":[]}]}}}`
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body))
+	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "test-secret")
+	rr := httptest.NewRecorder()
+	s.mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("rich-message update: expected 200, got %d", rr.Code)
+	}
+
+	select {
+	case <-processed:
+	case <-time.After(time.Second):
+		t.Fatal("rich-message update was accepted but not dispatched")
+	}
+}
