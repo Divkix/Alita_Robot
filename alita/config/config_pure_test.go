@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -153,6 +154,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("SQLITE_PATH", "/tmp/test-alita.db")
 		t.Setenv("HTTP_PORT", "9090")
 		t.Setenv("TYPESAFE_API_KEY", "test-typesafe-key")
+		t.Setenv("OWNER_CHAT_IDS", "-1001490301388, -1001234567890")
 
 		cfg, err := LoadConfig()
 		if err != nil {
@@ -177,9 +179,23 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.TypeSafeAPIKey != "test-typesafe-key" {
 			t.Errorf("TypeSafeAPIKey: got %q, want %q", cfg.TypeSafeAPIKey, "test-typesafe-key")
 		}
+		if !slices.Equal(cfg.OwnerChatIDs, []int64{-1001490301388, -1001234567890}) {
+			t.Errorf("OwnerChatIDs: got %v", cfg.OwnerChatIDs)
+		}
 		// AllowedUpdates should be populated
 		if len(cfg.AllowedUpdates) == 0 {
 			t.Errorf("AllowedUpdates: expected non-empty slice")
+		}
+	})
+
+	t.Run("invalid owner chat IDs are rejected", func(t *testing.T) {
+		t.Setenv("BOT_TOKEN", "tk")
+		t.Setenv("OWNER_ID", "1")
+		for _, value := range []string{"abc", "123", "0", "-1001490301388,", "-1001490301388,abc"} {
+			t.Setenv("OWNER_CHAT_IDS", value)
+			if _, err := LoadConfig(); err == nil {
+				t.Fatalf("OWNER_CHAT_IDS=%q should fail", value)
+			}
 		}
 	})
 

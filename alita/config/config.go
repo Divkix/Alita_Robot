@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -64,6 +66,7 @@ type Config struct {
 
 	// Optional integrations
 	TypeSafeAPIKey string
+	OwnerChatIDs   []int64
 
 	// Derived
 	AllowedUpdates []string
@@ -87,6 +90,11 @@ func ValidateConfig(cfg *Config) error {
 	}
 	if cfg.HTTPPort <= 0 || cfg.HTTPPort > 65535 {
 		return fmt.Errorf("HTTP_PORT must be between 1 and 65535")
+	}
+	for _, id := range cfg.OwnerChatIDs {
+		if id >= 0 {
+			return fmt.Errorf("OWNER_CHAT_IDS must contain negative group chat IDs")
+		}
 	}
 
 	// Webhook credentials only matter when webhook delivery is enabled.
@@ -125,6 +133,16 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ownerChatIDs []int64
+	if value := os.Getenv("OWNER_CHAT_IDS"); value != "" {
+		for _, part := range strings.Split(value, ",") {
+			id, parseErr := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+			if parseErr != nil || id >= 0 {
+				return nil, fmt.Errorf("OWNER_CHAT_IDS must contain comma-separated negative group chat IDs")
+			}
+			ownerChatIDs = append(ownerChatIDs, id)
+		}
+	}
 
 	cfg := &Config{
 		BotToken: os.Getenv("BOT_TOKEN"),
@@ -140,6 +158,7 @@ func LoadConfig() (*Config, error) {
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
 
 		TypeSafeAPIKey: os.Getenv("TYPESAFE_API_KEY"),
+		OwnerChatIDs:   ownerChatIDs,
 	}
 
 	cfg.setDefaults()

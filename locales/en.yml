@@ -439,11 +439,13 @@ notes_help_msg: 'Save data for future users with notes!
   - /notes: List all notes in the current chat.
 
   - /clearall: Delete ALL notes in a chat. This cannot be undone.'
-nsfw_help_msg: "*Admin only:*
+nsfw_help_msg: "*Configured NSFW chat only:*
 
   Scan messages or text for NSFW (adult/sexually explicit) content and curse words using TypeSafe AI.
 
-  *Admin commands:*
+  Limits: admins have 100 tokens; other members have 10. Each bucket refills over 24 hours.
+
+  *Commands:*
   - /nsfw: Check the replied message for NSFW content and curse words.
   - /nsfw <text>: Check the provided text for NSFW content and curse words.
 
@@ -1270,7 +1272,8 @@ antiraid_btn_disable: "Disable AntiRaid"
 nsfw_no_api_key: "TypeSafe API key is not configured. Please set <code>TYPESAFE_API_KEY</code> in the environment."
 nsfw_no_target: "Please reply to a message or provide text to check for NSFW or curse words."
 nsfw_no_text: "The targeted message does not contain any text to analyze."
-nsfw_api_error: "Failed to analyze message content with TypeSafe AI: %s"
+nsfw_api_error: "Could not analyze that message right now. Please try again later."
+nsfw_rate_limited: "Scan limit reached. Try again in %s."
 nsfw_result: |
   <b>Content Analysis Result:</b>
 

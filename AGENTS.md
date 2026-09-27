@@ -155,7 +155,7 @@ the current coverage gate and exact CI versions.
 - Add every new secret configuration field to the `logredact.RegisterSecret`
   call. Never log tokens, credentials, webhook secrets, or authorization headers.
 - `BOT_TOKEN` and `OWNER_ID` are the only required variables. `SQLITE_PATH`,
-  `HTTP_PORT`, `LOG_LEVEL`, `MESSAGE_DUMP`, and `USE_WEBHOOKS` are optional;
+  `HTTP_PORT`, `LOG_LEVEL`, `MESSAGE_DUMP`, `USE_WEBHOOKS`, and `OWNER_CHAT_IDS` are optional;
   `WEBHOOK_DOMAIN` and `WEBHOOK_SECRET` are validated only in webhook mode.
 - The HTTP server exposes `/health` (and `/webhook` in webhook mode) and nothing
   else. There is no OpenTelemetry, Prometheus, `/metrics`, `/db_metrics`, pprof,

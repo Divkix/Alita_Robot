@@ -3,7 +3,8 @@ package modules
 import (
 	"context"
 	"fmt"
-	"html"
+	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,9 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/config"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/jev"
+	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 )
 
 var nsfwModule = moduleStruct{moduleName: "NSFW"}
@@ -24,6 +27,10 @@ var newJevClient = func(apiKey string) jev.Client {
 }
 
 func checkNSFW(c *helpers.CommandContext) error {
+	if c.Chat == nil || !slices.Contains(config.AppConfig.OwnerChatIDs, c.Chat.Id) ||
+		(c.Chat.Type != "group" && c.Chat.Type != "supergroup") {
+		return ext.EndGroups
+	}
 	if config.AppConfig.TypeSafeAPIKey == "" {
 		text, _ := c.Tr.GetString("nsfw_no_api_key")
 		_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
@@ -59,6 +66,12 @@ func checkNSFW(c *helpers.CommandContext) error {
 	if len(textToAnalyze) > 4000 {
 		textToAnalyze = textToAnalyze[:4000]
 	}
+	isAdmin := chat_status.IsUserAdmin(c.Bot, c.Chat.Id, c.User.Id)
+	if allowed, wait := ratelimit.GetNSFWRateLimiter().Acquire(c.User.Id, isAdmin, time.Now()); !allowed {
+		msg, _ := c.Tr.GetString("nsfw_rate_limited")
+		_, _ = c.Msg.Reply(c.Bot, fmt.Sprintf(msg, ratelimit.FormatCooldown((wait+time.Second-1).Truncate(time.Second))), formatting.Shtml())
+		return ext.EndGroups
+	}
 
 	if c.Chat != nil {
 		_, _ = c.Chat.SendAction(c.Bot, "typing", nil)
@@ -74,13 +87,22 @@ func checkNSFW(c *helpers.CommandContext) error {
 	})
 	if err != nil {
 		log.WithError(err).Error("[NSFW] TypeSafe AI analysis failed")
-		apiErrTemplate, _ := c.Tr.GetString("nsfw_api_error")
-		_, _ = c.Msg.Reply(c.Bot, fmt.Sprintf(apiErrTemplate, html.EscapeString(err.Error())), formatting.Shtml())
+		text, _ := c.Tr.GetString("nsfw_api_error")
+		_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	nsfwProb := tsResp.Answers["is_nsfw"].Noul
-	curseProb := tsResp.Answers["is_curse"].Noul
+	nsfwAnswer, nsfwOK := tsResp.Answers["is_nsfw"]
+	curseAnswer, curseOK := tsResp.Answers["is_curse"]
+	if !nsfwOK || !curseOK || nsfwAnswer.Type != jev.TypeNoul || curseAnswer.Type != jev.TypeNoul ||
+		!validNSFWScore(nsfwAnswer.Noul) || !validNSFWScore(curseAnswer.Noul) {
+		log.Error("[NSFW] TypeSafe AI returned invalid scores")
+		text, _ := c.Tr.GetString("nsfw_api_error")
+		_, _ = c.Msg.Reply(c.Bot, text, formatting.Shtml())
+		return ext.EndGroups
+	}
+	nsfwProb := nsfwAnswer.Noul
+	curseProb := curseAnswer.Noul
 
 	nsfwPercent := nsfwProb * 100.0
 	cursePercent := curseProb * 100.0
@@ -128,6 +150,10 @@ func checkNSFW(c *helpers.CommandContext) error {
 	return ext.EndGroups
 }
 
+func validNSFWScore(score float64) bool {
+	return !math.IsNaN(score) && score >= 0 && score <= 1
+}
+
 // LoadNSFW registers the NSFW and curse words checking command with the dispatcher.
 func LoadNSFW(dispatcher *ext.Dispatcher) {
 	DefaultHelpRegistry().AbleMap[nsfwModule.moduleName] = true
@@ -138,10 +164,6 @@ func LoadNSFW(dispatcher *ext.Dispatcher) {
 			Name:    "nsfw",
 			Aliases: []string{"checknsfw", "curse"},
 			Group:   0,
-			RequiredChecks: []helpers.CheckFunc{
-				helpers.RequireGroup(),
-				helpers.RequireUserAdmin(),
-			},
 		},
 		checkNSFW,
 	)
