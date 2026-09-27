@@ -1,13 +1,9 @@
 package modules
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"html"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -18,92 +14,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jev"
 )
 
 var nsfwModule = moduleStruct{moduleName: "NSFW"}
 
-var (
-	typeSafeAPIURL     = "https://api.typesafe.ai/v1/systemone"
-	typeSafeHTTPClient = &http.Client{Timeout: 15 * time.Second}
-)
-
-type typeSafeQuestion struct {
-	Type         string `json:"type"`
-	Instructions string `json:"instructions"`
-}
-
-type typeSafeRequest struct {
-	Model     string                      `json:"model"`
-	State     string                      `json:"state"`
-	Questions map[string]typeSafeQuestion `json:"questions"`
-}
-
-type typeSafeAnswer struct {
-	Type string  `json:"type"`
-	Noul float64 `json:"noul"`
-}
-
-type typeSafeResponse struct {
-	Model   string                    `json:"model"`
-	Answers map[string]typeSafeAnswer `json:"answers"`
-	Error   string                    `json:"error,omitempty"`
-}
-
-func queryTypeSafe(ctx context.Context, apiKey string, text string) (*typeSafeResponse, error) {
-	reqBody := typeSafeRequest{
-		Model: "jev-latest",
-		State: text,
-		Questions: map[string]typeSafeQuestion{
-			"is_nsfw": {
-				Type:         "noul",
-				Instructions: "Does this text contain NSFW (not safe for work), sexually explicit, pornographic, or adult content?",
-			},
-			"is_curse": {
-				Type:         "noul",
-				Instructions: "Does this text contain profanity, curse words, swear words, or vulgar language?",
-			},
-		},
-	}
-
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, typeSafeAPIURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "AlitaBot")
-
-	resp, err := typeSafeHTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
-	}
-
-	var tsResp typeSafeResponse
-	if err := json.Unmarshal(respBody, &tsResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if tsResp.Answers == nil {
-		return nil, fmt.Errorf("malformed response: missing answers")
-	}
-
-	return &tsResp, nil
+var newJevClient = func(apiKey string) jev.Client {
+	return jev.NewClient(apiKey)
 }
 
 func checkNSFW(c *helpers.CommandContext) error {
@@ -150,7 +67,11 @@ func checkNSFW(c *helpers.CommandContext) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	tsResp, err := queryTypeSafe(ctx, config.AppConfig.TypeSafeAPIKey, textToAnalyze)
+	client := newJevClient(config.AppConfig.TypeSafeAPIKey)
+	tsResp, err := client.Decide(ctx, textToAnalyze, map[string]jev.Question{
+		"is_nsfw":  jev.NewNoulQuestion("Does this text contain NSFW (not safe for work), sexually explicit, pornographic, or adult content?"),
+		"is_curse": jev.NewNoulQuestion("Does this text contain profanity, curse words, swear words, or vulgar language?"),
+	})
 	if err != nil {
 		log.WithError(err).Error("[NSFW] TypeSafe AI analysis failed")
 		apiErrTemplate, _ := c.Tr.GetString("nsfw_api_error")

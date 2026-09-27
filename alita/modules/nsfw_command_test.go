@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/jev"
 )
 
 type nsfwRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -25,10 +26,12 @@ func (f nsfwRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) 
 
 func setupTestNSFWClient(t *testing.T, roundTrip nsfwRoundTripFunc) {
 	t.Helper()
-	oldClient := typeSafeHTTPClient
-	typeSafeHTTPClient = &http.Client{Transport: roundTrip}
+	oldFactory := newJevClient
+	newJevClient = func(apiKey string) jev.Client {
+		return jev.NewClient(apiKey, jev.WithHTTPClient(&http.Client{Transport: roundTrip}))
+	}
 	t.Cleanup(func() {
-		typeSafeHTTPClient = oldClient
+		newJevClient = oldFactory
 	})
 }
 
