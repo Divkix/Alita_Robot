@@ -1,4 +1,4 @@
-.PHONY: run tidy vendor build lint test check-translations check-duplicates validate-db
+.PHONY: run tidy vendor build lint test check-translations check-duplicates validate-db release
 
 GO_CMD = go
 GOLANGCI_LINT_CMD = golangci-lint
@@ -35,3 +35,7 @@ check-duplicates:
 validate-db:
 	@echo "🔍 Validating database for orphaned records..."
 	@go run scripts/validate_orphaned_data.go
+
+# Release
+release:
+	@./scripts/release.sh $(TYPE)
