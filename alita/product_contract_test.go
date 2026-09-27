@@ -41,10 +41,10 @@ func TestProductContract(t *testing.T) {
 			"addblacklist", "addfilter", "addnote", "addreaction", "antiraid", "approval",
 			"approve", "approved", "autoantiraid", "ban",
 			"blacklistaction", "blacklists", "chatinfo",
-			"chatlist", "cleanservice", "cleanwelcome", "clear", "clearall", "connect",
-			"connection", "delflood", "disconnect", "export",
+			"chatlist", "checknsfw", "cleanservice", "cleanwelcome", "clear", "clearall", "connect",
+			"connection", "curse", "delflood", "disconnect", "export",
 			"filters", "flood", "formatting", "help", "id", "import",
-			"info", "kick", "kickme", "leavechat", "mute", "notes", "ping", "purge",
+			"info", "kick", "kickme", "leavechat", "mute", "notes", "nsfw", "ping", "purge",
 			"raidactiontime", "raidtime", "reactions",
 			"removereaction", "report", "reset", "resetallwarns", "resetwarns", "rmallbl",
 			"rmblacklist", "rmfilter", "rmnote", "rmwarn", "setflood", "setfloodmode", "setwarnlimit",
@@ -71,8 +71,8 @@ func TestProductContract(t *testing.T) {
 		},
 		HelpModules: []string{
 			"AntiRaid", "Antiflood", "Approvals", "Backup", "Bans", "Blacklists",
-			"Connections", "Filters", "Formatting", "Greetings", "Misc", "Mutes", "Notes",
-			"Purges", "Reactions", "Reports", "Warns",
+			"Connections", "Filters", "Formatting", "Greetings", "Misc", "Mutes",
+			"NSFW", "Notes", "Purges", "Reactions", "Reports", "Warns",
 		},
 	}
 
