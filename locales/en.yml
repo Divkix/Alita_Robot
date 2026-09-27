@@ -439,6 +439,15 @@ notes_help_msg: 'Save data for future users with notes!
   - /notes: List all notes in the current chat.
 
   - /clearall: Delete ALL notes in a chat. This cannot be undone.'
+nsfw_help_msg: "*Admin only:*
+
+  Scan messages or text for NSFW (adult/sexually explicit) content and curse words using TypeSafe AI.
+
+  *Admin commands:*
+  - /nsfw: Check the replied message for NSFW content and curse words.
+  - /nsfw <text>: Check the provided text for NSFW content and curse words.
+
+  *Aliases:* `/checknsfw`, `/curse`"
 purges_help_msg: "*Admin only:*
 
   - /purge: deletes all messages between this and the replied-to message.
@@ -1258,3 +1267,19 @@ antiraid_invalid_threshold: "Invalid threshold. Give a positive number or 'off'.
 antiraid_auto_triggered: "Auto-raid triggered! %s users joined/min — new joiners temp-banned."
 antiraid_btn_enable: "Enable AntiRaid"
 antiraid_btn_disable: "Disable AntiRaid"
+nsfw_no_api_key: "TypeSafe API key is not configured. Please set <code>TYPESAFE_API_KEY</code> in the environment."
+nsfw_no_target: "Please reply to a message or provide text to check for NSFW or curse words."
+nsfw_no_text: "The targeted message does not contain any text to analyze."
+nsfw_api_error: "Failed to analyze message content with TypeSafe AI: %s"
+nsfw_result: |
+  <b>Content Analysis Result:</b>
+
+  🔞 <b>NSFW Content:</b> %s (<code>%.1f%%</code>)
+  🤬 <b>Curse / Profanity:</b> %s (<code>%.1f%%</code>)
+
+  <b>Verdict:</b> %s
+nsfw_detected: "Detected ⚠️"
+nsfw_clean: "Clean ✅"
+nsfw_verdict_unsafe: "Unsafe ❌"
+nsfw_verdict_flagged: "Flagged ⚠️"
+nsfw_verdict_safe: "Safe ✅"

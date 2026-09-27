@@ -152,6 +152,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("MESSAGE_DUMP", "67890")
 		t.Setenv("SQLITE_PATH", "/tmp/test-alita.db")
 		t.Setenv("HTTP_PORT", "9090")
+		t.Setenv("TYPESAFE_API_KEY", "test-typesafe-key")
 
 		cfg, err := LoadConfig()
 		if err != nil {
@@ -172,6 +173,9 @@ func TestLoadConfig(t *testing.T) {
 		}
 		if cfg.HTTPPort != 9090 {
 			t.Errorf("HTTPPort: got %d, want %d", cfg.HTTPPort, 9090)
+		}
+		if cfg.TypeSafeAPIKey != "test-typesafe-key" {
+			t.Errorf("TypeSafeAPIKey: got %q, want %q", cfg.TypeSafeAPIKey, "test-typesafe-key")
 		}
 		// AllowedUpdates should be populated
 		if len(cfg.AllowedUpdates) == 0 {

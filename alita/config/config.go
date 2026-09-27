@@ -62,6 +62,9 @@ type Config struct {
 	WebhookDomain string
 	WebhookSecret string
 
+	// Optional integrations
+	TypeSafeAPIKey string
+
 	// Derived
 	AllowedUpdates []string
 }
@@ -135,6 +138,8 @@ func LoadConfig() (*Config, error) {
 
 		WebhookDomain: os.Getenv("WEBHOOK_DOMAIN"),
 		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
+
+		TypeSafeAPIKey: os.Getenv("TYPESAFE_API_KEY"),
 	}
 
 	cfg.setDefaults()
@@ -221,6 +226,7 @@ func init() {
 	logredact.RegisterSecret(
 		cfg.BotToken,
 		cfg.WebhookSecret,
+		cfg.TypeSafeAPIKey,
 	)
 
 	log.SetLevel(cfg.LogLevel)

@@ -16,6 +16,7 @@ alt_names:
   Misc: [stat, id, tell, ping, info]
   Mutes: [mute, unmute]
   Notes: [addnote, clear, rmnote, notes, clearall]
+  NSFW: [nsfw, checknsfw, curse]
   Purges: [purge]
   Reactions: [reactions, addreaction, removereaction]
   Reports: [report]
