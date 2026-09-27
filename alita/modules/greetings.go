@@ -650,7 +650,7 @@ func SendWelcomeMessage(bot *gotgbot.Bot, ctx *ext.Context, userID int64, firstN
 		}
 		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.WelcomeSettings.FileID, greetPrefs.WelcomeSettings.WelcomeType, kb, threadID)
 		if err != nil {
-			log.Error(err)
+			logJoinOperationError("[Greetings][SendWelcomeMessage] Failed to send welcome message", err)
 			return err
 		}
 		if greetPrefs.WelcomeSettings.CleanWelcome {
@@ -725,7 +725,7 @@ func (moduleStruct) leftMember(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		sent, err := media.SendGreeting(bot, chat.Id, res, greetPrefs.GoodbyeSettings.FileID, greetPrefs.GoodbyeSettings.GoodbyeType, kb, threadID)
 		if err != nil {
-			log.Error(err)
+			logJoinOperationError("[Greetings][leftMember] Failed to send goodbye message", err)
 			return err
 		}
 
@@ -771,7 +771,7 @@ func membershipDepsForJoin(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64)
 func processSingleNewMember(bot *gotgbot.Bot, chat *gotgbot.Chat, threadID int64, newMember gotgbot.User, captchaEnabled bool) error {
 	outcome, err := ProcessSingleJoin(chat.Id, bot.Id, newMember, captchaEnabled, membershipDepsForJoin(bot, chat, threadID))
 	if err != nil {
-		log.Errorf("Failed to process new member join: %v", err)
+		logJoinOperationError("Failed to process new member join", err)
 		return err
 	}
 	if outcome == JoinIgnore && newMember.Id != bot.Id {
