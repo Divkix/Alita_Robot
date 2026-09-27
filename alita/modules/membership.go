@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	log "github.com/sirupsen/logrus"
 )
 
 // ErrChallengeDisabled signals the challenge adapter is disabled; the caller
@@ -107,7 +106,7 @@ func ProcessJoins(chatID, botID int64, members []gotgbot.User, captchaEnabled bo
 	for _, m := range members {
 		o, err := ProcessSingleJoin(chatID, botID, m, captchaEnabled, deps)
 		if err != nil {
-			log.Error(err)
+			logJoinOperationError("Failed to process join", err)
 		}
 		out = append(out, o)
 	}
