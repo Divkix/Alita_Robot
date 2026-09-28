@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -722,7 +723,9 @@ func (m moduleStruct) notesWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 	if noformatNote {
 		err = m.sendNoFormatNote(b, ctx, replyMsgId, noteData)
 		if err != nil {
-			log.Error(err)
+			if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+				log.Error(err)
+			}
 			return err
 		}
 	} else {
@@ -877,7 +880,9 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if err != nil {
-		log.Error(err)
+		if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+			log.Error(err)
+		}
 		return err
 	}
 

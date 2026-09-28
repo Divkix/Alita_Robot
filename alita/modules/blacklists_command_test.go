@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
@@ -153,6 +154,34 @@ func TestBlacklistWatcherAppliesMuteAction(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want action notice", len(calls))
+	}
+}
+
+func TestBlacklistWarnDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+	if err := blacklists.SetBlacklistAction(chat.Id, "warn"); err != nil {
+		t.Fatalf("SetBlacklistAction setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("blacklistWatcher error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) == 0 {
+		t.Fatal("sendMessage calls = 0, want warn notice")
+	}
+	for _, entry := range hook.Entries {
+		if entry.Message == ext.EndGroups.Error() {
+			t.Fatal("normal blacklist warn completion logged as an error")
+		}
 	}
 }
 

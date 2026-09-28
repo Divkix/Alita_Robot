@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"slices"
@@ -570,7 +571,9 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 		err = warnsModule.warnThisUser(b, ctx, user.Id(), fmt.Sprintf(reason, i), "warn")
 		if err != nil {
-			log.Error(err)
+			if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+				log.Error(err)
+			}
 			return err
 		}
 	case "none":
