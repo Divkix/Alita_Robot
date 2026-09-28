@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"slices"
@@ -361,7 +362,9 @@ func (moduleStruct) start(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else if len(args) == 2 {
 			err := HandleDeepLink(b, ctx, user, args[1])
 			if err != nil {
-				log.Error(err)
+				if !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+					log.Error(err)
+				}
 				return err
 			}
 		} else {

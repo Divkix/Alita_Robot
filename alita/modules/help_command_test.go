@@ -7,6 +7,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestStartCommandRepliesInPrivateAndGroup(t *testing.T) {
@@ -113,6 +114,27 @@ func TestStartCommandHandlesDeepLinkAndUnexpectedArgCount(t *testing.T) {
 	unexpectedCtx := newModuleMessageContext(bot, privateChat, user, "/start a b")
 	if err := DefaultHelpRegistry().start(bot, unexpectedCtx); err != ext.EndGroups {
 		t.Fatalf("start(unexpected args) error = %v, want EndGroups", err)
+	}
+}
+
+func TestStartDeepLinkDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 4313, FirstName: "Helper"}
+	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+	ctx := newModuleMessageContext(bot, chat, user, "/start unknown_deeplink_test")
+	if err := DefaultHelpRegistry().start(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("start(deep link) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	for _, entry := range hook.Entries {
+		if entry.Message == ext.EndGroups.Error() {
+			t.Fatal("normal deep-link completion logged as an error")
+		}
 	}
 }
 
