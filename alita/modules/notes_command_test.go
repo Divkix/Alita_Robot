@@ -8,6 +8,7 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/notes"
@@ -611,6 +612,50 @@ func TestGetNotesValidationPrivateAndNoFormatBranches(t *testing.T) {
 	}
 	if calls[2].Params["reply_markup"] == nil {
 		t.Fatal("private /get did not include click-through button")
+	}
+}
+
+func TestGetNotesNoFormatDenialDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := notes.AddNote(chat.Id, "raw", "<b>raw</b>", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "/get raw noformat")
+	if err := notesModule.getNotes(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("getNotes() error = %v, want EndGroups", err)
+	}
+	for _, entry := range hook.Entries {
+		if entry.Message == ext.EndGroups.Error() {
+			t.Fatal("noformat permission denial logged as an error")
+		}
+	}
+}
+
+func TestNotesWatcherNoFormatDenialDoesNotLogNormalDispatcherStopAsError(t *testing.T) {
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Notes Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := notes.AddNote(chat.Id, "raw", "raw text", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() setup error = %v", err)
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "#raw noformat")
+	if err := notesModule.notesWatcher(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("notesWatcher() error = %v, want EndGroups", err)
+	}
+	for _, entry := range hook.Entries {
+		if entry.Message == ext.EndGroups.Error() {
+			t.Fatal("noformat permission denial logged as an error")
+		}
 	}
 }
 
