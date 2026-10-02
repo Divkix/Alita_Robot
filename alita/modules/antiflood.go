@@ -245,7 +245,9 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.ContinueGroups
 	}
-	if user.IsAnonymousAdmin() {
+	// Linked-channel auto-forwards are the group's own channel posts, and their
+	// sender ID is a channel, which restrictChatMember/banChatMember reject.
+	if user.IsAnonymousAdmin() || user.IsLinkedChannel() {
 		return ext.ContinueGroups
 	}
 	msg := ctx.EffectiveMessage
@@ -286,7 +288,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
 				"chatId": chatId,
-			}).Warn("Antiflood action skipped: bot lacks restrict permissions")
+			}).Debug("Antiflood action skipped: bot lacks restrict permissions")
 			return ext.ContinueGroups
 		}
 	}
@@ -341,7 +343,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	switch flood.Action {
 	case "mute":
-		if user.IsAnonymousChannel() {
+		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
 		fmode = "muted"
@@ -363,7 +365,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 	case "kick":
-		if user.IsAnonymousChannel() {
+		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
 		fmode = "kicked"
@@ -374,7 +376,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	case "ban":
 		fmode = "banned"
-		if !user.IsAnonymousChannel() {
+		if user.IsUser() {
 			_, err := chat.BanMember(b, userId, nil)
 			if err != nil {
 				log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)

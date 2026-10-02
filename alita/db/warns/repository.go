@@ -27,7 +27,7 @@ func checkWarnSettingsContext(ctx context.Context, chatID int64) (warnrc *models
 	err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if !db.ChatExistsContext(ctx, chatID) {
-			log.Warnf("[Database][checkWarnSettings]: Chat %d doesn't exist, returning default settings", chatID)
+			log.Debugf("[Database][checkWarnSettings]: Chat %d doesn't exist, returning default settings", chatID)
 			return defaultWarnSettings
 		}
 
@@ -61,7 +61,7 @@ func checkWarnsContext(ctx context.Context, userId, chatId int64) (warnrc *model
 	err := db.DB.WithContext(ctx).Where("user_id = ? AND chat_id = ?", userId, chatId).First(warnrc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if !db.ChatExistsContext(ctx, chatId) {
-			log.Warnf("[Database][checkWarns]: Chat %d doesn't exist, returning default settings", chatId)
+			log.Debugf("[Database][checkWarns]: Chat %d doesn't exist, returning default settings", chatId)
 			return defaultWarnSrc
 		}
 

@@ -32,7 +32,7 @@ func resolveSendResult[T any](result T, err error, chatID int64, mediaType strin
 			"chat_id":    chatID,
 			"media_type": mediaType,
 			"error":      errStr,
-		}).Warningf("Bot lacks permission to send %s in this chat", mediaType)
+		}).Debugf("Bot lacks permission to send %s in this chat", mediaType)
 		var zero T
 		return zero, ErrNoPermission
 	}

@@ -14,6 +14,8 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/greetings"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 func newGreetingMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.User, text string) *ext.Context {
@@ -1224,6 +1226,49 @@ func TestJoinRequestHandlerAcceptsExpectedTelegramErrors(t *testing.T) {
 
 			if err != tt.want {
 				t.Fatalf("%s error = %v, want %v", tt.name, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestJoinRequestHandlerReportsRequestsHandledElsewhere(t *testing.T) {
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	tr := i18n.MustNewTranslator("en")
+	gone, _ := tr.GetString("greetings_join_request_already_handled")
+	banned, _ := tr.GetString("greetings_join_request_banned")
+
+	for _, tt := range []struct {
+		action, method, telegramErr, wantText string
+	}{
+		{"accept", "approveChatJoinRequest", "Bad Request: HIDE_REQUESTER_MISSING", gone},
+		{"accept", "approveChatJoinRequest", "Bad Request: USER_ALREADY_PARTICIPANT", gone},
+		{"decline", "declineChatJoinRequest", "Bad Request: HIDE_REQUESTER_MISSING", gone},
+		{"ban", "declineChatJoinRequest", "Bad Request: HIDE_REQUESTER_MISSING", banned},
+	} {
+		t.Run(tt.action+"/"+tt.telegramErr, func(t *testing.T) {
+			client := newModuleBotClient()
+			client.responses["getChat"] = []byte(`{"id":5151,"type":"private","first_name":"Applicant"}`)
+			client.errors[tt.method] = errors.New(tt.telegramErr)
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Greeting Chat"}
+
+			greetingsModule.setPendingJoins(chat.Id, 5151)
+			data := encodeCallbackData("join_request", map[string]string{"a": tt.action, "u": "5151"})
+			if err := greetingsModule.joinRequestHandler(bot, newModuleCallbackContext(bot, chat, admin, data)); err != ext.EndGroups {
+				t.Fatalf("joinRequestHandler error = %v, want EndGroups", err)
+			}
+			if greetingsModule.loadPendingJoins(chat.Id, 5151) {
+				t.Fatal("resolved request remained pending")
+			}
+			edits := client.callsFor("editMessageText")
+			if len(edits) != 1 {
+				t.Fatalf("editMessageText calls = %d, want 1", len(edits))
+			}
+			if want := fmt.Sprintf(tt.wantText, formatting.MentionHtml(5151, "Applicant")); edits[0].Params["text"] != want {
+				t.Fatalf("edited text = %q, want %q", edits[0].Params["text"], want)
+			}
+			if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+				t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 			}
 		})
 	}

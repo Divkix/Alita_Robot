@@ -186,6 +186,45 @@ func TestAntifloodWatcherMutesAndDeletesAfterLimit(t *testing.T) {
 	}
 }
 
+func TestAntifloodWatcherIgnoresLinkedChannelPosts(t *testing.T) {
+	for _, action := range []string{"mute", "kick", "ban"} {
+		t.Run(action, func(t *testing.T) {
+			resetAntifloodState(t)
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Flood Chat"}
+			if err := antiflood.SetFlood(chat.Id, 1); err != nil {
+				t.Fatalf("SetFlood() error = %v", err)
+			}
+			if err := antiflood.SetFloodMode(chat.Id, action); err != nil {
+				t.Fatalf("SetFloodMode() error = %v", err)
+			}
+
+			channel := gotgbot.Chat{Id: -1003267074951, Type: "channel", Title: "Linked Channel"}
+			for i := range 3 {
+				msg := &gotgbot.Message{
+					MessageId:          int64(700 + i),
+					Date:               1,
+					Chat:               chat,
+					From:               &gotgbot.User{Id: 777000, FirstName: "Telegram"},
+					SenderChat:         &channel,
+					IsAutomaticForward: true,
+					Text:               "channel post",
+				}
+				ctx := ext.NewContext(bot, &gotgbot.Update{UpdateId: int64(700 + i), Message: msg}, nil)
+				if err := antifloodModule.checkFlood(bot, ctx); err != ext.ContinueGroups {
+					t.Fatalf("checkFlood(linked channel) error = %v, want ContinueGroups", err)
+				}
+			}
+			for _, method := range []string{"restrictChatMember", "banChatMember", "banChatSenderChat", "deleteMessage"} {
+				if calls := client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want linked channel posts left alone", method, len(calls))
+				}
+			}
+		})
+	}
+}
+
 func TestAntifloodWatcherAppliesKickAndBanActions(t *testing.T) {
 	for _, tt := range []struct {
 		name    string

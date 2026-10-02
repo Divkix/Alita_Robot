@@ -49,7 +49,7 @@ func SendMessageWithErrorHandling(bot *gotgbot.Bot, chatId int64, text string, o
 			log.WithFields(log.Fields{
 				"chat_id": chatId,
 				"error":   errStr,
-			}).Warning("Bot lacks permission to send messages in this chat")
+			}).Debug("Bot lacks permission to send messages in this chat")
 			return nil, nil
 		}
 		return nil, errors.Wrapf(err, "failed to send message to chat %d", chatId)
