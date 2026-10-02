@@ -839,7 +839,7 @@ func (m moduleStruct) pendingJoins(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 		if greetings.GetGreetingSettings(chat.Id).ShouldAutoApprove {
 			if _, err := bot.ApproveChatJoinRequest(chat.Id, user.Id, nil); err != nil {
-				if helpers.IsExpectedTelegramError(err) {
+				if isJoinRequestGone(err) || helpers.IsExpectedTelegramError(err) {
 					log.Debugf("[Greetings] Expected error auto-approving join for user %d in chat %d: %v", user.Id, chat.Id, err)
 				} else {
 					log.Error(err)
@@ -968,27 +968,33 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	var helpText string
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
+	// A request another admin already handled, the user withdrew, or that
+	// joined some other way is gone; report that instead of the requested action.
 	switch response {
 	case "accept":
+		helpText, _ = tr.GetString("greetings_join_request_accepted")
 		if _, err = b.ApproveChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
-			if helpers.IsExpectedTelegramError(err) {
+			if isJoinRequestGone(err) {
+				helpText, _ = tr.GetString("greetings_join_request_already_handled")
+			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error approving join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
 			} else {
 				log.Error(err)
 				return err
 			}
 		}
-		helpText, _ = tr.GetString("greetings_join_request_accepted")
 	case "decline":
+		helpText, _ = tr.GetString("greetings_join_request_declined")
 		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
-			if helpers.IsExpectedTelegramError(err) {
+			if isJoinRequestGone(err) {
+				helpText, _ = tr.GetString("greetings_join_request_already_handled")
+			} else if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error declining join for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
 			} else {
 				log.Error(err)
 				return err
 			}
 		}
-		helpText, _ = tr.GetString("greetings_join_request_declined")
 	case "ban":
 		if _, err = chat.BanMember(b, joinUser.Id, nil); err != nil {
 			if helpers.IsExpectedTelegramError(err) {
@@ -998,7 +1004,8 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 				return err
 			}
 		}
-		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil {
+		// The ban stands even when the request itself is already gone.
+		if _, err = b.DeclineChatJoinRequest(chat.Id, joinUser.Id, nil); err != nil && !isJoinRequestGone(err) {
 			if helpers.IsExpectedTelegramError(err) {
 				log.Debugf("[Greetings] Expected error declining join after ban for user %d in chat %d: %v", joinUser.Id, chat.Id, err)
 			} else {
@@ -1027,6 +1034,16 @@ func (m moduleStruct) joinRequestHandler(b *gotgbot.Bot, ctx *ext.Context) error
 	}
 
 	return ext.EndGroups
+}
+
+// isJoinRequestGone reports Telegram rejecting a join-request action because the
+// request no longer exists.
+func isJoinRequestGone(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "HIDE_REQUESTER_MISSING") || strings.Contains(s, "USER_ALREADY_PARTICIPANT")
 }
 
 func (m moduleStruct) autoApprove(bot *gotgbot.Bot, ctx *ext.Context) error {
