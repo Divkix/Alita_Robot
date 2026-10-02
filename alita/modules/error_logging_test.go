@@ -18,14 +18,17 @@ func TestLogJoinOperationErrorDowngradesExpectedTelegramConditions(t *testing.T)
 	}
 	for _, msg := range cases {
 		hook := logrustest.NewGlobal()
+		previous := log.GetLevel()
+		log.SetLevel(log.DebugLevel)
 		logJoinOperationError("Failed to process new member join", errors.New(msg))
+		log.SetLevel(previous)
 		entry := hook.LastEntry()
 		hook.Reset()
 		if entry == nil {
 			t.Fatalf("no log entry for %q", msg)
 		}
-		if entry.Level != log.WarnLevel {
-			t.Errorf("logJoinOperationError(%q) logged at %s, want warning", msg, entry.Level)
+		if entry.Level != log.DebugLevel {
+			t.Errorf("logJoinOperationError(%q) logged at %s, want debug", msg, entry.Level)
 		}
 	}
 }

@@ -20,7 +20,7 @@ func checkGreetingSettings(chatID int64) (greetingSrc *models.GreetingSettings) 
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		if !db.ChatExists(chatID) {
-			log.Warnf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
+			log.Debugf("[Database][checkGreetingSettings]: Chat %d doesn't exist, returning default settings", chatID)
 			return &models.GreetingSettings{
 				ChatID:             chatID,
 				ShouldCleanService: false,

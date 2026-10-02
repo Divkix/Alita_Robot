@@ -23,7 +23,6 @@ func GetPinData(chatID int64) (pinrc *models.PinSettings) {
 		pinrc = &models.PinSettings{ChatId: chatID, MsgId: 0}
 		log.Errorf("[Database] GetPinData: %v - %d", err, chatID)
 	}
-	log.Infof("[Database] GetPinData: %d", chatID)
 	return
 }
 

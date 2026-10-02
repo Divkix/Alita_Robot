@@ -288,7 +288,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
 				"chatId": chatId,
-			}).Warn("Antiflood action skipped: bot lacks restrict permissions")
+			}).Debug("Antiflood action skipped: bot lacks restrict permissions")
 			return ext.ContinueGroups
 		}
 	}
