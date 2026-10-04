@@ -112,8 +112,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 - Production builds use `CGO_ENABLED=0`; tests need `CGO_ENABLED=1` (go-sqlite3). Do not unify them.
 - Go 1.26.0 with no `toolchain` directive. Keep dependencies on the latest upstream versions that pass required
-  checks. Any intentional pin must document its compatibility reason and recheck trigger; do not maintain blanket
-  no-bump bans.
+  checks. Any intentional pin must document its compatibility reason and recheck trigger.
 - Version strings are shape-locked (`BotVersion:` with two spaces in `alita/config/config.go`, `version =` in
   `main.go`). Run `make bump-version` on a PR branch, merge, then tag. Tags match `^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$`.
 - `.env` in cwd auto-loads without overriding real env. Run `--version` smoke checks from `/tmp`.
@@ -123,7 +122,7 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Testing
 
-- Always pass `-tags testtools`; without it, ~40 files (including helpers in production packages) drop out silently.
+- Always pass `-tags testtools`; without it, test files and the helpers in production packages that carry that build tag drop out silently.
 - Postgres tests need both `DATABASE_URL` and `ALITA_TEST_DATABASE=true`; otherwise they run on SQLite.
 - Use real fixtures: `internal/testdb.Run` (SQLite), miniredis, hand-written `gotgbot.BotClient` fakes. No mock libraries.
 - Assert observable behavior (reply sent, row persisted, cache invalidated, gate enforced). Never assert literals,
