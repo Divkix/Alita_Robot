@@ -338,6 +338,13 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
+### Linter cannot read Go export data
+
+If linting reports `export data version 5 is greater than maximum supported version 4`
+with Go 1.27.2, upgrade golangci-lint to v2.14.0 or newer. Keep both CI lint steps
+and the pre-commit hook on the same version. This is a linter compatibility error,
+not a broken standard-library import.
+
 ### Module download errors
 
 ```bash

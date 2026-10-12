@@ -99,7 +99,7 @@ jobs:
       - name: Run linting
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.1
+          version: v2.14.0
           install-mode: binary
           args: --timeout 10m
           # Only report new issues to allow gradual improvement of existing codebase
@@ -146,7 +146,7 @@ jobs:
       - name: Run duplicate code detection
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.1
+          version: v2.14.0
           install-mode: binary
           # Only run dupl linter, disable all other linters
           args: --default=none --enable dupl --timeout 10m
