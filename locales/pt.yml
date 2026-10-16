@@ -2652,6 +2652,7 @@ connections_extend_msg: |
   /disconnect — desconectar do grupo
   /reconnect — reconectar ao último grupo
   /connection — ver o grupo conectado
+  /settings — ver as configurações de um grupo pelo privado
   /allowconnect — permitir que membros se conectem a este grupo
 disabling_extend_msg: |
   /disable — desativar um comando para os membros

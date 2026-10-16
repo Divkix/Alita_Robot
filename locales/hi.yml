@@ -2367,6 +2367,7 @@ connections_extend_msg: |
   /disconnect — ग्रुप से डिस्कनेक्ट करें
   /reconnect — पिछले ग्रुप से फिर कनेक्ट करें
   /connection — कनेक्टेड ग्रुप देखें
+  /settings — PM से ग्रुप की सेटिंग्स देखें
   /allowconnect — सदस्यों को इस ग्रुप से कनेक्ट होने दें
 disabling_extend_msg: |
   /disable — सदस्यों के लिए कमांड बंद करें

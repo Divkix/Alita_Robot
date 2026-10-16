@@ -2427,6 +2427,7 @@ connections_extend_msg: |
   /disconnect — отключиться от группы
   /reconnect — подключиться к последней группе
   /connection — какая группа подключена
+  /settings — настройки группы из лички
   /allowconnect — разрешить участникам подключаться к группе
 disabling_extend_msg: |
   /disable — отключить команду для участников

@@ -2680,6 +2680,7 @@ connections_extend_msg: |
   /disconnect — putuskan koneksi dari grup
   /reconnect — hubungkan lagi ke grup terakhir
   /connection — lihat grup yang terhubung
+  /settings — lihat pengaturan grup dari PM
   /allowconnect — izinkan anggota terhubung ke grup ini
 disabling_extend_msg: |
   /disable — nonaktifkan perintah untuk anggota
