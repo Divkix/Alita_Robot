@@ -2731,3 +2731,4 @@ warns_extend_msg: |
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
   /setwarnmode — sanction : ban, kick ou mute
+settings_summary_legend: "<i>• indique une valeur différente de celle par défaut. Envoyez la commande indiquée pour la modifier.</i>"

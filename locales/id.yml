@@ -2805,3 +2805,4 @@ warns_extend_msg: |
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman
   /setwarnmode — hukuman: ban, kick atau mute
+settings_summary_legend: "<i>• menandai nilai yang berbeda dari bawaan. Kirim perintah yang ditampilkan untuk mengubahnya.</i>"
