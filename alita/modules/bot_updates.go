@@ -64,15 +64,15 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	msgAdmin := "\n\nMake me admin to use me with my full abilities!"
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	// used to check if bot was added as admin or not
-	if chat_status.IsBotAdmin(b, ctx, chat) {
-		msgAdmin = ""
+	msgAdmin := ""
+	if !chat_status.IsBotAdmin(b, ctx, chat) {
+		msgAdmin, _ = tr.GetString("bot_updates_make_me_admin")
 	}
 
 	// send a message to group itself
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	thanksText, _ := tr.GetString("bot_updates_thanks_for_adding")
 	creatorsPlug, _ := tr.GetString("bot_updates_creators_plug")
 	_, err := b.SendMessage(

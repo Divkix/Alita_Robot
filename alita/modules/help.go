@@ -116,6 +116,16 @@ func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
 	}
 }
 
+// botAdminRights are the admin rights the bot checks before acting
+// (chat_status.CanBot*). Requesting them in the add-to-group link makes Telegram
+// add the bot as an admin; without `admin=` it joins as a plain member and every
+// admin-only command fails until someone promotes it by hand.
+const botAdminRights = "change_info+delete_messages+restrict_members+invite_users+pin_messages+promote_members"
+
+func addToChatURL(botUsername string) string {
+	return fmt.Sprintf("https://t.me/%s?startgroup=botstart&admin=%s", botUsername, botAdminRights)
+}
+
 func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeyboardMarkup {
 	aboutText, _ := tr.GetString("help_button_about")
 	addToChatText, _ := tr.GetString("help_button_add_to_chat")
@@ -123,7 +133,7 @@ func getStartMarkup(tr *i18n.Translator, botUsername string) gotgbot.InlineKeybo
 	commandsHelpText, _ := tr.GetString("help_button_commands_help")
 	languageText, _ := tr.GetString("help_button_language")
 
-	addToChatUrl := fmt.Sprintf("https://t.me/%s?startgroup=botstart", botUsername)
+	addToChatUrl := addToChatURL(botUsername)
 
 	return gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
@@ -460,7 +470,7 @@ func (moduleStruct) botConfig(b *gotgbot.Bot, ctx *ext.Context) error {
 			{
 				{
 					Text: addAlitaText,
-					Url:  fmt.Sprintf("https://t.me/%s?startgroup=botstart", b.Username),
+					Url:  addToChatURL(b.Username),
 				},
 			},
 			{

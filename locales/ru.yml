@@ -627,6 +627,7 @@ rules_help_msg: |
   
     × /resetrulesbtn: То же, что и выше."
 bot_updates_creators_plug: "\nПодписывайтесь на @DivideProjects для большего количества полезных ботов от моих создателей."
+bot_updates_make_me_admin: "\n\nСделайте меня админом, чтобы пользоваться всеми моими возможностями!"
 utils_string_handling_extract_time_invalid_time_amount: Указано неверное количество времени.
 utils_string_handling_extract_time_invalid_time_type: |
   "Указан неверный тип времени.

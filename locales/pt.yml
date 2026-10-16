@@ -811,6 +811,7 @@ rules_help_msg:
 
   × /resetrulesbtn: Mesmo que acima."
 bot_updates_creators_plug: "\nSiga @DivideProjects para mais bots úteis de meus criadores."
+bot_updates_make_me_admin: "\n\nTorne-me administrador para usar todos os meus recursos!"
 utils_string_handling_extract_time_invalid_time_amount: Quantidade de tempo inválida especificada.
 utils_string_handling_extract_time_invalid_time_type: "\"Tipo de tempo inválido especificado. Esperado m, h, ou d obtido: %s\""
 warns_help_msg:

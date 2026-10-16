@@ -910,6 +910,7 @@ rules_help_msg:
 
   × /resetrulesbtn: Same as above."
 bot_updates_creators_plug: "\nFollow @DivideProjects for more useful bots from my creators."
+bot_updates_make_me_admin: "\n\nMake me admin to use me with my full abilities!"
 utils_string_handling_extract_time_invalid_time_amount: Invalid time amount specified.
 utils_string_handling_extract_time_invalid_time_type:
   "Invalid time type specified.
