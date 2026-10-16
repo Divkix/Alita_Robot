@@ -2285,3 +2285,209 @@ misc_runs:
   - "I'm out."
   - "Catch me if you can."
 chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+
+# /extend: every help-menu command, one line each ("/command — description")
+main_bot_command_extend: "सभी कमांड एक सूची में"
+help_extend_hint: "\n\nसभी कमांड एक सूची में देखने के लिए /extend भेजें।"
+help_extend_header: "📋 <b>सभी कमांड</b>\nआर्ग्युमेंट और उदाहरण: /help → मॉड्यूल।"
+help_extend_pm: "कमांड की पूरी सूची लंबी है, इसलिए मैं इसे PM में भेज रहा हूँ।"
+help_extend_button: "📋 सभी कमांड"
+admin_extend_msg: |
+  /adminlist — चैट के एडमिन की सूची
+  /promote — यूज़र को एडमिन बनाएँ
+  /demote — एडमिन को हटाएँ
+  /title — एडमिन का कस्टम टाइटल सेट करें
+  /invitelink — चैट का इनवाइट लिंक पाएँ
+  /anonadmin — गुमनाम एडमिन से बटन से पुष्टि करवाएँ
+  /admincache — एडमिन सूची फिर से लोड करें
+  /clearadmincache — एडमिन कैश साफ़ करें
+  /setgtitle — ग्रुप का टाइटल बदलें
+  /setgpic — रिप्लाई की गई फ़ोटो को ग्रुप फ़ोटो बनाएँ
+  /setgdesc — ग्रुप का विवरण बदलें
+aispam_extend_msg: |
+  /aispam — AI स्पैम फ़िल्टर देखें या चालू/बंद करें
+antiflood_extend_msg: |
+  /flood — एंटीफ़्लड सेटिंग देखें
+  /setflood — कार्रवाई से पहले लगातार संदेशों की संख्या (बंद करने के लिए off)
+  /setfloodmode — फ़्लड करने वालों पर कार्रवाई: ban, kick या mute
+  /delflood — फ़्लड वाले संदेश भी हटाएँ
+antiraid_extend_msg: |
+  /antiraid — रेड मोड देखें, चालू या बंद करें
+  /raidtime — रेड मोड कितनी देर चले
+  /raidactiontime — रेड के दौरान अस्थायी बैन की अवधि
+  /autoantiraid — प्रति मिनट N जॉइन पर रेड मोड अपने-आप चालू करें
+approvals_extend_msg: |
+  /approve — यूज़र को एंटीफ़्लड, ब्लैकलिस्ट, लॉक और कैप्चा से छूट दें
+  /unapprove — यूज़र की अनुमति हटाएँ
+  /approval — जाँचें कि यूज़र अनुमोदित है या नहीं
+  /approved — अनुमोदित यूज़र की सूची
+  /unapproveall — सभी अनुमतियाँ हटाएँ (केवल क्रिएटर)
+backup_extend_msg: |
+  /export — चैट सेटिंग JSON फ़ाइल में एक्सपोर्ट करें
+  /import — रिप्लाई की गई बैकअप फ़ाइल से सेटिंग बहाल करें
+  /reset — सेटिंग डिफ़ॉल्ट पर रीसेट करें
+bans_extend_msg: |
+  /ban — यूज़र को बैन करें
+  /sban — चुपचाप बैन करें और अपनी कमांड हटाएँ
+  /dban — बैन करें और रिप्लाई किया संदेश हटाएँ
+  /tban — कुछ समय के लिए बैन करें (m/h/d)
+  /unban — यूज़र का बैन हटाएँ
+  /kick — यूज़र को निकालें
+  /skick — चुपचाप निकालें और अपनी कमांड हटाएँ
+  /dkick — निकालें और रिप्लाई किया संदेश हटाएँ
+  /kickme — खुद को निकालें
+  /banme — खुद को बैन करें
+  /restrict — बटन से kick, ban या mute चुनें
+  /unrestrict — बटन से unmute या unban चुनें
+  /unbanall — सभी ज्ञात यूज़र का बैन हटाएँ (केवल मालिक)
+blacklists_extend_msg: |
+  /blacklists — ब्लैकलिस्ट किए गए शब्दों की सूची
+  /addblacklist — शब्द को ब्लैकलिस्ट करें
+  /rmblacklist — शब्द को ब्लैकलिस्ट से हटाएँ
+  /blaction — ब्लैकलिस्ट शब्द पर कार्रवाई: mute, kick, ban, warn या none
+  /blacklistaction — /blaction के समान
+  /remallbl — ब्लैकलिस्ट खाली करें
+captcha_extend_msg: |
+  /captcha — नए सदस्यों के लिए कैप्चा चालू या बंद करें
+  /captchamode — कैप्चा का प्रकार: math या text
+  /captchatime — कैप्चा हल करने के लिए मिनट
+  /captchaaction — विफल होने पर कार्रवाई: kick, ban या mute
+  /captchamaxattempts — हर कैप्चा पर अनुमत प्रयास
+  /captchapending — लंबित यूज़र के सहेजे संदेश देखें
+  /captchaclear — लंबित यूज़र के सहेजे संदेश साफ़ करें
+connections_extend_msg: |
+  /connect — PM से ग्रुप मैनेज करें
+  /disconnect — ग्रुप से डिस्कनेक्ट करें
+  /reconnect — पिछले ग्रुप से फिर कनेक्ट करें
+  /connection — कनेक्टेड ग्रुप देखें
+  /allowconnect — सदस्यों को इस ग्रुप से कनेक्ट होने दें
+disabling_extend_msg: |
+  /disable — सदस्यों के लिए कमांड बंद करें
+  /enable — कमांड फिर से चालू करें
+  /disableable — बंद की जा सकने वाली कमांड की सूची
+  /disabled — बंद कमांड की सूची
+  /disabledel — सदस्यों की भेजी बंद कमांड हटाएँ
+federations_extend_msg: |
+  /newfed — फ़ेडरेशन बनाएँ
+  /renamefed — अपने फ़ेडरेशन का नाम बदलें
+  /delfed — अपना फ़ेडरेशन हटाएँ
+  /fedinfo — फ़ेडरेशन की जानकारी देखें
+  /fedadmins — फ़ेडरेशन के एडमिन की सूची
+  /fedpromote — यूज़र को फ़ेडरेशन एडमिन बनाएँ
+  /feddemote — फ़ेडरेशन एडमिन हटाएँ
+  /feddemoteme — फ़ेडरेशन एडमिन पद छोड़ें
+  /joinfed — इस चैट को फ़ेडरेशन से जोड़ें
+  /leavefed — फ़ेडरेशन छोड़ें
+  /chatfed — इस चैट का फ़ेडरेशन देखें
+  /myfeds — आपके फ़ेडरेशन की सूची
+  /fban — पूरे फ़ेडरेशन में यूज़र को बैन करें
+  /unfban — फ़ेडरेशन बैन हटाएँ
+  /funban — /unfban के समान
+  /fedstat — यूज़र के फ़ेडरेशन बैन जाँचें
+  /fbanstat — /fedstat के समान
+  /fedreason — fban के लिए कारण ज़रूरी करें
+  /fednotif — fban की सूचना मालिक को PM में दें
+  /quietfed — इस चैट में निष्क्रिय fban सूचनाएँ छिपाएँ
+  /subfed — दूसरे फ़ेडरेशन के बैन सब्सक्राइब करें
+  /unsubfed — फ़ेडरेशन से अनसब्सक्राइब करें
+  /fedsubs — सब्सक्राइब किए फ़ेडरेशन की सूची
+  /fbanlist — fban सूची एक्सपोर्ट करें
+  /importfbans — रिप्लाई की गई फ़ाइल से fban इम्पोर्ट करें
+  /setfedlog — फ़ेडरेशन लॉग चैट सेट करें
+  /unsetfedlog — फ़ेडरेशन लॉग चैट हटाएँ
+filters_extend_msg: |
+  /filter — ट्रिगर शब्द पर ऑटो-रिप्लाई
+  /filters — फ़िल्टर की सूची
+  /stop — फ़िल्टर हटाएँ
+  /stopall — सभी फ़िल्टर हटाएँ
+greetings_extend_msg: |
+  /welcome — स्वागत संदेश चालू या बंद करें
+  /setwelcome — स्वागत संदेश सेट करें
+  /resetwelcome — स्वागत संदेश रीसेट करें
+  /goodbye — विदाई संदेश चालू या बंद करें
+  /setgoodbye — विदाई संदेश सेट करें
+  /resetgoodbye — विदाई संदेश रीसेट करें
+  /cleanwelcome — पिछला स्वागत संदेश हटाएँ
+  /cleanservice — जॉइन और लीव के सर्विस संदेश हटाएँ
+  /autoapprove — जॉइन अनुरोध अपने-आप स्वीकार करें
+languages_extend_msg: |
+  /lang — अपने या ग्रुप के लिए बॉट की भाषा बदलें
+locks_extend_msg: |
+  /lock — संदेश प्रकार लॉक करें
+  /unlock — संदेश प्रकार अनलॉक करें
+  /locks — मौजूदा लॉक देखें
+  /locktypes — लॉक होने वाले प्रकारों की सूची
+logchannels_extend_msg: |
+  /setlog — लॉग चैनल सेट करें (चैनल में भेजें)
+  /unsetlog — लॉग चैनल हटाएँ
+  /logchannel — लॉग चैनल देखें
+  /logcategories — लॉग श्रेणियों की सूची
+  /log — लॉग श्रेणी चालू करें
+  /nolog — लॉग श्रेणी बंद करें
+misc_extend_msg: |
+  /info — यूज़र की जानकारी देखें
+  /id — चैट या यूज़र की ID देखें
+  /ping — बॉट का रिस्पॉन्स टाइम जाँचें
+  /stat — चैट में संदेश गिनें
+  /tr — संदेश का अनुवाद करें
+  /removebotkeyboard — अटका हुआ बॉट कीबोर्ड हटाएँ
+  /stickerid — स्टिकर की file ID पाएँ
+  /zombies — डिलीट हुए अकाउंट निकालें
+  /github — GitHub यूज़र या रिपॉज़िटरी खोजें
+  /wiki — विकिपीडिया पर खोजें
+  /ud — Urban Dictionary पर खोजें
+  /runs — एक रैंडम चुटकी
+mutes_extend_msg: |
+  /mute — यूज़र को म्यूट करें
+  /smute — चुपचाप म्यूट करें और अपनी कमांड हटाएँ
+  /dmute — म्यूट करें और रिप्लाई किया संदेश हटाएँ
+  /tmute — कुछ समय के लिए म्यूट करें (m/h/d)
+  /unmute — यूज़र को अनम्यूट करें
+notes_extend_msg: |
+  /save — नोट सेव करें
+  /get — नोट पाएँ (या #name)
+  /notes — नोट्स की सूची
+  /saved — /notes के समान
+  /clear — नोट हटाएँ
+  /clearall — सभी नोट हटाएँ
+  /privatenotes — नोट्स PM में भेजें
+pins_extend_msg: |
+  /pin — रिप्लाई किया संदेश पिन करें
+  /unpin — संदेश अनपिन करें
+  /unpinall — सभी संदेश अनपिन करें
+  /pinned — पिन किया संदेश दिखाएँ
+  /permapin — बॉट से कस्टम संदेश पिन करें
+  /antichannelpin — लिंक्ड चैनल के ऑटो-पिन रोकें
+  /cleanlinked — लिंक्ड चैनल की पोस्ट हटाएँ
+purges_extend_msg: |
+  /del — रिप्लाई किया संदेश हटाएँ
+  /purge — रिप्लाई किए संदेश से आगे का सब कुछ हटाएँ
+  /purgefrom — हटाने की रेंज की शुरुआत चिह्नित करें
+  /purgeto — रिप्लाई किए संदेश तक हटाएँ
+reactions_extend_msg: |
+  /addreaction — कीवर्ड पर इमोजी से रिएक्ट करें
+  /removereaction — कीवर्ड की रिएक्शन हटाएँ
+  /reactions — रिएक्शन की सूची
+  /resetreactions — सभी रिएक्शन हटाएँ
+reports_extend_msg: |
+  /report — रिप्लाई किए संदेश की एडमिन को रिपोर्ट करें (या @admin)
+  /reports — रिपोर्ट चालू या बंद करें, रिपोर्ट करने वालों को ब्लॉक या अनब्लॉक करें
+rules_extend_msg: |
+  /rules — नियम देखें
+  /setrules — नियम सेट करें
+  /resetrules — नियम रीसेट करें
+  /privaterules — नियम PM में भेजें
+  /rulesbtn — नियम बटन का टेक्स्ट सेट करें
+  /resetrulesbutton — नियम बटन का टेक्स्ट रीसेट करें
+  /resetrulesbtn — /resetrulesbutton के समान
+warns_extend_msg: |
+  /warn — यूज़र को चेतावनी दें
+  /swarn — चुपचाप चेतावनी दें और अपनी कमांड हटाएँ
+  /dwarn — चेतावनी दें और रिप्लाई किया संदेश हटाएँ
+  /warns — यूज़र की चेतावनियाँ देखें
+  /rmwarn — यूज़र की आखिरी चेतावनी हटाएँ
+  /resetwarn — यूज़र की चेतावनियाँ रीसेट करें
+  /resetallwarns — चैट की सभी चेतावनियाँ रीसेट करें
+  /warnings — चेतावनी सेटिंग देखें
+  /setwarnlimit — सज़ा से पहले चेतावनियों की संख्या
+  /setwarnmode — सज़ा: ban, kick या mute
