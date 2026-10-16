@@ -1589,6 +1589,7 @@ bot_updates_need_supergroup: "Lo siento, pero para usar todas mis funciones, nec
 bot_updates_thanks_for_adding: "¡Gracias por añadirme en tu grupo!"
 bot_updates_button_expired: "Este botón ha expirado, Por favor usa el comando de nuevo."
 bot_updates_creators_plug: "\nSigue a @DivideProjects para más bots útiles de mis creadores."
+bot_updates_make_me_admin: "\n\n¡Hazme administrador para usar todas mis funciones!"
 
 # Formatting module additional strings
 formatting_press_button: "¡Presiona el botón de abajo para obtener Ayuda de Markdown!"

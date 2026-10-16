@@ -1401,6 +1401,7 @@ mute_reply_to_dmute: Vous devez répondre à un message pour le supprimer et ren
 
 # Bot updates module strings
 bot_updates_creators_plug: "\nSuivez @DivideProjects pour plus de bots utiles de mes créateurs."
+bot_updates_make_me_admin: "\n\nFaites-moi administrateur pour profiter de toutes mes fonctionnalités !"
 bot_updates_need_admin: Vous devez être admin pour faire cela !
 bot_updates_need_supergroup: "Désolé, mais pour utiliser toutes mes fonctionnalités, vous devez convertir ce groupe en supergroupe."
 bot_updates_thanks_for_adding: "Merci de m'avoir ajouté à votre groupe !"
