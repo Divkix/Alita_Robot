@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
@@ -355,11 +356,14 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
 	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))
 }
 
 func init() {
 	RegisterLegacyModule("Connections", 170, LoadConnections)
 	RegisterDeepLinkHandler("connect_", connectDeepLinkHandler)
+	RegisterDeepLinkHandler("settings_", settingsDeepLinkHandler)
 }
 
 func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {

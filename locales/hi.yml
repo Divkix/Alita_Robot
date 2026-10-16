@@ -2493,3 +2493,9 @@ warns_extend_msg: |
   /setwarnlimit — सज़ा से पहले चेतावनियों की संख्या
   /setwarnmode — सज़ा: ban, kick या mute
 settings_summary_legend: "<i>• डिफ़ॉल्ट से अलग मान को दर्शाता है। इसे बदलने के लिए दिखाया गया कमांड भेजें।</i>"
+settings_picker_text: "सेटिंग्स देखने के लिए एक समूह चुनें। सूची में नहीं है? यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
+settings_picker_empty: "मुझे ऐसे समूह नहीं मिले जहाँ आप एडमिन हैं। मैं केवल वे समूह जानता हूँ जहाँ आपने मेरे जुड़ने के बाद लिखा है, इसलिए यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
+settings_open_in_pm: "इस समूह की सेटिंग्स निजी चैट में देखने के लिए बटन दबाएँ।"
+settings_open_in_pm_button: "निजी चैट में सेटिंग्स खोलें"
+settings_btn_refresh: "🔄 रीफ़्रेश"
+settings_btn_other_group: "↩️ दूसरा समूह"

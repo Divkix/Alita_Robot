@@ -2553,3 +2553,9 @@ warns_extend_msg: |
   /setwarnlimit — сколько предупреждений до наказания
   /setwarnmode — наказание: ban, kick или mute
 settings_summary_legend: "<i>• — значение отличается от стандартного. Чтобы изменить, отправьте показанную команду.</i>"
+settings_picker_text: "Выберите группу, чтобы увидеть её настройки. Нет в списке? Отправьте здесь /connect &lt;chat id&gt; или /settings в самой группе."
+settings_picker_empty: "Не нашёл групп, где вы админ. Я знаю только группы, где вы писали после моего добавления, — отправьте здесь /connect &lt;chat id&gt; или /settings в самой группе."
+settings_open_in_pm: "Нажмите кнопку, чтобы открыть настройки этой группы в личке."
+settings_open_in_pm_button: "Открыть настройки в личке"
+settings_btn_refresh: "🔄 Обновить"
+settings_btn_other_group: "↩️ Другая группа"

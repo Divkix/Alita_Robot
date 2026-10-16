@@ -2778,3 +2778,9 @@ warns_extend_msg: |
   /setwarnlimit — advertências antes da punição
   /setwarnmode — punição: ban, kick ou mute
 settings_summary_legend: "<i>• marca um valor diferente do padrão. Envie o comando mostrado para alterá-lo.</i>"
+settings_picker_text: "Escolha um grupo para ver as configurações. Não está na lista? Envie /connect &lt;chat id&gt; aqui ou /settings no grupo."
+settings_picker_empty: "Não encontrei grupos onde você é administrador. Só conheço grupos onde você escreveu desde que entrei, então envie /connect &lt;chat id&gt; aqui ou /settings no grupo."
+settings_open_in_pm: "Toque no botão para ver as configurações deste grupo no privado."
+settings_open_in_pm_button: "Abrir configurações no privado"
+settings_btn_refresh: "🔄 Atualizar"
+settings_btn_other_group: "↩️ Outro grupo"

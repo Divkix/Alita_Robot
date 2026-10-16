@@ -450,3 +450,41 @@ func TestLoadActivityStats(t *testing.T) {
 		t.Errorf("LoadActivityStats() mag = %d, want %d", mag, baseMag+3)
 	}
 }
+
+func TestListChatsWithUser(t *testing.T) {
+	skipIfNoDb(t)
+	if db.DB.Name() != "postgres" {
+		t.Skip("PostgreSQL JSONB integration: run make test-postgres-integrity")
+	}
+
+	base := time.Now().UnixNano()
+	userID := base + 10
+	older, newer, inactive, other := -base-1, -base-2, -base-3, -base-4
+	t.Cleanup(func() {
+		db.DB.Where("chat_id IN ?", []int64{older, newer, inactive, other}).Delete(&models.Chat{})
+	})
+	for _, id := range []int64{older, newer, inactive} {
+		if err := UpdateChat(id, fmt.Sprintf("chat-%d", id), userID); err != nil {
+			t.Fatalf("UpdateChat(%d) error = %v", id, err)
+		}
+	}
+	if err := UpdateChat(other, "other", userID+1); err != nil {
+		t.Fatalf("UpdateChat(other) error = %v", err)
+	}
+	now := time.Now()
+	db.DB.Model(&models.Chat{}).Where("chat_id = ?", older).Update("last_activity", now.Add(-time.Hour))
+	db.DB.Model(&models.Chat{}).Where("chat_id = ?", newer).Update("last_activity", now)
+	db.DB.Model(&models.Chat{}).Where("chat_id = ?", inactive).Update("is_inactive", true)
+
+	got, err := ListChatsWithUser(t.Context(), userID, 10)
+	if err != nil {
+		t.Fatalf("ListChatsWithUser() error = %v", err)
+	}
+	var ids []int64
+	for _, chat := range got {
+		ids = append(ids, chat.ChatId)
+	}
+	if !slices.Equal(ids, []int64{newer, older}) {
+		t.Fatalf("ListChatsWithUser() = %v, want [%d %d]", ids, newer, older)
+	}
+}

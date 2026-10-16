@@ -44,6 +44,8 @@ type moduleBotClient struct {
 	calls     []moduleBotCall
 	responses map[string]json.RawMessage
 	errors    map[string]error
+	// adminsByChat overrides getChatAdministrators per chat_id.
+	adminsByChat map[string]json.RawMessage
 }
 
 func newModuleTestBot(client *moduleBotClient) *gotgbot.Bot {
@@ -136,6 +138,11 @@ func (c *moduleBotClient) RequestWithContext(_ context.Context, _ string, method
 		return json.RawMessage(
 			`{"status":"kicked","user":{"id":14,"is_bot":false,"first_name":"Kicked User"}}`,
 		), nil
+	}
+	if method == "getChatAdministrators" {
+		if response, ok := c.adminsByChat[fmt.Sprint(params["chat_id"])]; ok {
+			return response, nil
+		}
 	}
 	if response, ok := c.responses[method]; ok {
 		return response, nil
