@@ -362,3 +362,65 @@ func TestLoadAntifloodStats(t *testing.T) {
 		}
 	})
 }
+
+func TestFloodSettersOnFreshChatKeepAntifloodDisabled(t *testing.T) {
+	skipIfNoDb(t)
+
+	for name, set := range map[string]func(chatID int64) error{
+		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban") },
+		"delete": func(chatID int64) error { return SetFloodMsgDel(chatID, true) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			t.Cleanup(func() {
+				if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntifloodSettings{}).Error; err != nil {
+					t.Fatalf("cleanup failed: %v", err)
+				}
+			})
+
+			if err := set(chatID); err != nil {
+				t.Fatalf("setter failed: %v", err)
+			}
+
+			if limit := GetFlood(chatID).Limit; limit != 0 {
+				t.Fatalf("expected antiflood to stay disabled (Limit=0) after setter on a fresh chat, got %d", limit)
+			}
+		})
+	}
+}
+
+func TestFloodSettersPreserveExistingLimit(t *testing.T) {
+	skipIfNoDb(t)
+
+	for name, set := range map[string]func(chatID int64) error{
+		"mode":   func(chatID int64) error { return SetFloodMode(chatID, "ban") },
+		"delete": func(chatID int64) error { return SetFloodMsgDel(chatID, true) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			t.Cleanup(func() {
+				if err := db.DB.Where("chat_id = ?", chatID).Delete(&models.AntifloodSettings{}).Error; err != nil {
+					t.Fatalf("cleanup failed: %v", err)
+				}
+			})
+
+			if err := SetFlood(chatID, 7); err != nil {
+				t.Fatalf("SetFlood(7) failed: %v", err)
+			}
+			if err := set(chatID); err != nil {
+				t.Fatalf("setter failed: %v", err)
+			}
+
+			settings := GetFlood(chatID)
+			if settings.Limit != 7 {
+				t.Fatalf("expected Limit=7 to survive setter, got %d", settings.Limit)
+			}
+			if name == "mode" && settings.Action != "ban" {
+				t.Fatalf("expected Action=ban, got %s", settings.Action)
+			}
+			if name == "delete" && !settings.DeleteAntifloodMessage {
+				t.Fatalf("expected DeleteAntifloodMessage=true, got false")
+			}
+		})
+	}
+}

@@ -3,9 +3,11 @@ package antiflood
 import (
 	"context"
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
@@ -30,10 +32,24 @@ func GetFloodContext(ctx context.Context, chatID int64) (floodSrc *models.Antifl
 	return floodSrc
 }
 
-func upsertChatField(ctx context.Context, chatID int64, updates map[string]any) error {
-	if err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).
-		Assign(updates).
-		FirstOrCreate(&models.AntifloodSettings{}).Error; err != nil {
+// upsertChatField writes one column of the chat's settings row, creating the
+// row when missing. A created row starts with flood_limit 0 (disabled) instead
+// of the column default 5, so only SetFlood can turn antiflood on. The insert
+// goes through a map because GORM replaces a zero struct field with its
+// `default` tag on create.
+func upsertChatField(ctx context.Context, chatID int64, column string, value any) error {
+	now := time.Now()
+	row := map[string]any{
+		"chat_id":     chatID,
+		"flood_limit": 0,
+		"created_at":  now,
+		"updated_at":  now,
+	}
+	row[column] = value
+	if err := db.DB.WithContext(ctx).Model(&models.AntifloodSettings{}).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{column, "updated_at"}),
+	}).Create(row).Error; err != nil {
 		log.Errorf("[Database] upsertChatField: %v - %d", err, chatID)
 		return err
 	}
@@ -57,11 +73,7 @@ func SetFloodContext(ctx context.Context, chatID int64, limit int) error {
 
 	// Update only flood_limit: writing back the cached action would clobber a
 	// concurrent SetFloodMode with a stale value.
-	updates := map[string]any{
-		"chat_id":     chatID,
-		"flood_limit": limit,
-	}
-	return upsertChatField(ctx, chatID, updates)
+	return upsertChatField(ctx, chatID, "flood_limit", limit)
 }
 
 func SetFloodMode(chatID int64, mode string) error {
@@ -76,11 +88,7 @@ func SetFloodModeContext(ctx context.Context, chatID int64, mode string) error {
 	if floodSrc.Action == mode {
 		return nil
 	}
-	updates := map[string]any{
-		"chat_id": chatID,
-		"action":  mode,
-	}
-	return upsertChatField(ctx, chatID, updates)
+	return upsertChatField(ctx, chatID, "action", mode)
 }
 
 func SetFloodMsgDel(chatID int64, val bool) error {
@@ -95,11 +103,7 @@ func SetFloodMsgDelContext(ctx context.Context, chatID int64, val bool) error {
 	if floodSrc.DeleteAntifloodMessage == val {
 		return nil
 	}
-	updates := map[string]any{
-		"chat_id":                  chatID,
-		"delete_antiflood_message": val,
-	}
-	return upsertChatField(ctx, chatID, updates)
+	return upsertChatField(ctx, chatID, "delete_antiflood_message", val)
 }
 
 func LoadAntifloodStats() (antiCount int64) {
