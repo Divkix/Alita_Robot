@@ -14,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
@@ -267,4 +268,66 @@ func TestAllowConnectFromPMViaConnection(t *testing.T) {
 		t.Fatalf("admin connection after allowconnect off = %+v, want still connected", conn)
 	}
 	assertNothingSentTo(t, client, groupA)
+}
+
+func groupLanguageOf(t *testing.T, chatID int64) string {
+	t.Helper()
+	chat, ok := readChatSetting[models.Chat](t.Context(), chatID)
+	if !ok {
+		t.Fatalf("chat %d not found", chatID)
+	}
+	return chat.Language
+}
+
+func TestLangGroupFromPMChangesGroupLanguage(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+
+	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	calls := client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatal("/lang group did not send a language keyboard")
+	}
+
+	data := encodeCallbackData("change_language", map[string]string{"l": "ru", "g": "1"})
+	if len(data) > 64 {
+		t.Fatalf("callback data is %d bytes, want <= 64", len(data))
+	}
+	ctx := newModuleCallbackContext(bot, privateChatOf(admin), admin, data)
+	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("langBtnHandler error = %v, want EndGroups", err)
+	}
+	if got := groupLanguageOf(t, groupA); got != "ru" {
+		t.Fatalf("group language = %q, want ru", got)
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestLangInPMWithoutGroupStillChangesUser(t *testing.T) {
+	_, bot, groupA, admin, _ := connectedPMFixture(t)
+
+	data := encodeCallbackData("change_language", map[string]string{"l": "es"})
+	ctx := newModuleCallbackContext(bot, privateChatOf(admin), admin, data)
+	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("langBtnHandler error = %v, want EndGroups", err)
+	}
+	if got := lang.GetLanguage(ctx); got != "es" {
+		t.Fatalf("user language = %q, want es", got)
+	}
+	if got := groupLanguageOf(t, groupA); got == "es" {
+		t.Fatal("plain /lang button in PM changed the connected group's language")
+	}
+}
+
+func TestLangGroupCallbackRejectsNonAdmin(t *testing.T) {
+	_, bot, groupA, _, member := connectedPMFixture(t)
+
+	data := encodeCallbackData("change_language", map[string]string{"l": "fr", "g": "1"})
+	ctx := newModuleCallbackContext(bot, privateChatOf(member), member, data)
+	_ = languagesModule.langBtnHandler(bot, ctx)
+	if got := groupLanguageOf(t, groupA); got == "fr" {
+		t.Fatal("non-admin changed the group's language")
+	}
 }

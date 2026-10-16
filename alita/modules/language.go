@@ -2,6 +2,7 @@ package modules
 
 import (
 	"slices"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -48,7 +49,16 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	cLang := lang.GetLanguage(ctx)
 	tr := i18n.MustNewTranslator(cLang)
 
-	if ctx.Message.Chat.Type == "private" {
+	langKb := m.genFullLanguageKb()
+	if args := ctx.Args(); ctx.Message.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
+		// /lang group in PM: pick the language of the connected group.
+		if resolveAdminChat(b, ctx, false) == nil {
+			return ext.EndGroups
+		}
+		groupLang := lang.GetLanguage(ctx)
+		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
+		langKb = keyboard.MakeGroupLanguageKeyboard()
+	} else if ctx.Message.Chat.Type == "private" {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
 
@@ -65,7 +75,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyString,
 		&gotgbot.SendMessageOpts{
 			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-				InlineKeyboard: m.genFullLanguageKb(),
+				InlineKeyboard: langKb,
 			},
 		},
 	)
@@ -91,9 +101,11 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return answerInvalidCallback(b, ctx, query)
 	}
 
-	language := ""
+	language, forGroup := "", false
 	if decoded, ok := decodeCallbackData(query.Data, "change_language"); ok {
 		language, _ = decoded.Field("l")
+		g, _ := decoded.Field("g")
+		forGroup = g == "1"
 	}
 	if language == "" {
 		log.Warnf("[Language] Invalid callback data format: %s", query.Data)
@@ -112,6 +124,15 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := i18n.MustNewTranslator(language)
+
+	if forGroup && chat.Type == "private" {
+		// Button from /lang group in PM: change the connected group.
+		connected := chat_status.IsUserConnected(b, ctx, true, false)
+		if connected == nil {
+			return ext.EndGroups
+		}
+		chat = connected
+	}
 
 	if chat.Type != "private" {
 		if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
