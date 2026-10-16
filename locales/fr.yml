@@ -2525,3 +2525,209 @@ misc_runs:
   - "I'm out."
   - "Catch me if you can."
 chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+
+# /extend: every help-menu command, one line each ("/command — description")
+main_bot_command_extend: "Toutes les commandes en une liste"
+help_extend_hint: "\n\nEnvoyez /extend pour voir toutes les commandes en une liste."
+help_extend_header: "📋 <b>Toutes les commandes</b>\nArguments et exemples : /help → module."
+help_extend_pm: "La liste complète des commandes est longue, je vous l'envoie en privé."
+help_extend_button: "📋 Toutes les commandes"
+admin_extend_msg: |
+  /adminlist — liste des administrateurs du chat
+  /promote — promouvoir un utilisateur administrateur
+  /demote — rétrograder un administrateur
+  /title — définir le titre personnalisé d'un administrateur
+  /invitelink — obtenir le lien d'invitation du chat
+  /anonadmin — exiger une confirmation par bouton des administrateurs anonymes
+  /admincache — recharger la liste des administrateurs
+  /clearadmincache — vider le cache des administrateurs
+  /setgtitle — changer le titre du groupe
+  /setgpic — définir la photo citée comme photo du groupe
+  /setgdesc — changer la description du groupe
+aispam_extend_msg: |
+  /aispam — afficher ou activer le filtre anti-spam IA
+antiflood_extend_msg: |
+  /flood — afficher les réglages antiflood
+  /setflood — messages d'affilée avant sanction (off pour désactiver)
+  /setfloodmode — sanction du flood : ban, kick ou mute
+  /delflood — supprimer aussi les messages de flood
+antiraid_extend_msg: |
+  /antiraid — afficher, activer ou désactiver le mode raid
+  /raidtime — durée du mode raid
+  /raidactiontime — durée du bannissement temporaire pendant un raid
+  /autoantiraid — activer le mode raid après N arrivées par minute
+approvals_extend_msg: |
+  /approve — exempter un utilisateur d'antiflood, de liste noire, de verrous et de captcha
+  /unapprove — retirer l'approbation d'un utilisateur
+  /approval — vérifier si un utilisateur est approuvé
+  /approved — liste des utilisateurs approuvés
+  /unapproveall — retirer toutes les approbations (créateur uniquement)
+backup_extend_msg: |
+  /export — exporter les réglages du chat dans un fichier JSON
+  /import — restaurer les réglages depuis un fichier de sauvegarde cité
+  /reset — rétablir les réglages par défaut
+bans_extend_msg: |
+  /ban — bannir un utilisateur
+  /sban — bannir en silence et supprimer votre commande
+  /dban — bannir et supprimer le message cité
+  /tban — bannir pour une durée (m/h/d)
+  /unban — débannir un utilisateur
+  /kick — expulser un utilisateur
+  /skick — expulser en silence et supprimer votre commande
+  /dkick — expulser et supprimer le message cité
+  /kickme — vous expulser
+  /banme — vous bannir
+  /restrict — choisir kick, ban ou mute avec des boutons
+  /unrestrict — choisir unmute ou unban avec des boutons
+  /unbanall — débannir tous les utilisateurs connus (propriétaire uniquement)
+blacklists_extend_msg: |
+  /blacklists — liste des mots en liste noire
+  /addblacklist — ajouter un mot à la liste noire
+  /rmblacklist — retirer un mot de la liste noire
+  /blaction — sanction d'un mot interdit : mute, kick, ban, warn ou none
+  /blacklistaction — identique à /blaction
+  /remallbl — vider la liste noire
+captcha_extend_msg: |
+  /captcha — activer ou désactiver le captcha pour les nouveaux membres
+  /captchamode — type de captcha : math ou text
+  /captchatime — minutes pour résoudre le captcha
+  /captchaaction — sanction en cas d'échec : kick, ban ou mute
+  /captchamaxattempts — essais autorisés par captcha
+  /captchapending — afficher les messages stockés d'un utilisateur en attente
+  /captchaclear — supprimer les messages stockés d'un utilisateur en attente
+connections_extend_msg: |
+  /connect — gérer un groupe depuis le privé
+  /disconnect — se déconnecter du groupe
+  /reconnect — se reconnecter au dernier groupe
+  /connection — afficher le groupe connecté
+  /allowconnect — autoriser les membres à se connecter à ce groupe
+disabling_extend_msg: |
+  /disable — désactiver une commande pour les membres
+  /enable — réactiver une commande
+  /disableable — liste des commandes désactivables
+  /disabled — liste des commandes désactivées
+  /disabledel — supprimer les commandes désactivées envoyées par les membres
+federations_extend_msg: |
+  /newfed — créer une fédération
+  /renamefed — renommer votre fédération
+  /delfed — supprimer votre fédération
+  /fedinfo — afficher les infos de la fédération
+  /fedadmins — liste des administrateurs de la fédération
+  /fedpromote — nommer un administrateur de la fédération
+  /feddemote — retirer un administrateur de la fédération
+  /feddemoteme — quitter votre rôle d'administrateur de la fédération
+  /joinfed — rattacher ce chat à une fédération
+  /leavefed — quitter la fédération
+  /chatfed — afficher la fédération de ce chat
+  /myfeds — liste de vos fédérations
+  /fban — bannir un utilisateur dans toute la fédération
+  /unfban — lever un bannissement de fédération
+  /funban — identique à /unfban
+  /fedstat — consulter les bannissements de fédération d'un utilisateur
+  /fbanstat — identique à /fedstat
+  /fedreason — exiger un motif pour les fban
+  /fednotif — prévenir le propriétaire des fban en privé
+  /quietfed — masquer les avis passifs de fban dans ce chat
+  /subfed — s'abonner aux bannissements d'une autre fédération
+  /unsubfed — se désabonner d'une fédération
+  /fedsubs — liste des fédérations suivies
+  /fbanlist — exporter la liste des fban
+  /importfbans — importer des fban depuis un fichier cité
+  /setfedlog — définir le chat de journal de la fédération
+  /unsetfedlog — retirer le chat de journal de la fédération
+filters_extend_msg: |
+  /filter — réponse automatique à un mot déclencheur
+  /filters — liste des filtres
+  /stop — supprimer un filtre
+  /stopall — supprimer tous les filtres
+greetings_extend_msg: |
+  /welcome — activer ou désactiver le message de bienvenue
+  /setwelcome — définir le message de bienvenue
+  /resetwelcome — réinitialiser le message de bienvenue
+  /goodbye — activer ou désactiver le message d'au revoir
+  /setgoodbye — définir le message d'au revoir
+  /resetgoodbye — réinitialiser le message d'au revoir
+  /cleanwelcome — supprimer le précédent message de bienvenue
+  /cleanservice — supprimer les messages de service d'arrivée et de départ
+  /autoapprove — approuver automatiquement les demandes d'adhésion
+languages_extend_msg: |
+  /lang — changer la langue du bot pour vous ou le groupe
+locks_extend_msg: |
+  /lock — verrouiller un type de message
+  /unlock — déverrouiller un type de message
+  /locks — afficher les verrous actuels
+  /locktypes — liste des types verrouillables
+logchannels_extend_msg: |
+  /setlog — définir un canal de journal (à envoyer dans le canal)
+  /unsetlog — retirer le canal de journal
+  /logchannel — afficher le canal de journal
+  /logcategories — liste des catégories de journal
+  /log — activer une catégorie de journal
+  /nolog — désactiver une catégorie de journal
+misc_extend_msg: |
+  /info — afficher les infos d'un utilisateur
+  /id — afficher l'ID du chat ou d'un utilisateur
+  /ping — vérifier le temps de réponse du bot
+  /stat — compter les messages du chat
+  /tr — traduire un message
+  /removebotkeyboard — retirer un clavier du bot bloqué
+  /stickerid — obtenir le file ID d'un sticker
+  /zombies — expulser les comptes supprimés
+  /github — chercher un utilisateur ou un dépôt GitHub
+  /wiki — chercher sur Wikipédia
+  /ud — chercher sur Urban Dictionary
+  /runs — une phrase au hasard
+mutes_extend_msg: |
+  /mute — rendre muet un utilisateur
+  /smute — rendre muet en silence et supprimer votre commande
+  /dmute — rendre muet et supprimer le message cité
+  /tmute — rendre muet pour une durée (m/h/d)
+  /unmute — rendre la parole à un utilisateur
+notes_extend_msg: |
+  /save — enregistrer une note
+  /get — obtenir une note (ou #name)
+  /notes — liste des notes
+  /saved — identique à /notes
+  /clear — supprimer une note
+  /clearall — supprimer toutes les notes
+  /privatenotes — envoyer les notes en privé
+pins_extend_msg: |
+  /pin — épingler le message cité
+  /unpin — désépingler un message
+  /unpinall — désépingler tous les messages
+  /pinned — afficher le message épinglé
+  /permapin — épingler un message personnalisé du bot
+  /antichannelpin — bloquer les épinglages auto du canal lié
+  /cleanlinked — supprimer les publications du canal lié
+purges_extend_msg: |
+  /del — supprimer le message cité
+  /purge — tout supprimer à partir du message cité
+  /purgefrom — marquer le début d'une plage à supprimer
+  /purgeto — supprimer jusqu'au message cité
+reactions_extend_msg: |
+  /addreaction — réagir par un emoji à un mot-clé
+  /removereaction — retirer la réaction à un mot-clé
+  /reactions — liste des réactions
+  /resetreactions — retirer toutes les réactions
+reports_extend_msg: |
+  /report — signaler le message cité aux administrateurs (ou @admin)
+  /reports — activer ou désactiver les signalements, bloquer ou débloquer un signaleur
+rules_extend_msg: |
+  /rules — afficher les règles
+  /setrules — définir les règles
+  /resetrules — réinitialiser les règles
+  /privaterules — envoyer les règles en privé
+  /rulesbtn — définir le texte du bouton des règles
+  /resetrulesbutton — réinitialiser le texte du bouton des règles
+  /resetrulesbtn — identique à /resetrulesbutton
+warns_extend_msg: |
+  /warn — avertir un utilisateur
+  /swarn — avertir en silence et supprimer votre commande
+  /dwarn — avertir et supprimer le message cité
+  /warns — afficher les avertissements d'un utilisateur
+  /rmwarn — retirer le dernier avertissement d'un utilisateur
+  /resetwarn — réinitialiser les avertissements d'un utilisateur
+  /resetallwarns — réinitialiser tous les avertissements du chat
+  /warnings — afficher les réglages d'avertissement
+  /setwarnlimit — avertissements avant sanction
+  /setwarnmode — sanction : ban, kick ou mute

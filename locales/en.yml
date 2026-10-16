@@ -2637,3 +2637,209 @@ misc_runs:
   - "I'm out."
   - "Catch me if you can."
 chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+
+# /extend: every help-menu command, one line each ("/command — description")
+main_bot_command_extend: "All commands in one list"
+help_extend_hint: "\n\nSend /extend to see every command in one list."
+help_extend_header: "📋 <b>All commands</b>\nArguments and examples: /help → module."
+help_extend_pm: "The full command list is long, so I'll send it in PM."
+help_extend_button: "📋 All commands"
+admin_extend_msg: |
+  /adminlist — list the chat's admins
+  /promote — promote a user to admin
+  /demote — demote an admin
+  /title — set an admin's custom title
+  /invitelink — get the chat's invite link
+  /anonadmin — require anonymous admins to confirm with a button
+  /admincache — reload the admin list
+  /clearadmincache — clear the cached admin list
+  /setgtitle — change the group title
+  /setgpic — set the replied photo as the group picture
+  /setgdesc — change the group description
+aispam_extend_msg: |
+  /aispam — show or toggle the AI spam filter
+antiflood_extend_msg: |
+  /flood — show the antiflood settings
+  /setflood — messages in a row before action (off to disable)
+  /setfloodmode — action on flooders: ban, kick or mute
+  /delflood — delete flooded messages too
+antiraid_extend_msg: |
+  /antiraid — show, enable or disable raid mode
+  /raidtime — set how long raid mode lasts
+  /raidactiontime — set the temp-ban length during a raid
+  /autoantiraid — auto-enable raid mode after N joins per minute
+approvals_extend_msg: |
+  /approve — exempt a user from antiflood, blacklists, locks and captcha
+  /unapprove — remove a user's approval
+  /approval — check whether a user is approved
+  /approved — list approved users
+  /unapproveall — remove all approvals (creator only)
+backup_extend_msg: |
+  /export — export chat settings to a JSON file
+  /import — restore settings from a replied backup file
+  /reset — reset settings to defaults
+bans_extend_msg: |
+  /ban — ban a user
+  /sban — ban silently and delete your command
+  /dban — ban and delete the replied message
+  /tban — ban for a time (m/h/d)
+  /unban — unban a user
+  /kick — kick a user
+  /skick — kick silently and delete your command
+  /dkick — kick and delete the replied message
+  /kickme — kick yourself
+  /banme — ban yourself
+  /restrict — pick kick, ban or mute from buttons
+  /unrestrict — pick unmute or unban from buttons
+  /unbanall — unban all known users (owner only)
+blacklists_extend_msg: |
+  /blacklists — list blacklisted words
+  /addblacklist — blacklist a word
+  /rmblacklist — remove a word from the blacklist
+  /blaction — action on a blacklisted word: mute, kick, ban, warn or none
+  /blacklistaction — same as /blaction
+  /remallbl — remove all blacklisted words
+captcha_extend_msg: |
+  /captcha — turn captcha for new members on or off
+  /captchamode — captcha type: math or text
+  /captchatime — minutes to solve the captcha
+  /captchaaction — action on failure: kick, ban or mute
+  /captchamaxattempts — attempts allowed per captcha
+  /captchapending — show a pending user's stored messages
+  /captchaclear — clear a pending user's stored messages
+connections_extend_msg: |
+  /connect — manage a group from PM
+  /disconnect — disconnect from the group
+  /reconnect — reconnect to the last group
+  /connection — show the connected group
+  /allowconnect — allow members to connect to this group
+disabling_extend_msg: |
+  /disable — disable a command for members
+  /enable — re-enable a command
+  /disableable — list commands that can be disabled
+  /disabled — list disabled commands
+  /disabledel — delete disabled commands sent by members
+federations_extend_msg: |
+  /newfed — create a federation
+  /renamefed — rename your federation
+  /delfed — delete your federation
+  /fedinfo — show federation info
+  /fedadmins — list federation admins
+  /fedpromote — make a user a federation admin
+  /feddemote — remove a federation admin
+  /feddemoteme — step down as federation admin
+  /joinfed — join this chat to a federation
+  /leavefed — leave the federation
+  /chatfed — show this chat's federation
+  /myfeds — list your federations
+  /fban — ban a user across the federation
+  /unfban — lift a federation ban
+  /funban — same as /unfban
+  /fedstat — check a user's federation bans
+  /fbanstat — same as /fedstat
+  /fedreason — require a reason for fbans
+  /fednotif — notify the owner of fbans in PM
+  /quietfed — hide passive fban notices in this chat
+  /subfed — subscribe to another federation's bans
+  /unsubfed — unsubscribe from a federation
+  /fedsubs — list subscribed federations
+  /fbanlist — export the fban list
+  /importfbans — import fbans from a replied file
+  /setfedlog — set the federation log chat
+  /unsetfedlog — remove the federation log chat
+filters_extend_msg: |
+  /filter — auto-reply to a trigger word
+  /filters — list filters
+  /stop — remove a filter
+  /stopall — remove all filters
+greetings_extend_msg: |
+  /welcome — turn the welcome message on or off
+  /setwelcome — set the welcome message
+  /resetwelcome — reset the welcome message
+  /goodbye — turn the goodbye message on or off
+  /setgoodbye — set the goodbye message
+  /resetgoodbye — reset the goodbye message
+  /cleanwelcome — delete the previous welcome message
+  /cleanservice — delete join and leave service messages
+  /autoapprove — auto-approve join requests
+languages_extend_msg: |
+  /lang — change the bot language for you or the group
+locks_extend_msg: |
+  /lock — lock a message type
+  /unlock — unlock a message type
+  /locks — show current locks
+  /locktypes — list lockable types
+logchannels_extend_msg: |
+  /setlog — set a log channel (send it in the channel)
+  /unsetlog — remove the log channel
+  /logchannel — show the log channel
+  /logcategories — list log categories
+  /log — enable a log category
+  /nolog — disable a log category
+misc_extend_msg: |
+  /info — show user info
+  /id — show chat or user ID
+  /ping — check the bot's response time
+  /stat — count messages in the chat
+  /tr — translate a message
+  /removebotkeyboard — remove a stuck bot keyboard
+  /stickerid — get a sticker's file ID
+  /zombies — kick deleted accounts
+  /github — look up a GitHub user or repo
+  /wiki — search Wikipedia
+  /ud — look up Urban Dictionary
+  /runs — a random quip
+mutes_extend_msg: |
+  /mute — mute a user
+  /smute — mute silently and delete your command
+  /dmute — mute and delete the replied message
+  /tmute — mute for a time (m/h/d)
+  /unmute — unmute a user
+notes_extend_msg: |
+  /save — save a note
+  /get — get a note (or #name)
+  /notes — list notes
+  /saved — same as /notes
+  /clear — delete a note
+  /clearall — delete all notes
+  /privatenotes — send notes in PM
+pins_extend_msg: |
+  /pin — pin the replied message
+  /unpin — unpin a message
+  /unpinall — unpin all messages
+  /pinned — show the pinned message
+  /permapin — pin a custom message from the bot
+  /antichannelpin — stop auto-pins from the linked channel
+  /cleanlinked — delete linked channel posts
+purges_extend_msg: |
+  /del — delete the replied message
+  /purge — delete everything from the replied message on
+  /purgefrom — mark where a range delete starts
+  /purgeto — delete up to the replied message
+reactions_extend_msg: |
+  /addreaction — react to a keyword with an emoji
+  /removereaction — remove a keyword reaction
+  /reactions — list reactions
+  /resetreactions — remove all reactions
+reports_extend_msg: |
+  /report — report the replied message to admins (or @admin)
+  /reports — reports on or off, block or unblock reporters
+rules_extend_msg: |
+  /rules — show the rules
+  /setrules — set the rules
+  /resetrules — reset the rules
+  /privaterules — send the rules in PM
+  /rulesbtn — set the rules button text
+  /resetrulesbutton — reset the rules button text
+  /resetrulesbtn — same as /resetrulesbutton
+warns_extend_msg: |
+  /warn — warn a user
+  /swarn — warn silently and delete your command
+  /dwarn — warn and delete the replied message
+  /warns — show a user's warnings
+  /rmwarn — remove a user's last warning
+  /resetwarn — reset a user's warnings
+  /resetallwarns — reset all warnings in the chat
+  /warnings — show warn settings
+  /setwarnlimit — warnings before punishment
+  /setwarnmode — punishment: ban, kick or mute

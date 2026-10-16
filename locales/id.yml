@@ -2599,3 +2599,209 @@ misc_runs:
   - "I'm out."
   - "Catch me if you can."
 chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+
+# /extend: every help-menu command, one line each ("/command — description")
+main_bot_command_extend: "Semua perintah dalam satu daftar"
+help_extend_hint: "\n\nKirim /extend untuk melihat semua perintah dalam satu daftar."
+help_extend_header: "📋 <b>Semua perintah</b>\nArgumen dan contoh: /help → modul."
+help_extend_pm: "Daftar perintah lengkap cukup panjang, jadi saya kirim lewat PM."
+help_extend_button: "📋 Semua perintah"
+admin_extend_msg: |
+  /adminlist — daftar admin obrolan
+  /promote — jadikan pengguna sebagai admin
+  /demote — turunkan admin
+  /title — atur judul khusus admin
+  /invitelink — dapatkan tautan undangan obrolan
+  /anonadmin — wajibkan admin anonim konfirmasi dengan tombol
+  /admincache — muat ulang daftar admin
+  /clearadmincache — hapus cache daftar admin
+  /setgtitle — ubah judul grup
+  /setgpic — jadikan foto yang dibalas sebagai foto grup
+  /setgdesc — ubah deskripsi grup
+aispam_extend_msg: |
+  /aispam — lihat atau ubah filter spam AI
+antiflood_extend_msg: |
+  /flood — lihat pengaturan antiflood
+  /setflood — jumlah pesan beruntun sebelum ditindak (off untuk menonaktifkan)
+  /setfloodmode — tindakan untuk flooder: ban, kick atau mute
+  /delflood — hapus juga pesan flood
+antiraid_extend_msg: |
+  /antiraid — lihat, aktifkan, atau nonaktifkan mode raid
+  /raidtime — atur durasi mode raid
+  /raidactiontime — atur lama ban sementara saat raid
+  /autoantiraid — aktifkan mode raid otomatis setelah N anggota masuk per menit
+approvals_extend_msg: |
+  /approve — bebaskan pengguna dari antiflood, daftar hitam, kunci, dan captcha
+  /unapprove — cabut persetujuan pengguna
+  /approval — cek apakah pengguna disetujui
+  /approved — daftar pengguna yang disetujui
+  /unapproveall — cabut semua persetujuan (hanya pembuat grup)
+backup_extend_msg: |
+  /export — ekspor pengaturan obrolan ke file JSON
+  /import — pulihkan pengaturan dari file cadangan yang dibalas
+  /reset — kembalikan pengaturan ke default
+bans_extend_msg: |
+  /ban — ban pengguna
+  /sban — ban diam-diam dan hapus perintahmu
+  /dban — ban dan hapus pesan yang dibalas
+  /tban — ban untuk waktu tertentu (m/h/d)
+  /unban — buka ban pengguna
+  /kick — tendang pengguna
+  /skick — tendang diam-diam dan hapus perintahmu
+  /dkick — tendang dan hapus pesan yang dibalas
+  /kickme — tendang dirimu sendiri
+  /banme — ban dirimu sendiri
+  /restrict — pilih kick, ban, atau mute lewat tombol
+  /unrestrict — pilih unmute atau unban lewat tombol
+  /unbanall — buka ban semua pengguna yang dikenal (hanya pemilik)
+blacklists_extend_msg: |
+  /blacklists — daftar kata di daftar hitam
+  /addblacklist — masukkan kata ke daftar hitam
+  /rmblacklist — hapus kata dari daftar hitam
+  /blaction — tindakan untuk kata terlarang: mute, kick, ban, warn atau none
+  /blacklistaction — sama dengan /blaction
+  /remallbl — kosongkan daftar hitam
+captcha_extend_msg: |
+  /captcha — aktifkan atau nonaktifkan captcha untuk anggota baru
+  /captchamode — jenis captcha: math atau text
+  /captchatime — menit untuk menyelesaikan captcha
+  /captchaaction — tindakan jika gagal: kick, ban atau mute
+  /captchamaxattempts — jumlah percobaan per captcha
+  /captchapending — lihat pesan tersimpan pengguna yang menunggu
+  /captchaclear — hapus pesan tersimpan pengguna yang menunggu
+connections_extend_msg: |
+  /connect — kelola grup dari PM
+  /disconnect — putuskan koneksi dari grup
+  /reconnect — hubungkan lagi ke grup terakhir
+  /connection — lihat grup yang terhubung
+  /allowconnect — izinkan anggota terhubung ke grup ini
+disabling_extend_msg: |
+  /disable — nonaktifkan perintah untuk anggota
+  /enable — aktifkan kembali perintah
+  /disableable — daftar perintah yang bisa dinonaktifkan
+  /disabled — daftar perintah yang dinonaktifkan
+  /disabledel — hapus perintah nonaktif yang dikirim anggota
+federations_extend_msg: |
+  /newfed — buat federasi
+  /renamefed — ganti nama federasimu
+  /delfed — hapus federasimu
+  /fedinfo — lihat info federasi
+  /fedadmins — daftar admin federasi
+  /fedpromote — jadikan pengguna admin federasi
+  /feddemote — copot admin federasi
+  /feddemoteme — mundur sebagai admin federasi
+  /joinfed — gabungkan obrolan ini ke federasi
+  /leavefed — keluar dari federasi
+  /chatfed — lihat federasi obrolan ini
+  /myfeds — daftar federasimu
+  /fban — ban pengguna di seluruh federasi
+  /unfban — cabut ban federasi
+  /funban — sama dengan /unfban
+  /fedstat — cek ban federasi seorang pengguna
+  /fbanstat — sama dengan /fedstat
+  /fedreason — wajibkan alasan untuk fban
+  /fednotif — beri tahu pemilik soal fban lewat PM
+  /quietfed — sembunyikan notifikasi fban pasif di obrolan ini
+  /subfed — berlangganan ban federasi lain
+  /unsubfed — berhenti berlangganan federasi
+  /fedsubs — daftar federasi yang dilanggani
+  /fbanlist — ekspor daftar fban
+  /importfbans — impor fban dari file yang dibalas
+  /setfedlog — atur obrolan log federasi
+  /unsetfedlog — hapus obrolan log federasi
+filters_extend_msg: |
+  /filter — balas otomatis pada kata pemicu
+  /filters — daftar filter
+  /stop — hapus filter
+  /stopall — hapus semua filter
+greetings_extend_msg: |
+  /welcome — aktifkan atau nonaktifkan pesan sambutan
+  /setwelcome — atur pesan sambutan
+  /resetwelcome — reset pesan sambutan
+  /goodbye — aktifkan atau nonaktifkan pesan perpisahan
+  /setgoodbye — atur pesan perpisahan
+  /resetgoodbye — reset pesan perpisahan
+  /cleanwelcome — hapus pesan sambutan sebelumnya
+  /cleanservice — hapus pesan layanan masuk dan keluar
+  /autoapprove — setujui permintaan bergabung otomatis
+languages_extend_msg: |
+  /lang — ganti bahasa bot untukmu atau grup
+locks_extend_msg: |
+  /lock — kunci jenis pesan
+  /unlock — buka kunci jenis pesan
+  /locks — lihat kunci saat ini
+  /locktypes — daftar jenis yang bisa dikunci
+logchannels_extend_msg: |
+  /setlog — atur kanal log (kirim di kanal)
+  /unsetlog — hapus kanal log
+  /logchannel — lihat kanal log
+  /logcategories — daftar kategori log
+  /log — aktifkan kategori log
+  /nolog — nonaktifkan kategori log
+misc_extend_msg: |
+  /info — lihat info pengguna
+  /id — lihat ID obrolan atau pengguna
+  /ping — cek waktu respons bot
+  /stat — hitung pesan di obrolan
+  /tr — terjemahkan pesan
+  /removebotkeyboard — hapus keyboard bot yang macet
+  /stickerid — dapatkan file ID stiker
+  /zombies — tendang akun terhapus
+  /github — cari pengguna atau repositori GitHub
+  /wiki — cari di Wikipedia
+  /ud — cari di Urban Dictionary
+  /runs — kalimat acak
+mutes_extend_msg: |
+  /mute — bisukan pengguna
+  /smute — bisukan diam-diam dan hapus perintahmu
+  /dmute — bisukan dan hapus pesan yang dibalas
+  /tmute — bisukan untuk waktu tertentu (m/h/d)
+  /unmute — hapus bisu pengguna
+notes_extend_msg: |
+  /save — simpan catatan
+  /get — ambil catatan (atau #name)
+  /notes — daftar catatan
+  /saved — sama dengan /notes
+  /clear — hapus catatan
+  /clearall — hapus semua catatan
+  /privatenotes — kirim catatan lewat PM
+pins_extend_msg: |
+  /pin — sematkan pesan yang dibalas
+  /unpin — lepas sematan pesan
+  /unpinall — lepas semua sematan
+  /pinned — lihat pesan yang disematkan
+  /permapin — sematkan pesan kustom dari bot
+  /antichannelpin — hentikan sematan otomatis dari kanal tertaut
+  /cleanlinked — hapus kiriman kanal tertaut
+purges_extend_msg: |
+  /del — hapus pesan yang dibalas
+  /purge — hapus semuanya mulai dari pesan yang dibalas
+  /purgefrom — tandai awal rentang yang dihapus
+  /purgeto — hapus sampai pesan yang dibalas
+reactions_extend_msg: |
+  /addreaction — beri reaksi emoji pada kata kunci
+  /removereaction — hapus reaksi kata kunci
+  /reactions — daftar reaksi
+  /resetreactions — hapus semua reaksi
+reports_extend_msg: |
+  /report — laporkan pesan yang dibalas ke admin (atau @admin)
+  /reports — aktifkan atau nonaktifkan laporan, blokir atau buka blokir pelapor
+rules_extend_msg: |
+  /rules — lihat aturan
+  /setrules — atur aturan
+  /resetrules — reset aturan
+  /privaterules — kirim aturan lewat PM
+  /rulesbtn — atur teks tombol aturan
+  /resetrulesbutton — reset teks tombol aturan
+  /resetrulesbtn — sama dengan /resetrulesbutton
+warns_extend_msg: |
+  /warn — beri peringatan pengguna
+  /swarn — beri peringatan diam-diam dan hapus perintahmu
+  /dwarn — beri peringatan dan hapus pesan yang dibalas
+  /warns — lihat peringatan pengguna
+  /rmwarn — hapus peringatan terakhir pengguna
+  /resetwarn — reset peringatan pengguna
+  /resetallwarns — reset semua peringatan di obrolan
+  /warnings — lihat pengaturan peringatan
+  /setwarnlimit — jumlah peringatan sebelum hukuman
+  /setwarnmode — hukuman: ban, kick atau mute
