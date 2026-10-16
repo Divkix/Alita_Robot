@@ -72,7 +72,8 @@ func getStartHelp(tr *i18n.Translator) string {
 func getMainHelp(tr *i18n.Translator, firstName string) string {
 	text1, _ := tr.GetString("help_pm_intro", i18n.TranslationParams{"s": firstName})
 	text2, _ := tr.GetString("help_all_commands_usage")
-	return text1 + text2
+	text3, _ := tr.GetString("help_extend_hint")
+	return text1 + text2 + text3
 }
 
 func getAboutKb(tr *i18n.Translator) gotgbot.InlineKeyboardMarkup {
@@ -609,6 +610,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadHelp(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("start", DefaultHelpRegistry().start))
 	dispatcher.AddHandler(handlers.NewCommand("help", DefaultHelpRegistry().help))
+	dispatcher.AddHandler(handlers.NewCommand("extend", DefaultHelpRegistry().extend))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("helpq"), DefaultHelpRegistry().helpButtonHandler))
 	dispatcher.AddHandler(handlers.NewCommand("donate", DefaultHelpRegistry().donate))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("configuration"), DefaultHelpRegistry().botConfig))
@@ -620,6 +622,7 @@ func LoadHelp(dispatcher *ext.Dispatcher) {
 func init() {
 	RegisterDeepLinkHandler("help_", helpDeepLinkHandler)
 	RegisterExactDeepLinkHandler("about", aboutDeepLinkHandler)
+	RegisterExactDeepLinkHandler("extend", extendDeepLinkHandler)
 }
 
 func helpDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {

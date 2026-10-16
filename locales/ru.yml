@@ -2345,3 +2345,209 @@ misc_runs:
   - "I'm out."
   - "Catch me if you can."
 chat_status_bot_change_info_error: "I can't change group info here! Make sure I'm admin and can change group info."
+
+# /extend: every help-menu command, one line each ("/command — description")
+main_bot_command_extend: "Все команды одним списком"
+help_extend_hint: "\n\nОтправьте /extend, чтобы увидеть все команды одним списком."
+help_extend_header: "📋 <b>Все команды</b>\nАргументы и примеры: /help → модуль."
+help_extend_pm: "Полный список команд длинный — пришлю его в личку."
+help_extend_button: "📋 Все команды"
+admin_extend_msg: |
+  /adminlist — список админов чата
+  /promote — назначить админом
+  /demote — снять админа
+  /title — задать админу должность
+  /invitelink — ссылка-приглашение в чат
+  /anonadmin — подтверждение кнопкой для анонимных админов
+  /admincache — перезагрузить список админов
+  /clearadmincache — сбросить кэш админов
+  /setgtitle — сменить название группы
+  /setgpic — поставить фото из ответа аватаркой группы
+  /setgdesc — сменить описание группы
+aispam_extend_msg: |
+  /aispam — показать или включить ИИ-фильтр спама
+antiflood_extend_msg: |
+  /flood — настройки антифлуда
+  /setflood — сколько сообщений подряд до наказания (off — выключить)
+  /setfloodmode — наказание за флуд: ban, kick или mute
+  /delflood — удалять и сами флуд-сообщения
+antiraid_extend_msg: |
+  /antiraid — показать, включить или выключить режим рейда
+  /raidtime — длительность режима рейда
+  /raidactiontime — срок временного бана во время рейда
+  /autoantiraid — включать режим рейда сам при N входах в минуту
+approvals_extend_msg: |
+  /approve — освободить от антифлуда, чёрного списка, блокировок и капчи
+  /unapprove — снять одобрение
+  /approval — проверить, одобрен ли пользователь
+  /approved — список одобренных
+  /unapproveall — снять все одобрения (только владелец)
+backup_extend_msg: |
+  /export — выгрузить настройки чата в JSON
+  /import — восстановить настройки из файла в ответе
+  /reset — сбросить настройки по умолчанию
+bans_extend_msg: |
+  /ban — забанить
+  /sban — забанить молча и удалить команду
+  /dban — забанить и удалить сообщение из ответа
+  /tban — забанить на время (m/h/d)
+  /unban — разбанить
+  /kick — выгнать
+  /skick — выгнать молча и удалить команду
+  /dkick — выгнать и удалить сообщение из ответа
+  /kickme — выгнать себя
+  /banme — забанить себя
+  /restrict — выбрать кнопкой: kick, ban или mute
+  /unrestrict — выбрать кнопкой: unmute или unban
+  /unbanall — разбанить всех известных (только владелец)
+blacklists_extend_msg: |
+  /blacklists — чёрный список слов
+  /addblacklist — добавить слово в чёрный список
+  /rmblacklist — убрать слово из чёрного списка
+  /blaction — действие на слово: mute, kick, ban, warn или none
+  /blacklistaction — то же, что /blaction
+  /remallbl — очистить чёрный список
+captcha_extend_msg: |
+  /captcha — включить или выключить капчу для новичков
+  /captchamode — тип капчи: math или text
+  /captchatime — минут на решение капчи
+  /captchaaction — действие при провале: kick, ban или mute
+  /captchamaxattempts — сколько попыток на капчу
+  /captchapending — сообщения ожидающего проверку пользователя
+  /captchaclear — удалить сохранённые сообщения ожидающего
+connections_extend_msg: |
+  /connect — управлять группой из лички
+  /disconnect — отключиться от группы
+  /reconnect — подключиться к последней группе
+  /connection — какая группа подключена
+  /allowconnect — разрешить участникам подключаться к группе
+disabling_extend_msg: |
+  /disable — отключить команду для участников
+  /enable — включить команду обратно
+  /disableable — какие команды можно отключить
+  /disabled — отключённые команды
+  /disabledel — удалять отключённые команды участников
+federations_extend_msg: |
+  /newfed — создать федерацию
+  /renamefed — переименовать федерацию
+  /delfed — удалить федерацию
+  /fedinfo — информация о федерации
+  /fedadmins — админы федерации
+  /fedpromote — назначить админа федерации
+  /feddemote — снять админа федерации
+  /feddemoteme — сложить с себя админство в федерации
+  /joinfed — подключить чат к федерации
+  /leavefed — выйти из федерации
+  /chatfed — федерация этого чата
+  /myfeds — ваши федерации
+  /fban — забанить во всей федерации
+  /unfban — снять бан федерации
+  /funban — то же, что /unfban
+  /fedstat — баны пользователя в федерациях
+  /fbanstat — то же, что /fedstat
+  /fedreason — требовать причину для fban
+  /fednotif — сообщать владельцу о fban в личку
+  /quietfed — скрыть фоновые уведомления о fban в чате
+  /subfed — подписаться на баны другой федерации
+  /unsubfed — отписаться от федерации
+  /fedsubs — подписки федерации
+  /fbanlist — выгрузить список fban
+  /importfbans — загрузить fban из файла в ответе
+  /setfedlog — чат для логов федерации
+  /unsetfedlog — убрать чат логов федерации
+filters_extend_msg: |
+  /filter — автоответ на слово-триггер
+  /filters — список фильтров
+  /stop — удалить фильтр
+  /stopall — удалить все фильтры
+greetings_extend_msg: |
+  /welcome — включить или выключить приветствие
+  /setwelcome — задать приветствие
+  /resetwelcome — сбросить приветствие
+  /goodbye — включить или выключить прощание
+  /setgoodbye — задать прощание
+  /resetgoodbye — сбросить прощание
+  /cleanwelcome — удалять предыдущее приветствие
+  /cleanservice — удалять служебные сообщения о входе и выходе
+  /autoapprove — одобрять заявки на вступление автоматически
+languages_extend_msg: |
+  /lang — язык бота для вас или группы
+locks_extend_msg: |
+  /lock — запретить тип сообщений
+  /unlock — разрешить тип сообщений
+  /locks — текущие запреты
+  /locktypes — какие типы можно запретить
+logchannels_extend_msg: |
+  /setlog — назначить канал логов (отправить в канале)
+  /unsetlog — убрать канал логов
+  /logchannel — текущий канал логов
+  /logcategories — категории логов
+  /log — включить категорию логов
+  /nolog — выключить категорию логов
+misc_extend_msg: |
+  /info — информация о пользователе
+  /id — ID чата или пользователя
+  /ping — скорость ответа бота
+  /stat — число сообщений в чате
+  /tr — перевести сообщение
+  /removebotkeyboard — убрать зависшую клавиатуру бота
+  /stickerid — file ID стикера
+  /zombies — выгнать удалённые аккаунты
+  /github — найти пользователя или репозиторий GitHub
+  /wiki — поиск в Википедии
+  /ud — поиск в Urban Dictionary
+  /runs — случайная фраза
+mutes_extend_msg: |
+  /mute — замьютить
+  /smute — замьютить молча и удалить команду
+  /dmute — замьютить и удалить сообщение из ответа
+  /tmute — замьютить на время (m/h/d)
+  /unmute — размьютить
+notes_extend_msg: |
+  /save — сохранить заметку
+  /get — показать заметку (или #имя)
+  /notes — список заметок
+  /saved — то же, что /notes
+  /clear — удалить заметку
+  /clearall — удалить все заметки
+  /privatenotes — присылать заметки в личку
+pins_extend_msg: |
+  /pin — закрепить сообщение из ответа
+  /unpin — открепить сообщение
+  /unpinall — открепить все
+  /pinned — показать закреп
+  /permapin — закрепить своё сообщение от имени бота
+  /antichannelpin — не давать каналу автозакреплять посты
+  /cleanlinked — удалять посты привязанного канала
+purges_extend_msg: |
+  /del — удалить сообщение из ответа
+  /purge — удалить всё начиная с сообщения из ответа
+  /purgefrom — отметить начало удаления диапазона
+  /purgeto — удалить диапазон до сообщения из ответа
+reactions_extend_msg: |
+  /addreaction — ставить эмодзи-реакцию на слово
+  /removereaction — убрать реакцию на слово
+  /reactions — список реакций
+  /resetreactions — удалить все реакции
+reports_extend_msg: |
+  /report — пожаловаться админам на сообщение из ответа (или @admin)
+  /reports — включить или выключить жалобы, заблокировать жалобщика
+rules_extend_msg: |
+  /rules — правила чата
+  /setrules — задать правила
+  /resetrules — сбросить правила
+  /privaterules — присылать правила в личку
+  /rulesbtn — текст кнопки правил
+  /resetrulesbutton — сбросить текст кнопки правил
+  /resetrulesbtn — то же, что /resetrulesbutton
+warns_extend_msg: |
+  /warn — предупредить
+  /swarn — предупредить молча и удалить команду
+  /dwarn — предупредить и удалить сообщение из ответа
+  /warns — предупреждения пользователя
+  /rmwarn — снять последнее предупреждение
+  /resetwarn — обнулить предупреждения пользователя
+  /resetallwarns — обнулить все предупреждения в чате
+  /warnings — настройки предупреждений
+  /setwarnlimit — сколько предупреждений до наказания
+  /setwarnmode — наказание: ban, kick или mute
