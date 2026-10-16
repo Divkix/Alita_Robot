@@ -67,14 +67,18 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
+	if chat.Type == "private" {
+		// From PM, act on the connected group.
+		if chat = resolveAdminChat(b, ctx, false); chat == nil {
+			return ext.EndGroups
+		}
+	} else if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
+		return ext.EndGroups
+	}
 	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	var text string
-
-	if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
-		return ext.EndGroups
-	}
 
 	if len(args) >= 2 {
 		toogleOption := args[1]

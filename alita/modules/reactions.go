@@ -131,9 +131,12 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		return ext.EndGroups
+	}
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -199,9 +202,12 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		return ext.EndGroups
+	}
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -264,7 +270,11 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
+	chat := chat_status.IsUserConnected(b, ctx, false, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
+	ctx.EffectiveChat = chat
 
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
@@ -300,9 +310,12 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
+		return ext.EndGroups
+	}
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/reactions"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
@@ -220,4 +221,50 @@ func readAnonAdmin(t *testing.T, chatID int64) bool {
 	t.Helper()
 	settings, ok := readChatSetting[models.AdminSettings](t.Context(), chatID)
 	return ok && settings.AnonAdmin
+}
+
+func TestReactionsFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, member := connectedPMFixture(t)
+	client.membersByUser = map[string]json.RawMessage{
+		fmt.Sprint(admin.Id): json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},"can_change_info":true}`, admin.Id)),
+	}
+
+	runInPM(t, bot, member, "/addreaction hello 👍", reactionsModule.addReaction)
+	if len(reactions.GetReactions(groupA)) != 0 {
+		t.Fatal("non-admin added a reaction to the group")
+	}
+
+	runInPM(t, bot, admin, "/addreaction hello 👍", reactionsModule.addReaction)
+	runInPM(t, bot, admin, "/addreaction bye 👋", reactionsModule.addReaction)
+	if got := reactions.GetReactions(groupA); got["hello"] != "👍" {
+		t.Fatalf("group reactions after add = %v, want hello→👍", got)
+	}
+	runInPM(t, bot, admin, "/reactions", reactionsModule.listReactions)
+	runInPM(t, bot, admin, "/removereaction hello", reactionsModule.removeReaction)
+	if _, ok := reactions.GetReactions(groupA)["hello"]; ok {
+		t.Fatal("/removereaction from PM did not change the connected group")
+	}
+	runInPM(t, bot, admin, "/resetreactions", reactionsModule.resetReactions)
+	if got := reactions.GetReactions(groupA); len(got) != 0 {
+		t.Fatalf("group reactions after reset = %v, want none", got)
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestAllowConnectFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, member := connectedPMFixture(t)
+
+	runInPM(t, bot, member, "/allowconnect off", ConnectionsModule.allowConnect)
+	if !connections.GetChatConnectionSetting(groupA).AllowConnect {
+		t.Fatal("non-admin turned allowconnect off")
+	}
+
+	runInPM(t, bot, admin, "/allowconnect off", ConnectionsModule.allowConnect)
+	if connections.GetChatConnectionSetting(groupA).AllowConnect {
+		t.Fatal("/allowconnect off from PM did not change the connected group")
+	}
+	if conn := connections.Connection(admin.Id); !conn.Connected || conn.ChatId != groupA {
+		t.Fatalf("admin connection after allowconnect off = %+v, want still connected", conn)
+	}
+	assertNothingSentTo(t, client, groupA)
 }
