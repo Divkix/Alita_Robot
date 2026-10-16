@@ -115,6 +115,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   checks. Any intentional pin must document its compatibility reason and recheck trigger.
 - Version strings are shape-locked (`BotVersion:` with two spaces in `alita/config/config.go`, `version =` in
   `main.go`). Run `make bump-version` on a PR branch, merge, then tag. Tags match `^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$`.
+- `release.yml` runs no checks of its own: it waits for `ci.yml` to pass on the tagged commit (dispatching CI on the
+  tag if main's run was cancelled). Put any new release gate in `ci.yml`.
 - `.env` in cwd auto-loads without overriding real env. Run `--version` smoke checks from `/tmp`.
 - Defaults that surprise: `REDIS_DB=1`; `ENABLE_AISPAM=true` (inert without `TYPESAFE_API_KEY`); perf monitoring and
   background stats are on only when `DEBUG=false`; `HTTP_PORT` falls back to `PORT` then 8080. Integer env parsing is
