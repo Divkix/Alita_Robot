@@ -333,14 +333,11 @@ func secureShuffleStrings(values []string) error {
 
 func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
-
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+	chat := resolveAdminChat(bot, ctx, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -397,14 +394,11 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 
 func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
-
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+	chat := resolveAdminChat(bot, ctx, false)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -440,30 +434,22 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 	return err
 }
 
-func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) (*gotgbot.User, bool) {
+func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) (*gotgbot.User, *gotgbot.Chat, bool) {
 	user := chat_status.RequireUser(bot, ctx)
 	if user == nil {
-		return nil, false
+		return nil, nil, false
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return nil, false
+	chat := resolveAdminChat(bot, ctx, requireBotAdmin)
+	if chat == nil {
+		return nil, nil, false
 	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return nil, false
-	}
-	if requireBotAdmin && !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
-		return nil, false
-	}
-	return user, true
+	return user, chat, true
 }
 
 func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if _, ok := captchaAdminGate(bot, ctx, true); !ok {
+	_, chat, ok := captchaAdminGate(bot, ctx, true)
+	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
@@ -584,8 +570,8 @@ func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
+	_, chat, ok := captchaAdminGate(bot, ctx, false)
+	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
@@ -634,8 +620,8 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
+	_, chat, ok := captchaAdminGate(bot, ctx, false)
+	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
@@ -679,8 +665,8 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if _, ok := captchaAdminGate(bot, ctx, false); !ok {
+	_, chat, ok := captchaAdminGate(bot, ctx, false)
+	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
@@ -723,8 +709,8 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
-	if _, ok := captchaAdminGate(bot, ctx, true); !ok {
+	_, chat, ok := captchaAdminGate(bot, ctx, true)
+	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
@@ -2066,23 +2052,21 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 	dispatcher.AddHandlerToGroup(handlers.NewMessage(nil, captchaModule.handlePendingCaptchaMessage), -10)
 
-	fullAdmin := []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin(), helpers.RequireBotAdmin()}
-	userAdmin := []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin()}
-	userOnly := []helpers.CheckFunc{helpers.RequireUserAdmin()}
+	// Admin and bot-admin checks run inside the handlers, against the group
+	// the user is connected to when the command comes from PM.
 	for _, cfg := range []struct {
 		name    string
-		checks  []helpers.CheckFunc
 		handler func(*gotgbot.Bot, *ext.Context) error
 	}{
-		{"captcha", append([]helpers.CheckFunc{helpers.CheckDisabled("captcha")}, fullAdmin...), captchaModule.captchaCommand},
-		{"captchamode", append([]helpers.CheckFunc{helpers.CheckDisabled("captchamode")}, userAdmin...), captchaModule.captchaModeCommand},
-		{"captchatime", append([]helpers.CheckFunc{helpers.CheckDisabled("captchatime")}, userAdmin...), captchaModule.captchaTimeCommand},
-		{"captchaaction", append([]helpers.CheckFunc{helpers.CheckDisabled("captchaaction")}, userAdmin...), captchaModule.captchaActionCommand},
-		{"captchamaxattempts", append([]helpers.CheckFunc{helpers.CheckDisabled("captchamaxattempts")}, fullAdmin...), captchaModule.captchaMaxAttemptsCommand},
-		{"captchapending", append([]helpers.CheckFunc{helpers.CheckDisabled("captchapending")}, userOnly...), captchaModule.viewPendingMessages},
-		{"captchaclear", append([]helpers.CheckFunc{helpers.CheckDisabled("captchaclear")}, userOnly...), captchaModule.clearPendingMessages},
+		{"captcha", captchaModule.captchaCommand},
+		{"captchamode", captchaModule.captchaModeCommand},
+		{"captchatime", captchaModule.captchaTimeCommand},
+		{"captchaaction", captchaModule.captchaActionCommand},
+		{"captchamaxattempts", captchaModule.captchaMaxAttemptsCommand},
+		{"captchapending", captchaModule.viewPendingMessages},
+		{"captchaclear", captchaModule.clearPendingMessages},
 	} {
-		desc := helpers.CommandDescriptor{Name: cfg.name, RequiredChecks: cfg.checks}
+		desc := helpers.CommandDescriptor{Name: cfg.name, RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled(cfg.name)}}
 		helpers.WrapCommand(dispatcher, desc, pipelineHandler(cfg.handler))
 	}
 

@@ -1,0 +1,110 @@
+package modules
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+)
+
+const settingsTestMemberID = 4250
+
+// connectedPMFixture connects the test admin and a plain member to group A,
+// where only the admin is an administrator.
+func connectedPMFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot, groupA int64, admin, member gotgbot.User) {
+	t.Helper()
+	client, bot, groupA, _ = settingsFixture(t)
+	client.responses["getChat"] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":"Group A"}`, groupA))
+	client.responses["getChatMember"] = json.RawMessage(fmt.Sprintf(`{"status":"member","user":{"id":%d,"is_bot":false,"first_name":"Member"}}`, settingsTestMemberID))
+	admin = gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	member = gotgbot.User{Id: settingsTestMemberID, FirstName: "Member"}
+	for _, u := range []gotgbot.User{admin, member} {
+		if err := connections.ConnectId(u.Id, groupA); err != nil {
+			t.Fatalf("ConnectId(%d) error = %v", u.Id, err)
+		}
+	}
+	t.Cleanup(func() { connections.DisconnectId(settingsTestMemberID) })
+	return client, bot, groupA, admin, member
+}
+
+func runInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*gotgbot.Bot, *ext.Context) error) {
+	t.Helper()
+	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
+	if err := handler(bot, ctx); err != nil && err != ext.EndGroups {
+		t.Fatalf("%s from PM error = %v", text, err)
+	}
+}
+
+func captchaSettingsOf(t *testing.T, chatID int64) *models.CaptchaSettings {
+	t.Helper()
+	settings, err := captcha.GetCaptchaSettings(chatID)
+	if err != nil {
+		t.Fatalf("GetCaptchaSettings() error = %v", err)
+	}
+	return settings
+}
+
+func TestCaptchaFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+
+	runInPM(t, bot, admin, "/captcha on", captchaModule.captchaCommand)
+	runInPM(t, bot, admin, "/captchamode text", captchaModule.captchaModeCommand)
+	runInPM(t, bot, admin, "/captchatime 5", captchaModule.captchaTimeCommand)
+	runInPM(t, bot, admin, "/captchaaction ban", captchaModule.captchaActionCommand)
+	runInPM(t, bot, admin, "/captchamaxattempts 4", captchaModule.captchaMaxAttemptsCommand)
+
+	got := captchaSettingsOf(t, groupA)
+	if !got.Enabled || got.CaptchaMode != "text" || got.Timeout != 5 || got.FailureAction != "ban" || got.MaxAttempts != 4 {
+		t.Fatalf("group captcha settings = %+v, want enabled/text/5/ban/4", got)
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestCaptchaPendingCommandsFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	targetID := int64(424243)
+	attempt, err := captcha.CreateCaptchaAttemptPreMessage(targetID, groupA, "7", 2)
+	if err != nil {
+		t.Fatalf("CreateCaptchaAttemptPreMessage() error = %v", err)
+	}
+	if err := captcha.StoreMessageForCaptcha(targetID, groupA, attempt.ID, db.TEXT, "held in group", "", ""); err != nil {
+		t.Fatalf("StoreMessageForCaptcha() error = %v", err)
+	}
+
+	runInPM(t, bot, admin, "/captchapending 424243", captchaModule.viewPendingMessages)
+	shown := false
+	for _, call := range client.callsFor("sendMessage") {
+		if strings.Contains(fmt.Sprint(call.Params["text"]), "held in group") {
+			shown = true
+		}
+	}
+	if !shown {
+		t.Fatal("/captchapending from PM did not show the group's stored message")
+	}
+
+	runInPM(t, bot, admin, "/captchaclear 424243", captchaModule.clearPendingMessages)
+	if messages, err := captcha.GetStoredMessagesForUser(targetID, groupA); err != nil || len(messages) != 0 {
+		t.Fatalf("stored messages after clear = %d, %v; want 0, nil", len(messages), err)
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestCaptchaFromPMRejectsNonAdmin(t *testing.T) {
+	client, bot, groupA, _, member := connectedPMFixture(t)
+
+	runInPM(t, bot, member, "/captcha on", captchaModule.captchaCommand)
+	runInPM(t, bot, member, "/captchamode text", captchaModule.captchaModeCommand)
+
+	if got := captchaSettingsOf(t, groupA); got.Enabled || got.CaptchaMode == "text" {
+		t.Fatalf("non-admin changed group captcha settings: %+v", got)
+	}
+	assertNothingSentTo(t, client, groupA)
+}
