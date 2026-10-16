@@ -11,6 +11,8 @@ Easily change by using this module!
 
 Just type /lang and use inline keyboard to choose a language for yourself or your group.
 
+In PM, an admin connected to a group can use /lang group to change that group's language.
+
 You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)
 
 **How It Works**

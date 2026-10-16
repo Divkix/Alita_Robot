@@ -54,7 +54,8 @@ func postgresSkip(event testEvent) bool {
 	if event.Package == "github.com/divkix/Alita_Robot/alita/db/migrations" {
 		return os.Getenv("ALITA_TEST_MIGRATION_CHAIN") != "true" && os.Getenv("ALITA_TEST_DATABASE") != "true"
 	}
-	return event.Package == "github.com/divkix/Alita_Robot/alita/db/chats" && event.Test == "TestUpdateChat" &&
+	return event.Package == "github.com/divkix/Alita_Robot/alita/db/chats" &&
+		(event.Test == "TestUpdateChat" || event.Test == "TestListChatsWithUser") &&
 		os.Getenv("ALITA_TEST_DATABASE") != "true"
 }
 

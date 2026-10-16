@@ -321,10 +321,14 @@ connections_help_msg: |
 
   × /connection: Melihat informasi tentang obrolan yang saat ini terhubung.
 
+  × /settings: Pilih grup tempat Anda menjadi admin dan lihat semua pengaturannya; nilai yang berbeda dari bawaan ditandai dengan •. Hanya grup tempat Anda menulis sejak saya bergabung yang ditampilkan; untuk yang lain gunakan /connect `<chatid>` atau kirim /settings di grup.
+
 
   *Perintah Admin:*
 
   × /allowconnect <yes/no>: Izinkan pengguna untuk terhubung ke obrolan atau tidak.
+
+  Saat terhubung, admin juga dapat menjalankan /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect dan /lang group dari obrolan pribadi.
 
 
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
@@ -653,6 +657,8 @@ languages_help_msg: "Tidak dapat mengubah bahasa bot?
 
 
   Ketik saja /lang dan gunakan keyboard inline untuk memilih bahasa untuk diri Anda sendiri atau grup Anda.
+
+  Di obrolan pribadi, admin yang terhubung ke grup dapat menggunakan /lang group untuk mengubah bahasa grup itu.
 
 
   Anda dapat membantu kami membawa bot ke lebih banyak bahasa dengan membantu di [Crowdin](https://crowdin.com/project/alita_robot)"

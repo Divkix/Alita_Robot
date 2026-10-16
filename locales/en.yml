@@ -375,10 +375,14 @@ connections_help_msg:
 
   × /connection: See information about the currently connected chat.
 
+  × /settings: Pick a group where you are an admin and see all of its settings; values that differ from the default are marked with •. Only groups where you have written since I joined are listed; for others use /connect `<chatid>` or send /settings in the group.
+
 
   *Admin Commands:*
 
   × /allowconnect <yes/no>: Allow users to connect to chats or not.
+
+  While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
 
   You can retrieve the chat id by using the /id command in your chat. Don't be surprised
@@ -711,6 +715,8 @@ languages_help_msg: "Not able to change language of the bot?
 
   Just type /lang and use inline keyboard to choose a language for yourself or your
   group.
+
+  In PM, an admin connected to a group can use /lang group to change that group's language.
 
 
   You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)"
