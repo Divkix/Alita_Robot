@@ -102,8 +102,6 @@ var aispamDesc = helpers.CommandDescriptor{
 	Disableable: true,
 	RequiredChecks: []helpers.CheckFunc{
 		helpers.CheckDisabled("aispam"),
-		helpers.RequireGroup(),
-		helpers.RequireUserAdmin(),
 	},
 }
 
@@ -778,6 +776,12 @@ func aispamTruncate(s string, limit int) string {
 // operator has not configured a key or has pulled the global kill switch,
 // rather than leaving an admin believing their chat is protected.
 func (m moduleStruct) aispam(c *helpers.CommandContext) error {
+	// Admin check runs here, against the connected group when used from PM.
+	chat := resolveAdminChat(c.Bot, c.Ctx, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
+	c.Chat = chat
 	args := c.Ctx.Args()[1:]
 	enabled := aispam.IsAISpamEnabled(c.Chat.Id)
 

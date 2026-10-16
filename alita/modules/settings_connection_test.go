@@ -10,10 +10,12 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 const settingsTestMemberID = 4250
@@ -159,4 +161,63 @@ func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {
 	if antiRaidModule.isRaidActive(groupA) {
 		t.Fatal("non-admin activated the group's raid mode")
 	}
+}
+
+func runCommandInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*helpers.CommandContext) error) {
+	t.Helper()
+	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
+	c, err := helpers.BuildCommandContext(bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext(%s) error = %v", text, err)
+	}
+	if err := handler(c); err != nil && err != ext.EndGroups {
+		t.Fatalf("%s from PM error = %v", text, err)
+	}
+}
+
+func TestAISpamFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, member := connectedPMFixture(t)
+	if err := aispam.SetAISpamEnabled(groupA, true); err != nil {
+		t.Fatalf("SetAISpamEnabled() error = %v", err)
+	}
+
+	runCommandInPM(t, bot, member, "/aispam off", aispamModule.aispam)
+	if !aispam.IsAISpamEnabled(groupA) {
+		t.Fatal("non-admin disabled the group's AI spam filter")
+	}
+
+	runCommandInPM(t, bot, admin, "/aispam off", aispamModule.aispam)
+	if aispam.IsAISpamEnabled(groupA) {
+		t.Fatal("/aispam off from PM did not change the connected group")
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestAnonAdminFromPMViaConnection(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	owner := gotgbot.User{Id: 4260, FirstName: "Owner"}
+	client.membersByUser = map[string]json.RawMessage{
+		"4260": json.RawMessage(`{"status":"creator","user":{"id":4260,"is_bot":false,"first_name":"Owner"}}`),
+	}
+	if err := connections.ConnectId(owner.Id, groupA); err != nil {
+		t.Fatalf("ConnectId(owner) error = %v", err)
+	}
+	t.Cleanup(func() { connections.DisconnectId(owner.Id) })
+
+	runCommandInPM(t, bot, admin, "/anonadmin on", adminModule.anonAdmin)
+	if admin2 := readAnonAdmin(t, groupA); admin2 {
+		t.Fatal("a non-owner admin enabled anonymous admin mode")
+	}
+
+	runCommandInPM(t, bot, owner, "/anonadmin on", adminModule.anonAdmin)
+	if !readAnonAdmin(t, groupA) {
+		t.Fatal("/anonadmin on from PM did not change the connected group")
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func readAnonAdmin(t *testing.T, chatID int64) bool {
+	t.Helper()
+	settings, ok := readChatSetting[models.AdminSettings](t.Context(), chatID)
+	return ok && settings.AnonAdmin
 }
