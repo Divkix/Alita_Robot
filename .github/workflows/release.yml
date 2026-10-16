@@ -9,46 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  release-ci-checks:
-    name: Release CI Checks
+  goreleaser:
+    name: Release with GoReleaser
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: alita_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d alita_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      BOT_TOKEN: test-token
-      OWNER_ID: "1"
-      MESSAGE_DUMP: "1"
-      REDIS_ADDRESS: "localhost:6379"
-      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/alita_test?sslmode=disable"
-      AUTO_MIGRATE: "false"
-      USE_WEBHOOKS: "false"
-      DEBUG: "false"
-      CGO_ENABLED: "1"
+    timeout-minutes: 45
     permissions:
-      contents: read
-      security-events: write
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      actions: write # dispatch CI on the tag when main's run for this commit was cancelled
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -58,6 +28,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify tag points to a merged main commit
+        id: tag
         env:
           TAG: ${{ github.ref_name }}
           RELEASE_SHA: ${{ github.sha }}
@@ -72,96 +43,8 @@ jobs:
             echo "::error::tag $TAG points to a commit that is not merged into main; merge the version-bump PR before tagging" >&2
             exit 1
           fi
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: stable
-          cache: true
-
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.29.0
-        with:
-          args: -no-fail ./...
-
-      - name: Run vulnerability check
-        continue-on-error: true
-        uses: golang/govulncheck-action@v1
-
-      - name: Test release build
-        run: |
-          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o alita_robot .
-          if [ ! -f alita_robot ]; then
-            echo "Build failed"
-            exit 1
-          fi
-          echo "Build successful"
-
-      - name: Verify repository migration chain
-        env:
-          ALITA_TEST_MIGRATION_CHAIN: "true"
-        run: go test -tags testtools -v -count=1 -run '^TestRepositoryMigrationChain$' ./alita/db/migrations
-
-      - name: Run PostgreSQL integrity tests
-        env:
-          ALITA_TEST_DATABASE: "true"
-        run: make test-postgres-integrity
-
-      - name: Run full test suite
-        run: make test
-
-      - name: Check coverage threshold
-        run: |
-          coverage=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          if ! awk -v coverage="$coverage" 'BEGIN {exit !(coverage >= 78)}'; then
-            echo "Coverage ${coverage}% is below 78%"
-            exit 1
-          fi
-          echo "Coverage ${coverage}% meets 78%"
-
-      - name: Check translations
-        run: make check-translations
-
-      - name: Check generated docs drift
-        run: make check-docs
-
-  goreleaser:
-    name: Release with GoReleaser
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: [release-ci-checks]
-    permissions:
-      contents: write
-      packages: write
-      id-token: write
-      attestations: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: stable
-          cache: true
-
-      - name: Resolve release tag
-        id: tag
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          tag="$REF_NAME"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
-            echo "::error::tag '$tag' must be vMAJOR.MINOR.PATCH[-prerelease]" >&2
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Resolved release tag: $tag"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: $TAG"
 
       - name: Verify BotVersion matches tag
         env:
@@ -178,6 +61,66 @@ jobs:
             exit 1
           fi
           echo "BotVersion matches release tag ${TAG}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: true
+
+      # Cross-compiling every target is the slow part of a release. Do it while
+      # main's CI for this commit may still be running, so the release step below
+      # only relinks from the warm build cache.
+      - name: Pre-build release binaries
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.13.0
+          args: build --clean
+
+      # The tag must sit on a main commit, and CI on main runs a superset of the
+      # release checks (gosec, govulncheck, lint, build, migration chain, Postgres
+      # integrity, full tests, coverage, docs and translations). Reuse that verdict
+      # instead of re-running it. CI cancels superseded main runs, so a cancelled or
+      # missing run is replaced by dispatching CI on the tag itself.
+      - name: Wait for CI to pass on the release commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 25 * 60))
+          since="" # set once CI is dispatched on the tag; older runs are ignored then
+          while :; do
+            if (( SECONDS > deadline )); then
+              echo "::error::timed out waiting for CI on $RELEASE_SHA" >&2
+              exit 1
+            fi
+            run=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$RELEASE_SHA&per_page=20" --jq "
+              [.workflow_runs[] | select((.event == \"push\" or .event == \"workflow_dispatch\") and .created_at >= \"$since\")]
+              | first // empty | [.id, .status, .conclusion // \"\", .html_url] | map(tostring) | join(\"|\")") || { sleep 20; continue; }
+            IFS='|' read -r id status conclusion url <<< "$run"
+            if [[ -z "$id" || "$conclusion" =~ ^(cancelled|skipped|stale)$ ]]; then
+              if [[ -z "$since" ]]; then
+                echo "No usable CI run on main for $RELEASE_SHA (${conclusion:-none}); dispatching CI on $TAG"
+                since=$(date -u -d '-1 minute' +%Y-%m-%dT%H:%M:%SZ)
+                gh workflow run ci.yml --repo "$REPO" --ref "$TAG"
+              elif [[ -n "$id" ]]; then
+                echo "::error::CI dispatched on $TAG ended $conclusion: $url" >&2
+                exit 1
+              fi
+            elif [[ "$status" != "completed" ]]; then
+              echo "CI for $RELEASE_SHA is $status: $url"
+            elif [[ "$conclusion" == "success" ]]; then
+              echo "CI passed for $RELEASE_SHA: $url"
+              exit 0
+            else
+              echo "::error::CI for $RELEASE_SHA ended $conclusion: $url" >&2
+              exit 1
+            fi
+            sleep 20
+          done
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
