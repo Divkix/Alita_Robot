@@ -10,6 +10,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -107,4 +108,55 @@ func TestCaptchaFromPMRejectsNonAdmin(t *testing.T) {
 		t.Fatalf("non-admin changed group captcha settings: %+v", got)
 	}
 	assertNothingSentTo(t, client, groupA)
+}
+
+func TestAntiraidFromPMViaConnection(t *testing.T) {
+	withMiniredis(t)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+
+	runInPM(t, bot, admin, "/raidtime 2h", antiRaidModule.raidTime)
+	runInPM(t, bot, admin, "/raidactiontime 30m", antiRaidModule.raidActionTime)
+	runInPM(t, bot, admin, "/autoantiraid 10", antiRaidModule.autoAntiRaid)
+	runInPM(t, bot, admin, "/antiraid on", antiRaidModule.antiraid)
+
+	got := antiraid.GetAntiRaidSettings(groupA)
+	if got.RaidTime != 7200 || got.RaidActionTime != 1800 || got.AutoAntiRaidThreshold != 10 {
+		t.Fatalf("group antiraid settings = %+v, want 7200/1800/10", got)
+	}
+	if !antiRaidModule.isRaidActive(groupA) {
+		t.Fatal("/antiraid on from PM did not activate the group's raid mode")
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestAntiraidButtonInPMUsesConnection(t *testing.T) {
+	withMiniredis(t)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+
+	ctx := newModuleCallbackContext(bot, privateChatOf(admin), admin,
+		encodeCallbackData("antiraid", map[string]string{"a": "on"}))
+	if err := antiRaidModule.callbackHandler(bot, ctx); err != nil && err != ext.EndGroups {
+		t.Fatalf("antiraid callback error = %v", err)
+	}
+	if !antiRaidModule.isRaidActive(groupA) {
+		t.Fatal("antiraid button in PM did not activate the connected group's raid mode")
+	}
+	assertNothingSentTo(t, client, groupA)
+}
+
+func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {
+	withMiniredis(t)
+	_, bot, groupA, _, member := connectedPMFixture(t)
+
+	runInPM(t, bot, member, "/raidtime 2h", antiRaidModule.raidTime)
+	ctx := newModuleCallbackContext(bot, privateChatOf(member), member,
+		encodeCallbackData("antiraid", map[string]string{"a": "on"}))
+	_ = antiRaidModule.callbackHandler(bot, ctx)
+
+	if got := antiraid.GetAntiRaidSettings(groupA); got.RaidTime == 7200 {
+		t.Fatalf("non-admin changed group raid time: %+v", got)
+	}
+	if antiRaidModule.isRaidActive(groupA) {
+		t.Fatal("non-admin activated the group's raid mode")
+	}
 }

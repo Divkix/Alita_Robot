@@ -513,23 +513,12 @@ func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
-
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+	chat := resolveAdminChat(bot, ctx, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -645,22 +634,12 @@ func (a *antiRaidStruct) raidActionTime(bot *gotgbot.Bot, ctx *ext.Context) erro
 
 //nolint:dupl // Similar patterns by design: raidTime vs raidActionTime commands.
 func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRaidTime bool) error {
-	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+	chat := resolveAdminChat(bot, ctx, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -724,22 +703,12 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 }
 
 func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error {
-	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
-	user := chat_status.RequireUser(bot, ctx)
-	if user == nil {
+	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
-	if !chat_status.RequireGroup(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_group_only_error", "", chat_status.WithReply())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireUserAdmin(bot, ctx, nil, user.Id) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
-		return ext.EndGroups
-	}
-	if !chat_status.RequireBotAdmin(bot, ctx, nil) {
-		chat_status.NewPermissionResponder(bot).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+	chat := resolveAdminChat(bot, ctx, true)
+	if chat == nil {
 		return ext.EndGroups
 	}
 
@@ -812,8 +781,14 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 		return ext.ContinueGroups
 	}
 	chatID := msg.GetChat().Id
-
-	if !chat_status.IsUserAdmin(bot, chatID, query.From.Id) {
+	if msg.GetChat().Type == "private" {
+		// The status message was sent in PM: act on the connected group.
+		chat := chat_status.IsUserConnected(bot, ctx, true, true)
+		if chat == nil {
+			return ext.EndGroups
+		}
+		chatID = chat.Id
+	} else if !chat_status.IsUserAdmin(bot, chatID, query.From.Id) {
 		_, _ = bot.AnswerCallbackQuery(query.Id, &gotgbot.AnswerCallbackQueryOpts{
 			Text: "You're not an admin!",
 		})
