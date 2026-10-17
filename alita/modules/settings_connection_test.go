@@ -266,10 +266,21 @@ func TestSettingsRefreshInPMShowsShownGroup(t *testing.T) {
 	if len(refresh) > 64 {
 		t.Fatalf("refresh callback data is %d bytes, want <= 64", len(refresh))
 	}
+	decoded, ok := decodeCallbackData(refresh, "settings")
+	if !ok {
+		t.Fatalf("refresh callback data %q does not decode", refresh)
+	}
+	if c, _ := decoded.Field("c"); c != fmt.Sprint(groupA) {
+		t.Fatalf("refresh button carries c=%q, want %d", c, groupA)
+	}
 	if err := connections.ConnectId(admin.Id, groupC); err != nil {
 		t.Fatalf("ConnectId(C) error = %v", err)
 	}
+	editsBefore := len(client.callsFor("editMessageText"))
 	pressInPM(t, bot, admin, refresh, ConnectionsModule.settingsCallback)
+	if got := len(client.callsFor("editMessageText")); got != editsBefore+1 {
+		t.Fatalf("refresh press made %d edits, want 1", got-editsBefore)
+	}
 
 	text := fmt.Sprint(lastEdit(t, client).Params["text"])
 	if strings.Contains(text, summaryTitle(groupC)) {
