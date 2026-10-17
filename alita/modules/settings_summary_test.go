@@ -121,3 +121,25 @@ func TestRenderSettingsSummaryEscapesAndFits(t *testing.T) {
 		t.Fatalf("summary with locks has no changed marker:\n%s", text)
 	}
 }
+
+// warnUser takes no action at the limit for an empty warn_mode, so the summary
+// must not report the default mute for it.
+func TestSettingsSummaryEmptyWarnModeIsNotMute(t *testing.T) {
+	chatID := newSettingsTestChat(t)
+	if err := db.DB.Create(&models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: ""}).Error; err != nil {
+		t.Fatalf("Create(WarnSettings) error = %v", err)
+	}
+	cache.ResetLocalForTest()
+
+	for _, section := range collectChatSettings(context.Background(), chatID) {
+		for _, row := range section.Rows {
+			if row.Command == "/setwarnmode" {
+				if row.Value != "none" || !row.Changed {
+					t.Fatalf("/setwarnmode row = %+v, want changed value none", row)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("summary has no /setwarnmode row")
+}
