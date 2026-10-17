@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 			&models.PinSettings{},
 			&models.ReportChatSettings{},
 			&models.ReportUserSettings{},
+			&models.Report{},
 			&models.DevSettings{},
 			&models.ChannelSettings{},
 			&models.AntifloodSettings{},

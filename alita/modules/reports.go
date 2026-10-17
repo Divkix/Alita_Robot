@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -14,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
@@ -29,6 +31,26 @@ var reportsModule = moduleStruct{
 }
 
 var adminMentionRegex = regexp.MustCompile(`(?i)(^|\s)@admins?(\s|$)`)
+
+// maxReportReasonRunes caps the stored reason so one report cannot store an
+// arbitrarily long message.
+const maxReportReasonRunes = 500
+
+// reportReason is the text after /report, or the whole @admin message.
+func reportReason(text string) string {
+	text = strings.TrimSpace(text)
+	if strings.HasPrefix(text, "/") {
+		if i := strings.IndexFunc(text, unicode.IsSpace); i >= 0 {
+			text = strings.TrimSpace(text[i:])
+		} else {
+			text = ""
+		}
+	}
+	if r := []rune(text); len(r) > maxReportReasonRunes {
+		text = string(r[:maxReportReasonRunes])
+	}
+	return text
+}
 
 func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
@@ -148,6 +170,16 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 			return err
 		}
 		return ext.EndGroups
+	}
+
+	if _, err := reports.Create(&models.Report{
+		ChatId:            chat.Id,
+		ReportedUserId:    reportedUser.Id,
+		ReportedMessageId: reportedMsgId,
+		ReporterId:        user.Id,
+		Reason:            reportReason(msg.Text),
+	}); err != nil {
+		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, err)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))

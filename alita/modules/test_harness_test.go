@@ -488,6 +488,7 @@ func TestMain(m *testing.M) {
 		&models.ChannelSettings{},
 		&models.ReportChatSettings{},
 		&models.ReportUserSettings{},
+		&models.Report{},
 		&db.AntifloodSettings{},
 		&models.AntiRaidSettings{},
 		&db.DevSettings{},
