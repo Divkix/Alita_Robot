@@ -61,6 +61,12 @@ func (m *MigrationRunner) RunMigrations() error {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
+	return m.runMigrationFiles()
+}
+
+// runMigrationFiles verifies the already-applied migration files and applies the
+// pending ones. The schema_migrations table must already exist.
+func (m *MigrationRunner) runMigrationFiles() error {
 	files, err := m.getMigrationFiles()
 	if err != nil {
 		return fmt.Errorf("failed to get migration files: %w", err)
@@ -72,11 +78,27 @@ func (m *MigrationRunner) RunMigrations() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
-	var appliedCount int64
-	if err := m.db.Model(&SchemaMigration{}).Count(&appliedCount).Error; err != nil {
-		return fmt.Errorf("failed to count applied migrations: %w", err)
+	allApplied, orphans, err := m.reconcileAppliedVersions(files)
+	if err != nil {
+		return fmt.Errorf("failed to compare applied migrations with files: %w", err)
 	}
-	if appliedCount == int64(len(files)) {
+	if len(orphans) > 0 {
+		log.Warnf("[Migrations] %d recorded migrations have no file (deleted or renamed after being applied): %s",
+			len(orphans), strings.Join(orphans, ", "))
+	}
+	if allApplied {
+		// Nothing to apply, but applied files must still match their checksums and
+		// legacy rows must still get one.
+		for _, file := range files {
+			version := filepath.Base(file)
+			content, err := os.ReadFile(file) // #nosec G304 - path comes from getMigrationFiles which validates the directory
+			if err != nil {
+				return fmt.Errorf("failed to read migration file %s: %w", version, err)
+			}
+			if err := m.verifyMigrationChecksum(version, content); err != nil {
+				return err
+			}
+		}
 		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
 		m.logMigrationStatus()
 		return nil
@@ -167,6 +189,40 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 
 	slices.Sort(files)
 	return files, nil
+}
+
+// reconcileAppliedVersions compares the recorded versions with the given files.
+// allApplied is true when every file has a record; orphans are the sorted records
+// that have no file. Comparing row counts alone is not enough: a record whose file
+// was deleted or renamed after it was applied offsets a new unapplied file and the
+// count matches, so the new migration would be skipped silently.
+func (m *MigrationRunner) reconcileAppliedVersions(files []string) (allApplied bool, orphans []string, err error) {
+	var versions []string
+	if err := m.db.Model(&SchemaMigration{}).Pluck("version", &versions).Error; err != nil {
+		return false, nil, err
+	}
+
+	recorded := make(map[string]struct{}, len(versions))
+	for _, version := range versions {
+		recorded[version] = struct{}{}
+	}
+
+	allApplied = true
+	onDisk := make(map[string]struct{}, len(files))
+	for _, file := range files {
+		version := filepath.Base(file)
+		onDisk[version] = struct{}{}
+		if _, ok := recorded[version]; !ok {
+			allApplied = false
+		}
+	}
+	for _, version := range versions {
+		if _, ok := onDisk[version]; !ok {
+			orphans = append(orphans, version)
+		}
+	}
+	slices.Sort(orphans)
+	return allApplied, orphans, nil
 }
 
 func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {

@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 func TestAdminPermissionUpdatesRefreshAuthorization(t *testing.T) {
@@ -423,5 +426,159 @@ func TestBotUpdatesLoadersRegisterExpectedHandlers(t *testing.T) {
 	}
 	if removed := moduleDispatcher.RemoveGroup(0); !removed {
 		t.Fatal("LoadBotUpdates did not register standard handlers in group 0")
+	}
+}
+
+type anonAdminBanFlow struct {
+	client *moduleBotClient
+	chat   gotgbot.Chat
+	target gotgbot.User
+	admin  gotgbot.User
+}
+
+func newAnonAdminBanChat() gotgbot.Chat {
+	return gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Ban Chat"}
+}
+
+// runAnonymousAdminBan sends /ban from an anonymous admin in chat through a real dispatcher, then
+// presses the confirmation button the bot sent. promptChat is the chat the button message is
+// reported in; pass nil to use chat.
+func runAnonymousAdminBan(t *testing.T, chat gotgbot.Chat, promptChat *gotgbot.Chat) anonAdminBanFlow {
+	t.Helper()
+	if cache.GetMarshal() == nil {
+		t.Skip("requires initialized cache marshaler")
+	}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+
+	flow := anonAdminBanFlow{
+		client: client,
+		chat:   chat,
+		target: gotgbot.User{Id: 42, FirstName: "Member"},
+		admin:  gotgbot.User{Id: 777000, FirstName: "Telegram"},
+	}
+	anonBot := gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group", Username: "GroupAnonymousBot"}
+	senderChat := chat
+	command := &gotgbot.Message{
+		MessageId:  505,
+		Date:       1,
+		Chat:       chat,
+		From:       &anonBot,
+		SenderChat: &senderChat,
+		Text:       "/ban spam",
+		Entities:   []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 4}},
+		ReplyToMessage: &gotgbot.Message{
+			MessageId: 504,
+			Date:      1,
+			Chat:      chat,
+			From:      &flow.target,
+			Text:      "message being moderated",
+		},
+	}
+	if err := dispatcher.ProcessUpdate(bot, &gotgbot.Update{UpdateId: 10, Message: command}, nil); err != nil {
+		t.Fatalf("ProcessUpdate(command) error = %v", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d before confirmation, want 0", len(calls))
+	}
+
+	var callbackData string
+	for _, call := range client.callsFor("sendMessage") {
+		markup, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+		if !ok || len(markup.InlineKeyboard) == 0 || len(markup.InlineKeyboard[0]) == 0 {
+			continue
+		}
+		callbackData = markup.InlineKeyboard[0][0].CallbackData
+	}
+	if callbackData == "" {
+		t.Fatal("anonymous admin confirmation button was not sent")
+	}
+	t.Cleanup(func() {
+		_ = cache.GetMarshal().Delete(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, command.MessageId))
+	})
+
+	if promptChat == nil {
+		promptChat = &chat
+	}
+	prompt := gotgbot.Message{MessageId: 506, Date: 1, Chat: *promptChat, From: &bot.User, Text: "prove you are admin"}
+	press := &gotgbot.CallbackQuery{
+		Id:           "anon-ban-confirm",
+		From:         flow.admin,
+		Message:      prompt,
+		Data:         callbackData,
+		ChatInstance: "test-chat-instance",
+	}
+	if err := dispatcher.ProcessUpdate(bot, &gotgbot.Update{UpdateId: 11, CallbackQuery: press}, nil); err != nil {
+		t.Fatalf("ProcessUpdate(callback) error = %v", err)
+	}
+	return flow
+}
+
+func TestAnonymousAdminBanRunsInGroupAfterButtonConfirmation(t *testing.T) {
+	flow := runAnonymousAdminBan(t, newAnonAdminBanChat(), nil)
+
+	bans := flow.client.callsFor("banChatMember")
+	if len(bans) != 1 {
+		t.Fatalf("banChatMember calls = %d after confirmation, want 1", len(bans))
+	}
+	if got := fmt.Sprint(bans[0].Params["chat_id"]); got != fmt.Sprint(flow.chat.Id) {
+		t.Fatalf("banChatMember chat_id = %s, want %d", got, flow.chat.Id)
+	}
+	if got := fmt.Sprint(bans[0].Params["user_id"]); got != fmt.Sprint(flow.target.Id) {
+		t.Fatalf("banChatMember user_id = %s, want %d", got, flow.target.Id)
+	}
+}
+
+func TestAnonymousAdminConfirmationAnswersCallback(t *testing.T) {
+	flow := runAnonymousAdminBan(t, newAnonAdminBanChat(), nil)
+
+	answers := flow.client.callsFor("answerCallbackQuery")
+	if len(answers) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 1 so the button stops spinning", len(answers))
+	}
+	if got := fmt.Sprint(answers[0].Params["callback_query_id"]); got != "anon-ban-confirm" {
+		t.Fatalf("answerCallbackQuery callback_query_id = %s, want anon-ban-confirm", got)
+	}
+}
+
+func TestAnonymousAdminBanIsLoggedAsConfirmingAdmin(t *testing.T) {
+	const logChannelID int64 = -100777
+	chat := newAnonAdminBanChat()
+	if err := logchannels.Set(chat.Id, chat.Title, logChannelID); err != nil {
+		t.Fatalf("logchannels.Set: %v", err)
+	}
+	t.Cleanup(func() { _ = logchannels.Unset(chat.Id) })
+	flow := runAnonymousAdminBan(t, chat, nil)
+
+	var logText string
+	for _, call := range flow.client.callsFor("sendMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(logChannelID) {
+			logText = fmt.Sprint(call.Params["text"])
+		}
+	}
+	if logText == "" {
+		t.Fatal("ban was not written to the log channel")
+	}
+	if want := fmt.Sprintf("Admin: %s", formatting.MentionHtml(flow.admin.Id, flow.admin.FirstName)); !strings.Contains(logText, want) {
+		t.Fatalf("log channel text = %q, want actor %q", logText, want)
+	}
+}
+
+func TestAnonymousAdminConfirmationFromAnotherChatDoesNotRunCommand(t *testing.T) {
+	otherChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Other Chat"}
+	flow := runAnonymousAdminBan(t, newAnonAdminBanChat(), &otherChat)
+
+	if calls := flow.client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d for a button reported in another chat, want 0", len(calls))
+	}
+	if calls := flow.client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d for a button reported in another chat, want 0", len(calls))
+	}
+	if calls := flow.client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want the invalid-request answer", len(calls))
 	}
 }

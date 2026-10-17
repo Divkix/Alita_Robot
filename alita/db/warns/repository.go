@@ -275,12 +275,14 @@ func SetWarnLimit(chatId int64, warnLimit int) error {
 	return nil
 }
 
-func SetWarnMode(chatId int64, warnMode string) error {
+// SetWarnMode stores the mode with its tban/tmute duration in seconds; pass 0
+// for modes without one so a previous duration does not linger.
+func SetWarnMode(chatId int64, warnMode string, actionTime int) error {
 	// Single-statement upsert: see SetWarnLimit.
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"warn_mode"}),
-	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode}).Error
+		DoUpdates: clause.AssignmentColumns([]string{"warn_mode", "warn_action_time"}),
+	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode, WarnActionTime: actionTime}).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
 		return err

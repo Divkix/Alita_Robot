@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -1132,6 +1134,166 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 	want := hex.EncodeToString(sum[:])
 	if rec.Checksum != want {
 		t.Errorf("backfilled checksum = %q, want %q", rec.Checksum, want)
+	}
+}
+
+func TestReconcileAppliedVersions(t *testing.T) {
+	tests := []struct {
+		name        string
+		applied     []string
+		files       []string
+		wantApplied bool
+		wantOrphans []string
+	}{
+		{"same sets", []string{"001.sql", "002.sql"}, []string{"001.sql", "002.sql"}, true, nil},
+		{"pending file", []string{"001.sql"}, []string{"001.sql", "002.sql"}, false, nil},
+		{"orphan record offsets new file", []string{"001.sql", "000_removed.sql"}, []string{"001.sql", "002.sql"}, false, []string{"000_removed.sql"}},
+		{"orphan record, all files applied", []string{"001.sql", "000_removed.sql"}, []string{"001.sql"}, true, []string{"000_removed.sql"}},
+		{"orphans are sorted", []string{"b_gone.sql", "001.sql", "a_gone.sql"}, []string{"001.sql"}, true, []string{"a_gone.sql", "b_gone.sql"}},
+		{"empty table", nil, []string{"001.sql"}, false, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			database := newMetadataTestDB(t)
+			for _, version := range tt.applied {
+				if err := database.Create(&SchemaMigration{Version: version}).Error; err != nil {
+					t.Fatalf("create migration record %s: %v", version, err)
+				}
+			}
+			files := make([]string, len(tt.files))
+			for i, name := range tt.files {
+				files[i] = filepath.Join("migrations", name)
+			}
+
+			runner := &MigrationRunner{db: database}
+			gotApplied, gotOrphans, err := runner.reconcileAppliedVersions(files)
+			if err != nil {
+				t.Fatalf("reconcileAppliedVersions() error = %v", err)
+			}
+			if gotApplied != tt.wantApplied {
+				t.Errorf("allApplied = %v, want %v", gotApplied, tt.wantApplied)
+			}
+			if !slices.Equal(gotOrphans, tt.wantOrphans) {
+				t.Errorf("orphans = %v, want %v", gotOrphans, tt.wantOrphans)
+			}
+		})
+	}
+}
+
+// When every file already has a record the runner has nothing to apply, but it
+// must still verify recorded checksums and backfill legacy rows before it returns.
+func TestRunMigrationsVerifiesChecksumsWhenEveryFileIsRecorded(t *testing.T) {
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	fileContent := []byte(`CREATE TABLE fully_recorded_test (id INTEGER PRIMARY KEY);`)
+	sum := sha256.Sum256(fileContent)
+	fileChecksum := hex.EncodeToString(sum[:])
+
+	setup := func(t *testing.T, recordedChecksum string) (*MigrationRunner, string) {
+		t.Helper()
+		database := newMetadataTestDB(t)
+		dir := t.TempDir()
+		version := "001_fully_recorded.sql"
+		if err := os.WriteFile(filepath.Join(dir, version), fileContent, 0o600); err != nil {
+			t.Fatalf("failed to write migration file: %v", err)
+		}
+		rec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: recordedChecksum}
+		if err := database.Create(&rec).Error; err != nil {
+			t.Fatalf("failed to insert migration record: %v", err)
+		}
+		return &MigrationRunner{db: database, migrationsPath: dir}, version
+	}
+
+	t.Run("modified file is reported", func(t *testing.T) {
+		runner, _ := setup(t, "deadbeefdeadbeefdeadbeefdeadbeef")
+
+		err := runner.runMigrationFiles()
+		if err == nil {
+			t.Fatal("runMigrationFiles() error = nil, want checksum mismatch error")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") {
+			t.Errorf("runMigrationFiles() error = %q, want it to mention 'checksum mismatch'", err)
+		}
+	})
+
+	t.Run("legacy row is backfilled", func(t *testing.T) {
+		runner, version := setup(t, "")
+
+		if err := runner.runMigrationFiles(); err != nil {
+			t.Fatalf("runMigrationFiles() with legacy empty-checksum row error = %v", err)
+		}
+		rec, err := runner.getMigrationRecord(version)
+		if err != nil {
+			t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
+		}
+		if rec == nil || rec.Checksum != fileChecksum {
+			t.Errorf("backfilled record = %+v, want checksum %q", rec, fileChecksum)
+		}
+	})
+}
+
+// newIsolatedPostgresDB returns a single-connection handle whose search_path is a
+// throwaway schema, so schema_migrations holds only what the test inserts.
+func newIsolatedPostgresDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	database, err := gorm.Open(postgres.Open(os.Getenv("DATABASE_URL")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open postgres: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("get postgres handle: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+
+	schema := fmt.Sprintf("migrations_test_%d", time.Now().UnixNano())
+	if err := database.Exec("CREATE SCHEMA " + schema).Error; err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = database.Exec("DROP SCHEMA IF EXISTS " + schema + " CASCADE").Error
+		_ = sqlDB.Close()
+	})
+	if err := database.Exec("SET search_path TO " + schema).Error; err != nil {
+		t.Fatalf("set search_path: %v", err)
+	}
+	return database
+}
+
+func TestRunMigrations_AppliesNewFileWhenRecordHasNoFile(t *testing.T) {
+	skipIfNoDb(t)
+
+	database := newIsolatedPostgresDB(t)
+
+	dir := t.TempDir()
+	version := "002_new_after_orphan.sql"
+	if err := os.WriteFile(filepath.Join(dir, version), []byte(
+		`CREATE TABLE migration_orphan_test_items (id INTEGER PRIMARY KEY);`), 0o600); err != nil {
+		t.Fatalf("failed to write migration file: %v", err)
+	}
+
+	runner := &MigrationRunner{db: database, migrationsPath: dir}
+	if err := runner.ensureMigrationsTable(); err != nil {
+		t.Fatalf("ensureMigrationsTable() error = %v", err)
+	}
+	// Applied earlier, file deleted or renamed since: one record and one file, but
+	// the recorded version is not the file's version.
+	orphan := SchemaMigration{Version: "001_removed_after_apply.sql", ExecutedAt: timeNow(), Checksum: "deadbeef"}
+	if err := database.Create(&orphan).Error; err != nil {
+		t.Fatalf("failed to insert orphan record: %v", err)
+	}
+
+	if err := runner.RunMigrations(); err != nil {
+		t.Fatalf("RunMigrations() error = %v", err)
+	}
+
+	if !migrationApplied(t, runner, version) {
+		t.Fatalf("migration %s was not applied", version)
+	}
+	if !database.Migrator().HasTable("migration_orphan_test_items") {
+		t.Fatal("migration_orphan_test_items was not created")
 	}
 }
 

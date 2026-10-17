@@ -608,7 +608,7 @@ warns_help_msg: "चेतावनियों के साथ अपने �
 
   - /warnings: चैट की चेतावनी सेटिंग्स प्राप्त करें।
 
-  - /setwarnmode <ban/kick/mute>: चैट का चेतावनी मोड सेट करें।
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time]: चैट का चेतावनी मोड सेट करें।
 
   - /setwarnlimit <number>: उपयोगकर्ताओं को दंडित करने से पहले चेतावनियों की संख्या सेट करें।"
 users_help_msg:
@@ -1573,15 +1573,19 @@ rules_extended_docs: |
   • एडमिन कमांड: चैट में एडमिन अनुमतियां आवश्यक
 
 # Warns module keys
-warns_specify_action: "आपको बहुत अधिक चेतावनियों पर की जाने वाली कार्रवाई निर्दिष्ट करनी होगी। वर्तमान मोड हैं: ban/kick/mute"
+warns_specify_action: "आपको बहुत अधिक चेतावनियों पर की जाने वाली कार्रवाई निर्दिष्ट करनी होगी। वर्तमान मोड हैं: ban/kick/mute/tban/tmute"
 warns_mode_updated_ban: "चेतावनी मोड अपडेट किया गया: ban"
 warns_mode_updated_kick: "चेतावनी मोड अपडेट किया गया: kick"
 warns_mode_updated_mute: "चेतावनी मोड अपडेट किया गया: mute"
-warns_mode_unknown: "अज्ञात प्रकार '%s'। कृपया इनमें से एक का उपयोग करें: ban/kick/mute"
+warns_mode_updated_tban: "चेतावनी मोड अपडेट किया गया: tban, %s के लिए"
+warns_mode_updated_tmute: "चेतावनी मोड अपडेट किया गया: tmute, %s के लिए"
+warns_mode_unknown: "अज्ञात प्रकार '%s'। कृपया इनमें से एक का उपयोग करें: ban/kick/mute/tban/tmute"
 warns_admin_warning_error: मैं किसी एडमिन को चेतावनी नहीं दूंगा!
 warns_limit_kicked: "यह %d/%d चेतावनियां हैं; इसलिए %s को किक कर दिया गया है!"
 warns_limit_muted: "यह %d/%d चेतावनियां हैं; इसलिए %s को म्यूट कर दिया गया है!"
 warns_limit_banned: "यह %d/%d चेतावनियां हैं; इसलिए %s को बैन कर दिया गया है!"
+warns_limit_tbanned: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए बैन कर दिया गया है!"
+warns_limit_tmuted: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए म्यूट कर दिया गया है!"
 warns_remove_button: ❌ चेतावनी हटाएं
 warns_rules_button: नियम 📝
 warns_user_warning: "उपयोगकर्ता %s को %d/%d चेतावनियां हैं; सावधान रहें!"
@@ -1874,6 +1878,8 @@ warns_extended_docs: |
   • <code>ban</code> - उपयोगकर्ता को चैट से स्थायी रूप से बैन करें
   • <code>kick</code> - उपयोगकर्ता को किक करें (वे फिर से जुड़ सकते हैं)
   • <code>mute</code> - उपयोगकर्ता को म्यूट करें (संदेश नहीं भेज सकते)
+  • <code>tban</code> - मोड के साथ दिए गए समय के लिए उपयोगकर्ता को बैन करें, जैसे <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - मोड के साथ दिए गए समय के लिए उपयोगकर्ता को म्यूट करें, जैसे <code>/setwarnmode tmute 2h</code>
 
   <b>साइलेंट और डिलीट चेतावनियां:</b>
   • <code>/swarn</code> - अपना कमांड हटाएं और चुपचाप चेतावनी दें
@@ -1891,7 +1897,7 @@ warns_permissions_docs: |
 
 warns_notes_docs: |
   <b>नोट्स:</b>
-  • जब कोई उपयोगकर्ता चेतावनी सीमा तक पहुंचता है, तो कॉन्फ़िगर की गई कार्रवाई (ban/kick/mute) स्वचालित रूप से लागू होती है
+  • जब कोई उपयोगकर्ता चेतावनी सीमा तक पहुंचता है, तो कॉन्फ़िगर की गई कार्रवाई (ban/kick/mute/tban/tmute) स्वचालित रूप से लागू होती है
   • चेतावनी कारण संग्रहीत किए जाते हैं और उपयोगकर्ता की चेतावनियां जांचते समय प्रदर्शित होते हैं
   • <code>/warns</code> कमांड इस मॉड्यूल में एकमात्र कमांड है जिसे एडमिन द्वारा अक्षम किया जा सकता है
   • अनाम चैनल पोस्ट को चेतावनी नहीं दी जा सकती
