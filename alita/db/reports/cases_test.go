@@ -67,6 +67,27 @@ func TestCreateDedupesSameReporterOnSameMessage(t *testing.T) {
 	}
 }
 
+func TestCreateStoresParentChat(t *testing.T) {
+	skipIfNoDb(t)
+	chatID := -time.Now().UnixNano()
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Report{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+
+	if !mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42}) {
+		t.Fatal("Create() created = false, want true")
+	}
+
+	var parents int64
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).Count(&parents).Error; err != nil {
+		t.Fatalf("count chat parent: %v", err)
+	}
+	if parents != 1 {
+		t.Fatalf("chat parent rows = %d, want 1", parents)
+	}
+}
+
 func TestCountOpenReportersCountsDistinctPeople(t *testing.T) {
 	chatID := newReportCaseChat(t)
 

@@ -8,12 +8,16 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 // Create stores a report. A second report of the same message by the same
 // member is ignored: created is false and r.ID stays zero.
 func Create(r *models.Report) (created bool, err error) {
+	if err := chats.EnsureChatInDb(r.ChatId, ""); err != nil {
+		return false, fmt.Errorf("create report: %w", err)
+	}
 	if r.Status == "" {
 		r.Status = models.ReportStatusOpen
 	}
