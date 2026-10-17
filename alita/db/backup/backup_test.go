@@ -431,6 +431,27 @@ func TestImportChatData_SingleModule(t *testing.T) {
 	assert.Equal(t, "kick", settings.WarnMode)
 }
 
+// Exports omit an empty warn_mode and Postgres rejects an empty one, so a
+// backup without a mode must import with the default rather than abort.
+func TestImportWarnsWithoutModeUsesDefault(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_no_warn_mode"))
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+	backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
+	backup.Data[BackupModuleWarns] = map[string]interface{}{
+		"warn_settings": map[string]interface{}{"warn_limit": float64(5)},
+	}
+
+	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+
+	settings := warns.GetWarnSetting(chatID)
+	assert.Equal(t, 5, settings.WarnLimit)
+	assert.Equal(t, "mute", settings.WarnMode)
+}
+
 func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 	skipIfNoDb(t)
 
