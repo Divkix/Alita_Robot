@@ -77,6 +77,29 @@ func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
 	defer error_handling.RecoverFromPanic("runAdminLoad", "cache")
 	var result AdminCache
 	var panicErr *AdminLoadPanicError
+	returned := false
+	// Deferred so a load ended by runtime.Goexit, which neither returns nor
+	// panics, still wakes its callers and leaves the table; otherwise every
+	// later lookup for the chat would wait on it forever.
+	defer func() {
+		if !returned && panicErr == nil {
+			panicErr = &AdminLoadPanicError{Value: "admin list load exited via runtime.Goexit", Stack: debug.Stack()}
+		}
+		adminLoadsMu.Lock()
+		load.result, load.panicErr = result, panicErr
+		close(load.done)
+		if adminLoads[key] == load {
+			delete(adminLoads, key)
+		}
+		orphaned := panicErr != nil && load.waiters == 0
+		if orphaned {
+			load.reported = true
+		}
+		adminLoadsMu.Unlock()
+		if orphaned {
+			log.Errorf("[cache][LoadAdminCache] %v", panicErr)
+		}
+	}()
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -85,21 +108,7 @@ func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
 		}()
 		result = loadAdminCacheFromTelegram(b, chatId)
 	}()
-
-	adminLoadsMu.Lock()
-	load.result, load.panicErr = result, panicErr
-	close(load.done)
-	if adminLoads[key] == load {
-		delete(adminLoads, key)
-	}
-	orphaned := panicErr != nil && load.waiters == 0
-	if orphaned {
-		load.reported = true
-	}
-	adminLoadsMu.Unlock()
-	if orphaned {
-		log.Errorf("[cache][LoadAdminCache] %v", panicErr)
-	}
+	returned = true
 }
 
 // LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends

@@ -743,3 +743,57 @@ func TestClearAdminCacheMidLoadHandsLaterLookupsToAFreshLoad(t *testing.T) {
 		t.Fatalf("stored list = %v %+v, want admin 42", found, stored)
 	}
 }
+
+// goexitOnceAdminListClient ends the loading goroutine with runtime.Goexit on
+// its first getChatAdministrators call and answers normally afterwards.
+type goexitOnceAdminListClient struct {
+	inner  *adminCacheBotClient
+	exited atomic.Bool
+}
+
+func (c *goexitOnceAdminListClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" && c.exited.CompareAndSwap(false, true) {
+		runtime.Goexit()
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *goexitOnceAdminListClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *goexitOnceAdminListClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+// A load that ends in runtime.Goexit neither returns nor panics. Its callers
+// must still be woken with a failure rather than an empty list, and the chat's
+// next lookup must start a new load instead of waiting on the dead one.
+func TestLoadAdminCacheSurvivesALoadEndedByGoexit(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = int64(-100978)
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+		"getChatAdministrators": json.RawMessage(`[{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Admin"}}]`),
+	}}
+	bot := newAdminCacheBot(inner)
+	bot.BotClient = &goexitOnceAdminListClient{inner: inner}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, err := LoadAdminCacheWithContext(ctx, bot, chatID)
+	var loadPanic *AdminLoadPanicError
+	if !errors.As(err, &loadPanic) {
+		t.Fatalf("lookup whose load called Goexit: error = %v, want *AdminLoadPanicError", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	got, err := LoadAdminCacheWithContext(ctx, bot, chatID)
+	if err != nil {
+		t.Fatalf("next lookup error = %v, want a fresh load", err)
+	}
+	if len(got.UserInfo) != 1 || got.UserInfo[0].User.Id != 42 {
+		t.Fatalf("next lookup got %+v, want admin 42", got.UserInfo)
+	}
+}
