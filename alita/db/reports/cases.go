@@ -107,14 +107,29 @@ func Resolve(chatID, messageID int64, status string, resolvedBy int64) (affected
 }
 
 // SetAdminMessage records where the report card for a message was posted.
+// It locks the open rows in id order, like Resolve, so the two cannot
+// deadlock on the same message.
 func SetAdminMessage(chatID, messageID, adminChatID, adminMessageID int64) error {
-	err := db.DB.Model(&models.Report{}).
-		Where("chat_id = ? AND reported_message_id = ? AND status = ?", chatID, messageID, models.ReportStatusOpen).
-		Updates(map[string]any{
-			"admin_chat_id":    adminChatID,
-			"admin_message_id": adminMessageID,
-			"updated_at":       time.Now(),
-		}).Error
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		var ids []int64
+		if err := tx.Model(&models.Report{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("chat_id = ? AND reported_message_id = ? AND status = ?", chatID, messageID, models.ReportStatusOpen).
+			Order("id").
+			Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		return tx.Model(&models.Report{}).
+			Where("id IN ? AND status = ?", ids, models.ReportStatusOpen).
+			Updates(map[string]any{
+				"admin_chat_id":    adminChatID,
+				"admin_message_id": adminMessageID,
+				"updated_at":       time.Now(),
+			}).Error
+	})
 	if err != nil {
 		return fmt.Errorf("set report admin message: %w", err)
 	}

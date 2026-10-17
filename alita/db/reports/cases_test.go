@@ -239,3 +239,57 @@ func TestSetAdminMessageStoresCardOnOpenReports(t *testing.T) {
 		t.Fatalf("other message rows = %+v, want untouched card fields", other)
 	}
 }
+
+// Resolve and SetAdminMessage both lock a message's open rows; they must take
+// them in the same order, or on Postgres they deadlock and one of them fails.
+func TestConcurrentResolveAndSetAdminMessage(t *testing.T) {
+	const (
+		rounds    = 20
+		reporters = 4
+	)
+	for round := range rounds {
+		chatID := newReportCaseChat(t)
+		messageID := int64(700 + round)
+		for i := range reporters {
+			mustCreateReport(t, &models.Report{
+				ChatId: chatID, ReportedUserId: 43, ReportedMessageId: messageID, ReporterId: int64(100 + i),
+			})
+		}
+
+		var (
+			wg         sync.WaitGroup
+			resolveErr error
+			cardErr    error
+		)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, resolveErr = Resolve(chatID, messageID, models.ReportStatusBanned, 1000)
+		}()
+		go func() {
+			defer wg.Done()
+			cardErr = SetAdminMessage(chatID, messageID, -100777, 31)
+		}()
+		wg.Wait()
+
+		if resolveErr != nil || cardErr != nil {
+			t.Fatalf("round %d: Resolve() error = %v, SetAdminMessage() error = %v", round, resolveErr, cardErr)
+		}
+		var rows []models.Report
+		if err := db.DB.Where("chat_id = ? AND reported_message_id = ?", chatID, messageID).Order("id").Find(&rows).Error; err != nil {
+			t.Fatalf("round %d: load rows: %v", round, err)
+		}
+		carded := 0
+		for _, row := range rows {
+			if row.Status != models.ReportStatusBanned {
+				t.Fatalf("round %d: row %d status = %q, want banned", round, row.ID, row.Status)
+			}
+			if row.AdminMessageId != nil {
+				carded++
+			}
+		}
+		if carded != 0 && carded != len(rows) {
+			t.Fatalf("round %d: card stored on %d of %d rows, want all or none", round, carded, len(rows))
+		}
+	}
+}
