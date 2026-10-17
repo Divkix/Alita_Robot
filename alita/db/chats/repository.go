@@ -9,12 +9,16 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-const chatTouchInterval = time.Hour
+// chatTouchInterval throttles last_activity refreshes: an active, unrenamed
+// chat is rewritten at most once per interval. It is shared with the
+// in-process throttle in modules/users.go.
+const chatTouchInterval = constants.ChatUpdateInterval
 
 func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
 	chat, err := GetChatBasicInfoCached(chatId)
@@ -51,7 +55,10 @@ func EnsureChatInDb(chatId int64, chatName string) error {
 	return nil
 }
 
-func UpdateChat(chatId int64, chatname string, userid int64) error {
+// TouchChat records activity in a chat: it creates the row if missing, and
+// otherwise refreshes last_activity, clears is_inactive and stores a new title.
+// An active, unrenamed chat touched within chatTouchInterval is left alone.
+func TouchChat(chatId int64, chatname string) error {
 	now := time.Now()
 
 	columns := []string{"is_inactive", "last_activity", "updated_at"}
@@ -61,7 +68,6 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 	chat := &models.Chat{
 		ChatId:       chatId,
 		ChatName:     chatname,
-		Users:        models.Int64Array{userid},
 		IsInactive:   false,
 		LastActivity: now,
 	}
@@ -78,13 +84,19 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		}},
 	}).Create(chat)
 	if upsert.Error != nil {
-		log.Errorf("[Database] UpdateChat upsert failed for chat %d: %v", chatId, upsert.Error)
+		log.Errorf("[Database] TouchChat upsert failed for chat %d: %v", chatId, upsert.Error)
 		return upsert.Error
 	}
 	if upsert.RowsAffected > 0 {
 		cache.DeleteCache(cache.CacheKey("chat", chatId))
 	}
+	log.Debugf("[Database] TouchChat: %d", chatId)
+	return nil
+}
 
+// AddChatMember appends userid to the chat's users list if it is not there
+// yet. The chat row must already exist (see TouchChat).
+func AddChatMember(chatId, userid int64) error {
 	if users, err := GetChatUsersCached(chatId); err == nil && slices.Contains(users, userid) {
 		return nil
 	}
@@ -94,12 +106,12 @@ func UpdateChat(chatId int64, chatname string, userid int64) error {
 		userid, chatId, userid,
 	)
 	if result.Error != nil {
-		log.Errorf("[Database] UpdateChat atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
+		log.Errorf("[Database] AddChatMember atomic append failed for chat %d user %d: %v", chatId, userid, result.Error)
 		return result.Error
 	}
 	cache.DeleteCache(cache.CacheKey("chat_users", chatId))
 
-	log.Debugf("[Database] UpdateChat: %d", chatId)
+	log.Debugf("[Database] AddChatMember: %d %d", chatId, userid)
 	return nil
 }
 

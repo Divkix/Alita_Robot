@@ -13,11 +13,13 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
 
 // userTouchInterval throttles last_activity refreshes: an unchanged user is
-// rewritten at most once per interval.
-const userTouchInterval = time.Hour
+// rewritten at most once per interval. It is shared with the in-process
+// throttle in modules/users.go.
+const userTouchInterval = constants.UserUpdateInterval
 
 func EnsureBotInDb(b *gotgbot.Bot) error {
 	me, errGet := b.GetMe(nil)

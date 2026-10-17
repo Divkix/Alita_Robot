@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,20 +12,54 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
 func TestShouldUpdateRateLimitsByID(t *testing.T) {
 	cache := &sync.Map{}
-	if !shouldUpdate(cache, 10, time.Hour) {
+	if !shouldUpdateUser(cache, 10, "user", "User", time.Hour) {
 		t.Fatal("first update should be allowed")
 	}
-	if shouldUpdate(cache, 10, time.Hour) {
+	if shouldUpdateUser(cache, 10, "user", "User", time.Hour) {
 		t.Fatal("second update inside interval should be blocked")
 	}
-	cache.Store(int64(10), time.Now().Add(-2*time.Hour))
-	if !shouldUpdate(cache, 10, time.Hour) {
+	cache.Store(int64(10), throttleEntry{at: time.Now().Add(-2 * time.Hour), state: [2]string{"user", "User"}})
+	if !shouldUpdateUser(cache, 10, "user", "User", time.Hour) {
 		t.Fatal("update after interval should be allowed")
+	}
+}
+
+func TestShouldUpdateUserBypassesThrottleOnRename(t *testing.T) {
+	cache := &sync.Map{}
+	if !shouldUpdateUser(cache, 10, "user", "User", time.Hour) {
+		t.Fatal("first update should be allowed")
+	}
+	if !shouldUpdateUser(cache, 10, "renamed", "User", time.Hour) {
+		t.Fatal("username change inside interval should be allowed")
+	}
+	if !shouldUpdateUser(cache, 10, "renamed", "Renamed", time.Hour) {
+		t.Fatal("display name change inside interval should be allowed")
+	}
+	if shouldUpdateUser(cache, 10, "renamed", "Renamed", time.Hour) {
+		t.Fatal("unchanged user inside interval should be blocked")
+	}
+}
+
+func TestShouldUpdateChannelBypassesThrottleOnRename(t *testing.T) {
+	cache := &sync.Map{}
+	const channelID = int64(-1009876543210)
+	if !shouldUpdateChannel(cache, channelID, "News", "news", time.Hour) {
+		t.Fatal("first update should be allowed")
+	}
+	if shouldUpdateChannel(cache, channelID, "News", "news", time.Hour) {
+		t.Fatal("unchanged channel inside interval should be blocked")
+	}
+	if !shouldUpdateChannel(cache, channelID, "Daily News", "news", time.Hour) {
+		t.Fatal("channel title change inside interval should be allowed")
+	}
+	if !shouldUpdateChannel(cache, channelID, "Daily News", "daily_news", time.Hour) {
+		t.Fatal("channel username change inside interval should be allowed")
 	}
 }
 
@@ -43,6 +78,28 @@ func TestShouldUpdateRateLimitsChatMembershipByChatAndUser(t *testing.T) {
 	}
 }
 
+func TestShouldTouchChatRateLimitsByChatAndBypassesOnRename(t *testing.T) {
+	cache := &sync.Map{}
+	const chatID = int64(-1001)
+
+	if !shouldTouchChat(cache, chatID, "Chat", time.Hour) {
+		t.Fatal("first touch should be allowed")
+	}
+	if shouldTouchChat(cache, chatID, "Chat", time.Hour) {
+		t.Fatal("second touch of the same chat inside interval should be blocked")
+	}
+	if !shouldTouchChat(cache, chatID-1, "Chat", time.Hour) {
+		t.Fatal("touch of a different chat should be allowed")
+	}
+	if !shouldTouchChat(cache, chatID, "Renamed Chat", time.Hour) {
+		t.Fatal("chat title change inside interval should be allowed")
+	}
+	cache.Store(chatID, throttleEntry{at: time.Now().Add(-2 * time.Hour), state: [2]string{"Renamed Chat"}})
+	if !shouldTouchChat(cache, chatID, "Renamed Chat", time.Hour) {
+		t.Fatal("touch after interval should be allowed")
+	}
+}
+
 func TestShouldUpdateAllowsOneConcurrentCaller(t *testing.T) {
 	cache := &sync.Map{}
 	start := make(chan struct{})
@@ -54,7 +111,7 @@ func TestShouldUpdateAllowsOneConcurrentCaller(t *testing.T) {
 		go func() {
 			defer workers.Done()
 			<-start
-			if shouldUpdate(cache, 10, time.Hour) {
+			if shouldUpdateUser(cache, 10, "user", "User", time.Hour) {
 				allowed.Add(1)
 			}
 		}()
@@ -71,7 +128,7 @@ func TestShouldUpdateExpiresInactiveKeys(t *testing.T) {
 	cache := &sync.Map{}
 	const key = int64(10)
 
-	if !shouldUpdate(cache, key, time.Minute) {
+	if !shouldUpdateUser(cache, key, "user", "User", time.Minute) {
 		t.Fatal("first update should be allowed")
 	}
 	sweepUpdateCache(cache, time.Now(), time.Minute)
@@ -84,18 +141,28 @@ func TestShouldUpdateExpiresInactiveKeys(t *testing.T) {
 	}
 }
 
-func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
+// isolateUsersThrottleCaches gives the test empty throttle caches so entries
+// left by other tests cannot suppress the writes it asserts on.
+func isolateUsersThrottleCaches(t *testing.T) {
+	t.Helper()
 	oldUserUpdateCache := userUpdateCache
 	oldChatUpdateCache := chatUpdateCache
+	oldChatMemberUpdateCache := chatMemberUpdateCache
 	oldChannelUpdateCache := channelUpdateCache
 	userUpdateCache = &sync.Map{}
 	chatUpdateCache = &sync.Map{}
+	chatMemberUpdateCache = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
 	t.Cleanup(func() {
 		userUpdateCache = oldUserUpdateCache
 		chatUpdateCache = oldChatUpdateCache
+		chatMemberUpdateCache = oldChatMemberUpdateCache
 		channelUpdateCache = oldChannelUpdateCache
 	})
+}
+
+func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
+	isolateUsersThrottleCaches(t)
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -122,17 +189,7 @@ func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
 }
 
 func TestLogUsersPersistsAnonymousChannelSender(t *testing.T) {
-	oldUserUpdateCache := userUpdateCache
-	oldChatUpdateCache := chatUpdateCache
-	oldChannelUpdateCache := channelUpdateCache
-	userUpdateCache = &sync.Map{}
-	chatUpdateCache = &sync.Map{}
-	channelUpdateCache = &sync.Map{}
-	t.Cleanup(func() {
-		userUpdateCache = oldUserUpdateCache
-		chatUpdateCache = oldChatUpdateCache
-		channelUpdateCache = oldChannelUpdateCache
-	})
+	isolateUsersThrottleCaches(t)
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -162,4 +219,89 @@ func TestLogUsersPersistsAnonymousChannelSender(t *testing.T) {
 			channelSettings.ChannelName == channel.Title &&
 			channelSettings.Username == channel.Username
 	})
+}
+
+func TestLogUsersPersistsRenameInsideThrottleWindow(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Users Chat"}
+	sender := gotgbot.User{Id: time.Now().UnixNano(), Username: "before", FirstName: "Before"}
+
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, sender, "hello")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	waitForModuleCondition(t, func() bool {
+		username, name, found := user.GetUserInfoById(sender.Id)
+		return found && username == "before" && name == "Before"
+	})
+
+	renamed := sender
+	renamed.Username = "after"
+	renamed.FirstName = "After"
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, renamed, "hello again")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	waitForModuleCondition(t, func() bool {
+		username, name, found := user.GetUserInfoById(sender.Id)
+		return found && username == "after" && name == "After"
+	})
+}
+
+func TestLogUsersTouchesChatOncePerChatNotPerMember(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Busy Chat"}
+	first := gotgbot.User{Id: time.Now().UnixNano(), Username: "first", FirstName: "First"}
+	second := gotgbot.User{Id: first.Id + 1, Username: "second", FirstName: "Second"}
+
+	loadChat := func() models.Chat {
+		t.Helper()
+		var row models.Chat
+		if err := db.DB.Where("chat_id = ?", chat.Id).First(&row).Error; err != nil {
+			t.Fatalf("load chat: %v", err)
+		}
+		return row
+	}
+
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, first, "hello")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().ChatName; got != chat.Title {
+		t.Fatalf("chat name = %q, want %q", got, chat.Title)
+	}
+
+	// A stale last_activity would be refreshed by any touch that reaches the
+	// database, so leaving it untouched proves the second member was throttled
+	// by the per-chat key. SQLite compares these timestamps as text, so keep the
+	// local representation the driver writes.
+	stale := time.Now().Add(-2 * chatUpdateInterval).Truncate(time.Second)
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chat.Id).
+		Update("last_activity", stale).Error; err != nil {
+		t.Fatalf("pin last_activity: %v", err)
+	}
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, second, "hi")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().LastActivity; !got.Equal(stale) {
+		t.Errorf("last_activity = %v, want %v left alone for another member of a freshly touched chat", got, stale)
+	}
+	// Membership appends use PostgreSQL JSONB operators.
+	if db.DB.Name() == "postgres" {
+		if users := loadChat().Users; !slices.Contains(users, first.Id) || !slices.Contains(users, second.Id) {
+			t.Errorf("chat users = %v, want both %d and %d recorded per member", users, first.Id, second.Id)
+		}
+	}
+
+	renamed := chat
+	renamed.Title = "Busy Chat Renamed"
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, renamed, second, "renamed")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().ChatName; got != renamed.Title {
+		t.Errorf("chat name = %q, want rename %q to bypass the per-chat throttle", got, renamed.Title)
+	}
 }
