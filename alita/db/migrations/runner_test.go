@@ -1265,6 +1265,79 @@ func TestRunMigrationsVerifiesChecksumsWhenEveryFileIsRecorded(t *testing.T) {
 	})
 }
 
+// Applied files are verified even when other files are still pending, and a
+// failed verification stops the run before any pending file is applied.
+func TestRunMigrationsVerifiesAppliedChecksumsBeforeApplyingPending(t *testing.T) {
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	recordedVersions := []string{"001_mixed_a.sql", "002_mixed_b.sql"}
+	pendingVersion := "003_mixed_pending.sql"
+	pendingTable := "mixed_pending_items"
+
+	// setup records the first two files, using wrongChecksum for 002 when non-empty.
+	setup := func(t *testing.T, wrongChecksum string) (*MigrationRunner, *gorm.DB) {
+		t.Helper()
+		database := newMetadataTestDB(t)
+		dir := t.TempDir()
+		for _, version := range recordedVersions {
+			content := []byte(`CREATE TABLE ` + strings.TrimSuffix(version, ".sql") + ` (id INTEGER PRIMARY KEY);`)
+			if err := os.WriteFile(filepath.Join(dir, version), content, 0o600); err != nil {
+				t.Fatalf("failed to write migration file: %v", err)
+			}
+			sum := sha256.Sum256(content)
+			checksum := hex.EncodeToString(sum[:])
+			if version == recordedVersions[1] && wrongChecksum != "" {
+				checksum = wrongChecksum
+			}
+			rec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: checksum}
+			if err := database.Create(&rec).Error; err != nil {
+				t.Fatalf("failed to insert migration record: %v", err)
+			}
+		}
+		pending := []byte(`CREATE TABLE ` + pendingTable + ` (id INTEGER PRIMARY KEY);`)
+		if err := os.WriteFile(filepath.Join(dir, pendingVersion), pending, 0o600); err != nil {
+			t.Fatalf("failed to write pending migration file: %v", err)
+		}
+		return &MigrationRunner{db: database, migrationsPath: dir}, database
+	}
+
+	t.Run("modified applied file stops the run before the pending file", func(t *testing.T) {
+		runner, database := setup(t, "deadbeefdeadbeefdeadbeefdeadbeef")
+
+		err := runner.runMigrationFiles()
+		if err == nil {
+			t.Fatal("runMigrationFiles() error = nil, want checksum mismatch error")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") || !strings.Contains(err.Error(), recordedVersions[1]) {
+			t.Errorf("runMigrationFiles() error = %q, want a checksum mismatch for %s", err, recordedVersions[1])
+		}
+		if migrationApplied(t, runner, pendingVersion) {
+			t.Errorf("pending migration %s was recorded despite the checksum mismatch", pendingVersion)
+		}
+		if database.Migrator().HasTable(pendingTable) {
+			t.Errorf("table %s was created despite the checksum mismatch", pendingTable)
+		}
+	})
+
+	t.Run("matching applied files let the pending file apply", func(t *testing.T) {
+		runner, database := setup(t, "")
+
+		if err := runner.runMigrationFiles(); err != nil {
+			t.Fatalf("runMigrationFiles() error = %v", err)
+		}
+		for _, version := range append(slices.Clone(recordedVersions), pendingVersion) {
+			if !migrationApplied(t, runner, version) {
+				t.Errorf("migration %s has no record", version)
+			}
+		}
+		if !database.Migrator().HasTable(pendingTable) {
+			t.Errorf("table %s was not created", pendingTable)
+		}
+	})
+}
+
 // newIsolatedPostgresDB returns a single-connection handle whose search_path is a
 // throwaway schema, so schema_migrations holds only what the test inserts.
 func newIsolatedPostgresDB(t *testing.T) *gorm.DB {
