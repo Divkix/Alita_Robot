@@ -750,6 +750,7 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		targetID,
 		formatting.MentionHtml(from.Id, from.FirstName),
 	))
+	go applyActiveUnfban(b, fed.FedID, targetID)
 	return ext.EndGroups
 }
 
@@ -762,6 +763,26 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
 		if _, err := b.BanChatMember(chatID, userID, nil); err != nil {
 			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
+		}
+	}
+}
+
+// applyActiveUnfban lifts the Telegram ban in the federation's chats that know the
+// user, mirroring applyActiveFban. It does nothing while a subscribed federation
+// still bans the user: enforceFedBan would ban them again on their next message.
+// OnlyIfBanned keeps members who are not banned from being kicked.
+func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID int64) {
+	defer error_handling.RecoverFromPanic("applyActiveUnfban", "Federations")
+	if ban, _ := federations.FindBanInFedTree(fedID, userID); ban != nil {
+		return
+	}
+	chatIDs, err := federations.ListFedChatIDs(fedID)
+	if err != nil {
+		return
+	}
+	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
+		if _, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true}); err != nil {
+			log.Debugf("[Federations] active unfban chat %d user %d: %v", chatID, userID, err)
 		}
 	}
 }
