@@ -157,6 +157,8 @@ Handlers obtain their context with `tracing.UpdateContext(ctx)` and pass it to c
 
 Database queries inherit loader deadlines through `WithContext`. Queries without an explicit deadline also receive a 30-second GORM default after startup migrations finish. Startup migrations retain their existing transaction behavior.
 
+Redis calls stop at their context deadline as well: the shared client sets go-redis `ContextTimeoutEnabled`, so a hung Redis fails a cache read at the caller's deadline instead of after the client's 5-second read timeout. Calls made with `cache.Context` carry no deadline and are bounded only by those read and write timeouts.
+
 ## Cache Monitoring
 
 Monitor cache performance via:

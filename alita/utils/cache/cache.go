@@ -134,12 +134,17 @@ func InitCache() error {
 	return nil
 }
 
+// newRedisOptions builds the shared client's options. ContextTimeoutEnabled
+// makes socket reads and writes stop at the caller's context deadline; without
+// it go-redis applies that deadline only to the pool wait and retry backoff,
+// and a hung Redis holds every caller for the full Read/WriteTimeout.
 func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 	if cfg.RedisURL == "" {
 		return &redis.Options{
-			Addr:     cfg.RedisAddress,
-			Password: cfg.RedisPassword,
-			DB:       cfg.RedisDB,
+			Addr:                  cfg.RedisAddress,
+			Password:              cfg.RedisPassword,
+			DB:                    cfg.RedisDB,
+			ContextTimeoutEnabled: true,
 		}, nil
 	}
 
@@ -153,6 +158,7 @@ func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 	if os.Getenv("REDIS_DB") != "" {
 		options.DB = cfg.RedisDB
 	}
+	options.ContextTimeoutEnabled = true
 	return options, nil
 }
 
