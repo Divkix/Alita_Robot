@@ -43,3 +43,20 @@ type Warns struct {
 func (Warns) TableName() string {
 	return "warns_users"
 }
+
+// WarnEntry is one warn: its reason, who issued it and when. WarnedBy 0 with a
+// nil WarnedAt is a warn from before entries existed. Anonymous hides the
+// issuer, who was an anonymous admin; WarnedBy still records the real account.
+type WarnEntry struct {
+	ID        uint       `gorm:"primaryKey;autoIncrement" json:"-"`
+	UserId    int64      `gorm:"column:user_id;not null" json:"user_id,omitempty"`
+	ChatId    int64      `gorm:"column:chat_id;not null" json:"chat_id,omitempty"`
+	Reason    string     `gorm:"column:reason;not null;default:''" json:"reason"`
+	WarnedBy  int64      `gorm:"column:warned_by;not null;default:0" json:"warned_by,omitempty"`
+	Anonymous bool       `gorm:"column:anonymous;not null;default:false" json:"anonymous,omitempty"`
+	WarnedAt  *time.Time `gorm:"column:warned_at" json:"warned_at,omitempty"`
+}
+
+func (WarnEntry) TableName() string {
+	return "warn_entries"
+}

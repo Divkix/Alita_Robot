@@ -1,0 +1,231 @@
+//go:build testtools
+
+package warns
+
+import (
+	"testing"
+	"time"
+
+	"github.com/alicebob/miniredis/v2"
+	gocache "github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/lib/v4/marshaler"
+	gocache_store "github.com/eko/gocache/store/redis/v4"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
+	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
+)
+
+func newEntriesFixture(t *testing.T) (chatID, userID int64) {
+	t.Helper()
+	skipIfNoDb(t)
+	chatID = time.Now().UnixNano()
+	userID = chatID + 1
+	if err := chats.EnsureChatInDb(chatID, "warn-entries"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Warns{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
+		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+	})
+	return chatID, userID
+}
+
+func storedEntries(t *testing.T, chatID, userID int64) []models.WarnEntry {
+	t.Helper()
+	var entries []models.WarnEntry
+	if err := db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Order("id").Find(&entries).Error; err != nil {
+		t.Fatalf("load warn entries: %v", err)
+	}
+	return entries
+}
+
+func reasonsOf(entries []models.WarnEntry) []string {
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = e.Reason
+	}
+	return out
+}
+
+func TestWarnUserRecordsIssuerAndTime(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+
+	before := time.Now().Add(-time.Second)
+	_, entries, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "spam", WarnedBy: 77, Anonymous: true})
+	after := time.Now().Add(time.Second)
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	_, listed := GetWarns(userID, chatID)
+	for name, got := range map[string][]models.WarnEntry{"returned": entries, "listed": listed, "stored": storedEntries(t, chatID, userID)} {
+		if len(got) != 1 {
+			t.Fatalf("%s entries = %+v, want one", name, got)
+		}
+		e := got[0]
+		if e.Reason != "spam" || e.WarnedBy != 77 || !e.Anonymous {
+			t.Fatalf("%s entry = %+v, want spam by 77, anonymous", name, e)
+		}
+		if e.WarnedAt == nil || e.WarnedAt.Before(before) || e.WarnedAt.After(after) {
+			t.Fatalf("%s warned_at = %v, want between %v and %v", name, e.WarnedAt, before, after)
+		}
+	}
+}
+
+func TestWarnUserKeepsLegacyReasonsColumn(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+
+	for _, reason := range []string{"one", "two"} {
+		if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: reason, WarnedBy: 77}); err != nil {
+			t.Fatalf("WarnUser(%s) error = %v", reason, err)
+		}
+	}
+	if _, err := RemoveWarn(userID, chatID); err != nil {
+		t.Fatalf("RemoveWarn() error = %v", err)
+	}
+
+	var row models.Warns
+	if err := db.DB.Where("chat_id = ? AND user_id = ?", chatID, userID).Take(&row).Error; err != nil {
+		t.Fatalf("load warns row: %v", err)
+	}
+	if len(row.Reasons) != 1 || row.Reasons[0] != "one" {
+		t.Fatalf("warns column = %v, want [one] so an older bot still reads it", row.Reasons)
+	}
+}
+
+func TestRemoveWarnDropsNewestEntry(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	for _, reason := range []string{"first", "second"} {
+		if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: reason, WarnedBy: 77}); err != nil {
+			t.Fatalf("WarnUser(%s) error = %v", reason, err)
+		}
+	}
+
+	if removed, err := RemoveWarn(userID, chatID); err != nil || !removed {
+		t.Fatalf("RemoveWarn() = %v, %v; want true, nil", removed, err)
+	}
+
+	if got := reasonsOf(storedEntries(t, chatID, userID)); len(got) != 1 || got[0] != "first" {
+		t.Fatalf("stored entries = %v, want [first]", got)
+	}
+	if _, listed := GetWarns(userID, chatID); len(listed) != 1 || listed[0].Reason != "first" {
+		t.Fatalf("listed entries = %+v, want [first]", listed)
+	}
+}
+
+func TestResetUserWarnsDeletesEntries(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "gone"}); err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	if ok, err := ResetUserWarns(userID, chatID); err != nil || !ok {
+		t.Fatalf("ResetUserWarns() = %v, %v; want true, nil", ok, err)
+	}
+
+	if got := storedEntries(t, chatID, userID); len(got) != 0 {
+		t.Fatalf("stored entries = %+v, want none", got)
+	}
+}
+
+func TestResetAllChatWarnsDeletesEntries(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	for _, uid := range []int64{userID, userID + 1} {
+		if _, _, err := WarnUser(uid, chatID, models.WarnEntry{Reason: "gone"}); err != nil {
+			t.Fatalf("WarnUser(%d) error = %v", uid, err)
+		}
+	}
+
+	if err := ResetAllChatWarns(chatID); err != nil {
+		t.Fatalf("ResetAllChatWarns() error = %v", err)
+	}
+
+	var count int64
+	if err := db.DB.Model(&models.WarnEntry{}).Where("chat_id = ?", chatID).Count(&count).Error; err != nil {
+		t.Fatalf("count warn entries: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("warn entries left = %d, want 0", count)
+	}
+}
+
+func TestWarnUserDropsEntriesLeftWithoutWarnRow(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	// An older bot deletes only the warns_users row, leaving its entries behind.
+	if err := db.DB.Create(&models.WarnEntry{UserId: userID, ChatId: chatID, Reason: "stale"}).Error; err != nil {
+		t.Fatalf("create stale entry: %v", err)
+	}
+
+	_, entries, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "fresh"})
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	if got := reasonsOf(entries); len(got) != 1 || got[0] != "fresh" {
+		t.Fatalf("entries = %v, want [fresh]", got)
+	}
+	if got := reasonsOf(storedEntries(t, chatID, userID)); len(got) != 1 || got[0] != "fresh" {
+		t.Fatalf("stored entries = %v, want [fresh]", got)
+	}
+}
+
+func TestGetWarnsFallsBackToLegacyReasons(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	if err := db.DB.Create(&models.Warns{
+		UserId: userID, ChatId: chatID, NumWarns: 2, Reasons: models.StringArray{"old one", "old two"},
+	}).Error; err != nil {
+		t.Fatalf("create legacy warns: %v", err)
+	}
+
+	num, entries := GetWarns(userID, chatID)
+
+	if num != 2 || len(entries) != 2 || entries[0].Reason != "old one" || entries[1].Reason != "old two" {
+		t.Fatalf("GetWarns() = %d, %+v; want both legacy reasons", num, entries)
+	}
+	for _, e := range entries {
+		if e.WarnedBy != 0 || e.WarnedAt != nil || e.Anonymous {
+			t.Fatalf("legacy entry = %+v, want no issuer and no time", e)
+		}
+	}
+}
+
+func TestGetWarnsReloadsLegacyCacheShape(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("miniredis.Run() error = %v", err)
+	}
+	t.Cleanup(mr.Close)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	prevMarshal, prevManager, prevClient := cache.GetCacheState()
+	m := marshaler.New(gocache.New[any](gocache_store.NewRedis(client)))
+	cache.SetCacheState(m, gocache.New[any](gocache_store.NewRedis(client)), client)
+	t.Cleanup(func() { cache.SetCacheState(prevMarshal, prevManager, prevClient) })
+	dbcache.ResetLocalForTest()
+
+	if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "fresh", WarnedBy: 77}); err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+	// What a release before warn entries left in Redis.
+	legacy := struct {
+		NumWarns int
+		Reasons  []string
+	}{NumWarns: 1, Reasons: []string{"cached"}}
+	if err := m.Set(cache.Context, dbcache.CacheKey("warns", userID, chatID), legacy); err != nil {
+		t.Fatalf("seed legacy cache: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	_, entries := GetWarns(userID, chatID)
+
+	if len(entries) != 1 || entries[0].Reason != "fresh" || entries[0].WarnedBy != 77 {
+		t.Fatalf("GetWarns() entries = %+v, want the stored entry, not the legacy cache", entries)
+	}
+}

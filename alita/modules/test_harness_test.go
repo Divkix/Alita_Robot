@@ -353,6 +353,7 @@ func TestMain(m *testing.M) {
 		&models.PinSettings{},
 		&models.WarnSettings{},
 		&models.Warns{},
+		&models.WarnEntry{},
 		&db.NotesSettings{},
 		&db.Notes{},
 		&models.GreetingSettings{},

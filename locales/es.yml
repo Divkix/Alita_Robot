@@ -1098,6 +1098,11 @@ warns_warning_reason: "\n<b>Razón</b>:\n%s"
 warns_settings_display: "El grupo tiene la siguiente configuración:\n<b>Límite de Advertencias:</b> <code>%d</code>\n<b>Modo de Advertencia:</b> <code>%s</code>"
 warns_user_warnings_list: "Este usuario tiene %d/%d advertencias, por las siguientes razones:"
 warns_user_warnings_no_reasons: "El usuario tiene %d/%d advertencias, pero sin razones para ninguna de ellas."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "administrador anónimo"
+warns_issuer_auto: "automático"
+warns_issuer_unknown: "desconocido"
 warns_user_no_warnings: ¡Este usuario no tiene advertencias!
 warns_removed_by: "Advertencia eliminada por %s."
 warns_no_warns_to_remove: ¡El usuario ya no tiene advertencias!

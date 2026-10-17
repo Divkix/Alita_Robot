@@ -1162,6 +1162,11 @@ warns_warning_reason: "\n<b>Reason</b>:\n%s"
 warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>"
 warns_user_warnings_list: "This user has %d/%d warnings, for the following reasons:"
 warns_user_warnings_no_reasons: "User has %d/%d warnings, but no reasons for any of them."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "anonymous admin"
+warns_issuer_auto: "automatic"
+warns_issuer_unknown: "unknown"
 warns_user_no_warnings: This user hasn't got any warnings!
 warns_removed_by: "Warn removed by %s."
 warns_no_warns_to_remove: User already has no warns!

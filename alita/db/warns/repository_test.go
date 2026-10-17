@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 			&models.Chat{},
 			&models.WarnSettings{},
 			&models.Warns{},
+			&models.WarnEntry{},
 			&models.GreetingSettings{},
 			&models.ChatFilters{},
 			&models.AdminSettings{},
@@ -153,7 +154,7 @@ func TestWarnUser(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	numWarns, reasons, err := WarnUser(userID, chatID, "test reason")
+	numWarns, reasons, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "test reason"})
 	if err != nil {
 		t.Fatalf("WarnUser() error = %v", err)
 	}
@@ -163,8 +164,8 @@ func TestWarnUser(t *testing.T) {
 	if len(reasons) != 1 {
 		t.Fatalf("expected 1 reason, got %d", len(reasons))
 	}
-	if reasons[0] != "test reason" {
-		t.Fatalf("expected reason='test reason', got %q", reasons[0])
+	if reasons[0].Reason != "test reason" {
+		t.Fatalf("expected reason='test reason', got %q", reasons[0].Reason)
 	}
 }
 
@@ -181,7 +182,7 @@ func TestWarnUserCreatesMissingParentRows(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	numWarns, reasons, err := WarnUser(userID, chatID, "first")
+	numWarns, reasons, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "first"})
 	if err != nil {
 		t.Fatalf("WarnUser() error = %v", err)
 	}
@@ -216,7 +217,7 @@ func TestWarnUserReachesLimit(t *testing.T) {
 	var lastCount int
 	for i := 1; i <= limit; i++ {
 		reason := fmt.Sprintf("reason %d", i)
-		n, _, err := WarnUser(userID, chatID, reason)
+		n, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: reason})
 		if err != nil {
 			t.Fatalf("WarnUser(%d) error = %v", i, err)
 		}
@@ -250,8 +251,8 @@ func TestRemoveWarn(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	WarnUser(userID, chatID, "first")
-	WarnUser(userID, chatID, "second")
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "first"})
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "second"})
 
 	removed, err := RemoveWarn(userID, chatID)
 	if err != nil {
@@ -268,8 +269,8 @@ func TestRemoveWarn(t *testing.T) {
 	if len(reasons) != 1 {
 		t.Fatalf("expected 1 reason after remove, got %d", len(reasons))
 	}
-	if reasons[0] != "first" {
-		t.Fatalf("expected remaining reason='first', got %q", reasons[0])
+	if reasons[0].Reason != "first" {
+		t.Fatalf("expected remaining reason='first', got %q", reasons[0].Reason)
 	}
 }
 
@@ -289,9 +290,9 @@ func TestResetWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	WarnUser(userID, chatID, "a")
-	WarnUser(userID, chatID, "b")
-	WarnUser(userID, chatID, "c")
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "a"})
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "b"})
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "c"})
 
 	numBefore, _ := GetWarns(userID, chatID)
 	if numBefore != 3 {
@@ -384,7 +385,7 @@ func TestWarnWithEmptyReason(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	numWarns, reasons, err := WarnUser(userID, chatID, "")
+	numWarns, reasons, err := WarnUser(userID, chatID, models.WarnEntry{Reason: ""})
 	if err != nil {
 		t.Fatalf("WarnUser() error = %v", err)
 	}
@@ -395,7 +396,7 @@ func TestWarnWithEmptyReason(t *testing.T) {
 		t.Fatalf("expected 1 reason even for empty reason, got %d", len(reasons))
 	}
 	// Empty reason should be stored as a default "No Reason" placeholder
-	if reasons[0] == "" {
+	if reasons[0].Reason == "" {
 		t.Fatalf("expected a non-empty placeholder for empty reason, got empty string")
 	}
 }
@@ -416,12 +417,12 @@ func TestWarnReasonTruncationPreservesUTF8(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	_, reasons, err := WarnUser(userID, chatID, strings.Repeat("a", 2999)+"界")
+	_, reasons, err := WarnUser(userID, chatID, models.WarnEntry{Reason: strings.Repeat("a", 2999) + "界"})
 	if err != nil {
 		t.Fatalf("WarnUser() error = %v", err)
 	}
-	if len(reasons) != 1 || len(reasons[0]) > 3000 || !utf8.ValidString(reasons[0]) {
-		t.Fatalf("truncated reason = %q, want one valid UTF-8 reason of at most 3000 bytes", reasons)
+	if len(reasons) != 1 || len(reasons[0].Reason) > 3000 || !utf8.ValidString(reasons[0].Reason) {
+		t.Fatalf("truncated reasons = %+v, want one valid UTF-8 reason of at most 3000 bytes", reasons)
 	}
 }
 
@@ -468,7 +469,7 @@ func TestSequentialMultipleWarns(t *testing.T) {
 
 	const total = 5
 	for i := 0; i < total; i++ {
-		WarnUser(userID, chatID, fmt.Sprintf("reason %d", i))
+		_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: fmt.Sprintf("reason %d", i)})
 	}
 
 	numWarns, reasons := GetWarns(userID, chatID)
@@ -497,8 +498,8 @@ func TestGetAllChatWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	WarnUser(userID1, chatID, "reason1")
-	WarnUser(userID2, chatID, "reason2")
+	_, _, _ = WarnUser(userID1, chatID, models.WarnEntry{Reason: "reason1"})
+	_, _, _ = WarnUser(userID2, chatID, models.WarnEntry{Reason: "reason2"})
 
 	count := GetAllChatWarns(chatID)
 	if count < 2 {
@@ -523,8 +524,8 @@ func TestResetAllChatWarns(t *testing.T) {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
 	})
 
-	WarnUser(userID1, chatID, "a")
-	WarnUser(userID2, chatID, "b")
+	_, _, _ = WarnUser(userID1, chatID, models.WarnEntry{Reason: "a"})
+	_, _, _ = WarnUser(userID2, chatID, models.WarnEntry{Reason: "b"})
 
 	if err := ResetAllChatWarns(chatID); err != nil {
 		t.Fatalf("ResetAllChatWarns() error = %v", err)
@@ -553,7 +554,7 @@ func TestWarnUserCreatesSettingsWithDefaultMode(t *testing.T) {
 
 	// WarnUser is the first operation — no prior GetWarnSetting call — so it
 	// must create the WarnSettings row itself inside its transaction.
-	WarnUser(userID, chatID, "trigger settings creation")
+	_, _, _ = WarnUser(userID, chatID, models.WarnEntry{Reason: "trigger settings creation"})
 
 	var settings models.WarnSettings
 	if err := db.DB.Where("chat_id = ?", chatID).First(&settings).Error; err != nil {
@@ -610,7 +611,7 @@ func TestConcurrentWarnAndRemovePreserveCount(t *testing.T) {
 
 	const operations = 10
 	for i := 0; i < operations; i++ {
-		if _, _, err := WarnUser(userID, chatID, fmt.Sprintf("seed %d", i)); err != nil {
+		if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: fmt.Sprintf("seed %d", i)}); err != nil {
 			t.Fatalf("WarnUser(seed %d) error = %v", i, err)
 		}
 	}
@@ -625,7 +626,7 @@ func TestConcurrentWarnAndRemovePreserveCount(t *testing.T) {
 		go func(i int) {
 			defer workers.Done()
 			<-start
-			_, _, err := WarnUser(userID, chatID, fmt.Sprintf("concurrent %d", i))
+			_, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: fmt.Sprintf("concurrent %d", i)})
 			warnErrs <- err
 		}(i)
 		go func() {
