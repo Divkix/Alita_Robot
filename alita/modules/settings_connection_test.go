@@ -694,13 +694,19 @@ func TestSettingsRefreshNotModifiedIsNotAnError(t *testing.T) {
 }
 
 // The PM commands that act on the connected group reply to the admin's PM
-// message, so they all answer in the admin's language, not the group's.
+// message, so they answer in the admin's language, not the group's. That
+// includes refusals sent after the swap: the admin here is not the group's
+// owner and cannot change its info.
 func TestConnectedCommandsFromPMReplyInUserLanguage(t *testing.T) {
 	withMiniredis(t)
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	adminNoInfo := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},"can_change_info":false}`, admin.Id)
+	client.adminsByChat[fmt.Sprint(groupA)] = json.RawMessage(`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_change_info":true,"can_restrict_members":true,"can_delete_messages":true},` + adminNoInfo + `]`)
+	client.membersByUser = map[string]json.RawMessage{fmt.Sprint(admin.Id): json.RawMessage(adminNoInfo)}
 	keys := []string{
-		"captcha_enabled_success", "antiraid_inactive_status", "reactions_add_usage",
+		"captcha_enabled_success", "antiraid_inactive_status", "reactions_none",
 		"connections_invalid_option", "aispam_status_disabled", "admin_anon_admin_disabled",
+		"chat_status_owner_cmd_error", "chat_status_change_info_cmd_error",
 	}
 	locales := map[string]string{}
 	for _, code := range []string{"en", "ru"} {
@@ -737,10 +743,14 @@ func TestConnectedCommandsFromPMReplyInUserLanguage(t *testing.T) {
 	for _, tc := range []struct{ text, key string }{
 		{"/captcha on", "captcha_enabled_success"},
 		{"/antiraid", "antiraid_inactive_status"},
-		{"/addreaction", "reactions_add_usage"},
+		{"/reactions", "reactions_none"},
 		{"/allowconnect maybe", "connections_invalid_option"},
 		{"/aispam", "aispam_status_disabled"},
 		{"/anonadmin", "admin_anon_admin_disabled"},
+		{"/anonadmin on", "chat_status_owner_cmd_error"},
+		{"/addreaction hi 👍", "chat_status_change_info_cmd_error"},
+		{"/removereaction hi", "chat_status_change_info_cmd_error"},
+		{"/resetreactions", "chat_status_change_info_cmd_error"},
 	} {
 		update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{MessageId: 101, Date: 1, Chat: privateChatOf(admin), From: &admin, Text: tc.text}}
 		if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {

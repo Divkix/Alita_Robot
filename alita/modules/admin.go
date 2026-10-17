@@ -608,7 +608,7 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 		}
 	} else {
 		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, chat, user.Id) {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply(), chat_status.WithTranslator(tr))
 			return ext.EndGroups
 		}
 		switch args[1] {
