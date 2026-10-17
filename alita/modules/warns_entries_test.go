@@ -17,6 +17,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
@@ -71,6 +72,18 @@ func setUserName(t *testing.T, userID int64, name string) {
 	dbcache.DeleteCache(dbcache.CacheKey("user", userID))
 }
 
+// ensureWarnParents creates the chats and users rows that warns_users and
+// warn_entries reference, for fixtures that insert those rows directly.
+func ensureWarnParents(t *testing.T, chatID, userID int64) {
+	t.Helper()
+	if err := chats.EnsureChatInDb(chatID, "Warn Chat"); err != nil {
+		t.Fatalf("EnsureChatInDb(%d) error = %v", chatID, err)
+	}
+	if err := user.EnsureUserInDb(userID, "", "Member"); err != nil {
+		t.Fatalf("EnsureUserInDb(%d) error = %v", userID, err)
+	}
+}
+
 func TestWarnsListShowsIssuerAndTime(t *testing.T) {
 	useEnglishLocale(t)
 	client := newModuleBotClient()
@@ -98,6 +111,7 @@ func TestWarnsListKeepsLegacyReasonsPlain(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	ensureWarnParents(t, chat.Id, 42)
 	if err := db.DB.Create(&models.Warns{
 		UserId: 42, ChatId: chat.Id, NumWarns: 1, Reasons: models.StringArray{"old reason"},
 	}).Error; err != nil {
@@ -238,6 +252,7 @@ func TestImportedBotWarnIsMarkedAutomatic(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	// What a backup from another bot account restores for its blacklist warn.
 	now := time.Now().UTC()
+	ensureWarnParents(t, chat.Id, 42)
 	if err := db.DB.Create(&models.Warns{UserId: 42, ChatId: chat.Id, NumWarns: 1, Reasons: models.StringArray{"blacklisted"}}).Error; err != nil {
 		t.Fatalf("create warns: %v", err)
 	}

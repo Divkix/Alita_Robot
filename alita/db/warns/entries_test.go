@@ -17,6 +17,7 @@ import (
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -28,11 +29,17 @@ func newEntriesFixture(t *testing.T) (chatID, userID int64) {
 	if err := chats.EnsureChatInDb(chatID, "warn-entries"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
+	// Fixtures below insert warns_users and warn_entries rows directly, so the
+	// users row their foreign keys need must exist up front.
+	if err := user.EnsureUserInDb(userID, "", "warn-entries"); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
 	t.Cleanup(func() {
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Warns{}).Error
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.WarnSettings{}).Error
 		_ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error
+		_ = db.DB.Where("user_id = ?", userID).Delete(&models.User{}).Error
 	})
 	return chatID, userID
 }
