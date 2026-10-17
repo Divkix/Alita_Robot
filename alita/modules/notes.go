@@ -844,7 +844,7 @@ func (m moduleStruct) getNotes(b *gotgbot.Bot, ctx *ext.Context) error {
 				log.Error(err)
 				return err
 			}
-			return ext.ContinueGroups
+			return ext.EndGroups
 		}
 	}
 
