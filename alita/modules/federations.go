@@ -2,11 +2,14 @@ package modules
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"html"
+	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -754,14 +757,84 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 	return ext.EndGroups
 }
 
+// fedWalkMaxFloodWait caps how long a federation walk waits on Telegram's
+// retry_after before giving up on one chat.
+const fedWalkMaxFloodWait = 30 * time.Second
+
+type fedWalkKey struct {
+	fedID  string
+	userID int64
+}
+
+type fedWalkLock struct {
+	sync.Mutex
+	waiters int
+}
+
+// fedWalkLocks queues the Telegram ban and unban walks of one (federation, user)
+// pair inside this process. Each walk re-reads the ban after taking the lock, so
+// the last walk to run applies the latest state and a quick fban -> unfban
+// cannot end with the earlier walk overtaking the later one.
+var fedWalkLocks = struct {
+	sync.Mutex
+	byKey map[fedWalkKey]*fedWalkLock
+}{byKey: make(map[fedWalkKey]*fedWalkLock)}
+
+func lockFedWalk(fedID string, userID int64) (unlock func()) {
+	key := fedWalkKey{fedID: fedID, userID: userID}
+	fedWalkLocks.Lock()
+	lock := fedWalkLocks.byKey[key]
+	if lock == nil {
+		lock = &fedWalkLock{}
+		fedWalkLocks.byKey[key] = lock
+	}
+	lock.waiters++
+	fedWalkLocks.Unlock()
+
+	lock.Lock()
+	return func() {
+		lock.Unlock()
+		fedWalkLocks.Lock()
+		lock.waiters--
+		if lock.waiters == 0 {
+			delete(fedWalkLocks.byKey, key)
+		}
+		fedWalkLocks.Unlock()
+	}
+}
+
+// retryAfterFlood runs call once more when Telegram answers 429, after the
+// retry_after it asks for, unless that wait exceeds fedWalkMaxFloodWait.
+func retryAfterFlood(call func() error) error {
+	err := call()
+	var tgErr *gotgbot.TelegramError
+	if !errors.As(err, &tgErr) || tgErr.Code != http.StatusTooManyRequests || tgErr.ResponseParams == nil {
+		return err
+	}
+	wait := time.Duration(tgErr.ResponseParams.RetryAfter) * time.Second
+	if wait > fedWalkMaxFloodWait {
+		return err
+	}
+	time.Sleep(wait)
+	return call()
+}
+
 func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveFban", "Federations")
+	defer lockFedWalk(fedID, userID)()
+	if federations.GetFedBan(fedID, userID) == nil {
+		return
+	}
 	chatIDs, err := federations.ListFedChatIDs(fedID)
 	if err != nil {
 		return
 	}
 	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
-		if _, err := b.BanChatMember(chatID, userID, nil); err != nil {
+		err := retryAfterFlood(func() error {
+			_, err := b.BanChatMember(chatID, userID, nil)
+			return err
+		})
+		if err != nil {
 			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
 		}
 	}
@@ -769,11 +842,18 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 
 // applyActiveUnfban lifts the Telegram ban in the federation's chats that know the
 // user, mirroring applyActiveFban. It does nothing while a subscribed federation
-// still bans the user: enforceFedBan would ban them again on their next message.
-// OnlyIfBanned keeps members who are not banned from being kicked.
+// still bans the user, since enforceFedBan would ban them again on their next
+// message, or when that cannot be checked. OnlyIfBanned keeps members who are not
+// banned from being kicked.
 func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveUnfban", "Federations")
-	if ban, _ := federations.FindBanInFedTree(fedID, userID); ban != nil {
+	defer lockFedWalk(fedID, userID)()
+	ban, _, err := federations.FindBanInFedTreeE(context.Background(), fedID, userID)
+	if err != nil {
+		log.Warnf("[Federations] active unfban fed %s user %d: keeping bans, ban lookup failed: %v", fedID, userID, err)
+		return
+	}
+	if ban != nil {
 		return
 	}
 	chatIDs, err := federations.ListFedChatIDs(fedID)
@@ -781,7 +861,11 @@ func applyActiveUnfban(b *gotgbot.Bot, fedID string, userID int64) {
 		return
 	}
 	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
-		if _, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true}); err != nil {
+		err := retryAfterFlood(func() error {
+			_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
+			return err
+		})
+		if err != nil {
 			log.Debugf("[Federations] active unfban chat %d user %d: %v", chatID, userID, err)
 		}
 	}
