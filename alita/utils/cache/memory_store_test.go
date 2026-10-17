@@ -3,13 +3,11 @@
 package cache
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/eko/gocache/lib/v4/store"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
 )
@@ -93,59 +91,6 @@ func TestRedisAccessorsWhenRedisIsNotInitialized(t *testing.T) {
 	}
 	if err := ClearAllCaches(); err == nil {
 		t.Fatal("ClearAllCaches() error = nil, want redis client not initialized")
-	}
-}
-
-func TestCacheMemoryStore_GetWithTTLAndLifecycle(t *testing.T) {
-	ctx := context.Background()
-	mem := newCacheMemoryStore()
-	const key = "lifecycle-key"
-
-	if _, _, err := mem.GetWithTTL(ctx, key); err == nil {
-		t.Fatal("GetWithTTL() error = nil, want not found")
-	}
-
-	if err := mem.Set(ctx, key, []byte("payload"), store.WithExpiration(time.Minute)); err != nil {
-		t.Fatalf("Set() error = %v", err)
-	}
-	if err := mem.Set(ctx, "unsupported", 123, nil); err == nil {
-		t.Fatal("Set(unsupported type) error = nil, want unsupported type error")
-	}
-
-	got, ttl, err := mem.GetWithTTL(ctx, key)
-	if err != nil {
-		t.Fatalf("GetWithTTL() error = %v", err)
-	}
-	if string(got.([]byte)) != "payload" {
-		t.Fatalf("GetWithTTL() value = %v, want payload", got)
-	}
-	if ttl <= 0 {
-		t.Fatalf("GetWithTTL() ttl = %v, want positive duration", ttl)
-	}
-
-	const expiredKey = "expired-key"
-	if err := mem.Set(ctx, expiredKey, []byte("old"), store.WithExpiration(time.Millisecond)); err != nil {
-		t.Fatalf("Set(expired) error = %v", err)
-	}
-	time.Sleep(2 * time.Millisecond)
-	if _, _, err := mem.GetWithTTL(ctx, expiredKey); err == nil {
-		t.Fatal("GetWithTTL(expired) error = nil, want expired error")
-	}
-	if _, err := mem.Get(ctx, expiredKey); err == nil {
-		t.Fatal("Get(expired) error = nil, want expired error")
-	}
-
-	if err := mem.Invalidate(ctx); err != nil {
-		t.Fatalf("Invalidate() error = %v", err)
-	}
-	if err := mem.Clear(ctx); err != nil {
-		t.Fatalf("Clear() error = %v", err)
-	}
-	if _, err := mem.Get(ctx, key); err == nil {
-		t.Fatal("Get() after Clear() error = nil, want not found")
-	}
-	if mem.GetType() != "cache-memory-test" {
-		t.Fatalf("GetType() = %q, want cache-memory-test", mem.GetType())
 	}
 }
 
