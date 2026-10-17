@@ -515,7 +515,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	assert.Equal(t, "", rules.GetChatRulesInfo(chatID).Rules)
 
 	require.NoError(t, warns.SetWarnLimit(chatID, 10))
-	require.NoError(t, warns.SetWarnMode(chatID, "ban"))
+	require.NoError(t, warns.SetWarnMode(chatID, "ban", 0))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleWarns))
 	assert.Equal(t, 3, warns.GetWarnSetting(chatID).WarnLimit)
 	assert.Equal(t, "", warns.GetWarnSetting(chatID).WarnMode)

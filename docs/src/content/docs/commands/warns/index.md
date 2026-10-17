@@ -18,7 +18,7 @@ If you're looking for automated warnings, read about the blacklist module!
 - /resetwarn: Reset all of a user's warnings to 0.
 - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
 - /warnings: Get the chat's warning settings.
-- /setwarnmode <ban/kick/mute>: Set the chat's warn mode.
+- /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
 - /setwarnlimit <number>: Set the number of warnings before users are punished.
 
 *Examples*
@@ -33,6 +33,8 @@ If you're looking for automated warnings, read about the blacklist module!
 - `ban` - Permanently ban the user from the chat
 - `kick` - Kick the user (they can rejoin)
 - `mute` - Mute the user (cannot send messages)
+- `tban` - Ban the user for the time given with the mode, e.g. `/setwarnmode tban 1d`
+- `tmute` - Mute the user for the time given with the mode, e.g. `/setwarnmode tmute 2h`
 
 **Silent and Delete Warnings:**
 - `/swarn` - Delete your command and warn silently
@@ -93,7 +95,7 @@ For detailed command usage, refer to the commands table above.
 ## Technical Notes
 
 **Notes:**
-- When a user reaches the warn limit, the configured action (ban/kick/mute) is applied automatically
+- When a user reaches the warn limit, the configured action (ban/kick/mute/tban/tmute) is applied automatically
 - Warning reasons are stored and displayed when checking a user's warns
 - The `/warns` command is the only command in this module that can be disabled by admins
 - Anonymous channel posts cannot be warned

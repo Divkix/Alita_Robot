@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -14,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -33,6 +35,30 @@ var warnPunishShards [32]sync.Mutex
 
 func warnPunishLock(chatID, userID int64) *sync.Mutex {
 	return &warnPunishShards[uint64(chatID*31+userID)%uint64(len(warnPunishShards))]
+}
+
+// defaultWarnActionTime applies to tban/tmute rows without a usable duration,
+// such as backups taken before warn_action_time existed. Telegram treats a
+// missing or out-of-range until_date as forever, which a warn must never be.
+const defaultWarnActionTime = 60 * 60
+
+func isTimedWarnMode(mode string) bool {
+	return mode == "tban" || mode == "tmute"
+}
+
+func warnActionTime(settings *models.WarnSettings) int {
+	if _, ok := extraction.TemporaryUntilDate(0, int64(settings.WarnActionTime)); !ok {
+		return defaultWarnActionTime
+	}
+	return settings.WarnActionTime
+}
+
+// warnModeLabel renders the mode for display, with the duration for tban/tmute.
+func warnModeLabel(settings *models.WarnSettings) string {
+	if isTimedWarnMode(settings.WarnMode) {
+		return settings.WarnMode + " " + formatDuration(warnActionTime(settings))
+	}
+	return settings.WarnMode
 }
 
 func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -64,18 +90,31 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	if len(args) > 0 {
 		mode := strings.ToLower(args[0])
 		modeKeys := map[string]string{
-			"ban":  "warns_mode_updated_ban",
-			"kick": "warns_mode_updated_kick",
-			"mute": "warns_mode_updated_mute",
+			"ban":   "warns_mode_updated_ban",
+			"kick":  "warns_mode_updated_kick",
+			"mute":  "warns_mode_updated_mute",
+			"tban":  "warns_mode_updated_tban",
+			"tmute": "warns_mode_updated_tmute",
 		}
 		if key, ok := modeKeys[mode]; ok {
-			if err := warns.SetWarnMode(chat.Id, mode); err != nil {
+			actionTime := 0
+			if isTimedWarnMode(mode) {
+				seconds := extraction.ExtractDuration(b, ctx, strings.Join(args[1:], " "))
+				if seconds == -1 {
+					return ext.EndGroups
+				}
+				actionTime = int(seconds)
+			}
+			if err := warns.SetWarnMode(chat.Id, mode, actionTime); err != nil {
 				log.Errorf("[Warns] SetWarnMode failed for chat %d: %v", chat.Id, err)
 				errText, _ := tr.GetString("common_settings_save_failed")
 				_, _ = msg.Reply(b, errText, formatting.Shtml())
 				return ext.EndGroups
 			}
 			replyText, _ = tr.GetString(key)
+			if isTimedWarnMode(mode) {
+				replyText = fmt.Sprintf(replyText, formatDuration(actionTime))
+			}
 		} else {
 			temp, _ := tr.GetString("warns_mode_unknown")
 			replyText = fmt.Sprintf(temp, args[0])
@@ -175,6 +214,23 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
 				return err
 			}
+			punished = true
+		case "tban", "tmute":
+			actionTime := warnActionTime(warnrc)
+			untilDate := time.Now().Unix() + int64(actionTime)
+			key := "warns_limit_tbanned"
+			if warnrc.WarnMode == "tban" {
+				_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
+			} else {
+				key = "warns_limit_tmuted"
+				_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+			}
+			if err != nil {
+				log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
+				return err
+			}
+			temp, _ := tr.GetString(key)
+			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName), formatDuration(actionTime))
 			punished = true
 		default:
 			log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
@@ -332,7 +388,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
-	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnrc.WarnMode)
+	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc))
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
