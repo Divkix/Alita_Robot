@@ -24,9 +24,11 @@ CREATE INDEX IF NOT EXISTS idx_warn_entries_chat_user
 ON warn_entries (chat_id, user_id, id);
 
 -- Copy existing reasons in order. Users that already have entries are
--- skipped, so a second run copies nothing.
+-- skipped, so a second run copies nothing. A JSON null in the array comes out
+-- as SQL NULL; it is stored as '' (what the bot reads it as) rather than
+-- dropped, so each user keeps one entry per reason.
 INSERT INTO warn_entries (user_id, chat_id, reason)
-SELECT w.user_id, w.chat_id, r.value
+SELECT w.user_id, w.chat_id, COALESCE(r.value, '')
 FROM warns_users w
 CROSS JOIN LATERAL jsonb_array_elements_text(w.warns) WITH ORDINALITY AS r(value, ord)
 WHERE jsonb_typeof(w.warns) = 'array'

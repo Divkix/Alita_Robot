@@ -771,6 +771,34 @@ User warnings per chat.
 - `user_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
 - `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
 
+---
+
+### `warn_entries`
+
+One row per warn: its reason, who issued it and when. `warns_users` keeps the count and the `warns` reasons array, which the bot still writes for older releases.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
+| `user_id` | `BIGINT` | NO | — | — |
+| `chat_id` | `BIGINT` | NO | — | — |
+| `reason` | `TEXT` | NO | `''` | — |
+| `warned_by` | `BIGINT` | NO | `0` | — |
+| `anonymous` | `BOOLEAN` | NO | `FALSE` | — |
+| `warned_at` | `TIMESTAMPTZ` | YES | — | — |
+
+`warned_by = 0` with a `NULL` `warned_at` marks a warn issued before this table existed. `anonymous` hides the issuer, an anonymous admin; backups export `warned_by = 0` for those rows.
+
+#### Indexes
+
+- `idx_warn_entries_chat_user` (on `chat_id`, `user_id`, `id`)
+
+#### Foreign Keys
+
+None. The bot deletes a user's entries in the same transaction as their `warns_users` row.
+
 ## Entity Relationships
 
 ### Core Entities
@@ -784,5 +812,5 @@ User warnings per chat.
 - User ↔ Chat: Many-to-many through JSONB `users` field on `chats`
 - Chat → Settings: One-to-one (module-specific settings like `warns_settings`, `antiflood_settings`, `pins`)
 - Chat → Content: One-to-many (`filters`, `notes`, `blacklists`, `reactions`)
-- User → Chat Warnings: One-to-many through `warns_users`
+- User → Chat Warnings: One-to-many through `warns_users`, one `warn_entries` row per warn
 - Chat → Captcha: One-to-one (`captcha_settings`) with one-to-many attempts (`captcha_attempts`)
