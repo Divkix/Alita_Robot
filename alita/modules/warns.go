@@ -359,22 +359,26 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 			reply += fmt.Sprintf(temp, html.EscapeString(reason))
 		}
 	}
-	_, err = b.SendMessage(chat.Id, reply,
-		&gotgbot.SendMessageOpts{
+	// The list at the warn limit can pass Telegram's length limit; only the
+	// first part replies to the command and carries the buttons.
+	for i, part := range formatting.SplitMessage(reply) {
+		opts := &gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
-			ReplyParameters: &gotgbot.ReplyParameters{
+		}
+		if i == 0 {
+			opts.ReplyParameters = &gotgbot.ReplyParameters{
 				MessageId:                msg.MessageId,
 				AllowSendingWithoutReply: true,
-			},
-			ReplyMarkup: &keyboard,
-		},
-	)
-	if err != nil {
-		log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
-		return err
+			}
+			opts.ReplyMarkup = &keyboard
+		}
+		if _, err = b.SendMessage(chat.Id, part, opts); err != nil {
+			log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
+			return err
+		}
 	}
 
 	return ext.EndGroups
