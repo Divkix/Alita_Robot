@@ -133,8 +133,11 @@ func TestClearOnStartupLogsErrorWithDeletedCount(t *testing.T) {
 		}
 		return nil
 	}})
+	// NewGlobal adds its hook to the process-wide logger for good; swap the
+	// hooks out for this test and put them back afterwards.
+	previousHooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previousHooks) })
 	hook := logtest.NewGlobal()
-	t.Cleanup(hook.Reset)
 
 	clearOnStartup(client)
 
@@ -150,7 +153,7 @@ func TestClearOnStartupLogsErrorWithDeletedCount(t *testing.T) {
 	if entry.Level != log.ErrorLevel {
 		t.Errorf("failed clear logged at %v, want error", entry.Level)
 	}
-	for _, want := range []string{"redis went away", "100"} {
+	for _, want := range []string{"redis went away", "after clearing 100 keys"} {
 		if !strings.Contains(entry.Message, want) {
 			t.Errorf("log message %q does not mention %q", entry.Message, want)
 		}

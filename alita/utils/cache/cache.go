@@ -181,8 +181,8 @@ func ClearAllCaches() error {
 }
 
 // clearWithClient deletes every DataCachePrefix key. Each SCAN and UNLINK gets
-// its own ContextWithTimeout: with ContextTimeoutEnabled the deadline cuts the
-// socket, so one budget for the whole walk would abort a large keyspace midway.
+// its own ContextWithTimeout: a done context fails the next command at the pool
+// wait, so one budget for the whole walk would abort a large keyspace midway.
 // On failure the error says how many keys were already removed.
 func clearWithClient(client *redis.Client) error {
 	var cursor uint64

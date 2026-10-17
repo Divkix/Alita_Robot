@@ -145,7 +145,7 @@ Use `InvalidateAdminCache(chatID)` from `alita/utils/cache` for event handling, 
 
 `CLEAR_CACHE_ON_STARTUP` defaults to `false`. Normal restarts preserve cached data to avoid a burst of database queries.
 
-When explicitly enabled, `ClearAllCaches` uses Redis `SCAN` and `UNLINK` to remove only `alita:cache:*` entries. Anti-raid state, join tracking, pending confirmations, and unrelated application keys remain intact. Use this option when cached data needs to be rebuilt after a format change.
+When explicitly enabled, startup clearing (`InitCache` → `clearOnStartup`) uses Redis `SCAN` and `UNLINK` to remove only `alita:cache:*` entries. Each `SCAN` and `UNLINK` has its own 5 s timeout, so the total time grows with the number of keys. If a step fails, the walk stops, the error is logged with the number of keys already removed, and startup continues with the rest of the cache still in place. Anti-raid state, join tracking, pending confirmations, and unrelated application keys remain intact. Use this option when cached data needs to be rebuilt after a format change.
 
 Old cache keys from versions predating the `alita:cache:` namespace expire through their existing TTLs. Deployments should finish replacing the old version before relying on invalidation across instances, because older instances still use the old cache keys.
 
