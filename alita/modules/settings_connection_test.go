@@ -13,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/aispam"
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -133,19 +134,91 @@ func TestAntiraidFromPMViaConnection(t *testing.T) {
 	assertNothingSentTo(t, client, groupA)
 }
 
-func TestAntiraidButtonInPMUsesConnection(t *testing.T) {
+// extraGroup adds a group with the given admin list and makes getChat answer
+// with each group's own id.
+func extraGroup(t *testing.T, client *moduleBotClient, admins json.RawMessage, knownGroups ...int64) (group int64) {
+	t.Helper()
+	group = -uniqueModuleChatID()
+	if err := chats.EnsureChatInDb(group, fmt.Sprintf("Group %d", group)); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	client.adminsByChat[fmt.Sprint(group)] = admins
+	if client.chatsByID == nil {
+		client.chatsByID = map[string]json.RawMessage{}
+	}
+	for _, id := range append(knownGroups, group) {
+		client.chatsByID[fmt.Sprint(id)] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":"Group %d"}`, id, id))
+	}
+	return group
+}
+
+// botlessAdminList lists userID as the only admin, without the bot.
+func botlessAdminList(userID int64) json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(`[{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}]`, userID))
+}
+
+// lastButtons returns the inline keyboard of the latest sendMessage call.
+func lastButtons(t *testing.T, client *moduleBotClient) []gotgbot.InlineKeyboardButton {
+	t.Helper()
+	calls := client.callsFor("sendMessage")
+	if len(calls) == 0 {
+		t.Fatal("no sendMessage call")
+	}
+	var buttons []gotgbot.InlineKeyboardButton
+	for _, row := range markupOf(t, calls[len(calls)-1]).InlineKeyboard {
+		buttons = append(buttons, row...)
+	}
+	if len(buttons) == 0 {
+		t.Fatal("latest message has no buttons")
+	}
+	return buttons
+}
+
+func pressInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, data string, handler func(*gotgbot.Bot, *ext.Context) error) {
+	t.Helper()
+	ctx := newModuleCallbackContext(bot, privateChatOf(user), user, data)
+	if err := handler(bot, ctx); err != nil && err != ext.EndGroups {
+		t.Fatalf("callback %q error = %v", data, err)
+	}
+}
+
+func TestAntiraidButtonInPMActsOnShownGroup(t *testing.T) {
 	withMiniredis(t)
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
 
-	ctx := newModuleCallbackContext(bot, privateChatOf(admin), admin,
-		encodeCallbackData("antiraid", map[string]string{"a": "on"}))
-	if err := antiRaidModule.callbackHandler(bot, ctx); err != nil && err != ext.EndGroups {
-		t.Fatalf("antiraid callback error = %v", err)
+	runInPM(t, bot, admin, "/antiraid", antiRaidModule.antiraid)
+	enable := lastButtons(t, client)[0].CallbackData
+	if err := connections.ConnectId(admin.Id, groupC); err != nil {
+		t.Fatalf("ConnectId(C) error = %v", err)
+	}
+	pressInPM(t, bot, admin, enable, antiRaidModule.callbackHandler)
+
+	if antiRaidModule.isRaidActive(groupC) {
+		t.Fatal("old status button enabled raid mode in the group connected later")
 	}
 	if !antiRaidModule.isRaidActive(groupA) {
-		t.Fatal("antiraid button in PM did not activate the connected group's raid mode")
+		t.Fatal("status button did not enable raid mode in the group it showed")
 	}
-	assertNothingSentTo(t, client, groupA)
+	assertNothingSentTo(t, client, groupA, groupC)
+}
+
+func TestAntiraidButtonInPMRejectsForgedGroup(t *testing.T) {
+	withMiniredis(t)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	groupB := extraGroup(t, client, adminListJSON(), groupA)
+	groupNoBot := extraGroup(t, client, botlessAdminList(admin.Id))
+
+	for name, target := range map[string]int64{"user not admin": groupB, "bot not admin": groupNoBot} {
+		pressInPM(t, bot, admin, encodeCallbackData("antiraid",
+			map[string]string{"a": "on", "c": fmt.Sprint(target)}), antiRaidModule.callbackHandler)
+		if antiRaidModule.isRaidActive(target) {
+			t.Fatalf("%s: forged button enabled raid mode in group %d", name, target)
+		}
+	}
+	if antiRaidModule.isRaidActive(groupA) {
+		t.Fatal("forged button enabled raid mode in the connected group")
+	}
 }
 
 func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {

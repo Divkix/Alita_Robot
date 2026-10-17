@@ -550,13 +550,13 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 			disableText, _ := tr.GetString("antiraid_btn_disable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         disableText,
-				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "off"}),
+				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "off", "c": strconv.FormatInt(chat.Id, 10)}),
 			}})
 		} else {
 			enableText, _ := tr.GetString("antiraid_btn_enable")
 			kb = append(kb, []gotgbot.InlineKeyboardButton{{
 				Text:         enableText,
-				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "on"}),
+				CallbackData: encodeCallbackData("antiraid", map[string]string{"a": "on", "c": strconv.FormatInt(chat.Id, 10)}),
 			}})
 		}
 
@@ -782,8 +782,8 @@ func (a *antiRaidStruct) callbackHandler(bot *gotgbot.Bot, ctx *ext.Context) err
 	}
 	chatID := msg.GetChat().Id
 	if msg.GetChat().Type == "private" {
-		// The status message was sent in PM: act on the connected group.
-		chat := chat_status.IsUserConnected(bot, ctx, true, true)
+		// The status message was sent in PM: act on the group it showed.
+		chat := callbackAdminChat(bot, ctx, query, decoded, true)
 		if chat == nil {
 			return ext.EndGroups
 		}
