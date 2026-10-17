@@ -2,19 +2,21 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/eko/gocache/lib/v4/store"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-var adminCacheGroup singleflight.Group
 var adminCacheGeneration atomic.Uint64
 
 func adminCacheKey(chatId int64) string {
@@ -25,26 +27,154 @@ func adminCacheKey(chatId int64) string {
 // are included; without it Telegram omits them and IsUserAdmin treats them as
 // regular members.
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
+	ac, err := LoadAdminCacheWithContext(context.Background(), b, chatId)
+	RethrowAdminLoadPanic(err)
+	return ac
+}
+
+// AdminLoadPanicError carries a panic in the shared admin-list load, with the
+// loader's stack, to every caller waiting on it, so a crashed load never reads
+// as "no admins". The caller that receives it reports it: a re-raised panic
+// reaches the dispatcher's log, and other callers log it themselves.
+type AdminLoadPanicError struct {
+	Value any
+	Stack []byte
+}
+
+func (e *AdminLoadPanicError) Error() string {
+	return fmt.Sprintf("admin list load panicked: %v\nStack trace:\n%s", e.Value, e.Stack)
+}
+
+// RethrowAdminLoadPanic panics again in the caller's goroutine when err is an
+// AdminLoadPanicError, as the load did before it ran on its own goroutine.
+func RethrowAdminLoadPanic(err error) {
+	var loadPanic *AdminLoadPanicError
+	if errors.As(err, &loadPanic) {
+		panic(loadPanic)
+	}
+}
+
+// adminLoad is one shared admin-list load and the callers waiting on it. A
+// load runs once per key at a time; it leaves adminLoads when it finishes or is
+// forgotten, so the table only holds loads in flight.
+type adminLoad struct {
+	done     chan struct{}
+	result   AdminCache
+	panicErr *AdminLoadPanicError
+	// Guarded by adminLoadsMu.
+	waiters  int
+	reported bool
+}
+
+var (
+	adminLoadsMu sync.Mutex
+	adminLoads   = map[string]*adminLoad{}
+)
+
+// runAdminLoad fills load and wakes its callers. A panic goes to the callers
+// that receive it; the loader logs it only when no caller is waiting.
+func runAdminLoad(load *adminLoad, key string, b *gotgbot.Bot, chatId int64) {
+	defer error_handling.RecoverFromPanic("runAdminLoad", "cache")
+	var result AdminCache
+	var panicErr *AdminLoadPanicError
+	returned := false
+	// Deferred so a load ended by runtime.Goexit, which neither returns nor
+	// panics, still wakes its callers and leaves the table; otherwise every
+	// later lookup for the chat would wait on it forever.
+	defer func() {
+		if !returned && panicErr == nil {
+			panicErr = &AdminLoadPanicError{Value: "admin list load exited via runtime.Goexit", Stack: debug.Stack()}
+		}
+		adminLoadsMu.Lock()
+		load.result, load.panicErr = result, panicErr
+		close(load.done)
+		if adminLoads[key] == load {
+			delete(adminLoads, key)
+		}
+		orphaned := panicErr != nil && load.waiters == 0
+		if orphaned {
+			load.reported = true
+		}
+		adminLoadsMu.Unlock()
+		if orphaned {
+			log.Errorf("[cache][LoadAdminCache] %v", panicErr)
+		}
+	}()
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicErr = &AdminLoadPanicError{Value: r, Stack: debug.Stack()}
+			}
+		}()
+		result = loadAdminCacheFromTelegram(b, chatId)
+	}()
+	returned = true
+}
+
+// LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends
+// and then returns ctx.Err() with an empty, uncached list. A panic in the load
+// comes back as an *AdminLoadPanicError. The Telegram load is
+// shared with concurrent callers and runs detached from ctx, so one caller's
+// deadline never cuts it short for the others or caches a failure; it finishes
+// in the background and stores its result for the next lookup.
+func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64) (AdminCache, error) {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
-		return AdminCache{}
+		return AdminCache{}, nil
 	}
 
 	genBefore := adminCacheGeneration.Load()
-	v, _, _ := adminCacheGroup.Do(adminCacheKey(chatId), func() (any, error) {
-		return loadAdminCacheFromTelegram(b, chatId), nil
-	})
-	ac, _ := v.(AdminCache)
+	key := adminCacheKey(chatId)
+	adminLoadsMu.Lock()
+	load, running := adminLoads[key]
+	if !running {
+		load = &adminLoad{done: make(chan struct{})}
+		adminLoads[key] = load
+	}
+	load.waiters++
+	adminLoadsMu.Unlock()
+	if !running {
+		go runAdminLoad(load, key, b, chatId)
+	}
+
+	select {
+	case <-load.done:
+		adminLoadsMu.Lock()
+		load.waiters--
+		if load.panicErr != nil {
+			load.reported = true
+		}
+		adminLoadsMu.Unlock()
+		if load.panicErr != nil {
+			return AdminCache{}, load.panicErr
+		}
+	case <-ctx.Done():
+		// The load may have failed just as ctx ended. If it panicked and no
+		// caller is left to receive it, the last one to leave logs it.
+		adminLoadsMu.Lock()
+		load.waiters--
+		var unreported *AdminLoadPanicError
+		if load.panicErr != nil && !load.reported && load.waiters == 0 {
+			load.reported = true
+			unreported = load.panicErr
+		}
+		adminLoadsMu.Unlock()
+		if unreported != nil {
+			log.Errorf("[cache][LoadAdminCache] %v", unreported)
+		}
+		return AdminCache{}, ctx.Err()
+	}
+	ac := load.result
 	if genBefore != adminCacheGeneration.Load() {
 		// An invalidation landed while we waited on the shared load: the value
 		// predates a demotion/promote. Re-read once; on miss return empty so
 		// callers fall back to per-user GetChatMember instead of trusting stale.
 		if ok, fresh := GetAdminCacheList(chatId); ok {
-			return fresh
+			return fresh, nil
 		}
-		return AdminCache{}
+		return AdminCache{}, nil
 	}
-	return ac
+	return ac, nil
 }
 
 func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {
@@ -233,7 +363,9 @@ func InvalidateAdminCache(chatId int64) {
 // ClearAdminCache invalidates pending lookups and removes stored permissions.
 func ClearAdminCache(chatId int64) error {
 	adminCacheGeneration.Add(1)
-	adminCacheGroup.Forget(adminCacheKey(chatId))
+	adminLoadsMu.Lock()
+	delete(adminLoads, adminCacheKey(chatId))
+	adminLoadsMu.Unlock()
 	if m := GetMarshal(); m != nil {
 		return m.Delete(Context, adminCacheKey(chatId))
 	}

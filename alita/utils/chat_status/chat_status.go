@@ -190,6 +190,17 @@ func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
 }
 
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
+	isAdmin, err := IsUserAdminWithContext(context.Background(), b, chatID, userId)
+	cache.RethrowAdminLoadPanic(err)
+	return isAdmin
+}
+
+// IsUserAdminWithContext is IsUserAdmin bounded by ctx: its Telegram calls and
+// the wait for the shared admin-list load end with ctx. It then returns false
+// with ctx.Err(), so callers can tell an unfinished check from a non-admin;
+// nothing is cached for the unfinished check. A panic in the admin-list load
+// comes back as a *cache.AdminLoadPanicError.
+func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId int64) (bool, error) {
 	if !IsValidUserId(userId) {
 		if IsChannelId(userId) {
 			log.WithFields(log.Fields{
@@ -202,96 +213,111 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 				"userID": userId,
 			}).Warning("IsUserAdmin: Invalid user ID (negative/zero) - likely a chat/group ID, not a user ID")
 		}
-		return false
+		return false, nil
 	}
 
 	if isAdmin, known := IsUserAdminCached(chatID, userId); known {
-		return isAdmin
+		return isAdmin, nil
 	}
 
-	ctxGetChat, cancelGetChat := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxGetChat, cancelGetChat := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelGetChat()
 	chat, err := b.GetChatWithContext(ctxGetChat, chatID, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
 		log.WithFields(log.Fields{
 			"chatID": chatID,
 			"userID": userId,
 			"error":  err,
 		}).Warning("IsUserAdmin: Failed to get chat, treating as non-admin")
-		return false
+		return false, nil
 	}
 
 	if chat.Type != "group" && chat.Type != "supergroup" {
-		return false
+		return false, nil
 	}
 
-	adminList := cache.LoadAdminCache(b, chatID)
+	adminList, err := cache.LoadAdminCacheWithContext(ctx, b, chatID)
+	if err != nil {
+		return false, err
+	}
 
 	if adminList.UserMap != nil {
 		if admin, found := adminList.UserMap[userId]; found && admin.User.Id != 0 {
-			return true
+			return true, nil
 		}
 	} else {
 		for i := range adminList.UserInfo {
 			if adminList.UserInfo[i].User.Id == userId {
-				return true
+				return true, nil
 			}
 		}
 	}
 
 	if len(adminList.UserInfo) == 0 {
-		log.WithFields(log.Fields{
-			"chatID": chatID,
-			"userID": userId,
-		}).Debug("IsUserAdmin: Admin cache empty, trying direct GetChatMember fallback")
-
-		ctxMember, cancelMember := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancelMember()
-		member, err := b.GetChatMemberWithContext(ctxMember, chatID, userId, nil)
-		if err != nil {
-			if ctxMember.Err() != nil {
-				log.WithFields(log.Fields{
-					"chatID": chatID,
-					"userID": userId,
-				}).Warn("IsUserAdmin: GetChatMember fallback timed out, assuming non-admin")
-				return false
-			}
-			errStr := err.Error()
-			if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {
-				log.WithFields(log.Fields{
-					"chatID": chatID,
-					"userID": userId,
-				}).Debug("IsUserAdmin: Bot lacks admin rights for GetChatMember fallback")
-			} else if strings.Contains(errStr, "invalid user_id specified") {
-				log.WithFields(log.Fields{
-					"chatID": chatID,
-					"userID": userId,
-				}).Warning("IsUserAdmin: Invalid user ID provided to GetChatMember")
-			} else {
-				log.WithFields(log.Fields{
-					"chatID":    chatID,
-					"userID":    userId,
-					"error":     err,
-					"errorType": fmt.Sprintf("%T", err),
-				}).Warning("IsUserAdmin: Direct GetChatMember failed with unexpected error")
-			}
-			return false
-		}
-
-		status := member.GetStatus()
-		isAdmin := status == "administrator" || status == "creator"
-
-		log.WithFields(log.Fields{
-			"chatID":  chatID,
-			"userID":  userId,
-			"status":  status,
-			"isAdmin": isAdmin,
-		}).Debug("IsUserAdmin: Used fallback GetChatMember")
-
-		return isAdmin
+		return isUserAdminByMember(ctx, b, chatID, userId)
 	}
 
-	return false
+	return false, nil
+}
+
+// isUserAdminByMember asks Telegram for the user's own membership when the
+// admin list is empty (for example when the bot cannot read it).
+func isUserAdminByMember(ctx context.Context, b *gotgbot.Bot, chatID, userId int64) (bool, error) {
+	log.WithFields(log.Fields{
+		"chatID": chatID,
+		"userID": userId,
+	}).Debug("IsUserAdmin: Admin cache empty, trying direct GetChatMember fallback")
+
+	ctxMember, cancelMember := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelMember()
+	member, err := b.GetChatMemberWithContext(ctxMember, chatID, userId, nil)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		if ctxMember.Err() != nil {
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Warn("IsUserAdmin: GetChatMember fallback timed out, assuming non-admin")
+			return false, nil
+		}
+		errStr := err.Error()
+		if strings.Contains(errStr, "CHAT_ADMIN_REQUIRED") {
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Debug("IsUserAdmin: Bot lacks admin rights for GetChatMember fallback")
+		} else if strings.Contains(errStr, "invalid user_id specified") {
+			log.WithFields(log.Fields{
+				"chatID": chatID,
+				"userID": userId,
+			}).Warning("IsUserAdmin: Invalid user ID provided to GetChatMember")
+		} else {
+			log.WithFields(log.Fields{
+				"chatID":    chatID,
+				"userID":    userId,
+				"error":     err,
+				"errorType": fmt.Sprintf("%T", err),
+			}).Warning("IsUserAdmin: Direct GetChatMember failed with unexpected error")
+		}
+		return false, nil
+	}
+
+	status := member.GetStatus()
+	isAdmin := status == "administrator" || status == "creator"
+
+	log.WithFields(log.Fields{
+		"chatID":  chatID,
+		"userID":  userId,
+		"status":  status,
+		"isAdmin": isAdmin,
+	}).Debug("IsUserAdmin: Used fallback GetChatMember")
+
+	return isAdmin, nil
 }
 
 func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {

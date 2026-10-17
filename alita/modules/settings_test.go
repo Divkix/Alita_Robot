@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
@@ -42,12 +47,14 @@ func settingsFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot, g
 		fmt.Sprint(groupA): adminListJSON(settingsTestAdminID),
 		fmt.Sprint(groupB): adminListJSON(),
 	}
-	original := settingsCandidateChats
+	original, originalCooldown := settingsCandidateChats, settingsPickerCooldown
 	settingsCandidateChats = func(context.Context, int64, int) ([]models.Chat, error) {
 		return []models.Chat{{ChatId: groupA, ChatName: "Group A"}, {ChatId: groupB, ChatName: "Group B"}}, nil
 	}
+	// Tests share the admin's user ID; only the pause test turns the pause on.
+	settingsPickerCooldown = 0
 	t.Cleanup(func() {
-		settingsCandidateChats = original
+		settingsCandidateChats, settingsPickerCooldown = original, originalCooldown
 		if err := connections.DisconnectId(settingsTestAdminID); err != nil {
 			t.Errorf("DisconnectId(%d) error = %v", settingsTestAdminID, err)
 		}
@@ -205,6 +212,239 @@ func TestSettingsPickerStopsLiveChecksAtDeadline(t *testing.T) {
 		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(cold[2]) {
 			t.Fatalf("checked %d after the deadline: %s", cold[2], call.Method)
 		}
+	}
+}
+
+// hungTelegramClient stalls one method for one chat like a hung Telegram: the
+// call returns when released, when its context ends, or after stall.
+type hungTelegramClient struct {
+	*moduleBotClient
+	method  string
+	chatID  string
+	release chan struct{}
+	stall   time.Duration
+}
+
+func (c *hungTelegramClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == c.method && fmt.Sprint(params["chat_id"]) == c.chatID {
+		select {
+		case <-c.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(c.stall):
+		}
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// A hung Telegram call inside one group's check must not hold the picker past
+// its budget, and the group it cut must be checked again on the next press.
+func TestSettingsPickerBudgetCutsAHungGroupCheck(t *testing.T) {
+	for _, method := range []string{"getChat", "getChatAdministrators"} {
+		t.Run(method, func(t *testing.T) {
+			client, bot, groupA, _ := settingsFixture(t)
+			user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+			hung := -uniqueModuleChatID()
+			client.adminsByChat[fmt.Sprint(hung)] = adminListJSON(settingsTestAdminID)
+			cache.LoadAdminCache(bot, groupA)
+			setPickerCandidates(t, hung, groupA)
+
+			hungClient := &hungTelegramClient{
+				moduleBotClient: client,
+				method:          method,
+				chatID:          fmt.Sprint(hung),
+				release:         make(chan struct{}),
+				stall:           2 * time.Second,
+			}
+			bot.BotClient = hungClient
+			release := sync.OnceFunc(func() { close(hungClient.release) })
+			t.Cleanup(release)
+			originalBudget := settingsPickerLiveBudget
+			settingsPickerLiveBudget = 100 * time.Millisecond
+			t.Cleanup(func() { settingsPickerLiveBudget = originalBudget })
+
+			start := time.Now()
+			got := runSettingsInPM(t, bot, client, user)
+			if elapsed := time.Since(start); elapsed > time.Second {
+				t.Fatalf("picker answered after %v, want it near the 100ms budget", elapsed)
+			}
+			if strings.Join(got, ",") != fmt.Sprint(groupA) {
+				t.Fatalf("picker chats = %v, want only the warm %d", got, groupA)
+			}
+
+			release()
+			if method == "getChatAdministrators" {
+				// The cut wait left the shared load running; it caches the list.
+				deadline := time.Now().Add(3 * time.Second)
+				for found, _ := cache.GetAdminCacheList(hung); !found; found, _ = cache.GetAdminCacheList(hung) {
+					if time.Now().After(deadline) {
+						t.Fatal("the cut admin-list load never cached its result")
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+			settingsPickerLiveBudget = originalBudget
+			if got := runSettingsInPM(t, bot, client, user); !slices.Contains(got, fmt.Sprint(hung)) {
+				t.Fatalf("next picker chats = %v, want %d checked again", got, hung)
+			}
+		})
+	}
+}
+
+// The connected group stays in the list when the budget cuts its check:
+// tapping it re-checks the user's rights anyway.
+func TestSettingsPickerKeepsConnectedGroupWhenItsCheckIsCut(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	connected := -uniqueModuleChatID()
+	client.adminsByChat[fmt.Sprint(connected)] = adminListJSON(settingsTestAdminID)
+	if err := chats.EnsureChatInDb(connected, "Connected"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := connections.ConnectId(user.Id, connected); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	setPickerCandidates(t)
+
+	hungClient := &hungTelegramClient{
+		moduleBotClient: client,
+		method:          "getChat",
+		chatID:          fmt.Sprint(connected),
+		release:         make(chan struct{}),
+		stall:           2 * time.Second,
+	}
+	bot.BotClient = hungClient
+	t.Cleanup(sync.OnceFunc(func() { close(hungClient.release) }))
+	originalBudget := settingsPickerLiveBudget
+	settingsPickerLiveBudget = 100 * time.Millisecond
+	t.Cleanup(func() { settingsPickerLiveBudget = originalBudget })
+
+	start := time.Now()
+	got := runSettingsInPM(t, bot, client, user)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("picker answered after %v, want it near the 100ms budget", elapsed)
+	}
+	if len(got) != 1 || got[0] != fmt.Sprint(connected) {
+		t.Fatalf("picker chats = %v, want the connected %d", got, connected)
+	}
+}
+
+// scriptedTelegramClient answers one chat's calls through script; a call it
+// does not handle goes to the module fake.
+type scriptedTelegramClient struct {
+	*moduleBotClient
+	chatID string
+	script func(method string, params map[string]any) (json.RawMessage, bool)
+}
+
+func (c *scriptedTelegramClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if fmt.Sprint(params["chat_id"]) == c.chatID {
+		if response, ok := c.script(method, params); ok {
+			return response, nil
+		}
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// A connected group whose admin-list load panics is left out like any other
+// group, since tapping it would only panic again.
+func TestSettingsPickerSkipsConnectedGroupWhoseAdminLoadPanics(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	connected := -uniqueModuleChatID()
+	if err := connections.ConnectId(user.Id, connected); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	setPickerCandidates(t)
+	bot.BotClient = &scriptedTelegramClient{
+		moduleBotClient: client,
+		chatID:          fmt.Sprint(connected),
+		script: func(method string, _ map[string]any) (json.RawMessage, bool) {
+			if method == "getChatAdministrators" {
+				panic("connected admin list exploded")
+			}
+			return nil, false
+		},
+	}
+
+	logger := log.StandardLogger()
+	previous := logger.ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { logger.ReplaceHooks(previous) })
+	hook := logtest.NewLocal(logger)
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 0 {
+		t.Fatalf("picker chats = %v, want the panicking connected group left out", got)
+	}
+	var reports int
+	for _, entry := range hook.AllEntries() {
+		if entry.Level <= log.ErrorLevel && strings.Contains(entry.Message, "connected admin list exploded") {
+			reports++
+		}
+	}
+	if reports != 1 {
+		t.Fatalf("panic log entries = %d, want 1", reports)
+	}
+}
+
+// A connected group that is also a candidate is checked once per press even
+// when its admin-list load panics: one load, one log entry.
+func TestSettingsPickerChecksAPanickingConnectedCandidateOnce(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	connected := -uniqueModuleChatID()
+	if err := connections.ConnectId(user.Id, connected); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	setPickerCandidates(t, connected)
+	var loads atomic.Int32
+	bot.BotClient = &scriptedTelegramClient{
+		moduleBotClient: client,
+		chatID:          fmt.Sprint(connected),
+		script: func(method string, _ map[string]any) (json.RawMessage, bool) {
+			if method == "getChatAdministrators" {
+				loads.Add(1)
+				panic("candidate admin list exploded")
+			}
+			return nil, false
+		},
+	}
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 0 {
+		t.Fatalf("picker chats = %v, want the panicking group left out", got)
+	}
+	if n := loads.Load(); n != 1 {
+		t.Fatalf("admin-list loads for the connected candidate = %d, want 1", n)
+	}
+}
+
+// A check that succeeds just as the budget runs out still lists its group.
+func TestSettingsPickerKeepsACheckThatEndsAtTheDeadline(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	late := -uniqueModuleChatID()
+	setPickerCandidates(t, late)
+	// The bot is no admin there, so the check ends with the user's own
+	// getChatMember, which answers after the budget without heeding it.
+	bot.BotClient = &scriptedTelegramClient{
+		moduleBotClient: client,
+		chatID:          fmt.Sprint(late),
+		script: func(method string, params map[string]any) (json.RawMessage, bool) {
+			if method != "getChatMember" {
+				return nil, false
+			}
+			if fmt.Sprint(params["user_id"]) == "999" {
+				return json.RawMessage(`{"status":"member","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`), true
+			}
+			time.Sleep(300 * time.Millisecond)
+			return json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"}}`, settingsTestAdminID)), true
+		},
+	}
+	originalBudget := settingsPickerLiveBudget
+	settingsPickerLiveBudget = 150 * time.Millisecond
+	t.Cleanup(func() { settingsPickerLiveBudget = originalBudget })
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(late) {
+		t.Fatalf("picker chats = %v, want %d whose check succeeded at the deadline", got, late)
 	}
 }
 

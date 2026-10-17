@@ -70,8 +70,14 @@ For detailed command usage, refer to the commands table above.
 connected group first, then groups where you have written since the bot
 joined, most recently active first. Only the 50 most recently active of
 those groups are checked, so an admin group past them is not listed; use
-`/connect <chatid>` or `/settings` in that group. Tapping a group re-checks
-your rights, connects you and shows every setting of that group, one line
+`/connect <chatid>` or `/settings` in that group. Groups whose admin list the
+bot has not cached are checked with Telegram for at most 3 seconds per list,
+so some of them may be missing; open the list again to check the rest. The
+connected group stays listed even when those 3 seconds run out. The list is
+built at most once every 5 seconds per user: a quicker `/settings` only shows
+how long to wait, and **Another group** shows the last list again. Tapping a
+group re-checks your rights, connects you and shows every setting of that
+group, one line
 per command (for example `/captcha — on`). Lines that differ from what a new group gets
 are marked with `•`. **Refresh** re-reads the settings and **Another group**
 returns to the list. Showing the summary never writes settings.
