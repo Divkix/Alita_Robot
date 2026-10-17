@@ -8,9 +8,13 @@ const (
 	RestrictedProbeInterval = 5 * time.Minute
 	ShortCacheTTL           = 1 * time.Minute
 
-	UserUpdateInterval    = 5 * time.Minute
-	ChatUpdateInterval    = 5 * time.Minute
-	ChannelUpdateInterval = 5 * time.Minute
+	// UserUpdateInterval and ChatUpdateInterval are both the in-process
+	// throttle in modules/users.go and the last_activity touch window in the
+	// users/chats upserts. One value keeps the throttle from letting through
+	// writes that the upsert's WHERE then discards. Renames bypass both.
+	UserUpdateInterval    = time.Hour
+	ChatUpdateInterval    = time.Hour
+	ChannelUpdateInterval = time.Hour
 
 	DefaultTimeout  = 10 * time.Second
 	ShortTimeout    = 5 * time.Second

@@ -9,12 +9,16 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/constants"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-const chatTouchInterval = time.Hour
+// chatTouchInterval throttles last_activity refreshes: an active, unrenamed
+// chat is rewritten at most once per interval. It is shared with the
+// in-process throttle in modules/users.go.
+const chatTouchInterval = constants.ChatUpdateInterval
 
 func GetChatSettings(chatId int64) (chatSrc *models.Chat) {
 	chat, err := GetChatBasicInfoCached(chatId)
