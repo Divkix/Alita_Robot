@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/models"
@@ -245,6 +246,53 @@ func TestImportWarnsRejectsEntryForUnknownUser(t *testing.T) {
 		map[string]interface{}{"user_id": userID + 1, "reason": "orphan"},
 	})
 	require.Error(t, err)
+}
+
+// Import and clear replace warns_users and warn_entries; under the chat-row
+// lock warn writes hold, a first warn cannot commit between the two.
+func TestWarnsImportAndClearWaitForTheChatLock(t *testing.T) {
+	skipIfNoDb(t)
+	if db.DB.Dialector.Name() != "postgres" {
+		t.Skip("row locks need Postgres")
+	}
+	ops := map[string]func(chatID, userID int64) error{
+		"import": func(chatID, userID int64) error {
+			return importWarnsBackup(t, chatID, []interface{}{
+				map[string]interface{}{"user_id": userID, "num_warns": 1, "warns": []interface{}{"a"}},
+			}, nil)
+		},
+		"clear": func(chatID, _ int64) error { return ClearModuleData(chatID, BackupModuleWarns) },
+	}
+	for name, op := range ops {
+		t.Run(name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			userID := chatID + 1
+			cleanupWarnEntriesChat(t, chatID, userID)
+			require.NoError(t, db.DB.Create(&models.Chat{ChatId: chatID, ChatName: "lock"}).Error)
+			t.Cleanup(func() { _ = db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}).Error })
+
+			holder := db.DB.Begin()
+			var chat models.Chat
+			require.NoError(t, holder.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("chat_id = ?", chatID).Take(&chat).Error)
+
+			done := make(chan error, 1)
+			go func() { done <- op(chatID, userID) }()
+			select {
+			case err := <-done:
+				holder.Rollback()
+				t.Fatalf("%s returned (%v) while the chat row was locked", name, err)
+			case <-time.After(300 * time.Millisecond):
+			}
+			holder.Rollback()
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				t.Fatalf("%s did not finish after the lock was released", name)
+			}
+		})
+	}
 }
 
 func TestClearWarnsModuleDeletesEntries(t *testing.T) {

@@ -102,11 +102,7 @@ func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnE
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		// ponytail: this serializes warnings per chat; use per-user advisory
 		// locks only if moderation write throughput becomes material.
-		var chat models.Chat
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id").
-			Where("chat_id = ?", chatId).
-			Take(&chat).Error; err != nil {
+		if err := lockChat(tx, chatId); err != nil {
 			return err
 		}
 
@@ -241,6 +237,25 @@ func findEntries(tx *gorm.DB, warnrc *models.Warns) ([]models.WarnEntry, error) 
 	return entries, err
 }
 
+// lockChat takes the chat-row lock every warn write holds for its whole
+// transaction, so writes of one chat's warns run one at a time.
+func lockChat(tx *gorm.DB, chatId int64) error {
+	var chat models.Chat
+	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		Where("chat_id = ?", chatId).
+		Take(&chat).Error
+}
+
+// lockChatForReset is lockChat for the resets, which also run for a chat with
+// no chats row and then have nothing to wait for.
+func lockChatForReset(tx *gorm.DB, chatId int64) error {
+	if err := lockChat(tx, chatId); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return nil
+}
+
 func deleteEntries(tx *gorm.DB, query string, args ...any) error {
 	return tx.Where(query, args...).Delete(&models.WarnEntry{}).Error
 }
@@ -249,11 +264,7 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 	var removed bool
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		var chat models.Chat
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id").
-			Where("chat_id = ?", chatId).
-			Take(&chat).Error; err != nil {
+		if err := lockChat(tx, chatId); err != nil {
 			return err
 		}
 
@@ -312,10 +323,14 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 
 func ResetUserWarns(userId, chatId int64) (bool, error) {
 	var reset bool
-	// warns_users goes first: its DELETE waits for a concurrent WarnUser, which
-	// holds that row, so the entries DELETE after it sees the entry that warn
-	// committed. The other order leaves that entry behind.
+	// The chat-row lock waits for a concurrent WarnUser to commit, so both
+	// DELETEs see its warn row and its entry. Without it a first warn, whose
+	// warns_users row is still an uncommitted INSERT, can commit between them:
+	// its entry is deleted and its warn row survives.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockChatForReset(tx, chatId); err != nil {
+			return err
+		}
 		result := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
 		if result.Error != nil {
 			return result.Error
@@ -426,13 +441,15 @@ func GetAllChatWarns(chatId int64) int {
 
 func ResetAllChatWarns(chatId int64) error {
 	var userIds []int64
-	if err := db.DB.Model(&models.Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
-		log.Errorf("[Database] ResetAllChatWarns: %v", err)
-		return err
-	}
-
-	// warns_users first, for the reason given in ResetUserWarns.
+	// The chat-row lock, for the reason given in ResetUserWarns. The users are
+	// read under it, so a warn committed just before is in the cache sweep.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := lockChatForReset(tx, chatId); err != nil {
+			return err
+		}
+		if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatId).Pluck("user_id", &userIds).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error; err != nil {
 			return err
 		}

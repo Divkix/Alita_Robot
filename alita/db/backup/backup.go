@@ -837,6 +837,9 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 	if err := decodeModuleData(payload, BackupModuleWarns, &data); err != nil {
 		return nil, err
 	}
+	if err := lockWarnsChat(tx, chatID); err != nil {
+		return nil, err
+	}
 	if data.WarnSettings != nil {
 		data.WarnSettings.ChatId = chatID
 		if data.WarnSettings.WarnLimit <= 0 {
@@ -1129,7 +1132,26 @@ func clearRules(tx *gorm.DB, chatID int64) ([]string, error) {
 	return nil, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
 }
 
+// lockWarnsChat takes the chat-row lock every warn write in alita/db/warns
+// holds, so a concurrent first warn commits before warns_users and
+// warn_entries are replaced rather than between the two. A chat with no chats
+// row has nothing to wait for.
+func lockWarnsChat(tx *gorm.DB, chatID int64) error {
+	var chat models.Chat
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		Where("chat_id = ?", chatID).
+		Take(&chat).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	return err
+}
+
 func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := lockWarnsChat(tx, chatID); err != nil {
+		return nil, err
+	}
 	var userIDs []int64
 	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
 		return nil, err
