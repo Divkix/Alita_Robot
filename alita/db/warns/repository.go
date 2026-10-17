@@ -3,6 +3,7 @@ package warns
 import (
 	"context"
 	"errors"
+	"time"
 	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
@@ -16,6 +17,9 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
+
+// timeNow is the clock for warn times and expiry; tests replace it.
+var timeNow = time.Now
 
 func checkWarnSettings(chatID int64) (warnrc *models.WarnSettings) {
 	return checkWarnSettingsContext(context.Background(), chatID)
@@ -85,9 +89,11 @@ func checkWarnsContext(ctx context.Context, userId, chatId int64) (warnrc *model
 	return
 }
 
-func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
+// WarnUser adds one warn. entry carries the reason and the issuer; the user,
+// chat and time are filled in here. It returns the new count and every entry.
+func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnEntry, error) {
 	var numWarns int
-	var reasons []string
+	var entries []models.WarnEntry
 
 	if err := chats.EnsureChatInDb(chatId, ""); err != nil {
 		return 0, nil, err
@@ -135,9 +141,16 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 				return err
 			}
 		}
+		if err := syncEntriesWithReasons(tx, warnrc); err != nil {
+			return err
+		}
+		if _, err := pruneExpiredEntries(tx, warnrc, warnSettings.WarnExpiry); err != nil {
+			return err
+		}
 
 		warnrc.NumWarns++
 
+		reason := entry.Reason
 		if reason != "" {
 			if len(reason) > 3000 {
 				reason = reason[:3000]
@@ -145,23 +158,35 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 					reason = reason[:len(reason)-1]
 				}
 			}
-			warnrc.Reasons = append(warnrc.Reasons, reason)
 		} else {
 			tr := i18n.MustNewTranslator("en")
 			noReason, _ := tr.GetString("db_warn_no_reason")
 			if noReason == "" {
 				noReason = "No Reason"
 			}
-			warnrc.Reasons = append(warnrc.Reasons, noReason)
+			reason = noReason
 		}
+		// The reasons column is still written so an older release reads it.
+		warnrc.Reasons = append(warnrc.Reasons, reason)
 
 		if err := tx.Save(warnrc).Error; err != nil {
 			return err
 		}
 
+		now := timeNow().UTC()
+		entry.ID = 0
+		entry.UserId = userId
+		entry.ChatId = chatId
+		entry.Reason = reason
+		entry.WarnedAt = &now
+		if err := tx.Create(&entry).Error; err != nil {
+			return err
+		}
+
 		numWarns = warnrc.NumWarns
-		reasons = []string(warnrc.Reasons)
-		return nil
+		var err error
+		entries, err = loadEntries(tx, warnrc)
+		return err
 	})
 	if err != nil {
 		log.Errorf("[Database] WarnUser: %v", err)
@@ -171,11 +196,130 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 
-	return numWarns, reasons, nil
+	return numWarns, entries, nil
+}
+
+// syncEntriesWithReasons runs before a warn is added. A user without warns
+// must not keep entries: an older release resets warns_users alone. A user
+// with reasons but no entries was restored by an older release; their reasons
+// become entries with no issuer or time, so they keep showing.
+func syncEntriesWithReasons(tx *gorm.DB, warnrc *models.Warns) error {
+	if warnrc.NumWarns == 0 {
+		return deleteEntries(tx, "chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId)
+	}
+	var count int64
+	if err := tx.Model(&models.WarnEntry{}).
+		Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 || len(warnrc.Reasons) == 0 {
+		return nil
+	}
+	legacy := legacyEntries(warnrc)
+	return tx.Create(&legacy).Error
+}
+
+// loadEntries returns the user's entries oldest first, or their reasons as
+// entries with no issuer or time when they have none.
+func loadEntries(tx *gorm.DB, warnrc *models.Warns) ([]models.WarnEntry, error) {
+	if warnrc.NumWarns == 0 {
+		return nil, nil
+	}
+	var entries []models.WarnEntry
+	if err := tx.Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Order("id").
+		Find(&entries).Error; err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return legacyEntries(warnrc), nil
+	}
+	return entries, nil
+}
+
+func legacyEntries(warnrc *models.Warns) []models.WarnEntry {
+	entries := make([]models.WarnEntry, len(warnrc.Reasons))
+	for i, reason := range warnrc.Reasons {
+		entries[i] = models.WarnEntry{UserId: warnrc.UserId, ChatId: warnrc.ChatId, Reason: reason}
+	}
+	return entries
+}
+
+// expiredWarn reports whether e stopped counting: it is expiry seconds old or
+// older. Expiry 0 is off, and an entry without a time never expires.
+func expiredWarn(e models.WarnEntry, expiry int, now time.Time) bool {
+	return expiry > 0 && e.WarnedAt != nil && !e.WarnedAt.After(now.Add(-time.Duration(expiry)*time.Second))
+}
+
+// pruneExpiredEntries deletes the user's expired entries and takes them off
+// the count and the reasons column. It runs with the user's warns row locked,
+// and the caller saves warnrc.
+func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, error) {
+	if expiry <= 0 || warnrc.NumWarns == 0 {
+		return false, nil
+	}
+	var entries []models.WarnEntry
+	if err := tx.Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Order("id").
+		Find(&entries).Error; err != nil {
+		return false, err
+	}
+	now := timeNow()
+	var expired []uint
+	isExpired := make([]bool, len(entries))
+	for i, e := range entries {
+		if expiredWarn(e, expiry, now) {
+			expired = append(expired, e.ID)
+			isExpired[i] = true
+		}
+	}
+	if len(expired) == 0 {
+		return false, nil
+	}
+	if err := tx.Delete(&models.WarnEntry{}, expired).Error; err != nil {
+		return false, err
+	}
+	warnrc.NumWarns = max(warnrc.NumWarns-len(expired), 0)
+	warnrc.Reasons = dropExpiredReasons(warnrc.Reasons, entries, isExpired)
+	if warnrc.NumWarns == 0 {
+		// No warns keep no entries, as syncEntriesWithReasons expects.
+		warnrc.Reasons = models.StringArray{}
+		return true, deleteEntries(tx, "chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId)
+	}
+	return true, nil
+}
+
+// dropExpiredReasons removes the reason of each expired entry from reasons.
+// Entries are matched to reasons in order; a reason without an entry, which
+// an older release writes after a rollback, is kept in place.
+func dropExpiredReasons(reasons models.StringArray, entries []models.WarnEntry, isExpired []bool) models.StringArray {
+	drop := make([]bool, len(reasons))
+	next := 0
+	for i, e := range entries {
+		for j := next; j < len(reasons); j++ {
+			if reasons[j] == e.Reason {
+				drop[j] = isExpired[i]
+				next = j + 1
+				break
+			}
+		}
+	}
+	kept := models.StringArray{}
+	for j, reason := range reasons {
+		if !drop[j] {
+			kept = append(kept, reason)
+		}
+	}
+	return kept
+}
+
+func deleteEntries(tx *gorm.DB, query string, args ...any) error {
+	return tx.Where(query, args...).Delete(&models.WarnEntry{}).Error
 }
 
 func RemoveWarn(userId, chatId int64) (bool, error) {
-	var removed bool
+	var removed, pruned bool
 
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
 		var chat models.Chat
@@ -197,6 +341,18 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 			return err
 		}
 
+		var expiry int
+		if err := tx.Model(&models.WarnSettings{}).
+			Where("chat_id = ?", chatId).
+			Limit(1).
+			Pluck("warn_expiry", &expiry).Error; err != nil {
+			return err
+		}
+		var err error
+		if pruned, err = pruneExpiredEntries(tx, warnrc, expiry); err != nil {
+			return err
+		}
+
 		if warnrc.NumWarns > 0 {
 			warnrc.NumWarns--
 			if len(warnrc.Reasons) > 0 {
@@ -204,6 +360,21 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 			}
 			removed = true
 
+			if err := tx.Save(warnrc).Error; err != nil {
+				return err
+			}
+
+			var newest models.WarnEntry
+			err := tx.Where("chat_id = ? AND user_id = ?", chatId, userId).Order("id DESC").Take(&newest).Error
+			if err == nil {
+				err = tx.Delete(&newest).Error
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
+				err = nil
+			}
+			if err != nil {
+				return err
+			}
+		} else if pruned {
 			if err := tx.Save(warnrc).Error; err != nil {
 				return err
 			}
@@ -216,7 +387,7 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 		return false, err
 	}
 
-	if removed {
+	if removed || pruned {
 		cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 		cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 	}
@@ -225,12 +396,23 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 }
 
 func ResetUserWarns(userId, chatId int64) (bool, error) {
-	result := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
-	if result.Error != nil {
-		log.Errorf("[Database] ResetUserWarns: %v", result.Error)
-		return false, result.Error
+	var reset bool
+	// warns_users goes first: its DELETE waits for a concurrent WarnUser, which
+	// holds that row, so the entries DELETE after it sees the entry that warn
+	// committed. The other order leaves that entry behind.
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
+		if result.Error != nil {
+			return result.Error
+		}
+		reset = result.RowsAffected > 0
+		return deleteEntries(tx, "chat_id = ? AND user_id = ?", chatId, userId)
+	})
+	if err != nil {
+		log.Errorf("[Database] ResetUserWarns: %v", err)
+		return false, err
 	}
-	if result.RowsAffected == 0 {
+	if !reset {
 		return false, nil
 	}
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
@@ -238,27 +420,56 @@ func ResetUserWarns(userId, chatId int64) (bool, error) {
 	return true, nil
 }
 
-func GetWarns(userId, chatId int64) (int, []string) {
+func GetWarns(userId, chatId int64) (int, []models.WarnEntry) {
 	return GetWarnsContext(context.Background(), userId, chatId)
 }
 
-func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []string) {
+func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []models.WarnEntry) {
+	// Reasons keeps its pre-entries field name on purpose: a value cached by an
+	// older release ([]string) then fails to decode and is reloaded, where a
+	// renamed field would decode as an empty list.
 	type warnCache struct {
 		NumWarns int
-		Reasons  []string
+		Reasons  []models.WarnEntry
 	}
 	cached, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey("warns", userId, chatId),
 		cache.CacheTTLWarnSettings,
 		func(ctx context.Context) (warnCache, error) {
 			w := checkWarnsContext(ctx, userId, chatId)
-			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
+			entries, err := loadEntries(db.DB.WithContext(ctx), w)
+			if err != nil {
+				return warnCache{}, err
+			}
+			return warnCache{NumWarns: w.NumWarns, Reasons: entries}, nil
 		},
 	)
 	if err != nil {
 		return 0, nil
 	}
-	return cached.NumWarns, cached.Reasons
+	if cached.NumWarns == 0 {
+		return 0, cached.Reasons
+	}
+	// Expiry is applied here, not in the loader, so a warn that ages past it
+	// stops counting while the cached value is still live.
+	expiry := GetWarnSettingContext(ctx, chatId).WarnExpiry
+	if expiry <= 0 {
+		return cached.NumWarns, cached.Reasons
+	}
+	now := timeNow()
+	numWarns := cached.NumWarns
+	live := make([]models.WarnEntry, 0, len(cached.Reasons))
+	for _, e := range cached.Reasons {
+		if expiredWarn(e, expiry, now) {
+			numWarns--
+		} else {
+			live = append(live, e)
+		}
+	}
+	if numWarns <= 0 {
+		return 0, nil
+	}
+	return numWarns, live
 }
 
 func SetWarnLimit(chatId int64, warnLimit int) error {
@@ -275,14 +486,31 @@ func SetWarnLimit(chatId int64, warnLimit int) error {
 	return nil
 }
 
-func SetWarnMode(chatId int64, warnMode string) error {
+// SetWarnMode stores the mode with its tban/tmute duration in seconds; pass 0
+// for modes without one so a previous duration does not linger.
+func SetWarnMode(chatId int64, warnMode string, actionTime int) error {
 	// Single-statement upsert: see SetWarnLimit.
 	err := db.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "chat_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"warn_mode"}),
-	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode}).Error
+		DoUpdates: clause.AssignmentColumns([]string{"warn_mode", "warn_action_time"}),
+	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: warnMode, WarnActionTime: actionTime}).Error
 	if err != nil {
 		log.Errorf("[Database] SetWarnMode: %v", err)
+		return err
+	}
+	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
+	return nil
+}
+
+// SetWarnExpiry stores how long a warn counts, in seconds; 0 turns expiry off.
+func SetWarnExpiry(chatId int64, seconds int) error {
+	// Single-statement upsert: see SetWarnLimit.
+	err := db.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "chat_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"warn_expiry"}),
+	}).Create(&models.WarnSettings{ChatId: chatId, WarnLimit: 3, WarnMode: "mute", WarnExpiry: seconds}).Error
+	if err != nil {
+		log.Errorf("[Database] SetWarnExpiry: %v", err)
 		return err
 	}
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
@@ -325,7 +553,13 @@ func ResetAllChatWarns(chatId int64) error {
 		return err
 	}
 
-	err := db.DB.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
+	// warns_users first, for the reason given in ResetUserWarns.
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error; err != nil {
+			return err
+		}
+		return deleteEntries(tx, "chat_id = ?", chatId)
+	})
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return err

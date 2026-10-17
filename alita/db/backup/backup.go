@@ -435,7 +435,39 @@ func exportWarnsData(chatID int64) (*WarnsBackup, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &WarnsBackup{WarnSettings: settings, Warns: rows}, nil
+	database, err := backupDB()
+	if err != nil {
+		return nil, err
+	}
+	var stored []models.WarnEntry
+	if err := database.Where("chat_id = ?", chatID).Order("id").Find(&stored).Error; err != nil {
+		return nil, err
+	}
+	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: exportableWarnEntries(rows, stored)}, nil
+}
+
+// exportableWarnEntries returns the entries a backup may carry. Only users
+// with warns keep theirs: an older release resets warns_users alone, and an
+// entry without its warn record would make the backup fail to import. The
+// backup is posted to the group, so an anonymous admin's account is dropped.
+func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry) []models.WarnEntry {
+	warned := make(map[int64]bool, len(rows))
+	for _, row := range rows {
+		if row.NumWarns > 0 {
+			warned[row.UserId] = true
+		}
+	}
+	entries := make([]models.WarnEntry, 0, len(stored))
+	for _, entry := range stored {
+		if !warned[entry.UserId] {
+			continue
+		}
+		if entry.Anonymous {
+			entry.WarnedBy = 0
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 func exportFederationsData(chatID int64) (*FederationsBackup, error) {
@@ -810,12 +842,25 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if data.WarnSettings.WarnLimit <= 0 {
 			return nil, fmt.Errorf("invalid warn limit %d", data.WarnSettings.WarnLimit)
 		}
+		// An unusable duration becomes "not set" so the bot's one-hour
+		// fallback applies, instead of failing the whole import on the column.
+		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
+			data.WarnSettings.WarnActionTime = 0
+		}
+		// Likewise an unusable expiry turns expiry off.
+		if !models.ValidWarnExpiry(data.WarnSettings.WarnExpiry) {
+			data.WarnSettings.WarnExpiry = 0
+		}
 	}
 	for i := range data.Warns {
 		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {
 			return nil, fmt.Errorf("invalid warn record")
 		}
 		data.Warns[i].ChatId = chatID
+	}
+	entries, err := restoredWarnEntries(chatID, data)
+	if err != nil {
+		return nil, err
 	}
 	if len(data.Warns) > 0 {
 		users := make([]models.User, len(data.Warns))
@@ -843,6 +888,14 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if err := replaceChatRows(tx, chatID, data.Warns); err != nil {
 			return nil, err
 		}
+		if err := tx.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error; err != nil {
+			return nil, err
+		}
+		if len(entries) > 0 {
+			if err := tx.Create(&entries).Error; err != nil {
+				return nil, fmt.Errorf("restore warn entries: %w", err)
+			}
+		}
 	}
 
 	keys := []string{cacheKey("warn_settings", chatID)}
@@ -855,6 +908,36 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		}
 	}
 	return keys, nil
+}
+
+// restoredWarnEntries returns the entries to store for an imported warns
+// module. A user with no entries in the backup (one made before entries
+// existed) gets their reasons as entries with no issuer or time.
+func restoredWarnEntries(chatID int64, data WarnsBackup) ([]models.WarnEntry, error) {
+	warned := make(map[int64]bool, len(data.Warns))
+	for _, row := range data.Warns {
+		warned[row.UserId] = true
+	}
+	hasEntries := make(map[int64]bool, len(data.Entries))
+	entries := make([]models.WarnEntry, 0, len(data.Entries))
+	for _, entry := range data.Entries {
+		if !warned[entry.UserId] {
+			return nil, fmt.Errorf("warn entry for user %d without a warn record", entry.UserId)
+		}
+		entry.ID = 0
+		entry.ChatId = chatID
+		entries = append(entries, entry)
+		hasEntries[entry.UserId] = true
+	}
+	for _, row := range data.Warns {
+		if hasEntries[row.UserId] {
+			continue
+		}
+		for _, reason := range row.Reasons {
+			entries = append(entries, models.WarnEntry{UserId: row.UserId, ChatId: chatID, Reason: reason})
+		}
+	}
+	return entries, nil
 }
 
 func moduleFieldPresent(payload interface{}, field string) bool {
@@ -1064,6 +1147,9 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 		return nil, err
 	}
 	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {
+		return nil, err
+	}
+	if err := tx.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error; err != nil {
 		return nil, err
 	}
 	keys := []string{cacheKey("warn_settings", chatID)}

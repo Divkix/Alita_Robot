@@ -873,7 +873,9 @@ warns_help_msg:
 
   - /warnings: Obtener la configuración de advertencias del chat.
 
-  - /setwarnmode <ban/kick/mute>: Establecer el modo de advertencia del chat.
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Establecer el modo de advertencia del chat.
+
+  - /setwarntime <time/off>: Establecer cuánto tiempo cuenta una advertencia, p. ej. 30d; off las conserva para siempre. Las advertencias emitidas antes de que el bot registrara su hora nunca caducan; /resetwarn las elimina.
 
   - /setwarnlimit <número>: Establecer el número de advertencias antes de que los usuarios sean castigados.
 
@@ -966,7 +968,7 @@ rules_for_chat: "Reglas para <b>%s</b>:\n\n%s"
 filters_invalid: ¡Filtro Inválido!
 
 # Warnings module strings
-warns_specify_action: "Necesitas especificar una acción a tomar ante demasiadas advertencias. Los modos actuales son: ban/kick/mute"
+warns_specify_action: "Necesitas especificar una acción a tomar ante demasiadas advertencias. Los modos actuales son: ban/kick/mute/tban/tmute"
 
 # Admin module strings
 admin_need_admin: ¡Necesitas ser administrador para hacer esto!
@@ -1076,18 +1078,32 @@ mutes_unmute_message: "¡Bien!\nPermitiré a %s hablar de nuevo."
 warns_mode_updated_ban: "Modo de advertencia actualizado a: ban"
 warns_mode_updated_kick: "Modo de advertencia actualizado a: kick"
 warns_mode_updated_mute: "Modo de advertencia actualizado a: mute"
-warns_mode_unknown: "Tipo desconocido '%s'. Por favor usa uno de: ban/kick/mute"
+warns_mode_updated_tban: "Modo de advertencia actualizado a: tban por %s"
+warns_mode_updated_tmute: "Modo de advertencia actualizado a: tmute por %s"
+warns_mode_unknown: "Tipo desconocido '%s'. Por favor usa uno de: ban/kick/mute/tban/tmute"
 warns_admin_warning_error: ¡No voy a advertir a un administrador!
 warns_limit_kicked: "¡Esas son %d/%d advertencias; Así que %s ha sido expulsado!"
 warns_limit_muted: "¡Esas son %d/%d advertencias; Así que %s ha sido Silenciado!"
 warns_limit_banned: "¡Esas son %d/%d advertencias; Así que %s ha sido baneado!"
+warns_limit_tbanned: "¡Esas son %d/%d advertencias; Así que %s ha sido baneado por %s!"
+warns_limit_tmuted: "¡Esas son %d/%d advertencias; Así que %s ha sido silenciado por %s!"
 warns_remove_button: ❌ Eliminar advertencia
 warns_rules_button: Reglas 📝
 warns_user_warning: "¡El usuario %s tiene %d/%d advertencias; ten cuidado!"
 warns_warning_reason: "\n<b>Razón</b>:\n%s"
-warns_settings_display: "El grupo tiene la siguiente configuración:\n<b>Límite de Advertencias:</b> <code>%d</code>\n<b>Modo de Advertencia:</b> <code>%s</code>"
+warns_settings_display: "El grupo tiene la siguiente configuración:\n<b>Límite de Advertencias:</b> <code>%d</code>\n<b>Modo de Advertencia:</b> <code>%s</code>\n<b>Caducidad de Advertencias:</b> <code>%s</code>"
 warns_user_warnings_list: "Este usuario tiene %d/%d advertencias, por las siguientes razones:"
 warns_user_warnings_no_reasons: "El usuario tiene %d/%d advertencias, pero sin razones para ninguna de ellas."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "administrador anónimo"
+warns_issuer_auto: "automático"
+warns_issuer_unknown: "desconocido"
+warns_expiry_set: "Las advertencias ahora caducan después de <code>%s</code>."
+warns_expiry_off: "Las advertencias ya no caducan."
+warns_expiry_current: "Las advertencias caducan después de <code>%s</code>."
+warns_expiry_current_off: "Las advertencias nunca caducan. Establece una caducidad con <code>/setwarntime 30d</code>."
+warns_expiry_never: "nunca"
 warns_user_no_warnings: ¡Este usuario no tiene advertencias!
 warns_removed_by: "Advertencia eliminada por %s."
 warns_no_warns_to_remove: ¡El usuario ya no tiene advertencias!
@@ -1999,11 +2015,14 @@ warns_extended_docs: |
   <b>Configuración predeterminada:</b>
   • <b>Límite de advertencias predeterminado:</b> 3 advertencias
   • <b>Modo de advertencias predeterminado:</b> silenciar
+  • <b>Caducidad de advertencias por defecto:</b> desactivada (nunca caducan)
 
   <b>Modos de advertencia disponibles:</b>
   • <code>ban</code> - Banea permanentemente al usuario del chat
   • <code>kick</code> - Expulsa al usuario (puede volver a unirse)
   • <code>mute</code> - Silencia al usuario (no puede enviar mensajes)
+  • <code>tban</code> - Banea al usuario por el tiempo indicado con el modo, p. ej. <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - Silencia al usuario por el tiempo indicado con el modo, p. ej. <code>/setwarnmode tmute 2h</code>
 
   <b>Advertencias silenciosas y con eliminación:</b>
   • <code>/swarn</code> - Elimina tu comando y advierte en silencio
@@ -2015,13 +2034,13 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Usuario admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Usuario admin
   • <code>/resetallwarns</code>: Solo propietario del chat
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + Usuario admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Bot admin + Usuario admin
   • <code>/warnings</code>: Bot admin + Usuario admin
   • <code>/warns</code>: Cualquier usuario (deshabilitable)
 
 warns_notes_docs: |
   <b>Notas:</b>
-  • Cuando un usuario alcanza el límite de advertencias, se aplica automáticamente la acción configurada (ban/kick/mute)
+  • Cuando un usuario alcanza el límite de advertencias, se aplica automáticamente la acción configurada (ban/kick/mute/tban/tmute)
   • Las razones de advertencia se guardan y se muestran al revisar las advertencias de un usuario
   • El comando <code>/warns</code> es el único comando en este módulo que puede ser deshabilitado por admins
   • Las publicaciones de canales anónimos no pueden ser advertidas
@@ -2814,4 +2833,5 @@ warns_extend_msg: |
   /resetallwarns — restablecer todas las advertencias del chat
   /warnings — ver los ajustes de advertencias
   /setwarnlimit — advertencias antes del castigo
+  /setwarntime — cuánto tiempo cuenta una advertencia
   /setwarnmode — castigo: ban, kick o mute

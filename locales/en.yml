@@ -940,7 +940,9 @@ warns_help_msg:
 
   - /warnings: Get the chat's warning settings.
 
-  - /setwarnmode <ban/kick/mute>: Set the chat's warn mode.
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
+
+  - /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarn removes them.
 
   - /setwarnlimit <number>: Set the number of warnings before users are punished.
 
@@ -1033,7 +1035,7 @@ rules_for_chat: "Rules for <b>%s</b>:\n\n%s"
 filters_invalid: Invalid Filter!
 
 # Warnings module strings
-warns_specify_action: "You need to specify an action to take upon too many warns. Current modes are: ban/kick/mute"
+warns_specify_action: "You need to specify an action to take upon too many warns. Current modes are: ban/kick/mute/tban/tmute"
 
 # Admin module strings
 admin_need_admin: You need to be admin to do this!
@@ -1140,18 +1142,32 @@ mutes_unmute_message: "Alright!\nI'll allow %s to speak again."
 warns_mode_updated_ban: "Updated warn mode to: ban"
 warns_mode_updated_kick: "Updated warn mode to: kick"
 warns_mode_updated_mute: "Updated warn mode to: mute"
-warns_mode_unknown: "Unknown type '%s'. Please use one of: ban/kick/mute"
+warns_mode_updated_tban: "Updated warn mode to: tban for %s"
+warns_mode_updated_tmute: "Updated warn mode to: tmute for %s"
+warns_mode_unknown: "Unknown type '%s'. Please use one of: ban/kick/mute/tban/tmute"
 warns_admin_warning_error: I'm not going to warn an admin!
 warns_limit_kicked: "That's %d/%d warnings; So %s has been kicked!"
 warns_limit_muted: "That's %d/%d warnings; So %s has been Muted!"
 warns_limit_banned: "That's %d/%d warnings; So %s has been banned!"
+warns_limit_tbanned: "That's %d/%d warnings; So %s has been banned for %s!"
+warns_limit_tmuted: "That's %d/%d warnings; So %s has been muted for %s!"
 warns_remove_button: ❌ Remove warn
 warns_rules_button: Rules 📝
 warns_user_warning: "User %s has %d/%d warnings; be careful!"
 warns_warning_reason: "\n<b>Reason</b>:\n%s"
-warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>"
+warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>\n<b>Warn Expiry:</b> <code>%s</code>"
 warns_user_warnings_list: "This user has %d/%d warnings, for the following reasons:"
 warns_user_warnings_no_reasons: "User has %d/%d warnings, but no reasons for any of them."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "anonymous admin"
+warns_issuer_auto: "automatic"
+warns_issuer_unknown: "unknown"
+warns_expiry_set: "Warns now expire after <code>%s</code>."
+warns_expiry_off: "Warns no longer expire."
+warns_expiry_current: "Warns expire after <code>%s</code>."
+warns_expiry_current_off: "Warns never expire. Set an expiry with <code>/setwarntime 30d</code>."
+warns_expiry_never: "never"
 warns_user_no_warnings: This user hasn't got any warnings!
 warns_removed_by: "Warn removed by %s."
 warns_no_warns_to_remove: User already has no warns!
@@ -2066,11 +2082,14 @@ warns_extended_docs: |
   <b>Default Settings:</b>
   • <b>Default warn limit:</b> 3 warnings
   • <b>Default warn mode:</b> mute
+  • <b>Default warn expiry:</b> off (warns never expire)
 
   <b>Available Warn Modes:</b>
   • <code>ban</code> - Permanently ban the user from the chat
   • <code>kick</code> - Kick the user (they can rejoin)
   • <code>mute</code> - Mute the user (cannot send messages)
+  • <code>tban</code> - Ban the user for the time given with the mode, e.g. <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - Mute the user for the time given with the mode, e.g. <code>/setwarnmode tmute 2h</code>
 
   <b>Silent and Delete Warnings:</b>
   • <code>/swarn</code> - Delete your command and warn silently
@@ -2082,13 +2101,13 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + User admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + User admin
   • <code>/resetallwarns</code>: Chat owner only
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + User admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Bot admin + User admin
   • <code>/warnings</code>: Bot admin + User admin
   • <code>/warns</code>: Any user (disableable)
 
 warns_notes_docs: |
   <b>Notes:</b>
-  • When a user reaches the warn limit, the configured action (ban/kick/mute) is applied automatically
+  • When a user reaches the warn limit, the configured action (ban/kick/mute/tban/tmute) is applied automatically
   • Warning reasons are stored and displayed when checking a user's warns
   • The <code>/warns</code> command is the only command in this module that can be disabled by admins
   • Anonymous channel posts cannot be warned
@@ -2842,4 +2861,5 @@ warns_extend_msg: |
   /resetallwarns — reset all warnings in the chat
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
+  /setwarntime — how long a warn counts
   /setwarnmode — punishment: ban, kick or mute

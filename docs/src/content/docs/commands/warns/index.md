@@ -18,7 +18,8 @@ If you're looking for automated warnings, read about the blacklist module!
 - /resetwarn: Reset all of a user's warnings to 0.
 - /resetallwarns: Delete all the warnings in a chat. All users return to 0 warns.
 - /warnings: Get the chat's warning settings.
-- /setwarnmode <ban/kick/mute>: Set the chat's warn mode.
+- /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
+- /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarn removes them.
 - /setwarnlimit <number>: Set the number of warnings before users are punished.
 
 *Examples*
@@ -28,11 +29,14 @@ If you're looking for automated warnings, read about the blacklist module!
 **Default Settings:**
 - **Default warn limit:** 3 warnings
 - **Default warn mode:** mute
+- **Default warn expiry:** off (warns never expire)
 
 **Available Warn Modes:**
 - `ban` - Permanently ban the user from the chat
 - `kick` - Kick the user (they can rejoin)
 - `mute` - Mute the user (cannot send messages)
+- `tban` - Ban the user for the time given with the mode, e.g. `/setwarnmode tban 1d`
+- `tmute` - Mute the user for the time given with the mode, e.g. `/setwarnmode tmute 2h`
 
 **Silent and Delete Warnings:**
 - `/swarn` - Delete your command and warn silently
@@ -60,6 +64,7 @@ This module can be accessed using the following aliases:
 | `/rmwarn` | Alias of `/unwarn` - remove the last warning from a user | ❌ |
 | `/setwarnlimit` | Set maximum warnings before action (range: 1–100) | ❌ |
 | `/setwarnmode` | Set action taken when warn limit is reached | ❌ |
+| `/setwarntime` | Set how long a warn counts before it expires | ❌ |
 | `/swarn` | Warn a user silently and delete your command | ❌ |
 | `/unwarn` | Remove the last warning from a user (same as `/rmwarn`) | ❌ |
 | `/warn` | Warn a user | ❌ |
@@ -85,7 +90,7 @@ For detailed command usage, refer to the commands table above.
 - `/rmwarn`, `/unwarn`: Bot admin + User admin
 - `/resetwarn`, `/resetwarns`: Bot admin + User admin
 - `/resetallwarns`: Chat owner only
-- `/setwarnmode`, `/setwarnlimit`: Bot admin + User admin
+- `/setwarnmode`, `/setwarnlimit`, `/setwarntime`: Bot admin + User admin
 - `/warnings`: Bot admin + User admin
 - `/warns`: Any user (disableable)
 
@@ -93,7 +98,7 @@ For detailed command usage, refer to the commands table above.
 ## Technical Notes
 
 **Notes:**
-- When a user reaches the warn limit, the configured action (ban/kick/mute) is applied automatically
+- When a user reaches the warn limit, the configured action (ban/kick/mute/tban/tmute) is applied automatically
 - Warning reasons are stored and displayed when checking a user's warns
 - The `/warns` command is the only command in this module that can be disabled by admins
 - Anonymous channel posts cannot be warned

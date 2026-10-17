@@ -300,7 +300,9 @@ warns_help_msg:
 
   - /warnings : Obtenir les paramètres d'avertissement du chat.
 
-  - /setwarnmode <ban/kick/mute> : Définir le mode d'avertissement du chat.
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time] : Définir le mode d'avertissement du chat.
+
+  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarn les supprime.
 
   - /setwarnlimit <nombre> : Définir le nombre d'avertissements avant sanction.
 
@@ -329,22 +331,36 @@ users_help_msg:
   × Les mises à jour de chat sont limitées à une par ChatUpdateInterval.
 
   D'autres modules, comme /info, dépendent des données collectées par ce module."
-warns_specify_action: "Vous devez spécifier une action à effectuer en cas de trop d'avertissements. Modes actuels : ban/kick/mute"
+warns_specify_action: "Vous devez spécifier une action à effectuer en cas de trop d'avertissements. Modes actuels : ban/kick/mute/tban/tmute"
 warns_mode_updated_ban: "Mode d'avertissement mis à jour : ban"
 warns_mode_updated_kick: "Mode d'avertissement mis à jour : kick"
 warns_mode_updated_mute: "Mode d'avertissement mis à jour : mute"
-warns_mode_unknown: "Type inconnu '%s'. Veuillez utiliser : ban/kick/mute"
+warns_mode_updated_tban: "Mode d'avertissement mis à jour : tban pour %s"
+warns_mode_updated_tmute: "Mode d'avertissement mis à jour : tmute pour %s"
+warns_mode_unknown: "Type inconnu '%s'. Veuillez utiliser : ban/kick/mute/tban/tmute"
 warns_admin_warning_error: Je ne vais pas avertir un admin !
 warns_limit_kicked: "Ça fait %d/%d avertissements ; Donc %s a été expulsé !"
 warns_limit_muted: "Ça fait %d/%d avertissements ; Donc %s a été rendu muet !"
 warns_limit_banned: "Ça fait %d/%d avertissements ; Donc %s a été banni !"
+warns_limit_tbanned: "Ça fait %d/%d avertissements ; Donc %s a été banni pour %s !"
+warns_limit_tmuted: "Ça fait %d/%d avertissements ; Donc %s a été rendu muet pour %s !"
 warns_remove_button: ❌ Supprimer l'avertissement
 warns_rules_button: Règles 📝
 warns_user_warning: "L'utilisateur %s a %d/%d avertissements ; attention !"
 warns_warning_reason: "\n<b>Raison</b> :\n%s"
-warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>"
+warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>\n<b>Expiration des avertissements :</b> <code>%s</code>"
 warns_user_warnings_list: "Cet utilisateur a %d/%d avertissements, pour les raisons suivantes :"
 warns_user_warnings_no_reasons: "L'utilisateur a %d/%d avertissements, mais aucune raison pour aucun d'entre eux."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "admin anonyme"
+warns_issuer_auto: "automatique"
+warns_issuer_unknown: "inconnu"
+warns_expiry_set: "Les avertissements expirent désormais après <code>%s</code>."
+warns_expiry_off: "Les avertissements n'expirent plus."
+warns_expiry_current: "Les avertissements expirent après <code>%s</code>."
+warns_expiry_current_off: "Les avertissements n'expirent jamais. Définissez une durée avec <code>/setwarntime 30d</code>."
+warns_expiry_never: "jamais"
 warns_user_no_warnings: Cet utilisateur n'a aucun avertissement !
 warns_removed_by: "Avertissement supprimé par %s."
 warns_no_warns_to_remove: L'utilisateur n'a déjà aucun avertissement !
@@ -362,11 +378,14 @@ warns_extended_docs: |
   <b>Paramètres par défaut :</b>
   • <b>Limite d'avertissements par défaut :</b> 3 avertissements
   • <b>Mode d'avertissement par défaut :</b> mute
+  • <b>Expiration par défaut :</b> désactivée (les avertissements n'expirent jamais)
 
   <b>Modes d'avertissement disponibles :</b>
   • <code>ban</code> - Bannir définitivement l'utilisateur du chat
   • <code>kick</code> - Expulser l'utilisateur (il peut revenir)
   • <code>mute</code> - Rendre muet l'utilisateur (ne peut plus envoyer de messages)
+  • <code>tban</code> - Bannir l'utilisateur pour la durée donnée avec le mode, ex. <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - Rendre muet l'utilisateur pour la durée donnée avec le mode, ex. <code>/setwarnmode tmute 2h</code>
 
   <b>Avertissements silencieux et avec suppression :</b>
   • <code>/swarn</code> - Supprimer votre commande et avertir silencieusement
@@ -378,13 +397,13 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code> : Bot admin + Utilisateur admin
   • <code>/resetwarn</code>, <code>/resetwarns</code> : Bot admin + Utilisateur admin
   • <code>/resetallwarns</code> : Propriétaire du chat uniquement
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code> : Bot admin + Utilisateur admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code> : Bot admin + Utilisateur admin
   • <code>/warnings</code> : Bot admin + Utilisateur admin
   • <code>/warns</code> : Tout utilisateur (désactivable)
 
 warns_notes_docs: |
   <b>Notes :</b>
-  • Quand un utilisateur atteint la limite d'avertissements, l'action configurée (ban/kick/mute) est appliquée automatiquement
+  • Quand un utilisateur atteint la limite d'avertissements, l'action configurée (ban/kick/mute/tban/tmute) est appliquée automatiquement
   • Les raisons d'avertissement sont stockées et affichées lors de la vérification des avertissements d'un utilisateur
   • La commande <code>/warns</code> est la seule commande de ce module qui peut être désactivée par les admins
   • Les publications de chaînes anonymes ne peuvent pas être averties
@@ -2730,4 +2749,5 @@ warns_extend_msg: |
   /resetallwarns — réinitialiser tous les avertissements du chat
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
+  /setwarntime — durée de validité d'un avertissement
   /setwarnmode — sanction : ban, kick ou mute
