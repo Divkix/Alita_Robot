@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -18,8 +19,10 @@ import (
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 // warnsListText runs /warns for userID and returns the bot's last reply.
@@ -254,5 +257,46 @@ func TestWarnLimitListsIssuerOfEachWarn(t *testing.T) {
 	text := calls[len(calls)-1].Params["text"].(string)
 	if !strings.Contains(text, "last straw") || !strings.Contains(text, "Limit &lt;Mod&gt;") {
 		t.Fatalf("limit text = %q, want reason with HTML-escaped issuer", text)
+	}
+}
+
+func TestWarnLimitSplitsLongList(t *testing.T) {
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+	for i := range 2 {
+		reason := fmt.Sprintf("%d %s", i, strings.Repeat("x", 2500))
+		if _, _, err := warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: reason, WarnedBy: issuer.Id}); err != nil {
+			t.Fatalf("WarnUser() error = %v", err)
+		}
+	}
+	before := len(client.callsFor("sendMessage"))
+
+	if err := warnsModule.warnUser(bot, newWarnReplyContext(bot, chat, issuer, target, "/warn last straw")); err != ext.EndGroups {
+		t.Fatalf("warnUser() error = %v, want EndGroups", err)
+	}
+
+	sent := client.callsFor("sendMessage")[before:]
+	if len(sent) < 2 {
+		t.Fatalf("sendMessage calls = %d, want the limit notice split in several", len(sent))
+	}
+	var full strings.Builder
+	for i, call := range sent {
+		text := call.Params["text"].(string)
+		if n := utf8.RuneCountInString(text); n > formatting.MaxMessageLength {
+			t.Fatalf("chunk %d has %d chars, over the Telegram limit", i, n)
+		}
+		_, replies := call.Params["reply_parameters"]
+		_, markup := call.Params["reply_markup"]
+		if replies != (i == 0) || markup != (i == 0) {
+			t.Fatalf("chunk %d reply_parameters=%v reply_markup=%v, want them on the first chunk only", i, replies, markup)
+		}
+		full.WriteString(text)
+	}
+	if text := full.String(); !strings.Contains(text, "0 xxx") || !strings.Contains(text, "last straw") {
+		t.Fatalf("limit notice = %q, want every warn listed", text)
 	}
 }
