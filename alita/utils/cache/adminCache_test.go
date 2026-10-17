@@ -601,3 +601,145 @@ func TestAdminLoadsAreForgottenOnceFinished(t *testing.T) {
 		t.Fatalf("admin load table holds %d finished loads, want 0", n)
 	}
 }
+
+// adminListCountingClient counts getChatAdministrators calls on their way to
+// the wrapped client.
+type adminListCountingClient struct {
+	gotgbot.BotClient
+	adminListCalls atomic.Int32
+}
+
+func (c *adminListCountingClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		c.adminListCalls.Add(1)
+	}
+	return c.BotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func runningAdminLoad(key string) *adminLoad {
+	adminLoadsMu.Lock()
+	defer adminLoadsMu.Unlock()
+	return adminLoads[key]
+}
+
+func adminLoadWaiters(load *adminLoad) int {
+	adminLoadsMu.Lock()
+	defer adminLoadsMu.Unlock()
+	return load.waiters
+}
+
+func waitForAdminLoadTest(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// ClearAdminCache during a load starts the next lookup on a fresh load. The
+// cleared load, when it finishes, must neither store its stale list nor drop
+// the fresh load from the table, so lookups arriving after it still join the
+// fresh load instead of starting another one.
+func TestClearAdminCacheMidLoadHandsLaterLookupsToAFreshLoad(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = int64(-100977)
+	key := adminCacheKey(chatID)
+	newStalledBot := func(adminID string) (*gotgbot.Bot, *hungBotStatusClient, *adminListCountingClient) {
+		inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+			"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+			"getChatAdministrators": json.RawMessage(`[{"status":"administrator","user":{"id":` + adminID + `,"is_bot":false,"first_name":"Admin"}}]`),
+		}}
+		hung := &hungBotStatusClient{inner: inner, started: make(chan struct{}), release: make(chan struct{}), stall: 10 * time.Second}
+		counting := &adminListCountingClient{BotClient: hung}
+		bot := newAdminCacheBot(inner)
+		bot.BotClient = counting
+		return bot, hung, counting
+	}
+	staleBot, staleHung, staleCalls := newStalledBot("41")
+	freshBot, freshHung, freshCalls := newStalledBot("42")
+	releaseStale := sync.OnceFunc(func() { close(staleHung.release) })
+	releaseFresh := sync.OnceFunc(func() { close(freshHung.release) })
+	t.Cleanup(releaseStale)
+	t.Cleanup(releaseFresh)
+
+	// The first caller starts the stale load and leaves on its deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := LoadAdminCacheWithContext(ctx, staleBot, chatID); err == nil {
+		t.Fatal("first lookup returned before its deadline")
+	}
+	<-staleHung.started
+	stale := runningAdminLoad(key)
+	if stale == nil {
+		t.Fatal("stale load is not tracked")
+	}
+
+	if err := ClearAdminCache(chatID); err != nil {
+		t.Fatalf("ClearAdminCache: %v", err)
+	}
+	if runningAdminLoad(key) != nil {
+		t.Fatal("ClearAdminCache left the stale load tracked")
+	}
+
+	var wg sync.WaitGroup
+	results := make([]AdminCache, 3)
+	errs := make([]error, 3)
+	lookup := func(i int, bot *gotgbot.Bot) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = LoadAdminCacheWithContext(context.Background(), bot, chatID)
+		}()
+	}
+
+	// One lookup starts the fresh load and another joins it.
+	lookup(0, freshBot)
+	<-freshHung.started
+	fresh := runningAdminLoad(key)
+	if fresh == nil || fresh == stale {
+		t.Fatalf("lookup after ClearAdminCache joined load %p, want a fresh one (stale %p)", fresh, stale)
+	}
+	lookup(1, staleBot)
+	waitForAdminLoadTest(t, "second lookup to join the fresh load", func() bool { return adminLoadWaiters(fresh) == 2 })
+
+	// The stale load finishes while the fresh one still runs.
+	releaseStale()
+	waitForAdminLoadTest(t, "stale load to finish", func() bool {
+		select {
+		case <-stale.done:
+			return true
+		default:
+			return false
+		}
+	})
+	if found, stored := GetAdminCacheList(chatID); found {
+		t.Fatalf("stale load stored its list after ClearAdminCache: %+v", stored)
+	}
+
+	// A lookup arriving now must still join the fresh load.
+	lookup(2, staleBot)
+	waitForAdminLoadTest(t, "third lookup to join the fresh load", func() bool { return adminLoadWaiters(fresh) == 3 })
+
+	releaseFresh()
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("lookup %d error = %v", i, err)
+		}
+		if len(results[i].UserInfo) != 1 || results[i].UserInfo[0].User.Id != 42 {
+			t.Fatalf("lookup %d got %+v, want admin 42 from the fresh load", i, results[i].UserInfo)
+		}
+	}
+	if n := freshCalls.adminListCalls.Load(); n != 1 {
+		t.Fatalf("fresh bot getChatAdministrators calls = %d, want 1", n)
+	}
+	if n := staleCalls.adminListCalls.Load(); n != 1 {
+		t.Fatalf("stale bot getChatAdministrators calls = %d, want 1 (later lookups joined the fresh load)", n)
+	}
+	if found, stored := GetAdminCacheList(chatID); !found || len(stored.UserInfo) != 1 || stored.UserInfo[0].User.Id != 42 {
+		t.Fatalf("stored list = %v %+v, want admin 42", found, stored)
+	}
+}
