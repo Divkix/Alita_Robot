@@ -2510,5 +2510,5 @@ warns_extend_msg: |
   /resetallwarns — चैट की सभी चेतावनियाँ रीसेट करें
   /warnings — चेतावनी सेटिंग देखें
   /setwarnlimit — सज़ा से पहले चेतावनियों की संख्या
-  /setwarnmode — सज़ा: ban, kick या mute
   /setwarntime — चेतावनी कितने समय तक गिनी जाए
+  /setwarnmode — सज़ा: ban, kick या mute

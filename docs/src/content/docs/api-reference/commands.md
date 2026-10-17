@@ -462,8 +462,8 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setrules` | Rules | Set the group rules | Admin |
 | `/setwarnlimit` | Warns | Set the warn limit before action | Admin |
-| `/setwarnmode` | Warns | Set the warn action mode | Admin |
 | `/setwarntime` | Warns | Set how long a warn counts | Admin |
+| `/setwarnmode` | Warns | Set the warn action mode | Admin |
 | `/setwelcome` | Greetings | Set the welcome message | Admin |
 | `/smute` | Mutes | Silently mute a user | Admin |
 | `/start` | Help | Show welcome message with navigation menu | Everyone |

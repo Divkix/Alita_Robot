@@ -2861,5 +2861,5 @@ warns_extend_msg: |
   /resetallwarns — reset all warnings in the chat
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
-  /setwarnmode — punishment: ban, kick or mute
   /setwarntime — how long a warn counts
+  /setwarnmode — punishment: ban, kick or mute

@@ -2570,5 +2570,5 @@ warns_extend_msg: |
   /resetallwarns — обнулить все предупреждения в чате
   /warnings — настройки предупреждений
   /setwarnlimit — сколько предупреждений до наказания
-  /setwarnmode — наказание: ban, kick или mute
   /setwarntime — сколько действует предупреждение
+  /setwarnmode — наказание: ban, kick или mute
