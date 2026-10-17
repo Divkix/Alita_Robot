@@ -137,6 +137,8 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		chat = group
+		// The confirmation edits the admin's PM message: keep their language.
+		tr = i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	}
 
 	if chat.Type != "private" {

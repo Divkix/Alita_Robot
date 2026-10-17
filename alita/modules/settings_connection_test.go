@@ -478,6 +478,58 @@ func TestLangGroupFromPMChangesGroupLanguage(t *testing.T) {
 	assertNothingSentTo(t, client, groupA, groupC)
 }
 
+// lastEditedText returns the text of the latest editMessageText call.
+func lastEditedText(t *testing.T, client *moduleBotClient) string {
+	t.Helper()
+	edits := client.callsFor("editMessageText")
+	if len(edits) == 0 {
+		t.Fatal("no message was edited")
+	}
+	return fmt.Sprint(edits[len(edits)-1].Params["text"])
+}
+
+// The /lang group confirmation from PM edits the admin's own PM message, so it
+// stays in the admin's language; in the group it is built in the language just
+// picked.
+func TestLangGroupConfirmationLanguage(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	locales := map[string]string{}
+	for _, code := range []string{"en", "ru", "es"} {
+		locales[code] = fmt.Sprintf("language_name: Lang\nlanguage_flag: F\nlanguage_changed_group: \"%s-group %%s\"\n", code)
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+	original := config.AppConfig.ValidLangCodes
+	config.AppConfig.ValidLangCodes = []string{"en", "ru", "es"}
+	t.Cleanup(func() { config.AppConfig.ValidLangCodes = original })
+	if err := lang.ChangeUserLanguage(admin.Id, "ru"); err != nil {
+		t.Fatalf("ChangeUserLanguage() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := lang.ChangeUserLanguage(admin.Id, "en"); err != nil {
+			t.Errorf("ChangeUserLanguage() cleanup error = %v", err)
+		}
+	})
+
+	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	pressInPM(t, bot, admin, langButton(t, client, "en"), languagesModule.langBtnHandler)
+	if got := lastEditedText(t, client); !strings.HasPrefix(got, "ru-group") {
+		t.Fatalf("PM confirmation = %q, want it in the admin's language (ru)", got)
+	}
+
+	data := encodeCallbackData("change_language", map[string]string{"l": "es"})
+	ctx := newModuleCallbackContext(bot, gotgbot.Chat{Id: groupA, Type: "supergroup", Title: "Group A"}, admin, data)
+	if err := languagesModule.langBtnHandler(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("langBtnHandler in group error = %v, want EndGroups", err)
+	}
+	if got := lastEditedText(t, client); !strings.HasPrefix(got, "es-group") {
+		t.Fatalf("group confirmation = %q, want it in the new group language (es)", got)
+	}
+}
+
 func TestLangGroupKeyboardKeepsHelpTranslateLink(t *testing.T) {
 	client, bot, _, admin, _ := connectedPMFixture(t)
 	restoreI18n, err := i18n.OverrideManagerForTest("language_name: Lang\nlanguage_flag: F\nlanguage_help_translate: Help\n")
