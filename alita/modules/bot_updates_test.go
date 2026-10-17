@@ -425,3 +425,81 @@ func TestBotUpdatesLoadersRegisterExpectedHandlers(t *testing.T) {
 		t.Fatal("LoadBotUpdates did not register standard handlers in group 0")
 	}
 }
+
+func TestAnonymousAdminBanRunsInGroupAfterButtonConfirmation(t *testing.T) {
+	if cache.GetMarshal() == nil {
+		t.Skip("requires initialized cache marshaler")
+	}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadBans(dispatcher)
+	LoadBotUpdates(dispatcher)
+
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Ban Chat"}
+	anonBot := gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group", Username: "GroupAnonymousBot"}
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+	senderChat := chat
+	command := &gotgbot.Message{
+		MessageId:  505,
+		Date:       1,
+		Chat:       chat,
+		From:       &anonBot,
+		SenderChat: &senderChat,
+		Text:       "/ban spam",
+		Entities:   []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 4}},
+		ReplyToMessage: &gotgbot.Message{
+			MessageId: 504,
+			Date:      1,
+			Chat:      chat,
+			From:      &target,
+			Text:      "message being moderated",
+		},
+	}
+	if err := dispatcher.ProcessUpdate(bot, &gotgbot.Update{UpdateId: 10, Message: command}, nil); err != nil {
+		t.Fatalf("ProcessUpdate(command) error = %v", err)
+	}
+	if calls := client.callsFor("banChatMember"); len(calls) != 0 {
+		t.Fatalf("banChatMember calls = %d before confirmation, want 0", len(calls))
+	}
+
+	var callbackData string
+	for _, call := range client.callsFor("sendMessage") {
+		markup, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+		if !ok || len(markup.InlineKeyboard) == 0 || len(markup.InlineKeyboard[0]) == 0 {
+			continue
+		}
+		callbackData = markup.InlineKeyboard[0][0].CallbackData
+	}
+	if callbackData == "" {
+		t.Fatal("anonymous admin confirmation button was not sent")
+	}
+	t.Cleanup(func() {
+		_ = cache.GetMarshal().Delete(cache.Context, fmt.Sprintf("alita:anonAdmin:%d:%d", chat.Id, command.MessageId))
+	})
+
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	prompt := gotgbot.Message{MessageId: 506, Date: 1, Chat: chat, From: &bot.User, Text: "prove you are admin"}
+	press := &gotgbot.CallbackQuery{
+		Id:           "anon-ban-confirm",
+		From:         admin,
+		Message:      prompt,
+		Data:         callbackData,
+		ChatInstance: "test-chat-instance",
+	}
+	if err := dispatcher.ProcessUpdate(bot, &gotgbot.Update{UpdateId: 11, CallbackQuery: press}, nil); err != nil {
+		t.Fatalf("ProcessUpdate(callback) error = %v", err)
+	}
+
+	bans := client.callsFor("banChatMember")
+	if len(bans) != 1 {
+		t.Fatalf("banChatMember calls = %d after confirmation, want 1", len(bans))
+	}
+	if got := fmt.Sprint(bans[0].Params["chat_id"]); got != fmt.Sprint(chat.Id) {
+		t.Fatalf("banChatMember chat_id = %s, want %d", got, chat.Id)
+	}
+	if got := fmt.Sprint(bans[0].Params["user_id"]); got != fmt.Sprint(target.Id) {
+		t.Fatalf("banChatMember user_id = %s, want %d", got, target.Id)
+	}
+}
