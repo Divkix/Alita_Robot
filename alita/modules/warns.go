@@ -47,7 +47,7 @@ func isTimedWarnMode(mode string) bool {
 }
 
 func warnActionTime(settings *models.WarnSettings) int {
-	if _, ok := extraction.TemporaryUntilDate(0, int64(settings.WarnActionTime)); !ok {
+	if !models.ValidWarnActionTime(settings.WarnActionTime) {
 		return defaultWarnActionTime
 	}
 	return settings.WarnActionTime

@@ -312,7 +312,7 @@ func TestSetWarnModeStoresTimedModeDuration(t *testing.T) {
 	setMode("/setwarnmode TMUTE 2h")
 	assertSetting("/setwarnmode TMUTE 2h", "tmute", 7200)
 
-	for _, text := range []string{"/setwarnmode tban", "/setwarnmode tban 5x", "/setwarnmode tmute 0h", "/setwarnmode tban 400d"} {
+	for _, text := range []string{"/setwarnmode tban", "/setwarnmode tban 5x", "/setwarnmode tmute 0h", "/setwarnmode tban 400d", "/setwarnmode tban 1d extra"} {
 		before := len(client.callsFor("sendMessage"))
 		setMode(text)
 		assertSetting(text, "tmute", 7200)
@@ -360,6 +360,9 @@ func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
 		// A backup taken before warn_action_time existed restores tmute with 0:
 		// that must not become a permanent mute.
 		{name: "legacy zero duration", settings: models.WarnSettings{WarnMode: "tmute"}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
+		// 30 s reaches Telegram as less than 30 s after rounding and latency,
+		// which it reads as forever.
+		{name: "too short duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, wantMethod: "banChatMember", wantTime: 3600, wantText: "1h"},
 	}
 
 	for _, tc := range tests {
@@ -396,6 +399,40 @@ func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
 			replies := client.callsFor("sendMessage")
 			if len(replies) == 0 || !strings.Contains(replies[len(replies)-1].Params["text"].(string), tc.wantText) {
 				t.Fatalf("punishment replies = %#v, want duration %q", replies, tc.wantText)
+			}
+		})
+	}
+}
+
+func TestWarnLimitTimedModesKeepWarnsWhenPunishmentFails(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	for _, tc := range []struct {
+		mode   string
+		method string
+	}{
+		{mode: "tban", method: "banChatMember"},
+		{mode: "tmute", method: "restrictChatMember"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tc.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
+				t.Fatalf("SetWarnLimit() error = %v", err)
+			}
+			if err := warns.SetWarnMode(chat.Id, tc.mode, 3600); err != nil {
+				t.Fatalf("SetWarnMode() error = %v", err)
+			}
+
+			err := warnsModule.warnUser(bot, newWarnReplyContext(bot, chat, admin, target, "/warn limit reached"))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("warnUser() error = %v, want request error", err)
+			}
+			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 1 {
+				t.Fatalf("numWarns after failed %s = %d, want warn kept", tc.mode, numWarns)
 			}
 		})
 	}

@@ -2782,4 +2782,4 @@ warns_extend_msg: |
   /resetallwarns — zerar todas as advertências do chat
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição
-  /setwarnmode — punição: ban, kick, mute, tban ou tmute
+  /setwarnmode — punição: ban, kick ou mute

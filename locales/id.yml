@@ -2810,4 +2810,4 @@ warns_extend_msg: |
   /resetallwarns — reset semua peringatan di obrolan
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman
-  /setwarnmode — hukuman: ban, kick, mute, tban atau tmute
+  /setwarnmode — hukuman: ban, kick atau mute

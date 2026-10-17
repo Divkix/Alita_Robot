@@ -2736,4 +2736,4 @@ warns_extend_msg: |
   /resetallwarns — réinitialiser tous les avertissements du chat
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
-  /setwarnmode — sanction : ban, kick, mute, tban ou tmute
+  /setwarnmode — sanction : ban, kick ou mute

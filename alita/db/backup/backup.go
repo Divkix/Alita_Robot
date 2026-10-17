@@ -810,6 +810,11 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if data.WarnSettings.WarnLimit <= 0 {
 			return nil, fmt.Errorf("invalid warn limit %d", data.WarnSettings.WarnLimit)
 		}
+		// An unusable duration becomes "not set" so the bot's one-hour
+		// fallback applies, instead of failing the whole import on the column.
+		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
+			data.WarnSettings.WarnActionTime = 0
+		}
 	}
 	for i := range data.Warns {
 		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {

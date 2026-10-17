@@ -280,10 +280,19 @@ func ExtractTime(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (banTime int
 	return extractTimeAt(b, ctx, inputVal, time.Now().Unix())
 }
 
-// ExtractDuration parses a duration in the /tban format and returns it in
-// seconds, replying with the same errors as ExtractTime. It returns -1 when
-// the input was rejected.
+// ExtractDuration parses a single duration in the /tban format and returns it
+// in seconds, replying with the same errors as ExtractTime. Unlike ExtractTime
+// it takes no reason, so trailing words are rejected. It returns -1 when the
+// input was rejected.
 func ExtractDuration(b *gotgbot.Bot, ctx *ext.Context, inputVal string) (seconds int64) {
+	if len(strings.Fields(inputVal)) > 1 {
+		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+		text, _ := tr.GetString("extraction_invalid_time_format")
+		if _, err := ctx.EffectiveMessage.Reply(b, text, nil); err != nil {
+			log.Errorf("[Extraction] Failed to reply with invalid time format: %v", err)
+		}
+		return -1
+	}
 	timeNow := time.Now().Unix()
 	untilDate, _, _ := extractTimeAt(b, ctx, inputVal, timeNow)
 	if untilDate == -1 {
