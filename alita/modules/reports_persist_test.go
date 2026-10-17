@@ -145,13 +145,55 @@ func TestReportNotPersistedWhenRejected(t *testing.T) {
 		client := newModuleBotClient()
 		bot := newModuleTestBot(client)
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-		ctx := newReportReplyContext(bot, chat, reporter, admin, "/report")
+		seedCallbackAdmins(t, chat.Id, gotgbot.MergedChatMember{User: target, Status: "administrator"})
+		ctx := newReportReplyContext(bot, chat, reporter, target, "/report")
 		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
 			t.Fatalf("report error = %v, want EndGroups", err)
 		}
 		if rows := storedReports(t, chat.Id); len(rows) != 0 {
 			t.Fatalf("stored reports = %d, want 0 for an admin target", len(rows))
 		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 1 || calls[0].Params["reply_markup"] != nil {
+			t.Fatalf("group reply calls = %d, want one plain refusal without report buttons", len(calls))
+		}
 	})
+
+	t.Run("special account target", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		telegram := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		ctx := newReportReplyContext(bot, chat, reporter, telegram, "/report")
+		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report error = %v, want EndGroups", err)
+		}
+		if rows := storedReports(t, chat.Id); len(rows) != 0 {
+			t.Fatalf("stored reports = %d, want 0 for a special account target", len(rows))
+		}
+	})
+}
+
+func TestReportStillReachesGroupWhenStoreFails(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+	target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+	if err := db.DB.Migrator().DropTable(&models.Report{}); err != nil {
+		t.Fatalf("drop reports table: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(&models.Report{}); err != nil {
+			t.Fatalf("restore reports table: %v", err)
+		}
+	})
+
+	ctx := newReportReplyContext(bot, chat, reporter, target, "/report spam")
+	if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("report error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 || calls[0].Params["reply_markup"] == nil {
+		t.Fatalf("group reply calls = %d, want the admin report with buttons despite the store failure", len(calls))
+	}
 }
