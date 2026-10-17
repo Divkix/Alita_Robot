@@ -45,7 +45,7 @@ func (m *MigrationRunner) RunMigrations() error {
 	log.Info("[Migrations] Starting automatic database migration...")
 
 	// Serialize concurrent runners (rolling replicas share one Postgres): without
-	// this, two instances can each pass isMigrationApplied then both apply.
+	// this, two instances can each see a migration as pending then both apply.
 	if m.db != nil && m.db.Name() == "postgres" {
 		if err := m.db.Exec("SELECT pg_advisory_lock(hashtextextended('alita:schema_migrations', 0))").Error; err != nil {
 			return fmt.Errorf("failed to acquire migration lock: %w", err)
@@ -78,30 +78,13 @@ func (m *MigrationRunner) runMigrationFiles() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
-	allApplied, orphans, err := m.reconcileAppliedVersions(files)
+	records, allApplied, orphans, err := m.reconcileAppliedVersions(files)
 	if err != nil {
 		return fmt.Errorf("failed to compare applied migrations with files: %w", err)
 	}
 	if len(orphans) > 0 {
 		log.Warnf("[Migrations] %d recorded migrations have no file (deleted or renamed after being applied): %s",
 			len(orphans), strings.Join(orphans, ", "))
-	}
-	if allApplied {
-		// Nothing to apply, but applied files must still match their checksums and
-		// legacy rows must still get one.
-		for _, file := range files {
-			version := filepath.Base(file)
-			content, err := os.ReadFile(file) // #nosec G304 - path comes from getMigrationFiles which validates the directory
-			if err != nil {
-				return fmt.Errorf("failed to read migration file %s: %w", version, err)
-			}
-			if err := m.verifyMigrationChecksum(version, content); err != nil {
-				return err
-			}
-		}
-		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
-		m.logMigrationStatus()
-		return nil
 	}
 
 	applied := 0
@@ -117,13 +100,9 @@ func (m *MigrationRunner) runMigrationFiles() error {
 			return fmt.Errorf("failed to read migration file %s: %w", version, err)
 		}
 
-		isApplied, err := m.isMigrationApplied(version)
-		if err != nil {
-			return fmt.Errorf("failed to check migration %s status: %w", version, err)
-		}
-		if isApplied {
+		if rec, isApplied := records[version]; isApplied {
 			// Verify the content hasn't changed since it was applied.
-			if err := m.verifyMigrationChecksum(version, content); err != nil {
+			if err := m.verifyMigrationChecksum(rec, content); err != nil {
 				return err
 			}
 			log.Debugf("[Migrations] Skipping %s (already applied)", version)
@@ -137,6 +116,12 @@ func (m *MigrationRunner) runMigrationFiles() error {
 		}
 		applied++
 		log.Infof("[Migrations] Successfully applied %s", version)
+	}
+
+	if allApplied {
+		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
+		m.logMigrationStatus()
+		return nil
 	}
 
 	log.Infof("[Migrations] Migration complete - Applied: %d, Skipped: %d",
@@ -191,20 +176,22 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 	return files, nil
 }
 
-// reconcileAppliedVersions compares the recorded versions with the given files.
-// allApplied is true when every file has a record; orphans are the sorted records
-// that have no file. Comparing row counts alone is not enough: a record whose file
-// was deleted or renamed after it was applied offsets a new unapplied file and the
-// count matches, so the new migration would be skipped silently.
-func (m *MigrationRunner) reconcileAppliedVersions(files []string) (allApplied bool, orphans []string, err error) {
-	var versions []string
-	if err := m.db.Model(&SchemaMigration{}).Pluck("version", &versions).Error; err != nil {
-		return false, nil, err
+// reconcileAppliedVersions reads every schema_migrations row once and compares
+// the recorded versions with the given files. records maps each recorded version
+// to its row; allApplied is true when every file has a record; orphans are the
+// sorted records that have no file. Comparing row counts alone is not enough: a
+// record whose file was deleted or renamed after it was applied offsets a new
+// unapplied file and the count matches, so the new migration would be skipped
+// silently.
+func (m *MigrationRunner) reconcileAppliedVersions(files []string) (records map[string]SchemaMigration, allApplied bool, orphans []string, err error) {
+	var rows []SchemaMigration
+	if err := m.db.Find(&rows).Error; err != nil {
+		return nil, false, nil, err
 	}
 
-	recorded := make(map[string]struct{}, len(versions))
-	for _, version := range versions {
-		recorded[version] = struct{}{}
+	records = make(map[string]SchemaMigration, len(rows))
+	for _, row := range rows {
+		records[row.Version] = row
 	}
 
 	allApplied = true
@@ -212,25 +199,17 @@ func (m *MigrationRunner) reconcileAppliedVersions(files []string) (allApplied b
 	for _, file := range files {
 		version := filepath.Base(file)
 		onDisk[version] = struct{}{}
-		if _, ok := recorded[version]; !ok {
+		if _, ok := records[version]; !ok {
 			allApplied = false
 		}
 	}
-	for _, version := range versions {
+	for version := range records {
 		if _, ok := onDisk[version]; !ok {
 			orphans = append(orphans, version)
 		}
 	}
 	slices.Sort(orphans)
-	return allApplied, orphans, nil
-}
-
-func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {
-	var count int64
-	if err := m.db.Model(&SchemaMigration{}).Where("version = ?", version).Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	return records, allApplied, orphans, nil
 }
 
 func (m *MigrationRunner) getMigrationRecord(version string) (*SchemaMigration, error) {
@@ -244,22 +223,15 @@ func (m *MigrationRunner) getMigrationRecord(version string) (*SchemaMigration, 
 	return &rec, nil
 }
 
-// verifyMigrationChecksum compares the stored checksum for an already-applied
-// migration against the SHA-256 of the current file content.
+// verifyMigrationChecksum compares the stored checksum of an already-applied
+// migration record against the SHA-256 of the current file content.
 // When the stored checksum is empty (legacy row), the current checksum is
 // written back as a trusted baseline instead of raising an error — this avoids
 // false alarms on migrations that pre-date this feature.
 // When AutoMigrateSilentFail is false a mismatch returns an error; otherwise
 // it only logs a warning so that existing deployments are not blocked.
-func (m *MigrationRunner) verifyMigrationChecksum(version string, content []byte) error {
-	rec, err := m.getMigrationRecord(version)
-	if err != nil {
-		return fmt.Errorf("failed to read migration record %s: %w", version, err)
-	}
-	if rec == nil {
-		return fmt.Errorf("migration record %s not found", version)
-	}
-
+func (m *MigrationRunner) verifyMigrationChecksum(rec SchemaMigration, content []byte) error {
+	version := rec.Version
 	sum := sha256.Sum256(content)
 	current := hex.EncodeToString(sum[:])
 
