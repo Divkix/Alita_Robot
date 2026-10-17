@@ -375,10 +375,14 @@ connections_help_msg:
 
   × /connection: See information about the currently connected chat.
 
+  × /settings: Pick a group where you are an admin and see all of its settings; values that differ from the default are marked with •. Only groups where you have written since I joined are listed; for others use /connect `<chatid>` or send /settings in the group.
+
 
   *Admin Commands:*
 
   × /allowconnect <yes/no>: Allow users to connect to chats or not.
+
+  While connected, admins can also run /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect and /lang group from PM.
 
 
   You can retrieve the chat id by using the /id command in your chat. Don't be surprised
@@ -711,6 +715,8 @@ languages_help_msg: "Not able to change language of the bot?
 
   Just type /lang and use inline keyboard to choose a language for yourself or your
   group.
+
+  In PM, an admin connected to a group can use /lang group to change that group's language.
 
 
   You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)"
@@ -2718,6 +2724,7 @@ connections_extend_msg: |
   /disconnect — disconnect from the group
   /reconnect — reconnect to the last group
   /connection — show the connected group
+  /settings — see a group's settings from PM
   /allowconnect — allow members to connect to this group
 disabling_extend_msg: |
   /disable — disable a command for members
@@ -2849,3 +2856,10 @@ warns_extend_msg: |
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
   /setwarnmode — punishment: ban, kick or mute
+settings_summary_legend: "<i>• marks a value that differs from the default. Send the command shown to change it.</i>"
+settings_picker_text: "Choose a group to see its settings. Not in the list? Send /connect &lt;chat id&gt; here or /settings in the group."
+settings_picker_empty: "I could not find groups where you are an admin. I only know groups where you have written since I joined, so send /connect &lt;chat id&gt; here or /settings in the group."
+settings_open_in_pm: "Tap the button to see this group’s settings in PM."
+settings_open_in_pm_button: "Open settings in PM"
+settings_btn_refresh: "🔄 Refresh"
+settings_btn_other_group: "↩️ Another group"

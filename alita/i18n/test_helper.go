@@ -30,16 +30,27 @@ func NewTestTranslator(yamlContent string) (*Translator, error) {
 //
 // It is guarded by the testtools build tag and is never compiled into production.
 func OverrideManagerForTest(yamlContent string) (restore func(), err error) {
-	data, err := parseYAML([]byte(yamlContent))
-	if err != nil {
-		return nil, err
+	return OverrideLocalesForTest(map[string]string{"en": yamlContent})
+}
+
+// OverrideLocalesForTest is OverrideManagerForTest with one inline YAML per
+// language code, so a test can tell which language a reply was built in.
+// Codes missing from locales fall back to "en", which must be present.
+func OverrideLocalesForTest(locales map[string]string) (restore func(), err error) {
+	maps := make(map[string]map[string]any, len(locales))
+	for code, yamlContent := range locales {
+		data, err := parseYAML([]byte(yamlContent))
+		if err != nil {
+			return nil, err
+		}
+		maps[code] = data
 	}
 	// A non-nil *embed.FS is required to pass GetTranslator's localeFS nil-guard.
 	// The value is never used for file I/O because localeMaps is already populated.
 	var dummyFS embed.FS
 	lm := &LocaleManager{
 		defaultLang: "en",
-		localeMaps:  map[string]map[string]any{"en": data},
+		localeMaps:  maps,
 		localeFS:    &dummyFS,
 	}
 	// Ensure managerOnce.Do has already fired before we overwrite managerInstance.

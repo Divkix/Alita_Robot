@@ -582,7 +582,13 @@ func (m moduleStruct) setTitle(c *helpers.CommandContext) error {
 }
 
 func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
-	chat := c.Chat
+	// Members may view the mode; changing it needs the owner (checked below).
+	chat := chat_status.IsUserConnected(c.Bot, c.Ctx, false, true)
+	if chat == nil {
+		return ext.EndGroups
+	}
+	c.Ctx.EffectiveChat = chat
+	c.Chat = chat
 	msg := c.Msg
 	user := c.User
 	args := c.Ctx.Args()
@@ -601,8 +607,8 @@ func (m moduleStruct) anonAdmin(c *helpers.CommandContext) error {
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		}
 	} else {
-		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, nil, user.Id) {
-			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+		if !chat_status.RequireUserOwner(c.Bot, c.Ctx, chat, user.Id) {
+			chat_status.NewPermissionResponder(c.Bot).Respond(c.Ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply(), chat_status.WithTranslator(tr))
 			return ext.EndGroups
 		}
 		switch args[1] {
@@ -752,13 +758,9 @@ var (
 			helpers.RequireUserAdmin(),
 		},
 	}
-	anonAdminDesc = helpers.CommandDescriptor{
-		Name: "anonadmin",
-		RequiredChecks: []helpers.CheckFunc{
-			helpers.RequireGroup(),
-			helpers.RequireBotAdmin(),
-		},
-	}
+	// anonadmin resolves its chat (and checks bot admin) in the handler so it
+	// also works from PM through a connection.
+	anonAdminDesc = helpers.CommandDescriptor{Name: "anonadmin"}
 	setGTitleDesc = helpers.CommandDescriptor{
 		Name:    "setgtitle",
 		Aliases: []string{"setgrouptitle"},

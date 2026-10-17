@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/keyboard"
 )
 
@@ -66,14 +67,18 @@ func (m moduleStruct) allowConnect(b *gotgbot.Bot, ctx *ext.Context) error {
 	if user == nil {
 		return ext.EndGroups
 	}
-	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-
-	var text string
-
-	if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
+	if chat.Type == "private" {
+		// From PM, act on the connected group.
+		if chat = resolveAdminChat(b, ctx, false); chat == nil {
+			return ext.EndGroups
+		}
+	} else if !chat_status.IsUserAdmin(b, chat.Id, user.Id) {
 		return ext.EndGroups
 	}
+	args := ctx.Args()
+
+	var text string
 
 	if len(args) >= 2 {
 		toogleOption := args[1]
@@ -355,11 +360,15 @@ func LoadConnections(dispatcher *ext.Dispatcher) {
 	dispatcher.AddHandler(handlers.NewCommand("reconnect", ConnectionsModule.reconnect))
 	dispatcher.AddHandler(handlers.NewCommand("allowconnect", ConnectionsModule.allowConnect))
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("connbtns"), ConnectionsModule.connectionButtons))
+	helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{Name: "settings"}, pipelineHandler(ConnectionsModule.settings))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("settings"), ConnectionsModule.settingsCallback))
+	dispatcher.AddHandlerToGroup(connectedChatGuard{}, connectedChatGuardGroup)
 }
 
 func init() {
 	RegisterLegacyModule("Connections", 170, LoadConnections)
 	RegisterDeepLinkHandler("connect_", connectDeepLinkHandler)
+	RegisterDeepLinkHandler("settings_", settingsDeepLinkHandler)
 }
 
 func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, arg string) error {

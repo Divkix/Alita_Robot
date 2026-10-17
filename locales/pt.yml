@@ -312,10 +312,14 @@ connections_help_msg:
 
   × /connection: Veja informações sobre o chat atualmente conectado.
 
+  × /settings: Escolha um grupo onde você é administrador e veja todas as configurações; valores diferentes do padrão são marcados com •. Só aparecem grupos onde você escreveu desde que entrei; para outros use /connect `<chatid>` ou envie /settings no grupo.
+
 
   *Comandos de Admin:*
 
   × /allowconnect <yes/no>: Permite que usuários se conectem aos chats ou não.
+
+  Enquanto conectados, administradores também podem usar /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect e /lang group no privado.
 
 
   Você pode obter o id do chat usando o comando /id no seu chat. Não se surpreenda
@@ -625,6 +629,8 @@ languages_help_msg: "Não consegue mudar o idioma do bot?
 
   Basta digitar /lang e usar o teclado inline para escolher um idioma para você ou seu
   grupo.
+
+  No privado, um administrador conectado a um grupo pode usar /lang group para mudar o idioma desse grupo.
 
 
   Você pode nos ajudar a trazer o bot para mais idiomas ajudando no [Crowdin](https://crowdin.com/project/alita_robot)"
@@ -2652,6 +2658,7 @@ connections_extend_msg: |
   /disconnect — desconectar do grupo
   /reconnect — reconectar ao último grupo
   /connection — ver o grupo conectado
+  /settings — ver as configurações de um grupo pelo privado
   /allowconnect — permitir que membros se conectem a este grupo
 disabling_extend_msg: |
   /disable — desativar um comando para os membros
@@ -2783,3 +2790,10 @@ warns_extend_msg: |
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição
   /setwarnmode — punição: ban, kick ou mute
+settings_summary_legend: "<i>• marca um valor diferente do padrão. Envie o comando mostrado para alterá-lo.</i>"
+settings_picker_text: "Escolha um grupo para ver as configurações. Não está na lista? Envie /connect &lt;chat id&gt; aqui ou /settings no grupo."
+settings_picker_empty: "Não encontrei grupos onde você é administrador. Só conheço grupos onde você escreveu desde que entrei, então envie /connect &lt;chat id&gt; aqui ou /settings no grupo."
+settings_open_in_pm: "Toque no botão para ver as configurações deste grupo no privado."
+settings_open_in_pm_button: "Abrir configurações no privado"
+settings_btn_refresh: "🔄 Atualizar"
+settings_btn_other_group: "↩️ Outro grupo"

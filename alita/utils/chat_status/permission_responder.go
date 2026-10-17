@@ -12,6 +12,7 @@ import (
 type respondCfg struct {
 	useReply              bool
 	fallbackToSendMessage bool
+	tr                    *i18n.Translator
 }
 
 type respondOpt func(*respondCfg)
@@ -26,6 +27,16 @@ func WithReplyFallback() respondOpt {
 	return func(c *respondCfg) {
 		c.useReply = true
 		c.fallbackToSendMessage = true
+	}
+}
+
+// WithTranslator replies through tr instead of the language of
+// ctx.EffectiveChat. A PM command that has pointed EffectiveChat at the
+// connected group passes the translator it built before the swap, so the
+// refusal it sends to the user's PM is in the user's language.
+func WithTranslator(tr *i18n.Translator) respondOpt {
+	return func(c *respondCfg) {
+		c.tr = tr
 	}
 }
 
@@ -48,7 +59,10 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 		return false
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	tr := cfg.tr
+	if tr == nil {
+		tr = i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	}
 
 	if btnKey != "" {
 		query, _ := callbackQueryFromContext(ctx)
