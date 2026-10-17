@@ -310,14 +310,31 @@ func TestAntiRaidAutoExpiry(t *testing.T) {
 
 	chatID := time.Now().UnixNano() + 1
 
-	antiRaidModule.enableRaid(chatID, 1)
+	const duration = 1
+	if enabled, err := antiRaidModule.enableRaid(chatID, duration); err != nil || !enabled {
+		t.Fatalf("enableRaid() = %v, %v; want enabled", enabled, err)
+	}
 	if !antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid active immediately")
 	}
 
-	time.Sleep(2 * time.Second)
+	// Expiry compares the stored timestamps with the wall clock, so moving the
+	// stored raid back past its duration stands in for waiting it out.
+	st := getRaidState(chatID)
+	if got := st.ExpiresAt - st.StartedAt; got != duration {
+		t.Fatalf("raid lasts %ds, want %ds", got, duration)
+	}
+	elapsed := int64(duration + 1)
+	st.StartedAt -= elapsed
+	st.ExpiresAt -= elapsed
+	if err := setRaidState(chatID, st); err != nil {
+		t.Fatalf("setRaidState() error = %v", err)
+	}
 	if antiRaidModule.isRaidActive(chatID) {
 		t.Fatal("expected raid expired after 1s duration")
+	}
+	if getRaidState(chatID).Active {
+		t.Fatal("expired raid is still stored as active")
 	}
 }
 
