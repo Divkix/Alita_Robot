@@ -10,6 +10,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	log "github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
@@ -656,6 +658,38 @@ func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
 	send(gotgbot.Chat{Id: groupA, Type: "supergroup", Title: "Group A"}, "/captcha on")
 	if len(client.callsFor("setMessageReaction")) == 0 {
 		t.Fatal("/captcha on sent in the group no longer reaches the group's reaction watcher")
+	}
+}
+
+// Refresh with nothing changed re-sends identical content, which Telegram
+// rejects as "message is not modified": that is not a failure worth an Error
+// log. Any other edit failure still is.
+func TestSettingsRefreshNotModifiedIsNotAnError(t *testing.T) {
+	hook := logrustest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	refresh := encodeCallbackData("settings", map[string]string{"a": "r", "c": fmt.Sprint(groupA)})
+	errorLogged := func(description string) bool {
+		for _, entry := range hook.AllEntries() {
+			if entry.Level <= log.ErrorLevel && strings.Contains(fmt.Sprint(entry.Message, entry.Data), description) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, tc := range []struct {
+		description string
+		wantError   bool
+	}{
+		{"Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message", false},
+		{"Bad Request: message to edit not found", true},
+	} {
+		client.errors["editMessageText"] = &gotgbot.TelegramError{Method: "editMessageText", Code: 400, Description: tc.description}
+		pressInPM(t, bot, admin, refresh, ConnectionsModule.settingsCallback)
+		if got := errorLogged(tc.description); got != tc.wantError {
+			t.Errorf("edit failure %q logged at Error = %v, want %v", tc.description, got, tc.wantError)
+		}
 	}
 }
 

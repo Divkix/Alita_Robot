@@ -222,7 +222,12 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	if _, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: text, ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
-		log.Error(err)
+		// Refresh with nothing changed re-sends identical content.
+		if strings.Contains(err.Error(), "message is not modified") {
+			log.Debug(err)
+		} else {
+			log.Error(err)
+		}
 	}
 	_, _ = query.Answer(b, nil)
 	return ext.EndGroups
