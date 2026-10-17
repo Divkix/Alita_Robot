@@ -143,6 +143,13 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Warnf("[BotUpdates] Invalid callback message ID: %s (%s)", query.Data, msgIDRaw)
 		return answerInvalidCallback(b, ctx, query)
 	}
+	// The button is always sent as a reply to the command, so it lives in the command's chat.
+	// Refuse a mismatch before any side effect: checks would run against chatId while the
+	// command acts on ctx.EffectiveChat.
+	if qmsg.GetChat().Id != chatId {
+		log.Warnf("[BotUpdates] Callback chat %d does not match encoded chat %d", qmsg.GetChat().Id, chatId)
+		return answerInvalidCallback(b, ctx, query)
+	}
 
 	// if non-admins try to press it
 	// using this func because it's the only one that can be called by taking chatId from callback query
@@ -185,6 +192,10 @@ func verifyAnonymousAdmin(b *gotgbot.Bot, ctx *ext.Context) error {
 	if err != nil {
 		log.Error(err)
 		return err
+	}
+	// Stop the button's loading spinner; a failed answer must not cancel the confirmed command.
+	if _, err := query.Answer(b, nil); err != nil {
+		log.Error(err)
 	}
 
 	ctx.EffectiveMessage = msg            // set the message to the message that was originally used when command was given
