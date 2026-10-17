@@ -46,7 +46,8 @@ func (Warns) TableName() string {
 
 // WarnEntry is one warn: its reason, who issued it and when. WarnedBy 0 with a
 // nil WarnedAt is a warn from before entries existed. Anonymous hides the
-// issuer, who was an anonymous admin; WarnedBy still records the real account.
+// issuer, who was an anonymous admin; WarnedBy still records the real account,
+// which a backup export drops.
 type WarnEntry struct {
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"-"`
 	UserId    int64      `gorm:"column:user_id;not null" json:"user_id,omitempty"`

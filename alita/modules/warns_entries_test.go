@@ -191,6 +191,25 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 	})
 }
 
+func TestWarnIssuerMarksMessageSentAsTheGroup(t *testing.T) {
+	chat := gotgbot.Chat{Id: -1001234567890, Type: "supergroup", Title: "Anon Chat"}
+	// Sent on behalf of the group with no GroupAnonymousBot sender: only the
+	// sender chat tells that an anonymous admin issued the warn.
+	msg := &gotgbot.Message{MessageId: 1, Date: 1, Chat: chat, SenderChat: &chat, Text: "/warn spam"}
+	ctx := &ext.Context{EffectiveMessage: msg, EffectiveChat: &chat, EffectiveSender: msg.GetSender()}
+
+	if issuer := warnIssuer(ctx); !issuer.Anonymous {
+		t.Fatalf("warnIssuer() = %+v, want an anonymous issuer", issuer)
+	}
+
+	mod := gotgbot.User{Id: 501, FirstName: "Admin"}
+	msg = &gotgbot.Message{MessageId: 2, Date: 1, Chat: chat, From: &mod, Text: "/warn spam"}
+	ctx = &ext.Context{EffectiveMessage: msg, EffectiveChat: &chat, EffectiveUser: &mod, EffectiveSender: msg.GetSender()}
+	if issuer := warnIssuer(ctx); issuer.Anonymous || issuer.WarnedBy != mod.Id {
+		t.Fatalf("warnIssuer() = %+v, want admin %d shown by name", issuer, mod.Id)
+	}
+}
+
 func TestBlacklistWarnIsMarkedAutomatic(t *testing.T) {
 	useEnglishLocale(t)
 	automatic := translated(t, "warns_issuer_auto")

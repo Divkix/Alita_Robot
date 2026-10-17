@@ -96,7 +96,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - `alita:cache:captcha_pending:<chat>` is a per-chat pending flag; any new code that inserts into `captcha_attempts`
   must `DeleteCache` it after commit.
 - `warn_entries` has no FK to `warns_users`: any code that deletes `warns_users` rows deletes the matching entries in
-  the same transaction. `warns_users.warns` is still written so an older release can read it after a rollback.
+  the same transaction, `warns_users` first (the reverse order misses an entry a concurrent `/warn` commits).
+  Backups export only entries of users with warns, with `warned_by` zeroed on anonymous ones. `warns_users.warns` is
+  still written so an older release can read it after a rollback.
 
 ## Go rules
 
