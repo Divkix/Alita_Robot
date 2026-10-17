@@ -218,12 +218,14 @@ func failFirstFedBanLookups(t *testing.T, fedID string, n int32) *atomic.Int32 {
 
 func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 	cases := []struct {
-		name      string
-		banned    bool
-		wantUnban bool
+		name        string
+		banned      bool
+		upstreamBan bool
+		wantUnban   bool
 	}{
 		{name: "ban row gone", wantUnban: true},
 		{name: "ban row still there", banned: true},
+		{name: "subscribed federation still bans", upstreamBan: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -241,6 +243,15 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 				_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
 				require.NoError(t, err)
 			}
+			if tc.upstreamBan {
+				upstreamOwner := uniquePositiveUserID()
+				upstream, err := federations.CreateFederation(upstreamOwner, "Reread Upstream Fed")
+				require.NoError(t, err)
+				t.Cleanup(func() { _ = federations.DeleteFederation(upstream.FedID) })
+				require.NoError(t, federations.SubscribeFed(fed.FedID, upstream.FedID))
+				_, _, err = federations.Fban(upstream.FedID, target, upstreamOwner, "upstream")
+				require.NoError(t, err)
+			}
 			failed := failFirstFedBanLookups(t, fed.FedID, 1)
 
 			applyActiveFban(bot, fed.FedID, target)
@@ -253,7 +264,7 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 					require.Equal(t, true, call.Params["only_if_banned"], "lifting must not kick members who are not banned")
 				}
 			} else {
-				require.Empty(t, unbanTargets(client, target), "a re-read that finds the ban must keep it")
+				require.Empty(t, unbanTargets(client, target), "a re-read that finds a ban anywhere in the federation tree must keep it")
 			}
 		})
 	}
