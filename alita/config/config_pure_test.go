@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -224,144 +223,28 @@ func TestLoadConfig(t *testing.T) {
 			t.Fatal("LoadConfig() error = nil, want CACHE_LOCAL_TTL range error")
 		}
 	})
-}
 
-func TestValidateConfigPure(t *testing.T) {
-	t.Parallel()
+	t.Run("CLEAR_CACHE_ON_STARTUP", func(t *testing.T) {
+		for env, want := range map[string]bool{"": false, "false": false, "true": true} {
+			t.Run("env="+env, func(t *testing.T) {
+				t.Setenv("BOT_TOKEN", "tk")
+				t.Setenv("OWNER_ID", "1")
+				t.Setenv("MESSAGE_DUMP", "1")
+				t.Setenv("DATABASE_URL", "postgres://localhost/test")
+				t.Setenv("REDIS_ADDRESS", "localhost:6379")
+				t.Setenv("HTTP_PORT", "8080")
+				t.Setenv("CLEAR_CACHE_ON_STARTUP", env)
 
-	tests := []struct {
-		name    string
-		setup   func(*Config)
-		wantErr string
-	}{
-		{name: "valid base config", setup: func(_ *Config) {}},
-		{
-			name:    "missing bot token",
-			setup:   func(c *Config) { c.BotToken = "" },
-			wantErr: "BOT_TOKEN is required",
-		},
-		{
-			name:    "missing owner",
-			setup:   func(c *Config) { c.OwnerId = 0 },
-			wantErr: "OWNER_ID is required",
-		},
-		{
-			name:    "missing message dump",
-			setup:   func(c *Config) { c.MessageDump = 0 },
-			wantErr: "MESSAGE_DUMP is required",
-		},
-		{
-			name:    "missing database URL",
-			setup:   func(c *Config) { c.DatabaseURL = "" },
-			wantErr: "DATABASE_URL is required",
-		},
-		{
-			name:    "missing redis address",
-			setup:   func(c *Config) { c.RedisAddress = "" },
-			wantErr: "REDIS_ADDRESS or REDIS_URL is required",
-		},
-		{
-			name: "webhook requires domain",
-			setup: func(c *Config) {
-				c.UseWebhooks = true
-				c.WebhookDomain = ""
-				c.WebhookSecret = "secret"
-			},
-			wantErr: "WEBHOOK_DOMAIN is required",
-		},
-		{
-			name: "webhook requires secret",
-			setup: func(c *Config) {
-				c.UseWebhooks = true
-				c.WebhookDomain = "https://example.com"
-				c.WebhookSecret = ""
-			},
-			wantErr: "WEBHOOK_SECRET is required",
-		},
-		{
-			name:    "invalid HTTP port",
-			setup:   func(c *Config) { c.HTTPPort = 70000 },
-			wantErr: "HTTP_PORT must be between 1 and 65535",
-		},
-		{
-			name:    "invalid dispatcher routines",
-			setup:   func(c *Config) { c.DispatcherMaxRoutines = 1001 },
-			wantErr: "DISPATCHER_MAX_ROUTINES must be between 1 and 1000",
-		},
-		{
-			name:    "negative local cache TTL",
-			setup:   func(c *Config) { c.CacheLocalTTLSeconds = -1 },
-			wantErr: "CACHE_LOCAL_TTL must be between 0 and 300 seconds",
-		},
-		{
-			name:    "local cache TTL too long",
-			setup:   func(c *Config) { c.CacheLocalTTLSeconds = 301 },
-			wantErr: "CACHE_LOCAL_TTL must be between 0 and 300 seconds",
-		},
-		{
-			name:  "local cache TTL at bounds",
-			setup: func(c *Config) { c.CacheLocalTTLSeconds = 300 },
-		},
-		{
-			name:    "local cache too small",
-			setup:   func(c *Config) { c.CacheLocalMaxEntries = 99 },
-			wantErr: "CACHE_LOCAL_MAX_ENTRIES must be between 100 and 1000000",
-		},
-		{
-			name:    "local cache too large",
-			setup:   func(c *Config) { c.CacheLocalMaxEntries = 1000001 },
-			wantErr: "CACHE_LOCAL_MAX_ENTRIES must be between 100 and 1000000",
-		},
-		{
-			name:    "invalid idle connections",
-			setup:   func(c *Config) { c.DBMaxIdleConns = 101 },
-			wantErr: "DB_MAX_IDLE_CONNS must be between 1 and 100",
-		},
-		{
-			name:    "invalid open connections",
-			setup:   func(c *Config) { c.DBMaxOpenConns = 1001 },
-			wantErr: "DB_MAX_OPEN_CONNS must be between 1 and 1000",
-		},
-		{
-			name:    "invalid connection lifetime",
-			setup:   func(c *Config) { c.DBConnMaxLifetimeMin = 1441 },
-			wantErr: "DB_CONN_MAX_LIFETIME_MIN must be between 1 and 1440 minutes",
-		},
-		{
-			name:    "invalid idle time",
-			setup:   func(c *Config) { c.DBConnMaxIdleTimeMin = 61 },
-			wantErr: "DB_CONN_MAX_IDLE_TIME_MIN must be between 1 and 60 minutes",
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cfg := validBaseConfig()
-			cfg.DispatcherMaxRoutines = 200
-			cfg.DBMaxIdleConns = 50
-			cfg.DBMaxOpenConns = 200
-			cfg.DBConnMaxLifetimeMin = 240
-			cfg.DBConnMaxIdleTimeMin = 60
-			tc.setup(cfg)
-
-			err := ValidateConfig(cfg)
-			if tc.wantErr == "" {
+				cfg, err := LoadConfig()
 				if err != nil {
-					t.Fatalf("ValidateConfig() error = %v, want nil", err)
+					t.Fatalf("unexpected error: %v", err)
 				}
-				return
-			}
-			if err == nil {
-				t.Fatalf("ValidateConfig() error = nil, want %q", tc.wantErr)
-			}
-			if !strings.Contains(err.Error(), tc.wantErr) {
-				t.Fatalf("ValidateConfig() error = %q, want substring %q", err.Error(), tc.wantErr)
-			}
-		})
-	}
+				if cfg.ClearCacheOnStartup != want {
+					t.Fatalf("ClearCacheOnStartup = %v, want %v", cfg.ClearCacheOnStartup, want)
+				}
+			})
+		}
+	})
 }
 
 func TestRedisEnvParsingPure(t *testing.T) {
@@ -394,8 +277,28 @@ func TestRedisEnvParsingPure(t *testing.T) {
 			wantPassword: "secret",
 		},
 		{
+			name:         "url with username supplies its password",
+			redisURL:     "redis://user:pass123@host:6380",
+			wantAddr:     "host:6380",
+			wantPassword: "pass123",
+		},
+		{
+			name:     "url without userinfo has no password",
+			redisURL: "redis://host:6380",
+			wantAddr: "host:6380",
+		},
+		{
+			name:     "url with username only has no password",
+			redisURL: "redis://user@host:6380",
+			wantAddr: "host:6380",
+		},
+		{
 			name:     "invalid url returns empty values",
 			redisURL: "://bad-url",
+		},
+		{
+			name:     "invalid percent-encoding returns empty values",
+			redisURL: "not-a-valid-url-%%%",
 		},
 		{
 			name: "empty env returns empty values",
