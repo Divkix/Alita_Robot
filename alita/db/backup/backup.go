@@ -858,6 +858,10 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
 			data.WarnSettings.WarnActionTime = 0
 		}
+		// Exports omit an empty mode; Postgres rejects '', so use the default.
+		if data.WarnSettings.WarnMode == "" {
+			data.WarnSettings.WarnMode = "mute"
+		}
 	}
 	for i := range data.Warns {
 		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {

@@ -46,14 +46,15 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 		"chat_id":    chatID + 1,
 		"warn_limit": 0,
 	}).Error
-	assert.Error(t, err, "Creating warn settings with zero limit should fail due to CHECK constraint")
+	assert.ErrorContains(t, err, "chk_warn_limit", "Creating warn settings with zero limit should fail due to CHECK constraint")
 
 	invalidSettings2 := &models.WarnSettings{
 		ChatId:    chatID + 2,
 		WarnLimit: -1,
+		WarnMode:  "mute",
 	}
 	err = CreateRecord(invalidSettings2)
-	assert.Error(t, err, "Creating warn settings with negative limit should fail due to CHECK constraint")
+	assert.ErrorContains(t, err, "chk_warn_limit", "Creating warn settings with negative limit should fail due to CHECK constraint")
 }
 
 func TestAntifloodSettingsConstraint_ValidActionsIntegration(t *testing.T) {
