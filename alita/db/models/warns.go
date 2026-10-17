@@ -2,11 +2,14 @@ package models
 
 import "time"
 
+// WarnSettings.WarnMode: Postgres has two CHECKs on warn_mode. chk_warn_mode
+// allows an empty string but the older chk_warns_mode does not, so Postgres
+// rejects it; the tag mirrors what both allow together, so SQLite does too.
 type WarnSettings struct {
 	ID        uint   `gorm:"primaryKey;autoIncrement" json:"-"`
 	ChatId    int64  `gorm:"column:chat_id;uniqueIndex;not null" json:"_id,omitempty"`
 	WarnLimit int    `gorm:"column:warn_limit;default:3;check:chk_warn_limit,warn_limit > 0" json:"warn_limit" default:"3"`
-	WarnMode  string `gorm:"column:warn_mode;check:chk_warn_mode,warn_mode = '' OR warn_mode IN ('ban','kick','mute','tban','tmute')" json:"warn_mode,omitempty"`
+	WarnMode  string `gorm:"column:warn_mode;check:chk_warn_mode,warn_mode IN ('ban','kick','mute','tban','tmute')" json:"warn_mode,omitempty"`
 	// WarnActionTime is the tban/tmute duration in seconds; 0 means not set.
 	WarnActionTime int       `gorm:"column:warn_action_time;not null;default:0;check:chk_warn_action_time,warn_action_time >= 0" json:"warn_action_time,omitempty"`
 	CreatedAt      time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
