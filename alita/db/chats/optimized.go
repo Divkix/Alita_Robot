@@ -114,7 +114,8 @@ func ListChatsWithUser(ctx context.Context, userID int64, limit int) ([]models.C
 	err := db.DB.WithContext(ctx).Model(&models.Chat{}).
 		Select("chat_id, chat_name, last_activity").
 		Where("users @> to_jsonb(?::bigint) AND is_inactive = ?", userID, false).
-		Order("last_activity DESC").
+		// chat_id breaks ties so the limit always cuts the same chats.
+		Order("last_activity DESC, chat_id DESC").
 		Limit(limit).
 		Find(&out).Error
 	return out, err

@@ -459,11 +459,14 @@ func TestListChatsWithUser(t *testing.T) {
 
 	base := time.Now().UnixNano()
 	userID := base + 10
-	older, newer, inactive, other := -base-1, -base-2, -base-3, -base-4
+	// tied shares older's last_activity and has the smaller chat_id.
+	older, newer, inactive, other, tied := -base-1, -base-2, -base-3, -base-4, -base-5
 	t.Cleanup(func() {
-		db.DB.Where("chat_id IN ?", []int64{older, newer, inactive, other}).Delete(&models.Chat{})
+		if err := db.DB.Where("chat_id IN ?", []int64{older, newer, inactive, other, tied}).Delete(&models.Chat{}).Error; err != nil {
+			t.Errorf("cleanup Delete error = %v", err)
+		}
 	})
-	for _, id := range []int64{older, newer, inactive} {
+	for _, id := range []int64{older, newer, inactive, tied} {
 		if err := UpdateChat(id, fmt.Sprintf("chat-%d", id), userID); err != nil {
 			t.Fatalf("UpdateChat(%d) error = %v", id, err)
 		}
@@ -472,9 +475,20 @@ func TestListChatsWithUser(t *testing.T) {
 		t.Fatalf("UpdateChat(other) error = %v", err)
 	}
 	now := time.Now()
-	db.DB.Model(&models.Chat{}).Where("chat_id = ?", older).Update("last_activity", now.Add(-time.Hour))
-	db.DB.Model(&models.Chat{}).Where("chat_id = ?", newer).Update("last_activity", now)
-	db.DB.Model(&models.Chat{}).Where("chat_id = ?", inactive).Update("is_inactive", true)
+	for _, set := range []struct {
+		chatID int64
+		column string
+		value  any
+	}{
+		{older, "last_activity", now.Add(-time.Hour)},
+		{tied, "last_activity", now.Add(-time.Hour)},
+		{newer, "last_activity", now},
+		{inactive, "is_inactive", true},
+	} {
+		if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", set.chatID).Update(set.column, set.value).Error; err != nil {
+			t.Fatalf("Update(%d, %s) error = %v", set.chatID, set.column, err)
+		}
+	}
 
 	got, err := ListChatsWithUser(t.Context(), userID, 10)
 	if err != nil {
@@ -484,7 +498,7 @@ func TestListChatsWithUser(t *testing.T) {
 	for _, chat := range got {
 		ids = append(ids, chat.ChatId)
 	}
-	if !slices.Equal(ids, []int64{newer, older}) {
-		t.Fatalf("ListChatsWithUser() = %v, want [%d %d]", ids, newer, older)
+	if want := []int64{newer, older, tied}; !slices.Equal(ids, want) {
+		t.Fatalf("ListChatsWithUser() = %v, want %v", ids, want)
 	}
 }
