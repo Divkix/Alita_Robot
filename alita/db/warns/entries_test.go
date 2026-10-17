@@ -332,7 +332,7 @@ func TestEntriesFollowReasonsAfterOldReleaseReset(t *testing.T) {
 // whose warns_users row is still an uncommitted INSERT, cannot commit between
 // their two DELETEs and leave its entry deleted under a surviving warn row.
 func TestResetsWaitForTheChatLock(t *testing.T) {
-	if db.DB.Dialector.Name() != "postgres" {
+	if db.DB.Name() != "postgres" {
 		t.Skip("row locks need Postgres")
 	}
 	resets := map[string]func(chatID, userID int64) error{
