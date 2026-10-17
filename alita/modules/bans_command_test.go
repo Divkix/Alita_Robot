@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -27,19 +28,15 @@ func newBanReplyContext(
 }
 
 func TestBanReplyBansUserAndSendsUnbanButton(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/ban spam")
 	if err := bansModule.ban(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("ban() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, target.Id))
 	calls := client.callsFor("sendMessage")
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -50,10 +47,8 @@ func TestBanReplyBansUserAndSendsUnbanButton(t *testing.T) {
 }
 
 func TestBanCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	tests := []struct {
 		name string
@@ -62,6 +57,7 @@ func TestBanCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
 		{name: "missing target", text: "/ban"},
 		{name: "channel id without reply", text: "/ban -1001234567890"},
 		{name: "protected service admin", text: "/ban 777000"},
+		{name: "listed admin", text: "/ban " + strconv.FormatInt(admin.Id, 10)},
 		{name: "bot itself", text: "/ban 999"},
 	}
 
@@ -82,10 +78,8 @@ func TestBanCommandRejectsMissingChannelAndProtectedTargets(t *testing.T) {
 }
 
 func TestBanCommandBansAnonymousChannelFromReply(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	channel := gotgbot.Chat{Id: -1001234567890, Type: "channel", Title: "Spam Channel"}
 	ctx := newModuleMessageContext(bot, chat, admin, "/ban -1001234567890")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
@@ -103,38 +97,28 @@ func TestBanCommandBansAnonymousChannelFromReply(t *testing.T) {
 	if err := bansModule.ban(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("ban(anonymous channel) error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatSenderChat"); len(calls) != 1 {
-		t.Fatalf("banChatSenderChat calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatSenderChat"), map[string]any{"chat_id": chat.Id, "sender_chat_id": channel.Id})
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want anonymous ban confirmation", len(calls))
 	}
 }
 
 func TestSilentBanDeletesCommandMessage(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/sban")
 	if err := bansModule.sBan(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("sBan() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, target.Id))
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
 }
 
 func TestSilentBanRejectsBotTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/sban 999")
 	if err := bansModule.sBan(bot, ctx); err != ext.EndGroups {
@@ -146,10 +130,8 @@ func TestSilentBanRejectsBotTarget(t *testing.T) {
 }
 
 func TestSilentAndDeleteBanRejectInvalidTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, call := range []struct {
 		name string
@@ -175,30 +157,24 @@ func TestSilentAndDeleteBanRejectInvalidTargets(t *testing.T) {
 }
 
 func TestTemporaryBanUsesUntilDate(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/tban 1h temp reason")
 	if err := bansModule.tBan(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("tBan() error = %v, want EndGroups", err)
 	}
-	calls := client.callsFor("banChatMember")
-	if len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
-	if calls[0].Params["until_date"] == nil {
-		t.Fatalf("banChatMember params = %#v, want until_date", calls[0].Params)
+	call := client.onlyCall(t, "banChatMember")
+	assertParams(t, call, targetParams(chat.Id, target.Id))
+	if call.Params["until_date"] == nil {
+		t.Fatalf("banChatMember params = %#v, want until_date", call.Params)
 	}
 }
 
 func TestTemporaryBanRejectsInvalidDurationAndProtectedTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	badDurationCtx := newBanReplyContext(bot, chat, admin, target, "/tban nope invalid")
@@ -217,10 +193,8 @@ func TestTemporaryBanRejectsInvalidDurationAndProtectedTarget(t *testing.T) {
 }
 
 func TestTemporaryBanRejectsMissingChannelAndBotTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -243,20 +217,18 @@ func TestTemporaryBanRejectsMissingChannelAndBotTargets(t *testing.T) {
 }
 
 func TestKickUsesNativeRemovalThenReply(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/kick too much")
 	if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kick() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	} else if onlyIfBanned, ok := calls[0].Params["only_if_banned"].(bool); ok && onlyIfBanned {
-		t.Fatalf("only_if_banned = %#v, want false so a current member is removed", calls[0].Params["only_if_banned"])
+	call := client.onlyCall(t, "unbanChatMember")
+	assertParams(t, call, targetParams(chat.Id, target.Id))
+	if onlyIfBanned, ok := call.Params["only_if_banned"].(bool); ok && onlyIfBanned {
+		t.Fatalf("only_if_banned = %#v, want false so a current member is removed", call.Params["only_if_banned"])
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -264,10 +236,8 @@ func TestKickUsesNativeRemovalThenReply(t *testing.T) {
 }
 
 func TestKickRejectsInvalidAndProtectedTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -295,13 +265,11 @@ func TestKickRejectsInvalidAndProtectedTargets(t *testing.T) {
 }
 
 func TestKickRejectsTargetNotInChat(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	client.responses["getChatMember"] = []byte(
 		`{"status":"left","user":{"id":42,"is_bot":false,"first_name":"Gone"}}`,
 	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/kick 42")
 	if err := bansModule.kick(bot, ctx); err != ext.EndGroups {
@@ -317,32 +285,24 @@ func TestKickRejectsTargetNotInChat(t *testing.T) {
 }
 
 func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/dkick cleanup")
 	if err := bansModule.dkick(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("dkick() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
-	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.ReplyToMessage.MessageId})
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
 func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, admin, "/dkick")
 	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
 		MessageId: 404,
@@ -363,10 +323,8 @@ func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
 }
 
 func TestDeleteKickRejectsInvalidReplyTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	tests := []struct {
 		name   string
@@ -397,22 +355,16 @@ func TestDeleteKickRejectsInvalidReplyTargets(t *testing.T) {
 }
 
 func TestDeleteBanDeletesReplyBeforeBan(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newBanReplyContext(bot, chat, admin, target, "/dban bad post")
 	if err := bansModule.dBan(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("dBan() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
-	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.ReplyToMessage.MessageId})
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, target.Id))
 	calls := client.callsFor("sendMessage")
 	if len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -423,10 +375,8 @@ func TestDeleteBanDeletesReplyBeforeBan(t *testing.T) {
 }
 
 func TestDeleteBanRejectsValidTargetWithoutReplyAndProtectedTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/dban 42")
 	if err := bansModule.dBan(bot, noReplyCtx); err != ext.EndGroups {
@@ -456,13 +406,7 @@ func TestKickMeRemovesRequesterAndReplies(t *testing.T) {
 	if err := bansModule.kickme(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("kickme() error = %v, want EndGroups", err)
 	}
-	calls := client.callsFor("unbanChatMember")
-	if len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	}
-	if got := calls[0].Params["user_id"]; got != int64(42) {
-		t.Fatalf("unbanChatMember user_id = %v, want 42", got)
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
@@ -476,17 +420,12 @@ func TestBanMeBansRequester(t *testing.T) {
 	if err := bansModule.banme(bot, newModuleMessageContext(bot, chat, member, "/banme")); err != ext.EndGroups {
 		t.Fatalf("banme: %v", err)
 	}
-	calls := client.callsFor("banChatMember")
-	if len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, member.Id))
 }
 
 func TestBanMeRejectsAdmins(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	if err := bansModule.banme(bot, newModuleMessageContext(bot, chat, admin, "/banme")); err != ext.EndGroups {
 		t.Fatalf("banme admin: %v", err)
 	}
@@ -496,30 +435,28 @@ func TestBanMeRejectsAdmins(t *testing.T) {
 }
 
 func TestSKickRemovesTargetAndDeletesCommand(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/skick")
 	if err := bansModule.sKick(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("sKick: %v", err)
 	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
 }
 
 func TestUnbanAllConfirmFlow(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, owner := f.client, f.bot, f.chat, f.admin
 	if err := bansModule.unbanAllHandler(bot, newModuleMessageContext(bot, chat, owner, "/unbanall")); err != ext.EndGroups {
 		t.Fatalf("unbanAllHandler: %v", err)
+	}
+	prompt := client.onlyCall(t, "sendMessage")
+	assertParams(t, prompt, map[string]any{"chat_id": chat.Id})
+	if prompt.Params["reply_markup"] == nil {
+		t.Fatal("unbanall prompt has no confirmation buttons")
 	}
 	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
 	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, data)); err != ext.EndGroups {
@@ -528,6 +465,28 @@ func TestUnbanAllConfirmFlow(t *testing.T) {
 	cancel := encodeCallbackData("unbanall", map[string]string{"a": "no"})
 	if err := bansModule.unbanAllCallback(bot, newModuleCallbackContext(bot, chat, owner, cancel)); err != ext.EndGroups {
 		t.Fatalf("unbanAllCallback no: %v", err)
+	}
+	if calls := client.callsFor("editMessageText"); len(calls) != 2 {
+		t.Fatalf("editMessageText calls = %d, want the prompt resolved by yes and by no", len(calls))
+	}
+}
+
+func TestUnbanAllRefusesNonOwnerAdmin(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := bansModule.unbanAllHandler(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unbanall")); err != ext.EndGroups {
+		t.Fatalf("unbanAllHandler: %v", err)
+	}
+	data := encodeCallbackData("unbanall", map[string]string{"a": "yes"})
+	if err := bansModule.unbanAllCallback(f.bot, newModuleCallbackContext(f.bot, f.chat, f.admin, data)); err != ext.EndGroups {
+		t.Fatalf("unbanAllCallback yes: %v", err)
+	}
+	if calls := f.client.callsFor("editMessageText"); len(calls) != 0 {
+		t.Fatalf("editMessageText calls = %d, want the non-owner's confirmation refused", len(calls))
+	}
+	for _, call := range f.client.callsFor("sendMessage") {
+		if markup, ok := call.Params["reply_markup"].(gotgbot.InlineKeyboardMarkup); ok && len(markup.InlineKeyboard) > 0 {
+			t.Fatalf("non-owner got the unbanall confirmation keyboard: %#v", markup)
+		}
 	}
 }
 
@@ -558,28 +517,22 @@ func TestKickMePropagatesGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestUnbanCommandUnbansUser(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/unban 42")
 	if err := bansModule.unban(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("unban() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
 func TestUnbanRejectsMissingAndBotTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -601,10 +554,8 @@ func TestUnbanRejectsMissingAndBotTargets(t *testing.T) {
 }
 
 func TestUnbanAnonymousChannelBranches(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	noReplyCtx := newModuleMessageContext(bot, chat, admin, "/unban -1001234567890")
 	if err := bansModule.unban(bot, noReplyCtx); err != ext.EndGroups {
@@ -627,19 +578,15 @@ func TestUnbanAnonymousChannelBranches(t *testing.T) {
 		t.Fatalf("unban anonymous reply error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("unbanChatSenderChat"); len(calls) != 1 {
-		t.Fatalf("unbanChatSenderChat calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatSenderChat"), map[string]any{"chat_id": chat.Id, "sender_chat_id": int64(-1001234567890)})
 	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
 		t.Fatalf("sendMessage calls = %d, want both anonymous branch replies", len(calls))
 	}
 }
 
 func TestRestrictCommandAndMuteCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/restrict 42")
 	if err := bansModule.restrict(bot, ctx); err != ext.EndGroups {
@@ -658,8 +605,10 @@ func TestRestrictCommandAndMuteCallback(t *testing.T) {
 	if err := bansModule.restrictButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("restrictButtonHandler() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want 1", len(calls))
+	mute := client.onlyCall(t, "restrictChatMember")
+	assertParams(t, mute, targetParams(chat.Id, 42))
+	if perms, ok := mute.Params["permissions"].(gotgbot.ChatPermissions); !ok || perms.CanSendMessages {
+		t.Fatalf("mute permissions = %#v, want CanSendMessages false", mute.Params["permissions"])
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
@@ -667,10 +616,8 @@ func TestRestrictCommandAndMuteCallback(t *testing.T) {
 }
 
 func TestRestrictCommandRejectsInvalidTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -693,10 +640,8 @@ func TestRestrictCommandRejectsInvalidTargets(t *testing.T) {
 }
 
 func TestRestrictCallbacksApplyKickBanAndInvalidUser(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, action := range []string{"kick", "ban"} {
 		data := encodeCallbackData("restrict", map[string]string{"a": action, "u": "42"})
@@ -711,12 +656,8 @@ func TestRestrictCallbacksApplyKickBanAndInvalidUser(t *testing.T) {
 		t.Fatalf("restrictButtonHandler(invalid user) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want ban action", len(calls))
-	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want kick action", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, 42))
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 3 {
 		t.Fatalf("answerCallbackQuery calls = %d, want two successes and invalid user answer", len(calls))
 	}
@@ -726,10 +667,8 @@ func TestRestrictCallbacksApplyKickBanAndInvalidUser(t *testing.T) {
 }
 
 func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	malformedCtx := newModuleCallbackContext(bot, chat, admin, "restrict")
@@ -779,10 +718,8 @@ func TestRestrictCallbacksRejectMalformedAndNonAdminUsers(t *testing.T) {
 }
 
 func TestUnrestrictCommandAndUnbanCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/unrestrict 42")
 	if err := bansModule.unrestrict(bot, ctx); err != ext.EndGroups {
@@ -801,19 +738,15 @@ func TestUnrestrictCommandAndUnbanCallback(t *testing.T) {
 	if err := bansModule.unrestrictButtonHandler(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("unrestrictButtonHandler() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unbanChatMember"); len(calls) != 1 {
-		t.Fatalf("unbanChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, 42))
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 1", len(calls))
 	}
 }
 
 func TestUnrestrictCommandAllowsBannedTarget(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/unrestrict 14")
 	if err := bansModule.unrestrict(bot, ctx); err != ext.EndGroups {
@@ -826,10 +759,8 @@ func TestUnrestrictCommandAllowsBannedTarget(t *testing.T) {
 }
 
 func TestUnrestrictCommandRejectsInvalidTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -852,10 +783,8 @@ func TestUnrestrictCommandRejectsInvalidTargets(t *testing.T) {
 }
 
 func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	unmuteData := encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": "42"})
 	unmuteCtx := newModuleCallbackContext(bot, chat, admin, unmuteData)
@@ -868,8 +797,10 @@ func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
 		t.Fatalf("unrestrictButtonHandler(invalid user) error = %v, want EndGroups", err)
 	}
 
-	if calls := client.callsFor("restrictChatMember"); len(calls) != 1 {
-		t.Fatalf("restrictChatMember calls = %d, want unmute action", len(calls))
+	unmute := client.onlyCall(t, "restrictChatMember")
+	assertParams(t, unmute, targetParams(chat.Id, 42))
+	if perms, ok := unmute.Params["permissions"].(gotgbot.ChatPermissions); !ok || !perms.CanSendMessages {
+		t.Fatalf("unmute permissions = %#v, want CanSendMessages true", unmute.Params["permissions"])
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
 		t.Fatalf("answerCallbackQuery calls = %d, want success and invalid user answer", len(calls))
@@ -880,10 +811,8 @@ func TestUnrestrictCallbacksApplyUnmuteAndInvalidUser(t *testing.T) {
 }
 
 func TestUnrestrictCallbackUnbansAnonymousChannel(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	// Anonymous channel bans use BanChatSenderChat; the unban callback must
 	// call UnbanChatSenderChat, not UnbanChatMember (which rejects channel IDs
@@ -893,19 +822,15 @@ func TestUnrestrictCallbackUnbansAnonymousChannel(t *testing.T) {
 	if err := bansModule.unrestrictButtonHandler(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("unrestrictButtonHandler(channel unban) error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("unbanChatSenderChat"); len(calls) != 1 {
-		t.Fatalf("unbanChatSenderChat calls = %d, want 1 for anonymous channel unban", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "unbanChatSenderChat"), map[string]any{"chat_id": chat.Id, "sender_chat_id": int64(-1001234567890)})
 	if calls := client.callsFor("unbanChatMember"); len(calls) != 0 {
 		t.Fatalf("unbanChatMember calls = %d, want 0 for anonymous channel unban", len(calls))
 	}
 }
 
 func TestKickMeRejectsAdminsAndLoadBansRegistersHelp(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	ctx := newModuleMessageContext(bot, chat, admin, "/kickme")
 	if err := bansModule.kickme(bot, ctx); err != ext.EndGroups {
@@ -1114,10 +1039,8 @@ func TestBanCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 
 func TestModerationHelpersValidateExtractionAndTargets(t *testing.T) {
 	t.Run("extract from reply validation branches", func(t *testing.T) {
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Ban Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 		ctx := newModuleMessageContext(bot, chat, admin, "/dkick")
 		mc, err := buildModerationCtx(&bansModule, bot, ctx)
 		if err != nil {

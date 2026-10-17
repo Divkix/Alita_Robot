@@ -239,18 +239,29 @@ func newAdminChatFixture(t *testing.T) adminChatFixture {
 	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 
-	adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, admin.Id, fixtureAdminRights)
-	botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + fixtureAdminRights + `}`
-	client.adminsByChat = map[string]json.RawMessage{
-		fmt.Sprint(chat.Id): json.RawMessage("[" + botJSON + "," + adminJSON + "]"),
-	}
-	client.membersByUser = map[string]json.RawMessage{fmt.Sprint(admin.Id): json.RawMessage(adminJSON)}
+	client.adminsByChat = map[string]json.RawMessage{}
+	client.membersByUser = map[string]json.RawMessage{}
 	client.chatsByID = map[string]json.RawMessage{
 		fmt.Sprint(chat.Id): json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, chat.Id, chat.Title)),
 	}
 	t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
 
-	return adminChatFixture{client: client, bot: newModuleTestBot(client), chat: chat, admin: admin, member: member}
+	f := adminChatFixture{client: client, bot: newModuleTestBot(client), chat: chat, admin: admin, member: member}
+	f.setAdminStatus("administrator")
+	return f
+}
+
+// makeOwner turns the fixture's admin into the chat creator. Call it before
+// the first permission check, which caches the admin list.
+func (f adminChatFixture) makeOwner() {
+	f.setAdminStatus("creator")
+}
+
+func (f adminChatFixture) setAdminStatus(status string) {
+	adminJSON := fmt.Sprintf(`{"status":%q,"user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, status, f.admin.Id, fixtureAdminRights)
+	botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + fixtureAdminRights + `}`
+	f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + botJSON + "," + adminJSON + "]")
+	f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
 }
 
 func newModuleMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.User, text string) *ext.Context {
