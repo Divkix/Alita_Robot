@@ -466,6 +466,7 @@ func TestSourceFedUnfbanLeavesSubscriberChatsBannedAfterSkippedWalk(t *testing.T
 	}
 	notBanned, _ := i18n.MustNewTranslator("en").GetString("feds_unfban_not_banned")
 	texts := sentTexts(client)
+	require.NotEmpty(t, texts, "the second unfban in A must reply")
 	require.Equal(t, notBanned, texts[len(texts)-1], "a repeated unfban in A cannot recover the chat ban")
 }
 
@@ -491,8 +492,10 @@ func TestUnfbanOfUserWithoutFbanRepliesNotBannedAndUnbansNowhere(t *testing.T) {
 }
 
 // Telegram keeps one ban per chat and does not record who set it, so the walk
-// lifts a ban that a chat admin set by hand as well.
-func TestUnfbanAlsoLiftsChatLocalBanInFederationChat(t *testing.T) {
+// cannot spare a ban a chat admin set by hand. The fake client keeps no ban
+// state: this pins the policy (the walk sends the unban in a chat whose admin
+// banned the user), not that the bot tells the two bans apart.
+func TestUnfbanSendsUnbanEvenWhereAChatAdminBannedTheUser(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	owner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner"}
@@ -514,7 +517,7 @@ func TestUnfbanAlsoLiftsChatLocalBanInFederationChat(t *testing.T) {
 		t.Fatalf("unfban: %v", err)
 	}
 	require.Eventually(t, func() bool { return slices.Contains(unbanTargets(client, target.Id), chat.Id) },
-		2*time.Second, 10*time.Millisecond, "unfban lifts the chat ban whatever set it")
+		2*time.Second, 10*time.Millisecond, "the unfban walk must send the unban whoever set the chat ban")
 }
 
 func TestUnfbanChatFailureDoesNotStopOtherChats(t *testing.T) {
