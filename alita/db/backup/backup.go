@@ -847,6 +847,10 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
 			data.WarnSettings.WarnActionTime = 0
 		}
+		// Likewise an unusable expiry turns expiry off.
+		if !models.ValidWarnExpiry(data.WarnSettings.WarnExpiry) {
+			data.WarnSettings.WarnExpiry = 0
+		}
 	}
 	for i := range data.Warns {
 		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {

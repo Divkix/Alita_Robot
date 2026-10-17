@@ -942,6 +942,8 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Set the chat's warn mode.
 
+  - /setwarntime <time/off>: Set how long a warn counts, e.g. 30d; off keeps warns forever. Warns issued before the bot recorded warn times never expire; /resetwarn removes them.
+
   - /setwarnlimit <number>: Set the number of warnings before users are punished.
 
 
@@ -1153,7 +1155,7 @@ warns_remove_button: ❌ Remove warn
 warns_rules_button: Rules 📝
 warns_user_warning: "User %s has %d/%d warnings; be careful!"
 warns_warning_reason: "\n<b>Reason</b>:\n%s"
-warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>"
+warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>\n<b>Warn Expiry:</b> <code>%s</code>"
 warns_user_warnings_list: "This user has %d/%d warnings, for the following reasons:"
 warns_user_warnings_no_reasons: "User has %d/%d warnings, but no reasons for any of them."
 # Reason (issuer, time) of one warn in a warns list.
@@ -1161,6 +1163,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "anonymous admin"
 warns_issuer_auto: "automatic"
 warns_issuer_unknown: "unknown"
+warns_expiry_set: "Warns now expire after <code>%s</code>."
+warns_expiry_off: "Warns no longer expire."
+warns_expiry_current: "Warns expire after <code>%s</code>."
+warns_expiry_current_off: "Warns never expire. Set an expiry with <code>/setwarntime 30d</code>."
+warns_expiry_never: "never"
 warns_user_no_warnings: This user hasn't got any warnings!
 warns_removed_by: "Warn removed by %s."
 warns_no_warns_to_remove: User already has no warns!
@@ -2075,6 +2082,7 @@ warns_extended_docs: |
   <b>Default Settings:</b>
   • <b>Default warn limit:</b> 3 warnings
   • <b>Default warn mode:</b> mute
+  • <b>Default warn expiry:</b> off (warns never expire)
 
   <b>Available Warn Modes:</b>
   • <code>ban</code> - Permanently ban the user from the chat
@@ -2093,7 +2101,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + User admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + User admin
   • <code>/resetallwarns</code>: Chat owner only
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + User admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Bot admin + User admin
   • <code>/warnings</code>: Bot admin + User admin
   • <code>/warns</code>: Any user (disableable)
 
@@ -2854,3 +2862,4 @@ warns_extend_msg: |
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
   /setwarnmode — punishment: ban, kick or mute
+  /setwarntime — how long a warn counts
