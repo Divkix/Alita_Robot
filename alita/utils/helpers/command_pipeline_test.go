@@ -7,10 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
+	log "github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
+
+	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 )
 
 func TestBuildCommandContextNilUser(t *testing.T) {
@@ -523,5 +530,122 @@ func TestRunChecksOrder(t *testing.T) {
 	}
 	if len(calls) != 2 || calls[0] != "a" || calls[1] != "b" {
 		t.Fatalf("RunChecks calls = %v, want [a b] (short-circuit)", calls)
+	}
+}
+
+// Ending groups after a swap keeps a real error from the dispatcher's error
+// handler, so WrapCommand logs it the same way: same message, level and
+// fields, so alerts and searches built on that log still see it.
+func TestWrapCommandLogsErrorAfterChatSwapLikeDispatcher(t *testing.T) {
+	previous := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previous) })
+	hook := logrustest.NewGlobal()
+
+	cases := []struct {
+		name      string
+		err       error
+		level     log.Level
+		message   string
+		errorType string
+		wantFile  bool
+	}{
+		{"wrapped error", alitaerrors.Wrap(errors.New("db down"), "save failed"), log.ErrorLevel, "Handler error occurred: ", "*errors.WrappedError", true},
+		{"expected Telegram error", errors.New("Forbidden: bot was blocked by the user"), log.WarnLevel, "Expected Telegram API error: ", "*errors.errorString", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			hook.Reset()
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			WrapCommand(d, CommandDescriptor{Name: "swapcmd", Group: 3}, func(c *CommandContext) error {
+				c.Ctx.EffectiveChat = &gotgbot.Chat{Id: -1001, Type: "supergroup"}
+				return tc.err
+			})
+			update := &gotgbot.Update{UpdateId: 77, Message: &gotgbot.Message{
+				MessageId: 101,
+				Chat:      gotgbot.Chat{Id: 42, Type: "private", FirstName: "U"},
+				From:      &gotgbot.User{Id: 42, FirstName: "U"},
+				Text:      "/swapcmd",
+				Entities:  []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 8}},
+			}}
+			if err := d.ProcessUpdate(newCpBot(999), update, nil); err != nil {
+				t.Fatalf("ProcessUpdate error: %v", err)
+			}
+
+			var entry *log.Entry
+			for _, e := range hook.AllEntries() {
+				if strings.HasPrefix(e.Message, tc.message) {
+					entry = e
+				}
+			}
+			if entry == nil {
+				t.Fatalf("no %q log entry; got %+v", tc.message, hook.AllEntries())
+			}
+			if entry.Level != tc.level {
+				t.Errorf("level = %s, want %s", entry.Level, tc.level)
+			}
+			if got := fmt.Sprint(entry.Data["update_id"]); got != "77" {
+				t.Errorf("update_id = %s, want 77", got)
+			}
+			if got := fmt.Sprint(entry.Data["error_type"]); got != tc.errorType {
+				t.Errorf("error_type = %s, want %s", got, tc.errorType)
+			}
+			if _, ok := entry.Data["file"]; ok != tc.wantFile {
+				t.Errorf("file field present = %v, want %v", ok, tc.wantFile)
+			}
+		})
+	}
+}
+
+// A command that points ctx.EffectiveChat at another chat (a PM command acting
+// on the connected group) must end handler-group iteration whatever it
+// returns: gotgbot hands the same ctx to every later group, whose watchers
+// would act on that chat. The command sits in group 3, after any guard a
+// module could register in a lower group.
+func TestWrapCommandEndsGroupsAfterChatSwap(t *testing.T) {
+	const (
+		pmID    = 42
+		groupID = -1001
+	)
+	cases := []struct {
+		name        string
+		swap        bool
+		result      func() error
+		wantWatcher bool
+	}{
+		{name: "nil after swap", swap: true, result: func() error { return nil }},
+		{name: "error after swap", swap: true, result: func() error { return errors.New("reply failed") }},
+		{name: "continue groups after swap", swap: true, result: func() error { return ext.ContinueGroups }},
+		{name: "panic after swap", swap: true, result: func() error { panic("boom") }},
+		{name: "nil without swap", swap: false, result: func() error { return nil }, wantWatcher: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			WrapCommand(d, CommandDescriptor{Name: "swapcmd", Group: 3}, func(c *CommandContext) error {
+				if tc.swap {
+					c.Ctx.EffectiveChat = &gotgbot.Chat{Id: groupID, Type: "supergroup"}
+				}
+				return tc.result()
+			})
+			var watcherChats []int64
+			d.AddHandlerToGroup(handlers.NewMessage(message.All, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+				watcherChats = append(watcherChats, ctx.EffectiveChat.Id)
+				return ext.ContinueGroups
+			}), 4)
+
+			update := &gotgbot.Update{Message: &gotgbot.Message{
+				MessageId: 101,
+				Chat:      gotgbot.Chat{Id: pmID, Type: "private", FirstName: "U"},
+				From:      &gotgbot.User{Id: pmID, FirstName: "U"},
+				Text:      "/swapcmd",
+				Entities:  []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 8}},
+			}}
+			if err := d.ProcessUpdate(newCpBot(999), update, nil); err != nil {
+				t.Fatalf("ProcessUpdate error: %v", err)
+			}
+			if ran := len(watcherChats) > 0; ran != tc.wantWatcher {
+				t.Fatalf("group-4 watcher ran = %v (chats %v), want %v", ran, watcherChats, tc.wantWatcher)
+			}
+		})
 	}
 }

@@ -1,0 +1,87 @@
+package modules
+
+import (
+	"strconv"
+
+	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/callbackcodec"
+	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
+)
+
+// resolveAdminChat returns the chat an admin command acts on: the current
+// group, or in PM the group the user is connected to. The user must be an
+// admin there (and the bot too when requireBotAdmin); on refusal it has
+// already replied and returns nil. It also points ctx.EffectiveChat at the
+// resolved chat. Pass the returned chat to later permission checks: the
+// chat_status Require* helpers read the update's chat, not EffectiveChat.
+// Build the reply translator before calling it: lang.GetLanguage reads
+// EffectiveChat, so afterwards it returns the group's language, while replies
+// go to the user's PM.
+func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
+	chat := chat_status.IsUserConnected(b, ctx, true, requireBotAdmin)
+	if chat == nil {
+		return nil
+	}
+	ctx.EffectiveChat = chat
+	return chat
+}
+
+// connectedChatGuardGroup runs right after the group-0 command handlers.
+const connectedChatGuardGroup = 1
+
+// connectedChatGuard ends handler-group iteration once a handler has pointed
+// ctx.EffectiveChat at a connected group. gotgbot passes the same ctx to every
+// later group, so their watchers (filters, reactions, locks, ...) would
+// otherwise act on the group for a message sent in PM, whatever the command
+// returned. gotgbot sets EffectiveChat to the effective message's chat, so the
+// ids differ only after such a substitution: messages sent in the group pass.
+type connectedChatGuard struct{}
+
+func (connectedChatGuard) CheckUpdate(_ *gotgbot.Bot, ctx *ext.Context) bool {
+	return ctx.EffectiveMessage != nil && ctx.EffectiveChat != nil &&
+		ctx.EffectiveChat.Id != ctx.EffectiveMessage.Chat.Id
+}
+
+func (connectedChatGuard) HandleUpdate(*gotgbot.Bot, *ext.Context) error {
+	return ext.EndGroups
+}
+
+func (connectedChatGuard) Name() string {
+	return "connected_chat_guard"
+}
+
+// callbackAdminChat returns the group a button sent in PM acts on: the one
+// named by the callback's "c" field, which is the group the message showed,
+// not whichever group the user is connected to when they press it. The user
+// must be an admin there (and the bot too when requireBotAdmin); on refusal it
+// has already answered the query and returns nil.
+func callbackAdminChat(b *gotgbot.Bot, ctx *ext.Context, query *gotgbot.CallbackQuery, decoded *callbackcodec.Decoded, requireBotAdmin bool) *gotgbot.Chat {
+	raw, _ := decoded.Field("c")
+	chatID, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		_ = answerInvalidCallback(b, ctx, query)
+		return nil
+	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	deny := func(key string) *gotgbot.Chat {
+		text, _ := tr.GetString(key)
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text, ShowAlert: true})
+		return nil
+	}
+	if !chat_status.IsUserAdmin(b, chatID, query.From.Id) {
+		return deny("connections_is_user_connected_user_not_admin")
+	}
+	if requireBotAdmin && !chat_status.IsUserAdmin(b, chatID, b.Id) {
+		return deny("connections_is_user_connected_bot_not_admin")
+	}
+	full, err := b.GetChat(chatID, nil)
+	if err != nil || full == nil {
+		return deny("helpers_chat_not_found")
+	}
+	chat := full.ToChat()
+	return &chat
+}

@@ -26,7 +26,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/modules"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
-	alitaerrors "github.com/divkix/Alita_Robot/alita/utils/errors"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 	"github.com/divkix/Alita_Robot/alita/utils/httpserver"
@@ -381,32 +380,11 @@ func newConfiguredDispatcher(maxRoutines int) *ext.Dispatcher {
 func dispatcherErrorHandler(_ *gotgbot.Bot, ctx *ext.Context, err error) ext.DispatcherAction {
 	defer error_handling.RecoverFromPanic("DispatcherErrorHandler", "Main")
 
-	logFields := log.Fields{
-		"update_id": func() int64 {
-			if ctx != nil && ctx.UpdateId != 0 {
-				return ctx.UpdateId
-			}
-			return -1
-		}(),
-		"error_type": fmt.Sprintf("%T", err),
-	}
-
-	if wrappedErr, ok := err.(*alitaerrors.WrappedError); ok {
-		logFields["file"] = wrappedErr.File
-		logFields["line"] = wrappedErr.Line
-		logFields["function"] = wrappedErr.Function
-	}
-
 	if errors.Is(err, ext.EndGroups) || errors.Is(err, ext.ContinueGroups) {
 		return ext.DispatcherActionNoop
 	}
 
-	if helpers.IsExpectedTelegramError(err) {
-		log.WithFields(logFields).Warnf("Expected Telegram API error: %v", err)
-		return ext.DispatcherActionNoop
-	}
-
-	log.WithFields(logFields).Errorf("Handler error occurred: %v", err)
+	helpers.LogHandlerError(ctx, err)
 	return ext.DispatcherActionNoop
 }
 

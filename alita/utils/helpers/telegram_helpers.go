@@ -1,10 +1,12 @@
 package helpers
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/errors"
 	log "github.com/sirupsen/logrus"
@@ -101,4 +103,31 @@ func IsExpectedTelegramError(err error) bool {
 	}
 
 	return false
+}
+
+// LogHandlerError logs an error a handler returned: Warn for an expected
+// Telegram API error, Error otherwise, with the update id, the error type and,
+// for a WrappedError, where it was wrapped. The dispatcher's error handler and
+// WrapCommand (after a chat swap, when it ends groups instead) both log
+// through it, so the two paths produce the same entry.
+func LogHandlerError(ctx *ext.Context, err error) {
+	updateID := int64(-1)
+	if ctx != nil && ctx.UpdateId != 0 {
+		updateID = ctx.UpdateId
+	}
+	fields := log.Fields{
+		"update_id":  updateID,
+		"error_type": fmt.Sprintf("%T", err),
+	}
+	if wrappedErr, ok := err.(*errors.WrappedError); ok {
+		fields["file"] = wrappedErr.File
+		fields["line"] = wrappedErr.Line
+		fields["function"] = wrappedErr.Function
+	}
+
+	if IsExpectedTelegramError(err) {
+		log.WithFields(fields).Warnf("Expected Telegram API error: %v", err)
+		return
+	}
+	log.WithFields(fields).Errorf("Handler error occurred: %v", err)
 }

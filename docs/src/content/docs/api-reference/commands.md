@@ -11,7 +11,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 30 (28 user-facing + 2 internal)
-- **Total Commands**: 159
+- **Total Commands**: 160
 
 ## Commands by Module
 
@@ -259,6 +259,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/connection` | Show current connection status | Everyone | ❌ | — |
 | `/disconnect` | Disconnect from current group | Everyone | ❌ | — |
 | `/reconnect` | Reconnect to last connected group | Everyone | ❌ | — |
+| `/settings` | Pick a group in PM and show all its settings | Admin | ❌ | — |
 
 #### ❌ Disabling
 
@@ -462,6 +463,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/setrules` | Rules | Set the group rules | Admin |
 | `/setwarnlimit` | Warns | Set the warn limit before action | Admin |
 | `/setwarnmode` | Warns | Set the warn action mode | Admin |
+| `/settings` | Connections | Pick a group in PM and show all its settings | Admin |
 | `/setwelcome` | Greetings | Set the welcome message | Admin |
 | `/smute` | Mutes | Silently mute a user | Admin |
 | `/start` | Help | Show welcome message with navigation menu | Everyone |

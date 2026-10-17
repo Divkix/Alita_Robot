@@ -27,8 +27,13 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 ## Handlers
 
 - Group numbers are execution order: `-10` captcha sweeper · `-6` fed-ban · `-5` antiraid · `-2` admin-cache ·
-  `-1` users tracker · `0` commands/help/greetings · `3` aispam · `4` antiflood · `5`/`6` locks · `7` blacklists ·
-  `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
+  `-1` users tracker · `0` commands/help/greetings · `1` connected-chat guard · `3` aispam · `4` antiflood ·
+  `5`/`6` locks · `7` blacklists · `8` reports+reactions · `9` filters · `10` pins · `11` log-channel.
+- A PM command that acts on the connected group sets `ctx.EffectiveChat` to it, and later groups must not run on
+  that ctx. `WrapCommand` ends iteration after such a swap in any group, whatever the handler returns (error and
+  panic included). Legacy `dispatcher.AddHandler` commands rely on the group-`1` guard, which only sees swaps made in
+  group `0`; a swapping handler registered outside `WrapCommand` in a higher group must return `ext.EndGroups` on
+  every path. Keep group `1` for the guard alone: a handler there that matches first would skip it.
 - gotgbot stops a group at the first matching handler. Watchers return `ext.ContinueGroups`; commands return
   `ext.EndGroups`. A group-0 watcher returning `nil` silently kills every later group-0 handler.
 - Modules register in `init()` via `RegisterLegacyModule(name, priority, load)`. Use a unique name; duplicates are

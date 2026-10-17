@@ -163,6 +163,32 @@ func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool {
 	return approvals.IsUserApproved(chatID, userID)
 }
 
+// IsUserAdminCached answers IsUserAdmin from the stored admin list without
+// calling Telegram. known is false when the list is missing, negative or empty;
+// callers that need an answer then must fall back to IsUserAdmin.
+func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
+	if !IsValidUserId(userId) {
+		return false, true
+	}
+	if slices.Contains(tgAdminList, userId) {
+		return true, true
+	}
+	adminsAvail, admins := cache.GetAdminCacheList(chatID)
+	if !adminsAvail || !admins.Cached || admins.Negative || len(admins.UserInfo) == 0 {
+		return false, false
+	}
+	if admins.UserMap != nil {
+		admin, found := admins.UserMap[userId]
+		return found && admin.User.Id != 0, true
+	}
+	for i := range admins.UserInfo {
+		if admins.UserInfo[i].User.Id == userId {
+			return true, true
+		}
+	}
+	return false, true
+}
+
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 	if !IsValidUserId(userId) {
 		if IsChannelId(userId) {
@@ -179,24 +205,8 @@ func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
 		return false
 	}
 
-	if slices.Contains(tgAdminList, userId) {
-		return true
-	}
-
-	adminsAvail, admins := cache.GetAdminCacheList(chatID)
-	if adminsAvail && admins.Cached && !admins.Negative && len(admins.UserInfo) != 0 {
-		if admins.UserMap != nil {
-			if admin, found := admins.UserMap[userId]; found && admin.User.Id != 0 {
-				return true
-			}
-			return false
-		}
-		for i := range admins.UserInfo {
-			if admins.UserInfo[i].User.Id == userId {
-				return true
-			}
-		}
-		return false
+	if isAdmin, known := IsUserAdminCached(chatID, userId); known {
+		return isAdmin
 	}
 
 	ctxGetChat, cancelGetChat := context.WithTimeout(context.Background(), 5*time.Second)

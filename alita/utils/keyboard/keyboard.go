@@ -3,6 +3,7 @@ package keyboard
 import (
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 
@@ -35,6 +36,17 @@ func BuildKeyboard(buttons []db.Button) [][]gotgbot.InlineKeyboardButton {
 }
 
 func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
+	return makeLanguageKeyboard(0)
+}
+
+// MakeGroupLanguageKeyboard builds the language picker used by /lang group in
+// PM: its buttons carry g=1 and the group id c so the callback changes that
+// group's language instead of the user's.
+func MakeGroupLanguageKeyboard(chatID int64) [][]gotgbot.InlineKeyboardButton {
+	return makeLanguageKeyboard(chatID)
+}
+
+func makeLanguageKeyboard(groupID int64) [][]gotgbot.InlineKeyboardButton {
 	var kb []gotgbot.InlineKeyboardButton
 
 	for _, langCode := range config.AppConfig.ValidLangCodes {
@@ -43,11 +55,16 @@ func MakeLanguageKeyboard() [][]gotgbot.InlineKeyboardButton {
 			continue
 		}
 
+		fields := map[string]string{"l": langCode}
+		if groupID != 0 {
+			fields["g"] = "1"
+			fields["c"] = strconv.FormatInt(groupID, 10)
+		}
 		kb = append(
 			kb,
 			gotgbot.InlineKeyboardButton{
 				Text:         properLang,
-				CallbackData: callbackcodec.EncodeOrFallback("change_language", map[string]string{"l": langCode}, fmt.Sprintf("change_language.%s", langCode)),
+				CallbackData: callbackcodec.EncodeOrFallback("change_language", fields, fmt.Sprintf("change_language.%s", langCode)),
 			},
 		)
 	}

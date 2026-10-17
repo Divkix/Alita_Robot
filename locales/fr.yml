@@ -900,10 +900,14 @@ connections_help_msg: |
 
   × /connection : Voir les informations sur le chat actuellement connecté.
 
+  × /settings : Choisissez un groupe où vous êtes administrateur et voyez tous ses paramètres ; les valeurs différentes de celles par défaut sont marquées d'un •. Seuls les groupes où vous avez écrit depuis mon arrivée sont listés ; pour les autres, utilisez /connect `<chatid>` ou envoyez /settings dans le groupe.
+
 
   *Commandes Admin :*
 
   × /allowconnect <yes/no> : Autoriser les utilisateurs à se connecter aux chats ou non.
+
+  Une fois connectés, les administrateurs peuvent aussi utiliser /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect et /lang group en privé.
 
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
@@ -1508,6 +1512,8 @@ languages_help_msg: "Vous n'arrivez pas à changer la langue du bot ?
 
   Tapez simplement /lang et utilisez le clavier en ligne pour choisir une langue pour vous ou votre
   groupe.
+
+  En privé, un administrateur connecté à un groupe peut utiliser /lang group pour changer la langue de ce groupe.
 
 
   Vous pouvez nous aider à apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"
@@ -2606,6 +2612,7 @@ connections_extend_msg: |
   /disconnect — se déconnecter du groupe
   /reconnect — se reconnecter au dernier groupe
   /connection — afficher le groupe connecté
+  /settings — voir les paramètres d'un groupe depuis le privé
   /allowconnect — autoriser les membres à se connecter à ce groupe
 disabling_extend_msg: |
   /disable — désactiver une commande pour les membres
@@ -2737,3 +2744,10 @@ warns_extend_msg: |
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
   /setwarnmode — sanction : ban, kick ou mute
+settings_summary_legend: "<i>• indique une valeur différente de celle par défaut. Envoyez la commande indiquée pour la modifier.</i>"
+settings_picker_text: "Choisissez un groupe pour voir ses paramètres. Il n’apparaît pas ? Envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
+settings_picker_empty: "Je n’ai trouvé aucun groupe où vous êtes administrateur. Je ne connais que les groupes où vous avez écrit depuis mon arrivée : envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
+settings_open_in_pm: "Appuyez sur le bouton pour voir les paramètres de ce groupe en privé."
+settings_open_in_pm_button: "Ouvrir les paramètres en privé"
+settings_btn_refresh: "🔄 Actualiser"
+settings_btn_other_group: "↩️ Autre groupe"

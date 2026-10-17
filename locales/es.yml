@@ -323,10 +323,14 @@ connections_help_msg:
 
   × /connection: Ver información sobre el chat actualmente conectado.
 
+  × /settings: Elige un grupo donde seas administrador y mira todos sus ajustes; los valores distintos del predeterminado se marcan con •. Solo aparecen los grupos donde has escrito desde que me uní; para otros usa /connect `<chatid>` o envía /settings en el grupo.
+
 
   *Comandos de Administrador:*
 
   × /allowconnect <yes/no>: Permitir a los usuarios conectarse a chats o no.
+
+  Mientras estés conectado, los administradores también pueden usar /captcha, /antiraid, /aispam, /anonadmin, /addreaction, /allowconnect y /lang group desde el privado.
 
 
   Puedes obtener el id del chat usando el comando /id en tu chat. No te sorprendas
@@ -659,6 +663,8 @@ languages_help_msg: "¿No puedes cambiar el idioma del bot?
 
   Solo escribe /lang y usa el teclado en línea para elegir un idioma para ti o tu
   grupo.
+
+  En privado, un administrador conectado a un grupo puede usar /lang group para cambiar el idioma de ese grupo.
 
 
   Puedes ayudarnos a llevar el bot a más idiomas ayudando en [Crowdin](https://crowdin.com/project/alita_robot)"
@@ -2690,6 +2696,7 @@ connections_extend_msg: |
   /disconnect — desconectarse del grupo
   /reconnect — reconectar con el último grupo
   /connection — ver el grupo conectado
+  /settings — ver los ajustes de un grupo desde el privado
   /allowconnect — permitir que los miembros se conecten a este grupo
 disabling_extend_msg: |
   /disable — desactivar un comando para los miembros
@@ -2821,3 +2828,10 @@ warns_extend_msg: |
   /warnings — ver los ajustes de advertencias
   /setwarnlimit — advertencias antes del castigo
   /setwarnmode — castigo: ban, kick o mute
+settings_summary_legend: "<i>• marca un valor distinto del predeterminado. Envía el comando indicado para cambiarlo.</i>"
+settings_picker_text: "Elige un grupo para ver sus ajustes. ¿No aparece? Envía /connect &lt;chat id&gt; aquí o /settings en el grupo."
+settings_picker_empty: "No encontré grupos donde seas administrador. Solo conozco los grupos donde has escrito desde que me uní, así que envía /connect &lt;chat id&gt; aquí o /settings en el grupo."
+settings_open_in_pm: "Pulsa el botón para ver los ajustes de este grupo en privado."
+settings_open_in_pm_button: "Abrir ajustes en privado"
+settings_btn_refresh: "🔄 Actualizar"
+settings_btn_other_group: "↩️ Otro grupo"

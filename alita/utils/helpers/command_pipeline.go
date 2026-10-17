@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"errors"
+
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
@@ -53,8 +55,10 @@ func WrapCommand(
 	desc CommandDescriptor,
 	handler func(c *CommandContext) error,
 ) {
-	h := func(b *gotgbot.Bot, ctx *ext.Context) error {
+	h := func(b *gotgbot.Bot, ctx *ext.Context) (result error) {
 		defer error_handling.RecoverFromPanic("command_pipeline", "WrapCommand")
+		// Runs before the recover above, so a panic after a swap ends groups too.
+		defer func() { result = endGroupsAfterChatSwap(ctx, result) }()
 		c, err := BuildCommandContext(b, ctx)
 		if err != nil {
 			return ext.EndGroups
@@ -67,6 +71,25 @@ func WrapCommand(
 		return handler(c)
 	}
 	register(dispatcher, desc, h)
+}
+
+// endGroupsAfterChatSwap ends handler-group iteration once the command has
+// pointed ctx.EffectiveChat away from the chat the message was sent in, as a
+// PM command acting on the connected group does. gotgbot hands the same ctx to
+// every later handler group, so their watchers (reactions, filters, locks, ...)
+// would otherwise act on that chat with the PM message's id. gotgbot sets
+// EffectiveChat to the message's chat, so the ids differ only after such a
+// swap. A real error is logged here, as the dispatcher's error handler would:
+// returning EndGroups keeps it from that handler.
+func endGroupsAfterChatSwap(ctx *ext.Context, err error) error {
+	if ctx == nil || ctx.EffectiveMessage == nil || ctx.EffectiveChat == nil ||
+		ctx.EffectiveChat.Id == ctx.EffectiveMessage.Chat.Id {
+		return err
+	}
+	if err != nil && !errors.Is(err, ext.EndGroups) && !errors.Is(err, ext.ContinueGroups) {
+		LogHandlerError(ctx, err)
+	}
+	return ext.EndGroups
 }
 
 func register(dispatcher *ext.Dispatcher, desc CommandDescriptor, h handlers.Response) {

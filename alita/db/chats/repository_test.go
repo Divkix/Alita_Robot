@@ -469,3 +469,63 @@ func TestLoadActivityStats(t *testing.T) {
 		t.Errorf("LoadActivityStats() mag = %d, want %d", mag, baseMag+3)
 	}
 }
+
+func TestListChatsWithUser(t *testing.T) {
+	skipIfNoDb(t)
+	if db.DB.Name() != "postgres" {
+		t.Skip("PostgreSQL JSONB integration: run make test-postgres-integrity")
+	}
+
+	base := time.Now().UnixNano()
+	userID := base + 10
+	// tied shares older's last_activity and has the larger chat_id, but is
+	// inserted and updated after older, so on a fresh table heap order would
+	// put it last: the chat_id DESC tie-breaker is what puts it first.
+	older, newer, inactive, other, tied := -base-5, -base-2, -base-3, -base-4, -base-1
+	t.Cleanup(func() {
+		if err := db.DB.Where("chat_id IN ?", []int64{older, newer, inactive, other, tied}).Delete(&models.Chat{}).Error; err != nil {
+			t.Errorf("cleanup Delete error = %v", err)
+		}
+	})
+	for _, id := range []int64{older, newer, inactive, tied} {
+		if err := TouchChat(id, fmt.Sprintf("chat-%d", id)); err != nil {
+			t.Fatalf("TouchChat(%d) error = %v", id, err)
+		}
+		if err := AddChatMember(id, userID); err != nil {
+			t.Fatalf("AddChatMember(%d) error = %v", id, err)
+		}
+	}
+	if err := TouchChat(other, "other"); err != nil {
+		t.Fatalf("TouchChat(other) error = %v", err)
+	}
+	if err := AddChatMember(other, userID+1); err != nil {
+		t.Fatalf("AddChatMember(other) error = %v", err)
+	}
+	now := time.Now()
+	for _, set := range []struct {
+		chatID int64
+		column string
+		value  any
+	}{
+		{older, "last_activity", now.Add(-time.Hour)},
+		{tied, "last_activity", now.Add(-time.Hour)},
+		{newer, "last_activity", now},
+		{inactive, "is_inactive", true},
+	} {
+		if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", set.chatID).Update(set.column, set.value).Error; err != nil {
+			t.Fatalf("Update(%d, %s) error = %v", set.chatID, set.column, err)
+		}
+	}
+
+	got, err := ListChatsWithUser(t.Context(), userID, 10)
+	if err != nil {
+		t.Fatalf("ListChatsWithUser() error = %v", err)
+	}
+	var ids []int64
+	for _, chat := range got {
+		ids = append(ids, chat.ChatId)
+	}
+	if want := []int64{newer, tied, older}; !slices.Equal(ids, want) {
+		t.Fatalf("ListChatsWithUser() = %v, want %v", ids, want)
+	}
+}

@@ -131,20 +131,23 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
 		return ext.EndGroups
 	}
 
 	args := ctx.Args()
 	if len(args) < 3 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -159,7 +162,6 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	// ReactionTypeEmoji accepts only Telegram's documented reaction set.
 	if !slices.Contains(supportedReactionEmoji, emoji) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_invalid_emoji")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -171,13 +173,11 @@ func (m moduleStruct) addReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := reactions.AddReaction(chat.Id, keyword, emoji); err != nil {
 		log.Errorf("[Reactions] Failed to save reaction: %v", err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_add_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_add_success", i18n.TranslationParams{
 		"keyword": html.EscapeString(keyword),
 		"emoji":   html.EscapeString(emoji),
@@ -199,20 +199,23 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
 		return ext.EndGroups
 	}
 
 	args := ctx.Args()
 	if len(args) < 2 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_usage")
 		_, err := msg.Reply(b, text, formatting.Shtml())
 		if err != nil {
@@ -227,7 +230,6 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 
 	if _, exists := reactionsMap[keyword]; !exists {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_keyword_not_found", i18n.TranslationParams{
 			"keyword": html.EscapeString(keyword),
 		})
@@ -237,13 +239,11 @@ func (m moduleStruct) removeReaction(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if err := reactions.RemoveReaction(chat.Id, keyword); err != nil {
 		log.Errorf("[Reactions] Failed to update reactions: %v", err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_remove_success", i18n.TranslationParams{
 		"keyword": html.EscapeString(keyword),
 	})
@@ -264,11 +264,15 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	chat := chat_status.IsUserConnected(b, ctx, false, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
+	ctx.EffectiveChat = chat
 
 	reactionsMap := reactions.GetReactionsContext(tracing.UpdateContext(ctx), chat.Id)
 	if len(reactionsMap) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_none")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
@@ -279,7 +283,6 @@ func (m moduleStruct) listReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 		fmt.Fprintf(&sb, "• %s → %s\n", html.EscapeString(keyword), html.EscapeString(emoji))
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_list_header", i18n.TranslationParams{
 		"list": sb.String(),
 	})
@@ -300,26 +303,28 @@ func (m moduleStruct) resetReactions(b *gotgbot.Bot, ctx *ext.Context) error {
 	}()
 
 	msg := ctx.EffectiveMessage
-	chat := ctx.EffectiveChat
 	user := chat_status.RequireUser(b, ctx)
 	if user == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	chat := resolveAdminChat(b, ctx, false)
+	if chat == nil {
+		return ext.EndGroups
+	}
 
 	if !chat_status.CanUserChangeInfo(b, ctx, chat, user.Id) {
-		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error")
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_change_info_cmd_error", "chat_status_change_info_button_error", chat_status.WithTranslator(tr))
 		return ext.EndGroups
 	}
 
 	if err := reactions.ResetReactions(chat.Id); err != nil {
 		log.Errorf("[Reactions] Failed to reset reactions: %v", err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reactions_remove_error")
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("reactions_reset_success")
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
