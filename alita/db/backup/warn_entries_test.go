@@ -100,7 +100,7 @@ func TestWarnEntriesRoundTripThroughBackup(t *testing.T) {
 		},
 	}))
 
-	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns})
+	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns}, 0)
 	require.NoError(t, err)
 	raw, err := json.Marshal(exported)
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestExportHidesAnonymousWarnIssuer(t *testing.T) {
 		map[string]interface{}{"user_id": userID, "reason": "public", "warned_by": 66},
 	}))
 
-	exported, err := ExportChatData(chatID, "src", 1, []string{BackupModuleWarns})
+	exported, err := ExportChatData(chatID, "src", 1, []string{BackupModuleWarns}, 0)
 	require.NoError(t, err)
 	raw, err := json.Marshal(exported)
 	require.NoError(t, err)
@@ -159,6 +159,37 @@ func TestExportHidesAnonymousWarnIssuer(t *testing.T) {
 	require.Len(t, entries, 2)
 	assert.Equal(t, true, entries[0]["anonymous"])
 	assert.Equal(t, float64(66), entries[1]["warned_by"], "a public issuer is still exported")
+}
+
+func TestExportMarksBotWarnsAutomatic(t *testing.T) {
+	skipIfNoDb(t)
+	srcChat := time.Now().UnixNano()
+	dstChat := srcChat + 1
+	userID := srcChat + 2
+	const botID = 5550001
+	cleanupWarnEntriesChat(t, srcChat, userID)
+	cleanupWarnEntriesChat(t, dstChat, userID)
+
+	require.NoError(t, importWarnsBackup(t, srcChat, []interface{}{
+		map[string]interface{}{"user_id": userID, "num_warns": 2, "warns": []interface{}{"blacklisted", "by hand"}},
+	}, []interface{}{
+		map[string]interface{}{"user_id": userID, "reason": "blacklisted", "warned_by": botID},
+		map[string]interface{}{"user_id": userID, "reason": "by hand", "warned_by": 66},
+	}))
+
+	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns}, botID)
+	require.NoError(t, err)
+	raw, err := json.Marshal(exported)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "5550001", "another bot account must not read this bot's id as an admin")
+	decoded, err := BackupFormatFromJSON(raw)
+	require.NoError(t, err)
+	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+
+	got := storedWarnEntries(t, dstChat, userID)
+	require.Len(t, got, 2)
+	assert.Equal(t, models.WarnedByBot, got[0].WarnedBy)
+	assert.Equal(t, int64(66), got[1].WarnedBy)
 }
 
 func TestOwnBackupImportsWithOrphanedEntries(t *testing.T) {
@@ -178,7 +209,7 @@ func TestOwnBackupImportsWithOrphanedEntries(t *testing.T) {
 	require.NoError(t, db.DB.Exec("DELETE FROM warns_users WHERE chat_id = ? AND user_id = ?", srcChat, orphan).Error)
 	require.NoError(t, db.DB.Exec("UPDATE warns_users SET num_warns = 0, warns = '[]' WHERE chat_id = ? AND user_id = ?", srcChat, cleared).Error)
 
-	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns})
+	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns}, 0)
 	require.NoError(t, err)
 	raw, err := json.Marshal(exported)
 	require.NoError(t, err)

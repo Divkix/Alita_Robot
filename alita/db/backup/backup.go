@@ -14,7 +14,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func ExportModuleData(chatID int64, module string) (interface{}, error) {
+// ExportModuleData exports one module. botID is the exporting bot's own id;
+// the warns module stores the warns it issued as models.WarnedByBot.
+func ExportModuleData(chatID int64, module string, botID int64) (interface{}, error) {
 	switch module {
 	case BackupModuleAdmin:
 		return exportAdminData(chatID)
@@ -49,7 +51,7 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	case BackupModuleRules:
 		return exportRulesData(chatID)
 	case BackupModuleWarns:
-		return exportWarnsData(chatID)
+		return exportWarnsData(chatID, botID)
 	case BackupModuleFederations:
 		return exportFederationsData(chatID)
 	case BackupModuleLogChannels:
@@ -88,7 +90,8 @@ func ClearModuleData(chatID int64, module string) error {
 	})
 }
 
-func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string) (*BackupFormat, error) {
+// ExportChatData exports the given modules; botID is as in ExportModuleData.
+func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string, botID int64) (*BackupFormat, error) {
 	modules, err := checkedModules(modules)
 	if err != nil {
 		return nil, err
@@ -96,7 +99,7 @@ func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []s
 
 	backup := NewBackupFormat(chatID, chatName, exportedBy, modules)
 	for _, module := range modules {
-		data, err := ExportModuleData(chatID, module)
+		data, err := ExportModuleData(chatID, module, botID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to export module %s: %w", module, err)
 		}
@@ -426,7 +429,7 @@ func exportRulesData(chatID int64) (*RulesBackup, error) {
 	return &RulesBackup{Settings: settings}, err
 }
 
-func exportWarnsData(chatID int64) (*WarnsBackup, error) {
+func exportWarnsData(chatID, botID int64) (*WarnsBackup, error) {
 	settings, err := findChatSetting[models.WarnSettings](chatID)
 	if err != nil {
 		return nil, err
@@ -443,14 +446,16 @@ func exportWarnsData(chatID int64) (*WarnsBackup, error) {
 	if err := database.Where("chat_id = ?", chatID).Order("id").Find(&stored).Error; err != nil {
 		return nil, err
 	}
-	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: exportableWarnEntries(rows, stored)}, nil
+	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: exportableWarnEntries(rows, stored, botID)}, nil
 }
 
 // exportableWarnEntries returns the entries a backup may carry. Only users
 // with warns keep theirs: an older release resets warns_users alone, and an
 // entry without its warn record would make the backup fail to import. The
 // backup is posted to the group, so an anonymous admin's account is dropped.
-func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry) []models.WarnEntry {
+// A warn the bot issued is stored as models.WarnedByBot, so it still reads as
+// automatic once imported into another bot account.
+func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry, botID int64) []models.WarnEntry {
 	warned := make(map[int64]bool, len(rows))
 	for _, row := range rows {
 		if row.NumWarns > 0 {
@@ -462,8 +467,11 @@ func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry) []mod
 		if !warned[entry.UserId] {
 			continue
 		}
-		if entry.Anonymous {
+		switch {
+		case entry.Anonymous:
 			entry.WarnedBy = 0
+		case botID != 0 && entry.WarnedBy == botID:
+			entry.WarnedBy = models.WarnedByBot
 		}
 		entries = append(entries, entry)
 	}
