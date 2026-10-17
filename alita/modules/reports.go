@@ -18,7 +18,6 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/reports"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/actionlog"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -172,13 +171,15 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if _, err := reports.Create(&models.Report{
+	reason := reportReason(msg.Text)
+	created, err := reports.Create(&models.Report{
 		ChatId:            chat.Id,
 		ReportedUserId:    reportedUser.Id,
 		ReportedMessageId: reportedMsgId,
 		ReporterId:        user.Id,
-		Reason:            reportReason(msg.Text),
-	}); err != nil {
+		Reason:            reason,
+	})
+	if err != nil {
 		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, err)
 	}
 
@@ -280,7 +281,9 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	actionlog.Reports(b, chat, user, reportedUser.Id)
+	if created {
+		deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason)
+	}
 	return ext.EndGroups
 }
 
