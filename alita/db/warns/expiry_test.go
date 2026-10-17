@@ -312,3 +312,54 @@ func TestPruneToNoWarnsDeletesStrayEntries(t *testing.T) {
 		t.Fatalf("warns row = %d %v, want 0 []", row.NumWarns, row.Reasons)
 	}
 }
+
+func TestGetWarnsClampsWhenExpiredEntriesOutnumberWarns(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "old", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "older", WarnedBy: 77, WarnedAt: timeAgo(50 * 24 * time.Hour)},
+	)
+	// An older release's /rmwarn lowered the count but left both entries.
+	if err := db.DB.Model(&models.Warns{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Updates(map[string]any{"num_warns": 1, "warns": models.StringArray{"old"}}).Error; err != nil {
+		t.Fatalf("lower warn count: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	num, entries := GetWarns(userID, chatID)
+
+	if num != 0 || len(entries) != 0 {
+		t.Fatalf("GetWarns() = %d, %v; want 0 and no entries", num, reasonsOf(entries))
+	}
+	if row := storedRow(t, chatID, userID); row.NumWarns != 1 || len(storedEntries(t, chatID, userID)) != 2 {
+		t.Fatalf("reading changed the stored warns: num_warns = %d", row.NumWarns)
+	}
+}
+
+func TestWarnUserKeepsAnEntrylessReasonBetweenExpiredOnes(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "old", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "N", WarnedBy: 77, WarnedAt: timeAgo(35 * 24 * time.Hour)},
+	)
+	// After a rollback an older release warned with R between the two, as a
+	// reason and a count without an entry.
+	if err := db.DB.Model(&models.Warns{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Updates(map[string]any{"num_warns": 3, "warns": models.StringArray{"old", "R", "N"}}).Error; err != nil {
+		t.Fatalf("add warn without entry: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "new", WarnedBy: 77}); err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	want := []string{"R", "new"}
+	if row := storedRow(t, chatID, userID); row.NumWarns != 2 || !equalStrings(row.Reasons, want) {
+		t.Fatalf("warns row = %d %v, want 2 %v", row.NumWarns, row.Reasons, want)
+	}
+}
