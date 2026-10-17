@@ -11,6 +11,7 @@ import (
 	"github.com/eko/gocache/lib/v4/marshaler"
 	gocache_store "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm/clause"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
@@ -325,6 +326,55 @@ func TestEntriesFollowReasonsAfterOldReleaseReset(t *testing.T) {
 	}
 	checkIssued(t, "returned", entries, []string{"spam", "e"}, []int64{0, 78})
 	checkIssued(t, "stored", storedEntries(t, chatID, userID), []string{"spam", "e"}, []int64{0, 78})
+}
+
+// The resets take the chat-row lock WarnUser holds, so a user's first warn,
+// whose warns_users row is still an uncommitted INSERT, cannot commit between
+// their two DELETEs and leave its entry deleted under a surviving warn row.
+func TestResetsWaitForTheChatLock(t *testing.T) {
+	if db.DB.Dialector.Name() != "postgres" {
+		t.Skip("row locks need Postgres")
+	}
+	resets := map[string]func(chatID, userID int64) error{
+		"ResetUserWarns": func(chatID, userID int64) error {
+			_, err := ResetUserWarns(userID, chatID)
+			return err
+		},
+		"ResetAllChatWarns": func(chatID, _ int64) error { return ResetAllChatWarns(chatID) },
+	}
+	for name, reset := range resets {
+		t.Run(name, func(t *testing.T) {
+			chatID, userID := newEntriesFixture(t)
+			if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "a"}); err != nil {
+				t.Fatalf("WarnUser() error = %v", err)
+			}
+			holder := db.DB.Begin()
+			var chat models.Chat
+			if err := holder.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("chat_id = ?", chatID).Take(&chat).Error; err != nil {
+				holder.Rollback()
+				t.Fatalf("lock chat row: %v", err)
+			}
+
+			done := make(chan error, 1)
+			go func() { done <- reset(chatID, userID) }()
+			select {
+			case err := <-done:
+				holder.Rollback()
+				t.Fatalf("%s returned (%v) while the chat row was locked", name, err)
+			case <-time.After(300 * time.Millisecond):
+			}
+			holder.Rollback()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatalf("%s error = %v", name, err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatalf("%s did not finish after the lock was released", name)
+			}
+		})
+	}
 }
 
 func TestWarnUserBackfillsLegacyReasons(t *testing.T) {
