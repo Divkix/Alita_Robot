@@ -197,7 +197,7 @@ func TestModuleValidation(t *testing.T) {
 
 func TestExportModuleData(t *testing.T) {
 	t.Run("ExportModuleData for invalid module", func(t *testing.T) {
-		_, err := ExportModuleData(12345, "invalid_module")
+		_, err := ExportModuleData(12345, "invalid_module", 0)
 		assert.Error(t, err)
 	})
 
@@ -431,6 +431,27 @@ func TestImportChatData_SingleModule(t *testing.T) {
 	assert.Equal(t, "kick", settings.WarnMode)
 }
 
+// Exports omit an empty warn_mode and Postgres rejects an empty one, so a
+// backup without a mode must import with the default rather than abort.
+func TestImportWarnsWithoutModeUsesDefault(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_no_warn_mode"))
+	t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+	backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
+	backup.Data[BackupModuleWarns] = map[string]interface{}{
+		"warn_settings": map[string]interface{}{"warn_limit": float64(5)},
+	}
+
+	require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+
+	settings := warns.GetWarnSetting(chatID)
+	assert.Equal(t, 5, settings.WarnLimit)
+	assert.Equal(t, "mute", settings.WarnMode)
+}
+
 func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -553,7 +574,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	require.NoError(t, warns.SetWarnMode(chatID, "ban", 0))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleWarns))
 	assert.Equal(t, 3, warns.GetWarnSetting(chatID).WarnLimit)
-	assert.Equal(t, "", warns.GetWarnSetting(chatID).WarnMode)
+	assert.Equal(t, "mute", warns.GetWarnSetting(chatID).WarnMode, "a cleared chat falls back to the default mode")
 
 	require.NoError(t, locks.UpdateLock(chatID, " stickers", true))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleLocks))
@@ -658,7 +679,7 @@ func TestExportModuleData_EdgeCases(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rulesData)
 
-	warnsData, err := exportWarnsData(chatID)
+	warnsData, err := exportWarnsData(chatID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, warnsData)
 }
@@ -681,7 +702,7 @@ func TestExportChatData_Full(t *testing.T) {
 		BackupModuleFilters,
 		BackupModuleRules,
 		BackupModuleCaptcha,
-	})
+	}, 0)
 	require.NoError(t, err)
 	require.NotNil(t, backup)
 	assert.Equal(t, chatID, backup.ChatID)

@@ -36,6 +36,7 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 	settings := &models.WarnSettings{
 		ChatId:    chatID,
 		WarnLimit: 3,
+		WarnMode:  "mute",
 	}
 	err := CreateRecord(settings)
 	require.NoError(t, err, "Creating warn settings with positive limit should succeed")
@@ -45,14 +46,15 @@ func TestWarnSettingsIntegration_PositiveLimit(t *testing.T) {
 		"chat_id":    chatID + 1,
 		"warn_limit": 0,
 	}).Error
-	assert.Error(t, err, "Creating warn settings with zero limit should fail due to CHECK constraint")
+	assert.ErrorContains(t, err, "chk_warn_limit", "Creating warn settings with zero limit should fail due to CHECK constraint")
 
 	invalidSettings2 := &models.WarnSettings{
 		ChatId:    chatID + 2,
 		WarnLimit: -1,
+		WarnMode:  "mute",
 	}
 	err = CreateRecord(invalidSettings2)
-	assert.Error(t, err, "Creating warn settings with negative limit should fail due to CHECK constraint")
+	assert.ErrorContains(t, err, "chk_warn_limit", "Creating warn settings with negative limit should fail due to CHECK constraint")
 }
 
 func TestAntifloodSettingsConstraint_ValidActionsIntegration(t *testing.T) {
@@ -303,7 +305,7 @@ func TestWarnModeConstraint_ValidModes(t *testing.T) {
 		WarnMode: "",
 	}
 	err := CreateRecord(settings1)
-	assert.NoError(t, err, "Creating warn settings with NULL/empty warn_mode should succeed")
+	assert.Error(t, err, "Postgres rejects an empty warn_mode (chk_warns_mode), so the schema must too")
 
 	validModes := []string{"ban", "kick", "mute", "tban", "tmute"}
 	for _, mode := range validModes {

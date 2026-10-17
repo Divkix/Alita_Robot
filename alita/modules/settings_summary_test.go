@@ -122,12 +122,16 @@ func TestRenderSettingsSummaryEscapesAndFits(t *testing.T) {
 	}
 }
 
-// warnUser takes no action at the limit for an empty warn_mode, so the summary
-// must not report the default mute for it.
-func TestSettingsSummaryEmptyWarnModeIsNotMute(t *testing.T) {
+// warn_mode is nullable and both CHECKs on it pass NULL, so legacy rows can
+// hold NULL; it loads as an empty WarnMode, for which warnUser takes no action
+// at the limit, so the summary must not report the default mute for it.
+func TestSettingsSummaryNullWarnModeIsNotMute(t *testing.T) {
 	chatID := newSettingsTestChat(t)
-	if err := db.DB.Create(&models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: ""}).Error; err != nil {
+	if err := db.DB.Create(&models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}).Error; err != nil {
 		t.Fatalf("Create(WarnSettings) error = %v", err)
+	}
+	if err := db.DB.Exec("UPDATE warns_settings SET warn_mode = NULL WHERE chat_id = ?", chatID).Error; err != nil {
+		t.Fatalf("set warn_mode NULL: %v", err)
 	}
 	cache.ResetLocalForTest()
 

@@ -875,6 +875,11 @@ warns_warning_reason: "\n<b>Причина</b>:\n%s"
 warns_settings_display: "Группа имеет следующие настройки:\n<b>Лимит предупреждений:</b> <code>%d</code>\n<b>Режим предупреждений:</b> <code>%s</code>"
 warns_user_warnings_list: "У этого пользователя %d/%d предупреждений по следующим причинам:"
 warns_user_warnings_no_reasons: "У пользователя %d/%d предупреждений, но нет причин ни для одного из них."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "анонимный админ"
+warns_issuer_auto: "автоматически"
+warns_issuer_unknown: "неизвестно"
 warns_user_no_warnings: У этого пользователя нет предупреждений!
 warns_removed_by: "Предупреждение удалено %s."
 warns_no_warns_to_remove: У пользователя уже нет предупреждений!

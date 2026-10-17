@@ -14,7 +14,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func ExportModuleData(chatID int64, module string) (interface{}, error) {
+// ExportModuleData exports one module. botID is the exporting bot's own id;
+// the warns module stores the warns it issued as models.WarnedByBot.
+func ExportModuleData(chatID int64, module string, botID int64) (interface{}, error) {
 	switch module {
 	case BackupModuleAdmin:
 		return exportAdminData(chatID)
@@ -49,7 +51,7 @@ func ExportModuleData(chatID int64, module string) (interface{}, error) {
 	case BackupModuleRules:
 		return exportRulesData(chatID)
 	case BackupModuleWarns:
-		return exportWarnsData(chatID)
+		return exportWarnsData(chatID, botID)
 	case BackupModuleFederations:
 		return exportFederationsData(chatID)
 	case BackupModuleLogChannels:
@@ -88,7 +90,8 @@ func ClearModuleData(chatID int64, module string) error {
 	})
 }
 
-func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string) (*BackupFormat, error) {
+// ExportChatData exports the given modules; botID is as in ExportModuleData.
+func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []string, botID int64) (*BackupFormat, error) {
 	modules, err := checkedModules(modules)
 	if err != nil {
 		return nil, err
@@ -96,7 +99,7 @@ func ExportChatData(chatID int64, chatName string, exportedBy int64, modules []s
 
 	backup := NewBackupFormat(chatID, chatName, exportedBy, modules)
 	for _, module := range modules {
-		data, err := ExportModuleData(chatID, module)
+		data, err := ExportModuleData(chatID, module, botID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to export module %s: %w", module, err)
 		}
@@ -426,7 +429,7 @@ func exportRulesData(chatID int64) (*RulesBackup, error) {
 	return &RulesBackup{Settings: settings}, err
 }
 
-func exportWarnsData(chatID int64) (*WarnsBackup, error) {
+func exportWarnsData(chatID, botID int64) (*WarnsBackup, error) {
 	settings, err := findChatSetting[models.WarnSettings](chatID)
 	if err != nil {
 		return nil, err
@@ -435,7 +438,44 @@ func exportWarnsData(chatID int64) (*WarnsBackup, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &WarnsBackup{WarnSettings: settings, Warns: rows}, nil
+	database, err := backupDB()
+	if err != nil {
+		return nil, err
+	}
+	var stored []models.WarnEntry
+	if err := database.Where("chat_id = ?", chatID).Order("id").Find(&stored).Error; err != nil {
+		return nil, err
+	}
+	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: exportableWarnEntries(rows, stored, botID)}, nil
+}
+
+// exportableWarnEntries returns the entries a backup may carry. Only users
+// with warns keep theirs: an older release resets warns_users alone, and an
+// entry without its warn record would make the backup fail to import. The
+// backup is posted to the group, so an anonymous admin's account is dropped.
+// A warn the bot issued is stored as models.WarnedByBot, so it still reads as
+// automatic once imported into another bot account.
+func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry, botID int64) []models.WarnEntry {
+	warned := make(map[int64]bool, len(rows))
+	for _, row := range rows {
+		if row.NumWarns > 0 {
+			warned[row.UserId] = true
+		}
+	}
+	entries := make([]models.WarnEntry, 0, len(stored))
+	for _, entry := range stored {
+		if !warned[entry.UserId] {
+			continue
+		}
+		switch {
+		case entry.Anonymous:
+			entry.WarnedBy = 0
+		case botID != 0 && entry.WarnedBy == botID:
+			entry.WarnedBy = models.WarnedByBot
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 func exportFederationsData(chatID int64) (*FederationsBackup, error) {
@@ -805,6 +845,9 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 	if err := decodeModuleData(payload, BackupModuleWarns, &data); err != nil {
 		return nil, err
 	}
+	if err := lockWarnsChat(tx, chatID); err != nil {
+		return nil, err
+	}
 	if data.WarnSettings != nil {
 		data.WarnSettings.ChatId = chatID
 		if data.WarnSettings.WarnLimit <= 0 {
@@ -815,12 +858,20 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
 			data.WarnSettings.WarnActionTime = 0
 		}
+		// Exports omit an empty mode; Postgres rejects '', so use the default.
+		if data.WarnSettings.WarnMode == "" {
+			data.WarnSettings.WarnMode = "mute"
+		}
 	}
 	for i := range data.Warns {
 		if data.Warns[i].UserId == 0 || data.Warns[i].NumWarns < 0 {
 			return nil, fmt.Errorf("invalid warn record")
 		}
 		data.Warns[i].ChatId = chatID
+	}
+	entries, err := restoredWarnEntries(chatID, data)
+	if err != nil {
+		return nil, err
 	}
 	if len(data.Warns) > 0 {
 		users := make([]models.User, len(data.Warns))
@@ -848,6 +899,14 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if err := replaceChatRows(tx, chatID, data.Warns); err != nil {
 			return nil, err
 		}
+		if err := tx.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error; err != nil {
+			return nil, err
+		}
+		if len(entries) > 0 {
+			if err := tx.Create(&entries).Error; err != nil {
+				return nil, fmt.Errorf("restore warn entries: %w", err)
+			}
+		}
 	}
 
 	keys := []string{cacheKey("warn_settings", chatID)}
@@ -860,6 +919,31 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		}
 	}
 	return keys, nil
+}
+
+// restoredWarnEntries returns the entries to store for an imported warns
+// module, reconciled with each user's reasons by models.ReconcileWarnEntries.
+// A backup made before entries existed, or one whose entries do not match its
+// reasons, gets those reasons as entries with no issuer or time.
+func restoredWarnEntries(chatID int64, data WarnsBackup) ([]models.WarnEntry, error) {
+	byUser := make(map[int64][]models.WarnEntry, len(data.Warns))
+	for _, row := range data.Warns {
+		byUser[row.UserId] = nil
+	}
+	for _, entry := range data.Entries {
+		if _, ok := byUser[entry.UserId]; !ok {
+			return nil, fmt.Errorf("warn entry for user %d without a warn record", entry.UserId)
+		}
+		entry.ID = 0
+		entry.ChatId = chatID
+		byUser[entry.UserId] = append(byUser[entry.UserId], entry)
+	}
+	entries := make([]models.WarnEntry, 0, len(data.Entries))
+	for i := range data.Warns {
+		reconciled, _ := models.ReconcileWarnEntries(&data.Warns[i], byUser[data.Warns[i].UserId])
+		entries = append(entries, reconciled...)
+	}
+	return entries, nil
 }
 
 func moduleFieldPresent(payload interface{}, field string) bool {
@@ -1060,15 +1144,38 @@ func clearRules(tx *gorm.DB, chatID int64) ([]string, error) {
 	return nil, replaceChatSetting(tx, chatID, &models.RulesSettings{ChatId: chatID})
 }
 
+// lockWarnsChat takes the chat-row lock every warn write in alita/db/warns
+// holds, so a concurrent first warn commits before warns_users and
+// warn_entries are replaced rather than between the two. A chat with no chats
+// row has nothing to wait for.
+func lockWarnsChat(tx *gorm.DB, chatID int64) error {
+	var chat models.Chat
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		Where("chat_id = ?", chatID).
+		Take(&chat).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	return err
+}
+
 func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
+	if err := lockWarnsChat(tx, chatID); err != nil {
+		return nil, err
+	}
 	var userIDs []int64
 	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
 		return nil, err
 	}
-	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3}); err != nil {
+	// "mute" is the mode a chat without settings gets; Postgres rejects ''.
+	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}); err != nil {
 		return nil, err
 	}
 	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {
+		return nil, err
+	}
+	if err := tx.Where("chat_id = ?", chatID).Delete(&models.WarnEntry{}).Error; err != nil {
 		return nil, err
 	}
 	keys := []string{cacheKey("warn_settings", chatID)}

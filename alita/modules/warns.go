@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -17,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/db/warns"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
@@ -131,7 +133,156 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string) (err error) {
+// groupAnonymousBotID is the user Telegram puts in From for messages an
+// anonymous admin sends on behalf of the group.
+const groupAnonymousBotID = 1087968824
+
+// warnIssuer reports who issues a warn from ctx. An anonymous admin arrives
+// either directly, when the chat allows anonymous admins and the sender is the
+// group itself, or replayed after the confirmation button: the confirming
+// admin is then the effective user and the message keeps its original
+// GroupAnonymousBot sender.
+func warnIssuer(ctx *ext.Context) models.WarnEntry {
+	var issuer models.WarnEntry
+	if ctx.EffectiveUser != nil {
+		issuer.WarnedBy = ctx.EffectiveUser.Id
+	}
+	if ctx.EffectiveSender != nil && ctx.EffectiveSender.IsAnonymousAdmin() {
+		issuer.Anonymous = true
+	}
+	if msg := ctx.EffectiveMessage; msg != nil && msg.From != nil && msg.From.Id == groupAnonymousBotID {
+		issuer.Anonymous = true
+	}
+	return issuer
+}
+
+// maxShownReasonLen caps a reason as shown, after escaping, in runes. With the
+// issuer and time its line stays under Telegram's message length, so
+// SplitMessage breaks only between lines, never inside an entity or a tag.
+const maxShownReasonLen = 3000
+
+// shownReason escapes reason and shortens it, at a whole escaped character,
+// to at most maxShownReasonLen runes, ending with "…" when shortened.
+func shownReason(reason string, escape func(string) string) string {
+	if out := escape(reason); utf8.RuneCountInString(out) <= maxShownReasonLen {
+		return out
+	}
+	var sb strings.Builder
+	n := 0
+	for _, r := range reason {
+		part := escape(string(r))
+		k := utf8.RuneCountInString(part)
+		if n+k > maxShownReasonLen-1 {
+			break
+		}
+		sb.WriteString(part)
+		n += k
+	}
+	return sb.String() + "…"
+}
+
+// warnEntryLines renders one "\n - reason (issuer, time)" line per entry. An
+// entry without a time predates entries and shows its reason only. escape is
+// applied to the reason and the issuer name.
+func warnEntryLines(b *gotgbot.Bot, tr *i18n.Translator, entries []models.WarnEntry, escape func(string) string) string {
+	metaFormat, _ := tr.GetString("warns_entry_meta")
+	var sb strings.Builder
+	for _, e := range entries {
+		line := shownReason(e.Reason, escape)
+		if e.WarnedAt != nil && metaFormat != "" {
+			line = fmt.Sprintf(metaFormat, line, escape(warnIssuerLabel(b, tr, e)), e.WarnedAt.UTC().Format("2006-01-02 15:04 UTC"))
+		}
+		fmt.Fprintf(&sb, "\n - %s", line)
+	}
+	return sb.String()
+}
+
+func warnIssuerLabel(b *gotgbot.Bot, tr *i18n.Translator, e models.WarnEntry) string {
+	key := ""
+	switch {
+	case e.Anonymous:
+		key = "warns_issuer_anonymous"
+	case e.WarnedBy == b.Id || e.WarnedBy == models.WarnedByBot:
+		key = "warns_issuer_auto"
+	case e.WarnedBy == 0:
+		key = "warns_issuer_unknown"
+	}
+	if key != "" {
+		label, _ := tr.GetString(key)
+		return label
+	}
+	if u, err := user.GetUserBasicInfoCached(e.WarnedBy); err == nil && u != nil {
+		if u.Name != "" {
+			return u.Name
+		}
+		if u.UserName != "" {
+			return "@" + u.UserName
+		}
+	}
+	return strconv.FormatInt(e.WarnedBy, 10)
+}
+
+// punishAtWarnLimit applies the chat's warn mode to u, who just reached the
+// warn limit, and returns the reply. punished is false for an unknown mode.
+func punishAtWarnLimit(b *gotgbot.Bot, chat *gotgbot.Chat, tr *i18n.Translator, warnrc *models.WarnSettings, u gotgbot.User, numWarns int) (reply string, punished bool, err error) {
+	userId := u.Id
+	switch warnrc.WarnMode {
+	case "kick":
+		err = kickMember(b, chat.Id, userId)
+		temp, _ := tr.GetString("warns_limit_kicked")
+		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
+		if err != nil {
+			log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
+			return "", false, err
+		}
+		punished = true
+	case "mute":
+		_, err = chat.RestrictMember(b, userId,
+			MutedPermissions,
+			nil,
+		)
+		temp, _ := tr.GetString("warns_limit_muted")
+		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
+		if err != nil {
+			log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
+			return "", false, err
+		}
+		punished = true
+	case "ban":
+		_, err = chat.BanMember(b, userId, nil)
+		temp, _ := tr.GetString("warns_limit_banned")
+		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
+		if err != nil {
+			log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
+			return "", false, err
+		}
+		punished = true
+	case "tban", "tmute":
+		actionTime := warnActionTime(warnrc)
+		untilDate := time.Now().Unix() + int64(actionTime)
+		key := "warns_limit_tbanned"
+		if warnrc.WarnMode == "tban" {
+			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
+		} else {
+			key = "warns_limit_tmuted"
+			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+		}
+		if err != nil {
+			log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
+			return "", false, err
+		}
+		temp, _ := tr.GetString(key)
+		reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName), formatDuration(actionTime))
+		punished = true
+	default:
+		log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+	}
+	return reply, punished, nil
+}
+
+// warnThisUser warns userId; issuer carries who issues the warn (warnIssuer
+// for admin commands, the bot itself for automatic warns).
+func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64, reason, warnType string, issuer models.WarnEntry) (err error) {
 	var (
 		reply    string
 		keyboard gotgbot.InlineKeyboardMarkup
@@ -161,7 +312,8 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	mu.Lock()
 	defer mu.Unlock()
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
-	numWarns, reasons, err := warns.WarnUser(userId, chat.Id, reason)
+	issuer.Reason = reason
+	numWarns, entries, err := warns.WarnUser(userId, chat.Id, issuer)
 	if err != nil {
 		text, _ := tr.GetString("common_settings_save_failed")
 		_, sendErr := msg.Reply(b, text, formatting.Shtml())
@@ -183,57 +335,10 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 	}
 
 	if numWarns >= warnrc.WarnLimit {
-		punished := false
-		switch warnrc.WarnMode {
-		case "kick":
-			err = kickMember(b, chat.Id, userId)
-			temp, _ := tr.GetString("warns_limit_kicked")
-			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-			if err != nil {
-				log.Errorf("[warn] warnlimit: kick (%d) - %s", userId, err)
-				return err
-			}
-			punished = true
-		case "mute":
-			_, err = chat.RestrictMember(b, userId,
-				MutedPermissions,
-				nil,
-			)
-			temp, _ := tr.GetString("warns_limit_muted")
-			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-			if err != nil {
-				log.Errorf("[warn] warnlimit: mute (%d) - %s", userId, err)
-				return err
-			}
-			punished = true
-		case "ban":
-			_, err = chat.BanMember(b, userId, nil)
-			temp, _ := tr.GetString("warns_limit_banned")
-			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName))
-			if err != nil {
-				log.Errorf("[warn] warnlimit: ban (%d) - %s", userId, err)
-				return err
-			}
-			punished = true
-		case "tban", "tmute":
-			actionTime := warnActionTime(warnrc)
-			untilDate := time.Now().Unix() + int64(actionTime)
-			key := "warns_limit_tbanned"
-			if warnrc.WarnMode == "tban" {
-				_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
-			} else {
-				key = "warns_limit_tmuted"
-				_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
-			}
-			if err != nil {
-				log.Errorf("[warn] warnlimit: %s (%d) - %s", warnrc.WarnMode, userId, err)
-				return err
-			}
-			temp, _ := tr.GetString(key)
-			reply = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit, formatting.MentionHtml(u.Id, u.FirstName), formatDuration(actionTime))
-			punished = true
-		default:
-			log.Warnf("[Warns] Unknown warn mode: %s", warnrc.WarnMode)
+		var punished bool
+		reply, punished, err = punishAtWarnLimit(b, chat, tr, warnrc, u, numWarns)
+		if err != nil {
+			return err
 		}
 
 		if punished {
@@ -241,11 +346,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 				return resetErr
 			}
 		}
-		var sb strings.Builder
-		for _, warnReason := range reasons {
-			fmt.Fprintf(&sb, "\n - %s", html.EscapeString(warnReason))
-		}
-		reply += sb.String()
+		reply += warnEntryLines(b, tr, entries, html.EscapeString)
 	} else {
 		rules := rules.GetChatRulesInfo(chat.Id)
 		if len(rules.Rules) >= 1 {
@@ -281,25 +382,29 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 		if reason != "" {
 			temp, _ := tr.GetString("warns_warning_reason")
-			reply += fmt.Sprintf(temp, html.EscapeString(reason))
+			reply += fmt.Sprintf(temp, shownReason(reason, html.EscapeString))
 		}
 	}
-	_, err = b.SendMessage(chat.Id, reply,
-		&gotgbot.SendMessageOpts{
+	// The list at the warn limit can pass Telegram's length limit; only the
+	// first part replies to the command and carries the buttons.
+	for i, part := range formatting.SplitMessage(reply) {
+		opts := &gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
 			LinkPreviewOptions: &gotgbot.LinkPreviewOptions{
 				IsDisabled: true,
 			},
-			ReplyParameters: &gotgbot.ReplyParameters{
+		}
+		if i == 0 {
+			opts.ReplyParameters = &gotgbot.ReplyParameters{
 				MessageId:                msg.MessageId,
 				AllowSendingWithoutReply: true,
-			},
-			ReplyMarkup: &keyboard,
-		},
-	)
-	if err != nil {
-		log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
-		return err
+			}
+			opts.ReplyMarkup = &keyboard
+		}
+		if _, err = b.SendMessage(chat.Id, part, opts); err != nil {
+			log.Errorf("[warn] sendMessage (%d) - %s", userId, err)
+			return err
+		}
 	}
 
 	return ext.EndGroups
@@ -349,7 +454,7 @@ func (m moduleStruct) dispatchWarn(b *gotgbot.Bot, ctx *ext.Context, warnType st
 		warnusr = userId
 	}
 
-	return m.warnThisUser(b, ctx, warnusr, reason, warnType)
+	return m.warnThisUser(b, ctx, warnusr, reason, warnType, warnIssuer(ctx))
 }
 
 func (m moduleStruct) warnUser(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -432,19 +537,16 @@ func (moduleStruct) warns(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	numWarns, reasons := warns.GetWarnsContext(tracing.UpdateContext(ctx), userId, chat.Id)
+	numWarns, entries := warns.GetWarnsContext(tracing.UpdateContext(ctx), userId, chat.Id)
 	text := ""
 
 	if numWarns != 0 {
 		warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
-		if len(reasons) > 0 {
+		if len(entries) > 0 {
 			temp, _ := tr.GetString("warns_user_warnings_list")
 			text = fmt.Sprintf(temp, numWarns, warnrc.WarnLimit)
-			var sb strings.Builder
-			for _, reason := range reasons {
-				fmt.Fprintf(&sb, "\n - %s", reason)
-			}
-			text += sb.String()
+			// Plain-text reply: reasons and names are sent as they are.
+			text += warnEntryLines(b, tr, entries, func(s string) string { return s })
 			msgs := formatting.SplitMessage(text)
 			for _, msgText := range msgs {
 				_, err := msg.Reply(b, msgText, nil)

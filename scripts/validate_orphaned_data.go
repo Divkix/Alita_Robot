@@ -168,6 +168,14 @@ func defaultOrphanChecks() []orphanCheck {
 				"OR user_id NOT IN (SELECT user_id FROM users);",
 		},
 		{
+			table: "warn_entries",
+			condition: "chat_id NOT IN (SELECT chat_id FROM chats) OR " +
+				"user_id NOT IN (SELECT user_id FROM users)",
+			issue: "Records with non-existent chat_id or user_id",
+			cleanup: "DELETE FROM warn_entries WHERE chat_id NOT IN (SELECT chat_id FROM chats) " +
+				"OR user_id NOT IN (SELECT user_id FROM users);",
+		},
+		{
 			table:     "federations",
 			condition: "owner_id NOT IN (SELECT user_id FROM users)",
 			issue:     "Records with non-existent owner_id",
