@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -382,6 +383,37 @@ func TestSettingsPickerSkipsConnectedGroupWhoseAdminLoadPanics(t *testing.T) {
 	}
 	if reports != 1 {
 		t.Fatalf("panic log entries = %d, want 1", reports)
+	}
+}
+
+// A connected group that is also a candidate is checked once per press even
+// when its admin-list load panics: one load, one log entry.
+func TestSettingsPickerChecksAPanickingConnectedCandidateOnce(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	connected := -uniqueModuleChatID()
+	if err := connections.ConnectId(user.Id, connected); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	setPickerCandidates(t, connected)
+	var loads atomic.Int32
+	bot.BotClient = &scriptedTelegramClient{
+		moduleBotClient: client,
+		chatID:          fmt.Sprint(connected),
+		script: func(method string, _ map[string]any) (json.RawMessage, bool) {
+			if method == "getChatAdministrators" {
+				loads.Add(1)
+				panic("candidate admin list exploded")
+			}
+			return nil, false
+		},
+	}
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 0 {
+		t.Fatalf("picker chats = %v, want the panicking group left out", got)
+	}
+	if n := loads.Load(); n != 1 {
+		t.Fatalf("admin-list loads for the connected candidate = %d, want 1", n)
 	}
 }
 

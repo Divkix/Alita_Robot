@@ -192,6 +192,8 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 	// load leaves it out like any group, since tapping it would panic again.
 	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 {
 		isAdmin, err := chat_status.IsUserAdminWithContext(checkCtx, b, conn.ChatId, userID)
+		// Checked either way, so the candidate loop does not check it again.
+		seen[conn.ChatId] = true
 		if isAdmin || (err != nil && !settingsPickerLoadPanicked(err)) {
 			title := ""
 			if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {

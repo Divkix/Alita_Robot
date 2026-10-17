@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -496,5 +497,107 @@ func TestLoadAdminCachePanicWithNoCallerLeftIsLoggedOnce(t *testing.T) {
 	logs := panicLogs(hook, "orphaned admin list exploded")
 	if len(logs) != 1 || !strings.Contains(logs[0].Message, "loadAdminCacheFromTelegram") {
 		t.Fatalf("panic log entries = %d, want one with the loader's stack", len(logs))
+	}
+}
+
+// cancellingPanickingAdminListClient ends the caller's context and then
+// panics in getChatAdministrators, so the caller can leave as the load fails.
+type cancellingPanickingAdminListClient struct {
+	inner  *adminCacheBotClient
+	cancel context.CancelFunc
+}
+
+func (c *cancellingPanickingAdminListClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		c.cancel()
+		panic("racing admin list exploded")
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *cancellingPanickingAdminListClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *cancellingPanickingAdminListClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+// A caller whose context ends while the load panics either receives the panic
+// (and reports it) or leaves; either way the panic is reported exactly once.
+// One P keeps the loader running past the cancel, so the caller often finds
+// both its context and the result ready.
+func TestLoadAdminCachePanicIsReportedOnceWhenTheCallerLeavesAsItFails(t *testing.T) {
+	withMemoryMarshaler(t)
+	hook := captureErrorLogs(t)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+	}}
+
+	for i := range 40 {
+		hook.Reset()
+		ctx, cancel := context.WithCancel(context.Background())
+		bot := newAdminCacheBot(inner)
+		bot.BotClient = &cancellingPanickingAdminListClient{inner: inner, cancel: cancel}
+		chatID := int64(-100900 - i)
+
+		_, err := LoadAdminCacheWithContext(ctx, bot, chatID)
+		received := 0
+		var loadPanic *AdminLoadPanicError
+		if errors.As(err, &loadPanic) {
+			received = 1
+		}
+		deadline := time.Now().Add(time.Second)
+		for received+len(panicLogs(hook, "racing admin list exploded")) == 0 && time.Now().Before(deadline) {
+			time.Sleep(time.Millisecond)
+		}
+		time.Sleep(5 * time.Millisecond)
+		if reports := received + len(panicLogs(hook, "racing admin list exploded")); reports != 1 {
+			t.Fatalf("run %d: panic reported %d times (received by caller: %d), want once", i, reports, received)
+		}
+	}
+}
+
+// pendingAdminLoads counts the admin loads the shared table still tracks.
+func pendingAdminLoads() int {
+	adminLoadsMu.Lock()
+	defer adminLoadsMu.Unlock()
+	return len(adminLoads)
+}
+
+// Finished loads leave nothing behind, whether they succeed, panic or lose
+// their only caller, so the table does not grow with every chat ever loaded.
+func TestAdminLoadsAreForgottenOnceFinished(t *testing.T) {
+	withMemoryMarshaler(t)
+	ok := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+		"getChatAdministrators": json.RawMessage(`[{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Admin"}}]`),
+	}}
+	LoadAdminCache(newAdminCacheBot(ok), -100950)
+
+	panicking := newAdminCacheBot(ok)
+	panicking.BotClient = &panickingAdminListClient{inner: ok}
+	func() {
+		defer func() { _ = recover() }()
+		LoadAdminCache(panicking, -100951)
+	}()
+
+	stalled := &hungBotStatusClient{inner: ok, started: make(chan struct{}), release: make(chan struct{}), stall: 2 * time.Second}
+	stalledBot := newAdminCacheBot(ok)
+	stalledBot.BotClient = stalled
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := LoadAdminCacheWithContext(ctx, stalledBot, -100952); err == nil {
+		t.Fatal("stalled load returned before its caller's deadline")
+	}
+	close(stalled.release)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for pendingAdminLoads() != 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if n := pendingAdminLoads(); n != 0 {
+		t.Fatalf("admin load table holds %d finished loads, want 0", n)
 	}
 }
