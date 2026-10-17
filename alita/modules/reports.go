@@ -172,15 +172,15 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	reason := reportReason(msg.Text)
-	created, err := reports.Create(&models.Report{
+	created, storeErr := reports.Create(&models.Report{
 		ChatId:            chat.Id,
 		ReportedUserId:    reportedUser.Id,
 		ReportedMessageId: reportedMsgId,
 		ReporterId:        user.Id,
 		Reason:            reason,
 	})
-	if err != nil {
-		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, err)
+	if storeErr != nil {
+		log.Errorf("[Reports] failed to store report in chat %d: %v", chat.Id, storeErr)
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
@@ -281,8 +281,10 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	if created {
-		deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason)
+	// A report that could not be stored still reaches the log channel, as an
+	// untracked card; a repeat of a stored report changes nothing.
+	if stored := storeErr == nil; created || !stored {
+		deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, stored)
 	}
 	return ext.EndGroups
 }

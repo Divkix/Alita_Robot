@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"html"
+	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,9 @@ const reportExcerptRunes = 300
 // message: it replies to a copy of the reported message (kept as evidence
 // even if the original is deleted) and shows how many members reported it.
 // Delivery failures are logged and never block the in-group reply.
+//
+// When the report could not be stored (stored is false), the card is posted
+// on its own: the open reports cannot be counted or linked to it.
 func deliverReport(
 	b *gotgbot.Bot,
 	tr *i18n.Translator,
@@ -31,12 +35,19 @@ func deliverReport(
 	reporter *gotgbot.User,
 	reported *gotgbot.Message,
 	reason string,
+	stored bool,
 ) {
 	settings := logchannels.Get(chat.Id)
 	if settings == nil || !logchannels.CategoryEnabled(settings, logchannels.CategoryReports) {
 		return
 	}
 	channelID := settings.LogChannelID
+
+	if !stored {
+		sendReportCard(b, channelID, chat, reported,
+			reportCardText(chat, reporter, reported.From, 1, reason), reportCardMarkup(tr, chat, reported.MessageId))
+		return
+	}
 
 	rows, err := reports.OpenForMessage(chat.Id, reported.MessageId)
 	if err != nil {
@@ -57,15 +68,41 @@ func deliverReport(
 			ParseMode:   formatting.HTML,
 			ReplyMarkup: markup,
 		})
-		if err == nil {
-			recordReportCard(chat.Id, reported.MessageId, channelID, *row.AdminMessageId)
-			return
+		if err != nil && isReportCardGone(err) {
+			// An admin deleted the card: post a new one.
+			log.Debugf("[Reports] report card %d in %d is gone: %v", *row.AdminMessageId, channelID, err)
+			break
 		}
-		// The card is gone (deleted by an admin) or uneditable: post a new one.
-		log.Debugf("[Reports] failed to update report card in %d: %v", channelID, err)
-		break
+		if err != nil {
+			// The card still exists (flood wait, network): keep it rather
+			// than post a duplicate; the next report updates its count.
+			log.Warnf("[Reports] failed to update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
+		}
+		recordReportCard(chat.Id, reported.MessageId, channelID, *row.AdminMessageId)
+		return
 	}
 
+	if cardID := sendReportCard(b, channelID, chat, reported, text, markup); cardID != 0 {
+		recordReportCard(chat.Id, reported.MessageId, channelID, cardID)
+	}
+}
+
+// isReportCardGone reports whether editing the card failed because the card
+// no longer exists. The Bot API returns "message to edit not found" for it.
+func isReportCardGone(err error) bool {
+	return strings.Contains(err.Error(), "message to edit not found")
+}
+
+// sendReportCard posts the evidence and the card to the log channel and
+// returns the card's message id, or 0.
+func sendReportCard(
+	b *gotgbot.Bot,
+	channelID int64,
+	chat *gotgbot.Chat,
+	reported *gotgbot.Message,
+	text string,
+	markup gotgbot.InlineKeyboardMarkup,
+) int64 {
 	opts := &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: markup}
 	if evidenceID := sendReportEvidence(b, channelID, chat.Id, reported); evidenceID != 0 {
 		opts.ReplyParameters = &gotgbot.ReplyParameters{MessageId: evidenceID, AllowSendingWithoutReply: true}
@@ -73,9 +110,9 @@ func deliverReport(
 	card, err := helpers.SendMessageWithErrorHandling(b, channelID, text, opts)
 	if err != nil || card == nil {
 		log.Debugf("[Reports] failed to send report card to %d: %v", channelID, err)
-		return
+		return 0
 	}
-	recordReportCard(chat.Id, reported.MessageId, channelID, card.MessageId)
+	return card.MessageId
 }
 
 func recordReportCard(chatID, messageID, channelID, cardID int64) {

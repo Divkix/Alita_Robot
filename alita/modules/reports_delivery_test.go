@@ -10,7 +10,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
 const reportCardChannelID int64 = -1009876543210
@@ -78,7 +80,7 @@ func (f reportCardFixture) report(t *testing.T, reporter gotgbot.User, text stri
 
 func TestReportCardSentToLogChannel(t *testing.T) {
 	f := newReportCardFixture(t, true)
-	f.report(t, f.reporter, "/report spam")
+	f.report(t, f.reporter, "/report spam <b>now</b> & later")
 
 	copies := f.client.callsFor("copyMessage")
 	if len(copies) != 1 {
@@ -100,6 +102,9 @@ func TestReportCardSentToLogChannel(t *testing.T) {
 	}
 	if !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "Report &lt;Chat&gt;") {
 		t.Fatalf("card text = %q, want the escaped group title", cards[0].Params["text"])
+	}
+	if !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "Reason: spam &lt;b&gt;now&lt;/b&gt; &amp; later") {
+		t.Fatalf("card text = %q, want the escaped reason", cards[0].Params["text"])
 	}
 	if cards[0].Params["reply_markup"] == nil {
 		t.Fatal("card has no link to the reported message")
@@ -189,10 +194,14 @@ func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 	}
 }
 
+func editMessageTextError(description string) error {
+	return &gotgbot.TelegramError{Method: "editMessageText", Code: 400, Description: description}
+}
+
 func TestCardRecreatedWhenEditFails(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	f.report(t, f.reporter, "/report spam")
-	f.client.errors["editMessageText"] = errors.New("Bad Request: message to edit not found")
+	f.client.errors["editMessageText"] = editMessageTextError("Bad Request: message to edit not found")
 	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
 
 	if got := len(f.client.callsFor("copyMessage")); got != 2 {
@@ -200,6 +209,61 @@ func TestCardRecreatedWhenEditFails(t *testing.T) {
 	}
 	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 2 {
 		t.Fatalf("log channel sendMessage calls = %d, want a replacement card", got)
+	}
+}
+
+func TestCardKeptWhenEditFailsTransiently(t *testing.T) {
+	transient := map[string]error{
+		"flood wait": &gotgbot.TelegramError{
+			Method: "editMessageText", Code: 429, Description: "Too Many Requests: retry after 5",
+		},
+		"network": errors.New("Post \"https://api.telegram.org/bot/editMessageText\": context deadline exceeded"),
+	}
+	for name, editErr := range transient {
+		t.Run(name, func(t *testing.T) {
+			f := newReportCardFixture(t, true)
+			f.report(t, f.reporter, "/report spam")
+			f.client.errors["editMessageText"] = editErr
+			f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+
+			if got := len(f.client.callsFor("copyMessage")); got != 1 {
+				t.Fatalf("copyMessage calls = %d, want no second copy while the card still exists", got)
+			}
+			if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
+				t.Fatalf("log channel sendMessage calls = %d, want no duplicate card", got)
+			}
+			rows := storedReports(t, f.chat.Id)
+			if len(rows) != 2 {
+				t.Fatalf("stored reports = %d, want 2", len(rows))
+			}
+			for _, row := range rows {
+				if row.AdminMessageId == nil || *row.AdminMessageId != 9001 {
+					t.Fatalf("row %d card = %v, want the existing card 9001", row.ReporterId, row.AdminMessageId)
+				}
+			}
+		})
+	}
+}
+
+func TestReportCardSentWhenStoreFails(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	if err := db.DB.Migrator().DropTable(&models.Report{}); err != nil {
+		t.Fatalf("drop reports table: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := db.DB.AutoMigrate(&models.Report{}); err != nil {
+			t.Fatalf("restore reports table: %v", err)
+		}
+	})
+
+	f.report(t, f.reporter, "/report spam")
+
+	if got := len(f.client.callsFor("copyMessage")); got != 1 {
+		t.Fatalf("copyMessage calls = %d, want the reported message copied", got)
+	}
+	cards := callsToChat(f.client, "sendMessage", reportCardChannelID)
+	if len(cards) != 1 || !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "#REPORT") {
+		t.Fatalf("log channel sendMessage calls = %v, want the report card despite the store failure", cards)
 	}
 }
 
