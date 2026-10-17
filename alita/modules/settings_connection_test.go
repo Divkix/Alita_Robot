@@ -665,8 +665,9 @@ func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
 // rejects as "message is not modified": that is not a failure worth an Error
 // log. Any other edit failure still is.
 func TestSettingsRefreshNotModifiedIsNotAnError(t *testing.T) {
+	previous := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previous) })
 	hook := logrustest.NewGlobal()
-	t.Cleanup(hook.Reset)
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
 	refresh := encodeCallbackData("settings", map[string]string{"a": "r", "c": fmt.Sprint(groupA)})
 	errorLogged := func(description string) bool {

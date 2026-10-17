@@ -460,8 +460,8 @@ func TestListChatsWithUser(t *testing.T) {
 	base := time.Now().UnixNano()
 	userID := base + 10
 	// tied shares older's last_activity and has the larger chat_id, but is
-	// inserted and updated after older: only the chat_id DESC tie-breaker puts
-	// it first, so heap order cannot satisfy the assertion by accident.
+	// inserted and updated after older, so on a fresh table heap order would
+	// put it last: the chat_id DESC tie-breaker is what puts it first.
 	older, newer, inactive, other, tied := -base-5, -base-2, -base-3, -base-4, -base-1
 	t.Cleanup(func() {
 		if err := db.DB.Where("chat_id IN ?", []int64{older, newer, inactive, other, tied}).Delete(&models.Chat{}).Error; err != nil {
