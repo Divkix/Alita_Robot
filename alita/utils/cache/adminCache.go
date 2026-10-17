@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
+	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 var adminCacheGroup singleflight.Group
@@ -25,26 +26,46 @@ func adminCacheKey(chatId int64) string {
 // are included; without it Telegram omits them and IsUserAdmin treats them as
 // regular members.
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
+	ac, _ := LoadAdminCacheWithContext(context.Background(), b, chatId)
+	return ac
+}
+
+// LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends
+// and then returns ctx.Err() with an empty, uncached list. The Telegram load is
+// shared with concurrent callers and runs detached from ctx, so one caller's
+// deadline never cuts it short for the others or caches a failure; it finishes
+// in the background and stores its result for the next lookup.
+func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64) (AdminCache, error) {
 	if b == nil {
 		log.Error("LoadAdminCache: bot is nil")
-		return AdminCache{}
+		return AdminCache{}, nil
 	}
 
 	genBefore := adminCacheGeneration.Load()
-	v, _, _ := adminCacheGroup.Do(adminCacheKey(chatId), func() (any, error) {
+	// DoChan runs the load on its own goroutine and re-panics there, which
+	// would crash the process, so the load recovers its own panics.
+	result := adminCacheGroup.DoChan(adminCacheKey(chatId), func() (v any, _ error) {
+		defer error_handling.RecoverFromPanic("LoadAdminCache", "cache")
 		return loadAdminCacheFromTelegram(b, chatId), nil
 	})
+	var v any
+	select {
+	case r := <-result:
+		v = r.Val
+	case <-ctx.Done():
+		return AdminCache{}, ctx.Err()
+	}
 	ac, _ := v.(AdminCache)
 	if genBefore != adminCacheGeneration.Load() {
 		// An invalidation landed while we waited on the shared load: the value
 		// predates a demotion/promote. Re-read once; on miss return empty so
 		// callers fall back to per-user GetChatMember instead of trusting stale.
 		if ok, fresh := GetAdminCacheList(chatId); ok {
-			return fresh
+			return fresh, nil
 		}
-		return AdminCache{}
+		return AdminCache{}, nil
 	}
-	return ac
+	return ac, nil
 }
 
 func loadAdminCacheFromTelegram(b *gotgbot.Bot, chatId int64) AdminCache {

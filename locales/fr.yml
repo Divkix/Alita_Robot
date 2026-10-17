@@ -2747,6 +2747,7 @@ warns_extend_msg: |
 settings_summary_legend: "<i>• indique une valeur différente de celle par défaut. Envoyez la commande indiquée pour la modifier.</i>"
 settings_picker_text: "Choisissez un groupe pour voir ses paramètres. Il n’apparaît pas ? Envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
 settings_picker_empty: "Je n’ai trouvé aucun groupe où vous êtes administrateur. Je ne connais que les groupes où vous avez écrit depuis mon arrivée : envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
+settings_picker_wait: "⏳ Attendez {seconds} s avant de rouvrir la liste des groupes."
 settings_open_in_pm: "Appuyez sur le bouton pour voir les paramètres de ce groupe en privé."
 settings_open_in_pm_button: "Ouvrir les paramètres en privé"
 settings_btn_refresh: "🔄 Actualiser"

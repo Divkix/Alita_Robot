@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,12 +44,14 @@ func settingsFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot, g
 		fmt.Sprint(groupA): adminListJSON(settingsTestAdminID),
 		fmt.Sprint(groupB): adminListJSON(),
 	}
-	original := settingsCandidateChats
+	original, originalCooldown := settingsCandidateChats, settingsPickerCooldown
 	settingsCandidateChats = func(context.Context, int64, int) ([]models.Chat, error) {
 		return []models.Chat{{ChatId: groupA, ChatName: "Group A"}, {ChatId: groupB, ChatName: "Group B"}}, nil
 	}
+	// Tests share the admin's user ID; only the pause test turns the pause on.
+	settingsPickerCooldown = 0
 	t.Cleanup(func() {
-		settingsCandidateChats = original
+		settingsCandidateChats, settingsPickerCooldown = original, originalCooldown
 		if err := connections.DisconnectId(settingsTestAdminID); err != nil {
 			t.Errorf("DisconnectId(%d) error = %v", settingsTestAdminID, err)
 		}
@@ -205,6 +209,82 @@ func TestSettingsPickerStopsLiveChecksAtDeadline(t *testing.T) {
 		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(cold[2]) {
 			t.Fatalf("checked %d after the deadline: %s", cold[2], call.Method)
 		}
+	}
+}
+
+// hungTelegramClient stalls one method for one chat like a hung Telegram: the
+// call returns when released, when its context ends, or after stall.
+type hungTelegramClient struct {
+	*moduleBotClient
+	method  string
+	chatID  string
+	release chan struct{}
+	stall   time.Duration
+}
+
+func (c *hungTelegramClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == c.method && fmt.Sprint(params["chat_id"]) == c.chatID {
+		select {
+		case <-c.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(c.stall):
+		}
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// A hung Telegram call inside one group's check must not hold the picker past
+// its budget, and the group it cut must be checked again on the next press.
+func TestSettingsPickerBudgetCutsAHungGroupCheck(t *testing.T) {
+	for _, method := range []string{"getChat", "getChatAdministrators"} {
+		t.Run(method, func(t *testing.T) {
+			client, bot, groupA, _ := settingsFixture(t)
+			user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+			hung := -uniqueModuleChatID()
+			client.adminsByChat[fmt.Sprint(hung)] = adminListJSON(settingsTestAdminID)
+			cache.LoadAdminCache(bot, groupA)
+			setPickerCandidates(t, hung, groupA)
+
+			hungClient := &hungTelegramClient{
+				moduleBotClient: client,
+				method:          method,
+				chatID:          fmt.Sprint(hung),
+				release:         make(chan struct{}),
+				stall:           2 * time.Second,
+			}
+			bot.BotClient = hungClient
+			release := sync.OnceFunc(func() { close(hungClient.release) })
+			t.Cleanup(release)
+			originalBudget := settingsPickerLiveBudget
+			settingsPickerLiveBudget = 100 * time.Millisecond
+			t.Cleanup(func() { settingsPickerLiveBudget = originalBudget })
+
+			start := time.Now()
+			got := runSettingsInPM(t, bot, client, user)
+			if elapsed := time.Since(start); elapsed > time.Second {
+				t.Fatalf("picker answered after %v, want it near the 100ms budget", elapsed)
+			}
+			if strings.Join(got, ",") != fmt.Sprint(groupA) {
+				t.Fatalf("picker chats = %v, want only the warm %d", got, groupA)
+			}
+
+			release()
+			if method == "getChatAdministrators" {
+				// The cut wait left the shared load running; it caches the list.
+				deadline := time.Now().Add(3 * time.Second)
+				for found, _ := cache.GetAdminCacheList(hung); !found; found, _ = cache.GetAdminCacheList(hung) {
+					if time.Now().After(deadline) {
+						t.Fatal("the cut admin-list load never cached its result")
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+			settingsPickerLiveBudget = originalBudget
+			if got := runSettingsInPM(t, bot, client, user); !slices.Contains(got, fmt.Sprint(hung)) {
+				t.Fatalf("next picker chats = %v, want %d checked again", got, hung)
+			}
+		})
 	}
 }
 

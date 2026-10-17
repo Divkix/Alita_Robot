@@ -5,6 +5,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -208,6 +209,93 @@ func TestLoadAdminCacheCoalescesConcurrentFetches(t *testing.T) {
 
 	if got := client.adminListCalls.Load(); got != 1 {
 		t.Fatalf("getChatAdministrators calls = %d, want 1 coalesced fetch", got)
+	}
+}
+
+// hungBotStatusClient stalls the bot's own getChatMember like a hung Telegram:
+// it returns when released, when the request context ends, or after stall.
+type hungBotStatusClient struct {
+	inner   *adminCacheBotClient
+	started chan struct{}
+	release chan struct{}
+	stall   time.Duration
+	once    sync.Once
+}
+
+func (c *hungBotStatusClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatMember" && fmt.Sprint(params["user_id"]) == "999" {
+		c.once.Do(func() { close(c.started) })
+		select {
+		case <-c.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(c.stall):
+		}
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *hungBotStatusClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *hungBotStatusClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+// A caller whose deadline ends while the admin list loads must neither cache
+// a failure (an empty list) nor cut the load short for a concurrent caller.
+func TestLoadAdminCacheWithContextDeadlineLeavesSharedLoadIntact(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = -100779
+	client := &hungBotStatusClient{
+		inner: &adminCacheBotClient{responses: map[string]json.RawMessage{
+			"getChatMember:999":     json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+			"getChatAdministrators": json.RawMessage(`[{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Admin"}}]`),
+		}},
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+		stall:   2 * time.Second,
+	}
+	bot := newAdminCacheBot(client.inner)
+	bot.BotClient = client
+	release := sync.OnceFunc(func() { close(client.release) })
+	t.Cleanup(release)
+
+	other := make(chan AdminCache, 1)
+	go func() {
+		<-client.started
+		other <- LoadAdminCache(bot, chatID)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	got, err := LoadAdminCacheWithContext(ctx, bot, chatID)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("LoadAdminCacheWithContext returned after %v, want it to stop at the 50ms deadline", elapsed)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("LoadAdminCacheWithContext error = %v, want context.DeadlineExceeded", err)
+	}
+	if got.Cached || len(got.UserInfo) != 0 {
+		t.Fatalf("LoadAdminCacheWithContext = %+v, want an empty uncached result", got)
+	}
+	if found, stored := GetAdminCacheList(chatID); found {
+		t.Fatalf("deadline stored an admin list: %+v", stored)
+	}
+
+	release()
+	select {
+	case ac := <-other:
+		if _, ok := ac.UserMap[42]; !ok {
+			t.Fatalf("concurrent LoadAdminCache = %+v, want admin 42", ac)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("concurrent LoadAdminCache did not finish")
+	}
+	if found, stored := GetAdminCacheList(chatID); !found || len(stored.UserInfo) != 1 {
+		t.Fatalf("stored admin list = (%v, %+v), want the loaded list", found, stored)
 	}
 }
 

@@ -1,7 +1,9 @@
 package modules
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
+	"github.com/divkix/Alita_Robot/alita/utils/ratelimit"
 	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
@@ -30,12 +33,26 @@ const (
 var settingsCandidateChats = chats.ListChatsWithUser
 
 // settingsPickerLiveBudget bounds the picker's Telegram admin checks for
-// groups whose admin list is not cached. Variables so tests can drive the
-// deadline without sleeping.
+// groups whose admin list is not cached. settingsPickerCooldown is the pause
+// between one user's picker builds; it outlasts the budget, so one user never
+// runs two builds at once. Variables so tests can drive them without sleeping.
 var (
 	settingsPickerLiveBudget = 3 * time.Second
+	settingsPickerCooldown   = 5 * time.Second
 	settingsPickerNow        = time.Now
 )
+
+// settingsPickerWait reserves a picker build for userID. While the previous
+// build's pause lasts it returns wait = true and the notice to show instead.
+func settingsPickerWait(tr *i18n.Translator, userID int64) (notice string, wait bool) {
+	allowed, remaining := ratelimit.AcquireSettingsPicker(userID, settingsPickerCooldown)
+	if allowed {
+		return "", false
+	}
+	seconds := max(int(math.Ceil(remaining.Seconds())), 1)
+	notice, _ = tr.GetString("settings_picker_wait", i18n.TranslationParams{"seconds": strconv.Itoa(seconds)})
+	return notice, true
+}
 
 // settings handles /settings. In PM it shows the group picker; in a group it
 // links the admin to the summary in PM so nothing else is posted there.
@@ -49,6 +66,13 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if chat.Type == "private" {
+		if notice, wait := settingsPickerWait(tr, user.Id); wait {
+			if _, err := msg.Reply(b, notice, formatting.Shtml()); err != nil {
+				log.Error(err)
+				return err
+			}
+			return ext.EndGroups
+		}
 		text, kb := m.settingsPicker(b, ctx, tr, user.Id)
 		if _, err := msg.Reply(b, text, &gotgbot.SendMessageOpts{ParseMode: formatting.HTML, ReplyMarkup: kb}); err != nil {
 			log.Error(err)
@@ -79,6 +103,10 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 // while settingsPickerLiveBudget lasts.
 func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (string, gotgbot.InlineKeyboardMarkup) {
 	deadline := settingsPickerNow().Add(settingsPickerLiveBudget)
+	// The deadline also bounds each check's Telegram calls and its wait for a
+	// shared admin-list load, so one hung group cannot hold the picker past it.
+	checkCtx, cancel := context.WithDeadline(tracing.UpdateContext(ctx), deadline)
+	defer cancel()
 	var rows [][]gotgbot.InlineKeyboardButton
 	seen := map[int64]bool{}
 	addChat := func(chatID int64, title string, connected bool) {
@@ -95,12 +123,14 @@ func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Tr
 		}})
 	}
 
-	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 && chat_status.IsUserAdmin(b, conn.ChatId, userID) {
-		title := ""
-		if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
-			title = info.ChatName
+	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 {
+		if isAdmin, _ := chat_status.IsUserAdminWithContext(checkCtx, b, conn.ChatId, userID); isAdmin {
+			title := ""
+			if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
+				title = info.ChatName
+			}
+			addChat(conn.ChatId, title, true)
 		}
-		addChat(conn.ChatId, title, true)
 	}
 
 	candidates, err := settingsCandidateChats(tracing.UpdateContext(ctx), userID, settingsCandidateLimit)
@@ -127,15 +157,19 @@ func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Tr
 	}
 	// Each cold check is up to four Telegram calls (getChat, the bot's own
 	// getChatMember, getChatAdministrators with retries, the user's
-	// getChatMember), each under its own 5-10 s timeout. The deadline is checked
-	// between groups, so a hung Telegram can stretch one group's check to about
-	// 50 s past it; the deadline still caps how many groups one PM can probe.
+	// getChatMember). A check the deadline cuts shows nothing and caches
+	// nothing, so the next press checks that group again; an admin-list load it
+	// stopped waiting for finishes in the background and warms the cache.
 	// connectForSettings re-checks admin rights when a group is picked.
 	for _, candidate := range cold {
 		if len(rows) >= settingsMaxButtons || !settingsPickerNow().Before(deadline) {
 			break
 		}
-		if chat_status.IsUserAdmin(b, candidate.ChatId, userID) {
+		isAdmin, err := chat_status.IsUserAdminWithContext(checkCtx, b, candidate.ChatId, userID)
+		if err != nil {
+			break
+		}
+		if isAdmin {
 			addChat(candidate.ChatId, candidate.ChatName, false)
 		}
 	}
@@ -216,6 +250,10 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, kb = settingsSummaryView(ctx, tr, chat)
 	case "l":
+		if notice, wait := settingsPickerWait(tr, query.From.Id); wait {
+			_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: notice})
+			return ext.EndGroups
+		}
 		text, kb = m.settingsPicker(b, ctx, tr, query.From.Id)
 	default:
 		return answerInvalidCallback(b, ctx, query)
