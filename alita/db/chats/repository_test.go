@@ -469,12 +469,18 @@ func TestListChatsWithUser(t *testing.T) {
 		}
 	})
 	for _, id := range []int64{older, newer, inactive, tied} {
-		if err := UpdateChat(id, fmt.Sprintf("chat-%d", id), userID); err != nil {
-			t.Fatalf("UpdateChat(%d) error = %v", id, err)
+		if err := TouchChat(id, fmt.Sprintf("chat-%d", id)); err != nil {
+			t.Fatalf("TouchChat(%d) error = %v", id, err)
+		}
+		if err := AddChatMember(id, userID); err != nil {
+			t.Fatalf("AddChatMember(%d) error = %v", id, err)
 		}
 	}
-	if err := UpdateChat(other, "other", userID+1); err != nil {
-		t.Fatalf("UpdateChat(other) error = %v", err)
+	if err := TouchChat(other, "other"); err != nil {
+		t.Fatalf("TouchChat(other) error = %v", err)
+	}
+	if err := AddChatMember(other, userID+1); err != nil {
+		t.Fatalf("AddChatMember(other) error = %v", err)
 	}
 	now := time.Now()
 	for _, set := range []struct {
