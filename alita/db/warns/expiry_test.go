@@ -259,3 +259,56 @@ func TestSetWarnExpiryKeepsLimitAndMode(t *testing.T) {
 		t.Fatalf("settings = %+v, want expiry off with limit 6, tban 3600", s)
 	}
 }
+
+func TestWarnUserKeepsReasonsWithoutEntriesWhenPruning(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "old", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "recent", WarnedBy: 77, WarnedAt: timeAgo(24 * time.Hour)},
+	)
+	// After a rollback an older release warned the user again: a reason and a
+	// count without an entry.
+	if err := db.DB.Model(&models.Warns{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Updates(map[string]any{"num_warns": 3, "warns": models.StringArray{"old", "recent", "older release"}}).Error; err != nil {
+		t.Fatalf("add warn without entry: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	if _, _, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "new", WarnedBy: 77}); err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	want := []string{"recent", "older release", "new"}
+	if row := storedRow(t, chatID, userID); row.NumWarns != 3 || !equalStrings(row.Reasons, want) {
+		t.Fatalf("warns row = %d %v, want 3 %v", row.NumWarns, row.Reasons, want)
+	}
+}
+
+func TestPruneToNoWarnsDeletesStrayEntries(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "old", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "stray", WarnedBy: 77, WarnedAt: timeAgo(24 * time.Hour)},
+	)
+	// An older release's /rmwarn lowered the count but left the entry.
+	if err := db.DB.Model(&models.Warns{}).
+		Where("chat_id = ? AND user_id = ?", chatID, userID).
+		Updates(map[string]any{"num_warns": 1, "warns": models.StringArray{"old"}}).Error; err != nil {
+		t.Fatalf("lower warn count: %v", err)
+	}
+	dbcache.ResetLocalForTest()
+
+	if removed, err := RemoveWarn(userID, chatID); err != nil || removed {
+		t.Fatalf("RemoveWarn() = %v, %v; want false, nil", removed, err)
+	}
+
+	if got := storedEntries(t, chatID, userID); len(got) != 0 {
+		t.Fatalf("stored entries = %v, want none once the user has no warns", reasonsOf(got))
+	}
+	if row := storedRow(t, chatID, userID); row.NumWarns != 0 || len(row.Reasons) != 0 {
+		t.Fatalf("warns row = %d %v, want 0 []", row.NumWarns, row.Reasons)
+	}
+}
