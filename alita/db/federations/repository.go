@@ -532,7 +532,7 @@ func GetFedBan(fedID string, userID int64) *models.FederationBan {
 }
 
 func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.FederationBan {
-	ban, err := getFedBan(ctx, fedID, userID)
+	ban, err := GetFedBanE(ctx, fedID, userID)
 	if err != nil {
 		log.Errorf("[Federations] GetFedBan: %v", err)
 		return nil
@@ -540,7 +540,8 @@ func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.F
 	return ban
 }
 
-func getFedBan(ctx context.Context, fedID string, userID int64) (*models.FederationBan, error) {
+// GetFedBanE is GetFedBanContext that returns a failed lookup instead of nil.
+func GetFedBanE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, error) {
 	result, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey(cachePrefixFedBan, fedID, userID),
 		cache.CacheTTLFederation,
@@ -580,7 +581,7 @@ func FindBanInFedTree(fedID string, userID int64) (*models.FederationBan, string
 // FindBanInFedTreeE is FindBanInFedTree for callers that must not act on a failed
 // lookup: it returns the first lookup error instead of reading it as "not banned".
 func FindBanInFedTreeE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, string, error) {
-	ban, err := getFedBan(ctx, fedID, userID)
+	ban, err := GetFedBanE(ctx, fedID, userID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -592,7 +593,7 @@ func FindBanInFedTreeE(ctx context.Context, fedID string, userID int64) (*models
 		return nil, "", err
 	}
 	for _, subID := range subIDs {
-		ban, err := getFedBan(ctx, subID, userID)
+		ban, err := GetFedBanE(ctx, subID, userID)
 		if err != nil {
 			return nil, "", err
 		}

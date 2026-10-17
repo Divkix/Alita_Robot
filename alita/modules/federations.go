@@ -822,7 +822,11 @@ func retryAfterFlood(call func() error) error {
 func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveFban", "Federations")
 	defer lockFedWalk(fedID, userID)()
-	if federations.GetFedBan(fedID, userID) == nil {
+	// Only a confirmed missing ban stops the walk; a failed lookup bans anyway.
+	ban, err := federations.GetFedBanE(context.Background(), fedID, userID)
+	if err != nil {
+		log.Warnf("[Federations] active fban fed %s user %d: ban lookup failed, banning anyway: %v", fedID, userID, err)
+	} else if ban == nil {
 		return
 	}
 	chatIDs, err := federations.ListFedChatIDs(fedID)

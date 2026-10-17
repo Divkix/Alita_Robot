@@ -169,6 +169,31 @@ func TestUnfbanKeepsBansWhenTheFedTreeLookupFails(t *testing.T) {
 		"a failed lookup of a subscribed federation's ban must not lift the ban it may still hold")
 }
 
+func TestFbanWalkStillBansWhenTheBanLookupFails(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	owner := uniquePositiveUserID()
+	fed, err := federations.CreateFederation(owner, "Lookup Fban Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+	target := uniquePositiveUserID()
+	chat := seedFedChat(t, fed.FedID, target)
+	_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
+	require.NoError(t, err)
+	failFedBanLookups(t, fed.FedID)
+
+	applyActiveFban(bot, fed.FedID, target)
+	var chatIDs []int64
+	for _, call := range client.callsFor("banChatMember") {
+		if uid, _ := call.Params["user_id"].(int64); uid == target {
+			chatIDs = append(chatIDs, call.Params["chat_id"].(int64))
+		}
+	}
+	require.Equal(t, []int64{chat.Id}, chatIDs,
+		"a failed re-read of the ban must not skip the fban walk; only a confirmed missing ban may")
+}
+
 // floodOnceBotClient answers the first call to method with Telegram's 429.
 type floodOnceBotClient struct {
 	*moduleBotClient
