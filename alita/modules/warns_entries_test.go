@@ -167,21 +167,15 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = m.Delete(cache.Context, key) })
 
-		replayed, err := getAnonAdminCache(chat.Id, command.MessageId)
-		if err != nil {
-			t.Fatalf("getAnonAdminCache() error = %v", err)
-		}
-		// Rebuild the context the way verifyAnonymousAdmin does before it hands
-		// the command over. Its permission gates are not run here: the replay
-		// clears ctx.CallbackQuery, which also clears the update's chat.
-		ctx := newModuleCallbackContext(bot, chat, clicker, "anon_admin")
-		ctx.EffectiveMessage = replayed
-		ctx.EffectiveMessage.SenderChat = nil
-		confirmed := clicker
-		ctx.EffectiveUser = &confirmed
-		ctx.EffectiveSender = &gotgbot.Sender{User: &confirmed, ChatId: chat.Id}
-		if err := warnsModule.warnThisUser(bot, ctx, target.Id, "button spam", "warn", warnIssuer(ctx)); err != ext.EndGroups {
-			t.Fatalf("warnThisUser() error = %v, want EndGroups", err)
+		// The real button path: verifyAnonymousAdmin replays the cached command
+		// through the anonymous-admin handler LoadWarns registers.
+		LoadWarns(ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1}))
+		data := encodeCallbackData("anon_admin", map[string]string{
+			"c": fmt.Sprint(chat.Id),
+			"m": fmt.Sprint(command.MessageId),
+		})
+		if err := verifyAnonymousAdmin(bot, newModuleCallbackContext(bot, chat, clicker, data)); err != ext.EndGroups {
+			t.Fatalf("verifyAnonymousAdmin() error = %v, want EndGroups", err)
 		}
 
 		text := warnsListText(t, client, bot, chat, target.Id)
