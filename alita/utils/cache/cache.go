@@ -29,8 +29,11 @@ var (
 // DataCachePrefix separates replaceable snapshots from operational Redis state.
 const DataCachePrefix = "alita:cache:"
 
+// contextTimeout is the budget ContextWithTimeout grants; a var so tests can shrink it.
+var contextTimeout = 5 * time.Second
+
 func ContextWithTimeout() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(Context, 5*time.Second)
+	return context.WithTimeout(Context, contextTimeout)
 }
 
 func GetMarshal() *marshaler.Marshaler {
@@ -120,9 +123,7 @@ func InitCache() error {
 	client.AddHook(metrics.RedisHook{})
 
 	if config.AppConfig.ClearCacheOnStartup {
-		if err := clearWithClient(client); err != nil {
-			log.Warnf("[Cache] Failed to clear caches on startup: %v", err)
-		}
+		clearOnStartup(client)
 	}
 
 	redisStore := gocache_store.NewRedis(client)
@@ -162,6 +163,15 @@ func newRedisOptions(cfg *config.Config) (*redis.Options, error) {
 	return options, nil
 }
 
+// clearOnStartup wipes the data cache before the bot serves traffic. A clear
+// that stops early leaves stale snapshots behind, so it is an Error, but not
+// fatal: the bot still starts, as it did before.
+func clearOnStartup(client *redis.Client) {
+	if err := clearWithClient(client); err != nil {
+		log.Errorf("[Cache] Startup cache clear did not finish, stale %s* keys may remain: %v", DataCachePrefix, err)
+	}
+}
+
 func ClearAllCaches() error {
 	client := GetRedisClient()
 	if client == nil {
@@ -170,25 +180,41 @@ func ClearAllCaches() error {
 	return clearWithClient(client)
 }
 
+// clearWithClient deletes every DataCachePrefix key. Each SCAN and UNLINK gets
+// its own ContextWithTimeout: with ContextTimeoutEnabled the deadline cuts the
+// socket, so one budget for the whole walk would abort a large keyspace midway.
+// On failure the error says how many keys were already removed.
 func clearWithClient(client *redis.Client) error {
-	ctx, cancel := ContextWithTimeout()
-	defer cancel()
 	var cursor uint64
+	deleted := 0
 	for {
-		keys, next, err := client.Scan(ctx, cursor, DataCachePrefix+"*", 100).Result()
+		keys, next, err := scanDataKeys(client, cursor)
 		if err != nil {
-			return fmt.Errorf("failed to scan cached data: %w", err)
+			return fmt.Errorf("failed to scan cached data after clearing %d keys: %w", deleted, err)
 		}
 		if len(keys) != 0 {
-			if err := client.Unlink(ctx, keys...).Err(); err != nil {
-				return fmt.Errorf("failed to clear cached data: %w", err)
+			if err := unlinkKeys(client, keys); err != nil {
+				return fmt.Errorf("failed to clear cached data after clearing %d keys: %w", deleted, err)
 			}
+			deleted += len(keys)
 		}
 		if next == 0 {
 			return nil
 		}
 		cursor = next
 	}
+}
+
+func scanDataKeys(client *redis.Client, cursor uint64) ([]string, uint64, error) {
+	ctx, cancel := ContextWithTimeout()
+	defer cancel()
+	return client.Scan(ctx, cursor, DataCachePrefix+"*", 100).Result()
+}
+
+func unlinkKeys(client *redis.Client, keys []string) error {
+	ctx, cancel := ContextWithTimeout()
+	defer cancel()
+	return client.Unlink(ctx, keys...).Err()
 }
 
 func GetRedisClient() *redis.Client {
