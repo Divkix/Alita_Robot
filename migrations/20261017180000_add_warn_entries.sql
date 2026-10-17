@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS warn_entries (
 CREATE INDEX IF NOT EXISTS idx_warn_entries_chat_user
 ON warn_entries (chat_id, user_id, id);
 
+-- Backs fk_warn_entries_user: deleting or renumbering a users row looks up
+-- its entries by user_id alone, which the (chat_id, ...) index cannot serve.
+CREATE INDEX IF NOT EXISTS idx_warn_entries_user_id
+ON warn_entries (user_id);
+
 -- Copy existing reasons in order. Users that already have entries are
 -- skipped, so a second run copies nothing. A JSON null in the array comes out
 -- as SQL NULL; it is stored as '' (what the bot reads it as) rather than

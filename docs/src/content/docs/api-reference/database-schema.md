@@ -794,10 +794,14 @@ One row per warn: its reason, who issued it and when. `warns_users` keeps the co
 #### Indexes
 
 - `idx_warn_entries_chat_user` (on `chat_id`, `user_id`, `id`)
+- `idx_warn_entries_user_id` (on `user_id`)
 
 #### Foreign Keys
 
-None. The bot deletes a user's entries in the same transaction as their `warns_users` row.
+- `user_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+There is no foreign key to `warns_users`: the bot deletes a user's entries in the same transaction as their `warns_users` row.
 
 ## Entity Relationships
 
