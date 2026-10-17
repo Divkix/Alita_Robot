@@ -52,12 +52,13 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 	langKb := m.genFullLanguageKb()
 	if args := ctx.Args(); ctx.Message.Chat.Type == "private" && len(args) > 1 && strings.EqualFold(args[1], "group") {
 		// /lang group in PM: pick the language of the connected group.
-		if resolveAdminChat(b, ctx, false) == nil {
+		group := resolveAdminChat(b, ctx, false)
+		if group == nil {
 			return ext.EndGroups
 		}
 		groupLang := lang.GetLanguage(ctx)
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
-		langKb = keyboard.MakeGroupLanguageKeyboard()
+		langKb = keyboard.MakeGroupLanguageKeyboard(group.Id)
 	} else if ctx.Message.Chat.Type == "private" {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
@@ -102,7 +103,8 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	language, forGroup := "", false
-	if decoded, ok := decodeCallbackData(query.Data, "change_language"); ok {
+	decoded, ok := decodeCallbackData(query.Data, "change_language")
+	if ok {
 		language, _ = decoded.Field("l")
 		g, _ := decoded.Field("g")
 		forGroup = g == "1"
@@ -126,12 +128,12 @@ func (moduleStruct) langBtnHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(language)
 
 	if forGroup && chat.Type == "private" {
-		// Button from /lang group in PM: change the connected group.
-		connected := chat_status.IsUserConnected(b, ctx, true, false)
-		if connected == nil {
+		// Button from /lang group in PM: change the group it was sent for.
+		group := callbackAdminChat(b, ctx, query, decoded, false)
+		if group == nil {
 			return ext.EndGroups
 		}
-		chat = connected
+		chat = group
 	}
 
 	if chat.Type != "private" {
