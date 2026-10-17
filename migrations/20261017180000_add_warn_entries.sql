@@ -3,7 +3,9 @@
 -- warns_users keeps num_warns and its warns jsonb array of reasons; the bot
 -- still writes both, so an older release reads valid data after a rollback.
 -- There is deliberately no foreign key to warns_users: the bot deletes a
--- user's entries in the same transaction as their warns_users row.
+-- user's entries in the same transaction as their warns_users row. The keys
+-- to chats and users match warns_users, so deleting a chat or user drops its
+-- entries with its warns.
 --
 -- warned_by = 0 and warned_at IS NULL mean "unknown" (copied from warns below,
 -- or restored from a backup that predates this table).
@@ -12,8 +14,10 @@
 
 CREATE TABLE IF NOT EXISTS warn_entries (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    chat_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL CONSTRAINT fk_warn_entries_user
+        REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    chat_id BIGINT NOT NULL CONSTRAINT fk_warn_entries_chat
+        REFERENCES chats(chat_id) ON DELETE CASCADE ON UPDATE CASCADE,
     reason TEXT NOT NULL DEFAULT '',
     warned_by BIGINT NOT NULL DEFAULT 0,
     anonymous BOOLEAN NOT NULL DEFAULT FALSE,
