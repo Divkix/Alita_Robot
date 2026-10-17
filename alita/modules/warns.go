@@ -176,7 +176,7 @@ func warnIssuerLabel(b *gotgbot.Bot, tr *i18n.Translator, e models.WarnEntry) st
 	switch {
 	case e.Anonymous:
 		key = "warns_issuer_anonymous"
-	case e.WarnedBy == b.Id:
+	case e.WarnedBy == b.Id || e.WarnedBy == models.WarnedByBot:
 		key = "warns_issuer_auto"
 	case e.WarnedBy == 0:
 		key = "warns_issuer_unknown"

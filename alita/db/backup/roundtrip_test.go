@@ -147,7 +147,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	require.NoError(t, logchannels.Set(srcChat, "backup_source", logChannelID))
 	require.NoError(t, logchannels.SetCategory(srcChat, "admin", false))
 
-	exported, err := ExportChatData(srcChat, "source", 42, nil)
+	exported, err := ExportChatData(srcChat, "source", 42, nil, 0)
 	require.NoError(t, err)
 	require.Len(t, exported.Data, len(AllExportableModules()))
 
@@ -295,7 +295,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	assert.Equal(t, "Read", rulesData.Settings.RulesBtn)
 	assert.True(t, rulesData.Settings.Private)
 
-	warnsData, err := exportWarnsData(dstChat)
+	warnsData, err := exportWarnsData(dstChat, 0)
 	require.NoError(t, err)
 	require.NotNil(t, warnsData.WarnSettings)
 	assert.Equal(t, 7, warnsData.WarnSettings.WarnLimit)
@@ -325,7 +325,7 @@ func TestExportChatDataReturnsDatabaseErrors(t *testing.T) {
 	db.DB = nil
 	t.Cleanup(func() { db.DB = original })
 
-	_, err := ExportChatData(1, "chat", 2, []string{BackupModuleFilters})
+	_, err := ExportChatData(1, "chat", 2, []string{BackupModuleFilters}, 0)
 	require.ErrorContains(t, err, "database not initialized")
 }
 

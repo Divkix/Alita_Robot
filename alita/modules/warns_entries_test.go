@@ -236,6 +236,26 @@ func TestBlacklistWarnIsMarkedAutomatic(t *testing.T) {
 	}
 }
 
+func TestImportedBotWarnIsMarkedAutomatic(t *testing.T) {
+	useEnglishLocale(t)
+	automatic := translated(t, "warns_issuer_auto")
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	// What a backup from another bot account restores for its blacklist warn.
+	now := time.Now().UTC()
+	if err := db.DB.Create(&models.Warns{UserId: 42, ChatId: chat.Id, NumWarns: 1, Reasons: models.StringArray{"blacklisted"}}).Error; err != nil {
+		t.Fatalf("create warns: %v", err)
+	}
+	if err := db.DB.Create(&models.WarnEntry{UserId: 42, ChatId: chat.Id, Reason: "blacklisted", WarnedBy: models.WarnedByBot, WarnedAt: &now}).Error; err != nil {
+		t.Fatalf("create entry: %v", err)
+	}
+
+	if text := warnsListText(t, client, bot, chat, 42); !strings.Contains(text, "("+automatic+",") {
+		t.Fatalf("/warns text = %q, want the imported bot warn marked %q", text, automatic)
+	}
+}
+
 func TestWarnLimitListsIssuerOfEachWarn(t *testing.T) {
 	useEnglishLocale(t)
 	client := newModuleBotClient()

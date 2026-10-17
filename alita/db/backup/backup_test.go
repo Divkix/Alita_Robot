@@ -197,7 +197,7 @@ func TestModuleValidation(t *testing.T) {
 
 func TestExportModuleData(t *testing.T) {
 	t.Run("ExportModuleData for invalid module", func(t *testing.T) {
-		_, err := ExportModuleData(12345, "invalid_module")
+		_, err := ExportModuleData(12345, "invalid_module", 0)
 		assert.Error(t, err)
 	})
 
@@ -658,7 +658,7 @@ func TestExportModuleData_EdgeCases(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rulesData)
 
-	warnsData, err := exportWarnsData(chatID)
+	warnsData, err := exportWarnsData(chatID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, warnsData)
 }
@@ -681,7 +681,7 @@ func TestExportChatData_Full(t *testing.T) {
 		BackupModuleFilters,
 		BackupModuleRules,
 		BackupModuleCaptcha,
-	})
+	}, 0)
 	require.NoError(t, err)
 	require.NotNil(t, backup)
 	assert.Equal(t, chatID, backup.ChatID)

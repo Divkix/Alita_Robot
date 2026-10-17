@@ -58,6 +58,10 @@ type WarnEntry struct {
 	WarnedAt  *time.Time `gorm:"column:warned_at" json:"warned_at,omitempty"`
 }
 
+// WarnedByBot is the WarnedBy a backup stores for a warn the bot issued
+// itself, as the bot's own id means nothing to another bot account.
+const WarnedByBot int64 = -1
+
 func (WarnEntry) TableName() string {
 	return "warn_entries"
 }

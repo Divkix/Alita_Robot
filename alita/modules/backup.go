@@ -233,7 +233,7 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	bkp, err := backup.ExportChatData(chat.Id, chat.Title, user.Id, modules)
+	bkp, err := backup.ExportChatData(chat.Id, chat.Title, user.Id, modules, b.Id)
 	if err != nil {
 		log.Errorf("[Backup] Export failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_export_failed")
