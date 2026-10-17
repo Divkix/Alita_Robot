@@ -41,7 +41,11 @@ func connectedPMFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot
 			t.Fatalf("ConnectId(%d) error = %v", u.Id, err)
 		}
 	}
-	t.Cleanup(func() { connections.DisconnectId(settingsTestMemberID) })
+	t.Cleanup(func() {
+		if err := connections.DisconnectId(settingsTestMemberID); err != nil {
+			t.Errorf("DisconnectId(%d) error = %v", settingsTestMemberID, err)
+		}
+	})
 	return client, bot, groupA, admin, member
 }
 
@@ -349,7 +353,11 @@ func TestAnonAdminFromPMViaConnection(t *testing.T) {
 	if err := connections.ConnectId(owner.Id, groupA); err != nil {
 		t.Fatalf("ConnectId(owner) error = %v", err)
 	}
-	t.Cleanup(func() { connections.DisconnectId(owner.Id) })
+	t.Cleanup(func() {
+		if err := connections.DisconnectId(owner.Id); err != nil {
+			t.Errorf("DisconnectId(%d) error = %v", owner.Id, err)
+		}
+	})
 
 	runCommandInPM(t, bot, admin, "/anonadmin on", adminModule.anonAdmin)
 	if admin2 := readAnonAdmin(t, groupA); admin2 {

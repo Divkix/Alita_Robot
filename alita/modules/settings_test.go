@@ -46,7 +46,9 @@ func settingsFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot, g
 	}
 	t.Cleanup(func() {
 		settingsCandidateChats = original
-		connections.DisconnectId(settingsTestAdminID)
+		if err := connections.DisconnectId(settingsTestAdminID); err != nil {
+			t.Errorf("DisconnectId(%d) error = %v", settingsTestAdminID, err)
+		}
 	})
 	return client, bot, groupA, groupB
 }
