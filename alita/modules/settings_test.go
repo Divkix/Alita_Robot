@@ -187,7 +187,7 @@ func TestSettingsRefreshAndListButtons(t *testing.T) {
 	client.responses["getChat"] = json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":"Group A"}`, groupA))
 
 	refresh := newModuleCallbackContext(bot, privateChatOf(user), user,
-		encodeCallbackData("settings", map[string]string{"a": "r"}))
+		encodeCallbackData("settings", map[string]string{"a": "r", "c": fmt.Sprint(groupA)}))
 	if err := ConnectionsModule.settingsCallback(bot, refresh); err != ext.EndGroups {
 		t.Fatalf("refresh error = %v, want EndGroups", err)
 	}

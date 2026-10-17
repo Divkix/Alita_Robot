@@ -118,7 +118,7 @@ func settingsSummaryView(ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Ch
 	refresh, _ := tr.GetString("settings_btn_refresh")
 	other, _ := tr.GetString("settings_btn_other_group")
 	kb := gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{
-		{Text: refresh, CallbackData: encodeCallbackData("settings", map[string]string{"a": "r"})},
+		{Text: refresh, CallbackData: encodeCallbackData("settings", map[string]string{"a": "r", "c": strconv.FormatInt(chat.Id, 10)})},
 		{Text: other, CallbackData: encodeCallbackData("settings", map[string]string{"a": "l"})},
 	}}}
 	return text, kb
@@ -173,7 +173,7 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, kb = settingsSummaryView(ctx, tr, chat)
 	case "r":
-		chat := chat_status.IsUserConnected(b, ctx, true, false)
+		chat := callbackAdminChat(b, ctx, query, decoded, false)
 		if chat == nil {
 			return ext.EndGroups
 		}

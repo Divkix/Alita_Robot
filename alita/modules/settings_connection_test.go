@@ -242,6 +242,63 @@ func TestAntiraidFromPMRejectsNonAdmin(t *testing.T) {
 	}
 }
 
+// lastEdit returns the latest editMessageText call.
+func lastEdit(t *testing.T, client *moduleBotClient) moduleBotCall {
+	t.Helper()
+	edits := client.callsFor("editMessageText")
+	if len(edits) == 0 {
+		t.Fatal("no editMessageText call")
+	}
+	return edits[len(edits)-1]
+}
+
+func summaryTitle(group int64) string {
+	return fmt.Sprintf("<b>Group %d</b>", group)
+}
+
+func TestSettingsRefreshInPMShowsShownGroup(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	groupC := extraGroup(t, client, adminListJSON(settingsTestAdminID), groupA)
+
+	pressInPM(t, bot, admin, encodeCallbackData("settings",
+		map[string]string{"a": "p", "c": fmt.Sprint(groupA)}), ConnectionsModule.settingsCallback)
+	refresh := markupOf(t, lastEdit(t, client)).InlineKeyboard[0][0].CallbackData
+	if len(refresh) > 64 {
+		t.Fatalf("refresh callback data is %d bytes, want <= 64", len(refresh))
+	}
+	if err := connections.ConnectId(admin.Id, groupC); err != nil {
+		t.Fatalf("ConnectId(C) error = %v", err)
+	}
+	pressInPM(t, bot, admin, refresh, ConnectionsModule.settingsCallback)
+
+	text := fmt.Sprint(lastEdit(t, client).Params["text"])
+	if strings.Contains(text, summaryTitle(groupC)) {
+		t.Fatal("old summary's refresh showed the group connected later")
+	}
+	if !strings.Contains(text, summaryTitle(groupA)) {
+		t.Fatalf("refresh did not show the group it was sent for: %s", text)
+	}
+	if conn := connections.Connection(admin.Id); conn.ChatId != groupC {
+		t.Fatalf("refresh changed the connection to %d, want %d kept", conn.ChatId, groupC)
+	}
+	assertNothingSentTo(t, client, groupA, groupC)
+}
+
+func TestSettingsRefreshInPMRejectsForgedGroup(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	groupB := extraGroup(t, client, adminListJSON(), groupA)
+
+	pressInPM(t, bot, admin, encodeCallbackData("settings",
+		map[string]string{"a": "r", "c": fmt.Sprint(groupB)}), ConnectionsModule.settingsCallback)
+
+	if edits := client.callsFor("editMessageText"); len(edits) != 0 {
+		t.Fatalf("forged refresh rendered a summary: %v", edits[0].Params["text"])
+	}
+	if answers := client.callsFor("answerCallbackQuery"); len(answers) != 1 || answers[0].Params["show_alert"] != true {
+		t.Fatalf("answerCallbackQuery calls = %+v, want one refusal alert", answers)
+	}
+}
+
 func runCommandInPM(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, text string, handler func(*helpers.CommandContext) error) {
 	t.Helper()
 	ctx := newModuleMessageContext(bot, privateChatOf(user), user, text)
