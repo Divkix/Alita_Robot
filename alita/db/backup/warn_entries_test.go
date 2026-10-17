@@ -283,7 +283,7 @@ func TestImportWarnsRejectsEntryForUnknownUser(t *testing.T) {
 // lock warn writes hold, a first warn cannot commit between the two.
 func TestWarnsImportAndClearWaitForTheChatLock(t *testing.T) {
 	skipIfNoDb(t)
-	if db.DB.Dialector.Name() != "postgres" {
+	if db.DB.Name() != "postgres" {
 		t.Skip("row locks need Postgres")
 	}
 	ops := map[string]func(chatID, userID int64) error{
