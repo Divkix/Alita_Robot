@@ -142,6 +142,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Use real fixtures: `internal/testdb.Run` (SQLite), miniredis, hand-written `gotgbot.BotClient` fakes. No mock libraries.
 - Assert observable behavior (reply sent, row persisted, cache invalidated, gate enforced). Never assert literals,
   source substrings, or test-double internals.
+- Handler tests act as `newAdminChatFixture`'s admin, not 777000/1087968824: those skip the admin cache. Use them
+  only to test those IDs.
 - In CI, keep the migration-chain step before `make test`; its `schema_migrations` rows back the checksum test.
 
 ## Commits

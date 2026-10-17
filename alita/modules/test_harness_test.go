@@ -185,6 +185,74 @@ func (c *moduleBotClient) callsFor(method string) []moduleBotCall {
 	return calls
 }
 
+// onlyCall fails unless method was called exactly once, and returns that call.
+func (c *moduleBotClient) onlyCall(t *testing.T, method string) moduleBotCall {
+	t.Helper()
+	calls := c.callsFor(method)
+	if len(calls) != 1 {
+		t.Fatalf("%s calls = %d, want 1", method, len(calls))
+	}
+	return calls[0]
+}
+
+// assertParams fails unless each wanted param prints the same as the sent one.
+func assertParams(t *testing.T, call moduleBotCall, want map[string]any) {
+	t.Helper()
+	for key, value := range want {
+		got, ok := call.Params[key]
+		if !ok {
+			t.Errorf("%s: param %q missing, want %v", call.Method, key, value)
+			continue
+		}
+		if fmt.Sprint(got) != fmt.Sprint(value) {
+			t.Errorf("%s: param %q = %v, want %v", call.Method, key, got, value)
+		}
+	}
+}
+
+// targetParams is the chat_id/user_id pair a member-targeting call must carry.
+func targetParams(chatID, userID int64) map[string]any {
+	return map[string]any{"chat_id": chatID, "user_id": userID}
+}
+
+// adminChatFixture is a supergroup whose admin is an ordinary user ID. The
+// admin passes permission checks only through the real admin-cache load
+// (getChatMember for the bot, then getChatAdministrators), unlike 777000 and
+// 1087968824, which chat_status treats as admins without any lookup.
+type adminChatFixture struct {
+	client *moduleBotClient
+	bot    *gotgbot.Bot
+	chat   gotgbot.Chat
+	admin  gotgbot.User
+	// member is a plain member, absent from the admin list.
+	member gotgbot.User
+}
+
+const fixtureAdminRights = `"can_manage_chat":true,"can_delete_messages":true,"can_restrict_members":true,` +
+	`"can_promote_members":true,"can_change_info":true,"can_invite_users":true,"can_pin_messages":true`
+
+// newAdminChatFixture lists a unique admin with every right next to the bot.
+func newAdminChatFixture(t *testing.T) adminChatFixture {
+	t.Helper()
+	client := newModuleBotClient()
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Fixture Chat"}
+	admin := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Admin"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+
+	adminJSON := fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},%s}`, admin.Id, fixtureAdminRights)
+	botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + fixtureAdminRights + `}`
+	client.adminsByChat = map[string]json.RawMessage{
+		fmt.Sprint(chat.Id): json.RawMessage("[" + botJSON + "," + adminJSON + "]"),
+	}
+	client.membersByUser = map[string]json.RawMessage{fmt.Sprint(admin.Id): json.RawMessage(adminJSON)}
+	client.chatsByID = map[string]json.RawMessage{
+		fmt.Sprint(chat.Id): json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":%q}`, chat.Id, chat.Title)),
+	}
+	t.Cleanup(func() { cache.InvalidateAdminCache(chat.Id) })
+
+	return adminChatFixture{client: client, bot: newModuleTestBot(client), chat: chat, admin: admin, member: member}
+}
+
 func newModuleMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.User, text string) *ext.Context {
 	msg := &gotgbot.Message{
 		MessageId: 101,
