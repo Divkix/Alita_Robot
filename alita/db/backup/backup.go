@@ -1164,7 +1164,8 @@ func clearWarns(tx *gorm.DB, chatID int64) ([]string, error) {
 	if err := tx.Model(&models.Warns{}).Where("chat_id = ?", chatID).Pluck("user_id", &userIDs).Error; err != nil {
 		return nil, err
 	}
-	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3}); err != nil {
+	// "mute" is the mode a chat without settings gets; Postgres rejects ''.
+	if err := replaceChatSetting(tx, chatID, &models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: "mute"}); err != nil {
 		return nil, err
 	}
 	if err := replaceChatRows[models.Warns](tx, chatID, nil); err != nil {

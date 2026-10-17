@@ -553,7 +553,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	require.NoError(t, warns.SetWarnMode(chatID, "ban", 0))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleWarns))
 	assert.Equal(t, 3, warns.GetWarnSetting(chatID).WarnLimit)
-	assert.Equal(t, "", warns.GetWarnSetting(chatID).WarnMode)
+	assert.Equal(t, "mute", warns.GetWarnSetting(chatID).WarnMode, "a cleared chat falls back to the default mode")
 
 	require.NoError(t, locks.UpdateLock(chatID, " stickers", true))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleLocks))
