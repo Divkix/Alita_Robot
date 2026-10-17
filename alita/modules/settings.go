@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -187,9 +188,11 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 	}
 
 	// The connected group stays listed when the budget cuts its check: the user
-	// chose it, and tapping it re-checks their rights.
+	// chose it, and tapping it re-checks their rights. A panicking admin-list
+	// load leaves it out like any group, since tapping it would panic again.
 	if conn := connections.Connection(userID); conn.Connected && conn.ChatId != 0 {
-		if isAdmin, err := chat_status.IsUserAdminWithContext(checkCtx, b, conn.ChatId, userID); isAdmin || err != nil {
+		isAdmin, err := chat_status.IsUserAdminWithContext(checkCtx, b, conn.ChatId, userID)
+		if isAdmin || (err != nil && !settingsPickerLoadPanicked(err)) {
 			title := ""
 			if info, err := chats.GetChatBasicInfoCached(conn.ChatId); err == nil && info != nil {
 				title = info.ChatName
@@ -231,14 +234,26 @@ func settingsPickerEntries(b *gotgbot.Bot, ctx *ext.Context, userID int64) []set
 			break
 		}
 		isAdmin, err := chat_status.IsUserAdminWithContext(checkCtx, b, candidate.ChatId, userID)
-		if checkCtx.Err() != nil {
-			break
-		}
+		settingsPickerLoadPanicked(err)
 		if err == nil && isAdmin {
 			addChat(candidate.ChatId, candidate.ChatName)
 		}
+		if checkCtx.Err() != nil {
+			break
+		}
 	}
 	return entries
+}
+
+// settingsPickerLoadPanicked logs an admin-list load panic the picker received
+// instead of re-raising it, so it is still reported once.
+func settingsPickerLoadPanicked(err error) bool {
+	var loadPanic *cache.AdminLoadPanicError
+	if !errors.As(err, &loadPanic) {
+		return false
+	}
+	log.Errorf("[Settings] %v", loadPanic)
+	return true
 }
 
 func settingsSummaryView(ctx *ext.Context, tr *i18n.Translator, chat *gotgbot.Chat) (string, gotgbot.InlineKeyboardMarkup) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,14 +33,17 @@ func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
 	return ac
 }
 
-// AdminLoadPanicError carries a panic in the shared admin-list load to every
-// caller waiting on it, so a crashed load never reads as "no admins".
+// AdminLoadPanicError carries a panic in the shared admin-list load, with the
+// loader's stack, to every caller waiting on it, so a crashed load never reads
+// as "no admins". The caller that receives it reports it: a re-raised panic
+// reaches the dispatcher's log, and other callers log it themselves.
 type AdminLoadPanicError struct {
 	Value any
+	Stack []byte
 }
 
 func (e *AdminLoadPanicError) Error() string {
-	return fmt.Sprintf("admin list load panicked: %v", e.Value)
+	return fmt.Sprintf("admin list load panicked: %v\nStack trace:\n%s", e.Value, e.Stack)
 }
 
 // RethrowAdminLoadPanic panics again in the caller's goroutine when err is an
@@ -47,8 +51,17 @@ func (e *AdminLoadPanicError) Error() string {
 func RethrowAdminLoadPanic(err error) {
 	var loadPanic *AdminLoadPanicError
 	if errors.As(err, &loadPanic) {
-		panic(loadPanic.Value)
+		panic(loadPanic)
 	}
+}
+
+// adminLoadWaiters counts, per admin-cache key, the callers still waiting on
+// the shared load, so a panic no caller will receive is logged by the loader.
+var adminLoadWaiters sync.Map
+
+func adminLoadWaiterCount(key string) *atomic.Int32 {
+	count, _ := adminLoadWaiters.LoadOrStore(key, new(atomic.Int32))
+	return count.(*atomic.Int32)
 }
 
 // LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends
@@ -64,13 +77,19 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 	}
 
 	genBefore := adminCacheGeneration.Load()
+	key := adminCacheKey(chatId)
+	waiters := adminLoadWaiterCount(key)
+	waiters.Add(1)
 	// DoChan runs the load on its own goroutine and re-panics there, which
 	// would crash the process, so the load turns its panic into an error.
-	result := adminCacheGroup.DoChan(adminCacheKey(chatId), func() (v any, err error) {
+	result := adminCacheGroup.DoChan(key, func() (v any, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("[cache][LoadAdminCache] Recovered from panic: %v\nStack trace:\n%s", r, debug.Stack())
-				err = &AdminLoadPanicError{Value: r}
+				loadPanic := &AdminLoadPanicError{Value: r, Stack: debug.Stack()}
+				if waiters.Load() == 0 {
+					log.Errorf("[cache][LoadAdminCache] %v", loadPanic)
+				}
+				err = loadPanic
 			}
 		}()
 		return loadAdminCacheFromTelegram(b, chatId), nil
@@ -78,11 +97,13 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 	var v any
 	select {
 	case r := <-result:
+		waiters.Add(-1)
 		if r.Err != nil {
 			return AdminCache{}, r.Err
 		}
 		v = r.Val
 	case <-ctx.Done():
+		waiters.Add(-1)
 		return AdminCache{}, ctx.Err()
 	}
 	ac, _ := v.(AdminCache)

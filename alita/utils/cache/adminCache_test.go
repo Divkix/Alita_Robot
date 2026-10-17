@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestAdminCacheHelpersHandleNilMarshal(t *testing.T) {
@@ -388,5 +391,110 @@ func TestLoadAdminCachePanicIsNotAnEmptyAdminList(t *testing.T) {
 	}
 	if found, stored := GetAdminCacheList(chatID); found {
 		t.Fatalf("panicked load stored an admin list: %+v", stored)
+	}
+}
+
+// captureErrorLogs records the standard logger's entries for the test.
+func captureErrorLogs(t *testing.T) *logtest.Hook {
+	t.Helper()
+	logger := log.StandardLogger()
+	previous := logger.ReplaceHooks(make(log.LevelHooks))
+	for level, hooks := range previous {
+		logger.Hooks[level] = append(logger.Hooks[level], hooks...)
+	}
+	t.Cleanup(func() { logger.ReplaceHooks(previous) })
+	return logtest.NewLocal(logger)
+}
+
+func panicLogs(hook *logtest.Hook, text string) []*log.Entry {
+	var found []*log.Entry
+	for _, entry := range hook.AllEntries() {
+		if entry.Level <= log.ErrorLevel && strings.Contains(entry.Message, text) {
+			found = append(found, entry)
+		}
+	}
+	return found
+}
+
+// A load panic that reaches a waiting caller is logged once, by that caller's
+// handler: the loader stays quiet and the re-raised panic carries its stack.
+func TestLoadAdminCachePanicIsLoggedOnceByItsCaller(t *testing.T) {
+	withMemoryMarshaler(t)
+	hook := captureErrorLogs(t)
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+	}}
+	bot := newAdminCacheBot(inner)
+	bot.BotClient = &panickingAdminListClient{inner: inner}
+
+	recovered := func() (r any) {
+		defer func() { r = recover() }()
+		LoadAdminCache(bot, -100781)
+		return nil
+	}()
+	if recovered == nil {
+		t.Fatal("LoadAdminCache returned after the load panicked, want the panic passed on")
+	}
+	if got := fmt.Sprint(recovered); !strings.Contains(got, "admin list exploded") || !strings.Contains(got, "loadAdminCacheFromTelegram") {
+		t.Fatalf("re-raised panic = %q, want the value and the loader's stack", got)
+	}
+	if logs := panicLogs(hook, "admin list exploded"); len(logs) != 0 {
+		t.Fatalf("loader logged the panic its caller re-raises: %d entries", len(logs))
+	}
+}
+
+// stalledPanickingAdminListClient panics in getChatAdministrators once released.
+type stalledPanickingAdminListClient struct {
+	inner   *adminCacheBotClient
+	started chan struct{}
+	release chan struct{}
+	done    chan struct{}
+}
+
+func (c *stalledPanickingAdminListClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		close(c.started)
+		<-c.release
+		defer close(c.done)
+		panic("orphaned admin list exploded")
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *stalledPanickingAdminListClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *stalledPanickingAdminListClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+// A load panic after every caller stopped waiting still gets one log entry.
+func TestLoadAdminCachePanicWithNoCallerLeftIsLoggedOnce(t *testing.T) {
+	withMemoryMarshaler(t)
+	hook := captureErrorLogs(t)
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+	}}
+	client := &stalledPanickingAdminListClient{inner: inner, started: make(chan struct{}), release: make(chan struct{}), done: make(chan struct{})}
+	bot := newAdminCacheBot(inner)
+	bot.BotClient = client
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { <-client.started; cancel() }()
+	if _, err := LoadAdminCacheWithContext(ctx, bot, -100782); !errors.Is(err, context.Canceled) {
+		t.Fatalf("LoadAdminCacheWithContext error = %v, want context.Canceled", err)
+	}
+	close(client.release)
+	<-client.done
+
+	deadline := time.Now().Add(2 * time.Second)
+	for len(panicLogs(hook, "orphaned admin list exploded")) == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond)
+	logs := panicLogs(hook, "orphaned admin list exploded")
+	if len(logs) != 1 || !strings.Contains(logs[0].Message, "loadAdminCacheFromTelegram") {
+		t.Fatalf("panic log entries = %d, want one with the loader's stack", len(logs))
 	}
 }
