@@ -103,10 +103,13 @@ func dataKeyCount(server *miniredis.Miniredis) int {
 // keyspace whose whole walk outlasts one budget must still be cleared.
 func TestClearWithClientBudgetIsPerStepNotPerWalk(t *testing.T) {
 	server := miniredis.RunT(t)
-	seedDataKeys(t, server, 600) // 6 SCAN + 6 UNLINK steps at COUNT 100
-	setContextTimeout(t, 300*time.Millisecond)
-	// 12 steps x 40 ms = ~480 ms walk, each step far inside the 300 ms budget.
-	client := newClearClient(t, server, commandHook{delay: 40 * time.Millisecond, pageSize: 100})
+	seedDataKeys(t, server, 600) // 30 SCAN + 30 UNLINK steps at a page of 20
+	setContextTimeout(t, time.Second)
+	// 60 steps x 20 ms = at least 1.2 s of sleeping, so the walk always
+	// outlasts the budget (sleeps only ever add time). A single step has 50x
+	// headroom, so scheduler stalls under -race and parallel packages do not
+	// push one past the budget.
+	client := newClearClient(t, server, commandHook{delay: 20 * time.Millisecond, pageSize: 20})
 
 	if err := clearWithClient(client); err != nil {
 		t.Fatalf("clearWithClient() error = %v", err)
