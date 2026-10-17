@@ -76,17 +76,27 @@ func DrainUsersAsyncWrites() {
 	usersAsyncWG.Wait()
 }
 
-func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
+// throttleEntry is the value stored in the update caches: when the last write
+// for a key was let through and the identity fields it carried. Fields that
+// differ from the cached ones (a rename) bypass the interval.
+type throttleEntry struct {
+	at    time.Time
+	state [2]string
+}
+
+func shouldUpdateKey(cache *sync.Map, key any, state [2]string, interval time.Duration) bool {
 	now := time.Now()
+	next := throttleEntry{at: now, state: state}
 	for {
-		lastUpdate, loaded := cache.LoadOrStore(key, now)
+		prev, loaded := cache.LoadOrStore(key, next)
 		if !loaded {
 			return true
 		}
-		if now.Sub(lastUpdate.(time.Time)) < interval {
+		last := prev.(throttleEntry)
+		if last.state == state && now.Sub(last.at) < interval {
 			return false
 		}
-		if cache.CompareAndSwap(key, lastUpdate, now) {
+		if cache.CompareAndSwap(key, prev, next) {
 			return true
 		}
 	}
@@ -96,8 +106,8 @@ func shouldUpdateKey(cache *sync.Map, key any, interval time.Duration) bool {
 // already treats them as expired, this only bounds memory.
 func sweepUpdateCache(cache *sync.Map, now time.Time, interval time.Duration) {
 	cache.Range(func(key, value any) bool {
-		if ts, ok := value.(time.Time); ok && now.Sub(ts) >= interval {
-			cache.CompareAndDelete(key, ts)
+		if entry, ok := value.(throttleEntry); ok && now.Sub(entry.at) >= interval {
+			cache.CompareAndDelete(key, entry)
 		}
 		return true
 	})
@@ -116,17 +126,21 @@ func usersThrottleSweepLoop() {
 	}
 }
 
-func shouldUpdate(cache *sync.Map, id int64, interval time.Duration) bool {
-	return shouldUpdateKey(cache, id, interval)
+func shouldUpdateUser(cache *sync.Map, userID int64, username, name string, interval time.Duration) bool {
+	return shouldUpdateKey(cache, userID, [2]string{username, name}, interval)
 }
 
-func shouldUpdateChatMember(cache *sync.Map, chatID, userID int64, interval time.Duration) bool {
-	return shouldUpdateKey(cache, [2]int64{chatID, userID}, interval)
+func shouldUpdateChannel(cache *sync.Map, channelID int64, channelName, username string, interval time.Duration) bool {
+	return shouldUpdateKey(cache, channelID, [2]string{channelName, username}, interval)
+}
+
+func shouldUpdateChatMember(cache *sync.Map, chatID int64, chatName string, userID int64, interval time.Duration) bool {
+	return shouldUpdateKey(cache, [2]int64{chatID, userID}, [2]string{chatName}, interval)
 }
 
 func updateCurrentUser(userID int64, username, name string) {
 	_, _, _ = userUpdateGroup.Do(strconv.FormatInt(userID, 10), func() (any, error) {
-		if shouldUpdate(userUpdateCache, userID, userUpdateInterval) {
+		if shouldUpdateUser(userUpdateCache, userID, username, name, userUpdateInterval) {
 			asyncUpdateUser(userID, username, name)
 		}
 		return nil, nil
@@ -136,7 +150,7 @@ func updateCurrentUser(userID int64, username, name string) {
 func updateCurrentChat(chatID int64, chatName string, userID int64) {
 	key := strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
 	_, _, _ = chatUpdateGroup.Do(key, func() (any, error) {
-		if shouldUpdateChatMember(chatUpdateCache, chatID, userID, chatUpdateInterval) {
+		if shouldUpdateChatMember(chatUpdateCache, chatID, chatName, userID, chatUpdateInterval) {
 			asyncUpdateChat(chatID, chatName, userID)
 		}
 		return nil, nil
@@ -151,9 +165,9 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 
 	if user != nil {
 		if user.IsAnonymousChannel() {
-			if shouldUpdate(channelUpdateCache, user.Id(), channelUpdateInterval) {
-				log.Debugf("Updating channel %d in db", user.Id())
-				uid, uname, username := user.Id(), user.Name(), user.Username()
+			uid, uname, username := user.Id(), user.Name(), user.Username()
+			if shouldUpdateChannel(channelUpdateCache, uid, uname, username, channelUpdateInterval) {
+				log.Debugf("Updating channel %d in db", uid)
 				spawnAsyncUpdate(func() { asyncUpdateChannel(uid, uname, username) })
 			}
 		} else {
@@ -169,15 +183,15 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 		replySender := repliedMsg.GetSender()
 		if replySender != nil {
 			if replySender.IsAnonymousChannel() {
-				if shouldUpdate(channelUpdateCache, replySender.Id(), channelUpdateInterval) {
-					log.Debugf("Updating channel %d in db", replySender.Id())
-					sid, sname, susername := replySender.Id(), replySender.Name(), replySender.Username()
+				sid, sname, susername := replySender.Id(), replySender.Name(), replySender.Username()
+				if shouldUpdateChannel(channelUpdateCache, sid, sname, susername, channelUpdateInterval) {
+					log.Debugf("Updating channel %d in db", sid)
 					spawnAsyncUpdate(func() { asyncUpdateChannel(sid, sname, susername) })
 				}
 			} else {
-				if shouldUpdate(userUpdateCache, replySender.Id(), userUpdateInterval) {
-					log.Debugf("Updating user %d in db", replySender.Id())
-					sid, susername, sname := replySender.Id(), replySender.Username(), replySender.Name()
+				sid, susername, sname := replySender.Id(), replySender.Username(), replySender.Name()
+				if shouldUpdateUser(userUpdateCache, sid, susername, sname, userUpdateInterval) {
+					log.Debugf("Updating user %d in db", sid)
 					spawnAsyncUpdate(func() { asyncUpdateUser(sid, susername, sname) })
 				}
 			}
@@ -187,15 +201,15 @@ func (moduleStruct) logUsers(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if msg.ForwardOrigin != nil {
 		forwarded := msg.ForwardOrigin.MergeMessageOrigin()
 		if forwarded.Chat != nil && forwarded.Chat.Type != "group" {
-			if shouldUpdate(channelUpdateCache, forwarded.Chat.Id, channelUpdateInterval) {
-				cid, ctitle, cusername := forwarded.Chat.Id, forwarded.Chat.Title, forwarded.Chat.Username
+			cid, ctitle, cusername := forwarded.Chat.Id, forwarded.Chat.Title, forwarded.Chat.Username
+			if shouldUpdateChannel(channelUpdateCache, cid, ctitle, cusername, channelUpdateInterval) {
 				spawnAsyncUpdate(func() { asyncUpdateChannel(cid, ctitle, cusername) })
 			}
 		} else if forwarded.SenderUser != nil {
-			if shouldUpdate(userUpdateCache, forwarded.SenderUser.Id, userUpdateInterval) {
-				fuid := forwarded.SenderUser.Id
-				fusername := forwarded.SenderUser.Username
-				fname := formatting.GetFullName(forwarded.SenderUser.FirstName, forwarded.SenderUser.LastName)
+			fuid := forwarded.SenderUser.Id
+			fusername := forwarded.SenderUser.Username
+			fname := formatting.GetFullName(forwarded.SenderUser.FirstName, forwarded.SenderUser.LastName)
+			if shouldUpdateUser(userUpdateCache, fuid, fusername, fname, userUpdateInterval) {
 				spawnAsyncUpdate(func() { asyncUpdateUser(fuid, fusername, fname) })
 			}
 		}
