@@ -88,10 +88,8 @@ func ensureWarnParents(t *testing.T, chatID, userID int64) {
 
 func TestWarnsListShowsIssuerAndTime(t *testing.T) {
 	useEnglishLocale(t)
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, issuer := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	setUserName(t, issuer.Id, "Mod Squad")
 
@@ -166,10 +164,8 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 		if m == nil {
 			t.Skip("requires initialized cache marshaler")
 		}
-		client := newModuleBotClient()
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Anon Chat"}
-		clicker := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, clicker := f.client, f.bot, f.chat, f.admin
 		setUserName(t, clicker.Id, "Hidden Mod")
 
 		command := &gotgbot.Message{
@@ -204,7 +200,7 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 		if !strings.Contains(text, "button spam") || !strings.Contains(text, anonymous) {
 			t.Fatalf("/warns text = %q, want reason marked %q", text, anonymous)
 		}
-		if strings.Contains(text, "Hidden Mod") || strings.Contains(text, "777000") {
+		if strings.Contains(text, "Hidden Mod") || strings.Contains(text, fmt.Sprint(clicker.Id)) {
 			t.Fatalf("/warns text = %q reveals the anonymous admin", text)
 		}
 	})
@@ -275,10 +271,8 @@ func TestImportedBotWarnIsMarkedAutomatic(t *testing.T) {
 
 func TestWarnLimitListsIssuerOfEachWarn(t *testing.T) {
 	useEnglishLocale(t)
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, issuer := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	setUserName(t, issuer.Id, "Limit <Mod>")
 	limitCtx := newModuleMessageContext(bot, chat, issuer, "/setwarnlimit 1")
@@ -299,10 +293,8 @@ func TestWarnLimitListsIssuerOfEachWarn(t *testing.T) {
 
 func TestWarnLimitSplitsLongList(t *testing.T) {
 	useEnglishLocale(t)
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, issuer := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	for i := range 2 {
 		reason := fmt.Sprintf("%d %s", i, strings.Repeat("x", 2500))
@@ -388,10 +380,8 @@ func TestWarnReplyWithLongEscapedReasonSendsValidHTML(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			useEnglishLocale(t)
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-			issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			f := newAdminChatFixture(t)
+			client, bot, chat, issuer := f.client, f.bot, f.chat, f.admin
 			target := gotgbot.User{Id: 42, FirstName: "Member"}
 			if tc.limit != 3 {
 				limitCtx := newModuleMessageContext(bot, chat, issuer, fmt.Sprintf("/setwarnlimit %d", tc.limit))

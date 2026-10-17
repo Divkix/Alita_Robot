@@ -35,10 +35,8 @@ func newWarnReplyContext(
 }
 
 func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	limitCtx := newModuleMessageContext(bot, chat, admin, "/setwarnlimit 5")
 	if err := warnsModule.setWarnLimit(bot, limitCtx); err != ext.EndGroups {
@@ -106,10 +104,8 @@ func TestWarnSettingsCommandsUpdateAndDisplay(t *testing.T) {
 }
 
 func TestWarnsCommandHandlesNoWarningsAndMissingTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	noWarnsCtx := newModuleMessageContext(bot, chat, admin, "/warns 42")
 	if err := warnsModule.warns(bot, noWarnsCtx); err != ext.EndGroups {
@@ -135,10 +131,8 @@ func TestWarnsCommandHandlesNoWarningsAndMissingTargets(t *testing.T) {
 }
 
 func TestWarnCommandsRejectChannelTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, tt := range []struct {
 		name string
@@ -169,10 +163,8 @@ func TestWarnCommandsRejectChannelTargets(t *testing.T) {
 }
 
 func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn too noisy")
@@ -185,6 +177,9 @@ func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
 	}
 	if len(reasons) != 1 || reasons[0].Reason != "too noisy" {
 		t.Fatalf("reasons = %v, want [too noisy]", reasons)
+	}
+	if reasons[0].WarnedBy != admin.Id {
+		t.Fatalf("warn issued by %d, want admin %d", reasons[0].WarnedBy, admin.Id)
 	}
 
 	listCtx := newModuleMessageContext(bot, chat, admin, "/warns 42")
@@ -202,10 +197,8 @@ func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
 }
 
 func TestWarnsListsCountWhenReasonsAreEmpty(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	if err := db.DB.Create(&models.Warns{
 		UserId:   42,
@@ -226,10 +219,8 @@ func TestWarnsListsCountWhenReasonsAreEmpty(t *testing.T) {
 }
 
 func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 		t.Fatalf("SetWarnLimit() error = %v", err)
@@ -242,9 +233,7 @@ func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
 	if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
 		t.Fatalf("warnUser() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("banChatMember"); len(calls) != 1 {
-		t.Fatalf("banChatMember calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, target.Id))
 	if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
 		t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
 	}
@@ -261,10 +250,8 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.mode, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 			target := gotgbot.User{Id: 42, FirstName: "Member"}
 			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 				t.Fatalf("SetWarnLimit() error = %v", err)
@@ -277,9 +264,7 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 			if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
 				t.Fatalf("warnUser() error = %v, want EndGroups", err)
 			}
-			if calls := client.callsFor(tc.wantMethod); len(calls) != 1 {
-				t.Fatalf("%s calls = %d, want 1", tc.wantMethod, len(calls))
-			}
+			assertParams(t, client.onlyCall(t, tc.wantMethod), targetParams(chat.Id, target.Id))
 			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
 				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
 			}
@@ -288,10 +273,8 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 }
 
 func TestSetWarnModeStoresTimedModeDuration(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	setMode := func(text string) {
 		t.Helper()
@@ -370,10 +353,8 @@ func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 			target := gotgbot.User{Id: 42, FirstName: "Member"}
 			settings := tc.settings
 			settings.ChatId = chat.Id
@@ -389,11 +370,9 @@ func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
 			}
 			after := time.Now().Unix()
 
-			calls := client.callsFor(tc.wantMethod)
-			if len(calls) != 1 {
-				t.Fatalf("%s calls = %d, want 1", tc.wantMethod, len(calls))
-			}
-			if until := untilDateParam(t, calls[0]); until < before+tc.wantTime || until > after+tc.wantTime {
+			call := client.onlyCall(t, tc.wantMethod)
+			assertParams(t, call, targetParams(chat.Id, target.Id))
+			if until := untilDateParam(t, call); until < before+tc.wantTime || until > after+tc.wantTime {
 				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.wantTime, before+tc.wantTime, after+tc.wantTime)
 			}
 			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
@@ -417,11 +396,9 @@ func TestWarnLimitTimedModesKeepWarnsWhenPunishmentFails(t *testing.T) {
 		{mode: "tmute", method: "restrictChatMember"},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
-			client := newModuleBotClient()
-			bot := newModuleTestBot(client)
-			client.errors[tc.method] = requestErr
-			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			f := newAdminChatFixture(t)
+			bot, chat, admin := f.bot, f.chat, f.admin
+			f.client.errors[tc.method] = requestErr
 			target := gotgbot.User{Id: 42, FirstName: "Member"}
 			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 				t.Fatalf("SetWarnLimit() error = %v", err)
@@ -442,19 +419,15 @@ func TestWarnLimitTimedModesKeepWarnsWhenPunishmentFails(t *testing.T) {
 }
 
 func TestSilentWarnDeletesCommandAndStoresReason(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newWarnReplyContext(bot, chat, admin, target, "/swarn quiet reason")
 	if err := warnsModule.sWarnUser(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("sWarnUser() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want command deletion", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.MessageId})
 	numWarns, reasons := warns.GetWarns(target.Id, chat.Id)
 	if numWarns != 1 {
 		t.Fatalf("numWarns = %d, want 1", numWarns)
@@ -465,19 +438,15 @@ func TestSilentWarnDeletesCommandAndStoresReason(t *testing.T) {
 }
 
 func TestDeleteWarnDeletesReplyAndStoresReason(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 
 	ctx := newWarnReplyContext(bot, chat, admin, target, "/dwarn remove this")
 	if err := warnsModule.dWarnUser(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("dWarnUser() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
-		t.Fatalf("deleteMessage calls = %d, want replied message deletion", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "deleteMessage"), map[string]any{"chat_id": chat.Id, "message_id": ctx.EffectiveMessage.ReplyToMessage.MessageId})
 	numWarns, reasons := warns.GetWarns(target.Id, chat.Id)
 	if numWarns != 1 {
 		t.Fatalf("numWarns = %d, want 1", numWarns)
@@ -488,10 +457,8 @@ func TestDeleteWarnDeletesReplyAndStoresReason(t *testing.T) {
 }
 
 func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	bot, chat, admin := f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "first"})
 
@@ -624,10 +591,8 @@ func TestWarnThisUserPropagatesGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestRmWarnButtonRemovesWarning(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
 	data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
@@ -645,10 +610,8 @@ func TestRmWarnButtonRemovesWarning(t *testing.T) {
 }
 
 func TestRmWarnButtonRejectsMalformedAndInvalidUserCallbacks(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	for _, data := range []string{"rmWarn", "rmWarn.not-a-number"} {
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
@@ -738,10 +701,9 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	_, _, _ = warns.WarnUser(42, chat.Id, models.WarnEntry{Reason: "first"})
 	data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 
@@ -767,10 +729,9 @@ func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 }
 
 func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	emptyCtx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
 	if err := warnsModule.resetAllWarns(bot, emptyCtx); err != nil {
