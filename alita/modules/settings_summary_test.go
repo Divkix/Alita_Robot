@@ -143,3 +143,38 @@ func TestSettingsSummaryEmptyWarnModeIsNotMute(t *testing.T) {
 	}
 	t.Fatal("summary has no /setwarnmode row")
 }
+
+// tban/tmute act for warn_action_time, so the summary shows it with the mode;
+// a row without a usable duration shows the 1h warnUser falls back to.
+func TestSettingsSummaryTimedWarnModeShowsDuration(t *testing.T) {
+	for _, tc := range []struct {
+		mode       string
+		actionTime int
+		want       string
+	}{
+		{"tban", 2 * 60 * 60, "tban 2h"},
+		{"tmute", 0, "tmute 1h"},
+		{"ban", 0, "ban"},
+	} {
+		chatID := newSettingsTestChat(t)
+		if err := db.DB.Create(&models.WarnSettings{ChatId: chatID, WarnLimit: 3, WarnMode: tc.mode, WarnActionTime: tc.actionTime}).Error; err != nil {
+			t.Fatalf("Create(WarnSettings) error = %v", err)
+		}
+		cache.ResetLocalForTest()
+
+		var got *settingsRow
+		for _, section := range collectChatSettings(context.Background(), chatID) {
+			for i := range section.Rows {
+				if section.Rows[i].Command == "/setwarnmode" {
+					got = &section.Rows[i]
+				}
+			}
+		}
+		if got == nil {
+			t.Fatal("summary has no /setwarnmode row")
+		}
+		if got.Value != tc.want || !got.Changed {
+			t.Errorf("%s/%d: /setwarnmode row = %+v, want changed value %q", tc.mode, tc.actionTime, *got, tc.want)
+		}
+	}
+}

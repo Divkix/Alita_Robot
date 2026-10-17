@@ -198,7 +198,7 @@ func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
 			limit = w.WarnLimit
 		}
 		// warnUser takes no action at the limit for an empty mode.
-		mode = w.WarnMode
+		mode = warnModeLabel(w)
 		if mode == "" {
 			mode = "none"
 		}
