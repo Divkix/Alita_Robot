@@ -31,13 +31,16 @@ func TestFindOrphanReportsIncludesCleanupSQL(t *testing.T) {
 	if err := gdb.Exec("INSERT INTO devs (user_id) VALUES (?)", int64(888)).Error; err != nil {
 		t.Fatalf("insert orphan dev: %v", err)
 	}
+	if err := gdb.Exec("INSERT INTO warn_entries (chat_id, user_id) VALUES (?, ?)", int64(777), int64(666)).Error; err != nil {
+		t.Fatalf("insert orphan warn entry: %v", err)
+	}
 
 	reports, err := findOrphanReports(gdb, defaultOrphanChecks())
 	if err != nil {
 		t.Fatalf("findOrphanReports() error = %v", err)
 	}
-	if len(reports) != 2 {
-		t.Fatalf("findOrphanReports() len = %d, want 2: %#v", len(reports), reports)
+	if len(reports) != 3 {
+		t.Fatalf("findOrphanReports() len = %d, want 3: %#v", len(reports), reports)
 	}
 
 	got := map[string]OrphanReport{}
@@ -45,8 +48,9 @@ func TestFindOrphanReportsIncludesCleanupSQL(t *testing.T) {
 		got[report.Table] = report
 	}
 	for table, sqlSnippet := range map[string]string{
-		"admin": "DELETE FROM admin",
-		"devs":  "DELETE FROM devs",
+		"admin":        "DELETE FROM admin",
+		"devs":         "DELETE FROM devs",
+		"warn_entries": "DELETE FROM warn_entries",
 	} {
 		report, ok := got[table]
 		if !ok {
@@ -159,7 +163,7 @@ func newValidationTestDB(t *testing.T) *gorm.DB {
 			columns = "user_id INTEGER"
 		case "federations":
 			columns = "owner_id INTEGER"
-		case "chat_users", "connection", "warns_users":
+		case "chat_users", "connection", "warns_users", "warn_entries":
 			columns = "chat_id INTEGER, user_id INTEGER"
 		case "channels":
 			columns = "chat_id INTEGER, channel_id INTEGER"
