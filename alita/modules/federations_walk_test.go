@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -132,8 +133,53 @@ func TestFedBanWalksEndInTheLatestFederationState(t *testing.T) {
 	}
 }
 
+func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
+	cases := []struct {
+		name   string
+		queued bool
+	}{
+		{name: "no ban row"},
+		// sync.Mutex is not FIFO, so a fban walk can wait behind another walk (one
+		// sleeping on a 429, say) until after the unfban deleted the row.
+		{name: "queued until after the unfban", queued: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			owner := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(owner, "Gone Ban Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+			target := uniquePositiveUserID()
+			seedFedChat(t, fed.FedID, target)
+			if tc.queued {
+				_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
+				require.NoError(t, err)
+				unlock := lockFedWalk(fed.FedID, target)
+				done := make(chan struct{})
+				go func() { defer close(done); applyActiveFban(bot, fed.FedID, target) }()
+				require.NoError(t, federations.Unfban(fed.FedID, target))
+				unlock()
+				select {
+				case <-done:
+				case <-time.After(2 * time.Second):
+					t.Fatal("the queued fban walk never finished")
+				}
+			} else {
+				applyActiveFban(bot, fed.FedID, target)
+			}
+			require.Empty(t, lastBanActions(client, target),
+				"a fban walk that finds no ban row must not ban the user anywhere")
+		})
+	}
+}
+
 // failFedBanLookups makes every federation_bans query for fedID fail until the
-// test ends. The callback name is unique per test so parallel tests keep theirs.
+// test ends. Register and Remove write gorm's callback list without a lock while
+// queries iterate it, so tests that use this must not run with t.Parallel() and
+// must let every walk finish first; the unique name does not make it safe.
 func failFedBanLookups(t *testing.T, fedID string) {
 	t.Helper()
 	name := "test:fail_fed_ban_lookup:" + fedID
@@ -198,7 +244,8 @@ func TestFbanWalkStillBansWhenTheBanLookupFails(t *testing.T) {
 }
 
 // failFirstFedBanLookups makes the first n federation_bans queries for fedID
-// fail and returns how many failed so far.
+// fail and returns how many failed so far. Not safe with t.Parallel(), for the
+// same reason as failFedBanLookups.
 func failFirstFedBanLookups(t *testing.T, fedID string, n int32) *atomic.Int32 {
 	t.Helper()
 	name := "test:fail_first_fed_ban_lookups:" + fedID
@@ -270,11 +317,13 @@ func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
 	}
 }
 
-// floodOnceBotClient answers the first call to method with Telegram's 429.
+// floodOnceBotClient answers the first call to method with Telegram's 429 and
+// the given retry_after, in seconds.
 type floodOnceBotClient struct {
 	*moduleBotClient
-	method string
-	once   sync.Once
+	method     string
+	retryAfter int64
+	once       sync.Once
 }
 
 func (c *floodOnceBotClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
@@ -288,25 +337,32 @@ func (c *floodOnceBotClient) RequestWithContext(ctx context.Context, token, meth
 				Method:         method,
 				Params:         params,
 				Code:           429,
-				Description:    "Too Many Requests: retry after 0",
-				ResponseParams: &gotgbot.ResponseParameters{RetryAfter: 0},
+				Description:    "Too Many Requests: retry after " + strconv.FormatInt(c.retryAfter, 10),
+				ResponseParams: &gotgbot.ResponseParameters{RetryAfter: c.retryAfter},
 			}
 		}
 	}
 	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
 }
 
-func TestFedBanWalksRetryOnceAfterFloodWait(t *testing.T) {
+func TestFedBanWalksRetryFloodWaitsUpToTheCap(t *testing.T) {
+	const overCap = 31 // one second past the 30 s fedWalkMaxFloodWait
 	cases := []struct {
-		method string
-		walk   func(b *gotgbot.Bot, fedID string, userID int64)
+		name       string
+		method     string
+		walk       func(b *gotgbot.Bot, fedID string, userID int64)
+		retryAfter int64
+		attempts   int
 	}{
-		{method: "banChatMember", walk: applyActiveFban},
-		{method: "unbanChatMember", walk: applyActiveUnfban},
+		{name: "ban retried", method: "banChatMember", walk: applyActiveFban, attempts: 2},
+		{name: "unban retried", method: "unbanChatMember", walk: applyActiveUnfban, attempts: 2},
+		// Over the cap the walk gives up before time.Sleep, so these cases do not wait.
+		{name: "ban over the cap", method: "banChatMember", walk: applyActiveFban, retryAfter: overCap, attempts: 1},
+		{name: "unban over the cap", method: "unbanChatMember", walk: applyActiveUnfban, retryAfter: overCap, attempts: 1},
 	}
 	for _, tc := range cases {
-		t.Run(tc.method, func(t *testing.T) {
-			client := &floodOnceBotClient{moduleBotClient: newModuleBotClient(), method: tc.method}
+		t.Run(tc.name, func(t *testing.T) {
+			client := &floodOnceBotClient{moduleBotClient: newModuleBotClient(), method: tc.method, retryAfter: tc.retryAfter}
 			bot := newModuleTestBot(client.moduleBotClient)
 			bot.BotClient = client
 			owner := uniquePositiveUserID()
@@ -328,7 +384,8 @@ func TestFedBanWalksRetryOnceAfterFloodWait(t *testing.T) {
 					chatIDs = append(chatIDs, call.Params["chat_id"].(int64))
 				}
 			}
-			require.Equal(t, []int64{chat.Id, chat.Id}, chatIDs, "a 429 must be retried once after retry_after")
+			require.Equal(t, slices.Repeat([]int64{chat.Id}, tc.attempts), chatIDs,
+				"a 429 is retried once after retry_after, and not at all when retry_after exceeds the cap")
 		})
 	}
 }
