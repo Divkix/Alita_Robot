@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -13,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
 const settingsTestAdminID = 4242
@@ -116,6 +118,119 @@ func TestSettingsPMListsOnlyAdminGroups(t *testing.T) {
 		t.Fatalf("picker chats = %v, want only %d", got, groupA)
 	}
 	assertNothingSentTo(t, client, groupA, groupB)
+}
+
+// adminLookups counts the Telegram calls IsUserAdmin makes on a cache miss.
+func adminLookups(client *moduleBotClient) int {
+	return len(client.callsFor("getChat")) + len(client.callsFor("getChatMember")) + len(client.callsFor("getChatAdministrators"))
+}
+
+func resetCalls(client *moduleBotClient) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.calls = nil
+}
+
+func setPickerCandidates(t *testing.T, ids ...int64) {
+	t.Helper()
+	original := settingsCandidateChats
+	settingsCandidateChats = func(context.Context, int64, int) ([]models.Chat, error) {
+		out := make([]models.Chat, 0, len(ids))
+		for _, id := range ids {
+			out = append(out, models.Chat{ChatId: id, ChatName: fmt.Sprint(id)})
+		}
+		return out, nil
+	}
+	t.Cleanup(func() { settingsCandidateChats = original })
+}
+
+func runSettingsInPM(t *testing.T, bot *gotgbot.Bot, client *moduleBotClient, user gotgbot.User) []string {
+	t.Helper()
+	ctx := newModuleMessageContext(bot, privateChatOf(user), user, "/settings")
+	if err := ConnectionsModule.settings(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("settings error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) == 0 {
+		t.Fatal("no sendMessage call")
+	}
+	return pickedChats(t, markupOf(t, calls[len(calls)-1]))
+}
+
+func TestSettingsPickerWarmCacheNeedsNoTelegram(t *testing.T) {
+	client, bot, groupA, groupB := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	cache.LoadAdminCache(bot, groupA)
+	cache.LoadAdminCache(bot, groupB)
+	resetCalls(client)
+
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupA) {
+		t.Fatalf("picker chats = %v, want only %d", got, groupA)
+	}
+	if n := adminLookups(client); n != 0 {
+		t.Fatalf("admin lookups = %d, want 0 with warm caches", n)
+	}
+}
+
+func TestSettingsPickerStopsLiveChecksAtDeadline(t *testing.T) {
+	client, bot, groupA, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	cold := []int64{-uniqueModuleChatID(), -uniqueModuleChatID(), -uniqueModuleChatID()}
+	for _, id := range cold {
+		client.adminsByChat[fmt.Sprint(id)] = adminListJSON(settingsTestAdminID)
+	}
+	cache.LoadAdminCache(bot, groupA)
+	// The warm group is listed after the cold ones yet still shows.
+	setPickerCandidates(t, cold[0], cold[1], cold[2], groupA)
+	resetCalls(client)
+
+	// Each admin-list fetch "takes" 2 s of a 3 s budget: two cold groups fit.
+	start := time.Now()
+	originalNow, originalBudget := settingsPickerNow, settingsPickerLiveBudget
+	settingsPickerNow = func() time.Time {
+		return start.Add(time.Duration(len(client.callsFor("getChatAdministrators"))) * 2 * time.Second)
+	}
+	settingsPickerLiveBudget = 3 * time.Second
+	t.Cleanup(func() { settingsPickerNow, settingsPickerLiveBudget = originalNow, originalBudget })
+
+	got := runSettingsInPM(t, bot, client, user)
+	want := []string{fmt.Sprint(groupA), fmt.Sprint(cold[0]), fmt.Sprint(cold[1])}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("picker chats = %v, want %v", got, want)
+	}
+	if n := len(client.callsFor("getChatAdministrators")); n != 2 {
+		t.Fatalf("getChatAdministrators calls = %d, want 2 before the deadline", n)
+	}
+	for _, call := range client.calls {
+		if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(cold[2]) {
+			t.Fatalf("checked %d after the deadline: %s", cold[2], call.Method)
+		}
+	}
+}
+
+func TestSettingsPickRechecksAdminAfterPicker(t *testing.T) {
+	client, bot, groupA, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	cache.LoadAdminCache(bot, groupA)
+	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupA) {
+		t.Fatalf("picker chats = %v, want only %d", got, groupA)
+	}
+
+	// Demoted after the picker was shown: Telegram no longer lists the user.
+	client.adminsByChat[fmt.Sprint(groupA)] = adminListJSON()
+	cache.InvalidateAdminCache(groupA)
+
+	data := encodeCallbackData("settings", map[string]string{"a": "p", "c": fmt.Sprint(groupA)})
+	ctx := newModuleCallbackContext(bot, privateChatOf(user), user, data)
+	if err := ConnectionsModule.settingsCallback(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("settingsCallback error = %v, want EndGroups", err)
+	}
+	if conn := connections.Connection(user.Id); conn.Connected && conn.ChatId == groupA {
+		t.Fatalf("demoted user got connected to %d", groupA)
+	}
+	if edits := client.callsFor("editMessageText"); len(edits) != 0 {
+		t.Fatalf("editMessageText calls = %d, want 0", len(edits))
+	}
 }
 
 func TestSettingsPMNoCandidatesShowsHint(t *testing.T) {

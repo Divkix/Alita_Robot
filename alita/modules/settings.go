@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -12,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -26,6 +28,14 @@ const (
 // settingsCandidateChats lists groups the user has posted in. It is a variable
 // because the query needs Postgres jsonb, which the SQLite test database lacks.
 var settingsCandidateChats = chats.ListChatsWithUser
+
+// settingsPickerLiveBudget bounds the picker's Telegram admin checks for
+// groups whose admin list is not cached. Variables so tests can drive the
+// deadline without sleeping.
+var (
+	settingsPickerLiveBudget = 3 * time.Second
+	settingsPickerNow        = time.Now
+)
 
 // settings handles /settings. In PM it shows the group picker; in a group it
 // links the admin to the summary in PM so nothing else is posted there.
@@ -65,8 +75,10 @@ func (m moduleStruct) settings(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // settingsPicker lists the connected group first, then recently active groups
-// where the user is an admin.
+// where the user is an admin: those with a cached admin list, then the rest
+// while settingsPickerLiveBudget lasts.
 func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, userID int64) (string, gotgbot.InlineKeyboardMarkup) {
+	deadline := settingsPickerNow().Add(settingsPickerLiveBudget)
 	var rows [][]gotgbot.InlineKeyboardButton
 	seen := map[int64]bool{}
 	addChat := func(chatID int64, title string, connected bool) {
@@ -95,14 +107,37 @@ func (moduleStruct) settingsPicker(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Tr
 	if err != nil {
 		log.Warnf("[Settings] candidate chats for user %d: %v", userID, err)
 	}
+	// Cached admin lists answer without Telegram, so they go first.
+	var cold []models.Chat
 	for _, candidate := range candidates {
 		if len(rows) >= settingsMaxButtons {
 			break
 		}
-		if seen[candidate.ChatId] || !chat_status.IsUserAdmin(b, candidate.ChatId, userID) {
+		if seen[candidate.ChatId] {
 			continue
 		}
-		addChat(candidate.ChatId, candidate.ChatName, false)
+		isAdmin, known := chat_status.IsUserAdminCached(candidate.ChatId, userID)
+		if !known {
+			cold = append(cold, candidate)
+			continue
+		}
+		if isAdmin {
+			addChat(candidate.ChatId, candidate.ChatName, false)
+		}
+	}
+	// Each cold check is up to four Telegram calls (getChat, the bot's own
+	// getChatMember, getChatAdministrators with retries, the user's
+	// getChatMember), each under its own 5-10 s timeout. The deadline is checked
+	// between groups, so a hung Telegram can stretch one group's check to about
+	// 50 s past it; the deadline still caps how many groups one PM can probe.
+	// connectForSettings re-checks admin rights when a group is picked.
+	for _, candidate := range cold {
+		if len(rows) >= settingsMaxButtons || !settingsPickerNow().Before(deadline) {
+			break
+		}
+		if chat_status.IsUserAdmin(b, candidate.ChatId, userID) {
+			addChat(candidate.ChatId, candidate.ChatName, false)
+		}
 	}
 
 	if len(rows) == 0 {
