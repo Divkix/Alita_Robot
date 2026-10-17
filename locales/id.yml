@@ -2830,8 +2830,8 @@ warns_extend_msg: |
   /resetallwarns — reset semua peringatan di obrolan
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman
-  /setwarnmode — hukuman: ban, kick atau mute
   /setwarntime — berapa lama peringatan dihitung
+  /setwarnmode — hukuman: ban, kick atau mute
 settings_summary_legend: "<i>• menandai nilai yang berbeda dari bawaan. Kirim perintah yang ditampilkan untuk mengubahnya.</i>"
 settings_picker_text: "Pilih grup untuk melihat pengaturannya. Tidak ada di daftar? Kirim /connect &lt;chat id&gt; di sini atau /settings di grup."
 settings_picker_empty: "Saya tidak menemukan grup tempat Anda menjadi admin. Saya hanya tahu grup tempat Anda menulis sejak saya bergabung, jadi kirim /connect &lt;chat id&gt; di sini atau /settings di grup."

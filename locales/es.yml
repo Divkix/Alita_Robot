@@ -2840,8 +2840,8 @@ warns_extend_msg: |
   /resetallwarns — restablecer todas las advertencias del chat
   /warnings — ver los ajustes de advertencias
   /setwarnlimit — advertencias antes del castigo
-  /setwarnmode — castigo: ban, kick o mute
   /setwarntime — cuánto tiempo cuenta una advertencia
+  /setwarnmode — castigo: ban, kick o mute
 settings_summary_legend: "<i>• marca un valor distinto del predeterminado. Envía el comando indicado para cambiarlo.</i>"
 settings_picker_text: "Elige un grupo para ver sus ajustes. ¿No aparece? Envía /connect &lt;chat id&gt; aquí o /settings en el grupo."
 settings_picker_empty: "No encontré grupos donde seas administrador. Solo conozco los grupos donde has escrito desde que me uní, así que envía /connect &lt;chat id&gt; aquí o /settings en el grupo."
