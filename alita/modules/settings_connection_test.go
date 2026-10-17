@@ -478,6 +478,50 @@ func TestLangGroupFromPMChangesGroupLanguage(t *testing.T) {
 	assertNothingSentTo(t, client, groupA, groupC)
 }
 
+func TestLangGroupKeyboardKeepsHelpTranslateLink(t *testing.T) {
+	client, bot, _, admin, _ := connectedPMFixture(t)
+	restoreI18n, err := i18n.OverrideManagerForTest("language_name: Lang\nlanguage_flag: F\nlanguage_help_translate: Help\n")
+	if err != nil {
+		t.Fatalf("OverrideManagerForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+	original := config.AppConfig.ValidLangCodes
+	config.AppConfig.ValidLangCodes = []string{"en", "ru"}
+	t.Cleanup(func() { config.AppConfig.ValidLangCodes = original })
+
+	urlButtons := func() []gotgbot.InlineKeyboardButton {
+		var out []gotgbot.InlineKeyboardButton
+		for _, btn := range lastButtons(t, client) {
+			if btn.Url != "" {
+				out = append(out, btn)
+			}
+		}
+		return out
+	}
+
+	runInPM(t, bot, admin, "/lang", languagesModule.changeLanguage)
+	want := urlButtons()
+	if len(want) == 0 {
+		t.Fatal("plain /lang keyboard has no link button")
+	}
+
+	runInPM(t, bot, admin, "/lang group", languagesModule.changeLanguage)
+	got := urlButtons()
+	if len(got) != len(want) {
+		t.Fatalf("/lang group link buttons = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i].Url != want[i].Url || got[i].Text != want[i].Text {
+			t.Fatalf("/lang group link button %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	for _, btn := range lastButtons(t, client) {
+		if len(btn.CallbackData) > 64 {
+			t.Fatalf("callback data %q is %d bytes, want <= 64", btn.CallbackData, len(btn.CallbackData))
+		}
+	}
+}
+
 func TestLangGroupCallbackRejectsForgedGroup(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
 	groupB := extraGroup(t, client, adminListJSON(), groupA)

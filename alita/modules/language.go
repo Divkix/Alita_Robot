@@ -21,11 +21,15 @@ import (
 var languagesModule = moduleStruct{moduleName: "Languages"}
 
 func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
-	keyboard := keyboard.MakeLanguageKeyboard()
+	return withHelpTranslateRow(keyboard.MakeLanguageKeyboard())
+}
+
+// withHelpTranslateRow appends the Crowdin "help translate" link row.
+func withHelpTranslateRow(kb [][]gotgbot.InlineKeyboardButton) [][]gotgbot.InlineKeyboardButton {
 	tr := i18n.MustNewTranslator("en")
 	helpTranslateText, _ := tr.GetString("language_help_translate")
-	keyboard = append(
-		keyboard,
+	return append(
+		kb,
 		[]gotgbot.InlineKeyboardButton{
 			{
 				Text: helpTranslateText,
@@ -33,7 +37,6 @@ func (moduleStruct) genFullLanguageKb() [][]gotgbot.InlineKeyboardButton {
 			},
 		},
 	)
-	return keyboard
 }
 
 func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -58,7 +61,7 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		groupLang := lang.GetLanguage(ctx)
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
-		langKb = keyboard.MakeGroupLanguageKeyboard(group.Id)
+		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id))
 	} else if ctx.Message.Chat.Type == "private" {
 		replyString, _ = tr.GetString("language_current_user", i18n.TranslationParams{"s": keyboard.GetLangFormat(cLang)})
 	} else {
