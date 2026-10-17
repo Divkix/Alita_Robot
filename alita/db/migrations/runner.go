@@ -61,6 +61,12 @@ func (m *MigrationRunner) RunMigrations() error {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
+	return m.runMigrationFiles()
+}
+
+// runMigrationFiles verifies the already-applied migration files and applies the
+// pending ones. The schema_migrations table must already exist.
+func (m *MigrationRunner) runMigrationFiles() error {
 	files, err := m.getMigrationFiles()
 	if err != nil {
 		return fmt.Errorf("failed to get migration files: %w", err)
@@ -81,6 +87,18 @@ func (m *MigrationRunner) RunMigrations() error {
 			len(orphans), strings.Join(orphans, ", "))
 	}
 	if allApplied {
+		// Nothing to apply, but applied files must still match their checksums and
+		// legacy rows must still get one.
+		for _, file := range files {
+			version := filepath.Base(file)
+			content, err := os.ReadFile(file) // #nosec G304 - path comes from getMigrationFiles which validates the directory
+			if err != nil {
+				return fmt.Errorf("failed to read migration file %s: %w", version, err)
+			}
+			if err := m.verifyMigrationChecksum(version, content); err != nil {
+				return err
+			}
+		}
 		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
 		m.logMigrationStatus()
 		return nil

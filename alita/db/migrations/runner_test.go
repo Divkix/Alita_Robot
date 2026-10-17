@@ -1180,6 +1180,60 @@ func TestReconcileAppliedVersions(t *testing.T) {
 	}
 }
 
+// When every file already has a record the runner has nothing to apply, but it
+// must still verify recorded checksums and backfill legacy rows before it returns.
+func TestRunMigrationsVerifiesChecksumsWhenEveryFileIsRecorded(t *testing.T) {
+	previousConfig := config.AppConfig
+	t.Cleanup(func() { config.AppConfig = previousConfig })
+	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
+
+	fileContent := []byte(`CREATE TABLE fully_recorded_test (id INTEGER PRIMARY KEY);`)
+	sum := sha256.Sum256(fileContent)
+	fileChecksum := hex.EncodeToString(sum[:])
+
+	setup := func(t *testing.T, recordedChecksum string) (*MigrationRunner, string) {
+		t.Helper()
+		database := newMetadataTestDB(t)
+		dir := t.TempDir()
+		version := "001_fully_recorded.sql"
+		if err := os.WriteFile(filepath.Join(dir, version), fileContent, 0o600); err != nil {
+			t.Fatalf("failed to write migration file: %v", err)
+		}
+		rec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: recordedChecksum}
+		if err := database.Create(&rec).Error; err != nil {
+			t.Fatalf("failed to insert migration record: %v", err)
+		}
+		return &MigrationRunner{db: database, migrationsPath: dir}, version
+	}
+
+	t.Run("modified file is reported", func(t *testing.T) {
+		runner, _ := setup(t, "deadbeefdeadbeefdeadbeefdeadbeef")
+
+		err := runner.runMigrationFiles()
+		if err == nil {
+			t.Fatal("runMigrationFiles() error = nil, want checksum mismatch error")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") {
+			t.Errorf("runMigrationFiles() error = %q, want it to mention 'checksum mismatch'", err)
+		}
+	})
+
+	t.Run("legacy row is backfilled", func(t *testing.T) {
+		runner, version := setup(t, "")
+
+		if err := runner.runMigrationFiles(); err != nil {
+			t.Fatalf("runMigrationFiles() with legacy empty-checksum row error = %v", err)
+		}
+		rec, err := runner.getMigrationRecord(version)
+		if err != nil {
+			t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
+		}
+		if rec == nil || rec.Checksum != fileChecksum {
+			t.Errorf("backfilled record = %+v, want checksum %q", rec, fileChecksum)
+		}
+	})
+}
+
 // newIsolatedPostgresDB returns a single-connection handle whose search_path is a
 // throwaway schema, so schema_migrations holds only what the test inserts.
 func newIsolatedPostgresDB(t *testing.T) *gorm.DB {
