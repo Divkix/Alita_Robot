@@ -804,8 +804,7 @@ func (m *MigrationRunner) verifyIndexes() error {
 			"idx_users_user_name": {"username"},
 		},
 		"chats": {
-			"uk_chats_chat_id":    {"chat_id"}, // Unique constraint (replaces idx_chats_chat_id)
-			"idx_chats_users_gin": {"users"},   // Restored by 20261017120000 for ListChatsWithUser
+			"uk_chats_chat_id": {"chat_id"}, // Unique constraint (replaces idx_chats_chat_id)
 		},
 		"antiflood_settings": {
 			"idx_antiflood_settings_chat_id": {"chat_id"},
