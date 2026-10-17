@@ -269,8 +269,8 @@ func expiredWarn(e models.WarnEntry, expiry int, now time.Time) bool {
 }
 
 // pruneExpiredEntries deletes the user's expired entries and takes them off
-// the count; the reasons column is rewritten from the entries left. It runs
-// with the user's warns row locked, and the caller saves warnrc.
+// the count and the reasons column. It runs with the user's warns row locked,
+// and the caller saves warnrc.
 func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, error) {
 	if expiry <= 0 || warnrc.NumWarns == 0 {
 		return false, nil
@@ -283,12 +283,11 @@ func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, e
 	}
 	now := timeNow()
 	var expired []uint
-	kept := models.StringArray{}
-	for _, e := range entries {
+	isExpired := make([]bool, len(entries))
+	for i, e := range entries {
 		if expiredWarn(e, expiry, now) {
 			expired = append(expired, e.ID)
-		} else {
-			kept = append(kept, e.Reason)
+			isExpired[i] = true
 		}
 	}
 	if len(expired) == 0 {
@@ -298,13 +297,37 @@ func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, e
 		return false, err
 	}
 	warnrc.NumWarns = max(warnrc.NumWarns-len(expired), 0)
-	warnrc.Reasons = kept
+	warnrc.Reasons = dropExpiredReasons(warnrc.Reasons, entries, isExpired)
 	if warnrc.NumWarns == 0 {
 		// No warns keep no entries, as syncEntriesWithReasons expects.
 		warnrc.Reasons = models.StringArray{}
 		return true, deleteEntries(tx, "chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId)
 	}
 	return true, nil
+}
+
+// dropExpiredReasons removes the reason of each expired entry from reasons.
+// Entries are matched to reasons in order; a reason without an entry, which
+// an older release writes after a rollback, is kept in place.
+func dropExpiredReasons(reasons models.StringArray, entries []models.WarnEntry, isExpired []bool) models.StringArray {
+	drop := make([]bool, len(reasons))
+	next := 0
+	for i, e := range entries {
+		for j := next; j < len(reasons); j++ {
+			if reasons[j] == e.Reason {
+				drop[j] = isExpired[i]
+				next = j + 1
+				break
+			}
+		}
+	}
+	kept := models.StringArray{}
+	for j, reason := range reasons {
+		if !drop[j] {
+			kept = append(kept, reason)
+		}
+	}
+	return kept
 }
 
 func deleteEntries(tx *gorm.DB, query string, args ...any) error {
