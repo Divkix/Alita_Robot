@@ -109,8 +109,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   writes `warns_users` alone, so reads, warn writes and imports reconcile entries with the reasons through
   `models.ReconcileWarnEntries`.
 - Warn expiry (`warns_settings.warn_expiry`): the live count is `num_warns` minus the expired entries; an entry with a
-  NULL `warned_at` never expires. Reads filter after the cache and never write; only `WarnUser` and `RemoveWarn` delete
-  expired entries, under their row locks.
+  NULL `warned_at` never expires. Reads filter expired entries after the cache and never prune them; only `WarnUser`
+  and `RemoveWarn` delete expired entries, under their row locks.
 
 ## Go rules
 
