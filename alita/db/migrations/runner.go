@@ -72,11 +72,15 @@ func (m *MigrationRunner) RunMigrations() error {
 
 	log.Infof("[Migrations] Found %d migration files", len(files))
 
-	inSync, err := m.appliedVersionsMatchFiles(files)
+	allApplied, orphans, err := m.reconcileAppliedVersions(files)
 	if err != nil {
 		return fmt.Errorf("failed to compare applied migrations with files: %w", err)
 	}
-	if inSync {
+	if len(orphans) > 0 {
+		log.Warnf("[Migrations] %d recorded migrations have no file (deleted or renamed after being applied): %s",
+			len(orphans), strings.Join(orphans, ", "))
+	}
+	if allApplied {
 		log.Infof("[Migrations] All %d migrations already applied; nothing to do", len(files))
 		m.logMigrationStatus()
 		return nil
@@ -169,29 +173,38 @@ func (m *MigrationRunner) getMigrationFiles() ([]string, error) {
 	return files, nil
 }
 
-// appliedVersionsMatchFiles reports whether the recorded versions are exactly the
-// versions of the given files. Comparing row counts alone is not enough: a record
-// whose file was deleted or renamed after it was applied offsets a new unapplied
-// file and the count matches, so the new migration would be skipped silently.
-func (m *MigrationRunner) appliedVersionsMatchFiles(files []string) (bool, error) {
+// reconcileAppliedVersions compares the recorded versions with the given files.
+// allApplied is true when every file has a record; orphans are the sorted records
+// that have no file. Comparing row counts alone is not enough: a record whose file
+// was deleted or renamed after it was applied offsets a new unapplied file and the
+// count matches, so the new migration would be skipped silently.
+func (m *MigrationRunner) reconcileAppliedVersions(files []string) (allApplied bool, orphans []string, err error) {
 	var versions []string
 	if err := m.db.Model(&SchemaMigration{}).Pluck("version", &versions).Error; err != nil {
-		return false, err
-	}
-	if len(versions) != len(files) {
-		return false, nil
+		return false, nil, err
 	}
 
-	applied := make(map[string]struct{}, len(versions))
+	recorded := make(map[string]struct{}, len(versions))
 	for _, version := range versions {
-		applied[version] = struct{}{}
+		recorded[version] = struct{}{}
 	}
+
+	allApplied = true
+	onDisk := make(map[string]struct{}, len(files))
 	for _, file := range files {
-		if _, ok := applied[filepath.Base(file)]; !ok {
-			return false, nil
+		version := filepath.Base(file)
+		onDisk[version] = struct{}{}
+		if _, ok := recorded[version]; !ok {
+			allApplied = false
 		}
 	}
-	return true, nil
+	for _, version := range versions {
+		if _, ok := onDisk[version]; !ok {
+			orphans = append(orphans, version)
+		}
+	}
+	slices.Sort(orphans)
+	return allApplied, orphans, nil
 }
 
 func (m *MigrationRunner) isMigrationApplied(version string) (bool, error) {

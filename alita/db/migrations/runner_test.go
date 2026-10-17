@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -1136,18 +1137,20 @@ func TestLegacyRowWithoutChecksumDoesNotFalseAlarm(t *testing.T) {
 	}
 }
 
-func TestAppliedVersionsMatchFiles(t *testing.T) {
+func TestReconcileAppliedVersions(t *testing.T) {
 	tests := []struct {
-		name    string
-		applied []string
-		files   []string
-		want    bool
+		name        string
+		applied     []string
+		files       []string
+		wantApplied bool
+		wantOrphans []string
 	}{
-		{"same sets", []string{"001.sql", "002.sql"}, []string{"001.sql", "002.sql"}, true},
-		{"pending file", []string{"001.sql"}, []string{"001.sql", "002.sql"}, false},
-		{"orphan record offsets new file", []string{"001.sql", "000_removed.sql"}, []string{"001.sql", "002.sql"}, false},
-		{"orphan record only", []string{"001.sql", "000_removed.sql"}, []string{"001.sql"}, false},
-		{"empty table", nil, []string{"001.sql"}, false},
+		{"same sets", []string{"001.sql", "002.sql"}, []string{"001.sql", "002.sql"}, true, nil},
+		{"pending file", []string{"001.sql"}, []string{"001.sql", "002.sql"}, false, nil},
+		{"orphan record offsets new file", []string{"001.sql", "000_removed.sql"}, []string{"001.sql", "002.sql"}, false, []string{"000_removed.sql"}},
+		{"orphan record, all files applied", []string{"001.sql", "000_removed.sql"}, []string{"001.sql"}, true, []string{"000_removed.sql"}},
+		{"orphans are sorted", []string{"b_gone.sql", "001.sql", "a_gone.sql"}, []string{"001.sql"}, true, []string{"a_gone.sql", "b_gone.sql"}},
+		{"empty table", nil, []string{"001.sql"}, false, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1163,12 +1166,15 @@ func TestAppliedVersionsMatchFiles(t *testing.T) {
 			}
 
 			runner := &MigrationRunner{db: database}
-			got, err := runner.appliedVersionsMatchFiles(files)
+			gotApplied, gotOrphans, err := runner.reconcileAppliedVersions(files)
 			if err != nil {
-				t.Fatalf("appliedVersionsMatchFiles() error = %v", err)
+				t.Fatalf("reconcileAppliedVersions() error = %v", err)
 			}
-			if got != tt.want {
-				t.Fatalf("appliedVersionsMatchFiles() = %v, want %v", got, tt.want)
+			if gotApplied != tt.wantApplied {
+				t.Errorf("allApplied = %v, want %v", gotApplied, tt.wantApplied)
+			}
+			if !slices.Equal(gotOrphans, tt.wantOrphans) {
+				t.Errorf("orphans = %v, want %v", gotOrphans, tt.wantOrphans)
 			}
 		})
 	}
