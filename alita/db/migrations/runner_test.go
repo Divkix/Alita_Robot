@@ -50,11 +50,11 @@ func newTestRunner() *MigrationRunner {
 
 func migrationApplied(t *testing.T, runner *MigrationRunner, version string) bool {
 	t.Helper()
-	applied, err := runner.isMigrationApplied(version)
+	rec, err := runner.getMigrationRecord(version)
 	if err != nil {
-		t.Fatalf("isMigrationApplied(%q) error = %v", version, err)
+		t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
 	}
-	return applied
+	return rec != nil
 }
 
 func newMetadataTestDB(t *testing.T) *gorm.DB {
@@ -84,8 +84,8 @@ func TestMigrationMetadataReadErrorsPropagate(t *testing.T) {
 	}
 
 	runner := &MigrationRunner{db: database}
-	if _, err := runner.isMigrationApplied("001.sql"); !errors.Is(err, wantErr) {
-		t.Fatalf("isMigrationApplied() error = %v, want %v", err, wantErr)
+	if _, _, _, err := runner.reconcileAppliedVersions([]string{"001.sql"}); !errors.Is(err, wantErr) {
+		t.Fatalf("reconcileAppliedVersions() error = %v, want %v", err, wantErr)
 	}
 	if _, err := runner.getMigrationRecord("001.sql"); !errors.Is(err, wantErr) {
 		t.Fatalf("getMigrationRecord() error = %v, want %v", err, wantErr)
@@ -107,7 +107,7 @@ func TestVerifyMigrationChecksumPropagatesBackfillError(t *testing.T) {
 	}
 
 	runner := &MigrationRunner{db: database}
-	if err := runner.verifyMigrationChecksum(version, []byte("SELECT 1;")); !errors.Is(err, wantErr) {
+	if err := runner.verifyMigrationChecksum(SchemaMigration{Version: version}, []byte("SELECT 1;")); !errors.Is(err, wantErr) {
 		t.Fatalf("verifyMigrationChecksum() error = %v, want %v", err, wantErr)
 	}
 }
@@ -1166,9 +1166,17 @@ func TestReconcileAppliedVersions(t *testing.T) {
 			}
 
 			runner := &MigrationRunner{db: database}
-			gotApplied, gotOrphans, err := runner.reconcileAppliedVersions(files)
+			gotRecords, gotApplied, gotOrphans, err := runner.reconcileAppliedVersions(files)
 			if err != nil {
 				t.Fatalf("reconcileAppliedVersions() error = %v", err)
+			}
+			if len(gotRecords) != len(tt.applied) {
+				t.Errorf("records = %d, want %d", len(gotRecords), len(tt.applied))
+			}
+			for _, version := range tt.applied {
+				if _, ok := gotRecords[version]; !ok {
+					t.Errorf("records missing %s", version)
+				}
 			}
 			if gotApplied != tt.wantApplied {
 				t.Errorf("allApplied = %v, want %v", gotApplied, tt.wantApplied)
@@ -1181,55 +1189,78 @@ func TestReconcileAppliedVersions(t *testing.T) {
 }
 
 // When every file already has a record the runner has nothing to apply, but it
-// must still verify recorded checksums and backfill legacy rows before it returns.
+// must still verify recorded checksums and backfill legacy rows before it returns,
+// for every file and not just the first or last one.
 func TestRunMigrationsVerifiesChecksumsWhenEveryFileIsRecorded(t *testing.T) {
 	previousConfig := config.AppConfig
 	t.Cleanup(func() { config.AppConfig = previousConfig })
 	config.AppConfig = &config.Config{AutoMigrateSilentFail: false}
 
-	fileContent := []byte(`CREATE TABLE fully_recorded_test (id INTEGER PRIMARY KEY);`)
-	sum := sha256.Sum256(fileContent)
-	fileChecksum := hex.EncodeToString(sum[:])
+	versions := []string{"001_fully_recorded_a.sql", "002_fully_recorded_b.sql", "003_fully_recorded_c.sql"}
+	contents := map[string][]byte{}
+	checksums := map[string]string{}
+	for _, version := range versions {
+		contents[version] = []byte(`CREATE TABLE ` + strings.TrimSuffix(version, ".sql") + ` (id INTEGER PRIMARY KEY);`)
+		sum := sha256.Sum256(contents[version])
+		checksums[version] = hex.EncodeToString(sum[:])
+	}
 
-	setup := func(t *testing.T, recordedChecksum string) (*MigrationRunner, string) {
+	// setup records every file with its correct checksum except those in overrides.
+	setup := func(t *testing.T, overrides map[string]string) *MigrationRunner {
 		t.Helper()
 		database := newMetadataTestDB(t)
 		dir := t.TempDir()
-		version := "001_fully_recorded.sql"
-		if err := os.WriteFile(filepath.Join(dir, version), fileContent, 0o600); err != nil {
-			t.Fatalf("failed to write migration file: %v", err)
+		for _, version := range versions {
+			if err := os.WriteFile(filepath.Join(dir, version), contents[version], 0o600); err != nil {
+				t.Fatalf("failed to write migration file: %v", err)
+			}
+			checksum := checksums[version]
+			if override, ok := overrides[version]; ok {
+				checksum = override
+			}
+			rec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: checksum}
+			if err := database.Create(&rec).Error; err != nil {
+				t.Fatalf("failed to insert migration record: %v", err)
+			}
 		}
-		rec := SchemaMigration{Version: version, ExecutedAt: timeNow(), Checksum: recordedChecksum}
-		if err := database.Create(&rec).Error; err != nil {
-			t.Fatalf("failed to insert migration record: %v", err)
-		}
-		return &MigrationRunner{db: database, migrationsPath: dir}, version
+		return &MigrationRunner{db: database, migrationsPath: dir}
 	}
 
-	t.Run("modified file is reported", func(t *testing.T) {
-		runner, _ := setup(t, "deadbeefdeadbeefdeadbeefdeadbeef")
-
-		err := runner.runMigrationFiles()
-		if err == nil {
-			t.Fatal("runMigrationFiles() error = nil, want checksum mismatch error")
-		}
-		if !strings.Contains(err.Error(), "checksum mismatch") {
-			t.Errorf("runMigrationFiles() error = %q, want it to mention 'checksum mismatch'", err)
+	t.Run("matching checksums pass", func(t *testing.T) {
+		runner := setup(t, nil)
+		if err := runner.runMigrationFiles(); err != nil {
+			t.Fatalf("runMigrationFiles() error = %v", err)
 		}
 	})
 
-	t.Run("legacy row is backfilled", func(t *testing.T) {
-		runner, version := setup(t, "")
+	for _, bad := range versions {
+		t.Run("modified file is reported: "+bad, func(t *testing.T) {
+			runner := setup(t, map[string]string{bad: "deadbeefdeadbeefdeadbeefdeadbeef"})
+
+			err := runner.runMigrationFiles()
+			if err == nil {
+				t.Fatal("runMigrationFiles() error = nil, want checksum mismatch error")
+			}
+			if !strings.Contains(err.Error(), "checksum mismatch") || !strings.Contains(err.Error(), bad) {
+				t.Errorf("runMigrationFiles() error = %q, want a checksum mismatch for %s", err, bad)
+			}
+		})
+	}
+
+	t.Run("legacy rows are backfilled", func(t *testing.T) {
+		runner := setup(t, map[string]string{versions[0]: "", versions[2]: ""})
 
 		if err := runner.runMigrationFiles(); err != nil {
-			t.Fatalf("runMigrationFiles() with legacy empty-checksum row error = %v", err)
+			t.Fatalf("runMigrationFiles() with legacy empty-checksum rows error = %v", err)
 		}
-		rec, err := runner.getMigrationRecord(version)
-		if err != nil {
-			t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
-		}
-		if rec == nil || rec.Checksum != fileChecksum {
-			t.Errorf("backfilled record = %+v, want checksum %q", rec, fileChecksum)
+		for _, version := range versions {
+			rec, err := runner.getMigrationRecord(version)
+			if err != nil {
+				t.Fatalf("getMigrationRecord(%q) error = %v", version, err)
+			}
+			if rec == nil || rec.Checksum != checksums[version] {
+				t.Errorf("record %s = %+v, want checksum %q", version, rec, checksums[version])
+			}
 		}
 	})
 }
