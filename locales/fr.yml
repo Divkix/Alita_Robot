@@ -349,6 +349,11 @@ warns_warning_reason: "\n<b>Raison</b> :\n%s"
 warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>"
 warns_user_warnings_list: "Cet utilisateur a %d/%d avertissements, pour les raisons suivantes :"
 warns_user_warnings_no_reasons: "L'utilisateur a %d/%d avertissements, mais aucune raison pour aucun d'entre eux."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "admin anonyme"
+warns_issuer_auto: "automatique"
+warns_issuer_unknown: "inconnu"
 warns_user_no_warnings: Cet utilisateur n'a aucun avertissement !
 warns_removed_by: "Avertissement supprimé par %s."
 warns_no_warns_to_remove: L'utilisateur n'a déjà aucun avertissement !

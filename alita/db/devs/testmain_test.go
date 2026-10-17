@@ -71,6 +71,7 @@ func TestMain(m *testing.M) {
 			&models.CaptchaMutedUsers{},
 			&models.ApprovedUsers{},
 			&models.Warns{},
+			&models.WarnEntry{},
 			&models.WarnSettings{},
 			&models.LockSettings{},
 			&models.AntiRaidSettings{},

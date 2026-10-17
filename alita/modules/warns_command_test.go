@@ -183,7 +183,7 @@ func TestWarnReplyStoresReasonAndWarnsListsIt(t *testing.T) {
 	if numWarns != 1 {
 		t.Fatalf("numWarns = %d, want 1", numWarns)
 	}
-	if len(reasons) != 1 || reasons[0] != "too noisy" {
+	if len(reasons) != 1 || reasons[0].Reason != "too noisy" {
 		t.Fatalf("reasons = %v, want [too noisy]", reasons)
 	}
 
@@ -459,7 +459,7 @@ func TestSilentWarnDeletesCommandAndStoresReason(t *testing.T) {
 	if numWarns != 1 {
 		t.Fatalf("numWarns = %d, want 1", numWarns)
 	}
-	if len(reasons) != 1 || reasons[0] != "quiet reason" {
+	if len(reasons) != 1 || reasons[0].Reason != "quiet reason" {
 		t.Fatalf("reasons = %v, want [quiet reason]", reasons)
 	}
 }
@@ -482,7 +482,7 @@ func TestDeleteWarnDeletesReplyAndStoresReason(t *testing.T) {
 	if numWarns != 1 {
 		t.Fatalf("numWarns = %d, want 1", numWarns)
 	}
-	if len(reasons) != 1 || reasons[0] != "remove this" {
+	if len(reasons) != 1 || reasons[0].Reason != "remove this" {
 		t.Fatalf("reasons = %v, want [remove this]", reasons)
 	}
 }
@@ -493,7 +493,7 @@ func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
-	warns.WarnUser(target.Id, chat.Id, "first")
+	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "first"})
 
 	removeCtx := newModuleMessageContext(bot, chat, admin, "/rmwarn 42")
 	if err := warnsModule.removeWarn(bot, removeCtx); err != ext.EndGroups {
@@ -503,8 +503,8 @@ func TestRemoveWarnAndResetWarnsCommands(t *testing.T) {
 		t.Fatalf("numWarns after remove = %d, want 0", numWarns)
 	}
 
-	warns.WarnUser(target.Id, chat.Id, "one")
-	warns.WarnUser(target.Id, chat.Id, "two")
+	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "one"})
+	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "two"})
 	resetCtx := newModuleMessageContext(bot, chat, admin, "/resetwarns 42")
 	if err := warnsModule.resetWarns(bot, resetCtx); err != ext.EndGroups {
 		t.Fatalf("resetWarns() error = %v, want EndGroups", err)
@@ -555,7 +555,7 @@ func TestWarnCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 			text: "/resetallwarns",
 			setup: func(t *testing.T, chat gotgbot.Chat) {
 				t.Helper()
-				warns.WarnUser(target.Id, chat.Id, "first")
+				_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "first"})
 			},
 			run: warnsModule.resetAllWarns,
 		},
@@ -612,7 +612,7 @@ func TestWarnThisUserPropagatesGotgbotRequestErrors(t *testing.T) {
 
 			var err error
 			if tt.callWarnThis {
-				err = warnsModule.warnThisUser(bot, ctx, target.Id, "too noisy", "warn")
+				err = warnsModule.warnThisUser(bot, ctx, target.Id, "too noisy", "warn", warnIssuer(ctx))
 			} else {
 				err = warnsModule.warnUser(bot, ctx)
 			}
@@ -629,7 +629,7 @@ func TestRmWarnButtonRemovesWarning(t *testing.T) {
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
-	warns.WarnUser(target.Id, chat.Id, "button")
+	_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
 	data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 
 	ctx := newModuleCallbackContext(bot, chat, admin, data)
@@ -674,7 +674,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		bot := newModuleTestBot(client)
 		client.errors["editMessageText"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-		warns.WarnUser(target.Id, chat.Id, "button")
+		_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
 		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
@@ -689,7 +689,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		bot := newModuleTestBot(client)
 		client.errors["answerCallbackQuery"] = requestErr
 		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-		warns.WarnUser(target.Id, chat.Id, "button")
+		_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "button"})
 		data := encodeCallbackData("rmWarn", map[string]string{"u": "42"})
 		ctx := newModuleCallbackContext(bot, chat, admin, data)
 
@@ -725,7 +725,7 @@ func TestWarnCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 			bot := newModuleTestBot(client)
 			client.errors[tt.method] = requestErr
 			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
-			warns.WarnUser(target.Id, chat.Id, "first")
+			_, _, _ = warns.WarnUser(target.Id, chat.Id, models.WarnEntry{Reason: "first"})
 			data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 			ctx := newModuleCallbackContext(bot, chat, admin, data)
 
@@ -742,7 +742,7 @@ func TestResetAllWarnsConfirmationAndCallback(t *testing.T) {
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
 	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	warns.WarnUser(42, chat.Id, "first")
+	_, _, _ = warns.WarnUser(42, chat.Id, models.WarnEntry{Reason: "first"})
 	data := encodeCallbackData("rmAllChatWarns", map[string]string{"a": "yes"})
 
 	confirmCtx := newModuleMessageContext(bot, chat, admin, "/resetallwarns")
@@ -777,7 +777,7 @@ func TestResetAllWarnsHandlesEmptyCancelAndInvalidCallbacks(t *testing.T) {
 		t.Fatalf("resetAllWarns empty error = %v, want nil", err)
 	}
 
-	warns.WarnUser(42, chat.Id, "first")
+	_, _, _ = warns.WarnUser(42, chat.Id, models.WarnEntry{Reason: "first"})
 	cancelCtx := newModuleCallbackContext(bot, chat, admin, "rmAllChatWarns.no")
 	if err := warnsModule.warnsButtonHandler(bot, cancelCtx); err != ext.EndGroups {
 		t.Fatalf("warnsButtonHandler cancel error = %v, want EndGroups", err)

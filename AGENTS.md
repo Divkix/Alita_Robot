@@ -95,6 +95,14 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages for replay.
 - `alita:cache:captcha_pending:<chat>` is a per-chat pending flag; any new code that inserts into `captcha_attempts`
   must `DeleteCache` it after commit.
+- `warn_entries` cascades from `chats` and `users` like `warns_users`, but has no FK to `warns_users`: any code that
+  deletes `warns_users` rows deletes the matching entries in the same transaction, after taking the
+  `chats … FOR UPDATE` row lock every warn write holds (without it a first `/warn`, still an uncommitted INSERT, can
+  commit between the two DELETEs and lose its entry). Backups export only entries of users with warns, with
+  `warned_by` zeroed on anonymous ones and set to `models.WarnedByBot` (-1) on the bot's own, which `/warns` shows as
+  automatic. `warns_users.warns` is still written so an older release can read it after a rollback; that release
+  writes `warns_users` alone, so reads, warn writes and imports reconcile entries with the reasons through
+  `models.ReconcileWarnEntries`.
 
 ## Go rules
 

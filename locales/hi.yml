@@ -1587,6 +1587,11 @@ warns_warning_reason: "\n<b>कारण</b>:\n%s"
 warns_settings_display: "ग्रुप में निम्नलिखित सेटिंग्स हैं:\n<b>चेतावनी सीमा:</b> <code>%d</code>\n<b>चेतावनी मोड:</b> <code>%s</code>"
 warns_user_warnings_list: "इस उपयोगकर्ता को %d/%d चेतावनियां हैं, निम्नलिखित कारणों से:"
 warns_user_warnings_no_reasons: "उपयोगकर्ता को %d/%d चेतावनियां हैं, लेकिन किसी का भी कारण नहीं है।"
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "गुमनाम एडमिन"
+warns_issuer_auto: "स्वचालित"
+warns_issuer_unknown: "अज्ञात"
 warns_user_no_warnings: इस उपयोगकर्ता को कोई चेतावनी नहीं मिली है!
 warns_removed_by: "चेतावनी %s द्वारा हटाई गई।"
 warns_no_warns_to_remove: उपयोगकर्ता को पहले से कोई चेतावनी नहीं है!
