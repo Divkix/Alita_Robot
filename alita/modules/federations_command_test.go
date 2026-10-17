@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -406,33 +407,114 @@ func TestUnfbanLiftsBanInFederationChats(t *testing.T) {
 	}
 }
 
-func TestUnfbanKeepsBansInChatsUnlessFedTreeStillBans(t *testing.T) {
+// withUnfbanLocale loads the /unfban replies so tests can tell them apart.
+func withUnfbanLocale(t *testing.T) {
+	t.Helper()
+	restore, err := i18n.OverrideManagerForTest(`
+feds_unfban_not_banned: "Not fbanned."
+feds_unfban_ok: "Unfbanned {user} from <b>{name}</b>."
+`)
+	require.NoError(t, err)
+	t.Cleanup(restore)
+}
+
+// This pins a known gap, not the behaviour we want: an unfban in a source
+// federation walks only its own chats, so a subscriber federation whose own
+// unfban walk was skipped keeps the user banned in its chats.
+func TestSourceFedUnfbanLeavesSubscriberChatsBannedAfterSkippedWalk(t *testing.T) {
+	withUnfbanLocale(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
-	ownerA := uniquePositiveUserID()
-	ownerB := uniquePositiveUserID()
-	fedA, err := federations.CreateFederation(ownerA, "Subscriber Fed")
+	ownerA := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner A"}
+	ownerB := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner B"}
+	fedA, err := federations.CreateFederation(ownerA.Id, "Subscriber Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fedA.FedID) })
-	fedB, err := federations.CreateFederation(ownerB, "Source Fed")
+	fedB, err := federations.CreateFederation(ownerB.Id, "Source Fed")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = federations.DeleteFederation(fedB.FedID) })
 	require.NoError(t, federations.SubscribeFed(fedA.FedID, fedB.FedID))
 
 	target := uniquePositiveUserID()
-	chat := seedFedChat(t, fedA.FedID, target)
-	_, _, err = federations.Fban(fedA.FedID, target, ownerA, "local")
+	chatA := seedFedChat(t, fedA.FedID, target)
+	chatB := seedFedChat(t, fedB.FedID, target)
+	_, _, err = federations.Fban(fedA.FedID, target, ownerA.Id, "local")
 	require.NoError(t, err)
-	_, _, err = federations.Fban(fedB.FedID, target, ownerB, "upstream")
+	_, _, err = federations.Fban(fedB.FedID, target, ownerB.Id, "upstream")
 	require.NoError(t, err)
-	require.NoError(t, federations.Unfban(fedA.FedID, target))
+	unfbanText := "/unfban " + strconv.FormatInt(target, 10)
 
-	applyActiveUnfban(bot, fedA.FedID, target)
-	require.Empty(t, unbanTargets(client, target), "a ban inherited from a subscribed federation must stay in force")
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, chatA, ownerA, unfbanText)); err != ext.EndGroups {
+		t.Fatalf("unfban in A: %v", err)
+	}
+	require.Never(t, func() bool { return len(unbanTargets(client, target)) > 0 },
+		200*time.Millisecond, 10*time.Millisecond, "A's walk must skip while the source federation still bans the user")
 
-	require.NoError(t, federations.Unfban(fedB.FedID, target))
-	applyActiveUnfban(bot, fedA.FedID, target)
-	require.Equal(t, []int64{chat.Id}, unbanTargets(client, target))
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, chatB, ownerB, unfbanText)); err != ext.EndGroups {
+		t.Fatalf("unfban in B: %v", err)
+	}
+	require.Eventually(t, func() bool { return slices.Contains(unbanTargets(client, target), chatB.Id) },
+		2*time.Second, 10*time.Millisecond, "B's walk must unban the user in B's chats")
+	require.Never(t, func() bool { return slices.Contains(unbanTargets(client, target), chatA.Id) },
+		200*time.Millisecond, 10*time.Millisecond, "known gap: B's walk does not reach A's chats")
+	require.Equal(t, []int64{chatB.Id}, unbanTargets(client, target))
+
+	ban, _ := federations.FindBanInFedTree(fedA.FedID, target)
+	require.Nil(t, ban, "no federation in A's tree bans the user any more")
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, chatA, ownerA, unfbanText)); err != ext.EndGroups {
+		t.Fatalf("second unfban in A: %v", err)
+	}
+	notBanned, _ := i18n.MustNewTranslator("en").GetString("feds_unfban_not_banned")
+	texts := sentTexts(client)
+	require.Equal(t, notBanned, texts[len(texts)-1], "a repeated unfban in A cannot recover the chat ban")
+}
+
+func TestUnfbanOfUserWithoutFbanRepliesNotBannedAndUnbansNowhere(t *testing.T) {
+	withUnfbanLocale(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	owner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner"}
+	fed, err := federations.CreateFederation(owner.Id, "Clean Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+	target := uniquePositiveUserID()
+	chat := seedFedChat(t, fed.FedID, target)
+
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, chat, owner, "/unfban "+strconv.FormatInt(target, 10))); err != ext.EndGroups {
+		t.Fatalf("unfban: %v", err)
+	}
+	notBanned, _ := i18n.MustNewTranslator("en").GetString("feds_unfban_not_banned")
+	require.Equal(t, []string{notBanned}, sentTexts(client))
+	require.Never(t, func() bool { return len(unbanTargets(client, target)) > 0 },
+		200*time.Millisecond, 10*time.Millisecond, "unfban of a user who is not fbanned must not unban them anywhere")
+}
+
+// Telegram keeps one ban per chat and does not record who set it, so the walk
+// lifts a ban that a chat admin set by hand as well.
+func TestUnfbanAlsoLiftsChatLocalBanInFederationChat(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	owner := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Owner"}
+	fed, err := federations.CreateFederation(owner.Id, "Local Ban Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+	target := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Member"}
+	chat := seedFedChat(t, fed.FedID, target.Id)
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	if err := bansModule.ban(bot, newBanReplyContext(bot, chat, admin, target, "/ban spam")); err != ext.EndGroups {
+		t.Fatalf("ban: %v", err)
+	}
+	require.Len(t, client.callsFor("banChatMember"), 1)
+	_, _, err = federations.Fban(fed.FedID, target.Id, owner.Id, "spam")
+	require.NoError(t, err)
+
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, chat, owner, "/unfban "+strconv.FormatInt(target.Id, 10))); err != ext.EndGroups {
+		t.Fatalf("unfban: %v", err)
+	}
+	require.Eventually(t, func() bool { return slices.Contains(unbanTargets(client, target.Id), chat.Id) },
+		2*time.Second, 10*time.Millisecond, "unfban lifts the chat ban whatever set it")
 }
 
 func TestUnfbanChatFailureDoesNotStopOtherChats(t *testing.T) {
