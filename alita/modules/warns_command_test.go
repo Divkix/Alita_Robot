@@ -363,6 +363,9 @@ func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
 		// 30 s reaches Telegram as less than 30 s after rounding and latency,
 		// which it reads as forever.
 		{name: "too short duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, wantMethod: "banChatMember", wantTime: 3600, wantText: "1h"},
+		{name: "longest duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 366 * 86400}, wantMethod: "banChatMember", wantTime: 366 * 86400, wantText: "366d"},
+		// Telegram reads an until_date more than 366 days away as forever.
+		{name: "too long duration", settings: models.WarnSettings{WarnMode: "tmute", WarnActionTime: 366*86400 + 1}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
 	}
 
 	for _, tc := range tests {

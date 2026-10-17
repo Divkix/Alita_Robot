@@ -440,6 +440,8 @@ func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 		want       int
 	}{
 		{name: "too short", actionTime: 30, want: 0},
+		{name: "longest", actionTime: 366 * 86400, want: 366 * 86400},
+		{name: "too long", actionTime: 366*86400 + 1, want: 0},
 		{name: "beyond int32", actionTime: 1e12, want: 0},
 		{name: "negative", actionTime: -60, want: 0},
 		{name: "valid", actionTime: 7200, want: 7200},
