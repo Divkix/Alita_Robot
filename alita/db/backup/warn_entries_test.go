@@ -210,6 +210,29 @@ func TestImportWarnsReplacesEntries(t *testing.T) {
 	assert.Equal(t, "fresh", got[0].Reason)
 }
 
+func TestImportReconcilesDriftedWarnEntries(t *testing.T) {
+	skipIfNoDb(t)
+	chatID := time.Now().UnixNano()
+	drifted, extra := chatID+1, chatID+2
+	cleanupWarnEntriesChat(t, chatID, drifted, extra)
+
+	require.NoError(t, importWarnsBackup(t, chatID, []interface{}{
+		map[string]interface{}{"user_id": drifted, "num_warns": 2, "warns": []interface{}{"a", "c"}},
+		map[string]interface{}{"user_id": extra, "num_warns": 1, "warns": []interface{}{"spam"}},
+	}, []interface{}{
+		map[string]interface{}{"user_id": drifted, "reason": "a", "warned_by": 77},
+		map[string]interface{}{"user_id": drifted, "reason": "b", "warned_by": 78},
+		map[string]interface{}{"user_id": extra, "reason": "x", "warned_by": 77},
+		map[string]interface{}{"user_id": extra, "reason": "y", "warned_by": 77},
+	}))
+
+	got := storedWarnEntries(t, chatID, drifted)
+	require.Len(t, got, 2)
+	assert.Equal(t, storedWarnEntry{Reason: "a", WarnedBy: 77}, got[0])
+	assert.Equal(t, storedWarnEntry{Reason: "c"}, got[1], "a reason with no matching entry has no known issuer")
+	assert.Equal(t, []storedWarnEntry{{Reason: "spam"}}, storedWarnEntries(t, chatID, extra))
+}
+
 func TestImportWarnsRejectsEntryForUnknownUser(t *testing.T) {
 	skipIfNoDb(t)
 	chatID := time.Now().UnixNano()

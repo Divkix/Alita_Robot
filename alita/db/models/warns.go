@@ -61,3 +61,24 @@ type WarnEntry struct {
 func (WarnEntry) TableName() string {
 	return "warn_entries"
 }
+
+// ReconcileWarnEntries matches a user's stored entries, oldest first, with
+// their reasons. An older release pops and appends reasons without touching
+// entries, so only the leading entries whose reasons match position for
+// position still belong to counted warns. Those keep their issuer and time;
+// each later reason becomes an entry with neither. kept is the number of
+// stored entries that stay; the ones after them are stale.
+func ReconcileWarnEntries(w *Warns, stored []WarnEntry) (entries []WarnEntry, kept int) {
+	if w.NumWarns <= 0 {
+		return nil, 0
+	}
+	for kept < len(stored) && kept < len(w.Reasons) && stored[kept].Reason == w.Reasons[kept] {
+		kept++
+	}
+	entries = make([]WarnEntry, 0, len(w.Reasons))
+	entries = append(entries, stored[:kept]...)
+	for _, reason := range w.Reasons[kept:] {
+		entries = append(entries, WarnEntry{UserId: w.UserId, ChatId: w.ChatId, Reason: reason})
+	}
+	return entries, kept
+}

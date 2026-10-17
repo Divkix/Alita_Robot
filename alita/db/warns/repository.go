@@ -193,51 +193,52 @@ func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnE
 	return numWarns, entries, nil
 }
 
-// syncEntriesWithReasons runs before a warn is added. A user without warns
-// must not keep entries: an older release resets warns_users alone. A user
-// with reasons but no entries was restored by an older release; their reasons
-// become entries with no issuer or time, so they keep showing.
+// syncEntriesWithReasons runs under the row locks before a warn is added or
+// removed, and stores what models.ReconcileWarnEntries makes of the entries.
+// An older release writes warns_users alone: its /resetwarns leaves entries
+// for a user without warns, its /rmwarn and /warn pop and append reasons
+// without their entries, and its restore leaves reasons with no entries.
 func syncEntriesWithReasons(tx *gorm.DB, warnrc *models.Warns) error {
-	if warnrc.NumWarns == 0 {
-		return deleteEntries(tx, "chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId)
-	}
-	var count int64
-	if err := tx.Model(&models.WarnEntry{}).
-		Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
-		Count(&count).Error; err != nil {
+	stored, err := findEntries(tx, warnrc)
+	if err != nil {
 		return err
 	}
-	if count > 0 || len(warnrc.Reasons) == 0 {
-		return nil
+	entries, kept := models.ReconcileWarnEntries(warnrc, stored)
+	if stale := stored[kept:]; len(stale) > 0 {
+		ids := make([]uint, len(stale))
+		for i, e := range stale {
+			ids[i] = e.ID
+		}
+		if err := tx.Delete(&models.WarnEntry{}, ids).Error; err != nil {
+			return err
+		}
 	}
-	legacy := legacyEntries(warnrc)
-	return tx.Create(&legacy).Error
+	if missing := entries[kept:]; len(missing) > 0 {
+		return tx.Create(&missing).Error
+	}
+	return nil
 }
 
-// loadEntries returns the user's entries oldest first, or their reasons as
-// entries with no issuer or time when they have none.
+// loadEntries returns the user's entries oldest first, reconciled with their
+// reasons as syncEntriesWithReasons would store them. It writes nothing.
 func loadEntries(tx *gorm.DB, warnrc *models.Warns) ([]models.WarnEntry, error) {
 	if warnrc.NumWarns == 0 {
 		return nil, nil
 	}
-	var entries []models.WarnEntry
-	if err := tx.Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
-		Order("id").
-		Find(&entries).Error; err != nil {
+	stored, err := findEntries(tx, warnrc)
+	if err != nil {
 		return nil, err
 	}
-	if len(entries) == 0 {
-		return legacyEntries(warnrc), nil
-	}
+	entries, _ := models.ReconcileWarnEntries(warnrc, stored)
 	return entries, nil
 }
 
-func legacyEntries(warnrc *models.Warns) []models.WarnEntry {
-	entries := make([]models.WarnEntry, len(warnrc.Reasons))
-	for i, reason := range warnrc.Reasons {
-		entries[i] = models.WarnEntry{UserId: warnrc.UserId, ChatId: warnrc.ChatId, Reason: reason}
-	}
-	return entries
+func findEntries(tx *gorm.DB, warnrc *models.Warns) ([]models.WarnEntry, error) {
+	var entries []models.WarnEntry
+	err := tx.Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Order("id").
+		Find(&entries).Error
+	return entries, err
 }
 
 func deleteEntries(tx *gorm.DB, query string, args ...any) error {
@@ -264,6 +265,10 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 				removed = false
 				return nil
 			}
+			return err
+		}
+		// The newest entry deleted below must be the popped reason's.
+		if err := syncEntriesWithReasons(tx, warnrc); err != nil {
 			return err
 		}
 
