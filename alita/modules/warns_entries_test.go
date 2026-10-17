@@ -4,7 +4,9 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -333,5 +335,92 @@ func TestWarnLimitSplitsLongList(t *testing.T) {
 	}
 	if text := full.String(); !strings.Contains(text, "0 xxx") || !strings.Contains(text, "last straw") {
 		t.Fatalf("limit notice = %q, want every warn listed", text)
+	}
+}
+
+// telegramHTMLToken matches a whole entity or a whole tag at a '&' or '<'.
+var telegramHTMLToken = regexp.MustCompile(`^(?:&(?:amp|lt|gt|quot|#[0-9]+);|<(/?)([a-z]+)(?:\s[^<>]*)?>)`)
+
+// checkTelegramHTML fails unless text parses on its own as Telegram HTML:
+// no entity or tag cut short, no stray '>', every tag closed in order.
+func checkTelegramHTML(t *testing.T, part int, text string) {
+	t.Helper()
+	var open []string
+	for pos := 0; pos < len(text); {
+		switch text[pos] {
+		case '&', '<':
+			m := telegramHTMLToken.FindStringSubmatch(text[pos:])
+			if m == nil {
+				t.Fatalf("part %d: cut entity or tag at byte %d: %q", part, pos, text[pos:min(pos+12, len(text))])
+			}
+			switch {
+			case m[2] == "":
+			case m[1] == "":
+				open = append(open, m[2])
+			case len(open) == 0 || open[len(open)-1] != m[2]:
+				t.Fatalf("part %d: </%s> closes nothing open (open: %v)", part, m[2], open)
+			default:
+				open = open[:len(open)-1]
+			}
+			pos += len(m[0])
+		case '>':
+			t.Fatalf("part %d: stray '>' at byte %d", part, pos)
+		default:
+			pos++
+		}
+	}
+	if len(open) > 0 {
+		t.Fatalf("part %d: tags left open: %v", part, open)
+	}
+}
+
+// Escaping turns one character of a reason into up to five, so a long reason
+// of '&' or '"' becomes a line longer than a Telegram message. Each part sent
+// must still be valid HTML on its own.
+func TestWarnReplyWithLongEscapedReasonSendsValidHTML(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		limit  int
+		reason string
+	}{
+		{"below the limit", 3, strings.Repeat("&", 4000)},
+		{"at the limit", 1, strings.Repeat(`"`, 3000)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			useEnglishLocale(t)
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			issuer := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			if tc.limit != 3 {
+				limitCtx := newModuleMessageContext(bot, chat, issuer, fmt.Sprintf("/setwarnlimit %d", tc.limit))
+				if err := warnsModule.setWarnLimit(bot, limitCtx); err != ext.EndGroups {
+					t.Fatalf("setWarnLimit() error = %v, want EndGroups", err)
+				}
+			}
+			before := len(client.callsFor("sendMessage"))
+
+			if err := warnsModule.warnUser(bot, newWarnReplyContext(bot, chat, issuer, target, "/warn "+tc.reason)); err != ext.EndGroups {
+				t.Fatalf("warnUser() error = %v, want EndGroups", err)
+			}
+
+			sent := client.callsFor("sendMessage")[before:]
+			if len(sent) == 0 {
+				t.Fatal("sendMessage calls = 0, want the warn reply")
+			}
+			var full strings.Builder
+			for i, call := range sent {
+				text := call.Params["text"].(string)
+				if n := utf8.RuneCountInString(text); n > formatting.MaxMessageLength {
+					t.Fatalf("part %d has %d chars, over the Telegram limit", i, n)
+				}
+				checkTelegramHTML(t, i, text)
+				full.WriteString(text)
+			}
+			if escaped := html.EscapeString(tc.reason[:10]); !strings.Contains(full.String(), escaped) {
+				t.Fatalf("reply = %q, want the start of the reason", full.String())
+			}
+		})
 	}
 }

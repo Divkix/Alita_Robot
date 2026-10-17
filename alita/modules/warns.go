@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -155,6 +156,31 @@ func warnIssuer(ctx *ext.Context) models.WarnEntry {
 	return issuer
 }
 
+// maxShownReasonLen caps a reason as shown, after escaping, in runes. With the
+// issuer and time its line stays under Telegram's message length, so
+// SplitMessage breaks only between lines, never inside an entity or a tag.
+const maxShownReasonLen = 3000
+
+// shownReason escapes reason and shortens it, at a whole escaped character,
+// to at most maxShownReasonLen runes, ending with "…" when shortened.
+func shownReason(reason string, escape func(string) string) string {
+	if out := escape(reason); utf8.RuneCountInString(out) <= maxShownReasonLen {
+		return out
+	}
+	var sb strings.Builder
+	n := 0
+	for _, r := range reason {
+		part := escape(string(r))
+		k := utf8.RuneCountInString(part)
+		if n+k > maxShownReasonLen-1 {
+			break
+		}
+		sb.WriteString(part)
+		n += k
+	}
+	return sb.String() + "…"
+}
+
 // warnEntryLines renders one "\n - reason (issuer, time)" line per entry. An
 // entry without a time predates entries and shows its reason only. escape is
 // applied to the reason and the issuer name.
@@ -162,7 +188,7 @@ func warnEntryLines(b *gotgbot.Bot, tr *i18n.Translator, entries []models.WarnEn
 	metaFormat, _ := tr.GetString("warns_entry_meta")
 	var sb strings.Builder
 	for _, e := range entries {
-		line := escape(e.Reason)
+		line := shownReason(e.Reason, escape)
 		if e.WarnedAt != nil && metaFormat != "" {
 			line = fmt.Sprintf(metaFormat, line, escape(warnIssuerLabel(b, tr, e)), e.WarnedAt.UTC().Format("2006-01-02 15:04 UTC"))
 		}
@@ -356,7 +382,7 @@ func (moduleStruct) warnThisUser(b *gotgbot.Bot, ctx *ext.Context, userId int64,
 
 		if reason != "" {
 			temp, _ := tr.GetString("warns_warning_reason")
-			reply += fmt.Sprintf(temp, html.EscapeString(reason))
+			reply += fmt.Sprintf(temp, shownReason(reason, html.EscapeString))
 		}
 	}
 	// The list at the warn limit can pass Telegram's length limit; only the
