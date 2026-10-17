@@ -1084,6 +1084,11 @@ warns_warning_reason: "\n<b>Alasan</b>:\n%s"
 warns_settings_display: "Grup memiliki pengaturan berikut:\n<b>Batas Peringatan:</b> <code>%d</code>\n<b>Mode Peringatan:</b> <code>%s</code>"
 warns_user_warnings_list: "Pengguna ini punya %d/%d peringatan, untuk alasan berikut:"
 warns_user_warnings_no_reasons: "Pengguna punya %d/%d peringatan, tetapi tidak ada alasan untuk salah satunya."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "admin anonim"
+warns_issuer_auto: "otomatis"
+warns_issuer_unknown: "tidak diketahui"
 warns_user_no_warnings: Pengguna ini tidak punya peringatan apa pun!
 warns_removed_by: "Peringatan dihapus oleh %s."
 warns_no_warns_to_remove: Pengguna sudah tidak punya peringatan!

@@ -1055,6 +1055,11 @@ warns_warning_reason: "\n<b>Motivo</b>:\n%s"
 warns_settings_display: "O grupo tem as seguintes configurações:\n<b>Limite de Avisos:</b> <code>%d</code>\n<b>Modo de Aviso:</b> <code>%s</code>"
 warns_user_warnings_list: "Este usuário tem %d/%d avisos, pelos seguintes motivos:"
 warns_user_warnings_no_reasons: "Usuário tem %d/%d avisos, mas sem motivos para nenhum deles."
+# Reason (issuer, time) of one warn in a warns list.
+warns_entry_meta: "%s (%s, %s)"
+warns_issuer_anonymous: "admin anônimo"
+warns_issuer_auto: "automático"
+warns_issuer_unknown: "desconhecido"
 warns_user_no_warnings: Este usuário não tem nenhum aviso!
 warns_removed_by: "Aviso removido por %s."
 warns_no_warns_to_remove: Usuário já não tem avisos!

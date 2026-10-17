@@ -3,6 +3,7 @@ package warns
 import (
 	"context"
 	"errors"
+	"time"
 	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
@@ -85,9 +86,11 @@ func checkWarnsContext(ctx context.Context, userId, chatId int64) (warnrc *model
 	return
 }
 
-func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
+// WarnUser adds one warn. entry carries the reason and the issuer; the user,
+// chat and time are filled in here. It returns the new count and every entry.
+func WarnUser(userId, chatId int64, entry models.WarnEntry) (int, []models.WarnEntry, error) {
 	var numWarns int
-	var reasons []string
+	var entries []models.WarnEntry
 
 	if err := chats.EnsureChatInDb(chatId, ""); err != nil {
 		return 0, nil, err
@@ -135,9 +138,13 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 				return err
 			}
 		}
+		if err := syncEntriesWithReasons(tx, warnrc); err != nil {
+			return err
+		}
 
 		warnrc.NumWarns++
 
+		reason := entry.Reason
 		if reason != "" {
 			if len(reason) > 3000 {
 				reason = reason[:3000]
@@ -145,23 +152,35 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 					reason = reason[:len(reason)-1]
 				}
 			}
-			warnrc.Reasons = append(warnrc.Reasons, reason)
 		} else {
 			tr := i18n.MustNewTranslator("en")
 			noReason, _ := tr.GetString("db_warn_no_reason")
 			if noReason == "" {
 				noReason = "No Reason"
 			}
-			warnrc.Reasons = append(warnrc.Reasons, noReason)
+			reason = noReason
 		}
+		// The reasons column is still written so an older release reads it.
+		warnrc.Reasons = append(warnrc.Reasons, reason)
 
 		if err := tx.Save(warnrc).Error; err != nil {
 			return err
 		}
 
+		now := time.Now().UTC()
+		entry.ID = 0
+		entry.UserId = userId
+		entry.ChatId = chatId
+		entry.Reason = reason
+		entry.WarnedAt = &now
+		if err := tx.Create(&entry).Error; err != nil {
+			return err
+		}
+
 		numWarns = warnrc.NumWarns
-		reasons = []string(warnrc.Reasons)
-		return nil
+		var err error
+		entries, err = loadEntries(tx, warnrc)
+		return err
 	})
 	if err != nil {
 		log.Errorf("[Database] WarnUser: %v", err)
@@ -171,7 +190,58 @@ func WarnUser(userId, chatId int64, reason string) (int, []string, error) {
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
 	cache.DeleteCache(cache.CacheKey("warn_settings", chatId))
 
-	return numWarns, reasons, nil
+	return numWarns, entries, nil
+}
+
+// syncEntriesWithReasons runs before a warn is added. A user without warns
+// must not keep entries: an older release resets warns_users alone. A user
+// with reasons but no entries was restored by an older release; their reasons
+// become entries with no issuer or time, so they keep showing.
+func syncEntriesWithReasons(tx *gorm.DB, warnrc *models.Warns) error {
+	if warnrc.NumWarns == 0 {
+		return deleteEntries(tx, "chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId)
+	}
+	var count int64
+	if err := tx.Model(&models.WarnEntry{}).
+		Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 || len(warnrc.Reasons) == 0 {
+		return nil
+	}
+	legacy := legacyEntries(warnrc)
+	return tx.Create(&legacy).Error
+}
+
+// loadEntries returns the user's entries oldest first, or their reasons as
+// entries with no issuer or time when they have none.
+func loadEntries(tx *gorm.DB, warnrc *models.Warns) ([]models.WarnEntry, error) {
+	if warnrc.NumWarns == 0 {
+		return nil, nil
+	}
+	var entries []models.WarnEntry
+	if err := tx.Where("chat_id = ? AND user_id = ?", warnrc.ChatId, warnrc.UserId).
+		Order("id").
+		Find(&entries).Error; err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return legacyEntries(warnrc), nil
+	}
+	return entries, nil
+}
+
+func legacyEntries(warnrc *models.Warns) []models.WarnEntry {
+	entries := make([]models.WarnEntry, len(warnrc.Reasons))
+	for i, reason := range warnrc.Reasons {
+		entries[i] = models.WarnEntry{UserId: warnrc.UserId, ChatId: warnrc.ChatId, Reason: reason}
+	}
+	return entries
+}
+
+func deleteEntries(tx *gorm.DB, query string, args ...any) error {
+	return tx.Where(query, args...).Delete(&models.WarnEntry{}).Error
 }
 
 func RemoveWarn(userId, chatId int64) (bool, error) {
@@ -207,6 +277,17 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 			if err := tx.Save(warnrc).Error; err != nil {
 				return err
 			}
+
+			var newest models.WarnEntry
+			err := tx.Where("chat_id = ? AND user_id = ?", chatId, userId).Order("id DESC").Take(&newest).Error
+			if err == nil {
+				err = tx.Delete(&newest).Error
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
+				err = nil
+			}
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -225,12 +306,20 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 }
 
 func ResetUserWarns(userId, chatId int64) (bool, error) {
-	result := db.DB.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
-	if result.Error != nil {
-		log.Errorf("[Database] ResetUserWarns: %v", result.Error)
-		return false, result.Error
+	var reset bool
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := deleteEntries(tx, "chat_id = ? AND user_id = ?", chatId, userId); err != nil {
+			return err
+		}
+		result := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
+		reset = result.RowsAffected > 0
+		return result.Error
+	})
+	if err != nil {
+		log.Errorf("[Database] ResetUserWarns: %v", err)
+		return false, err
 	}
-	if result.RowsAffected == 0 {
+	if !reset {
 		return false, nil
 	}
 	cache.DeleteCache(cache.CacheKey("warns", userId, chatId))
@@ -238,21 +327,28 @@ func ResetUserWarns(userId, chatId int64) (bool, error) {
 	return true, nil
 }
 
-func GetWarns(userId, chatId int64) (int, []string) {
+func GetWarns(userId, chatId int64) (int, []models.WarnEntry) {
 	return GetWarnsContext(context.Background(), userId, chatId)
 }
 
-func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []string) {
+func GetWarnsContext(ctx context.Context, userId, chatId int64) (int, []models.WarnEntry) {
+	// Reasons keeps its pre-entries field name on purpose: a value cached by an
+	// older release ([]string) then fails to decode and is reloaded, where a
+	// renamed field would decode as an empty list.
 	type warnCache struct {
 		NumWarns int
-		Reasons  []string
+		Reasons  []models.WarnEntry
 	}
 	cached, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey("warns", userId, chatId),
 		cache.CacheTTLWarnSettings,
 		func(ctx context.Context) (warnCache, error) {
 			w := checkWarnsContext(ctx, userId, chatId)
-			return warnCache{NumWarns: w.NumWarns, Reasons: []string(w.Reasons)}, nil
+			entries, err := loadEntries(db.DB.WithContext(ctx), w)
+			if err != nil {
+				return warnCache{}, err
+			}
+			return warnCache{NumWarns: w.NumWarns, Reasons: entries}, nil
 		},
 	)
 	if err != nil {
@@ -327,7 +423,12 @@ func ResetAllChatWarns(chatId int64) error {
 		return err
 	}
 
-	err := db.DB.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
+	err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := deleteEntries(tx, "chat_id = ?", chatId); err != nil {
+			return err
+		}
+		return tx.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
+	})
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
 		return err

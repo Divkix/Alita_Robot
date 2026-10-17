@@ -195,9 +195,12 @@ type ReportsBackup = SettingBackup[models.ReportChatSettings]
 
 type RulesBackup = SettingBackup[models.RulesSettings]
 
+// WarnsBackup keeps each user's reasons in Warns for bots that predate
+// Entries; Entries adds who issued each warn and when.
 type WarnsBackup struct {
 	WarnSettings *models.WarnSettings `json:"warn_settings,omitempty"`
 	Warns        []models.Warns       `json:"warns,omitempty"`
+	Entries      []models.WarnEntry   `json:"entries,omitempty"`
 }
 
 type AntiraidBackup = SettingBackup[models.AntiRaidSettings]

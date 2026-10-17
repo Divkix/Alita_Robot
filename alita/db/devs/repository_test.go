@@ -263,7 +263,7 @@ func TestLoadAllStats_IncludesModuleCounts(t *testing.T) {
 
 	tables := []any{
 		&models.CaptchaSettings{}, &models.CaptchaAttempts{}, &models.CaptchaMutedUsers{},
-		&models.ApprovedUsers{}, &models.Warns{}, &models.LockSettings{}, &models.AntiRaidSettings{},
+		&models.ApprovedUsers{}, &models.Warns{}, &models.WarnEntry{}, &models.LockSettings{}, &models.AntiRaidSettings{},
 		&models.LogChannel{}, &models.Reactions{}, &models.AISpamSettings{},
 	}
 	t.Cleanup(func() {
