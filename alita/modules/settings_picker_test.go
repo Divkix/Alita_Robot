@@ -12,6 +12,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -64,9 +66,16 @@ func pressSettingsButton(t *testing.T, bot *gotgbot.Bot, user gotgbot.User, fiel
 }
 
 // A second /settings inside the pause runs no group checks and gets a notice
-// with the seconds left; after the pause the list is built again.
+// with the seconds left; after the pause the list is built again. The pause
+// lives in Redis, as in production, so the test moves miniredis's clock past
+// it instead of sleeping.
 func TestSettingsPickerPausesRepeatedPresses(t *testing.T) {
-	client, bot, groupA, groupB, user := pauseFixture(t, 300*time.Millisecond)
+	const cooldown = 5 * time.Second
+	server := miniredis.RunT(t)
+	redisClient := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { _ = redisClient.Close() })
+	cache.SetRedisClientForTest(t, redisClient)
+	client, bot, groupA, groupB, user := pauseFixture(t, cooldown)
 
 	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupA) {
 		t.Fatalf("first picker chats = %v, want only %d", got, groupA)
@@ -88,7 +97,7 @@ func TestSettingsPickerPausesRepeatedPresses(t *testing.T) {
 		t.Fatalf("admin lookups during the pause = %d, want 0", n)
 	}
 
-	time.Sleep(350 * time.Millisecond)
+	server.FastForward(cooldown)
 	if got := runSettingsInPM(t, bot, client, user); len(got) != 1 || got[0] != fmt.Sprint(groupA) {
 		t.Fatalf("picker chats after the pause = %v, want only %d", got, groupA)
 	}
