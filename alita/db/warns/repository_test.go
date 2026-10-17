@@ -332,9 +332,15 @@ func TestWarnSettingsSetters(t *testing.T) {
 		},
 		{
 			name:  "mode",
-			set:   func(id int64) error { return SetWarnMode(id, "ban") },
+			set:   func(id int64) error { return SetWarnMode(id, "ban", 0) },
 			check: func(s *models.WarnSettings) bool { return s.WarnMode == "ban" },
 			want:  "WarnMode=ban",
+		},
+		{
+			name:  "timed mode",
+			set:   func(id int64) error { return SetWarnMode(id, "tban", 3600) },
+			check: func(s *models.WarnSettings) bool { return s.WarnMode == "tban" && s.WarnActionTime == 3600 },
+			want:  "WarnMode=tban WarnActionTime=3600",
 		},
 	}
 

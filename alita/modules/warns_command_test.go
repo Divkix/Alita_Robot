@@ -2,8 +2,11 @@ package modules
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -231,7 +234,7 @@ func TestWarnLimitPunishesAndResetsWarnings(t *testing.T) {
 	if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 		t.Fatalf("SetWarnLimit() error = %v", err)
 	}
-	if err := warns.SetWarnMode(chat.Id, "ban"); err != nil {
+	if err := warns.SetWarnMode(chat.Id, "ban", 0); err != nil {
 		t.Fatalf("SetWarnMode() error = %v", err)
 	}
 
@@ -266,7 +269,7 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 				t.Fatalf("SetWarnLimit() error = %v", err)
 			}
-			if err := warns.SetWarnMode(chat.Id, tc.mode); err != nil {
+			if err := warns.SetWarnMode(chat.Id, tc.mode, 0); err != nil {
 				t.Fatalf("SetWarnMode() error = %v", err)
 			}
 
@@ -279,6 +282,160 @@ func TestWarnLimitKickAndMuteModes(t *testing.T) {
 			}
 			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
 				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
+			}
+		})
+	}
+}
+
+func TestSetWarnModeStoresTimedModeDuration(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	setMode := func(text string) {
+		t.Helper()
+		if err := warnsModule.setWarnMode(bot, newModuleMessageContext(bot, chat, admin, text)); err != ext.EndGroups {
+			t.Fatalf("%s error = %v, want EndGroups", text, err)
+		}
+	}
+	assertSetting := func(text, wantMode string, wantTime int) {
+		t.Helper()
+		s := warns.GetWarnSetting(chat.Id)
+		if s.WarnMode != wantMode || s.WarnActionTime != wantTime {
+			t.Fatalf("after %q: mode=%q time=%d, want %q %d", text, s.WarnMode, s.WarnActionTime, wantMode, wantTime)
+		}
+	}
+
+	setMode("/setwarnmode tban 1d")
+	assertSetting("/setwarnmode tban 1d", "tban", 86400)
+	setMode("/setwarnmode TMUTE 2h")
+	assertSetting("/setwarnmode TMUTE 2h", "tmute", 7200)
+
+	for _, text := range []string{"/setwarnmode tban", "/setwarnmode tban 5x", "/setwarnmode tmute 0h", "/setwarnmode tban 400d", "/setwarnmode tban 1d extra"} {
+		before := len(client.callsFor("sendMessage"))
+		setMode(text)
+		assertSetting(text, "tmute", 7200)
+		if got := len(client.callsFor("sendMessage")); got != before+1 {
+			t.Fatalf("%q sent %d replies, want one error reply", text, got-before)
+		}
+	}
+
+	displayCtx := newModuleMessageContext(bot, chat, admin, "/warnings")
+	if err := warnsModule.warnings(bot, displayCtx); err != ext.EndGroups {
+		t.Fatalf("warnings() error = %v, want EndGroups", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if text := calls[len(calls)-1].Params["text"].(string); !strings.Contains(text, "tmute 2h") {
+		t.Fatalf("/warnings text = %q, want mode with duration", text)
+	}
+
+	setMode("/setwarnmode ban")
+	assertSetting("/setwarnmode ban", "ban", 0)
+}
+
+func untilDateParam(t *testing.T, call moduleBotCall) int64 {
+	t.Helper()
+	raw, ok := call.Params["until_date"]
+	if !ok {
+		t.Fatalf("%s params = %#v, want until_date", call.Method, call.Params)
+	}
+	until, err := strconv.ParseInt(fmt.Sprint(raw), 10, 64)
+	if err != nil {
+		t.Fatalf("until_date = %v: %v", raw, err)
+	}
+	return until
+}
+
+func TestWarnLimitTimedModesPunishUntilDuration(t *testing.T) {
+	tests := []struct {
+		name       string
+		settings   models.WarnSettings
+		wantMethod string
+		wantTime   int64
+		wantText   string
+	}{
+		{name: "tban", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 86400}, wantMethod: "banChatMember", wantTime: 86400, wantText: "1d"},
+		{name: "tmute", settings: models.WarnSettings{WarnMode: "tmute", WarnActionTime: 7200}, wantMethod: "restrictChatMember", wantTime: 7200, wantText: "2h"},
+		// A backup taken before warn_action_time existed restores tmute with 0:
+		// that must not become a permanent mute.
+		{name: "legacy zero duration", settings: models.WarnSettings{WarnMode: "tmute"}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
+		// 30 s reaches Telegram as less than 30 s after rounding and latency,
+		// which it reads as forever.
+		{name: "too short duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 30}, wantMethod: "banChatMember", wantTime: 3600, wantText: "1h"},
+		{name: "longest duration", settings: models.WarnSettings{WarnMode: "tban", WarnActionTime: 366 * 86400}, wantMethod: "banChatMember", wantTime: 366 * 86400, wantText: "366d"},
+		// Telegram reads an until_date more than 366 days away as forever.
+		{name: "too long duration", settings: models.WarnSettings{WarnMode: "tmute", WarnActionTime: 366*86400 + 1}, wantMethod: "restrictChatMember", wantTime: 3600, wantText: "1h"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			settings := tc.settings
+			settings.ChatId = chat.Id
+			settings.WarnLimit = 1
+			if err := db.DB.Create(&settings).Error; err != nil {
+				t.Fatalf("create warn settings: %v", err)
+			}
+
+			before := time.Now().Unix()
+			warnCtx := newWarnReplyContext(bot, chat, admin, target, "/warn limit reached")
+			if err := warnsModule.warnUser(bot, warnCtx); err != ext.EndGroups {
+				t.Fatalf("warnUser() error = %v, want EndGroups", err)
+			}
+			after := time.Now().Unix()
+
+			calls := client.callsFor(tc.wantMethod)
+			if len(calls) != 1 {
+				t.Fatalf("%s calls = %d, want 1", tc.wantMethod, len(calls))
+			}
+			if until := untilDateParam(t, calls[0]); until < before+tc.wantTime || until > after+tc.wantTime {
+				t.Fatalf("until_date = %d, want now+%d (%d..%d)", until, tc.wantTime, before+tc.wantTime, after+tc.wantTime)
+			}
+			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 0 {
+				t.Fatalf("numWarns after punishment = %d, want reset to 0", numWarns)
+			}
+			replies := client.callsFor("sendMessage")
+			if len(replies) == 0 || !strings.Contains(replies[len(replies)-1].Params["text"].(string), tc.wantText) {
+				t.Fatalf("punishment replies = %#v, want duration %q", replies, tc.wantText)
+			}
+		})
+	}
+}
+
+func TestWarnLimitTimedModesKeepWarnsWhenPunishmentFails(t *testing.T) {
+	requestErr := errors.New("telegram request failed")
+	for _, tc := range []struct {
+		mode   string
+		method string
+	}{
+		{mode: "tban", method: "banChatMember"},
+		{mode: "tmute", method: "restrictChatMember"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			client.errors[tc.method] = requestErr
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Warn Chat"}
+			admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+			if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
+				t.Fatalf("SetWarnLimit() error = %v", err)
+			}
+			if err := warns.SetWarnMode(chat.Id, tc.mode, 3600); err != nil {
+				t.Fatalf("SetWarnMode() error = %v", err)
+			}
+
+			err := warnsModule.warnUser(bot, newWarnReplyContext(bot, chat, admin, target, "/warn limit reached"))
+			if !errors.Is(err, requestErr) {
+				t.Fatalf("warnUser() error = %v, want request error", err)
+			}
+			if numWarns, _ := warns.GetWarns(target.Id, chat.Id); numWarns != 1 {
+				t.Fatalf("numWarns after failed %s = %d, want warn kept", tc.mode, numWarns)
 			}
 		})
 	}
@@ -447,7 +604,7 @@ func TestWarnThisUserPropagatesGotgbotRequestErrors(t *testing.T) {
 				if err := warns.SetWarnLimit(chat.Id, 1); err != nil {
 					t.Fatalf("SetWarnLimit() error = %v", err)
 				}
-				if err := warns.SetWarnMode(chat.Id, tt.mode); err != nil {
+				if err := warns.SetWarnMode(chat.Id, tt.mode, 0); err != nil {
 					t.Fatalf("SetWarnMode() error = %v", err)
 				}
 			}

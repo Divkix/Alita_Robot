@@ -839,7 +839,7 @@ warns_help_msg:
 
   - /warnings: Obtém as configurações de aviso do chat.
 
-  - /setwarnmode <ban/kick/mute>: Define o modo de aviso do chat.
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Define o modo de aviso do chat.
 
   - /setwarnlimit <número>: Define o número de avisos antes de usuários serem punidos.
 
@@ -932,7 +932,7 @@ rules_for_chat: "Regras para <b>%s</b>:\n\n%s"
 filters_invalid: Filtro Inválido!
 
 # Warnings module strings
-warns_specify_action: "Você precisa especificar uma ação para tomar com muitos avisos. Modos atuais são: ban/kick/mute"
+warns_specify_action: "Você precisa especificar uma ação para tomar com muitos avisos. Modos atuais são: ban/kick/mute/tban/tmute"
 
 # Admin module strings
 admin_need_admin: Você precisa ser admin para fazer isso!
@@ -1039,11 +1039,15 @@ mutes_unmute_message: "Certo!\nVou permitir que %s fale novamente."
 warns_mode_updated_ban: "Modo de aviso atualizado para: ban"
 warns_mode_updated_kick: "Modo de aviso atualizado para: kick"
 warns_mode_updated_mute: "Modo de aviso atualizado para: mute"
-warns_mode_unknown: "Tipo desconhecido '%s'. Por favor use um de: ban/kick/mute"
+warns_mode_updated_tban: "Modo de aviso atualizado para: tban por %s"
+warns_mode_updated_tmute: "Modo de aviso atualizado para: tmute por %s"
+warns_mode_unknown: "Tipo desconhecido '%s'. Por favor use um de: ban/kick/mute/tban/tmute"
 warns_admin_warning_error: Eu não vou advertir um admin!
 warns_limit_kicked: "Isso é %d/%d avisos; Então %s foi expulso!"
 warns_limit_muted: "Isso é %d/%d avisos; Então %s foi silenciado!"
 warns_limit_banned: "Isso é %d/%d avisos; Então %s foi banido!"
+warns_limit_tbanned: "Isso é %d/%d avisos; Então %s foi banido por %s!"
+warns_limit_tmuted: "Isso é %d/%d avisos; Então %s foi mutado por %s!"
 warns_remove_button: ❌ Remover aviso
 warns_rules_button: Regras 📝
 warns_user_warning: "Usuário %s tem %d/%d avisos; cuidado!"
@@ -1965,6 +1969,8 @@ warns_extended_docs: |
   • <code>ban</code> - Banir permanentemente o usuário do chat
   • <code>kick</code> - Expulsar o usuário (eles podem reentrar)
   • <code>mute</code> - Mutar o usuário (não pode enviar mensagens)
+  • <code>tban</code> - Bane o usuário pelo tempo informado com o modo, ex. <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - Muta o usuário pelo tempo informado com o modo, ex. <code>/setwarnmode tmute 2h</code>
 
   <b>Avisos Silenciosos e com Deleção:</b>
   • <code>/swarn</code> - Delete seu comando e avise silenciosamente
@@ -1982,7 +1988,7 @@ warns_permissions_docs: |
 
 warns_notes_docs: |
   <b>Notas:</b>
-  • Quando um usuário atinge o limite de aviso, a ação configurada (ban/kick/mute) é aplicada automaticamente
+  • Quando um usuário atinge o limite de aviso, a ação configurada (ban/kick/mute/tban/tmute) é aplicada automaticamente
   • Motivos de aviso são armazenados e exibidos ao checar os avisos de um usuário
   • O comando <code>/warns</code> é o único comando neste módulo que pode ser desativado por admins
   • Posts de canal anônimo não podem ser avisados

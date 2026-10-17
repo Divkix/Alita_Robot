@@ -868,7 +868,7 @@ warns_help_msg: |
 
   - /warnings: Dapatkan pengaturan peringatan obrolan.
 
-  - /setwarnmode <ban/kick/mute>: Atur mode peringatan obrolan.
+  - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Atur mode peringatan obrolan.
 
   - /setwarnlimit <number>: Atur jumlah peringatan sebelum pengguna dihukum.
 
@@ -961,7 +961,7 @@ rules_for_chat: "Aturan untuk <b>%s</b>:\n\n%s"
 filters_invalid: Filter Tidak Valid!
 
 # Warnings module strings
-warns_specify_action: "Anda perlu menentukan tindakan yang akan diambil saat peringatan terlalu banyak. Mode saat ini adalah: ban/kick/mute"
+warns_specify_action: "Anda perlu menentukan tindakan yang akan diambil saat peringatan terlalu banyak. Mode saat ini adalah: ban/kick/mute/tban/tmute"
 
 # Admin module strings
 admin_need_admin: Anda perlu menjadi admin untuk melakukan ini!
@@ -1068,11 +1068,15 @@ mutes_unmute_message: "Baik!\nSaya akan izinkan %s untuk berbicara lagi."
 warns_mode_updated_ban: "Mode peringatan diperbarui ke: blokir"
 warns_mode_updated_kick: "Mode peringatan diperbarui ke: tendang"
 warns_mode_updated_mute: "Mode peringatan diperbarui ke: bisu"
-warns_mode_unknown: "Tipe tidak dikenal '%s'. Silakan gunakan salah satu dari: ban/kick/mute"
+warns_mode_updated_tban: "Mode peringatan diperbarui ke: tban selama %s"
+warns_mode_updated_tmute: "Mode peringatan diperbarui ke: tmute selama %s"
+warns_mode_unknown: "Tipe tidak dikenal '%s'. Silakan gunakan salah satu dari: ban/kick/mute/tban/tmute"
 warns_admin_warning_error: Saya tidak akan memperingatkan admin!
 warns_limit_kicked: "Itu %d/%d peringatan; Jadi %s telah ditendang!"
 warns_limit_muted: "Itu %d/%d peringatan; Jadi %s telah Dibisukan!"
 warns_limit_banned: "Itu %d/%d peringatan; Jadi %s telah diblokir!"
+warns_limit_tbanned: "Itu %d/%d peringatan; Jadi %s telah diblokir selama %s!"
+warns_limit_tmuted: "Itu %d/%d peringatan; Jadi %s telah dibisukan selama %s!"
 warns_remove_button: ❌ Hapus peringatan
 warns_rules_button: Aturan 📝
 warns_user_warning: "Pengguna %s punya %d/%d peringatan; hati-hati!"
@@ -1994,6 +1998,8 @@ warns_extended_docs: |
   • <code>ban</code> - Blokir pengguna secara permanen dari obrolan
   • <code>kick</code> - Tendang pengguna (mereka dapat bergabung kembali)
   • <code>mute</code> - Bisu pengguna (tidak dapat mengirim pesan)
+  • <code>tban</code> - Blokir pengguna selama waktu yang diberikan bersama mode, mis. <code>/setwarnmode tban 1d</code>
+  • <code>tmute</code> - Bisukan pengguna selama waktu yang diberikan bersama mode, mis. <code>/setwarnmode tmute 2h</code>
 
   <b>Peringatan Diam dan Hapus:</b>
   • <code>/swarn</code> - Hapus perintah Anda dan peringatkan secara diam-diam
@@ -2011,7 +2017,7 @@ warns_permissions_docs: |
 
 warns_notes_docs: |
   <b>Catatan:</b>
-  • Ketika pengguna mencapai batas peringatan, tindakan yang dikonfigurasi (ban/kick/mute) diterapkan secara otomatis
+  • Ketika pengguna mencapai batas peringatan, tindakan yang dikonfigurasi (ban/kick/mute/tban/tmute) diterapkan secara otomatis
   • Alasan peringatan disimpan dan ditampilkan ketika memeriksa peringatan pengguna
   • Perintah <code>/warns</code> adalah satu-satunya perintah dalam modul ini yang dapat dinonaktifkan oleh admin
   • Posting kanal anonim tidak dapat diperingatkan

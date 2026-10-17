@@ -431,6 +431,41 @@ func TestImportChatData_SingleModule(t *testing.T) {
 	assert.Equal(t, "kick", settings.WarnMode)
 }
 
+func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
+	skipIfNoDb(t)
+
+	for _, tc := range []struct {
+		name       string
+		actionTime float64
+		want       int
+	}{
+		{name: "too short", actionTime: 30, want: 0},
+		{name: "longest", actionTime: 366 * 86400, want: 366 * 86400},
+		{name: "too long", actionTime: 366*86400 + 1, want: 0},
+		{name: "beyond int32", actionTime: 1e12, want: 0},
+		{name: "negative", actionTime: -60, want: 0},
+		{name: "valid", actionTime: 7200, want: 7200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_warn_action_time"))
+			t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleWarns})
+			backup.Data[BackupModuleWarns] = map[string]interface{}{
+				"warn_settings": map[string]interface{}{
+					"warn_limit":       float64(3),
+					"warn_mode":        "tban",
+					"warn_action_time": tc.actionTime,
+				},
+			}
+
+			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleWarns}))
+			assert.Equal(t, tc.want, warns.GetWarnSetting(chatID).WarnActionTime)
+		})
+	}
+}
+
 func TestClearChatData_SpecificModules(t *testing.T) {
 	skipIfNoDb(t)
 
@@ -515,7 +550,7 @@ func TestClearModuleData_IndividualModules(t *testing.T) {
 	assert.Equal(t, "", rules.GetChatRulesInfo(chatID).Rules)
 
 	require.NoError(t, warns.SetWarnLimit(chatID, 10))
-	require.NoError(t, warns.SetWarnMode(chatID, "ban"))
+	require.NoError(t, warns.SetWarnMode(chatID, "ban", 0))
 	require.NoError(t, ClearModuleData(chatID, BackupModuleWarns))
 	assert.Equal(t, 3, warns.GetWarnSetting(chatID).WarnLimit)
 	assert.Equal(t, "", warns.GetWarnSetting(chatID).WarnMode)
