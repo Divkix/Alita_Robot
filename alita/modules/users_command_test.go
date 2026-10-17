@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
@@ -65,14 +67,36 @@ func TestShouldUpdateRateLimitsChatMembershipByChatAndUser(t *testing.T) {
 	cache := &sync.Map{}
 	const chatID = int64(-1001)
 
-	if !shouldUpdateChatMember(cache, chatID, "Chat", 10, time.Hour) {
+	if !shouldUpdateChatMember(cache, chatID, 10, time.Hour) {
 		t.Fatal("first user update should be allowed")
 	}
-	if !shouldUpdateChatMember(cache, chatID, "Chat", 11, time.Hour) {
+	if !shouldUpdateChatMember(cache, chatID, 11, time.Hour) {
 		t.Fatal("different user in the same chat should be allowed")
 	}
-	if shouldUpdateChatMember(cache, chatID, "Chat", 10, time.Hour) {
+	if shouldUpdateChatMember(cache, chatID, 10, time.Hour) {
 		t.Fatal("same chat/user update inside interval should be blocked")
+	}
+}
+
+func TestShouldTouchChatRateLimitsByChatAndBypassesOnRename(t *testing.T) {
+	cache := &sync.Map{}
+	const chatID = int64(-1001)
+
+	if !shouldTouchChat(cache, chatID, "Chat", time.Hour) {
+		t.Fatal("first touch should be allowed")
+	}
+	if shouldTouchChat(cache, chatID, "Chat", time.Hour) {
+		t.Fatal("second touch of the same chat inside interval should be blocked")
+	}
+	if !shouldTouchChat(cache, chatID-1, "Chat", time.Hour) {
+		t.Fatal("touch of a different chat should be allowed")
+	}
+	if !shouldTouchChat(cache, chatID, "Renamed Chat", time.Hour) {
+		t.Fatal("chat title change inside interval should be allowed")
+	}
+	cache.Store(chatID, throttleEntry{at: time.Now().Add(-2 * time.Hour), state: [2]string{"Renamed Chat"}})
+	if !shouldTouchChat(cache, chatID, "Renamed Chat", time.Hour) {
+		t.Fatal("touch after interval should be allowed")
 	}
 }
 
@@ -123,13 +147,16 @@ func isolateUsersThrottleCaches(t *testing.T) {
 	t.Helper()
 	oldUserUpdateCache := userUpdateCache
 	oldChatUpdateCache := chatUpdateCache
+	oldChatMemberUpdateCache := chatMemberUpdateCache
 	oldChannelUpdateCache := channelUpdateCache
 	userUpdateCache = &sync.Map{}
 	chatUpdateCache = &sync.Map{}
+	chatMemberUpdateCache = &sync.Map{}
 	channelUpdateCache = &sync.Map{}
 	t.Cleanup(func() {
 		userUpdateCache = oldUserUpdateCache
 		chatUpdateCache = oldChatUpdateCache
+		chatMemberUpdateCache = oldChatMemberUpdateCache
 		channelUpdateCache = oldChannelUpdateCache
 	})
 }
@@ -220,4 +247,61 @@ func TestLogUsersPersistsRenameInsideThrottleWindow(t *testing.T) {
 		username, name, found := user.GetUserInfoById(sender.Id)
 		return found && username == "after" && name == "After"
 	})
+}
+
+func TestLogUsersTouchesChatOncePerChatNotPerMember(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Busy Chat"}
+	first := gotgbot.User{Id: time.Now().UnixNano(), Username: "first", FirstName: "First"}
+	second := gotgbot.User{Id: first.Id + 1, Username: "second", FirstName: "Second"}
+
+	loadChat := func() models.Chat {
+		t.Helper()
+		var row models.Chat
+		if err := db.DB.Where("chat_id = ?", chat.Id).First(&row).Error; err != nil {
+			t.Fatalf("load chat: %v", err)
+		}
+		return row
+	}
+
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, first, "hello")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().ChatName; got != chat.Title {
+		t.Fatalf("chat name = %q, want %q", got, chat.Title)
+	}
+
+	// A stale last_activity would be refreshed by any touch that reaches the
+	// database, so leaving it untouched proves the second member was throttled
+	// by the per-chat key. SQLite compares these timestamps as text, so keep the
+	// local representation the driver writes.
+	stale := time.Now().Add(-2 * chatUpdateInterval).Truncate(time.Second)
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chat.Id).
+		Update("last_activity", stale).Error; err != nil {
+		t.Fatalf("pin last_activity: %v", err)
+	}
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, chat, second, "hi")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().LastActivity; !got.Equal(stale) {
+		t.Errorf("last_activity = %v, want %v left alone for another member of a freshly touched chat", got, stale)
+	}
+	// Membership appends use PostgreSQL JSONB operators.
+	if db.DB.Name() == "postgres" {
+		if users := loadChat().Users; !slices.Contains(users, first.Id) || !slices.Contains(users, second.Id) {
+			t.Errorf("chat users = %v, want both %d and %d recorded per member", users, first.Id, second.Id)
+		}
+	}
+
+	renamed := chat
+	renamed.Title = "Busy Chat Renamed"
+	if err := usersModule.logUsers(bot, newModuleMessageContext(bot, renamed, second, "renamed")); err != ext.ContinueGroups {
+		t.Fatalf("logUsers error = %v, want ContinueGroups", err)
+	}
+	if got := loadChat().ChatName; got != renamed.Title {
+		t.Errorf("chat name = %q, want rename %q to bypass the per-chat throttle", got, renamed.Title)
+	}
 }

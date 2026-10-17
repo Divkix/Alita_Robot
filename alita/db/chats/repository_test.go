@@ -114,8 +114,8 @@ func TestGetChatSettings(t *testing.T) {
 
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}) })
 
-	if err := UpdateChat(chatID, chatName, userID); err != nil {
-		t.Fatalf("UpdateChat() error = %v", err)
+	if err := TouchChat(chatID, chatName); err != nil {
+		t.Fatalf("TouchChat() error = %v", err)
 	}
 
 	settings = GetChatSettings(chatID)
@@ -127,6 +127,12 @@ func TestGetChatSettings(t *testing.T) {
 	}
 	if settings.ChatName != chatName {
 		t.Errorf("GetChatSettings() ChatName = %q, want %q", settings.ChatName, chatName)
+	}
+	if db.DB.Name() != "postgres" {
+		return
+	}
+	if err := AddChatMember(chatID, userID); err != nil {
+		t.Fatalf("AddChatMember() error = %v", err)
 	}
 	// Users is now fetched via GetChatUsersCached to avoid hot-path egress on GetChatSettings.
 	users, err := GetChatUsersCached(chatID)
@@ -152,9 +158,17 @@ func TestUpdateChat(t *testing.T) {
 
 	t.Cleanup(func() { db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{}) })
 
-	if err := UpdateChat(chatID, chatName, userID); err != nil {
-		t.Fatalf("initial UpdateChat() error = %v", err)
+	recordActivity := func(name string, userID int64) {
+		t.Helper()
+		if err := TouchChat(chatID, name); err != nil {
+			t.Fatalf("TouchChat(%q) error = %v", name, err)
+		}
+		if err := AddChatMember(chatID, userID); err != nil {
+			t.Fatalf("AddChatMember(%d) error = %v", userID, err)
+		}
 	}
+
+	recordActivity(chatName, userID)
 
 	var chat models.Chat
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
@@ -167,9 +181,7 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("chat users = %v, want to contain %d", chat.Users, userID)
 	}
 
-	if err := UpdateChat(chatID, updatedName, userID); err != nil {
-		t.Fatalf("UpdateChat() with new name error = %v", err)
-	}
+	recordActivity(updatedName, userID)
 
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
 		t.Fatalf("expected chat to exist after update: %v", err)
@@ -178,9 +190,7 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("chat name after update = %q, want %q", chat.ChatName, updatedName)
 	}
 
-	if err := UpdateChat(chatID, updatedName, userID2); err != nil {
-		t.Fatalf("UpdateChat() adding user2 error = %v", err)
-	}
+	recordActivity(updatedName, userID2)
 
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
 		t.Fatalf("expected chat to exist after adding user: %v", err)
@@ -192,9 +202,7 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("chat users missing new user %d: %v", userID2, chat.Users)
 	}
 
-	if err := UpdateChat(chatID, updatedName, userID2); err != nil {
-		t.Fatalf("UpdateChat() re-adding an existing member error = %v", err)
-	}
+	recordActivity(updatedName, userID2)
 
 	if err := db.DB.Where("chat_id = ?", chatID).First(&chat).Error; err != nil {
 		t.Fatalf("expected chat to exist after re-adding member: %v", err)
@@ -204,24 +212,23 @@ func TestUpdateChat(t *testing.T) {
 	}
 }
 
-func TestUpdateChatReturnsAtomicAppendError(t *testing.T) {
+func TestAddChatMemberReturnsAtomicAppendError(t *testing.T) {
 	withChatSQLite(t)
 
 	const chatID = int64(-100123)
 	if err := EnsureChatInDb(chatID, "existing"); err != nil {
 		t.Fatalf("EnsureChatInDb() error = %v", err)
 	}
-	if err := UpdateChat(chatID, "existing", 42); err == nil {
-		t.Fatal("UpdateChat() error = nil when the PostgreSQL JSONB append fails")
+	if err := AddChatMember(chatID, 42); err == nil {
+		t.Fatal("AddChatMember() error = nil when the PostgreSQL JSONB append fails")
 	}
 }
 
-func TestUpdateChatThrottlesActivityRefresh(t *testing.T) {
+func TestTouchChatThrottlesActivityRefresh(t *testing.T) {
 	withChatSQLite(t)
 
 	const (
 		chatID  = int64(-100555)
-		userID  = int64(555)
 		name    = "throttle-chat"
 		renamed = "throttle-chat-renamed"
 	)
@@ -244,33 +251,45 @@ func TestUpdateChatThrottlesActivityRefresh(t *testing.T) {
 		}
 	}
 
-	if err := UpdateChat(chatID, name, userID); err != nil {
-		t.Fatalf("initial UpdateChat() error = %v", err)
+	if err := TouchChat(chatID, name); err != nil {
+		t.Fatalf("initial TouchChat() error = %v", err)
 	}
 
 	// Inside the throttle window the row must not be rewritten.
 	fresh := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
 	pinActivity(fresh)
-	if err := UpdateChat(chatID, name, userID); err != nil {
-		t.Fatalf("throttled UpdateChat() error = %v", err)
+	if err := TouchChat(chatID, name); err != nil {
+		t.Fatalf("throttled TouchChat() error = %v", err)
 	}
 	if got := loadChat().LastActivity; !got.Equal(fresh) {
 		t.Errorf("last_activity = %v, want it left at %v inside the throttle window", got, fresh)
 	}
 
 	// A rename still has to land even while the timestamp is throttled.
-	if err := UpdateChat(chatID, renamed, userID); err != nil {
-		t.Fatalf("rename UpdateChat() error = %v", err)
+	if err := TouchChat(chatID, renamed); err != nil {
+		t.Fatalf("rename TouchChat() error = %v", err)
 	}
 	if got := loadChat().ChatName; got != renamed {
 		t.Errorf("chat name = %q, want %q", got, renamed)
 	}
 
+	// An inactive chat is reactivated on the next touch even inside the window.
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", chatID).
+		Update("is_inactive", true).Error; err != nil {
+		t.Fatalf("mark chat inactive: %v", err)
+	}
+	if err := TouchChat(chatID, renamed); err != nil {
+		t.Fatalf("reactivating TouchChat() error = %v", err)
+	}
+	if loadChat().IsInactive {
+		t.Error("is_inactive = true, want the touch to reactivate the chat")
+	}
+
 	// Once the stored timestamp is stale, the refresh happens again.
 	stale := time.Now().Add(-2 * chatTouchInterval).Truncate(time.Second)
 	pinActivity(stale)
-	if err := UpdateChat(chatID, renamed, userID); err != nil {
-		t.Fatalf("stale UpdateChat() error = %v", err)
+	if err := TouchChat(chatID, renamed); err != nil {
+		t.Fatalf("stale TouchChat() error = %v", err)
 	}
 	if got := loadChat().LastActivity; !got.After(stale) {
 		t.Errorf("last_activity = %v, want a refresh newer than %v", got, stale)

@@ -21,7 +21,7 @@ func TestAsyncUserUpdateWrappersPersistRecords(t *testing.T) {
 		return found && username == "user_name" && name == "User Name"
 	})
 
-	asyncUpdateChat(chatID, "Users Chat", userID)
+	asyncTouchChat(chatID, "Users Chat")
 	waitForModuleCondition(t, func() bool {
 		chat := chats.GetChatSettings(chatID)
 		return chat.ChatId == chatID && chat.ChatName == "Users Chat"

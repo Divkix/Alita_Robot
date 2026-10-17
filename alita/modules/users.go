@@ -37,10 +37,17 @@ func asyncUpdateUser(userId int64, username, name string) {
 	}
 }
 
-func asyncUpdateChat(chatId int64, chatname string, userid int64) {
-	if err := chats.UpdateChat(chatId, chatname, userid); err != nil {
-		chatUpdateCache.Delete([2]int64{chatId, userid})
+func asyncTouchChat(chatId int64, chatname string) {
+	if err := chats.TouchChat(chatId, chatname); err != nil {
+		chatUpdateCache.Delete(chatId)
 		log.Warnf("[Users] Failed to update chat %d: %v", chatId, err)
+	}
+}
+
+func asyncAddChatMember(chatId, userid int64) {
+	if err := chats.AddChatMember(chatId, userid); err != nil {
+		chatMemberUpdateCache.Delete([2]int64{chatId, userid})
+		log.Warnf("[Users] Failed to add user %d to chat %d: %v", userid, chatId, err)
 	}
 }
 
@@ -57,11 +64,15 @@ var (
 		handlerGroup: -1,
 	}
 
-	userUpdateCache    = &sync.Map{}
-	chatUpdateCache    = &sync.Map{}
-	channelUpdateCache = &sync.Map{}
-	userUpdateGroup    singleflight.Group
-	chatUpdateGroup    singleflight.Group
+	userUpdateCache = &sync.Map{}
+	// chatUpdateCache throttles the chats row touch per chat;
+	// chatMemberUpdateCache throttles membership appends per (chat, user).
+	chatUpdateCache       = &sync.Map{}
+	chatMemberUpdateCache = &sync.Map{}
+	channelUpdateCache    = &sync.Map{}
+	userUpdateGroup       singleflight.Group
+	chatUpdateGroup       singleflight.Group
+	chatMemberUpdateGroup singleflight.Group
 
 	// Tracked so shutdown can drain in-flight DB writes before db.Close().
 	usersAsyncWG sync.WaitGroup
@@ -121,6 +132,7 @@ func usersThrottleSweepLoop() {
 			defer error_handling.RecoverFromPanic("usersThrottleSweep", "users")
 			sweepUpdateCache(userUpdateCache, now, userUpdateInterval)
 			sweepUpdateCache(chatUpdateCache, now, chatUpdateInterval)
+			sweepUpdateCache(chatMemberUpdateCache, now, chatUpdateInterval)
 			sweepUpdateCache(channelUpdateCache, now, channelUpdateInterval)
 		}()
 	}
@@ -134,8 +146,12 @@ func shouldUpdateChannel(cache *sync.Map, channelID int64, channelName, username
 	return shouldUpdateKey(cache, channelID, [2]string{channelName, username}, interval)
 }
 
-func shouldUpdateChatMember(cache *sync.Map, chatID int64, chatName string, userID int64, interval time.Duration) bool {
-	return shouldUpdateKey(cache, [2]int64{chatID, userID}, [2]string{chatName}, interval)
+func shouldTouchChat(cache *sync.Map, chatID int64, chatName string, interval time.Duration) bool {
+	return shouldUpdateKey(cache, chatID, [2]string{chatName}, interval)
+}
+
+func shouldUpdateChatMember(cache *sync.Map, chatID, userID int64, interval time.Duration) bool {
+	return shouldUpdateKey(cache, [2]int64{chatID, userID}, [2]string{}, interval)
 }
 
 func updateCurrentUser(userID int64, username, name string) {
@@ -147,11 +163,21 @@ func updateCurrentUser(userID int64, username, name string) {
 	})
 }
 
+// updateCurrentChat touches the chats row once per chat per interval (or on a
+// rename), and records membership once per (chat, user) per interval. The
+// touch runs first so a chat seen for the first time exists before the append.
 func updateCurrentChat(chatID int64, chatName string, userID int64) {
-	key := strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(userID, 10)
-	_, _, _ = chatUpdateGroup.Do(key, func() (any, error) {
-		if shouldUpdateChatMember(chatUpdateCache, chatID, chatName, userID, chatUpdateInterval) {
-			asyncUpdateChat(chatID, chatName, userID)
+	chatKey := strconv.FormatInt(chatID, 10)
+	_, _, _ = chatUpdateGroup.Do(chatKey, func() (any, error) {
+		if shouldTouchChat(chatUpdateCache, chatID, chatName, chatUpdateInterval) {
+			asyncTouchChat(chatID, chatName)
+		}
+		return nil, nil
+	})
+	memberKey := chatKey + ":" + strconv.FormatInt(userID, 10)
+	_, _, _ = chatMemberUpdateGroup.Do(memberKey, func() (any, error) {
+		if shouldUpdateChatMember(chatMemberUpdateCache, chatID, userID, chatUpdateInterval) {
+			asyncAddChatMember(chatID, userID)
 		}
 		return nil, nil
 	})
