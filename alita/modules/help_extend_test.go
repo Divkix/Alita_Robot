@@ -3,6 +3,9 @@
 package modules
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -10,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -263,4 +267,84 @@ func readLocaleFile(t *testing.T, code string) map[string]string {
 		}
 	}
 	return out
+}
+
+// failingSendClient fails the failAt-th sendMessage call (1-based) and records
+// every attempt, so a test can see where the handler stopped.
+type failingSendClient struct {
+	*moduleBotClient
+	failAt int
+	sends  int
+}
+
+func (c *failingSendClient) RequestWithContext(ctx context.Context, token string, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "sendMessage" {
+		c.sends++
+		if c.sends == c.failAt {
+			c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts) //nolint:errcheck // record the attempt only
+			return nil, errors.New("telegram: flood control")
+		}
+	}
+	return c.moduleBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func TestExtendStopsAndReturnsErrorWhenAMiddlePartFailsToSend(t *testing.T) {
+	var locale strings.Builder
+	locale.WriteString(extendTestLocale)
+	var modules []string
+	for i := range 40 {
+		name := fmt.Sprintf("Mod%02d", i)
+		modules = append(modules, name)
+		fmt.Fprintf(&locale, "%s_extend_msg: |\n", strings.ToLower(name))
+		for j := range 6 {
+			fmt.Fprintf(&locale, "  /cmd%02d%d — описание команды с кириллицей и эмодзи 🛡️\n", i, j)
+		}
+	}
+	withExtendLocale(t, locale.String())
+	withExtendRegistry(t, modules...)
+
+	inner := newModuleBotClient()
+	client := &failingSendClient{moduleBotClient: inner, failAt: 2}
+	bot := newModuleTestBot(inner)
+	bot.BotClient = client
+	user := gotgbot.User{Id: 4405, FirstName: "Reader"}
+	chat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Reader"}
+
+	err := DefaultHelpRegistry().extend(bot, newModuleMessageContext(bot, chat, user, "/extend"))
+	if err == nil || errors.Is(err, ext.EndGroups) {
+		t.Fatalf("extend error = %v, want the send failure", err)
+	}
+	if !strings.Contains(err.Error(), "flood control") {
+		t.Fatalf("extend error = %v, want the send failure to be returned", err)
+	}
+	if got := len(inner.callsFor("sendMessage")); got != 2 {
+		t.Fatalf("sendMessage attempts = %d, want 2 (stop at the failed part, send nothing after it)", got)
+	}
+}
+
+func TestPackExtendBlocksSplitsAnOverlongLineWithoutBreakingSurrogatePairs(t *testing.T) {
+	const limit = 4096
+	// A leading ASCII char shifts every emoji (2 UTF-16 units each) onto an odd
+	// offset, so a cut at exactly `limit` units would land inside a pair.
+	line := "/cmd — a" + strings.Repeat("🛡", 3000)
+	if utf16Len(line) <= limit {
+		t.Fatalf("fixture is %d units, must exceed %d", utf16Len(line), limit)
+	}
+
+	parts := packExtendBlocks("", []string{line}, limit)
+
+	if len(parts) < 2 {
+		t.Fatalf("parts = %d, want the overlong line split", len(parts))
+	}
+	for i, p := range parts {
+		if n := utf16Len(p); n > limit {
+			t.Errorf("part %d is %d UTF-16 units, over %d", i, n, limit)
+		}
+		if !utf8.ValidString(p) || strings.ContainsRune(p, utf8.RuneError) {
+			t.Errorf("part %d holds a broken rune", i)
+		}
+	}
+	if got := strings.Join(parts, ""); got != line {
+		t.Errorf("joined parts differ from the original line (len %d vs %d)", len(got), len(line))
+	}
 }
