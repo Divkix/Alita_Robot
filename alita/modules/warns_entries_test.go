@@ -101,8 +101,14 @@ func TestWarnsListShowsIssuerAndTime(t *testing.T) {
 	if !strings.Contains(text, "too noisy") || !strings.Contains(text, "Mod Squad") {
 		t.Fatalf("/warns text = %q, want reason and issuer name", text)
 	}
-	if day := time.Now().UTC().Format("2006-01-02"); !strings.Contains(text, day) {
-		t.Fatalf("/warns text = %q, want warn date %s", text, day)
+	// Compare with the stored warned_at rather than time.Now(), which can fall
+	// on the next day when the test runs across midnight UTC.
+	_, entries := warns.GetWarns(target.Id, chat.Id)
+	if len(entries) != 1 || entries[0].WarnedAt == nil {
+		t.Fatalf("stored entries = %+v, want one with warned_at", entries)
+	}
+	if stamp := entries[0].WarnedAt.UTC().Format("2006-01-02 15:04 UTC"); !strings.Contains(text, stamp) {
+		t.Fatalf("/warns text = %q, want warn time %s", text, stamp)
 	}
 }
 
