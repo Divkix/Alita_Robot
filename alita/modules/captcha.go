@@ -336,13 +336,13 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, false)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
 	if len(ctx.Args()) < 2 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_pending_usage")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -350,7 +350,6 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 
 	targetUserID := extraction.ExtractUser(bot, ctx)
 	if targetUserID == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_user")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -358,13 +357,11 @@ func (moduleStruct) viewPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) erro
 
 	messages, err := captcha.GetStoredMessagesForUser(targetUserID, chat.Id)
 	if err != nil || len(messages) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_no_pending_messages")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	var response strings.Builder
 	headerText, _ := tr.GetString("captcha_pending_messages_header")
 	fmt.Fprintf(&response, headerText, targetUserID)
@@ -397,6 +394,7 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, false)
 	if chat == nil {
 		return ext.EndGroups
@@ -404,7 +402,6 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	args := ctx.Args()[1:]
 	if len(args) < 1 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_clear_usage")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -412,7 +409,6 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	targetUserID := extraction.ExtractUser(bot, ctx)
 	if targetUserID == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_invalid_user")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -421,13 +417,11 @@ func (moduleStruct) clearPendingMessages(bot *gotgbot.Bot, ctx *ext.Context) err
 	err := captcha.DeleteStoredMessagesForUser(targetUserID, chat.Id)
 	if err != nil {
 		log.Errorf("Failed to delete stored messages for user %d in chat %d: %v", targetUserID, chat.Id, err)
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_clear_failed")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("captcha_clear_success",
 		i18n.TranslationParams{"user_id": targetUserID})
 	_, err = msg.Reply(bot, text, formatting.Shtml())
@@ -448,6 +442,7 @@ func captchaAdminGate(bot *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) 
 
 func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	_, chat, ok := captchaAdminGate(bot, ctx, true)
 	if !ok {
 		return ext.EndGroups
@@ -465,7 +460,6 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 			status = "enabled"
 		}
 
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		statusUsage, _ := tr.GetString("captcha_status_usage")
 		header, _ := tr.GetString("captcha_settings_header")
 		statusLine, _ := tr.GetString("captcha_settings_status", i18n.TranslationParams{"s": status})
@@ -487,14 +481,12 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	case "on", "enable", "yes":
 		err := captcha.SetCaptchaEnabled(chat.Id, true)
 		if err != nil {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_enable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
 				log.Warnf("[Captcha] Failed to send enable error message in chat %d: %v", chat.Id, replyErr)
 			}
 			return err
 		}
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_enabled_success")
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -502,7 +494,6 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	case "off", "disable", "no":
 		err := captcha.SetCaptchaEnabled(chat.Id, false)
 		if err != nil {
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_disable_failed")
 			if _, replyErr := msg.Reply(bot, text, nil); replyErr != nil {
 				log.Warnf("[Captcha] Failed to send disable error message in chat %d: %v", chat.Id, replyErr)
@@ -511,18 +502,15 @@ func (moduleStruct) captchaCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		if err = disableCaptchaForChat(bot, chat.Id); err != nil {
 			log.Errorf("[Captcha] Failed to clean up chat %d after disabling captcha: %v", chat.Id, err)
-			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			text, _ := tr.GetString("captcha_disable_failed")
 			_, _ = msg.Reply(bot, text, nil)
 			return err
 		}
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_disabled_success")
 		_, err = msg.Reply(bot, text, formatting.Shtml())
 		return err
 
 	default:
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_usage")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -570,6 +558,7 @@ func disableCaptchaForChat(bot *gotgbot.Bot, chatID int64) error {
 
 func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	_, chat, ok := captchaAdminGate(bot, ctx, false)
 	if !ok {
 		return ext.EndGroups
@@ -577,7 +566,6 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_mode_specify")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -585,7 +573,6 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	mode := strings.ToLower(args[0])
 	if mode != "math" && mode != "text" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_mode_invalid")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -593,7 +580,6 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	err := captcha.SetCaptchaMode(chat.Id, mode)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		var text string
 		if errors.Is(err, captcha.ErrInvalidCaptchaMode) {
 			text, _ = tr.GetString("captcha_invalid_mode_error")
@@ -606,7 +592,6 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	modeDesc, _ := tr.GetString("captcha_mode_math_desc")
 	if mode == "text" {
 		modeDesc, _ = tr.GetString("captcha_mode_text_desc")
@@ -620,6 +605,7 @@ func (moduleStruct) captchaModeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	_, chat, ok := captchaAdminGate(bot, ctx, false)
 	if !ok {
 		return ext.EndGroups
@@ -627,7 +613,6 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_timeout_specify")
 		_, err := msg.Reply(bot, text, nil)
 		return err
@@ -635,7 +620,6 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	timeout64, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil || timeout64 < 1 || timeout64 > 10 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_timeout_invalid")
 		_, err = msg.Reply(bot, text, nil)
 		return err
@@ -644,7 +628,6 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 	err = captcha.SetCaptchaTimeout(chat.Id, timeout)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		var text string
 		if errors.Is(err, captcha.ErrInvalidTimeout) {
 			text, _ = tr.GetString("captcha_timeout_range_error")
@@ -657,7 +640,6 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("captcha_timeout_set_success", i18n.TranslationParams{"d": timeout})
 	_, err = msg.Reply(bot, text, formatting.Shtml())
 	return err
@@ -665,6 +647,7 @@ func (moduleStruct) captchaTimeCommand(bot *gotgbot.Bot, ctx *ext.Context) error
 
 func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	_, chat, ok := captchaAdminGate(bot, ctx, false)
 	if !ok {
 		return ext.EndGroups
@@ -672,7 +655,6 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_action_specify")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -680,7 +662,6 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	action := strings.ToLower(args[0])
 	if action != "kick" && action != "ban" && action != "mute" {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("captcha_action_invalid")
 		_, err := msg.Reply(bot, text, formatting.Shtml())
 		return err
@@ -688,7 +669,6 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 
 	err := captcha.SetCaptchaFailureAction(chat.Id, action)
 	if err != nil {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		var text string
 		if errors.Is(err, captcha.ErrInvalidFailureAction) {
 			text, _ = tr.GetString("captcha_invalid_action_error")
@@ -701,7 +681,6 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 		return err
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("captcha_action_set_success", i18n.TranslationParams{"s": action})
 	_, err = msg.Reply(bot, text, formatting.Shtml())
 	return err
@@ -709,13 +688,12 @@ func (moduleStruct) captchaActionCommand(bot *gotgbot.Bot, ctx *ext.Context) err
 
 func (moduleStruct) captchaMaxAttemptsCommand(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	_, chat, ok := captchaAdminGate(bot, ctx, true)
 	if !ok {
 		return ext.EndGroups
 	}
 	args := ctx.Args()[1:]
-
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
 	if len(args) == 0 {
 		settings, err := captcha.GetCaptchaSettingsContext(tracing.UpdateContext(ctx), chat.Id)

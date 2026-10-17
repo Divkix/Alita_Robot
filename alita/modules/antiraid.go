@@ -517,12 +517,12 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 
 	if len(args) == 0 {
@@ -638,12 +638,12 @@ func (a *antiRaidStruct) raidTimeSetter(bot *gotgbot.Bot, ctx *ext.Context, isRa
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
 		text := ""
@@ -707,12 +707,12 @@ func (a *antiRaidStruct) autoAntiRaid(bot *gotgbot.Bot, ctx *ext.Context) error 
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, true)
 	if chat == nil {
 		return ext.EndGroups
 	}
 
-	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	args := ctx.Args()[1:]
 	if len(args) == 0 {
 		settings := antiraid.GetAntiRaidSettings(chat.Id)

@@ -18,6 +18,9 @@ import (
 // already replied and returns nil. It also points ctx.EffectiveChat at the
 // resolved chat. Pass the returned chat to later permission checks: the
 // chat_status Require* helpers read the update's chat, not EffectiveChat.
+// Build the reply translator before calling it: lang.GetLanguage reads
+// EffectiveChat, so afterwards it returns the group's language, while replies
+// go to the user's PM.
 func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
 	chat := chat_status.IsUserConnected(b, ctx, true, requireBotAdmin)
 	if chat == nil {

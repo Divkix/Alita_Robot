@@ -659,6 +659,73 @@ func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
 	}
 }
 
+// The PM commands that act on the connected group reply to the admin's PM
+// message, so they all answer in the admin's language, not the group's.
+func TestConnectedCommandsFromPMReplyInUserLanguage(t *testing.T) {
+	withMiniredis(t)
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	keys := []string{
+		"captcha_enabled_success", "antiraid_inactive_status", "reactions_add_usage",
+		"connections_invalid_option", "aispam_status_disabled", "admin_anon_admin_disabled",
+	}
+	locales := map[string]string{}
+	for _, code := range []string{"en", "ru"} {
+		var yaml strings.Builder
+		for _, key := range keys {
+			fmt.Fprintf(&yaml, "%s: \"%s:%s %%s\"\n", key, code, key)
+		}
+		locales[code] = yaml.String()
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+	if err := lang.ChangeUserLanguage(admin.Id, "ru"); err != nil {
+		t.Fatalf("ChangeUserLanguage() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := lang.ChangeUserLanguage(admin.Id, "en"); err != nil {
+			t.Errorf("ChangeUserLanguage() cleanup error = %v", err)
+		}
+	})
+	if got := groupLanguageOf(t, groupA); got == "ru" {
+		t.Fatalf("group language = %q, want it to differ from the admin's", got)
+	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadConnections(dispatcher)
+	LoadCaptcha(dispatcher)
+	LoadAntiRaid(dispatcher)
+	LoadReactions(dispatcher)
+	LoadAISpam(dispatcher)
+	LoadAdmin(dispatcher)
+
+	for _, tc := range []struct{ text, key string }{
+		{"/captcha on", "captcha_enabled_success"},
+		{"/antiraid", "antiraid_inactive_status"},
+		{"/addreaction", "reactions_add_usage"},
+		{"/allowconnect maybe", "connections_invalid_option"},
+		{"/aispam", "aispam_status_disabled"},
+		{"/anonadmin", "admin_anon_admin_disabled"},
+	} {
+		update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{MessageId: 101, Date: 1, Chat: privateChatOf(admin), From: &admin, Text: tc.text}}
+		if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+			t.Fatalf("ProcessUpdate(%q) error = %v", tc.text, err)
+		}
+		sent := client.callsFor("sendMessage")
+		if len(sent) == 0 {
+			t.Fatalf("%s from PM sent no reply", tc.text)
+		}
+		last := sent[len(sent)-1]
+		if got := fmt.Sprint(last.Params["chat_id"]); got != fmt.Sprint(admin.Id) {
+			t.Fatalf("%s from PM replied in chat %s, want the PM", tc.text, got)
+		}
+		if got, want := fmt.Sprint(last.Params["text"]), "ru:"+tc.key; !strings.HasPrefix(got, want) {
+			t.Errorf("%s from PM replied %q, want the admin's language (%s...)", tc.text, got, want)
+		}
+	}
+}
+
 func TestLangGroupCallbackRejectsNonAdmin(t *testing.T) {
 	_, bot, groupA, _, member := connectedPMFixture(t)
 
