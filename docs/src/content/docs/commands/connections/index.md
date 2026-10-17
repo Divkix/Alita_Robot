@@ -68,7 +68,9 @@ For detailed command usage, refer to the commands table above.
 
 `/settings` in PM lists up to 20 groups where you are an admin: the
 connected group first, then groups where you have written since the bot
-joined, most recently active first. Tapping a group re-checks your rights,
+joined, most recently active first. Only the 50 groups you were most
+recently active in are checked, so an admin group past those is not
+listed; use `/connect <chatid>` or `/settings` in that group. Tapping a group re-checks your rights,
 connects you and shows every setting of that group, one line per command
 (for example `/captcha — on`). Lines that differ from what a new group gets
 are marked with `•`. **Refresh** re-reads the settings and **Another group**
