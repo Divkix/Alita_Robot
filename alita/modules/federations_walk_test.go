@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -192,6 +193,70 @@ func TestFbanWalkStillBansWhenTheBanLookupFails(t *testing.T) {
 	}
 	require.Equal(t, []int64{chat.Id}, chatIDs,
 		"a failed re-read of the ban must not skip the fban walk; only a confirmed missing ban may")
+	require.Empty(t, unbanTargets(client, target),
+		"while the ban cannot be read at all, the walk must keep the bans it placed")
+}
+
+// failFirstFedBanLookups makes the first n federation_bans queries for fedID
+// fail and returns how many failed so far.
+func failFirstFedBanLookups(t *testing.T, fedID string, n int32) *atomic.Int32 {
+	t.Helper()
+	name := "test:fail_first_fed_ban_lookups:" + fedID
+	injected := errors.New("injected federation_bans failure")
+	var failed atomic.Int32
+	require.NoError(t, db.DB.Callback().Query().Before("gorm:query").Register(name, func(tx *gorm.DB) {
+		if tx.Statement.Table != "federation_bans" || !strings.Contains(fmt.Sprintf("%v", tx.Statement.Clauses["WHERE"]), fedID) {
+			return
+		}
+		if failed.Add(1) <= n {
+			_ = tx.AddError(injected)
+		}
+	}))
+	t.Cleanup(func() { _ = db.DB.Callback().Query().Remove(name) })
+	return &failed
+}
+
+func TestFbanWalkLiftsItsBansWhenTheReReadFindsNoBan(t *testing.T) {
+	cases := []struct {
+		name      string
+		banned    bool
+		wantUnban bool
+	}{
+		{name: "ban row gone", wantUnban: true},
+		{name: "ban row still there", banned: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			owner := uniquePositiveUserID()
+			fed, err := federations.CreateFederation(owner, "Reread Fban Fed")
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+
+			target := uniquePositiveUserID()
+			chatA := seedFedChat(t, fed.FedID, target)
+			chatB := seedFedChat(t, fed.FedID, target)
+			if tc.banned {
+				_, _, err = federations.Fban(fed.FedID, target, owner, "spam")
+				require.NoError(t, err)
+			}
+			failed := failFirstFedBanLookups(t, fed.FedID, 1)
+
+			applyActiveFban(bot, fed.FedID, target)
+			require.Positive(t, failed.Load(), "the injected lookup failure must have fired")
+			require.Len(t, client.callsFor("banChatMember"), 2, "a failed first read must still ban")
+			if tc.wantUnban {
+				require.ElementsMatch(t, []int64{chatA.Id, chatB.Id}, unbanTargets(client, target),
+					"a re-read that confirms no ban must lift the bans the walk placed by mistake")
+				for _, call := range client.callsFor("unbanChatMember") {
+					require.Equal(t, true, call.Params["only_if_banned"], "lifting must not kick members who are not banned")
+				}
+			} else {
+				require.Empty(t, unbanTargets(client, target), "a re-read that finds the ban must keep it")
+			}
+		})
+	}
 }
 
 // floodOnceBotClient answers the first call to method with Telegram's 429.

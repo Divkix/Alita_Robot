@@ -823,9 +823,9 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 	defer error_handling.RecoverFromPanic("applyActiveFban", "Federations")
 	defer lockFedWalk(fedID, userID)()
 	// Only a confirmed missing ban stops the walk; a failed lookup bans anyway.
-	ban, err := federations.GetFedBanE(context.Background(), fedID, userID)
-	if err != nil {
-		log.Warnf("[Federations] active fban fed %s user %d: ban lookup failed, banning anyway: %v", fedID, userID, err)
+	ban, lookupErr := federations.GetFedBanE(context.Background(), fedID, userID)
+	if lookupErr != nil {
+		log.Warnf("[Federations] active fban fed %s user %d: ban lookup failed, banning anyway: %v", fedID, userID, lookupErr)
 	} else if ban == nil {
 		return
 	}
@@ -833,13 +833,37 @@ func applyActiveFban(b *gotgbot.Bot, fedID string, userID int64) {
 	if err != nil {
 		return
 	}
-	for _, chatID := range federations.ChatsContainingUser(userID, chatIDs) {
+	chatIDs = federations.ChatsContainingUser(userID, chatIDs)
+	for _, chatID := range chatIDs {
 		err := retryAfterFlood(func() error {
 			_, err := b.BanChatMember(chatID, userID, nil)
 			return err
 		})
 		if err != nil {
 			log.Debugf("[Federations] active fban chat %d user %d: %v", chatID, userID, err)
+		}
+	}
+	if lookupErr == nil {
+		return
+	}
+	// The walk banned without knowing the ban still exists. An unban walk that ran
+	// before it will not come again, so undo the bans if a re-read confirms that
+	// no federation in the tree bans the user, as applyActiveUnfban would.
+	ban, _, err = federations.FindBanInFedTreeE(context.Background(), fedID, userID)
+	if err != nil {
+		log.Warnf("[Federations] active fban fed %s user %d: keeping bans, ban re-read failed: %v", fedID, userID, err)
+		return
+	}
+	if ban != nil {
+		return
+	}
+	for _, chatID := range chatIDs {
+		err := retryAfterFlood(func() error {
+			_, err := b.UnbanChatMember(chatID, userID, &gotgbot.UnbanChatMemberOpts{OnlyIfBanned: true})
+			return err
+		})
+		if err != nil {
+			log.Debugf("[Federations] active fban undo chat %d user %d: %v", chatID, userID, err)
 		}
 	}
 }
