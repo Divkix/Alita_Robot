@@ -439,11 +439,35 @@ func exportWarnsData(chatID int64) (*WarnsBackup, error) {
 	if err != nil {
 		return nil, err
 	}
-	var entries []models.WarnEntry
-	if err := database.Where("chat_id = ?", chatID).Order("id").Find(&entries).Error; err != nil {
+	var stored []models.WarnEntry
+	if err := database.Where("chat_id = ?", chatID).Order("id").Find(&stored).Error; err != nil {
 		return nil, err
 	}
-	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: entries}, nil
+	return &WarnsBackup{WarnSettings: settings, Warns: rows, Entries: exportableWarnEntries(rows, stored)}, nil
+}
+
+// exportableWarnEntries returns the entries a backup may carry. Only users
+// with warns keep theirs: an older release resets warns_users alone, and an
+// entry without its warn record would make the backup fail to import. The
+// backup is posted to the group, so an anonymous admin's account is dropped.
+func exportableWarnEntries(rows []models.Warns, stored []models.WarnEntry) []models.WarnEntry {
+	warned := make(map[int64]bool, len(rows))
+	for _, row := range rows {
+		if row.NumWarns > 0 {
+			warned[row.UserId] = true
+		}
+	}
+	entries := make([]models.WarnEntry, 0, len(stored))
+	for _, entry := range stored {
+		if !warned[entry.UserId] {
+			continue
+		}
+		if entry.Anonymous {
+			entry.WarnedBy = 0
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 func exportFederationsData(chatID int64) (*FederationsBackup, error) {

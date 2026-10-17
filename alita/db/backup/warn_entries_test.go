@@ -110,7 +110,7 @@ func TestWarnEntriesRoundTripThroughBackup(t *testing.T) {
 	got := storedWarnEntries(t, dstChat, userID)
 	require.Len(t, got, 1)
 	assert.Equal(t, "flood", got[0].Reason)
-	assert.Equal(t, int64(77), got[0].WarnedBy)
+	assert.Zero(t, got[0].WarnedBy, "the backup must not carry the anonymous admin's account")
 	assert.True(t, got[0].Anonymous)
 	require.True(t, got[0].WarnedAt.Valid)
 	assert.True(t, got[0].WarnedAt.Time.Equal(warnedAt), "warned_at = %v, want %v", got[0].WarnedAt.Time, warnedAt)
@@ -120,6 +120,76 @@ func TestWarnEntriesRoundTripThroughBackup(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &generic))
 	rows := generic["data"].(map[string]interface{})[BackupModuleWarns].(map[string]interface{})["warns"].([]interface{})
 	assert.Equal(t, []interface{}{"flood"}, rows[0].(map[string]interface{})["warns"])
+}
+
+func exportedWarnEntries(t *testing.T, raw []byte) []map[string]interface{} {
+	t.Helper()
+	var generic map[string]interface{}
+	require.NoError(t, json.Unmarshal(raw, &generic))
+	module := generic["data"].(map[string]interface{})[BackupModuleWarns].(map[string]interface{})
+	list, _ := module["entries"].([]interface{})
+	out := make([]map[string]interface{}, len(list))
+	for i, e := range list {
+		out[i] = e.(map[string]interface{})
+	}
+	return out
+}
+
+func TestExportHidesAnonymousWarnIssuer(t *testing.T) {
+	skipIfNoDb(t)
+	chatID := time.Now().UnixNano()
+	userID := chatID + 1
+	cleanupWarnEntriesChat(t, chatID, userID)
+
+	require.NoError(t, importWarnsBackup(t, chatID, []interface{}{
+		map[string]interface{}{"user_id": userID, "num_warns": 2, "warns": []interface{}{"hidden", "public"}},
+	}, []interface{}{
+		map[string]interface{}{"user_id": userID, "reason": "hidden", "warned_by": 555123, "anonymous": true},
+		map[string]interface{}{"user_id": userID, "reason": "public", "warned_by": 66},
+	}))
+
+	exported, err := ExportChatData(chatID, "src", 1, []string{BackupModuleWarns})
+	require.NoError(t, err)
+	raw, err := json.Marshal(exported)
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(raw), "555123", "the backup is posted to the group and must not name the anonymous admin")
+	entries := exportedWarnEntries(t, raw)
+	require.Len(t, entries, 2)
+	assert.Equal(t, true, entries[0]["anonymous"])
+	assert.Equal(t, float64(66), entries[1]["warned_by"], "a public issuer is still exported")
+}
+
+func TestOwnBackupImportsWithOrphanedEntries(t *testing.T) {
+	skipIfNoDb(t)
+	srcChat := time.Now().UnixNano()
+	dstChat := srcChat + 1
+	kept, orphan, cleared := srcChat+2, srcChat+3, srcChat+4
+	cleanupWarnEntriesChat(t, srcChat, kept, orphan, cleared)
+	cleanupWarnEntriesChat(t, dstChat, kept, orphan, cleared)
+
+	require.NoError(t, importWarnsBackup(t, srcChat, []interface{}{
+		map[string]interface{}{"user_id": kept, "num_warns": 1, "warns": []interface{}{"kept"}},
+		map[string]interface{}{"user_id": orphan, "num_warns": 1, "warns": []interface{}{"orphan"}},
+		map[string]interface{}{"user_id": cleared, "num_warns": 1, "warns": []interface{}{"cleared"}},
+	}, nil))
+	// An older release resets warns_users alone and leaves the entries behind.
+	require.NoError(t, db.DB.Exec("DELETE FROM warns_users WHERE chat_id = ? AND user_id = ?", srcChat, orphan).Error)
+	require.NoError(t, db.DB.Exec("UPDATE warns_users SET num_warns = 0, warns = '[]' WHERE chat_id = ? AND user_id = ?", srcChat, cleared).Error)
+
+	exported, err := ExportChatData(srcChat, "src", 1, []string{BackupModuleWarns})
+	require.NoError(t, err)
+	raw, err := json.Marshal(exported)
+	require.NoError(t, err)
+	decoded, err := BackupFormatFromJSON(raw)
+	require.NoError(t, err)
+	require.NoError(t, ImportChatData(dstChat, decoded, nil))
+
+	got := storedWarnEntries(t, dstChat, kept)
+	require.Len(t, got, 1)
+	assert.Equal(t, "kept", got[0].Reason)
+	assert.Empty(t, storedWarnEntries(t, dstChat, orphan))
+	assert.Empty(t, storedWarnEntries(t, dstChat, cleared))
 }
 
 func TestImportWarnsReplacesEntries(t *testing.T) {

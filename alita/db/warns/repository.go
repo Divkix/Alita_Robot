@@ -307,13 +307,16 @@ func RemoveWarn(userId, chatId int64) (bool, error) {
 
 func ResetUserWarns(userId, chatId int64) (bool, error) {
 	var reset bool
+	// warns_users goes first: its DELETE waits for a concurrent WarnUser, which
+	// holds that row, so the entries DELETE after it sees the entry that warn
+	// committed. The other order leaves that entry behind.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := deleteEntries(tx, "chat_id = ? AND user_id = ?", chatId, userId); err != nil {
-			return err
-		}
 		result := tx.Where("user_id = ? AND chat_id = ?", userId, chatId).Delete(&models.Warns{})
+		if result.Error != nil {
+			return result.Error
+		}
 		reset = result.RowsAffected > 0
-		return result.Error
+		return deleteEntries(tx, "chat_id = ? AND user_id = ?", chatId, userId)
 	})
 	if err != nil {
 		log.Errorf("[Database] ResetUserWarns: %v", err)
@@ -423,11 +426,12 @@ func ResetAllChatWarns(chatId int64) error {
 		return err
 	}
 
+	// warns_users first, for the reason given in ResetUserWarns.
 	err := db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := deleteEntries(tx, "chat_id = ?", chatId); err != nil {
+		if err := tx.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error; err != nil {
 			return err
 		}
-		return tx.Where("chat_id = ?", chatId).Delete(&models.Warns{}).Error
+		return deleteEntries(tx, "chat_id = ?", chatId)
 	})
 	if err != nil {
 		log.Errorf("[Database] ResetAllChatWarns: %v", err)
