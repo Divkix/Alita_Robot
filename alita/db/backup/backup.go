@@ -907,31 +907,26 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 }
 
 // restoredWarnEntries returns the entries to store for an imported warns
-// module. A user with no entries in the backup (one made before entries
-// existed) gets their reasons as entries with no issuer or time.
+// module, reconciled with each user's reasons by models.ReconcileWarnEntries.
+// A backup made before entries existed, or one whose entries do not match its
+// reasons, gets those reasons as entries with no issuer or time.
 func restoredWarnEntries(chatID int64, data WarnsBackup) ([]models.WarnEntry, error) {
-	warned := make(map[int64]bool, len(data.Warns))
+	byUser := make(map[int64][]models.WarnEntry, len(data.Warns))
 	for _, row := range data.Warns {
-		warned[row.UserId] = true
+		byUser[row.UserId] = nil
 	}
-	hasEntries := make(map[int64]bool, len(data.Entries))
-	entries := make([]models.WarnEntry, 0, len(data.Entries))
 	for _, entry := range data.Entries {
-		if !warned[entry.UserId] {
+		if _, ok := byUser[entry.UserId]; !ok {
 			return nil, fmt.Errorf("warn entry for user %d without a warn record", entry.UserId)
 		}
 		entry.ID = 0
 		entry.ChatId = chatID
-		entries = append(entries, entry)
-		hasEntries[entry.UserId] = true
+		byUser[entry.UserId] = append(byUser[entry.UserId], entry)
 	}
-	for _, row := range data.Warns {
-		if hasEntries[row.UserId] {
-			continue
-		}
-		for _, reason := range row.Reasons {
-			entries = append(entries, models.WarnEntry{UserId: row.UserId, ChatId: chatID, Reason: reason})
-		}
+	entries := make([]models.WarnEntry, 0, len(data.Entries))
+	for i := range data.Warns {
+		reconciled, _ := models.ReconcileWarnEntries(&data.Warns[i], byUser[data.Warns[i].UserId])
+		entries = append(entries, reconciled...)
 	}
 	return entries, nil
 }
