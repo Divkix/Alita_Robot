@@ -190,14 +190,16 @@ func IsUserAdminCached(chatID, userId int64) (isAdmin, known bool) {
 }
 
 func IsUserAdmin(b *gotgbot.Bot, chatID, userId int64) bool {
-	isAdmin, _ := IsUserAdminWithContext(context.Background(), b, chatID, userId)
+	isAdmin, err := IsUserAdminWithContext(context.Background(), b, chatID, userId)
+	cache.RethrowAdminLoadPanic(err)
 	return isAdmin
 }
 
 // IsUserAdminWithContext is IsUserAdmin bounded by ctx: its Telegram calls and
 // the wait for the shared admin-list load end with ctx. It then returns false
 // with ctx.Err(), so callers can tell an unfinished check from a non-admin;
-// nothing is cached for the unfinished check.
+// nothing is cached for the unfinished check. A panic in the admin-list load
+// comes back as a *cache.AdminLoadPanicError.
 func IsUserAdminWithContext(ctx context.Context, b *gotgbot.Bot, chatID, userId int64) (bool, error) {
 	if !IsValidUserId(userId) {
 		if IsChannelId(userId) {

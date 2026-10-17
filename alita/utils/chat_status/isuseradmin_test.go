@@ -503,3 +503,42 @@ func (c *fallbackErrBotClient) GetAPIURL(*gotgbot.RequestOpts) string {
 func (c *fallbackErrBotClient) FileURL(token, path string, _ *gotgbot.RequestOpts) string {
 	return "https://api.telegram.org/file/bot" + token + "/" + path
 }
+
+// panickingAdminListClient reports the bot as an admin and panics while
+// listing the chat's administrators.
+type panickingAdminListClient struct {
+	statusOnlyBotClient
+}
+
+func (c *panickingAdminListClient) RequestWithContext(
+	ctx context.Context, token, method string,
+	params map[string]any, opts *gotgbot.RequestOpts,
+) (json.RawMessage, error) {
+	switch {
+	case method == "getChatAdministrators":
+		panic("admin list exploded")
+	case method == "getChatMember" && fmt.Sprint(params["user_id"]) == fmt.Sprint(c.botID):
+		return json.RawMessage(fmt.Sprintf(`{"status":"administrator","user":{"id":%d,"is_bot":true,"first_name":"Bot"}}`, c.botID)), nil
+	}
+	return c.statusOnlyBotClient.RequestWithContext(ctx, token, method, params, opts)
+}
+
+// A panicking admin-list load must abort IsUserAdmin as before rather than
+// read as "not an admin".
+func TestIsUserAdminPassesOnAdminListPanic(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	bot := &gotgbot.Bot{
+		Token:     "8899:statustest",
+		BotClient: &panickingAdminListClient{statusOnlyBotClient{botID: 8899, statusMap: map[int64]string{301: "administrator"}}},
+		User:      gotgbot.User{Id: 8899, IsBot: true, FirstName: "StatusBot"},
+	}
+
+	recovered := func() (r any) {
+		defer func() { r = recover() }()
+		IsUserAdmin(bot, -2301, 301)
+		return nil
+	}()
+	if recovered == nil {
+		t.Fatal("IsUserAdmin returned after the admin-list load panicked, want the panic passed on")
+	}
+}

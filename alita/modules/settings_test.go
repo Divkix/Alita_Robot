@@ -288,6 +288,44 @@ func TestSettingsPickerBudgetCutsAHungGroupCheck(t *testing.T) {
 	}
 }
 
+// The connected group stays in the list when the budget cuts its check:
+// tapping it re-checks the user's rights anyway.
+func TestSettingsPickerKeepsConnectedGroupWhenItsCheckIsCut(t *testing.T) {
+	client, bot, _, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	connected := -uniqueModuleChatID()
+	client.adminsByChat[fmt.Sprint(connected)] = adminListJSON(settingsTestAdminID)
+	if err := chats.EnsureChatInDb(connected, "Connected"); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := connections.ConnectId(user.Id, connected); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	setPickerCandidates(t)
+
+	hungClient := &hungTelegramClient{
+		moduleBotClient: client,
+		method:          "getChat",
+		chatID:          fmt.Sprint(connected),
+		release:         make(chan struct{}),
+		stall:           2 * time.Second,
+	}
+	bot.BotClient = hungClient
+	t.Cleanup(sync.OnceFunc(func() { close(hungClient.release) }))
+	originalBudget := settingsPickerLiveBudget
+	settingsPickerLiveBudget = 100 * time.Millisecond
+	t.Cleanup(func() { settingsPickerLiveBudget = originalBudget })
+
+	start := time.Now()
+	got := runSettingsInPM(t, bot, client, user)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("picker answered after %v, want it near the 100ms budget", elapsed)
+	}
+	if len(got) != 1 || got[0] != fmt.Sprint(connected) {
+		t.Fatalf("picker chats = %v, want the connected %d", got, connected)
+	}
+}
+
 func TestSettingsPickRechecksAdminAfterPicker(t *testing.T) {
 	client, bot, groupA, _ := settingsFixture(t)
 	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}

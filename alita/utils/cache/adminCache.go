@@ -2,7 +2,9 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -12,7 +14,6 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/divkix/Alita_Robot/alita/utils/constants"
-	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
 var adminCacheGroup singleflight.Group
@@ -26,12 +27,33 @@ func adminCacheKey(chatId int64) string {
 // are included; without it Telegram omits them and IsUserAdmin treats them as
 // regular members.
 func LoadAdminCache(b *gotgbot.Bot, chatId int64) AdminCache {
-	ac, _ := LoadAdminCacheWithContext(context.Background(), b, chatId)
+	ac, err := LoadAdminCacheWithContext(context.Background(), b, chatId)
+	RethrowAdminLoadPanic(err)
 	return ac
 }
 
+// AdminLoadPanicError carries a panic in the shared admin-list load to every
+// caller waiting on it, so a crashed load never reads as "no admins".
+type AdminLoadPanicError struct {
+	Value any
+}
+
+func (e *AdminLoadPanicError) Error() string {
+	return fmt.Sprintf("admin list load panicked: %v", e.Value)
+}
+
+// RethrowAdminLoadPanic panics again in the caller's goroutine when err is an
+// AdminLoadPanicError, as the load did before it ran on its own goroutine.
+func RethrowAdminLoadPanic(err error) {
+	var loadPanic *AdminLoadPanicError
+	if errors.As(err, &loadPanic) {
+		panic(loadPanic.Value)
+	}
+}
+
 // LoadAdminCacheWithContext is LoadAdminCache that stops waiting when ctx ends
-// and then returns ctx.Err() with an empty, uncached list. The Telegram load is
+// and then returns ctx.Err() with an empty, uncached list. A panic in the load
+// comes back as an *AdminLoadPanicError. The Telegram load is
 // shared with concurrent callers and runs detached from ctx, so one caller's
 // deadline never cuts it short for the others or caches a failure; it finishes
 // in the background and stores its result for the next lookup.
@@ -43,14 +65,22 @@ func LoadAdminCacheWithContext(ctx context.Context, b *gotgbot.Bot, chatId int64
 
 	genBefore := adminCacheGeneration.Load()
 	// DoChan runs the load on its own goroutine and re-panics there, which
-	// would crash the process, so the load recovers its own panics.
-	result := adminCacheGroup.DoChan(adminCacheKey(chatId), func() (v any, _ error) {
-		defer error_handling.RecoverFromPanic("LoadAdminCache", "cache")
+	// would crash the process, so the load turns its panic into an error.
+	result := adminCacheGroup.DoChan(adminCacheKey(chatId), func() (v any, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("[cache][LoadAdminCache] Recovered from panic: %v\nStack trace:\n%s", r, debug.Stack())
+				err = &AdminLoadPanicError{Value: r}
+			}
+		}()
 		return loadAdminCacheFromTelegram(b, chatId), nil
 	})
 	var v any
 	select {
 	case r := <-result:
+		if r.Err != nil {
+			return AdminCache{}, r.Err
+		}
 		v = r.Val
 	case <-ctx.Done():
 		return AdminCache{}, ctx.Err()

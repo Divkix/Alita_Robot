@@ -340,3 +340,53 @@ func TestAdminCacheInvalidationDiscardsPendingPermissions(t *testing.T) {
 		t.Fatalf("delayed lookup replaced updated permissions: found=%v, admins=%+v", found, got.UserInfo)
 	}
 }
+
+// panickingAdminListClient panics inside getChatAdministrators.
+type panickingAdminListClient struct {
+	inner *adminCacheBotClient
+}
+
+func (c *panickingAdminListClient) RequestWithContext(ctx context.Context, token, method string, params map[string]any, opts *gotgbot.RequestOpts) (json.RawMessage, error) {
+	if method == "getChatAdministrators" {
+		panic("admin list exploded")
+	}
+	return c.inner.RequestWithContext(ctx, token, method, params, opts)
+}
+
+func (c *panickingAdminListClient) GetAPIURL(opts *gotgbot.RequestOpts) string {
+	return c.inner.GetAPIURL(opts)
+}
+
+func (c *panickingAdminListClient) FileURL(token, path string, opts *gotgbot.RequestOpts) string {
+	return c.inner.FileURL(token, path, opts)
+}
+
+// A panicking load must not read as "no admins": LoadAdminCache passes the
+// panic on to its caller as before, the context variant returns an error, and
+// nothing is cached.
+func TestLoadAdminCachePanicIsNotAnEmptyAdminList(t *testing.T) {
+	withMemoryMarshaler(t)
+	const chatID = -100780
+	inner := &adminCacheBotClient{responses: map[string]json.RawMessage{
+		"getChatMember:999": json.RawMessage(`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}`),
+	}}
+	bot := newAdminCacheBot(inner)
+	bot.BotClient = &panickingAdminListClient{inner: inner}
+
+	recovered := func() (r any) {
+		defer func() { r = recover() }()
+		LoadAdminCache(bot, chatID)
+		return nil
+	}()
+	if recovered == nil {
+		t.Fatal("LoadAdminCache returned after the load panicked, want the panic passed on")
+	}
+
+	got, err := LoadAdminCacheWithContext(context.Background(), bot, chatID)
+	if err == nil {
+		t.Fatalf("LoadAdminCacheWithContext = %+v, nil error after the load panicked", got)
+	}
+	if found, stored := GetAdminCacheList(chatID); found {
+		t.Fatalf("panicked load stored an admin list: %+v", stored)
+	}
+}
