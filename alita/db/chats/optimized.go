@@ -102,7 +102,10 @@ func GetChatUsersCachedContext(ctx context.Context, chatID int64) (models.Int64A
 }
 
 // ListChatsWithUser returns active chats whose tracked users include userID,
-// most recently active first. It relies on Postgres jsonb containment.
+// most recently active first. It relies on Postgres jsonb containment, served
+// by idx_chats_users_gin (jsonb_path_ops). That index was dropped once as
+// unused and restored by 20261017120000_restore_chats_users_gin_index.sql for
+// this query; without it every call scans and de-TOASTs all chats.users.
 func ListChatsWithUser(ctx context.Context, userID int64, limit int) ([]models.Chat, error) {
 	if db.DB == nil {
 		return nil, errors.New("database not initialized")
