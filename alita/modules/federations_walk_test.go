@@ -160,6 +160,14 @@ func TestFbanWalkBansNobodyOnceTheBanRowIsGone(t *testing.T) {
 				unlock := lockFedWalk(fed.FedID, target)
 				done := make(chan struct{})
 				go func() { defer close(done); applyActiveFban(bot, fed.FedID, target) }()
+				// Delete the row only once the walk waits on the lock, so the test
+				// also fails if the walk reads the ban before taking the lock.
+				require.Eventually(t, func() bool {
+					fedWalkLocks.Lock()
+					defer fedWalkLocks.Unlock()
+					lock := fedWalkLocks.byKey[fedWalkKey{fedID: fed.FedID, userID: target}]
+					return lock != nil && lock.waiters == 2
+				}, 2*time.Second, time.Millisecond, "the fban walk never queued on the lock")
 				require.NoError(t, federations.Unfban(fed.FedID, target))
 				unlock()
 				select {
