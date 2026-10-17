@@ -326,6 +326,35 @@ func TestSettingsRefreshAndListButtons(t *testing.T) {
 	}
 }
 
+// A forged settings button on a bot message in a group must not overwrite that
+// message with the presser's picker or summary, nor connect them.
+func TestSettingsCallbackOutsidePMIsRefused(t *testing.T) {
+	client, bot, groupA, _ := settingsFixture(t)
+	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}
+	group := gotgbot.Chat{Id: groupA, Type: "supergroup", Title: "Group A"}
+
+	for _, fields := range []map[string]string{
+		{"a": "p", "c": fmt.Sprint(groupA)},
+		{"a": "r", "c": fmt.Sprint(groupA)},
+		{"a": "l"},
+	} {
+		ctx := newModuleCallbackContext(bot, group, user, encodeCallbackData("settings", fields))
+		if err := ConnectionsModule.settingsCallback(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("settingsCallback(%v) error = %v, want EndGroups", fields, err)
+		}
+	}
+
+	if edits := client.callsFor("editMessageText"); len(edits) != 0 {
+		t.Fatalf("editMessageText calls = %+v, want none", edits)
+	}
+	if conn := connections.Connection(user.Id); conn.Connected {
+		t.Fatalf("group button connected the presser: %+v", conn)
+	}
+	if answers := client.callsFor("answerCallbackQuery"); len(answers) != 3 {
+		t.Fatalf("answerCallbackQuery calls = %d, want 3 refusals", len(answers))
+	}
+}
+
 func TestSettingsInGroupRepliesWithDeepLink(t *testing.T) {
 	client, bot, groupA, _ := settingsFixture(t)
 	user := gotgbot.User{Id: settingsTestAdminID, FirstName: "Admin"}

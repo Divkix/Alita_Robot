@@ -183,7 +183,9 @@ func (m moduleStruct) settingsCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	msg := query.Message
 	decoded, ok := decodeCallbackData(query.Data, "settings")
-	if msg == nil || !ok {
+	// Every action edits the message the button sits on, so a forged button on
+	// a bot message in a group must not overwrite it (or connect the presser).
+	if msg == nil || !ok || ctx.EffectiveChat == nil || ctx.EffectiveChat.Type != "private" {
 		return answerInvalidCallback(b, ctx, query)
 	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
