@@ -11,6 +11,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+	"github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/message"
 )
 
 func TestBuildCommandContextNilUser(t *testing.T) {
@@ -523,5 +525,59 @@ func TestRunChecksOrder(t *testing.T) {
 	}
 	if len(calls) != 2 || calls[0] != "a" || calls[1] != "b" {
 		t.Fatalf("RunChecks calls = %v, want [a b] (short-circuit)", calls)
+	}
+}
+
+// A command that points ctx.EffectiveChat at another chat (a PM command acting
+// on the connected group) must end handler-group iteration whatever it
+// returns: gotgbot hands the same ctx to every later group, whose watchers
+// would act on that chat. The command sits in group 3, after any guard a
+// module could register in a lower group.
+func TestWrapCommandEndsGroupsAfterChatSwap(t *testing.T) {
+	const (
+		pmID    = 42
+		groupID = -1001
+	)
+	cases := []struct {
+		name        string
+		swap        bool
+		result      func() error
+		wantWatcher bool
+	}{
+		{name: "nil after swap", swap: true, result: func() error { return nil }},
+		{name: "error after swap", swap: true, result: func() error { return errors.New("reply failed") }},
+		{name: "continue groups after swap", swap: true, result: func() error { return ext.ContinueGroups }},
+		{name: "panic after swap", swap: true, result: func() error { panic("boom") }},
+		{name: "nil without swap", swap: false, result: func() error { return nil }, wantWatcher: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+			WrapCommand(d, CommandDescriptor{Name: "swapcmd", Group: 3}, func(c *CommandContext) error {
+				if tc.swap {
+					c.Ctx.EffectiveChat = &gotgbot.Chat{Id: groupID, Type: "supergroup"}
+				}
+				return tc.result()
+			})
+			var watcherChats []int64
+			d.AddHandlerToGroup(handlers.NewMessage(message.All, func(_ *gotgbot.Bot, ctx *ext.Context) error {
+				watcherChats = append(watcherChats, ctx.EffectiveChat.Id)
+				return ext.ContinueGroups
+			}), 4)
+
+			update := &gotgbot.Update{Message: &gotgbot.Message{
+				MessageId: 101,
+				Chat:      gotgbot.Chat{Id: pmID, Type: "private", FirstName: "U"},
+				From:      &gotgbot.User{Id: pmID, FirstName: "U"},
+				Text:      "/swapcmd",
+				Entities:  []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 8}},
+			}}
+			if err := d.ProcessUpdate(newCpBot(999), update, nil); err != nil {
+				t.Fatalf("ProcessUpdate error: %v", err)
+			}
+			if ran := len(watcherChats) > 0; ran != tc.wantWatcher {
+				t.Fatalf("group-4 watcher ran = %v (chats %v), want %v", ran, watcherChats, tc.wantWatcher)
+			}
+		})
 	}
 }

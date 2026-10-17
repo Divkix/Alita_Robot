@@ -569,14 +569,19 @@ func writesTo(client *moduleBotClient, chatID int64) []moduleBotCall {
 // gotgbot hands that ctx to every later handler group. A group reaction whose
 // keyword matches the command text must not fire on the group for a command
 // sent in PM, yet must keep firing for the same command sent in the group.
+// /aispam runs in group 3, after the group-1 guard, so it covers commands
+// registered outside group 0.
 func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
 	client, bot, groupA, admin, _ := connectedPMFixture(t)
-	if err := reactions.AddReaction(groupA, "captcha", "👍"); err != nil {
-		t.Fatalf("AddReaction() error = %v", err)
+	for _, keyword := range []string{"captcha", "aispam"} {
+		if err := reactions.AddReaction(groupA, keyword, "👍"); err != nil {
+			t.Fatalf("AddReaction(%q) error = %v", keyword, err)
+		}
 	}
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadConnections(dispatcher)
 	LoadCaptcha(dispatcher)
+	LoadAISpam(dispatcher)
 	LoadReactions(dispatcher)
 	send := func(chat gotgbot.Chat, text string) {
 		t.Helper()
@@ -586,7 +591,7 @@ func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
 		}
 	}
 
-	for _, text := range []string{"/captcha on", "/captchapending 424243", "/captchaclear 424243"} {
+	for _, text := range []string{"/captcha on", "/captchapending 424243", "/captchaclear 424243", "/aispam off"} {
 		send(privateChatOf(admin), text)
 		if writes := writesTo(client, groupA); len(writes) != 0 {
 			t.Fatalf("%s from PM reached the group through a later handler group: %+v", text, writes)
