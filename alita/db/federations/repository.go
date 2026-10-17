@@ -365,7 +365,16 @@ func IsFedAdmin(fedID string, userID int64) bool {
 }
 
 func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick func(Row) ID) []ID {
-	result, err := cache.GetFromCacheOrLoad(context.Background(), cacheKey, cache.CacheTTLFederation, func(ctx context.Context) ([]ID, error) {
+	result, err := listCachedColumnE(context.Background(), cacheKey, filter, pick)
+	if err != nil {
+		log.Errorf("[Federations] %s: %v", op, err)
+		return nil
+	}
+	return result
+}
+
+func listCachedColumnE[Row any, ID any](ctx context.Context, cacheKey string, filter Row, pick func(Row) ID) ([]ID, error) {
+	return cache.GetFromCacheOrLoad(ctx, cacheKey, cache.CacheTTLFederation, func(ctx context.Context) ([]ID, error) {
 		var rows []Row
 		if err := db.GetRecordsContext(ctx, &rows, filter); err != nil {
 			return nil, err
@@ -376,11 +385,6 @@ func listCachedColumn[Row any, ID any](cacheKey, op string, filter Row, pick fun
 		}
 		return ids, nil
 	})
-	if err != nil {
-		log.Errorf("[Federations] %s: %v", op, err)
-		return nil
-	}
-	return result
 }
 
 func ListFedAdmins(fedID string) []int64 {
@@ -528,6 +532,16 @@ func GetFedBan(fedID string, userID int64) *models.FederationBan {
 }
 
 func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.FederationBan {
+	ban, err := GetFedBanE(ctx, fedID, userID)
+	if err != nil {
+		log.Errorf("[Federations] GetFedBan: %v", err)
+		return nil
+	}
+	return ban
+}
+
+// GetFedBanE is GetFedBanContext that returns a failed lookup instead of nil.
+func GetFedBanE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, error) {
 	result, err := cache.GetFromCacheOrLoad(ctx,
 		cache.CacheKey(cachePrefixFedBan, fedID, userID),
 		cache.CacheTTLFederation,
@@ -544,13 +558,12 @@ func GetFedBanContext(ctx context.Context, fedID string, userID int64) *models.F
 		},
 	)
 	if err != nil {
-		log.Errorf("[Federations] GetFedBan: %v", err)
-		return nil
+		return nil, err
 	}
 	if result.UserID == missingBanUserID {
-		return nil
+		return nil, nil
 	}
-	return &result
+	return &result, nil
 }
 
 func FindBanInFedTree(fedID string, userID int64) (*models.FederationBan, string) {
@@ -563,6 +576,32 @@ func FindBanInFedTree(fedID string, userID int64) (*models.FederationBan, string
 		}
 	}
 	return nil, ""
+}
+
+// FindBanInFedTreeE is FindBanInFedTree for callers that must not act on a failed
+// lookup: it returns the first lookup error instead of reading it as "not banned".
+func FindBanInFedTreeE(ctx context.Context, fedID string, userID int64) (*models.FederationBan, string, error) {
+	ban, err := GetFedBanE(ctx, fedID, userID)
+	if err != nil {
+		return nil, "", err
+	}
+	if ban != nil {
+		return ban, fedID, nil
+	}
+	subIDs, err := listSubscribedFedIDs(ctx, fedID)
+	if err != nil {
+		return nil, "", err
+	}
+	for _, subID := range subIDs {
+		ban, err := GetFedBanE(ctx, subID, userID)
+		if err != nil {
+			return nil, "", err
+		}
+		if ban != nil {
+			return ban, subID, nil
+		}
+	}
+	return nil, "", nil
 }
 
 func ListFedBans(fedID string) ([]models.FederationBan, error) {
@@ -626,9 +665,17 @@ func UnsubscribeFed(subscriberFedID, targetFedID string) error {
 }
 
 func ListSubscribedFedIDs(subscriberFedID string) []string {
-	return listCachedColumn(
+	ids, err := listSubscribedFedIDs(context.Background(), subscriberFedID)
+	if err != nil {
+		log.Errorf("[Federations] ListSubscribedFedIDs: %v", err)
+		return nil
+	}
+	return ids
+}
+
+func listSubscribedFedIDs(ctx context.Context, subscriberFedID string) ([]string, error) {
+	return listCachedColumnE(ctx,
 		cache.CacheKey(cachePrefixFedSubs, subscriberFedID),
-		"ListSubscribedFedIDs",
 		models.FederationSub{FedID: subscriberFedID},
 		func(row models.FederationSub) string { return row.SubscribedFedID },
 	)
