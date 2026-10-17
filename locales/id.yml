@@ -876,6 +876,8 @@ warns_help_msg: |
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Atur mode peringatan obrolan.
 
+  - /setwarntime <time/off>: Atur berapa lama peringatan dihitung, mis. 30d; off menyimpannya selamanya. Peringatan yang diberikan sebelum bot mencatat waktunya tidak pernah kedaluwarsa; /resetwarn menghapusnya.
+
   - /setwarnlimit <number>: Atur jumlah peringatan sebelum pengguna dihukum.
 
 
@@ -1087,7 +1089,7 @@ warns_remove_button: ❌ Hapus peringatan
 warns_rules_button: Aturan 📝
 warns_user_warning: "Pengguna %s punya %d/%d peringatan; hati-hati!"
 warns_warning_reason: "\n<b>Alasan</b>:\n%s"
-warns_settings_display: "Grup memiliki pengaturan berikut:\n<b>Batas Peringatan:</b> <code>%d</code>\n<b>Mode Peringatan:</b> <code>%s</code>"
+warns_settings_display: "Grup memiliki pengaturan berikut:\n<b>Batas Peringatan:</b> <code>%d</code>\n<b>Mode Peringatan:</b> <code>%s</code>\n<b>Masa Berlaku Peringatan:</b> <code>%s</code>"
 warns_user_warnings_list: "Pengguna ini punya %d/%d peringatan, untuk alasan berikut:"
 warns_user_warnings_no_reasons: "Pengguna punya %d/%d peringatan, tetapi tidak ada alasan untuk salah satunya."
 # Reason (issuer, time) of one warn in a warns list.
@@ -1095,6 +1097,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "admin anonim"
 warns_issuer_auto: "otomatis"
 warns_issuer_unknown: "tidak diketahui"
+warns_expiry_set: "Peringatan sekarang kedaluwarsa setelah <code>%s</code>."
+warns_expiry_off: "Peringatan tidak lagi kedaluwarsa."
+warns_expiry_current: "Peringatan kedaluwarsa setelah <code>%s</code>."
+warns_expiry_current_off: "Peringatan tidak pernah kedaluwarsa. Atur masa berlaku dengan <code>/setwarntime 30d</code>."
+warns_expiry_never: "tidak pernah"
 warns_user_no_warnings: Pengguna ini tidak punya peringatan apa pun!
 warns_removed_by: "Peringatan dihapus oleh %s."
 warns_no_warns_to_remove: Pengguna sudah tidak punya peringatan!
@@ -2004,6 +2011,7 @@ warns_extended_docs: |
   <b>Pengaturan Default:</b>
   • <b>Batas peringatan default:</b> 3 peringatan
   • <b>Mode peringatan default:</b> mute
+  • <b>Masa berlaku peringatan default:</b> mati (peringatan tidak pernah kedaluwarsa)
 
   <b>Mode Peringatan yang Tersedia:</b>
   • <code>ban</code> - Blokir pengguna secara permanen dari obrolan
@@ -2022,7 +2030,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Pengguna admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Pengguna admin
   • <code>/resetallwarns</code>: Pemilik obrolan saja
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + Pengguna admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Bot admin + Pengguna admin
   • <code>/warnings</code>: Bot admin + Pengguna admin
   • <code>/warns</code>: Pengguna mana pun (dapat dinonaktifkan)
 
@@ -2823,6 +2831,7 @@ warns_extend_msg: |
   /warnings — lihat pengaturan peringatan
   /setwarnlimit — jumlah peringatan sebelum hukuman
   /setwarnmode — hukuman: ban, kick atau mute
+  /setwarntime — berapa lama peringatan dihitung
 settings_summary_legend: "<i>• menandai nilai yang berbeda dari bawaan. Kirim perintah yang ditampilkan untuk mengubahnya.</i>"
 settings_picker_text: "Pilih grup untuk melihat pengaturannya. Tidak ada di daftar? Kirim /connect &lt;chat id&gt; di sini atau /settings di grup."
 settings_picker_empty: "Saya tidak menemukan grup tempat Anda menjadi admin. Saya hanya tahu grup tempat Anda menulis sejak saya bergabung, jadi kirim /connect &lt;chat id&gt; di sini atau /settings di grup."

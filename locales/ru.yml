@@ -664,6 +664,8 @@ warns_help_msg: |
   
     - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Установить режим предупреждений чата.
   
+    - /setwarntime <time/off>: Задать, сколько действует предупреждение, напр. 30d; off — бессрочно. Предупреждения, выданные до того, как бот начал записывать время, не истекают; их снимает /resetwarn.
+  
     - /setwarnlimit <number>: Установить количество предупреждений до применения наказания.
   
   
@@ -872,7 +874,7 @@ warns_remove_button: ❌ Удалить предупреждение
 warns_rules_button: Правила 📝
 warns_user_warning: "У пользователя %s %d/%d предупреждений; будьте осторожны!"
 warns_warning_reason: "\n<b>Причина</b>:\n%s"
-warns_settings_display: "Группа имеет следующие настройки:\n<b>Лимит предупреждений:</b> <code>%d</code>\n<b>Режим предупреждений:</b> <code>%s</code>"
+warns_settings_display: "Группа имеет следующие настройки:\n<b>Лимит предупреждений:</b> <code>%d</code>\n<b>Режим предупреждений:</b> <code>%s</code>\n<b>Срок предупреждений:</b> <code>%s</code>"
 warns_user_warnings_list: "У этого пользователя %d/%d предупреждений по следующим причинам:"
 warns_user_warnings_no_reasons: "У пользователя %d/%d предупреждений, но нет причин ни для одного из них."
 # Reason (issuer, time) of one warn in a warns list.
@@ -880,6 +882,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "анонимный админ"
 warns_issuer_auto: "автоматически"
 warns_issuer_unknown: "неизвестно"
+warns_expiry_set: "Теперь предупреждения истекают через <code>%s</code>."
+warns_expiry_off: "Предупреждения больше не истекают."
+warns_expiry_current: "Предупреждения истекают через <code>%s</code>."
+warns_expiry_current_off: "Предупреждения не истекают. Задать срок: <code>/setwarntime 30d</code>."
+warns_expiry_never: "никогда"
 warns_user_no_warnings: У этого пользователя нет предупреждений!
 warns_removed_by: "Предупреждение удалено %s."
 warns_no_warns_to_remove: У пользователя уже нет предупреждений!
@@ -1750,6 +1757,7 @@ warns_extended_docs: |
   <b>Настройки по умолчанию:</b>
   • <b>Лимит предупреждений по умолчанию:</b> 3 предупреждения
   • <b>Режим предупреждений по умолчанию:</b> mute
+  • <b>Срок предупреждений по умолчанию:</b> выключен (предупреждения не истекают)
 
   <b>Доступные режимы предупреждений:</b>
   • <code>ban</code> - Навсегда забанить пользователя из чата
@@ -1768,7 +1776,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Бот админ + Пользователь админ
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Бот админ + Пользователь админ
   • <code>/resetallwarns</code>: Только владелец чата
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Бот админ + Пользователь админ
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Бот админ + Пользователь админ
   • <code>/warnings</code>: Бот админ + Пользователь админ
   • <code>/warns</code>: Любой пользователь (отключаемый)
 
@@ -2570,6 +2578,7 @@ warns_extend_msg: |
   /warnings — настройки предупреждений
   /setwarnlimit — сколько предупреждений до наказания
   /setwarnmode — наказание: ban, kick или mute
+  /setwarntime — сколько действует предупреждение
 settings_summary_legend: "<i>• — значение отличается от стандартного. Чтобы изменить, отправьте показанную команду.</i>"
 settings_picker_text: "Выберите группу, чтобы увидеть её настройки. Нет в списке? Отправьте здесь /connect &lt;chat id&gt; или /settings в самой группе."
 settings_picker_empty: "Не нашёл групп, где вы админ. Я знаю только группы, где вы писали после моего добавления, — отправьте здесь /connect &lt;chat id&gt; или /settings в самой группе."

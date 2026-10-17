@@ -11,9 +11,11 @@ type WarnSettings struct {
 	WarnLimit int    `gorm:"column:warn_limit;default:3;check:chk_warn_limit,warn_limit > 0" json:"warn_limit" default:"3"`
 	WarnMode  string `gorm:"column:warn_mode;check:chk_warn_mode,warn_mode IN ('ban','kick','mute','tban','tmute')" json:"warn_mode,omitempty"`
 	// WarnActionTime is the tban/tmute duration in seconds; 0 means not set.
-	WarnActionTime int       `gorm:"column:warn_action_time;not null;default:0;check:chk_warn_action_time,warn_action_time >= 0" json:"warn_action_time,omitempty"`
-	CreatedAt      time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
-	UpdatedAt      time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+	WarnActionTime int `gorm:"column:warn_action_time;not null;default:0;check:chk_warn_action_time,warn_action_time >= 0" json:"warn_action_time,omitempty"`
+	// WarnExpiry is how long a warn counts, in seconds; 0 means forever.
+	WarnExpiry int       `gorm:"column:warn_expiry;not null;default:0;check:chk_warn_expiry,warn_expiry >= 0" json:"warn_expiry,omitempty"`
+	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+	UpdatedAt  time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
 // Bounds for WarnActionTime, in seconds. Telegram reads an until_date less
@@ -27,6 +29,18 @@ const (
 // ValidWarnActionTime reports whether seconds is a usable tban/tmute duration.
 func ValidWarnActionTime(seconds int) bool {
 	return seconds >= MinWarnActionTime && seconds <= MaxWarnActionTime
+}
+
+// Bounds for WarnExpiry, in seconds: the range /setwarntime accepts.
+const (
+	MinWarnExpiry = 60
+	MaxWarnExpiry = 366 * 24 * 60 * 60
+)
+
+// ValidWarnExpiry reports whether seconds is a usable warn expiry; 0 is valid
+// and turns expiry off.
+func ValidWarnExpiry(seconds int) bool {
+	return seconds == 0 || seconds >= MinWarnExpiry && seconds <= MaxWarnExpiry
 }
 
 func (WarnSettings) TableName() string {

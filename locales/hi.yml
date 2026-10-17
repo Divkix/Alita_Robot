@@ -610,6 +610,8 @@ warns_help_msg: "चेतावनियों के साथ अपने �
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: चैट का चेतावनी मोड सेट करें।
 
+  - /setwarntime <time/off>: सेट करें कि चेतावनी कितने समय तक गिनी जाए, जैसे 30d; off उन्हें हमेशा रखता है। बॉट द्वारा समय दर्ज करने से पहले दी गई चेतावनियां कभी समाप्त नहीं होतीं; /resetwarn उन्हें हटाता है।
+
   - /setwarnlimit <number>: उपयोगकर्ताओं को दंडित करने से पहले चेतावनियों की संख्या सेट करें।"
 users_help_msg:
   "स्वचालित पृष्ठभूमि उपयोगकर्ता और चैट ट्रैकर। इस मॉड्यूल में कोई उपयोगकर्ता-सामना करने वाले
@@ -1590,7 +1592,7 @@ warns_remove_button: ❌ चेतावनी हटाएं
 warns_rules_button: नियम 📝
 warns_user_warning: "उपयोगकर्ता %s को %d/%d चेतावनियां हैं; सावधान रहें!"
 warns_warning_reason: "\n<b>कारण</b>:\n%s"
-warns_settings_display: "ग्रुप में निम्नलिखित सेटिंग्स हैं:\n<b>चेतावनी सीमा:</b> <code>%d</code>\n<b>चेतावनी मोड:</b> <code>%s</code>"
+warns_settings_display: "ग्रुप में निम्नलिखित सेटिंग्स हैं:\n<b>चेतावनी सीमा:</b> <code>%d</code>\n<b>चेतावनी मोड:</b> <code>%s</code>\n<b>चेतावनी समाप्ति:</b> <code>%s</code>"
 warns_user_warnings_list: "इस उपयोगकर्ता को %d/%d चेतावनियां हैं, निम्नलिखित कारणों से:"
 warns_user_warnings_no_reasons: "उपयोगकर्ता को %d/%d चेतावनियां हैं, लेकिन किसी का भी कारण नहीं है।"
 # Reason (issuer, time) of one warn in a warns list.
@@ -1598,6 +1600,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "गुमनाम एडमिन"
 warns_issuer_auto: "स्वचालित"
 warns_issuer_unknown: "अज्ञात"
+warns_expiry_set: "चेतावनियां अब <code>%s</code> के बाद समाप्त हो जाएंगी।"
+warns_expiry_off: "चेतावनियां अब समाप्त नहीं होंगी।"
+warns_expiry_current: "चेतावनियां <code>%s</code> के बाद समाप्त होती हैं।"
+warns_expiry_current_off: "चेतावनियां कभी समाप्त नहीं होतीं। <code>/setwarntime 30d</code> से समाप्ति अवधि सेट करें।"
+warns_expiry_never: "कभी नहीं"
 warns_user_no_warnings: इस उपयोगकर्ता को कोई चेतावनी नहीं मिली है!
 warns_removed_by: "चेतावनी %s द्वारा हटाई गई।"
 warns_no_warns_to_remove: उपयोगकर्ता को पहले से कोई चेतावनी नहीं है!
@@ -1878,6 +1885,7 @@ warns_extended_docs: |
   <b>डिफ़ॉल्ट सेटिंग्स:</b>
   • <b>डिफ़ॉल्ट चेतावनी सीमा:</b> 3 चेतावनियां
   • <b>डिफ़ॉल्ट चेतावनी मोड:</b> mute
+  • <b>डिफ़ॉल्ट चेतावनी समाप्ति:</b> बंद (चेतावनियां कभी समाप्त नहीं होतीं)
 
   <b>उपलब्ध चेतावनी मोड:</b>
   • <code>ban</code> - उपयोगकर्ता को चैट से स्थायी रूप से बैन करें
@@ -1896,7 +1904,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/resetwarn</code>, <code>/resetwarns</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/resetallwarns</code>: केवल चैट मालिक
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/warnings</code>: बॉट एडमिन + उपयोगकर्ता एडमिन
   • <code>/warns</code>: कोई भी उपयोगकर्ता (अक्षम किया जा सकता है)
 
@@ -2510,6 +2518,7 @@ warns_extend_msg: |
   /warnings — चेतावनी सेटिंग देखें
   /setwarnlimit — सज़ा से पहले चेतावनियों की संख्या
   /setwarnmode — सज़ा: ban, kick या mute
+  /setwarntime — चेतावनी कितने समय तक गिनी जाए
 settings_summary_legend: "<i>• डिफ़ॉल्ट से अलग मान को दर्शाता है। इसे बदलने के लिए दिखाया गया कमांड भेजें।</i>"
 settings_picker_text: "सेटिंग्स देखने के लिए एक समूह चुनें। सूची में नहीं है? यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
 settings_picker_empty: "मुझे ऐसे समूह नहीं मिले जहाँ आप एडमिन हैं। मैं केवल वे समूह जानता हूँ जहाँ आपने मेरे जुड़ने के बाद लिखा है, इसलिए यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"

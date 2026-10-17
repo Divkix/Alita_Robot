@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"html"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -123,6 +124,81 @@ func (moduleStruct) setWarnMode(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	} else {
 		replyText, _ = tr.GetString("warns_specify_action")
+	}
+
+	_, err := msg.Reply(b, replyText, formatting.Shtml())
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return ext.EndGroups
+}
+
+// warnExpiryLabel renders the chat's warn expiry for display.
+func warnExpiryLabel(tr *i18n.Translator, settings *models.WarnSettings) string {
+	if settings.WarnExpiry > 0 {
+		return formatDuration(settings.WarnExpiry)
+	}
+	label, _ := tr.GetString("warns_expiry_never")
+	return label
+}
+
+// setWarnTime sets how long a warn counts: /setwarntime 30d, or off.
+func (moduleStruct) setWarnTime(b *gotgbot.Bot, ctx *ext.Context) error {
+	msg := ctx.EffectiveMessage
+	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
+	if connectedChat == nil {
+		return ext.EndGroups
+	}
+	ctx.EffectiveChat = connectedChat
+	chat := ctx.EffectiveChat
+	args := ctx.Args()[1:]
+	user := chat_status.RequireUser(b, ctx)
+	if user == nil {
+		return ext.EndGroups
+	}
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+
+	if !chat_status.RequireBotAdmin(b, ctx, nil) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_bot_not_admin", "", chat_status.WithReply())
+		return ext.EndGroups
+	}
+	if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
+		return ext.EndGroups
+	}
+
+	var replyText string
+	switch {
+	case len(args) == 0:
+		settings := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
+		if settings.WarnExpiry > 0 {
+			temp, _ := tr.GetString("warns_expiry_current")
+			replyText = fmt.Sprintf(temp, formatDuration(settings.WarnExpiry))
+		} else {
+			replyText, _ = tr.GetString("warns_expiry_current_off")
+		}
+	case slices.Contains([]string{"off", "no", "false", "0"}, strings.ToLower(args[0])) && len(args) == 1:
+		if err := warns.SetWarnExpiry(chat.Id, 0); err != nil {
+			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(b, errText, formatting.Shtml())
+			return ext.EndGroups
+		}
+		replyText, _ = tr.GetString("warns_expiry_off")
+	default:
+		seconds := extraction.ExtractDuration(b, ctx, strings.Join(args, " "))
+		if seconds == -1 {
+			return ext.EndGroups
+		}
+		if err := warns.SetWarnExpiry(chat.Id, int(seconds)); err != nil {
+			log.Errorf("[Warns] SetWarnExpiry failed for chat %d: %v", chat.Id, err)
+			errText, _ := tr.GetString("common_settings_save_failed")
+			_, _ = msg.Reply(b, errText, formatting.Shtml())
+			return ext.EndGroups
+		}
+		temp, _ := tr.GetString("warns_expiry_set")
+		replyText = fmt.Sprintf(temp, formatDuration(int(seconds)))
 	}
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())
@@ -493,7 +569,7 @@ func (moduleStruct) warnings(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	warnrc := warns.GetWarnSettingContext(tracing.UpdateContext(ctx), chat.Id)
 	temp, _ := tr.GetString("warns_settings_display")
-	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc))
+	text := fmt.Sprintf(temp, warnrc.WarnLimit, warnModeLabel(warnrc), warnExpiryLabel(tr, warnrc))
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
 		log.Error(err)
@@ -992,6 +1068,7 @@ func LoadWarns(dispatcher *ext.Dispatcher) {
 	}{
 		{"setwarnlimit", warnsModule.setWarnLimit},
 		{"setwarnmode", warnsModule.setWarnMode},
+		{"setwarntime", warnsModule.setWarnTime},
 		{"resetallwarns", warnsModule.resetAllWarns},
 	} {
 		desc := helpers.CommandDescriptor{
