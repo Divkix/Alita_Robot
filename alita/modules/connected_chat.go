@@ -27,6 +27,30 @@ func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *g
 	return chat
 }
 
+// connectedChatGuardGroup runs right after the group-0 command handlers.
+const connectedChatGuardGroup = 1
+
+// connectedChatGuard ends handler-group iteration once a handler has pointed
+// ctx.EffectiveChat at a connected group. gotgbot passes the same ctx to every
+// later group, so their watchers (filters, reactions, locks, ...) would
+// otherwise act on the group for a message sent in PM, whatever the command
+// returned. gotgbot sets EffectiveChat to the effective message's chat, so the
+// ids differ only after such a substitution: messages sent in the group pass.
+type connectedChatGuard struct{}
+
+func (connectedChatGuard) CheckUpdate(_ *gotgbot.Bot, ctx *ext.Context) bool {
+	return ctx.EffectiveMessage != nil && ctx.EffectiveChat != nil &&
+		ctx.EffectiveChat.Id != ctx.EffectiveMessage.Chat.Id
+}
+
+func (connectedChatGuard) HandleUpdate(*gotgbot.Bot, *ext.Context) error {
+	return ext.EndGroups
+}
+
+func (connectedChatGuard) Name() string {
+	return "connected_chat_guard"
+}
+
 // callbackAdminChat returns the group a button sent in PM acts on: the one
 // named by the callback's "c" field, which is the group the message showed,
 // not whichever group the user is connected to when they press it. The user

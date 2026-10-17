@@ -552,6 +552,56 @@ func TestLangInPMWithoutGroupStillChangesUser(t *testing.T) {
 	}
 }
 
+// writesTo returns the non-read Bot API calls that targeted chatID.
+func writesTo(client *moduleBotClient, chatID int64) []moduleBotCall {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	var writes []moduleBotCall
+	for _, call := range client.calls {
+		if !strings.HasPrefix(call.Method, "get") && fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(chatID) {
+			writes = append(writes, call)
+		}
+	}
+	return writes
+}
+
+// The PM command handlers point ctx.EffectiveChat at the connected group, and
+// gotgbot hands that ctx to every later handler group. A group reaction whose
+// keyword matches the command text must not fire on the group for a command
+// sent in PM, yet must keep firing for the same command sent in the group.
+func TestConnectedCommandFromPMStopsLaterHandlerGroups(t *testing.T) {
+	client, bot, groupA, admin, _ := connectedPMFixture(t)
+	if err := reactions.AddReaction(groupA, "captcha", "👍"); err != nil {
+		t.Fatalf("AddReaction() error = %v", err)
+	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadConnections(dispatcher)
+	LoadCaptcha(dispatcher)
+	LoadReactions(dispatcher)
+	send := func(chat gotgbot.Chat, text string) {
+		t.Helper()
+		update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{MessageId: 101, Date: 1, Chat: chat, From: &admin, Text: text}}
+		if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+			t.Fatalf("ProcessUpdate(%q) error = %v", text, err)
+		}
+	}
+
+	for _, text := range []string{"/captcha on", "/captchapending 424243", "/captchaclear 424243"} {
+		send(privateChatOf(admin), text)
+		if writes := writesTo(client, groupA); len(writes) != 0 {
+			t.Fatalf("%s from PM reached the group through a later handler group: %+v", text, writes)
+		}
+	}
+	if !captchaSettingsOf(t, groupA).Enabled {
+		t.Fatal("/captcha on from PM did not enable captcha in the connected group")
+	}
+
+	send(gotgbot.Chat{Id: groupA, Type: "supergroup", Title: "Group A"}, "/captcha on")
+	if len(client.callsFor("setMessageReaction")) == 0 {
+		t.Fatal("/captcha on sent in the group no longer reaches the group's reaction watcher")
+	}
+}
+
 func TestLangGroupCallbackRejectsNonAdmin(t *testing.T) {
 	_, bot, groupA, _, member := connectedPMFixture(t)
 
