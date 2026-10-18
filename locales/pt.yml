@@ -282,9 +282,6 @@ captcha_help_msg:
 
   Se falharem ou o tempo expirar, a ação configurada é tomada."
 commonstrings_admin_cache_cache_reloaded: Cache de administrador recarregado com sucesso.
-commonstrings_admin_cache_not_found:
-  Cache de admin não encontrado. Peça a um admin para usar /admincache
-  para recarregar o cache de administrador.
 connections_allow_connect_currently_off:
   "Conexões de usuários estão atualmente <b>desativadas</b>.
 
@@ -1024,7 +1021,6 @@ devs_specify_chat: "Você deve especificar o ID de um chat."
 # Common error messages used across modules
 error_generic: "Ocorreu um erro. Por favor tente novamente mais tarde."
 common_anonymous_user_error: Este comando não pode ser usado em usuário anônimo.
-common_anonymous_ban_error: Este comando não pode ser usado em usuário anônimo, estes usuários só podem ser banidos/desbanidos.
 common_cannot_identify_user: Não consigo identificar o usuário. Este comando não pode ser usado por canais.
 command_help_example: "Exemplo: {example}"
 common_no_user_specified: Eu não sei de quem você está falando, você vai precisar especificar um usuário...!
@@ -1032,15 +1028,6 @@ common_user_not_in_chat: Este usuário não está neste chat, como posso restrin
 common_cannot_target_admin: "Não posso realizar esta ação em administradores do grupo."
 common_cannot_target_self: "Não posso realizar esta ação em mim mesmo."
 common_no_reply_to_message: "Você precisa responder à mensagem de um usuário para realizar esta ação."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "banir"
-common_action_kick: "expulsar"
-common_action_mute: "silenciar"
-common_action_warn: "advertir"
-common_action_promote: "promover"
-common_action_demote: "rebaixar"
-common_action_restrict: "restringir"
 
 # Time units for duration formatting
 common_time_minute: "minuto"
@@ -1051,12 +1038,6 @@ common_time_day: "dia"
 common_time_days: "dias"
 common_time_week: "semana"
 common_time_weeks: "semanas"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Ativado"
-common_status_disabled: "Desativado"
-common_status_on: "Ligado"
-common_status_off: "Desligado"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nNota: Estes valores estão em cache e podem não estar atualizados"
@@ -1415,7 +1396,6 @@ common_done: "Concluído ✅"
 common_continue: "✅ Continuar ✅"
 common_home: "Início"
 common_formatting_button: "Formatação"
-common_rules_button: "Regras"
 common_rules_button_emoji: "Regras 📝"
 
 # Main module strings
@@ -1610,11 +1590,7 @@ captcha_status_disabled: "desativado"
 button_yes: "Sim"
 button_no: "Não"
 button_back: "Voltar"
-button_unmute_admin: "Desmutar (Apenas Admin)"
-button_unban_admin: "Desbanir (Apenas Admin)"
 button_unmute_admins: "Desmutar (Apenas Admins)"
-button_unban_admins: "Desbanir (Apenas Admins)"
-button_connect_to_chat: "Conectar ao chat"
 button_formatting: "Formatação"
 button_click_me: "Clique em Mim!"
 button_ban: "Banir"

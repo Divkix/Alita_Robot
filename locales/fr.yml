@@ -73,7 +73,6 @@ admin_notes_docs: |
 # Common error messages used across modules
 error_generic: "Une erreur s'est produite. Veuillez réessayer plus tard."
 common_anonymous_user_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme.
-common_anonymous_ban_error: Cette commande ne peut pas être utilisée sur un utilisateur anonyme, ces utilisateurs peuvent uniquement être bannis/débannis.
 common_cannot_identify_user: Impossible d'identifier l'utilisateur. Cette commande ne peut pas être utilisée par les chaînes.
 command_help_example: "Exemple : {example}"
 common_no_user_specified: Je ne sais pas de qui vous parlez, vous allez devoir spécifier un utilisateur... !
@@ -81,15 +80,6 @@ common_user_not_in_chat: Cet utilisateur n'est pas dans ce chat, comment puis-je
 common_cannot_target_admin: "Je ne peux pas effectuer cette action sur les administrateurs du groupe."
 common_cannot_target_self: "Je ne peux pas effectuer cette action sur moi-même."
 common_no_reply_to_message: "Vous devez répondre au message d'un utilisateur pour effectuer cette action."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "bannir"
-common_action_kick: "expulser"
-common_action_mute: "rendre muet"
-common_action_warn: "avertir"
-common_action_promote: "promouvoir"
-common_action_demote: "rétrograder"
-common_action_restrict: "restreindre"
 
 # Time units for duration formatting
 common_time_minute: "minute"
@@ -101,12 +91,6 @@ common_time_days: "jours"
 common_time_week: "semaine"
 common_time_weeks: "semaines"
 
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Activé"
-common_status_disabled: "Désactivé"
-common_status_on: "Activé"
-common_status_off: "Désactivé"
-
 # Common/Shared strings
 common_yes: "Oui"
 common_no: "Non"
@@ -117,7 +101,6 @@ common_done: "Terminé ✅"
 common_continue: "✅ Continuer ✅"
 common_home: "Accueil"
 common_formatting_button: "Formatage"
-common_rules_button: "Règles"
 common_rules_button_emoji: "Règles 📝"
 
 # Language module strings
@@ -132,11 +115,7 @@ language_invalid_selection: "Sélection de langue invalide."
 button_yes: "Oui"
 button_no: "Non"
 button_back: "Retour"
-button_unmute_admin: "Réactiver la voix (Admin uniquement)"
-button_unban_admin: "Débannir (Admin uniquement)"
 button_unmute_admins: "Réactiver la voix (Admins uniquement)"
-button_unban_admins: "Débannir (Admins uniquement)"
-button_connect_to_chat: "Se connecter au chat"
 button_formatting: "Formatage"
 button_click_me: "Cliquez-moi !"
 button_ban: "Bannir"
@@ -2049,9 +2028,6 @@ antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.
-commonstrings_admin_cache_not_found:
-  "Cache admin introuvable. Demandez à un admin d'utiliser /admincache
-  pour recharger le cache admin."
 
 # Formatting fillings
 formatting_fillings: "<b>Remplissages</b>

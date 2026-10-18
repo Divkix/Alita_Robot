@@ -72,7 +72,6 @@ utils_string_handling_extract_time_invalid_time_type: "अमान्य सम
 
 # Common error strings
 common_anonymous_user_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता।
-common_anonymous_ban_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता, इन उपयोगकर्ताओं को केवल बैन/अनबैन किया जा सकता है।
 common_cannot_identify_user: उपयोगकर्ता की पहचान नहीं हो सकी। इस कमांड का उपयोग चैनलों द्वारा नहीं किया जा सकता।
 command_help_example: "उदाहरण: {example}"
 common_no_user_specified: मुझे नहीं पता आप किसके बारे में बात कर रहे हैं, आपको एक उपयोगकर्ता निर्दिष्ट करना होगा...!
@@ -80,15 +79,6 @@ common_user_not_in_chat: यह उपयोगकर्ता इस चैट 
 common_cannot_target_admin: "मैं ग्रुप एडमिनिस्ट्रेटर्स पर यह कार्रवाई नहीं कर सकता।"
 common_cannot_target_self: "मैं खुद पर यह कार्रवाई नहीं कर सकता।"
 common_no_reply_to_message: "इस कार्रवाई को करने के लिए आपको किसी उपयोगकर्ता के संदेश का जवाब देना होगा।"
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "बैन"
-common_action_kick: "किक"
-common_action_mute: "म्यूट"
-common_action_warn: "चेतावनी"
-common_action_promote: "प्रमोट"
-common_action_demote: "डिमोट"
-common_action_restrict: "प्रतिबंधित"
 
 # Time units for duration formatting
 common_time_minute: "मिनट"
@@ -100,12 +90,6 @@ common_time_days: "दिन"
 common_time_week: "सप्ताह"
 common_time_weeks: "सप्ताह"
 
-# Status indicators
-common_status_enabled: "सक्षम"
-common_status_disabled: "अक्षम"
-common_status_on: "चालू"
-common_status_off: "बंद"
-
 # Common/Shared strings
 common_yes: "हाँ"
 common_no: "नहीं"
@@ -116,7 +100,6 @@ common_done: "हो गया ✅"
 common_continue: "✅ जारी रखें ✅"
 common_home: "होम"
 common_formatting_button: "फॉर्मेटिंग"
-common_rules_button: "नियम"
 common_rules_button_emoji: "नियम 📝"
 
 # Helpers strings
@@ -151,11 +134,7 @@ format_list_item_code: " - <code>%s</code>"
 button_yes: "हाँ"
 button_no: "नहीं"
 button_back: "वापस"
-button_unmute_admin: "अनम्यूट (केवल एडमिन)"
-button_unban_admin: "अनबैन (केवल एडमिन)"
 button_unmute_admins: "अनम्यूट (केवल एडमिन)"
-button_unban_admins: "अनबैन (केवल एडमिन)"
-button_connect_to_chat: "चैट से जुड़ें"
 button_formatting: "फॉर्मेटिंग"
 button_click_me: "मुझे क्लिक करें!"
 button_ban: "बैन"
@@ -963,7 +942,6 @@ captcha_permissions_docs: |
 
 # Connections module strings
 commonstrings_admin_cache_cache_reloaded: एडमिन कैश सफलतापूर्वक रीलोड किया गया।
-commonstrings_admin_cache_not_found: "एडमिन कैश नहीं मिला। किसी एडमिन से /admincache का उपयोग करके एडमिन कैश रीलोड करने के लिए कहें।"
 connections_allow_connect_currently_off: "उपयोगकर्ता कनेक्शन वर्तमान में <b>बंद</b> हैं।\n\nउपयोगकर्ता इस चैट को अपने PM से कनेक्ट नहीं कर सकते!"
 connections_allow_connect_currently_on: "उपयोगकर्ता कनेक्शन वर्तमान में <b>चालू</b> हैं।\n\nउपयोगकर्ता इस चैट को अपने PM से कनेक्ट कर सकते हैं!"
 connections_allow_connect_turned_off: "उपयोगकर्ता कनेक्शन इस चैट के लिए <b>बंद</b> कर दिया गया!\n\nउपयोगकर्ता चैट को अपने PM से कनेक्ट नहीं कर सकते!"

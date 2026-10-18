@@ -332,9 +332,6 @@ captcha_help_msg:
 
   If they fail or timeout, the configured action is taken."
 commonstrings_admin_cache_cache_reloaded: Successfully reloaded admin cache.
-commonstrings_admin_cache_not_found:
-  Admincache not found. Ask an admin to use /admincache
-  to reload the admin cache.
 connections_allow_connect_currently_off:
   "User connections are currently turned <b>off</b>.
 
@@ -1101,7 +1098,6 @@ devs_specify_chat: "You must specify a chat ID."
 # Common error messages used across modules
 error_generic: "An error occurred. Please try again later."
 common_anonymous_user_error: This command cannot be used on anonymous user.
-common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
 command_help_example: "Example: {example}"
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
@@ -1109,15 +1105,6 @@ common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 common_cannot_target_admin: "I cannot perform this action on group administrators."
 common_cannot_target_self: "I cannot perform this action on myself."
 common_no_reply_to_message: "You need to reply to a user's message to perform this action."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "ban"
-common_action_kick: "kick"
-common_action_mute: "mute"
-common_action_warn: "warn"
-common_action_promote: "promote"
-common_action_demote: "demote"
-common_action_restrict: "restrict"
 
 # Time units for duration formatting
 common_time_minute: "minute"
@@ -1128,12 +1115,6 @@ common_time_day: "day"
 common_time_days: "days"
 common_time_week: "week"
 common_time_weeks: "weeks"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Enabled"
-common_status_disabled: "Disabled"
-common_status_on: "On"
-common_status_off: "Off"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nNote: These values are cached and may not be up-to-date"
@@ -1494,7 +1475,6 @@ common_done: "Done ✅"
 common_continue: "✅ Continue ✅"
 common_home: "Home"
 common_formatting_button: "Formatting"
-common_rules_button: "Rules"
 common_rules_button_emoji: "Rules 📝"
 
 # Main module strings
@@ -1689,11 +1669,7 @@ captcha_status_disabled: "disabled"
 button_yes: "Yes"
 button_no: "No"
 button_back: "Back"
-button_unmute_admin: "Unmute (Admin Only)"
-button_unban_admin: "Unban (Admin Only)"
 button_unmute_admins: "Unmute (Admins Only)"
-button_unban_admins: "Unban (Admins Only)"
-button_connect_to_chat: "Connect to chat"
 button_formatting: "Formatting"
 button_click_me: "Click Me!"
 button_ban: "Ban"

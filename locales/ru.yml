@@ -206,9 +206,6 @@ captcha_help_msg:
   
     Если они не пройдут или истечёт время, будет применено настроенное действие."
 commonstrings_admin_cache_cache_reloaded: Кэш администраторов успешно перезагружен.
-commonstrings_admin_cache_not_found:
-  "Кэш администраторов не найден. Попросите администратора использовать /admincache,
-  чтобы перезагрузить кэш администраторов."
 connections_allow_connect_currently_off:
   "Подключения пользователей в данный момент <b>отключены</b>.
   
@@ -875,7 +872,6 @@ devs_specify_chat: "Вы должны указать ID чата."
 # Common error messages used across modules
 error_generic: "Произошла ошибка. Пожалуйста, попробуйте позже."
 common_anonymous_user_error: Эта команда не может использоваться на анонимном пользователе.
-common_anonymous_ban_error: Эта команда не может использоваться на анонимном пользователе, этих пользователей можно только забанить/разбанить.
 common_cannot_identify_user: Невозможно идентифицировать пользователя. Эта команда не может использоваться каналами.
 command_help_example: "Пример: {example}"
 common_no_user_specified: Я не знаю, о ком вы говорите, вам нужно указать пользователя...!
@@ -883,15 +879,6 @@ common_user_not_in_chat: Этот пользователь не в этом ча
 common_cannot_target_admin: "Я не могу выполнить это действие по отношению к администраторам группы."
 common_cannot_target_self: "Я не могу выполнить это действие по отношению к себе."
 common_no_reply_to_message: "Вам нужно ответить на сообщение пользователя, чтобы выполнить это действие."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "забанить"
-common_action_kick: "выгнать"
-common_action_mute: "заглушить"
-common_action_warn: "предупредить"
-common_action_promote: "повысить"
-common_action_demote: "понизить"
-common_action_restrict: "ограничить"
 
 # Time units for duration formatting
 common_time_minute: "минуту"
@@ -906,12 +893,6 @@ common_time_days_few: "дня"
 common_time_week: "неделю"
 common_time_weeks: "недель"
 common_time_weeks_few: "недели"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Включено"
-common_status_disabled: "Отключено"
-common_status_on: "Вкл"
-common_status_off: "Выкл"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nПримечание: Эти значения кэшированы и могут быть не актуальны"
@@ -1270,7 +1251,6 @@ common_done: "Готово ✅"
 common_continue: "✅ Продолжить ✅"
 common_home: "Главная"
 common_formatting_button: "Форматирование"
-common_rules_button: "Правила"
 common_rules_button_emoji: "Правила 📝"
 
 # Main module strings
@@ -1427,11 +1407,7 @@ captcha_status_disabled: "отключено"
 button_yes: "Да"
 button_no: "Нет"
 button_back: "Назад"
-button_unmute_admin: "Размутить (только для администраторов)"
-button_unban_admin: "Разбанить (только для администраторов)"
 button_unmute_admins: "Размутить (только для администраторов)"
-button_unban_admins: "Разбанить (только для администраторов)"
-button_connect_to_chat: "Подключиться к чату"
 button_formatting: "Форматирование"
 button_click_me: "Нажми меня!"
 button_ban: "Забанить"

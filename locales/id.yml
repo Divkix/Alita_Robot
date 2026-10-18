@@ -292,9 +292,6 @@ captcha_help_msg:
 
   Jika mereka gagal atau batas waktu habis, tindakan yang dikonfigurasi akan diambil."
 commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
-commonstrings_admin_cache_not_found:
-  "Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
-  untuk memuat ulang cache admin."
 connections_allow_connect_currently_off:
   "Koneksi pengguna saat ini dimatikan <b>off</b>.
 
@@ -1054,7 +1051,6 @@ devs_specify_chat: "Anda harus menentukan ID obrolan."
 # Common error messages used across modules
 error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."
 common_anonymous_user_error: Perintah ini tidak dapat digunakan pada pengguna anonim.
-common_anonymous_ban_error: Perintah ini tidak dapat digunakan pada pengguna anonim, pengguna ini hanya dapat diblokir/dibuka blokirnya.
 common_cannot_identify_user: Tidak dapat mengidentifikasi pengguna. Perintah ini tidak dapat digunakan oleh kanal.
 command_help_example: "Contoh: {example}"
 common_no_user_specified: Saya tidak tahu siapa yang Anda maksud, Anda perlu menentukan pengguna...!
@@ -1062,15 +1058,6 @@ common_user_not_in_chat: Pengguna ini tidak ada di obrolan ini, bagaimana saya b
 common_cannot_target_admin: "Saya tidak dapat melakukan tindakan ini pada admin grup."
 common_cannot_target_self: "Saya tidak dapat melakukan tindakan ini pada diri saya sendiri."
 common_no_reply_to_message: "Anda perlu membalas pesan pengguna untuk melakukan tindakan ini."
-
-# Common action verbs (for dynamic error messages)
-common_action_ban: "blokir"
-common_action_kick: "tendang"
-common_action_mute: "bisu"
-common_action_warn: "peringatkan"
-common_action_promote: "promosikan"
-common_action_demote: "turunkan"
-common_action_restrict: "batasi"
 
 # Time units for duration formatting
 common_time_minute: "menit"
@@ -1081,12 +1068,6 @@ common_time_day: "hari"
 common_time_days: "hari"
 common_time_week: "minggu"
 common_time_weeks: "minggu"
-
-# Status indicators (for replacing %t boolean formatters)
-common_status_enabled: "Diaktifkan"
-common_status_disabled: "Dinonaktifkan"
-common_status_on: "Nyala"
-common_status_off: "Mati"
 
 # Admin module missing strings
 admin_adminlist_note_cached: "\n\nCatatan: Nilai-nilai ini di-cache dan mungkin tidak terbaru"
@@ -1447,7 +1428,6 @@ common_done: "Selesai ✅"
 common_continue: "✅ Lanjutkan ✅"
 common_home: "Beranda"
 common_formatting_button: "Pemformatan"
-common_rules_button: "Aturan"
 common_rules_button_emoji: "Aturan 📝"
 
 # Main module strings
@@ -1662,11 +1642,7 @@ captcha_status_disabled: "dinonaktifkan"
 button_yes: "Ya"
 button_no: "Tidak"
 button_back: "Kembali"
-button_unmute_admin: "Buka Bisu (Khusus Admin)"
-button_unban_admin: "Buka Blokir (Khusus Admin)"
 button_unmute_admins: "Buka Bisu (Khusus Admin)"
-button_unban_admins: "Buka Blokir (Khusus Admin)"
-button_connect_to_chat: "Hubungkan ke obrolan"
 button_formatting: "Pemformatan"
 button_click_me: "Klik Saya!"
 button_ban: "Blokir"
