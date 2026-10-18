@@ -99,12 +99,20 @@ Besides the Go runtime metrics, the bot exports:
 | `alita_update_duration_seconds` | histogram | none | Time to process one update |
 | `alita_redis_commands_total` | counter | `command` | Redis commands sent (`get`, `set`, `del`, ...) |
 | `alita_db_queries_total` | counter | `operation` | Database statements (`query`, `create`, `update`, `delete`, `row`, `raw`) |
+| `alita_cache_local_hits_total` | counter | none | Read-through cache lookups served by the in-process layer (`CACHE_LOCAL_TTL`) |
+| `alita_cache_local_misses_total` | counter | none | Read-through cache lookups that missed the in-process layer and fell through to Redis |
 
 Per-update cost:
 
 ```promql
 sum(rate(alita_redis_commands_total[5m])) / rate(alita_updates_processed_total[5m])
 sum(rate(alita_db_queries_total[5m])) / rate(alita_updates_processed_total[5m])
+```
+
+In-process cache hit ratio:
+
+```promql
+rate(alita_cache_local_hits_total[5m]) / (rate(alita_cache_local_hits_total[5m]) + rate(alita_cache_local_misses_total[5m]))
 ```
 
 ### Prometheus Scrape Configuration
@@ -119,7 +127,15 @@ scrape_configs:
     scrape_interval: 15s
     scrape_timeout: 10s
     metrics_path: /metrics
+    # Required when METRICS_AUTH_TOKEN is set
+    authorization:
+      type: Bearer
+      credentials: <METRICS_AUTH_TOKEN value>   # or credentials_file: /etc/prometheus/alita_token
 ```
+
+### Authentication
+
+When `METRICS_AUTH_TOKEN` is set, `/metrics` and `/db_metrics` return `401 Unauthorized` unless the request sends `Authorization: Bearer <token>`. When it is empty, both endpoints are open and the bot logs a warning at startup. See [METRICS_AUTH_TOKEN](/api-reference/environment/#metrics_auth_token).
 
 ### Docker Compose with Prometheus
 
@@ -256,11 +272,13 @@ The `/db_metrics` endpoint exposes real-time database connection pool statistics
 GET /db_metrics
 ```
 
+When `METRICS_AUTH_TOKEN` is set, send the same bearer header: `curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:8080/db_metrics`.
+
 ### Response Format
 
 ```json
 {
-  "open_connections": 12,
+  "open_connections": 45,
   "idle": 38,
   "in_use": 7,
   "wait_count": 0,
