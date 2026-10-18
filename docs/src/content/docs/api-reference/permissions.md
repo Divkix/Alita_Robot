@@ -562,23 +562,37 @@ CheckDisabledCmd checks if a command is disabled in the chat and handles deletio
 
 ## Usage Example
 
+Commands declare their checks through helpers.WrapCommand; each helpers CheckFunc sends its own refusal:
+
 ```go
-func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
-    chat := ctx.EffectiveChat
-    user := ctx.EffectiveSender.User
-    
-    // Check if user is admin
-    if !chat_status.RequireUserAdmin(b, ctx, chat, user.Id) {
-        return ext.EndGroups
-    }
-    
-    // Check if bot can restrict
-    if !chat_status.CanBotRestrict(b, ctx, chat) {
-        return ext.EndGroups
-    }
-    
-    // Proceed with action...
+helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
+    Name: "mycmd",
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+        helpers.CanBotRestrict(),
+    },
+    Disableable: true,
+}, func(c *helpers.CommandContext) error {
+    // c.User is non-nil here; every failed check has already replied.
+    return ext.EndGroups
+})
+```
+
+Outside WrapCommand the chat_status predicates return bools and never reply, so send the refusal yourself:
+
+```go
+user := chat_status.RequireUser(b, ctx)
+if user == nil {
+    return ext.EndGroups
+}
+if !chat_status.RequireUserAdmin(b, ctx, ctx.EffectiveChat, user.Id) {
+    chat_status.NewPermissionResponder(b).Respond(ctx,
+        "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error",
+        chat_status.WithReplyFallback())
     return ext.EndGroups
 }
 ```
+
+See [Command Reference → Declarative Command Pipeline](/api-reference/commands#declarative-command-pipeline) for every CheckFunc builder.
 
