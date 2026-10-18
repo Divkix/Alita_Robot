@@ -45,7 +45,7 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
 
   *Perintah Admin:*
 
-  × /promote `<reply/username/mention/userid>`: Promosikan pengguna.
+  × /promote `<reply/username/mention/userid>` `[title]`: Promosikan pengguna, opsional dengan judul admin khusus (maks. 16 karakter).
 
   × /demote `<reply/username/mention/userid>`: Turunkan pengguna.
 

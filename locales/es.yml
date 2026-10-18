@@ -48,7 +48,7 @@ admin_help_msg:
 
   *Comandos de Administrador:*
 
-  × /promote `<responder/nombre de usuario/mención/id de usuario>`: Promover a un usuario.
+  × /promote `<responder/nombre de usuario/mención/id de usuario>` `[título]`: Promover a un usuario, opcionalmente con un título de administrador personalizado (máx. 16 caracteres).
 
   × /demote `<responder/nombre de usuario/mención/id de usuario>`: Degradar a un usuario.
 

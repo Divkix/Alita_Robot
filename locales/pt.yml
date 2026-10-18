@@ -41,7 +41,7 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
 
   *Comandos de Admin:*
 
-  × /promote `<reply/username/mention/userid>`: Promove um usuário.
+  × /promote `<reply/username/mention/userid>` `[título]`: Promove um usuário, opcionalmente com um título de admin personalizado (máx. 16 caracteres).
 
   × /demote `<reply/username/mention/userid>`: Rebaixa um usuário.
 

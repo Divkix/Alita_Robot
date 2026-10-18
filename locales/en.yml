@@ -44,7 +44,7 @@ admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
   *Admin Commands:*
 
-  × /promote `<reply/username/mention/userid>`: Promote a user.
+  × /promote `<reply/username/mention/userid>` `[title]`: Promote a user, optionally with a custom admin title (max 16 characters).
 
   × /demote `<reply/username/mention/userid>`: Demote a user.
 
