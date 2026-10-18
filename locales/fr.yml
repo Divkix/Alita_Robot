@@ -1688,17 +1688,17 @@ notes_extended_docs: |
   • <b>Options de Formatage</b> : Contrôlez la visibilité et le comportement des notes
   • <b>Notes Admin Uniquement</b> : Restreignez certaines notes aux administrateurs seulement
   • <b>Notes Privées</b> : Envoyez des notes en privé aux utilisateurs via DM
-  • <b>Contrôle Aperçu Web</b> : Activez ou désactivez les aperçus de liens
+  • <b>Contrôle Aperçu Web</b> : Les aperçus de liens sont désactivés par défaut ; ajoutez <code>{preview}</code> pour les activer
   • <b>Contenu Protégé</b> : Empêchez le transfert du contenu des notes
 
   <b>Options de Formatage des Notes :</b>
   Lors de la sauvegarde d'une note, vous pouvez utiliser des tags spéciaux pour contrôler son comportement :
   • <code>{private}</code> - La note sera uniquement envoyée via DM, jamais dans le groupe
-  • <code>{noprivate}</code> - La note sera uniquement envoyée dans le groupe, jamais via DM
+  • <code>{noprivate}</code> - Récupérée dans un groupe, la note est envoyée dans le groupe même si les notes privées sont activées (récupérée en MP, elle est toujours envoyée en MP)
   • <code>{admin}</code> - La note ne peut être accédée que par les admins
   • <code>{protect}</code> - Le contenu ne peut pas être transféré
   • <code>{nonotif}</code> - Envoyer sans son de notification
-  • <code>{nopreview}</code> - Désactiver l'aperçu des liens
+  • <code>{preview}</code> - Afficher l'aperçu des liens (désactivé par défaut)
 
   <b>Mode Notes Privées :</b>
   Quand les notes privées sont activées (<code>/privatenotes on</code>), toutes les notes sont envoyées aux utilisateurs via DM au lieu du groupe. Cela garde le chat de groupe propre.
@@ -1708,8 +1708,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Toujours envoyer dans le groupe
 
   <b>Note Brute (Sans Formatage) :</b>
-  Pour voir le contenu brut d'une note sans formatage (pour édition) :
-  <code>/get nomdelanote noformat</code>
+  Les admins peuvent voir le contenu brut d'une note sans formatage (pour édition) :
+  <code>/get nomdelanote noformat</code> ou <code>#nomdelanote noformat</code>
 
 notes_permissions_docs: |
   <b>Permissions Requises :</b>
@@ -1717,6 +1717,7 @@ notes_permissions_docs: |
   • Voir les notes admin : Statut Admin
   • Effacer toutes les notes : Propriétaire du Chat
   • Obtenir les notes régulières : N'importe quel utilisateur
+  • Bot : doit être admin pour /save, /addnote, /clear, /rmnote, /notes et /saved (/get et #nomdelanote fonctionnent sans cela)
 
 # Pins module extended documentation
 pins_extended_docs: |

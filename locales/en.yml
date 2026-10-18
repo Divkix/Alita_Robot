@@ -1958,17 +1958,17 @@ notes_extended_docs: |
   • <b>Formatting Options</b>: Control note visibility and behavior
   • <b>Admin-Only Notes</b>: Restrict certain notes to administrators only
   • <b>Private Notes</b>: Send notes privately to users via DM
-  • <b>Web Preview Control</b>: Enable or disable link previews
+  • <b>Web Preview Control</b>: Link previews are off by default; add <code>{preview}</code> to turn them on
   • <b>Protected Content</b>: Prevent note content from being forwarded
 
   <b>Note Formatting Options:</b>
   When saving a note, you can use special tags to control its behavior:
   • <code>{private}</code> - Note will only be sent via DM, never in group
-  • <code>{noprivate}</code> - Note will only be sent in group, never via DM
+  • <code>{noprivate}</code> - When fetched in a group, the note is sent in the group even if private notes are on (fetching it from PM still delivers it in PM)
   • <code>{admin}</code> - Note can only be accessed by admins
   • <code>{protect}</code> - Content cannot be forwarded
   • <code>{nonotif}</code> - Send without notification sound
-  • <code>{nopreview}</code> - Disable link preview
+  • <code>{preview}</code> - Show link previews (off by default)
 
   <b>Private Notes Mode:</b>
   When private notes are enabled (<code>/privatenotes on</code>), all notes are sent to users via DM instead of in the group. This keeps the group chat clean.
@@ -1978,8 +1978,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Always send in group
 
   <b>Raw Note (No Formatting):</b>
-  To see a note's raw content without formatting (for editing):
-  <code>/get notename noformat</code>
+  Admins can see a note's raw content without formatting (for editing):
+  <code>/get notename noformat</code> or <code>#notename noformat</code>
 
 notes_permissions_docs: |
   <b>Required Permissions:</b>
@@ -1987,6 +1987,7 @@ notes_permissions_docs: |
   • View admin notes: Admin status
   • Clear all notes: Chat Owner
   • Get regular notes: Any user
+  • Bot: must be an admin for /save, /addnote, /clear, /rmnote, /notes and /saved (/get and #notename work without it)
 
 # Extended documentation locale keys - Pins module
 pins_extended_docs: |

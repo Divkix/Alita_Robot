@@ -1879,17 +1879,17 @@ notes_extended_docs: |
   • <b>Opções de Formatação</b>: Controle visibilidade e comportamento
   • <b>Notas Apenas para Admins</b>: Restrinja certas notas a administradores apenas
   • <b>Notas Privadas</b>: Envie notas privadamente para usuários via DM
-  • <b>Controle de Prévia Web</b>: Ative ou desative prévias de links
+  • <b>Controle de Prévia Web</b>: Prévias de links ficam desativadas por padrão; adicione <code>{preview}</code> para ativá-las
   • <b>Conteúdo Protegido</b>: Previna que conteúdo de nota seja encaminhado
 
   <b>Opções de Formatação de Notas:</b>
   Ao salvar uma nota, você pode usar tags especiais para controlar seu comportamento:
   • <code>{private}</code> - Nota só será enviada via DM, nunca no grupo
-  • <code>{noprivate}</code> - Nota só será enviada no grupo, nunca via DM
+  • <code>{noprivate}</code> - Quando obtida em um grupo, a nota é enviada no grupo mesmo com notas privadas ativadas (obtida pelo PM, ela ainda é entregue no PM)
   • <code>{admin}</code> - Nota só pode ser acessada por admins
   • <code>{protect}</code> - Conteúdo não pode ser encaminhado
   • <code>{nonotif}</code> - Enviar sem som de notificação
-  • <code>{nopreview}</code> - Desativar prévia de link
+  • <code>{preview}</code> - Mostrar prévia de links (desativada por padrão)
 
   <b>Modo de Notas Privadas:</b>
   Quando notas privadas estão ativadas (<code>/privatenotes on</code>), todas as notas são enviadas aos usuários via DM em vez de no grupo. Isso mantém o chat do grupo limpo.
@@ -1899,8 +1899,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Sempre enviar no grupo
 
   <b>Nota Bruta (Sem Formatação):</b>
-  Para ver o conteúdo bruto de uma nota sem formatação (para edição):
-  <code>/get notename noformat</code>
+  Admins podem ver o conteúdo bruto de uma nota sem formatação (para edição):
+  <code>/get notename noformat</code> ou <code>#notename noformat</code>
 
 notes_permissions_docs: |
   <b>Permissões Necessárias:</b>
@@ -1908,6 +1908,7 @@ notes_permissions_docs: |
   • Ver notas de admin: Status de admin
   • Limpar todas as notas: Dono do Chat
   • Obter notas regulares: Qualquer usuário
+  • Bot: precisa ser admin para /save, /addnote, /clear, /rmnote, /notes e /saved (/get e #notename funcionam sem isso)
 
 # Extended documentation locale keys - Pins module
 pins_extended_docs: |

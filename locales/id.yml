@@ -1909,17 +1909,17 @@ notes_extended_docs: |
   • <b>Opsi Pemformatan</b>: Kontrol visibilitas dan perilaku catatan
   • <b>Catatan Khusus Admin</b>: Batasi catatan tertentu hanya untuk administrator
   • <b>Catatan Pribadi</b>: Kirim catatan secara pribadi ke pengguna melalui DM
-  • <b>Kontrol Pratinjau Web</b>: Aktifkan atau nonaktifkan pratinjau tautan
+  • <b>Kontrol Pratinjau Web</b>: Pratinjau tautan nonaktif secara bawaan; tambahkan <code>{preview}</code> untuk mengaktifkannya
   • <b>Konten Dilindungi</b>: Cegah konten catatan diteruskan
 
   <b>Opsi Pemformatan Catatan:</b>
   Ketika menyimpan catatan, Anda dapat menggunakan tag khusus untuk mengontrol perilakunya:
   • <code>{private}</code> - Catatan hanya akan dikirim melalui DM, tidak pernah di grup
-  • <code>{noprivate}</code> - Catatan hanya akan dikirim di grup, tidak pernah melalui DM
+  • <code>{noprivate}</code> - Saat diambil di grup, catatan dikirim di grup meskipun catatan pribadi aktif (jika diambil dari PM, catatan tetap dikirim di PM)
   • <code>{admin}</code> - Catatan hanya dapat diakses oleh admin
   • <code>{protect}</code> - Konten tidak dapat diteruskan
   • <code>{nonotif}</code> - Kirim tanpa suara notifikasi
-  • <code>{nopreview}</code> - Nonaktifkan pratinjau tautan
+  • <code>{preview}</code> - Tampilkan pratinjau tautan (nonaktif secara bawaan)
 
   <b>Mode Catatan Pribadi:</b>
   Ketika catatan pribadi diaktifkan (<code>/privatenotes on</code>), semua catatan dikirim ke pengguna melalui DM sebagai gantinya di grup. Ini menjaga grup tetap bersih.
@@ -1929,8 +1929,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Selalu kirim di grup
 
   <b>Catatan Mentah (Tanpa Pemformatan):</b>
-  Untuk melihat konten catatan mentah tanpa pemformatan (untuk diedit):
-  <code>/get namacatatan noformat</code>
+  Admin dapat melihat konten catatan mentah tanpa pemformatan (untuk diedit):
+  <code>/get namacatatan noformat</code> atau <code>#namacatatan noformat</code>
 
 notes_permissions_docs: |
   <b>Izin yang Diperlukan:</b>
@@ -1938,6 +1938,7 @@ notes_permissions_docs: |
   • Lihat catatan admin: Status admin
   • Hapus semua catatan: Pemilik Obrolan
   • Dapatkan catatan biasa: Pengguna mana pun
+  • Bot: harus menjadi admin untuk /save, /addnote, /clear, /rmnote, /notes, dan /saved (/get dan #namacatatan berfungsi tanpanya)
 
 # Extended documentation locale keys - Pins module
 pins_extended_docs: |

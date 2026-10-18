@@ -1918,17 +1918,17 @@ notes_extended_docs: |
   • <b>Opciones de formato</b>: Controla visibilidad y comportamiento de las notas
   • <b>Notas solo para admins</b>: Restringe ciertas notas a administradores
   • <b>Notas privadas</b>: Envía notas por DM a los usuarios
-  • <b>Control de vista previa web</b>: Habilita o deshabilita vistas previas de enlaces
+  • <b>Control de vista previa web</b>: Las vistas previas de enlaces están desactivadas por defecto; añade <code>{preview}</code> para activarlas
   • <b>Contenido protegido</b>: Evita que el contenido de notas sea reenviado
 
   <b>Opciones de formato de notas:</b>
   Al guardar una nota, puedes usar etiquetas especiales para controlar su comportamiento:
   • <code>{private}</code> - La nota solo se enviará por DM, nunca en el grupo
-  • <code>{noprivate}</code> - La nota solo se enviará en el grupo, nunca por DM
+  • <code>{noprivate}</code> - Al obtenerla en un grupo, la nota se envía en el grupo aunque las notas privadas estén activadas (si se obtiene desde PM, se sigue entregando en PM)
   • <code>{admin}</code> - La nota solo puede ser accedida por admins
   • <code>{protect}</code> - El contenido no puede ser reenviado
   • <code>{nonotif}</code> - Enviar sin sonido de notificación
-  • <code>{nopreview}</code> - Deshabilitar vista previa de enlace
+  • <code>{preview}</code> - Mostrar vista previa de enlaces (desactivada por defecto)
 
   <b>Modo de notas privadas:</b>
   Cuando las notas privadas están habilitadas (<code>/privatenotes on</code>), todas las notas se envían por DM en lugar de en el grupo. Esto mantiene el chat limpio.
@@ -1938,8 +1938,8 @@ notes_extended_docs: |
   • <code>{noprivate}</code> - Enviar siempre en el grupo
 
   <b>Nota sin formato (No Formatting):</b>
-  Para ver el contenido sin formato de una nota (para editar):
-  <code>/get nombredenota noformat</code>
+  Los admins pueden ver el contenido sin formato de una nota (para editar):
+  <code>/get nombredenota noformat</code> o <code>#nombredenota noformat</code>
 
 notes_permissions_docs: |
   <b>Permisos requeridos:</b>
@@ -1947,6 +1947,7 @@ notes_permissions_docs: |
   • Ver notas de admin: Estado de admin
   • Borrar todas las notas: Propietario del chat
   • Obtener notas normales: Cualquier usuario
+  • Bot: debe ser admin para /save, /addnote, /clear, /rmnote, /notes y /saved (/get y #nombredenota funcionan sin ello)
 
 # Extended documentation locale keys - Pins module
 pins_extended_docs: |
