@@ -413,6 +413,16 @@ evicted first.
 | **Default** | `50000` |
 | **Validation** | min=100,max=1000000 |
 
+### `DISABLE_CACHE`
+
+Bypasses the read-through cache: every cached lookup reads PostgreSQL directly, the in-process layer is turned off, and writes skip Redis cache deletes. The bot also starts when Redis is unreachable or misconfigured; it logs a warning and runs degraded (Redis-backed state such as antiraid does nothing). Intended for load-testing PostgreSQL, not normal operation.
+
+| Property | Value |
+|----------|-------|
+| **Type** | `boolean` |
+| **Required** | No |
+| **Default** | `false` |
+
 ## 📂 Resource monitoring limits
 
 ### `RESOURCE_GC_THRESHOLD_MB`
@@ -543,6 +553,7 @@ DB_CONN_MAX_LIFETIME_MIN=# max lifetime in min (default: 240)
 DB_MAX_IDLE_CONNS=# (default: 50)
 DB_MAX_OPEN_CONNS=# (default: 200)
 DEBUG=# enable debug logging (default: false)
+DISABLE_CACHE=# bypass the cache; bot starts without Redis, degraded (default: false)
 DISPATCHER_MAX_ROUTINES=# (default: 200)
 DROP_PENDING_UPDATES=# (default: false)
 ENABLE_AISPAM=# global AI spam filter kill switch (default: true)
