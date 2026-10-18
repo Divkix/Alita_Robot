@@ -4,6 +4,7 @@ package modules
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -673,6 +674,26 @@ func TestAntiRaidCallbackTogglesState(t *testing.T) {
 	}
 	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 2 {
 		t.Fatalf("answerCallbackQuery calls = %d, want 2", len(calls))
+	}
+}
+
+func TestAntiRaidCallbackRefusesNonAdminInChatLanguage(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	t.Cleanup(func() {
+		_, _ = antiRaidModule.disableRaid(f.chat.Id)
+	})
+
+	ctx := newModuleCallbackContext(f.bot, f.chat, f.member, encodeCallbackData("antiraid", map[string]string{"a": "on"}))
+	if err := antiRaidModule.callbackHandler(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("callbackHandler(non-admin) error = %v, want EndGroups", err)
+	}
+	if antiRaidModule.isRaidActive(f.chat.Id) {
+		t.Fatal("a non-admin enabled antiraid")
+	}
+	answer := f.client.onlyCall(t, "answerCallbackQuery")
+	if got, want := fmt.Sprint(answer.Params["text"]), translated(t, "connections_is_user_connected_user_not_admin"); got != want {
+		t.Fatalf("callback answer = %q, want %q", got, want)
 	}
 }
 
