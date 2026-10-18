@@ -365,6 +365,23 @@ func TestDeleteKickDeletesReplyBeforeKick(t *testing.T) {
 	}
 }
 
+// An anonymous admin's confirmed /kick and /dkick reach their handlers.
+func TestAnonymousAdminKickCommandsAreRouted(t *testing.T) {
+	for _, command := range []string{"kick", "dkick"} {
+		t.Run(command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+			target := gotgbot.User{Id: 42, FirstName: "Member"}
+
+			ctx := newBanReplyContext(bot, chat, admin, target, "/"+command)
+			if err := HandleAnonymousAdmin(bot, ctx, command); err != ext.EndGroups {
+				t.Fatalf("HandleAnonymousAdmin(%q) error = %v, want EndGroups", command, err)
+			}
+			assertParams(t, client.onlyCall(t, "unbanChatMember"), targetParams(chat.Id, target.Id))
+		})
+	}
+}
+
 func TestDeleteKickRejectsUnidentifiableReplySender(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
