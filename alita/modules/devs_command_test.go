@@ -266,3 +266,37 @@ func TestDevTeamRoleCommandRepliesWhenNoUserGiven(t *testing.T) {
 		t.Fatalf("getChat calls = %d, want none without a target user", len(calls))
 	}
 }
+
+func TestDevChatListRepliesWhenTheDocumentFails(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	client.errors["sendDocument"] = errors.New("upload failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatlist")
+	if err := devsModule.chatList(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("chatList(send error) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want progress message and error reply", len(calls))
+	}
+}
+
+func TestDevChatListSendsDocumentWhenProgressDeleteFails(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	client.errors["deleteMessage"] = errors.New("delete failed")
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatlist")
+	if err := devsModule.chatList(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("chatList(delete error) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendDocument"); len(calls) != 1 {
+		t.Fatalf("sendDocument calls = %d, want 1 despite the delete failure", len(calls))
+	}
+}

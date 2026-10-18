@@ -104,10 +104,8 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 
-	_, err = rMsg.Delete(b, nil)
-	if err != nil {
+	if _, err = rMsg.Delete(b, nil); err != nil {
 		log.Error(err)
-		return err
 	}
 
 	_, err = b.SendDocument(
@@ -123,7 +121,10 @@ func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
 	)
 	if err != nil {
 		log.Error(err)
-		return err
+		if _, rErr := msg.Reply(b, trS(tr, "devs_chatlist_error"), nil); rErr != nil {
+			log.Error(rErr)
+		}
+		return ext.EndGroups
 	}
 
 	return ext.EndGroups
