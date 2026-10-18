@@ -180,3 +180,154 @@ func TestSetSpamDBActionRejectsUnknownAction(t *testing.T) {
 		t.Fatalf("rows for chat = %d, want 0", count)
 	}
 }
+
+// CAS is checked by default and lols.bot only after an admin opts in.
+func TestSpamDBDatabasesDefaultToCASOnly(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols {
+		t.Fatalf("missing row = cas %v lols %v, want CAS only", got.CheckCAS, got.CheckLols)
+	}
+	if err := SetSpamDBEnabled(chatID, true); err != nil {
+		t.Fatalf("SetSpamDBEnabled(true) error = %v", err)
+	}
+	if got := mustGet(t, chatID); !got.CheckCAS || got.CheckLols {
+		t.Fatalf("new row = cas %v lols %v, want CAS only", got.CheckCAS, got.CheckLols)
+	}
+}
+
+// Each database is switched on its own, a switched-off database stays off
+// (false must reach the row, not the column default), and the next cached
+// read sees every write.
+func TestSetSpamDBDatabaseRoundTrip(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	steps := []struct {
+		database  string
+		on        bool
+		cas, lols bool
+	}{
+		{DatabaseLols, false, true, false},
+		{DatabaseLols, true, true, true},
+		{DatabaseCAS, false, false, true},
+		{DatabaseCAS, true, true, true},
+		{DatabaseLols, false, true, false},
+	}
+	for _, s := range steps {
+		if err := SetSpamDBDatabase(chatID, s.database, s.on); err != nil {
+			t.Fatalf("SetSpamDBDatabase(%s, %v) error = %v", s.database, s.on, err)
+		}
+		if got := mustGet(t, chatID); got.CheckCAS != s.cas || got.CheckLols != s.lols {
+			t.Fatalf("after %s=%v: cas %v lols %v, want cas %v lols %v", s.database, s.on, got.CheckCAS, got.CheckLols, s.cas, s.lols)
+		}
+	}
+}
+
+// A chat with the check on must always ask some database, so the last one
+// cannot be switched off.
+func TestSetSpamDBDatabaseKeepsOneDatabase(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	if err := SetSpamDBDatabase(chatID, DatabaseCAS, false); !errors.Is(err, ErrLastDatabase) {
+		t.Fatalf("switching off the only database: error = %v, want ErrLastDatabase", err)
+	}
+	if got := mustGet(t, chatID); !got.CheckCAS {
+		t.Fatal("CAS was switched off although it was the only database")
+	}
+
+	if err := SetSpamDBDatabase(chatID, DatabaseLols, true); err != nil {
+		t.Fatalf("SetSpamDBDatabase(lols, true) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseCAS, false); err != nil {
+		t.Fatalf("SetSpamDBDatabase(cas, false) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseLols, false); !errors.Is(err, ErrLastDatabase) {
+		t.Fatalf("switching off the last database: error = %v, want ErrLastDatabase", err)
+	}
+	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols {
+		t.Fatalf("after refusal: cas %v lols %v, want lols only", got.CheckCAS, got.CheckLols)
+	}
+}
+
+// The database choice, the switch and the action are separate commands;
+// none may reset another.
+func TestSpamDBDatabasesSwitchAndActionAreIndependent(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	if err := SetSpamDBEnabled(chatID, true); err != nil {
+		t.Fatalf("SetSpamDBEnabled(true) error = %v", err)
+	}
+	if err := SetSpamDBAction(chatID, ActionLog); err != nil {
+		t.Fatalf("SetSpamDBAction(log) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseLols, true); err != nil {
+		t.Fatalf("SetSpamDBDatabase(lols, true) error = %v", err)
+	}
+	if err := SetSpamDBDatabase(chatID, DatabaseCAS, false); err != nil {
+		t.Fatalf("SetSpamDBDatabase(cas, false) error = %v", err)
+	}
+	if got := mustGet(t, chatID); !got.Enabled || got.Action != ActionLog {
+		t.Fatalf("after database changes = %+v, want enabled with log", got)
+	}
+
+	if err := SetSpamDBEnabled(chatID, false); err != nil {
+		t.Fatalf("SetSpamDBEnabled(false) error = %v", err)
+	}
+	if err := SetSpamDBAction(chatID, ActionMute); err != nil {
+		t.Fatalf("SetSpamDBAction(mute) error = %v", err)
+	}
+	if got := mustGet(t, chatID); got.CheckCAS || !got.CheckLols {
+		t.Fatalf("after switch and action = cas %v lols %v, want lols only", got.CheckCAS, got.CheckLols)
+	}
+}
+
+func TestSetSpamDBDatabaseRejectsUnknownDatabase(t *testing.T) {
+	skipIfNoDb(t)
+	cache.SetupTestMemoryMarshaler(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	if err := SetSpamDBDatabase(chatID, "spamwatch", true); !errors.Is(err, ErrInvalidDatabase) {
+		t.Fatalf("SetSpamDBDatabase(spamwatch) error = %v, want ErrInvalidDatabase", err)
+	}
+	var count int64
+	if err := db.DB.Model(&models.SpamDBSettings{}).Where("chat_id = ?", chatID).Count(&count).Error; err != nil {
+		t.Fatalf("count failed: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("rows for chat = %d, want 0", count)
+	}
+}
+
+// The schema itself refuses a row with no database, so two admins switching
+// off different databases at once cannot leave the check asking nothing.
+func TestSpamDBSettingsRowNeedsADatabase(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := time.Now().UnixNano()
+	cleanupChat(t, chatID)
+
+	// A map, because GORM would swap the struct's false for the default.
+	err := db.DB.Model(&models.SpamDBSettings{}).
+		Create(map[string]any{"chat_id": chatID, "check_cas": false, "check_lols": false}).Error
+	if err == nil {
+		t.Fatal("a row with no database was stored")
+	}
+}
