@@ -52,7 +52,7 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
-	_text := fmt.Sprintf(temp, chat.Title)
+	_text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 	connKeyboard := keyboard.InitButtons(b, chat.Id, user.Id)
 	_, err := msg.Reply(b,
 		_text,
@@ -148,7 +148,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 			text, _ = tr.GetString("common_settings_save_failed")
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
-			text = fmt.Sprintf(temp, chat.Title)
+			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
 		}
 	} else {
@@ -247,7 +247,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 		replyText, _ = tr.GetString(strings.ToLower(m.moduleName) + "_connections_btns_user_conn_cmds")
 	case "Main":
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
-		replyText = fmt.Sprintf(temp, chat.Title)
+		replyText = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
 		replyKb = keyboard.InitButtons(b, chat.Id, user.Id)
 	}
 
@@ -341,7 +341,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 				text, _ = tr.GetString("common_settings_save_failed")
 			} else {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
-				text = fmt.Sprintf(temp, gchat.Title)
+				text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
 				connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
 			}
 		} else {

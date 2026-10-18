@@ -3,7 +3,9 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -209,6 +211,31 @@ func TestConnectionReportsConnectedChat(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+}
+
+func TestConnectionEscapesGroupTitle(t *testing.T) {
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: 42448, FirstName: "Member"}
+	chatID := uniqueModuleChatID()
+	client.chatsByID = map[string]json.RawMessage{
+		fmt.Sprint(chatID): json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"supergroup","title":"Q&A <x>"}`, chatID)),
+	}
+	if err := connections.ConnectId(user.Id, chatID); err != nil {
+		t.Fatalf("ConnectId() error = %v", err)
+	}
+	t.Cleanup(func() { _ = connections.DisconnectId(user.Id) })
+
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
+	ctx := newModuleMessageContext(bot, privateChat, user, "/connection")
+	if err := ConnectionsModule.connection(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("connection() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "Q&amp;A &lt;x&gt;") {
+		t.Fatalf("connection reply = %q, want the group title HTML-escaped", text)
 	}
 }
 
