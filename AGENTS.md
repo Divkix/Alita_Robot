@@ -55,7 +55,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   Exceptions: `CanUser*` and `CanInvite` reply with the anonymous-admin proof keyboard (`checkAnonAdmin`) to an
   anonymous admin in a chat with AnonAdmin off, so keep them out of watchers; `IsUserConnected` (returns
   `*gotgbot.Chat`) sends its own refusals.
-  `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
+  `helpers.CheckFunc` replies and needs a `*helpers.CommandContext`: run it only through `WrapCommand`'s
+  `RequiredChecks`, or through `helpers.RunChecks` on a `helpers.BuildCommandContext` result in an anonymous-admin
+  post-proof handler (`anonPipelineHandler`, pins' `enforcePinChecks`). Never call it from a watcher.
 - Given a nil chat, `chat_status` helpers check `ctx.EffectiveChat` once a handler has swapped it to a connected
   group; `PermissionResponder` still answers in the chat the update came from.
 - After such a swap `lang.GetLanguage(ctx)` returns the language of the chat the message came from (the user's, in
