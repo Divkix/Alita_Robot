@@ -76,7 +76,7 @@ Alita_Robot/
 │   ├── db/           # Database operations and repositories
 │   ├── i18n/         # Internationalization
 │   ├── modules/      # Command handlers (one file per module)
-│   └── utils/        # Utility functions and decorators
+│   └── utils/        # Utility packages (helpers holds the command pipeline)
 ├── locales/          # Translation files (YAML)
 ├── migrations/       # SQL migration files
 └── main.go           # Entry point
@@ -85,24 +85,40 @@ Alita_Robot/
 ## Adding a New Module
 
 <Steps>
-  <Step title="Create database operations">
-    Add them in `alita/db/{module}/repository.go` (following the domain-package pattern).
+  <Step title="Add a migration">
+    Create `migrations/<YYYYMMDDHHMMSS>_<name>.sql` with a timestamp greater than every existing file; files apply in plain filename order. Each file runs in one transaction: no top-level `BEGIN`/`COMMIT`/`ROLLBACK` and no `CREATE INDEX CONCURRENTLY`. Never edit an applied file: its checksum is verified at startup.
+  </Step>
+
+  <Step title="Add the model">
+    Put the GORM struct in `alita/db/models/` with a `TableName()` method that returns the migration's table name.
+  </Step>
+
+  <Step title="Add the repository">
+    Add `alita/db/<domain>/repository.go`. Read through `cache.GetFromCacheOrLoad` with `cache.CacheKey` keys, and call `cache.DeleteCache` on every key a write affects.
+  </Step>
+
+  <Step title="Register the model in tests">
+    Add the model to the `AutoMigrate` list in the affected `testmain_test.go` or `internal/testdb.Run` call.
   </Step>
 
   <Step title="Implement command handlers">
-    Put them in `alita/modules/{module}.go`.
+    Put them in `alita/modules/<name>.go`, with a `LoadXxx(dispatcher)` function that registers them.
   </Step>
 
   <Step title="Register commands">
-    Register commands in a `LoadXxx(dispatcher)` function.
-  </Step>
-
-  <Step title="Add translations">
-    Add translations to `locales/en.yml` (and other locale files).
+    Use `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. For commands chats may disable, set `Disableable: true` and put `helpers.CheckDisabled("<cmd>")` first in `RequiredChecks`. Admin commands that must work for anonymous admins also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`.
   </Step>
 
   <Step title="Self-register in init()">
-    Use `RegisterLegacyModule("MyModule", priority, LoadMyModule)` — modules auto-load via `LoadAllModules()` in `alita/main.go`.
+    Use `RegisterLegacyModule("MyModule", priority, LoadMyModule)` with a unique name (duplicates are dropped silently). Modules auto-load via `LoadAllModules()` (`alita/modules/registry.go`), called from `LoadModules` in `alita/main.go`.
+  </Step>
+
+  <Step title="Add translations">
+    Add every new key to all 7 locale files in `locales/` (en, es, fr, hi, id, pt, ru).
+  </Step>
+
+  <Step title="Validate">
+    Run `make generate-docs`, `make check-translations`, `make check-docs`, `make test` and `make lint`.
   </Step>
 </Steps>
 
@@ -114,18 +130,29 @@ package modules
 import (
     "github.com/PaulSonOfLars/gotgbot/v2"
     "github.com/PaulSonOfLars/gotgbot/v2/ext"
-    "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
+
+    "github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 var myModule = moduleStruct{moduleName: "MyModule"}
 
+var myCommandDesc = helpers.CommandDescriptor{
+    Name:        "mycommand",
+    Disableable: true,
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.CheckDisabled("mycommand"),
+        helpers.RequireGroup(),
+    },
+}
+
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
-    // Implementation
+    // Implementation (RequiredChecks already ran and replied on failure)
     return ext.EndGroups
 }
 
 func LoadMyModule(d *ext.Dispatcher) {
-    d.AddHandler(handlers.NewCommand("mycommand", myModule.myCommand))
+    SetModuleEnabled(myModule.moduleName, true)
+    helpers.WrapCommand(d, myCommandDesc, pipelineHandler(myModule.myCommand))
 }
 
 func init() {
@@ -154,7 +181,7 @@ pip install pre-commit && pre-commit install
 - Run `make test` before committing
 - Follow Go conventions and idioms
 - Add proper error handling with panic recovery
-- Use decorators for common middleware (permissions, error handling)
+- Register commands with `helpers.WrapCommand` and put permission checks in `CommandDescriptor.RequiredChecks`; the pipeline sends failure replies and recovers panics
 
 ## Security Best Practices
 
@@ -194,7 +221,7 @@ When running database operations in goroutines, always:
 chatId := chat.Id  // Capture variable
 go func() {
     defer error_handling.RecoverFromPanic("SetAnonAdminMode", "admin")
-    if err := db.SetAnonAdminMode(chatId, true); err != nil {
+    if err := admin.SetAnonAdminMode(chatId, true); err != nil {  // package alita/db/admin
         log.Errorf("[Admin] Failed to set anon admin mode: %v", err)
     }
 }()
@@ -237,7 +264,7 @@ Use double quotes for strings containing escape sequences like `\n`. Single quot
 
 Automated regression tests are required for all contributions:
 
-1. Run `make test` and make sure all tests pass (to run a subset, use `go test -tags testtools -race ./alita/...`; without `-tags testtools` test files are silently skipped)
+1. Run `make test` and make sure all tests pass. It is the only valid full run: it adds `-tags testtools`, `-race` and the skipped-test gate, while a plain `go test ./...` silently drops the tagged test files. To run one test: `CGO_ENABLED=1 go test -tags testtools -race -count=1 -run '^TestName$' ./alita/<pkg>`.
 2. Run `make lint` and fix any lint findings
 3. Manually verify behavior with a test bot/group for user-facing changes
 
@@ -281,7 +308,7 @@ user := ctx.EffectiveSender.User
 userId := user.Id
 
 // Correct - use the safe helper
-user := chat_status.RequireUser(b, ctx, false)
+user := chat_status.RequireUser(b, ctx)
 if user == nil {
     return ext.EndGroups
 }
@@ -324,27 +351,28 @@ firstArg := args[0]
 
 ### Callback Data Validation
 
-**Problem:** Not validating callback query data before parsing.
+**Problem:** Parsing callback data by hand instead of through the callback codec.
 
 ```go
-// Wrong - panics on malformed data
+// Wrong - hand-split parsing; panics on malformed data and never matches
+// the bot's versioned "<ns>|v1|<url-encoded>" callback format
 args := strings.Split(query.Data, ".")
 action := args[1]
-userId, _ := strconv.Atoi(args[2])
 
-// Correct - validate first
-args := strings.Split(query.Data, ".")
-if len(args) < 3 {
-    log.Error("Malformed callback data")
-    return ext.EndGroups
+// Correct - decode through the codec wrapper and check the namespace
+decoded, ok := decodeCallbackData(query.Data, "mymodule")
+if !ok {
+    return answerInvalidCallback(b, ctx, query)
 }
-action := args[1]
-userId, err := strconv.Atoi(args[2])
+action, _ := decoded.Field("a")
+rawID, _ := decoded.Field("u")
+userID, err := strconv.ParseInt(rawID, 10, 64)
 if err != nil {
-    log.Error("Invalid userId in callback")
-    return ext.EndGroups
+    return answerInvalidCallback(b, ctx, query)
 }
 ```
+
+Build button data with `encodeCallbackData(namespace, fields)`. Callback data is capped at 64 bytes, and on overflow `encodeCallbackData` returns "", which ships a dead button. Keep long user text in Redis behind a short token.
 
 ### Goroutine Variable Capture
 
@@ -370,14 +398,14 @@ go func(uid int64) {
 // Wrong - locale uses Markdown, but sending with HTML parse mode
 helpMsg, _ := tr.GetString("module_help_msg")  // Contains *bold*
 b.SendMessage(chatId, helpMsg, &gotgbot.SendMessageOpts{
-    ParseMode: helpers.HTML,  // Markdown won't render!
+    ParseMode: formatting.HTML,  // Markdown won't render!
 })
 
 // Correct - convert Markdown to HTML before sending
 helpMsg, _ := tr.GetString("module_help_msg")
 htmlMsg := tgmd2html.MD2HTMLV2(helpMsg)  // Converts *bold* to <b>bold</b>
 b.SendMessage(chatId, htmlMsg, &gotgbot.SendMessageOpts{
-    ParseMode: helpers.HTML,
+    ParseMode: formatting.HTML,
 })
 ```
 
