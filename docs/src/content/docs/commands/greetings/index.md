@@ -10,14 +10,15 @@ Welcome new members to your groups or say Goodbye after they leave!
 
 *Admin Commands:*
 × /setwelcome `<reply/text>`: Sets welcome text for group.
-× /welcome `<yes/no/on/off>`: Enables or Disables welcome setting for group.
+× /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
 × /resetwelcome: Resets the welcome message to default.
 × /setgoodbye `<reply/text>`: Sets goodbye text for group.
-× /goodbye `<yes/no/on/off>`: Enables or Disables goodbye setting for group.
+× /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
 × /resetgoodbye: Resets the goodbye message to default.
-× /cleanservice `<yes/no/on/off>`: Delete all service messages such as 'x joined the group' notification.
+× /cleanservice `<yes/no/on/off>`: Delete join and leave service messages, such as the 'x joined the group' notification.
 × /cleanwelcome `<yes/no/on/off>`: Delete the old welcome message, whenever a new member joins.
-× /autoapprove `<yes/no/on/off>`: Automatically approve all new members.
+× /cleangoodbye `<yes/no/on/off>`: Delete the old goodbye message, whenever a member leaves.
+× /autoapprove `<yes/no/on/off>`: Automatically approve chat join requests.
 
 **Captcha Integration**
 When Captcha module is enabled:
