@@ -33,6 +33,11 @@ Docker is the recommended way to deploy Alita Robot. The provided `docker-compos
     <Badge variant="danger">MESSAGE_DUMP</Badge>,
     <Badge variant="danger">WEBHOOK_DOMAIN</Badge>, and
     <Badge variant="danger">WEBHOOK_SECRET</Badge>.
+
+    The Compose file reads only these five values from `.env`; every other
+    setting in `.env` is ignored. To change another variable (for example
+    `ENABLED_LOCALES` or `TYPESAFE_API_KEY`), add it under
+    `services.alita.environment` in `docker-compose.yml`.
   </Step>
 
   <Step title="Start all services">
@@ -175,11 +180,11 @@ Redis for caching and session management.
 |--------------|-------|-------------|
 | **Image** | `redis:7-alpine` | Redis 7 on Alpine Linux |
 | **Memory Limit** | 256MB | Maximum memory allocation |
-| **Authentication** | Password protected | Uses `REDIS_PASSWORD` env var |
+| **Authentication** | Password `redis` | Hard-coded in `docker-compose.yml`; to change it, edit `--requirepass` and the healthcheck's `-a` on the redis service and `REDIS_PASSWORD` on the alita service together |
 
 ## Environment Variables
 
-Set these in your `.env` file or pass them to docker-compose:
+Set these five in your `.env` file (Compose substitutes them into `docker-compose.yml`):
 
 ```bash
 # Required
@@ -192,7 +197,7 @@ WEBHOOK_DOMAIN=https://your-domain.com
 WEBHOOK_SECRET=your-random-secret
 ```
 
-For a complete list of environment variables, see the [Environment Reference](/api-reference/environment/).
+To set any other variable from the [Environment Reference](/api-reference/environment/), add it to the `alita` service's `environment:` block in `docker-compose.yml`.
 
 ## Resource Limits
 
