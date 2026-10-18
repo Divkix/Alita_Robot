@@ -198,7 +198,11 @@ bans_help_msg:
   × /sban <userhandle>: bans a user silently, does not send message to group and also
   deletes your command. (via handle, or reply)
 
+  × /kick <userhandle>: kicks a user. (via handle, or reply)
+
   × /skick <userhandle>: kicks a user silently and deletes your command.
+
+  × /dkick: kicks a user and deletes the replied message. (reply only)
 
   × /dban <userhandle>: bans a user and delete the replied message. (via handle, or
   reply)

@@ -136,6 +136,8 @@ bans_help_msg:
 
   × /kickme: expulsa o usuário que usou o comando.
 
+  × /banme: bane o usuário que usou o comando.
+
 
   *Comandos de Ban* (Apenas Admin):
 
@@ -144,6 +146,12 @@ bans_help_msg:
   × /sban <userhandle>: bane um usuário silenciosamente, não envia mensagem para o grupo e também
   deleta seu comando. (via handle, ou reply)
 
+  × /kick <userhandle>: expulsa um usuário. (via handle, ou reply)
+
+  × /skick <userhandle>: expulsa um usuário silenciosamente e deleta seu comando.
+
+  × /dkick: expulsa um usuário e deleta a mensagem respondida. (apenas reply)
+
   × /dban <userhandle>: bane um usuário e deleta a mensagem respondida. (via handle, ou
   reply)
 
@@ -151,6 +159,8 @@ bans_help_msg:
   m = minutos, h = horas, d = dias.
 
   × /unban <userhandle>: desbane um usuário. (via handle, ou reply)
+
+  × /unbanall: confirmação exclusiva do dono para desbanir os usuários conhecidos.
 
 
   *Comandos de Restrição:* (Apenas Admin)

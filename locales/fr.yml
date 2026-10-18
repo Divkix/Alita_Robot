@@ -166,6 +166,8 @@ bans_help_msg:
 
   × /kickme : expulse l'utilisateur qui a émis la commande.
 
+  × /banme : bannit l'utilisateur qui a émis la commande.
+
 
   *Commandes de Bannissement* (Admin uniquement) :
 
@@ -174,6 +176,12 @@ bans_help_msg:
   × /sban <pseudo> : bannit un utilisateur silencieusement, n'envoie pas de message au groupe et
   supprime également votre commande. (via le pseudo, ou en réponse)
 
+  × /kick <pseudo> : expulse un utilisateur. (via le pseudo, ou en réponse)
+
+  × /skick <pseudo> : expulse un utilisateur silencieusement et supprime votre commande.
+
+  × /dkick : expulse un utilisateur et supprime le message auquel vous avez répondu. (en réponse uniquement)
+
   × /dban <pseudo> : bannit un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo, ou
   en réponse)
 
@@ -181,6 +189,8 @@ bans_help_msg:
   m = minutes, h = heures, d = jours.
 
   × /unban <pseudo> : débannit un utilisateur. (via le pseudo, ou en réponse)
+
+  × /unbanall : confirmation réservée au propriétaire pour débannir les utilisateurs connus.
 
 
   *Commandes de Restriction :* (Admin uniquement)

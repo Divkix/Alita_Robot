@@ -132,7 +132,7 @@ bans_ban_normal_ban: "Satu lagi yang tersingkir...!
 
   Diblokir %s."
 bans_ban_tban: Diblokir %s untuk %s
-bans_help_msg: |
+bans_help_msg:
   "Terkadang pengguna bisa mengganggu dan Anda mungkin ingin menghapus mereka
   dari obrolan Anda, modul ini tepat membantu Anda untuk menangani itu!.
 
@@ -143,6 +143,8 @@ bans_help_msg: |
 
   × /kickme: menendang pengguna yang mengirim perintah.
 
+  × /banme: melarang pengguna yang mengirim perintah.
+
 
   *Perintah Blokir* (Admin saja):
 
@@ -151,6 +153,12 @@ bans_help_msg: |
   × /sban <userhandle>: melarang pengguna secara diam-diam, tidak mengirim pesan ke grup dan juga
   menghapus perintah Anda. (melalui handle, atau balasan)
 
+  × /kick <userhandle>: menendang pengguna. (melalui handle, atau balasan)
+
+  × /skick <userhandle>: menendang pengguna secara diam-diam dan menghapus perintah Anda.
+
+  × /dkick: menendang pengguna dan menghapus pesan yang dibalas. (hanya balasan)
+
   × /dban <userhandle>: melarang pengguna dan menghapus pesan yang dibalas. (melalui handle, atau
   balasan)
 
@@ -158,6 +166,8 @@ bans_help_msg: |
   m = menit, h = jam, d = hari.
 
   × /unban <userhandle>: membuka blokir pengguna. (melalui handle, atau balasan)
+
+  × /unbanall: konfirmasi khusus pemilik untuk membuka blokir pengguna yang dikenal.
 
 
   *Perintah Pembatasan:* (Admin saja)
@@ -699,7 +709,7 @@ misc_help_msg: |
   × /removebotkeyboard: Menghapus keyboard bot yang macet dari obrolan Anda.
 
   × /stat: Mendapatkan jumlah total pesan di obrolan."
-mutes_help_msg: |
+mutes_help_msg:
   "Terkadang pengguna bisa mengganggu dan Anda mungkin ingin membatasi mereka
   dari mengirim pesan ke obrolan, modul ini ada di sini untuk membantu, Anda dapat menggunakan modul ini
   untuk membisukan anggota di grup Anda.
