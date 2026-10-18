@@ -271,3 +271,28 @@ func TestRulesButtonEscapesStoredCustomText(t *testing.T) {
 		t.Fatalf("rulesbtn reply = %q, want the stored text HTML-escaped", text)
 	}
 }
+
+func TestSetRulesSplitsCommandAtAnyWhitespace(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		text string
+		want []string
+	}{
+		{name: "rules on following lines", text: "/setrules\nRule one\nRule two", want: []string{"Rule one", "Rule two"}},
+		{name: "single word on next line", text: "/setrules\nNoSpaces", want: []string{"NoSpaces"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tt.text)
+			if err := rulesModule.setRules(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("setRules() error = %v, want EndGroups", err)
+			}
+			got := rules.GetChatRulesInfo(f.chat.Id).Rules
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("stored rules = %q, want it to contain %q", got, want)
+				}
+			}
+		})
+	}
+}

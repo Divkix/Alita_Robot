@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"unicode"
 
 	log "github.com/sirupsen/logrus"
 
@@ -24,6 +25,16 @@ import (
 var rulesModule = moduleStruct{
 	moduleName:      "Rules",
 	defaultRulesBtn: "Rules",
+}
+
+// textAfterCommand returns the text after the command token, split at the first
+// whitespace of any kind (as gotgbot does), with leading whitespace trimmed.
+func textAfterCommand(s string) string {
+	i := strings.IndexFunc(s, unicode.IsSpace)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
 }
 
 // defaultRulesButtonText returns the localized default rules-button label.
@@ -198,10 +209,8 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		if msg.ReplyToMessage != nil {
 			text = msg.ReplyToMessage.OriginalMDV2()
 		} else {
-			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				text = parts[1]
-			} else {
+			text = textAfterCommand(msg.OriginalMDV2())
+			if strings.TrimSpace(text) == "" {
 				text, _ = tr.GetString("rules_need_text")
 				_, err := msg.Reply(bot, text, formatting.Shtml())
 				if err != nil {
