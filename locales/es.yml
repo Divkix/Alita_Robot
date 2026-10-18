@@ -2283,10 +2283,12 @@ reactions_help_msg: |
 
   Configura reacciones automáticas de emoji que se activan cuando los usuarios envían palabras específicas.
 
+  <b>Comandos de Usuario:</b>
+  • /reactions - Listar reacciones configuradas
+
   <b>Comandos de Administrador:</b>
   • /addreaction <palabra_clave> <emoji> - Añadir una auto-reacción
   • /removereaction <palabra_clave> - Eliminar una reacción
-  • /reactions - Listar reacciones configuradas
   • /resetreactions - Borrar todas las reacciones
 
   <b>Ejemplo:</b>

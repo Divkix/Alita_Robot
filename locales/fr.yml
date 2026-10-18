@@ -2190,10 +2190,12 @@ reactions_help_msg: |
 
   Configurez des réactions automatiques qui se déclenchent quand les utilisateurs envoient des mots spécifiques.
 
+  <b>Commandes Utilisateur :</b>
+  • /reactions - Lister les réactions configurées
+
   <b>Commandes Admin :</b>
   • /addreaction <mot-clé> <emoji> - Ajouter une auto-réaction
   • /removereaction <mot-clé> - Supprimer une réaction
-  • /reactions - Lister les réactions configurées
   • /resetreactions - Effacer toutes les réactions
 
   <b>Exemple :</b>

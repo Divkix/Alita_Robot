@@ -2274,10 +2274,12 @@ reactions_help_msg: |
 
   Siapkan reaksi emoji otomatis yang dipicu ketika pengguna mengirim kata-kata tertentu.
 
+  <b>Perintah Pengguna:</b>
+  • /reactions - Daftar reaksi yang dikonfigurasi
+
   <b>Perintah Admin:</b>
   • /addreaction <kata_kunci> <emoji> - Tambahkan reaksi otomatis
   • /removereaction <kata_kunci> - Hapus reaksi
-  • /reactions - Daftar reaksi yang dikonfigurasi
   • /resetreactions - Hapus semua reaksi
 
   <b>Contoh:</b>
