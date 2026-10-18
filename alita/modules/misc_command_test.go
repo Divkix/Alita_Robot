@@ -230,6 +230,34 @@ func TestTranslateHandlesReplyAndHTTPBranches(t *testing.T) {
 	}
 }
 
+func TestTranslateEscapesTranslatedText(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
+	user := gotgbot.User{Id: 42, FirstName: "Member"}
+	withMiscHTTPClient(t, &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`[["x < y & z","en"]]`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	ctx := newModuleMessageContext(bot, chat, user, "/tr es x < y & z")
+	if err := miscModule.translate(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("translate() error = %v, want EndGroups", err)
+	}
+
+	call := client.onlyCall(t, "sendMessage")
+	text := fmt.Sprint(call.Params["text"])
+	if !strings.Contains(text, "x &lt; y &amp; z") {
+		t.Fatalf("translate text = %q, want the translation HTML-escaped", text)
+	}
+}
+
 func TestGetIdRepliesForCurrentGroupUserAndReply(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

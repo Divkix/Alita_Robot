@@ -428,8 +428,10 @@ func (moduleStruct) translate(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	textTemplate, _ := tr.GetString("misc_translate_result")
-	text := fmt.Sprintf(textTemplate, detectedLang, translatedText)
-	_, _ = msg.Reply(b, text, formatting.Shtml())
+	text := fmt.Sprintf(textTemplate, html.EscapeString(detectedLang), html.EscapeString(translatedText))
+	if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+		log.WithError(err).Warn("[Misc] failed to send translation")
+	}
 	return ext.EndGroups
 }
 
