@@ -1285,10 +1285,7 @@ extraction_invalid_time_type: "Указан неверный тип времен
 extraction_invalid_time_format: "Указан неверный формат времени."
 
 # Database default strings
-db_default_welcome: "Привет {first}, как дела?"
-db_default_goodbye: "Грустно видеть тебя уходящим {first}"
 db_warn_no_reason: "Без причины"
-db_not_initialized: "база данных не инициализирована"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "неверный режим капчи: должен быть 'math' или 'text'"
@@ -1337,11 +1334,6 @@ helpers_chat_not_found: "Не удалось найти этот чат. Он м
 # Formatting strings
 format_user_info: "Пользователь: %s"
 format_user_id: "ID пользователя: %d"
-
-# System messages
-system_safety_shutdown: "менеджер безопасности выключается"
-system_timeout_worker: "таймаут получения слота для %s"
-system_shutdown_acquisition: "выключение менеджера безопасности во время получения слота"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Вы не можете сообщить о сообщении канала."
@@ -1466,16 +1458,6 @@ antiflood_action_none: "ничего"
 
 # Helpers module strings
 helpers_notes_current_header: "Это текущие заметки в этом чате:\n"
-
-# Configuration errors
-config_workers_invalid: "%s должен быть между %d и %d"
-
-# System messages
-system_db_connected: "Успешно подключено к базе данных PostgreSQL!"
-system_config_loaded: "Конфигурация успешно загружена и проверена"
-
-# Database query errors
-db_type_assertion_failed: "утверждение типа на []byte не удалось"
 
 # Default button texts
 button_rules_default: "Правила"

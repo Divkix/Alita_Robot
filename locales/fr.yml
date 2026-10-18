@@ -1416,11 +1416,7 @@ devs_failed_to_remove_sudo: "Échec de la suppression de l'utilisateur de la lis
 devs_failed_to_remove_dev: "Échec de la suppression de l'utilisateur de la liste Dev. Veuillez réessayer."
 
 # Database default strings
-db_default_welcome: "Salut {first}, comment vas-tu ?"
-db_default_goodbye: "Triste de te voir partir {first}"
 db_warn_no_reason: "Aucune raison"
-db_not_initialized: "base de données non initialisée"
-db_type_assertion_failed: "échec de l'assertion de type vers []byte"
 
 # Helpers utility strings
 helpers_admin_commands: "Commandes Admin"
@@ -1446,11 +1442,6 @@ helpers_notes_current_header: "Voici les notes actuelles dans ce chat :\n"
 # Formatting strings
 format_user_info: "Utilisateur : %s"
 format_user_id: "ID utilisateur : %d"
-
-# System messages
-system_safety_shutdown: "le gestionnaire de sécurité est en cours d'arrêt"
-system_timeout_worker: "délai d'attente pour l'acquisition d'un emplacement de travailleur pour %s"
-system_shutdown_acquisition: "arrêt du gestionnaire de sécurité pendant l'acquisition de l'emplacement"
 
 # Formatting module additional strings
 formatting_press_button: "Appuyez sur le bouton ci-dessous pour obtenir l'aide Markdown !"
@@ -2066,13 +2057,6 @@ message_type_voice: "message vocal"
 message_type_video: "vidéo"
 message_type_video_note: "note vidéo"
 message_type_unknown: "inconnu"
-
-# Config validation strings
-config_workers_invalid: "%s doit être entre %d et %d"
-
-# System strings
-system_db_connected: "Connecté à la base de données PostgreSQL avec succès !"
-system_config_loaded: "Configuration chargée et validée avec succès"
 
 # Issue #628 remediation keys
 misc_translate_parse_error: "Impossible d'analyser la réponse de traduction. Veuillez réessayer."

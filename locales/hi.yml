@@ -1768,19 +1768,8 @@ extraction_invalid_time_format: "अमान्य समय प्रारू
 error_generic: "एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।"
 
 # Database default keys
-db_default_welcome: "हेलो {first}, आप कैसे हैं?"
-db_default_goodbye: "आपको जाते देखकर दुख हुआ {first}"
 db_warn_no_reason: "कोई कारण नहीं"
-db_not_initialized: "डेटाबेस आरंभ नहीं हुआ"
-db_type_assertion_failed: "[]byte में टाइप असर्शन विफल"
 
-
-# System messages
-system_safety_shutdown: "सेफ्टी मैनेजर बंद हो रहा है"
-system_timeout_worker: "%s के लिए वर्कर स्लॉट प्राप्त करने में टाइमआउट"
-system_shutdown_acquisition: "स्लॉट अधिग्रहण के दौरान सेफ्टी मैनेजर शटडाउन"
-system_db_connected: "PostgreSQL डेटाबेस से सफलतापूर्वक कनेक्ट हो गया!"
-system_config_loaded: "कॉन्फ़िगरेशन सफलतापूर्वक लोड और सत्यापित हो गया"
 
 # Message types
 message_type_text: "टेक्स्ट"
@@ -1794,7 +1783,6 @@ message_type_video_note: "वीडियो नोट"
 message_type_unknown: "अज्ञात"
 
 # Config error messages
-config_workers_invalid: "%s %d और %d के बीच होना चाहिए"
 help_pm_intro: |
   हेलो %s!
   मेरा नाम Alita ✨ है।

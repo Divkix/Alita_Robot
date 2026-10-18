@@ -1490,10 +1490,7 @@ extraction_invalid_time_type: "Tipo de tiempo especificado inválido. Esperaba m
 extraction_invalid_time_format: "Formato de tiempo especificado inválido."
 
 # Database default strings
-db_default_welcome: "¡Hola {first}, cómo estás?"
-db_default_goodbye: "Triste verte partir {first}"
 db_warn_no_reason: "Sin Razón"
-db_not_initialized: "base de datos no inicializada"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "modo de captcha inválido: debe ser 'math' o 'text'"
@@ -1542,11 +1539,6 @@ helpers_chat_not_found: "No se pudo encontrar ese chat. Es posible que ya no exi
 # Formatting strings
 format_user_info: "Usuario: %s"
 format_user_id: "ID del Usuario: %d"
-
-# System messages
-system_safety_shutdown: "el administrador de seguridad se está cerrando"
-system_timeout_worker: "tiempo de espera adquiriendo ranura de trabajador para %s"
-system_shutdown_acquisition: "cierre del administrador de seguridad durante la adquisición de ranura"
 
 # Reports module additional strings
 reports_cannot_report_channel: "No puedes reportar una publicación de canal."
@@ -1689,16 +1681,6 @@ antiflood_action_none: "ninguno"
 
 # Helpers module strings
 helpers_notes_current_header: "Estas son las notas actuales en este Chat:\n"
-
-# Configuration errors
-config_workers_invalid: "%s debe estar entre %d y %d"
-
-# System messages
-system_db_connected: "¡Conectado a la base de datos PostgreSQL exitosamente!"
-system_config_loaded: "Configuración cargada y validada exitosamente"
-
-# Database query errors
-db_type_assertion_failed: "aserción de tipo a []byte falló"
 
 # Default button texts
 button_rules_default: "Reglas"

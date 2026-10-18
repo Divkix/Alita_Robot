@@ -1484,10 +1484,7 @@ extraction_invalid_time_type: "Tipe waktu yang ditentukan tidak valid. Diharapka
 extraction_invalid_time_format: "Format waktu yang ditentukan tidak valid."
 
 # Database default strings
-db_default_welcome: "Hai {first}, apa kabar?"
-db_default_goodbye: "Sedih melihat Anda pergi {first}"
 db_warn_no_reason: "Tidak Ada Alasan"
-db_not_initialized: "database tidak diinisialisasi"
 
 # Captcha validation strings
 captcha_invalid_mode_error: "mode captcha tidak valid: harus 'math' atau 'text'"
@@ -1536,11 +1533,6 @@ helpers_chat_not_found: "Tidak dapat menemukan obrolan tersebut. Obrolan mungkin
 # Formatting strings
 format_user_info: "Pengguna: %s"
 format_user_id: "ID Pengguna: %d"
-
-# System messages
-system_safety_shutdown: "manajer keselamatan sedang mematikan"
-system_timeout_worker: "batas waktu mendapatkan slot pekerja untuk %s"
-system_shutdown_acquisition: "manajer keselamatan mati saat akuisisi slot"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Anda tidak dapat melaporkan posting kanal."
@@ -1680,16 +1672,6 @@ antiflood_action_none: "tidak ada"
 # Helpers module strings
 helpers_notes_current_header: "Ini adalah catatan saat ini di Obrolan ini:\n"
 
-
-# Configuration errors
-config_workers_invalid: "%s harus antara %d dan %d"
-
-# System messages
-system_db_connected: "Terhubung ke database PostgreSQL dengan sukses!"
-system_config_loaded: "Konfigurasi dimuat dan divalidasi dengan sukses"
-
-# Database query errors
-db_type_assertion_failed: "aserti tipe ke []byte gagal"
 
 # Default button texts
 button_rules_default: "Aturan"
