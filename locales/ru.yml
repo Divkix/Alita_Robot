@@ -1443,7 +1443,6 @@ language_current_user: "Ваш текущий язык — %s\nВыберите 
 language_current_group: "Текущий язык этой группы — %s\nВыберите язык с клавиатуры ниже."
 language_changed_user: "Ваш язык изменён на %s"
 language_changed_group: "Язык этой группы изменён на %s"
-language_admin_required: "Вам нужно быть администратором, чтобы изменить язык группы."
 language_help_translate: "Помогите нам перевести 🌎"
 language_invalid_selection: "Неверный выбор языка."
 

@@ -1661,7 +1661,6 @@ language_current_user: "Bahasa Anda Saat Ini adalah %s\nPilih bahasa dari keyboa
 language_current_group: "Bahasa Grup Ini Saat Ini adalah %s\nPilih bahasa dari keyboard di bawah."
 language_changed_user: "Bahasa Anda telah diubah ke %s"
 language_changed_group: "Bahasa grup ini telah diubah ke %s"
-language_admin_required: "Anda perlu menjadi admin untuk mengubah bahasa grup."
 language_help_translate: "Bantu Kami Menerjemahkan 🌎"
 language_invalid_selection: "Pilihan bahasa tidak valid."
 

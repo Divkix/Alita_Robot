@@ -1735,7 +1735,6 @@ language_current_user: "आपकी वर्तमान भाषा %s ह�
 language_current_group: "इस ग्रुप की वर्तमान भाषा %s है\nनीचे दिए गए कीबोर्ड से एक भाषा चुनें।"
 language_changed_user: "आपकी भाषा %s में बदल दी गई है"
 language_changed_group: "इस ग्रुप की भाषा %s में बदल दी गई है"
-language_admin_required: "ग्रुप की भाषा बदलने के लिए आपको एडमिन होना चाहिए।"
 language_help_translate: "अनुवाद में मदद करें 🌎"
 language_invalid_selection: "अमान्य भाषा चयन।"
 

@@ -1689,7 +1689,6 @@ language_current_user: "Your Current Language is %s\nChoose a language from keyb
 language_current_group: "This Group's Current Language is %s\nChoose a language from keyboard below."
 language_changed_user: "Your language has been changed to %s"
 language_changed_group: "This group's language has been changed to %s"
-language_admin_required: "You need to be an admin to change the group language."
 language_help_translate: "Help Us Translate 🌎"
 language_invalid_selection: "Invalid language selection."
 

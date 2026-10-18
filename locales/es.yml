@@ -1647,7 +1647,6 @@ language_current_user: "Tu Idioma Actual es %s\nElige un idioma del teclado de a
 language_current_group: "El Idioma Actual de Este Grupo es %s\nElige un idioma del teclado de abajo."
 language_changed_user: "Tu idioma ha sido cambiado a %s"
 language_changed_group: "El idioma de este grupo ha sido cambiado a %s"
-language_admin_required: "Necesitas ser administrador para cambiar el idioma del grupo."
 language_help_translate: "Ayúdanos a Traducir 🌎"
 language_invalid_selection: "Selección de idioma inválida."
 

@@ -125,7 +125,6 @@ language_current_user: "Votre langue actuelle est %s\nChoisissez une langue dans
 language_current_group: "La langue actuelle de ce groupe est %s\nChoisissez une langue dans le clavier ci-dessous."
 language_changed_user: "Votre langue a été changée en %s"
 language_changed_group: "La langue de ce groupe a été changée en %s"
-language_admin_required: "Vous devez être administrateur pour changer la langue du groupe."
 language_help_translate: "Aidez-nous à traduire 🌎"
 language_invalid_selection: "Sélection de langue invalide."
 
