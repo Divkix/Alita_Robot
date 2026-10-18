@@ -12,6 +12,7 @@ The main entry point and navigation system for Alita Robot.
 - `/help`: Show help menu with module list; use /help <module> for details.
 - `/about`: Show bot information, version, and useful links.
 - `/donate`: Show donation information for supporting the project.
+- `/extend`: Send every command of every module in one list; in groups, sends a button to get it in PM.
 
 **Navigation System:**
 The Help module provides the bot's main entry points and navigation. When a user sends `/start` in a private chat, the bot displays a welcome message with an inline keyboard for navigating to different modules.
@@ -20,6 +21,8 @@ The `/help` command shows a module list. Clicking a module button displays that 
 
 `/about` shows bot information, version, and links, while `/donate` shows donation information for supporting the project.
 
+`/extend` sends every command of every module in one list; in a group it replies with a button that opens the list in PM.
+
 
 ## Available Commands
 
@@ -27,6 +30,7 @@ The `/help` command shows a module list. Clicking a module button displays that 
 |---------|-------------|-------------|
 | `/about` | Show bot information, version, and useful links. | ❌ |
 | `/donate` | Show donation information for supporting the project. | ❌ |
+| `/extend` | Send every command of every module in one list; in groups, sends a button to get it in PM. | ❌ |
 | `/help` | Show help menu with module list; use /help <module> for details. | ❌ |
 | `/start` | Show the welcome message with navigation menu. | ❌ |
 
@@ -37,6 +41,7 @@ The `/help` command shows a module list. Clicking a module button displays that 
 ```
 /about
 /donate
+/extend
 /help
 ```
 
