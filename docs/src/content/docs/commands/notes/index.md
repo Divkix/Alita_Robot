@@ -92,3 +92,4 @@ For detailed command usage, refer to the commands table above.
 - View admin notes: Admin status
 - Clear all notes: Chat Owner
 - Get regular notes: Any user
+- Bot: must be an admin for /save, /addnote, /clear, /rmnote, /notes and /saved (/get and #notename work without it)
