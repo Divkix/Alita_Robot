@@ -1175,7 +1175,6 @@ mutes_mute_message: "Shh...\nMuted %s."
 mutes_reason_suffix: "\n<b>Reason: </b>%s"
 mutes_unmute_button: Unmute (Admin Only)
 mutes_mute_admin_error: Why would I mute an admin? That sounds like a pretty dumb idea.
-mutes_mute_admin_polite_error: I don't think you'd want me to mute an admin.
 mutes_restrict_self_error: Why would I restrict myself?
 mutes_unmute_message: "Alright!\nI'll allow %s to speak again."
 

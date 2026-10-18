@@ -260,7 +260,6 @@ mutes_mute_message: "Chut...\n%s rendu muet."
 mutes_reason_suffix: "\n<b>Raison : </b>%s"
 mutes_unmute_button: Réactiver la voix (Admin uniquement)
 mutes_mute_admin_error: Pourquoi rendrais-je un admin muet ? Ça semble être une idée plutôt stupide.
-mutes_mute_admin_polite_error: Je ne pense pas que vous voudriez que je rende un admin muet.
 mutes_restrict_self_error: Pourquoi me restreindrais-je moi-même ?
 mutes_unmute_message: "D'accord !\nJe vais permettre à %s de parler à nouveau."
 mutes_extended_docs: |

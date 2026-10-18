@@ -952,7 +952,6 @@ mutes_mute_message: "Тсс...\nЗаглушен %s."
 mutes_reason_suffix: "\n<b>Причина: </b>%s"
 mutes_unmute_button: Размутить (только для администраторов)
 mutes_mute_admin_error: Зачем мне заглушать администратора? Это звучит как довольно глупая идея.
-mutes_mute_admin_polite_error: Я не думаю, что вы хотите, чтобы я заглушил администратора.
 mutes_restrict_self_error: Зачем мне ограничивать самого себя?
 mutes_unmute_message: "Ладно!\nЯ позволю %s снова говорить."
 

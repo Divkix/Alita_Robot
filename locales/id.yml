@@ -1128,7 +1128,6 @@ mutes_mute_message: "Diam...\nDibisukan %s."
 mutes_reason_suffix: "\n<b>Alasan: </b>%s"
 mutes_unmute_button: Buka Bisu (Khusus Admin)
 mutes_mute_admin_error: Mengapa saya membisukan admin? Itu terdengar seperti ide yang sangat bodoh.
-mutes_mute_admin_polite_error: Saya rasa Anda tidak ingin saya membisukan admin.
 mutes_restrict_self_error: Mengapa saya membatasi diri saya sendiri?
 mutes_unmute_message: "Baik!\nSaya akan izinkan %s untuk berbicara lagi."
 

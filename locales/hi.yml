@@ -1321,7 +1321,6 @@ mutes_mute_message: "शश्श...\n%s को म्यूट किया ग
 mutes_reason_suffix: "\n<b>कारण: </b>%s"
 mutes_unmute_button: अनम्यूट (केवल एडमिन)
 mutes_mute_admin_error: मैं एक एडमिन को म्यूट क्यों करूंगा? यह एक काफी बेवकूफी भरा विचार लगता है।
-mutes_mute_admin_polite_error: मुझे नहीं लगता आप चाहेंगे कि मैं एक एडमिन को म्यूट करूं।
 mutes_restrict_self_error: मैं खुद को प्रतिबंधित क्यों करूंगा?
 mutes_unmute_message: "ठीक है!\nमैं %s को फिर से बोलने की अनुमति दूंगा।"
 mutes_extended_docs: |

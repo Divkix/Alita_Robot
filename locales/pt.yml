@@ -1098,7 +1098,6 @@ mutes_mute_message: "Shh...\n%s silenciado."
 mutes_reason_suffix: "\n<b>Motivo: </b>%s"
 mutes_unmute_button: Desmutar (Apenas Admin)
 mutes_mute_admin_error: Por que eu silenciaria um admin? Isso parece uma ideia bem idiota.
-mutes_mute_admin_polite_error: Eu não acho que você quer que eu silencie um admin.
 mutes_restrict_self_error: Por que eu me restringiria?
 mutes_unmute_message: "Certo!\nVou permitir que %s fale novamente."
 
