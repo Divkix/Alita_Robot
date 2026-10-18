@@ -3,8 +3,10 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -527,5 +529,84 @@ func TestBlacklistWatcherDoesNothingWhenBotIsNotAdmin(t *testing.T) {
 	}
 	if calls := client.callsFor("restrictChatMember"); len(calls) != 0 {
 		t.Fatalf("restrictChatMember calls = %d, want 0 when bot is not admin", len(calls))
+	}
+}
+
+// /blaction cannot store tban/tmute, but the action CHECK allows them, so rows
+// restored from a backup or older versions carry them.
+func TestBlacklistWatcherAppliesTimedActionsForAnHour(t *testing.T) {
+	for _, tc := range []struct {
+		action string
+		method string
+	}{
+		{action: "tban", method: "banChatMember"},
+		{action: "tmute", method: "restrictChatMember"},
+	} {
+		t.Run(tc.action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+			member := gotgbot.User{Id: 42, FirstName: "Member"}
+			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := blacklists.SetBlacklistAction(chat.Id, tc.action); err != nil {
+				t.Fatalf("SetBlacklistAction setup error = %v", err)
+			}
+
+			ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
+			before := time.Now().Unix()
+			if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+				t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+			}
+			after := time.Now().Unix()
+
+			if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+				t.Fatalf("deleteMessage calls = %d, want message deletion", len(calls))
+			}
+			calls := client.callsFor(tc.method)
+			if len(calls) != 1 {
+				t.Fatalf("%s calls = %d, want timed action", tc.method, len(calls))
+			}
+			if until := untilDateParam(t, calls[0]); until < before+3600 || until > after+3600 {
+				t.Fatalf("until_date = %d, want now+3600 (%d..%d)", until, before+3600, after+3600)
+			}
+			notices := client.callsFor("sendMessage")
+			if len(notices) != 1 || !strings.Contains(fmt.Sprint(notices[0].Params["text"]), "1h") {
+				t.Fatalf("blacklist notices = %#v, want duration 1h", notices)
+			}
+		})
+	}
+}
+
+// banChatSenderChat has no until_date, so a timed ban would become permanent:
+// the watcher only deletes the channel's message.
+func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+		t.Fatalf("AddBlacklist setup error = %v", err)
+	}
+	if err := blacklists.SetBlacklistAction(chat.Id, "tban"); err != nil {
+		t.Fatalf("SetBlacklistAction setup error = %v", err)
+	}
+
+	channel := gotgbot.Chat{Id: -1001234567891, Type: "channel", Title: "Spam Channel"}
+	ctx := newModuleMessageContext(bot, chat, member, "channel says spam")
+	ctx.EffectiveMessage.From = nil
+	ctx.EffectiveMessage.SenderChat = &channel
+	ctx.EffectiveSender = &gotgbot.Sender{Chat: &channel, ChatId: chat.Id}
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+	}
+	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want message deletion", len(calls))
+	}
+	for _, method := range []string{"banChatSenderChat", "banChatMember", "sendMessage"} {
+		if calls := client.callsFor(method); len(calls) != 0 {
+			t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
+		}
 	}
 }

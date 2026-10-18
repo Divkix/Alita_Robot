@@ -187,6 +187,8 @@ bans_unban_unbanned_user: "Démosle otra oportunidad.
 blacklists_bl_watcher_banned_user: Baneado %s debido a %s
 blacklists_bl_watcher_kicked_user: Expulsado %s debido a %s
 blacklists_bl_watcher_muted_user: Silenciado %s debido a %s
+blacklists_bl_watcher_tbanned_user: Baneado %s durante %s debido a %s
+blacklists_bl_watcher_tmuted_user: Silenciado %s durante %s debido a %s
 blacklists_blacklist_added_bl: "Añadidas estas palabras como listas negras:"
 blacklists_blacklist_already_blacklisted: "Estas palabras ya están en la lista negra:"
 blacklists_blacklist_give_bl_word: ¡Por favor dame una palabra para añadir a la lista negra!

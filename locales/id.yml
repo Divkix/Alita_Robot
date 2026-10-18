@@ -184,6 +184,8 @@ bans_unban_unbanned_user: "Mari berikan dia kesempatan lain.
 blacklists_bl_watcher_banned_user: Diblokir %s karena %s
 blacklists_bl_watcher_kicked_user: Ditendang %s karena %s
 blacklists_bl_watcher_muted_user: Dibisukan %s karena %s
+blacklists_bl_watcher_tbanned_user: Diblokir %s selama %s karena %s
+blacklists_bl_watcher_tmuted_user: Dibisukan %s selama %s karena %s
 blacklists_blacklist_added_bl: "Kata-kata ini ditambahkan sebagai daftar hitam:"
 blacklists_blacklist_already_blacklisted: "Kata-kata ini sudah ada di daftar hitam:"
 blacklists_blacklist_give_bl_word: Berikan saya kata untuk ditambahkan ke daftar hitam!

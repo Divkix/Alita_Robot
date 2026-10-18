@@ -6,6 +6,7 @@ import (
 	"html"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -28,6 +29,11 @@ var blacklistsModule = moduleStruct{
 	moduleName:   "Blacklists",
 	handlerGroup: 7,
 }
+
+// blacklistTimedActionTime is how long the tban/tmute blacklist actions last.
+// /blaction cannot store these actions or a duration; they reach the table from
+// backups and older versions, so they get a fixed hour.
+const blacklistTimedActionTime = 60 * 60
 
 func (m moduleStruct) addBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
@@ -559,6 +565,36 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
 				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+			}(),
+			formatting.Shtml())
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	case "tban", "tmute":
+		// banChatSenderChat takes no until_date, so a channel would be banned
+		// for good; leave it like mute and kick do.
+		if user.IsAnonymousChannel() {
+			return ext.ContinueGroups
+		}
+
+		untilDate := time.Now().Unix() + blacklistTimedActionTime
+		key := "_bl_watcher_tbanned_user"
+		if matched.Action == "tban" {
+			_, err = b.BanChatMember(chat.Id, user.Id(), &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
+		} else {
+			key = "_bl_watcher_tmuted_user"
+			_, err = b.RestrictChatMember(chat.Id, user.Id(), MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+		}
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		_, err = b.SendMessage(chat.Id,
+			func() string {
+				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, i))
 			}(),
 			formatting.Shtml())
 		if err != nil {
