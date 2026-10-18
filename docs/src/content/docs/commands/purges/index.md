@@ -20,6 +20,7 @@ When you need more control over the deletion range:
 1. Reply to the **first** message in the range:
 `/purgefrom`
 The bot will confirm the message is marked (expires after 30 seconds).
+Only one mark can be active per chat. It is shared by all admins, so another /purgefrom is refused until /purgeto is used or the 30-second mark expires, and any admin's /purgeto uses it.
 
 2. Reply to the **last** message in the range:
 `/purgeto`
