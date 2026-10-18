@@ -7,10 +7,10 @@ language_name: "Português"
 admin_adminlist: "Administradores em <b>%s</b>:"
 admin_anon_admin_already_disabled: "Modo AnonAdmin já está <b>desativado</b> para %s"
 admin_anon_admin_already_enabled: "Modo AnonAdmin já está <b>ativado</b> para %s"
-admin_anon_admin_disabled: "Modo AnonAdmin está atualmente <b>desativado</b> para %s.  Isso exige que administradores anônimos pressionem um botão para confirmar suas permissões."
-admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.  De agora em diante, admins anônimos precisarão apertar um botão para confirmar suas permissões."
-admin_anon_admin_enabled: "Modo AnonAdmin está atualmente <b>ativado</b> para %s.  Isso permite que todos os administradores anônimos realizem ações de admin sem restrições."
-admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.  De agora em diante, admins anônimos podem usar comandos de administrador sem confirmar com um botão."
+admin_anon_admin_disabled: "Modo AnonAdmin está atualmente <b>desativado</b> para %s.\nIsso exige que administradores anônimos pressionem um botão para confirmar suas permissões."
+admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.\nDe agora em diante, admins anônimos precisarão apertar um botão para confirmar suas permissões."
+admin_anon_admin_enabled: "Modo AnonAdmin está atualmente <b>ativado</b> para %s.\nIsso permite que todos os administradores anônimos realizem ações de admin sem restrições."
+admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.\nDe agora em diante, admins anônimos podem usar comandos de administrador sem confirmar com um botão."
 admin_anon_admin_invalid_arg:
   Argumento inválido, eu só entendo <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
