@@ -447,10 +447,7 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	confirmText, _ := tr.GetString("backup_import_confirm", i18n.TranslationParams{
-		"modules": fmt.Sprintf("%d", len(importModules)),
-		"list":    buildModuleList(importModules),
-	})
+	confirmText, _ := tr.GetString("backup_import_confirm", backupConfirmParams(importModules))
 
 	keyboard := buildImportKeyboard(tr, chat.Id, token)
 
@@ -527,10 +524,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	confirmText, _ := tr.GetString("backup_reset_confirm", i18n.TranslationParams{
-		"modules": fmt.Sprintf("%d", len(resetModules)),
-		"list":    buildModuleList(resetModules),
-	})
+	confirmText, _ := tr.GetString("backup_reset_confirm", backupConfirmParams(resetModules))
 
 	keyboard := buildResetKeyboard(tr, chat.Id, token)
 
@@ -621,10 +615,7 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("backup_import_success", i18n.TranslationParams{
-		"modules": fmt.Sprintf("%d", len(modules)),
-		"list":    buildModuleList(modules),
-	})
+	text, _ := tr.GetString("backup_import_success", backupResultParams(modules))
 	_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
 	if err != nil {
 		log.Errorf("[Backup] Failed to send success message: %v", err)
@@ -677,10 +668,7 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 		return ext.EndGroups
 	}
 
-	text, _ := tr.GetString("backup_reset_success", i18n.TranslationParams{
-		"modules": fmt.Sprintf("%d", len(modules)),
-		"list":    buildModuleList(modules),
-	})
+	text, _ := tr.GetString("backup_reset_success", backupResultParams(modules))
 	_, err := b.SendMessage(chat.Id, text, formatting.Shtml())
 	if err != nil {
 		log.Errorf("[Backup] Failed to send success message: %v", err)
@@ -694,15 +682,39 @@ func (m moduleStruct) handleCancelReset(b *gotgbot.Bot, ctx *ext.Context, tr *i1
 	return m.handleCancelPending(b, ctx, tr, query, token, discardPendingReset, "backup_reset_cancelled", "backup_reset_expired")
 }
 
+// The backup templates take each value both by name and, under "0".."n" in
+// template order, as a %-verb argument, so a locale may use either style.
+// Positional values match the verbs every locale uses (%d gets an int).
 func buildExportCaption(tr *i18n.Translator, backup *backup.BackupFormat) string {
+	chatName := html.EscapeString(backup.ChatName)
+	exportedAt := backup.ExportedAt.Format("2006-01-02 15:04:05")
 	modulesList := buildModuleList(backup.Modules)
 	caption, _ := tr.GetString("backup_export_success", i18n.TranslationParams{
-		"modules": fmt.Sprintf("%d", len(backup.Data)),
+		"modules": strconv.Itoa(len(backup.Data)),
 		"list":    modulesList,
-		"chat":    html.EscapeString(backup.ChatName),
-		"time":    backup.ExportedAt.Format("2006-01-02 15:04:05"),
+		"chat":    chatName,
+		"time":    exportedAt,
+		"0":       chatName,
+		"1":       len(backup.Data),
+		"2":       exportedAt,
+		"3":       modulesList,
 	})
 	return caption
+}
+
+// backupConfirmParams fills backup_import_confirm and backup_reset_confirm,
+// whose count slot is a %s.
+func backupConfirmParams(modules []string) i18n.TranslationParams {
+	count := strconv.Itoa(len(modules))
+	list := buildModuleList(modules)
+	return i18n.TranslationParams{"modules": count, "list": list, "0": count, "1": list}
+}
+
+// backupResultParams fills backup_import_success and backup_reset_success,
+// whose count slot is a %d.
+func backupResultParams(modules []string) i18n.TranslationParams {
+	list := buildModuleList(modules)
+	return i18n.TranslationParams{"modules": strconv.Itoa(len(modules)), "list": list, "0": len(modules), "1": list}
 }
 
 func buildModuleList(modules []string) string {
