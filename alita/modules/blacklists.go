@@ -525,7 +525,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_muted_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -546,7 +546,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_banned_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -566,7 +566,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_bl_watcher_kicked_user")
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {
@@ -596,7 +596,7 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 		_, err = b.SendMessage(chat.Id,
 			func() string {
 				temp, _ := tr.GetString(strings.ToLower(m.moduleName) + key)
-				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, i))
+				return fmt.Sprintf(temp, formatting.MentionHtml(user.Id(), user.Name()), formatDuration(blacklistTimedActionTime), fmt.Sprintf(reason, html.EscapeString(i)))
 			}(),
 			formatting.Shtml())
 		if err != nil {

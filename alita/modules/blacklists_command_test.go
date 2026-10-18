@@ -752,3 +752,36 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 		}
 	}
 }
+
+// A trigger with HTML characters is escaped in the notice, which is sent as
+// HTML; raw, Telegram would reject the message.
+func TestBlacklistWatcherNoticeEscapesTrigger(t *testing.T) {
+	useRealLocales(t)
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	for _, action := range []string{"ban", "mute", "kick", "tban", "tmute"} {
+		t.Run(action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+			if err := blacklists.AddBlacklist(chat.Id, "<3"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+				t.Fatalf("SetBlacklistAction setup error = %v", err)
+			}
+
+			ctx := newModuleMessageContext(bot, chat, member, "i <3 this")
+			if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+				t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+			}
+			notices := client.callsFor("sendMessage")
+			if len(notices) != 1 {
+				t.Fatalf("sendMessage calls = %d, want one notice", len(notices))
+			}
+			text := fmt.Sprint(notices[0].Params["text"])
+			if !strings.Contains(text, "&lt;3") || strings.Contains(text, "'<3'") {
+				t.Fatalf("notice = %q, want the trigger HTML-escaped", text)
+			}
+		})
+	}
+}
