@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
@@ -781,6 +782,33 @@ func TestBlacklistWatcherNoticeEscapesTrigger(t *testing.T) {
 			text := fmt.Sprint(notices[0].Params["text"])
 			if !strings.Contains(text, "&lt;3") || strings.Contains(text, "'<3'") {
 				t.Fatalf("notice = %q, want the trigger HTML-escaped", text)
+			}
+		})
+	}
+}
+
+// /blacklists and /blocklists share a handler, so disabling either name
+// stops both for members.
+func TestDisabledBlocklistsStopsBothListCommands(t *testing.T) {
+	for _, disabled := range []string{"blocklists", "blacklists"} {
+		t.Run(disabled, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			client, bot, chat, member := f.client, f.bot, f.chat, f.member
+			if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+				t.Fatalf("AddBlacklist setup error = %v", err)
+			}
+			if err := disabling.DisableCMD(chat.Id, disabled); err != nil {
+				t.Fatalf("DisableCMD(%s) error = %v", disabled, err)
+			}
+
+			for _, command := range []string{"/blacklists", "/blocklists"} {
+				ctx := newModuleMessageContext(bot, chat, member, command)
+				if err := blacklistsModule.listBlacklists(bot, ctx); err != ext.EndGroups {
+					t.Fatalf("%s error = %v, want EndGroups", command, err)
+				}
+			}
+			if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want none while %s is disabled", len(calls), disabled)
 			}
 		})
 	}

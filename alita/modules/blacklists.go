@@ -231,7 +231,7 @@ func (m moduleStruct) removeBlacklist(b *gotgbot.Bot, ctx *ext.Context) error {
 func (m moduleStruct) listBlacklists(b *gotgbot.Bot, ctx *ext.Context) error {
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	msg := ctx.EffectiveMessage
-	if chat_status.CheckDisabledCmd(b, msg, "blacklists") {
+	if chat_status.CheckDisabledCmd(b, msg, "blacklists") || chat_status.CheckDisabledCmd(b, msg, "blocklists") {
 		return ext.EndGroups
 	}
 	connectedChat := chat_status.IsUserConnected(b, ctx, false, true)
