@@ -272,7 +272,7 @@ func (a *antifloodStruct) updateFloodWithSettings(chatId, userId, msgId int64, f
 	return
 }
 
-func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
+func (m moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	user := ctx.EffectiveSender
 	if user == nil {
@@ -474,7 +474,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.ContinueGroups
 }
 
-func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
+func (m moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
@@ -528,7 +528,7 @@ func (m *moduleStruct) setFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
+func (m moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	var text string
 	msg := ctx.EffectiveMessage
 
@@ -558,7 +558,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
+func (m moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
@@ -601,7 +601,7 @@ func (m *moduleStruct) setFloodMode(b *gotgbot.Bot, ctx *ext.Context) error {
 	return ext.EndGroups
 }
 
-func (m *moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
+func (m moduleStruct) setFloodDeleter(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	connectedChat := chat_status.IsUserConnected(b, ctx, true, true)
 	if connectedChat == nil {
