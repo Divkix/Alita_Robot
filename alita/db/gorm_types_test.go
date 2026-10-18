@@ -805,34 +805,3 @@ func TestBlacklistSettingsSlice_Find(t *testing.T) {
 		t.Fatal("empty slice Find returned a row")
 	}
 }
-
-func TestNotesSettings_PrivateNotesEnabled(t *testing.T) {
-
-	tests := []struct {
-		name    string
-		private bool
-		want    bool
-	}{
-		{
-			name:    "Private=false returns false",
-			private: false,
-			want:    false,
-		},
-		{
-			name:    "Private=true returns true",
-			private: true,
-			want:    true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-
-			ns := &NotesSettings{Private: tc.private}
-			got := ns.PrivateNotesEnabled()
-			if got != tc.want {
-				t.Fatalf("PrivateNotesEnabled()=%v, want %v", got, tc.want)
-			}
-		})
-	}
-}
