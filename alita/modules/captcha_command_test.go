@@ -637,6 +637,7 @@ func TestCaptchaSubcommandsCreateSettingsWithDefaults(t *testing.T) {
 }
 
 func TestCaptchaSubcommandsRequireArgumentsOrShowCurrentSettings(t *testing.T) {
+	useEnglishLocale(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
@@ -664,8 +665,35 @@ func TestCaptchaSubcommandsRequireArgumentsOrShowCurrentSettings(t *testing.T) {
 			}
 		})
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != len(tests) {
+	calls := client.callsFor("sendMessage")
+	if len(calls) != len(tests) {
 		t.Fatalf("sendMessage calls = %d, want one reply per command", len(calls))
+	}
+	// The "max attempts current" case runs last, so its reply is the last call.
+	current := fmt.Sprint(calls[len(calls)-1].Params["text"])
+	if !strings.Contains(current, "6") || strings.Contains(current, "%d") {
+		t.Fatalf("/captchamaxattempts reply = %q, want the stored count 6 filled in", current)
+	}
+}
+
+func TestCaptchaMaxAttemptsSetReplyShowsNewCount(t *testing.T) {
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Captcha Chat"}
+	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/captchamaxattempts 4")
+	if err := captchaModule.captchaMaxAttemptsCommand(bot, ctx); err != nil {
+		t.Fatalf("/captchamaxattempts 4 error = %v", err)
+	}
+	calls := client.callsFor("sendMessage")
+	if len(calls) == 0 {
+		t.Fatal("sendMessage calls = 0, want a confirmation reply")
+	}
+	text := fmt.Sprint(calls[len(calls)-1].Params["text"])
+	if !strings.Contains(text, "4") || strings.Contains(text, "%d") {
+		t.Fatalf("/captchamaxattempts 4 reply = %q, want the new count 4 filled in", text)
 	}
 }
 
