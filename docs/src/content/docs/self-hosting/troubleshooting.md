@@ -21,16 +21,9 @@ Failed to create new bot: invalid token
 2. Ensure no extra spaces or newlines in the token
 3. Check that the token format is correct: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
 
-:::caution
-Do not wrap the token in quotes in your `.env` file. The quotes become part of the value and will cause authentication failure.
-:::
-
 ```bash
-# Correct format in .env
+# .env (surrounding quotes are optional; godotenv, Docker Compose and systemd EnvironmentFile strip them)
 BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-
-# Wrong - has quotes
-BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 ```
 
 ### Database Connection Failed
