@@ -656,3 +656,27 @@ func TestFilterConfirmationsEscapeTheTrigger(t *testing.T) {
 		t.Fatalf("/stop reply = %q, want the trigger escaped", text)
 	}
 }
+
+// /stopall from someone who is not the chat creator answers with the owner
+// error instead of staying silent, and keeps the filters.
+func TestRemoveAllFiltersFromNonOwnerRepliesWithoutConfirmation(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	if err := filters.AddFilter(f.chat.Id, "keep", "reply", "", nil, db.TEXT); err != nil {
+		t.Fatalf("AddFilter setup error = %v", err)
+	}
+
+	if err := filtersModule.rmAllFilters(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stopall")); err != ext.EndGroups {
+		t.Fatalf("rmAllFilters error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the owner error", len(calls))
+	}
+	if calls[0].Params["reply_markup"] != nil {
+		t.Fatalf("non-owner got the confirmation keyboard: %+v", calls[0].Params)
+	}
+	if !filters.DoesFilterExists(f.chat.Id, "keep") {
+		t.Fatal("filter was removed by a non-owner")
+	}
+}

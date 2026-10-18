@@ -350,33 +350,36 @@ func (moduleStruct) rmAllFilters(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	if chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
-		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		confirmText, _ := tr.GetString("filters_clear_all_confirm")
-		yesText, _ := tr.GetString("common_yes")
-		noText, _ := tr.GetString("common_no")
-		_, err := msg.Reply(b, confirmText,
-			&gotgbot.SendMessageOpts{
-				ReplyMarkup: gotgbot.InlineKeyboardMarkup{
-					InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+	if !chat_status.RequireUserOwner(b, ctx, chat, user.Id) {
+		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error", chat_status.WithReply())
+		return ext.EndGroups
+	}
+
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+	confirmText, _ := tr.GetString("filters_clear_all_confirm")
+	yesText, _ := tr.GetString("common_yes")
+	noText, _ := tr.GetString("common_no")
+	_, err := msg.Reply(b, confirmText,
+		&gotgbot.SendMessageOpts{
+			ReplyMarkup: gotgbot.InlineKeyboardMarkup{
+				InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+					{
 						{
-							{
-								Text:         yesText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
-							},
-							{
-								Text:         noText,
-								CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
-							},
+							Text:         yesText,
+							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "yes"}),
+						},
+						{
+							Text:         noText,
+							CallbackData: encodeCallbackData("rmAllFilters", map[string]string{"a": "no"}),
 						},
 					},
 				},
 			},
-		)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
+		},
+	)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	return ext.EndGroups
