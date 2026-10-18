@@ -161,8 +161,13 @@ WantedBy=multi-user.target
 
   <Step title="Copy migrations if using auto-migrate">
     ```bash
-    sudo cp -r migrations /opt/alita-robot/
+    # Release archives contain only the binary; fetch the SQL migrations for the same tag
+    git clone --depth 1 --branch "${VERSION}" https://github.com/divkix/Alita_Robot.git /tmp/alita-src
+    sudo cp -r /tmp/alita-src/migrations /opt/alita-robot/
+    sudo chown -R alita:alita /opt/alita-robot/migrations
     ```
+
+    The bot reads migrations from `MIGRATIONS_PATH` (default `migrations`, relative to the service's `WorkingDirectory`). Without that directory, `AUTO_MIGRATE=true` aborts startup unless `AUTO_MIGRATE_SILENT_FAIL=true`.
   </Step>
 
   <Step title="Reload systemd and enable service">
@@ -377,6 +382,10 @@ nssm start AlitaRobot
   <Step title="Replace the existing binary">
     ```bash
     sudo cp alita_robot /opt/alita-robot/
+    # Refresh migrations for the new version (needed with AUTO_MIGRATE=true)
+    rm -rf /tmp/alita-src && git clone --depth 1 --branch "${VERSION}" https://github.com/divkix/Alita_Robot.git /tmp/alita-src
+    sudo rm -rf /opt/alita-robot/migrations && sudo cp -r /tmp/alita-src/migrations /opt/alita-robot/
+    sudo chown -R alita:alita /opt/alita-robot/migrations
     ```
   </Step>
 
