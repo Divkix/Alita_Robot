@@ -1303,7 +1303,7 @@ greetings_welcome_status: |
   Estou dando boas-vindas a usuários: <code>%s</code>
   Estou deletando boas-vindas antigas: <code>%s</code>
   Estou deletando mensagens de serviço: <code>%s</code>
-  A mensagem de boas-vindas sem preencher os {} é:
+  A mensagem de boas-vindas atual é:
 greetings_welcome_enabled: "Vou dar boas-vindas aos usuários de agora em diante."
 greetings_welcome_disabled: "Não vou dar boas-vindas aos usuários de agora em diante."
 greetings_welcome_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
@@ -1313,7 +1313,7 @@ greetings_goodbye_status: |
   Estou dando adeus a usuários: <code>%s</code>
   Estou deletando adeus antigos: <code>%s</code>
   Estou deletando mensagens de serviço: <code>%s</code>
-  A mensagem de adeus sem preencher os {} é:
+  A mensagem de despedida atual é:
 greetings_goodbye_enabled: "Vou dar adeus aos usuários de agora em diante."
 greetings_goodbye_disabled: "Não vou dar adeus aos usuários de agora em diante."
 greetings_goodbye_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"

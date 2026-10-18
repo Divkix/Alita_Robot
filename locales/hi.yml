@@ -1210,7 +1210,7 @@ greetings_welcome_status: |
   मैं वर्तमान में उपयोगकर्ताओं का स्वागत कर रहा हूं: <code>%s</code>
   मैं वर्तमान में पुराने स्वागत हटा रहा हूं: <code>%s</code>
   मैं वर्तमान में सेवा संदेश हटा रहा हूं: <code>%s</code>
-  {} को न भरने वाला स्वागत संदेश है:
+  वर्तमान स्वागत संदेश है:
 greetings_welcome_enabled: "मैं अब से उपयोगकर्ताओं का स्वागत करूंगा।"
 greetings_welcome_disabled: "मैं अब से उपयोगकर्ताओं का स्वागत नहीं करूंगा।"
 greetings_welcome_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"
@@ -1220,7 +1220,7 @@ greetings_goodbye_status: |
   मैं वर्तमान में उपयोगकर्ताओं को अलविदा कह रहा हूं: <code>%s</code>
   मैं वर्तमान में पुराने अलविदा हटा रहा हूं: <code>%s</code>
   मैं वर्तमान में सेवा संदेश हटा रहा हूं: <code>%s</code>
-  {} को न भरने वाला अलविदा संदेश है:
+  वर्तमान अलविदा संदेश है:
 greetings_goodbye_enabled: "मैं अब से उपयोगकर्ताओं को अलविदा कहूंगा।"
 greetings_goodbye_disabled: "मैं अब से उपयोगकर्ताओं को अलविदा नहीं कहूंगा।"
 greetings_goodbye_invalid_option: "मैं केवल 'on/yes' या 'off/no' समझता हूं!"

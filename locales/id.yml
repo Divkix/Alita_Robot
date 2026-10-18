@@ -1332,7 +1332,7 @@ greetings_welcome_status: |
   Saya saat ini menyambut pengguna: <code>%s</code>
   Saya saat ini menghapus selamat datang lama: <code>%s</code>
   Saya saat ini menghapus pesan layanan: <code>%s</code>
-  Pesan selamat datang yang tidak mengisi {} adalah:
+  Pesan selamat datang saat ini adalah:
 greetings_welcome_enabled: "Saya akan menyambut pengguna mulai sekarang."
 greetings_welcome_disabled: "Saya tidak akan menyambut pengguna mulai sekarang."
 greetings_welcome_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"
@@ -1342,7 +1342,7 @@ greetings_goodbye_status: |
   Saya saat ini mengucapkan selamat tinggal: <code>%s</code>
   Saya saat ini menghapus selamat tinggal lama: <code>%s</code>
   Saya saat ini menghapus pesan layanan: <code>%s</code>
-  Pesan selamat tinggal yang tidak mengisi {} adalah:
+  Pesan selamat tinggal saat ini adalah:
 greetings_goodbye_enabled: "Saya akan mengucapkan selamat tinggal pengguna mulai sekarang."
 greetings_goodbye_disabled: "Saya tidak akan mengucapkan selamat tinggal pengguna mulai sekarang."
 greetings_goodbye_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/no'!"

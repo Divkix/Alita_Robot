@@ -1380,7 +1380,7 @@ greetings_welcome_status: |
   I am currently welcoming users: <code>%s</code>
   I am currently deleting old welcomes: <code>%s</code>
   I am currently deleting service messages: <code>%s</code>
-  The welcome message not filling the {} is:
+  The current welcome message is:
 greetings_welcome_enabled: "I'll welcome users from now on."
 greetings_welcome_disabled: "I'll not welcome users from now on."
 greetings_welcome_invalid_option: "I understand 'on/yes' or 'off/no' only!"
@@ -1390,7 +1390,7 @@ greetings_goodbye_status: |
   I am currently goodbying users: <code>%s</code>
   I am currently deleting old goodbyes: <code>%s</code>
   I am currently deleting service messages: <code>%s</code>
-  The goodbye message not filling the {} is:
+  The current goodbye message is:
 greetings_goodbye_enabled: "I'll goodbye users from now on."
 greetings_goodbye_disabled: "I'll not goodbye users from now on."
 greetings_goodbye_invalid_option: "I understand 'on/yes' or 'off/no' only!"
