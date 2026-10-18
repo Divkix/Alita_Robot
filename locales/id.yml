@@ -2281,7 +2281,8 @@ reactions_help_msg: |
   • /resetreactions - Hapus semua reaksi
 
   <b>Contoh:</b>
-  • /addreaction halo 👋 - Bot bereaksi dengan 👋 ketika seseorang mengatakan "halo"
+  • /addreaction halo 👍 - Bot bereaksi dengan 👍 ketika seseorang mengatakan "halo"
+  Hanya emoji reaksi standar Telegram (misalnya 👍 ❤ 🔥 🎉) yang dapat digunakan.
 
 reactions_add_usage: "Penggunaan: /addreaction &lt;kata_kunci&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Silakan berikan emoji yang valid."

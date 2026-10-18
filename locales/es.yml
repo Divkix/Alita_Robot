@@ -2290,7 +2290,8 @@ reactions_help_msg: |
   • /resetreactions - Borrar todas las reacciones
 
   <b>Ejemplo:</b>
-  • /addreaction hola 👋 - El bot reacciona con 👋 cuando alguien dice "hola"
+  • /addreaction hola 👍 - El bot reacciona con 👍 cuando alguien dice "hola"
+  Solo se pueden usar los emojis de reacción estándar de Telegram (por ejemplo 👍 ❤ 🔥 🎉).
 
 reactions_add_usage: "Uso: /addreaction &lt;palabra_clave&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Por favor, proporciona un emoji válido."

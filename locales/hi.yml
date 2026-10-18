@@ -1984,7 +1984,8 @@ reactions_help_msg: |
   • /resetreactions - सभी रिएक्शन साफ़ करें
 
   <b>उदाहरण:</b>
-  • /addreaction hello 👋 - बॉट 👋 से रिएक्ट करता है जब कोई "hello" कहता है
+  • /addreaction hello 👍 - बॉट 👍 से रिएक्ट करता है जब कोई "hello" कहता है
+  केवल Telegram के मानक रिएक्शन इमोजी (उदाहरण के लिए 👍 ❤ 🔥 🎉) का उपयोग किया जा सकता है।
 
 reactions_add_usage: "उपयोग: /addreaction &lt;कीवर्ड&gt; &lt;इमोजी&gt;"
 reactions_invalid_emoji: "कृपया एक मान्य इमोजी दें।"
