@@ -720,7 +720,7 @@ locks_help_msg: "*Admin saja*:
   Mengunci URL akan menghapus semua pesan dengan URL secara otomatis, mengunci stiker akan menghapus
   semua stiker, dll.
 
-  Mengunci bot akan menghentikan non-admin menambahkan bot ke obrolan.
+  Mengunci bot akan menghentikan pengguna yang bukan admin dan tidak disetujui menambahkan bot ke obrolan.
 
 
   **Contoh:**
@@ -1875,7 +1875,7 @@ locks_types_docs: |
 locks_notes_docs: |
   <b>Catatan Teknis</b>
   • Penegakan kunci real-time
-  • Admin dibebaskan dari semua kunci
+  • Admin dan pengguna yang disetujui dibebaskan dari semua kunci
   • Kunci bertahan di seluruh restart bot
   • Cache dihapus saat pembaruan
 

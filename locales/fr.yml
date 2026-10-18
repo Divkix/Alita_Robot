@@ -1030,7 +1030,7 @@ locks_help_msg: "*Admin uniquement* :
   Verrouiller les URLs supprimera automatiquement tous les messages avec des URLs, verrouiller les stickers supprimera
   tous les stickers, etc.
 
-  Verrouiller les bots empêchera les non-admins d'ajouter des bots au chat.
+  Verrouiller les bots empêchera les utilisateurs qui ne sont ni admins ni approuvés d'ajouter des bots au chat.
 
 
   **Exemple :**
@@ -1654,7 +1654,7 @@ locks_types_docs: |
 locks_notes_docs: |
   <b>Notes techniques</b>
   • L'application des verrous est en temps réel
-  • Les admins sont exemptés de tous les verrous
+  • Les admins et les utilisateurs approuvés sont exemptés de tous les verrous
   • Les verrous persistent après les redémarrages du bot
   • Le cache est invalidé lors des mises à jour
 

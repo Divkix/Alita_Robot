@@ -692,7 +692,7 @@ locks_help_msg: "*Apenas Admin*:
   Bloquear URLs vai auto-deletar todas as mensagens com URLs, bloquear figurinhas vai deletar
   todas as figurinhas, etc.
 
-  Bloquear bots vai impedir não-admins de adicionar bots ao chat.
+  Bloquear bots vai impedir usuários que não são admins nem aprovados de adicionar bots ao chat.
 
 
   **Exemplo:**
@@ -1845,7 +1845,7 @@ locks_types_docs: |
 locks_notes_docs: |
   <b>Notas Técnicas</b>
   • Aplicação de bloqueio é em tempo real
-  • Admins estão isentos de todos os bloqueios
+  • Admins e usuários aprovados estão isentos de todos os bloqueios
   • Bloqueios persistem entre reinícios do bot
   • Cache invalidado em atualizações
 

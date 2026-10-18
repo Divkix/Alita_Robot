@@ -728,7 +728,7 @@ locks_help_msg: "*Solo administrador*:
   Bloquear URLs eliminará automáticamente todos los mensajes con URLs, bloquear stickers eliminará
   todos los stickers, etc.
 
-  Bloquear bots evitará que los no administradores añadan bots al chat.
+  Bloquear bots evitará que los usuarios que no son administradores ni están aprobados añadan bots al chat.
 
 
   **Ejemplo:**
@@ -1884,7 +1884,7 @@ locks_types_docs: |
 locks_notes_docs: |
   <b>Notas técnicas</b>
   • La aplicación de bloqueos es en tiempo real
-  • Los administradores están exentos de todos los bloqueos
+  • Los administradores y los usuarios aprobados están exentos de todos los bloqueos
   • Los bloqueos persisten tras reinicios del bot
   • La caché se invalida al actualizar
 
