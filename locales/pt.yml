@@ -881,6 +881,11 @@ warns_help_msg:
   Se você está procurando por avisos automáticos, leia sobre o módulo de lista negra!
 
 
+  *Comandos de Usuário:*
+
+  - /warns [usuário]: Veja seus avisos ou os de outro usuário.
+
+
   *Comandos de Admin:*
 
   - /warn <motivo>: Adverte um usuário.
@@ -888,8 +893,6 @@ warns_help_msg:
   - /dwarn <motivo>: Adverte um usuário por reply, e deleta a mensagem dele.
 
   - /swarn <motivo>: Adverte um usuário e apaga sua mensagem de comando; o aviso ainda é publicado.
-
-  - /warns: Veja os avisos de um usuário.
 
   - /rmwarn: Remove o aviso mais recente de um usuário.
 

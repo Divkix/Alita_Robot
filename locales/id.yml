@@ -911,6 +911,11 @@ warns_help_msg:
   Jika Anda mencari peringatan otomatis, baca tentang modul daftar hitam!
 
 
+  *Perintah Pengguna:*
+
+  - /warns [pengguna]: Lihat peringatan Anda atau pengguna lain.
+
+
   *Perintah Admin:*
 
   - /warn <alasan>: Peringatkan pengguna.
@@ -918,8 +923,6 @@ warns_help_msg:
   - /dwarn <alasan>: Peringatkan pengguna dengan balasan, dan hapus pesan mereka.
 
   - /swarn <alasan>: Peringatkan pengguna dan hapus pesan perintah Anda; peringatan tetap dikirim.
-
-  - /warns: Lihat peringatan pengguna.
 
   - /rmwarn: Hapus peringatan terbaru pengguna.
 

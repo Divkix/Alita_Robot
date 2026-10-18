@@ -958,6 +958,11 @@ warns_help_msg:
   If you're looking for automated warnings, read about the blacklist module!
 
 
+  *User Commands:*
+
+  - /warns [user]: See your own warnings, or another user's.
+
+
   *Admin Commands:*
 
   - /warn <reason>: Warn a user.
@@ -965,8 +970,6 @@ warns_help_msg:
   - /dwarn <reason>: Warn a user by reply, and delete their message.
 
   - /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
-
-  - /warns: See a user's warnings.
 
   - /rmwarn: Remove a user's latest warning.
 

@@ -918,6 +918,11 @@ warns_help_msg:
   ¡Si buscas advertencias automatizadas, lee sobre el módulo de lista negra!
 
 
+  *Comandos de Usuario:*
+
+  - /warns [usuario]: Ver tus advertencias o las de otro usuario.
+
+
   *Comandos de Administrador:*
 
   - /warn <razón>: Advertir a un usuario.
@@ -925,8 +930,6 @@ warns_help_msg:
   - /dwarn <razón>: Advertir a un usuario por respuesta, y eliminar su mensaje.
 
   - /swarn <razón>: Advertir a un usuario y eliminar tu mensaje de comando; la advertencia se publica igualmente.
-
-  - /warns: Ver las advertencias de un usuario.
 
   - /rmwarn: Eliminar la última advertencia de un usuario.
 

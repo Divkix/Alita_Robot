@@ -291,6 +291,11 @@ warns_help_msg:
   Si vous cherchez des avertissements automatisés, consultez le module liste noire !
 
 
+  *Commandes Utilisateur :*
+
+  - /warns [utilisateur] : Voir vos avertissements ou ceux d'un autre utilisateur.
+
+
   *Commandes Admin :*
 
   - /warn <raison> : Avertir un utilisateur.
@@ -298,8 +303,6 @@ warns_help_msg:
   - /dwarn <raison> : Avertir un utilisateur en réponse, et supprimer son message.
 
   - /swarn <raison> : Avertir un utilisateur et supprimer votre commande ; l'avertissement est quand même publié.
-
-  - /warns : Voir les avertissements d'un utilisateur.
 
   - /rmwarn : Supprimer le dernier avertissement d'un utilisateur.
 
