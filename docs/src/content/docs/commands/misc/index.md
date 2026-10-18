@@ -12,6 +12,13 @@ description: Complete guide to Misc module commands and features
 × /tr <lang code> <msg/reply to message>: Translate the message.
 × /removebotkeyboard: Removes the stuck bot keyboard from your chat.
 × /stat: Gets the count of the total number of messages in the chat.
+× /tell <text>: (admin, groups only) Reply to a message to make the bot send <text> as a reply to it; your command message is deleted.
+× /stickerid: Reply to a sticker to get its file ID.
+× /zombies: Kick deleted accounts the bot knows about (admin).
+× /github <user|user/repo>: Look up a GitHub user or repository.
+× /wiki <search>: Search English Wikipedia.
+× /ud <term>: Look up Urban Dictionary.
+× /runs: A random quip.
 
 ## Module Aliases
 
@@ -21,18 +28,30 @@ This module can be accessed using the following aliases:
 
 - `extra`
 - `extras`
+- `stickerid`
+- `github`
+- `wiki`
+- `ud`
+- `runs`
+- `zombies`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
+| `/github` | Look up a GitHub user or repository | ✅ |
 | `/id` | Get chat or user ID | ✅ |
 | `/info` | Get user info | ✅ |
 | `/ping` | Ping the Telegram server | ✅ |
 | `/removebotkeyboard` | Remove stuck bot keyboard | ❌ |
+| `/runs` | Reply with a random quip | ✅ |
 | `/stat` | Show message count for the chat | ✅ |
+| `/stickerid` | Get a replied sticker's file ID | ✅ |
 | `/tell` | Echo a message through the bot | ❌ |
 | `/tr` | Translate a message | ✅ |
+| `/ud` | Look up a term on Urban Dictionary | ✅ |
+| `/wiki` | Search English Wikipedia | ✅ |
+| `/zombies` | Kick deleted accounts from the group | ❌ |
 
 ## Usage Examples
 
@@ -51,8 +70,12 @@ For detailed command usage, refer to the commands table above.
 - `/tell` — Requires **Admin** (`RequireGroup` + `IsUserAdmin`). Must be used
   as a reply to another message. The bot deletes the original command message
   and echoes the command arguments as a reply to the target message.
-- All other commands (`/id`, `/info`, `/ping`, `/removebotkeyboard`, `/stat`,
-  `/tr`) — Available to all users.
+- `/zombies` — Requires **Admin**, works in groups only (`RequireGroup` +
+  `RequireUserAdmin`), and the bot needs the right to restrict members
+  (`CanBotRestrict`). Kicks tracked members whose first name is empty or
+  'Deleted Account'.
+- All other commands (`/github`, `/id`, `/info`, `/ping`, `/removebotkeyboard`,
+  `/runs`, `/stat`, `/stickerid`, `/tr`, `/ud`, `/wiki`) — Available to all users.
 
 ## `/ping` Metrics
 
