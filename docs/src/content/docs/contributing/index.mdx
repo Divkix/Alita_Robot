@@ -146,7 +146,7 @@ var myCommandDesc = helpers.CommandDescriptor{
 }
 
 func (m moduleStruct) myCommand(b *gotgbot.Bot, ctx *ext.Context) error {
-    // Implementation (RequiredChecks already ran and replied on failure)
+    // Implementation (RequiredChecks already ran; failures were handled there)
     return ext.EndGroups
 }
 
