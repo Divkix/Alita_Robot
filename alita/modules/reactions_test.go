@@ -8,6 +8,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/reactions"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -263,6 +264,7 @@ func TestReactionCommandsWorkWithNilCacheMarshal(t *testing.T) {
 }
 
 func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
+	useRealLocales(t)
 	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
 	LoadReactions(dispatcher)
 
@@ -274,5 +276,11 @@ func TestLoadReactionsRegistersHelpAndHandlers(t *testing.T) {
 	}
 	if got := DefaultHelpRegistry().helpableKb["Reactions"]; len(got) != 1 || len(got[0]) != 2 {
 		t.Fatalf("reactions help keyboard = %#v, want one row with two buttons", got)
+	}
+	// The buttons follow the viewer's language.
+	es := DefaultHelpRegistry().helpKbBuilders["Reactions"]("es")
+	want := trS(i18n.MustNewTranslator("es"), "reactions_button_add")
+	if want == "" || es[0][0].Text != want {
+		t.Fatalf("reactions es add button = %q, want %q", es[0][0].Text, want)
 	}
 }
