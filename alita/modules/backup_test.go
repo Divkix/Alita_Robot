@@ -432,6 +432,18 @@ func TestBuildExportCaption(t *testing.T) {
 	assert.Contains(t, caption, "filters")
 }
 
+func TestBuildExportCaptionEscapesChatName(t *testing.T) {
+	t.Parallel()
+
+	tr := testTranslator(t)
+	bkp := backup.NewBackupFormat(12345, "A<b>&C", 67890, []string{"notes"})
+	bkp.Data["notes"] = map[string]interface{}{"test": "data"}
+
+	caption := buildExportCaption(tr, bkp)
+	assert.Contains(t, caption, "A&lt;b&gt;&amp;C")
+	assert.NotContains(t, caption, "A<b>&C")
+}
+
 func TestBuildImportKeyboard(t *testing.T) {
 	t.Parallel()
 

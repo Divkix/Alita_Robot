@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"strconv"
 	"strings"
@@ -433,7 +434,7 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	token, err := storePendingImport(chat.Id, bkp, importModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending import: %v", err)
-		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{"error": err.Error()})
+		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -513,7 +514,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	token, err := storePendingReset(chat.Id, resetModules)
 	if err != nil {
 		log.Errorf("[Backup] Failed to store pending reset: %v", err)
-		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{"error": err.Error()})
+		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{"error": html.EscapeString(err.Error())})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -606,7 +607,7 @@ func (m moduleStruct) handleConfirmImport(b *gotgbot.Bot, ctx *ext.Context, tr *
 	if err := backup.ImportChatData(chat.Id, bkp, modules); err != nil {
 		log.Errorf("[Backup] Import failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_import_failed", i18n.TranslationParams{
-			"error": err.Error(),
+			"error": html.EscapeString(err.Error()),
 		})
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
@@ -662,7 +663,7 @@ func (m moduleStruct) handleConfirmReset(b *gotgbot.Bot, ctx *ext.Context, tr *i
 	if err := backup.ClearChatData(chat.Id, modules); err != nil {
 		log.Errorf("[Backup] Reset failed for chat %d: %v", chat.Id, err)
 		text, _ := tr.GetString("backup_reset_failed", i18n.TranslationParams{
-			"error": err.Error(),
+			"error": html.EscapeString(err.Error()),
 		})
 		_, _ = b.SendMessage(chat.Id, text, formatting.Shtml())
 		return ext.EndGroups
@@ -690,7 +691,7 @@ func buildExportCaption(tr *i18n.Translator, backup *backup.BackupFormat) string
 	caption, _ := tr.GetString("backup_export_success", i18n.TranslationParams{
 		"modules": fmt.Sprintf("%d", len(backup.Data)),
 		"list":    modulesList,
-		"chat":    backup.ChatName,
+		"chat":    html.EscapeString(backup.ChatName),
 		"time":    backup.ExportedAt.Format("2006-01-02 15:04:05"),
 	})
 	return caption
