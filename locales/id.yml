@@ -810,7 +810,7 @@ pins_help_msg:
 
   *Perintah Admin:*
 
-  × /pin: Pin pesan yang Anda balas. Tambahkan 'loud' atau 'notify' untuk mengirim notifikasi
+  × /pin: Pin pesan yang Anda balas. Tambahkan 'loud', 'notify' atau 'violent' untuk mengirim notifikasi
   ke anggota grup.
 
   × /pinned: Mendapatkan pesan yang dipin terbaru di Obrolan Saat Ini.
@@ -825,11 +825,7 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off>: Jangan biarkan telegram memin kanal secara otomatis.
   Jika tidak ada argumen yang diberikan, tampilkan pengaturan saat ini.
 
-  × /cleanlinked <yes/no/on/off>: Hapus pesan yang dikirim oleh kanal yang terhubung.
-
-  Catatan: Ketika menggunakan anti channel pin, pastikan untuk menggunakan perintah /unpin, bukan
-  melakukannya secara manual. Jika tidak, pesan lama akan dipin ulang ketika kanal
-  mengirim pesan apa pun."
+  × /cleanlinked <yes/no/on/off>: Hapus pesan yang dikirim oleh kanal yang terhubung."
 purges_help_msg: "*Admin saja:*
 
   - /purge: menghapus semua pesan antara ini dan pesan yang dibalas.

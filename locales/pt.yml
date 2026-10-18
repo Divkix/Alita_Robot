@@ -782,7 +782,7 @@ pins_help_msg:
 
   *Comandos de Admin:*
 
-  × /pin: Fixa a mensagem que você respondeu. Adicione 'loud' ou 'notify' para enviar uma notificação
+  × /pin: Fixa a mensagem que você respondeu. Adicione 'loud', 'notify' ou 'violent' para enviar uma notificação
   aos membros do grupo.
 
   × /pinned: Obtém a última mensagem fixada no Chat Atual.
@@ -797,11 +797,7 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off>: Não deixe o telegram fixar automaticamente canais vinculados.
   Se nenhum argumento for dado, mostra a configuração atual.
 
-  × /cleanlinked <yes/no/on/off>: Deleta mensagens enviadas pelo canal vinculado.
-
-  Nota: Ao usar anti channel pins, certifique-se de usar o comando /unpin, em vez
-  de fazer manualmente. Caso contrário, a mensagem antiga será fixada novamente quando o canal
-  enviar mensagens."
+  × /cleanlinked <yes/no/on/off>: Deleta mensagens enviadas pelo canal vinculado."
 purges_help_msg: "*Apenas Admin:*
 
   - /purge: deleta todas as mensagens entre esta e a mensagem respondida.

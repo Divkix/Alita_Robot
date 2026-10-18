@@ -856,7 +856,7 @@ pins_help_msg:
 
   *Admin commands:*
 
-  × /pin: Pin the message you replied to. Add 'loud' or 'notify' to send a notification
+  × /pin: Pin the message you replied to. Add 'loud', 'notify' or 'violent' to send a notification
   to group members.
 
   × /pinned: Gets the latest pinned message in the current Chat.
@@ -872,11 +872,7 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off>: Don't let telegram auto-pin linked channels.
   If no arguments are given, show the current setting.
 
-  × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel.
-
-  Note: When using anti channel pins, make sure to use the /unpin command, instead
-  of doing it manually. Otherwise, the old message will get re-pinned when the channel
-  sends any messages."
+  × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel."
 purges_help_msg: "*Admin only:*
 
   - /purge: deletes all messages between this and the replied-to message.

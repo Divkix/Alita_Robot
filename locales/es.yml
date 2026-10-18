@@ -818,7 +818,7 @@ pins_help_msg:
 
   *Comandos de administrador:*
 
-  × /pin: Anclar el mensaje al que respondiste. Añade 'loud' o 'notify' para enviar una notificación
+  × /pin: Anclar el mensaje al que respondiste. Añade 'loud', 'notify' o 'violent' para enviar una notificación
   a los miembros del grupo.
 
   × /pinned: Obtiene el último mensaje anclado en el Chat actual.
@@ -834,11 +834,7 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off>: No dejar que telegram ancle automáticamente canales vinculados.
   Si no se dan argumentos, mostrar la configuración actual.
 
-  × /cleanlinked <yes/no/on/off>: Eliminar mensajes enviados por el canal vinculado.
-
-  Nota: Al usar pines anti canal, asegúrate de usar el comando /unpin, en lugar
-  de hacerlo manualmente. De lo contrario, el mensaje antiguo será re-anclado cuando el canal
-  envíe cualquier mensaje."
+  × /cleanlinked <yes/no/on/off>: Eliminar mensajes enviados por el canal vinculado."
 purges_help_msg: "*Solo administrador:*
 
   - /purge: elimina todos los mensajes entre este y el mensaje respondido.

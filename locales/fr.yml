@@ -1284,7 +1284,7 @@ pins_help_msg:
 
   *Commandes Admin :*
 
-  × /pin : Épinglez le message auquel vous avez répondu. Ajoutez 'loud' ou 'notify' pour envoyer une notification
+  × /pin : Épinglez le message auquel vous avez répondu. Ajoutez 'loud', 'notify' ou 'violent' pour envoyer une notification
   aux membres du groupe.
 
   × /pinned : Obtenez le dernier message épinglé dans le chat actuel.
@@ -1300,11 +1300,7 @@ pins_help_msg:
   × /antichannelpin <yes/no/on/off> : Ne laissez pas Telegram épingler automatiquement les chaînes liées.
   Si aucun argument n'est donné, affiche le paramètre actuel.
 
-  × /cleanlinked <yes/no/on/off> : Supprimez les messages envoyés par la chaîne liée.
-
-  Note : Lors de l'utilisation des anti-épingles de chaîne, assurez-vous d'utiliser la commande /unpin, au lieu
-  de le faire manuellement. Sinon, l'ancien message sera ré-épinglé quand la chaîne
-  enverra des messages."
+  × /cleanlinked <yes/no/on/off> : Supprimez les messages envoyés par la chaîne liée."
 pins_unpin_not_pinned: Le message en réponse n'est pas un message épinglé.
 pins_unpinned_message: Message désépinglé.
 pins_unpinned_last: Dernier message épinglé désépinglé.
