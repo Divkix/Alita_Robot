@@ -199,33 +199,23 @@ func (moduleStruct) setRules(bot *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	chat := connectedChat
-	args := ctx.Args()
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	var text string
-
-	if len(args) == 1 && msg.ReplyToMessage == nil {
+	var text, rulesText string
+	// A reply to the topic-creation service message is Telegram's implicit
+	// reply in forum topics, not a user's choice of rules source.
+	if reply := msg.ReplyToMessage; reply != nil && reply.ForumTopicCreated == nil {
+		rulesText = reply.OriginalTextMDV2() // text, or caption for media
+	}
+	if strings.TrimSpace(rulesText) == "" {
+		rulesText = textAfterCommand(msg.OriginalMDV2())
+	}
+	if strings.TrimSpace(rulesText) == "" {
 		text, _ = tr.GetString("rules_need_text")
+	} else if err := rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(rulesText)); err != nil {
+		log.Errorf("[Rules] Failed to set rules for chat %d: %v", chat.Id, err)
+		text, _ = tr.GetString("common_settings_save_failed")
 	} else {
-		if msg.ReplyToMessage != nil {
-			text = msg.ReplyToMessage.OriginalMDV2()
-		} else {
-			text = textAfterCommand(msg.OriginalMDV2())
-			if strings.TrimSpace(text) == "" {
-				text, _ = tr.GetString("rules_need_text")
-				_, err := msg.Reply(bot, text, formatting.Shtml())
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				return ext.EndGroups
-			}
-		}
-		if err := rules.SetChatRules(chat.Id, tgmd2html.MD2HTMLV2(text)); err != nil {
-			log.Errorf("[Rules] Failed to set rules for chat %d: %v", chat.Id, err)
-			text, _ = tr.GetString("common_settings_save_failed")
-		} else {
-			text, _ = tr.GetString("rules_set_successfully")
-		}
+		text, _ = tr.GetString("rules_set_successfully")
 	}
 
 	_, err := msg.Reply(bot, text, formatting.Shtml())

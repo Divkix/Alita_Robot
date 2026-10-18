@@ -11,6 +11,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func uniqueModuleChatID() int64 {
@@ -291,6 +292,87 @@ func TestSetRulesSplitsCommandAtAnyWhitespace(t *testing.T) {
 			for _, want := range tt.want {
 				if !strings.Contains(got, want) {
 					t.Fatalf("stored rules = %q, want it to contain %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestSetRulesReadsReplyCaptionAndFallsBackToCommandText(t *testing.T) {
+	useRealLocales(t)
+	tr := i18n.MustNewTranslator("en")
+	needText, _ := tr.GetString("rules_need_text")
+	if needText == "" {
+		t.Fatal("rules_need_text missing from en locale")
+	}
+
+	for _, tt := range []struct {
+		name      string
+		command   string
+		reply     gotgbot.Message
+		existing  string
+		wantRules string
+		wantReply string
+	}{
+		{
+			name:      "reply to captioned media",
+			command:   "/setrules",
+			reply:     gotgbot.Message{Caption: "Caption rules", Photo: []gotgbot.PhotoSize{{FileId: "p"}}},
+			wantRules: "Caption rules",
+		},
+		{
+			name:      "reply to text-less message keeps rules",
+			command:   "/setrules",
+			reply:     gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "s"}},
+			existing:  "existing rules",
+			wantRules: "existing rules",
+			wantReply: needText,
+		},
+		{
+			name:      "reply to text-less message with command text",
+			command:   "/setrules foo",
+			reply:     gotgbot.Message{Sticker: &gotgbot.Sticker{FileId: "s"}},
+			wantRules: "foo",
+		},
+		{
+			name:      "implicit forum topic reply",
+			command:   "/setrules foo",
+			reply:     gotgbot.Message{ForumTopicCreated: &gotgbot.ForumTopicCreated{Name: "Topic"}},
+			wantRules: "foo",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if tt.existing != "" {
+				if err := rules.SetChatRules(f.chat.Id, tt.existing); err != nil {
+					t.Fatalf("SetChatRules() error = %v", err)
+				}
+			}
+			ctx := newModuleMessageContext(f.bot, f.chat, f.admin, tt.command)
+			reply := tt.reply
+			reply.MessageId = 505
+			reply.Date = 1
+			reply.Chat = f.chat
+			reply.From = &f.member
+			if reply.ForumTopicCreated != nil {
+				ctx.EffectiveMessage.IsTopicMessage = true
+				ctx.EffectiveMessage.MessageThreadId = reply.MessageId
+			}
+			ctx.EffectiveMessage.ReplyToMessage = &reply
+
+			if err := rulesModule.setRules(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("setRules() error = %v, want EndGroups", err)
+			}
+			if got := rules.GetChatRulesInfo(f.chat.Id).Rules; !strings.Contains(got, tt.wantRules) {
+				t.Fatalf("stored rules = %q, want it to contain %q", got, tt.wantRules)
+			}
+			if tt.wantReply != "" {
+				calls := f.client.callsFor("sendMessage")
+				if len(calls) != 1 {
+					t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+				}
+				if got, _ := calls[0].Params["text"].(string); got != tt.wantReply {
+					t.Fatalf("reply = %q, want %q", got, tt.wantReply)
 				}
 			}
 		})
