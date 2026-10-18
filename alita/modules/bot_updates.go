@@ -251,7 +251,7 @@ func LoadBotUpdates(dispatcher *ext.Dispatcher) {
 			},
 			botJoinedGroup,
 		),
-		-1, // process before all other handlers
+		-1, // process before the default command group (after the group -2 admin-cache refresh)
 	)
 
 	dispatcher.AddHandler(
