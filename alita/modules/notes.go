@@ -290,12 +290,14 @@ func (moduleStruct) privNote(b *gotgbot.Bot, ctx *ext.Context) error {
 			txt, _ = tr.GetString("notes_private_enabled")
 			if err := notes.TooglePrivateNote(chat.Id, true); err != nil {
 				log.Errorf("[Notes] Failed to enable private notes for chat %d: %v", chat.Id, err)
+				txt, _ = tr.GetString("error_generic")
 			}
 		case "off", "no", "false":
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			txt, _ = tr.GetString("notes_private_disabled")
 			if err := notes.TooglePrivateNote(chat.Id, false); err != nil {
 				log.Errorf("[Notes] Failed to disable private notes for chat %d: %v", chat.Id, err)
+				txt, _ = tr.GetString("error_generic")
 			}
 		default:
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
