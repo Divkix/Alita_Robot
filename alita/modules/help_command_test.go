@@ -9,6 +9,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
@@ -61,18 +62,15 @@ func TestHelpCommandRepliesInPrivateAndGroup(t *testing.T) {
 
 func TestHelpCommandRoutesSpecificModuleInPrivateAndGroup(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
-	previousMarkup := markup
 	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
-		markup = previousMarkup
 		cachedBotUsername = ""
 	})
 	registry := DefaultHelpRegistry()
 	registry.AbleMap["Admin"] = true
 	registry.AltHelpOptions["Admin"] = []string{"admin"}
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
-	initHelpButtons()
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -245,11 +243,9 @@ func TestBotConfigCallbackStepsEditAndAnswer(t *testing.T) {
 
 func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	previousRegistry := defaultHelpRegistry
-	previousMarkup := markup
 	defaultHelpRegistry = newHelpRegistry()
 	t.Cleanup(func() {
 		defaultHelpRegistry = previousRegistry
-		markup = previousMarkup
 		cachedBotUsername = ""
 	})
 
@@ -258,7 +254,6 @@ func TestHelpButtonHandlerRoutesStartMainAndModuleCallbacks(t *testing.T) {
 	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{
 		{{Text: "Admin", CallbackData: "admin-test"}},
 	}
-	initHelpButtons()
 
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -378,5 +373,66 @@ func TestModuleHelpButtonsFollowTheViewersLanguage(t *testing.T) {
 		if got := kb.InlineKeyboard[0][0].Text; got != want {
 			t.Errorf("%s: first help button = %q, want %q", lang, got, want)
 		}
+	}
+}
+
+// /donate and the PM /help module list answer in the reader's language.
+func TestDonateAndHelpListFollowTheReadersLanguage(t *testing.T) {
+	useRealLocales(t)
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	DefaultHelpRegistry().AbleMap["Admin"] = true
+
+	es := i18n.MustNewTranslator("es")
+	en := i18n.MustNewTranslator("en")
+	wantDonate, _ := es.GetString("help_donatetext")
+	enDonate, _ := en.GetString("help_donatetext")
+	wantBack, _ := es.GetString("helpers_back_button")
+	enBack, _ := en.GetString("helpers_back_button")
+	if wantDonate == "" || wantDonate == enDonate || wantBack == "" || wantBack == enBack {
+		t.Fatal("the test needs es translations of help_donatetext and helpers_back_button")
+	}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Lector"}
+	group := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Grupo"}
+	if err := lang.ChangeGroupLanguage(group.Id, "es"); err != nil {
+		t.Fatalf("ChangeGroupLanguage: %v", err)
+	}
+	if err := lang.ChangeUserLanguage(user.Id, "es"); err != nil {
+		t.Fatalf("ChangeUserLanguage: %v", err)
+	}
+
+	if err := DefaultHelpRegistry().donate(bot, newModuleMessageContext(bot, group, user, "/donate")); err != ext.EndGroups {
+		t.Fatalf("donate() error = %v, want EndGroups", err)
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("donate sent %d messages, want 1", len(sent))
+	}
+	if got, _ := sent[0].Params["text"].(string); got != wantDonate {
+		t.Errorf("donate text = %q, want the es help_donatetext", got)
+	}
+
+	private := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: user.FirstName}
+	if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, private, user, "/help")); err != ext.EndGroups {
+		t.Fatalf("help() error = %v, want EndGroups", err)
+	}
+	sent = client.callsFor("sendMessage")
+	if len(sent) != 2 {
+		t.Fatalf("help sent %d messages, want 1", len(sent)-1)
+	}
+	kb, ok := sent[1].Params["reply_markup"].(*gotgbot.InlineKeyboardMarkup)
+	if !ok || kb == nil || len(kb.InlineKeyboard) == 0 {
+		t.Fatalf("help reply_markup = %#v, want the module keyboard", sent[1].Params["reply_markup"])
+	}
+	last := kb.InlineKeyboard[len(kb.InlineKeyboard)-1]
+	if len(last) != 1 || last[0].Text != wantBack {
+		t.Errorf("help keyboard last row = %#v, want the es helpers_back_button", last)
 	}
 }
