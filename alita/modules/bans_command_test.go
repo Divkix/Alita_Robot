@@ -9,7 +9,9 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
+	"github.com/divkix/Alita_Robot/alita/db/admin"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 func newBanReplyContext(
@@ -1253,5 +1255,38 @@ func TestRestrictCommandsAndCallbacksPropagateGotgbotRequestErrors(t *testing.T)
 				t.Fatalf("%s returned error %v, want request error", tt.name, err)
 			}
 		})
+	}
+}
+
+// newAnonAdminCommandContext builds a command sent by an anonymous admin of
+// f.chat with AnonAdmin off, so checks must answer with the proof keyboard.
+func newAnonAdminCommandContext(t *testing.T, f adminChatFixture, text string) *helpers.CommandContext {
+	t.Helper()
+	if err := admin.SetAnonAdminMode(f.chat.Id, false); err != nil {
+		t.Fatalf("SetAnonAdminMode() error = %v", err)
+	}
+	ctx := newModuleMessageContext(f.bot, f.chat, gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group"}, text)
+	ctx.EffectiveMessage.SenderChat = &f.chat
+	ctx.EffectiveSender = ctx.EffectiveMessage.GetSender()
+	c, err := helpers.BuildCommandContext(f.bot, ctx)
+	if err != nil {
+		t.Fatalf("BuildCommandContext() error = %v", err)
+	}
+	return c
+}
+
+func TestBanByAnonymousAdminSendsOnlyTheProofKeyboard(t *testing.T) {
+	f := newAdminChatFixture(t)
+	c := newAnonAdminCommandContext(t, f, "/ban 42")
+
+	if helpers.RunChecks(c, restrictChecks("ban")) {
+		t.Fatal("RunChecks() = true, want the anonymous admin held for proof")
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want only the proof keyboard", len(calls))
+	}
+	if calls[0].Params["reply_markup"] == nil {
+		t.Fatalf("sendMessage = %#v, want the proof keyboard", calls[0].Params)
 	}
 }

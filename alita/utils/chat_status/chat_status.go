@@ -360,44 +360,54 @@ func IsBotAdmin(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool {
 	return mem.Status == "administrator"
 }
 
+// CanInvite reports whether the invite link may be shared: the chat is public,
+// or the bot and the sender both hold the invite right.
 func CanInvite(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) bool {
+	allowed, _ := CanInviteAnswered(b, ctx, chat, msg)
+	return allowed
+}
+
+// CanInviteAnswered is CanInvite that also reports whether the check already
+// answered the sender: answered is true only when an anonymous admin was sent
+// the proof keyboard, so the caller must not send a refusal on top of it.
+func CanInviteAnswered(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, msg *gotgbot.Message) (allowed, answered bool) {
 	chat = extractChatFromContext(ctx, chat)
 	if chat == nil {
 		log.Error("CanInvite: No chat information available in context")
-		return false
+		return false, false
 	}
 	if chat.Username != "" {
-		return true
+		return true, false
 	}
 	botChatMember, err := chat.GetMember(b, b.Id, nil)
 	if err != nil {
 		log.Errorf("[CanInvite] GetMember failed for bot in chat %d: %v", chat.Id, err)
-		return false
+		return false, false
 	}
 	if !botChatMember.MergeChatMember().CanInviteUsers {
-		return false
+		return false, false
 	}
 	sender := ctx.EffectiveSender
 
 	if isAdmin, shouldReturn := checkAnonAdmin(b, chat, msg, sender); shouldReturn {
-		return isAdmin
+		return isAdmin, !isAdmin && msg != nil
 	}
 
 	// msg.From can be nil for channel posts
 	if msg.From == nil {
-		return false
+		return false, false
 	}
 
 	userid := msg.From.Id
 	userMember, ok := getUserMemberWithCache(b, chat, userid, "CanInvite")
 	if !ok {
-		return false
+		return false, false
 	}
 
 	if !userMember.CanInviteUsers && userMember.Status != "creator" {
-		return false
+		return false, false
 	}
-	return true
+	return true, false
 }
 
 // IsUserInChatWithError reports definitive membership separately from Telegram
