@@ -7,9 +7,9 @@ description: Complete guide to Misc module commands and features
 # 🔧 Misc Commands
 
 × /info: Get your user info, which can be used as a reply or by passing a User Id or Username.
-× /id: Get the current group id. If used by replying to a message, get that user's id.
+× /id [user]: Get your ID, and the group's ID when used in a group. Pass a username or user ID, or reply to a message, to get that user's ID (a reply also shows forwarded-from, GIF and sticker IDs).
 × /ping: Ping the Telegram Server!
-× /tr <lang code> <msg/reply to message>: Translate the message.
+× /tr <lang code> <text>: Translate the text. Reply to a message with /tr [lang code] to translate it (English if no code is given).
 × /removebotkeyboard: Removes the stuck bot keyboard from your chat.
 × /stat: Gets the count of the total number of messages in the chat.
 × /tell <text>: (admin, groups only) Reply to a message to make the bot send <text> as a reply to it; your command message is deleted.
