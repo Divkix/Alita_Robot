@@ -8,6 +8,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func newPurgeReplyContext(
@@ -269,8 +271,8 @@ func TestPurgeFromRefusesWhileAnotherMessageIsMarked(t *testing.T) {
 		t.Fatalf("purgeFrom() error = %v, want EndGroups", err)
 	}
 	text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
-	if !strings.Contains(text, "/purgeto") {
-		t.Fatalf("purgeFrom reply = %q, want the already-active mark message", text)
+	if want := trS(i18n.MustNewTranslator("en"), "purges_mark_already_active"); want == "" || text != want {
+		t.Fatalf("purgeFrom reply = %q, want purges_mark_already_active %q", text, want)
 	}
 	if stored, ok := delMsgs.Load(f.chat.Id); !ok || stored.(delMsgEntry).msgID != 215 {
 		t.Fatalf("purge marker = %v, %v, want message 215 kept", stored, ok)
