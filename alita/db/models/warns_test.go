@@ -112,3 +112,17 @@ func TestReconcileWarnEntries(t *testing.T) {
 		})
 	}
 }
+
+// The import tests cannot tell "mute" from the fallback, which is also "mute".
+func TestValidWarnMode(t *testing.T) {
+	for _, mode := range []string{"ban", "kick", "mute", "tban", "tmute"} {
+		if !ValidWarnMode(mode) {
+			t.Errorf("ValidWarnMode(%q) = false, want true", mode)
+		}
+	}
+	for _, mode := range []string{"", "Ban", "warn", "delete", "none", "explode"} {
+		if ValidWarnMode(mode) {
+			t.Errorf("ValidWarnMode(%q) = true, want false", mode)
+		}
+	}
+}

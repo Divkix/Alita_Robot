@@ -534,8 +534,11 @@ func TestImportWarnsReplacesUnusableWarnMode(t *testing.T) {
 		mode string
 		want string
 	}{
-		{name: "valid", mode: "ban", want: "ban"},
-		{name: "timed", mode: "tmute", want: "tmute"},
+		{name: "ban", mode: "ban", want: "ban"},
+		{name: "kick", mode: "kick", want: "kick"},
+		{name: "mute", mode: "mute", want: "mute"},
+		{name: "tban", mode: "tban", want: "tban"},
+		{name: "tmute", mode: "tmute", want: "tmute"},
 		{name: "missing", mode: "", want: "mute"},
 		{name: "wrong case", mode: "Ban", want: "mute"},
 		{name: "unknown", mode: "explode", want: "mute"},
