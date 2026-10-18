@@ -740,6 +740,8 @@ misc_help_msg:
 
   × /stat: Mendapatkan jumlah total pesan di obrolan.
 
+  × /tell <teks>: (admin, hanya grup) Balas sebuah pesan agar bot mengirim <teks> sebagai balasan untuk pesan itu; pesan perintah Anda akan dihapus.
+
   × /stickerid: Balas stiker untuk mendapatkan ID file-nya.
 
   × /zombies: Keluarkan akun terhapus yang dikenal bot (admin).
@@ -2823,6 +2825,7 @@ misc_extend_msg: |
   /id — lihat ID obrolan atau pengguna
   /ping — cek waktu respons bot
   /stat — hitung pesan di obrolan
+  /tell — buat bot membalas sebuah pesan dengan teks Anda
   /tr — terjemahkan pesan
   /removebotkeyboard — hapus keyboard bot yang macet
   /stickerid — dapatkan file ID stiker

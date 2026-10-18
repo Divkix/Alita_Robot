@@ -1219,6 +1219,8 @@ misc_help_msg:
 
   × /stat : Obtient le nombre total de messages dans le chat.
 
+  × /tell <texte> : (admin, groupes uniquement) Répondez à un message pour que le bot envoie <texte> en réponse à celui-ci ; votre message de commande est supprimé.
+
   × /stickerid : Répondez à un sticker pour obtenir son ID de fichier.
 
   × /zombies : Expulse les comptes supprimés connus du bot (admin).
@@ -2739,6 +2741,7 @@ misc_extend_msg: |
   /id — afficher l'ID du chat ou d'un utilisateur
   /ping — vérifier le temps de réponse du bot
   /stat — compter les messages du chat
+  /tell — faire répondre le bot à un message avec votre texte
   /tr — traduire un message
   /removebotkeyboard — retirer un clavier du bot bloqué
   /stickerid — obtenir le file ID d'un sticker
