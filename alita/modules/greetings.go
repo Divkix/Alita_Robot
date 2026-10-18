@@ -1088,13 +1088,11 @@ func (moduleStruct) clearPendingJoins(chatId, userId int64) {
 func LoadGreetings(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(greetingsModule.moduleName, true)
 
-	SetModuleHelp(greetingsModule.moduleName, [][]gotgbot.InlineKeyboardButton{
-		{
-			{
-				Text:         trS(i18n.MustNewTranslator("en"), "button_formatting"),
-				CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
-			},
-		},
+	SetModuleHelpBuilder(greetingsModule.moduleName, func(l string) [][]gotgbot.InlineKeyboardButton {
+		return [][]gotgbot.InlineKeyboardButton{{{
+			Text:         trS(i18n.MustNewTranslator(l), "button_formatting"),
+			CallbackData: encodeCallbackData("helpq", map[string]string{"m": "Formatting"}),
+		}}}
 	})
 
 	dispatcher.AddHandler(

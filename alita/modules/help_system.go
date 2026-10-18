@@ -72,7 +72,13 @@ func getModuleHelpAndKb(module, lang string, registry *moduleStruct) (helpText s
 		},
 	}
 
+	ableMapMu.RLock()
+	build := registry.helpKbBuilders[ModName]
 	kb := slices.Clone(registry.helpableKb[ModName])
+	ableMapMu.RUnlock()
+	if build != nil {
+		kb = build(lang)
+	}
 	replyMarkup = gotgbot.InlineKeyboardMarkup{
 		InlineKeyboard: append(kb, backBtnSuffix),
 	}
