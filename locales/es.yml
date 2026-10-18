@@ -1017,9 +1017,6 @@ captcha_max_attempts_current: "Intentos máximos de verificación actuales: <b>%
 captcha_max_attempts_invalid: "Valor inválido. Especifica un número entre 1 y 10."
 captcha_max_attempts_set: "Intentos máximos de verificación establecidos en <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "El usuario %s será desmuteado automáticamente en 24 horas."
-
 # Help module strings
 help_pm_questions: "¡Hola :) Envíame un PM si tienes alguna pregunta sobre cómo usarme!"
 help_config_private_only: La configuración solo funciona en privado
@@ -1363,7 +1360,6 @@ greetings_auto_approve_invalid_option: "¡Solo entiendo 'on/yes' o 'off/no'!"
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ La verificación Captcha ha sido <b>habilitada</b>. Los nuevos miembros necesitarán completar un captcha para unirse."
 captcha_disabled_success: "❌ La verificación Captcha ha sido <b>deshabilitada</b>."
-captcha_mode_set_success: "✅ Modo de captcha establecido a <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Tiempo de espera del captcha establecido a <b>%d minutos</b>"
 captcha_action_set_success: "✅ Acción de fallo del captcha establecida a <b>%s</b>"
 captcha_refresh_button: "🔄 Nueva Imagen"
@@ -1384,18 +1380,6 @@ captcha_no_pending_messages: "No se encontraron mensajes pendientes para este us
 captcha_clear_usage: "Uso: <code>/captchaclear @usuario</code> o <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Error al eliminar mensajes almacenados. Inténtalo de nuevo."
 captcha_clear_success: "✅ Se eliminaron todos los mensajes almacenados para el usuario %d"
-captcha_refresh_time_remaining: |
-  👋 ¡Bienvenido %s!
-
-  Por favor selecciona el texto mostrado en la imagen para verificar que eres humano:
-
-  ⏱ Tienes <b>%d minutos</b> para responder.
-captcha_math_time_remaining: |
-  👋 ¡Bienvenido %s!
-
-  Por favor resuelve el problema mostrado en la imagen y selecciona la respuesta correcta:
-
-  ⏱ Tienes <b>%d minutos</b> para responder.
 
 # Notes module strings
 notes_save_success: "¡Nota <b>%s</b> guardada!\nObtenla con <code>#%s</code> o <code>/get %s</code>."
@@ -1546,7 +1530,6 @@ db_not_initialized: "base de datos no inicializada"
 captcha_invalid_mode_error: "modo de captcha inválido: debe ser 'math' o 'text'"
 captcha_timeout_range_error: "el tiempo de espera debe estar entre 1 y 10 minutos"
 captcha_invalid_action_error: "acción de falla inválida: debe ser 'kick', 'ban', o 'mute'"
-captcha_attempts_range_error: "los intentos máximos deben estar entre 1 y 10"
 captcha_status_usage: "Usa <code>/captcha on</code> o <code>/captcha off</code> para cambiar el estado."
 captcha_not_for_you: "¡Este captcha no es para ti!"
 captcha_expired_or_not_found: "Captcha expirado o no encontrado"
@@ -1598,14 +1581,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "el administrador de seguridad se está cerrando"
 system_timeout_worker: "tiempo de espera adquiriendo ranura de trabajador para %s"
 system_shutdown_acquisition: "cierre del administrador de seguridad durante la adquisición de ranura"
-
-# Captcha additional validation
-captcha_no_active_attempt: "no se encontró intento de captcha activo"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "No puedes reportar una publicación de canal."

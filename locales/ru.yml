@@ -834,9 +834,6 @@ captcha_max_attempts_current: "Текущее максимальное коли�
 captcha_max_attempts_invalid: "Неверное значение. Пожалуйста, укажите число от 1 до 10."
 captcha_max_attempts_set: "Максимальное количество попыток установлено на <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "Пользователь %s будет автоматически размучен через 24 часа."
-
 
 # Rules/helpers module strings
 rules_not_set: В этом чате нет правил!
@@ -1180,7 +1177,6 @@ greetings_auto_approve_invalid_option: "Я понимаю только 'on/yes' 
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Проверка капчи была <b>включена</b>. Новые участники должны будут пройти капчу для присоединения."
 captcha_disabled_success: "❌ Проверка капчи была <b>отключена</b>."
-captcha_mode_set_success: "✅ Режим капчи установлен на <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Время ожидания капчи установлено на <b>%d минут</b>"
 captcha_action_set_success: "✅ Действие при неудаче капчи установлено на <b>%s</b>"
 captcha_refresh_button: "🔄 Новое изображение"
@@ -1201,18 +1197,6 @@ captcha_no_pending_messages: "Нет ожидающих сообщений дл�
 captcha_clear_usage: "Использование: <code>/captchaclear @user</code> или <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Не удалось очистить сохранённые сообщения. Пожалуйста, попробуйте снова."
 captcha_clear_success: "✅ Очищены все сохранённые сообщения для пользователя %d"
-captcha_refresh_time_remaining: |
-  👋 Добро пожаловать, %s!
-
-  Пожалуйста, выберите текст, показанный на изображении, чтобы подтвердить, что вы человек:
-
-  ⏱ У вас есть <b>%d минут</b>, чтобы ответить.
-captcha_math_time_remaining: |
-  👋 Добро пожаловать, %s!
-
-  Пожалуйста, решите задачу, показанную на изображении, и выберите правильный ответ:
-
-  ⏱ У вас есть <b>%d минут</b>, чтобы ответить.
 
 # Notes module strings
 notes_save_success: "Заметка <b>%s</b> сохранена!\nПолучите её с помощью <code>#%s</code> или <code>/get %s</code>."
@@ -1341,7 +1325,6 @@ db_not_initialized: "база данных не инициализирована
 captcha_invalid_mode_error: "неверный режим капчи: должен быть 'math' или 'text'"
 captcha_timeout_range_error: "время ожидания должно быть между 1 и 10 минутами"
 captcha_invalid_action_error: "неверное действие при неудаче: должно быть 'kick', 'ban' или 'mute'"
-captcha_attempts_range_error: "максимальное количество попыток должно быть между 1 и 10"
 captcha_status_usage: "Используйте <code>/captcha on</code> или <code>/captcha off</code>, чтобы изменить статус."
 captcha_not_for_you: "Эта капча не для вас!"
 captcha_expired_or_not_found: "Капча истекла или не найдена"
@@ -1393,14 +1376,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "менеджер безопасности выключается"
 system_timeout_worker: "таймаут получения слота для %s"
 system_shutdown_acquisition: "выключение менеджера безопасности во время получения слота"
-
-# Captcha additional validation
-captcha_no_active_attempt: "не найдена активная попытка капчи"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Вы не можете сообщить о сообщении канала."

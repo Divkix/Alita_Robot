@@ -1010,9 +1010,6 @@ captcha_max_attempts_current: "Maksimum percobaan verifikasi saat ini: <b>%d</b>
 captcha_max_attempts_invalid: "Nilai tidak valid. Silakan tentukan angka antara 1 dan 10."
 captcha_max_attempts_set: "Maksimum percobaan verifikasi diatur ke <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "Pengguna %s akan dibuka bisunya secara otomatis dalam 24 jam."
-
 # Help module strings
 help_pm_questions: "Hai :) PM saya jika Anda punya pertanyaan tentang cara menggunakan saya!"
 help_config_private_only: Konfigurasi hanya berfungsi di private
@@ -1357,7 +1354,6 @@ greetings_auto_approve_invalid_option: "Saya hanya mengerti 'on/yes' atau 'off/n
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Verifikasi Captcha telah <b>diaktifkan</b>. Anggota baru perlu menyelesaikan captcha untuk bergabung."
 captcha_disabled_success: "❌ Verifikasi Captcha telah <b>dinonaktifkan</b>."
-captcha_mode_set_success: "✅ Mode captcha diatur ke <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Batas waktu captcha diatur ke <b>%d menit</b>"
 captcha_action_set_success: "✅ Tindakan kegagalan captcha diatur ke <b>%s</b>"
 captcha_refresh_button: "🔄 Gambar Baru"
@@ -1378,18 +1374,6 @@ captcha_no_pending_messages: "Tidak ada pesan tertunda untuk pengguna ini."
 captcha_clear_usage: "Penggunaan: <code>/captchaclear @user</code> atau <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Gagal menghapus pesan yang disimpan. Silakan coba lagi."
 captcha_clear_success: "✅ Berhasil menghapus semua pesan yang disimpan untuk pengguna %d"
-captcha_refresh_time_remaining: |
-  👋 Selamat datang %s!
-
-  Silakan pilih teks yang ditampilkan di gambar untuk memverifikasi Anda manusia:
-
-  ⏱ Anda punya <b>%d menit</b> untuk menjawab.
-captcha_math_time_remaining: |
-  👋 Selamat datang %s!
-
-  Silakan selesaikan masalah yang ditampilkan di gambar dan pilih jawaban yang benar:
-
-  ⏱ Anda punya <b>%d menit</b> untuk menjawab.
 
 # Notes module strings
 notes_save_success: "Catatan <b>%s</b> tersimpan!\nDapatkan dengan <code>#%s</code> atau <code>/get %s</code>."
@@ -1540,7 +1524,6 @@ db_not_initialized: "database tidak diinisialisasi"
 captcha_invalid_mode_error: "mode captcha tidak valid: harus 'math' atau 'text'"
 captcha_timeout_range_error: "batas waktu harus antara 1 dan 10 menit"
 captcha_invalid_action_error: "tindakan kegagalan tidak valid: harus 'kick', 'ban', atau 'mute'"
-captcha_attempts_range_error: "maksimal percobaan harus antara 1 dan 10"
 captcha_status_usage: "Gunakan <code>/captcha on</code> atau <code>/captcha off</code> untuk mengubah status."
 captcha_not_for_you: "Captcha ini bukan untuk Anda!"
 captcha_expired_or_not_found: "Captcha kedaluwarsa atau tidak ditemukan"
@@ -1592,14 +1575,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "manajer keselamatan sedang mematikan"
 system_timeout_worker: "batas waktu mendapatkan slot pekerja untuk %s"
 system_shutdown_acquisition: "manajer keselamatan mati saat akuisisi slot"
-
-# Captcha additional validation
-captcha_no_active_attempt: "tidak ada percobaan captcha aktif yang ditemukan"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Anda tidak dapat melaporkan posting kanal."

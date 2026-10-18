@@ -1057,9 +1057,6 @@ captcha_max_attempts_current: "Current maximum verification attempts: <b>%d</b>"
 captcha_max_attempts_invalid: "Invalid value. Please specify a number between 1 and 10."
 captcha_max_attempts_set: "Maximum verification attempts set to <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "User %s will be automatically unmuted in 24 hours."
-
 # Help module strings
 help_pm_questions: "Hey :) PM me if you have any questions on how to use me!"
 help_config_private_only: Configuration only works in private
@@ -1404,7 +1401,6 @@ greetings_auto_approve_invalid_option: "I understand 'on/yes' or 'off/no' only!"
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Captcha verification has been <b>enabled</b>. New members will need to complete a captcha to join."
 captcha_disabled_success: "❌ Captcha verification has been <b>disabled</b>."
-captcha_mode_set_success: "✅ Captcha mode set to <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Captcha timeout set to <b>%d minutes</b>"
 captcha_action_set_success: "✅ Captcha failure action set to <b>%s</b>"
 captcha_refresh_button: "🔄 New Image"
@@ -1425,18 +1421,6 @@ captcha_no_pending_messages: "No pending messages found for this user."
 captcha_clear_usage: "Usage: <code>/captchaclear @user</code> or <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Failed to clear stored messages. Please try again."
 captcha_clear_success: "✅ Cleared all stored messages for user %d"
-captcha_refresh_time_remaining: |
-  👋 Welcome %s!
-
-  Please select the text shown in the image to verify you're human:
-
-  ⏱ You have <b>%d minutes</b> to answer.
-captcha_math_time_remaining: |
-  👋 Welcome %s!
-
-  Please solve the problem shown in the image and select the correct answer:
-
-  ⏱ You have <b>%d minutes</b> to answer.
 
 # Notes module strings
 notes_save_success: "Saved Note <b>%s</b>!\nGet it with <code>#%s</code> or <code>/get %s</code>."
@@ -1587,7 +1571,6 @@ db_not_initialized: "database not initialized"
 captcha_invalid_mode_error: "invalid captcha mode: must be 'math' or 'text'"
 captcha_timeout_range_error: "timeout must be between 1 and 10 minutes"
 captcha_invalid_action_error: "invalid failure action: must be 'kick', 'ban', or 'mute'"
-captcha_attempts_range_error: "max attempts must be between 1 and 10"
 captcha_status_usage: "Use <code>/captcha on</code> or <code>/captcha off</code> to change status."
 captcha_not_for_you: "This captcha is not for you!"
 captcha_expired_or_not_found: "Captcha expired or not found"
@@ -1639,14 +1622,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "safety manager is shutting down"
 system_timeout_worker: "timeout acquiring worker slot for %s"
 system_shutdown_acquisition: "safety manager shutdown during slot acquisition"
-
-# Captcha additional validation
-captcha_no_active_attempt: "no active captcha attempt found"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "You can't report a channel post."

@@ -882,10 +882,8 @@ captcha_invalid_refresh: अमान्य रिफ्रेश डेटा
 captcha_max_attempts_current: "वर्तमान अधिकतम सत्यापन प्रयास: <b>%d</b>"
 captcha_max_attempts_invalid: "अमान्य मान। कृपया 1 और 10 के बीच एक संख्या निर्दिष्ट करें।"
 captcha_max_attempts_set: "अधिकतम सत्यापन प्रयास <b>%d</b> पर सेट किए गए"
-captcha_user_auto_unmute: "उपयोगकर्ता %s 24 घंटे में स्वचालित रूप से अनम्यूट हो जाएगा।"
 captcha_enabled_success: "✅ कैप्चा सत्यापन <b>सक्षम</b> कर दिया गया है। नए सदस्यों को शामिल होने के लिए कैप्चा पूरा करना होगा।"
 captcha_disabled_success: "❌ कैप्चा सत्यापन <b>अक्षम</b> कर दिया गया है।"
-captcha_mode_set_success: "✅ कैप्चा मोड <b>%s</b> (%s) पर सेट किया गया"
 captcha_timeout_set_success: "✅ कैप्चा टाइमआउट <b>%d मिनट</b> पर सेट किया गया"
 captcha_action_set_success: "✅ कैप्चा विफलता कार्रवाई <b>%s</b> पर सेट की गई"
 captcha_refresh_button: "🔄 नई छवि"
@@ -906,18 +904,6 @@ captcha_no_pending_messages: "इस उपयोगकर्ता के ल�
 captcha_clear_usage: "उपयोग: <code>/captchaclear @user</code> या <code>/captchaclear user_id</code>"
 captcha_clear_failed: "संग्रहीत संदेश साफ़ करने में विफल। कृपया पुनः प्रयास करें।"
 captcha_clear_success: "✅ उपयोगकर्ता %d के सभी संग्रहीत संदेश साफ़ कर दिए गए"
-captcha_refresh_time_remaining: |
-  👋 स्वागत है %s!
-
-  कृपया छवि में दिखाए गए टेक्स्ट का चयन करें यह साबित करने के लिए कि आप मानव हैं:
-
-  ⏱ आपके पास जवाब देने के लिए <b>%d मिनट</b> हैं।
-captcha_math_time_remaining: |
-  👋 स्वागत है %s!
-
-  कृपया छवि में दिखाई गई समस्या को हल करें और सही उत्तर चुनें:
-
-  ⏱ आपके पास जवाब देने के लिए <b>%d मिनट</b> हैं।
 captcha_settings_header: "<b>कैप्चा सेटिंग्स:</b>"
 captcha_settings_status: "स्थिति: <code>%s</code>"
 captcha_settings_mode: "मोड: <code>%s</code>"
@@ -929,7 +915,6 @@ captcha_status_disabled: "अक्षम"
 captcha_invalid_mode_error: "अमान्य कैप्चा मोड: 'math' या 'text' होना चाहिए"
 captcha_timeout_range_error: "टाइमआउट 1 और 10 मिनट के बीच होना चाहिए"
 captcha_invalid_action_error: "अमान्य विफलता कार्रवाई: 'kick', 'ban', या 'mute' होनी चाहिए"
-captcha_attempts_range_error: "अधिकतम प्रयास 1 और 10 के बीच होने चाहिए"
 captcha_status_usage: "स्थिति बदलने के लिए <code>/captcha on</code> या <code>/captcha off</code> का उपयोग करें।"
 captcha_not_for_you: "यह कैप्चा आपके लिए नहीं है!"
 captcha_expired_or_not_found: "कैप्चा समाप्त या नहीं मिला"
@@ -937,7 +922,6 @@ captcha_attempt_not_valid: "यह कैप्चा प्रयास अब 
 captcha_refresh_limit_reached: "इस कैप्चा के लिए रिफ्रेश सीमा पहुंच गई।"
 captcha_internal_update_error: "कैप्चा अपडेट करने में आंतरिक त्रुटि।"
 captcha_internal_error: "कैप्चा सेटिंग्स अपडेट करते समय एक आंतरिक त्रुटि हुई। कृपया पुनः प्रयास करें।"
-captcha_no_active_attempt: "कोई सक्रिय कैप्चा प्रयास नहीं मिला"
 captcha_mode_math_desc: "गणितीय समस्याएं"
 captcha_mode_text_desc: "छवियों से टेक्स्ट पहचान"
 captcha_mode_set_formatted: "✅ कैप्चा मोड <b>%s</b> (%s) पर सेट किया गया"
@@ -1833,11 +1817,6 @@ system_timeout_worker: "%s के लिए वर्कर स्लॉट प�
 system_shutdown_acquisition: "स्लॉट अधिग्रहण के दौरान सेफ्टी मैनेजर शटडाउन"
 system_db_connected: "PostgreSQL डेटाबेस से सफलतापूर्वक कनेक्ट हो गया!"
 system_config_loaded: "कॉन्फ़िगरेशन सफलतापूर्वक लोड और सत्यापित हो गया"
-
-# Math operators
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Message types
 message_type_text: "टेक्स्ट"

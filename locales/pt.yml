@@ -980,9 +980,6 @@ captcha_max_attempts_current: "Máximo atual de tentativas de verificação: <b>
 captcha_max_attempts_invalid: "Valor inválido. Por favor especifique um número entre 1 e 10."
 captcha_max_attempts_set: "Máximo de tentativas de verificação definido para <b>%d</b>"
 
-# Captcha auto-unmute
-captcha_user_auto_unmute: "Usuário %s será automaticamente desmutado em 24 horas."
-
 # Help module strings
 help_pm_questions: "Ei :) Me mande PM se tiver alguma dúvida sobre como me usar!"
 help_config_private_only: Configuração só funciona em privado
@@ -1327,7 +1324,6 @@ greetings_auto_approve_invalid_option: "Eu entendo 'on/yes' ou 'off/no' apenas!"
 # Captcha module strings (additional)
 captcha_enabled_success: "✅ Verificação de Captcha foi <b>ativada</b>. Novos membros precisarão completar um captcha para entrar."
 captcha_disabled_success: "❌ Verificação de Captcha foi <b>desativada</b>."
-captcha_mode_set_success: "✅ Modo de captcha definido para <b>%s</b> (%s)"
 captcha_timeout_set_success: "✅ Tempo limite de captcha definido para <b>%d minutos</b>"
 captcha_action_set_success: "✅ Ação de falha de captcha definida para <b>%s</b>"
 captcha_refresh_button: "🔄 Nova Imagem"
@@ -1348,18 +1344,6 @@ captcha_no_pending_messages: "Nenhuma mensagem pendente encontrada para este usu
 captcha_clear_usage: "Uso: <code>/captchaclear @user</code> ou <code>/captchaclear user_id</code>"
 captcha_clear_failed: "Falha ao limpar mensagens armazenadas. Tente novamente."
 captcha_clear_success: "✅ Limpas todas as mensagens armazenadas para o usuário %d"
-captcha_refresh_time_remaining: |
-  👋 Bem-vindo %s!
-
-  Por favor selecione o texto mostrado na imagem para verificar que você é humano:
-
-  ⏱ Você tem <b>%d minutos</b> para responder.
-captcha_math_time_remaining: |
-  👋 Bem-vindo %s!
-
-  Por favor resolva o problema mostrado na imagem e selecione a resposta correta:
-
-  ⏱ Você tem <b>%d minutos</b> para responder.
 
 # Notes module strings
 notes_save_success: "Nota <b>%s</b> salva!\nObtenha-a com <code>#%s</code> ou <code>/get %s</code>."
@@ -1508,7 +1492,6 @@ db_not_initialized: "banco de dados não inicializado"
 captcha_invalid_mode_error: "modo de captcha inválido: deve ser 'math' ou 'text'"
 captcha_timeout_range_error: "tempo limite deve ser entre 1 e 10 minutos"
 captcha_invalid_action_error: "ação de falha inválida: deve ser 'kick', 'ban', ou 'mute'"
-captcha_attempts_range_error: "tentativas máximas devem ser entre 1 e 10"
 captcha_status_usage: "Use <code>/captcha on</code> ou <code>/captcha off</code> para mudar status."
 captcha_not_for_you: "Este captcha não é para você!"
 captcha_expired_or_not_found: "Captcha expirou ou não foi encontrado"
@@ -1560,14 +1543,6 @@ format_list_item_code: " - <code>%s</code>"
 system_safety_shutdown: "gerenciador de segurança está desligando"
 system_timeout_worker: "timeout adquirindo slot de worker para %s"
 system_shutdown_acquisition: "gerenciador de segurança desligou durante aquisição de slot"
-
-# Captcha additional validation
-captcha_no_active_attempt: "nenhuma tentativa de captcha ativa encontrada"
-
-# Math operators (for captcha)
-math_operator_plus: "+"
-math_operator_minus: "-"
-math_operator_multiply: "×"
 
 # Reports module additional strings
 reports_cannot_report_channel: "Você não pode reportar um post de canal."
