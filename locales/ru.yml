@@ -1885,6 +1885,7 @@ mutes_extended_docs: |
   • <code>m</code> = минуты (например, <code>30m</code>)
   • <code>h</code> = часы (например, <code>2h</code>)
   • <code>d</code> = дни (например, <code>1d</code>)
+  • <code>w</code> = недели (например, <code>1w</code>)
 
   <b>Варианты мута:</b>
   • <code>/mute</code> - Стандартный мьют с опциональной причиной

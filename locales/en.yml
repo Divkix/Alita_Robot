@@ -2151,6 +2151,7 @@ mutes_extended_docs: |
   • <code>m</code> = minutes (e.g., <code>30m</code>)
   • <code>h</code> = hours (e.g., <code>2h</code>)
   • <code>d</code> = days (e.g., <code>1d</code>)
+  • <code>w</code> = weeks (e.g., <code>1w</code>)
 
   <b>Mute Variants:</b>
   • <code>/mute</code> - Standard mute with optional reason

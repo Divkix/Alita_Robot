@@ -2102,6 +2102,7 @@ mutes_extended_docs: |
   • <code>m</code> = menit (mis., <code>30m</code>)
   • <code>h</code> = jam (mis., <code>2h</code>)
   • <code>d</code> = hari (mis., <code>1d</code>)
+  • <code>w</code> = minggu (mis., <code>1w</code>)
 
   <b>Varian Bisu:</b>
   • <code>/mute</code> - Bisu standar dengan alasan opsional

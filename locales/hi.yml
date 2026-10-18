@@ -1329,6 +1329,7 @@ mutes_extended_docs: |
   • <code>m</code> = मिनट (उदा., <code>30m</code>)
   • <code>h</code> = घंटे (उदा., <code>2h</code>)
   • <code>d</code> = दिन (उदा., <code>1d</code>)
+  • <code>w</code> = सप्ताह (उदा., <code>1w</code>)
 
   <b>म्यूट वैरिएंट:</b>
   • <code>/mute</code> - वैकल्पिक कारण के साथ मानक म्यूट
