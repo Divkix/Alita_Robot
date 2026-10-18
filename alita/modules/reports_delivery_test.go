@@ -361,16 +361,23 @@ func editMessageTextError(description string) error {
 }
 
 func TestCardRecreatedWhenEditFails(t *testing.T) {
-	f := newReportCardFixture(t, true)
-	f.report(t, f.reporter, "/report spam")
-	f.client.errors["editMessageText"] = editMessageTextError("Bad Request: message to edit not found")
-	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+	for _, description := range []string{
+		"Bad Request: message to edit not found",
+		"Bad Request: MESSAGE_ID_INVALID",
+	} {
+		t.Run(description, func(t *testing.T) {
+			f := newReportCardFixture(t, true)
+			f.report(t, f.reporter, "/report spam")
+			f.client.errors["editMessageText"] = editMessageTextError(description)
+			f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
 
-	if got := len(f.client.callsFor("copyMessage")); got != 2 {
-		t.Fatalf("copyMessage calls = %d, want a fresh copy for the new card", got)
-	}
-	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 2 {
-		t.Fatalf("log channel sendMessage calls = %d, want a replacement card", got)
+			if got := len(f.client.callsFor("copyMessage")); got != 2 {
+				t.Fatalf("copyMessage calls = %d, want a fresh copy for the new card", got)
+			}
+			if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 2 {
+				t.Fatalf("log channel sendMessage calls = %d, want a replacement card", got)
+			}
+		})
 	}
 }
 
@@ -527,8 +534,11 @@ func TestReportCardSentWhenStoreFails(t *testing.T) {
 	if len(cards) != 1 || !strings.Contains(fmt.Sprint(cards[0].Params["text"]), "#REPORT") {
 		t.Fatalf("log channel sendMessage calls = %v, want the report card despite the store failure", cards)
 	}
-	// The card is not linked to a stored report, so the group keeps the
-	// full report with its buttons.
+	// Nothing was stored, so there is no report for card buttons to close.
+	if actions := cardActions(t, cards[0].Params["reply_markup"]); len(actions) != 0 {
+		t.Fatalf("untracked card actions = %v, want none", actions)
+	}
+	// The card cannot act, so the group keeps the buttons that can.
 	assertFullGroupReply(t, f)
 }
 

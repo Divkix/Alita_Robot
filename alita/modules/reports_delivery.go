@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -30,12 +31,12 @@ const reportExcerptRunes = 300
 //
 // It reports whether the admins already have the report without the in-group
 // one: its card is in the log channel, or they decided this member's report
-// of the message before. The caller still sends the in-group report while the
-// card has no moderation actions.
+// of the message before.
 //
 // When the report could not be stored (stored is false), the card is posted
-// on its own: the open reports cannot be counted or linked to it. A repeat of
-// a stored report (created is false) leaves an existing card alone.
+// on its own: the open reports cannot be counted or linked to it, so it has
+// no buttons. A repeat of a stored report (created is false) leaves an
+// existing card alone.
 func deliverReport(
 	b *gotgbot.Bot,
 	tr *i18n.Translator,
@@ -53,7 +54,7 @@ func deliverReport(
 
 	if !stored {
 		sendReportCard(b, channelID, chat, reported,
-			reportCardText(chat, reporter, reported.From, 1, reason), reportCardMarkup(tr, chat, reported.MessageId))
+			reportCardText(chat, reporter, reported.From, 1, reason), reportCardMarkup(tr, chat, reported.MessageId, 0))
 		return false
 	}
 
@@ -68,7 +69,9 @@ func deliverReport(
 		return !created
 	}
 	text := reportCardText(chat, reporter, reported.From, len(rows), reason)
-	markup := reportCardMarkup(tr, chat, reported.MessageId)
+	// The card acts on every open report of the message; the oldest one
+	// identifies them.
+	markup := reportCardMarkup(tr, chat, reported.MessageId, rows[0].ID)
 
 	for _, row := range rows {
 		if row.AdminChatId == nil || row.AdminMessageId == nil || *row.AdminChatId != channelID {
@@ -212,11 +215,34 @@ func reportCardText(chat *gotgbot.Chat, reporter, target *gotgbot.User, reportCo
 	return text
 }
 
-func reportCardMarkup(tr *i18n.Translator, chat *gotgbot.Chat, messageID int64) gotgbot.InlineKeyboardMarkup {
+// reportCardMarkup links the reported message and, for a stored report
+// (reportID != 0), adds the ban/mute/delete/dismiss buttons. Each button
+// carries only the report id; reportCardHandler checks everything else.
+func reportCardMarkup(tr *i18n.Translator, chat *gotgbot.Chat, messageID, reportID int64) gotgbot.InlineKeyboardMarkup {
 	markup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{}}
 	if link := chat_status.GetMessageLinkFromMessageId(chat, messageID); link != "" {
 		label, _ := tr.GetString("reports_button_message")
 		markup.InlineKeyboard = append(markup.InlineKeyboard, []gotgbot.InlineKeyboardButton{{Text: label, Url: link}})
+	}
+	if reportID == 0 {
+		return markup
+	}
+	for _, pair := range [][2]string{{"ban", "mute"}, {"delete", "dismiss"}} {
+		var row []gotgbot.InlineKeyboardButton
+		for _, action := range pair {
+			data := encodeCallbackData(reportCardNamespace, map[string]string{
+				"a": action,
+				"i": strconv.FormatInt(reportID, 10),
+			})
+			if data == "" {
+				continue
+			}
+			label, _ := tr.GetString(reportCardActions[action].buttonKey)
+			row = append(row, gotgbot.InlineKeyboardButton{Text: label, CallbackData: data})
+		}
+		if len(row) > 0 {
+			markup.InlineKeyboard = append(markup.InlineKeyboard, row)
+		}
 	}
 	return markup
 }

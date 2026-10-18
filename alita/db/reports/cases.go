@@ -71,13 +71,14 @@ func isDecision(status string) bool {
 	return false
 }
 
-// Resolve closes every open report of a message with one decision. Only open
-// rows change, so of several admins acting at once exactly one gets
-// affected > 0; the rest get 0 and must not act. Rows are locked in id order
-// so concurrent resolvers cannot split a message's reports between them.
-func Resolve(chatID, messageID int64, status string, resolvedBy int64) (affected int64, err error) {
+// Resolve closes every open report of a message with one decision and
+// returns the ids it closed. Only open rows change, so of several admins
+// acting at once exactly one gets ids back; the rest get none and must not
+// act. Rows are locked in id order so concurrent resolvers cannot split a
+// message's reports between them.
+func Resolve(chatID, messageID int64, status string, resolvedBy int64) (closed []int64, err error) {
 	if !isDecision(status) {
-		return 0, fmt.Errorf("resolve report: invalid status %q", status)
+		return nil, fmt.Errorf("resolve report: invalid status %q", status)
 	}
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		var ids []int64
@@ -100,13 +101,40 @@ func Resolve(chatID, messageID int64, status string, resolvedBy int64) (affected
 				"resolved_at": now,
 				"updated_at":  now,
 			})
-		affected = res.RowsAffected
-		return res.Error
+		if res.Error != nil {
+			return res.Error
+		}
+		// The rows are locked, so every one of them changed.
+		if res.RowsAffected != int64(len(ids)) {
+			return fmt.Errorf("closed %d of %d locked reports", res.RowsAffected, len(ids))
+		}
+		closed = ids
+		return nil
 	})
 	if err != nil {
-		return 0, fmt.Errorf("resolve report: %w", err)
+		return nil, fmt.Errorf("resolve report: %w", err)
 	}
-	return affected, nil
+	return closed, nil
+}
+
+// Reopen undoes a Resolve whose action failed: the reports it closed with
+// status become open again, so the decision can be retried.
+func Reopen(ids []int64, status string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	err := db.DB.Model(&models.Report{}).
+		Where("id IN ? AND status = ?", ids, status).
+		Updates(map[string]any{
+			"status":      models.ReportStatusOpen,
+			"resolved_by": nil,
+			"resolved_at": nil,
+			"updated_at":  time.Now(),
+		}).Error
+	if err != nil {
+		return fmt.Errorf("reopen reports: %w", err)
+	}
+	return nil
 }
 
 // SetAdminMessage records where the report card for a message was posted.

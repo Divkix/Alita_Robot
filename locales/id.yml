@@ -1572,6 +1572,11 @@ reports_action_by: "Tindakan diambil oleh %s"
 reports_resolved_by: "<b>Diselesaikan oleh:</b> %s"
 reports_message_template: "<b>⚠️ Laporan:</b>\n<b> • Dilaporkan oleh:</b> %s\n<b> • Pengguna dilaporkan:</b> %s\n<b>Status:</b> <i>Menunggu...</i>"
 reports_invalid_action: "Tindakan tidak valid."
+reports_button_mute: "🔇 Bisukan"
+reports_button_dismiss: "✔️ Abaikan"
+reports_success_mute: "✅ Berhasil membisukan"
+reports_already_handled: "Laporan ini sudah ditangani."
+reports_action_failed: "Tindakan tidak dapat diselesaikan. Coba lagi."
 reports_sent_to_admins: "Dilaporkan ke admin."
 
 # Language module additional strings

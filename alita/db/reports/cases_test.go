@@ -199,19 +199,19 @@ func TestResolveClosesOpenReportsOnce(t *testing.T) {
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
 
-	affected, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	closed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
-	if affected != 2 {
-		t.Fatalf("Resolve() affected = %d, want 2", affected)
+	if len(closed) != 2 {
+		t.Fatalf("Resolve() closed = %v, want 2 reports", closed)
 	}
-	affected, err = Resolve(chatID, 505, models.ReportStatusDismissed, 8)
+	closed, err = Resolve(chatID, 505, models.ReportStatusDismissed, 8)
 	if err != nil {
 		t.Fatalf("second Resolve() error = %v", err)
 	}
-	if affected != 0 {
-		t.Fatalf("second Resolve() affected = %d, want 0", affected)
+	if len(closed) != 0 {
+		t.Fatalf("second Resolve() closed = %v, want none", closed)
 	}
 
 	var rows []models.Report
@@ -249,6 +249,67 @@ func TestResolveRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestReopenRestoresOnlyTheFailedDecision(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	earlier, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(earlier) != 1 {
+		t.Fatalf("first Resolve() = %v, %v; want one report", earlier, err)
+	}
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+	failed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(failed) != 1 {
+		t.Fatalf("second Resolve() = %v, %v; want the new report", failed, err)
+	}
+
+	if err := Reopen(failed, models.ReportStatusBanned); err != nil {
+		t.Fatalf("Reopen() error = %v", err)
+	}
+
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil {
+		t.Fatalf("OpenForMessage() error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != failed[0] || rows[0].ResolvedBy != nil || rows[0].ResolvedAt != nil {
+		t.Fatalf("open reports = %+v, want only report %d reopened without a resolver", rows, failed[0])
+	}
+	kept, err := GetByID(earlier[0])
+	if err != nil || kept.Status != models.ReportStatusBanned {
+		t.Fatalf("earlier report = %+v, %v; want it still banned", kept, err)
+	}
+}
+
+func TestReopenLeavesOtherDecisionsAlone(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 44})
+	failed, err := Resolve(chatID, 505, models.ReportStatusBanned, 7)
+	if err != nil || len(failed) != 2 {
+		t.Fatalf("Resolve() = %v, %v; want both reports", failed, err)
+	}
+	// Before the failed ban is undone, one of its reports gets another decision.
+	if err := db.DB.Model(&models.Report{}).Where("id = ?", failed[1]).
+		Updates(map[string]any{"status": models.ReportStatusDismissed, "resolved_by": 8}).Error; err != nil {
+		t.Fatalf("redecide report: %v", err)
+	}
+
+	if err := Reopen(failed, models.ReportStatusBanned); err != nil {
+		t.Fatalf("Reopen() error = %v", err)
+	}
+
+	rows, err := OpenForMessage(chatID, 505)
+	if err != nil {
+		t.Fatalf("OpenForMessage() error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != failed[0] {
+		t.Fatalf("open reports = %+v, want only report %d reopened", rows, failed[0])
+	}
+	other, err := GetByID(failed[1])
+	if err != nil || other.Status != models.ReportStatusDismissed || other.ResolvedBy == nil || *other.ResolvedBy != 8 {
+		t.Fatalf("redecided report = %+v, %v; want it still dismissed by 8", other, err)
+	}
+}
+
 func TestConcurrentResolveHasOneWinner(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
@@ -264,14 +325,14 @@ func TestConcurrentResolveHasOneWinner(t *testing.T) {
 		wg.Add(1)
 		go func(adminID int64) {
 			defer wg.Done()
-			affected, err := Resolve(chatID, 505, models.ReportStatusBanned, adminID)
+			closed, err := Resolve(chatID, 505, models.ReportStatusBanned, adminID)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
 				errs = append(errs, err)
 				return
 			}
-			if affected > 0 {
+			if len(closed) > 0 {
 				winners++
 			}
 		}(int64(1000 + i))

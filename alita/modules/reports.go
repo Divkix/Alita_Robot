@@ -604,7 +604,8 @@ func (moduleStruct) markResolvedButtonHandler(b *gotgbot.Bot, ctx *ext.Context) 
 		replyQuery, _ = tr.GetString("reports_resolved_success")
 		replyText, _ = tr.GetString("reports_resolved_by", i18n.TranslationParams{"s": formatting.MentionHtml(user.Id, user.FirstName)})
 	}
-	// Record the decision on the stored reports, so they count as closed.
+	// Record the decision on the stored reports, so they count as closed and
+	// their log channel card stops acting.
 	if _, err := reports.Resolve(chat.Id, msgId, legacyReportStatus[action], user.Id); err != nil {
 		log.Errorf("[Reports] failed to close reports of message %d in %d after %s: %v", msgId, chat.Id, action, err)
 	}
@@ -641,6 +642,7 @@ func LoadReports(dispatcher *ext.Dispatcher) {
 		reportsModule.handlerGroup,
 	)
 	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix("report"), reportsModule.markResolvedButtonHandler))
+	dispatcher.AddHandler(handlers.NewCallback(callbackquery.Prefix(reportCardNamespace+"|"), reportsModule.reportCardHandler))
 	dispatcher.AddHandler(handlers.NewCommand("report", reportsModule.report))
 	helpers.AddCmdToDisableable("report")
 	dispatcher.AddHandler(handlers.NewCommand("reports", reportsModule.reports))
