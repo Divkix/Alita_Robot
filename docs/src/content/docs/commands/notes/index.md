@@ -12,12 +12,12 @@ Notes are great to save random tidbits of information; a phone number, a nice gi
 - /get <notename>: Get a note.
 - #notename: Same as /get.
 Admin commands:
-- /save <notename> <note text>: Save a new note called "word". Replying to a message will save that message. Even works on media!
-- /clear <notename>: Delete the associated note.
+- /save /addnote <notename> <note text>: Save a new note called "word". Replying to a message will save that message. Even works on media!
+- /clear /rmnote <notename>: Delete the associated note.
 - /notes: List all notes in the current chat.
 - /saved: Same as /notes.
 - /clearall: Delete ALL notes in a chat (chat owner only). This cannot be undone.
-- /privatenotes: Whether or not to send notes in PM. Will send a message with a button which users can click to get the note in PM.
+- /privatenotes /privnote <on/off>: Whether or not to send notes in PM. Will send a message with a button which users can click to get the note in PM. Without an argument, shows the current setting.
 
 **Features:**
 - **Text &amp; Media Support**: Save text messages, photos, videos, documents, and more
@@ -62,14 +62,14 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/addnote` | Save a note with a keyword | ❌ |
+| `/addnote` | Alias of `/save` | ❌ |
 | `/clear` | Remove a saved note | ❌ |
 | `/clearall` | Remove all notes from the chat | ❌ |
 | `/get` | Retrieve a saved note by keyword | ✅ |
 | `/notes` | List all saved notes | ✅ |
 | `/privnote` | Toggle sending notes in private messages | ❌ |
 | `/privatenotes` | Alias of `/privnote` | ❌ |
-| `/rmnote` | Remove a saved note | ❌ |
+| `/rmnote` | Alias of `/clear` | ❌ |
 | `/save` | Save a note with a keyword | ❌ |
 | `/saved` | Alias of `/notes` | ❌ |
 
