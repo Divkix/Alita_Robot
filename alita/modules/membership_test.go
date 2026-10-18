@@ -81,6 +81,20 @@ func TestProcessSingleJoinApprovedBypass(t *testing.T) {
 	}
 }
 
+func TestProcessSingleJoinSkipsUserAJoinGuardBans(t *testing.T) {
+	for _, captchaEnabled := range []bool{false, true} {
+		deps, challenged, welcomed := testMembershipDeps(nil, nil, nil)
+		deps.Banned = func(_, uid int64) bool { return uid == 13 }
+		o, err := ProcessSingleJoin(1, 999, gotgbot.User{Id: 13}, captchaEnabled, deps)
+		if err != nil || o != JoinIgnore {
+			t.Fatalf("captcha=%v: banned join = %d,%v want ignore,nil", captchaEnabled, o, err)
+		}
+		if len(*challenged) != 0 || len(*welcomed) != 0 {
+			t.Fatalf("captcha=%v: challenged=%v welcomed=%v, want none", captchaEnabled, *challenged, *welcomed)
+		}
+	}
+}
+
 func TestProcessSingleJoinChallengeRouting(t *testing.T) {
 	deps, challenged, _ := testMembershipDeps(nil, nil, nil)
 	o, _ := ProcessSingleJoin(1, 999, gotgbot.User{Id: 5}, true, deps)

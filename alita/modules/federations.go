@@ -1311,6 +1311,31 @@ func (moduleStruct) fedCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 }
 
+// enforceableFedBan returns the ban enforceFedBan applies to userID in a chat
+// of fedID, with the federation that issued it, or nil when there is none.
+func enforceableFedBan(b *gotgbot.Bot, fedID string, userID int64, isAdmin func() bool) (*models.FederationBan, string) {
+	if !chat_status.IsValidUserId(userID) || userID == b.Id {
+		return nil, ""
+	}
+	ban, sourceFed := federations.FindBanInFedTree(fedID, userID)
+	if ban == nil || isAdmin() {
+		return nil, ""
+	}
+	return ban, sourceFed
+}
+
+// fedBansOnJoin reports whether enforceFedBan bans userID on joining chatID.
+func fedBansOnJoin(b *gotgbot.Bot, chatID, userID int64) bool {
+	membership := federations.GetChatFed(chatID)
+	if membership == nil {
+		return false
+	}
+	ban, _ := enforceableFedBan(b, membership.FedID, userID, func() bool {
+		return chat_status.IsUserAdmin(b, chatID, userID)
+	})
+	return ban != nil
+}
+
 func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	chat := ctx.EffectiveChat
 	msg := ctx.EffectiveMessage
@@ -1323,14 +1348,10 @@ func (moduleStruct) enforceFedBan(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	check := func(userID int64, name string) {
-		if !chat_status.IsValidUserId(userID) || userID == b.Id {
-			return
-		}
-		ban, sourceFed := federations.FindBanInFedTree(membership.FedID, userID)
+		ban, sourceFed := enforceableFedBan(b, membership.FedID, userID, func() bool {
+			return chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID)
+		})
 		if ban == nil {
-			return
-		}
-		if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, userID) {
 			return
 		}
 		if _, err := b.BanChatMember(chat.Id, userID, nil); err != nil {

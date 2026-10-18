@@ -35,7 +35,10 @@ func DecideJoin(in JoinInput) JoinOutcome {
 }
 
 type MembershipDeps struct {
-	Claim      func(chatID, userID int64) bool
+	Claim func(chatID, userID int64) bool
+	// Banned reports whether a join guard bans the user on this join; such a
+	// user gets neither a captcha nor a welcome.
+	Banned     func(chatID, userID int64) bool
 	IsApproved func(chatID, userID int64) bool
 	Challenge  func(user gotgbot.User) error
 	Welcome    func(user gotgbot.User) error
@@ -73,6 +76,9 @@ func ProcessSingleJoin(chatID, botID int64, user gotgbot.User, captchaEnabled bo
 		return JoinIgnore, nil
 	}
 	if deps.Claim != nil && !deps.Claim(chatID, user.Id) {
+		return JoinIgnore, nil
+	}
+	if deps.Banned != nil && deps.Banned(chatID, user.Id) {
 		return JoinIgnore, nil
 	}
 	approved := false

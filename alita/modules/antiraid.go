@@ -438,6 +438,14 @@ func banRaidMember(bot *gotgbot.Bot, chat *gotgbot.Chat, userID int64, actionTim
 	}
 }
 
+// bansOnJoin reports whether onJoin bans userID on joining chatID: a raid is
+// active and the user is neither approved nor an admin.
+func (a *antiRaidStruct) bansOnJoin(bot *gotgbot.Bot, chatID, userID int64) bool {
+	return a.isRaidActive(chatID) &&
+		!chat_status.IsApproved(bot, chatID, userID) &&
+		!chat_status.IsUserAdmin(bot, chatID, userID)
+}
+
 func (a *antiRaidStruct) onJoin(bot *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
