@@ -131,7 +131,7 @@ antiflood_help_msg:
   × /setfloodmode `<tipo de acción>`: Elegir qué acción tomar contra un usuario que ha estado
   haciendo flood. Opciones: ban/kick/mute
 
-  × /delflood `<yes/no/on/off>`: Si quieres que el bot elimine mensajes enviados por el usuario."
+  × /delflood `<yes/no/on/off>`: Si quieres que el bot elimine los mensajes de flood del usuario."
 antiflood_setflood_disabled: "De acuerdo.
 
   No advertiré a los usuarios por hacer flood."
