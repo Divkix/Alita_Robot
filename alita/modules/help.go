@@ -555,7 +555,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 				log.Error(err)
 				return err
 			}
-		} else if len(args) == 2 {
+		} else {
 			module := strings.ToLower(args[1])
 			helpText, replyMarkup, _parsemode := getHelpTextAndMarkup(ctx, module, DefaultHelpRegistry())
 			_, err := b.SendMessage(

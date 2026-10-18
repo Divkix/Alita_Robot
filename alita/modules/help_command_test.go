@@ -436,3 +436,40 @@ func TestDonateAndHelpListFollowTheReadersLanguage(t *testing.T) {
 		t.Errorf("help keyboard last row = %#v, want the es helpers_back_button", last)
 	}
 }
+
+// Extra words after the module name in PM still get the module's help.
+func TestPrivateHelpWithExtraWordsAnswers(t *testing.T) {
+	previousRegistry := defaultHelpRegistry
+	defaultHelpRegistry = newHelpRegistry()
+	t.Cleanup(func() {
+		defaultHelpRegistry = previousRegistry
+		cachedBotUsername = ""
+	})
+	registry := DefaultHelpRegistry()
+	registry.AbleMap["Admin"] = true
+	registry.AltHelpOptions["Admin"] = []string{"admin"}
+	registry.helpableKb["Admin"] = [][]gotgbot.InlineKeyboardButton{{{Text: "Admin", CallbackData: "admin-test"}}}
+
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	user := gotgbot.User{Id: uniquePositiveUserID(), FirstName: "Helper"}
+	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Helper"}
+
+	for _, text := range []string{"/help admin", "/help admin extra"} {
+		if err := DefaultHelpRegistry().help(bot, newModuleMessageContext(bot, privateChat, user, text)); err != ext.EndGroups {
+			t.Fatalf("help(%q) error = %v, want EndGroups", text, err)
+		}
+	}
+	sent := client.callsFor("sendMessage")
+	if len(sent) != 2 {
+		t.Fatalf("sendMessage calls = %d, want one reply per /help", len(sent))
+	}
+	for _, call := range sent {
+		if got := call.Params["chat_id"]; got != privateChat.Id {
+			t.Errorf("reply chat_id = %v, want %d", got, privateChat.Id)
+		}
+	}
+	if sent[0].Params["text"] != sent[1].Params["text"] {
+		t.Errorf("/help admin extra text = %q, want the /help admin reply %q", sent[1].Params["text"], sent[0].Params["text"])
+	}
+}
