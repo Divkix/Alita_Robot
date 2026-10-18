@@ -264,11 +264,13 @@ GET /db_metrics
   "idle": 38,
   "in_use": 7,
   "wait_count": 0,
-  "wait_duration": "0s",
+  "wait_duration": 0,
   "max_idle_closed": 0,
   "max_lifetime_closed": 0
 }
 ```
+
+`wait_duration` is the total time spent waiting for a connection, in nanoseconds.
 
 The endpoint is always registered. It queries the underlying `*sql.DB` connection pool
 stats via `db.Stats()`.
@@ -281,18 +283,16 @@ logs pool health metrics.
 ### Configuration
 
 ```bash
-# Enable background database monitoring (logs pool stats every minute)
+# Enable background database monitoring (logs pool stats every minute at debug level; needs DEBUG=true to show)
 # Controls the background goroutine, NOT the /db_metrics endpoint registration
 ENABLE_DB_MONITORING=true
 ```
 
-When enabled, the monitoring goroutine logs pool stats at one-minute intervals:
+When enabled, the monitoring goroutine logs pool stats every minute at **debug** level, so the line appears only when `DEBUG=true`. With `DEBUG=false` the goroutine still runs, but only its start and stop messages are logged; use `/db_metrics` to read the stats in production.
 
 ```
-[DB] Pool stats - Open: 50, Idle: 38, InUse: 12, WaitCount: 0
+[DBMonitoring] Connections: 12 open, 7 in-use, 5 idle | Wait: 0 calls, 0s total | Closed: 0 (max idle), 0 (max lifetime)
 ```
-
-If `InUse` exceeds 80% of `MaxOpen`, a warning is logged to signal potential pool exhaustion.
 
 ## Debug Mode
 
