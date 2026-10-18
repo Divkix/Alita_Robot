@@ -1,8 +1,10 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"html"
+	"net/http"
 	"strings"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -24,13 +26,16 @@ const reportExcerptRunes = 300
 // log channel, or updates the card already posted for it. One card per
 // message: it replies to a copy of the reported message (kept as evidence
 // even if the original is deleted) and shows how many members reported it.
-// It reports whether the stored report's card is in the log channel; when it
-// is not, the group gets the full report instead. Failures are logged.
+// Failures are logged.
+//
+// It reports whether the admins already have the report without the in-group
+// one: its card is in the log channel, or they decided this member's report
+// of the message before. The caller still sends the in-group report while the
+// card has no moderation actions.
 //
 // When the report could not be stored (stored is false), the card is posted
-// on its own: the open reports cannot be counted or linked to it, so the
-// group still gets the full report. A repeat of a stored report (created is
-// false) leaves an existing card alone.
+// on its own: the open reports cannot be counted or linked to it. A repeat of
+// a stored report (created is false) leaves an existing card alone.
 func deliverReport(
 	b *gotgbot.Bot,
 	tr *i18n.Translator,
@@ -58,9 +63,8 @@ func deliverReport(
 		return false
 	}
 	if len(rows) == 0 {
-		// A new report was closed by an admin before its card was posted:
-		// the group gets the full report. A repeat of a report the admins
-		// already decided needs neither a card nor the full report.
+		// A new report was closed by an admin before its card was posted.
+		// A repeat of a report the admins already decided needs no card.
 		return !created
 	}
 	text := reportCardText(chat, reporter, reported.From, len(rows), reason)
@@ -80,14 +84,17 @@ func deliverReport(
 			ParseMode:   formatting.HTML,
 			ReplyMarkup: markup,
 		})
-		if err != nil && isReportCardGone(err) {
-			// An admin deleted the card: post a new one.
-			log.Debugf("[Reports] report card %d in %d is gone: %v", *row.AdminMessageId, channelID, err)
+		if err != nil && !isReportCardKept(err) {
+			// The card was deleted, or the channel no longer takes the bot's
+			// messages: post a new card. If the channel is unusable, that
+			// fails too and the report gets no card.
+			log.Debugf("[Reports] cannot update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
 			break
 		}
 		if err != nil {
-			// The card still exists (flood wait, network): keep it rather
-			// than post a duplicate; the next report updates its count.
+			// The card is still there (flood wait, network, Telegram
+			// outage): keep it rather than post a duplicate; the next
+			// report updates its count.
 			log.Warnf("[Reports] failed to update report card %d in %d: %v", *row.AdminMessageId, channelID, err)
 		}
 		recordReportCard(chat.Id, reported.MessageId, channelID, *row.AdminMessageId)
@@ -102,10 +109,22 @@ func deliverReport(
 	return true
 }
 
-// isReportCardGone reports whether editing the card failed because the card
-// no longer exists. The Bot API returns "message to edit not found" for it.
-func isReportCardGone(err error) bool {
-	return strings.Contains(err.Error(), "message to edit not found")
+// isReportCardKept reports whether the card is still usable after editing it
+// failed with err. Only failures that say nothing about the card keep it:
+// a request that never got an answer from the Bot API (network, timeout), a
+// flood wait (429), a Bot API server error (5xx), or an edit that changed
+// nothing. Any other API error (the card deleted, the bot removed from the
+// channel, the channel gone, missing rights) means the card can no longer be
+// updated.
+func isReportCardKept(err error) bool {
+	var tgErr *gotgbot.TelegramError
+	if !errors.As(err, &tgErr) {
+		return true
+	}
+	if tgErr.Code == http.StatusTooManyRequests || tgErr.Code >= http.StatusInternalServerError {
+		return true
+	}
+	return strings.Contains(tgErr.Description, "message is not modified")
 }
 
 // sendReportCard posts the evidence and the card to the log channel and
@@ -125,6 +144,13 @@ func sendReportCard(
 	card, err := helpers.SendMessageWithErrorHandling(b, channelID, text, opts)
 	if err != nil || card == nil {
 		log.Debugf("[Reports] failed to send report card to %d: %v", channelID, err)
+		if opts.ReplyParameters != nil {
+			// Without its card the evidence is noise, and a retry posts it
+			// again.
+			if err := helpers.DeleteMessageWithErrorHandling(b, channelID, opts.ReplyParameters.MessageId); err != nil {
+				log.Debugf("[Reports] failed to remove report evidence from %d: %v", channelID, err)
+			}
+		}
 		return 0
 	}
 	return card.MessageId

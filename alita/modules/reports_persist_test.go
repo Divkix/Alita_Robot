@@ -83,6 +83,27 @@ func TestAdminMentionPersistsRow(t *testing.T) {
 	}
 }
 
+func TestReportReasonReadFromCaption(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+	target := gotgbot.User{Id: 43, FirstName: "Target"}
+
+	// A photo captioned "/report scam": the command is in the caption and
+	// the message has no text.
+	ctx := newReportReplyContext(bot, chat, reporter, target, "")
+	ctx.EffectiveMessage.Caption = "/report scam"
+	if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("report error = %v, want EndGroups", err)
+	}
+
+	rows := storedReports(t, chat.Id)
+	if len(rows) != 1 || rows[0].Reason != "scam" {
+		t.Fatalf("stored reports = %+v, want one with the caption reason %q", rows, "scam")
+	}
+}
+
 func TestReportReasonIsCapped(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

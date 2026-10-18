@@ -98,6 +98,10 @@ func newReportCardFixture(t *testing.T, withLogChannel bool) reportCardFixture {
 		reporter: gotgbot.User{Id: 42, FirstName: "Reporter"},
 		target:   gotgbot.User{Id: 43, FirstName: "Target"},
 	}
+	seedCallbackAdmins(t, f.chat.Id,
+		gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: 999, IsBot: true, FirstName: "Alita"}},
+		gotgbot.MergedChatMember{Status: "administrator", User: gotgbot.User{Id: reportCardAdminID, FirstName: "Admin"}},
+	)
 	if withLogChannel {
 		if err := logchannels.Set(f.chat.Id, f.chat.Title, reportCardChannelID); err != nil {
 			t.Fatalf("logchannels.Set() error = %v", err)
@@ -155,35 +159,29 @@ func TestReportCardSentToLogChannel(t *testing.T) {
 		t.Fatalf("stored card = (%d, %d), want (%d, 9001)", *rows[0].AdminChatId, *rows[0].AdminMessageId, reportCardChannelID)
 	}
 
-	assertShortGroupReply(t, f)
+	// The card has no actions yet, so the group still gets the report with
+	// its admin mentions and buttons.
+	assertFullGroupReply(t, f)
 }
 
-// assertShortGroupReply checks that every in-group reply is the short notice
-// that the card reached the admins, with no admin mentions or buttons.
-func assertShortGroupReply(t *testing.T, f reportCardFixture) {
-	t.Helper()
-	want, _ := i18n.MustNewTranslator("en").GetString("reports_sent_to_admins")
-	group := callsToChat(f.client, "sendMessage", f.chat.Id)
-	if len(group) == 0 {
-		t.Fatal("group sendMessage calls = 0, want the short in-group reply")
-	}
-	for _, call := range group {
-		if call.Params["reply_markup"] != nil || fmt.Sprint(call.Params["text"]) != want {
-			t.Fatalf("group reply = %v, want only %q without buttons", call.Params, want)
-		}
-	}
-}
-
-// assertFullGroupReply checks that the in-group reply is the report with its
-// action buttons, as without a log channel.
+// assertFullGroupReply checks that the last in-group reply is the report with
+// the hidden admin mentions and all its action buttons, as without a log
+// channel.
 func assertFullGroupReply(t *testing.T, f reportCardFixture) {
 	t.Helper()
 	group := callsToChat(f.client, "sendMessage", f.chat.Id)
-	if len(group) != 1 {
-		t.Fatalf("group sendMessage calls = %d, want the full in-group report", len(group))
+	if len(group) == 0 {
+		t.Fatal("group sendMessage calls = 0, want the full in-group report")
 	}
-	if actions := legacyReportActions(t, group[0].Params["reply_markup"]); len(actions) == 0 {
-		t.Fatalf("group reply = %v, want the in-group action buttons", group[0].Params)
+	last := group[len(group)-1]
+	actions := legacyReportActions(t, last.Params["reply_markup"])
+	for _, action := range []string{"kick", "ban", "delete", "resolved"} {
+		if actions[action] == "" {
+			t.Fatalf("group reply buttons = %v, want %q among the in-group actions", actions, action)
+		}
+	}
+	if mention := fmt.Sprintf("tg://user?id=%d", reportCardAdminID); !strings.Contains(fmt.Sprint(last.Params["text"]), mention) {
+		t.Fatalf("group reply text = %q, want the hidden mention of admin %d", last.Params["text"], reportCardAdminID)
 	}
 }
 
@@ -216,7 +214,7 @@ func TestRepeatReportWithoutCardRetriesCard(t *testing.T) {
 	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
 		t.Fatalf("log channel sendMessage calls = %d, want the card the first report could not post", got)
 	}
-	assertShortGroupReply(t, f)
+	assertFullGroupReply(t, f)
 }
 
 func TestReportCardFallbackWhenCopyFails(t *testing.T) {
@@ -288,10 +286,10 @@ func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 	if got := len(callsToChat(f.client, "editMessageText", reportCardChannelID)); got != 0 {
 		t.Fatalf("card edits = %d, want 0 for a repeated report", got)
 	}
-	assertShortGroupReply(t, f)
+	assertFullGroupReply(t, f)
 }
 
-func TestRepeatReportAfterCloseKeepsShortReply(t *testing.T) {
+func TestRepeatReportAfterCloseSendsNoCard(t *testing.T) {
 	f := newReportCardFixture(t, true)
 	f.report(t, f.reporter, "/report spam")
 	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
@@ -301,12 +299,12 @@ func TestRepeatReportAfterCloseKeepsShortReply(t *testing.T) {
 
 	f.report(t, f.reporter, "/report still spam")
 
-	// The admins already decided this member's report: no new card, and no
-	// full report pinging them in the group.
+	// The admins already decided this member's report: no new card. The
+	// group gets the report as it does without a log channel.
 	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
 		t.Fatalf("log channel sendMessage calls = %d, want no card for a decided report", got)
 	}
-	assertShortGroupReply(t, f)
+	assertFullGroupReply(t, f)
 	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].Status != models.ReportStatusDismissed {
 		t.Fatalf("stored reports = %+v, want the decided report left closed", rows)
 	}
@@ -335,6 +333,9 @@ func TestCardKeptWhenEditFailsTransiently(t *testing.T) {
 		"flood wait": &gotgbot.TelegramError{
 			Method: "editMessageText", Code: 429, Description: "Too Many Requests: retry after 5",
 		},
+		"server error": &gotgbot.TelegramError{
+			Method: "editMessageText", Code: 502, Description: "Bad Gateway",
+		},
 		"network": errors.New("Post \"https://api.telegram.org/bot/editMessageText\": context deadline exceeded"),
 	}
 	for name, editErr := range transient {
@@ -361,6 +362,103 @@ func TestCardKeptWhenEditFailsTransiently(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCardKeptWhenEditFindsItUnchanged(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+	f.client.errors["editMessageText"] = editMessageTextError(
+		"Bad Request: message is not modified: specified new message content and reply markup are exactly the same",
+	)
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 1 {
+		t.Fatalf("log channel sendMessage calls = %d, want no duplicate of a card that is up to date", got)
+	}
+	for _, row := range storedReports(t, f.chat.Id) {
+		if row.AdminMessageId == nil || *row.AdminMessageId != 9001 {
+			t.Fatalf("row %d card = %v, want the existing card 9001", row.ReporterId, row.AdminMessageId)
+		}
+	}
+}
+
+// When the card cannot be edited because the log channel is unusable, the
+// old card is not trusted: a new one is tried, and when that fails too the
+// new report is not linked to a card nobody can update.
+func TestCardNotKeptWhenEditFailsPermanently(t *testing.T) {
+	permanent := map[string]error{
+		"bot removed": &gotgbot.TelegramError{
+			Method: "editMessageText", Code: 403, Description: "Forbidden: bot is not a member of the channel chat",
+		},
+		"bot kicked": &gotgbot.TelegramError{
+			Method: "editMessageText", Code: 403, Description: "Forbidden: bot was kicked from the channel chat",
+		},
+		"chat not found": editMessageTextError("Bad Request: chat not found"),
+		"no rights":      editMessageTextError("Bad Request: not enough rights to edit messages in the chat"),
+	}
+	for name, editErr := range permanent {
+		t.Run(name, func(t *testing.T) {
+			f := newReportCardFixture(t, true)
+			f.report(t, f.reporter, "/report spam")
+			f.client.calls = nil
+			f.client.errors["editMessageText"] = editErr
+			unusable := &gotgbot.TelegramError{
+				Method: "sendMessage", Code: 403, Description: "Forbidden: bot is not a member of the channel chat",
+			}
+			f.client.errorsByChat = map[string]error{
+				"sendMessage|" + fmt.Sprint(reportCardChannelID): unusable,
+				"copyMessage|" + fmt.Sprint(reportCardChannelID): unusable,
+			}
+			second := gotgbot.User{Id: 44, FirstName: "Second"}
+			f.report(t, second, "/report")
+
+			if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got == 0 {
+				t.Fatal("log channel sendMessage calls = 0, want a new card tried instead of trusting the old one")
+			}
+			for _, row := range storedReports(t, f.chat.Id) {
+				if row.ReporterId == second.Id && row.AdminMessageId != nil {
+					t.Fatalf("second report card = %d, want no card when none could be posted", *row.AdminMessageId)
+				}
+			}
+			assertFullGroupReply(t, f)
+		})
+	}
+}
+
+func TestCardReplacedWhenEditFailsPermanently(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+	f.client.errors["editMessageText"] = &gotgbot.TelegramError{
+		Method: "editMessageText", Code: 403, Description: "Forbidden: bot is not a member of the channel chat",
+	}
+	f.client.responses["sendMessage"] = json.RawMessage(
+		`{"message_id":9100,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+	)
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report")
+
+	rows := storedReports(t, f.chat.Id)
+	if len(rows) != 2 {
+		t.Fatalf("stored reports = %d, want 2", len(rows))
+	}
+	for _, row := range rows {
+		if row.AdminMessageId == nil || *row.AdminMessageId != 9100 {
+			t.Fatalf("row %d card = %+v, want the new card 9100 on every open report", row.ReporterId, row)
+		}
+	}
+}
+
+func TestEvidenceRemovedWhenCardNotSent(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.client.errorsByChat = map[string]error{
+		"sendMessage|" + fmt.Sprint(reportCardChannelID): errors.New("context deadline exceeded"),
+	}
+	f.report(t, f.reporter, "/report spam")
+
+	deletes := callsToChat(f.client, "deleteMessage", reportCardChannelID)
+	if len(deletes) != 1 || fmt.Sprint(deletes[0].Params["message_id"]) != "900" {
+		t.Fatalf("log channel deleteMessage calls = %v, want the orphaned copy 900 removed", deletes)
+	}
+	assertFullGroupReply(t, f)
 }
 
 func TestReportCardSentWhenStoreFails(t *testing.T) {

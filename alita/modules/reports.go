@@ -184,7 +184,7 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	reason := reportReason(msg.Text)
+	reason := reportReason(msg.GetText())
 	created, storeErr := reports.Create(&models.Report{
 		ChatId:            chat.Id,
 		ReportedUserId:    reportedUser.Id,
@@ -198,19 +198,10 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-	// Once the card is in the log channel, the group only learns that the
-	// admins were told; otherwise it gets the report with its buttons.
-	if deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created) {
-		text, _ := tr.GetString("reports_sent_to_admins")
-		_, err = msg.Reply(b, text, &gotgbot.SendMessageOpts{
-			ReplyParameters: &gotgbot.ReplyParameters{MessageId: replyMsgId, AllowSendingWithoutReply: true},
-		})
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		return ext.EndGroups
-	}
+	// The log channel card has no moderation actions, so the group gets the
+	// report with its admin mentions and buttons whether or not the card was
+	// posted.
+	deliverReport(b, tr, chat, user, msg.ReplyToMessage, reason, storeErr == nil, created)
 
 	reportTemplate, _ := tr.GetString("reports_message_template")
 	reported := fmt.Sprintf(
