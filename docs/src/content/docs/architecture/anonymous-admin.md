@@ -64,18 +64,18 @@ sequenceDiagram
 ## Technical Details
 
 - **Cache key format:** `alita:anonAdmin:{chatId}:{msgId}` with 20-second TTL
-- **Callback data encoding:** Versioned codec format `anon_admin|v1|c={chatId}&m={msgId}` with legacy fallback `alita:anonAdmin:{chatId}:{msgId}` for backward compatibility
-- **Command re-dispatch:** After verification, the bot sets `ctx.EffectiveMessage` to the original cached message, clears `SenderChat` (prevents re-triggering anonymous admin detection), clears `CallbackQuery`, extracts the command from message text, and dispatches to the appropriate handler via a switch statement
+- **Callback data encoding:** Versioned codec format `anon_admin|v1|c={chatId}&m={msgId}` only; unversioned or malformed payloads are rejected with "Invalid request." (`alita:anonAdmin:{chatId}:{msgId}` is the Redis cache key above, not a callback format)
+- **Command re-dispatch:** After verification, the bot sets `ctx.EffectiveMessage` to the original cached message, clears `SenderChat` (prevents re-triggering anonymous admin detection), clears `CallbackQuery`, extracts the command from message text, and dispatches to the handler registered for that command with `RegisterAnonymousAdminHandler`
 - **Non-admin click handling:** Shows a toast notification ("Need to be admin") without error; does not consume the keyboard
 
 ## Supported Commands
 
-The following commands support anonymous admin verification. Only these commands have explicit anon admin switch cases in the code:
+The following commands support anonymous admin verification. Only these commands are registered with RegisterAnonymousAdminHandler:
 
 | Module | Commands |
 |--------|----------|
 | Admin | `/promote`, `/demote`, `/title` |
-| Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/restrict`, `/unrestrict` |
+| Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/skick`, `/restrict`, `/unrestrict` |
 | Mutes | `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute` |
 | Pins | `/pin`, `/unpin`, `/permapin`, `/unpinall` |
 | Purges | `/purge`, `/del` |
@@ -86,7 +86,7 @@ The following commands support anonymous admin verification. Only these commands
 :::tip[Common issues]
 - **"Button expired"** -- The admin did not click within 20 seconds. The cache entry has been evicted. The admin must re-send the command.
 - **"Need to be admin"** -- A non-admin user clicked the "Prove Admin" button. Only actual chat admins can verify.
-- **Commands not executing in anonymous mode** -- The command may not be in the supported commands list above. Only commands with explicit anon admin switch cases are supported.
+- **Commands not executing in anonymous mode** -- The command may not be in the supported commands list above. Only commands registered with RegisterAnonymousAdminHandler are supported.
 :::
 
 ## Related Pages
