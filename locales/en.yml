@@ -1216,14 +1216,11 @@ warns_reset_all_cancelled: Cancelled the removal of all the warns of all the use
 warns_reset_all_final: Removed all warns of all users in this chat.
 
 # Locks module strings
-locks_locktypes_header: "Locks:
-  - "
+locks_locktypes_header: "Locks:\n - "
 locks_what_to_lock: What do you want to lock? Check /locktypes for available options.
 locks_invalid_lock_type: "`%s` is not a correct lock type, check /locktypes."
-locks_locked_successfully: "Locked the following in this group:
-  - %s"
-locks_unlocked_successfully: "Un-Locked the following in this group:
-  - %s"
+locks_locked_successfully: "Locked the following in this group:\n - %s"
+locks_unlocked_successfully: "Un-Locked the following in this group:\n - %s"
 locks_lock_failed: "Failed to lock: %s. Please try again later."
 locks_unlock_failed: "Failed to unlock: %s. Please try again later."
 locks_what_to_unlock: What do you want to unlock? Check /locktypes for available options.

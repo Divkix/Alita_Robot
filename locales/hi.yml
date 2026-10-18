@@ -1273,11 +1273,11 @@ greetings_extended_docs: |
   4. विफल सत्यापन पर कैप्चा कार्रवाई लागू होती है
 
 # Locks module strings
-locks_locktypes_header: "लॉक:\n  - "
+locks_locktypes_header: "लॉक:\n - "
 locks_what_to_lock: आप क्या लॉक करना चाहते हैं? उपलब्ध विकल्पों के लिए /locktypes देखें।
 locks_invalid_lock_type: "`%s` एक सही लॉक प्रकार नहीं है, /locktypes देखें।"
-locks_locked_successfully: "इस ग्रुप में निम्नलिखित को लॉक किया गया:\n  - %s"
-locks_unlocked_successfully: "इस ग्रुप में निम्नलिखित को अन-लॉक किया गया:\n  - %s"
+locks_locked_successfully: "इस ग्रुप में निम्नलिखित को लॉक किया गया:\n - %s"
+locks_unlocked_successfully: "इस ग्रुप में निम्नलिखित को अन-लॉक किया गया:\n - %s"
 locks_lock_failed: "लॉक करने में विफल: %s। कृपया बाद में पुनः प्रयास करें।"
 locks_unlock_failed: "अनलॉक करने में विफल: %s। कृपया बाद में पुनः प्रयास करें।"
 locks_what_to_unlock: आप क्या अनलॉक करना चाहते हैं? उपलब्ध विकल्पों के लिए /locktypes देखें।

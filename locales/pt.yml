@@ -1139,11 +1139,11 @@ warns_reset_all_cancelled: Cancelada a remoção de todos os avisos de todos os 
 warns_reset_all_final: Removidos todos os avisos de todos os usuários neste chat.
 
 # Locks module strings
-locks_locktypes_header: "Locks:\n  - "
+locks_locktypes_header: "Locks:\n - "
 locks_what_to_lock: O que você quer bloquear? Verifique /locktypes para opções disponíveis.
 locks_invalid_lock_type: "`%s` não é um tipo de bloqueio correto, verifique /locktypes."
-locks_locked_successfully: "Bloqueado o seguinte neste grupo:\n  - %s"
-locks_unlocked_successfully: "Desbloqueado o seguinte neste grupo:\n  - %s"
+locks_locked_successfully: "Bloqueado o seguinte neste grupo:\n - %s"
+locks_unlocked_successfully: "Desbloqueado o seguinte neste grupo:\n - %s"
 locks_lock_failed: "Falha ao bloquear: %s. Por favor tente novamente mais tarde."
 locks_unlock_failed: "Falha ao desbloquear: %s. Por favor tente novamente mais tarde."
 locks_what_to_unlock: O que você quer desbloquear? Verifique /locktypes para opções disponíveis.
