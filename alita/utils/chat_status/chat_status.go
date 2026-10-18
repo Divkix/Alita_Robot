@@ -642,8 +642,11 @@ func ExtractAdminUpdateStatusChange(u *gotgbot.ChatMemberUpdated) bool {
 }
 
 func sendAnonAdminKeyboard(b *gotgbot.Bot, msg *gotgbot.Message, chat *gotgbot.Chat) (*gotgbot.Message, error) {
+	// lang.GetLanguage answers "en" without a chat, so pass the chat the
+	// message was sent in.
 	ctx := &ext.Context{
 		EffectiveMessage: msg,
+		EffectiveChat:    &msg.Chat,
 	}
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
