@@ -2,6 +2,7 @@ package blacklists
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -70,11 +71,19 @@ func RemoveAllBlacklist(chatId int64) error {
 	return nil
 }
 
+// ErrNoBlacklistWords means the chat has no words to store an action on.
+var ErrNoBlacklistWords = errors.New("chat has no blacklisted words")
+
+// SetBlacklistAction writes the action into every word row of the chat. With
+// no rows there is nowhere to keep it, so it returns ErrNoBlacklistWords.
 func SetBlacklistAction(chatId int64, action string) error {
-	err := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action)).Error
-	if err != nil {
-		log.Errorf("[Database] SetBlacklistAction: %v - %d", err, chatId)
-		return err
+	result := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action))
+	if result.Error != nil {
+		log.Errorf("[Database] SetBlacklistAction: %v - %d", result.Error, chatId)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNoBlacklistWords
 	}
 
 	cache.DeleteCache(cache.CacheKey("blacklist", chatId))

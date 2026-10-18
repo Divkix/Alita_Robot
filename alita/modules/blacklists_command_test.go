@@ -82,6 +82,24 @@ func TestBlacklistWordAddedAfterBlactionUsesIt(t *testing.T) {
 	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, member.Id))
 }
 
+func TestBlactionWithoutWordsAsksForAWordFirst(t *testing.T) {
+	useEnglishLocale(t)
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/blaction ban")
+	if err := blacklistsModule.setBlacklistAction(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("setBlacklistAction error = %v, want EndGroups", err)
+	}
+	reply := lastReply(t, client)
+	if changed := fmt.Sprintf(translated(t, "blacklists_set_bl_action_changed_mode"), "ban"); reply == changed {
+		t.Fatalf("/blaction ban with no words replied %q, but nothing was stored", reply)
+	}
+	if want := translated(t, "blacklists_set_bl_action_no_words"); reply != want {
+		t.Fatalf("/blaction ban with no words replied %q, want %q", reply, want)
+	}
+}
+
 func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
 	f := newAdminChatFixture(t)
 	bot, chat, admin := f.bot, f.chat, f.admin

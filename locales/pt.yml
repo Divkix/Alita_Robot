@@ -2208,6 +2208,7 @@ users_extended_docs: |
 # Issue #628 remediation keys
 misc_translate_parse_error: "Falha ao analisar resposta de tradução. Tente novamente."
 blacklists_set_bl_action_update_failed: "Falha ao atualizar ação de lista negra. Tente novamente."
+blacklists_set_bl_action_no_words: "Ainda não há palavras na lista negra deste chat. Adicione uma com /addblacklist e depois defina a ação."
 filters_overwrite_token_failed: "Falha ao criar confirmação de sobrescrita. Tente novamente."
 notes_overwrite_token_failed: "Falha ao criar confirmação de sobrescrita. Tente novamente."
 common_settings_save_failed: "Falha ao salvar configurações. Tente novamente mais tarde."
