@@ -574,6 +574,10 @@ func TestSpamDBReadsCacheEntryWithoutDatabaseFieldsAsCAS(t *testing.T) {
 		t.Fatalf("seed stale cache entry: %v", err)
 	}
 	dbcache.ResetLocalForTest()
+	if got, err := spamdbsettings.GetSpamDBSettingsContext(t.Context(), chat.Id); err != nil || got.CheckCAS || got.CheckLols {
+		t.Fatalf("stale entry not served from cache: %+v, %v", got, err)
+	}
+	dbcache.ResetLocalForTest()
 
 	spamDBJoin(t, dispatcher, bot, chat, gotgbot.User{Id: 5550030, FirstName: "Spammer"})
 
