@@ -39,8 +39,8 @@ func (CaptchaAttempts) TableName() string {
 
 type StoredMessages struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"-"`
-	UserID      int64     `gorm:"column:user_id;not null;index:idx_stored_user_chat" json:"user_id,omitempty"`
-	ChatID      int64     `gorm:"column:chat_id;not null;index:idx_stored_user_chat" json:"chat_id,omitempty"`
+	UserID      int64     `gorm:"column:user_id;not null" json:"user_id,omitempty"`
+	ChatID      int64     `gorm:"column:chat_id;not null" json:"chat_id,omitempty"`
 	MessageType int       `gorm:"column:message_type;not null;default:1" json:"message_type,omitempty"`
 	Content     string    `gorm:"column:content;type:text" json:"content,omitempty"`
 	FileID      string    `gorm:"column:file_id" json:"file_id,omitempty"`
