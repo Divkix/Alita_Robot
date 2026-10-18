@@ -52,7 +52,7 @@ Stores admin settings per chat.
 
 #### Indexes
 
-- `idx_admin_settings_chat`
+- `idx_admin_chat_id` (unique, on `chat_id`)
 
 #### Foreign Keys
 
@@ -132,7 +132,7 @@ Stores blacklisted words and their actions per chat.
 
 #### Indexes
 
-- `idx_blacklists_chat_id` (on `chat_id`)
+- `uk_blacklists_chat_word` (unique constraint: `chat_id`, `word`)
 
 #### Foreign Keys
 
@@ -161,9 +161,8 @@ Tracks active captcha verification attempts for users.
 
 #### Indexes
 
-- `idx_captcha_user_chat` (composite: `user_id`, `chat_id`)
+- `uk_captcha_user_chat` (unique index: `user_id`, `chat_id`; one attempt per user per chat)
 - `idx_captcha_attempts_chat_id`
-- `idx_captcha_expires_at` (dropped by migration `20250808120328`; may not exist)
 
 #### Foreign Keys
 
@@ -188,7 +187,8 @@ Tracks users who failed captcha with mute action, for automatic un-mute scheduli
 
 #### Indexes
 
-- `idx_captcha_muted_user_chat` (composite: `user_id`, `chat_id`)
+- `uk_captcha_muted_user_chat` (unique constraint: `user_id`, `chat_id`)
+- `idx_captcha_muted_users_chat_id` (on `chat_id`)
 - `idx_captcha_unmute_at`
 
 #### Foreign Keys
@@ -268,7 +268,8 @@ Main table storing chat/group information.
 
 #### Indexes
 
-- `idx_chats_last_activity`
+- `uk_chats_chat_id` (unique constraint on `chat_id`)
+- `idx_chats_covering` (on `chat_id` INCLUDE `language`, `is_inactive`)
 - `idx_chats_activity_status`
 
 ---
@@ -636,7 +637,6 @@ Stores messages sent by users before completing captcha verification.
 
 #### Indexes
 
-- `idx_stored_user_chat` (composite: `user_id`, `chat_id`)
 - `idx_stored_attempt`
 
 #### Foreign Keys
@@ -664,7 +664,8 @@ Main table storing user information.
 
 #### Indexes
 
-- `idx_users_covering`
+- `uk_users_user_id` (unique constraint on `user_id`)
+- `idx_users_user_name` (on `username`)
 - `idx_users_last_activity`
 
 ---
@@ -715,7 +716,7 @@ Anti-raid configuration per chat.
 
 #### Indexes
 
-- `idx_antiraid_settings_chat_id` (on `chat_id`)
+- `antiraid_settings_chat_id_key` (unique constraint on `chat_id`)
 
 #### Foreign Keys
 
