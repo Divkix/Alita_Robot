@@ -125,6 +125,34 @@ func TestSetBlacklistAction(t *testing.T) {
 	}
 }
 
+func TestAddBlacklistKeepsChatAction(t *testing.T) {
+	skipIfNoDb(t)
+
+	chatID := -time.Now().UnixNano()
+
+	t.Cleanup(func() {
+		_ = RemoveAllBlacklist(chatID)
+	})
+
+	if err := AddBlacklist(chatID, "word1"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
+	if err := SetBlacklistAction(chatID, "ban"); err != nil {
+		t.Fatalf("SetBlacklistAction() error = %v", err)
+	}
+	if err := AddBlacklist(chatID, "word2"); err != nil {
+		t.Fatalf("AddBlacklist() error = %v", err)
+	}
+
+	settings := GetBlacklistSettings(chatID)
+	if got := settings.Find("word2"); got == nil || got.Action != "ban" {
+		t.Fatalf("word2 added after /blaction ban = %+v, want Action='ban'", got)
+	}
+	if got := settings.Action(); got != "ban" {
+		t.Fatalf("chat blacklist action = %q, want ban", got)
+	}
+}
+
 func TestGetAllBlacklists(t *testing.T) {
 	skipIfNoDb(t)
 

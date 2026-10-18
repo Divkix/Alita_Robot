@@ -11,11 +11,28 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
+// AddBlacklist stores a new word with the chat's current action. /blaction
+// writes the action into every word row, so a new word copies it from the
+// oldest existing row; a chat without words starts at "warn".
 func AddBlacklist(chatId int64, trigger string) error {
+	var actions []string
+	if err := db.DB.Model(&models.BlacklistSettings{}).
+		Where("chat_id = ?", chatId).
+		Order("id").
+		Limit(1).
+		Pluck("action", &actions).Error; err != nil {
+		log.Errorf("[Database] AddBlacklist: read chat action: %v - %d", err, chatId)
+		return err
+	}
+	action := "warn"
+	if len(actions) > 0 && actions[0] != "" {
+		action = actions[0]
+	}
+
 	blacklist := &models.BlacklistSettings{
 		ChatId: chatId,
 		Word:   strings.ToLower(trigger),
-		Action: "warn",
+		Action: action,
 		Reason: "Blacklisted word: '%s'",
 	}
 
