@@ -339,8 +339,8 @@ func generatePermissionsSection(module Module) string {
 
 	// Determine permission level based on module name
 	adminModules := map[string]bool{
-		"admin": true, "bans": true, "locks": true, "muting": true,
-		"purges": true, "warnings": true, "antiflood": true,
+		"admin": true, "bans": true, "locks": true, "mutes": true,
+		"purges": true, "warns": true, "antiflood": true,
 	}
 
 	if module.Name == "federations" {
@@ -379,20 +379,20 @@ func getModuleEmoji(moduleName string) string {
 		"admin":       "👑",
 		"bans":        "🔨",
 		"locks":       "🔒",
-		"muting":      "🔇",
+		"mutes":       "🔇",
 		"purges":      "🧹",
-		"warnings":    "⚠️",
+		"warns":       "⚠️",
 		"filters":     "🔍",
 		"notes":       "📝",
 		"rules":       "📋",
 		"greetings":   "👋",
-		"reporting":   "📢",
-		"language":    "🌐",
+		"reports":     "📢",
+		"languages":   "🌐",
 		"antiflood":   "🌊",
-		"blacklist":   "🚫",
-		"approval":    "✅",
+		"blacklists":  "🚫",
+		"approvals":   "✅",
 		"captcha":     "🔐",
-		"connection":  "🔗",
+		"connections": "🔗",
 		"disabling":   "❌",
 		"extras":      "⭐",
 		"misc":        "🔧",
