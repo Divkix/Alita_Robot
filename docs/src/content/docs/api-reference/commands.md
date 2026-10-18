@@ -145,6 +145,7 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/rmwarn` | Remove a warning from a user | Admin | ❌ | — |
 | `/setwarnlimit` | Set the warn limit before action | Admin | ❌ | — |
 | `/setwarnmode` | Set the warn action mode | Admin | ❌ | — |
+| `/setwarntime` | Set how long a warn counts | Admin | ❌ | — |
 | `/swarn` | Silently warn a user | Admin | ❌ | — |
 | `/unwarn` | Remove a warning from a user | Admin | ❌ | — |
 | `/warn` | Warn a user | Admin | ❌ | — |
@@ -462,6 +463,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setrules` | Rules | Set the group rules | Admin |
 | `/setwarnlimit` | Warns | Set the warn limit before action | Admin |
+| `/setwarntime` | Warns | Set how long a warn counts | Admin |
 | `/setwarnmode` | Warns | Set the warn action mode | Admin |
 | `/settings` | Connections | Pick a group in PM and show all its settings | Admin |
 | `/setwelcome` | Greetings | Set the welcome message | Admin |

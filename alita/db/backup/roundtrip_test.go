@@ -122,7 +122,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 		ChatId: srcChat, Rules: "be kind", RulesBtn: "Read", Private: true,
 	}).Error)
 	require.NoError(t, db.DB.Create(&models.WarnSettings{
-		ChatId: srcChat, WarnLimit: 7, WarnMode: "tmute", WarnActionTime: 7200,
+		ChatId: srcChat, WarnLimit: 7, WarnMode: "tmute", WarnActionTime: 7200, WarnExpiry: 2592000,
 	}).Error)
 	require.NoError(t, db.DB.Create(&models.Warns{
 		UserId: warnUserID, ChatId: srcChat, NumWarns: 2, Reasons: models.StringArray{"one", "two"},
@@ -301,6 +301,7 @@ func TestAllModulesRoundTripEveryMeaningfulField(t *testing.T) {
 	assert.Equal(t, 7, warnsData.WarnSettings.WarnLimit)
 	assert.Equal(t, "tmute", warnsData.WarnSettings.WarnMode)
 	assert.Equal(t, 7200, warnsData.WarnSettings.WarnActionTime)
+	assert.Equal(t, 2592000, warnsData.WarnSettings.WarnExpiry)
 	require.Len(t, warnsData.Warns, 1)
 	assert.Equal(t, warnUserID, warnsData.Warns[0].UserId)
 	assert.Equal(t, 2, warnsData.Warns[0].NumWarns)

@@ -858,6 +858,10 @@ func importWarns(tx *gorm.DB, chatID int64, payload interface{}, preserveLegacyO
 		if !models.ValidWarnActionTime(data.WarnSettings.WarnActionTime) {
 			data.WarnSettings.WarnActionTime = 0
 		}
+		// Likewise an unusable expiry turns expiry off.
+		if !models.ValidWarnExpiry(data.WarnSettings.WarnExpiry) {
+			data.WarnSettings.WarnExpiry = 0
+		}
 		// Exports omit an empty mode; Postgres rejects '', so use the default.
 		if data.WarnSettings.WarnMode == "" {
 			data.WarnSettings.WarnMode = "mute"

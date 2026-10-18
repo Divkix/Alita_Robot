@@ -192,7 +192,7 @@ func antiraidSettingsSection(chatID int64) settingsSection {
 }
 
 func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
-	limit, mode := settingsDefaultWarnLimit, settingsDefaultWarnMode
+	limit, mode, expiry := settingsDefaultWarnLimit, settingsDefaultWarnMode, "off"
 	if w, ok := readChatSetting[models.WarnSettings](ctx, chatID); ok {
 		if w.WarnLimit > 0 {
 			limit = w.WarnLimit
@@ -202,10 +202,14 @@ func warnsSettingsSection(ctx context.Context, chatID int64) settingsSection {
 		if mode == "" {
 			mode = "none"
 		}
+		if w.WarnExpiry > 0 {
+			expiry = formatDuration(w.WarnExpiry)
+		}
 	}
 	return settingsSection{Title: "Warns", Rows: []settingsRow{
 		intRow("/setwarnlimit", limit, settingsDefaultWarnLimit),
 		stringRow("/setwarnmode", mode, settingsDefaultWarnMode),
+		stringRow("/setwarntime", expiry, "off"),
 	}}
 }
 

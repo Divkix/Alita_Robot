@@ -302,6 +302,8 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time] : Définir le mode d'avertissement du chat.
 
+  - /setwarntime <time/off> : Définir combien de temps un avertissement compte, ex. 30d ; off les garde pour toujours. Les avertissements donnés avant que le bot n'enregistre leur heure n'expirent jamais ; /resetwarn les supprime.
+
   - /setwarnlimit <nombre> : Définir le nombre d'avertissements avant sanction.
 
 
@@ -346,7 +348,7 @@ warns_remove_button: ❌ Supprimer l'avertissement
 warns_rules_button: Règles 📝
 warns_user_warning: "L'utilisateur %s a %d/%d avertissements ; attention !"
 warns_warning_reason: "\n<b>Raison</b> :\n%s"
-warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>"
+warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>\n<b>Expiration des avertissements :</b> <code>%s</code>"
 warns_user_warnings_list: "Cet utilisateur a %d/%d avertissements, pour les raisons suivantes :"
 warns_user_warnings_no_reasons: "L'utilisateur a %d/%d avertissements, mais aucune raison pour aucun d'entre eux."
 # Reason (issuer, time) of one warn in a warns list.
@@ -354,6 +356,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "admin anonyme"
 warns_issuer_auto: "automatique"
 warns_issuer_unknown: "inconnu"
+warns_expiry_set: "Les avertissements expirent désormais après <code>%s</code>."
+warns_expiry_off: "Les avertissements n'expirent plus."
+warns_expiry_current: "Les avertissements expirent après <code>%s</code>."
+warns_expiry_current_off: "Les avertissements n'expirent jamais. Définissez une durée avec <code>/setwarntime 30d</code>."
+warns_expiry_never: "jamais"
 warns_user_no_warnings: Cet utilisateur n'a aucun avertissement !
 warns_removed_by: "Avertissement supprimé par %s."
 warns_no_warns_to_remove: L'utilisateur n'a déjà aucun avertissement !
@@ -371,6 +378,7 @@ warns_extended_docs: |
   <b>Paramètres par défaut :</b>
   • <b>Limite d'avertissements par défaut :</b> 3 avertissements
   • <b>Mode d'avertissement par défaut :</b> mute
+  • <b>Expiration par défaut :</b> désactivée (les avertissements n'expirent jamais)
 
   <b>Modes d'avertissement disponibles :</b>
   • <code>ban</code> - Bannir définitivement l'utilisateur du chat
@@ -389,7 +397,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code> : Bot admin + Utilisateur admin
   • <code>/resetwarn</code>, <code>/resetwarns</code> : Bot admin + Utilisateur admin
   • <code>/resetallwarns</code> : Propriétaire du chat uniquement
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code> : Bot admin + Utilisateur admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code> : Bot admin + Utilisateur admin
   • <code>/warnings</code> : Bot admin + Utilisateur admin
   • <code>/warns</code> : Tout utilisateur (désactivable)
 
@@ -2750,6 +2758,7 @@ warns_extend_msg: |
   /resetallwarns — réinitialiser tous les avertissements du chat
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
+  /setwarntime — durée de validité d'un avertissement
   /setwarnmode — sanction : ban, kick ou mute
 settings_summary_legend: "<i>• indique une valeur différente de celle par défaut. Envoyez la commande indiquée pour la modifier.</i>"
 settings_picker_text: "Choisissez un groupe pour voir ses paramètres. Il n’apparaît pas ? Envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."

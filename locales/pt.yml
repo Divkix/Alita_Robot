@@ -849,6 +849,8 @@ warns_help_msg:
 
   - /setwarnmode <ban/kick/mute/tban/tmute> [time]: Define o modo de aviso do chat.
 
+  - /setwarntime <time/off>: Define por quanto tempo um aviso conta, ex. 30d; off os mantém para sempre. Avisos dados antes de o bot registrar o horário nunca expiram; /resetwarn os remove.
+
   - /setwarnlimit <número>: Define o número de avisos antes de usuários serem punidos.
 
 
@@ -1060,7 +1062,7 @@ warns_remove_button: ❌ Remover aviso
 warns_rules_button: Regras 📝
 warns_user_warning: "Usuário %s tem %d/%d avisos; cuidado!"
 warns_warning_reason: "\n<b>Motivo</b>:\n%s"
-warns_settings_display: "O grupo tem as seguintes configurações:\n<b>Limite de Avisos:</b> <code>%d</code>\n<b>Modo de Aviso:</b> <code>%s</code>"
+warns_settings_display: "O grupo tem as seguintes configurações:\n<b>Limite de Avisos:</b> <code>%d</code>\n<b>Modo de Aviso:</b> <code>%s</code>\n<b>Validade dos Avisos:</b> <code>%s</code>"
 warns_user_warnings_list: "Este usuário tem %d/%d avisos, pelos seguintes motivos:"
 warns_user_warnings_no_reasons: "Usuário tem %d/%d avisos, mas sem motivos para nenhum deles."
 # Reason (issuer, time) of one warn in a warns list.
@@ -1068,6 +1070,11 @@ warns_entry_meta: "%s (%s, %s)"
 warns_issuer_anonymous: "admin anônimo"
 warns_issuer_auto: "automático"
 warns_issuer_unknown: "desconhecido"
+warns_expiry_set: "Os avisos agora expiram após <code>%s</code>."
+warns_expiry_off: "Os avisos não expiram mais."
+warns_expiry_current: "Os avisos expiram após <code>%s</code>."
+warns_expiry_current_off: "Os avisos nunca expiram. Defina uma validade com <code>/setwarntime 30d</code>."
+warns_expiry_never: "nunca"
 warns_user_no_warnings: Este usuário não tem nenhum aviso!
 warns_removed_by: "Aviso removido por %s."
 warns_no_warns_to_remove: Usuário já não tem avisos!
@@ -1977,6 +1984,7 @@ warns_extended_docs: |
   <b>Configurações Padrão:</b>
   • <b>Limite de aviso padrão:</b> 3 avisos
   • <b>Modo de aviso padrão:</b> mute
+  • <b>Validade padrão dos avisos:</b> desativada (os avisos nunca expiram)
 
   <b>Modos de Aviso Disponíveis:</b>
   • <code>ban</code> - Banir permanentemente o usuário do chat
@@ -1995,7 +2003,7 @@ warns_permissions_docs: |
   • <code>/rmwarn</code>, <code>/unwarn</code>: Bot admin + Usuário admin
   • <code>/resetwarn</code>, <code>/resetwarns</code>: Bot admin + Usuário admin
   • <code>/resetallwarns</code>: Dono do chat apenas
-  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>: Bot admin + Usuário admin
+  • <code>/setwarnmode</code>, <code>/setwarnlimit</code>, <code>/setwarntime</code>: Bot admin + Usuário admin
   • <code>/warnings</code>: Bot admin + Usuário admin
   • <code>/warns</code>: Qualquer usuário (desativável)
 
@@ -2796,6 +2804,7 @@ warns_extend_msg: |
   /resetallwarns — zerar todas as advertências do chat
   /warnings — ver as configurações de advertência
   /setwarnlimit — advertências antes da punição
+  /setwarntime — por quanto tempo um aviso conta
   /setwarnmode — punição: ban, kick ou mute
 settings_summary_legend: "<i>• marca um valor diferente do padrão. Envie o comando mostrado para alterá-lo.</i>"
 settings_picker_text: "Escolha um grupo para ver as configurações. Não está na lista? Envie /connect &lt;chat id&gt; aqui ou /settings no grupo."
