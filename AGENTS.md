@@ -55,6 +55,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
 - Given a nil chat, `chat_status` helpers check `ctx.EffectiveChat` once a handler has swapped it to a connected
   group; `PermissionResponder` still answers in the chat the update came from.
+- After such a swap `lang.GetLanguage(ctx)` returns the language of the chat the message came from (the user's, in
+  PM), since replies go there. Read the group's language with `lang.GetLanguage(&ext.Context{EffectiveChat: group})`.
 - `IsUserAdmin` returns false for channel and non-positive IDs. Never pass a chat ID as a user ID.
 - `*ForUpdate` predicates are memoised per update. Watchers only, never after a state change in the same update.
 
@@ -113,6 +115,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Warn expiry (`warns_settings.warn_expiry`): the live count is `num_warns` minus the expired entries; an entry with a
   NULL `warned_at` never expires. Reads filter expired entries after the cache and never prune them; only `WarnUser`
   and `RemoveWarn` delete expired entries, under their row locks.
+- A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`, so
+  that help keeps one entry per command (`× /cmd …`, continuation lines up to a blank line or the next entry) in all
+  7 locales; `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Sample calls are `<cmd>_example` in
+  `locales/config.yml`.
 
 ## Go rules
 

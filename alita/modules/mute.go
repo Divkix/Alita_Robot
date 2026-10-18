@@ -70,10 +70,8 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 		return target{}, fmt.Errorf("anonymous user")
 	}
 	if uid == 0 {
-		noUserKey := "common_no_user_specified"
-		text, _ := c.Tr.GetString(noUserKey)
-		_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-		if err != nil {
+		text, _ := c.Tr.GetString("common_no_user_specified")
+		if err := c.replyCommandHelp(text); err != nil {
 			log.Error(err)
 			return target{}, err
 		}
@@ -84,6 +82,7 @@ func extractUserOnly(c *moderationCtx) (target, error) {
 
 func moderationTmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "tmute",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -125,6 +124,7 @@ func moderationTmute(m *moduleStruct) *moderationCommand {
 
 func moderationMute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "mute",
 		module:   m,
 		gates:    []gateFn{standardModGates},
 		extract:  extractFromArgs,
@@ -140,6 +140,7 @@ func moderationMute(m *moduleStruct) *moderationCommand {
 
 func moderationSmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command:  "smute",
 		module:   m,
 		gates:    []gateFn{deleteModGates},
 		extract:  extractUserOnly,
@@ -158,6 +159,7 @@ func moderationSmute(m *moduleStruct) *moderationCommand {
 
 func moderationDmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command: "dmute",
 		module:  m,
 		gates:   []gateFn{deleteModGates},
 		extract: extractFromArgs,
@@ -167,8 +169,7 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 				if text == "" {
 					text, _ = c.Tr.GetString("common_no_reply_to_message")
 				}
-				_, err := c.Msg.Reply(c.Bot, text, formatting.Shtml())
-				if err != nil {
+				if err := c.replyCommandHelp(text); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -192,6 +193,7 @@ func moderationDmute(m *moduleStruct) *moderationCommand {
 
 func moderationUnmute(m *moduleStruct) *moderationCommand {
 	return &moderationCommand{
+		command: "unmute",
 		module:  m,
 		gates:   []gateFn{standardModGates},
 		extract: extractUserOnly,

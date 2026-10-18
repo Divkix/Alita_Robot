@@ -263,13 +263,20 @@ func SendNote(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat, note *db.Not
 	keyb := keyboard.BuildKeyboard(buttons)
 	keyboardMarkup := gotgbot.InlineKeyboardMarkup{InlineKeyboard: keyb}
 
+	// Reply in the chat the message was sent in: a PM command acting on a
+	// connected group points ctx.EffectiveChat at that group.
+	chatID := ctx.EffectiveChat.Id
+	if msg := ctx.EffectiveMessage; msg != nil {
+		chatID = msg.Chat.Id
+	}
+
 	return Send(b, Content{
 		Text:    noteCopy.NoteContent,
 		FileID:  noteCopy.FileID,
 		MsgType: noteCopy.MsgType,
 		Name:    noteCopy.NoteName,
 	}, Options{
-		ChatID:            ctx.EffectiveChat.Id,
+		ChatID:            chatID,
 		ReplyMsgID:        replyMsgID,
 		ThreadID:          threadID,
 		Keyboard:          &keyboardMarkup,

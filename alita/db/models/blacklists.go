@@ -1,9 +1,18 @@
 package models
 
 import (
+	"slices"
 	"strings"
 	"time"
 )
+
+// blacklistActions are the actions chk_blacklist_action allows.
+var blacklistActions = []string{"warn", "mute", "ban", "kick", "tban", "tmute", "delete", "none"}
+
+// ValidBlacklistAction reports whether action passes chk_blacklist_action.
+func ValidBlacklistAction(action string) bool {
+	return slices.Contains(blacklistActions, action)
+}
 
 type BlacklistSettings struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"-"`

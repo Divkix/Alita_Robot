@@ -206,7 +206,11 @@ bans_help_msg:
   × /sban <userhandle>: bans a user silently, does not send message to group and also
   deletes your command. (via handle, or reply)
 
+  × /kick <userhandle>: kicks a user. (via handle, or reply)
+
   × /skick <userhandle>: kicks a user silently and deletes your command.
+
+  × /dkick: kicks a user and deletes the replied message. (reply only)
 
   × /dban <userhandle>: bans a user and delete the replied message. (via handle, or
   reply)
@@ -1096,6 +1100,7 @@ error_generic: "An error occurred. Please try again later."
 common_anonymous_user_error: This command cannot be used on anonymous user.
 common_anonymous_ban_error: This command cannot be used on anonymous user, these user can only be banned/unbanned.
 common_cannot_identify_user: Cannot identify user. This command cannot be used by channels.
+command_help_example: "Example: {example}"
 common_no_user_specified: I don't know who you're talking about, you're going to need to specify a user...!
 common_user_not_in_chat: This user is not in this chat, how can I restrict them?
 common_cannot_target_admin: "I cannot perform this action on group administrators."
@@ -1755,7 +1760,7 @@ reports_button_ban: "⛔️ Ban"
 reports_button_delete: "❎ Delete Message"
 reports_button_resolved: "✔️ Mark Resolved"
 reports_blocked_users_header: "Users blocked from using report commands:"
-reports_invalid_input: "Your input was not recognised as one of: <code><yes/on/no/off> or <block/unblock/showblocklist></code>"
+reports_invalid_input: "Your input was not recognised as one of: <code>&lt;yes/on/no/off&gt; or &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Your current preference is true. You'll be notified whenever anyone reports something in groups you are admin."
 reports_preference_disabled_private: "You haven't enabled reports. You won't be notified."
 reports_status_enabled_group: "Reports are currently enabled in this chat.\nUsers can use the /report command, or mention @admin, to tag all admins."
@@ -1794,7 +1799,7 @@ message_type_video_note: "video note"
 message_type_unknown: "unknown"
 
 # Connections module strings
-connections_invalid_option: "Please give me a valid option from <yes/on/no/off>"
+connections_invalid_option: "Please give me a valid option from &lt;yes/on/no/off&gt;"
 connections_button_connect: "Connect to chat"
 
 # Bot updates module strings
@@ -2355,11 +2360,11 @@ reactions_help_msg: |
   <b>Example:</b>
   • /addreaction hello 👋 - Bot reacts with 👋 when someone says "hello"
 
-reactions_add_usage: "Usage: /addreaction <keyword> <emoji>"
+reactions_add_usage: "Usage: /addreaction &lt;keyword&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Please provide a valid emoji."
 reactions_add_error: "Failed to save reaction. Please try again."
 reactions_add_success: "Reaction added: <code>{keyword}</code> -> {emoji}"
-reactions_remove_usage: "Usage: /removereaction <keyword>"
+reactions_remove_usage: "Usage: /removereaction &lt;keyword&gt;"
 reactions_not_found: "No reactions are configured for this chat."
 reactions_keyword_not_found: "No reaction found for keyword: <code>{keyword}</code>"
 reactions_remove_error: "Failed to remove reaction. Please try again."
@@ -2511,10 +2516,10 @@ antiraid_already_active: "AntiRaid is already active."
 antiraid_not_active: "AntiRaid is not active."
 antiraid_invalid_duration: "Invalid duration. Use format like: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "Duration must be positive."
-antiraid_raidtime_usage: "Usage: /raidtime <duration> (e.g., 6h)"
+antiraid_raidtime_usage: "Usage: /raidtime &lt;duration&gt; (e.g., 6h)"
 antiraid_raidtime_no_change: "Raid time is already {duration}."
 antiraid_raidtime_set: "Raid time set to {duration}."
-antiraid_raidactiontime_usage: "Usage: /raidactiontime <duration> (e.g., 1h)"
+antiraid_raidactiontime_usage: "Usage: /raidactiontime &lt;duration&gt; (e.g., 1h)"
 antiraid_raidactiontime_no_change: "Raid action time is already {duration}."
 antiraid_raidactiontime_set: "Raid action time set to {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid is disabled."
@@ -2653,7 +2658,7 @@ logs_categories: "Categories: settings, admin, user, automated, reports, other."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2673,11 +2678,11 @@ misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
 misc_zombies_none: "No deleted accounts found among known members."
 misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
 misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
 misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud <term>"
+misc_ud_usage: "Usage: /ud &lt;term&gt;"
 misc_ud_not_found: "No Urban Dictionary result for that."
 misc_runs:
   - "Runs away."

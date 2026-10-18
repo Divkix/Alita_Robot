@@ -146,7 +146,7 @@ bans_ban_normal_ban: "Satu lagi yang tersingkir...!
 
   Diblokir %s."
 bans_ban_tban: Diblokir %s untuk %s
-bans_help_msg: |
+bans_help_msg:
   "Terkadang pengguna bisa mengganggu dan Anda mungkin ingin menghapus mereka
   dari obrolan Anda, modul ini tepat membantu Anda untuk menangani itu!.
 
@@ -157,6 +157,8 @@ bans_help_msg: |
 
   × /kickme: menendang pengguna yang mengirim perintah.
 
+  × /banme: melarang pengguna yang mengirim perintah.
+
 
   *Perintah Blokir* (Admin saja):
 
@@ -165,6 +167,12 @@ bans_help_msg: |
   × /sban <userhandle>: melarang pengguna secara diam-diam, tidak mengirim pesan ke grup dan juga
   menghapus perintah Anda. (melalui handle, atau balasan)
 
+  × /kick <userhandle>: menendang pengguna. (melalui handle, atau balasan)
+
+  × /skick <userhandle>: menendang pengguna secara diam-diam dan menghapus perintah Anda.
+
+  × /dkick: menendang pengguna dan menghapus pesan yang dibalas. (hanya balasan)
+
   × /dban <userhandle>: melarang pengguna dan menghapus pesan yang dibalas. (melalui handle, atau
   balasan)
 
@@ -172,6 +180,8 @@ bans_help_msg: |
   m = menit, h = jam, d = hari.
 
   × /unban <userhandle>: membuka blokir pengguna. (melalui handle, atau balasan)
+
+  × /unbanall: konfirmasi khusus pemilik untuk membuka blokir pengguna yang dikenal.
 
 
   *Perintah Pembatasan:* (Admin saja)
@@ -732,7 +742,7 @@ misc_help_msg:
   × /ud <istilah>: Cari di Urban Dictionary.
 
   × /runs: Sindiran acak."
-mutes_help_msg: |
+mutes_help_msg:
   "Terkadang pengguna bisa mengganggu dan Anda mungkin ingin membatasi mereka
   dari mengirim pesan ke obrolan, modul ini ada di sini untuk membantu, Anda dapat menggunakan modul ini
   untuk membisukan anggota di grup Anda.
@@ -1042,6 +1052,7 @@ error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."
 common_anonymous_user_error: Perintah ini tidak dapat digunakan pada pengguna anonim.
 common_anonymous_ban_error: Perintah ini tidak dapat digunakan pada pengguna anonim, pengguna ini hanya dapat diblokir/dibuka blokirnya.
 common_cannot_identify_user: Tidak dapat mengidentifikasi pengguna. Perintah ini tidak dapat digunakan oleh kanal.
+command_help_example: "Contoh: {example}"
 common_no_user_specified: Saya tidak tahu siapa yang Anda maksud, Anda perlu menentukan pengguna...!
 common_user_not_in_chat: Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa membatasi mereka?
 common_cannot_target_admin: "Saya tidak dapat melakukan tindakan ini pada admin grup."
@@ -1634,7 +1645,7 @@ reports_button_ban: "⛔️ Blokir"
 reports_button_delete: "❎ Hapus Pesan"
 reports_button_resolved: "✔️ Tandai Selesai"
 reports_blocked_users_header: "Pengguna yang diblokir dari penggunaan perintah laporan:"
-reports_invalid_input: "Masukan Anda tidak dikenali sebagai salah satu dari: <code><yes/on/no/off> atau <block/unblock/showblocklist></code>"
+reports_invalid_input: "Masukan Anda tidak dikenali sebagai salah satu dari: <code>&lt;yes/on/no/off&gt; atau &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Preferensi Anda saat ini adalah true. Anda akan diberitahu setiap kali seseorang melaporkan sesuatu di grup tempat Anda admin."
 reports_preference_disabled_private: "Anda belum mengaktifkan pelaporan. Anda tidak akan diberitahu."
 reports_status_enabled_group: "Pelaporan saat ini diaktifkan di obrolan ini.\nPengguna dapat menggunakan perintah /report, atau menyebut @admin, untuk menandai semua admin."
@@ -1735,7 +1746,7 @@ message_type_video_note: "catatan video"
 message_type_unknown: "tidak diketahui"
 
 # Connections module strings
-connections_invalid_option: "Silakan berikan opsi yang valid dari <yes/on/no/off>"
+connections_invalid_option: "Silakan berikan opsi yang valid dari &lt;yes/on/no/off&gt;"
 connections_button_connect: "Hubungkan ke obrolan"
 
 # Bot updates module strings
@@ -2296,11 +2307,11 @@ reactions_help_msg: |
   <b>Contoh:</b>
   • /addreaction halo 👋 - Bot bereaksi dengan 👋 ketika seseorang mengatakan "halo"
 
-reactions_add_usage: "Penggunaan: /addreaction <kata_kunci> <emoji>"
+reactions_add_usage: "Penggunaan: /addreaction &lt;kata_kunci&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Silakan berikan emoji yang valid."
 reactions_add_error: "Gagal menyimpan reaksi. Silakan coba lagi."
 reactions_add_success: "Reaksi ditambahkan: <code>{keyword}</code> -> {emoji}"
-reactions_remove_usage: "Penggunaan: /removereaction <kata_kunci>"
+reactions_remove_usage: "Penggunaan: /removereaction &lt;kata_kunci&gt;"
 reactions_not_found: "Tidak ada reaksi yang dikonfigurasi untuk chat ini."
 reactions_keyword_not_found: "Tidak ada reaksi untuk kata kunci: <code>{keyword}</code>"
 reactions_remove_error: "Gagal menghapus reaksi. Silakan coba lagi."
@@ -2491,10 +2502,10 @@ antiraid_already_active: "AntiRaid sudah aktif."
 antiraid_not_active: "AntiRaid tidak aktif."
 antiraid_invalid_duration: "Durasi tidak valid. Gunakan format seperti: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "Durasi harus positif."
-antiraid_raidtime_usage: "Penggunaan: /raidtime <duration> (mis., 6h)"
+antiraid_raidtime_usage: "Penggunaan: /raidtime &lt;duration&gt; (mis., 6h)"
 antiraid_raidtime_no_change: "Waktu raid sudah {duration}."
 antiraid_raidtime_set: "Waktu raid diatur ke {duration}."
-antiraid_raidactiontime_usage: "Penggunaan: /raidactiontime <duration> (mis., 1h)"
+antiraid_raidactiontime_usage: "Penggunaan: /raidactiontime &lt;duration&gt; (mis., 1h)"
 antiraid_raidactiontime_no_change: "Waktu tindakan raid sudah {duration}."
 antiraid_raidactiontime_set: "Waktu tindakan raid diatur ke {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid dinonaktifkan."
@@ -2633,7 +2644,7 @@ logs_categories: "Categories: settings, admin, user, automated, reports, other."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2653,11 +2664,11 @@ misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
 misc_zombies_none: "No deleted accounts found among known members."
 misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
 misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
 misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud <term>"
+misc_ud_usage: "Usage: /ud &lt;term&gt;"
 misc_ud_not_found: "No Urban Dictionary result for that."
 misc_runs:
   - "Runs away."

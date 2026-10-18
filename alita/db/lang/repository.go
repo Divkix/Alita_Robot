@@ -38,6 +38,13 @@ func GetLanguage(ctx *ext.Context) string {
 		log.Warn("[GetLanguage] Unable to determine chat context, using default language")
 		return "en"
 	}
+	// A PM command acting on a connected group points EffectiveChat at that
+	// group but still replies to the message in PM, so answer in the language
+	// of the chat the message was sent in. gotgbot sets EffectiveChat to the
+	// message's chat, so the ids differ only after such a swap.
+	if msg := ctx.EffectiveMessage; msg != nil && msg.Chat.Id != chat.Id {
+		chat = &msg.Chat
+	}
 
 	if chat.Type == "private" {
 		if ctx.EffectiveSender == nil {

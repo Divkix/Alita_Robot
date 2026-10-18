@@ -93,7 +93,7 @@ bans_ban_is_admin: Зачем мне банить администратора? 
 bans_ban_is_bot_itself: Вы правда думаете, что я забаню сам себя?
 bans_ban_normal_ban: "Ещё один укусил пыл...!\n\n  Забанен %s."
 bans_ban_tban: Забанен %s на %s
-bans_help_msg: |
+bans_help_msg:
   "Иногда пользователи могут раздражать, и вы можете захотеть удалить их
     из чата, этот модуль как раз помогает вам справиться с этим!.
   
@@ -103,6 +103,8 @@ bans_help_msg: |
     *Пользовательские команды:*
   
     × /kickme: Выгоняет пользователя, который использовал команду.
+
+    × /banme: Банит пользователя, который использовал команду.
   
   
     *Команды бана* (только для администратора):
@@ -111,12 +113,20 @@ bans_help_msg: |
   
     × /sban <userhandle>: банит пользователя без звука, не отправляет сообщение в группу, а также удаляет вашу команду. (через ник, или ответ)
   
+    × /kick <userhandle>: выгоняет пользователя. (через ник, или ответ)
+
+    × /skick <userhandle>: выгоняет пользователя без звука и удаляет вашу команду.
+
+    × /dkick: выгоняет пользователя и удаляет ответное сообщение. (только ответом)
+
     × /dban <userhandle>: банит пользователя и удаляет ответное сообщение. (через ник, или ответ)
   
     × /tban <userhandle> x(m/h/d): банит пользователя на `x` время. (через ник, или ответ).
     m = минуты, h = часы, d = дни.
   
     × /unban <userhandle>: разбанивает пользователя. (через ник, или ответ)
+
+    × /unbanall: только для владельца — с подтверждением разбанивает известных пользователей.
   
   
     *Команды ограничения:* (только для администратора)
@@ -583,7 +593,7 @@ misc_help_msg:
   × /ud <term>: Поиск в Urban Dictionary.
 
   × /runs: Случайная шутка."
-mutes_help_msg: |
+mutes_help_msg:
   "Иногда пользователи могут раздражать, и вы можете захотеть ограничить их
     от отправки сообщения в чат, этот модуль здесь, чтобы помочь, вы можете использовать этот модуль, чтобы заглушать участников в вашей группе.
   
@@ -862,6 +872,7 @@ error_generic: "Произошла ошибка. Пожалуйста, попр�
 common_anonymous_user_error: Эта команда не может использоваться на анонимном пользователе.
 common_anonymous_ban_error: Эта команда не может использоваться на анонимном пользователе, этих пользователей можно только забанить/разбанить.
 common_cannot_identify_user: Невозможно идентифицировать пользователя. Эта команда не может использоваться каналами.
+command_help_example: "Пример: {example}"
 common_no_user_specified: Я не знаю, о ком вы говорите, вам нужно указать пользователя...!
 common_user_not_in_chat: Этот пользователь не в этом чате, как я могу его ограничить?
 common_cannot_target_admin: "Я не могу выполнить это действие по отношению к администраторам группы."
@@ -1478,7 +1489,7 @@ reports_button_ban: "⛔️ Забанить"
 reports_button_delete: "❎ Удалить сообщение"
 reports_button_resolved: "✔️ Отметить решённым"
 reports_blocked_users_header: "Пользователи, заблокированные от использования команд отчётов:"
-reports_invalid_input: "Ваш ввод не был распознан как один из: <code><yes/on/no/off> или <block/unblock/showblocklist></code>"
+reports_invalid_input: "Ваш ввод не был распознан как один из: <code>&lt;yes/on/no/off&gt; или &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Ваш текущий выбор — true. Вы будете получать уведомления, когда кто-то сообщит о чём-то в группах, где вы администратор."
 reports_preference_disabled_private: "Вы не включили отчёты. Вы не будете получать уведомления."
 reports_status_enabled_group: "Отчёты в данный момент включены в этом чате.\nПользователи могут использовать команду /report или упомянуть @admin, чтобы отметить всех администраторов."
@@ -1517,7 +1528,7 @@ message_type_video_note: "видео-заметка"
 message_type_unknown: "неизвестно"
 
 # Connections module strings
-connections_invalid_option: "Пожалуйста, дайте мне правильный вариант из <yes/on/no/off>"
+connections_invalid_option: "Пожалуйста, дайте мне правильный вариант из &lt;yes/on/no/off&gt;"
 connections_button_connect: "Подключиться к чату"
 
 # Bot updates module strings
@@ -2078,11 +2089,11 @@ reactions_help_msg: |
   <b>Пример:</b>
   • /addreaction привет 👋 - Бот реагирует 👋, когда кто-то говорит "привет"
 
-reactions_add_usage: "Использование: /addreaction <ключевое_слово> <эмодзи>"
+reactions_add_usage: "Использование: /addreaction &lt;ключевое_слово&gt; &lt;эмодзи&gt;"
 reactions_invalid_emoji: "Пожалуйста, укажите корректный эмодзи."
 reactions_add_error: "Не удалось сохранить реакцию. Пожалуйста, попробуйте снова."
 reactions_add_success: "Реакция добавлена: <code>{keyword}</code> -> {emoji}"
-reactions_remove_usage: "Использование: /removereaction <ключевое_слово>"
+reactions_remove_usage: "Использование: /removereaction &lt;ключевое_слово&gt;"
 reactions_not_found: "Для этого чата не настроено ни одной реакции."
 reactions_keyword_not_found: "Для ключевого слова не найдена реакция: <code>{keyword}</code>"
 reactions_remove_error: "Не удалось удалить реакцию. Пожалуйста, попробуйте снова."
@@ -2273,10 +2284,10 @@ antiraid_already_active: "AntiRaid уже активен."
 antiraid_not_active: "AntiRaid не активен."
 antiraid_invalid_duration: "Неверная длительность. Используйте формат: 30м, 2ч, 1д, 1н"
 antiraid_duration_must_be_positive: "Длительность должна быть положительной."
-antiraid_raidtime_usage: "Использование: /raidtime <длительность> (например, 6ч)"
+antiraid_raidtime_usage: "Использование: /raidtime &lt;длительность&gt; (например, 6ч)"
 antiraid_raidtime_no_change: "Время рейда уже {duration}."
 antiraid_raidtime_set: "Время рейда установлено на {duration}."
-antiraid_raidactiontime_usage: "Использование: /raidactiontime <длительность> (например, 1ч)"
+antiraid_raidactiontime_usage: "Использование: /raidactiontime &lt;длительность&gt; (например, 1ч)"
 antiraid_raidactiontime_no_change: "Время действия рейда уже {duration}."
 antiraid_raidactiontime_set: "Время действия рейда установлено на {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid отключён."
@@ -2415,7 +2426,7 @@ logs_categories: "Categories: settings, admin, user, automated, reports, other."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2435,11 +2446,11 @@ misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
 misc_zombies_none: "No deleted accounts found among known members."
 misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
 misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
 misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud <term>"
+misc_ud_usage: "Usage: /ud &lt;term&gt;"
 misc_ud_not_found: "No Urban Dictionary result for that."
 misc_runs:
   - "Runs away."

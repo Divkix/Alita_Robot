@@ -150,6 +150,8 @@ bans_help_msg:
 
   × /kickme: expulsa o usuário que usou o comando.
 
+  × /banme: bane o usuário que usou o comando.
+
 
   *Comandos de Ban* (Apenas Admin):
 
@@ -158,6 +160,12 @@ bans_help_msg:
   × /sban <userhandle>: bane um usuário silenciosamente, não envia mensagem para o grupo e também
   deleta seu comando. (via handle, ou reply)
 
+  × /kick <userhandle>: expulsa um usuário. (via handle, ou reply)
+
+  × /skick <userhandle>: expulsa um usuário silenciosamente e deleta seu comando.
+
+  × /dkick: expulsa um usuário e deleta a mensagem respondida. (apenas reply)
+
   × /dban <userhandle>: bane um usuário e deleta a mensagem respondida. (via handle, ou
   reply)
 
@@ -165,6 +173,8 @@ bans_help_msg:
   m = minutos, h = horas, d = dias.
 
   × /unban <userhandle>: desbane um usuário. (via handle, ou reply)
+
+  × /unbanall: confirmação exclusiva do dono para desbanir os usuários conhecidos.
 
 
   *Comandos de Restrição:* (Apenas Admin)
@@ -1013,6 +1023,7 @@ error_generic: "Ocorreu um erro. Por favor tente novamente mais tarde."
 common_anonymous_user_error: Este comando não pode ser usado em usuário anônimo.
 common_anonymous_ban_error: Este comando não pode ser usado em usuário anônimo, estes usuários só podem ser banidos/desbanidos.
 common_cannot_identify_user: Não consigo identificar o usuário. Este comando não pode ser usado por canais.
+command_help_example: "Exemplo: {example}"
 common_no_user_specified: Eu não sei de quem você está falando, você vai precisar especificar um usuário...!
 common_user_not_in_chat: Este usuário não está neste chat, como posso restringi-lo?
 common_cannot_target_admin: "Não posso realizar esta ação em administradores do grupo."
@@ -1667,7 +1678,7 @@ reports_button_ban: "⛔️ Banir"
 reports_button_delete: "❎ Deletar Mensagem"
 reports_button_resolved: "✔️ Marcar Resolvido"
 reports_blocked_users_header: "Usuários bloqueados de usar comandos de report:"
-reports_invalid_input: "Sua entrada não foi reconhecida como uma de: <code><yes/on/no/off> ou <block/unblock/showblocklist></code>"
+reports_invalid_input: "Sua entrada não foi reconhecida como uma de: <code>&lt;yes/on/no/off&gt; ou &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Sua preferência atual é true. Você será notificado sempre que alguém reportar algo em grupos onde é admin."
 reports_preference_disabled_private: "Você não ativou relatórios. Você não será notificado."
 reports_status_enabled_group: "Relatórios estão atualmente ativados neste chat.\nUsuários podem usar o comando /report, ou mencionar @admin, para marcar todos os admins."
@@ -1706,7 +1717,7 @@ message_type_video_note: "nota de vídeo"
 message_type_unknown: "desconhecido"
 
 # Connections module strings
-connections_invalid_option: "Por favor me dê uma opção válida de <yes/on/no/off>"
+connections_invalid_option: "Por favor me dê uma opção válida de &lt;yes/on/no/off&gt;"
 connections_button_connect: "Conectar ao chat"
 
 # Bot updates module strings
@@ -2268,11 +2279,11 @@ reactions_help_msg: |
   <b>Exemplo:</b>
   • /addreaction oi 👋 - O bot reage com 👋 quando alguém diz "oi"
 
-reactions_add_usage: "Uso: /addreaction <palavra_chave> <emoji>"
+reactions_add_usage: "Uso: /addreaction &lt;palavra_chave&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Por favor, informe um emoji válido."
 reactions_add_error: "Falha ao salvar reação. Tente novamente."
 reactions_add_success: "Reação adicionada: <code>{keyword}</code> -> {emoji}"
-reactions_remove_usage: "Uso: /removereaction <palavra_chave>"
+reactions_remove_usage: "Uso: /removereaction &lt;palavra_chave&gt;"
 reactions_not_found: "Não há reações configuradas para este chat."
 reactions_keyword_not_found: "Nenhuma reação encontrada para a palavra-chave: <code>{keyword}</code>"
 reactions_remove_error: "Falha ao remover reação. Tente novamente."
@@ -2463,10 +2474,10 @@ antiraid_already_active: "AntiRaid já está ativo."
 antiraid_not_active: "AntiRaid não está ativo."
 antiraid_invalid_duration: "Duração inválida. Use um formato como: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "A duração deve ser positiva."
-antiraid_raidtime_usage: "Uso: /raidtime <duration> (ex., 6h)"
+antiraid_raidtime_usage: "Uso: /raidtime &lt;duration&gt; (ex., 6h)"
 antiraid_raidtime_no_change: "O tempo de raid já é {duration}."
 antiraid_raidtime_set: "Tempo de raid definido para {duration}."
-antiraid_raidactiontime_usage: "Uso: /raidactiontime <duration> (ex., 1h)"
+antiraid_raidactiontime_usage: "Uso: /raidactiontime &lt;duration&gt; (ex., 1h)"
 antiraid_raidactiontime_no_change: "O tempo de ação do raid já é {duration}."
 antiraid_raidactiontime_set: "Tempo de ação do raid definido para {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid está desativado."
@@ -2605,7 +2616,7 @@ logs_categories: "Categories: settings, admin, user, automated, reports, other."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2625,11 +2636,11 @@ misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
 misc_zombies_none: "No deleted accounts found among known members."
 misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
 misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
 misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud <term>"
+misc_ud_usage: "Usage: /ud &lt;term&gt;"
 misc_ud_not_found: "No Urban Dictionary result for that."
 misc_runs:
   - "Runs away."

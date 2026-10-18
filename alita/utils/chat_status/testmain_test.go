@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 
 	if err := db.DB.AutoMigrate(
 		&models.AdminSettings{},
+		&models.Chat{},
 		&db.ApprovedUsers{},
 		&models.DisableSettings{},
 		&models.DisableChatSettings{},

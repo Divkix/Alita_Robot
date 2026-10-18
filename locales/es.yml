@@ -160,6 +160,8 @@ bans_help_msg:
 
   × /kickme: expulsa al usuario que emitió el comando.
 
+  × /banme: banea al usuario que emitió el comando.
+
 
   *Comandos de Ban* (Solo administradores):
 
@@ -168,6 +170,12 @@ bans_help_msg:
   × /sban <nombre de usuario>: banea a un usuario silenciosamente, no envía mensaje al grupo y también
   elimina tu comando. (vía nombre de usuario, o respuesta)
 
+  × /kick <nombre de usuario>: expulsa a un usuario. (vía nombre de usuario, o respuesta)
+
+  × /skick <nombre de usuario>: expulsa a un usuario silenciosamente y elimina tu comando.
+
+  × /dkick: expulsa a un usuario y elimina el mensaje respondido. (solo respuesta)
+
   × /dban <nombre de usuario>: banea a un usuario y elimina el mensaje respondido. (vía nombre de usuario, o
   respuesta)
 
@@ -175,6 +183,8 @@ bans_help_msg:
   m = minutos, h = horas, d = días.
 
   × /unban <nombre de usuario>: desbanea a un usuario. (vía nombre de usuario, o respuesta)
+
+  × /unbanall: confirmación solo para el propietario para desbanear a los usuarios conocidos.
 
 
   *Comandos de Restricción:* (Solo administradores)
@@ -1052,6 +1062,7 @@ error_generic: "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde.
 common_anonymous_user_error: Este comando no se puede usar en usuario anónimo.
 common_anonymous_ban_error: Este comando no se puede usar en usuario anónimo, estos usuarios solo pueden ser baneados/desbaneados.
 common_cannot_identify_user: No se puede identificar al usuario. Este comando no puede ser usado por canales.
+command_help_example: "Ejemplo: {example}"
 common_no_user_specified: No sé de quién estás hablando, ¡vas a necesitar especificar un usuario...!
 common_user_not_in_chat: Este usuario no está en este chat, ¿cómo puedo restringirlo?
 common_cannot_target_admin: "No puedo realizar esta acción en los administradores del grupo."
@@ -1709,7 +1720,7 @@ reports_button_ban: "⛔️ Banear"
 reports_button_delete: "❎ Eliminar Mensaje"
 reports_button_resolved: "✔️ Marcar Resuelto"
 reports_blocked_users_header: "Usuarios bloqueados de usar comandos de reporte:"
-reports_invalid_input: "Tu entrada no fue reconocida como una de: <code><yes/on/no/off> o <block/unblock/showblocklist></code>"
+reports_invalid_input: "Tu entrada no fue reconocida como una de: <code>&lt;yes/on/no/off&gt; o &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Tu preferencia actual es verdadera. Serás notificado cuando alguien reporte algo en grupos donde eres administrador."
 reports_preference_disabled_private: "No has habilitado reportes. No serás notificado."
 reports_status_enabled_group: "Los reportes están actualmente habilitados en este chat.\nLos usuarios pueden usar el comando /report, o mencionar @admin, para etiquetar a todos los administradores."
@@ -1748,7 +1759,7 @@ message_type_video_note: "nota de video"
 message_type_unknown: "desconocido"
 
 # Connections module strings
-connections_invalid_option: "Por favor dame una opción válida de <yes/on/no/off>"
+connections_invalid_option: "Por favor dame una opción válida de &lt;yes/on/no/off&gt;"
 connections_button_connect: "Conectar al chat"
 
 # Bot updates module strings
@@ -2308,11 +2319,11 @@ reactions_help_msg: |
   <b>Ejemplo:</b>
   • /addreaction hola 👋 - El bot reacciona con 👋 cuando alguien dice "hola"
 
-reactions_add_usage: "Uso: /addreaction <palabra_clave> <emoji>"
+reactions_add_usage: "Uso: /addreaction &lt;palabra_clave&gt; &lt;emoji&gt;"
 reactions_invalid_emoji: "Por favor, proporciona un emoji válido."
 reactions_add_error: "No se pudo guardar la reacción. Inténtalo de nuevo."
 reactions_add_success: "Reacción añadida: <code>{keyword}</code> -> {emoji}"
-reactions_remove_usage: "Uso: /removereaction <palabra_clave>"
+reactions_remove_usage: "Uso: /removereaction &lt;palabra_clave&gt;"
 reactions_not_found: "No hay reacciones configuradas para este chat."
 reactions_keyword_not_found: "No se encontró una reacción para la palabra clave: <code>{keyword}</code>"
 reactions_remove_error: "No se pudo eliminar la reacción. Inténtalo de nuevo."
@@ -2503,10 +2514,10 @@ antiraid_already_active: "AntiRaid ya está activo."
 antiraid_not_active: "AntiRaid no está activo."
 antiraid_invalid_duration: "Duración inválida. Usa un formato como: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "La duración debe ser positiva."
-antiraid_raidtime_usage: "Uso: /raidtime <duración> (ej., 6h)"
+antiraid_raidtime_usage: "Uso: /raidtime &lt;duración&gt; (ej., 6h)"
 antiraid_raidtime_no_change: "El tiempo de raid ya es {duration}."
 antiraid_raidtime_set: "Tiempo de raid establecido en {duration}."
-antiraid_raidactiontime_usage: "Uso: /raidactiontime <duración> (ej., 1h)"
+antiraid_raidactiontime_usage: "Uso: /raidactiontime &lt;duración&gt; (ej., 1h)"
 antiraid_raidactiontime_no_change: "El tiempo de acción de raid ya es {duration}."
 antiraid_raidactiontime_set: "Tiempo de acción de raid establecido en {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid está desactivado."
@@ -2645,7 +2656,7 @@ logs_categories: "Categories: settings, admin, user, automated, reports, other."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
-logs_usage: "Usage: /log <category> or /nolog <category>"
+logs_usage: "Usage: /log &lt;category&gt; or /nolog &lt;category&gt;"
 logs_group_only: "This command can only be used in groups."
 bans_banme_is_admin: "Admins cannot ban themselves. Resign first."
 bans_banme_ok: "As you wish. You are banned."
@@ -2665,11 +2676,11 @@ misc_stickerid_result: "Sticker file ID: <code>{id}</code>"
 misc_zombies_scanning: "Scanning for deleted accounts…"
 misc_zombies_none: "No deleted accounts found among known members."
 misc_zombies_cleaned: "Removed {count} deleted accounts."
-misc_github_usage: "Usage: /github <user> or /github <user/repo>"
+misc_github_usage: "Usage: /github &lt;user&gt; or /github &lt;user/repo&gt;"
 misc_github_not_found: "I couldn't find that GitHub user or repository."
-misc_wiki_usage: "Usage: /wiki <search>"
+misc_wiki_usage: "Usage: /wiki &lt;search&gt;"
 misc_wiki_not_found: "No Wikipedia result for that."
-misc_ud_usage: "Usage: /ud <term>"
+misc_ud_usage: "Usage: /ud &lt;term&gt;"
 misc_ud_not_found: "No Urban Dictionary result for that."
 misc_runs:
   - "Runs away."
