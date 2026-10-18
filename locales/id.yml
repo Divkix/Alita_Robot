@@ -2529,10 +2529,12 @@ logchannels_help_msg: |
   *Perintah admin:*
   × /setlog: Atur kanal log (kirim di kanal, lalu teruskan pesannya ke grup).
   × /unsetlog: Hapus kanal log.
-  × /logchannel: Tampilkan kanal log saat ini.
-  × /logcategories: Daftar kategori.
   × /log <category>: Aktifkan kategori.
   × /nolog <category>: Nonaktifkan kategori.
+
+  *Siapa saja:*
+  × /logchannel: Tampilkan kanal log saat ini (hanya di grup).
+  × /logcategories: Daftar kategori.
 
   Kategori: settings, admin, user, automated, reports, other.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."

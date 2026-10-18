@@ -2445,10 +2445,12 @@ logchannels_help_msg: |
   *Commandes admin :*
   × /setlog: Définir le canal de journal (envoyez-le dans le canal, puis transférez le message dans le groupe).
   × /unsetlog: Retirer le canal de journal.
-  × /logchannel: Afficher le canal de journal actuel.
-  × /logcategories: Lister les catégories.
   × /log <category>: Activer une catégorie.
   × /nolog <category>: Désactiver une catégorie.
+
+  *Tout le monde :*
+  × /logchannel: Afficher le canal de journal actuel (groupes uniquement).
+  × /logcategories: Lister les catégories.
 
   Catégories : settings, admin, user, automated, reports, other.
 feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."

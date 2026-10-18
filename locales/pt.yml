@@ -2501,10 +2501,12 @@ logchannels_help_msg: |
   *Comandos de administrador:*
   × /setlog: Define o canal de log (envie no canal e depois encaminhe a mensagem para o grupo).
   × /unsetlog: Remove o canal de log.
-  × /logchannel: Mostra o canal de log atual.
-  × /logcategories: Lista as categorias.
   × /log <category>: Ativa uma categoria.
   × /nolog <category>: Desativa uma categoria.
+
+  *Qualquer pessoa:*
+  × /logchannel: Mostra o canal de log atual (somente grupos).
+  × /logcategories: Lista as categorias.
 
   Categorias: settings, admin, user, automated, reports, other.
 feds_pm_only: "Este comando só pode ser usado no meu chat privado."

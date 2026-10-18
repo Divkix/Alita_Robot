@@ -2231,10 +2231,12 @@ logchannels_help_msg: |
   *एडमिन कमांड:*
   × /setlog: लॉग चैनल सेट करें (इसे चैनल में भेजें, फिर संदेश ग्रुप में फ़ॉरवर्ड करें)।
   × /unsetlog: लॉग चैनल हटाएँ।
-  × /logchannel: मौजूदा लॉग चैनल दिखाएँ।
-  × /logcategories: श्रेणियों की सूची।
   × /log <category>: कोई श्रेणी चालू करें।
   × /nolog <category>: कोई श्रेणी बंद करें।
+
+  *कोई भी:*
+  × /logchannel: मौजूदा लॉग चैनल दिखाएँ (केवल ग्रुप में)।
+  × /logcategories: श्रेणियों की सूची।
 
   श्रेणियाँ: settings, admin, user, automated, reports, other.
 feds_pm_only: "यह कमांड केवल मेरे साथ निजी चैट में इस्तेमाल हो सकता है।"

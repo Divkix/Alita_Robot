@@ -2538,10 +2538,12 @@ logchannels_help_msg: |
   *Comandos de administrador:*
   × /setlog: Establece el canal de registro (envíalo en el canal y luego reenvía el mensaje al grupo).
   × /unsetlog: Quita el canal de registro.
-  × /logchannel: Muestra el canal de registro actual.
-  × /logcategories: Lista las categorías.
   × /log <category>: Activa una categoría.
   × /nolog <category>: Desactiva una categoría.
+
+  *Cualquiera:*
+  × /logchannel: Muestra el canal de registro actual (solo grupos).
+  × /logcategories: Lista las categorías.
 
   Categorías: settings, admin, user, automated, reports, other.
 feds_pm_only: "Este comando solo se puede usar en un chat privado conmigo."
