@@ -138,7 +138,9 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Register every new secret with `logredact.RegisterSecret` (≥6 chars), or it is logged verbatim.
 - A missing i18n key returns `""` with an error callers ignore; a typo'd key in Go ships an empty message. Copy key
   names from `locales/en.yml`. `locales/config.yml` is the help alt-name pseudo-locale, not a language.
-- The docs generator reads only `locales/en.yml`. Pages marked `<!-- MANUALLY MAINTAINED: do not regenerate -->` in
+- The docs generator takes help and `*_docs` text only from `locales/en.yml` (other languages are ignored), Module
+  Aliases from `alt_names` in `locales/config.yml`, and command tables and lock types from `alita/modules`; run
+  `make generate-docs` after changing any of them. Pages marked `<!-- MANUALLY MAINTAINED: do not regenerate -->` in
   their first 512 bytes are frozen; `api-reference/lock-types.md` ignores the marker.
 - Imports: stdlib, third-party, internal, separated by blank lines. Use `helpers.Ptr[T]` for option pointers.
 
