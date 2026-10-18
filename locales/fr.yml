@@ -2214,7 +2214,7 @@ devs_chatlist_error: "Échec de la génération de la liste des chats. Veuillez 
 reactions_help_msg: |
   <b>🎭 Auto-Réactions</b>
 
-  Réagissez automatiquement aux messages avec des emojis spécifiques !
+  Réagissez automatiquement aux messages contenant des mots-clés spécifiques !
 
   Configurez des réactions automatiques qui se déclenchent quand les utilisateurs envoient des mots spécifiques.
 

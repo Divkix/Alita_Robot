@@ -2306,7 +2306,7 @@ devs_chatlist_error: "Gagal membuat daftar obrolan. Silakan coba lagi."
 reactions_help_msg: |
   <b>🎭 Reaksi Otomatis</b>
 
-  Secara otomatis bereaksi terhadap pesan dengan emoji tertentu!
+  Secara otomatis bereaksi terhadap pesan yang berisi kata kunci tertentu!
 
   Siapkan reaksi emoji otomatis yang dipicu ketika pengguna mengirim kata-kata tertentu.
 
