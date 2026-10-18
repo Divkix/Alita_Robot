@@ -234,7 +234,7 @@ RequireBotAdmin ensures the bot has administrator privileges in the chat. Uses I
 func RequireGroup(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-RequireGroup ensures the command is being used in a group chat. Returns false for private chats.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+RequireGroup ensures the command is being used in a group chat. Returns false for private chats.
 
 **Parameters:**
 - `b`
@@ -247,7 +247,7 @@ RequireGroup ensures the command is being used in a group chat. Returns false fo
 func RequirePrivate(b *gotgbot.Bot, ctx *ext.Context, chat *gotgbot.Chat) bool
 ```
 
-RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups.  nolint:dupl // RequirePrivate/RequireGroup have symmetric logic
+RequirePrivate ensures the command is being used in a private chat. Returns false for group chats and supergroups.
 
 **Parameters:**
 - `b`
@@ -483,7 +483,7 @@ IsUserBanProtected checks if a user is protected from being banned. Returns true
 func IsUserInChat(b *gotgbot.Bot, chat *gotgbot.Chat, userId int64) bool
 ```
 
-IsUserInChat checks if a user is currently a member of the specified chat. Returns false for special Telegram accounts and users with "left" or "kicked" status.
+IsUserInChat checks if a user is currently a member of the specified chat. Returns true for creator, administrator and member, and for restricted users who are still members. Returns false for the Telegram service account (777000), for users with "left" or "kicked" status, for restricted non-members, and when the GetMember lookup fails (the error is logged); use IsUserInChatWithError to tell a failed lookup apart from non-membership.
 
 **Parameters:**
 - `b`
