@@ -32,7 +32,7 @@ When enabled, the following endpoints become available:
 | `/debug/pprof/mutex` | Mutex contention profile |
 
 :::note
-The block and mutex profiles are **disabled by default** in Go. With `ENABLE_PPROF=true` set, the endpoints are exposed but will return empty data unless you enable collection via `GODEBUG=blockprofilerate=1,mutexprofilefraction=1` environment variable or `runtime.SetBlockProfileRate()` in code.
+The block and mutex profiles are **disabled by default** in Go, and Alita Robot does not turn them on. With `ENABLE_PPROF=true` set, `/debug/pprof/block` and `/debug/pprof/mutex` are exposed but always return empty profiles. No environment variable changes this (GODEBUG has no setting for these profiles); collecting them requires adding `runtime.SetBlockProfileRate` and `runtime.SetMutexProfileFraction` calls to the source and rebuilding.
 :::
 
 ### CPU Profiling
