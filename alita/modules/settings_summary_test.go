@@ -148,6 +148,37 @@ func TestSettingsSummaryNullWarnModeIsNotMute(t *testing.T) {
 	t.Fatal("summary has no /setwarnmode row")
 }
 
+// An admin who set /setwarntime must see the expiry in /settings, or they
+// would read the summary as warns never expiring.
+func TestSettingsSummaryShowsWarnExpiry(t *testing.T) {
+	warnExpiryRow := func(chatID int64) *settingsRow {
+		t.Helper()
+		for _, section := range collectChatSettings(context.Background(), chatID) {
+			for i := range section.Rows {
+				if section.Rows[i].Command == "/setwarntime" {
+					return &section.Rows[i]
+				}
+			}
+		}
+		t.Fatal("summary has no /setwarntime row")
+		return nil
+	}
+
+	chatID := newSettingsTestChat(t)
+	if got := warnExpiryRow(chatID); got.Value != "off" || got.Changed {
+		t.Fatalf("fresh chat /setwarntime row = %+v, want unchanged value off", *got)
+	}
+
+	if err := warns.SetWarnExpiry(chatID, 30*24*60*60); err != nil {
+		t.Fatalf("SetWarnExpiry() error = %v", err)
+	}
+	cache.ResetLocalForTest()
+
+	if got := warnExpiryRow(chatID); got.Value != "30d" || !got.Changed {
+		t.Fatalf("/setwarntime row = %+v, want changed value 30d", *got)
+	}
+}
+
 // tban/tmute act for warn_action_time, so the summary shows it with the mode;
 // a row without a usable duration shows the 1h warnUser falls back to.
 func TestSettingsSummaryTimedWarnModeShowsDuration(t *testing.T) {
