@@ -101,7 +101,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 - Fed-ban lookups cache per `(fed, user)` with a negative sentinel; every ban/unban write must invalidate it.
 - A join arrives as both `ChatMemberUpdated` and a service message; dedupe through `claimRecentJoinProcessing`.
 - Entity offsets are UTF-16: slice with `extractEntityText`, and match against both `Entities` and `CaptionEntities`.
-- Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages for replay.
+- Captcha allows one attempt per `(user, chat)`; group `-10` stores the pending user's messages (type, text,
+  file_id) and deletes the originals. Nothing is replayed: a correct answer deletes the stored rows with the attempt
+  and posts only a type/count summary (`captcha_stored_messages_summary`, removed after 30 s). Admins list or clear
+  them with `/captchapending` and `/captchaclear`.
 - `alita:cache:captcha_pending:<chat>` is a per-chat pending flag; any new code that inserts into `captcha_attempts`
   must `DeleteCache` it after commit.
 - `warn_entries` cascades from `chats` and `users` like `warns_users`, but has no FK to `warns_users`: any code that
