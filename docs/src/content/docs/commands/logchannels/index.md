@@ -1,9 +1,9 @@
 ---
-title: Logchannels Commands
-description: Complete guide to Logchannels module commands and features
+title: LogChannels Commands
+description: Complete guide to LogChannels module commands and features
 ---
 
-# 📜 Logchannels Commands
+# 📜 LogChannels Commands
 
 Send admin actions to a dedicated log channel.
 
@@ -21,6 +21,14 @@ Send admin actions to a dedicated log channel.
 
 Categories: settings, admin, user, automated, reports, other.
 
+
+## Module Aliases
+
+This module can be accessed using the following aliases:
+
+- `setlog`
+- `logchannel`
+- `logcategories`
 
 ## Available Commands
 
