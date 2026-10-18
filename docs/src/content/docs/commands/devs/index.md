@@ -13,25 +13,27 @@ Bot management and diagnostic commands restricted to the bot owner and trusted d
 - `/chatlist`: Generate and send a list of all active chats.
 - `/leavechat <chat_id>`: Force the bot to leave a specified chat.
 ### Team Commands:
-- `/teamusers`: List all team members (includes owner, devs, sudo users).
+- `/teamusers`: List dev and sudo users. The owner can run it but is not listed, and a user with both roles appears only under Dev.
 ### Owner Commands:
-- `/addsudo`: Grant sudo permissions to a user.
-- `/adddev`: Grant developer permissions to a user.
-- `/remsudo`: Revoke sudo permissions from a user.
-- `/remdev`: Revoke developer permissions from a user.
+- `/addsudo <reply/@username/user_id>`: Grant sudo permissions to a user.
+- `/adddev <reply/@username/user_id>`: Grant developer permissions to a user.
+- `/remsudo <reply/@username/user_id>`: Revoke sudo permissions from a user.
+- `/remdev <reply/@username/user_id>`: Revoke developer permissions from a user.
 
 **Team Hierarchy:**
 The Devs module provides bot management and diagnostic commands restricted to the bot's internal team. The team has three tiers with descending privilege levels.
 
 **Tier 1 — Owner:** Set via `OWNER_ID` environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
 
-**Tier 2 — Dev:** Assigned by owner via `/adddev`. Has diagnostic command access: `/stats`, `/chatinfo`, `/chatlist`, `/leavechat`. Also listed in `/teamusers`.
+**Tier 2 — Dev:** Assigned by owner via `/adddev`. Has diagnostic command access: `/stats`, `/chatinfo`, `/chatlist`, `/leavechat`. Also listed in `/teamusers`, and marked as a dev user in `/info`.
 
 **Tier 2 — Sudo:** Assigned by owner via `/addsudo`. Listed in `/teamusers` but does NOT have diagnostic command access.
 
+**Promotions:** When a Dev or Sudo user who is a chat admin with the right to add admins uses `/promote`, the new admin gets every admin right the bot holds, even ones the promoter lacks. The chat's creator gets the same treatment. Other admins can only pass on rights they hold themselves.
+
 **Tier 3 — Team Member:** Automatically includes owner + all sudo + all dev users. View team roster only via `/teamusers`.
 
-**Note:** Sudo users only appear in `/teamusers`. `/stats`, `/chatinfo`, `/chatlist`, and `/leavechat` require Dev or Owner.
+**Note:** Of the commands on this page, Sudo users can use only `/teamusers`. `/stats`, `/chatinfo`, `/chatlist`, and `/leavechat` require Dev or Owner.
 
 **Important:** These commands are not visible in the public help menu and silently ignore unauthorized users.
 
@@ -55,9 +57,9 @@ The Devs module provides bot management and diagnostic commands restricted to th
 ### Basic Usage
 
 ```
-/adddev
-/addsudo
-/chatinfo
+/adddev @username
+/addsudo 123456789
+/chatinfo -1001234567890
 ```
 
 For detailed command usage, refer to the commands table above.
@@ -70,4 +72,4 @@ For detailed command usage, refer to the commands table above.
 | `/stats`, `/chatinfo`, `/chatlist`, `/leavechat` | **Owner or Dev** — checked via `ownerId OR isDev`; sudo excluded |
 | `/teamusers` | **Any team member** — owner, dev, or sudo |
 
-Unauthorized users are silently ignored (`ext.ContinueGroups`). These commands are not visible in the public help menu.
+Unauthorized users are silently ignored: the bot does not reply. These commands are not visible in the public help menu.
