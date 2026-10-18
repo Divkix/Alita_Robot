@@ -617,21 +617,11 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 
 ### Legacy Registration
 
-Most modules use `RegisterLegacyModule` in their `init()` function:
+Every module, BotUpdates included (`RegisterLegacyModule("BotUpdates", -10, LoadBotUpdates)`), registers with `RegisterLegacyModule` in its `init()` function; it is the only registry entry point:
 
 ```go
 func init() {
-    modules.RegisterLegacyModule("Bans", 70, LoadBans)
-}
-```
-
-### New Interface Registration
-
-The `BotUpdates` module uses the new `Module` interface:
-
-```go
-func init() {
-    modules.RegisterModule(botUpdatesModule{moduleStruct{moduleName: "BotUpdates"}})
+    RegisterLegacyModule("Bans", 70, LoadBans)
 }
 ```
 
@@ -641,17 +631,19 @@ The preferred modern approach uses `WrapCommand` with `CommandDescriptor`:
 
 ```go
 helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
-    Name:        "pin",
-    Aliases:     []string{"permapin"},
-    Group:       0,
+    Name:  "pin",
+    Group: pinsModule.handlerGroup, // 10
     RequiredChecks: []helpers.CheckFunc{
-        chat_status.RequireGroup(),
-        chat_status.RequireBotAdmin(),
-        chat_status.RequireUserAdmin(),
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+        helpers.RequireBotAdmin(),
+        helpers.CanUserPin(),
+        helpers.CanBotPin(),
     },
-    Disableable: true,
-}, handler)
+}, pinsModule.pin)
 ```
+
+`/permapin` is registered as its own descriptor with the same checks. Set `Aliases` and `Disableable: true` on a descriptor only when the command has aliases or chats may disable it.
 
 **Key types** (from `alita/utils/helpers/command_pipeline.go`):
 
@@ -662,12 +654,14 @@ helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{
 | `CheckFunc` | Permission check function signature |
 | `WrapCommand` | Main pipeline builder with automatic check execution |
 
+Each CheckFunc handles its own failure: the permission checks send the refusal reply, and `CheckDisabled` stops the command silently (deleting it when the chat has `/disabledel` on), so handlers add no replies for failed checks. `Disableable: true` only lists the command for `/disable`; `CheckDisabled` enforces it.
+
 **Pre-built CheckFunc builders**:
 
 | Function | Description |
 |----------|-------------|
+| `CheckDisabled(cmd)` | Refuses the command when the chat has disabled it (needed alongside `Disableable: true`) |
 | `RequireGroup()` | Ensures command is used in a group |
-| `RequirePrivate()` | Ensures command is used in private chat |
 | `RequireBotAdmin()` | Ensures bot is admin |
 | `RequireUserAdmin()` | Ensures user is admin |
 | `CanUserPromote()` | Checks user can promote members |
