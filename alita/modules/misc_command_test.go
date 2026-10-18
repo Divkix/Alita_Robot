@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/channels"
 	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/user"
 )
 
@@ -318,6 +320,32 @@ func TestGetIdEscapesStoredUserName(t *testing.T) {
 	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
 	if !strings.Contains(text, "&lt;3 &amp; Bob") || strings.Contains(text, "<3") {
 		t.Fatalf("getId text = %q, want the user name HTML-escaped", text)
+	}
+}
+
+func TestDisabledIdAndInfoStaySilentForUnknownUsername(t *testing.T) {
+	for _, cmd := range []string{"id", "info"} {
+		t.Run(cmd, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := disabling.DisableCMD(f.chat.Id, cmd); err != nil {
+				t.Fatalf("DisableCMD(%s) error = %v", cmd, err)
+			}
+			t.Cleanup(func() { _ = disabling.EnableCMD(f.chat.Id, cmd) })
+			// Telegram cannot resolve the username either.
+			f.client.errors["getChat"] = errors.New("Bad Request: chat not found")
+
+			ctx := newModuleMessageContext(f.bot, f.chat, f.member, "/"+cmd+" @nonexistentuser")
+			handler := miscModule.getId
+			if cmd == "info" {
+				handler = miscModule.info
+			}
+			if err := handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s() error = %v, want EndGroups", cmd, err)
+			}
+			if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+				t.Fatalf("sendMessage calls = %d, want 0 for a disabled command", len(calls))
+			}
+		})
 	}
 }
 

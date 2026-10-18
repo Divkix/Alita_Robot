@@ -115,16 +115,15 @@ func (moduleStruct) echomsg(b *gotgbot.Bot, ctx *ext.Context) error {
 
 func (moduleStruct) getId(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
+	if chat_status.CheckDisabledCmd(b, msg, "id") {
+		return ext.EndGroups
+	}
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.EndGroups
 	}
 	var builder strings.Builder
 	builder.Grow(512)
-
-	if chat_status.CheckDisabledCmd(b, msg, "id") {
-		return ext.EndGroups
-	}
 
 	if userId != 0 {
 		if msg.ReplyToMessage != nil {
@@ -279,6 +278,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	sender := ctx.EffectiveSender
+	if chat_status.CheckDisabledCmd(b, msg, "info") {
+		return ext.EndGroups
+	}
 	userId := extraction.ExtractUser(b, ctx)
 	switch userId {
 	case -1:
@@ -288,10 +290,6 @@ func (moduleStruct) info(b *gotgbot.Bot, ctx *ext.Context) error {
 			return ext.EndGroups
 		}
 		userId = sender.Id()
-	}
-
-	if chat_status.CheckDisabledCmd(b, msg, "info") {
-		return ext.EndGroups
 	}
 
 	username, name, found := extraction.GetUserInfo(userId)
