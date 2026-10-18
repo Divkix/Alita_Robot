@@ -67,8 +67,11 @@ BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 
 **Error:**
 ```
-[Redis] Failed to connect: connection refused
+[Cache] Failed to connect to Redis, retrying...   (logged once per attempt, up to 5 attempts)
+Failed to initialize cache: failed to connect to Redis after 5 attempts: dial tcp 127.0.0.1:6379: connect: connection refused
 ```
+
+With `DISABLE_CACHE=true` the bot logs a warning and keeps running without Redis instead.
 
 **Solutions:**
 
