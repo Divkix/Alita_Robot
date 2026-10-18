@@ -390,3 +390,40 @@ func TestApprovalCallbackHandlersPropagateGotgbotRequestErrors(t *testing.T) {
 		})
 	}
 }
+
+// The approve and status templates keep their last %s for the reason, so the
+// replies must fill it, with or without one.
+func TestApprovalRepliesFillTheReasonSlot(t *testing.T) {
+	useRealLocales(t)
+	for _, tt := range []struct {
+		name   string
+		args   string
+		reason string
+	}{
+		{name: "with reason", args: "42 trusted <ok>", reason: "trusted &lt;ok&gt;"},
+		{name: "without reason", args: "42"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			if err := approvalsModule.approveUser(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/approve "+tt.args)); err != ext.EndGroups {
+				t.Fatalf("approveUser error = %v, want EndGroups", err)
+			}
+			if err := approvalsModule.checkApprovalStatus(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/approval 42")); err != ext.EndGroups {
+				t.Fatalf("checkApprovalStatus error = %v, want EndGroups", err)
+			}
+			calls := f.client.callsFor("sendMessage")
+			if len(calls) != 2 {
+				t.Fatalf("sendMessage calls = %d, want the approve and status replies", len(calls))
+			}
+			for i, call := range calls {
+				text, _ := call.Params["text"].(string)
+				if strings.Contains(text, "%!") {
+					t.Fatalf("reply %d = %q, want every verb filled", i, text)
+				}
+				if tt.reason != "" && !strings.Contains(text, tt.reason) {
+					t.Fatalf("reply %d = %q, want the reason %q", i, text, tt.reason)
+				}
+			}
+		})
+	}
+}
