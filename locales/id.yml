@@ -16,23 +16,23 @@ admin_anon_admin_enabled: "Mode AnonAdmin saat ini <b>diaktifkan</b> untuk %s.
 admin_anon_admin_enabled_now: "Mode AnonAdmin sekarang <b>diaktifkan</b> untuk %s.
 
   Mulai sekarang, admin anonim dapat menjalankan perintah admin tanpa konfirmasi dengan tombol."
-admin_anon_admin_invalid_arg: |
-  Argumen tidak valid, saya hanya mengerti <code>on</code>,
-  <code>off</code>, <code>yes</code>, <code>no</code>
+admin_anon_admin_invalid_arg:
+  "Argumen tidak valid, saya hanya mengerti <code>on</code>,
+  <code>off</code>, <code>yes</code>, <code>no</code>"
 admin_demote_not_admin: |
   Orang ini bukan admin, bagaimana saya bisa menurunkannya?
 admin_demote_is_bot_itself: Saya tidak akan menurunkan diri saya sendiri.
 admin_demote_is_owner: Orang ini membuat obrolan ini, bagaimana saya bisa menurunkannya?
 admin_demote_success_demote: Berhasil menurunkan %s!
-admin_errors_err_cannot_demote: |
-  Gagal menurunkan; mungkin saya bukan admin, atau mereka
-  mungkin dipromosikan oleh admin lain.
-admin_errors_err_cannot_promote: |
-  Gagal mempromosikan; mungkin saya bukan admin, atau mereka
-  mungkin dipromosikan oleh admin lain.
-admin_errors_err_set_title: |
-  Gagal mengatur judul admin khusus; Judul mungkin tidak
-  benar atau mungkin mengandung emoji.
+admin_errors_err_cannot_demote:
+  "Gagal menurunkan; mungkin saya bukan admin, atau mereka
+  mungkin dipromosikan oleh admin lain."
+admin_errors_err_cannot_promote:
+  "Gagal mempromosikan; mungkin saya bukan admin, atau mereka
+  mungkin dipromosikan oleh admin lain."
+admin_errors_err_set_title:
+  "Gagal mengatur judul admin khusus; Judul mungkin tidak
+  benar atau mungkin mengandung emoji."
 admin_errors_title_empty: Anda perlu memberikan judul admin untuk mengaturnya.
 admin_errors_admin_cache_failed: "Saya kesulitan mengakses daftar admin. Silakan coba lagi nanti."
 admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna dengan modul admin!
@@ -70,45 +70,45 @@ admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempr
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
 admin_promote_is_owner: Orang ini membuat obrolan ini, bagaimana saya bisa mempromosikannya?
 admin_promote_success_promote: Berhasil mempromosikan %s!
-admin_title_is_admin: |
-  Orang ini sudah menjadi admin, bagaimana saya bisa mengatur
-  judul admin khusus untuk mereka?
+admin_title_is_admin:
+  "Orang ini sudah menjadi admin, bagaimana saya bisa mengatur
+  judul admin khusus untuk mereka?"
 admin_title_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
-admin_title_is_owner: |
-  Orang ini membuat obrolan ini, bagaimana saya bisa mengatur
-  judul admin untuk mereka?
+admin_title_is_owner:
+  "Orang ini membuat obrolan ini, bagaimana saya bisa mengatur
+  judul admin untuk mereka?"
 admin_title_success_set: Berhasil mengatur judul admin %s menjadi <b>%s</b>
 admin_title_truncated: "\nCatatan: Judul admin dipotong menjadi 16 karakter dari %d"
 admin_cache_cleared: Berhasil menghapus cache admin.
 admin_no_visible_admins: "\nTidak ada admin yang terlihat (semua adalah bot atau anonim)."
 admin_anon_admin_db_error: Gagal memperbarui pengaturan admin anonim. Silakan coba lagi.
-antiflood_checkflood_perform_action: |
-  Ya, saya tidak suka spam Anda. %s telah
-  %s!
+antiflood_checkflood_perform_action:
+  "Ya, saya tidak suka spam Anda. %s telah
+  %s!"
 antiflood_errors_expected_args:
   "Saya mengharapkan beberapa argumen! Entah off, atau bilangan bulat.
   misal: `/setflood 5`, atau `/setflood off`"
-antiflood_errors_invalid_int: |
-  Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
-  atau `off`.
+antiflood_errors_invalid_int:
+  "Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
+  atau `off`."
 antiflood_errors_set_in_limit: Batas antiflood harus diatur antara 3 dan 100.
-antiflood_flood_deleter_already_disabled: |
-  Penghapusan pesan Antiflood saat ini
-  *dinonaktifkan* di obrolan ini, pesan yang menyebabkan antiflood akan diabaikan!
-antiflood_flood_deleter_already_enabled: |
-  Penghapusan pesan Antiflood saat ini *diaktifkan*
-  di obrolan ini, pesan yang menyebabkan antiflood akan dihapus!
-antiflood_flood_deleter_disabled: |
-  Menonaktifkan Penghapusan Pesan Antiflood. Pesan
-  yang menyebabkan antiflood akan diabaikan!
-antiflood_flood_deleter_enabled: |
-  Mengaktifkan Penghapusan Pesan Antiflood. Pesan yang menyebabkan
-  antiflood akan dihapus!
+antiflood_flood_deleter_already_disabled:
+  "Penghapusan pesan Antiflood saat ini
+  *dinonaktifkan* di obrolan ini, pesan yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_already_enabled:
+  "Penghapusan pesan Antiflood saat ini *diaktifkan*
+  di obrolan ini, pesan yang menyebabkan antiflood akan dihapus!"
+antiflood_flood_deleter_disabled:
+  "Menonaktifkan Penghapusan Pesan Antiflood. Pesan
+  yang menyebabkan antiflood akan diabaikan!"
+antiflood_flood_deleter_enabled:
+  "Mengaktifkan Penghapusan Pesan Antiflood. Pesan yang menyebabkan
+  antiflood akan dihapus!"
 antiflood_flood_deleter_invalid_option: "Saya hanya mengerti opsi dari: `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: Obrolan ini saat ini tidak menegakkan kontrol flood.
-antiflood_flood_show_settings: |
-  Obrolan ini saat ini menegakkan kontrol flood setelah
-  %d pesan. Pengguna yang mengirim lebih dari jumlah itu akan %s.
+antiflood_flood_show_settings:
+  "Obrolan ini saat ini menegakkan kontrol flood setelah
+  %d pesan. Pengguna yang mengirim lebih dari jumlah itu akan %s."
 antiflood_help_msg:
   "Tahukah Anda bagaimana terkadang, orang bergabung, mengirim 100 pesan, dan merusak
   obrolan Anda? Dengan antiflood, itu tidak terjadi lagi!
@@ -189,15 +189,15 @@ bans_help_msg:
   × /restrict: Menampilkan InlineKeyboard untuk memilih opsi dari kick, ban dan mute
 
   × /unrestrict: Menampilkan InlineKeyboard untuk memilih opsi dari unmute dan unban."
-bans_kick_cannot_kick_admin: |
-  Mengapa saya menendang admin? Itu terdengar seperti ide yang sangat
-  bodoh.
+bans_kick_cannot_kick_admin:
+  "Mengapa saya menendang admin? Itu terdengar seperti ide yang sangat
+  bodoh."
 bans_kick_is_bot_itself: Mengapa saya menendang diri saya sendiri?
 bans_kick_kicked_reason: <b>Alasan:</b> %s
 bans_kick_kicked_user: Berhasil Menendang %s.
-bans_kick_user_not_in_chat: |
-  Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa
-  membatasi mereka?
+bans_kick_user_not_in_chat:
+  "Pengguna ini tidak ada di obrolan ini, bagaimana saya bisa
+  membatasi mereka?"
 bans_kickme_is_admin: Anda adalah admin, dan Anda terjebak di sini bersama orang lain!
 bans_kickme_ok_out: Sesuai keinginan Anda, Keluar!
 bans_unban_is_admin: Mengapa saya membuka blokir admin?
@@ -242,12 +242,12 @@ blacklists_help_msg: "*Perintah Pengguna:*
   peringatan kepada pengguna."
 blacklists_ls_bl_list_bl: "Kata-kata ini didaftar hitam di obrolan ini:"
 blacklists_ls_bl_no_blacklisted: Tidak ada kata yang didaftar hitam di obrolan ini.
-blacklists_rm_all_bl_ask: |
-  Apakah Anda yakin ingin menghapus semua kata yang didaftar hitam dari
-  obrolan ini?
-blacklists_rm_all_bl_button_handler_no: |
-  Dibatalkan menghapus semua Daftar Hitam dari Obrolan Ini
-  ❌
+blacklists_rm_all_bl_ask:
+  "Apakah Anda yakin ingin menghapus semua kata yang didaftar hitam dari
+  obrolan ini?"
+blacklists_rm_all_bl_button_handler_no:
+  "Dibatalkan menghapus semua Daftar Hitam dari Obrolan Ini
+  ❌"
 blacklists_rm_all_bl_button_handler_yes: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
 blacklists_set_bl_action_changed_mode: "Berhasil mengubah mode daftar hitam ke: *%s*"
 blacklists_set_bl_action_choose_correct_option: Silakan pilih opsi dari <mute/kick/ban/warn/none>
@@ -255,9 +255,9 @@ blacklists_set_bl_action_current_mode:
   "Mode daftar hitam saat ini untuk obrolan ini adalah:
   %s"
 blacklists_unblacklist_give_bl_word: Berikan saya kata untuk menghapusnya dari daftar hitam!
-blacklists_unblacklist_no_removed_bl: |
-  Tidak ada dari kata-kata yang diberikan ada di daftar hitam
-  yang dapat dihapus!
+blacklists_unblacklist_no_removed_bl:
+  "Tidak ada dari kata-kata yang diberikan ada di daftar hitam
+  yang dapat dihapus!"
 blacklists_unblacklist_removed_bl: |
   Berhasil menghapus '%s' dari kata-kata yang didaftar hitam!
 captcha_help_msg:
@@ -297,9 +297,9 @@ captcha_help_msg:
 
   Jika mereka gagal atau batas waktu habis, tindakan yang dikonfigurasi akan diambil."
 commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
-commonstrings_admin_cache_not_found: |
-  Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
-  untuk memuat ulang cache admin.
+commonstrings_admin_cache_not_found:
+  "Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
+  untuk memuat ulang cache admin."
 connections_allow_connect_currently_off:
   "Koneksi pengguna saat ini dimatikan <b>off</b>.
 
@@ -324,17 +324,17 @@ connections_connect_connection_disabled:
   ke obrolan ini.
 
   Silakan minta admin untuk mengizinkan jika Anda ingin terhubung!"
-connections_connect_tap_btn_connect: |
-  Silakan tekan tombol di bawah untuk menghubungkan obrolan ini
-  ke PM Anda.
+connections_connect_tap_btn_connect:
+  "Silakan tekan tombol di bawah untuk menghubungkan obrolan ini
+  ke PM Anda."
 connections_connected: Anda saat ini terhubung ke <b>%s</b>!
 connections_connections_btns_admin_conn_cmds: Perintah Admin yang Tersedia
 connections_connections_btns_user_conn_cmds: Perintah Pengguna yang Tersedia
 connections_disconnect_disconnected: |
   Berhasil memutuskan dari obrolan yang terhubung.
-connections_disconnect_need_pm: |
-  Anda perlu mengirim ini di PM ke saya untuk memutuskan dari
-  obrolan!
+connections_disconnect_need_pm:
+  "Anda perlu mengirim ini di PM ke saya untuk memutuskan dari
+  obrolan!"
 connections_help_msg:
   "Modul ini memungkinkan Anda untuk terhubung ke database obrolan, dan
   menambahkan sesuatu ke sana tanpa obrolan mengetahuinya! Untuk alasan yang jelas, Anda perlu
@@ -365,9 +365,9 @@ connections_help_msg:
   Anda dapat mengambil id obrolan dengan menggunakan perintah /id di obrolan Anda. Jangan terkejut
   jika id negatif; semua grup super memiliki id negatif."
 connections_is_user_connected_bot_not_admin: Saya bukan admin di obrolan ini!
-connections_is_user_connected_need_group: |
-  Perintah ini dibuat untuk digunakan di grup
-  obrolan, bukan di PM!
+connections_is_user_connected_need_group:
+  "Perintah ini dibuat untuk digunakan di grup
+  obrolan, bukan di PM!"
 connections_is_user_connected_user_not_admin: Anda perlu menjadi admin untuk melakukan ini.
 connections_not_connected: Anda tidak terhubung ke obrolan mana pun.
 connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat lagi mengakses obrolan ini. Silakan gunakan /connect untuk terhubung kembali ke obrolan yang valid."
