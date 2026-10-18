@@ -17,9 +17,9 @@ import (
 // admin there (and the bot too when requireBotAdmin); on refusal it has
 // already replied and returns nil. It also points ctx.EffectiveChat at the
 // resolved chat, which chat_status helpers given a nil chat then check.
-// Build the reply translator before calling it: lang.GetLanguage reads
-// EffectiveChat, so afterwards it returns the group's language, while replies
-// go to the user's PM.
+// lang.GetLanguage(ctx) still returns the PM's language afterwards, as
+// replies go to the user's PM; read the group's language from the returned
+// chat.
 func resolveAdminChat(b *gotgbot.Bot, ctx *ext.Context, requireBotAdmin bool) *gotgbot.Chat {
 	chat := chat_status.IsUserConnected(b, ctx, true, requireBotAdmin)
 	if chat == nil {

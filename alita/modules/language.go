@@ -59,7 +59,8 @@ func (m moduleStruct) changeLanguage(b *gotgbot.Bot, ctx *ext.Context) error {
 		if group == nil {
 			return ext.EndGroups
 		}
-		groupLang := lang.GetLanguage(ctx)
+		// lang.GetLanguage(ctx) answers in the PM's language; name the group's.
+		groupLang := lang.GetLanguage(&ext.Context{EffectiveChat: group})
 		replyString, _ = tr.GetString("language_current_group", i18n.TranslationParams{"s": keyboard.GetLangFormat(groupLang)})
 		langKb = withHelpTranslateRow(keyboard.MakeGroupLanguageKeyboard(group.Id))
 	} else if ctx.Message.Chat.Type == "private" {

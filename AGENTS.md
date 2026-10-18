@@ -55,6 +55,8 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
 - Given a nil chat, `chat_status` helpers check `ctx.EffectiveChat` once a handler has swapped it to a connected
   group; `PermissionResponder` still answers in the chat the update came from.
+- After such a swap `lang.GetLanguage(ctx)` returns the language of the chat the message came from (the user's, in
+  PM), since replies go there. Read the group's language with `lang.GetLanguage(&ext.Context{EffectiveChat: group})`.
 - `IsUserAdmin` returns false for channel and non-positive IDs. Never pass a chat ID as a user ID.
 - `*ForUpdate` predicates are memoised per update. Watchers only, never after a state change in the same update.
 

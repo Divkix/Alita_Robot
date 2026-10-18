@@ -117,11 +117,11 @@ func (moduleStruct) getLockMapAsArray() []string {
 	return cachedLockTypes
 }
 
-func (moduleStruct) buildLockTypesMessage(chatID int64) (res string) {
+func (moduleStruct) buildLockTypesMessage(ctx *ext.Context, chatID int64) (res string) {
 	chatLocks := locks.GetChatLocks(chatID)
 
 	newMapLocks := chatLocks
-	tr := i18n.MustNewTranslator(lang.GetLanguage(&ext.Context{EffectiveChat: &gotgbot.Chat{Id: chatID}}))
+	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	res, _ = tr.GetString("locks_current_locks_header")
 
 	keys := make([]string, 0, len(newMapLocks))
@@ -172,7 +172,7 @@ func (m moduleStruct) locks(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	ctx.EffectiveChat = chat
 
-	_, err := msg.Reply(b, m.buildLockTypesMessage(chat.Id), formatting.Shtml())
+	_, err := msg.Reply(b, m.buildLockTypesMessage(ctx, chat.Id), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
