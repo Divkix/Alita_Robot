@@ -704,6 +704,57 @@ func TestImportFBansFromCSVDocument(t *testing.T) {
 	}
 }
 
+// An imported list cannot ban the owner, a fed admin or the bot: /fban
+// refuses them and /unfban could not lift such a ban.
+func TestImportFBansSkipsOwnerAdminsAndBot(t *testing.T) {
+	ownerID := uniquePositiveUserID()
+	adminID := uniquePositiveUserID()
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	csvBody := "id,reason\n" +
+		strconv.FormatInt(ownerID, 10) + ",x\n" +
+		strconv.FormatInt(adminID, 10) + ",x\n" +
+		strconv.FormatInt(bot.Id, 10) + ",x\n" +
+		"4343,ok\n"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(csvBody))
+	}))
+	t.Cleanup(server.Close)
+	oldBaseURL := backupDownloadBaseURL
+	oldHTTPClient := backupDownloadHTTPClient
+	backupDownloadBaseURL = server.URL + "/file/bot"
+	backupDownloadHTTPClient = server.Client()
+	t.Cleanup(func() {
+		backupDownloadBaseURL = oldBaseURL
+		backupDownloadHTTPClient = oldHTTPClient
+	})
+
+	client.responses["getFile"] = json.RawMessage(
+		`{"file_id":"fed-bans","file_path":"fbans/bans.csv"}`,
+	)
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Import Guard Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	require.NoError(t, federations.PromoteFedAdmin(fed.FedID, adminID))
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, pm, owner, "/importfbans")
+	ctx.EffectiveMessage.ReplyToMessage = &gotgbot.Message{
+		MessageId: 77,
+		Date:      1,
+		Chat:      pm,
+		Document:  &gotgbot.Document{FileId: "fed-bans", FileName: "bans.csv", FileSize: int64(len(csvBody))},
+	}
+	if err := federationsModule.importFBans(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("importFBans: %v", err)
+	}
+	for _, id := range []int64{ownerID, adminID, bot.Id} {
+		require.Nil(t, federations.GetFedBan(fed.FedID, id), "user %d must not be fbanned by an import", id)
+	}
+	require.NotNil(t, federations.GetFedBan(fed.FedID, 4343), "ordinary user must be imported")
+}
+
 func TestFbanInPrivateAndEmptyExport(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()

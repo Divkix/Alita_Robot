@@ -1234,6 +1234,16 @@ func (moduleStruct) importFBans(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
+	// Drop the rows /fban would refuse: the bot, the owner and fed admins.
+	// An imported ban on them would be enforced but could not be lifted.
+	kept := bans[:0]
+	for _, ban := range bans {
+		if ban.UserID == b.Id || federations.IsFedAdmin(fed.FedID, ban.UserID) {
+			continue
+		}
+		kept = append(kept, ban)
+	}
+	bans = kept
 	for i := range bans {
 		if bans[i].BannedBy == 0 {
 			bans[i].BannedBy = from.Id
