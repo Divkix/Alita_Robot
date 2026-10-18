@@ -1994,7 +1994,6 @@ reactions_invalid_emoji: "कृपया एक मान्य इमोजी
 reactions_add_error: "रिएक्शन सहेजा नहीं जा सका। कृपया फिर से प्रयास करें।"
 reactions_add_success: "रिएक्शन जोड़ा गया: <code>{keyword}</code> -> {emoji}"
 reactions_remove_usage: "उपयोग: /removereaction &lt;कीवर्ड&gt;"
-reactions_not_found: "इस चैट के लिए कोई रिएक्शन कॉन्फ़िगर नहीं है।"
 reactions_keyword_not_found: "कीवर्ड के लिए कोई रिएक्शन नहीं मिला: <code>{keyword}</code>"
 reactions_remove_error: "रिएक्शन हटाया नहीं जा सका। कृपया फिर से प्रयास करें।"
 reactions_remove_success: "कीवर्ड के लिए रिएक्शन हटाया गया: <code>{keyword}</code>"

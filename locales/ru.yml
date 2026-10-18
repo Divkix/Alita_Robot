@@ -2078,7 +2078,6 @@ reactions_invalid_emoji: "Пожалуйста, укажите корректн�
 reactions_add_error: "Не удалось сохранить реакцию. Пожалуйста, попробуйте снова."
 reactions_add_success: "Реакция добавлена: <code>{keyword}</code> -> {emoji}"
 reactions_remove_usage: "Использование: /removereaction &lt;ключевое_слово&gt;"
-reactions_not_found: "Для этого чата не настроено ни одной реакции."
 reactions_keyword_not_found: "Для ключевого слова не найдена реакция: <code>{keyword}</code>"
 reactions_remove_error: "Не удалось удалить реакцию. Пожалуйста, попробуйте снова."
 reactions_remove_success: "Реакция удалена для ключевого слова: <code>{keyword}</code>"
