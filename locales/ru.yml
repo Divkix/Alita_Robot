@@ -2320,7 +2320,7 @@ logchannels_help_msg: |
   × /logchannel: Показать текущий канал логов (только в группах).
   × /logcategories: Список категорий.
 
-  Категории: settings, admin, user, automated, reports, other.
+  Категории: settings (изменения настроек канала логов), admin (баны, кики, муты, разбаны и размуты), user (/kickme и /banme), reports (жалобы пользователей), automated, other. В automated и other пока ничего не записывается.
 feds_pm_only: "Эту команду можно использовать только в личном чате со мной."
 feds_group_only: "Эту команду можно использовать только в группах."
 feds_need_name: "Дайте федерации название."
@@ -2405,7 +2405,7 @@ logs_set_ok: "Канал логов назначен. Действия адми�
 logs_unset_ok: "Канал логов убран."
 logs_not_set: "Для этого чата канал логов не назначен."
 logs_current: "Канал логов: <code>{id}</code>"
-logs_categories: "Категории: settings, admin, user, automated, reports, other."
+logs_categories: "Категории: settings (изменения настроек канала логов), admin (баны, кики, муты, разбаны и размуты), user (/kickme и /banme), reports (жалобы пользователей), automated, other. В automated и other пока ничего не записывается."
 logs_enabled: "Логирование включено для: {cats}"
 logs_disabled: "Логирование выключено для: {cats}"
 logs_unknown_category: "Неизвестная категория. См. /logcategories."

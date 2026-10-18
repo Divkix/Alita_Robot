@@ -2508,7 +2508,7 @@ logchannels_help_msg: |
   × /logchannel: Mostra o canal de log atual (somente grupos).
   × /logcategories: Lista as categorias.
 
-  Categorias: settings, admin, user, automated, reports, other.
+  Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated, other. Nada é registrado em automated ou other ainda.
 feds_pm_only: "Este comando só pode ser usado no meu chat privado."
 feds_group_only: "Este comando só pode ser usado em grupos."
 feds_need_name: "Dê um nome à sua federação."
@@ -2593,7 +2593,7 @@ logs_set_ok: "Canal de log definido. As ações de administração deste chat se
 logs_unset_ok: "Canal de log removido."
 logs_not_set: "Nenhum canal de log está definido para este chat."
 logs_current: "Canal de log: <code>{id}</code>"
-logs_categories: "Categorias: settings, admin, user, automated, reports, other."
+logs_categories: "Categorias: settings (mudanças nas configurações do canal de log), admin (banimentos, expulsões, silenciamentos, desbanimentos e remoções de silêncio), user (/kickme e /banme), reports (denúncias de usuários), automated, other. Nada é registrado em automated ou other ainda."
 logs_enabled: "Log ativado para: {cats}"
 logs_disabled: "Log desativado para: {cats}"
 logs_unknown_category: "Categoria desconhecida. Veja /logcategories."

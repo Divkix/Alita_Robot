@@ -2536,7 +2536,7 @@ logchannels_help_msg: |
   × /logchannel: Tampilkan kanal log saat ini (hanya di grup).
   × /logcategories: Daftar kategori.
 
-  Kategori: settings, admin, user, automated, reports, other.
+  Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated, other. Belum ada yang dicatat di automated atau other.
 feds_pm_only: "Perintah ini hanya bisa digunakan di obrolan pribadi dengan saya."
 feds_group_only: "Perintah ini hanya bisa digunakan di grup."
 feds_need_name: "Beri nama federasi Anda."
@@ -2621,7 +2621,7 @@ logs_set_ok: "Kanal log diatur. Tindakan admin dari obrolan ini akan dikirim ke 
 logs_unset_ok: "Kanal log dihapus."
 logs_not_set: "Belum ada kanal log untuk obrolan ini."
 logs_current: "Kanal log: <code>{id}</code>"
-logs_categories: "Kategori: settings, admin, user, automated, reports, other."
+logs_categories: "Kategori: settings (perubahan pengaturan kanal log), admin (ban, kick, bisukan, unban, dan batal bisukan), user (/kickme dan /banme), reports (laporan pengguna), automated, other. Belum ada yang dicatat di automated atau other."
 logs_enabled: "Pencatatan diaktifkan untuk: {cats}"
 logs_disabled: "Pencatatan dinonaktifkan untuk: {cats}"
 logs_unknown_category: "Kategori tidak dikenal. Lihat /logcategories."

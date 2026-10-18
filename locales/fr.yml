@@ -2452,7 +2452,7 @@ logchannels_help_msg: |
   × /logchannel: Afficher le canal de journal actuel (groupes uniquement).
   × /logcategories: Lister les catégories.
 
-  Catégories : settings, admin, user, automated, reports, other.
+  Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated, other. Rien n'est encore journalisé dans automated ni dans other.
 feds_pm_only: "Cette commande ne peut être utilisée qu'en discussion privée avec moi."
 feds_group_only: "Cette commande ne peut être utilisée que dans les groupes."
 feds_need_name: "Donnez un nom à votre fédération."
@@ -2537,7 +2537,7 @@ logs_set_ok: "Canal de journal défini. Les actions d'administration de ce chat 
 logs_unset_ok: "Canal de journal retiré."
 logs_not_set: "Aucun canal de journal n'est défini pour ce chat."
 logs_current: "Canal de journal : <code>{id}</code>"
-logs_categories: "Catégories : settings, admin, user, automated, reports, other."
+logs_categories: "Catégories : settings (modifications des réglages du canal de journal), admin (bannissements, expulsions, mises en sourdine, débannissements et levées de sourdine), user (/kickme et /banme), reports (signalements des utilisateurs), automated, other. Rien n'est encore journalisé dans automated ni dans other."
 logs_enabled: "Journalisation activée pour : {cats}"
 logs_disabled: "Journalisation désactivée pour : {cats}"
 logs_unknown_category: "Catégorie inconnue. Voir /logcategories."

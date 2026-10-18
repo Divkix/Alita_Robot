@@ -2238,7 +2238,7 @@ logchannels_help_msg: |
   × /logchannel: मौजूदा लॉग चैनल दिखाएँ (केवल ग्रुप में)।
   × /logcategories: श्रेणियों की सूची।
 
-  श्रेणियाँ: settings, admin, user, automated, reports, other.
+  श्रेणियाँ: settings (लॉग चैनल की सेटिंग में बदलाव), admin (बैन, किक, म्यूट, अनबैन और अनम्यूट), user (/kickme और /banme), reports (उपयोगकर्ताओं की रिपोर्ट), automated, other. automated या other में अभी कुछ भी लॉग नहीं होता।
 feds_pm_only: "यह कमांड केवल मेरे साथ निजी चैट में इस्तेमाल हो सकता है।"
 feds_group_only: "यह कमांड केवल ग्रुप में इस्तेमाल हो सकता है।"
 feds_need_name: "अपने फ़ेडरेशन को एक नाम दें।"
@@ -2323,7 +2323,7 @@ logs_set_ok: "लॉग चैनल सेट किया गया। इस 
 logs_unset_ok: "लॉग चैनल हटाया गया।"
 logs_not_set: "इस चैट के लिए कोई लॉग चैनल सेट नहीं है।"
 logs_current: "लॉग चैनल: <code>{id}</code>"
-logs_categories: "श्रेणियाँ: settings, admin, user, automated, reports, other."
+logs_categories: "श्रेणियाँ: settings (लॉग चैनल की सेटिंग में बदलाव), admin (बैन, किक, म्यूट, अनबैन और अनम्यूट), user (/kickme और /banme), reports (उपयोगकर्ताओं की रिपोर्ट), automated, other. automated या other में अभी कुछ भी लॉग नहीं होता।"
 logs_enabled: "इनके लिए लॉगिंग चालू की गई: {cats}"
 logs_disabled: "इनके लिए लॉगिंग बंद की गई: {cats}"
 logs_unknown_category: "अज्ञात श्रेणी। /logcategories देखें।"

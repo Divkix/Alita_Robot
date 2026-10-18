@@ -2545,7 +2545,7 @@ logchannels_help_msg: |
   × /logchannel: Muestra el canal de registro actual (solo grupos).
   × /logcategories: Lista las categorías.
 
-  Categorías: settings, admin, user, automated, reports, other.
+  Categorías: settings (cambios en la configuración del canal de registro), admin (baneos, expulsiones, silencios, desbaneos y quitar silencios), user (/kickme y /banme), reports (reportes de usuarios), automated, other. Todavía no se registra nada en automated ni en other.
 feds_pm_only: "Este comando solo se puede usar en un chat privado conmigo."
 feds_group_only: "Este comando solo se puede usar en grupos."
 feds_need_name: "Dale un nombre a tu federación."
@@ -2630,7 +2630,7 @@ logs_set_ok: "Canal de registro establecido. Las acciones de administración de 
 logs_unset_ok: "Canal de registro quitado."
 logs_not_set: "Este chat no tiene ningún canal de registro."
 logs_current: "Canal de registro: <code>{id}</code>"
-logs_categories: "Categorías: settings, admin, user, automated, reports, other."
+logs_categories: "Categorías: settings (cambios en la configuración del canal de registro), admin (baneos, expulsiones, silencios, desbaneos y quitar silencios), user (/kickme y /banme), reports (reportes de usuarios), automated, other. Todavía no se registra nada en automated ni en other."
 logs_enabled: "Registro activado para: {cats}"
 logs_disabled: "Registro desactivado para: {cats}"
 logs_unknown_category: "Categoría desconocida. Consulta /logcategories."

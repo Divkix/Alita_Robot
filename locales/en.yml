@@ -2546,7 +2546,7 @@ logchannels_help_msg: |
   × /logchannel: Show the current log channel (groups only).
   × /logcategories: List categories.
 
-  Categories: settings, admin, user, automated, reports, other.
+  Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet.
 feds_pm_only: "This command can only be used in private chat with me."
 feds_group_only: "This command can only be used in groups."
 feds_need_name: "Give your federation a name."
@@ -2631,7 +2631,7 @@ logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
 logs_unset_ok: "Log channel removed."
 logs_not_set: "No log channel is set for this chat."
 logs_current: "Log channel: <code>{id}</code>"
-logs_categories: "Categories: settings, admin, user, automated, reports, other."
+logs_categories: "Categories: settings (log channel setting changes), admin (bans, kicks, mutes, unbans and unmutes), user (/kickme and /banme), reports (user reports), automated, other. Nothing is logged under automated or other yet."
 logs_enabled: "Enabled logging for: {cats}"
 logs_disabled: "Disabled logging for: {cats}"
 logs_unknown_category: "Unknown category. See /logcategories."
