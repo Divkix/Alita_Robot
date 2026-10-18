@@ -249,8 +249,7 @@ mutes_help_msg:
   × /smute <pseudo> : rend muet un utilisateur silencieusement, n'envoie pas de message au groupe,
   et supprime également votre commande. (via le pseudo, ou en réponse)
 
-  × /dmute <pseudo> : rend muet un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo,
-  ou en réponse)
+  × /dmute [raison] : rend muet l'auteur du message auquel vous répondez et supprime ce message. (en réponse uniquement)
 
   × /tmute <pseudo> x(m/h/d/w) : rend muet un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
   m = minutes, h = heures, d = jours, w = semaines.

@@ -766,8 +766,7 @@ mutes_help_msg:
   × /smute <userhandle>: membisukan pengguna secara diam-diam, tidak mengirim pesan ke grup,
   dan juga menghapus perintah Anda. (melalui handle, atau balasan)
 
-  × /dmute <userhandle>: membisukan pengguna dan menghapus pesan yang dibalas. (melalui handle,
-  atau balasan)
+  × /dmute [alasan]: membisukan pengirim pesan yang dibalas dan menghapus pesan tersebut. (hanya balasan)
 
   × /tmute <userhandle> x(m/h/d/w): membisukan pengguna untuk waktu `x`. (melalui handle, atau balasan).
   m = menit, h = jam, d = hari, w = minggu.

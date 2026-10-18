@@ -774,8 +774,7 @@ mutes_help_msg:
   × /smute <nombre de usuario>: silencia a un usuario silenciosamente, no envía mensaje al grupo,
   y también elimina tu comando. (vía nombre de usuario, o respuesta)
 
-  × /dmute <nombre de usuario>: silencia a un usuario y elimina el mensaje respondido. (vía nombre de usuario,
-  o respuesta)
+  × /dmute [motivo]: silencia al autor del mensaje respondido y elimina ese mensaje. (solo respondiendo)
 
   × /tmute <nombre de usuario> x(m/h/d/w): silencia a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
   m = minutos, h = horas, d = días, w = semanas.

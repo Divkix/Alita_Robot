@@ -738,8 +738,7 @@ mutes_help_msg:
   × /smute <userhandle>: silencia um usuário silenciosamente, não envia mensagem para o grupo,
   e também deleta seu comando. (via handle, ou reply)
 
-  × /dmute <userhandle>: silencia um usuário e deleta a mensagem respondida. (via handle,
-  ou reply)
+  × /dmute [motivo]: silencia o autor da mensagem respondida e deleta essa mensagem. (apenas reply)
 
   × /tmute <userhandle> x(m/h/d/w): silencia um usuário por `x` tempo. (via handle, ou reply).
   m = minutos, h = horas, d = dias, w = semanas.
