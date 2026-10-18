@@ -182,6 +182,37 @@ func TestIsolateUsersThrottleCachesDoesNotRaceSweep(t *testing.T) {
 	}
 }
 
+func TestSweepUsersThrottleCachesCoversEveryCache(t *testing.T) {
+	isolateUsersThrottleCaches(t)
+
+	now := time.Now()
+	caches := []struct {
+		name     string
+		cache    *sync.Map
+		interval time.Duration
+	}{
+		{"user", userUpdateCache, userUpdateInterval},
+		{"chat", chatUpdateCache, chatUpdateInterval},
+		{"chatMember", chatMemberUpdateCache, chatUpdateInterval},
+		{"channel", channelUpdateCache, channelUpdateInterval},
+	}
+	for _, c := range caches {
+		c.cache.Store("stale", throttleEntry{at: now.Add(-c.interval - time.Second)})
+		c.cache.Store("fresh", throttleEntry{at: now})
+	}
+
+	sweepUsersThrottleCaches(now)
+
+	for _, c := range caches {
+		if _, loaded := c.cache.Load("stale"); loaded {
+			t.Errorf("%s cache: expired entry should be swept", c.name)
+		}
+		if _, loaded := c.cache.Load("fresh"); !loaded {
+			t.Errorf("%s cache: fresh entry should survive the sweep", c.name)
+		}
+	}
+}
+
 func TestLogUsersPersistsSenderChatAndReplyUsers(t *testing.T) {
 	isolateUsersThrottleCaches(t)
 
