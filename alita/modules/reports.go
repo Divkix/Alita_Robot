@@ -43,6 +43,11 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	reportprefs := reports.GetChatReportSettings(chat.Id)
+	if !reportprefs.Status {
+		return ext.EndGroups
+	}
+
 	if msg.ReplyToMessage == nil {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString("reports_reply_to_report")
@@ -75,7 +80,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 	} else {
 		replyMsgId = msg.MessageId
 	}
-	reportprefs := reports.GetChatReportSettings(chat.Id)
 
 	if slices.Contains(reportprefs.BlockedList, user.Id) {
 		if chat_status.CanBotDelete(b, ctx, nil) {
@@ -109,10 +113,6 @@ func (moduleStruct) report(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		return ext.EndGroups
-	}
-
-	if !reportprefs.Status {
 		return ext.EndGroups
 	}
 

@@ -510,3 +510,44 @@ func TestReportMentionWatcherContinuesGroups(t *testing.T) {
 		}
 	})
 }
+
+func TestReportStaysSilentWhenReportsDisabled(t *testing.T) {
+	disable := func(t *testing.T, chatID int64) {
+		t.Helper()
+		if err := reports.SetChatReportStatus(chatID, false); err != nil {
+			t.Fatalf("SetChatReportStatus setup error = %v", err)
+		}
+	}
+	assertSilent := func(t *testing.T, client *moduleBotClient, bot *gotgbot.Bot, ctx *ext.Context) {
+		t.Helper()
+		if err := reportsModule.report(bot, ctx); err != ext.EndGroups {
+			t.Fatalf("report error = %v, want EndGroups", err)
+		}
+		if calls := client.callsFor("sendMessage"); len(calls) != 0 {
+			t.Fatalf("sendMessage calls = %d, want reports off to stay silent", len(calls))
+		}
+	}
+	reporter := gotgbot.User{Id: 42, FirstName: "Reporter"}
+
+	t.Run("mention without reply", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		disable(t, chat.Id)
+		assertSilent(t, client, bot, newModuleMessageContext(bot, chat, reporter, "@admin"))
+	})
+
+	t.Run("self report", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Report Chat"}
+		disable(t, chat.Id)
+		assertSilent(t, client, bot, newReportReplyContext(bot, chat, reporter, reporter, "/report"))
+	})
+
+	t.Run("admin reporter", func(t *testing.T) {
+		f := newAdminChatFixture(t)
+		disable(t, f.chat.Id)
+		assertSilent(t, f.client, f.bot, newReportReplyContext(f.bot, f.chat, f.admin, f.member, "/report"))
+	})
+}
