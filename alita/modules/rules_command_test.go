@@ -8,6 +8,8 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/rules"
 )
 
@@ -206,5 +208,47 @@ func TestClearRulesRemovesStoredRules(t *testing.T) {
 	}
 	if got := rules.GetChatRulesInfo(chatID).Rules; got != "" {
 		t.Fatalf("Rules = %q, want cleared", got)
+	}
+}
+
+func TestDefaultRulesButtonFollowsGroupLanguage(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	if err := lang.ChangeGroupLanguage(f.chat.Id, "es"); err != nil {
+		t.Fatalf("ChangeGroupLanguage() error = %v", err)
+	}
+	if err := rules.SetChatRules(f.chat.Id, "Read before posting"); err != nil {
+		t.Fatalf("SetChatRules() error = %v", err)
+	}
+	if err := rules.SetPrivateRules(f.chat.Id, true); err != nil {
+		t.Fatalf("SetPrivateRules() error = %v", err)
+	}
+
+	rulesCtx := newModuleMessageContext(f.bot, f.chat, f.member, "/rules")
+	if err := rulesModule.sendRules(f.bot, rulesCtx); err != ext.EndGroups {
+		t.Fatalf("sendRules() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	replyMarkup, ok := calls[0].Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok {
+		t.Fatalf("reply_markup = %#v, want InlineKeyboardMarkup", calls[0].Params["reply_markup"])
+	}
+	if got := replyMarkup.InlineKeyboard[0][0].Text; got != "Reglas" {
+		t.Fatalf("rules button text = %q, want the Spanish default", got)
+	}
+
+	btnCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/rulesbtn")
+	if err := rulesModule.rulesBtn(f.bot, btnCtx); err != ext.EndGroups {
+		t.Fatalf("rulesBtn() error = %v, want EndGroups", err)
+	}
+	calls = f.client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want 2", len(calls))
+	}
+	if text, _ := calls[1].Params["text"].(string); !strings.Contains(text, "Reglas") {
+		t.Fatalf("rulesbtn reply = %q, want the Spanish default label", text)
 	}
 }
