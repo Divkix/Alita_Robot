@@ -8,8 +8,8 @@ admin_anon_admin_disabled:
 admin_anon_admin_disabled_now:
   "El modo AnonAdmin ahora está <b>deshabilitado</b> para %s.
 
-  De ahora en adelante, no pediré a los administradores que verifiquen permisos de
-  administradores anónimos."
+  De ahora en adelante, los administradores anónimos deberán pulsar un botón para
+  confirmar sus permisos."
 admin_anon_admin_enabled:
   "El modo AnonAdmin está actualmente <b>habilitado</b> para %s.
 
@@ -17,7 +17,7 @@ admin_anon_admin_enabled:
 admin_anon_admin_enabled_now:
   "El modo AnonAdmin ahora está <b>habilitado</b> para %s.
 
-  De ahora en adelante, pediré a los administradores que verifiquen permisos de administradores anónimos."
+  De ahora en adelante, los administradores anónimos podrán usar comandos de administrador sin confirmar con un botón."
 admin_anon_admin_invalid_arg: Argumento inválido, solo entiendo <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
 admin_demote_not_admin:
@@ -63,7 +63,7 @@ admin_help_msg:
 
   × /invitelink: Obtén el enlace de invitación del chat.
 
-  × /anonadmin `<on/off>`: Exige que los administradores anónimos confirmen con un botón (solo el propietario del grupo).
+  × /anonadmin `<on/off>`: on permite que los administradores anónimos actúen sin confirmar; off (predeterminado) les obliga a confirmar con un botón (solo el propietario del grupo).
 
   × /admincache: Recarga la lista de administradores.
 
@@ -1837,10 +1837,10 @@ admin_extended_docs: |
   <b>Soporte para administradores anónimos</b>
 
   El comando <code>/anonadmin</code> permite a los propietarios del grupo alternar el reconocimiento de administradores anónimos:
-  <code>/anonadmin on</code> - Habilitar verificación de admins anónimos
-  <code>/anonadmin off</code> - Deshabilitar verificación de admins anónimos
+  <code>/anonadmin on</code> - Confiar en los admins anónimos sin verificación
+  <code>/anonadmin off</code> - Exigir verificación con botón (predeterminado)
 
-  Cuando está habilitado, el bot solicitará verificación para acciones de admin realizadas desde cuentas anónimas.
+  Cuando está deshabilitado (el valor predeterminado), el bot pide verificación con botón antes de ejecutar acciones de admin realizadas desde cuentas anónimas.
 
   <b>Cómo funciona la verificación de admin anónimo:</b>
   1. El bot detecta que el remitente es GroupAnonymousBot
@@ -2716,7 +2716,7 @@ admin_extend_msg: |
   /demote — quitar a un administrador
   /title — establecer el título personalizado de un administrador
   /invitelink — obtener el enlace de invitación del chat
-  /anonadmin — exigir que los administradores anónimos confirmen con un botón
+  /anonadmin — confiar en los administradores anónimos (on) o exigir que confirmen con un botón (off)
   /admincache — recargar la lista de administradores
   /clearadmincache — borrar la caché de administradores
   /setgtitle — cambiar el título del grupo

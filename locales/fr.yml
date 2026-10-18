@@ -9,9 +9,9 @@ admin_adminlist: "Administrateurs de <b>%s</b> :"
 admin_anon_admin_already_disabled: Le mode AnonAdmin est déjà <b>désactivé</b> pour %s
 admin_anon_admin_already_enabled: Le mode AnonAdmin est déjà <b>activé</b> pour %s
 admin_anon_admin_disabled: "Le mode AnonAdmin est actuellement <b>désactivé</b> pour %s.\n\nCela nécessite que les administrateurs anonymes appuient sur un bouton pour confirmer leurs permissions."
-admin_anon_admin_disabled_now: "Le mode AnonAdmin est maintenant <b>désactivé</b> pour %s.\n\nDésormais, je ne demanderai plus aux administrateurs anonymes de vérifier leurs permissions."
+admin_anon_admin_disabled_now: "Le mode AnonAdmin est maintenant <b>désactivé</b> pour %s.\n\nDésormais, les administrateurs anonymes devront appuyer sur un bouton pour confirmer leurs permissions."
 admin_anon_admin_enabled: "Le mode AnonAdmin est actuellement <b>activé</b> pour %s.\n\nCela permet à tous les administrateurs anonymes d'effectuer des actions d'administration sans restriction."
-admin_anon_admin_enabled_now: "Le mode AnonAdmin est maintenant <b>activé</b> pour %s.\n\nDésormais, je demanderai aux administrateurs de vérifier les permissions des administrateurs anonymes."
+admin_anon_admin_enabled_now: "Le mode AnonAdmin est maintenant <b>activé</b> pour %s.\n\nDésormais, les administrateurs anonymes peuvent exécuter des commandes d'administration sans confirmer avec un bouton."
 admin_anon_admin_invalid_arg: "Argument invalide, je comprends uniquement <code>on</code>, <code>off</code>, <code>yes</code>, <code>no</code>"
 admin_demote_not_admin: "Cette personne n'est pas administrateur, comment suis-je censé la rétrograder ?"
 admin_demote_is_bot_itself: Je ne vais pas me rétrograder moi-même.
@@ -22,7 +22,7 @@ admin_errors_err_cannot_promote: "Échec de la promotion ; il se peut que je ne 
 admin_errors_err_set_title: "Échec de la définition du titre d'administrateur personnalisé ; le titre peut être incorrect ou contenir des emojis."
 admin_errors_title_empty: Vous devez me donner un titre d'administrateur à définir.
 admin_errors_admin_cache_failed: "J'ai du mal à accéder à la liste des administrateurs. Veuillez réessayer plus tard."
-admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n\n× /setgtitle <titre> : Changer le titre du groupe.\n\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n\n× /setgdesc [texte] : Changer la description du groupe.\n\n× /invitelink : Obtenir le lien d'invitation du chat.\n\n× /anonadmin `<on/off>` : Exiger que les administrateurs anonymes confirment avec un bouton (propriétaire du groupe uniquement).\n\n× /admincache : Recharger la liste des administrateurs.\n\n× /clearadmincache : Vider la liste des administrateurs en cache."
+admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n\n× /setgtitle <titre> : Changer le titre du groupe.\n\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n\n× /setgdesc [texte] : Changer la description du groupe.\n\n× /invitelink : Obtenir le lien d'invitation du chat.\n\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n\n× /admincache : Recharger la liste des administrateurs.\n\n× /clearadmincache : Vider la liste des administrateurs en cache."
 admin_promote_admin_title_truncated: Titre d'administrateur tronqué à 16 caractères depuis %d
 admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-je censé la promouvoir ?"
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
@@ -45,10 +45,10 @@ admin_extended_docs: |
   <b>Support des Administrateurs Anonymes</b>
 
   La commande <code>/anonadmin</code> permet aux propriétaires de groupe de basculer la reconnaissance des administrateurs anonymes :
-  <code>/anonadmin on</code> - Activer les vérifications d'administrateurs anonymes
-  <code>/anonadmin off</code> - Désactiver les vérifications d'administrateurs anonymes
+  <code>/anonadmin on</code> - Faire confiance aux administrateurs anonymes sans vérification
+  <code>/anonadmin off</code> - Exiger une vérification par bouton (par défaut)
 
-  Lorsque c'est activé, le bot demandera une vérification pour les actions d'administration des comptes anonymes.
+  Lorsque c'est désactivé (par défaut), le bot demande une vérification par bouton avant d'exécuter les actions d'administration des comptes anonymes.
 
   <b>Comment fonctionne la vérification des administrateurs anonymes :</b>
   1. Le bot détecte que l'expéditeur est GroupAnonymousBot
@@ -2612,7 +2612,7 @@ admin_extend_msg: |
   /demote — rétrograder un administrateur
   /title — définir le titre personnalisé d'un administrateur
   /invitelink — obtenir le lien d'invitation du chat
-  /anonadmin — exiger une confirmation par bouton des administrateurs anonymes
+  /anonadmin — faire confiance aux administrateurs anonymes (on) ou exiger une confirmation par bouton (off)
   /admincache — recharger la liste des administrateurs
   /clearadmincache — vider le cache des administrateurs
   /setgtitle — changer le titre du groupe

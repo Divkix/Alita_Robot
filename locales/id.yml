@@ -9,13 +9,13 @@ admin_anon_admin_disabled: "Mode AnonAdmin saat ini <b>dinonaktifkan</b> untuk %
   Ini memerlukan admin anonim untuk menekan tombol untuk mengonfirmasi izin mereka."
 admin_anon_admin_disabled_now: "Mode AnonAdmin sekarang <b>dinonaktifkan</b> untuk %s.
 
-  Mulai sekarang, saya tidak akan meminta admin untuk memverifikasi izin dari admin anonim lagi."
+  Mulai sekarang, admin anonim harus menekan tombol untuk mengonfirmasi izin mereka."
 admin_anon_admin_enabled: "Mode AnonAdmin saat ini <b>diaktifkan</b> untuk %s.
 
   Ini memungkinkan semua admin anonim untuk melakukan tindakan admin tanpa batasan."
 admin_anon_admin_enabled_now: "Mode AnonAdmin sekarang <b>diaktifkan</b> untuk %s.
 
-  Mulai sekarang, saya akan meminta admin untuk memverifikasi izin dari admin anonim."
+  Mulai sekarang, admin anonim dapat menjalankan perintah admin tanpa konfirmasi dengan tombol."
 admin_anon_admin_invalid_arg: |
   Argumen tidak valid, saya hanya mengerti <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
@@ -60,7 +60,7 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
 
   × /invitelink: Dapatkan tautan undangan obrolan.
 
-  × /anonadmin `<on/off>`: Wajibkan admin anonim mengonfirmasi dengan tombol (hanya pemilik grup).
+  × /anonadmin `<on/off>`: on mengizinkan admin anonim bertindak tanpa konfirmasi; off (default) mewajibkan mereka mengonfirmasi dengan tombol (hanya pemilik grup).
 
   × /admincache: Muat ulang daftar admin.
 
@@ -1828,10 +1828,10 @@ admin_extended_docs: |
   <b>Dukungan Admin Anonim</b>
 
   Perintah <code>/anonadmin</code> memungkinkan pemilik grup untuk mengalihkan pengenalan admin anonim:
-  <code>/anonadmin on</code> - Aktifkan pemeriksaan admin anonim
-  <code>/anonadmin off</code> - Nonaktifkan pemeriksaan admin anonim
+  <code>/anonadmin on</code> - Percayai admin anonim tanpa verifikasi
+  <code>/anonadmin off</code> - Wajibkan verifikasi dengan tombol (default)
 
-  Ketika diaktifkan, bot akan meminta verifikasi untuk tindakan admin dari akun anonim.
+  Ketika dinonaktifkan (default), bot meminta verifikasi dengan tombol sebelum menjalankan tindakan admin dari akun anonim.
 
   <b>Cara Kerja Verifikasi Admin Anonim:</b>
   1. Bot mendeteksi pengirim adalah GroupAnonymousBot
@@ -2707,7 +2707,7 @@ admin_extend_msg: |
   /demote — turunkan admin
   /title — atur judul khusus admin
   /invitelink — dapatkan tautan undangan obrolan
-  /anonadmin — wajibkan admin anonim konfirmasi dengan tombol
+  /anonadmin — percayai admin anonim (on) atau wajibkan konfirmasi dengan tombol (off)
   /admincache — muat ulang daftar admin
   /clearadmincache — hapus cache daftar admin
   /setgtitle — ubah judul grup

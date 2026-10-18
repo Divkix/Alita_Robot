@@ -8,9 +8,9 @@ admin_adminlist: "Administradores em <b>%s</b>:"
 admin_anon_admin_already_disabled: "Modo AnonAdmin já está <b>desativado</b> para %s"
 admin_anon_admin_already_enabled: "Modo AnonAdmin já está <b>ativado</b> para %s"
 admin_anon_admin_disabled: "Modo AnonAdmin está atualmente <b>desativado</b> para %s.  Isso exige que administradores anônimos pressionem um botão para confirmar suas permissões."
-admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.  De agora em diante, não vou pedir aos administradores para verificar permissões de administradores anônimos."
+admin_anon_admin_disabled_now: "Modo AnonAdmin agora está <b>desativado</b> para %s.  De agora em diante, admins anônimos precisarão apertar um botão para confirmar suas permissões."
 admin_anon_admin_enabled: "Modo AnonAdmin está atualmente <b>ativado</b> para %s.  Isso permite que todos os administradores anônimos realizem ações de admin sem restrições."
-admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.  De agora em diante, vou pedir aos administradores para verificar permissões de administradores anônimos."
+admin_anon_admin_enabled_now: "Modo AnonAdmin agora está <b>ativado</b> para %s.  De agora em diante, admins anônimos podem usar comandos de administrador sem confirmar com um botão."
 admin_anon_admin_invalid_arg:
   Argumento inválido, eu só entendo <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
@@ -56,7 +56,7 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
 
   × /invitelink: Obtém o link de convite do chat.
 
-  × /anonadmin `<on/off>`: Exige que admins anônimos confirmem com um botão (apenas o dono do grupo).
+  × /anonadmin `<on/off>`: on permite que admins anônimos ajam sem confirmar; off (padrão) exige que confirmem com um botão (apenas o dono do grupo).
 
   × /admincache: Recarrega a lista de admins.
 
@@ -1799,10 +1799,10 @@ admin_extended_docs: |
   <b>Suporte a Admin Anônimo</b>
 
   O comando <code>/anonadmin</code> permite que donos de grupos alternem o reconhecimento de admin anônimo:
-  <code>/anonadmin on</code> - Ativa verificações de admin anônimo
-  <code>/anonadmin off</code> - Desativa verificações de admin anônimo
+  <code>/anonadmin on</code> - Confia em admins anônimos sem verificação
+  <code>/anonadmin off</code> - Exige verificação por botão (padrão)
 
-  Quando ativado, o bot solicitará verificação para ações de admin de contas anônimas.
+  Quando desativado (o padrão), o bot solicita verificação por botão antes de executar ações de admin de contas anônimas.
 
   <b>Como Funciona a Verificação de Admin Anônimo:</b>
   1. Bot detecta que remetente é GroupAnonymousBot
@@ -2679,7 +2679,7 @@ admin_extend_msg: |
   /demote — rebaixar um administrador
   /title — definir o título personalizado de um administrador
   /invitelink — obter o link de convite do chat
-  /anonadmin — exigir confirmação por botão de administradores anônimos
+  /anonadmin — confiar em admins anônimos (on) ou exigir confirmação por botão (off)
   /admincache — recarregar a lista de administradores
   /clearadmincache — limpar o cache de administradores
   /setgtitle — mudar o título do grupo

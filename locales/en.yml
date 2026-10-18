@@ -6,14 +6,14 @@ admin_anon_admin_disabled: "AnonAdmin mode is currently <b>disabled</b> for %s.
   This requires anonymous admins to press a button to confirm their permissions."
 admin_anon_admin_disabled_now: "AnonAdmin mode is now <b>disabled</b> for %s.
 
-  From now onwards, I won't ask the admins to verify for permissions anymore from
-  anonymous admins."
+  From now onwards, anonymous admins must press a button to confirm their
+  permissions."
 admin_anon_admin_enabled: "AnonAdmin mode is currently <b>enabled</b> for %s.
 
   This allows all anonymous admin to perform admin actions without restriction."
 admin_anon_admin_enabled_now: "AnonAdmin mode is now <b>enabled</b> for %s.
 
-  From now onwards, I will ask the admins to verify permissions from anonymous admins."
+  From now onwards, anonymous admins can run admin commands without confirming with a button."
 admin_anon_admin_invalid_arg:
   Invalid argument, I only understand <code>on</code>,
   <code>off</code>, <code>yes</code>, <code>no</code>
@@ -59,7 +59,7 @@ admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
   × /invitelink: Get the chat's invite link.
 
-  × /anonadmin `<on/off>`: Require anonymous admins to confirm with a button (group owner only).
+  × /anonadmin `<on/off>`: on lets anonymous admins act without confirming; off (default) makes them confirm with a button (group owner only).
 
   × /admincache: Reload the admin list.
 
@@ -1878,10 +1878,10 @@ admin_extended_docs: |
   <b>Anonymous Admin Support</b>
 
   The <code>/anonadmin</code> command allows group owners to toggle anonymous admin recognition:
-  <code>/anonadmin on</code> - Enable anonymous admin checks
-  <code>/anonadmin off</code> - Disable anonymous admin checks
+  <code>/anonadmin on</code> - Trust anonymous admins without verification
+  <code>/anonadmin off</code> - Require button verification (default)
 
-  When enabled, the bot will request verification for admin actions from anonymous accounts.
+  When disabled (the default), the bot asks for button verification before running admin actions from anonymous accounts.
 
   <b>How Anonymous Admin Verification Works:</b>
   1. Bot detects sender is GroupAnonymousBot
@@ -2718,7 +2718,7 @@ admin_extend_msg: |
   /demote — demote an admin
   /title — set an admin's custom title
   /invitelink — get the chat's invite link
-  /anonadmin — require anonymous admins to confirm with a button
+  /anonadmin — trust anonymous admins (on) or make them confirm with a button (off)
   /admincache — reload the admin list
   /clearadmincache — clear the cached admin list
   /setgtitle — change the group title

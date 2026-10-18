@@ -3,9 +3,9 @@ admin_adminlist: "<b>%s</b> के एडमिन:"
 admin_anon_admin_already_disabled: AnonAdmin मोड पहले से ही %s के लिए <b>अक्षम</b> है
 admin_anon_admin_already_enabled: AnonAdmin मोड पहले से ही %s के लिए <b>सक्षम</b> है
 admin_anon_admin_disabled: "AnonAdmin मोड वर्तमान में %s के लिए <b>अक्षम</b> है।\n\n  इसके लिए गुमनाम एडमिन को अपनी अनुमतियों की पुष्टि के लिए एक बटन दबाना होगा।"
-admin_anon_admin_disabled_now: "AnonAdmin मोड अब %s के लिए <b>अक्षम</b> है।\n\n  अब से, मैं गुमनाम एडमिन से अनुमतियों की पुष्टि नहीं मांगूंगा।"
+admin_anon_admin_disabled_now: "AnonAdmin मोड अब %s के लिए <b>अक्षम</b> है।\n\n  अब से, गुमनाम एडमिन को अपनी अनुमतियों की पुष्टि के लिए एक बटन दबाना होगा।"
 admin_anon_admin_enabled: "AnonAdmin मोड वर्तमान में %s के लिए <b>सक्षम</b> है।\n\n  यह सभी गुमनाम एडमिन को बिना किसी प्रतिबंध के एडमिन कार्य करने की अनुमति देता है।"
-admin_anon_admin_enabled_now: "AnonAdmin मोड अब %s के लिए <b>सक्षम</b> है।\n\n  अब से, मैं गुमनाम एडमिन से अनुमतियों की पुष्टि मांगूंगा।"
+admin_anon_admin_enabled_now: "AnonAdmin मोड अब %s के लिए <b>सक्षम</b> है।\n\n  अब से, गुमनाम एडमिन बिना बटन से पुष्टि किए एडमिन कमांड चला सकेंगे।"
 admin_anon_admin_invalid_arg: "अमान्य तर्क, मैं केवल <code>on</code>, <code>off</code>, <code>yes</code>, <code>no</code> समझता हूँ"
 admin_demote_not_admin: "यह व्यक्ति एडमिन नहीं है, मैं उन्हें कैसे डिमोट करूं?"
 admin_demote_is_bot_itself: मैं खुद को डिमोट नहीं करूंगा।
@@ -16,7 +16,7 @@ admin_errors_err_cannot_promote: "प्रमोट करने में व�
 admin_errors_err_set_title: "कस्टम एडमिन टाइटल सेट करने में विफल; टाइटल सही नहीं हो सकता या इसमें इमोजी हो सकते हैं।"
 admin_errors_title_empty: आपको मुझे सेट करने के लिए एक एडमिन टाइटल देना होगा।
 admin_errors_admin_cache_failed: "मुझे एडमिन सूची तक पहुँचने में समस्या हो रही है। कृपया बाद में पुनः प्रयास करें।"
-admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n\n  *उपयोगकर्ता कमांड:*\n\n  × /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n\n  *एडमिन कमांड:*\n\n  × /promote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को प्रमोट करें।\n\n  × /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n\n  × /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें\n\n  × /setgtitle <title>: ग्रुप का टाइटल बदलें।\n\n  × /setgpic: किसी फ़ोटो को रिप्लाई करके उसे ग्रुप की तस्वीर बनाएं।\n\n  × /setgdesc [text]: ग्रुप का विवरण बदलें।\n\n  × /invitelink: चैट का इनवाइट लिंक प्राप्त करें।\n\n  × /anonadmin `<on/off>`: अनाम एडमिन को बटन दबाकर पुष्टि करने के लिए बाध्य करें (केवल ग्रुप ओनर)।\n\n  × /admincache: एडमिन सूची को दोबारा लोड करें।\n\n  × /clearadmincache: कैश की गई एडमिन सूची साफ़ करें।"
+admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n\n  *उपयोगकर्ता कमांड:*\n\n  × /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n\n  *एडमिन कमांड:*\n\n  × /promote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को प्रमोट करें।\n\n  × /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n\n  × /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें\n\n  × /setgtitle <title>: ग्रुप का टाइटल बदलें।\n\n  × /setgpic: किसी फ़ोटो को रिप्लाई करके उसे ग्रुप की तस्वीर बनाएं।\n\n  × /setgdesc [text]: ग्रुप का विवरण बदलें।\n\n  × /invitelink: चैट का इनवाइट लिंक प्राप्त करें।\n\n  × /anonadmin `<on/off>`: on से अनाम एडमिन बिना पुष्टि के कार्य कर सकते हैं; off (डिफ़ॉल्ट) से उन्हें बटन दबाकर पुष्टि करनी होगी (केवल ग्रुप ओनर)।\n\n  × /admincache: एडमिन सूची को दोबारा लोड करें।\n\n  × /clearadmincache: कैश की गई एडमिन सूची साफ़ करें।"
 admin_promote_admin_title_truncated: एडमिन टाइटल %d से 16 अक्षरों में छोटा किया गया
 admin_promote_is_admin: "यह व्यक्ति पहले से ही एडमिन है, मैं उन्हें कैसे प्रमोट करूं?"
 admin_promote_is_bot_itself: काश मैं यह खुद पर कर पाता ;_;
@@ -39,10 +39,10 @@ admin_extended_docs: |
   <b>गुमनाम एडमिन सपोर्ट</b>
 
   <code>/anonadmin</code> कमांड ग्रुप मालिकों को गुमनाम एडमिन पहचान को टॉगल करने की अनुमति देता है:
-  <code>/anonadmin on</code> - गुमनाम एडमिन जांच सक्षम करें
-  <code>/anonadmin off</code> - गुमनाम एडमिन जांच अक्षम करें
+  <code>/anonadmin on</code> - बिना सत्यापन के गुमनाम एडमिन पर भरोसा करें
+  <code>/anonadmin off</code> - बटन से सत्यापन आवश्यक करें (डिफ़ॉल्ट)
 
-  सक्षम होने पर, बॉट गुमनाम खातों से एडमिन कार्यों के लिए सत्यापन का अनुरोध करेगा।
+  अक्षम होने पर (डिफ़ॉल्ट), बॉट गुमनाम खातों से आए एडमिन कार्यों को चलाने से पहले बटन से सत्यापन मांगता है।
 
   <b>गुमनाम एडमिन सत्यापन कैसे काम करता है:</b>
   1. बॉट पता लगाता है कि प्रेषक GroupAnonymousBot है
@@ -2389,7 +2389,7 @@ admin_extend_msg: |
   /demote — एडमिन को हटाएँ
   /title — एडमिन का कस्टम टाइटल सेट करें
   /invitelink — चैट का इनवाइट लिंक पाएँ
-  /anonadmin — गुमनाम एडमिन से बटन से पुष्टि करवाएँ
+  /anonadmin — गुमनाम एडमिन पर भरोसा करें (on) या उनसे बटन से पुष्टि करवाएँ (off)
   /admincache — एडमिन सूची फिर से लोड करें
   /clearadmincache — एडमिन कैश साफ़ करें
   /setgtitle — ग्रुप का टाइटल बदलें
