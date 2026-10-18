@@ -634,13 +634,13 @@ greetings_help_msg:
 
   × /setwelcome `<réponse/texte>` : Définit le texte de bienvenue pour le groupe.
 
-  × /welcome `<yes/no/on/off>` : Active ou désactive le paramètre de bienvenue pour le groupe.
+  × /welcome `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres de bienvenue et un aperçu du message de bienvenue. on/off active ou désactive la bienvenue ; noformat affiche l'aperçu sans remplir les variables, avec les codes des boutons au lieu des boutons.
 
   × /resetwelcome : Réinitialise le message de bienvenue par défaut.
 
   × /setgoodbye `<réponse/texte>` : Définit le texte d'au revoir pour le groupe.
 
-  × /goodbye `<yes/no/on/off>` : Active ou désactive le paramètre d'au revoir pour le groupe.
+  × /goodbye `<yes/no/on/off/noformat>` : Sans argument, affiche les paramètres d'au revoir et un aperçu du message d'au revoir. on/off active ou désactive l'au revoir ; noformat affiche l'aperçu sans remplir les variables, avec les codes des boutons au lieu des boutons.
 
   × /resetgoodbye : Réinitialise le message d'au revoir par défaut.
 
@@ -2700,10 +2700,10 @@ formatting_extend_msg: |
   /markdownhelp — afficher le guide de formatage
   /formatting — identique à /markdownhelp
 greetings_extend_msg: |
-  /welcome — activer ou désactiver le message de bienvenue
+  /welcome — afficher le message de bienvenue, ou l'activer ou le désactiver
   /setwelcome — définir le message de bienvenue
   /resetwelcome — réinitialiser le message de bienvenue
-  /goodbye — activer ou désactiver le message d'au revoir
+  /goodbye — afficher le message d'au revoir, ou l'activer ou le désactiver
   /setgoodbye — définir le message d'au revoir
   /resetgoodbye — réinitialiser le message d'au revoir
   /cleanwelcome — supprimer le précédent message de bienvenue

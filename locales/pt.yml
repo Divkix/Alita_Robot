@@ -575,13 +575,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Define texto de boas-vindas para o grupo.
 
-  × /welcome `<yes/no/on/off>`: Ativa ou Desativa configuração de boas-vindas para o grupo.
+  × /welcome `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de boas-vindas e uma prévia da mensagem de boas-vindas. on/off ativa ou desativa as boas-vindas; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
 
   × /resetwelcome: Reseta a mensagem de boas-vindas para o padrão.
 
   × /setgoodbye `<reply/text>`: Define texto de despedida para o grupo.
 
-  × /goodbye `<yes/no/on/off>`: Ativa ou Desativa configuração de despedida para o grupo.
+  × /goodbye `<yes/no/on/off/noformat>`: Sem argumento, mostra as configurações de despedida e uma prévia da mensagem de despedida. on/off ativa ou desativa a despedida; noformat mostra a prévia sem preencher os marcadores e com os códigos dos botões em vez de botões.
 
   × /resetgoodbye: Reseta a mensagem de despedida para o padrão.
 
@@ -2756,10 +2756,10 @@ formatting_extend_msg: |
   /markdownhelp — mostra o guia de formatação
   /formatting — o mesmo que /markdownhelp
 greetings_extend_msg: |
-  /welcome — ativar ou desativar a mensagem de boas-vindas
+  /welcome — mostrar a mensagem de boas-vindas, ou ativá-la ou desativá-la
   /setwelcome — definir a mensagem de boas-vindas
   /resetwelcome — redefinir a mensagem de boas-vindas
-  /goodbye — ativar ou desativar a mensagem de despedida
+  /goodbye — mostrar a mensagem de despedida, ou ativá-la ou desativá-la
   /setgoodbye — definir a mensagem de despedida
   /resetgoodbye — redefinir a mensagem de despedida
   /cleanwelcome — apagar a mensagem de boas-vindas anterior

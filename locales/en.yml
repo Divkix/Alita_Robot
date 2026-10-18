@@ -626,13 +626,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Sets welcome text for group.
 
-  × /welcome `<yes/no/on/off>`: Enables or Disables welcome setting for group.
+  × /welcome `<yes/no/on/off/noformat>`: With no argument, shows the welcome settings and a preview of the welcome message. on/off enables or disables welcome; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
 
   × /resetwelcome: Resets the welcome message to default.
 
   × /setgoodbye `<reply/text>`: Sets goodbye text for group.
 
-  × /goodbye `<yes/no/on/off>`: Enables or Disables goodbye setting for group.
+  × /goodbye `<yes/no/on/off/noformat>`: With no argument, shows the goodbye settings and a preview of the goodbye message. on/off enables or disables goodbye; noformat shows the preview with placeholders unfilled and button codes instead of buttons.
 
   × /resetgoodbye: Resets the goodbye message to default.
 
@@ -2794,10 +2794,10 @@ formatting_extend_msg: |
   /markdownhelp — show the formatting guide
   /formatting — same as /markdownhelp
 greetings_extend_msg: |
-  /welcome — turn the welcome message on or off
+  /welcome — show the welcome message or turn it on or off
   /setwelcome — set the welcome message
   /resetwelcome — reset the welcome message
-  /goodbye — turn the goodbye message on or off
+  /goodbye — show the goodbye message or turn it on or off
   /setgoodbye — set the goodbye message
   /resetgoodbye — reset the goodbye message
   /cleanwelcome — delete the previous welcome message

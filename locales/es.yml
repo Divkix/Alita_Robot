@@ -588,13 +588,13 @@ greetings_help_msg:
 
   × /setwelcome `<responder/texto>`: Establece texto de bienvenida para el grupo.
 
-  × /welcome `<yes/no/on/off>`: Habilita o Deshabilita configuración de bienvenida para el grupo.
+  × /welcome `<yes/no/on/off/noformat>`: Sin argumento, muestra la configuración de bienvenida y una vista previa del mensaje de bienvenida. on/off activa o desactiva la bienvenida; noformat muestra la vista previa sin rellenar los marcadores y con los códigos de los botones en lugar de botones.
 
   × /resetwelcome: Restablece el mensaje de bienvenida al predeterminado.
 
   × /setgoodbye `<responder/texto>`: Establece texto de despedida para el grupo.
 
-  × /goodbye `<yes/no/on/off>`: Habilita o Deshabilita configuración de despedida para el grupo.
+  × /goodbye `<yes/no/on/off/noformat>`: Sin argumento, muestra la configuración de despedida y una vista previa del mensaje de despedida. on/off activa o desactiva la despedida; noformat muestra la vista previa sin rellenar los marcadores y con los códigos de los botones en lugar de botones.
 
   × /resetgoodbye: Restablece el mensaje de despedida al predeterminado.
 
@@ -2793,10 +2793,10 @@ formatting_extend_msg: |
   /markdownhelp — muestra la guía de formato
   /formatting — igual que /markdownhelp
 greetings_extend_msg: |
-  /welcome — activar o desactivar el mensaje de bienvenida
+  /welcome — mostrar el mensaje de bienvenida, o activarlo o desactivarlo
   /setwelcome — establecer el mensaje de bienvenida
   /resetwelcome — restablecer el mensaje de bienvenida
-  /goodbye — activar o desactivar el mensaje de despedida
+  /goodbye — mostrar el mensaje de despedida, o activarlo o desactivarlo
   /setgoodbye — establecer el mensaje de despedida
   /resetgoodbye — restablecer el mensaje de despedida
   /cleanwelcome — borrar el mensaje de bienvenida anterior

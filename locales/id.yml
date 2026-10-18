@@ -584,13 +584,13 @@ greetings_help_msg:
 
   × /setwelcome `<reply/text>`: Mengatur teks selamat datang untuk grup.
 
-  × /welcome `<yes/no/on/off>`: Mengaktifkan atau Menonaktifkan pengaturan selamat datang untuk grup.
+  × /welcome `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat datang dan pratinjau pesan selamat datang. on/off mengaktifkan atau menonaktifkan pesan selamat datang; noformat menampilkan pratinjau tanpa mengisi placeholder dan dengan kode tombol, bukan tombol.
 
   × /resetwelcome: Mengatur ulang pesan selamat datang ke default.
 
   × /setgoodbye `<reply/text>`: Mengatur teks selamat tinggal untuk grup.
 
-  × /goodbye `<yes/no/on/off>`: Mengaktifkan atau Menonaktifkan pengaturan selamat tinggal untuk grup.
+  × /goodbye `<yes/no/on/off/noformat>`: Tanpa argumen, menampilkan pengaturan selamat tinggal dan pratinjau pesan selamat tinggal. on/off mengaktifkan atau menonaktifkan pesan selamat tinggal; noformat menampilkan pratinjau tanpa mengisi placeholder dan dengan kode tombol, bukan tombol.
 
   × /resetgoodbye: Mengatur ulang pesan selamat tinggal ke default.
 
@@ -2784,10 +2784,10 @@ formatting_extend_msg: |
   /markdownhelp — tampilkan panduan pemformatan
   /formatting — sama seperti /markdownhelp
 greetings_extend_msg: |
-  /welcome — aktifkan atau nonaktifkan pesan sambutan
+  /welcome — tampilkan pesan sambutan, atau aktifkan atau nonaktifkan
   /setwelcome — atur pesan sambutan
   /resetwelcome — reset pesan sambutan
-  /goodbye — aktifkan atau nonaktifkan pesan perpisahan
+  /goodbye — tampilkan pesan perpisahan, atau aktifkan atau nonaktifkan
   /setgoodbye — atur pesan perpisahan
   /resetgoodbye — reset pesan perpisahan
   /cleanwelcome — hapus pesan sambutan sebelumnya
