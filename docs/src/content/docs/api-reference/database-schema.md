@@ -106,6 +106,7 @@ Stores anti-flood configuration per chat.
 
 #### Indexes
 
+- `idx_antiflood_settings_chat_id` (unique, on `chat_id`)
 - `idx_antiflood_chat_flood_active` (conditional: `flood_limit > 0`)
 
 #### Foreign Keys
@@ -240,6 +241,7 @@ Stores channel metadata and linked channel relationships.
 
 #### Indexes
 
+- `idx_channels_chat_id` (unique, on `chat_id`)
 - `idx_channels_username` (unique, on `LOWER(username)` WHERE `username <> ''`; migration `20260730010000`)
 
 #### Foreign Keys
