@@ -3,6 +3,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -280,6 +281,31 @@ func TestPinnedCommandReportsMissingPinnedMessage(t *testing.T) {
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want missing pinned message reply", len(calls))
+	}
+}
+
+func TestPinSettingStatusEscapesChatTitle(t *testing.T) {
+	useRealLocales(t)
+	for _, tc := range []struct {
+		name    string
+		handler func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{name: "antichannelpin", handler: pinsModule.antichannelpin},
+		{name: "cleanlinked", handler: pinsModule.cleanlinked},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			chat := f.chat
+			chat.Title = "A <B> & C"
+			ctx := newModuleMessageContext(f.bot, chat, f.admin, "/"+tc.name)
+			if err := tc.handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s() error = %v, want EndGroups", tc.name, err)
+			}
+			text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+			if !strings.Contains(text, "A &lt;B&gt; &amp; C") {
+				t.Fatalf("%s status = %q, want the chat title HTML-escaped", tc.name, text)
+			}
+		})
 	}
 }
 
