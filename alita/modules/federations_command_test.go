@@ -852,6 +852,61 @@ func TestFbanInPrivateAndEmptyExport(t *testing.T) {
 	}
 }
 
+// The export cooldown only holds once a file was delivered.
+func TestFbanlistCooldownStartsOnlyAfterADeliveredExport(t *testing.T) {
+	withMiniredis(t)
+
+	t.Run("empty export does not hold the cooldown", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ownerID := uniquePositiveUserID()
+		owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+		fed, err := federations.CreateFederation(ownerID, "Cooldown Fed")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+		pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+		run := func(text string) {
+			t.Helper()
+			ctx := newModuleMessageContext(bot, pm, owner, text)
+			var err error
+			if strings.HasPrefix(text, "/fban ") {
+				err = federationsModule.fban(bot, ctx)
+			} else {
+				err = federationsModule.fbanList(bot, ctx)
+			}
+			require.ErrorIs(t, err, ext.EndGroups)
+		}
+
+		run("/fbanlist")
+		require.Empty(t, client.callsFor("sendDocument"), "empty fed has nothing to export")
+		run("/fban 888 spam")
+		run("/fbanlist")
+		require.Len(t, client.callsFor("sendDocument"), 1, "export after the empty one must not be on cooldown")
+		run("/fbanlist")
+		require.Len(t, client.callsFor("sendDocument"), 1, "a delivered export holds the cooldown")
+	})
+
+	t.Run("failed upload does not hold the cooldown", func(t *testing.T) {
+		client := newModuleBotClient()
+		bot := newModuleTestBot(client)
+		ownerID := uniquePositiveUserID()
+		owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+		fed, err := federations.CreateFederation(ownerID, "Cooldown Upload Fed")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+		_, _, err = federations.Fban(fed.FedID, 889, ownerID, "spam")
+		require.NoError(t, err)
+		pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+		client.errors["sendDocument"] = errors.New("upload failed")
+		require.ErrorIs(t, federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist")), ext.EndGroups)
+		require.Len(t, client.callsFor("sendDocument"), 1)
+		delete(client.errors, "sendDocument")
+		require.ErrorIs(t, federationsModule.fbanList(bot, newModuleMessageContext(bot, pm, owner, "/fbanlist")), ext.EndGroups)
+		require.Len(t, client.callsFor("sendDocument"), 2, "a failed export must not hold the cooldown")
+	})
+}
+
 func TestJoinFedAlreadyJoinedOtherFederation(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	first, err := federations.CreateFederation(uniquePositiveUserID(), "First")

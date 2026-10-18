@@ -37,6 +37,7 @@ import (
 const (
 	fedHandlerGroup      = -6
 	fedExportCooldown    = 30 * time.Minute
+	fedExportKeyPrefix   = "alita:fed_export:"
 	fedCallbackNamespace = "fed"
 )
 
@@ -1141,11 +1142,21 @@ func allowFedExport(fedID string) bool {
 	if client == nil {
 		return true
 	}
-	ok, err := client.SetNX(cache.Context, "alita:fed_export:"+fedID, "1", fedExportCooldown).Result()
+	ok, err := client.SetNX(cache.Context, fedExportKeyPrefix+fedID, "1", fedExportCooldown).Result()
 	if err != nil {
 		return true
 	}
 	return ok
+}
+
+// releaseFedExport frees the export cooldown claimed by allowFedExport, for an
+// export that delivered no file.
+func releaseFedExport(fedID string) {
+	if client := cache.GetRedisClient(); client != nil {
+		if err := client.Del(cache.Context, fedExportKeyPrefix+fedID).Err(); err != nil {
+			log.Debugf("[Federations] release export cooldown: %v", err)
+		}
+	}
 }
 
 func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -1164,6 +1175,12 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyHTML(b, msg, text)
 		return ext.EndGroups
 	}
+	delivered := false
+	defer func() {
+		if !delivered {
+			releaseFedExport(fed.FedID)
+		}
+	}()
 	bans, err := federations.ListFedBans(fed.FedID)
 	if err != nil {
 		text, _ := tr.GetString("feds_create_failed")
@@ -1206,6 +1223,8 @@ func (moduleStruct) fbanList(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		text, _ := tr.GetString("feds_create_failed")
 		replyHTML(b, msg, text)
+	} else {
+		delivered = true
 	}
 	return ext.EndGroups
 }
