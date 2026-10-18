@@ -1943,8 +1943,6 @@ pins_extended_docs: |
   <b>Anti-Channel Pin:</b>
   Ketika diaktifkan, bot akan secara otomatis melepas pin pesan apa pun yang dipin secara otomatis oleh kanal yang terhubung. Ini berguna ketika Anda ingin menjaga kontrol atas apa yang disematkan di grup Anda.
 
-  <b>Penting:</b> Ketika menggunakan pin anti kanal, selalu gunakan perintah <code>/unpin</code> sebagai gantinya melepas pin secara manual melalui Telegram. Melepas pin secara manual akan menyebabkan pesan lama dipin ulang ketika kanal mengirim pesan baru.
-
   <b>Bersihkan Tautan:</b>
   Ketika diaktifkan, bot akan secara otomatis menghapus pesan apa pun yang dikirim ke grup dari kanal yang terhubung. Ini menjaga obrolan grup Anda tetap bersih dari konten kanal yang cross-posted.
 
@@ -1953,7 +1951,6 @@ pins_extended_docs: |
   • Teks dengan pemformatan HTML/Markdown
   • Tombol inline dengan URL
   • Lampiran media (foto, dokumen, stiker, audio, video, catatan suara, catatan video)
-  • Semua pengisian pesan standar ({first}, {chatname}, dll.)
 
   <b>Didukung melalui Koneksi:</b>
   Perintah berikut berfungsi ketika terhubung ke obrolan melalui <code>/connect</code>:
@@ -1963,11 +1960,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Catatan:</b>
   • Perintah <code>/unpinall</code> menampilkan dialog konfirmasi sebelum melepas pin semua pesan
-  • Permapin mendukung semua tipe media yang didukung Telegram untuk penyematan
+  • Permapin mendukung teks, foto, dokumen dan GIF, stiker, audio, pesan suara, video, dan catatan video; tipe pesan lainnya ditolak
   • Pengaturan pin anti-kanal dan bersihkan tautan disimpan per-obrolan dan bertahan di seluruh restart bot
 
   <b>Izin yang Diperlukan:</b>
-  <b>Bot:</b> Harus admin dengan izin "Pin Pesan"
+  <b>Bot:</b> Harus admin dengan izin "Pin Pesan" (dan "Hapus Pesan" untuk <code>/cleanlinked</code>)
   <b>Pengguna:</b> Kebanyakan perintah memerlukan admin dengan izin "Pin Pesan"
 
 # Extended documentation locale keys - Purges module

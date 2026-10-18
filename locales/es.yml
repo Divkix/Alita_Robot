@@ -1952,8 +1952,6 @@ pins_extended_docs: |
   <b>Anti-Channel Pin:</b>
   Cuando está habilitado, el bot desanclará automáticamente cualquier mensaje que se ancle automáticamente desde un canal enlazado. Esto es útil cuando quieres mantener el control sobre lo que se fija en tu grupo.
 
-  <b>Importante:</b> Al usar anti channel pins, utiliza siempre el comando <code>/unpin</code> en lugar de desanclar manualmente desde Telegram. Desanclar manualmente hará que el mensaje antiguo se vuelva a fijar cuando el canal envíe nuevos mensajes.
-
   <b>Clean Linked:</b>
   Cuando está habilitado, el bot eliminará automáticamente cualquier mensaje enviado al grupo desde el canal enlazado. Esto mantiene tu chat libre de contenido cruzado del canal.
 
@@ -1962,7 +1960,6 @@ pins_extended_docs: |
   • Texto con formato HTML/Markdown
   • Botones inline con URLs
   • Adjuntos multimedia (fotos, documentos, stickers, audio, video, notas de voz, notas de video)
-  • Todos los rellenos de mensaje estándar ({first}, {chatname}, etc.)
 
   <b>Compatibles vía conexión:</b>
   Los siguientes comandos funcionan cuando estás conectado a un chat mediante <code>/connect</code>:
@@ -1972,11 +1969,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Notas:</b>
   • El comando <code>/unpinall</code> muestra un diálogo de confirmación antes de desanclar todos los mensajes
-  • Permapin admite todos los tipos de medios que Telegram permite fijar
+  • Permapin admite texto, fotos, documentos y GIFs, stickers, audio, mensajes de voz, videos y videonotas; los demás tipos de mensaje se rechazan
   • Los ajustes de anti-channel pin y clean linked se guardan por chat y persisten tras reinicios del bot
 
   <b>Permisos requeridos:</b>
-  <b>Bot:</b> Debe ser admin con permiso de "Fijar mensajes"
+  <b>Bot:</b> Debe ser admin con permiso de "Fijar mensajes" (y "Eliminar mensajes" para <code>/cleanlinked</code>)
   <b>Usuario:</b> La mayoría de comandos requieren admin con permiso de "Fijar mensajes"
 
 # Extended documentation locale keys - Purges module

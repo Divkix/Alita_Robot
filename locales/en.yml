@@ -1992,8 +1992,6 @@ pins_extended_docs: |
   <b>Anti-Channel Pin:</b>
   When enabled, the bot will automatically unpin any message that gets auto-pinned by a linked channel. This is useful when you want to maintain control over what gets pinned in your group.
 
-  <b>Important:</b> When using anti channel pins, always use the <code>/unpin</code> command instead of unpinning manually through Telegram. Manual unpinning will cause the old message to get re-pinned when the channel sends new messages.
-
   <b>Clean Linked:</b>
   When enabled, the bot will automatically delete any messages sent to the group from the linked channel. This keeps your group chat clean from cross-posted channel content.
 
@@ -2002,7 +2000,6 @@ pins_extended_docs: |
   • Text with HTML/Markdown formatting
   • Inline buttons with URLs
   • Media attachments (photos, documents, stickers, audio, video, voice notes, video notes)
-  • All standard message fillings ({first}, {chatname}, etc.)
 
   <b>Supported via Connection:</b>
   The following commands work when connected to a chat via <code>/connect</code>:
@@ -2012,11 +2009,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Notes:</b>
   • The <code>/unpinall</code> command shows a confirmation dialog before unpinning all messages
-  • Permapin supports all media types that Telegram supports for pinning
+  • Permapin supports text, photos, documents and GIFs, stickers, audio, voice messages, videos and video notes; other message types are rejected
   • Anti-channel pin and clean linked settings are stored per-chat and persist across bot restarts
 
   <b>Required Permissions:</b>
-  <b>Bot:</b> Must be admin with "Pin Messages" permission
+  <b>Bot:</b> Must be admin with "Pin Messages" permission (and "Delete Messages" for <code>/cleanlinked</code>)
   <b>User:</b> Most commands require admin with "Pin Messages" permission
 
 # Extended documentation locale keys - Purges module

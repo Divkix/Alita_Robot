@@ -1722,8 +1722,6 @@ pins_extended_docs: |
   <b>Anti-Épingle de Chaîne :</b>
   Quand activé, le bot désépinglera automatiquement tout message qui est auto-épinglé par une chaîne liée. C'est utile quand vous voulez garder le contrôle sur ce qui est épinglé dans votre groupe.
 
-  <b>Important :</b> Lors de l'utilisation des anti-épingles de chaîne, utilisez toujours la commande <code>/unpin</code> au lieu de désépingler manuellement via Telegram. Le désépinglage manuel causera le ré-épinglage de l'ancien message quand la chaîne envoie de nouveaux messages.
-
   <b>Nettoyer Lié :</b>
   Quand activé, le bot supprimera automatiquement tous les messages envoyés au groupe depuis la chaîne liée. Cela garde votre chat de groupe propre du contenu cross-posté de la chaîne.
 
@@ -1732,7 +1730,6 @@ pins_extended_docs: |
   • Texte avec formatage HTML/Markdown
   • Boutons en ligne avec URLs
   • Pièces jointes médias (photos, documents, stickers, audio, vidéo, notes vocales, notes vidéo)
-  • Tous les remplissages de message standard ({first}, {chatname}, etc.)
 
   <b>Supporté via Connexion :</b>
   Les commandes suivantes fonctionnent quand connecté à un chat via <code>/connect</code> :
@@ -1742,11 +1739,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Notes :</b>
   • La commande <code>/unpinall</code> affiche un dialogue de confirmation avant de désépingler tous les messages
-  • Permapin supporte tous les types de médias que Telegram supporte pour l'épinglage
+  • Permapin prend en charge le texte, les photos, les documents et GIF, les stickers, l'audio, les messages vocaux, les vidéos et les notes vidéo ; les autres types de messages sont refusés
   • Les paramètres anti-épingle de chaîne et nettoyer lié sont stockés par chat et persistent après les redémarrages du bot
 
   <b>Permissions Requises :</b>
-  <b>Bot :</b> Doit être admin avec permission "Épingler des Messages"
+  <b>Bot :</b> Doit être admin avec permission "Épingler des Messages" (et "Supprimer des messages" pour <code>/cleanlinked</code>)
   <b>Utilisateur :</b> La plupart des commandes requièrent admin avec permission "Épingler des Messages"
 
 # Purges module extended documentation

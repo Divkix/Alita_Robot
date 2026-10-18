@@ -1913,8 +1913,6 @@ pins_extended_docs: |
   <b>Anti-Channel Pin:</b>
   Quando ativado, o bot automaticamente desfixará qualquer mensagem que for auto-fixada por um canal vinculado. Isso é útil quando você quer manter controle sobre o que é fixado em seu grupo.
 
-  <b>Importante:</b> Ao usar anti channel pins, sempre use o comando <code>/unpin</code> em vez de desfixar manualmente pelo Telegram. Desfixar manualmente fará com que a mensagem antiga seja fixada novamente quando o canal enviar novas mensagens.
-
   <b>Clean Linked:</b>
   Quando ativado, o bot automaticamente deletará qualquer mensagem enviada ao grupo do canal vinculado. Isso mantém seu chat do grupo limpo de conteúdo cross-postado do canal.
 
@@ -1923,7 +1921,6 @@ pins_extended_docs: |
   • Texto com formatação HTML/Markdown
   • Botões inline com URLs
   • Anexos de mídia (fotos, documentos, figurinhas, áudio, vídeo, notas de voz, notas de vídeo)
-  • Todos os preenchedores de mensagens padrão ({first}, {chatname}, etc.)
 
   <b>Suportado via Conexão:</b>
   Os seguintes comandos funcionam quando conectado a um chat via <code>/connect</code>:
@@ -1933,11 +1930,11 @@ pins_extended_docs: |
 pins_notes_docs: |
   <b>Notas:</b>
   • O comando <code>/unpinall</code> mostra um diálogo de confirmação antes de desfixar todas as mensagens
-  • Permapin suporta todos os tipos de mídia que Telegram suporta para fixar
+  • Permapin suporta texto, fotos, documentos e GIFs, figurinhas, áudio, mensagens de voz, vídeos e mensagens de vídeo circulares; outros tipos de mensagem são rejeitados
   • Configurações de anti-channel pin e clean linked são armazenadas por-chat e persistem entre reinícios do bot
 
   <b>Permissões Necessárias:</b>
-  <b>Bot:</b> Deve ser admin com permissão "Fixar Mensagens"
+  <b>Bot:</b> Deve ser admin com permissão "Fixar Mensagens" (e "Apagar Mensagens" para <code>/cleanlinked</code>)
   <b>Usuário:</b> A maioria dos comandos requer admin com permissão "Fixar Mensagens"
 
 # Extended documentation locale keys - Purges module
