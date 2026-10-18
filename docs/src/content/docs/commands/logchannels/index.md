@@ -55,12 +55,9 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+`/setlog` is posted in the log channel by one of its admins, then that post is forwarded to the group by a group admin. `/unsetlog`, `/log` and `/nolog` require a group admin. `/logchannel` and `/logcategories` are open to everyone.
 
 **Bot Permissions Required:**
 
-- Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
+- Admin in the log channel with permission to post messages (to receive `/setlog` and send the logs)
 
