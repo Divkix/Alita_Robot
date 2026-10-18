@@ -315,6 +315,52 @@ func TestGreetingCleanupCommandsHandleStatusOffAndInvalidOptions(t *testing.T) {
 	})
 }
 
+// /cleanwelcome and /cleangoodbye with no argument report the stored setting;
+// they once answered "should be deleting" while off and "not deleting" while on.
+func TestGreetingCleanupStatusMatchesStoredSetting(t *testing.T) {
+	useRealLocales(t)
+	tr := i18n.MustNewTranslator("en")
+	for _, tt := range []struct {
+		command string
+		run     func(*gotgbot.Bot, *ext.Context) error
+		onKey   string
+		offKey  string
+	}{
+		{command: "/cleanwelcome", run: greetingsModule.cleanWelcome, onKey: "greetings_clean_welcome_should", offKey: "greetings_clean_welcome_not"},
+		{command: "/cleangoodbye", run: greetingsModule.cleanGoodbye, onKey: "greetings_clean_goodbye_should", offKey: "greetings_clean_goodbye_not"},
+	} {
+		t.Run(tt.command, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			for _, step := range []struct {
+				setting string
+				wantKey string
+			}{
+				{setting: "on", wantKey: tt.onKey},
+				{setting: "off", wantKey: tt.offKey},
+			} {
+				if err := tt.run(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, tt.command+" "+step.setting)); err != ext.EndGroups {
+					t.Fatalf("%s %s error = %v, want EndGroups", tt.command, step.setting, err)
+				}
+				before := len(f.client.callsFor("sendMessage"))
+				if err := tt.run(f.bot, newGreetingMessageContext(f.bot, f.chat, f.admin, tt.command)); err != ext.EndGroups {
+					t.Fatalf("%s status error = %v, want EndGroups", tt.command, err)
+				}
+				sent := f.client.callsFor("sendMessage")
+				if len(sent) != before+1 {
+					t.Fatalf("%s status sent %d messages, want 1", tt.command, len(sent)-before)
+				}
+				want, _ := tr.GetString(step.wantKey)
+				if want == "" {
+					t.Fatalf("en locale has no %s", step.wantKey)
+				}
+				if got := fmt.Sprint(sent[len(sent)-1].Params["text"]); got != want {
+					t.Errorf("%s status after %q = %q, want %q", tt.command, step.setting, got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestWelcomeDisplaySendsStatusAndGreeting(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
@@ -701,7 +747,6 @@ func TestNewMemberCaptchaSuccessAndSendFailurePaths(t *testing.T) {
 			} else if errNewMember != ext.EndGroups {
 				t.Fatalf("newMember error = %v, want EndGroups", errNewMember)
 			}
-
 
 			if calls := client.callsFor("restrictChatMember"); len(calls) != tt.wantRestrict {
 				t.Fatalf("restrictChatMember calls = %d, want %d", len(calls), tt.wantRestrict)
