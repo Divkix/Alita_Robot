@@ -711,9 +711,9 @@ languages_help_msg: "¿No puedes cambiar el idioma del bot?
   Puedes ayudarnos a llevar el bot a más idiomas ayudando en [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Solo administrador*:
 
-  × /lock `<permiso>`: Bloquear permiso del Chat..
+  × /lock `<tipo> [tipo ...]`: Bloquear uno o más tipos de bloqueo (ver /locktypes).
 
-  × /unlock `<permiso>`: Desbloquear permiso del Chat.
+  × /unlock `<tipo> [tipo ...]`: Desbloquear uno o más tipos de bloqueo.
 
   × /locks: Ver permisos del Chat.
 

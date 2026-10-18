@@ -1012,9 +1012,9 @@ disabling_invalid_option: "Je comprends uniquement une option parmi : `yes`/`no`
 # Locks module strings
 locks_help_msg: "*Admin uniquement* :
 
-  × /lock `<permission>` : Verrouiller la permission du chat.
+  × /lock `<type> [type ...]` : Verrouiller un ou plusieurs types de verrou (voir /locktypes).
 
-  × /unlock `<permission>` : Déverrouiller la permission du chat.
+  × /unlock `<type> [type ...]` : Déverrouiller un ou plusieurs types de verrou.
 
   × /locks : Voir les permissions du chat.
 

@@ -703,9 +703,9 @@ languages_help_msg: "Tidak dapat mengubah bahasa bot?
   Anda dapat membantu kami membawa bot ke lebih banyak bahasa dengan membantu di [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Admin saja*:
 
-  × /lock `<permission>`: Kunci Izin Obrolan..
+  × /lock `<tipe> [tipe ...]`: Kunci satu atau lebih tipe kunci (lihat /locktypes).
 
-  × /unlock `<permission>`: Buka Kunci Izin Obrolan.
+  × /unlock `<tipe> [tipe ...]`: Buka satu atau lebih tipe kunci.
 
   × /locks: Lihat Izin Obrolan.
 

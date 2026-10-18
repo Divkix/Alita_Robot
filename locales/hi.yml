@@ -458,9 +458,9 @@ languages_help_msg: "बॉट की भाषा बदलने में स
 
 locks_help_msg: "*केवल एडमिन*:
 
-  × /lock `<permission>`: चैट अनुमति लॉक करें।।
+  × /lock `<type> [type ...]`: एक या अधिक लॉक प्रकार लॉक करें (/locktypes देखें)।
 
-  × /unlock `<permission>`: चैट अनुमति अनलॉक करें।
+  × /unlock `<type> [type ...]`: एक या अधिक लॉक प्रकार अनलॉक करें।
 
   × /locks: चैट अनुमति देखें।
 
