@@ -160,6 +160,34 @@ func TestExtractNoteAndFilterFilterTriggers(t *testing.T) {
 	}
 }
 
+// Replying with a name of several words saves the replied message, not the
+// trailing name words.
+func TestExtractNoteAndFilterReplyKeepsTheRepliedContent(t *testing.T) {
+	t.Parallel()
+
+	t.Run("filter on a text reply", func(t *testing.T) {
+		t.Parallel()
+		result := ExtractNoteAndFilter(&gotgbot.Message{
+			Text:           "/filter hello friend",
+			ReplyToMessage: &gotgbot.Message{Text: "REPLIED BODY"},
+		}, true, "en")
+		if result.DataType != db.TEXT || result.KeyWord != "hello friend" || result.Text != "REPLIED BODY" {
+			t.Fatalf("result = {KeyWord:%q Text:%q DataType:%d}, want hello friend / REPLIED BODY / TEXT", result.KeyWord, result.Text, result.DataType)
+		}
+	})
+
+	t.Run("note on an uncaptioned media reply", func(t *testing.T) {
+		t.Parallel()
+		result := ExtractNoteAndFilter(&gotgbot.Message{
+			Text:           "/save a b",
+			ReplyToMessage: &gotgbot.Message{Video: &gotgbot.Video{FileId: "video_ab"}},
+		}, false, "en")
+		if result.DataType != db.VIDEO || result.FileID != "video_ab" || result.Text != "" {
+			t.Fatalf("result = {FileID:%q Text:%q DataType:%d}, want video_ab / empty / VIDEO", result.FileID, result.Text, result.DataType)
+		}
+	})
+}
+
 func TestExtractWelcomeDirectText(t *testing.T) {
 	t.Parallel()
 

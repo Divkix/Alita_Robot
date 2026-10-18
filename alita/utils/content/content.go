@@ -103,13 +103,16 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 					result.KeyWord = kw
 				}
 			}
-			// Every argument is the trigger, so the content is the replied message
-			// alone; setRawText would take it from the second trigger word on.
-			if replyMsg.Text != "" {
-				rawText = replyMsg.OriginalMDV2()
-			} else {
-				rawText = replyMsg.OriginalCaptionMDV2()
-			}
+		}
+		// Every argument is the name, so the content is the replied message
+		// alone; setRawText would take it from the second name word on.
+		switch {
+		case replyMsg.Caption != "":
+			rawText = replyMsg.OriginalCaptionMDV2()
+		case replyMsg.Text != "":
+			rawText = replyMsg.OriginalMDV2()
+		default:
+			rawText = ""
 		}
 
 		if replyMsg.ReplyMarkup == nil {
