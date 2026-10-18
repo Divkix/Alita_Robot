@@ -169,8 +169,7 @@ bans_help_msg:
 
   × /dkick: menendang pengguna dan menghapus pesan yang dibalas. (hanya balasan)
 
-  × /dban <userhandle>: melarang pengguna dan menghapus pesan yang dibalas. (melalui handle, atau
-  balasan)
+  × /dban: melarang pengguna dan menghapus pesan yang dibalas. (hanya balasan)
 
   × /tban <userhandle> x(m/h/d/w): melarang pengguna untuk waktu `x`. (melalui handle, atau balasan).
   m = menit, h = jam, d = hari, w = minggu.

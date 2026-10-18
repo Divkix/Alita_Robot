@@ -172,8 +172,7 @@ bans_help_msg:
 
   × /dkick: expulsa a un usuario y elimina el mensaje respondido. (solo respuesta)
 
-  × /dban <nombre de usuario>: banea a un usuario y elimina el mensaje respondido. (vía nombre de usuario, o
-  respuesta)
+  × /dban: banea a un usuario y elimina el mensaje respondido. (solo respuesta)
 
   × /tban <nombre de usuario> x(m/h/d/w): banea a un usuario por `x` tiempo. (vía nombre de usuario, o respuesta).
   m = minutos, h = horas, d = días, w = semanas.

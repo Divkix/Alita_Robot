@@ -183,8 +183,7 @@ bans_help_msg:
 
   × /dkick : expulse un utilisateur et supprime le message auquel vous avez répondu. (en réponse uniquement)
 
-  × /dban <pseudo> : bannit un utilisateur et supprime le message auquel vous avez répondu. (via le pseudo, ou
-  en réponse)
+  × /dban : bannit un utilisateur et supprime le message auquel vous avez répondu. (en réponse uniquement)
 
   × /tban <pseudo> x(m/h/d/w) : bannit un utilisateur pour une durée `x`. (via le pseudo, ou en réponse).
   m = minutes, h = heures, d = jours, w = semaines.

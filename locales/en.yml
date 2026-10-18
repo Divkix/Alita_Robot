@@ -208,8 +208,7 @@ bans_help_msg:
 
   × /dkick: kicks a user and deletes the replied message. (reply only)
 
-  × /dban <userhandle>: bans a user and delete the replied message. (via handle, or
-  reply)
+  × /dban: bans a user and deletes the replied message. (reply only)
 
   × /tban <userhandle> x(m/h/d/w): bans a user for `x` time. (via handle, or reply).
   m = minutes, h = hours, d = days, w = weeks.
