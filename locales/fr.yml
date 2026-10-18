@@ -1915,7 +1915,7 @@ captcha_permissions_docs: |
   • Supprimer des messages (pour nettoyer les messages captcha)
 
   <b>Actions d'Échec :</b>
-  • <code>kick</code> - Bannir puis débannir immédiatement (permet à l'utilisateur de rejoindre)
+  • <code>kick</code> - Retire l'utilisateur tout en lui permettant de revenir
   • <code>ban</code> - Bannir permanemment l'utilisateur
   • <code>mute</code> - Garder l'utilisateur muet pendant 24 heures
 

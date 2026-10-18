@@ -2210,7 +2210,7 @@ captcha_permissions_docs: |
   • Eliminar mensajes (para limpiar mensajes de captcha)
 
   <b>Acciones de fallo:</b>
-  • <code>kick</code> - Banear y desbanear inmediatamente (permite que el usuario vuelva a unirse)
+  • <code>kick</code> - Expulsa al usuario permitiéndole volver a unirse
   • <code>ban</code> - Banear permanentemente al usuario
   • <code>mute</code> - Mantener al usuario silenciado por 24 horas
 

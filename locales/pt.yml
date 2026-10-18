@@ -2169,7 +2169,7 @@ captcha_permissions_docs: |
   • Deletar mensagens (para limpar mensagens de captcha)
 
   <b>Ações de Falha:</b>
-  • <code>kick</code> - Banir então imediatamente desbanir (permite que usuário reentre)
+  • <code>kick</code> - Remove o usuário permitindo que ele reentre
   • <code>ban</code> - Banir permanentemente o usuário
   • <code>mute</code> - Manter o usuário mutado por 24 horas
 

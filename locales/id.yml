@@ -2198,7 +2198,7 @@ captcha_permissions_docs: |
   • Hapus pesan (untuk membersihkan pesan captcha)
 
   <b>Tindakan Kegagalan:</b>
-  • <code>kick</code> - Blokir kemudian segera buka blokir (memungkinkan pengguna bergabung kembali)
+  • <code>kick</code> - Keluarkan pengguna sambil tetap mengizinkannya bergabung kembali
   • <code>ban</code> - Blokir pengguna secara permanen
   • <code>mute</code> - Pertahankan pengguna dibisukan selama 24 jam
 
