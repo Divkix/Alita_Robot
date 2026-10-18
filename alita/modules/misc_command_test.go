@@ -36,6 +36,7 @@ func withMiscHTTPClient(t *testing.T, client *http.Client) {
 }
 
 func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
@@ -51,8 +52,9 @@ func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
 	if calls := client.callsFor("getMe"); len(calls) != 1 {
 		t.Fatalf("getMe calls = %d, want 1", len(calls))
 	}
-	if calls := client.callsFor("editMessageText"); len(calls) != 1 {
-		t.Fatalf("editMessageText calls = %d, want 1", len(calls))
+	edited := fmt.Sprint(client.onlyCall(t, "editMessageText").Params["text"])
+	if !strings.Contains(edited, "getMe") || strings.Contains(edited, "%!") {
+		t.Fatalf("ping result = %q, want the filled misc_ping_result template", edited)
 	}
 }
 

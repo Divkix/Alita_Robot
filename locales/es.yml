@@ -1282,6 +1282,7 @@ misc_dev_user_tag: "¡Él es uno de mis usuarios desarrolladores!"
 misc_pinging: "<code>Haciendo ping</code>"
 misc_pinged_in: Ping en %d ms
 misc_ping_response: "🏓 ¡Pong! <b>%dms</b>"
+misc_ping_result: "🏓 <b>¡Pong!</b>\n\n<b>RTT de la API</b> (getMe): <code>%dms</code>\n<b>Envío de mensaje</b>: <code>%dms</code>\n<b>Sobrecarga</b>: <code>%dms</code>"
 misc_thread_id: "Id del Hilo: <code>%d</code>"
 misc_chat_id: "<b>ID del Chat:</b> <code>%d</code>"
 misc_user_id: "<b>ID de %s:</b> <code>%d</code>"

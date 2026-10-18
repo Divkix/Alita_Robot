@@ -1681,6 +1681,7 @@ misc_dev_user_tag: "वह मेरे डेव उपयोगकर्ता
 misc_pinging: "<code>पिंग कर रहा हूं</code>"
 misc_pinged_in: "%d ms में पिंग हुआ"
 misc_ping_response: "🏓 पॉन्ग! <b>%dms</b>"
+misc_ping_result: "🏓 <b>पॉन्ग!</b>\n\n<b>API RTT</b> (getMe): <code>%dms</code>\n<b>संदेश भेजना</b>: <code>%dms</code>\n<b>अतिरिक्त समय</b>: <code>%dms</code>"
 misc_thread_id: "थ्रेड Id: <code>%d</code>"
 misc_chat_id: "<b>चैट ID:</b> <code>%d</code>"
 misc_user_id: "<b>%s की ID:</b> <code>%d</code>"

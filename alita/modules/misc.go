@@ -247,11 +247,9 @@ func (moduleStruct) ping(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.WithError(getMeErr).Error("[Ping] Failed to call getMe")
 	}
 
+	resultTemplate, _ := tr.GetString("misc_ping_result")
 	text := fmt.Sprintf(
-		"🏓 <b>Pong!</b>\n\n"+
-			"<b>API RTT</b> (getMe): <code>%dms</code>\n"+
-			"<b>Send msg</b>: <code>%dms</code>\n"+
-			"<b>Overhead</b>: <code>%dms</code>",
+		resultTemplate,
 		getMeLatency.Milliseconds(),
 		sendLatency.Milliseconds(),
 		(sendLatency - getMeLatency).Milliseconds(),

@@ -1270,6 +1270,7 @@ misc_dev_user_tag: "Dia adalah salah satu pengguna dev saya!"
 misc_pinging: "<code>Menguji koneksi...</code>"
 misc_pinged_in: Ping dalam %d ms
 misc_ping_response: "🏓 Pong! <b>%dms</b>"
+misc_ping_result: "🏓 <b>Pong!</b>\n\n<b>RTT API</b> (getMe): <code>%dms</code>\n<b>Kirim pesan</b>: <code>%dms</code>\n<b>Overhead</b>: <code>%dms</code>"
 misc_thread_id: "ID Thread: <code>%d</code>"
 misc_chat_id: "<b>ID Obrolan:</b> <code>%d</code>"
 misc_user_id: "<b>ID %s:</b> <code>%d</code>"
