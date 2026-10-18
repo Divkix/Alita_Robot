@@ -37,6 +37,15 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+		if _, err := msg.Reply(b, text, formatting.Shtml()); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
+
 	chat := chat_status.IsUserConnected(b, ctx, false, false)
 	if chat == nil {
 		return ext.EndGroups
@@ -216,6 +225,15 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 			},
 		}
 	)
+
+	if conn := connections.Connection(user.Id); !conn.Connected || conn.ChatId == 0 {
+		text, _ := tr.GetString(strings.ToLower(m.moduleName) + "_not_connected")
+		if _, err := query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: text}); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
+	}
 
 	chat := chat_status.IsUserConnected(b, ctx, false, false)
 	if chat == nil {

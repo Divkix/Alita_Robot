@@ -256,6 +256,7 @@ func TestConnectionMembershipLookupFailureDeniesWithoutDisconnecting(t *testing.
 }
 
 func TestConnectionReportsNotConnectedAndLookupErrors(t *testing.T) {
+	useEnglishLocale(t)
 	user := gotgbot.User{Id: 42440, FirstName: "Member"}
 	privateChat := gotgbot.Chat{Id: user.Id, Type: "private", FirstName: "Member"}
 
@@ -270,6 +271,10 @@ func TestConnectionReportsNotConnectedAndLookupErrors(t *testing.T) {
 	}
 	if calls := noConnClient.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want not-connected reply", len(calls))
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("connections_not_connected")
+	if text := noConnClient.callsFor("sendMessage")[0].Params["text"]; text != want {
+		t.Fatalf("connection(not connected) reply = %q, want %q", text, want)
 	}
 
 	lookupClient := newModuleBotClient()
@@ -539,6 +544,7 @@ func TestConnectionButtonsRenderUserAndMainViews(t *testing.T) {
 }
 
 func TestConnectionButtonsSkipMissingCallbackOrConnection(t *testing.T) {
+	useEnglishLocale(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	user := gotgbot.User{Id: 42471, FirstName: "Member"}
@@ -549,15 +555,20 @@ func TestConnectionButtonsSkipMissingCallbackOrConnection(t *testing.T) {
 		t.Fatalf("connectionButtons(message update) error = %v, want EndGroups", err)
 	}
 
-	callbackCtx := newModuleCallbackContext(bot, privateChat, user, "connbtns.User")
+	callbackCtx := newModuleCallbackContext(bot, privateChat, user, encodeCallbackData("connbtns", map[string]string{"t": "User"}))
 	if err := ConnectionsModule.connectionButtons(bot, callbackCtx); err != ext.EndGroups {
 		t.Fatalf("connectionButtons(not connected) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("editMessageText"); len(calls) != 0 {
 		t.Fatalf("editMessageText calls = %d, want none for missing context/connection", len(calls))
 	}
-	if calls := client.callsFor("answerCallbackQuery"); len(calls) != 1 {
-		t.Fatalf("answerCallbackQuery calls = %d, want not-connected callback answer", len(calls))
+	answers := client.callsFor("answerCallbackQuery")
+	if len(answers) != 1 {
+		t.Fatalf("answerCallbackQuery calls = %d, want not-connected callback answer", len(answers))
+	}
+	want, _ := i18n.MustNewTranslator("en").GetString("connections_not_connected")
+	if text := answers[0].Params["text"]; text != want {
+		t.Fatalf("not-connected callback answer = %q, want %q", text, want)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 0 {
 		t.Fatalf("sendMessage calls = %d, want callback path without chat message", len(calls))
