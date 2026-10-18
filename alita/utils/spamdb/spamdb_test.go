@@ -2,6 +2,7 @@ package spamdb
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,8 +27,12 @@ const (
 	casListed            = `{"ok":true,"result":{"reasons":[1],"offenses":1,"messages":["spam"],"time_added":"2026-10-02T15:26:20.000Z"}}`
 	casBadKey            = `{"ok":false,"error_code":401,"description":"Invalid API key"}`
 	testUserID           = int64(1234567890)
-	testTimeout          = 200 * time.Millisecond
-	slowerThanAny        = 2 * time.Second
+	// lols.bot bodies follow its OpenAPI spec (https://api.lols.bot/lols-bot.json,
+	// read 2026-10-18): ok, user_id and banned are always present.
+	lolsBanned    = `{"ok":true,"user_id":1234567890,"banned":true,"when":"2024-06-28 17:18:05 UTC","offenses":300,"spam_factor":55.66}`
+	lolsClean     = `{"ok":true,"user_id":1234567890,"banned":false}`
+	testTimeout   = 200 * time.Millisecond
+	slowerThanAny = 2 * time.Second
 )
 
 // fakeService is an httptest server answering the CAS API with a
@@ -88,6 +93,23 @@ func newTestChecker(cas *fakeService, opts Options) *Checker {
 	return New(opts)
 }
 
+// newBothChecker points the Checker at a fake CAS and a fake lols.bot.
+func newBothChecker(cas, lols *fakeService, opts Options) *Checker {
+	opts.LolsURL = lols.srv.URL + "/account"
+	return newTestChecker(cas, opts)
+}
+
+var bothSources = []Source{SourceCAS, SourceLols}
+
+// checkCAS runs a CAS-only check and reports whether CAS lists the user.
+func checkCAS(c *Checker, ctx context.Context, userID int64) (bool, error) {
+	src, err := c.Check(ctx, userID, []Source{SourceCAS})
+	if err == nil && src != "" && src != SourceCAS {
+		return false, fmt.Errorf("CAS-only check reported source %q", src)
+	}
+	return src == SourceCAS, err
+}
+
 func newMiniredis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	t.Helper()
 	mr, err := miniredis.Run()
@@ -104,7 +126,7 @@ func TestCheckReportsCASListing(t *testing.T) {
 	cas := newFakeService(t, http.StatusOK, casListed)
 	c := newTestChecker(cas, Options{})
 
-	listed, err := c.Check(context.Background(), testUserID)
+	listed, err := checkCAS(c, context.Background(), testUserID)
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
@@ -123,7 +145,7 @@ func TestCheckCleanIsNotListed(t *testing.T) {
 			cas := newFakeService(t, http.StatusOK, casBody)
 			c := newTestChecker(cas, Options{})
 
-			listed, err := c.Check(context.Background(), testUserID)
+			listed, err := checkCAS(c, context.Background(), testUserID)
 			if err != nil {
 				t.Fatalf("Check() error = %v", err)
 			}
@@ -158,7 +180,7 @@ func TestCheckFailureIsAnError(t *testing.T) {
 			cas := newFakeService(t, tc.casStatus, tc.casBody)
 			c := newTestChecker(cas, Options{})
 
-			listed, err := c.Check(context.Background(), testUserID)
+			listed, err := checkCAS(c, context.Background(), testUserID)
 			if err == nil {
 				t.Fatalf("Check() = %v, nil error; want an error", listed)
 			}
@@ -210,7 +232,7 @@ func TestCheckGivesUpAtSharedDeadline(t *testing.T) {
 	c := newTestChecker(cas, Options{})
 
 	start := time.Now()
-	listed, err := c.Check(context.Background(), testUserID)
+	listed, err := checkCAS(c, context.Background(), testUserID)
 	elapsed := time.Since(start)
 
 	if err == nil || listed {
@@ -224,14 +246,14 @@ func TestCheckGivesUpAtSharedDeadline(t *testing.T) {
 func TestCheckSendsCASAPIKeyOnlyWhenConfigured(t *testing.T) {
 	cas := newFakeService(t, http.StatusOK, casNotFound)
 
-	if _, err := newTestChecker(cas, Options{}).Check(context.Background(), testUserID); err != nil {
+	if _, err := checkCAS(newTestChecker(cas, Options{}), context.Background(), testUserID); err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
 	if got := cas.lastRequest(t).Header.Get("Authorization"); got != "" {
 		t.Fatalf("Authorization without key = %q, want empty", got)
 	}
 
-	if _, err := newTestChecker(cas, Options{CASAPIKey: "cas-test-key"}).Check(context.Background(), testUserID+1); err != nil {
+	if _, err := checkCAS(newTestChecker(cas, Options{CASAPIKey: "cas-test-key"}), context.Background(), testUserID+1); err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
 	if got := cas.lastRequest(t).Header.Get("Authorization"); got != "Bearer cas-test-key" {
@@ -246,7 +268,7 @@ func TestCheckKeepsCASAPIKeyOutOfURLAndErrors(t *testing.T) {
 	const key = "cas-secret-key-7d41b2"
 
 	cas := newFakeService(t, http.StatusOK, casNotFound)
-	if _, err := newTestChecker(cas, Options{CASAPIKey: key}).Check(context.Background(), testUserID); err != nil {
+	if _, err := checkCAS(newTestChecker(cas, Options{CASAPIKey: key}), context.Background(), testUserID); err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
 	if uri := cas.lastRequest(t).RequestURI; strings.Contains(uri, key) {
@@ -257,7 +279,7 @@ func TestCheckKeepsCASAPIKeyOutOfURLAndErrors(t *testing.T) {
 	down := newFakeService(t, http.StatusOK, casNotFound)
 	down.srv.Close()
 	for name, svc := range map[string]*fakeService{"non-200": bad, "unreachable": down} {
-		_, err := newTestChecker(svc, Options{CASAPIKey: key, Redis: func() *redis.Client { return nil }}).Check(context.Background(), testUserID+1)
+		_, err := checkCAS(newTestChecker(svc, Options{CASAPIKey: key, Redis: func() *redis.Client { return nil }}), context.Background(), testUserID+1)
 		if err == nil {
 			t.Fatalf("%s: Check() error = nil, want a failure", name)
 		}
@@ -272,7 +294,7 @@ func TestCheckRejectsNonUserIDWithoutRequests(t *testing.T) {
 	c := newTestChecker(cas, Options{})
 
 	for _, id := range []int64{0, -1001234567890} {
-		if listed, err := c.Check(context.Background(), id); err == nil || listed {
+		if listed, err := checkCAS(c, context.Background(), id); err == nil || listed {
 			t.Fatalf("Check(%d) = %v, %v; want an error", id, listed, err)
 		}
 	}
@@ -298,7 +320,7 @@ func TestCheckCachesVerdictsInRedis(t *testing.T) {
 			c := newTestChecker(cas, Options{Redis: func() *redis.Client { return client }})
 
 			for i := 0; i < 2; i++ {
-				listed, err := c.Check(context.Background(), testUserID)
+				listed, err := checkCAS(c, context.Background(), testUserID)
 				if err != nil || listed != tc.listed {
 					t.Fatalf("Check() #%d = %v, %v; want listed=%v", i, listed, err, tc.listed)
 				}
@@ -306,7 +328,7 @@ func TestCheckCachesVerdictsInRedis(t *testing.T) {
 			if got := cas.hits.Load(); got != 1 {
 				t.Fatalf("CAS hit %d times, want 1 (second check from cache)", got)
 			}
-			key := "alita:spamdb:" + strconv.FormatInt(testUserID, 10)
+			key := "alita:spamdb:cas:" + strconv.FormatInt(testUserID, 10)
 			waitForRedisKey(t, mr, key)
 			if ttl := mr.TTL(key); ttl != tc.wantTTL {
 				t.Fatalf("TTL(%s) = %v, want %v", key, ttl, tc.wantTTL)
@@ -321,7 +343,7 @@ func TestCheckDoesNotCacheFailures(t *testing.T) {
 	c := newTestChecker(cas, Options{Redis: func() *redis.Client { return client }})
 
 	for i := 0; i < 2; i++ {
-		if _, err := c.Check(context.Background(), testUserID); err == nil {
+		if _, err := checkCAS(c, context.Background(), testUserID); err == nil {
 			t.Fatalf("Check() #%d error = nil, want CAS failure", i)
 		}
 	}
@@ -338,7 +360,7 @@ func TestCheckCachesInProcessWithoutRedis(t *testing.T) {
 	c := newTestChecker(cas, Options{Redis: func() *redis.Client { return nil }})
 
 	for i := 0; i < 2; i++ {
-		listed, err := c.Check(context.Background(), testUserID)
+		listed, err := checkCAS(c, context.Background(), testUserID)
 		if err != nil || !listed {
 			t.Fatalf("Check() #%d = %v, %v; want listed by CAS", i, listed, err)
 		}
@@ -360,7 +382,7 @@ func TestCheckSharesConcurrentLookups(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := c.Check(context.Background(), testUserID); err != nil {
+			if _, err := checkCAS(c, context.Background(), testUserID); err != nil {
 				t.Errorf("Check() error = %v", err)
 			}
 		}()
@@ -380,7 +402,7 @@ func TestCheckHonoursCallerCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout/4)
 	defer cancel()
 	start := time.Now()
-	if _, err := c.Check(ctx, testUserID); err == nil {
+	if _, err := checkCAS(c, ctx, testUserID); err == nil {
 		t.Fatal("Check() error = nil, want the caller's deadline")
 	}
 	if elapsed := time.Since(start); elapsed > 2*testTimeout {
@@ -397,13 +419,13 @@ func TestCheckAbandonedLookupStillCaches(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout/10)
 	defer cancel()
-	if _, err := c.Check(ctx, testUserID); err == nil {
+	if _, err := checkCAS(c, ctx, testUserID); err == nil {
 		t.Fatal("Check() error = nil, want the caller's deadline")
 	}
 
 	deadline := time.Now().Add(4 * testTimeout)
 	for {
-		if _, ok := c.cached(context.Background(), testUserID); ok {
+		if _, ok := c.cached(context.Background(), SourceCAS, testUserID); ok {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -412,7 +434,7 @@ func TestCheckAbandonedLookupStillCaches(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	listed, err := c.Check(context.Background(), testUserID)
+	listed, err := checkCAS(c, context.Background(), testUserID)
 	if err != nil || !listed {
 		t.Fatalf("Check() = %v, %v; want listed by CAS from cache", listed, err)
 	}
@@ -448,7 +470,7 @@ func TestCheckDoesNotWaitForSlowRedisWrite(t *testing.T) {
 	c := newTestChecker(cas, Options{Timeout: slowerThanAny, Redis: func() *redis.Client { return client }})
 
 	start := time.Now()
-	listed, err := c.Check(context.Background(), testUserID)
+	listed, err := checkCAS(c, context.Background(), testUserID)
 	if elapsed := time.Since(start); elapsed > redisSetDelay/2 {
 		t.Fatalf("Check() took %v; it waited for the Redis write", elapsed)
 	}
@@ -456,13 +478,13 @@ func TestCheckDoesNotWaitForSlowRedisWrite(t *testing.T) {
 		t.Fatalf("Check() = %v, %v; want listed by CAS", listed, err)
 	}
 
-	if listed, err = c.Check(context.Background(), testUserID); err != nil || !listed {
+	if listed, err = checkCAS(c, context.Background(), testUserID); err != nil || !listed {
 		t.Fatalf("second Check() = %v, %v; want listed", listed, err)
 	}
 	if got := cas.hits.Load(); got != 1 {
 		t.Fatalf("CAS hit %d times, want 1 (second check from the in-process copy)", got)
 	}
-	waitForRedisKey(t, mr, "alita:spamdb:"+strconv.FormatInt(testUserID, 10))
+	waitForRedisKey(t, mr, "alita:spamdb:cas:"+strconv.FormatInt(testUserID, 10))
 }
 
 // An unexpected CAS answer is an error and must leave the start of the body in
@@ -489,7 +511,7 @@ func TestCheckLogsUnexpectedCASResponse(t *testing.T) {
 
 			cas := newFakeService(t, tc.status, tc.body)
 			c := newTestChecker(cas, Options{Redis: func() *redis.Client { return nil }})
-			if _, err := c.Check(context.Background(), testUserID); err == nil {
+			if _, err := checkCAS(c, context.Background(), testUserID); err == nil {
 				t.Fatal("Check() error = nil, want a CAS failure")
 			}
 
@@ -520,7 +542,7 @@ func TestCheckDoesNotWarnForExpectedCASAnswers(t *testing.T) {
 	for _, body := range []string{casNotFound, casNotFoundErrorForm, casListed} {
 		cas := newFakeService(t, http.StatusOK, body)
 		c := newTestChecker(cas, Options{Redis: func() *redis.Client { return nil }})
-		if _, err := c.Check(context.Background(), testUserID); err != nil {
+		if _, err := checkCAS(c, context.Background(), testUserID); err != nil {
 			t.Fatalf("Check(%s) error = %v", body, err)
 		}
 	}
@@ -528,7 +550,7 @@ func TestCheckDoesNotWarnForExpectedCASAnswers(t *testing.T) {
 	cas := newFakeService(t, http.StatusOK, casNotFound)
 	cas.srv.Close()
 	c := newTestChecker(cas, Options{Redis: func() *redis.Client { return nil }})
-	if _, err := c.Check(context.Background(), testUserID); err == nil {
+	if _, err := checkCAS(c, context.Background(), testUserID); err == nil {
 		t.Fatal("Check() with CAS unreachable: error = nil, want an error")
 	}
 
@@ -558,7 +580,7 @@ func TestCheckDoesNotWarnWhenCASBodyIsCutOff(t *testing.T) {
 		Redis:   func() *redis.Client { return nil },
 	})
 
-	if _, err := c.Check(context.Background(), testUserID); err == nil {
+	if _, err := checkCAS(c, context.Background(), testUserID); err == nil {
 		t.Fatal("Check() error = nil, want a CAS failure")
 	}
 	for _, e := range hook.AllEntries() {

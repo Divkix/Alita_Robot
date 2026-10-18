@@ -1,5 +1,5 @@
-// Package spamdb looks a Telegram user up in the CAS (cas.chat) spam database,
-// so a chat can act on a known spammer when they join.
+// Package spamdb looks a Telegram user up in the CAS (cas.chat) and lols.bot
+// spam databases, so a chat can act on a known spammer when they join.
 //
 // A failed lookup is an error, never a "clean" verdict: callers let the join
 // through and nothing is cached, so the next join asks again.
@@ -24,10 +24,31 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-const (
-	DefaultCASURL = "https://api.cas.chat/check"
+// Source is a spam database a chat can check new members against.
+type Source string
 
-	// DefaultTimeout bounds the whole lookup; the join handler waits on it.
+const (
+	SourceCAS  Source = "cas"
+	SourceLols Source = "lols"
+)
+
+// Name is how the source is named to admins and in log-channel notices.
+func (s Source) Name() string {
+	switch s {
+	case SourceCAS:
+		return "CAS"
+	case SourceLols:
+		return "lols.bot"
+	}
+	return string(s)
+}
+
+const (
+	DefaultCASURL  = "https://api.cas.chat/check"
+	DefaultLolsURL = "https://api.lols.bot/account"
+
+	// DefaultTimeout bounds each database's lookup; the join handler waits on
+	// the slowest selected one.
 	DefaultTimeout = 3 * time.Second
 
 	// A listing is rarely lifted, so it is kept longer than a clean verdict,
@@ -39,15 +60,19 @@ const (
 	listedValue      = "listed"
 	cleanValue       = "clean"
 	maxResponseBytes = 64 << 10
-	// maxLoggedBodyBytes caps how much of an unexpected CAS body is logged.
+	// maxLoggedBodyBytes caps how much of an unexpected body is logged.
 	maxLoggedBodyBytes = 200
 	localCacheSize     = 10_000
 	storeTimeout       = time.Second
 )
 
-// ErrInvalidUserID is returned for chat and channel IDs, which CAS does not
-// index.
-var ErrInvalidUserID = errors.New("spamdb: not a user id")
+var (
+	// ErrInvalidUserID is returned for chat and channel IDs, which neither
+	// database indexes.
+	ErrInvalidUserID = errors.New("spamdb: not a user id")
+	// ErrNoSources is returned when a check names no known database.
+	ErrNoSources = errors.New("spamdb: no database selected")
+)
 
 var errLookupPanicked = errors.New("spamdb: lookup panicked")
 
@@ -56,6 +81,7 @@ type Options struct {
 	// CASAPIKey is optional for now; CAS has announced it will become required.
 	CASAPIKey  string
 	CASURL     string
+	LolsURL    string
 	Timeout    time.Duration
 	HTTPClient *http.Client
 	// Redis returns the shared cache client, or nil to use the in-process
@@ -63,16 +89,24 @@ type Options struct {
 	Redis func() *redis.Client
 }
 
-// Checker answers whether a user is listed in CAS.
+// verdictKey identifies one database's verdict on one user, so a chat that
+// checks only CAS never reads a lols.bot verdict and the reverse.
+type verdictKey struct {
+	source Source
+	userID int64
+}
+
+// Checker answers whether a user is listed in the selected databases.
 type Checker struct {
 	casURL  string
 	casKey  string
+	lolsURL string
 	timeout time.Duration
 	client  *http.Client
 	redis   func() *redis.Client
 
-	listedLocal *expirable.LRU[int64, struct{}]
-	cleanLocal  *expirable.LRU[int64, struct{}]
+	listedLocal *expirable.LRU[verdictKey, struct{}]
+	cleanLocal  *expirable.LRU[verdictKey, struct{}]
 	flight      singleflight.Group
 }
 
@@ -81,14 +115,18 @@ func New(opts Options) *Checker {
 	c := &Checker{
 		casURL:      opts.CASURL,
 		casKey:      opts.CASAPIKey,
+		lolsURL:     opts.LolsURL,
 		timeout:     opts.Timeout,
 		client:      opts.HTTPClient,
 		redis:       opts.Redis,
-		listedLocal: expirable.NewLRU[int64, struct{}](localCacheSize, nil, ListedTTL),
-		cleanLocal:  expirable.NewLRU[int64, struct{}](localCacheSize, nil, CleanTTL),
+		listedLocal: expirable.NewLRU[verdictKey, struct{}](localCacheSize, nil, ListedTTL),
+		cleanLocal:  expirable.NewLRU[verdictKey, struct{}](localCacheSize, nil, CleanTTL),
 	}
 	if c.casURL == "" {
 		c.casURL = DefaultCASURL
+	}
+	if c.lolsURL == "" {
+		c.lolsURL = DefaultLolsURL
 	}
 	if c.timeout <= 0 {
 		c.timeout = DefaultTimeout
@@ -105,18 +143,68 @@ func New(opts Options) *Checker {
 	return c
 }
 
-// Check reports whether userID is listed in CAS. Concurrent checks for the
-// same user share one lookup, which runs under the Checker's timeout even if
-// the first caller gives up; ctx only bounds this caller's wait.
-func (c *Checker) Check(ctx context.Context, userID int64) (bool, error) {
+type answer struct {
+	source Source
+	listed bool
+	err    error
+}
+
+// Check asks each of sources in parallel and returns the first one that lists
+// userID, without waiting for the others. It returns "" only when every source
+// answered clean; if none lists the user and any failed, it returns the
+// failures. ctx only bounds this caller's wait: each lookup runs under the
+// Checker's timeout and still caches its verdict after the caller has gone.
+func (c *Checker) Check(ctx context.Context, userID int64, sources []Source) (Source, error) {
 	if userID <= 0 {
-		return false, ErrInvalidUserID
+		return "", ErrInvalidUserID
 	}
-	if listed, ok := c.cached(ctx, userID); ok {
+	for _, src := range sources {
+		if src != SourceCAS && src != SourceLols {
+			return "", fmt.Errorf("%w: unknown %q", ErrNoSources, src)
+		}
+	}
+	if len(sources) == 0 {
+		return "", ErrNoSources
+	}
+
+	answers := make(chan answer, len(sources))
+	for _, src := range sources {
+		go func() {
+			// The answer is sent even after a recovered panic, so Check
+			// never waits on a lookup that is gone.
+			a := answer{source: src, err: fmt.Errorf("spamdb: %s: lookup panicked", src)}
+			defer func() { answers <- a }()
+			defer error_handling.RecoverFromPanic("checkSource", "spamdb")
+			a.listed, a.err = c.checkSource(ctx, src, userID)
+		}()
+	}
+
+	var errs []error
+	for range sources {
+		select {
+		case a := <-answers:
+			if a.err != nil {
+				errs = append(errs, a.err)
+				continue
+			}
+			if a.listed {
+				return a.source, nil
+			}
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	return "", errors.Join(errs...)
+}
+
+// checkSource reports whether src lists userID. Concurrent checks of the same
+// user in the same database share one lookup.
+func (c *Checker) checkSource(ctx context.Context, src Source, userID int64) (bool, error) {
+	if listed, ok := c.cached(ctx, src, userID); ok {
 		return listed, nil
 	}
 
-	ch := c.flight.DoChan(strconv.FormatInt(userID, 10), func() (any, error) {
+	ch := c.flight.DoChan(string(src)+":"+strconv.FormatInt(userID, 10), func() (any, error) {
 		// singleflight re-raises a panic here in a goroutine no caller can
 		// recover, which would exit the bot; a panic is a failed lookup instead.
 		listed, err := false, errLookupPanicked
@@ -124,9 +212,13 @@ func (c *Checker) Check(ctx context.Context, userID int64) (bool, error) {
 			defer error_handling.RecoverFromPanic("lookup", "spamdb")
 			lookupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.timeout)
 			defer cancel()
-			listed, err = c.lookupCAS(lookupCtx, userID)
+			lookup := c.lookupCAS
+			if src == SourceLols {
+				lookup = c.lookupLols
+			}
+			listed, err = lookup(lookupCtx, userID)
 			if err == nil {
-				c.store(ctx, userID, listed)
+				c.store(ctx, src, userID, listed)
 			}
 		}()
 		if err != nil {
@@ -163,18 +255,18 @@ func (c *Checker) lookupCAS(ctx context.Context, userID int64) (bool, error) {
 		Description string          `json:"description"`
 		Error       string          `json:"error"`
 	}
-	raw, status, err := c.getJSON(ctx, userID, &body)
+	raw, status, err := c.getJSON(ctx, c.casURL, "user_id", userID, c.casKey, &body)
 	if err != nil {
 		// status is zero when no response arrived (timeout, refused
 		// connection); that is an outage, not a changed API.
 		if status != 0 {
-			warnUnexpectedCAS(userID, status, raw)
+			warnUnexpected(SourceCAS, userID, status, raw)
 		}
 		return false, fmt.Errorf("spamdb: cas: %w", err)
 	}
 	if body.OK {
 		if len(body.Result) == 0 || string(body.Result) == "null" {
-			warnUnexpectedCAS(userID, status, raw)
+			warnUnexpected(SourceCAS, userID, status, raw)
 			return false, errors.New("spamdb: cas: ok without a result")
 		}
 		return true, nil
@@ -182,29 +274,55 @@ func (c *Checker) lookupCAS(ctx context.Context, userID int64) (bool, error) {
 	if body.ErrorCode == 0 && (body.Description == casNotFoundText || body.Error == casNotFoundText) {
 		return false, nil
 	}
-	warnUnexpectedCAS(userID, status, raw)
+	warnUnexpected(SourceCAS, userID, status, raw)
 	return false, fmt.Errorf("spamdb: cas: error %d: %s%s", body.ErrorCode, body.Description, body.Error)
 }
 
-func warnUnexpectedCAS(userID int64, status int, raw []byte) {
+// lols.bot answers 200 {"ok":true,"user_id":N,"banned":bool,...}, where
+// banned says whether the user is on its ban list; 400 and 500 mean a bad
+// request. It takes no API key. Its OpenAPI spec is
+// https://api.lols.bot/lols-bot.json. An answer without a verdict, or about
+// another user, is an error and is logged like an unexpected CAS answer.
+func (c *Checker) lookupLols(ctx context.Context, userID int64) (bool, error) {
+	var body struct {
+		OK     bool  `json:"ok"`
+		UserID int64 `json:"user_id"`
+		Banned *bool `json:"banned"`
+	}
+	raw, status, err := c.getJSON(ctx, c.lolsURL, "id", userID, "", &body)
+	if err != nil {
+		if status != 0 {
+			warnUnexpected(SourceLols, userID, status, raw)
+		}
+		return false, fmt.Errorf("spamdb: lols: %w", err)
+	}
+	if !body.OK || body.Banned == nil || body.UserID != userID {
+		warnUnexpected(SourceLols, userID, status, raw)
+		return false, errors.New("spamdb: lols: response carried no verdict for the user")
+	}
+	return *body.Banned, nil
+}
+
+func warnUnexpected(src Source, userID int64, status int, raw []byte) {
 	if len(raw) > maxLoggedBodyBytes {
 		raw = raw[:maxLoggedBodyBytes]
 	}
-	log.Warnf("[SpamDB] unexpected CAS response for %d: HTTP %d, body %q", userID, status, raw)
+	log.Warnf("[SpamDB] unexpected %s response for %d: HTTP %d, body %q", src.Name(), userID, status, raw)
 }
 
-// getJSON decodes the response into out. Once a response has arrived it also
-// returns its status code and raw body (capped at maxResponseBytes), even on a
-// non-200 status or a decode failure, so callers can log what the service
-// actually said. The status is zero when the exchange failed in transit,
-// including a body cut off after the headers.
-func (c *Checker) getJSON(ctx context.Context, userID int64, out any) ([]byte, int, error) {
-	u, err := url.Parse(c.casURL)
+// getJSON queries base with param set to userID and decodes the response into
+// out. apiKey, when set, goes only in the Authorization header. Once a
+// response has arrived it also returns its status code and raw body (capped at
+// maxResponseBytes), even on a non-200 status or a decode failure, so callers
+// can log what the service actually said. The status is zero when the exchange
+// failed in transit, including a body cut off after the headers.
+func (c *Checker) getJSON(ctx context.Context, base, param string, userID int64, apiKey string, out any) ([]byte, int, error) {
+	u, err := url.Parse(base)
 	if err != nil {
 		return nil, 0, fmt.Errorf("parse url: %w", err)
 	}
 	q := u.Query()
-	q.Set("user_id", strconv.FormatInt(userID, 10))
+	q.Set(param, strconv.FormatInt(userID, 10))
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -212,8 +330,8 @@ func (c *Checker) getJSON(ctx context.Context, userID int64, out any) ([]byte, i
 		return nil, 0, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	if c.casKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.casKey)
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
 	resp, err := c.client.Do(req)
@@ -246,23 +364,24 @@ func (c *Checker) redisClient() *redis.Client {
 	return c.redis()
 }
 
-func redisKey(userID int64) string {
-	return redisKeyPrefix + strconv.FormatInt(userID, 10)
+func redisKey(src Source, userID int64) string {
+	return redisKeyPrefix + string(src) + ":" + strconv.FormatInt(userID, 10)
 }
 
-// cached returns a stored verdict. The in-process copy is checked first, so a
-// verdict this replica just stored never waits on Redis. A Redis failure reads
-// as a miss so the lookup still runs.
+// cached returns a stored verdict of src. The in-process copy is checked
+// first, so a verdict this replica just stored never waits on Redis. A Redis
+// failure reads as a miss so the lookup still runs.
 //
 // The shared client sets ContextTimeoutEnabled, so a deadline on ctx also stops
 // the socket read, not just the wait for a pooled connection and the pause
 // between go-redis retries. A ctx without a deadline falls back to the
 // client's ReadTimeout.
-func (c *Checker) cached(ctx context.Context, userID int64) (listed, ok bool) {
-	if _, ok := c.listedLocal.Get(userID); ok {
+func (c *Checker) cached(ctx context.Context, src Source, userID int64) (listed, ok bool) {
+	key := verdictKey{source: src, userID: userID}
+	if _, ok := c.listedLocal.Get(key); ok {
 		return true, true
 	}
-	if _, ok := c.cleanLocal.Get(userID); ok {
+	if _, ok := c.cleanLocal.Get(key); ok {
 		return false, true
 	}
 
@@ -270,10 +389,10 @@ func (c *Checker) cached(ctx context.Context, userID int64) (listed, ok bool) {
 	if rdb == nil {
 		return false, false
 	}
-	v, err := rdb.Get(ctx, redisKey(userID)).Result()
+	v, err := rdb.Get(ctx, redisKey(src, userID)).Result()
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
-			log.Debugf("[SpamDB] cache read for %d: %v", userID, err)
+			log.Debugf("[SpamDB] cache read for %s:%d: %v", src, userID, err)
 		}
 		return false, false
 	}
@@ -287,18 +406,19 @@ func (c *Checker) cached(ctx context.Context, userID int64) (listed, ok bool) {
 	}
 }
 
-// store remembers a verdict. The in-process copy is written before store
-// returns; the Redis write runs in the background so a slow or hung Redis never
-// delays the verdict the join handler is waiting for.
-func (c *Checker) store(ctx context.Context, userID int64, listed bool) {
+// store remembers a verdict of src. The in-process copy is written before
+// store returns; the Redis write runs in the background so a slow or hung
+// Redis never delays the verdict the join handler is waiting for.
+func (c *Checker) store(ctx context.Context, src Source, userID int64, listed bool) {
+	key := verdictKey{source: src, userID: userID}
 	value, ttl := cleanValue, CleanTTL
 	if listed {
 		value, ttl = listedValue, ListedTTL
-		c.listedLocal.Add(userID, struct{}{})
-		c.cleanLocal.Remove(userID)
+		c.listedLocal.Add(key, struct{}{})
+		c.cleanLocal.Remove(key)
 	} else {
-		c.cleanLocal.Add(userID, struct{}{})
-		c.listedLocal.Remove(userID)
+		c.cleanLocal.Add(key, struct{}{})
+		c.listedLocal.Remove(key)
 	}
 
 	rdb := c.redisClient()
@@ -313,8 +433,8 @@ func (c *Checker) store(ctx context.Context, userID int64, listed bool) {
 		// between go-redis retries.
 		ctx, cancel := context.WithTimeout(ctx, storeTimeout)
 		defer cancel()
-		if err := rdb.Set(ctx, redisKey(userID), value, ttl).Err(); err != nil {
-			log.Debugf("[SpamDB] cache write for %d: %v", userID, err)
+		if err := rdb.Set(ctx, redisKey(src, userID), value, ttl).Err(); err != nil {
+			log.Debugf("[SpamDB] cache write for %s:%d: %v", src, userID, err)
 		}
 	}()
 }

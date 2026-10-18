@@ -74,12 +74,12 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			continue
 		}
 
-		listed, err := spamDBChecker.Check(reqCtx, member.Id)
+		source, err := spamDBChecker.Check(reqCtx, member.Id, []spamdb.Source{spamdb.SourceCAS})
 		if err != nil {
 			log.WithFields(log.Fields{"chat_id": chat.Id, "user_id": member.Id, "error": err}).Debug("[SpamDB] lookup failed; letting the member in")
 			continue
 		}
-		if !listed {
+		if source == "" {
 			continue
 		}
 
@@ -93,8 +93,8 @@ func (moduleStruct) checkSpamDB(b *gotgbot.Bot, ctx *ext.Context) error {
 			claimRecentJoinProcessing(chat.Id, member.Id)
 		}
 		actionlog.Log(b, chat, logchannels.CategoryAutomated, fmt.Sprintf(
-			"#SPAMDB\nUser: %s (<code>%d</code>)\nListed in: CAS\nAction: %s",
-			formatting.MentionHtml(member.Id, member.FirstName), member.Id, outcome,
+			"#SPAMDB\nUser: %s (<code>%d</code>)\nListed in: %s\nAction: %s",
+			formatting.MentionHtml(member.Id, member.FirstName), member.Id, source.Name(), outcome,
 		))
 	}
 	return ext.ContinueGroups
