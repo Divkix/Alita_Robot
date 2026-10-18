@@ -374,7 +374,7 @@ warns_expiry_never: "jamais"
 warns_user_no_warnings: Cet utilisateur n'a aucun avertissement !
 warns_removed_by: "Avertissement supprimé par %s."
 warns_no_warns_to_remove: L'utilisateur n'a déjà aucun avertissement !
-warns_limit_set_help: "Veuillez spécifier combien d'avertissements un utilisateur doit recevoir avant d'être sanctionné. Ex. `/setwarnlimit 5`"
+warns_limit_set_help: "Veuillez spécifier combien d'avertissements un utilisateur doit recevoir avant d'être sanctionné. Ex. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s n'est pas un entier valide."
 warns_limit_range_error: La limite d'avertissements doit être définie entre 1 et 100.
 warns_limit_updated: "Les paramètres de limite d'avertissements de ce chat ont été mis à jour à %d."

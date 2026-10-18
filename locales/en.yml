@@ -1208,7 +1208,7 @@ warns_expiry_never: "never"
 warns_user_no_warnings: This user hasn't got any warnings!
 warns_removed_by: "Warn removed by %s."
 warns_no_warns_to_remove: User already has no warns!
-warns_limit_set_help: "Please specify how many warns a user should be allowed to receive before being acted upon. Eg. `/setwarnlimit 5`"
+warns_limit_set_help: "Please specify how many warns a user should be allowed to receive before being acted upon. Eg. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s is not a valid integer."
 warns_limit_range_error: The warn limit has to be set between 1 and 100.
 warns_limit_updated: "Warn limit settings for this chat have been updated to %d."

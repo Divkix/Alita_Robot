@@ -1171,7 +1171,7 @@ warns_expiry_never: "nunca"
 warns_user_no_warnings: ¡Este usuario no tiene advertencias!
 warns_removed_by: "Advertencia eliminada por %s."
 warns_no_warns_to_remove: ¡El usuario ya no tiene advertencias!
-warns_limit_set_help: "Por favor especifica cuántas advertencias debe permitirse recibir a un usuario antes de tomar acción. Ej. `/setwarnlimit 5`"
+warns_limit_set_help: "Por favor especifica cuántas advertencias debe permitirse recibir a un usuario antes de tomar acción. Ej. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s no es un entero válido."
 warns_limit_range_error: El límite de advertencias debe establecerse entre 1 y 100.
 warns_limit_updated: "La configuración del límite de advertencias para este chat se ha actualizado a %d."

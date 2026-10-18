@@ -1131,7 +1131,7 @@ warns_expiry_never: "nunca"
 warns_user_no_warnings: Este usuário não tem nenhum aviso!
 warns_removed_by: "Aviso removido por %s."
 warns_no_warns_to_remove: Usuário já não tem avisos!
-warns_limit_set_help: "Por favor especifique quantos avisos um usuário deve poder receber antes de ter ação tomada. Ex. `/setwarnlimit 5`"
+warns_limit_set_help: "Por favor especifique quantos avisos um usuário deve poder receber antes de ter ação tomada. Ex. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s não é um número inteiro válido."
 warns_limit_range_error: O limite de avisos deve ser definido entre 1 e 100.
 warns_limit_updated: "Configurações de limite de aviso para este chat foram atualizadas para %d."

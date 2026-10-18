@@ -1654,7 +1654,7 @@ warns_expiry_never: "कभी नहीं"
 warns_user_no_warnings: इस उपयोगकर्ता को कोई चेतावनी नहीं मिली है!
 warns_removed_by: "चेतावनी %s द्वारा हटाई गई।"
 warns_no_warns_to_remove: उपयोगकर्ता को पहले से कोई चेतावनी नहीं है!
-warns_limit_set_help: "कृपया निर्दिष्ट करें कि एक उपयोगकर्ता को कार्रवाई से पहले कितनी चेतावनियां मिलनी चाहिए। उदा. `/setwarnlimit 5`"
+warns_limit_set_help: "कृपया निर्दिष्ट करें कि एक उपयोगकर्ता को कार्रवाई से पहले कितनी चेतावनियां मिलनी चाहिए। उदा. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s एक मान्य पूर्णांक नहीं है।"
 warns_limit_range_error: चेतावनी सीमा 1 और 100 के बीच होनी चाहिए।
 warns_limit_updated: "इस चैट के लिए चेतावनी सीमा सेटिंग्स %d पर अपडेट की गई हैं।"

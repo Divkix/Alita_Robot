@@ -1161,7 +1161,7 @@ warns_expiry_never: "tidak pernah"
 warns_user_no_warnings: Pengguna ini tidak punya peringatan apa pun!
 warns_removed_by: "Peringatan dihapus oleh %s."
 warns_no_warns_to_remove: Pengguna sudah tidak punya peringatan!
-warns_limit_set_help: "Silakan tentukan berapa banyak peringatan yang harus diizinkan untuk pengguna sebelum tindakan diambil. Mis. `/setwarnlimit 5`"
+warns_limit_set_help: "Silakan tentukan berapa banyak peringatan yang harus diizinkan untuk pengguna sebelum tindakan diambil. Mis. <code>/setwarnlimit 5</code>"
 warns_invalid_number: "%s bukan bilangan bulat yang valid."
 warns_limit_range_error: Batas peringatan harus diatur antara 1 dan 100.
 warns_limit_updated: "Pengaturan batas peringatan untuk obrolan ini telah diperbarui ke %d."
