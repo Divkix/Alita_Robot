@@ -13,39 +13,37 @@ Every module follows this structure:
 package modules
 
 import (
-    "fmt"
-    "strings"
-
     "github.com/PaulSonOfLars/gotgbot/v2"
     "github.com/PaulSonOfLars/gotgbot/v2/ext"
     "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
     "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers/filters/callbackquery"
     log "github.com/sirupsen/logrus"
 
-    "github.com/divkix/Alita_Robot/alita/db"
+    "github.com/divkix/Alita_Robot/alita/db/lang"
     "github.com/divkix/Alita_Robot/alita/i18n"
-    "github.com/divkix/Alita_Robot/alita/utils/chat_status"
-    "github.com/divkix/Alita_Robot/alita/utils/extraction"
     "github.com/divkix/Alita_Robot/alita/utils/formatting"
+    "github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 // Module struct with name for help system
 var exampleModule = moduleStruct{moduleName: "Example"}
 
-// Command handler method
-func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
-    chat := ctx.EffectiveChat
-    user := ctx.EffectiveSender.User
-    msg := ctx.EffectiveMessage
-    tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+// Declarative command config. WrapCommand runs RequiredChecks in order; a
+// failing check sends its own reply, so the handler adds none.
+var exampleDesc = helpers.CommandDescriptor{
+    Name:        "example",
+    Disableable: true, // lists the command for /disable
+    RequiredChecks: []helpers.CheckFunc{
+        helpers.CheckDisabled("example"), // enforces /disable
+        helpers.RequireGroup(),
+        helpers.RequireUserAdmin(),
+    },
+}
 
-    // Permission checks
-    if !chat_status.RequireGroup(b, ctx, nil) {
-        return ext.EndGroups
-    }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-        return ext.EndGroups
-    }
+// Command handler method (checks already ran in the pipeline)
+func (m moduleStruct) exampleCommand(b *gotgbot.Bot, ctx *ext.Context) error {
+    msg := ctx.EffectiveMessage
+    tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
     // Business logic here
     text, _ := tr.GetString("example_success_message")
@@ -65,7 +63,7 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
     if !ok {
         return ext.EndGroups
     }
-    tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+    tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
     // Parse callback data using the modules package wrapper
     // (versioned codec only — legacy dot-notation callbacks are rejected)
@@ -100,11 +98,11 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 
 // LoadExample registers all handlers for this module
 func LoadExample(dispatcher *ext.Dispatcher) {
-    // Register in help system
+    // Register in help system (takes the registry lock)
     SetModuleEnabled(exampleModule.moduleName, true)
 
-    // Register command handlers
-    dispatcher.AddHandler(handlers.NewCommand("example", exampleModule.exampleCommand))
+    // Register commands through the pipeline
+    helpers.WrapCommand(dispatcher, exampleDesc, pipelineHandler(exampleModule.exampleCommand))
 
     // Register callback handlers
     dispatcher.AddHandler(handlers.NewCallback(
@@ -116,59 +114,69 @@ func LoadExample(dispatcher *ext.Dispatcher) {
 // Register the module in init() so LoadAllModules picks it up
 func init() {
     RegisterLegacyModule("Example", 100, LoadExample)
+    // Admin command: also runs for anonymous admins once they prove admin rights
+    RegisterAnonymousAdminHandler("example", anonPipelineHandler(exampleDesc, exampleModule.exampleCommand))
 }
 ```
+
+:::note[Command pipeline]
+Register new commands with `helpers.WrapCommand(dispatcher, helpers.CommandDescriptor{...}, handler)`. The handler is `func(*helpers.CommandContext) error`; `pipelineHandler` adapts a `(b, ctx)` method. The `helpers.*` CheckFuncs in `RequiredChecks` send their own failure replies, so do not add replies for failed checks. `Disableable: true` only lists the command for `/disable`; `helpers.CheckDisabled("<cmd>")` enforces it. Anonymous admins bypass `WrapCommand`, so admin commands also need `RegisterAnonymousAdminHandler` with `anonPipelineHandler`, which re-runs the same checks.
+:::
 
 ## Step-by-Step Guide
 
 ### Step 1: Create Database Model (If Needed)
 
-Create a new file `alita/db/example/repository.go` (following the domain-package pattern):
+Add the model in `alita/db/models/example.go`. `TableName()` must return the migration's table name:
 
 ```go
-package db
+package models
 
-import (
-    "gorm.io/gorm"
-)
+import "time"
 
 // ExampleSettings stores per-chat example settings
 type ExampleSettings struct {
-    ID        uint   `gorm:"primaryKey;autoIncrement"`
-    ChatID    int64  `gorm:"uniqueIndex;not null"`
-    Enabled   bool   `gorm:"default:false"`
-    Value     string `gorm:"type:text"`
-    CreatedAt int64  `gorm:"autoCreateTime"`
-    UpdatedAt int64  `gorm:"autoUpdateTime"`
+    ID        uint      `gorm:"primaryKey;autoIncrement"`
+    ChatID    int64     `gorm:"uniqueIndex;not null"`
+    Enabled   bool      `gorm:"default:false"`
+    Value     string    `gorm:"type:text"`
+    CreatedAt time.Time `gorm:"column:created_at"`
+    UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-// GetExampleSettings retrieves settings for a chat
-func GetExampleSettings(chatID int64) *ExampleSettings {
-    var settings ExampleSettings
-    tx := db.Session(&gorm.Session{}).Where("chat_id = ?", chatID).First(&settings)
-    if tx.Error != nil {
-        return &ExampleSettings{ChatID: chatID, Enabled: false}
-    }
-    return &settings
+func (ExampleSettings) TableName() string { return "example_settings" }
+```
+
+Add the model to the `AutoMigrate` list in the affected `testmain_test.go` or `internal/testdb.Run` call so tests create its table.
+
+Put the repository in `alita/db/example/repository.go` (package `example`). Every write must invalidate the keys it affects:
+
+```go
+package example
+
+import (
+    "github.com/divkix/Alita_Robot/alita/db"
+    "github.com/divkix/Alita_Robot/alita/db/cache"
+    "github.com/divkix/Alita_Robot/alita/db/models"
+)
+
+func exampleSettingsCacheKey(chatID int64) string {
+    return cache.CacheKey("example_settings", chatID)
 }
 
 // SetExampleSettings saves settings for a chat
 func SetExampleSettings(chatID int64, enabled bool, value string) error {
-    settings := ExampleSettings{
-        ChatID:  chatID,
-        Enabled: enabled,
-        Value:   value,
-    }
-
-    tx := db.Session(&gorm.Session{}).Where("chat_id = ?", chatID).
-        Assign(settings).FirstOrCreate(&settings)
-
+    var settings models.ExampleSettings
+    // A map (not a struct) so false and "" are written too
+    tx := db.DB.Where("chat_id = ?", chatID).
+        Assign(map[string]any{"enabled": enabled, "value": value}).
+        FirstOrCreate(&settings, models.ExampleSettings{ChatID: chatID})
     if tx.Error != nil {
         return tx.Error
     }
 
     // Invalidate cache
-    deleteCache(exampleSettingsCacheKey(chatID))
+    cache.DeleteCache(exampleSettingsCacheKey(chatID))
     return nil
 }
 ```
@@ -179,67 +187,61 @@ Always check `err` returns from database operations. Assigning to `_` causes nil
 
 ### Step 2: Create Migration File
 
-Create `migrations/XXX_add_example_settings.sql`:
+Create `migrations/<YYYYMMDDHHMMSS>_add_example_settings.sql`, with a timestamp greater than every existing migration (files apply in plain filename order):
 
 ```sql
 -- Create example_settings table
 CREATE TABLE IF NOT EXISTS example_settings (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     chat_id BIGINT NOT NULL UNIQUE,
     enabled BOOLEAN DEFAULT FALSE,
     value TEXT,
-    created_at BIGINT,
-    updated_at BIGINT
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Create index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_example_settings_chat_id ON example_settings(chat_id);
 ```
 
 :::note[Surrogate key pattern]
 Always use auto-increment `id` as the primary key. External IDs (`chat_id`, `user_id`) should be unique constraints, not primary keys. This decouples internal schema from Telegram's ID space.
 :::
 
+:::caution[Migration rules]
+Each file runs in one transaction: no top-level `BEGIN`/`COMMIT`/`ROLLBACK` and no `CREATE INDEX CONCURRENTLY`. Never edit an applied migration; its SHA-256 checksum is checked at startup and a mismatch aborts it.
+:::
+
 ### Step 3: Implement Database Operations
 
-Add cache helpers to `alita/db/cache/ttl.go` and `alita/db/cache/keys.go` using the CacheKey helper:
+Add a TTL constant to `alita/db/cache/ttl.go`:
 
 ```go
+// alita/db/cache/ttl.go
 const (
     CacheTTLExampleSettings = 30 * time.Minute
 )
-
-// Use the CacheKey helper for consistent key formatting
-func exampleSettingsCacheKey(chatID int64) string {
-    return CacheKey("example_settings", chatID)
-}
 ```
 
-Update the database operations to use caching with singleflight protection:
+Read through `cache.GetFromCacheOrLoad`, which shares one database load per key among concurrent callers. Return the default only when the row is missing; return any other error so an outage default is never cached:
 
 ```go
-func GetExampleSettings(chatID int64) *ExampleSettings {
-    result, err := getFromCacheOrLoad(
-        exampleSettingsCacheKey(chatID),
-        CacheTTLExampleSettings,
-        func() (*ExampleSettings, error) {
-            var settings ExampleSettings
-            tx := db.Session(&gorm.Session{}).Where("chat_id = ?", chatID).First(&settings)
-            if tx.Error != nil {
-                return &ExampleSettings{ChatID: chatID, Enabled: false}, nil
+// alita/db/example/repository.go (also import "context", "errors" and "gorm.io/gorm")
+func GetExampleSettings(ctx context.Context, chatID int64) (*models.ExampleSettings, error) {
+    return cache.GetFromCacheOrLoad(ctx, exampleSettingsCacheKey(chatID), cache.CacheTTLExampleSettings,
+        func(ctx context.Context) (*models.ExampleSettings, error) {
+            var settings models.ExampleSettings
+            err := db.DB.WithContext(ctx).Where("chat_id = ?", chatID).First(&settings).Error
+            if errors.Is(err, gorm.ErrRecordNotFound) {
+                return &models.ExampleSettings{ChatID: chatID}, nil
+            }
+            if err != nil {
+                return nil, err
             }
             return &settings, nil
-        },
-    )
-    if err != nil {
-        return &ExampleSettings{ChatID: chatID, Enabled: false}
-    }
-    return result
+        })
 }
 ```
 
 :::tip[CacheKey helper]
-The `CacheKey()` function in `alita/db/cache/keys.go` provides consistent key formatting as `alita:{module}:{id}`. Always use it instead of manual string formatting.
+The `CacheKey()` function in `alita/db/cache/keys.go` provides consistent key formatting as `alita:cache:{module}:{id}`. The `alita:cache:` prefix (`DataCachePrefix`) is what `CLEAR_CACHE_ON_STARTUP` clears. Always use it instead of manual string formatting.
 :::
 
 :::tip[Cache invalidation is mandatory]
@@ -251,13 +253,14 @@ Every function that writes to the database MUST invalidate the corresponding cac
 Add to `locales/en.yml`:
 
 ```yaml
-# Example module
-example_help: |
-  <b>Example Module</b>
+# Example module: /help reads <module>_help_msg (lowercased module name)
+example_help_msg: |
+  Example module help.
 
-  Commands:
-  - /example: Run the example command
-  - /exampleset <value>: Set the example value
+  *Commands*:
+
+  × /example: Run the example command.
+  × /exampleset `<value>`: Set the example value.
 
 example_success_message: "Example command executed successfully!"
 example_value_set: "Example value set to: %s"
@@ -268,13 +271,15 @@ example_cancelled: "Action cancelled."
 
 Add to other locale files (es.yml, fr.yml, hi.yml, id.yml, pt.yml, ru.yml) with appropriate translations.
 
+The help key must be named `<module>_help_msg`; /help and the per-command help read only that name. Every command keeps exactly one `× /cmd …` entry in it in all 7 locales (`TestEveryHelpCommandHasItsLineInEveryLocale` enforces this for modules in `commandHelpModules`), and sample calls for those commands go in `<cmd>_example` keys in `locales/config.yml`.
+
 :::caution[Translation completeness]
 You must add keys to ALL locale files, not just `en.yml`. Missing keys cause runtime panics or empty strings. Run `make check-translations` to detect missing keys before committing.
 :::
 
 ### Step 5: Register Module
 
-Modules self-register via `init()` using the registry system. The `LoadAllModules` function in `alita/main.go` loads all registered modules in priority order:
+Modules self-register via `init()` using the registry system. `LoadModules` in `alita/main.go` calls `modules.LoadAllModules` (defined in `alita/modules/registry.go`), which loads all registered modules in priority order:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
@@ -293,6 +298,10 @@ There is one registration pattern:
 :::note[Load order matters]
 Priority determines load order (lower numbers load first). Place your module at a priority after any modules it depends on (e.g., after `Users` if you need user lookups). `LoadHelp` is deferred and always loads last.
 :::
+
+### Step 6: Regenerate Docs and Validate
+
+Run `make generate-docs` (the command pages are generated from `locales/en.yml`), then `make check-translations`, `make check-docs`, `make test` and `make lint`.
 
 ## Permission Check Functions
 
@@ -330,6 +339,8 @@ if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
 
 ### Common Permission Patterns
 
+Inside `WrapCommand`, use the `helpers.*` CheckFunc builders in `RequiredChecks` instead. The raw `chat_status` predicates below are for watchers and legacy handlers, and they do not reply on failure (see above):
+
 ```go
 // Admin-only command
 if !chat_status.RequireGroup(b, ctx, nil) {
@@ -365,7 +376,7 @@ return ext.ContinueGroups
 // Error - propagates to dispatcher error handler
 return err
 
-// Success with no error
+// Ends this group only; later groups still run
 return nil
 ```
 
@@ -376,10 +387,10 @@ return nil
 | `ext.EndGroups` | Command handled successfully, stop processing |
 | `ext.ContinueGroups` | Allow other handlers to also process this update |
 | `err` | Something went wrong, let error handler deal with it |
-| `nil` | Same as `ext.EndGroups` for most purposes |
+| `nil` | Ends only the current group; later handler groups still run on the update. Not the same as `ext.EndGroups`: a group-0 watcher returning `nil` keeps every later group-0 handler from running |
 
 :::tip[When to use ContinueGroups]
-Use `ext.ContinueGroups` only for monitoring/watcher handlers (handler groups 4-10) that observe traffic without consuming it. Standard command handlers should always return `ext.EndGroups` to prevent duplicate processing.
+Use `ext.ContinueGroups` only for monitoring/watcher handlers that observe traffic without consuming it, in whatever group they sit (the watcher groups are -10, -6, -5, -2, -1 and 3-11, plus any watcher in group 0). A group-0 watcher must return `ext.ContinueGroups`, not `nil`, or later group-0 handlers never run. Standard command handlers should always return `ext.EndGroups` to prevent duplicate processing.
 :::
 
 ## Translation Best Practices
@@ -438,32 +449,38 @@ Here's a complete example showing all patterns together:
 package modules
 
 import (
-    "fmt"
-
     "github.com/PaulSonOfLars/gotgbot/v2"
     "github.com/PaulSonOfLars/gotgbot/v2/ext"
-    "github.com/PaulSonOfLars/gotgbot/v2/ext/handlers"
     log "github.com/sirupsen/logrus"
 
-    "github.com/divkix/Alita_Robot/alita/db"
+    "github.com/divkix/Alita_Robot/alita/db/greetings"
+    "github.com/divkix/Alita_Robot/alita/db/lang"
     "github.com/divkix/Alita_Robot/alita/i18n"
-    "github.com/divkix/Alita_Robot/alita/utils/chat_status"
     "github.com/divkix/Alita_Robot/alita/utils/formatting"
+    "github.com/divkix/Alita_Robot/alita/utils/helpers"
 )
 
 var welcomeModule = moduleStruct{moduleName: "Welcome"}
+
+var (
+    welcomeStatusDesc = helpers.CommandDescriptor{
+        Name:           "welcomestatus",
+        Disableable:    true,
+        RequiredChecks: []helpers.CheckFunc{helpers.CheckDisabled("welcomestatus"), helpers.RequireGroup()},
+    }
+    toggleWelcomeDesc = helpers.CommandDescriptor{
+        Name:           "togglewelcome",
+        RequiredChecks: []helpers.CheckFunc{helpers.RequireGroup(), helpers.RequireUserAdmin()},
+    }
+)
 
 // welcomestatus shows whether welcome messages are enabled
 func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
     msg := ctx.EffectiveMessage
-    tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+    tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil) {
-        return ext.EndGroups
-    }
-
-    settings := db.GetGreetingSettings(chat.Id)
+    settings := greetings.GetGreetingSettings(chat.Id)
     enabled := false
     if settings.WelcomeSettings != nil {
         enabled = settings.WelcomeSettings.ShouldWelcome
@@ -487,24 +504,16 @@ func (m moduleStruct) welcomestatus(b *gotgbot.Bot, ctx *ext.Context) error {
 // togglewelcome enables or disables welcome messages (admin only)
 func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
     chat := ctx.EffectiveChat
-    user := ctx.EffectiveSender.User
     msg := ctx.EffectiveMessage
-    tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+    tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-    if !chat_status.RequireGroup(b, ctx, nil) {
-        return ext.EndGroups
-    }
-    if !chat_status.RequireUserAdmin(b, ctx, nil, user.Id) {
-        return ext.EndGroups
-    }
-
-    settings := db.GetGreetingSettings(chat.Id)
+    settings := greetings.GetGreetingSettings(chat.Id)
     current := false
     if settings.WelcomeSettings != nil {
         current = settings.WelcomeSettings.ShouldWelcome
     }
 
-    if err := db.SetWelcomeToggle(chat.Id, !current); err != nil {
+    if err := greetings.SetWelcomeToggle(chat.Id, !current); err != nil {
         log.Error(err)
         return err
     }
@@ -527,12 +536,13 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
 func LoadWelcome(dispatcher *ext.Dispatcher) {
     SetModuleEnabled(welcomeModule.moduleName, true)
 
-    dispatcher.AddHandler(handlers.NewCommand("welcomestatus", welcomeModule.welcomestatus))
-    dispatcher.AddHandler(handlers.NewCommand("togglewelcome", welcomeModule.togglewelcome))
+    helpers.WrapCommand(dispatcher, welcomeStatusDesc, pipelineHandler(welcomeModule.welcomestatus))
+    helpers.WrapCommand(dispatcher, toggleWelcomeDesc, pipelineHandler(welcomeModule.togglewelcome))
 }
 
 func init() {
     RegisterLegacyModule("Welcome", 210, LoadWelcome)
+    RegisterAnonymousAdminHandler("togglewelcome", anonPipelineHandler(toggleWelcomeDesc, welcomeModule.togglewelcome))
 }
 ```
 
@@ -561,14 +571,17 @@ Telegram supports a subset of HTML in messages. User-controlled strings (chat ti
 
 ```go
 // CORRECT: Synchronous operation before success message
-db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT)
+if err := greetings.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT); err != nil {
+    log.Error(err)
+    return err
+}
 _, err := msg.Reply(b, "Welcome message reset successfully!", formatting.Shtml())
 ```
 
 ```go
 // AVOID: Async operation with premature success message
 go func() {
-    db.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT) // May fail silently
+    _ = greetings.SetWelcomeText(chat.Id, db.DefaultWelcome, "", nil, db.TEXT) // May fail silently
 }()
 _, err := msg.Reply(b, "Success!") // User sees success even if DB write fails
 ```
@@ -585,7 +598,7 @@ Never send a success confirmation to the user before the database write complete
 
 ```go
 // CORRECT: Check error and handle nil case
-captchaSettings, err := db.GetCaptchaSettings(chat.Id)
+captchaSettings, err := captcha.GetCaptchaSettings(chat.Id)
 if err != nil {
     log.Errorf("Failed to get captcha settings: %v", err)
     captchaSettings = &db.CaptchaSettings{Enabled: false} // Use safe default
@@ -597,7 +610,7 @@ if captchaSettings != nil && captchaSettings.Enabled {
 
 ```go
 // AVOID: Ignoring errors can cause nil pointer panics
-captchaSettings, _ := db.GetCaptchaSettings(chat.Id)
+captchaSettings, _ := captcha.GetCaptchaSettings(chat.Id)
 if captchaSettings.Enabled { // May panic if captchaSettings is nil!
     // ...
 }
@@ -641,18 +654,21 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 ## Checklist for New Modules
 
 - [ ] Create module struct with `moduleName`
-- [ ] Implement handler methods on module struct
-- [ ] Add appropriate permission checks
-- [ ] Use `i18n.MustNewTranslator(db.GetLanguage(ctx))` for translations
+- [ ] Implement handler methods on module struct (value receivers)
+- [ ] Register commands with `helpers.WrapCommand` and a `helpers.CommandDescriptor`; put permission checks in `RequiredChecks`
+- [ ] For disableable commands, set `Disableable: true` and add `helpers.CheckDisabled("<cmd>")`
+- [ ] Admin commands: `RegisterAnonymousAdminHandler` + `anonPipelineHandler`
+- [ ] Use `i18n.MustNewTranslator(lang.GetLanguage(ctx))` for translations
 - [ ] Handle errors properly (log and return)
 - [ ] **Escape user-controlled input with `formatting.HtmlEscape()`**
 - [ ] **Add panic recovery to goroutines**
-- [ ] Create database models if needed
-- [ ] Create migration file if needed
-- [ ] Add cache helpers if needed
-- [ ] Add translations to all locale files
+- [ ] Create the migration and the model in `alita/db/models/` if needed
+- [ ] Add the model to the test `AutoMigrate` list
+- [ ] Read through `cache.GetFromCacheOrLoad`; `cache.DeleteCache` on every write
+- [ ] Add translations to all 7 locale files, including `<module>_help_msg`
 - [ ] Register module in `init()` with `RegisterLegacyModule`
-- [ ] Register module in the help system with `SetModuleEnabled(name, true)` (and `SetModuleHelp(name, kb)` for extra help buttons); never write `DefaultHelpRegistry().AbleMap` directly, because that bypasses the registry lock
+- [ ] Enable the module in help with `SetModuleEnabled(name, true)` (never write `AbleMap` directly)
+- [ ] Run `make generate-docs`, `make check-translations`, `make check-docs`, `make test`, `make lint`
 - [ ] Test in development environment
 
 ## Next Steps
