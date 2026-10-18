@@ -1369,7 +1369,7 @@ reports_help_msg:
 
   *Admins uniquement :*
 
-  × /reports `<on/off/yes/no>` : Modifie le paramètre de signalement, ou affiche l'état actuel.
+  × /reports `<on/off/yes/no/true/false>` : Modifie le paramètre de signalement, ou affiche l'état actuel.
 
   - En MP, bascule votre statut personnel. Nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs.
 
@@ -1422,12 +1422,12 @@ reports_button_ban: "⛔️ Bannir"
 reports_button_delete: "❎ Supprimer le message"
 reports_button_resolved: "✔️ Marquer comme résolu"
 reports_blocked_users_header: "Utilisateurs bloqués de l'utilisation des commandes de signalement :"
-reports_invalid_input: "Votre entrée n'a pas été reconnue comme l'une des suivantes : <code>&lt;yes/on/no/off&gt; ou &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Votre entrée n'a pas été reconnue comme l'une des suivantes : <code>&lt;yes/on/true/no/off/false&gt; ou &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Votre préférence actuelle est activée. Vous serez notifié chaque fois que quelqu'un signale quelque chose dans les groupes où vous êtes admin."
 reports_preference_disabled_private: "Vous n'avez pas activé les signalements. Vous ne serez pas notifié."
 reports_status_enabled_group: "Les signalements sont actuellement activés dans ce chat.\nLes utilisateurs peuvent utiliser la commande /report, ou mentionner @admin, pour taguer tous les admins."
 reports_status_disabled_group: "Les signalements sont actuellement désactivés dans ce chat."
-reports_change_settings_hint: "\n\nPour modifier ce paramètre, essayez cette commande à nouveau, avec l'un des arguments suivants : yes/no/on/off"
+reports_change_settings_hint: "\n\nPour modifier ce paramètre, essayez cette commande à nouveau, avec l'un des arguments suivants : yes/no/on/off/true/false"
 reports_success_kick: "✅ Expulsé avec succès"
 reports_success_ban: "✅ Banni avec succès"
 reports_success_delete: "✅ Supprimé avec succès"

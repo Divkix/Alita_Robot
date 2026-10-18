@@ -854,7 +854,7 @@ reports_help_msg:
 
   *Admin Saja:*
 
-  × /reports `<on/off/yes/no>`: ubah pengaturan laporan, atau lihat status saat ini.
+  × /reports `<on/off/yes/no/true/false>`: ubah pengaturan laporan, atau lihat status saat ini.
 
   - Jika dilakukan di PM, mengalihkan status Anda. Ini memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin.
 
@@ -1636,12 +1636,12 @@ reports_button_ban: "⛔️ Blokir"
 reports_button_delete: "❎ Hapus Pesan"
 reports_button_resolved: "✔️ Tandai Selesai"
 reports_blocked_users_header: "Pengguna yang diblokir dari penggunaan perintah laporan:"
-reports_invalid_input: "Masukan Anda tidak dikenali sebagai salah satu dari: <code>&lt;yes/on/no/off&gt; atau &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Masukan Anda tidak dikenali sebagai salah satu dari: <code>&lt;yes/on/true/no/off/false&gt; atau &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Preferensi Anda saat ini adalah true. Anda akan diberitahu setiap kali seseorang melaporkan sesuatu di grup tempat Anda admin."
 reports_preference_disabled_private: "Anda belum mengaktifkan pelaporan. Anda tidak akan diberitahu."
 reports_status_enabled_group: "Pelaporan saat ini diaktifkan di obrolan ini.\nPengguna dapat menggunakan perintah /report, atau menyebut @admin, untuk menandai semua admin."
 reports_status_disabled_group: "Pelaporan saat ini dinonaktifkan di obrolan ini."
-reports_change_settings_hint: "\n\nUntuk mengubah pengaturan ini, coba perintah ini lagi, dengan salah satu argumen berikut: yes/no/on/off"
+reports_change_settings_hint: "\n\nUntuk mengubah pengaturan ini, coba perintah ini lagi, dengan salah satu argumen berikut: yes/no/on/off/true/false"
 reports_success_kick: "✅ Berhasil menendang"
 reports_success_ban: "✅ Berhasil memblokir"
 reports_success_delete: "✅ Berhasil menghapus"

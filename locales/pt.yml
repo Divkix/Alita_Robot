@@ -826,7 +826,7 @@ reports_help_msg:
 
   *Apenas Admins:*
 
-  × /reports `<on/off/yes/no>`: muda configuração de report, ou vê status atual.
+  × /reports `<on/off/yes/no/true/false>`: muda configuração de report, ou vê status atual.
 
   - Se feito no PM, alterna seu status. Isso requer uma conexão ativa via /connect a um grupo onde você e o bot sejam admins.
 
@@ -1667,12 +1667,12 @@ reports_button_ban: "⛔️ Banir"
 reports_button_delete: "❎ Deletar Mensagem"
 reports_button_resolved: "✔️ Marcar Resolvido"
 reports_blocked_users_header: "Usuários bloqueados de usar comandos de report:"
-reports_invalid_input: "Sua entrada não foi reconhecida como uma de: <code>&lt;yes/on/no/off&gt; ou &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Sua entrada não foi reconhecida como uma de: <code>&lt;yes/on/true/no/off/false&gt; ou &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Sua preferência atual é true. Você será notificado sempre que alguém reportar algo em grupos onde é admin."
 reports_preference_disabled_private: "Você não ativou relatórios. Você não será notificado."
 reports_status_enabled_group: "Relatórios estão atualmente ativados neste chat.\nUsuários podem usar o comando /report, ou mencionar @admin, para marcar todos os admins."
 reports_status_disabled_group: "Relatórios estão atualmente desativados neste chat."
-reports_change_settings_hint: "\n\nPara mudar esta configuração, tente este comando novamente, com um dos seguintes argumentos: yes/no/on/off"
+reports_change_settings_hint: "\n\nPara mudar esta configuração, tente este comando novamente, com um dos seguintes argumentos: yes/no/on/off/true/false"
 reports_success_kick: "✅ Expulso com sucesso"
 reports_success_ban: "✅ Banido com sucesso"
 reports_success_delete: "✅ Deletado com sucesso"

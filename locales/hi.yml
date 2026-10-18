@@ -597,7 +597,7 @@ reports_help_msg: "हम सभी व्यस्त लोग हैं ज�
 
   *केवल एडमिन:*
 
-  × /reports `<on/off/yes/no>`: रिपोर्ट सेटिंग बदलें, या वर्तमान स्थिति देखें।
+  × /reports `<on/off/yes/no/true/false>`: रिपोर्ट सेटिंग बदलें, या वर्तमान स्थिति देखें।
 
   - यदि PM में किया गया, तो आपकी स्थिति टॉगल करता है। इसके लिए किसी ऐसे ग्रुप से सक्रिय /connect कनेक्शन चाहिए जहाँ आप और बॉट दोनों एडमिन हों।
 
@@ -1532,12 +1532,12 @@ reports_button_ban: "⛔️ बैन"
 reports_button_delete: "❎ संदेश हटाएं"
 reports_button_resolved: "✔️ समाधान के रूप में चिह्नित करें"
 reports_blocked_users_header: "रिपोर्ट कमांड का उपयोग करने से ब्लॉक किए गए उपयोगकर्ता:"
-reports_invalid_input: "आपका इनपुट इनमें से एक के रूप में पहचाना नहीं गया: <code>&lt;yes/on/no/off&gt; या &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "आपका इनपुट इनमें से एक के रूप में पहचाना नहीं गया: <code>&lt;yes/on/true/no/off/false&gt; या &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "आपकी वर्तमान प्राथमिकता सत्य है। जब भी कोई उन ग्रुप में कुछ रिपोर्ट करेगा जहां आप एडमिन हैं, आपको सूचित किया जाएगा।"
 reports_preference_disabled_private: "आपने रिपोर्ट सक्षम नहीं की हैं। आपको सूचित नहीं किया जाएगा।"
 reports_status_enabled_group: "इस चैट में रिपोर्ट वर्तमान में सक्षम हैं।\nउपयोगकर्ता सभी एडमिन को टैग करने के लिए /report कमांड या @admin का उपयोग कर सकते हैं।"
 reports_status_disabled_group: "इस चैट में रिपोर्ट वर्तमान में अक्षम हैं।"
-reports_change_settings_hint: "\n\nइस सेटिंग को बदलने के लिए, इस कमांड को निम्नलिखित तर्कों में से एक के साथ पुनः प्रयास करें: yes/no/on/off"
+reports_change_settings_hint: "\n\nइस सेटिंग को बदलने के लिए, इस कमांड को निम्नलिखित तर्कों में से एक के साथ पुनः प्रयास करें: yes/no/on/off/true/false"
 reports_success_kick: "✅ सफलतापूर्वक किक किया गया"
 reports_success_ban: "✅ सफलतापूर्वक बैन किया गया"
 reports_success_delete: "✅ सफलतापूर्वक हटाया गया"

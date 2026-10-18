@@ -683,7 +683,7 @@ reports_help_msg:
   
     *Только для администраторов:*
   
-    × /reports `<on/off/yes/no>`: изменить настройки отчётов или просмотреть текущий статус.
+    × /reports `<on/off/yes/no/true/false>`: изменить настройки отчётов или просмотреть текущий статус.
   
     - Если сделано в ЛС, переключает ваш статус. Для этого нужно активное подключение через /connect к группе, где и вы, и бот являетесь администраторами.
   
@@ -1484,12 +1484,12 @@ reports_button_ban: "⛔️ Забанить"
 reports_button_delete: "❎ Удалить сообщение"
 reports_button_resolved: "✔️ Отметить решённым"
 reports_blocked_users_header: "Пользователи, заблокированные от использования команд отчётов:"
-reports_invalid_input: "Ваш ввод не был распознан как один из: <code>&lt;yes/on/no/off&gt; или &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Ваш ввод не был распознан как один из: <code>&lt;yes/on/true/no/off/false&gt; или &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Ваш текущий выбор — true. Вы будете получать уведомления, когда кто-то сообщит о чём-то в группах, где вы администратор."
 reports_preference_disabled_private: "Вы не включили отчёты. Вы не будете получать уведомления."
 reports_status_enabled_group: "Отчёты в данный момент включены в этом чате.\nПользователи могут использовать команду /report или упомянуть @admin, чтобы отметить всех администраторов."
 reports_status_disabled_group: "Отчёты в данный момент отключены в этом чате."
-reports_change_settings_hint: "\n\nЧтобы изменить эту настройку, попробуйте эту команду снова с одним из следующих аргументов: yes/no/on/off"
+reports_change_settings_hint: "\n\nЧтобы изменить эту настройку, попробуйте эту команду снова с одним из следующих аргументов: yes/no/on/off/true/false"
 reports_success_kick: "✅ Успешно выгнан"
 reports_success_ban: "✅ Успешно забанен"
 reports_success_delete: "✅ Успешно удалено"

@@ -901,7 +901,7 @@ reports_help_msg:
 
   *Admins Only:*
 
-  × /reports `<on/off/yes/no>`: change report setting, or view current status.
+  × /reports `<on/off/yes/no/true/false>`: change report setting, or view current status.
 
   - If done in PM, toggles your status. This needs an active /connect to a group where both you and the bot are admins.
 
@@ -1746,12 +1746,12 @@ reports_button_ban: "⛔️ Ban"
 reports_button_delete: "❎ Delete Message"
 reports_button_resolved: "✔️ Mark Resolved"
 reports_blocked_users_header: "Users blocked from using report commands:"
-reports_invalid_input: "Your input was not recognised as one of: <code>&lt;yes/on/no/off&gt; or &lt;block/unblock/showblocklist&gt;</code>"
+reports_invalid_input: "Your input was not recognised as one of: <code>&lt;yes/on/true/no/off/false&gt; or &lt;block/unblock/showblocklist&gt;</code>"
 reports_preference_enabled_private: "Your current preference is true. You'll be notified whenever anyone reports something in groups you are admin."
 reports_preference_disabled_private: "You haven't enabled reports. You won't be notified."
 reports_status_enabled_group: "Reports are currently enabled in this chat.\nUsers can use the /report command, or mention @admin, to tag all admins."
 reports_status_disabled_group: "Reports are currently disabled in this chat."
-reports_change_settings_hint: "\n\nTo change this setting, try this command again, with one of the following args: yes/no/on/off"
+reports_change_settings_hint: "\n\nTo change this setting, try this command again, with one of the following args: yes/no/on/off/true/false"
 reports_success_kick: "✅ Successfully kicked"
 reports_success_ban: "✅ Successfully banned"
 reports_success_delete: "✅ Successfully deleted"
