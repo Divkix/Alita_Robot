@@ -276,18 +276,23 @@ Main table storing chat/group information.
 
 ### `connection`
 
-User-to-chat connection state.
+Per-user connection state (a user has at most one connected chat).
 
 #### Columns
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
-| `user_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
-| `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
+| `user_id` | `BIGINT` | NO | — | UNIQUE |
+| `chat_id` | `BIGINT` | NO | — | — |
 | `connected` | `BOOLEAN` | NO | `false` | — |
 | `created_at` | `TIMESTAMP` | YES | — | — |
 | `updated_at` | `TIMESTAMP` | YES | — | — |
+
+#### Indexes
+
+- `uk_connection_user_id` (unique constraint on `user_id`; one saved connection per user)
+- `idx_connection_chat_id` (on `chat_id`; backs the foreign key)
 
 #### Foreign Keys
 
