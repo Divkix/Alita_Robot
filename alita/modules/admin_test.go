@@ -617,7 +617,7 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	clearChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
 	m := cache.GetMarshal()
 	if m == nil {
-		t.Skip("cache not initialized")
+		t.Fatal("cache marshaler is not initialised; TestMain must set it")
 	}
 	if err := m.Set(cache.Context, "alita:cache:adminCache:"+fmtInt(clearChat.Id), cache.AdminCache{
 		ChatId: clearChat.Id,

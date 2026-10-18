@@ -162,7 +162,7 @@ func TestWarnByAnonymousAdminHidesIssuer(t *testing.T) {
 	t.Run("confirmed through the button", func(t *testing.T) {
 		m := cache.GetMarshal()
 		if m == nil {
-			t.Skip("requires initialized cache marshaler")
+			t.Fatal("cache marshaler is not initialised; TestMain must set it")
 		}
 		f := newAdminChatFixture(t)
 		client, bot, chat, clicker := f.client, f.bot, f.chat, f.admin
