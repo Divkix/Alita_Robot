@@ -521,8 +521,8 @@ func TestGetInviteLinkUsesPublicUsernameWithoutFetchingChat(t *testing.T) {
 	if calls := client.callsFor("getChat"); len(calls) != 0 {
 		t.Fatalf("getChat calls = %d, want 0 for public username", len(calls))
 	}
-	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, chat.Username) {
-		t.Fatalf("invite reply lacks the public username %q:\n%s", chat.Username, text)
+	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, "https://t.me/"+chat.Username) {
+		t.Fatalf("invite reply lacks the public link https://t.me/%s:\n%s", chat.Username, text)
 	}
 }
 

@@ -393,7 +393,7 @@ func (moduleStruct) getinvitelink(c *helpers.CommandContext) error {
 
 	if chat.Username != "" {
 		linkText, _ := tr.GetString("admin_invitelink_public")
-		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, formatting.HtmlEscape(chat.Username)), nil)
+		_, _ = msg.Reply(c.Bot, fmt.Sprintf(linkText, "https://t.me/"+chat.Username), nil)
 	} else {
 		nchat, err := c.Bot.GetChat(chat.Id, nil)
 		if err != nil {
