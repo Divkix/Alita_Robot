@@ -7,11 +7,11 @@ description: Complete guide to Locks module commands and features
 # 🔒 Locks Commands
 
 *Admin only:*
-× /lock `<permission>`: Lock Chat permission..
-× /unlock `<permission>`: Unlock Chat permission.
-
-*Available to all users:*
+× /lock `<type> [type ...]`: Lock one or more lock types (see /locktypes).
+× /unlock `<type> [type ...]`: Unlock one or more lock types.
 × /locks: View Chat permission.
+
+*User Commands:*
 × /locktypes: Check available lock types!
 
 Locks can be used to restrict a group's users.
@@ -34,10 +34,10 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/lock` | Lock a permission type in the group | ❌ |
+| `/lock` | Lock one or more lock types in the group | ❌ |
 | `/locks` | Show current lock settings | ✅ |
 | `/locktypes` | List all available lock types | ✅ |
-| `/unlock` | Unlock a permission type in the group | ❌ |
+| `/unlock` | Unlock one or more lock types in the group | ❌ |
 
 ## Usage Examples
 
