@@ -11,7 +11,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 30 (28 user-facing + 2 internal)
-- **Total Commands**: 160
+- **Total Commands**: 182
 
 ## Commands by Module
 
@@ -28,6 +28,9 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/demote` | Demote an admin | Admin | ❌ | — |
 | `/invitelink` | Get the chat invite link | Everyone (public groups) / users with invite rights (private groups) | ❌ | — |
 | `/promote` | Promote a user to admin | Admin | ❌ | — |
+| `/setgdesc` | Change or clear the group description | Admin | ❌ | `/setgroupdesc`, `/setdescription` |
+| `/setgpic` | Set the group photo (reply to a photo) | Admin | ❌ | `/setgrouppic` |
+| `/setgtitle` | Change the group title | Admin | ❌ | `/setgrouptitle` |
 | `/title` | Set a custom admin title | Admin | ❌ | — |
 
 ### Moderation
@@ -36,7 +39,8 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/delflood` | Toggle flood message deletion | Admin | ❌ | — |
+| `/delflood` | Toggle flood message deletion | Admin | ❌ | `/clearflood` |
+| `/clearflood` | Alias of `/delflood` | Admin | ❌ | `/delflood` |
 | `/flood` | Show current flood settings | Everyone | ✅ | — |
 | `/setflood` | Set the flood trigger limit | Admin | ❌ | — |
 | `/setfloodmode` | Set the flood action mode | Admin | ❌ | — |
@@ -71,28 +75,38 @@ This page provides a complete reference of all commands available in Alita Robot
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
 | `/ban` | Ban a user | Admin | ❌ | — |
+| `/banme` | Ban yourself from the group | Everyone | ✅ | — |
 | `/dban` | Ban a user and delete their message | Admin | ❌ | — |
 | `/dkick` | Kick a user and delete their message | Admin | ❌ | — |
 | `/kick` | Kick a user from the group | Admin | ❌ | — |
 | `/kickme` | Kick yourself from the group | Everyone | ✅ | — |
 | `/restrict` | Restrict a user's permissions | Admin | ❌ | — |
 | `/sban` | Silently ban a user | Admin | ❌ | — |
+| `/skick` | Silently kick a user and delete the command | Admin | ❌ | — |
 | `/tban` | Temporarily ban a user | Admin | ❌ | — |
 | `/unban` | Unban a user | Admin | ❌ | — |
+| `/unbanall` | Unban all known users in the chat | Owner | ❌ | — |
 | `/unrestrict` | Remove restrictions from a user | Admin | ❌ | — |
 
 #### 📦 Blacklists
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/addblacklist` | Add a word to the blacklist | Admin | ❌ | — |
-| `/blacklist` | Add a word to the blacklist | Admin | ❌ | — |
+| `/addblacklist` | Add a word to the blacklist | Admin | ❌ | `/blacklist`, `/addblocklist`, `/blocklist` |
+| `/addblocklist` | Alias of `/addblacklist` | Admin | ❌ | `/addblacklist` |
+| `/blacklist` | Add a word to the blacklist | Admin | ❌ | `/addblacklist`, `/addblocklist`, `/blocklist` |
 | `/blacklistaction` | Set the blacklist trigger action | Admin | ❌ | — |
-| `/blacklists` | List all blacklisted words | Everyone | ✅ | — |
+| `/blacklists` | List all blacklisted words | Everyone | ✅ | `/blocklists` |
 | `/blaction` | Set the blacklist trigger action | Admin | ❌ | — |
-| `/remallbl` | Remove all blacklisted words | Owner | ❌ | `/rmallbl` |
+| `/blocklist` | Alias of `/addblacklist` | Admin | ❌ | `/addblacklist` |
+| `/blocklists` | Alias of `/blacklists` | Everyone | ✅ | `/blacklists` |
+| `/remallbl` | Remove all blacklisted words | Owner | ❌ | `/rmallbl`, `/rmblocklistall`, `/rmallblocklist` |
 | `/rmallbl` | Alias of `/remallbl` | Owner | ❌ | `/remallbl` |
-| `/rmblacklist` | Remove a word from the blacklist | Admin | ❌ | — |
+| `/rmallblocklist` | Alias of `/remallbl` | Owner | ❌ | `/remallbl` |
+| `/rmblacklist` | Remove a word from the blacklist | Admin | ❌ | `/rmblocklist`, `/unblacklist` |
+| `/rmblocklist` | Alias of `/rmblacklist` | Admin | ❌ | `/rmblacklist` |
+| `/rmblocklistall` | Alias of `/remallbl` | Owner | ❌ | `/remallbl` |
+| `/unblacklist` | Alias of `/rmblacklist` | Admin | ❌ | `/rmblacklist` |
 
 #### 🔐 Captcha
 
@@ -140,14 +154,14 @@ This page provides a complete reference of all commands available in Alita Robot
 |---------|-------------|------------|-------------|---------|
 | `/dwarn` | Warn a user and delete their message | Admin | ❌ | — |
 | `/resetallwarns` | Reset all warnings for all users | Owner | ❌ | — |
-| `/resetwarn` | Reset warnings for a user | Admin | ❌ | — |
-| `/resetwarns` | Reset warnings for a user | Admin | ❌ | — |
-| `/rmwarn` | Remove a warning from a user | Admin | ❌ | — |
+| `/resetwarn` | Alias of `/resetwarns` | Admin | ❌ | `/resetwarns` |
+| `/resetwarns` | Reset warnings for a user | Admin | ❌ | `/resetwarn` |
+| `/rmwarn` | Remove a warning from a user | Admin | ❌ | `/unwarn` |
 | `/setwarnlimit` | Set the warn limit before action | Admin | ❌ | — |
 | `/setwarnmode` | Set the warn action mode | Admin | ❌ | — |
 | `/setwarntime` | Set how long a warn counts | Admin | ❌ | — |
 | `/swarn` | Warn a user and delete your command | Admin | ❌ | — |
-| `/unwarn` | Remove a warning from a user | Admin | ❌ | — |
+| `/unwarn` | Alias of `/rmwarn` | Admin | ❌ | `/rmwarn` |
 | `/warn` | Warn a user | Admin | ❌ | — |
 | `/warnings` | Get the chat's warning settings | Admin | ❌ | — |
 | `/warns` | Show warning count for a user | Everyone | ✅ | — |
@@ -201,16 +215,16 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/addnote` | Save a note | Admin | ❌ | — |
-| `/clear` | Remove a note | Admin | ❌ | — |
+| `/addnote` | Save a note | Admin | ❌ | `/save` |
+| `/clear` | Remove a note | Admin | ❌ | `/rmnote` |
 | `/clearall` | Remove all notes | Owner | ❌ | — |
 | `/get` | Retrieve a saved note | Everyone | ✅ | — |
-| `/notes` | List all saved notes | Everyone | ✅ | — |
+| `/notes` | List all saved notes | Everyone | ✅ | `/saved` |
 | `/privnote` | Toggle private note delivery | Admin | ❌ | `/privatenotes` |
 | `/privatenotes` | Alias of `/privnote` | Admin | ❌ | `/privnote` |
-| `/rmnote` | Remove a note | Admin | ❌ | — |
-| `/save` | Save a note | Admin | ❌ | — |
-| `/saved` | List all saved notes | Everyone | ❌ | — |
+| `/rmnote` | Remove a note | Admin | ❌ | `/clear` |
+| `/save` | Save a note | Admin | ❌ | `/addnote` |
+| `/saved` | List all saved notes | Everyone | ❌ | `/notes` |
 
 #### 📋 Rules
 
@@ -234,13 +248,19 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
+| `/github` | Look up a GitHub user or repository | Everyone | ✅ | — |
 | `/id` | Get user or chat ID | Everyone | ✅ | — |
 | `/info` | Get user information | Everyone | ✅ | — |
 | `/ping` | Check bot response latency | Everyone | ✅ | — |
 | `/removebotkeyboard` | Remove a stuck bot keyboard | Everyone | ❌ | — |
+| `/runs` | Reply with a random quip | Everyone | ✅ | — |
 | `/stat` | Show message count for the chat | Everyone | ✅ | — |
+| `/stickerid` | Get a replied sticker's file ID | Everyone | ✅ | — |
 | `/tell` | Echo a message via the bot | Admin | ❌ | — |
 | `/tr` | Translate text to another language | Everyone | ✅ | — |
+| `/ud` | Look up a term on Urban Dictionary | Everyone | ✅ | — |
+| `/wiki` | Search English Wikipedia | Everyone | ✅ | — |
+| `/zombies` | Kick deleted accounts from the group | Admin | ❌ | — |
 
 #### 📢 Reports
 
@@ -278,6 +298,7 @@ This page provides a complete reference of all commands available in Alita Robot
 |---------|-------------|------------|-------------|---------|
 | `/about` | Show bot information and links | Everyone | ❌ | — |
 | `/donate` | Show donation information | Everyone | ❌ | — |
+| `/extend` | Show every command in one list (groups get a PM button) | Everyone | ❌ | — |
 | `/help` | Show help menu with module list | Everyone | ❌ | — |
 | `/start` | Show welcome message with navigation menu | Everyone | ❌ | — |
 
@@ -335,6 +356,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 |---------|--------|-------------|------------|
 | `/about` | Help | Show bot information and links | Everyone |
 | `/addblacklist` | Blacklists | Add a word to the blacklist | Admin |
+| `/addblocklist` | Blacklists | Alias of `/addblacklist` | Admin |
 | `/addreaction` | Reactions | Add an auto-reaction for a keyword | Admin |
 | `/adddev` | Devs | Grant developer permissions to a user | Owner |
 | `/addfilter` | Filters | Add a keyword filter | Admin |
@@ -342,6 +364,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/admincache` | Admin | Refresh the admin cache | Admin |
 | `/adminlist` | Admin | List chat admins | Everyone |
 | `/addsudo` | Devs | Grant sudo permissions to a user | Owner |
+| `/aispam` | Aispam | Show filter status, or turn it on/off | Admin |
 | `/allowconnect` | Connections | Toggle connection permissions | Admin |
 | `/anonadmin` | Admin | Toggle anonymous admin mode (anyone can view the current mode) | Owner |
 | `/antiraid` | AntiRaid | Toggle or configure anti-raid mode | Admin |
@@ -352,10 +375,13 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/autoantiraid` | AntiRaid | Set auto-raid trigger threshold | Admin |
 | `/autoapprove` | Greetings | Toggle auto-approve join requests | Admin |
 | `/ban` | Bans | Ban a user | Admin |
+| `/banme` | Bans | Ban yourself from the group | Everyone |
 | `/blacklist` | Blacklists | Add a word to the blacklist | Admin |
 | `/blacklistaction` | Blacklists | Set the blacklist trigger action | Admin |
 | `/blacklists` | Blacklists | List all blacklisted words | Everyone |
 | `/blaction` | Blacklists | Set the blacklist trigger action | Admin |
+| `/blocklist` | Blacklists | Alias of `/addblacklist` | Admin |
+| `/blocklists` | Blacklists | Alias of `/blacklists` | Everyone |
 | `/captcha` | Captcha | Toggle captcha verification | Admin |
 | `/captchaaction` | Captcha | Set the captcha failure action | Admin |
 | `/captchaclear` | Captcha | Clear pending captcha messages | Admin |
@@ -372,6 +398,7 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/clear` | Notes | Remove a note | Admin |
 | `/clearadmincache` | Admin | Clear the admin cache | Admin |
 | `/clearall` | Notes | Remove all notes | Owner |
+| `/clearflood` | Antiflood | Alias of `/delflood` | Admin |
 | `/clearrules` | Rules | Alias of `/resetrules` | Admin |
 | `/clearrulesbtn` | Rules | Reset the rules button text | Admin |
 | `/clearrulesbutton` | Rules | Reset the rules button text | Admin |
@@ -392,11 +419,13 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/dwarn` | Warns | Warn a user and delete their message | Admin |
 | `/enable` | Disabling | Re-enable a disabled command | Admin |
 | `/export` | Backup | Export all group settings to a JSON file | Admin |
+| `/extend` | Help | Show every command in one list | Everyone |
 | `/filter` | Filters | Add a keyword filter | Admin |
 | `/filters` | Filters | List all active filters | Everyone |
 | `/flood` | Antiflood | Show current flood settings | Everyone |
 | `/formatting` | Formatting | Alias of `/markdownhelp` | Everyone |
 | `/get` | Notes | Retrieve a saved note | Everyone |
+| `/github` | Misc | Look up a GitHub user or repository | Everyone |
 | `/goodbye` | Greetings | Show current goodbye settings | Admin |
 | `/help` | Help | Show help menu with module list | Everyone |
 | `/id` | Misc | Get user or chat ID | Everyone |
@@ -448,29 +477,38 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/resetwelcome` | Greetings | Reset welcome to default | Admin |
 | `/restrict` | Bans | Restrict a user's permissions | Admin |
 | `/rmallbl` | Blacklists | Alias of `/remallbl` | Owner |
+| `/rmallblocklist` | Blacklists | Alias of `/remallbl` | Owner |
 | `/rmblacklist` | Blacklists | Remove a word from the blacklist | Admin |
+| `/rmblocklist` | Blacklists | Alias of `/rmblacklist` | Admin |
+| `/rmblocklistall` | Blacklists | Alias of `/remallbl` | Owner |
 | `/rmfilter` | Filters | Remove a keyword filter | Admin |
 | `/rmnote` | Notes | Remove a note | Admin |
 | `/rmwarn` | Warns | Remove a warning from a user | Admin |
 | `/rules` | Rules | Show the group rules | Everyone |
 | `/rulesbtn` | Rules | Set the rules button text | Admin |
 | `/rulesbutton` | Rules | Set the rules button text | Admin |
+| `/runs` | Misc | Reply with a random quip | Everyone |
 | `/save` | Notes | Save a note | Admin |
 | `/saved` | Notes | List all saved notes | Everyone |
 | `/sban` | Bans | Silently ban a user | Admin |
 | `/setflood` | Antiflood | Set the flood trigger limit | Admin |
 | `/setfloodmode` | Antiflood | Set the flood action mode | Admin |
 | `/setgoodbye` | Greetings | Set the goodbye message | Admin |
+| `/setgdesc` | Admin | Change or clear the group description | Admin |
+| `/setgpic` | Admin | Set the group photo (reply to a photo) | Admin |
+| `/setgtitle` | Admin | Change the group title | Admin |
 | `/setrules` | Rules | Set the group rules | Admin |
 | `/setwarnlimit` | Warns | Set the warn limit before action | Admin |
 | `/setwarntime` | Warns | Set how long a warn counts | Admin |
 | `/setwarnmode` | Warns | Set the warn action mode | Admin |
 | `/settings` | Connections | Pick a group in PM and show all its settings | Admin |
 | `/setwelcome` | Greetings | Set the welcome message | Admin |
+| `/skick` | Bans | Silently kick a user and delete the command | Admin |
 | `/smute` | Mutes | Silently mute a user | Admin |
 | `/start` | Help | Show welcome message with navigation menu | Everyone |
 | `/stat` | Misc | Show message count for the chat | Everyone |
 | `/stats` | Devs | Display bot statistics and system info | Dev/Owner |
+| `/stickerid` | Misc | Get a replied sticker's file ID | Everyone |
 | `/stop` | Filters | Remove a keyword filter | Admin |
 | `/stopall` | Filters | Remove all filters | Owner |
 | `/swarn` | Warns | Warn a user and delete your command | Admin |
@@ -480,9 +518,12 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/title` | Admin | Set a custom admin title | Admin |
 | `/tmute` | Mutes | Temporarily mute a user | Admin |
 | `/tr` | Misc | Translate text to another language | Everyone |
+| `/ud` | Misc | Look up a term on Urban Dictionary | Everyone |
 | `/unapprove` | Approvals | Remove a user from approved list | Admin |
 | `/unapproveall` | Approvals | Remove all approved users | Owner |
 | `/unban` | Bans | Unban a user | Admin |
+| `/unbanall` | Bans | Unban all known users in the chat | Owner |
+| `/unblacklist` | Blacklists | Alias of `/rmblacklist` | Admin |
 | `/unlock` | Locks | Unlock a permission type | Admin |
 | `/unmute` | Mutes | Unmute a user | Admin |
 | `/unpin` | Pins | Unpin the current pinned message | Admin |
@@ -493,6 +534,8 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/warnings` | Warns | Get the chat's warning settings | Admin |
 | `/warns` | Warns | Show warning count for a user | Everyone |
 | `/welcome` | Greetings | Show current welcome settings | Admin |
+| `/wiki` | Misc | Search English Wikipedia | Everyone |
+| `/zombies` | Misc | Kick deleted accounts from the group | Admin |
 
 ## Command Registration System
 
