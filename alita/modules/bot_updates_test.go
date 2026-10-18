@@ -11,6 +11,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
@@ -87,8 +88,12 @@ func TestBotJoinedGroupLeavesBasicGroupAfterMigrationNotice(t *testing.T) {
 	if err := botJoinedGroup(bot, ctx); err != ext.EndGroups {
 		t.Fatalf("botJoinedGroup() error = %v, want EndGroups for basic group", err)
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want migration notice", len(calls))
+	notice := client.onlyCall(t, "sendMessage")
+	tr := i18n.MustNewTranslator("en")
+	needSupergroup, _ := tr.GetString("bot_updates_need_supergroup")
+	convertInstr, _ := tr.GetString("bot_updates_convert_instruction")
+	if text := fmt.Sprint(notice.Params["text"]); !strings.Contains(text, needSupergroup+"\n\n"+convertInstr) {
+		t.Fatalf("migration notice = %q, want a blank line between its first two sentences", text)
 	}
 	if calls := client.callsFor("leaveChat"); len(calls) != 1 {
 		t.Fatalf("leaveChat calls = %d, want bot to leave basic group", len(calls))

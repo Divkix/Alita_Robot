@@ -43,6 +43,7 @@ func botJoinedGroup(b *gotgbot.Bot, ctx *ext.Context) error {
 				chat.Id,
 				fmt.Sprint(
 					text,
+					"\n\n",
 					convertInstr,
 					convertHowto,
 					"https://telegra.ph/Convert-group-to-Supergroup-07-29",
