@@ -524,6 +524,80 @@ func TestImportWarnsDropsUnusableWarnActionTime(t *testing.T) {
 	}
 }
 
+// Postgres rejects a blacklist action outside chk_blacklist_action, which would
+// abort the whole import; an unusable action falls back to the backup's mode,
+// then to the default.
+func TestImportBlacklistsReplacesUnusableAction(t *testing.T) {
+	skipIfNoDb(t)
+
+	for _, tc := range []struct {
+		name   string
+		action string
+		mode   string
+		want   string
+	}{
+		{name: "valid", action: "tban", mode: "ban", want: "tban"},
+		{name: "none", action: "none", want: "none"},
+		{name: "unknown uses mode", action: "freeze", mode: "ban", want: "ban"},
+		{name: "unknown without mode", action: "freeze", want: "warn"},
+		{name: "unknown with unknown mode", action: "freeze", mode: "explode", want: "warn"},
+		{name: "missing with unknown mode", mode: "explode", want: "warn"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_blacklist_action"))
+			t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+
+			entry := map[string]interface{}{"word": "spam"}
+			if tc.action != "" {
+				entry["action"] = tc.action
+			}
+			payload := map[string]interface{}{"entries": []interface{}{entry}}
+			if tc.mode != "" {
+				payload["blacklist_mode"] = tc.mode
+			}
+			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleBlacklists})
+			backup.Data[BackupModuleBlacklists] = payload
+
+			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleBlacklists}))
+			word := blacklists.GetBlacklistSettings(chatID).Find("spam")
+			require.NotNil(t, word)
+			assert.Equal(t, tc.want, word.Action)
+		})
+	}
+}
+
+// The admin module's blacklist_mode rewrites every word's action; an unusable
+// one is ignored like a missing one instead of aborting the import.
+func TestImportAdminIgnoresUnusableBlacklistMode(t *testing.T) {
+	skipIfNoDb(t)
+
+	for _, tc := range []struct {
+		name string
+		mode string
+		want string
+	}{
+		{name: "valid", mode: "ban", want: "ban"},
+		{name: "unknown", mode: "explode", want: "mute"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			chatID := time.Now().UnixNano()
+			require.NoError(t, chats.EnsureChatInDb(chatID, "test_import_admin_blacklist_mode"))
+			t.Cleanup(func() { cleanupBackupChat(t, chatID) })
+			require.NoError(t, blacklists.AddBlacklist(chatID, "spam"))
+			require.NoError(t, blacklists.SetBlacklistAction(chatID, "mute"))
+
+			backup := NewBackupFormat(chatID, "Test", 1, []string{BackupModuleAdmin})
+			backup.Data[BackupModuleAdmin] = map[string]interface{}{"blacklist_mode": tc.mode}
+
+			require.NoError(t, ImportChatData(chatID, backup, []string{BackupModuleAdmin}))
+			word := blacklists.GetBlacklistSettings(chatID).Find("spam")
+			require.NotNil(t, word)
+			assert.Equal(t, tc.want, word.Action)
+		})
+	}
+}
+
 func TestClearChatData_SpecificModules(t *testing.T) {
 	skipIfNoDb(t)
 
