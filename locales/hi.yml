@@ -2037,6 +2037,7 @@ backup_export_success: |
 backup_export_success_text: "✅ सफलतापूर्वक {modules} मॉड्यूल एक्सपोर्ट किए गए। ऊपर दी गई बैकअप फाइल डाउनलोड करें।"
 backup_export_rate_limited: "⏳ फिर से एक्सपोर्ट करने से पहले <b>{time}</b> प्रतीक्षा करें।"
 backup_export_no_modules: "❌ इस चैट के लिए कोई एक्सपोर्ट करने योग्य मॉड्यूल नहीं मिले।"
+backup_invalid_modules: "❌ इनमें से कोई भी मॉड्यूल यहाँ इस्तेमाल नहीं किया जा सकता। मान्य मॉड्यूल: <code>{modules}</code>"
 backup_export_failed: "❌ सेटिंग्स एक्सपोर्ट करने में विफल। कृपया बाद में पुनः प्रयास करें।"
 
 backup_import_success: |

@@ -703,6 +703,38 @@ func TestExportHandlerReportsFailureWhenDocumentSendFails(t *testing.T) {
 	assert.Equal(t, want, client.onlyCall(t, "sendMessage").Params["text"])
 }
 
+func TestExportAndResetListValidModulesForUnknownNames(t *testing.T) {
+	useRealLocales(t)
+	en := i18n.MustNewTranslator("en")
+	noModules, err := en.GetString("backup_export_no_modules")
+	require.NoError(t, err)
+	for _, tt := range []struct {
+		text string
+		run  func(*gotgbot.Bot, *ext.Context) error
+	}{
+		{text: "/export bogus", run: backupModule.exportHandler},
+		{text: "/reset bogus", run: backupModule.resetHandler},
+	} {
+		t.Run(tt.text, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+			owner := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+			t.Cleanup(func() { dropPendingReset(chat.Id) })
+
+			ctx := newModuleMessageContext(bot, chat, owner, tt.text)
+			require.Equal(t, ext.EndGroups, tt.run(bot, ctx))
+
+			text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+			assert.Contains(t, text, backup.BackupModuleNotes)
+			assert.NotEqual(t, noModules, text)
+			assert.Empty(t, client.callsFor("sendDocument"))
+			_, pending := peekPendingReset(chat.Id)
+			assert.False(t, pending)
+		})
+	}
+}
+
 func TestValidateImportRequestRejectsNonOwner(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)

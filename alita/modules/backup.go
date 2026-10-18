@@ -217,7 +217,7 @@ func (m moduleStruct) exportHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			var parseErr error
 			modules, parseErr = parseModuleArgs(args[1:], backup.IsValidModule)
 			if parseErr != nil {
-				text, _ := tr.GetString("backup_export_no_modules")
+				text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
 				_, _ = msg.Reply(b, text, formatting.Shtml())
 				return ext.EndGroups
 			}
@@ -413,7 +413,7 @@ func (m moduleStruct) importHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	importModules, parseErr := parseImportModules(msg.Text, bkp.Data)
 	if parseErr != nil {
-		text, _ := tr.GetString("backup_import_invalid_file")
+		text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(bkp.Modules, ", ")})
 		_, _ = msg.Reply(b, text, formatting.Shtml())
 		return ext.EndGroups
 	}
@@ -491,7 +491,7 @@ func (m moduleStruct) resetHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			var parseErr error
 			resetModules, parseErr = parseModuleArgs(args[1:], backup.IsValidModule)
 			if parseErr != nil {
-				text, _ := tr.GetString("backup_export_no_modules")
+				text, _ := tr.GetString("backup_invalid_modules", i18n.TranslationParams{"modules": strings.Join(backup.AllExportableModules(), ", ")})
 				_, _ = msg.Reply(b, text, formatting.Shtml())
 				return ext.EndGroups
 			}

@@ -2376,6 +2376,7 @@ backup_export_success: |
 backup_export_success_text: "✅ Exportados exitosamente {modules} módulos. Descarga el archivo de copia de seguridad de arriba."
 backup_export_rate_limited: "⏳ Por favor espera <b>{time}</b> antes de exportar de nuevo."
 backup_export_no_modules: "❌ No se encontraron módulos exportables para este chat."
+backup_invalid_modules: "❌ Ninguno de esos módulos se puede usar aquí. Módulos válidos: <code>{modules}</code>"
 backup_export_failed: "❌ Error al exportar la configuración. Por favor inténtalo de nuevo más tarde."
 
 backup_import_success: |
