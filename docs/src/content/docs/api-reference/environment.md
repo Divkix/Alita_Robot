@@ -277,7 +277,7 @@ OTLP gRPC endpoint for trace export (e.g., `localhost:4317`). When set, the bot 
 
 ### `OTEL_EXPORTER_CONSOLE`
 
-Enable console exporter for debugging traces (outputs to stderr).
+Enable console exporter for debugging traces (outputs to stderr). Only the exact lowercase value `true` enables it; unlike other boolean variables, `1`, `yes` and `TRUE` are ignored.
 
 | Property | Value |
 |----------|-------|
@@ -287,7 +287,7 @@ Enable console exporter for debugging traces (outputs to stderr).
 
 ### `OTEL_EXPORTER_OTLP_INSECURE`
 
-Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+Use insecure OTLP gRPC connection (no TLS). Only used when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Only `true` (any letter case) enables it; unlike other boolean variables, `1` and `yes` are ignored.
 
 | Property | Value |
 |----------|-------|
