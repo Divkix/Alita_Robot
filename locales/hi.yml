@@ -733,9 +733,9 @@ bans_cannot_identify_user: "उत्तर दिए गए संदेश स
 bans_anonymous_ban_only_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता, इन उपयोगकर्ताओं को केवल बैन/अनबैन किया जा सकता है।
 
 # Blacklists module strings
-blacklists_bl_watcher_banned_user: "%s के कारण %s को बैन किया गया"
-blacklists_bl_watcher_kicked_user: "%s के कारण %s को किक किया गया"
-blacklists_bl_watcher_muted_user: "%s के कारण %s को म्यूट किया गया"
+blacklists_bl_watcher_banned_user: "%[2]s के कारण %[1]s को बैन किया गया"
+blacklists_bl_watcher_kicked_user: "%[2]s के कारण %[1]s को किक किया गया"
+blacklists_bl_watcher_muted_user: "%[2]s के कारण %[1]s को म्यूट किया गया"
 blacklists_bl_watcher_tbanned_user: "%s को %s के लिए बैन किया गया, कारण: %s"
 blacklists_bl_watcher_tmuted_user: "%s को %s के लिए म्यूट किया गया, कारण: %s"
 blacklists_blacklist_added_bl: "इन शब्दों को ब्लैकलिस्ट के रूप में जोड़ा गया:"
