@@ -393,3 +393,20 @@ func TestBotLockHandlerReportsAndPropagatesGotgbotErrors(t *testing.T) {
 		})
 	}
 }
+
+// An invalid lock type is echoed back HTML-escaped, so Telegram accepts the
+// reply.
+func TestLockInvalidTypeReplyEscapesInput(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := locksModule.lockPerm(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/lock <b")); err != ext.EndGroups {
+		t.Fatalf("lockPerm error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	}
+	text, _ := calls[0].Params["text"].(string)
+	if !strings.Contains(text, "&lt;b") || strings.Contains(text, "<b") {
+		t.Fatalf("invalid lock reply = %q, want the input escaped", text)
+	}
+}
