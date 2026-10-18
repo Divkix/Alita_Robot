@@ -371,9 +371,9 @@ override their URL components.
 |----------|-------|
 | **Type** | `integer` |
 | **Required** | No |
-| **Default** | `1` |
+| **Default** | `1` with `REDIS_ADDRESS`; with `REDIS_URL` alone, the URL's path database (`0` if the URL has no path) |
 
-Set `REDIS_DB=0` explicitly to select database zero.
+In `REDIS_ADDRESS` mode, set `REDIS_DB=0` explicitly to select database zero. In `REDIS_URL` mode, a set `REDIS_DB` overrides the URL path; when it is unset, the path decides, and a URL with no path uses database 0.
 
 ### `REDIS_PASSWORD`
 
@@ -563,7 +563,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=# OTLP gRPC endpoint (e.g., localhost:4317)
 OTEL_EXPORTER_OTLP_INSECURE=# use insecure OTLP gRPC (default: false)
 OTEL_SERVICE_NAME=# service name for traces (default: alita_robot)
 OTEL_TRACES_SAMPLE_RATE=# trace sampling rate 0.0-1.0 (default: 1.0)
-REDIS_DB=# Redis database number (default: 1)
+REDIS_DB=# Redis database number (default: 1 with REDIS_ADDRESS; REDIS_URL uses its path, else 0)
 REDIS_PASSWORD=# Redis password
 REDIS_URL=# Redis URL (fallback for REDIS_ADDRESS + REDIS_PASSWORD)
 RESOURCE_GC_THRESHOLD_MB=# GC threshold in MB (default: 400)
