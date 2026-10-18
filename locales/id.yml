@@ -1834,16 +1834,16 @@ admin_extended_docs: |
   <b>Cara Kerja Verifikasi Admin Anonim:</b>
   1. Bot mendeteksi pengirim adalah GroupAnonymousBot
   2. Pesan asli di-cache dengan TTL 20 detik
-  3. Tombol "Verifikasi Admin" dikirim ke obrolan
+  3. Tombol "Klik untuk membuktikan admin" dikirim ke obrolan
   4. Pengguna yang mengklik diverifikasi sebagai admin, perintah dieksekusi
   5. Tombol kedaluwarsa setelah 20 detik jika tidak diverifikasi
 
   <b>Perintah yang Didukung:</b>
-  Admin: /promote, /demote, /title
-  Bans: /ban, /dban, /sban, /tban, /unban
+  Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   Bisu: /mute, /smute, /dmute, /tmute, /unmute
   Pin: /pin, /unpin, /permapin, /unpinall
-  Pembersihan: /purge, /del
+  Pembersihan: /purge, /del, /purgefrom, /purgeto
   Peringatan: /warn, /swarn, /dwarn
 
 admin_notes_docs: |

@@ -1884,16 +1884,16 @@ admin_extended_docs: |
   <b>How Anonymous Admin Verification Works:</b>
   1. Bot detects sender is GroupAnonymousBot
   2. Original message cached with 20-second TTL
-  3. "Verify Admin" button sent to chat
+  3. "Click to prove admin" button sent to chat
   4. Clicking user verified as admin, command executed
   5. Button expires after 20 seconds if not verified
 
   <b>Supported Commands:</b>
-  Admin: /promote, /demote, /title
-  Bans: /ban, /dban, /sban, /tban, /unban
+  Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del
+  Purges: /purge, /del, /purgefrom, /purgeto
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |

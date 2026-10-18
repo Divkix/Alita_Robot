@@ -47,16 +47,16 @@ admin_extended_docs: |
   <b>गुमनाम एडमिन सत्यापन कैसे काम करता है:</b>
   1. बॉट पता लगाता है कि प्रेषक GroupAnonymousBot है
   2. मूल संदेश 20-सेकंड TTL के साथ कैश किया गया
-  3. चैट में "एडमिन सत्यापित करें" बटन भेजा गया
+  3. चैट में "एडमिन साबित करने के लिए क्लिक करें" बटन भेजा गया
   4. क्लिक करने वाले उपयोगकर्ता को एडमिन के रूप में सत्यापित किया गया, कमांड निष्पादित
   5. यदि सत्यापित नहीं किया गया तो बटन 20 सेकंड बाद समाप्त हो जाता है
 
   <b>समर्थित कमांड:</b>
-  एडमिन: /promote, /demote, /title
-  प्रतिबंध: /ban, /dban, /sban, /tban, /unban
+  एडमिन: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  प्रतिबंध: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   म्यूट: /mute, /smute, /dmute, /tmute, /unmute
   पिन: /pin, /unpin, /permapin, /unpinall
-  पर्ज: /purge, /del
+  पर्ज: /purge, /del, /purgefrom, /purgeto
   चेतावनी: /warn, /swarn, /dwarn
 
 admin_notes_docs: |

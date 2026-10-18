@@ -1618,16 +1618,16 @@ admin_extended_docs: |
   <b>Как работает проверка анонимного администратора:</b>
   1. Бот обнаруживает, что отправитель — GroupAnonymousBot
   2. Исходное сообщение кэшируется с TTL 20 секунд
-  3. Кнопка "Подтвердить администратора" отправляется в чат
+  3. Кнопка "Нажмите, чтобы подтвердить администратора" отправляется в чат
   4. Пользователь, нажавший кнопку, проверяется как администратор, команда выполняется
   5. Кнопка истекает через 20 секунд, если не подтверждена
 
   <b>Поддерживаемые команды:</b>
-  Admin: /promote, /demote, /title
-  Bans: /ban, /dban, /sban, /tban, /unban
+  Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del
+  Purges: /purge, /del, /purgefrom, /purgeto
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |

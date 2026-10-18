@@ -1805,16 +1805,16 @@ admin_extended_docs: |
   <b>Como Funciona a Verificação de Admin Anônimo:</b>
   1. Bot detecta que remetente é GroupAnonymousBot
   2. Mensagem original em cache com TTL de 20 segundos
-  3. Botão "Verificar Admin" enviado ao chat
+  3. Botão "Clique para provar admin" enviado ao chat
   4. Usuário que clicar verificado como admin, comando executado
   5. Botão expira após 20 segundos se não verificado
 
   <b>Comandos Suportados:</b>
-  Admin: /promote, /demote, /title
-  Bans: /ban, /dban, /sban, /tban, /unban
+  Admin: /promote, /demote, /title, /setgtitle, /setgpic, /setgdesc
+  Bans: /ban, /dban, /sban, /tban, /unban, /kick, /dkick, /skick, /restrict, /unrestrict
   Mutes: /mute, /smute, /dmute, /tmute, /unmute
   Pins: /pin, /unpin, /permapin, /unpinall
-  Purges: /purge, /del
+  Purges: /purge, /del, /purgefrom, /purgeto
   Warns: /warn, /swarn, /dwarn
 
 admin_notes_docs: |
