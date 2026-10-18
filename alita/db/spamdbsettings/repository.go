@@ -1,5 +1,5 @@
-// Package spamdbsettings stores each chat's CAS join check settings. The
-// lookup client itself is alita/utils/spamdb.
+// Package spamdbsettings stores each chat's spam database join check
+// settings. The lookup client itself is alita/utils/spamdb.
 package spamdbsettings
 
 import (

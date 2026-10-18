@@ -1502,35 +1502,43 @@ aispam_globally_disabled: "❌ Я не могу включить ИИ-фильт
 aispam_invalid_option: "Я понимаю только один из вариантов: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ ИИ-проверки спама приостановлены в этом чате на несколько минут из-за повторяющихся сбоев поставщика ИИ. Они возобновятся сами, а фильтр останется включённым."
 
-# CAS spam database join check strings
+# Spam database join check strings
 spamdb_help_msg: |
   <b>🛡 База спамеров</b>
 
-  Проверка по желанию: каждого нового участника при входе ищут в базе спамеров CAS (cas.chat) и применяют действие к тем, кто там есть.
+  Проверка по желанию: каждого нового участника при входе ищут в базах спамеров и применяют действие к тем, кто там есть. По умолчанию проверяется CAS (cas.chat); можно добавить lols.bot.
 
-  Админов, одобренных пользователей и ботов не проверяют. Если CAS недоступен, участника пускают. О каждом действии сообщается только в лог-канал, не в группу.
+  Админов, одобренных пользователей и ботов не проверяют. Если база недоступна, участника пускают. О каждом действии сообщается только в лог-канал, не в группу.
 
 
   *Команды админов:*
 
-  × /spamdb: Показать, включена ли проверка и что она делает.
+  × /spamdb: Показать, включена ли проверка, какие базы она спрашивает и что делает.
 
   × /spamdb `<on/off>`: Включить или выключить проверку в этом чате.
+
+  × /spamdb db `<cas/lols>` `<on/off>`: Выбрать базы. CAS включена по умолчанию, и хотя бы одна должна остаться включённой. lols.bot вносит аккаунты агрессивнее, поэтому ложных срабатываний больше.
 
   × /spamdb action `<ban/mute/log>`: Выбрать, что делать с участником из базы. По умолчанию ban; log только сообщает о нём.
 
 
-  Проверка выключена во всех чатах, пока админ её не включит. Включённая проверка отправляет на cas.chat Telegram ID каждого нового участника.
-spamdb_status_enabled: "Проверка по CAS при входе <b>включена</b> в этом чате. Участникам из базы: <code>{action}</code>."
-spamdb_status_disabled: "Проверка по CAS при входе <b>выключена</b> в этом чате. Включить: <code>/spamdb on</code>."
+  Проверка выключена во всех чатах, пока админ её не включит. Включённая проверка отправляет Telegram ID каждого нового участника в каждую выбранную базу (cas.chat, lols.bot).
+spamdb_status_enabled: "Проверка по базам спамеров при входе <b>включена</b> в этом чате. Участникам из базы: <code>{action}</code>."
+spamdb_status_disabled: "Проверка по базам спамеров при входе <b>выключена</b> в этом чате. Включить: <code>/spamdb on</code>."
+spamdb_status_databases: "<b>Базы:</b> {databases}. Изменить: <code>/spamdb db</code>."
 spamdb_status_globally_disabled: "⚠️ Недоступно: оператор бота отключил проверку по базе спамеров, поэтому участники не проверяются."
-spamdb_data_notice: "<b>Что отправляется:</b> Telegram ID каждого нового участника на cas.chat. Больше ничего не уходит."
-spamdb_enabled_success: "✅ Проверка по CAS при входе теперь <b>включена</b>. Новых участников ищут в CAS при входе."
-spamdb_disabled_success: "❌ Проверка по CAS при входе теперь <b>выключена</b>."
-spamdb_globally_disabled: "❌ Не могу включить проверку по CAS: оператор бота её отключил. Ничего не изменилось."
-spamdb_invalid_option: "Я понимаю только варианты: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>"
+spamdb_data_notice: "<b>Что отправляется:</b> Telegram ID каждого нового участника на {services}. Больше ничего не уходит."
+spamdb_enabled_success: "✅ Проверка по базам спамеров при входе теперь <b>включена</b>. Новых участников ищут в выбранных базах при входе."
+spamdb_disabled_success: "❌ Проверка по базам спамеров при входе теперь <b>выключена</b>."
+spamdb_globally_disabled: "❌ Не могу включить проверку по базам спамеров: оператор бота её отключил. Ничего не изменилось."
+spamdb_invalid_option: "Я понимаю только варианты: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>action</code>/<code>db</code>"
 spamdb_invalid_action: "Выберите действие: <code>ban</code>/<code>mute</code>/<code>log</code>. Пример: <code>/spamdb action mute</code>"
-spamdb_action_success: "✅ Участникам из базы CAS теперь: <code>{action}</code>."
+spamdb_action_success: "✅ Участникам из базы теперь: <code>{action}</code>."
+spamdb_db_usage: "Укажите базу и <code>on</code>/<code>off</code>: <code>cas</code> (CAS, включена по умолчанию) или <code>lols</code> (lols.bot). Пример: <code>/spamdb db lols on</code>"
+spamdb_db_enabled: "✅ Теперь новых участников ищут в {database}."
+spamdb_db_disabled: "❌ Новых участников больше не ищут в {database}."
+spamdb_db_last: "❌ {database} — последняя оставшаяся база, поэтому она остаётся включённой. Сначала включите другую или выключите проверку: <code>/spamdb off</code>."
+spamdb_db_lols_warning: "⚠️ lols.bot вносит аккаунты агрессивнее, чем CAS, поэтому ложных срабатываний будет больше. Пока не убедитесь в ней, подумайте о <code>/spamdb action log</code>. Telegram ID каждого нового участника теперь отправляется на lols.bot."
 
 # Admin module extended documentation
 admin_extended_docs: |
@@ -2593,7 +2601,7 @@ rules_extend_msg: |
   /resetrulesbutton — сбросить текст кнопки правил
   /resetrulesbtn — то же, что /resetrulesbutton
 spamdb_extend_msg: |
-  /spamdb — показать или переключить проверку по CAS, задать действие
+  /spamdb — показать или переключить проверку по базам спамеров, выбрать базы, задать действие
 warns_extend_msg: |
   /warn — предупредить
   /swarn — предупредить и удалить команду

@@ -68,7 +68,7 @@ This page provides a complete reference of all commands available in Alita Robot
 
 | Command | Description | Permission | Disableable | Aliases |
 |---------|-------------|------------|-------------|---------|
-| `/spamdb` | Show the CAS join check, turn it on/off, or set its action (`action ban\|mute\|log`) | Admin | ✅ | — |
+| `/spamdb` | Show the spam database join check, turn it on/off, choose its databases (`db cas\|lols on\|off`), or set its action (`action ban\|mute\|log`) | Admin | ✅ | — |
 
 #### 👤 Approvals
 
