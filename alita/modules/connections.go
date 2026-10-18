@@ -53,7 +53,7 @@ func (m moduleStruct) connection(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 	_text := fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
-	connKeyboard := keyboard.InitButtons(b, chat.Id, user.Id)
+	connKeyboard := keyboard.InitButtons(b, tr, chat.Id, user.Id)
 	_, err := msg.Reply(b,
 		_text,
 		&gotgbot.SendMessageOpts{
@@ -149,7 +149,7 @@ func (m moduleStruct) connect(b *gotgbot.Bot, ctx *ext.Context) error {
 		} else {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connect_connected")
 			text = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
-			replyMarkup = keyboard.InitButtons(b, chat.Id, user.Id)
+			replyMarkup = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 		}
 	} else {
 		if allowed, denyKey := canUserConnectToChat(b, chat.Id, user.Id); !allowed {
@@ -248,7 +248,7 @@ func (m moduleStruct) connectionButtons(b *gotgbot.Bot, ctx *ext.Context) error 
 	case "Main":
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_connected")
 		replyText = fmt.Sprintf(temp, formatting.HtmlEscape(chat.Title))
-		replyKb = keyboard.InitButtons(b, chat.Id, user.Id)
+		replyKb = keyboard.InitButtons(b, tr, chat.Id, user.Id)
 	}
 
 	_, _, err := msg.EditText(b, &gotgbot.EditMessageTextOpts{Text: replyText, ReplyMarkup: replyKb,
@@ -339,7 +339,7 @@ func (m moduleStruct) reconnect(b *gotgbot.Bot, ctx *ext.Context) error {
 				} else {
 					temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_reconnect_reconnected")
 					text = fmt.Sprintf(temp, formatting.HtmlEscape(gchat.Title))
-					connKeyboard = keyboard.InitButtons(b, gchat.Id, user.Id)
+					connKeyboard = keyboard.InitButtons(b, tr, gchat.Id, user.Id)
 				}
 			}
 		} else {
@@ -429,7 +429,7 @@ func connectDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User
 	}
 
 	Text, _ := tr.GetString("helpers_connected_to_chat", i18n.TranslationParams{"s": cochat.Title})
-	connKeyboard := keyboard.InitButtons(b, cochat.Id, user.Id)
+	connKeyboard := keyboard.InitButtons(b, tr, cochat.Id, user.Id)
 
 	_, err = msg.Reply(b, Text,
 		&gotgbot.SendMessageOpts{
