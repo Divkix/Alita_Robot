@@ -453,10 +453,6 @@ filters_help_msg:
 
   -> /filter \"teman saya\" Halo kembali! Lama tidak bertemu!
 
-  - Atur filter yang hanya dapat digunakan oleh admin:
-
-  -> /filter contoh Filter ini tidak akan terjadi jika pengguna normal mengatakannya {admin}
-
   - Untuk menyimpan file, gambar, gif, atau lampiran lain, cukup balas ke file
   dengan:
 

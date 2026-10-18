@@ -351,10 +351,6 @@ filters_help_msg:
   
     -> /filter \"hello friend\" Hello back! Long time no see!
   
-    - Установить фильтр, который могут использовать только администраторы:
-  
-    -> /filter example This filter won't  happen if a normal user says it {admin}
-  
     - Чтобы сохранить файл, изображение, gif или любое другое вложение, просто ответьте на файл с:
   
     -> /filter trigger"

@@ -444,10 +444,6 @@ filters_help_msg:
 
   -> /filter \"olá amigo\" Olá de volta! Quanto tempo!
 
-  - Definir um filtro que só pode ser usado por admins:
-
-  -> /filter exemplo Este filtro não acontecerá se um usuário normal disser {admin}
-
   - Para salvar um arquivo, imagem, gif, ou qualquer outro anexo, simplesmente responda ao arquivo
   com:
 

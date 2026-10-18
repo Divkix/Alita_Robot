@@ -744,10 +744,6 @@ filters_help_msg:
 
   -> /filter \"bonjour ami\" Salut ! Ça faisait longtemps !
 
-  - Définir un filtre qui ne peut être utilisé que par les admins :
-
-  -> /filter exemple Ce filtre ne fonctionnera pas si un utilisateur normal le dit {admin}
-
   - Pour sauvegarder un fichier, image, gif ou tout autre pièce jointe, répondez simplement au fichier
   avec :
 

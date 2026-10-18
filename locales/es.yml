@@ -457,10 +457,6 @@ filters_help_msg:
 
   -> /filter \"hola amigo\" ¡Hola de vuelta! ¡Hace mucho que no te veo!
 
-  - Establecer un filtro que solo puede ser usado por administradores:
-
-  -> /filter ejemplo Este filtro no sucederá si un usuario normal lo dice {admin}
-
   - Para guardar un archivo, imagen, gif, o cualquier otro adjunto, simplemente responde al archivo
   con:
 
