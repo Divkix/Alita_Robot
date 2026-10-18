@@ -278,7 +278,7 @@ telegram: Bad Request: need administrator rights in the chat
 
 **Error:**
 ```
-You need to be an admin to use this command
+Only admins can execute this command!
 ```
 
 **This is expected behavior.** Admin commands require the user to be a group admin.
