@@ -335,9 +335,7 @@ users_help_msg:
 
   *Limitation de débit:*
 
-  × Les mises à jour utilisateur sont limitées à une par UserUpdateInterval.
-
-  × Les mises à jour de chat sont limitées à une par ChatUpdateInterval.
+  × Les fiches des utilisateurs, chats et canaux sont actualisées au plus une fois par heure, ou immédiatement quand un nom, un nom d'utilisateur ou le titre du chat change.
 
   D'autres modules, comme /info, dépendent des données collectées par ce module."
 warns_specify_action: "Vous devez spécifier une action à effectuer en cas de trop d'avertissements. Modes actuels : ban/kick/mute/tban/tmute"
@@ -1969,8 +1967,8 @@ users_extended_docs: |
   • IDs de canal, noms et noms d'utilisateur des canaux liés
 
   <b>Limitation de débit:</b>
-  • Mises à jour utilisateur : limitées à une par <code>UserUpdateInterval</code>
-  • Mises à jour de chat : limitées à une par <code>ChatUpdateInterval</code>
+  • Fiches des utilisateurs, chats et canaux : actualisées au plus une fois par heure
+  • Un nom, un nom d'utilisateur ou un titre de chat modifié est enregistré immédiatement
   • Cela évite les écritures excessives dans la base de données tout en maintenant les données raisonnablement à jour
 
   <b>Fonctionnement Passif:</b>

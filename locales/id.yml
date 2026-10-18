@@ -955,9 +955,7 @@ users_help_msg:
 
   *Pembatasan Kecepatan:*
 
-  × Pembaruan pengguna dibatasi satu per UserUpdateInterval.
-
-  × Pembaruan chat dibatasi satu per ChatUpdateInterval.
+  × Data pengguna, chat, dan saluran diperbarui paling sering sekali per jam, atau langsung saat nama, nama pengguna, atau judul chat berubah.
 
   Modul lain, seperti /info, bergantung pada data yang dikumpulkan oleh modul ini."
 
@@ -2248,8 +2246,8 @@ users_extended_docs: |
   • ID saluran, nama, dan nama pengguna untuk saluran tertaut
 
   <b>Pembatasan Kecepatan:</b>
-  • Pembaruan pengguna: dibatasi satu per <code>UserUpdateInterval</code>
-  • Pembaruan chat: dibatasi satu per <code>ChatUpdateInterval</code>
+  • Data pengguna, chat, dan saluran: diperbarui paling sering sekali per jam
+  • Nama, nama pengguna, atau judul chat yang berubah langsung disimpan
   • Ini mencegah penulisan basis data yang berlebihan sambil menjaga data tetap terkini secara wajar
 
   <b>Operasi Pasif:</b>

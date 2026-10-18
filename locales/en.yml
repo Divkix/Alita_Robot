@@ -1002,9 +1002,7 @@ users_help_msg:
 
   *Rate Limiting:*
 
-  × User updates are throttled to one per UserUpdateInterval.
-
-  × Chat updates are throttled to one per ChatUpdateInterval.
+  × User, chat and channel records are refreshed at most once an hour, or straight away when a name, username or chat title changes.
 
   Other modules, such as /info, depend on data collected by this module."
 
@@ -2297,8 +2295,8 @@ users_extended_docs: |
   • Channel IDs, names, and usernames for linked channels
 
   <b>Rate Limiting:</b>
-  • User updates: throttled to one per <code>UserUpdateInterval</code>
-  • Chat updates: throttled to one per <code>ChatUpdateInterval</code>
+  • User, chat and channel records: refreshed at most once an hour
+  • A changed name, username or chat title is saved straight away
   • This prevents excessive database writes while keeping data reasonably current
 
   <b>Passive Operation:</b>

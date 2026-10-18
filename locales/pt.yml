@@ -925,9 +925,7 @@ users_help_msg:
 
   *Limitação de Taxa:*
 
-  × Atualizações de usuário são limitadas a uma por UserUpdateInterval.
-
-  × Atualizações de chat são limitadas a uma por ChatUpdateInterval.
+  × Os registros de usuários, chats e canais são atualizados no máximo uma vez por hora, ou imediatamente quando um nome, nome de usuário ou título do chat muda.
 
   Outros módulos, como /info, dependem de dados coletados por este módulo."
 
@@ -2218,8 +2216,8 @@ users_extended_docs: |
   • IDs de canal, nomes e nomes de usuário de canais vinculados
 
   <b>Limitação de Taxa:</b>
-  • Atualizações de usuário: limitadas a uma por <code>UserUpdateInterval</code>
-  • Atualizações de chat: limitadas a uma por <code>ChatUpdateInterval</code>
+  • Registros de usuários, chats e canais: atualizados no máximo uma vez por hora
+  • Um nome, nome de usuário ou título do chat alterado é salvo imediatamente
   • Isso evita gravações excessivas no banco de dados enquanto mantém os dados razoavelmente atualizados
 
   <b>Operação Passiva:</b>

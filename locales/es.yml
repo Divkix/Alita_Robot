@@ -962,9 +962,7 @@ users_help_msg:
 
   *Límite de velocidad:*
 
-  × Las actualizaciones de usuario se limitan a una por UserUpdateInterval.
-
-  × Las actualizaciones de chat se limitan a una por ChatUpdateInterval.
+  × Los registros de usuarios, chats y canales se actualizan como máximo una vez por hora, o al instante cuando cambia un nombre, un nombre de usuario o el título del chat.
 
   Otros módulos, como /info, dependen de los datos recopilados por este módulo."
 
@@ -2257,8 +2255,8 @@ users_extended_docs: |
   • IDs de canal, nombres y usuarios de canales vinculados
 
   <b>Límite de velocidad:</b>
-  • Actualizaciones de usuario: limitadas a una por <code>UserUpdateInterval</code>
-  • Actualizaciones de chat: limitadas a una por <code>ChatUpdateInterval</code>
+  • Registros de usuarios, chats y canales: se actualizan como máximo una vez por hora
+  • Un cambio de nombre, nombre de usuario o título del chat se guarda al instante
   • Esto evita escrituras excesivas en la base de datos mientras mantiene los datos razonablemente actualizados
 
   <b>Operación Pasiva:</b>
