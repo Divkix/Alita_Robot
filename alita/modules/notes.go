@@ -3,6 +3,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"html"
 	"slices"
 	"strconv"
 	"strings"
@@ -189,7 +190,8 @@ func (m moduleStruct) addNote(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 
-	_, err := msg.Reply(b, fmt.Sprintf(noteString, noteWord, noteWord, noteWord), formatting.Shtml())
+	esc := html.EscapeString(noteWord)
+	_, err := msg.Reply(b, fmt.Sprintf(noteString, esc, esc, esc), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -260,7 +262,7 @@ func (moduleStruct) rmNote(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	text, _ := tr.GetString("notes_removed_success")
-	_, err := msg.Reply(b, fmt.Sprintf(text, noteWord), formatting.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(text, html.EscapeString(noteWord)), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -353,11 +355,11 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		admin := chat_status.IsUserAdmin(b, chat.Id, user.Id)
 		noteKeys := notes.GetNotesListContext(tracing.UpdateContext(ctx), chat.Id, admin)
 		listText, _ := tr.GetString("notes_list_for_chat")
-		info = fmt.Sprintf(listText, chat.Title)
+		info = fmt.Sprintf(listText, html.EscapeString(chat.Title))
 		var sb strings.Builder
 		for _, note := range noteKeys {
 			fmt.Fprintf(&sb, "\n - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>",
-				b.Username, chat.Id, note, note)
+				b.Username, chat.Id, html.EscapeString(note), html.EscapeString(note))
 		}
 		info += sb.String()
 		_, err := msg.Reply(b, info, formatting.Shtml())
@@ -398,7 +400,7 @@ func (moduleStruct) notesList(b *gotgbot.Bot, ctx *ext.Context) error {
 		info = currentNotesText
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, " - <code>#%s</code>\n", note)
+			fmt.Fprintf(&sb, " - <code>#%s</code>\n", html.EscapeString(note))
 		}
 		info += sb.String()
 		instructionText, _ := tr.GetString("notes_get_instruction")
@@ -1023,7 +1025,7 @@ func notesListDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.Us
 		info, _ = tr.GetString("helpers_notes_current_header")
 		var sb strings.Builder
 		for _, note := range noteKeys {
-			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>\n", b.Username, chatinfo.Id, note, note)
+			fmt.Fprintf(&sb, " - <a href='https://t.me/%s?start=note_%d_%s'>%s</a>\n", b.Username, chatinfo.Id, html.EscapeString(note), html.EscapeString(note))
 		}
 		info += sb.String()
 	}

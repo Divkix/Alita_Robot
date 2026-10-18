@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -47,6 +48,32 @@ func TestAddGetListAndRemoveTextNote(t *testing.T) {
 	}
 	if notes.DoesNoteExists(chat.Id, "rules") {
 		t.Fatal("note still exists after /clear")
+	}
+}
+
+func TestNoteRepliesEscapeNoteName(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+
+	addCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/save a<b some text")
+	if err := notesModule.addNote(f.bot, addCtx); err != ext.EndGroups {
+		t.Fatalf("addNote() error = %v, want EndGroups", err)
+	}
+	saved := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(saved, "#a&lt;b") || strings.Contains(saved, "a<b") {
+		t.Fatalf("save confirmation = %q, want the note name HTML-escaped", saved)
+	}
+
+	listCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/notes")
+	if err := notesModule.notesList(f.bot, listCtx); err != ext.EndGroups {
+		t.Fatalf("notesList() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls = %d, want the save confirmation and the /notes list", len(calls))
+	}
+	if list := fmt.Sprint(calls[1].Params["text"]); !strings.Contains(list, "#a&lt;b") || strings.Contains(list, "a<b") {
+		t.Fatalf("/notes reply = %q, want the note name HTML-escaped", list)
 	}
 }
 
