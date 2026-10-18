@@ -897,9 +897,38 @@ func (m moduleStruct) setTitleAnonAdmin(b *gotgbot.Bot, ctx *ext.Context) error 
 	return m.setTitle(c)
 }
 
+// anonCommandContextHandler is the post-proof anonymous-admin entry point for
+// pipeline commands whose handlers take a CommandContext. It re-runs the
+// descriptor's checks as the admin who pressed the confirm button.
+func anonCommandContextHandler(desc helpers.CommandDescriptor, h func(*helpers.CommandContext) error) AnonymousAdminHandler {
+	return func(b *gotgbot.Bot, ctx *ext.Context) error {
+		c, err := helpers.BuildCommandContext(b, ctx)
+		if err != nil {
+			return ext.EndGroups
+		}
+		if !helpers.RunChecks(c, desc.RequiredChecks) {
+			return ext.EndGroups
+		}
+		return h(c)
+	}
+}
+
 func init() {
 	RegisterLegacyModule("Admin", 30, LoadAdmin)
 	RegisterAnonymousAdminHandler("promote", adminModule.promoteAnonAdmin)
 	RegisterAnonymousAdminHandler("demote", adminModule.demoteAnonAdmin)
 	RegisterAnonymousAdminHandler("title", adminModule.setTitleAnonAdmin)
+	// The router matches the command as typed, so register every alias too.
+	for _, d := range []struct {
+		desc helpers.CommandDescriptor
+		h    func(*helpers.CommandContext) error
+	}{
+		{setGTitleDesc, adminModule.setGTitle},
+		{setGPicDesc, adminModule.setGPic},
+		{setGDescDesc, adminModule.setGDesc},
+	} {
+		for _, name := range append([]string{d.desc.Name}, d.desc.Aliases...) {
+			RegisterAnonymousAdminHandler(name, anonCommandContextHandler(d.desc, d.h))
+		}
+	}
 }
