@@ -101,7 +101,7 @@ func (m moduleStruct) exampleCallback(b *gotgbot.Bot, ctx *ext.Context) error {
 // LoadExample registers all handlers for this module
 func LoadExample(dispatcher *ext.Dispatcher) {
     // Register in help system
-    DefaultHelpRegistry().AbleMap[exampleModule.moduleName] = true
+    SetModuleEnabled(exampleModule.moduleName, true)
 
     // Register command handlers
     dispatcher.AddHandler(handlers.NewCommand("example", exampleModule.exampleCommand))
@@ -278,7 +278,7 @@ Modules self-register via `init()` using the registry system. The `LoadAllModule
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+    modules.ResetHelpRegistry()
     defer modules.LoadHelp(dispatcher)
 
     // Loads all modules registered via RegisterLegacyModule
@@ -525,7 +525,7 @@ func (m moduleStruct) togglewelcome(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func LoadWelcome(dispatcher *ext.Dispatcher) {
-    DefaultHelpRegistry().AbleMap[welcomeModule.moduleName] = true
+    SetModuleEnabled(welcomeModule.moduleName, true)
 
     dispatcher.AddHandler(handlers.NewCommand("welcomestatus", welcomeModule.welcomestatus))
     dispatcher.AddHandler(handlers.NewCommand("togglewelcome", welcomeModule.togglewelcome))
@@ -652,7 +652,7 @@ Use `extraction.ExtractUserAndText()` for consistent user identification. It han
 - [ ] Add cache helpers if needed
 - [ ] Add translations to all locale files
 - [ ] Register module in `init()` with `RegisterLegacyModule`
-- [ ] Store module in help system with `DefaultHelpRegistry().AbleMap[name] = true`
+- [ ] Register module in the help system with `SetModuleEnabled(name, true)` (and `SetModuleHelp(name, kb)` for extra help buttons); never write `DefaultHelpRegistry().AbleMap` directly, because that bypasses the registry lock
 - [ ] Test in development environment
 
 ## Next Steps

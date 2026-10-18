@@ -219,7 +219,7 @@ loads modules and starts the persisted captcha lifecycle:
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
     // Initialize help system first
-    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+    modules.ResetHelpRegistry()
 
     // Load help LAST (deferred) to collect all commands
     defer modules.LoadHelp(dispatcher)
@@ -248,7 +248,7 @@ Each module registers handlers using gotgbot's handler system:
 ```go
 func LoadBans(dispatcher *ext.Dispatcher) {
     // Register module in help system
-    DefaultHelpRegistry().AbleMap[bansModule.moduleName] = true
+    SetModuleEnabled(bansModule.moduleName, true)
 
     // Command handlers
     dispatcher.AddHandler(handlers.NewCommand("ban", bansModule.ban))

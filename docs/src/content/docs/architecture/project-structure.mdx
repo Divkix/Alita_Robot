@@ -244,7 +244,7 @@ Modules are loaded in a specific order in `alita/main.go`:
 
 ```go
 func LoadModules(dispatcher *ext.Dispatcher) {
-    modules.DefaultHelpRegistry().AbleMap = make(map[string]bool)
+    modules.ResetHelpRegistry()
     defer modules.LoadHelp(dispatcher)  // Help loaded LAST
 
     // Loads all modules registered via RegisterLegacyModule
