@@ -156,7 +156,7 @@ The health check uses the built-in `--health` flag, which is ideal for distroles
 :::
 
 :::tip[Debug Compose]
-For development, use `debug.docker-compose.yml` which builds from local source with a debug Dockerfile.
+For development, use `debug.docker-compose.yml` which builds from local source with a debug Dockerfile. It runs with `cp sample.env .env` once `BOT_TOKEN`, `OWNER_ID` and `MESSAGE_DUMP` are filled in; Postgres and Redis credentials default to `password` / `alita_robot` / `redisPassword` unless `POSTGRES_PASSWORD`, `POSTGRES_DB` or `REDIS_PASSWORD` are set in `.env`.
 :::
 
 ### postgres (Database)
