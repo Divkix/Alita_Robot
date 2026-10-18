@@ -27,6 +27,7 @@ Federations share a ban list across groups you own.
 ### Fed admins:
 - `/fban /unfban /funban`: Federation ban/unban.
 - `/fedstat /fbanstat`: Check a user's fban.
+- `/feddemoteme <fed_id>`: Step down as a federation admin.
 
 ### Anyone:
 - `/fedinfo /fedadmins /chatfed /myfeds`
@@ -54,7 +55,7 @@ This module can be accessed using the following aliases:
 | `/fbanstat` | Check a user's fban. | ❌ |
 | `/fedadmins` | No description available | ✅ |
 | `/feddemote` | Manage fed admins. | ❌ |
-| `/feddemoteme` | No description available | ❌ |
+| `/feddemoteme` | Step down as a federation admin. | ❌ |
 | `/fedinfo` | No description available | ✅ |
 | `/fednotif` | PM the owner on fbans. | ❌ |
 | `/fedpromote` | Manage fed admins. | ❌ |

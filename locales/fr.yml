@@ -22,7 +22,7 @@ admin_errors_err_cannot_promote: "Échec de la promotion ; il se peut que je ne 
 admin_errors_err_set_title: "Échec de la définition du titre d'administrateur personnalisé ; le titre peut être incorrect ou contenir des emojis."
 admin_errors_title_empty: Vous devez me donner un titre d'administrateur à définir.
 admin_errors_admin_cache_failed: "J'ai du mal à accéder à la liste des administrateurs. Veuillez réessayer plus tard."
-admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur"
+admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n\n× /setgtitle <titre> : Changer le titre du groupe.\n\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n\n× /setgdesc [texte] : Changer la description du groupe.\n\n× /invitelink : Obtenir le lien d'invitation du chat.\n\n× /anonadmin `<on/off>` : Exiger que les administrateurs anonymes confirment avec un bouton (propriétaire du groupe uniquement).\n\n× /admincache : Recharger la liste des administrateurs.\n\n× /clearadmincache : Vider la liste des administrateurs en cache."
 admin_promote_admin_title_truncated: Titre d'administrateur tronqué à 16 caractères depuis %d
 admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-je censé la promouvoir ?"
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
@@ -505,7 +505,11 @@ captcha_help_msg: |
   × /captchaaction `<kick/ban/mute>` : Définir l'action en cas d'échec de vérification (défaut :
   kick)
 
-  × /captchaattempts `<1-10>` : Définir le nombre maximum de tentatives de vérification (défaut : 3)
+  × /captchamaxattempts `<1-10>` : Définir le nombre maximum de tentatives de vérification (défaut : 3)
+
+  × /captchapending `<@user/user_id>` : Afficher les messages enregistrés d'un utilisateur en attente.
+
+  × /captchaclear `<@user/user_id>` : Effacer les messages enregistrés d'un utilisateur en attente.
 
 
   Lorsque c'est activé, les nouveaux membres sont automatiquement rendus muets jusqu'à ce qu'ils complètent le captcha.
@@ -1063,7 +1067,7 @@ locks_bot_only_admins: Seuls les admins sont autorisés à ajouter des bots à c
 
 # Utils extraction strings
 utils_string_handling_extract_time_invalid_time_amount: Quantité de temps invalide spécifiée.
-utils_string_handling_extract_time_invalid_time_type: |
+utils_string_handling_extract_time_invalid_time_type:
   "Type de temps invalide spécifié.
   Attendu m, h, ou d obtenu : %s"
 
@@ -1228,6 +1232,18 @@ misc_help_msg: |
   × /removebotkeyboard : Supprime le clavier de bot bloqué de votre chat.
 
   × /stat : Obtient le nombre total de messages dans le chat.
+
+  × /stickerid : Répondez à un sticker pour obtenir son ID de fichier.
+
+  × /zombies : Expulse les comptes supprimés connus du bot (admin).
+
+  × /github <utilisateur|utilisateur/dépôt> : Rechercher un utilisateur ou dépôt GitHub.
+
+  × /wiki <recherche> : Rechercher sur Wikipédia en anglais.
+
+  × /ud <terme> : Rechercher dans Urban Dictionary.
+
+  × /runs : Une répartie aléatoire.
 misc_translation_error: Erreur lors de la demande de traduction !
 misc_reply_to_someone: Répondez à quelqu'un.
 misc_provide_content: Fournissez du contenu pour répondre !
@@ -1540,6 +1556,9 @@ languages_help_msg: "Vous n'arrivez pas à changer la langue du bot ?
   groupe.
 
   En privé, un administrateur connecté à un groupe peut utiliser /lang group pour changer la langue de ce groupe.
+
+
+  × /lang: Changer la langue du bot pour vous ou le groupe.
 
 
   Vous pouvez nous aider à apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"
@@ -2429,6 +2448,7 @@ federations_help_msg: |
   *Fed admins:*
   × /fban /unfban /funban: Federation ban/unban.
   × /fedstat /fbanstat: Check a user's fban.
+  × /feddemoteme <fed_id>: Step down as a federation admin.
 
   *Anyone:*
   × /fedinfo /fedadmins /chatfed /myfeds
@@ -2440,6 +2460,7 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.

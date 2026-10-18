@@ -190,12 +190,6 @@ func TestStartExtendDeepLinkSendsCommandList(t *testing.T) {
 	}
 }
 
-// staleHelpCommands are mentioned in a module's help text but are not registered
-// under that name, so /extend lists the real command instead.
-var staleHelpCommands = map[string]bool{
-	"captchaattempts": true, // registered as /captchamaxattempts
-}
-
 // helpOnlyModules have help text but no button in the /help menu: Devs is
 // owner-only, Help and Users never call SetModuleEnabled.
 var helpOnlyModules = map[string]bool{"devs": true, "help": true, "users": true}
@@ -214,7 +208,7 @@ func TestExtendLocalesCoverEveryDocumentedCommand(t *testing.T) {
 		var documented []string
 		for _, line := range helpCommandLine.FindAllStringSubmatch(value, -1) {
 			for _, m := range helpCommandName.FindAllStringSubmatch(line[1], -1) {
-				if !staleHelpCommands[m[1]] && !slices.Contains(documented, m[1]) {
+				if !slices.Contains(documented, m[1]) {
 					documented = append(documented, m[1])
 				}
 			}
