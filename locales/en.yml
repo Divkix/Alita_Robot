@@ -154,9 +154,12 @@ antiflood_help_msg:
   Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute
 
 
-  *Admin commands*:
+  *User commands*:
 
   × /flood: Get the current antiflood settings.
+
+
+  *Admin commands*:
 
   × /setflood `<number/off/no>`: Set the number of messages after which to take action
   on a user. Set to '0', 'off', or 'no' to disable.

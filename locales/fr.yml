@@ -1581,9 +1581,12 @@ antiflood_help_msg:
   Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages sans pause de plus de 60 secondes entre eux (les messages des autres membres ne remettent pas le compteur à zéro). Actions : ban/kick/mute
 
 
-  *Commandes Admin* :
+  *Commandes Utilisateur* :
 
   × /flood : Obtenir les paramètres antiflood actuels.
+
+
+  *Commandes Admin* :
 
   × /setflood `<nombre/off/no>` : Définir le nombre de messages après lequel agir
   sur un utilisateur. Mettez '0', 'off', ou 'no' pour désactiver.

@@ -115,9 +115,12 @@ antiflood_help_msg:
   Antiflood memungkinkan Anda mengambil tindakan pada pengguna yang mengirim lebih dari x pesan tanpa jeda lebih dari 60 detik di antaranya (pesan anggota lain tidak mereset hitungan). Tindakan adalah: ban/kick/mute
 
 
-  *Perintah Admin*:
+  *Perintah Pengguna*:
 
   × /flood: Dapatkan pengaturan antiflood saat ini.
+
+
+  *Perintah Admin*:
 
   × /setflood `<number/off/no>`: Atur jumlah pesan setelah itu untuk mengambil tindakan
   pada pengguna. Atur ke '0', 'off', atau 'no' untuk menonaktifkan.
