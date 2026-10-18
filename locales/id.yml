@@ -379,7 +379,7 @@ disabling_help_msg:
 
   × /disable `<commandname>`: Hentikan pengguna dari menggunakan commandname di grup ini.
 
-  × /enable `<item name>`: Izinkan pengguna dari menggunakan commandname di grup ini.
+  × /enable `<commandname>`: Izinkan pengguna menggunakan commandname lagi di grup ini.
 
   × /disableable: Daftar semua perintah yang dapat dinonaktifkan.
 

@@ -966,7 +966,7 @@ disabling_help_msg:
 
   × /disable `<nom_commande>` : Empêcher les utilisateurs d'utiliser nom_commande dans ce groupe.
 
-  × /enable `<nom element>` : Autoriser les utilisateurs à utiliser nom_commande dans ce groupe.
+  × /enable `<nom_commande>` : Autoriser de nouveau les utilisateurs à utiliser nom_commande dans ce groupe.
 
   × /disableable : Lister toutes les commandes désactivables.
 

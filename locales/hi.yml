@@ -316,7 +316,7 @@ disabling_help_msg: "यह मॉड्यूल आपको कुछ आम�
 
   × /disable `<commandname>`: इस ग्रुप में उपयोगकर्ताओं को commandname का उपयोग करने से रोकें।
 
-  × /enable `<item name>`: इस ग्रुप में उपयोगकर्ताओं को commandname का उपयोग करने की अनुमति दें।
+  × /enable `<commandname>`: इस ग्रुप में उपयोगकर्ताओं को commandname का फिर से उपयोग करने की अनुमति दें।
 
   × /disableable: सभी अक्षम करने योग्य कमांड की सूची।
 

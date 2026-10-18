@@ -370,7 +370,7 @@ disabling_help_msg:
 
   × /disable `<commandname>`: Impede usuários de usar commandname neste grupo.
 
-  × /enable `<item name>`: Permite usuários de usar commandname neste grupo.
+  × /enable `<commandname>`: Permite que usuários voltem a usar commandname neste grupo.
 
   × /disableable: Lista todos os comandos desativáveis.
 
