@@ -2645,7 +2645,7 @@ feds_setfedlog_need_id: "Indica un ID de federación o usa esto en un grupo que 
 feds_not_owner: "Solo el propietario de la federación puede establecer su registro."
 feds_setfedlog_ok: "Chat de registro de la federación establecido."
 feds_unsetfedlog_ok: "Chat de registro de la federación quitado."
-feds_export_wait: "Espera un poco antes de volver a exportar."
+feds_export_wait: "Puedes exportar la lista de fban una vez cada 30 minutos. Inténtalo más tarde."
 feds_export_empty: "Esta federación no tiene bans para exportar."
 feds_import_need_file: "Responde a una lista de fban en CSV o JSON."
 feds_import_failed: "No se pudo importar esa lista de fban."

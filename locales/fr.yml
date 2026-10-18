@@ -2552,7 +2552,7 @@ feds_setfedlog_need_id: "Indiquez un ID de fédération, ou utilisez ceci dans u
 feds_not_owner: "Seul le propriétaire de la fédération peut définir son journal."
 feds_setfedlog_ok: "Chat de journal de la fédération défini."
 feds_unsetfedlog_ok: "Chat de journal de la fédération retiré."
-feds_export_wait: "Veuillez patienter avant d'exporter à nouveau."
+feds_export_wait: "Vous pouvez exporter la liste des fban une fois toutes les 30 minutes. Réessayez plus tard."
 feds_export_empty: "Cette fédération n'a aucun bannissement à exporter."
 feds_import_need_file: "Répondez à une liste de fban au format CSV ou JSON."
 feds_import_failed: "Impossible d'importer cette liste de fban."

@@ -2424,7 +2424,7 @@ feds_setfedlog_need_id: "Укажите ID федерации или испол�
 feds_not_owner: "Только владелец федерации может назначить чат логов федерации."
 feds_setfedlog_ok: "Чат логов федерации назначен."
 feds_unsetfedlog_ok: "Чат логов федерации убран."
-feds_export_wait: "Подождите перед повторной выгрузкой."
+feds_export_wait: "Список fban можно выгружать раз в 30 минут. Попробуйте позже."
 feds_export_empty: "В этой федерации нет банов для выгрузки."
 feds_import_need_file: "Ответьте на список fban в формате CSV или JSON."
 feds_import_failed: "Не удалось загрузить этот список fban."

@@ -2636,7 +2636,7 @@ feds_setfedlog_need_id: "Berikan ID federasi, atau gunakan ini di grup yang ada 
 feds_not_owner: "Hanya pemilik federasi yang dapat mengatur log federasi."
 feds_setfedlog_ok: "Obrolan log federasi diatur."
 feds_unsetfedlog_ok: "Obrolan log federasi dihapus."
-feds_export_wait: "Harap tunggu sebelum mengekspor lagi."
+feds_export_wait: "Anda dapat mengekspor daftar fban sekali setiap 30 menit. Coba lagi nanti."
 feds_export_empty: "Federasi ini tidak memiliki ban untuk diekspor."
 feds_import_need_file: "Balas ke daftar fban berformat CSV atau JSON."
 feds_import_failed: "Tidak dapat mengimpor daftar fban itu."

@@ -2337,7 +2337,7 @@ feds_setfedlog_need_id: "फ़ेडरेशन ID दें, या इसे
 feds_not_owner: "केवल फ़ेडरेशन मालिक ही फ़ेडरेशन लॉग सेट कर सकता है।"
 feds_setfedlog_ok: "फ़ेडरेशन लॉग चैट सेट किया गया।"
 feds_unsetfedlog_ok: "फ़ेडरेशन लॉग चैट हटाया गया।"
-feds_export_wait: "दोबारा एक्सपोर्ट करने से पहले कृपया प्रतीक्षा करें।"
+feds_export_wait: "आप fban सूची हर 30 मिनट में एक बार एक्सपोर्ट कर सकते हैं। बाद में फिर से कोशिश करें।"
 feds_export_empty: "इस फ़ेडरेशन में एक्सपोर्ट करने के लिए कोई बैन नहीं है।"
 feds_import_need_file: "किसी CSV या JSON fban सूची को रिप्लाई करें।"
 feds_import_failed: "वह fban सूची इम्पोर्ट नहीं की जा सकी।"
