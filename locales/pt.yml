@@ -80,10 +80,10 @@ admin_anon_admin_db_error: Falha ao atualizar configuração de administrador an
 antiflood_checkflood_perform_action: "É, eu não gosto do seu flood. %s foi %s!"
 antiflood_errors_expected_args:
   "Eu esperava alguns argumentos! Ou off, ou um número inteiro.
-  ex: `/setflood 5`, ou `/setflood off`"
+  ex: <code>/setflood 5</code>, ou <code>/setflood off</code>"
 antiflood_errors_invalid_int:
   Isso não é um número inteiro válido. Por favor, me dê um número inteiro válido,
-  ou `off`.
+  ou <code>off</code>.
 antiflood_errors_set_in_limit: O limite de antiflood deve ser definido entre 3 e 100.
 antiflood_flood_deleter_already_disabled: "Exclusão de mensagens de flood está atualmente *desativada* neste chat. Apenas a mensagem que acionar o antiflood será excluída; as mensagens anteriores do flood permanecem."
 antiflood_flood_deleter_already_enabled:

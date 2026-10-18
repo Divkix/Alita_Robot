@@ -42,11 +42,11 @@ antiflood_checkflood_perform_action: |
   Да, мне не нравится ваш флуд. %s был %s!
 antiflood_errors_expected_args:
   "Я ожидал некоторых аргументов! Либо off, либо целое число.
-  Например: `/setflood 5`, или `/setflood off`"
+  Например: <code>/setflood 5</code>, или <code>/setflood off</code>"
 
 antiflood_errors_invalid_int:
   "Это не правильное целое число. Пожалуйста, дайте мне правильное целое число,
-  или `off`."
+  или <code>off</code>."
 
 antiflood_errors_set_in_limit: Лимит антифлуда должен быть установлен между 3 и 100.
 antiflood_flood_deleter_already_disabled: "Удаление сообщений при флуде в данный момент *отключено* в этом чате. Будет удалено только сообщение, вызвавшее срабатывание антифлуда; предыдущие сообщения флуда останутся."

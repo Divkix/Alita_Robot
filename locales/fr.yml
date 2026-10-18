@@ -2106,10 +2106,10 @@ antiflood_checkflood_perform_action:
   %s !"
 antiflood_errors_expected_args:
   "J'attendais des arguments ! Soit off, soit un entier.
-  ex: `/setflood 5`, ou `/setflood off`"
+  ex: <code>/setflood 5</code>, ou <code>/setflood off</code>"
 antiflood_errors_invalid_int:
   "Ce n'est pas un entier valide. Veuillez me donner un entier valide,
-  ou `off`."
+  ou <code>off</code>."
 antiflood_errors_set_in_limit: La limite antiflood doit être définie entre 3 et 100.
 antiflood_flood_deleter_already_disabled: "La suppression des messages antiflood est actuellement *désactivée* dans ce chat. Seul le message qui déclenche l'antiflood sera supprimé ; les messages précédents du flood restent."
 antiflood_flood_deleter_already_enabled:

@@ -124,10 +124,10 @@ antiflood_checkflood_perform_action:
   %s!
 antiflood_errors_expected_args:
   "I expected some arguments! Either off, or an integer.
-  eg: `/setflood 5`, or `/setflood off`"
+  eg: <code>/setflood 5</code>, or <code>/setflood off</code>"
 antiflood_errors_invalid_int:
   That's not a valid integer. Please give me a valid integer,
-  or `off`.
+  or <code>off</code>.
 antiflood_errors_set_in_limit: The antiflood limit has to be set between 3 and 100.
 antiflood_flood_deleter_already_disabled: "Antiflood Message deleting is currently *disabled* in this chat. Only the message that triggers antiflood will be deleted; earlier messages of the flood stay."
 antiflood_flood_deleter_already_enabled:

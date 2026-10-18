@@ -720,8 +720,8 @@ aispam_breaker_notice: "⚠️ AI प्रदाता की बार-बा�
 
 # Antiflood module strings
 antiflood_checkflood_perform_action: "हाँ, मुझे आपकी flooding पसंद नहीं है। %s को %s कर दिया गया है!"
-antiflood_errors_expected_args: "मुझे कुछ तर्क चाहिए! या तो off, या एक पूर्णांक। उदा: `/setflood 5`, या `/setflood off`"
-antiflood_errors_invalid_int: "यह एक वैध पूर्णांक नहीं है। कृपया मुझे एक वैध पूर्णांक दें, या `off`।"
+antiflood_errors_expected_args: "मुझे कुछ तर्क चाहिए! या तो off, या एक पूर्णांक। उदा: <code>/setflood 5</code>, या <code>/setflood off</code>"
+antiflood_errors_invalid_int: "यह एक वैध पूर्णांक नहीं है। कृपया मुझे एक वैध पूर्णांक दें, या <code>off</code>।"
 antiflood_errors_set_in_limit: antiflood सीमा 3 और 100 के बीच सेट होनी चाहिए।
 antiflood_flood_deleter_already_disabled: "Antiflood संदेश हटाना वर्तमान में इस चैट में *अक्षम* है। केवल antiflood ट्रिगर करने वाला संदेश हटाया जाएगा; flood के पहले के संदेश बने रहेंगे।"
 antiflood_flood_deleter_already_enabled: "Antiflood संदेश हटाना वर्तमान में इस चैट में *सक्षम* है, antiflood उत्पन्न करने वाले संदेश हटा दिए जाएंगे!"

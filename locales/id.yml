@@ -85,10 +85,10 @@ antiflood_checkflood_perform_action:
   %s!"
 antiflood_errors_expected_args:
   "Saya mengharapkan beberapa argumen! Entah off, atau bilangan bulat.
-  misal: `/setflood 5`, atau `/setflood off`"
+  misal: <code>/setflood 5</code>, atau <code>/setflood off</code>"
 antiflood_errors_invalid_int:
   "Itu bukan bilangan bulat yang valid. Berikan bilangan bulat yang valid,
-  atau `off`."
+  atau <code>off</code>."
 antiflood_errors_set_in_limit: Batas antiflood harus diatur antara 3 dan 100.
 antiflood_flood_deleter_already_disabled: "Penghapusan pesan Antiflood saat ini *dinonaktifkan* di obrolan ini. Hanya pesan yang memicu antiflood yang akan dihapus; pesan flood sebelumnya tetap ada."
 antiflood_flood_deleter_already_enabled:
