@@ -1802,11 +1802,11 @@ aispam_help_msg: |
   Los mensajes escritos en inglés actúan a partir del 80% de confianza y los escritos en cualquier otro idioma a partir del 90%, porque el modelo está optimizado para el inglés.
 
 
-  *Comandos de administrador:*
+  <b>Comandos de administrador:</b>
 
   × /aispam: Muestra si el filtro está activo y exactamente qué se envía al modelo.
 
-  × /aispam `<on/off>`: Activa o desactiva el filtro en este chat.
+  × /aispam <code><on/off></code>: Activa o desactiva el filtro en este chat.
 
 
   El filtro está desactivado en todos los chats hasta que un administrador lo active, y requiere que el operador del bot haya configurado una clave de API.

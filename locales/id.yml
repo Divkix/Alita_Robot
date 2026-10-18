@@ -1793,11 +1793,11 @@ aispam_help_msg: |
   Pesan yang ditulis dalam bahasa Inggris bertindak mulai keyakinan 80%, dan pesan dalam bahasa lain mulai 90%, karena model ini dioptimalkan untuk bahasa Inggris.
 
 
-  *Perintah admin:*
+  <b>Perintah admin:</b>
 
   × /aispam: Menampilkan apakah filter aktif dan persisnya data apa yang dikirim ke model.
 
-  × /aispam `<on/off>`: Mengaktifkan atau menonaktifkan filter untuk chat ini.
+  × /aispam <code><on/off></code>: Mengaktifkan atau menonaktifkan filter untuk chat ini.
 
 
   Filter nonaktif di semua chat sampai seorang admin mengaktifkannya, dan memerlukan kunci API yang sudah dikonfigurasi oleh operator bot.

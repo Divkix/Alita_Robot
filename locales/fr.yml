@@ -1609,11 +1609,11 @@ aispam_help_msg: |
   Les messages écrits en anglais agissent à partir de 80% de confiance, et ceux dans toute autre langue à partir de 90%, car le modèle est optimisé pour l'anglais.
 
 
-  *Commandes d'administration :*
+  <b>Commandes d'administration :</b>
 
   × /aispam : Indique si le filtre est actif et exactement ce qui est envoyé au modèle.
 
-  × /aispam `<on/off>` : Active ou désactive le filtre pour ce chat.
+  × /aispam <code><on/off></code> : Active ou désactive le filtre pour ce chat.
 
 
   Le filtre est désactivé dans tous les chats tant qu'un administrateur ne l'active pas, et nécessite que l'opérateur du bot ait configuré une clé d'API.
