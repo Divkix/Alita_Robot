@@ -2285,10 +2285,10 @@ antiraid_help_msg: |
   *Команды администратора:*
   /antiraid: Показать текущее состояние + кнопки включения/выключения.
   /antiraid on: Включить режим рейда на настроенное время.
-  /antiraid <duration>: Включить на заданное время (например, 3ч, 30м).
+  /antiraid <duration>: Включить на заданное время (например, 3h, 30m).
   /antiraid off: Немедленно отключить режим рейда.
-  /raidtime <time>: Установить длительность рейда (по умолчанию: 6ч).
-  /raidactiontime <time>: Установить длительность временного бана (по умолчанию: 1ч).
+  /raidtime <time>: Установить длительность рейда (по умолчанию: 6h).
+  /raidactiontime <time>: Установить длительность временного бана (по умолчанию: 1h).
   /autoantiraid <N>: Авто-включение при N+ входов/мин.
   /autoantiraid off: Отключить авто-триггер.
 antiraid_active_status: "AntiRaid АКТИВЕН | Истекает: {expires_in} | Рейд: {raid_time} | Действие: {action_time} | Авто: {auto_threshold}"
@@ -2297,12 +2297,12 @@ antiraid_enabled: "AntiRaid включён на {duration}."
 antiraid_disabled: "AntiRaid отключён."
 antiraid_already_active: "AntiRaid уже активен."
 antiraid_not_active: "AntiRaid не активен."
-antiraid_invalid_duration: "Неверная длительность. Используйте формат: 30м, 2ч, 1д, 1н"
+antiraid_invalid_duration: "Неверная длительность. Используйте формат: 30m, 2h, 1d, 1w"
 antiraid_duration_must_be_positive: "Длительность должна быть положительной."
-antiraid_raidtime_usage: "Использование: /raidtime &lt;длительность&gt; (например, 6ч)"
+antiraid_raidtime_usage: "Использование: /raidtime &lt;длительность&gt; (например, 6h)"
 antiraid_raidtime_no_change: "Время рейда уже {duration}."
 antiraid_raidtime_set: "Время рейда установлено на {duration}."
-antiraid_raidactiontime_usage: "Использование: /raidactiontime &lt;длительность&gt; (например, 1ч)"
+antiraid_raidactiontime_usage: "Использование: /raidactiontime &lt;длительность&gt; (например, 1h)"
 antiraid_raidactiontime_no_change: "Время действия рейда уже {duration}."
 antiraid_raidactiontime_set: "Время действия рейда установлено на {duration}."
 antiraid_auto_disabled: "Auto-AntiRaid отключён."
