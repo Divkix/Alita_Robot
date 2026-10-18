@@ -930,8 +930,8 @@ bans_restrict_banned: "Администратор %s забанил %s из эт
 bans_unrestrict_question: Как я могу снять ограничения с этого пользователя?
 bans_unrestrict_admin_error: Зачем мне выгонять администратора? Это звучит как довольно глупая идея.
 bans_unrestrict_self_error: Нет, ты
-bans_unrestrict_unmuted: "Размучен %s!"
-bans_unrestrict_unbanned: "Разбанен %s !"
+bans_unrestrict_unmuted: "Размучен администратором %s!"
+bans_unrestrict_unbanned: "Разбанен администратором %s!"
 bans_invalid_callback_data: "Неверные данные обратного вызова."
 bans_invalid_user_id: "Неверный ID пользователя."
 bans_cannot_identify_user: "Невозможно идентифицировать пользователя из ответного сообщения."
