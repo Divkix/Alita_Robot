@@ -13,6 +13,7 @@ Sometimes users can be annoying and you might want to restrict them from sending
 × /smute <userhandle>: mutes a user silently, does not send a message to the group, and also deletes your command. (via a handle, or reply)
 × /dmute [reason]: mutes the sender of the replied message and deletes that message. (reply only)
 × /tmute <userhandle> x(m/h/d/w): mutes a user for `x` time. (via a handle, or reply). m = minutes, h = hours, d = days, w = weeks.
+× /unmute <userhandle>: unmutes a user. (via a handle, or reply)
 
 **Time Format for Temporary Mutes:**
 - `m` = minutes (e.g., `30m`)
