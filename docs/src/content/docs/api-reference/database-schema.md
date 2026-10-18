@@ -46,7 +46,7 @@ Stores admin settings per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `anon_admin` | `BOOLEAN` | NO | `false` | — |
+| `anon_admin` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -96,9 +96,9 @@ Stores anti-flood configuration per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `flood_limit` | `BIGINT` | NO | `5` | CHECK (`flood_limit >= 0`) |
-| `action` | `TEXT` | NO | `'mute'` | CHECK (`action IN ('mute','ban','kick','warn','tban','tmute')`) |
-| `delete_antiflood_message` | `BOOLEAN` | NO | `false` | — |
+| `flood_limit` | `BIGINT` | YES | `5` | CHECK (`flood_limit >= 0`) |
+| `action` | `TEXT` | YES | `'mute'` | CHECK (`action IN ('mute','ban','kick','warn','tban','tmute')`) |
+| `delete_antiflood_message` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -125,7 +125,7 @@ Stores blacklisted words and their actions per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `word` | `TEXT` | NO | — | — |
-| `action` | `TEXT` | NO | `'warn'` | CHECK (`action IN ('warn','mute','ban','kick','tban','tmute','delete','none')`) |
+| `action` | `TEXT` | YES | `'warn'` | CHECK (`action IN ('warn','mute','ban','kick','tban','tmute','delete','none')`) |
 | `reason` | `TEXT` | YES | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
@@ -152,9 +152,9 @@ Tracks active captcha verification attempts for users.
 | `user_id` | `BIGINT` | NO | — | — |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `answer` | `VARCHAR(255)` | NO | — | — |
-| `attempts` | `INTEGER` | NO | `0` | — |
+| `attempts` | `INTEGER` | YES | `0` | — |
 | `message_id` | `BIGINT` | YES | — | — |
-| `refresh_count` | `INTEGER` | NO | `0` | — |
+| `refresh_count` | `INTEGER` | YES | `0` | — |
 | `expires_at` | `TIMESTAMPTZ` | NO | — | CHECK (`expires_at > created_at`) |
 | `created_at` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
@@ -208,11 +208,11 @@ Stores captcha configuration per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `enabled` | `BOOLEAN` | NO | `FALSE` | — |
-| `captcha_mode` | `VARCHAR(10)` | NO | `'math'` | CHECK (`captcha_mode IN ('math','text')`) |
-| `timeout` | `INTEGER` | NO | `2` | CHECK (`timeout BETWEEN 1 AND 10`) |
-| `failure_action` | `VARCHAR(10)` | NO | `'kick'` | CHECK (`failure_action IN ('kick','ban','mute')`) |
-| `max_attempts` | `INTEGER` | NO | `3` | CHECK (`max_attempts BETWEEN 1 AND 10`) |
+| `enabled` | `BOOLEAN` | YES | `FALSE` | — |
+| `captcha_mode` | `VARCHAR(10)` | YES | `'math'` | CHECK (`captcha_mode IN ('math','text')`) |
+| `timeout` | `INTEGER` | YES | `2` | CHECK (`timeout BETWEEN 1 AND 10`) |
+| `failure_action` | `VARCHAR(10)` | YES | `'kick'` | CHECK (`failure_action IN ('kick','ban','mute')`) |
+| `max_attempts` | `INTEGER` | YES | `3` | CHECK (`max_attempts BETWEEN 1 AND 10`) |
 | `created_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
 | `updated_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
 
@@ -261,7 +261,7 @@ Main table storing chat/group information.
 | `chat_name` | `TEXT` | YES | — | — |
 | `language` | `TEXT` | YES | — | — |
 | `users` | `JSONB` | YES | — | — |
-| `is_inactive` | `BOOLEAN` | NO | `false` | — |
+| `is_inactive` | `BOOLEAN` | YES | `false` | — |
 | `last_activity` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
@@ -285,7 +285,7 @@ Per-user connection state (a user has at most one connected chat).
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `chat_id` | `BIGINT` | NO | — | — |
-| `connected` | `BOOLEAN` | NO | `false` | — |
+| `connected` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -311,7 +311,7 @@ Chat-level connection configuration.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `allow_connect` | `BOOLEAN` | NO | `true` | — |
+| `allow_connect` | `BOOLEAN` | YES | `true` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -331,8 +331,8 @@ Bot developers and sudo users.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
-| `is_dev` | `BOOLEAN` | NO | `false` | — |
-| `sudo` | `BOOLEAN` | NO | `false` | — |
+| `is_dev` | `BOOLEAN` | YES | `false` | — |
+| `sudo` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -353,7 +353,7 @@ Per-command disable state for chats.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
 | `command` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
-| `disabled` | `BOOLEAN` | NO | `true` | — |
+| `disabled` | `BOOLEAN` | YES | `true` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -393,7 +393,7 @@ Custom keyword filters per chat.
 | `filter_reply` | `TEXT` | YES | — | — |
 | `msgtype` | `BIGINT` | YES | — | — |
 | `fileid` | `TEXT` | YES | — | — |
-| `nonotif` | `BOOLEAN` | NO | `false` | — |
+| `nonotif` | `BOOLEAN` | YES | `false` | — |
 | `filter_buttons` | `JSONB` | YES | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
@@ -414,22 +414,22 @@ Welcome and goodbye message settings per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `clean_service_settings` | `BOOLEAN` | NO | `false` | — |
-| `welcome_clean_old` | `BOOLEAN` | NO | `false` | — |
+| `clean_service_settings` | `BOOLEAN` | YES | `false` | — |
+| `welcome_clean_old` | `BOOLEAN` | YES | `false` | — |
 | `welcome_last_msg_id` | `BIGINT` | YES | — | — |
-| `welcome_enabled` | `BOOLEAN` | NO | `true` | — |
+| `welcome_enabled` | `BOOLEAN` | YES | `true` | — |
 | `welcome_text` | `TEXT` | YES | — | — |
 | `welcome_file_id` | `TEXT` | YES | — | — |
-| `welcome_type` | `BIGINT` | NO | — (GORM writes 1 on insert) | — |
+| `welcome_type` | `BIGINT` | YES | — (GORM writes 1 on insert) | — |
 | `welcome_btns` | `JSONB` | YES | — | — |
-| `goodbye_clean_old` | `BOOLEAN` | NO | `false` | — |
+| `goodbye_clean_old` | `BOOLEAN` | YES | `false` | — |
 | `goodbye_last_msg_id` | `BIGINT` | YES | — | — |
-| `goodbye_enabled` | `BOOLEAN` | NO | `true` | — |
+| `goodbye_enabled` | `BOOLEAN` | YES | `true` | — |
 | `goodbye_text` | `TEXT` | YES | — | — |
 | `goodbye_file_id` | `TEXT` | YES | — | — |
-| `goodbye_type` | `BIGINT` | NO | — (GORM writes 1 on insert) | — |
+| `goodbye_type` | `BIGINT` | YES | — (GORM writes 1 on insert) | — |
 | `goodbye_btns` | `JSONB` | YES | — | — |
-| `auto_approve` | `BOOLEAN` | NO | `false` | — |
+| `auto_approve` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -450,7 +450,7 @@ Locked permissions per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `lock_type`) |
 | `lock_type` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `lock_type`) |
-| `locked` | `BOOLEAN` | NO | `false` | — |
+| `locked` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -475,12 +475,12 @@ Saved notes/tags per chat.
 | `file_id` | `TEXT` | YES | — | — |
 | `msg_type` | `BIGINT` | YES | — | — |
 | `buttons` | `JSONB` | YES | — | — |
-| `admin_only` | `BOOLEAN` | NO | `false` | — |
-| `private_only` | `BOOLEAN` | NO | `false` | — |
-| `group_only` | `BOOLEAN` | NO | `false` | — |
-| `web_preview` | `BOOLEAN` | NO | `true` | — |
-| `is_protected` | `BOOLEAN` | NO | `false` | — |
-| `no_notif` | `BOOLEAN` | NO | `false` | — |
+| `admin_only` | `BOOLEAN` | YES | `false` | — |
+| `private_only` | `BOOLEAN` | YES | `false` | — |
+| `group_only` | `BOOLEAN` | YES | `false` | — |
+| `web_preview` | `BOOLEAN` | YES | `true` | — |
+| `is_protected` | `BOOLEAN` | YES | `false` | — |
+| `no_notif` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -500,7 +500,7 @@ Note settings per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `private` | `BOOLEAN` | NO | `false` | — |
+| `private` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -521,8 +521,8 @@ Pinned message settings per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `msg_id` | `BIGINT` | YES | — | — |
-| `clean_linked` | `BOOLEAN` | NO | `false` | — |
-| `anti_channel_pin` | `BOOLEAN` | NO | `false` | — |
+| `clean_linked` | `BOOLEAN` | YES | `false` | — |
+| `anti_channel_pin` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -567,8 +567,8 @@ Report settings per chat.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `enabled` | `BOOLEAN` | NO | `true` | — |
-| `status` | `BOOLEAN` | NO | `true` | — |
+| `enabled` | `BOOLEAN` | YES | `true` | — |
+| `status` | `BOOLEAN` | YES | `true` | — |
 | `blocked_list` | `JSONB` | YES | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
@@ -589,8 +589,8 @@ Report settings per user.
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
-| `enabled` | `BOOLEAN` | NO | `true` | — |
-| `status` | `BOOLEAN` | NO | `true` | — |
+| `enabled` | `BOOLEAN` | YES | `true` | — |
+| `status` | `BOOLEAN` | YES | `true` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -612,7 +612,7 @@ Chat rules text.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `rules` | `TEXT` | YES | — | — |
 | `rules_btn` | `TEXT` | YES | — | — |
-| `private` | `BOOLEAN` | NO | `false` | — |
+| `private` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
@@ -739,7 +739,7 @@ Warning system settings per chat. `warn_action_time` is the tban/tmute duration 
 |--------|------|----------|---------|-------------|
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
-| `warn_limit` | `BIGINT` | NO | `3` | CHECK (`warn_limit > 0`) |
+| `warn_limit` | `BIGINT` | YES | `3` | CHECK (`warn_limit > 0`) |
 | `warn_mode` | `TEXT` | YES | — | CHECK (`warn_mode IS NULL OR warn_mode IN ('ban','kick','mute','tban','tmute')`) |
 | `warn_action_time` | `INTEGER` | NO | `0` | CHECK (`warn_action_time >= 0`) |
 | `warn_expiry` | `INTEGER` | NO | `0` | CHECK (`warn_expiry >= 0`) |
@@ -763,7 +763,7 @@ User warnings per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
-| `num_warns` | `BIGINT` | NO | `0` | CHECK (`num_warns >= 0`) |
+| `num_warns` | `BIGINT` | YES | `0` | CHECK (`num_warns >= 0`) |
 | `warns` | `JSONB` | YES | — | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
