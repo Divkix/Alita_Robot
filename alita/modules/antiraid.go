@@ -517,6 +517,9 @@ func (a *antiRaidStruct) antiraid(bot *gotgbot.Bot, ctx *ext.Context) error {
 	if chat_status.RequireUser(bot, ctx) == nil {
 		return ext.EndGroups
 	}
+	if chat_status.CheckDisabledCmd(bot, msg, "antiraid") {
+		return ext.EndGroups
+	}
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	chat := resolveAdminChat(bot, ctx, true)
 	if chat == nil {

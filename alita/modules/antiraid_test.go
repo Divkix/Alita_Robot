@@ -16,6 +16,7 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db/antiraid"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -432,6 +433,35 @@ func TestAntiRaidCommandShowsStatusAndTogglesState(t *testing.T) {
 	}
 	if antiRaidModule.isRaidActive(chat.Id) {
 		t.Fatal("raid stayed active after /antiraid off")
+	}
+}
+
+// /antiraid is listed in /disableable, so /disable antiraid must silence it
+// for non-admins while admins keep using it.
+func TestAntiRaidCommandHonoursDisable(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := disabling.DisableCMD(f.chat.Id, "antiraid"); err != nil {
+		t.Fatalf("DisableCMD() error = %v", err)
+	}
+	if err := disabling.ToggleDel(f.chat.Id, true); err != nil {
+		t.Fatalf("ToggleDel() error = %v", err)
+	}
+
+	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.member, "/antiraid")); err != ext.EndGroups {
+		t.Fatalf("antiraid(member) error = %v, want EndGroups", err)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 0 {
+		t.Fatalf("sendMessage calls = %d, want none for a disabled command", len(calls))
+	}
+	if calls := f.client.callsFor("deleteMessage"); len(calls) != 1 {
+		t.Fatalf("deleteMessage calls = %d, want the disabled command deleted", len(calls))
+	}
+
+	if err := antiRaidModule.antiraid(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/antiraid")); err != ext.EndGroups {
+		t.Fatalf("antiraid(admin) error = %v, want EndGroups", err)
+	}
+	if calls := f.client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want the admin's status reply", len(calls))
 	}
 }
 
