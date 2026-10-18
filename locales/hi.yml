@@ -2047,8 +2047,6 @@ backup_help_msg: |
   • इम्पोर्ट: 10 मिनट में 1 बार
   • रीसेट: 1 घंटे में 1 बार
 
-backup_export_button: "📤 एक्सपोर्ट"
-backup_import_button: "📥 इम्पोर्ट"
 
 backup_export_success: |
   <b>✅ एक्सपोर्ट सफल!</b>
@@ -2060,7 +2058,6 @@ backup_export_success: |
   <b>मॉड्यूल:</b>
   %s
 
-backup_export_success_text: "✅ सफलतापूर्वक {modules} मॉड्यूल एक्सपोर्ट किए गए। ऊपर दी गई बैकअप फाइल डाउनलोड करें।"
 backup_export_rate_limited: "⏳ फिर से एक्सपोर्ट करने से पहले <b>{time}</b> प्रतीक्षा करें।"
 backup_export_no_modules: "❌ इस चैट के लिए कोई एक्सपोर्ट करने योग्य मॉड्यूल नहीं मिले।"
 backup_invalid_modules: "❌ इनमें से कोई भी मॉड्यूल यहाँ इस्तेमाल नहीं किया जा सकता। मान्य मॉड्यूल: <code>{modules}</code>"
@@ -2121,21 +2118,6 @@ button_confirm_import: "✅ इम्पोर्ट की पुष्टि �
 button_cancel_import: "❌ रद्द करें"
 button_confirm_reset: "⚠️ हां, रीसेट करें"
 button_cancel_reset: "❌ रद्द करें"
-
-backup_module_admin: "एडमिन सेटिंग्स"
-backup_module_antiflood: "एंटीफ्लड सेटिंग्स"
-backup_module_blacklists: "ब्लैकलिस्ट"
-backup_module_captcha: "कैप्चा"
-backup_module_connections: "कनेक्शंस"
-backup_module_disabling: "अक्षम कमांड"
-backup_module_filters: "फिल्टर्स"
-backup_module_greetings: "ग्रीटिंग्स"
-backup_module_locks: "लॉक्स"
-backup_module_notes: "नोट्स"
-backup_module_pins: "पिन सेटिंग्स"
-backup_module_reports: "रिपोर्ट्स"
-backup_module_rules: "नियम"
-backup_module_warns: "चेतावनियां"
 
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "अमान्य अनुरोध।"

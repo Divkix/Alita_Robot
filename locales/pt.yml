@@ -2321,8 +2321,6 @@ backup_help_msg: |
   • Importar: 1 a cada 10 minutos
   • Redefinir: 1 a cada hora
 
-backup_export_button: "📤 Exportar"
-backup_import_button: "📥 Importar"
 backup_export_success: |
   <b>✅ Exportação Bem-Sucedida!</b>
 
@@ -2333,7 +2331,6 @@ backup_export_success: |
   <b>Módulos:</b>
   %s
 
-backup_export_success_text: "✅ Exportados com sucesso {modules} módulos. Baixe o arquivo de backup acima."
 backup_export_rate_limited: "⏳ Por favor aguarde <b>{time}</b> antes de exportar novamente."
 backup_export_no_modules: "❌ Nenhum módulo exportável encontrado para este chat."
 backup_invalid_modules: "❌ Nenhum desses módulos pode ser usado aqui. Módulos válidos: <code>{modules}</code>"
@@ -2392,21 +2389,6 @@ button_confirm_import: "✅ Confirmar Importação"
 button_cancel_import: "❌ Cancelar"
 button_confirm_reset: "⚠️ Sim, Redefinir"
 button_cancel_reset: "❌ Cancelar"
-
-backup_module_admin: "Configurações de Admin"
-backup_module_antiflood: "Antiflood"
-backup_module_blacklists: "Listas Negras"
-backup_module_captcha: "Captcha"
-backup_module_connections: "Conexões"
-backup_module_disabling: "Comandos Desativados"
-backup_module_filters: "Filtros"
-backup_module_greetings: "Saudações"
-backup_module_locks: "Bloqueios"
-backup_module_notes: "Notas"
-backup_module_pins: "Configurações de Fixar"
-backup_module_reports: "Denúncias"
-backup_module_rules: "Regras"
-backup_module_warns: "Avisos"
 
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "Solicitação inválida."

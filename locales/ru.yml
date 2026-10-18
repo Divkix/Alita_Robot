@@ -2136,8 +2136,6 @@ backup_help_msg: |
   • Импорт: 1 раз в 10 минут
   • Сброс: 1 раз в час
 
-backup_export_button: "📤 Экспорт"
-backup_import_button: "📥 Импорт"
 backup_export_success: |
   <b>✅ Экспорт успешен!</b>
 
@@ -2148,7 +2146,6 @@ backup_export_success: |
   <b>Модули:</b>
   %s
 
-backup_export_success_text: "✅ Успешно экспортировано {modules} модулей. Скачайте файл резервной копии выше."
 backup_export_rate_limited: "⏳ Пожалуйста, подождите <b>{time}</b> перед следующим экспортом."
 backup_export_no_modules: "❌ Для этого чата не найдено модулей для экспорта."
 backup_invalid_modules: "❌ Ни один из этих модулей нельзя использовать здесь. Допустимые модули: <code>{modules}</code>"
@@ -2207,21 +2204,6 @@ button_confirm_import: "✅ Подтвердить импорт"
 button_cancel_import: "❌ Отмена"
 button_confirm_reset: "⚠️ Да, сбросить"
 button_cancel_reset: "❌ Отмена"
-
-backup_module_admin: "Настройки администратора"
-backup_module_antiflood: "Антифлуд"
-backup_module_blacklists: "Чёрные списки"
-backup_module_captcha: "Капча"
-backup_module_connections: "Подключения"
-backup_module_disabling: "Отключённые команды"
-backup_module_filters: "Фильтры"
-backup_module_greetings: "Приветствия"
-backup_module_locks: "Блокировки"
-backup_module_notes: "Заметки"
-backup_module_pins: "Настройки закрепления"
-backup_module_reports: "Отчёты"
-backup_module_rules: "Правила"
-backup_module_warns: "Предупреждения"
 
 # Callback validation strings (previously hardcoded)
 common_callback_invalid_request: "Неверный запрос."
