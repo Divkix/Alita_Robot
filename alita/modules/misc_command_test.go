@@ -326,6 +326,7 @@ func TestGetIdHandlesPrivateAnonymousAndMediaReply(t *testing.T) {
 }
 
 func TestGetIdEscapesStoredUserName(t *testing.T) {
+	useRealLocales(t)
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Misc Chat"}
