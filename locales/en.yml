@@ -1894,33 +1894,6 @@ antiflood_notes_docs: |
   Antiflood is <b>disabled by default</b>. You must explicitly enable it using <code>/setflood &lt;number&gt;</code>.
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Permission Locks</b> (16 types)
-  <code>sticker</code> - Block stickers
-  <code>audio</code> - Block audio files
-  <code>voice</code> - Block voice messages
-  <code>document</code> - Block documents
-  <code>video</code> - Block videos
-  <code>videonote</code> - Block video notes
-  <code>contact</code> - Block contacts
-  <code>photo</code> - Block photos
-  <code>gif</code> - Block GIFs
-  <code>url</code> - Block URLs
-  <code>bots</code> - Prevent adding bots
-  <code>forward</code> - Block forwards
-  <code>game</code> - Block games
-  <code>location</code> - Block locations
-  <code>rtl</code> - Block Arabic-script text in messages and captions
-  <code>anonchannel</code> - Block channel messages
-
-  <b>Restriction Locks</b> (6 types)
-  <code>messages</code> - Block all messages
-  <code>comments</code> - Block non-member comments
-  <code>media</code> - Block all media
-  <code>other</code> - Block games/stickers/GIFs
-  <code>previews</code> - Block messages with links (same as url)
-  <code>all</code> - Block everything
-
 locks_notes_docs: |
   <b>Technical Notes</b>
   • Lock enforcement is real-time

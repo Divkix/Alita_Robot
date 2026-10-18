@@ -1631,33 +1631,6 @@ antiflood_notes_docs: |
   Антифлуд <b>отключён по умолчанию</b>. Вы должны явно включить его, используя <code>/setflood &lt;число&gt;</code>.
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Блокировки разрешений</b> (16 типов)
-  <code>sticker</code> - Блокировать стикеры
-  <code>audio</code> - Блокировать аудиофайлы
-  <code>voice</code> - Блокировать голосовые сообщения
-  <code>document</code> - Блокировать документы
-  <code>video</code> - Блокировать видео
-  <code>videonote</code> - Блокировать видеозаметки
-  <code>contact</code> - Блокировать контакты
-  <code>photo</code> - Блокировать фото
-  <code>gif</code> - Блокировать GIF
-  <code>url</code> - Блокировать URL
-  <code>bots</code> - Предотвращать добавление ботов
-  <code>forward</code> - Блокировать пересылки
-  <code>game</code> - Блокировать игры
-  <code>location</code> - Блокировать местоположения
-  <code>rtl</code> - Блокировать текст арабским письмом в сообщениях и подписях
-  <code>anonchannel</code> - Блокировать сообщения канала
-
-  <b>Блокировки ограничений</b> (6 типов)
-  <code>messages</code> - Блокировать все сообщения
-  <code>comments</code> - Блокировать комментарии не-участников
-  <code>media</code> - Блокировать все медиа
-  <code>other</code> - Блокировать игры/стикеры/GIF
-  <code>previews</code> - Блокировать сообщения со ссылками (как url)
-  <code>all</code> - Блокировать всё
-
 locks_notes_docs: |
   <b>Технические примечания</b>
   • Принудительное применение блокировок происходит в реальном времени

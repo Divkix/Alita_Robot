@@ -1624,33 +1624,6 @@ aispam_invalid_option: "Je ne comprends qu'une option parmi : <code>on</code>/<c
 aispam_breaker_notice: "⚠️ Les analyses anti-spam par IA sont en pause dans ce chat pendant quelques minutes après des échecs répétés du fournisseur d'IA. Elles reprennent d'elles-mêmes et le filtre reste activé."
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Verrous de permission</b> (16 types)
-  <code>sticker</code> - Bloquer les stickers
-  <code>audio</code> - Bloquer les fichiers audio
-  <code>voice</code> - Bloquer les messages vocaux
-  <code>document</code> - Bloquer les documents
-  <code>video</code> - Bloquer les vidéos
-  <code>videonote</code> - Bloquer les notes vidéo
-  <code>contact</code> - Bloquer les contacts
-  <code>photo</code> - Bloquer les photos
-  <code>gif</code> - Bloquer les GIFs
-  <code>url</code> - Bloquer les URLs
-  <code>bots</code> - Empêcher l'ajout de bots
-  <code>forward</code> - Bloquer les transferts
-  <code>game</code> - Bloquer les jeux
-  <code>location</code> - Bloquer les localisations
-  <code>rtl</code> - Bloquer le texte en écriture arabe dans les messages et les légendes
-  <code>anonchannel</code> - Bloquer les messages de chaînes
-
-  <b>Verrous de restriction</b> (6 types)
-  <code>messages</code> - Bloquer tous les messages
-  <code>comments</code> - Bloquer les commentaires des non-membres
-  <code>media</code> - Bloquer tous les médias
-  <code>other</code> - Bloquer jeux/stickers/GIFs
-  <code>previews</code> - Bloquer les messages contenant des liens (comme url)
-  <code>all</code> - Tout bloquer
-
 locks_notes_docs: |
   <b>Notes techniques</b>
   • L'application des verrous est en temps réel

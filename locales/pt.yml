@@ -1815,33 +1815,6 @@ antiflood_notes_docs: |
   Antiflood está <b>desativado por padrão</b>. Você deve ativá-lo explicitamente usando <code>/setflood &lt;número&gt;</code>.
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Bloqueios de Permissão</b> (16 tipos)
-  <code>sticker</code> - Bloquear figurinhas
-  <code>audio</code> - Bloquear arquivos de áudio
-  <code>voice</code> - Bloquear mensagens de voz
-  <code>document</code> - Bloquear documentos
-  <code>video</code> - Bloquear vídeos
-  <code>videonote</code> - Bloquear notas de vídeo
-  <code>contact</code> - Bloquear contatos
-  <code>photo</code> - Bloquear fotos
-  <code>gif</code> - Bloquear GIFs
-  <code>url</code> - Bloquear URLs
-  <code>bots</code> - Impedir adição de bots
-  <code>forward</code> - Bloquear encaminhamentos
-  <code>game</code> - Bloquear jogos
-  <code>location</code> - Bloquear localizações
-  <code>rtl</code> - Bloquear texto em escrita árabe nas mensagens e legendas
-  <code>anonchannel</code> - Bloquear mensagens de canal
-
-  <b>Bloqueios de Restrição</b> (6 tipos)
-  <code>messages</code> - Bloquear todas as mensagens
-  <code>comments</code> - Bloquear comentários de não-membros
-  <code>media</code> - Bloquear toda mídia
-  <code>other</code> - Bloquear jogos/figurinhas/GIFs
-  <code>previews</code> - Bloquear mensagens com links (igual a url)
-  <code>all</code> - Bloquear tudo
-
 locks_notes_docs: |
   <b>Notas Técnicas</b>
   • Aplicação de bloqueio é em tempo real

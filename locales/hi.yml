@@ -1280,32 +1280,6 @@ locks_current_locks_header: "इस चैट में ये लॉक है�
 locks_bot_lock_no_permission: मैंने एक बॉट देखा, और मुझे उन्हें शामिल होने से रोकने के लिए कहा गया है... लेकिन मैं एडमिन नहीं हूं!
 locks_bot_lock_no_ban_permission: मैंने एक बॉट देखा, और मुझे उन्हें शामिल होने से रोकने के लिए कहा गया है... लेकिन मेरे पास उन्हें बैन करने की अनुमति नहीं है!
 locks_bot_only_admins: केवल एडमिन को इस चैट में बॉट जोड़ने की अनुमति है!
-locks_types_docs: |
-  <b>अनुमति लॉक</b> (16 प्रकार)
-  <code>sticker</code> - स्टिकर ब्लॉक करें
-  <code>audio</code> - ऑडियो फाइलें ब्लॉक करें
-  <code>voice</code> - वॉयस मैसेज ब्लॉक करें
-  <code>document</code> - दस्तावेज़ ब्लॉक करें
-  <code>video</code> - वीडियो ब्लॉक करें
-  <code>videonote</code> - वीडियो नोट्स ब्लॉक करें
-  <code>contact</code> - संपर्क ब्लॉक करें
-  <code>photo</code> - फोटो ब्लॉक करें
-  <code>gif</code> - GIF ब्लॉक करें
-  <code>url</code> - URL ब्लॉक करें
-  <code>bots</code> - बॉट जोड़ने से रोकें
-  <code>forward</code> - फॉरवर्ड ब्लॉक करें
-  <code>game</code> - गेम ब्लॉक करें
-  <code>location</code> - लोकेशन ब्लॉक करें
-  <code>rtl</code> - संदेशों और कैप्शन में अरबी लिपि का टेक्स्ट ब्लॉक करें
-  <code>anonchannel</code> - चैनल संदेश ब्लॉक करें
-
-  <b>प्रतिबंध लॉक</b> (6 प्रकार)
-  <code>messages</code> - सभी संदेश ब्लॉक करें
-  <code>comments</code> - गैर-सदस्य टिप्पणियां ब्लॉक करें
-  <code>media</code> - सभी मीडिया ब्लॉक करें
-  <code>other</code> - गेम/स्टिकर/GIF ब्लॉक करें
-  <code>previews</code> - लिंक वाले संदेश ब्लॉक करें (url के समान)
-  <code>all</code> - सब कुछ ब्लॉक करें
 locks_notes_docs: |
   <b>तकनीकी नोट्स</b>
   • लॉक प्रवर्तन वास्तविक समय में होता है

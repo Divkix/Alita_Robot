@@ -1845,33 +1845,6 @@ antiflood_notes_docs: |
   Antiflood <b>dinonaktifkan secara default</b>. Anda harus secara eksplisit mengaktifkannya menggunakan <code>/setflood &lt;number&gt;</code>.
 
 # Locks module extended documentation
-locks_types_docs: |
-  <b>Kunci Izin</b> (16 tipe)
-  <code>sticker</code> - Blokir stiker
-  <code>audio</code> - Blokir file audio
-  <code>voice</code> - Blokir pesan suara
-  <code>document</code> - Blokir dokumen
-  <code>video</code> - Blokir video
-  <code>videonote</code> - Blokir catatan video
-  <code>contact</code> - Blokir kontak
-  <code>photo</code> - Blokir foto
-  <code>gif</code> - Blokir GIF
-  <code>url</code> - Blokir URL
-  <code>bots</code> - Cegah penambahan bot
-  <code>forward</code> - Blokir pesan diteruskan
-  <code>game</code> - Blokir permainan
-  <code>location</code> - Blokir lokasi
-  <code>rtl</code> - Blokir teks beraksara Arab dalam pesan dan keterangan
-  <code>anonchannel</code> - Blokir pesan kanal
-
-  <b>Kunci Pembatasan</b> (6 tipe)
-  <code>messages</code> - Blokir semua pesan
-  <code>comments</code> - Blokir komentar non-anggota
-  <code>media</code> - Blokir semua media
-  <code>other</code> - Blokir permainan/stiker/GIF
-  <code>previews</code> - Blokir pesan berisi tautan (sama seperti url)
-  <code>all</code> - Blokir semuanya
-
 locks_notes_docs: |
   <b>Catatan Teknis</b>
   • Penegakan kunci real-time
