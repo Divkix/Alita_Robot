@@ -1971,8 +1971,8 @@ blacklists_set_bl_action_update_failed: "ब्लैकलिस्ट का�
 blacklists_set_bl_action_no_words: "इस चैट में अभी कोई ब्लैकलिस्ट शब्द नहीं है। पहले /addblacklist से एक शब्द जोड़ें, फिर कार्रवाई सेट करें।"
 filters_overwrite_token_failed: "ओवरराइट पुष्टि बनाई नहीं जा सकी। कृपया फिर से प्रयास करें।"
 notes_overwrite_token_failed: "ओवरराइट पुष्टि बनाई नहीं जा सकी। कृपया फिर से प्रयास करें।"
-common_settings_save_failed: "Settings save karne mein error. Baad mein try karein."
-devs_chatlist_error: "Chat list generate karne mein error. Phir try karein."
+common_settings_save_failed: "सेटिंग्स सेव नहीं हो सकीं। कृपया बाद में फिर से प्रयास करें।"
+devs_chatlist_error: "चैट सूची नहीं बनाई जा सकी। कृपया फिर से प्रयास करें।"
 
 # Reactions module strings
 reactions_help_msg: |
