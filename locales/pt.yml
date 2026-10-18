@@ -1202,7 +1202,7 @@ rules_private_current_pm: Uso de /rules enviará as regras para o PM do usuário
 rules_private_current_group: "Todos os comandos /rules enviarão as regras para %s."
 rules_for_chat_header: "As regras para <b>%s</b> são:"
 
-rules_no_rules_set: Este chat ainda não parece ter regras definidas... Eu não tomaria isso como um convido though.
+rules_no_rules_set: Este chat ainda não parece ter regras definidas... Mas eu não tomaria isso como um convite.
 rules_click_for_rules: Clique no botão para ver as regras do chat!
 rules_set_successfully: Regras definidas com sucesso para este grupo!
 rules_button_too_long: O nome de botão personalizado que você inseriu é muito longo. Por favor insira um texto com menos de 30 caracteres.
