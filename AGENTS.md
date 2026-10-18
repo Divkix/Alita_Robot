@@ -51,7 +51,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
 
 ## Permissions
 
-- `alita/utils/chat_status` predicates return bools and never reply; use `PermissionResponder` to message.
+- `alita/utils/chat_status` predicates return bools and send no refusals; use `PermissionResponder` to message.
+  Exceptions: `CanUser*` and `CanInvite` reply with the anonymous-admin proof keyboard (`checkAnonAdmin`) to an
+  anonymous admin in a chat with AnonAdmin off, so keep them out of watchers; `IsUserConnected` (returns
+  `*gotgbot.Chat`) sends its own refusals.
   `helpers.CheckFunc` replies and is valid only inside `WrapCommand`.
 - Given a nil chat, `chat_status` helpers check `ctx.EffectiveChat` once a handler has swapped it to a connected
   group; `PermissionResponder` still answers in the chat the update came from.
