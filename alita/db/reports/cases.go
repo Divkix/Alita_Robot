@@ -52,9 +52,9 @@ func OpenForMessage(chatID, messageID int64) ([]models.Report, error) {
 // DeleteExpiredBefore removes closed reports resolved before cutoff and open
 // reports made before it, and returns how many it removed.
 func DeleteExpiredBefore(cutoff time.Time) (int64, error) {
+	// 'open' (models.ReportStatusOpen) is a literal so a prepared generic plan can match the partial indexes.
 	res := db.DB.
-		Where("(status <> ? AND resolved_at < ?) OR (status = ? AND created_at < ?)",
-			models.ReportStatusOpen, cutoff, models.ReportStatusOpen, cutoff).
+		Where("(status <> 'open' AND resolved_at < ?) OR (status = 'open' AND created_at < ?)", cutoff, cutoff).
 		Delete(&models.Report{})
 	if res.Error != nil {
 		return 0, fmt.Errorf("delete expired reports: %w", res.Error)

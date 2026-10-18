@@ -46,7 +46,7 @@ In the log channel:
 - A card replying to that copy with the reported user, the number of members who reported the message, the last reporter and their reason, and a link to the original message.
 - Further reports of the same message update the same card; a member reporting the same message twice is counted once.
 
-Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed. Reports are not included in `/export`.
+Every report is also saved in the database with its reporter, target, message ID, the first 100 characters of the message text, and its status, which the buttons above record; the full message lives only in the log channel. Closed reports are deleted 90 days after they were closed, and reports nobody closed are deleted 90 days after they were made. Reports are not included in `/export`.
 
 **Personal vs Group Settings:**
 - **In PM:** `/reports on/off` toggles whether YOU receive report notifications
