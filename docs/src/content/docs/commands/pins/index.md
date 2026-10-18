@@ -19,14 +19,11 @@ All the pin-related commands can be found here; keep your chat up to date on the
 × /unpinall: Unpins all pinned messages.
 × /antichannelpin <yes/no/on/off>: Don't let telegram auto-pin linked channels. If no arguments are given, show the current setting.
 × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel.
-Note: When using anti channel pins, make sure to use the /unpin command, instead of doing it manually. Otherwise, the old message will get re-pinned when the channel sends any messages.
 
 **Features:**
 
 **Anti-Channel Pin:**
 When enabled, the bot will automatically unpin any message that gets auto-pinned by a linked channel. This is useful when you want to maintain control over what gets pinned in your group.
-
-**Important:** When using anti channel pins, always use the `/unpin` command instead of unpinning manually through Telegram. Manual unpinning will cause the old message to get re-pinned when the channel sends new messages.
 
 **Clean Linked:**
 When enabled, the bot will automatically delete any messages sent to the group from the linked channel. This keeps your group chat clean from cross-posted channel content.
