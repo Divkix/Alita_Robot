@@ -2212,7 +2212,6 @@ disabling_notes_docs: |
   • <b>Contorno de Admin:</b> Comandos desativados afetam apenas usuários não-admin. Todos os admins ainda podem usar qualquer comando.
   • <b>Suporte a Conexão:</b> Comandos desativados ainda são acessíveis através do recurso <code>/connect</code> para chats conectados.
   • <b>Múltiplos Comandos:</b> Tanto <code>/disable</code> quanto <code>/enable</code> suportam múltiplos nomes de comando em uma única mensagem.
-  • <b>Tratamento de Erros:</b> Se alguns comandos falharem ao desativar/ativar, você será notificado sobre quais tiveram sucesso e quais falharam.
 
   <b>Permissões Necessárias:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Apenas admin

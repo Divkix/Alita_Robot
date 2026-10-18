@@ -2291,7 +2291,6 @@ disabling_notes_docs: |
   • <b>Admin Bypass:</b> Disabled commands only affect non-admin users. All admins can still use any command.
   • <b>Connection Support:</b> Disabled commands are still accessible through the <code>/connect</code> feature for connected chats.
   • <b>Multiple Commands:</b> Both <code>/disable</code> and <code>/enable</code> support multiple command names in a single message.
-  • <b>Error Handling:</b> If some commands fail to disable/enable, you'll be notified about which ones succeeded and which failed.
 
   <b>Required Permissions:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Admin only

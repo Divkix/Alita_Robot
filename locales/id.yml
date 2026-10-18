@@ -2241,7 +2241,6 @@ disabling_notes_docs: |
   • <b>Lewatkan Admin:</b> Perintah yang dinonaktifkan hanya memengaruhi pengguna non-admin. Semua admin masih dapat menggunakan perintah apa pun.
   • <b>Dukungan Koneksi:</b> Perintah yang dinonaktifkan masih dapat diakses melalui fitur <code>/connect</code> untuk obrolan yang terhubung.
   • <b>Banyak Perintah:</b> Baik <code>/disable</code> maupun <code>/enable</code> mendukung banyak nama perintah dalam satu pesan.
-  • <b>Penanganan Kesalahan:</b> Jika beberapa perintah gagal untuk dinonaktifkan/diaktifkan, Anda akan diberitahu mana yang berhasil dan mana yang gagal.
 
   <b>Izin yang Diperlukan:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Admin saja

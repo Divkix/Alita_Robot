@@ -1970,7 +1970,6 @@ disabling_notes_docs: |
   • <b>Contournement Admin :</b> Les commandes désactivées n'affectent que les utilisateurs non-admin. Tous les admins peuvent toujours utiliser n'importe quelle commande.
   • <b>Support Connexion :</b> Les commandes désactivées sont toujours accessibles via la fonctionnalité <code>/connect</code> pour les chats connectés.
   • <b>Commandes Multiples :</b> <code>/disable</code> et <code>/enable</code> supportent tous deux plusieurs noms de commandes dans un seul message.
-  • <b>Gestion d'Erreurs :</b> Si certaines commandes échouent à être désactivées/activées, vous serez notifié de celles qui ont réussi et celles qui ont échoué.
 
   <b>Permissions Requises :</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code> : Admin uniquement

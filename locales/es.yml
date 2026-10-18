@@ -2250,7 +2250,6 @@ disabling_notes_docs: |
   • <b>Bypass de admin:</b> Los comandos deshabilitados solo afectan a usuarios no admins. Todos los admins aún pueden usar cualquier comando.
   • <b>Soporte de conexión:</b> Los comandos deshabilitados siguen siendo accesibles mediante la función <code>/connect</code> para chats conectados.
   • <b>Comandos múltiples:</b> Tanto <code>/disable</code> como <code>/enable</code> admiten múltiples nombres de comando en un solo mensaje.
-  • <b>Manejo de errores:</b> Si algunos comandos no se pueden deshabilitar/habilitar, se te notificará cuáles se lograron y cuáles fallaron.
 
   <b>Permisos requeridos:</b>
   • <code>/disable</code>, <code>/enable</code>, <code>/disabledel</code>: Solo admins
