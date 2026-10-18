@@ -1429,8 +1429,8 @@ pins_antichannelpin_enabled: "<b>सक्षम</b> एंटी चैनल �
 pins_antichannelpin_disabled: "<b>अक्षम</b> एंटी चैनल पिन। चैनल से स्वचालित पिन हटाए नहीं जाएंगे।"
 pins_antichannelpin_current_enabled: "%s में एंटी-चैनल पिन वर्तमान में <b>सक्षम</b> हैं। टेलीग्राम द्वारा स्वचालित रूप से पिन किए गए सभी चैनल पोस्ट पिछले पिन से बदल दिए जाएंगे।"
 pins_antichannelpin_current_disabled: "%s में एंटी-चैनल पिन वर्तमान में <b>अक्षम</b> हैं।"
-pins_cleanlinked_enabled: "लॉग में लिंक किए गए चैनल पोस्ट विलोपन <b>सक्षम</b>। लिंक किए गए चैनल से भेजे गए संदेश हटा दिए जाएंगे।"
-pins_cleanlinked_disabled: "लॉग में लिंक किए गए चैनल पोस्ट विलोपन <b>अक्षम</b>।"
+pins_cleanlinked_enabled: "लिंक किए गए चैनल पोस्ट विलोपन <b>सक्षम</b>। लिंक किए गए चैनल से भेजे गए संदेश हटा दिए जाएंगे।"
+pins_cleanlinked_disabled: "लिंक किए गए चैनल पोस्ट विलोपन <b>अक्षम</b>।"
 pins_cleanlinked_current_enabled: "%s में लिंक किए गए चैनल पोस्ट विलोपन वर्तमान में <b>सक्षम</b> है। लिंक किए गए चैनल से भेजे गए संदेश हटा दिए जाएंगे"
 pins_cleanlinked_current_disabled: "%s में लिंक किए गए चैनल पोस्ट विलोपन वर्तमान में <b>अक्षम</b> है।"
 pins_no_pinned_message: वर्तमान चैट में कोई संदेश पिन नहीं किया गया है!

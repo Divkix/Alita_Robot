@@ -1211,8 +1211,8 @@ pins_antichannelpin_enabled: <b>Habilitados</b> los pines anti canal. Los pines 
 pins_antichannelpin_disabled: <b>Deshabilitados</b> los pines anti canal. Los pines automáticos de un canal no serán eliminados.
 pins_antichannelpin_current_enabled: Los pines anti-canal están actualmente <b>habilitados</b> en %s. Todas las publicaciones del canal que sean auto-ancladas por telegram serán reemplazadas con el pin anterior.
 pins_antichannelpin_current_disabled: Los pines anti-canal están actualmente <b>deshabilitados</b> en %s.
-pins_cleanlinked_enabled: <b>Habilitada</b> la eliminación de publicaciones del canal vinculado en Logs. Los mensajes enviados desde el canal vinculado serán eliminados.
-pins_cleanlinked_disabled: <b>Deshabilitada</b> la eliminación de publicaciones del canal vinculado en Logs.
+pins_cleanlinked_enabled: <b>Habilitada</b> la eliminación de publicaciones del canal vinculado. Los mensajes enviados desde el canal vinculado serán eliminados.
+pins_cleanlinked_disabled: <b>Deshabilitada</b> la eliminación de publicaciones del canal vinculado.
 pins_cleanlinked_current_enabled: La eliminación de publicaciones del canal vinculado está actualmente <b>habilitada</b> en %s. Los mensajes enviados desde el canal vinculado serán eliminados
 pins_cleanlinked_current_disabled: La eliminación de publicaciones del canal vinculado está actualmente <b>deshabilitada</b> en %s.
 pins_no_pinned_message: ¡No se ha anclado ningún mensaje en el chat actual!

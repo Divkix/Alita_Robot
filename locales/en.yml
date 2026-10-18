@@ -1248,8 +1248,8 @@ pins_antichannelpin_enabled: <b>Enabled</b> anti channel pins. Automatic pins fr
 pins_antichannelpin_disabled: <b>Disabled</b> anti channel pins. Automatic pins from a channel will not be removed.
 pins_antichannelpin_current_enabled: Anti-Channel pins are currently <b>enabled</b> in %s. All channel posts that get auto-pinned by telegram will be replaced with the previous pin.
 pins_antichannelpin_current_disabled: Anti-Channel pins are currently <b>disabled</b> in %s.
-pins_cleanlinked_enabled: <b>Enabled</b> linked channel post deletion in Logs. Messages sent from the linked channel will be deleted.
-pins_cleanlinked_disabled: <b>Disabled</b> linked channel post deletion in Logs.
+pins_cleanlinked_enabled: <b>Enabled</b> linked channel post deletion. Messages sent from the linked channel will be deleted.
+pins_cleanlinked_disabled: <b>Disabled</b> linked channel post deletion.
 pins_cleanlinked_current_enabled: Linked channel post deletion is currently <b>enabled</b> in %s. Messages sent from the linked channel will be deleted
 pins_cleanlinked_current_disabled: Linked channel post deletion is currently <b>disabled</b> in %s.
 pins_no_pinned_message: No message has been pinned in the current chat!

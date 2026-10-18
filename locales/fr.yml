@@ -1316,8 +1316,8 @@ pins_antichannelpin_enabled: <b>Activé</b> les anti-épingles de chaîne. Les �
 pins_antichannelpin_disabled: <b>Désactivé</b> les anti-épingles de chaîne. Les épingles automatiques d'une chaîne ne seront pas supprimés.
 pins_antichannelpin_current_enabled: Les anti-épingles de chaîne sont actuellement <b>actives</b> dans %s. Toutes les publications de chaîne qui sont auto-épinglées par Telegram seront remplacées par l'épingle précédent.
 pins_antichannelpin_current_disabled: Les anti-épingles de chaîne sont actuellement <b>désactivées</b> dans %s.
-pins_cleanlinked_enabled: <b>Activé</b> la suppression des publications de chaîne liée dans les Logs. Les messages envoyés par la chaîne liée seront supprimés.
-pins_cleanlinked_disabled: <b>Désactivé</b> la suppression des publications de chaîne liée dans les Logs.
+pins_cleanlinked_enabled: <b>Activé</b> la suppression des publications de chaîne liée. Les messages envoyés par la chaîne liée seront supprimés.
+pins_cleanlinked_disabled: <b>Désactivé</b> la suppression des publications de chaîne liée.
 pins_cleanlinked_current_enabled: La suppression des publications de chaîne liée est actuellement <b>activée</b> dans %s. Les messages envoyés par la chaîne liée seront supprimés.
 pins_cleanlinked_current_disabled: La suppression des publications de chaîne liée est actuellement <b>désactivée</b> dans %s.
 pins_no_pinned_message: Aucun message n'a été épinglé dans ce chat !

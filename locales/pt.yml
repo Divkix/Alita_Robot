@@ -1171,8 +1171,8 @@ pins_antichannelpin_enabled: <b>Ativado</b> anti channel pins. Pins automáticos
 pins_antichannelpin_disabled: <b>Desativado</b> anti channel pins. Pins automáticos de um canal não serão removidos.
 pins_antichannelpin_current_enabled: "Anti-Channel pins estão atualmente <b>ativados</b> em %s. Todos os posts de canal que são auto-fixados pelo telegram serão substituídos pelo pin anterior."
 pins_antichannelpin_current_disabled: "Anti-Channel pins estão atualmente <b>desativados</b> em %s."
-pins_cleanlinked_enabled: <b>Ativado</b> exclusão de posts de canal vinculado em Logs. Mensagens enviadas do canal vinculado serão deletadas.
-pins_cleanlinked_disabled: <b>Desativado</b> exclusão de posts de canal vinculado em Logs.
+pins_cleanlinked_enabled: <b>Ativado</b> exclusão de posts de canal vinculado. Mensagens enviadas do canal vinculado serão deletadas.
+pins_cleanlinked_disabled: <b>Desativado</b> exclusão de posts de canal vinculado.
 pins_cleanlinked_current_enabled: "Exclusão de posts de canal vinculado está atualmente <b>ativada</b> em %s. Mensagens enviadas do canal vinculado serão deletadas"
 pins_cleanlinked_current_disabled: "Exclusão de posts de canal vinculado está atualmente <b>desativada</b> em %s."
 pins_no_pinned_message: Nenhuma mensagem foi fixada no chat atual!

@@ -1201,8 +1201,8 @@ pins_antichannelpin_enabled: <b>Diaktifkan</b> pin anti kanal. Pin otomatis dari
 pins_antichannelpin_disabled: <b>Dinonaktifkan</b> pin anti kanal. Pin otomatis dari kanal tidak akan dihapus.
 pins_antichannelpin_current_enabled: Pin Anti-Kanal saat ini <b>diaktifkan</b> di %s. Semua posting kanal yang dipin secara otomatis oleh telegram akan diganti dengan pin sebelumnya.
 pins_antichannelpin_current_disabled: Pin Anti-Kanal saat ini <b>dinonaktifkan</b> di %s.
-pins_cleanlinked_enabled: <b>Diaktifkan</b> penghapusan posting kanal yang terhubung di Log. Pesan yang dikirim dari kanal yang terhubung akan dihapus.
-pins_cleanlinked_disabled: <b>Dinonaktifkan</b> penghapusan posting kanal yang terhubung di Log.
+pins_cleanlinked_enabled: <b>Diaktifkan</b> penghapusan posting kanal yang terhubung. Pesan yang dikirim dari kanal yang terhubung akan dihapus.
+pins_cleanlinked_disabled: <b>Dinonaktifkan</b> penghapusan posting kanal yang terhubung.
 pins_cleanlinked_current_enabled: Penghapusan posting kanal yang terhubung saat ini <b>diaktifkan</b> di %s. Pesan yang dikirim dari kanal yang terhubung akan dihapus
 pins_cleanlinked_current_disabled: Penghapusan posting kanal yang terhubung saat ini <b>dinonaktifkan</b> di %s.
 pins_no_pinned_message: Tidak ada pesan yang disematkan di obrolan saat ini!
