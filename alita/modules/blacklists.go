@@ -504,8 +504,11 @@ func (m moduleStruct) blacklistWatcher(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	reason := matched.Reason
-	if reason == "" {
-		reason = "Blacklisted word: '%s'"
+	if reason == "" || reason == models.DefaultBlacklistReason {
+		reason = models.DefaultBlacklistReason
+		if translated, _ := tr.GetString("db_blacklist_default_reason"); translated != "" {
+			reason = translated
+		}
 	}
 
 	_ = helpers.DeleteMessageWithErrorHandling(b, chat.Id, msg.MessageId)

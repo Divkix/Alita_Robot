@@ -34,7 +34,7 @@ func AddBlacklist(chatId int64, trigger string) error {
 		ChatId: chatId,
 		Word:   strings.ToLower(trigger),
 		Action: action,
-		Reason: "Blacklisted word: '%s'",
+		Reason: models.DefaultBlacklistReason,
 	}
 
 	err := db.CreateRecord(blacklist)

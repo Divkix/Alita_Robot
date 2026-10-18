@@ -50,11 +50,16 @@ func (bss BlacklistSettingsSlice) Find(trigger string) *BlacklistSettings {
 	return nil
 }
 
+// DefaultBlacklistReason is the reason stored with every new blacklist word.
+// It stays English in the database so older rows, backups and older releases
+// keep working; the watcher shows the chat's translation of it instead.
+const DefaultBlacklistReason = "Blacklisted word: '%s'"
+
 func (bss BlacklistSettingsSlice) Reason() string {
 	if len(bss) > 0 && bss[0].Reason != "" {
 		return bss[0].Reason
 	}
-	return "Blacklisted word: '%s'"
+	return DefaultBlacklistReason
 }
 
 func (BlacklistSettings) TableName() string {

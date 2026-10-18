@@ -673,15 +673,14 @@ func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
 // sit in the locale's "due to" slot and the user in the other one. hi.yml
 // once had the two swapped for ban, kick and mute.
 func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
-	const reason = "Blacklisted word: 'spam'"
-	reasonSlot := map[string]func(action string) string{
-		"en": func(string) string { return "due to " + reason },
-		"es": func(string) string { return "debido a " + reason },
-		"fr": func(string) string { return "à cause de " + reason },
-		"id": func(string) string { return "karena " + reason },
-		"pt": func(string) string { return "devido a " + reason },
-		"ru": func(string) string { return "из-за " + reason },
-		"hi": func(action string) string {
+	reasonSlot := map[string]func(reason, action string) string{
+		"en": func(reason, _ string) string { return "due to " + reason },
+		"es": func(reason, _ string) string { return "debido a " + reason },
+		"fr": func(reason, _ string) string { return "à cause de " + reason },
+		"id": func(reason, _ string) string { return "karena " + reason },
+		"pt": func(reason, _ string) string { return "devido a " + reason },
+		"ru": func(reason, _ string) string { return "из-за " + reason },
+		"hi": func(reason, action string) string {
 			if action == "tban" || action == "tmute" {
 				return "कारण: " + reason
 			}
@@ -719,6 +718,12 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 	member := gotgbot.User{Id: 42, FirstName: "Member"}
 	mention := formatting.MentionHtml(member.Id, member.FirstName)
 	for code, slot := range reasonSlot {
+		// The default reason is shown in the chat's language.
+		reasonTemplate, err := i18n.MustNewTranslator(code).GetString("db_blacklist_default_reason")
+		if err != nil || reasonTemplate == "" {
+			t.Fatalf("%s db_blacklist_default_reason missing: %v", code, err)
+		}
+		reason := fmt.Sprintf(reasonTemplate, "spam")
 		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute"} {
 			t.Run(code+"/"+action, func(t *testing.T) {
 				client := newModuleBotClient()
@@ -743,8 +748,8 @@ func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
 					t.Fatalf("sendMessage calls = %d, want one notice", len(notices))
 				}
 				text := fmt.Sprint(notices[0].Params["text"])
-				if !strings.Contains(text, slot(action)) {
-					t.Fatalf("notice = %q, want the reason in its slot %q", text, slot(action))
+				if want := slot(reason, action); !strings.Contains(text, want) {
+					t.Fatalf("notice = %q, want the reason in its slot %q", text, want)
 				}
 				if !strings.Contains(text, mention) {
 					t.Fatalf("notice = %q, want user mention %q", text, mention)
