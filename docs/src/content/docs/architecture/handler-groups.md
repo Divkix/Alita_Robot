@@ -16,7 +16,7 @@ This page documents every registered message watcher with its exact handler grou
 | -10 | Captcha | `handlePendingCaptchaMessage` | nil (all messages) | `EndGroups` | Intercepts messages from users with pending captcha; stores and deletes message |
 | -5 | AntiRaid | `onJoin` | Message with `new_chat_members` | `ContinueGroups` (always) | While raid mode is on (or once the auto-antiraid join threshold is reached, which turns it on), temp-bans each new joiner for the raid action time; skips the bot, admins and approved users; does nothing if the bot cannot restrict |
 | -2 | BotUpdates | `adminCacheAutoUpdate` | MyChatMember (bot's own admin status change) | `ContinueGroups` | Invalidates and reloads the admin cache when the bot is promoted or demoted |
-| -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` for private chats and basic groups, `ContinueGroups` for supergroups | Early interceptor for bot group joins; leaves non-supergroups |
+| -1 | BotUpdates | `botJoinedGroup` | MyChatMember (bot joined) | `EndGroups` for private chats, basic groups and channels (it leaves the last two), `ContinueGroups` for supergroups | Early interceptor for bot group joins; leaves non-supergroups |
 | -1 | Users | `logUsers` | `message.All` | `ContinueGroups` | Logs user activity; never blocks propagation |
 | 0 | All modules | Commands, callbacks | Various | varies | Default group; standard command handlers |
 | 3 | AISpam | `checkAISpam` | `message.All` | `ContinueGroups` (always) | Opt-in AI spam filter; enqueues a check and never blocks propagation |
