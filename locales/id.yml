@@ -1,4 +1,3 @@
-lang_sample: "Bahasa Indonesia"
 language_flag: "🇮🇩"
 language_name: "Bahasa Indonesia"
 admin_adminlist: "Admin di <b>%s</b>:"
@@ -195,7 +194,6 @@ bans_kick_user_not_in_chat:
   membatasi mereka?"
 bans_kickme_is_admin: Anda adalah admin, dan Anda terjebak di sini bersama orang lain!
 bans_kickme_ok_out: Sesuai keinginan Anda, Keluar!
-bans_unban_is_admin: Mengapa saya membuka blokir admin?
 bans_unban_is_bot_itself: Mengapa saya membuka pembatasan diri saya sendiri ketika saya sudah di sini?
 bans_unban_unbanned_user: "Mari berikan dia kesempatan lain.
 
@@ -897,10 +895,6 @@ rules_help_msg:
   × /resetrulesbtn: Sama seperti di atas."
 bot_updates_creators_plug: "\nIkuti @DivideProjects untuk bot yang lebih berguna dari kreator saya."
 bot_updates_make_me_admin: "\n\nJadikan saya admin agar semua fitur saya bisa digunakan!"
-utils_string_handling_extract_time_invalid_time_amount: Jumlah waktu yang ditentukan tidak valid.
-utils_string_handling_extract_time_invalid_time_type:
-  "Tipe waktu yang ditentukan tidak valid.
-  Diharapkan m, h, atau d mendapatkan: %s"
 warns_help_msg:
   "Jaga anggota Anda dengan peringatan; hentikan mereka keluar dari
   kendali!
@@ -1120,7 +1114,6 @@ warns_limit_banned: "Itu %d/%d peringatan; Jadi %s telah diblokir!"
 warns_limit_tbanned: "Itu %d/%d peringatan; Jadi %s telah diblokir selama %s!"
 warns_limit_tmuted: "Itu %d/%d peringatan; Jadi %s telah dibisukan selama %s!"
 warns_remove_button: ❌ Hapus peringatan
-warns_rules_button: Aturan 📝
 warns_user_warning: "Pengguna %s punya %d/%d peringatan; hati-hati!"
 warns_warning_reason: "\n<b>Alasan</b>:\n%s"
 warns_settings_display: "Grup memiliki pengaturan berikut:\n<b>Batas Peringatan:</b> <code>%d</code>\n<b>Mode Peringatan:</b> <code>%s</code>\n<b>Masa Berlaku Peringatan:</b> <code>%s</code>"
@@ -1165,7 +1158,6 @@ locks_bot_lock_no_ban_permission: Saya melihat bot, dan saya diminta untuk mengh
 locks_bot_only_admins: Hanya admin dan pengguna yang disetujui yang diizinkan untuk menambahkan bot ke obrolan ini!
 
 # Pins module strings
-pins_unpin_not_pinned: Pesan yang dibalas bukan pesan yang disematkan.
 pins_unpinned_message: Melepas pin pesan ini.
 pins_unpinned_last: Melepas pin pesan terakhir yang disematkan.
 pins_unpin_all_confirm: Apakah Anda yakin ingin melepas pin semua pesan yang disematkan?
@@ -1372,7 +1364,6 @@ notes_private_status_off: "Private Notes saat ini dimatikan!"
 notes_none_in_chat: "Tidak ada catatan di obrolan ini!"
 notes_list_for_chat: "Ini adalah catatan saat ini di <b>%s</b>:"
 notes_check_button: "Periksa tombol di bawah untuk mendapatkan Catatan!"
-notes_click_me_btn: "Klik Saya!"
 notes_current_in_chat: "Ini adalah catatan saat ini di Obrolan ini:\n"
 notes_get_instruction: "\nAnda dapat mendapatkan catatan dengan <code>#namacatatan</code> atau <code>/get namacatatan</code>"
 notes_clear_all_confirm: "Apakah Anda yakin ingin menghapus semua Catatan dari obrolan ini?"
@@ -1413,7 +1404,6 @@ filters_overwrite_expired: "⏰ Konfirmasi kedaluwarsa! Silakan coba lagi."
 
 # Helpers module strings
 helpers_back_button: "« Kembali"
-helpers_connection_success: "Anda telah terhubung ke %s!"
 helpers_note_not_exist: "Catatan ini tidak ada!"
 helpers_note_admin_only: "Catatan ini hanya dapat diakses oleh admin!"
 helpers_connected_to_chat: "Anda telah terhubung ke %s!"
@@ -1487,7 +1477,6 @@ chat_status_anon_prove_admin: "Klik untuk membuktikan admin"
 extraction_chat_not_found: "gagal terhubung ke obrolan: gagal mendapatkan obrolan: tidak dapat getChat: Bad Request: obrolan tidak ditemukan"
 extraction_need_chat_id: "Saya butuh id obrolan untuk terhubung!"
 extraction_user_not_found: "Tidak dapat menemukan pengguna dengan nama ini; apakah Anda yakin saya pernah melihat mereka sebelumnya?"
-extraction_get_chat_member_failed: "Gagal mendapatkan pengguna: tidak dapat getChatMember: Bad Request: obrolan tidak ditemukan"
 extraction_invalid_time_amount: "Jumlah waktu yang ditentukan tidak valid."
 extraction_time_limit_exceeded: "Tidak dapat mengatur waktu lebih dari 1 tahun!"
 extraction_no_time_specified: "Silakan tentukan durasi waktu (mis., 1m, 1h, 1d, 1w)."
@@ -1547,9 +1536,6 @@ helpers_chat_not_found: "Tidak dapat menemukan obrolan tersebut. Obrolan mungkin
 # Formatting strings
 format_user_info: "Pengguna: %s"
 format_user_id: "ID Pengguna: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # System messages
 system_safety_shutdown: "manajer keselamatan sedang mematikan"

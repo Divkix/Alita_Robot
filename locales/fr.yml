@@ -1,6 +1,5 @@
 # French locale for Alita Robot
 # Language metadata
-lang_sample: Bonjour, je suis un bot de gestion de groupe
 language_flag: 🇫🇷
 language_name: Français
 
@@ -187,7 +186,6 @@ bans_kick_user_not_in_chat:
   le restreindre ?
 bans_kickme_is_admin: Vous êtes admin, et vous êtes coincé ici avec tout le monde !
 bans_kickme_ok_out: Comme vous le souhaitez, dehors !
-bans_unban_is_admin: Pourquoi débannirais-je un admin ?
 bans_unban_is_bot_itself: Pourquoi me dé-restreindre moi-même quand je suis déjà là ?
 bans_unban_unbanned_user: "Donnons-lui une autre chance.
 
@@ -334,7 +332,6 @@ warns_limit_banned: "Ça fait %d/%d avertissements ; Donc %s a été banni !"
 warns_limit_tbanned: "Ça fait %d/%d avertissements ; Donc %s a été banni pour %s !"
 warns_limit_tmuted: "Ça fait %d/%d avertissements ; Donc %s a été rendu muet pour %s !"
 warns_remove_button: ❌ Supprimer l'avertissement
-warns_rules_button: Règles 📝
 warns_user_warning: "L'utilisateur %s a %d/%d avertissements ; attention !"
 warns_warning_reason: "\n<b>Raison</b> :\n%s"
 warns_settings_display: "Le groupe a les paramètres suivants :\n<b>Limite d'avertissements :</b> <code>%d</code>\n<b>Mode d'avertissement :</b> <code>%s</code>\n<b>Expiration des avertissements :</b> <code>%s</code>"
@@ -762,7 +759,6 @@ notes_private_status_off: "Les notes privées sont actuellement désactivées !"
 notes_none_in_chat: "Il n'y a pas de notes dans ce chat !"
 notes_list_for_chat: "Voici les notes actuelles dans <b>%s</b> :"
 notes_check_button: "Cliquez sur le bouton ci-dessous pour obtenir les notes !"
-notes_click_me_btn: "Cliquez-moi !"
 notes_current_in_chat: "Voici les notes actuelles dans ce chat :\n"
 notes_get_instruction: "\nVous pouvez obtenir une note avec <code>#nom_note</code> ou <code>/get nom_note</code>"
 notes_clear_all_confirm: "Êtes-vous sûr de vouloir supprimer toutes les notes de ce chat ?"
@@ -1015,10 +1011,6 @@ locks_bot_only_admins: Seuls les admins et les utilisateurs approuvés sont auto
 # Utils chat status strings
 
 # Utils extraction strings
-utils_string_handling_extract_time_invalid_time_amount: Quantité de temps invalide spécifiée.
-utils_string_handling_extract_time_invalid_time_type:
-  "Type de temps invalide spécifié.
-  Attendu m, h, ou d obtenu : %s"
 
 # Chat status permission strings
 chat_status_change_info_button_error: "Vous n'avez pas les permissions pour modifier les informations !!"
@@ -1051,7 +1043,6 @@ chat_status_anon_prove_admin: "Cliquez pour prouver que vous êtes admin"
 extraction_chat_not_found: "échec de la connexion au chat : échec de l'obtention du chat : impossible de getChat : Bad Request : chat introuvable"
 extraction_need_chat_id: "J'ai besoin d'un ID de chat pour me connecter !"
 extraction_user_not_found: "Impossible de trouver un utilisateur avec ce nom ; êtes-vous sûr que je l'ai déjà vu ?"
-extraction_get_chat_member_failed: "Échec de l'obtention de l'utilisateur : impossible de getChatMember : Bad Request : chat introuvable"
 extraction_invalid_time_amount: "Quantité de temps invalide spécifiée."
 extraction_time_limit_exceeded: "Impossible de définir un temps supérieur à 1 an !"
 extraction_no_time_specified: "Veuillez spécifier une durée (ex. 1m, 1h, 1d, 1w)."
@@ -1256,7 +1247,6 @@ pins_help_msg:
   Si aucun argument n'est donné, affiche le paramètre actuel.
 
   × /cleanlinked <yes/no/on/off> : Supprimez les messages envoyés par la chaîne liée."
-pins_unpin_not_pinned: Le message en réponse n'est pas un message épinglé.
 pins_unpinned_message: Message désépinglé.
 pins_unpinned_last: Dernier message épinglé désépinglé.
 pins_unpin_all_confirm: Êtes-vous sûr de vouloir désépingler tous les messages épinglés ?
@@ -1447,7 +1437,6 @@ helpers_module_help_header: "Voici l'aide pour le module *%s* :\n\n"
 helpers_invalid_deep_link: "Lien profond invalide ou mal formé. Veuillez vérifier l'URL et réessayer."
 helpers_chat_not_found: "Impossible de trouver ce chat. Il n'existe peut-être plus ou je n'y ai pas accès."
 helpers_back_button: "« Retour"
-helpers_connection_success: "Vous avez été connecté à %s !"
 helpers_note_not_exist: "Cette note n'existe pas !"
 helpers_note_admin_only: "Cette note ne peut être consultée que par un administrateur !"
 helpers_connected_to_chat: "Vous avez été connecté à %s !"
@@ -1457,9 +1446,6 @@ helpers_notes_current_header: "Voici les notes actuelles dans ce chat :\n"
 # Formatting strings
 format_user_info: "Utilisateur : %s"
 format_user_id: "ID utilisateur : %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # System messages
 system_safety_shutdown: "le gestionnaire de sécurité est en cours d'arrêt"

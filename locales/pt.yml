@@ -1,6 +1,5 @@
 # Portuguese (Brazilian) Translation for Alita Robot
 
-lang_sample: "Português"
 language_flag: "🇵🇹"
 language_name: "Português"
 
@@ -188,7 +187,6 @@ bans_kick_user_not_in_chat:
   restringi-lo?
 bans_kickme_is_admin: Você é administrador, e está preso aqui com todo mundo!
 bans_kickme_ok_out: Como você desejou, sai fora!
-bans_unban_is_admin: Por que eu desbaniria um administrador?
 bans_unban_is_bot_itself: Por que eu desbaniria a mim mesma quando já estou aqui?
 bans_unban_unbanned_user: "Vamos dar a ele outra chance.
 
@@ -869,8 +867,6 @@ rules_help_msg:
   × /resetrulesbtn: Mesmo que acima."
 bot_updates_creators_plug: "\nSiga @DivideProjects para mais bots úteis de meus criadores."
 bot_updates_make_me_admin: "\n\nTorne-me administrador para usar todos os meus recursos!"
-utils_string_handling_extract_time_invalid_time_amount: Quantidade de tempo inválida especificada.
-utils_string_handling_extract_time_invalid_time_type: "Tipo de tempo inválido especificado. Esperado m, h, ou d obtido: %s"
 warns_help_msg:
   "Mantenha seus membros em cheque com avisos; pare que saiam de
   controle!
@@ -1090,7 +1086,6 @@ warns_limit_banned: "Isso é %d/%d avisos; Então %s foi banido!"
 warns_limit_tbanned: "Isso é %d/%d avisos; Então %s foi banido por %s!"
 warns_limit_tmuted: "Isso é %d/%d avisos; Então %s foi mutado por %s!"
 warns_remove_button: ❌ Remover aviso
-warns_rules_button: Regras 📝
 warns_user_warning: "Usuário %s tem %d/%d avisos; cuidado!"
 warns_warning_reason: "\n<b>Motivo</b>:\n%s"
 warns_settings_display: "O grupo tem as seguintes configurações:\n<b>Limite de Avisos:</b> <code>%d</code>\n<b>Modo de Aviso:</b> <code>%s</code>\n<b>Validade dos Avisos:</b> <code>%s</code>"
@@ -1135,7 +1130,6 @@ locks_bot_lock_no_ban_permission: Eu vejo um bot, e fui instruída para impedi-l
 locks_bot_only_admins: Apenas admins e usuários aprovados podem adicionar bots a este chat!
 
 # Pins module strings
-pins_unpin_not_pinned: Mensagem respondida não é uma mensagem fixada.
 pins_unpinned_message: Desfixei esta mensagem.
 pins_unpinned_last: Desfixei a última mensagem fixada.
 pins_unpin_all_confirm: Tem certeza que deseja desfixar todas as mensagens fixadas?
@@ -1342,7 +1336,6 @@ notes_private_status_off: "Notas Privadas estão atualmente desativadas!"
 notes_none_in_chat: "Não há notas neste chat!"
 notes_list_for_chat: "Estas são as notas atuais em <b>%s</b>:"
 notes_check_button: "Verifique no botão abaixo para obter Notas!"
-notes_click_me_btn: "Clique em Mim!"
 notes_current_in_chat: "Estas são as notas atuais neste Chat:\n"
 notes_get_instruction: "\nVocê pode obter uma nota por <code>#notename</code> ou <code>/get notename</code>"
 notes_clear_all_confirm: "Tem certeza que deseja remover todas as Notas deste chat?"
@@ -1383,7 +1376,6 @@ filters_overwrite_expired: "⏰ Confirmação expirou! Tente novamente."
 
 # Helpers module strings
 helpers_back_button: "« Voltar"
-helpers_connection_success: "Você foi conectado a %s!"
 helpers_note_not_exist: "Esta nota não existe!"
 helpers_note_admin_only: "Esta nota só pode ser acessada por um admin!"
 helpers_connected_to_chat: "Você foi conectado a %s!"
@@ -1455,7 +1447,6 @@ chat_status_anon_prove_admin: "Clique para provar admin"
 extraction_chat_not_found: "falha ao conectar ao chat: falha ao obter chat: unable to getChat: Bad Request: chat not found"
 extraction_need_chat_id: "Eu preciso de um chat id para conectar!"
 extraction_user_not_found: "Não consegui encontrar um usuário com este nome; você tem certeza que o viu antes?"
-extraction_get_chat_member_failed: "Falha ao obter usuário: unable to getChatMember: Bad Request: chat not found"
 extraction_invalid_time_amount: "Quantidade de tempo inválida especificada."
 extraction_time_limit_exceeded: "Não é possível definir tempo para mais de 1 ano!"
 extraction_no_time_specified: "Por favor especifique uma duração de tempo (ex., 1m, 1h, 1d, 1w)."
@@ -1515,9 +1506,6 @@ helpers_chat_not_found: "Não consegui encontrar esse chat. Ele pode não existi
 # Formatting strings
 format_user_info: "Usuário: %s"
 format_user_id: "ID do Usuário: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # System messages
 system_safety_shutdown: "gerenciador de segurança está desligando"

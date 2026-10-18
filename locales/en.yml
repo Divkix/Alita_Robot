@@ -234,7 +234,6 @@ bans_kick_user_not_in_chat:
   restrict them?
 bans_kickme_is_admin: You are an admin, and you are stuck here with everyone else!
 bans_kickme_ok_out: As per your wish, Get out!
-bans_unban_is_admin: Why would I unban an admin?
 bans_unban_is_bot_itself: Why would I un-restrict myself when I'm already here?
 bans_unban_unbanned_user: "Let's give him another chance.
 
@@ -712,7 +711,6 @@ help_donatetext: "So you want to donate? Amazing!
   All the funds would be put into my services such as database, storage, and hosting!
 
   You can donate by contacting my owner here: @DivideProjectsBot"
-lang_sample: US English
 language_flag: 🇺🇸
 language_name: English
 help_help_msg:
@@ -944,10 +942,6 @@ rules_help_msg:
   × /resetrulesbtn: Same as above."
 bot_updates_creators_plug: "\nFollow @DivideProjects for more useful bots from my creators."
 bot_updates_make_me_admin: "\n\nMake me admin to use me with my full abilities!"
-utils_string_handling_extract_time_invalid_time_amount: Invalid time amount specified.
-utils_string_handling_extract_time_invalid_time_type:
-  "Invalid time type specified.
-  Expected m, h, or d got: %s"
 warns_help_msg:
   "Keep your members in check with warnings; stop them getting out of
   control!
@@ -1167,7 +1161,6 @@ warns_limit_banned: "That's %d/%d warnings; So %s has been banned!"
 warns_limit_tbanned: "That's %d/%d warnings; So %s has been banned for %s!"
 warns_limit_tmuted: "That's %d/%d warnings; So %s has been muted for %s!"
 warns_remove_button: ❌ Remove warn
-warns_rules_button: Rules 📝
 warns_user_warning: "User %s has %d/%d warnings; be careful!"
 warns_warning_reason: "\n<b>Reason</b>:\n%s"
 warns_settings_display: "The group has the following settings:\n<b>Warn Limit:</b> <code>%d</code>\n<b>Warn Mode:</b> <code>%s</code>\n<b>Warn Expiry:</b> <code>%s</code>"
@@ -1212,7 +1205,6 @@ locks_bot_lock_no_ban_permission: I see a bot, and I've been told to stop them j
 locks_bot_only_admins: Only admins and approved users are allowed to add bots to this chat!
 
 # Pins module strings
-pins_unpin_not_pinned: Replied message is not a pinned message.
 pins_unpinned_message: Unpinned this message.
 pins_unpinned_last: Unpinned the last pinned message.
 pins_unpin_all_confirm: Are you sure you want to unpin all pinned messages?
@@ -1419,7 +1411,6 @@ notes_private_status_off: "Private Notes are currently turned off!"
 notes_none_in_chat: "There are no notes in this chat!"
 notes_list_for_chat: "These are the current notes in <b>%s</b>:"
 notes_check_button: "Check on the button below to get Notes!"
-notes_click_me_btn: "Click Me!"
 notes_current_in_chat: "These are the current notes in this Chat:\n"
 notes_get_instruction: "\nYou can get a note by <code>#notename</code> or <code>/get notename</code>"
 notes_clear_all_confirm: "Are you sure you want to remove all Notes from this chat?"
@@ -1460,7 +1451,6 @@ filters_overwrite_expired: "⏰ Confirmation expired! Please try again."
 
 # Helpers module strings
 helpers_back_button: "« Back"
-helpers_connection_success: "You have been connected to %s!"
 helpers_note_not_exist: "This note does not exist!"
 helpers_note_admin_only: "This note can only be accessed by a admin!"
 helpers_connected_to_chat: "You have been connected to %s!"
@@ -1534,7 +1524,6 @@ chat_status_anon_prove_admin: "Click to prove admin"
 extraction_chat_not_found: "failed to connect to chat: failed to get chat: unable to getChat: Bad Request: chat not found"
 extraction_need_chat_id: "I need a chat id to connect to!"
 extraction_user_not_found: "Could not find a user by this name; are you sure I've seen them before?"
-extraction_get_chat_member_failed: "Failed to get user: unable to getChatMember: Bad Request: chat not found"
 extraction_invalid_time_amount: "Invalid time amount specified."
 extraction_time_limit_exceeded: "Cannot set time to more than 1 year!"
 extraction_no_time_specified: "Please specify a time duration (e.g., 1m, 1h, 1d, 1w)."
@@ -1594,9 +1583,6 @@ helpers_chat_not_found: "Could not find that chat. It may no longer exist or I m
 # Formatting strings
 format_user_info: "User: %s"
 format_user_id: "User ID: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # System messages
 system_safety_shutdown: "safety manager is shutting down"

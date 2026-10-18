@@ -66,10 +66,6 @@ admin_notes_docs: |
 
 # Utils/Chat Status strings
 
-# Utils/Extraction strings
-utils_string_handling_extract_time_invalid_time_amount: अमान्य समय राशि निर्दिष्ट।
-utils_string_handling_extract_time_invalid_time_type: "अमान्य समय प्रकार निर्दिष्ट। अपेक्षित m, h, या d मिला: %s"
-
 # Common error strings
 common_anonymous_user_error: इस कमांड का उपयोग गुमनाम उपयोगकर्ता पर नहीं किया जा सकता।
 common_cannot_identify_user: उपयोगकर्ता की पहचान नहीं हो सकी। इस कमांड का उपयोग चैनलों द्वारा नहीं किया जा सकता।
@@ -104,7 +100,6 @@ common_rules_button_emoji: "नियम 📝"
 
 # Helpers strings
 helpers_back_button: "« वापस"
-helpers_connection_success: "आप %s से जुड़ गए हैं!"
 helpers_note_not_exist: "यह नोट मौजूद नहीं है!"
 helpers_note_admin_only: "यह नोट केवल एडमिन द्वारा एक्सेस किया जा सकता है!"
 helpers_connected_to_chat: "आप %s से जुड़ गए हैं!"
@@ -126,9 +121,6 @@ helpers_notes_current_header: "इस चैट में वर्तमान 
 # Format strings
 format_user_info: "उपयोगकर्ता: %s"
 format_user_id: "उपयोगकर्ता ID: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # Button strings
 button_yes: "हाँ"
@@ -402,7 +394,6 @@ greetings_help_msg: "अपने ग्रुप में नए सदस्�
 
   × /autoapprove `<yes/no/on/off>`: जॉइन अनुरोध अपने-आप स्वीकार करें।"
 
-lang_sample: नमस्ते, मैं एक ग्रुप प्रबंधन बॉट हूँ
 language_flag: 🇮🇳
 language_name: हिन्दी
 
@@ -752,7 +743,6 @@ bans_kick_kicked_user: "%s को सफलतापूर्वक किक �
 bans_kick_user_not_in_chat: "यह उपयोगकर्ता इस चैट में नहीं है, और मैं उन्हें कैसे प्रतिबंधित करूं?"
 bans_kickme_is_admin: आप एक एडमिन हैं, और आप यहाँ सबके साथ फंसे हुए हैं!
 bans_kickme_ok_out: आपकी इच्छानुसार, बाहर निकलो!
-bans_unban_is_admin: मैं एक एडमिन को अनबैन क्यों करूंगा?
 bans_unban_is_bot_itself: जब मैं पहले से यहाँ हूं तो मैं खुद को अन-प्रतिबंधित क्यों करूंगा?
 bans_unban_unbanned_user: "चलो उसे एक और मौका देते हैं।\n\n%s को अनबैन किया गया!"
 bans_dkick_no_reply: इसे हटाने और किक करने के लिए उपयोगकर्ता के संदेश का जवाब दें!
@@ -1296,7 +1286,6 @@ notes_private_status_off: "प्राइवेट नोट्स वर्त
 notes_none_in_chat: "इस चैट में कोई नोट्स नहीं हैं!"
 notes_list_for_chat: "ये <b>%s</b> में वर्तमान नोट्स हैं:"
 notes_check_button: "नोट्स प्राप्त करने के लिए नीचे बटन पर क्लिक करें!"
-notes_click_me_btn: "मुझे क्लिक करें!"
 notes_current_in_chat: "इस चैट में वर्तमान नोट्स हैं:\n"
 notes_get_instruction: "\nआप <code>#notename</code> या <code>/get notename</code> द्वारा नोट प्राप्त कर सकते हैं"
 notes_clear_all_confirm: "क्या आप वाकई इस चैट से सभी नोट्स हटाना चाहते हैं?"
@@ -1351,7 +1340,6 @@ notes_permissions_docs: |
   • बॉट: /save, /addnote, /clear, /rmnote, /notes और /saved के लिए एडमिन होना चाहिए (/get और #notename इसके बिना भी काम करते हैं)
 
 # Pins module strings
-pins_unpin_not_pinned: जवाब दिया गया संदेश एक पिन किया गया संदेश नहीं है।
 pins_unpinned_message: इस संदेश को अनपिन किया गया।
 pins_unpinned_last: आखिरी पिन किए गए संदेश को अनपिन किया गया।
 pins_unpin_all_confirm: क्या आप वाकई सभी पिन किए गए संदेशों को अनपिन करना चाहते हैं?
@@ -1567,7 +1555,6 @@ warns_limit_banned: "यह %d/%d चेतावनियां हैं; इ�
 warns_limit_tbanned: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए बैन कर दिया गया है!"
 warns_limit_tmuted: "यह %d/%d चेतावनियां हैं; इसलिए %s को %s के लिए म्यूट कर दिया गया है!"
 warns_remove_button: ❌ चेतावनी हटाएं
-warns_rules_button: नियम 📝
 warns_user_warning: "उपयोगकर्ता %s को %d/%d चेतावनियां हैं; सावधान रहें!"
 warns_warning_reason: "\n<b>कारण</b>:\n%s"
 warns_settings_display: "ग्रुप में निम्नलिखित सेटिंग्स हैं:\n<b>चेतावनी सीमा:</b> <code>%d</code>\n<b>चेतावनी मोड:</b> <code>%s</code>\n<b>चेतावनी समाप्ति:</b> <code>%s</code>"
@@ -1771,7 +1758,6 @@ chat_status_anon_prove_admin: "एडमिन साबित करने क�
 extraction_chat_not_found: "चैट से कनेक्ट करने में विफल: चैट प्राप्त करने में विफल: getChat करने में असमर्थ: Bad Request: chat not found"
 extraction_need_chat_id: "मुझे कनेक्ट करने के लिए एक चैट id चाहिए!"
 extraction_user_not_found: "इस नाम से कोई उपयोगकर्ता नहीं मिला; क्या आप सुनिश्चित हैं कि मैंने उन्हें पहले देखा है?"
-extraction_get_chat_member_failed: "उपयोगकर्ता प्राप्त करने में विफल: getChatMember करने में असमर्थ: Bad Request: chat not found"
 extraction_invalid_time_amount: "अमान्य समय राशि निर्दिष्ट की गई।"
 extraction_time_limit_exceeded: "1 वर्ष से अधिक का समय सेट नहीं किया जा सकता!"
 extraction_no_time_specified: "कृपया एक समय अवधि निर्दिष्ट करें (उदा., 1m, 1h, 1d, 1w)।"

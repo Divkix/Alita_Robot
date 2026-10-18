@@ -198,7 +198,6 @@ bans_kick_user_not_in_chat:
   restringirlo?
 bans_kickme_is_admin: ¡Eres administrador, y estás atascado aquí con todos los demás!
 bans_kickme_ok_out: Como desees, ¡Fuera!
-bans_unban_is_admin: ¿Por qué desbanearía a un administrador?
 bans_unban_is_bot_itself: ¿Por qué me des-restringiría cuando ya estoy aquí?
 bans_unban_unbanned_user: "Démosle otra oportunidad.
 
@@ -674,7 +673,6 @@ help_donatetext: "¿Así que quieres donar? ¡Increíble!
   ¡Todos los fondos se destinarían a mis servicios como base de datos, almacenamiento y alojamiento!
 
   Puedes donar contactando a mi propietario aquí: @DivideProjectsBot"
-lang_sample: Español
 language_flag: 🇪🇸
 language_name: Español
 help_help_msg:
@@ -904,10 +902,6 @@ rules_help_msg:
   × /resetrulesbutton: Restablecer el texto del botón de reglas a predeterminado.
 
   × /resetrulesbtn: Igual que arriba."
-utils_string_handling_extract_time_invalid_time_amount: Cantidad de tiempo especificada inválida.
-utils_string_handling_extract_time_invalid_time_type:
-  "Tipo de tiempo especificado inválido.
-  Esperaba m, h, o d obtuvo: %s"
 warns_help_msg:
   "¡Mantén a tus miembros bajo control con advertencias; evita que se salgan de
   control!
@@ -1130,7 +1124,6 @@ warns_limit_banned: "¡Esas son %d/%d advertencias; Así que %s ha sido baneado!
 warns_limit_tbanned: "¡Esas son %d/%d advertencias; Así que %s ha sido baneado por %s!"
 warns_limit_tmuted: "¡Esas son %d/%d advertencias; Así que %s ha sido silenciado por %s!"
 warns_remove_button: ❌ Eliminar advertencia
-warns_rules_button: Reglas 📝
 warns_user_warning: "¡El usuario %s tiene %d/%d advertencias; ten cuidado!"
 warns_warning_reason: "\n<b>Razón</b>:\n%s"
 warns_settings_display: "El grupo tiene la siguiente configuración:\n<b>Límite de Advertencias:</b> <code>%d</code>\n<b>Modo de Advertencia:</b> <code>%s</code>\n<b>Caducidad de Advertencias:</b> <code>%s</code>"
@@ -1175,7 +1168,6 @@ locks_bot_lock_no_ban_permission: ¡Veo un bot, y me han dicho que evite que se 
 locks_bot_only_admins: ¡Solo los administradores y los usuarios aprobados pueden añadir bots a este chat!
 
 # Pins module strings
-pins_unpin_not_pinned: El mensaje respondido no es un mensaje anclado.
 pins_unpinned_message: Mensaje desanclado.
 pins_unpinned_last: Desanclado el último mensaje anclado.
 pins_unpin_all_confirm: ¿Estás seguro de que quieres desanclar todos los mensajes anclados?
@@ -1378,7 +1370,6 @@ notes_private_status_off: "¡Las Notas Privadas están actualmente desactivadas!
 notes_none_in_chat: "¡No hay notas en este chat!"
 notes_list_for_chat: "Estas son las notas actuales en <b>%s</b>:"
 notes_check_button: "¡Revisa el botón de abajo para obtener Notas!"
-notes_click_me_btn: "¡Haz clic en mí!"
 notes_current_in_chat: "Estas son las notas actuales en este Chat:\n"
 notes_get_instruction: "\nPuedes obtener una nota con <code>#nombredenota</code> o <code>/get nombredenota</code>"
 notes_clear_all_confirm: "¿Estás seguro de que quieres eliminar todas las Notas de este chat?"
@@ -1419,7 +1410,6 @@ filters_overwrite_cancelled: "Cancelada la sobrescritura del filtro ❌"
 
 # Helpers module strings
 helpers_back_button: "« Atrás"
-helpers_connection_success: "¡Has sido conectado a %s!"
 helpers_note_not_exist: "¡Esta nota no existe!"
 helpers_note_admin_only: "¡Esta nota solo puede ser accedida por un administrador!"
 helpers_connected_to_chat: "¡Has sido conectado a %s!"
@@ -1493,7 +1483,6 @@ chat_status_anon_prove_admin: "Haz clic para probar que eres administrador"
 extraction_chat_not_found: "error al conectar al chat: error al obtener chat: no se puede getChat: Solicitud incorrecta: chat no encontrado"
 extraction_need_chat_id: "¡Necesito un id de chat para conectarme!"
 extraction_user_not_found: "No pude encontrar un usuario con este nombre; ¿estás seguro de que lo he visto antes?"
-extraction_get_chat_member_failed: "Error al obtener usuario: no se puede getChatMember: Solicitud incorrecta: chat no encontrado"
 extraction_invalid_time_amount: "Cantidad de tiempo especificada inválida."
 extraction_time_limit_exceeded: "¡No se puede establecer tiempo a más de 1 año!"
 extraction_no_time_specified: "Por favor especifica una duración de tiempo (ej., 1m, 1h, 1d, 1w)."
@@ -1553,9 +1542,6 @@ helpers_chat_not_found: "No se pudo encontrar ese chat. Es posible que ya no exi
 # Formatting strings
 format_user_info: "Usuario: %s"
 format_user_id: "ID del Usuario: %d"
-format_list_item: " - %s"
-format_bullet_item: "• %s"
-format_list_item_code: " - <code>%s</code>"
 
 # System messages
 system_safety_shutdown: "el administrador de seguridad se está cerrando"
