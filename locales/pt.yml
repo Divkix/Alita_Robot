@@ -220,7 +220,7 @@ blacklists_rm_all_bl_button_handler_no:
 blacklists_rm_all_bl_button_handler_yes: Removidas todas as Listas Negras deste Chat ✅
 blacklists_set_bl_action_changed_mode: "Modo de lista negra alterado com sucesso para: *%s*"
 blacklists_set_bl_action_choose_correct_option: Por favor escolha uma opção entre <mute/kick/ban/warn/none>
-blacklists_set_bl_action_current_mode: "\"O modo de lista negra atual para este chat é: %s\""
+blacklists_set_bl_action_current_mode: "O modo de lista negra atual para este chat é: %s"
 blacklists_unblacklist_give_bl_word: Por favor, me dê uma palavra para removê-la da lista negra!
 blacklists_unblacklist_no_removed_bl:
   Nenhuma das palavras fornecidas estava na lista negra
@@ -821,7 +821,7 @@ rules_help_msg:
 bot_updates_creators_plug: "\nSiga @DivideProjects para mais bots úteis de meus criadores."
 bot_updates_make_me_admin: "\n\nTorne-me administrador para usar todos os meus recursos!"
 utils_string_handling_extract_time_invalid_time_amount: Quantidade de tempo inválida especificada.
-utils_string_handling_extract_time_invalid_time_type: "\"Tipo de tempo inválido especificado. Esperado m, h, ou d obtido: %s\""
+utils_string_handling_extract_time_invalid_time_type: "Tipo de tempo inválido especificado. Esperado m, h, ou d obtido: %s"
 warns_help_msg:
   "Mantenha seus membros em cheque com avisos; pare que saiam de
   controle!

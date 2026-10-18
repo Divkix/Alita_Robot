@@ -1052,7 +1052,7 @@ locks_bot_only_admins: Seuls les admins sont autorisés à ajouter des bots à c
 
 # Utils extraction strings
 utils_string_handling_extract_time_invalid_time_amount: Quantité de temps invalide spécifiée.
-utils_string_handling_extract_time_invalid_time_type: |
+utils_string_handling_extract_time_invalid_time_type:
   "Type de temps invalide spécifié.
   Attendu m, h, ou d obtenu : %s"
 

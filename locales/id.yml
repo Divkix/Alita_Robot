@@ -71,7 +71,7 @@ admin_anon_admin_db_error: Gagal memperbarui pengaturan admin anonim. Silakan co
 antiflood_checkflood_perform_action: |
   Ya, saya tidak suka spam Anda. %s telah
   %s!
-antiflood_errors_expected_args: |
+antiflood_errors_expected_args:
   "Saya mengharapkan beberapa argumen! Entah off, atau bilangan bulat.
   misal: `/setflood 5`, atau `/setflood off`"
 antiflood_errors_invalid_int: |
@@ -95,7 +95,7 @@ antiflood_flood_disabled: Obrolan ini saat ini tidak menegakkan kontrol flood.
 antiflood_flood_show_settings: |
   Obrolan ini saat ini menegakkan kontrol flood setelah
   %d pesan. Pengguna yang mengirim lebih dari jumlah itu akan %s.
-antiflood_help_msg: |
+antiflood_help_msg:
   "Tahukah Anda bagaimana terkadang, orang bergabung, mengirim 100 pesan, dan merusak
   obrolan Anda? Dengan antiflood, itu tidak terjadi lagi!
 
@@ -119,7 +119,7 @@ antiflood_setflood_disabled: "Oke.
 
   Saya tidak akan memperingatkan pengguna karena flooding."
 antiflood_setflood_success: Batas Flood telah diatur ke <b>%d</b> pesan.
-antiflood_setfloodmode_specify_action: |
+antiflood_setfloodmode_specify_action:
   "Anda perlu menentukan tindakan yang akan diambil saat
   flooding. Mode saat ini adalah: `ban`/`kick`/`mute`"
 antiflood_setfloodmode_success: Mode flood telah diatur ke %s.
@@ -227,7 +227,7 @@ blacklists_rm_all_bl_button_handler_no: |
 blacklists_rm_all_bl_button_handler_yes: Menghapus semua Daftar Hitam dari Obrolan Ini ✅
 blacklists_set_bl_action_changed_mode: "Berhasil mengubah mode daftar hitam ke: *%s*"
 blacklists_set_bl_action_choose_correct_option: Silakan pilih opsi dari <mute/kick/ban/warn/none>
-blacklists_set_bl_action_current_mode: |
+blacklists_set_bl_action_current_mode:
   "Mode daftar hitam saat ini untuk obrolan ini adalah:
   %s"
 blacklists_unblacklist_give_bl_word: Berikan saya kata untuk menghapusnya dari daftar hitam!
@@ -236,7 +236,7 @@ blacklists_unblacklist_no_removed_bl: |
   yang dapat dihapus!
 blacklists_unblacklist_removed_bl: |
   Berhasil menghapus '%s' dari kata-kata yang didaftar hitam!
-captcha_help_msg: |
+captcha_help_msg:
   "Lindungi grup Anda dari bot dan spammer dengan verifikasi CAPTCHA!
 
 
@@ -272,25 +272,25 @@ commonstrings_admin_cache_cache_reloaded: Berhasil memuat ulang cache admin.
 commonstrings_admin_cache_not_found: |
   Admincache tidak ditemukan. Minta admin untuk menggunakan /admincache
   untuk memuat ulang cache admin.
-connections_allow_connect_currently_off: |
+connections_allow_connect_currently_off:
   "Koneksi pengguna saat ini dimatikan <b>off</b>.
 
   Pengguna tidak dapat menghubungkan obrolan ini ke PM mereka!"
-connections_allow_connect_currently_on: |
+connections_allow_connect_currently_on:
   "Koneksi pengguna saat ini dihidupkan <b>on</b>.
 
   Pengguna dapat menghubungkan obrolan ini ke PM mereka!"
-connections_allow_connect_turned_off: |
+connections_allow_connect_turned_off:
   "Mematikan <b>off</b> Koneksi pengguna ke
   obrolan ini!
 
   Pengguna tidak dapat menghubungkan obrolan ke PM mereka!"
-connections_allow_connect_turned_on: |
+connections_allow_connect_turned_on:
   "Menghidupkan <b>on</b> Koneksi pengguna ke obrolan ini!
 
   Pengguna sekarang dapat menghubungkan obrolan ke PM mereka!"
 connections_connect_connected: Anda sekarang terhubung ke <b>%s</b>!
-connections_connect_connection_disabled: |
+connections_connect_connection_disabled:
   "Koneksi pengguna saat ini <b>dinonaktifkan</b>
   ke obrolan ini.
 
@@ -306,7 +306,7 @@ connections_disconnect_disconnected: |
 connections_disconnect_need_pm: |
   Anda perlu mengirim ini di PM ke saya untuk memutuskan dari
   obrolan!
-connections_help_msg: |
+connections_help_msg:
   "Modul ini memungkinkan Anda untuk terhubung ke database obrolan, dan
   menambahkan sesuatu ke sana tanpa obrolan mengetahuinya! Untuk alasan yang jelas, Anda perlu
   menjadi admin untuk menambahkan sesuatu; tetapi anggota mana pun dapat melihat data Anda. (pengguna yang dilarang/ditendang tidak bisa!)
@@ -345,7 +345,7 @@ connections_stale_connection: "Koneksi Anda sudah tidak valid - saya tidak dapat
 connections_reconnect_need_pm: Anda perlu berada di PM dengan saya untuk menghubungkan kembali ke obrolan!
 connections_reconnect_no_last_chat: Anda tidak memiliki obrolan terakhir untuk dihubungkan kembali!
 connections_reconnect_reconnected: Anda sekarang terhubung kembali ke <b>%s</b>!!
-disabling_help_msg: |
+disabling_help_msg:
   "Modul ini memungkinkan Anda untuk menonaktifkan beberapa perintah yang umum digunakan,
   Jadi, tidak ada yang bisa menggunakannya. Ini juga akan memungkinkan Anda untuk menghapusnya secara otomatis, menghentikan orang
   dari blue texting.
@@ -398,7 +398,7 @@ devs_help_msg:
   × /chatlist: Hasilkan dan kirim daftar semua chat aktif.
 
   × /leavechat: Paksa bot untuk meninggalkan chat yang ditentukan."
-filters_help_msg: |
+filters_help_msg:
   "Filter tidak peka huruf besar/kecil; setiap kali seseorang mengucapkan kata pemicu
   Anda, Alita akan membalas sesuatu yang lain! Ini dapat digunakan untuk membuat perintah Anda
   sendiri, jika diinginkan.
@@ -424,7 +424,7 @@ filters_help_msg: |
 
   - Atur filter multi-kata:
 
-  -> /filter "teman saya" Halo kembali! Lama tidak bertemu!
+  -> /filter \"teman saya\" Halo kembali! Lama tidak bertemu!
 
   - Atur filter yang hanya dapat digunakan oleh admin:
 
@@ -544,7 +544,7 @@ formatting_random: |
   %%%
 
   Ada apa? <code>{first}</code>
-greetings_help_msg: |
+greetings_help_msg:
   "Sambut pengguna baru ke grup Anda atau ucapkan Selamat Tinggal setelah mereka
   pergi!
 
@@ -686,7 +686,7 @@ locks_help_msg: "*Admin saja*:
   **Contoh:**
 
   `/lock media`: ini mengunci semua pesan media di obrolan."
-misc_help_msg: |
+misc_help_msg:
   "× /info: Dapatkan info pengguna Anda, yang dapat digunakan sebagai balasan atau dengan melewatkan
   ID Pengguna atau Nama Pengguna.
 
@@ -745,7 +745,7 @@ notes_help_msg: 'Simpan data untuk pengguna masa depan dengan catatan!
 
   - /privatenotes: Apakah akan mengirim catatan di PM atau tidak. Akan mengirim pesan dengan
   tombol yang dapat diklik pengguna untuk mendapatkan catatan di PM.'
-pins_help_msg: |
+pins_help_msg:
   "Semua perintah terkait pin dapat ditemukan di sini; jaga obrolan Anda tetap
   up to date dengan pesan pin sederhana!
 
@@ -789,7 +789,7 @@ purges_help_msg: "*Admin saja:*
   - Hapus semua pesan dari pesan yang dibalas, sampai sekarang.
 
   -> `/purge`"
-reports_help_msg: |
+reports_help_msg:
   "Kita semua orang sibuk yang tidak punya waktu untuk memantau grup kita
   24/7. Tapi bagaimana Anda bereaksi jika seseorang di grup Anda melakukan spam?
 
@@ -823,7 +823,7 @@ reports_help_msg: |
 
 
   *CATATAN:* Tidak satu pun dari ini akan dipicu jika digunakan oleh admin."
-rules_help_msg: |
+rules_help_msg:
   "Setiap obrolan bekerja dengan aturan yang berbeda; modul ini akan membantu membuat
   aturan itu lebih jelas!
 
@@ -848,10 +848,10 @@ rules_help_msg: |
 bot_updates_creators_plug: "\nIkuti @DivideProjects untuk bot yang lebih berguna dari kreator saya."
 bot_updates_make_me_admin: "\n\nJadikan saya admin agar semua fitur saya bisa digunakan!"
 utils_string_handling_extract_time_invalid_time_amount: Jumlah waktu yang ditentukan tidak valid.
-utils_string_handling_extract_time_invalid_time_type: |
+utils_string_handling_extract_time_invalid_time_type:
   "Tipe waktu yang ditentukan tidak valid.
   Diharapkan m, h, atau d mendapatkan: %s"
-warns_help_msg: |
+warns_help_msg:
   "Jaga anggota Anda dengan peringatan; hentikan mereka keluar dari
   kendali!
 
