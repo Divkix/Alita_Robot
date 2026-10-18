@@ -33,12 +33,12 @@ All commands run from the `docs/` directory:
 Node.js `v22.12.0` or higher is required by Blume. Use an even-numbered
 release line such as Node 22 or 24.
 
-| Command         | Action                                       |
-| :-------------- | :------------------------------------------- |
-| `bun install`   | Install dependencies                         |
-| `bun dev`       | Start dev server (hot reload)                |
-| `bun build`     | Build production site to `./dist/`           |
-| `bun preview`   | Preview production build locally             |
+| Command           | Action                                       |
+| :---------------- | :------------------------------------------- |
+| `bun install`     | Install dependencies                         |
+| `bun run dev`     | Start dev server (hot reload)                |
+| `bun run build`   | Build production site to `./dist/`           |
+| `bun run preview` | Preview production build locally             |
 
 ## AI features
 
