@@ -563,8 +563,8 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/setfedlog` | Federations | Make this group the federation log chat (groups only) | Fed owner |
 | `/setflood` | Antiflood | Set the flood trigger limit | Admin |
 | `/setfloodmode` | Antiflood | Set the flood action mode | Admin |
-| `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setgdesc` | Admin | Change or clear the group description | Admin |
+| `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setgpic` | Admin | Set the group photo (reply to a photo) | Admin |
 | `/setgtitle` | Admin | Change the group title | Admin |
 | `/setlog` | LogChannels | Set the log channel | Channel admin + Admin |
