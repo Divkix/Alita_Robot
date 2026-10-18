@@ -2,7 +2,10 @@ package modules
 
 import (
 	"errors"
+	"fmt"
+	"maps"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -60,16 +63,13 @@ func TestDemoteErrorHandling(t *testing.T) {
 }
 
 func TestAdminListLoadsAndRepliesWithVisibleAdmins(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChatAdministrators"] = []byte(
-		`[` +
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-			`{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Visible","username":"visibleadmin"}}` +
-			`]`,
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
+	f.addAdmins(
+		`{"status":"administrator","user":{"id":4242,"is_bot":false,"first_name":"Visible","username":"visibleadmin"}}`,
+		`{"status":"administrator","user":{"id":4343,"is_bot":true,"first_name":"Helper","username":"helperbot"}}`,
+		`{"status":"administrator","user":{"id":4444,"is_bot":false,"first_name":"Hidden","username":"hiddenadmin"},"is_anonymous":true}`,
 	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/adminlist")
 
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -79,25 +79,29 @@ func TestAdminListLoadsAndRepliesWithVisibleAdmins(t *testing.T) {
 	if err := adminModule.adminlist(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminlist() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("getChatAdministrators"); len(calls) != 1 {
-		t.Fatalf("getChatAdministrators calls = %d, want 1", len(calls))
+	assertParams(t, client.onlyCall(t, "getChatAdministrators"), map[string]any{"chat_id": chat.Id})
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	for _, want := range []string{"@visibleadmin", fmt.Sprintf("tg://user?id=%d", user.Id)} {
+		if !strings.Contains(text, want) {
+			t.Errorf("adminlist reply lacks visible admin %q:\n%s", want, text)
+		}
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	for _, hidden := range []string{"tg://user?id=999", "@helperbot", "@hiddenadmin"} {
+		if strings.Contains(text, hidden) {
+			t.Errorf("adminlist reply lists bot or anonymous admin %q:\n%s", hidden, text)
+		}
 	}
 }
 
 func TestAdminListReportsWhenOnlyBotsAreVisible(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChatAdministrators"] = []byte(
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.member
+	client.adminsByChat[fmt.Sprint(chat.Id)] = []byte(
 		`[` +
 			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
 			`{"status":"administrator","user":{"id":1087968824,"is_bot":false,"first_name":"Group Anonymous Bot"},"is_anonymous":true}` +
 			`]`,
 	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/adminlist")
 
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -107,16 +111,36 @@ func TestAdminListReportsWhenOnlyBotsAreVisible(t *testing.T) {
 	if err := adminModule.adminlist(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminlist(no visible admins) error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want no-visible-admins response", len(calls))
+	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); strings.Contains(text, "tg://user?id=") {
+		t.Fatalf("adminlist reply mentions a bot or anonymous admin:\n%s", text)
 	}
 }
 
+// grantedRights lists the can_* rights a promoteChatMember call turns on;
+// gotgbot omits false booleans, so absent rights are not granted.
+func grantedRights(call moduleBotCall) map[string]bool {
+	granted := map[string]bool{}
+	for key, value := range call.Params {
+		if !strings.HasPrefix(key, "can_") {
+			continue
+		}
+		switch v := value.(type) {
+		case bool:
+			if v {
+				granted[key] = true
+			}
+		case *bool:
+			if v != nil && *v {
+				granted[key] = true
+			}
+		}
+	}
+	return granted
+}
+
 func TestPromoteReplyPromotesTargetAndSetsTitle(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/promote VeryLongCustomAdminTitle")
 
@@ -127,22 +151,58 @@ func TestPromoteReplyPromotesTargetAndSetsTitle(t *testing.T) {
 	if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("promote() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("promoteChatMember"); len(calls) != 1 {
-		t.Fatalf("promoteChatMember calls = %d, want 1", len(calls))
+	promote := client.onlyCall(t, "promoteChatMember")
+	assertParams(t, promote, targetParams(chat.Id, target.Id))
+	// The bot and the promoter both hold exactly these rights.
+	wantRights := map[string]bool{
+		"can_manage_chat": true, "can_delete_messages": true, "can_restrict_members": true,
+		"can_change_info": true, "can_invite_users": true, "can_pin_messages": true,
 	}
-	if calls := client.callsFor("setChatAdministratorCustomTitle"); len(calls) != 1 {
-		t.Fatalf("setChatAdministratorCustomTitle calls = %d, want 1", len(calls))
+	if got := grantedRights(promote); !maps.Equal(got, wantRights) {
+		t.Errorf("granted rights = %v, want %v", got, wantRights)
 	}
+	title := client.onlyCall(t, "setChatAdministratorCustomTitle")
+	assertParams(t, title, map[string]any{"chat_id": chat.Id, "user_id": target.Id, "custom_title": "VeryLongCustomAd"})
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
+func TestPromoteGrantsOnlyRightsThePromoterHolds(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	// A non-owner promoter without can_change_info or can_pin_messages.
+	client.membersByUser[fmt.Sprint(admin.Id)] = []byte(fmt.Sprintf(
+		`{"status":"administrator","user":{"id":%d,"is_bot":false,"first_name":"Admin"},`+
+			`"can_manage_chat":true,"can_delete_messages":true,"can_restrict_members":true,"can_promote_members":true,"can_invite_users":true}`,
+		admin.Id,
+	))
+	target := gotgbot.User{Id: 42, FirstName: "Member"}
+	cmdCtx, err := helpers.BuildCommandContext(bot, newBanReplyContext(bot, chat, admin, target, "/promote"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.promote(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("promote() error = %v, want EndGroups", err)
+	}
+
+	promote := client.onlyCall(t, "promoteChatMember")
+	assertParams(t, promote, targetParams(chat.Id, target.Id))
+	wantRights := map[string]bool{
+		"can_manage_chat": true, "can_delete_messages": true, "can_restrict_members": true, "can_invite_users": true,
+	}
+	if got := grantedRights(promote); !maps.Equal(got, wantRights) {
+		t.Errorf("granted rights = %v, want only the promoter's %v", got, wantRights)
+	}
+	if calls := client.callsFor("setChatAdministratorCustomTitle"); len(calls) != 0 {
+		t.Fatalf("setChatAdministratorCustomTitle calls = %d, want none without a title", len(calls))
+	}
+}
+
 func TestPromoteRejectsInvalidAndProtectedTargets(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	tests := []struct {
 		name string
@@ -150,7 +210,7 @@ func TestPromoteRejectsInvalidAndProtectedTargets(t *testing.T) {
 	}{
 		{name: "missing target", text: "/promote"},
 		{name: "channel id", text: "/promote -1001234567890"},
-		{name: "owner", text: "/promote 777000"},
+		{name: "owner", text: "/promote " + fmtInt(admin.Id)},
 		{name: "bot itself", text: "/promote 999"},
 	}
 
@@ -177,19 +237,12 @@ func TestPromoteRejectsInvalidAndProtectedTargets(t *testing.T) {
 
 func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
 	t.Run("target already admin", func(t *testing.T) {
-		client := newModuleBotClient()
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 		client.responses["getChatMember"] = []byte(
 			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`,
 		)
-		client.responses["getChatAdministrators"] = []byte(
-			`[` +
-				`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-				`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}` +
-				`]`,
-		)
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`)
 		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
 		cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 		if err != nil {
@@ -205,11 +258,9 @@ func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
 	})
 
 	t.Run("empty admin cache", func(t *testing.T) {
-		client := newModuleBotClient()
-		client.responses["getChatAdministrators"] = []byte(`[]`)
-		bot := newModuleTestBot(client)
-		chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-		admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+		f := newAdminChatFixture(t)
+		client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+		client.adminsByChat[fmt.Sprint(chat.Id)] = []byte(`[]`)
 		ctx := newModuleMessageContext(bot, chat, admin, "/promote 42")
 		cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 		if err != nil {
@@ -229,19 +280,12 @@ func TestPromoteRejectsExistingAdminAndMissingAdminCache(t *testing.T) {
 }
 
 func TestDemoteReplyDemotesAdminTarget(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	client.responses["getChatMember"] = []byte(
 		`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`,
 	)
-	client.responses["getChatAdministrators"] = []byte(
-		`[` +
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}` +
-			`]`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`)
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/demote")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -252,8 +296,10 @@ func TestDemoteReplyDemotesAdminTarget(t *testing.T) {
 	if err := adminModule.demote(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("demote() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("promoteChatMember"); len(calls) != 1 {
-		t.Fatalf("promoteChatMember calls = %d, want 1", len(calls))
+	demote := client.onlyCall(t, "promoteChatMember")
+	assertParams(t, demote, targetParams(chat.Id, target.Id))
+	if got := grantedRights(demote); len(got) != 0 {
+		t.Errorf("demote kept rights %v, want none", got)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
@@ -261,16 +307,10 @@ func TestDemoteReplyDemotesAdminTarget(t *testing.T) {
 }
 
 func TestDemoteValidationBranches(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChatAdministrators"] = []byte(
-		`[` +
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}` +
-			`]`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	tests := []struct {
 		name string
@@ -278,8 +318,9 @@ func TestDemoteValidationBranches(t *testing.T) {
 	}{
 		{name: "missing target", text: "/demote"},
 		{name: "channel id", text: "/demote -1001234567890"},
-		{name: "owner", text: "/demote 777000"},
+		{name: "owner", text: "/demote " + fmtInt(admin.Id)},
 		{name: "bot itself", text: "/demote 999"},
+		{name: "not an admin", text: "/demote 4545"},
 	}
 
 	for _, tt := range tests {
@@ -301,11 +342,9 @@ func TestDemoteValidationBranches(t *testing.T) {
 }
 
 func TestDemoteRejectsMissingAdminCache(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChatAdministrators"] = []byte(`[]`)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+	client.adminsByChat[fmt.Sprint(chat.Id)] = []byte(`[]`)
 	ctx := newModuleMessageContext(bot, chat, admin, "/demote 42")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
@@ -324,19 +363,13 @@ func TestDemoteRejectsMissingAdminCache(t *testing.T) {
 }
 
 func TestSetTitleReplyUpdatesAdminTitle(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client := f.client
 	client.responses["getChatMember"] = []byte(
 		`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"custom_title":"Captain","can_promote_members":true}`,
 	)
-	client.responses["getChatAdministrators"] = []byte(
-		`[` +
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"custom_title":"Captain","can_promote_members":true}` +
-			`]`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"custom_title":"Captain","can_promote_members":true}`)
+	bot, chat, admin := f.bot, f.chat, f.admin
 	target := gotgbot.User{Id: 42, FirstName: "Member"}
 	ctx := newBanReplyContext(bot, chat, admin, target, "/title Captain")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
@@ -347,35 +380,29 @@ func TestSetTitleReplyUpdatesAdminTitle(t *testing.T) {
 	if err := adminModule.setTitle(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("setTitle() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("setChatAdministratorCustomTitle"); len(calls) != 1 {
-		t.Fatalf("setChatAdministratorCustomTitle calls = %d, want 1", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "setChatAdministratorCustomTitle"),
+		map[string]any{"chat_id": chat.Id, "user_id": target.Id, "custom_title": "Captain"})
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
 	}
 }
 
 func TestSetTitleValidationAndTruncation(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	f.addAdmins(`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 	client.responses["getChatMember"] = []byte(
 		`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}`,
 	)
-	client.responses["getChatAdministrators"] = []byte(
-		`[` +
-			`{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}},` +
-			`{"status":"administrator","user":{"id":42,"is_bot":false,"first_name":"Member"},"can_promote_members":true}` +
-			`]`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 
 	for _, tt := range []struct {
 		name string
 		text string
 	}{
 		{name: "missing target", text: "/title"},
-		{name: "owner", text: "/title 777000 Boss"},
+		{name: "owner", text: "/title " + fmtInt(admin.Id) + " Boss"},
+		{name: "not an admin", text: "/title 4545 Boss"},
 		{name: "bot itself", text: "/title 999 Boss"},
 		{name: "empty title", text: "/title 42"},
 	} {
@@ -404,21 +431,13 @@ func TestSetTitleValidationAndTruncation(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("setChatAdministratorCustomTitle calls = %d, want only long-title success", len(calls))
 	}
-	if got, want := calls[0].Params["custom_title"], "VeryLongCustomAd"; got != want {
-		t.Fatalf("custom_title = %q, want truncated %q", got, want)
-	}
+	assertParams(t, calls[0], map[string]any{"chat_id": chat.Id, "user_id": 42, "custom_title": "VeryLongCustomAd"})
 }
 
 func TestGetInviteLinkUsesPublicUsernameWithoutFetchingChat(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{
-		Id:       uniqueModuleChatID(),
-		Type:     "supergroup",
-		Title:    "Admin Chat",
-		Username: "public_chat",
-	}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
+	chat.Username = "public_chat"
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
@@ -431,19 +450,17 @@ func TestGetInviteLinkUsesPublicUsernameWithoutFetchingChat(t *testing.T) {
 	if calls := client.callsFor("getChat"); len(calls) != 0 {
 		t.Fatalf("getChat calls = %d, want 0 for public username", len(calls))
 	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want 1", len(calls))
+	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, chat.Username) {
+		t.Fatalf("invite reply lacks the public username %q:\n%s", chat.Username, text)
 	}
 }
 
 func TestGetInviteLinkFetchesPrivateInviteLink(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChat"] = []byte(
-		`{"id":-1001,"type":"supergroup","title":"Admin Chat","invite_link":"https://t.me/+invite"}`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
+	client.chatsByID[fmt.Sprint(chat.Id)] = []byte(fmt.Sprintf(
+		`{"id":%d,"type":"supergroup","title":"Admin Chat","invite_link":"https://t.me/+invite"}`, chat.Id,
+	))
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
@@ -453,20 +470,16 @@ func TestGetInviteLinkFetchesPrivateInviteLink(t *testing.T) {
 	if err := adminModule.getinvitelink(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("getinvitelink(private) error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("getChat"); len(calls) != 1 {
-		t.Fatalf("getChat calls = %d, want private invite lookup", len(calls))
-	}
-	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want invite reply", len(calls))
+	assertParams(t, client.onlyCall(t, "getChat"), map[string]any{"chat_id": chat.Id})
+	if text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"]); !strings.Contains(text, "https://t.me/+invite") {
+		t.Fatalf("invite reply lacks the fetched invite link:\n%s", text)
 	}
 }
 
 func TestGetInviteLinkHandlesPrivateLookupFailure(t *testing.T) {
-	client := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 	client.errors["getChat"] = errors.New("telegram unavailable")
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
 	ctx := newModuleMessageContext(bot, chat, user, "/invitelink")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
@@ -482,10 +495,9 @@ func TestGetInviteLinkHandlesPrivateLookupFailure(t *testing.T) {
 }
 
 func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	bot, chat, user := f.bot, f.chat, f.admin
 
 	onCtx := newModuleMessageContext(bot, chat, user, "/anonadmin on")
 	cmdCtx, err := helpers.BuildCommandContext(bot, onCtx)
@@ -521,11 +533,26 @@ func TestAnonAdminOwnerTogglesSetting(t *testing.T) {
 	}
 }
 
+func TestAnonAdminRefusesNonOwnerAdmin(t *testing.T) {
+	f := newAdminChatFixture(t)
+	bot, chat, user := f.bot, f.chat, f.admin
+
+	cmdCtx, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, user, "/anonadmin on"))
+	if err != nil {
+		t.Fatalf("BuildCommandContext failed: %v", err)
+	}
+	if err := adminModule.anonAdmin(cmdCtx); err != ext.EndGroups {
+		t.Fatalf("anonAdmin(on) error = %v, want EndGroups", err)
+	}
+	if admin.GetAdminSettings(chat.Id).AnonAdmin {
+		t.Fatal("a non-owner admin enabled AnonAdmin")
+	}
+}
+
 func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	f.makeOwner()
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 	t.Cleanup(func() {
 		if err := admin.SetAnonAdminMode(chat.Id, false); err != nil {
 			t.Fatalf("cleanup SetAnonAdminMode(false) error = %v", err)
@@ -571,13 +598,8 @@ func TestAnonAdminHandlesNoopAndInvalidOptions(t *testing.T) {
 }
 
 func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
-	client := newModuleBotClient()
-	client.responses["getChatAdministrators"] = []byte(
-		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"}}]`,
-	)
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 
 	refreshCtx := newModuleMessageContext(bot, chat, user, "/admincache")
 	cmdCtx, err := helpers.BuildCommandContext(bot, refreshCtx)
@@ -587,8 +609,9 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 	if err := adminModule.adminCache(cmdCtx); err != ext.EndGroups {
 		t.Fatalf("adminCache() error = %v, want EndGroups", err)
 	}
-	if calls := client.callsFor("getChatAdministrators"); len(calls) != 1 {
-		t.Fatalf("getChatAdministrators calls = %d, want 1", len(calls))
+	assertParams(t, client.onlyCall(t, "getChatAdministrators"), map[string]any{"chat_id": chat.Id})
+	if found, admins := cache.GetAdminCacheList(chat.Id); !found || len(admins.UserInfo) != 2 {
+		t.Fatalf("admin cache after /admincache = (%v, %d entries), want the bot and the admin", found, len(admins.UserInfo))
 	}
 
 	clearChat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
@@ -624,10 +647,8 @@ func TestAdminCacheCommandsRefreshAndClearCache(t *testing.T) {
 func TestClearAdminCacheNilMarshal(t *testing.T) {
 	withNilCacheMarshal(t)
 
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	user := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, user := f.client, f.bot, f.chat, f.admin
 	ctx := newModuleMessageContext(bot, chat, user, "/clearadmincache")
 	cmdCtx, err := helpers.BuildCommandContext(bot, ctx)
 	if err != nil {
@@ -659,11 +680,10 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 		t.Fatalf("sendMessage calls = %d, want non-admin denial", len(calls))
 	}
 
-	errorClient := newModuleBotClient()
+	f := newAdminChatFixture(t)
+	errorClient, errorBot, admin := f.client, f.bot, f.admin
 	errorClient.errors["getChatMember"] = errors.New("telegram unavailable")
-	errorBot := newModuleTestBot(errorClient)
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
-	errorCtx := newModuleMessageContext(errorBot, chat, admin, "/admincache")
+	errorCtx := newModuleMessageContext(errorBot, f.chat, admin, "/admincache")
 	cmdCtx, err = helpers.BuildCommandContext(errorBot, errorCtx)
 	if err != nil {
 		t.Fatalf("BuildCommandContext failed: %v", err)
@@ -673,6 +693,9 @@ func TestAdminCacheHandlesMemberAndLookupFailures(t *testing.T) {
 	}
 	if calls := errorClient.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want lookup-failure denial", len(calls))
+	}
+	if calls := errorClient.callsFor("getChatAdministrators"); len(calls) != 0 {
+		t.Fatalf("getChatAdministrators calls = %d, want no reload after the lookup failed", len(calls))
 	}
 }
 
@@ -758,10 +781,8 @@ func TestAdminCommandsPropagateGotgbotRequestErrors(t *testing.T) {
 }
 
 func TestSetGroupTitlePicAndDescription(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Admin Chat"}
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
 
 	missingTitle, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgtitle"))
 	if err != nil {
@@ -778,9 +799,7 @@ func TestSetGroupTitlePicAndDescription(t *testing.T) {
 	if err := adminModule.setGTitle(okTitle); err != ext.EndGroups {
 		t.Fatalf("setGTitle: %v", err)
 	}
-	if calls := client.callsFor("setChatTitle"); len(calls) != 1 {
-		t.Fatalf("setChatTitle calls = %d", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "setChatTitle"), map[string]any{"chat_id": chat.Id, "title": "New Title"})
 
 	okDesc, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgdesc Hello group"))
 	if err != nil {
@@ -789,9 +808,7 @@ func TestSetGroupTitlePicAndDescription(t *testing.T) {
 	if err := adminModule.setGDesc(okDesc); err != ext.EndGroups {
 		t.Fatalf("setGDesc: %v", err)
 	}
-	if calls := client.callsFor("setChatDescription"); len(calls) != 1 {
-		t.Fatalf("setChatDescription calls = %d", len(calls))
-	}
+	assertParams(t, client.onlyCall(t, "setChatDescription"), map[string]any{"chat_id": chat.Id, "description": "Hello group"})
 
 	needPhoto, err := helpers.BuildCommandContext(bot, newModuleMessageContext(bot, chat, admin, "/setgpic"))
 	if err != nil {

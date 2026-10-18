@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -271,6 +272,14 @@ func newAdminChatFixture(t *testing.T) adminChatFixture {
 // the first permission check, which caches the admin list.
 func (f adminChatFixture) makeOwner() {
 	f.setAdminStatus("creator")
+}
+
+// addAdmins appends raw ChatMember JSON entries to the chat's admin list. Call
+// it after makeOwner, which rewrites the list.
+func (f adminChatFixture) addAdmins(entries ...string) {
+	key := fmt.Sprint(f.chat.Id)
+	list := strings.TrimSuffix(string(f.client.adminsByChat[key]), "]")
+	f.client.adminsByChat[key] = json.RawMessage(list + "," + strings.Join(entries, ",") + "]")
 }
 
 func (f adminChatFixture) setAdminStatus(status string) {
