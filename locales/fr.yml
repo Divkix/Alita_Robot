@@ -767,21 +767,21 @@ notes_help_msg: "Sauvegardez des données pour les futurs utilisateurs avec les 
 
   - #nom_note : Identique à /get.
 
-  Commandes Admin :
-
-  - /save <nom_note> <texte_note> : Sauvegarder une nouvelle note appelée \"word\". Répondre à un message
-  sauvegardera ce message. Fonctionne même avec les médias !
-
-  - /clear <nom_note> : Supprimer la note associée.
-
   - /notes : Lister toutes les notes du chat actuel.
 
   - /saved : Identique à /notes.
 
-  - /clearall : Supprimer TOUTES les notes d'un chat. Cela ne peut pas être annulé.
+  Commandes Admin :
 
-  - /privatenotes : Si les notes doivent être envoyées en MP ou non. Enverra un message avec un
-  bouton sur lequel les utilisateurs peuvent cliquer pour obtenir la note en MP."
+  - /save /addnote <nom_note> <texte_note> : Sauvegarder une nouvelle note appelée \"word\". Répondre à un message
+  sauvegardera ce message. Fonctionne même avec les médias !
+
+  - /clear /rmnote <nom_note> : Supprimer la note associée.
+
+  - /clearall : Supprimer TOUTES les notes d'un chat (propriétaire du chat uniquement). Cela ne peut pas être annulé.
+
+  - /privatenotes /privnote <on/off> : Si les notes doivent être envoyées en MP ou non. Enverra un message avec un
+  bouton sur lequel les utilisateurs peuvent cliquer pour obtenir la note en MP. Sans argument, affiche le paramètre actuel."
 notes_invalid: Note invalide !
 notes_save_success: "Note <b>%s</b> sauvegardée !\nObtenez-la avec <code>#%s</code> ou <code>/get %s</code>."
 notes_save_failed: "Échec de la sauvegarde de la note. Veuillez réessayer plus tard."
@@ -2758,12 +2758,15 @@ mutes_extend_msg: |
   /unmute — rendre la parole à un utilisateur
 notes_extend_msg: |
   /save — enregistrer une note
+  /addnote — identique à /save
   /get — obtenir une note (ou #name)
   /notes — liste des notes
   /saved — identique à /notes
   /clear — supprimer une note
-  /clearall — supprimer toutes les notes
+  /rmnote — identique à /clear
+  /clearall — supprimer toutes les notes (propriétaire uniquement)
   /privatenotes — envoyer les notes en privé
+  /privnote — identique à /privatenotes
 pins_extend_msg: |
   /pin — épingler le message cité
   /unpin — désépingler un message

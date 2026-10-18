@@ -755,21 +755,21 @@ notes_help_msg: 'Guarde dados para usuários futuros com notas!
 
   - #notename: Mesmo que /get.
 
-  Comandos de Admin:
-
-  - /save <notename> <texto da nota>: Salva uma nova nota chamada "word". Respondendo a uma mensagem
-  vai salvar aquela mensagem. Funciona até em mídia!
-
-  - /clear <notename>: Deleta a nota associada.
-
   - /notes: Lista todas as notas no chat atual.
 
   - /saved: Mesmo que /notes.
 
-  - /clearall: Deleta TODAS as notas em um chat. Isso não pode ser desfeito.
+  Comandos de Admin:
 
-  - /privatenotes: Enviar ou não notas no PM. Enviará uma mensagem com um
-  botão que usuários podem clicar para obter a nota no PM.'
+  - /save /addnote <notename> <texto da nota>: Salva uma nova nota chamada "word". Respondendo a uma mensagem
+  vai salvar aquela mensagem. Funciona até em mídia!
+
+  - /clear /rmnote <notename>: Deleta a nota associada.
+
+  - /clearall: Deleta TODAS as notas em um chat (somente o dono do chat). Isso não pode ser desfeito.
+
+  - /privatenotes /privnote <on/off>: Enviar ou não notas no PM. Enviará uma mensagem com um
+  botão que usuários podem clicar para obter a nota no PM. Sem argumento, mostra a configuração atual.'
 pins_help_msg:
   "Todos os comandos relacionados a fixar mensagens podem ser encontrados aqui; mantenha seu chat atualizado
   com as últimas notícias com uma simples mensagem fixada!
@@ -2813,12 +2813,15 @@ mutes_extend_msg: |
   /unmute — tirar o silêncio de um usuário
 notes_extend_msg: |
   /save — salvar uma nota
+  /addnote — igual a /save
   /get — obter uma nota (ou #name)
   /notes — lista de notas
   /saved — igual a /notes
   /clear — apagar uma nota
-  /clearall — apagar todas as notas
+  /rmnote — igual a /clear
+  /clearall — apagar todas as notas (somente o dono)
   /privatenotes — enviar as notas no privado
+  /privnote — igual a /privatenotes
 pins_extend_msg: |
   /pin — fixar a mensagem respondida
   /unpin — desafixar uma mensagem

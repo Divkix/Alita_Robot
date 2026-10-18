@@ -791,21 +791,21 @@ notes_help_msg: '¡Guarda datos para futuros usuarios con notas!
 
   - #nombredenota: Igual que /get.
 
-  Comandos de administrador:
-
-  - /save <nombredenota> <texto de nota>: Guardar una nueva nota llamada "palabra". Responder a un mensaje
-  guardará ese mensaje. ¡Incluso funciona con medios!
-
-  - /clear <nombredenota>: Eliminar la nota asociada.
-
   - /notes: Listar todas las notas en el chat actual.
 
   - /saved: Igual que /notes.
 
-  - /clearall: Eliminar TODAS las notas en un chat. Esto no se puede deshacer.
+  Comandos de administrador:
 
-  - /privatenotes: Si enviar o no notas en PM. Enviará un mensaje con un
-  botón en el que los usuarios pueden hacer clic para obtener la nota en PM.'
+  - /save /addnote <nombredenota> <texto de nota>: Guardar una nueva nota llamada "palabra". Responder a un mensaje
+  guardará ese mensaje. ¡Incluso funciona con medios!
+
+  - /clear /rmnote <nombredenota>: Eliminar la nota asociada.
+
+  - /clearall: Eliminar TODAS las notas en un chat (solo el propietario del chat). Esto no se puede deshacer.
+
+  - /privatenotes /privnote <on/off>: Si enviar o no notas en PM. Enviará un mensaje con un
+  botón en el que los usuarios pueden hacer clic para obtener la nota en PM. Sin argumento, muestra la configuración actual.'
 pins_help_msg:
   "Todos los comandos relacionados con anclar se pueden encontrar aquí; mantén tu chat actualizado
   sobre las últimas noticias con un simple mensaje anclado!
@@ -2851,12 +2851,15 @@ mutes_extend_msg: |
   /unmute — quitar el silencio a un usuario
 notes_extend_msg: |
   /save — guardar una nota
+  /addnote — igual que /save
   /get — obtener una nota (o #name)
   /notes — lista de notas
   /saved — igual que /notes
   /clear — eliminar una nota
-  /clearall — eliminar todas las notas
+  /rmnote — igual que /clear
+  /clearall — eliminar todas las notas (solo el propietario)
   /privatenotes — enviar las notas por privado
+  /privnote — igual que /privatenotes
 pins_extend_msg: |
   /pin — fijar el mensaje respondido
   /unpin — desfijar un mensaje

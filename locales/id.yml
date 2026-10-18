@@ -783,21 +783,21 @@ notes_help_msg: 'Simpan data untuk pengguna masa depan dengan catatan!
 
   - #namacatatan: Sama seperti /get.
 
-  Perintah Admin:
-
-  - /save <namacatatan> <teks catatan>: Simpan catatan baru bernama "kata". Membalas pesan
-  akan menyimpan pesan itu. Bahkan berfungsi pada media!
-
-  - /clear <namacatatan>: Hapus catatan terkait.
-
   - /notes: Daftar semua catatan di obrolan saat ini.
 
   - /saved: Sama seperti /notes.
 
-  - /clearall: Hapus SEMUA catatan di obrolan. Ini tidak dapat dibatalkan.
+  Perintah Admin:
 
-  - /privatenotes: Apakah akan mengirim catatan di PM atau tidak. Akan mengirim pesan dengan
-  tombol yang dapat diklik pengguna untuk mendapatkan catatan di PM.'
+  - /save /addnote <namacatatan> <teks catatan>: Simpan catatan baru bernama "kata". Membalas pesan
+  akan menyimpan pesan itu. Bahkan berfungsi pada media!
+
+  - /clear /rmnote <namacatatan>: Hapus catatan terkait.
+
+  - /clearall: Hapus SEMUA catatan di obrolan (hanya pemilik obrolan). Ini tidak dapat dibatalkan.
+
+  - /privatenotes /privnote <on/off>: Apakah akan mengirim catatan di PM atau tidak. Akan mengirim pesan dengan
+  tombol yang dapat diklik pengguna untuk mendapatkan catatan di PM. Tanpa argumen, menampilkan pengaturan saat ini.'
 pins_help_msg:
   "Semua perintah terkait pin dapat ditemukan di sini; jaga obrolan Anda tetap
   up to date dengan pesan pin sederhana!
@@ -2842,12 +2842,15 @@ mutes_extend_msg: |
   /unmute — hapus bisu pengguna
 notes_extend_msg: |
   /save — simpan catatan
+  /addnote — sama dengan /save
   /get — ambil catatan (atau #name)
   /notes — daftar catatan
   /saved — sama dengan /notes
   /clear — hapus catatan
-  /clearall — hapus semua catatan
+  /rmnote — sama dengan /clear
+  /clearall — hapus semua catatan (hanya pemilik)
   /privatenotes — kirim catatan lewat PM
+  /privnote — sama dengan /privatenotes
 pins_extend_msg: |
   /pin — sematkan pesan yang dibalas
   /unpin — lepas sematan pesan

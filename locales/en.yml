@@ -829,21 +829,21 @@ notes_help_msg: 'Save data for future users with notes!
 
   - #notename: Same as /get.
 
-  Admin commands:
-
-  - /save <notename> <note text>: Save a new note called "word". Replying to a message
-  will save that message. Even works on media!
-
-  - /clear <notename>: Delete the associated note.
-
   - /notes: List all notes in the current chat.
 
   - /saved: Same as /notes.
 
-  - /clearall: Delete ALL notes in a chat. This cannot be undone.
+  Admin commands:
 
-  - /privatenotes: Whether or not to send notes in PM. Will send a message with a
-  button which users can click to get the note in PM.'
+  - /save /addnote <notename> <note text>: Save a new note called "word". Replying to a message
+  will save that message. Even works on media!
+
+  - /clear /rmnote <notename>: Delete the associated note.
+
+  - /clearall: Delete ALL notes in a chat (chat owner only). This cannot be undone.
+
+  - /privatenotes /privnote <on/off>: Whether or not to send notes in PM. Will send a message with a
+  button which users can click to get the note in PM. Without an argument, shows the current setting.'
 pins_help_msg:
   "All the pin-related commands can be found here; keep your chat up
   to date on the latest news with a simple pinned message!
@@ -2851,12 +2851,15 @@ mutes_extend_msg: |
   /unmute — unmute a user
 notes_extend_msg: |
   /save — save a note
+  /addnote — same as /save
   /get — get a note (or #name)
   /notes — list notes
   /saved — same as /notes
   /clear — delete a note
-  /clearall — delete all notes
+  /rmnote — same as /clear
+  /clearall — delete all notes (owner only)
   /privatenotes — send notes in PM
+  /privnote — same as /privatenotes
 pins_extend_msg: |
   /pin — pin the replied message
   /unpin — unpin a message
