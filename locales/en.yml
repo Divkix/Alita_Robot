@@ -151,8 +151,7 @@ antiflood_help_msg:
   your chat? With antiflood, that happens no more!
 
 
-  Antiflood allows you to take action on users that send more than x messages in a
-  row. Actions are: ban/kick/mute
+  Antiflood allows you to take action on users that send more than x messages with no gap longer than 60 seconds between them (other members' messages don't reset the count). Actions are: ban/kick/mute
 
 
   *Admin commands*:
@@ -2726,7 +2725,7 @@ aispam_extend_msg: |
   /aispam — show or toggle the AI spam filter
 antiflood_extend_msg: |
   /flood — show the antiflood settings
-  /setflood — messages in a row before action (off to disable)
+  /setflood — messages allowed (no gap over 60 s) before action (off to disable)
   /setfloodmode — action on flooders: ban, kick or mute
   /delflood — delete flooded messages too
 antiraid_extend_msg: |

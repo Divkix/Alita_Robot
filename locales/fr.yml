@@ -1578,8 +1578,7 @@ antiflood_help_msg:
   votre chat ? Avec antiflood, ça n'arrive plus !
 
 
-  Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages
-  d'affilée. Actions : ban/kick/mute
+  Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages sans pause de plus de 60 secondes entre eux (les messages des autres membres ne remettent pas le compteur à zéro). Actions : ban/kick/mute
 
 
   *Commandes Admin* :
@@ -2631,7 +2630,7 @@ aispam_extend_msg: |
   /aispam — afficher ou activer le filtre anti-spam IA
 antiflood_extend_msg: |
   /flood — afficher les réglages antiflood
-  /setflood — messages d'affilée avant sanction (off pour désactiver)
+  /setflood — messages autorisés (sans pause de plus de 60 s) avant sanction (off pour désactiver)
   /setfloodmode — sanction du flood : ban, kick ou mute
   /delflood — supprimer aussi les messages de flood
 antiraid_extend_msg: |

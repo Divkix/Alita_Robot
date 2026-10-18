@@ -112,8 +112,7 @@ antiflood_help_msg:
   obrolan Anda? Dengan antiflood, itu tidak terjadi lagi!
 
 
-  Antiflood memungkinkan Anda mengambil tindakan pada pengguna yang mengirim lebih dari x pesan secara
-  berurutan. Tindakan adalah: ban/kick/mute
+  Antiflood memungkinkan Anda mengambil tindakan pada pengguna yang mengirim lebih dari x pesan tanpa jeda lebih dari 60 detik di antaranya (pesan anggota lain tidak mereset hitungan). Tindakan adalah: ban/kick/mute
 
 
   *Perintah Admin*:
@@ -2715,7 +2714,7 @@ aispam_extend_msg: |
   /aispam — lihat atau ubah filter spam AI
 antiflood_extend_msg: |
   /flood — lihat pengaturan antiflood
-  /setflood — jumlah pesan beruntun sebelum ditindak (off untuk menonaktifkan)
+  /setflood — jumlah pesan yang diizinkan (tanpa jeda lebih dari 60 dtk) sebelum ditindak (off untuk menonaktifkan)
   /setfloodmode — tindakan untuk flooder: ban, kick atau mute
   /delflood — hapus juga pesan flood
 antiraid_extend_msg: |
