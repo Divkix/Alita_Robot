@@ -2173,6 +2173,7 @@ system_config_loaded: "Configuration chargée et validée avec succès"
 # Issue #628 remediation keys
 misc_translate_parse_error: "Impossible d'analyser la réponse de traduction. Veuillez réessayer."
 blacklists_set_bl_action_update_failed: "Impossible de mettre à jour l'action de la liste noire. Veuillez réessayer."
+blacklists_set_bl_action_no_words: "Il n'y a encore aucun mot dans la liste noire de ce chat. Ajoutez-en un avec /addblacklist, puis choisissez l'action."
 filters_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
 notes_overwrite_token_failed: "Impossible de créer la confirmation d'écrasement. Veuillez réessayer."
 common_settings_save_failed: "Echec de la sauvegarde des parametres. Veuillez reessayer plus tard."

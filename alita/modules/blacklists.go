@@ -317,7 +317,9 @@ func (m moduleStruct) setBlacklistAction(b *gotgbot.Bot, ctx *ext.Context) error
 	} else if len(args) == 1 {
 		action := strings.ToLower(args[0])
 		if slices.Contains([]string{"mute", "kick", "warn", "ban", "none"}, action) {
-			if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+			if err := blacklists.SetBlacklistAction(chat.Id, action); errors.Is(err, blacklists.ErrNoBlacklistWords) {
+				rMsg, _ = tr.GetString("blacklists_set_bl_action_no_words")
+			} else if err != nil {
 				log.WithFields(log.Fields{
 					"chatId": chat.Id,
 					"action": action,

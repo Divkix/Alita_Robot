@@ -1932,6 +1932,7 @@ warns_notes_docs: |
 # Issue #628 remediation keys
 misc_translate_parse_error: "अनुवाद प्रतिक्रिया को पार्स नहीं किया जा सका। कृपया फिर से प्रयास करें।"
 blacklists_set_bl_action_update_failed: "ब्लैकलिस्ट कार्रवाई अपडेट नहीं हो सकी। कृपया फिर से प्रयास करें।"
+blacklists_set_bl_action_no_words: "इस चैट में अभी कोई ब्लैकलिस्ट शब्द नहीं है। पहले /addblacklist से एक शब्द जोड़ें, फिर कार्रवाई सेट करें।"
 filters_overwrite_token_failed: "ओवरराइट पुष्टि बनाई नहीं जा सकी। कृपया फिर से प्रयास करें।"
 notes_overwrite_token_failed: "ओवरराइट पुष्टि बनाई नहीं जा सकी। कृपया फिर से प्रयास करें।"
 common_settings_save_failed: "Settings save karne mein error. Baad mein try karein."

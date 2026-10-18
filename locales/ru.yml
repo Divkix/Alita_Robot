@@ -1994,6 +1994,7 @@ users_extended_docs: |
 # Issue #628 remediation keys
 misc_translate_parse_error: "Не удалось разобрать ответ перевода. Пожалуйста, попробуйте снова."
 blacklists_set_bl_action_update_failed: "Не удалось обновить действие чёрного списка. Пожалуйста, попробуйте снова."
+blacklists_set_bl_action_no_words: "В чёрном списке этого чата пока нет слов. Сначала добавьте слово через /addblacklist, потом задайте действие."
 filters_overwrite_token_failed: "Не удалось создать подтверждение перезаписи. Пожалуйста, попробуйте снова."
 notes_overwrite_token_failed: "Не удалось создать подтверждение перезаписи. Пожалуйста, попробуйте снова."
 common_settings_save_failed: "Не удалось сохранить настройки. Пожалуйста, попробуйте позже."

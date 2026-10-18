@@ -2248,6 +2248,7 @@ users_extended_docs: |
 # Issue #628 remediation keys
 misc_translate_parse_error: "Gagal menguraikan respons terjemahan. Silakan coba lagi."
 blacklists_set_bl_action_update_failed: "Gagal memperbarui tindakan daftar hitam. Silakan coba lagi."
+blacklists_set_bl_action_no_words: "Belum ada kata daftar hitam di obrolan ini. Tambahkan satu dengan /addblacklist, lalu atur tindakannya."
 filters_overwrite_token_failed: "Gagal membuat konfirmasi timpa. Silakan coba lagi."
 notes_overwrite_token_failed: "Gagal membuat konfirmasi timpa. Silakan coba lagi."
 common_settings_save_failed: "Gagal menyimpan pengaturan. Silakan coba lagi nanti."

@@ -2319,6 +2319,7 @@ users_extended_docs: |
 # Issue #628 remediation keys
 misc_translate_parse_error: "Failed to parse translation response. Please try again."
 blacklists_set_bl_action_update_failed: "Failed to update blacklist action. Please try again."
+blacklists_set_bl_action_no_words: "There are no blacklisted words in this chat yet. Add one with /addblacklist, then set the action."
 filters_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
 notes_overwrite_token_failed: "Failed to create overwrite confirmation. Please try again."
 common_settings_save_failed: "Failed to save settings. Please try again later."

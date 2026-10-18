@@ -2,6 +2,7 @@ package blacklists
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -11,11 +12,28 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/models"
 )
 
+// AddBlacklist stores a new word with the chat's current action. /blaction
+// writes the action into every word row, so a new word copies it from the
+// oldest existing row; a chat without words starts at "warn".
 func AddBlacklist(chatId int64, trigger string) error {
+	var actions []string
+	if err := db.DB.Model(&models.BlacklistSettings{}).
+		Where("chat_id = ?", chatId).
+		Order("id").
+		Limit(1).
+		Pluck("action", &actions).Error; err != nil {
+		log.Errorf("[Database] AddBlacklist: read chat action: %v - %d", err, chatId)
+		return err
+	}
+	action := "warn"
+	if len(actions) > 0 && actions[0] != "" {
+		action = actions[0]
+	}
+
 	blacklist := &models.BlacklistSettings{
 		ChatId: chatId,
 		Word:   strings.ToLower(trigger),
-		Action: "warn",
+		Action: action,
 		Reason: "Blacklisted word: '%s'",
 	}
 
@@ -53,11 +71,19 @@ func RemoveAllBlacklist(chatId int64) error {
 	return nil
 }
 
+// ErrNoBlacklistWords means the chat has no words to store an action on.
+var ErrNoBlacklistWords = errors.New("chat has no blacklisted words")
+
+// SetBlacklistAction writes the action into every word row of the chat. With
+// no rows there is nowhere to keep it, so it returns ErrNoBlacklistWords.
 func SetBlacklistAction(chatId int64, action string) error {
-	err := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action)).Error
-	if err != nil {
-		log.Errorf("[Database] SetBlacklistAction: %v - %d", err, chatId)
-		return err
+	result := db.DB.Model(&models.BlacklistSettings{}).Where("chat_id = ?", chatId).Update("action", strings.ToLower(action))
+	if result.Error != nil {
+		log.Errorf("[Database] SetBlacklistAction: %v - %d", result.Error, chatId)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNoBlacklistWords
 	}
 
 	cache.DeleteCache(cache.CacheKey("blacklist", chatId))

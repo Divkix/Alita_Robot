@@ -12,9 +12,12 @@ import (
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
+	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
+	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
 	"github.com/divkix/Alita_Robot/alita/db/lang"
+	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
@@ -58,6 +61,48 @@ func TestAddListActionAndRemoveBlacklistCommands(t *testing.T) {
 	waitForModuleCondition(t, func() bool {
 		return !slicesContains(blacklists.GetBlacklistSettings(chat.Id).Triggers(), "spam")
 	})
+}
+
+func TestBlacklistWordAddedAfterBlactionUsesIt(t *testing.T) {
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin, member := f.client, f.bot, f.chat, f.admin, f.member
+
+	for _, text := range []string{"/addblacklist spam", "/blaction ban", "/addblacklist eggs"} {
+		ctx := newModuleMessageContext(bot, chat, admin, text)
+		var err error
+		if strings.HasPrefix(text, "/blaction") {
+			err = blacklistsModule.setBlacklistAction(bot, ctx)
+		} else {
+			err = blacklistsModule.addBlacklist(bot, ctx)
+		}
+		if err != ext.EndGroups {
+			t.Fatalf("%s error = %v, want EndGroups", text, err)
+		}
+	}
+
+	ctx := newModuleMessageContext(bot, chat, member, "fresh eggs for sale")
+	if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("blacklistWatcher error = %v, want ContinueGroups after a ban", err)
+	}
+	assertParams(t, client.onlyCall(t, "banChatMember"), targetParams(chat.Id, member.Id))
+}
+
+func TestBlactionWithoutWordsAsksForAWordFirst(t *testing.T) {
+	useEnglishLocale(t)
+	f := newAdminChatFixture(t)
+	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin
+
+	ctx := newModuleMessageContext(bot, chat, admin, "/blaction ban")
+	if err := blacklistsModule.setBlacklistAction(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("setBlacklistAction error = %v, want EndGroups", err)
+	}
+	reply := lastReply(t, client)
+	if changed := fmt.Sprintf(translated(t, "blacklists_set_bl_action_changed_mode"), "ban"); reply == changed {
+		t.Fatalf("/blaction ban with no words replied %q, but nothing was stored", reply)
+	}
+	if want := translated(t, "blacklists_set_bl_action_no_words"); reply != want {
+		t.Fatalf("/blaction ban with no words replied %q, want %q", reply, want)
+	}
 }
 
 func TestBlacklistCommandsHandleValidationBranches(t *testing.T) {
@@ -456,6 +501,13 @@ func TestBlacklistWatcherUsesMatchedTriggerAction(t *testing.T) {
 	if err := blacklists.AddBlacklist(chat.Id, "newword"); err != nil {
 		t.Fatalf("AddBlacklist(newword) error = %v", err)
 	}
+	// Words with different actions only arrive through a backup import.
+	if err := db.DB.Model(&models.BlacklistSettings{}).
+		Where("chat_id = ? AND word = ?", chat.Id, "newword").
+		Update("action", "warn").Error; err != nil {
+		t.Fatalf("set newword action: %v", err)
+	}
+	dbcache.DeleteCache(dbcache.CacheKey("blacklist", chat.Id))
 	settings := blacklists.GetBlacklistSettings(chat.Id)
 	if got := settings.Find("oldword"); got == nil || got.Action != "mute" {
 		t.Fatalf("oldword settings = %+v, want mute", got)
