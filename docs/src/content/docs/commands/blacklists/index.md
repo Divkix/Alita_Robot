@@ -44,19 +44,28 @@ This module can be accessed using the following aliases:
 
 - `blacklist`
 - `unblacklist`
+- `blocklist`
+- `addblocklist`
 
 ## Available Commands
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
 | `/addblacklist` | Add a trigger to the blacklist | ❌ |
+| `/addblocklist` | Alias of `/addblacklist` | ❌ |
 | `/blacklist` | Add a trigger to the blacklist | ❌ |
 | `/blacklistaction` | Set action for blacklist triggers | ❌ |
 | `/blacklists` | List all blacklisted triggers | ✅ |
 | `/blaction` | Set action for blacklist triggers | ❌ |
+| `/blocklist` | Alias of `/addblacklist` | ❌ |
+| `/blocklists` | Alias of `/blacklists` | ✅ |
 | `/remallbl` | Remove all blacklist triggers | ❌ |
 | `/rmallbl` | Alias of `/remallbl` | ❌ |
+| `/rmallblocklist` | Alias of `/remallbl` | ❌ |
 | `/rmblacklist` | Remove a trigger from the blacklist | ❌ |
+| `/rmblocklist` | Alias of `/rmblacklist` | ❌ |
+| `/rmblocklistall` | Alias of `/remallbl` | ❌ |
+| `/unblacklist` | Alias of `/rmblacklist` | ❌ |
 
 ## Usage Examples
 
@@ -72,10 +81,10 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-- `/addblacklist`, `/blacklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
-- `/rmblacklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
+- `/addblacklist`, `/blacklist`, `/addblocklist`, `/blocklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
+- `/rmblacklist`, `/rmblocklist`, `/unblacklist` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
 - `/blaction`, `/blacklistaction` — Requires admin + **Restrict Members** permission (`CanUserRestrict`)
-- `/remallbl`, `/rmallbl` — Requires **chat owner** (creator)
-- `/blacklists` — Available to all users (disableable)
+- `/remallbl`, `/rmallbl`, `/rmblocklistall`, `/rmallblocklist` — Requires **chat owner** (creator)
+- `/blacklists`, `/blocklists` — Available to all users (disableable)
 
 **Bot must also be admin** with Restrict Members permission for add/remove/action commands.
