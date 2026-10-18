@@ -50,7 +50,21 @@ admin_help_msg: "Jadikan mudah untuk mempromosikan dan menurunkan pengguna denga
   × /demote `<reply/username/mention/userid>`: Turunkan pengguna.
 
   × /title `<reply/username/mention/userid>` `<judul khusus>`: Atur judul khusus untuk
-  pengguna"
+  pengguna
+
+  × /setgtitle <judul>: Ubah judul grup.
+
+  × /setgpic: Balas sebuah foto untuk menjadikannya gambar grup.
+
+  × /setgdesc [teks]: Ubah deskripsi grup.
+
+  × /invitelink: Dapatkan tautan undangan obrolan.
+
+  × /anonadmin `<on/off>`: Wajibkan admin anonim mengonfirmasi dengan tombol (hanya pemilik grup).
+
+  × /admincache: Muat ulang daftar admin.
+
+  × /clearadmincache: Hapus daftar admin yang tersimpan di cache."
 admin_promote_admin_title_truncated: Judul admin dipotong menjadi 16 karakter dari %d
 admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempromosikannya?
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
@@ -262,7 +276,11 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Atur tindakan untuk verifikasi gagal (default:
   kick)
 
-  × /captchaattempts `<1-10>`: Atur maksimum percobaan verifikasi (default: 3)
+  × /captchamaxattempts `<1-10>`: Atur maksimum percobaan verifikasi (default: 3)
+
+  × /captchapending `<@user/user_id>`: Tampilkan pesan yang disimpan dari pengguna yang tertunda.
+
+  × /captchaclear `<@user/user_id>`: Hapus pesan yang disimpan dari pengguna yang tertunda.
 
 
   Ketika diaktifkan, anggota baru akan dibisukan secara otomatis sampai mereka menyelesaikan captcha.
@@ -663,6 +681,9 @@ languages_help_msg: "Tidak dapat mengubah bahasa bot?
   Di obrolan pribadi, admin yang terhubung ke grup dapat menggunakan /lang group untuk mengubah bahasa grup itu.
 
 
+  × /lang: Ubah bahasa bot untuk Anda atau grup.
+
+
   Anda dapat membantu kami membawa bot ke lebih banyak bahasa dengan membantu di [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Admin saja*:
 
@@ -698,7 +719,19 @@ misc_help_msg:
 
   × /removebotkeyboard: Menghapus keyboard bot yang macet dari obrolan Anda.
 
-  × /stat: Mendapatkan jumlah total pesan di obrolan."
+  × /stat: Mendapatkan jumlah total pesan di obrolan.
+
+  × /stickerid: Balas stiker untuk mendapatkan ID file-nya.
+
+  × /zombies: Keluarkan akun terhapus yang dikenal bot (admin).
+
+  × /github <pengguna|pengguna/repo>: Cari pengguna atau repositori GitHub.
+
+  × /wiki <pencarian>: Cari di Wikipedia bahasa Inggris.
+
+  × /ud <istilah>: Cari di Urban Dictionary.
+
+  × /runs: Sindiran acak."
 mutes_help_msg: |
   "Terkadang pengguna bisa mengganggu dan Anda mungkin ingin membatasi mereka
   dari mengirim pesan ke obrolan, modul ini ada di sini untuk membantu, Anda dapat menggunakan modul ini
@@ -782,6 +815,10 @@ purges_help_msg: "*Admin saja:*
   - /purge: menghapus semua pesan antara ini dan pesan yang dibalas.
 
   - /del: menghapus pesan yang Anda balas.
+
+  - /purgefrom: menandai pesan yang dibalas sebagai awal rentang yang akan dihapus (lalu gunakan /purgeto).
+
+  - /purgeto: menghapus semua pesan dari tanda /purgefrom sampai pesan yang dibalas.
 
 
   *Contoh*:
@@ -2491,6 +2528,7 @@ federations_help_msg: |
   *Fed admins:*
   × /fban /unfban /funban: Federation ban/unban.
   × /fedstat /fbanstat: Check a user's fban.
+  × /feddemoteme <fed_id>: Step down as a federation admin.
 
   *Anyone:*
   × /fedinfo /fedadmins /chatfed /myfeds
@@ -2502,6 +2540,7 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.

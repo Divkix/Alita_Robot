@@ -55,7 +55,15 @@ admin_help_msg: "Make it easy to promote and demote users with the admin module!
 
   × /setgpic: Reply to a photo to set it as the group picture.
 
-  × /setgdesc [text]: Change the group description."
+  × /setgdesc [text]: Change the group description.
+
+  × /invitelink: Get the chat's invite link.
+
+  × /anonadmin `<on/off>`: Require anonymous admins to confirm with a button (group owner only).
+
+  × /admincache: Reload the admin list.
+
+  × /clearadmincache: Clear the cached admin list."
 admin_promote_admin_title_truncated: Admin title truncated to 16 characters from %d
 admin_promote_is_admin: This person is already an admin, and how am I supposed
   to promote them?
@@ -314,7 +322,11 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Set action for failed verification (default:
   kick)
 
-  × /captchaattempts `<1-10>`: Set maximum verification attempts (default: 3)
+  × /captchamaxattempts `<1-10>`: Set maximum verification attempts (default: 3)
+
+  × /captchapending `<@user/user_id>`: Show the messages stored for a pending user.
+
+  × /captchaclear `<@user/user_id>`: Clear the messages stored for a pending user.
 
 
   When enabled, new members are automatically muted until they complete the captcha.
@@ -721,6 +733,9 @@ languages_help_msg: "Not able to change language of the bot?
   In PM, an admin connected to a group can use /lang group to change that group's language.
 
 
+  × /lang: Change the bot language for you or the group.
+
+
   You can help us bring bot to more languages by helping on [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Admin only*:
 
@@ -854,6 +869,10 @@ purges_help_msg: "*Admin only:*
   - /purge: deletes all messages between this and the replied-to message.
 
   - /del: deletes the message you replied to.
+
+  - /purgefrom: marks the replied-to message as the start of a range to delete (then use /purgeto).
+
+  - /purgeto: deletes every message from the /purgefrom mark up to the replied-to message.
 
 
   *Examples*:
@@ -2529,6 +2548,7 @@ federations_help_msg: |
   *Fed admins:*
   × /fban /unfban /funban: Federation ban/unban.
   × /fedstat /fbanstat: Check a user's fban.
+  × /feddemoteme <fed_id>: Step down as a federation admin.
 
   *Anyone:*
   × /fedinfo /fedadmins /chatfed /myfeds
@@ -2540,6 +2560,7 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.

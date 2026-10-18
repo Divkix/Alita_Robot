@@ -16,7 +16,7 @@ admin_errors_err_cannot_promote: "प्रमोट करने में व�
 admin_errors_err_set_title: "कस्टम एडमिन टाइटल सेट करने में विफल; टाइटल सही नहीं हो सकता या इसमें इमोजी हो सकते हैं।"
 admin_errors_title_empty: आपको मुझे सेट करने के लिए एक एडमिन टाइटल देना होगा।
 admin_errors_admin_cache_failed: "मुझे एडमिन सूची तक पहुँचने में समस्या हो रही है। कृपया बाद में पुनः प्रयास करें।"
-admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n\n  *उपयोगकर्ता कमांड:*\n\n  × /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n\n  *एडमिन कमांड:*\n\n  × /promote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को प्रमोट करें।\n\n  × /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n\n  × /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें"
+admin_help_msg: "एडमिन मॉड्यूल के साथ उपयोगकर्ताओं को प्रमोट और डिमोट करना आसान बनाएं!\n\n\n  *उपयोगकर्ता कमांड:*\n\n  × /adminlist: वर्तमान चैट में एडमिन की सूची।\n\n\n  *एडमिन कमांड:*\n\n  × /promote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को प्रमोट करें।\n\n  × /demote `<reply/username/mention/userid>`: किसी उपयोगकर्ता को डिमोट करें।\n\n  × /title `<reply/username/mention/userid>` `<custom title>`: उपयोगकर्ता के लिए कस्टम टाइटल सेट करें\n\n  × /setgtitle <title>: ग्रुप का टाइटल बदलें।\n\n  × /setgpic: किसी फ़ोटो को रिप्लाई करके उसे ग्रुप की तस्वीर बनाएं।\n\n  × /setgdesc [text]: ग्रुप का विवरण बदलें।\n\n  × /invitelink: चैट का इनवाइट लिंक प्राप्त करें।\n\n  × /anonadmin `<on/off>`: अनाम एडमिन को बटन दबाकर पुष्टि करने के लिए बाध्य करें (केवल ग्रुप ओनर)।\n\n  × /admincache: एडमिन सूची को दोबारा लोड करें।\n\n  × /clearadmincache: कैश की गई एडमिन सूची साफ़ करें।"
 admin_promote_admin_title_truncated: एडमिन टाइटल %d से 16 अक्षरों में छोटा किया गया
 admin_promote_is_admin: "यह व्यक्ति पहले से ही एडमिन है, मैं उन्हें कैसे प्रमोट करूं?"
 admin_promote_is_bot_itself: काश मैं यह खुद पर कर पाता ;_;
@@ -258,7 +258,11 @@ captcha_help_msg: "CAPTCHA सत्यापन के साथ अपने �
 
   × /captchaaction `<kick/ban/mute>`: विफल सत्यापन के लिए कार्रवाई सेट करें (डिफ़ॉल्ट: kick)
 
-  × /captchaattempts `<1-10>`: अधिकतम सत्यापन प्रयास सेट करें (डिफ़ॉल्ट: 3)
+  × /captchamaxattempts `<1-10>`: अधिकतम सत्यापन प्रयास सेट करें (डिफ़ॉल्ट: 3)
+
+  × /captchapending `<@user/user_id>`: लंबित उपयोगकर्ता के सहेजे गए संदेश दिखाएं।
+
+  × /captchaclear `<@user/user_id>`: लंबित उपयोगकर्ता के सहेजे गए संदेश साफ़ करें।
 
 
   सक्षम होने पर, नए सदस्य कैप्चा पूरा करने तक स्वचालित रूप से म्यूट हो जाते हैं।
@@ -423,6 +427,9 @@ languages_help_msg: "बॉट की भाषा बदलने में स
   निजी चैट में, किसी समूह से जुड़ा एडमिन उस समूह की भाषा बदलने के लिए /lang group का उपयोग कर सकता है।
 
 
+  × /lang: अपने या ग्रुप के लिए बॉट की भाषा बदलें।
+
+
   आप [Crowdin](https://crowdin.com/project/alita_robot) पर मदद करके बॉट को और भाषाओं में लाने में हमारी मदद कर सकते हैं"
 
 locks_help_msg: "*केवल एडमिन*:
@@ -457,7 +464,19 @@ misc_help_msg: "× /info: अपनी उपयोगकर्ता जान�
 
   × /removebotkeyboard: आपकी चैट से अटके हुए बॉट कीबोर्ड को हटाता है।
 
-  × /stat: चैट में संदेशों की कुल संख्या की गिनती प्राप्त करें।"
+  × /stat: चैट में संदेशों की कुल संख्या की गिनती प्राप्त करें।
+
+  × /stickerid: स्टिकर को रिप्लाई करके उसकी फ़ाइल ID प्राप्त करें।
+
+  × /zombies: बॉट को ज्ञात डिलीट किए गए अकाउंट को किक करें (एडमिन)।
+
+  × /github <user|user/repo>: GitHub उपयोगकर्ता या रिपॉज़िटरी खोजें।
+
+  × /wiki <search>: अंग्रेज़ी विकिपीडिया में खोजें।
+
+  × /ud <term>: Urban Dictionary में खोजें।
+
+  × /runs: एक रैंडम चुटकी।"
 
 mutes_help_msg: "कभी-कभी उपयोगकर्ता परेशान कर सकते हैं और आप उन्हें चैट में संदेश भेजने से प्रतिबंधित करना चाह सकते हैं, यह मॉड्यूल मदद के लिए यहां है, आप इस मॉड्यूल का उपयोग अपने ग्रुप में सदस्यों को म्यूट करने के लिए कर सकते हैं।
 
@@ -494,7 +513,9 @@ notes_help_msg: "भविष्य के उपयोगकर्ताओं 
 
   - /saved: /notes जैसा ही।
 
-  - /clearall: चैट में सभी नोट्स हटाएं। इसे पूर्ववत नहीं किया जा सकता।"
+  - /clearall: चैट में सभी नोट्स हटाएं। इसे पूर्ववत नहीं किया जा सकता।
+
+  - /privatenotes: नोट्स PM में भेजें या नहीं। एक बटन वाला संदेश भेजा जाएगा जिस पर क्लिक करके उपयोगकर्ता PM में नोट प्राप्त कर सकते हैं।"
 
 pins_help_msg: "सभी पिन-संबंधित कमांड यहां पाए जा सकते हैं; एक साधारण पिन किए गए संदेश के साथ अपनी चैट को नवीनतम समाचारों से अपडेट रखें!
 
@@ -527,6 +548,10 @@ purges_help_msg: "*केवल एडमिन:*
   - /purge: इस और रिप्लाई किए गए संदेश के बीच के सभी संदेशों को हटाता है।
 
   - /del: जिस संदेश का आपने जवाब दिया उसे हटाता है।
+
+  - /purgefrom: रिप्लाई किए गए संदेश को हटाने की सीमा की शुरुआत के रूप में चिह्नित करता है (फिर /purgeto का उपयोग करें)।
+
+  - /purgeto: /purgefrom के निशान से रिप्लाई किए गए संदेश तक के सभी संदेश हटाता है।
 
 
   *उदाहरण*:
@@ -2178,6 +2203,7 @@ federations_help_msg: |
   *Fed admins:*
   × /fban /unfban /funban: Federation ban/unban.
   × /fedstat /fbanstat: Check a user's fban.
+  × /feddemoteme <fed_id>: Step down as a federation admin.
 
   *Anyone:*
   × /fedinfo /fedadmins /chatfed /myfeds
@@ -2189,6 +2215,7 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.

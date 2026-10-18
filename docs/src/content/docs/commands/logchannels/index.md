@@ -12,6 +12,7 @@ Send admin actions to a dedicated log channel.
 3. Forward that message to the group.
 
 ### Admin commands:
+- `/setlog`: Set the log channel (send it in the channel, then forward the message to the group).
 - `/unsetlog`: Remove the log channel.
 - `/logchannel`: Show the current log channel.
 - `/logcategories`: List categories.
@@ -29,7 +30,7 @@ Categories: settings, admin, user, automated, reports, other.
 | `/logcategories` | List categories. | ❌ |
 | `/logchannel` | Show the current log channel. | ❌ |
 | `/nolog` | Disable a category. | ❌ |
-| `/setlog` | No description available | ❌ |
+| `/setlog` | Set the log channel (send it in the channel, then forward the message to the group). | ❌ |
 | `/unsetlog` | Remove the log channel. | ❌ |
 
 ## Usage Examples

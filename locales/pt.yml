@@ -46,7 +46,21 @@ admin_help_msg: "Facilite a promoção e rebaixamento de usuários com o módulo
   × /demote `<reply/username/mention/userid>`: Rebaixa um usuário.
 
   × /title `<reply/username/mention/userid>` `<título personalizado>`: Define título personalizado para
-  o usuário"
+  o usuário
+
+  × /setgtitle <título>: Altera o título do grupo.
+
+  × /setgpic: Responda a uma foto para defini-la como imagem do grupo.
+
+  × /setgdesc [texto]: Altera a descrição do grupo.
+
+  × /invitelink: Obtém o link de convite do chat.
+
+  × /anonadmin `<on/off>`: Exige que admins anônimos confirmem com um botão (apenas o dono do grupo).
+
+  × /admincache: Recarrega a lista de admins.
+
+  × /clearadmincache: Limpa a lista de admins em cache."
 admin_promote_admin_title_truncated: "Título de administrador truncado para 16 caracteres de %d"
 admin_promote_is_admin: Esta pessoa já é administradora, como eu vou
   promovê-la?
@@ -252,7 +266,11 @@ captcha_help_msg:
   × /captchaaction `<kick/ban/mute>`: Define a ação para falha na verificação (padrão:
   kick)
 
-  × /captchaattempts `<1-10>`: Define o máximo de tentativas de verificação (padrão: 3)
+  × /captchamaxattempts `<1-10>`: Define o máximo de tentativas de verificação (padrão: 3)
+
+  × /captchapending `<@user/user_id>`: Mostra as mensagens guardadas de um usuário pendente.
+
+  × /captchaclear `<@user/user_id>`: Apaga as mensagens guardadas de um usuário pendente.
 
 
   Quando ativado, novos membros são automaticamente mutados até completarem o captcha.
@@ -635,6 +653,9 @@ languages_help_msg: "Não consegue mudar o idioma do bot?
   No privado, um administrador conectado a um grupo pode usar /lang group para mudar o idioma desse grupo.
 
 
+  × /lang: Muda o idioma do bot para você ou o grupo.
+
+
   Você pode nos ajudar a trazer o bot para mais idiomas ajudando no [Crowdin](https://crowdin.com/project/alita_robot)"
 locks_help_msg: "*Apenas Admin*:
 
@@ -671,7 +692,19 @@ misc_help_msg:
 
   × /removebotkeyboard: Remove o teclado de bot preso do seu chat.
 
-  × /stat: Obtém a contagem do número total de mensagens no chat."
+  × /stat: Obtém a contagem do número total de mensagens no chat.
+
+  × /stickerid: Responda a um sticker para obter o ID do arquivo.
+
+  × /zombies: Expulsa as contas excluídas que o bot conhece (admin).
+
+  × /github <usuário|usuário/repo>: Busca um usuário ou repositório do GitHub.
+
+  × /wiki <busca>: Pesquisa na Wikipédia em inglês.
+
+  × /ud <termo>: Busca no Urban Dictionary.
+
+  × /runs: Uma tirada aleatória."
 mutes_help_msg:
   "Às vezes usuários podem ser irritantes e você pode querer restringi-los
   de enviar uma mensagem para o chat, este módulo está aqui para ajudar, você pode usar este módulo
@@ -755,6 +788,10 @@ purges_help_msg: "*Apenas Admin:*
   - /purge: deleta todas as mensagens entre esta e a mensagem respondida.
 
   - /del: deleta a mensagem que você respondeu.
+
+  - /purgefrom: marca a mensagem respondida como início de um intervalo a deletar (depois use /purgeto).
+
+  - /purgeto: deleta todas as mensagens da marca do /purgefrom até a mensagem respondida.
 
 
   *Exemplos*:
@@ -2463,6 +2500,7 @@ federations_help_msg: |
   *Fed admins:*
   × /fban /unfban /funban: Federation ban/unban.
   × /fedstat /fbanstat: Check a user's fban.
+  × /feddemoteme <fed_id>: Step down as a federation admin.
 
   *Anyone:*
   × /fedinfo /fedadmins /chatfed /myfeds
@@ -2474,6 +2512,7 @@ logchannels_help_msg: |
   3. Forward that message to the group.
 
   *Admin commands:*
+  × /setlog: Set the log channel (send it in the channel, then forward the message to the group).
   × /unsetlog: Remove the log channel.
   × /logchannel: Show the current log channel.
   × /logcategories: List categories.
