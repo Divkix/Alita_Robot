@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"html"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,7 +57,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		con, _ := gChat.GetMemberCount(b, nil)
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		textTemplate, _ := tr.GetString("devs_chat_info")
-		replyText = fmt.Sprintf(textTemplate, chat.Title, chat.Id, con, chat.InviteLink)
+		replyText = fmt.Sprintf(textTemplate, html.EscapeString(chat.Title), chat.Id, con, html.EscapeString(chat.InviteLink))
 	}
 
 	_, err := msg.Reply(b, replyText, formatting.Shtml())

@@ -1,7 +1,10 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -223,5 +226,24 @@ func TestDevChatListSendsDocument(t *testing.T) {
 	}
 	if calls := client.callsFor("deleteMessage"); len(calls) != 1 {
 		t.Fatalf("deleteMessage calls = %d, want status message deletion", len(calls))
+	}
+}
+
+func TestDevChatInfoEscapesChatTitle(t *testing.T) {
+	withOwnerID(t, 777000)
+	useEnglishLocale(t)
+	client := newModuleBotClient()
+	client.responses["getChat"] = json.RawMessage(`{"id":-100123,"type":"supergroup","title":"A & <B>","accent_color_id":0,"max_reaction_count":0}`)
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/chatinfo -100123")
+	if err := devsModule.chatInfo(bot, ctx); err != ext.ContinueGroups {
+		t.Fatalf("chatInfo() error = %v, want ContinueGroups", err)
+	}
+	text := fmt.Sprint(client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "A &amp; &lt;B&gt;") || strings.Contains(text, "<B>") {
+		t.Fatalf("chatInfo reply = %q, want the chat title HTML-escaped", text)
 	}
 }
