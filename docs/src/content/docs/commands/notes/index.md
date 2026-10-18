@@ -45,8 +45,8 @@ Individual notes can override this behavior:
 - `{noprivate}` - Always send in group
 
 **Raw Note (No Formatting):**
-To see a note's raw content without formatting (for editing):
-`/get notename noformat`
+Admins can see a note's raw content without formatting (for editing):
+`/get notename noformat` or `#notename noformat`
 
 
 ## Module Aliases
