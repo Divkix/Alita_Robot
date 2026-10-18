@@ -68,7 +68,7 @@ Understanding these rules is essential for debugging why a message did or did no
 7. **Blacklists (group 7)** matches the word, takes the configured action (e.g., mute user), returns `ContinueGroups`.
 8. Group 8: Reports does nothing (the message does not mention @admin/@admins); Reactions adds an emoji reaction if a configured keyword matches, and returns `ContinueGroups`.
 9. **Filters (group 9)** matches the filter pattern, sends the configured response, returns `ContinueGroups`.
-10. Pins (group 10) checks for anti-channel-pin conditions.
+10. Pins (group 10) does not match (the message is not a linked-channel post).
 
 Both the blacklist action and the filter response are triggered for the same message.
 
