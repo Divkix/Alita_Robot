@@ -32,6 +32,31 @@ const (
 	maxConcurrentMsgDeletions = 5
 )
 
+// floodTimedActionTime is how long the tban/tmute flood actions last.
+// /setfloodmode cannot store these actions or a duration; they reach the table
+// from backups and older versions, so they get a fixed hour.
+const floodTimedActionTime = 60 * 60
+
+// floodActionLabel names the flood action for the flood notice and /flood.
+func floodActionLabel(action string) string {
+	switch action {
+	case "mute":
+		return "muted"
+	case "ban":
+		return "banned"
+	case "kick":
+		return "kicked"
+	case "tban":
+		return "banned for " + formatDuration(floodTimedActionTime)
+	case "tmute":
+		return "muted for " + formatDuration(floodTimedActionTime)
+	case "":
+		return "none"
+	default:
+		return action
+	}
+}
+
 type floodKey struct {
 	chatId int64
 	userId int64
@@ -263,10 +288,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
-	var (
-		fmode    string
-		keyboard [][]gotgbot.InlineKeyboardButton
-	)
+	var keyboard [][]gotgbot.InlineKeyboardButton
 	userId := user.Id()
 
 	if antifloodModule.userIsFloodExempt(b, chatId, userId) {
@@ -284,7 +306,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 
-	if flood.Action == "mute" || flood.Action == "kick" || flood.Action == "ban" {
+	if slices.Contains([]string{"mute", "kick", "ban", "tban", "tmute"}, flood.Action) {
 		if !chat_status.CanBotRestrict(b, ctx, chat) {
 			log.WithFields(log.Fields{
 				"chatId": chatId,
@@ -346,7 +368,6 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
-		fmode = "muted"
 		keyboard = [][]gotgbot.InlineKeyboardButton{
 			{
 				{
@@ -368,14 +389,12 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 		if !user.IsUser() {
 			return ext.ContinueGroups
 		}
-		fmode = "kicked"
 		keyboard = nil
 		if err := kickMember(b, chat.Id, userId); err != nil {
 			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
 			return err
 		}
 	case "ban":
-		fmode = "banned"
 		if user.IsUser() {
 			_, err := chat.BanMember(b, userId, nil)
 			if err != nil {
@@ -397,11 +416,40 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 				return err
 			}
 		}
+	case "tban", "tmute":
+		// banChatSenderChat takes no until_date, so a channel would be banned
+		// for good; leave it like mute and kick do.
+		if !user.IsUser() {
+			return ext.ContinueGroups
+		}
+		untilDate := time.Now().Unix() + floodTimedActionTime
+		var err error
+		if flood.Action == "tban" {
+			keyboard = nil
+			_, err = chat.BanMember(b, userId, &gotgbot.BanChatMemberOpts{UntilDate: untilDate})
+		} else {
+			keyboard = [][]gotgbot.InlineKeyboardButton{
+				{
+					{
+						Text:         trS(tr, "button_unmute_admins"),
+						CallbackData: encodeCallbackData("unrestrict", map[string]string{"a": "unmute", "u": fmt.Sprint(user.Id())}),
+					},
+				},
+			}
+			_, err = chat.RestrictMember(b, userId, MutedPermissions, &gotgbot.RestrictChatMemberOpts{UntilDate: untilDate})
+		}
+		if err != nil {
+			log.Errorf(" checkFlood: %d (%d) - %v", chatId, user.Id(), err)
+			return err
+		}
+	default:
+		log.Warnf("[Antiflood] chat %d has unhandled flood action %q; no punishment applied", chatId, flood.Action)
+		return ext.ContinueGroups
 	}
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
-			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), fmode)
+			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), floodActionLabel(flood.Action))
 		}(),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
@@ -492,17 +540,8 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if flood.Limit == 0 {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
-		var mode string
-		switch flood.Action {
-		case "mute":
-			mode = "muted"
-		case "ban":
-			mode = "banned"
-		case "kick":
-			mode = "kicked"
-		}
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_flood_show_settings")
-		text = fmt.Sprintf(temp, flood.Limit, mode)
+		text = fmt.Sprintf(temp, flood.Limit, floodActionLabel(flood.Action))
 	}
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {
