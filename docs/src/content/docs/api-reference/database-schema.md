@@ -47,8 +47,8 @@ Stores admin settings per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `anon_admin` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -99,8 +99,8 @@ Stores anti-flood configuration per chat.
 | `flood_limit` | `BIGINT` | NO | `5` | CHECK (`flood_limit >= 0`) |
 | `action` | `TEXT` | NO | `'mute'` | CHECK (`action IN ('mute','ban','kick','warn','tban','tmute')`) |
 | `delete_antiflood_message` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 > **Note:** Previous `mode` and `limit` columns were dropped by migrations (`20260420120000_consolidate_duplicate_fields.sql`, `20250814100000_fix_antiflood_column_duplication.sql`). Only `flood_limit` is used.
 
@@ -127,8 +127,8 @@ Stores blacklisted words and their actions per chat.
 | `word` | `TEXT` | NO | — | — |
 | `action` | `TEXT` | NO | `'warn'` | CHECK (`action IN ('warn','mute','ban','kick','tban','tmute','delete','none')`) |
 | `reason` | `TEXT` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -148,16 +148,16 @@ Tracks active captcha verification attempts for users.
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | NO | auto-increment | PRIMARY KEY |
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
 | `user_id` | `BIGINT` | NO | — | — |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `answer` | `VARCHAR(255)` | NO | — | — |
 | `attempts` | `INTEGER` | NO | `0` | — |
 | `message_id` | `BIGINT` | YES | — | — |
 | `refresh_count` | `INTEGER` | NO | `0` | — |
-| `expires_at` | `TIMESTAMP` | NO | — | CHECK (`expires_at > created_at`) |
-| `created_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
-| `updated_at` | `TIMESTAMP` | YES | `CURRENT_TIMESTAMP` | — |
+| `expires_at` | `TIMESTAMPTZ` | NO | — | CHECK (`expires_at > created_at`) |
+| `created_at` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
 
 #### Indexes
 
@@ -206,7 +206,7 @@ Stores captcha configuration per chat.
 
 | Column | Type | Nullable | Default | Constraints |
 |--------|------|----------|---------|-------------|
-| `id` | `SERIAL` | NO | auto-increment | PRIMARY KEY |
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `enabled` | `BOOLEAN` | NO | `FALSE` | — |
 | `captcha_mode` | `VARCHAR(10)` | NO | `'math'` | CHECK (`captcha_mode IN ('math','text')`) |
@@ -235,8 +235,8 @@ Stores channel metadata and linked channel relationships.
 | `channel_id` | `BIGINT` | YES | — | — |
 | `channel_name` | `TEXT` | YES | — | — |
 | `username` | `TEXT` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -262,9 +262,9 @@ Main table storing chat/group information.
 | `language` | `TEXT` | YES | — | — |
 | `users` | `JSONB` | YES | — | — |
 | `is_inactive` | `BOOLEAN` | NO | `false` | — |
-| `last_activity` | `TIMESTAMP` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `last_activity` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -286,8 +286,8 @@ Per-user connection state (a user has at most one connected chat).
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `chat_id` | `BIGINT` | NO | — | — |
 | `connected` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -312,8 +312,8 @@ Chat-level connection configuration.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `allow_connect` | `BOOLEAN` | NO | `true` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -333,8 +333,8 @@ Bot developers and sudo users.
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `is_dev` | `BOOLEAN` | NO | `false` | — |
 | `sudo` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -354,8 +354,8 @@ Per-command disable state for chats.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
 | `command` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `command`) |
 | `disabled` | `BOOLEAN` | NO | `true` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -374,8 +374,8 @@ Chat-level disable configuration for command deletion behavior.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `delete_commands` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
 ---
 
@@ -395,8 +395,8 @@ Custom keyword filters per chat.
 | `fileid` | `TEXT` | YES | — | — |
 | `nonotif` | `BOOLEAN` | NO | `false` | — |
 | `filter_buttons` | `JSONB` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -420,18 +420,18 @@ Welcome and goodbye message settings per chat.
 | `welcome_enabled` | `BOOLEAN` | NO | `true` | — |
 | `welcome_text` | `TEXT` | YES | — | — |
 | `welcome_file_id` | `TEXT` | YES | — | — |
-| `welcome_type` | `BIGINT` | NO | `1` | — |
+| `welcome_type` | `BIGINT` | NO | — (GORM writes 1 on insert) | — |
 | `welcome_btns` | `JSONB` | YES | — | — |
 | `goodbye_clean_old` | `BOOLEAN` | NO | `false` | — |
 | `goodbye_last_msg_id` | `BIGINT` | YES | — | — |
 | `goodbye_enabled` | `BOOLEAN` | NO | `true` | — |
 | `goodbye_text` | `TEXT` | YES | — | — |
 | `goodbye_file_id` | `TEXT` | YES | — | — |
-| `goodbye_type` | `BIGINT` | NO | `1` | — |
+| `goodbye_type` | `BIGINT` | NO | — (GORM writes 1 on insert) | — |
 | `goodbye_btns` | `JSONB` | YES | — | — |
 | `auto_approve` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -451,8 +451,8 @@ Locked permissions per chat.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `chat_id`, `lock_type`) |
 | `lock_type` | `TEXT` | NO | — | UNIQUE (composite: `chat_id`, `lock_type`) |
 | `locked` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -481,8 +481,8 @@ Saved notes/tags per chat.
 | `web_preview` | `BOOLEAN` | NO | `true` | — |
 | `is_protected` | `BOOLEAN` | NO | `false` | — |
 | `no_notif` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -501,8 +501,8 @@ Note settings per chat.
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `private` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -523,8 +523,8 @@ Pinned message settings per chat.
 | `msg_id` | `BIGINT` | YES | — | — |
 | `clean_linked` | `BOOLEAN` | NO | `false` | — |
 | `anti_channel_pin` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -570,8 +570,8 @@ Report settings per chat.
 | `enabled` | `BOOLEAN` | NO | `true` | — |
 | `status` | `BOOLEAN` | NO | `true` | — |
 | `blocked_list` | `JSONB` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -591,8 +591,8 @@ Report settings per user.
 | `user_id` | `BIGINT` | NO | — | UNIQUE |
 | `enabled` | `BOOLEAN` | NO | `true` | — |
 | `status` | `BOOLEAN` | NO | `true` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -613,8 +613,8 @@ Chat rules text.
 | `rules` | `TEXT` | YES | — | — |
 | `rules_btn` | `TEXT` | YES | — | — |
 | `private` | `BOOLEAN` | NO | `false` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -663,9 +663,9 @@ Main table storing user information.
 | `username` | `TEXT` | YES | — | INDEXED |
 | `name` | `TEXT` | YES | — | — |
 | `language` | `TEXT` | YES | `'en'` | — |
-| `last_activity` | `TIMESTAMP` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `last_activity` | `TIMESTAMPTZ` | YES | `CURRENT_TIMESTAMP` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
@@ -688,8 +688,8 @@ Users approved for a chat (immune to anti-spam).
 | `user_id` | `BIGINT` | NO | — | — |
 | `reason` | `TEXT` | YES | `''` | — |
 | `approved_by` | `BIGINT` | NO | `0` | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
 #### Indexes
 
@@ -716,8 +716,8 @@ Anti-raid configuration per chat.
 | `raid_time` | `INT` | NO | `21600` | CHECK (`raid_time >= 0`) |
 | `raid_action_time` | `INT` | NO | `3600` | CHECK (`raid_action_time >= 0`) |
 | `auto_antiraid_threshold` | `INT` | NO | `0` | CHECK (`auto_antiraid_threshold >= 0`) |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
 #### Indexes
 
@@ -743,8 +743,8 @@ Warning system settings per chat. `warn_action_time` is the tban/tmute duration 
 | `warn_mode` | `TEXT` | YES | — | CHECK (`warn_mode IS NULL OR warn_mode = '' OR warn_mode IN ('ban','kick','mute','tban','tmute')`) |
 | `warn_action_time` | `INTEGER` | NO | `0` | CHECK (`warn_action_time >= 0`) |
 | `warn_expiry` | `INTEGER` | NO | `0` | CHECK (`warn_expiry >= 0`) |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Foreign Keys
 
@@ -765,8 +765,8 @@ User warnings per chat.
 | `chat_id` | `BIGINT` | NO | — | UNIQUE (composite: `user_id`, `chat_id`) |
 | `num_warns` | `BIGINT` | NO | `0` | CHECK (`num_warns >= 0`) |
 | `warns` | `JSONB` | YES | — | — |
-| `created_at` | `TIMESTAMP` | YES | — | — |
-| `updated_at` | `TIMESTAMP` | YES | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | — | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | — | — |
 
 #### Indexes
 
