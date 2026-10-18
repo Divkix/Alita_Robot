@@ -27,6 +27,13 @@ When Captcha module is enabled:
 3. After verification, welcome message is sent
 4. Failed verification applies captcha action
 
+**Join Requests**
+When the group requires admin approval to join and `/autoapprove` is off, the bot posts each join request in the group with the user's name and ID and **Approve**, **Decline** and **Ban** buttons. Only group admins can use them:
+- Approve / Decline: both the admin and the bot need the **Invite Users** permission.
+- Ban: both the admin and the bot need **Invite Users** and **Ban Users**. Ban bans the user and declines the request.
+
+After an admin acts, the message is edited to show the result (or that the request was already handled or withdrawn). With Redis available, a repeat request from the same user within 5 minutes is not posted again. When `/autoapprove` is on, requests are approved immediately and no message is posted.
+
 
 ## Module Aliases
 
@@ -71,10 +78,11 @@ For detailed command usage, refer to the commands table above.
 - `/resetwelcome`, `/resetgoodbye` — Requires **Change Group Info** admin permission (`CanUserChangeInfo`)
 - `/welcome on/off`, `/goodbye on/off` — Requires **admin** permission
 - `/welcome`, `/goodbye` (no args, view settings) — Available to any admin
-- `/cleanwelcome`, `/cleangoodbye`, `/cleanservice` — Requires **Change Group Info** admin permission
-- `/autoapprove` — Requires **Change Group Info** admin permission
+- `/cleanwelcome`, `/cleangoodbye` — Requires **Change Group Info** admin permission
+- `/cleanservice`, `/autoapprove` — Requires **Change Group Info** admin permission, and the bot must be an admin in the group
+- Join-request buttons — Approve/Decline need **Invite Users** (admin and bot); Ban also needs **Ban Users** (admin and bot)
 
-**View raw greeting content:** Append `noformat` to `/welcome` or `/goodbye`
-(e.g., `/welcome noformat`) to see the raw Markdown/button codes without applied
-formatting. Requires admin permission (only the user triggering `noformat` needs admin;
-the `/welcome` or `/goodbye` view itself does not).
+**Preview without placeholders:** Append `noformat` to `/welcome` or `/goodbye`
+(e.g., `/welcome noformat`) to preview the stored message with `{placeholders}` left
+unfilled and buttons shown as `[text](buttonurl://…)` codes instead of a keyboard.
+Text formatting (bold, links, etc.) still renders. Admin only, like the plain view.
