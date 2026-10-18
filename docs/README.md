@@ -65,5 +65,5 @@ See the main [README](../README.md) for full contribution guidelines.
 ## Links
 
 - [Alita Robot Repository](https://github.com/divkix/Alita_Robot)
-- [Live Documentation](https://alita.divkix.me)
+- [Live Documentation](https://alita-docs.divkix.me)
 - [Support Group](https://t.me/DivideSupport)
