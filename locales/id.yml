@@ -801,7 +801,7 @@ pins_help_msg:
 
   *Perintah Admin:*
 
-  × /pin: Pin pesan yang Anda balas. Tambahkan ''loud'' atau ''notify'' untuk mengirim notifikasi
+  × /pin: Pin pesan yang Anda balas. Tambahkan 'loud' atau 'notify' untuk mengirim notifikasi
   ke anggota grup.
 
   × /pinned: Mendapatkan pesan yang dipin terbaru di Obrolan Saat Ini.
