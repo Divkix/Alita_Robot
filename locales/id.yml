@@ -2801,6 +2801,25 @@ logchannels_extend_msg: |
   /logcategories — daftar kategori log
   /log — aktifkan kategori log
   /nolog — nonaktifkan kategori log
+logchannels_examples_docs: |
+  <b>Menyiapkan kanal log:</b>
+  1. Tambahkan bot ke kanal sebagai admin yang bisa mengirim pesan.
+  2. Kirim <code>/setlog</code> di kanal.
+  3. Dalam satu jam, teruskan pesan /setlog itu ke grup Anda.
+
+  <b>Memilih apa yang dicatat:</b>
+  • <code>/logcategories</code> - daftar kategori
+  • <code>/log admin user</code> - aktifkan dua kategori
+  • <code>/nolog settings</code> - nonaktifkan satu kategori
+
+logchannels_permissions_docs: |
+  <b>Izin Pengguna:</b>
+  • <code>/setlog</code> dikirim di kanal itu sendiri, tempat hanya admin kanal yang bisa mengirim pesan.
+  • Hanya admin grup yang bisa menautkan kanal dengan meneruskan pesan itu, dan hanya mereka yang bisa menggunakan <code>/unsetlog</code>, <code>/log</code> dan <code>/nolog</code>.
+  • Siapa saja bisa menggunakan <code>/logchannel</code> (hanya di grup) dan <code>/logcategories</code>.
+
+  <b>Izin Bot:</b>
+  • Bot harus menjadi admin kanal log dengan izin mengirim pesan, baik untuk melihat <code>/setlog</code> maupun untuk mengirim catatan log. Catatan yang tidak bisa dikirim akan dibuang tanpa pesan kesalahan.
 misc_extend_msg: |
   /info — lihat info pengguna
   /id — lihat ID obrolan atau pengguna

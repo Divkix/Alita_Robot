@@ -2811,6 +2811,25 @@ logchannels_extend_msg: |
   /logcategories — list log categories
   /log — enable a log category
   /nolog — disable a log category
+logchannels_examples_docs: |
+  <b>Set up a log channel:</b>
+  1. Add the bot to the channel as an admin that can post messages.
+  2. Send <code>/setlog</code> in the channel.
+  3. Within an hour, forward that /setlog message to your group.
+
+  <b>Choose what gets logged:</b>
+  • <code>/logcategories</code> - list the categories
+  • <code>/log admin user</code> - turn on two categories
+  • <code>/nolog settings</code> - turn off one category
+
+logchannels_permissions_docs: |
+  <b>User Permissions:</b>
+  • <code>/setlog</code> is sent in the channel itself, where only channel admins can post.
+  • Only group admins can bind the channel by forwarding that message, and only they can use <code>/unsetlog</code>, <code>/log</code> and <code>/nolog</code>.
+  • Anyone can use <code>/logchannel</code> (groups only) and <code>/logcategories</code>.
+
+  <b>Bot Permissions:</b>
+  • The bot must be an admin of the log channel with permission to post messages, both to see <code>/setlog</code> and to send log entries. Entries it cannot send are dropped without an error.
 misc_extend_msg: |
   /info — show user info
   /id — show chat or user ID

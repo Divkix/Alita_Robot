@@ -2773,6 +2773,25 @@ logchannels_extend_msg: |
   /logcategories — lista de categorias de log
   /log — ativar uma categoria de log
   /nolog — desativar uma categoria de log
+logchannels_examples_docs: |
+  <b>Configurar um canal de log:</b>
+  1. Adicione o bot ao canal como administrador que pode publicar mensagens.
+  2. Envie <code>/setlog</code> no canal.
+  3. Dentro de uma hora, encaminhe essa mensagem /setlog para o seu grupo.
+
+  <b>Escolher o que é registrado:</b>
+  • <code>/logcategories</code> - lista as categorias
+  • <code>/log admin user</code> - ativa duas categorias
+  • <code>/nolog settings</code> - desativa uma categoria
+
+logchannels_permissions_docs: |
+  <b>Permissões de usuário:</b>
+  • <code>/setlog</code> é enviado no próprio canal, onde só os administradores do canal podem publicar.
+  • Só os administradores do grupo podem vincular o canal encaminhando essa mensagem, e só eles podem usar <code>/unsetlog</code>, <code>/log</code> e <code>/nolog</code>.
+  • Qualquer pessoa pode usar <code>/logchannel</code> (somente grupos) e <code>/logcategories</code>.
+
+  <b>Permissões do bot:</b>
+  • O bot precisa ser administrador do canal de log com permissão para publicar mensagens, tanto para ver o <code>/setlog</code> quanto para enviar os registros. Registros que ele não consegue enviar são descartados sem erro.
 misc_extend_msg: |
   /info — ver as informações de um usuário
   /id — ver o ID do chat ou de um usuário

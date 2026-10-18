@@ -2717,6 +2717,25 @@ logchannels_extend_msg: |
   /logcategories — liste des catégories de journal
   /log — activer une catégorie de journal
   /nolog — désactiver une catégorie de journal
+logchannels_examples_docs: |
+  <b>Configurer un canal de journal :</b>
+  1. Ajoutez le bot au canal en tant qu'administrateur pouvant publier des messages.
+  2. Envoyez <code>/setlog</code> dans le canal.
+  3. Dans l'heure qui suit, transférez ce message /setlog dans votre groupe.
+
+  <b>Choisir ce qui est journalisé :</b>
+  • <code>/logcategories</code> - lister les catégories
+  • <code>/log admin user</code> - activer deux catégories
+  • <code>/nolog settings</code> - désactiver une catégorie
+
+logchannels_permissions_docs: |
+  <b>Permissions des utilisateurs :</b>
+  • <code>/setlog</code> s'envoie dans le canal lui-même, où seuls les administrateurs du canal peuvent publier.
+  • Seuls les administrateurs du groupe peuvent lier le canal en transférant ce message, et eux seuls peuvent utiliser <code>/unsetlog</code>, <code>/log</code> et <code>/nolog</code>.
+  • Tout le monde peut utiliser <code>/logchannel</code> (groupes uniquement) et <code>/logcategories</code>.
+
+  <b>Permissions du bot :</b>
+  • Le bot doit être administrateur du canal de journal avec la permission de publier des messages, à la fois pour voir <code>/setlog</code> et pour envoyer les entrées du journal. Les entrées qu'il ne peut pas envoyer sont abandonnées sans erreur.
 misc_extend_msg: |
   /info — afficher les infos d'un utilisateur
   /id — afficher l'ID du chat ou d'un utilisateur
