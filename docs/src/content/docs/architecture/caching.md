@@ -9,7 +9,7 @@ Alita Robot uses Redis as its caching layer to reduce database load and improve 
 
 `alita/utils/cache/cache.go` initializes Redis with connection retries and exposes a nil-safe marshaler. `alita/db/cache/` provides keys, TTLs, shared database loads, and invalidation.
 
-`REDIS_URL` supports credentials in the URL; `REDIS_PASSWORD` overrides the password. `REDIS_ADDRESS` selects a direct address. `REDIS_DB` defaults to 1 and accepts an explicit 0. See the [environment reference](/api-reference/environment/) for configuration.
+`REDIS_URL` supports credentials in the URL; `REDIS_PASSWORD` overrides the password. `REDIS_ADDRESS` selects a direct address. `REDIS_DB` defaults to 1 with `REDIS_ADDRESS` and accepts an explicit 0; with only `REDIS_URL`, an unset `REDIS_DB` leaves the URL's path database in place (0 when the URL has no path). See the [environment reference](/api-reference/environment/) for configuration.
 
 ## TTL Values
 
