@@ -31,7 +31,7 @@ Admin commands:
 **Note Formatting Options:**
 When saving a note, you can use special tags to control its behavior:
 - `{private}` - Note will only be sent via DM, never in group
-- `{noprivate}` - Note will only be sent in group, never via DM
+- `{noprivate}` - When fetched in a group, the note is sent in the group even if private notes are on (fetching it from PM still delivers it in PM)
 - `{admin}` - Note can only be accessed by admins
 - `{protect}` - Content cannot be forwarded
 - `{nonotif}` - Send without notification sound
