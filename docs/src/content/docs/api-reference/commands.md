@@ -676,4 +676,14 @@ Each CheckFunc handles its own failure: the permission checks send the refusal r
 | `CanBotPromote()` | Checks bot can promote members |
 | `CanUserPin()` | Checks user can pin messages |
 | `CanBotPin()` | Checks bot can pin messages |
+| `CanInvite()` | Checks the bot and user can manage invite links |
+| `CanUserChangeInfo()` | Checks user can change chat info |
+| `CanBotChangeInfo()` | Checks bot can change chat info |
+| `CanUserRestrict()` | Checks user can restrict members |
+| `CanBotRestrict()` | Checks bot can restrict members |
+| `RequireUserOwner()` | Ensures user is the chat owner |
+| `CanUserDelete()` | Checks user can delete messages |
+| `CanBotDelete()` | Checks bot can delete messages |
+
+`RunChecks(c, checks)` runs a list of CheckFuncs outside `WrapCommand` (used by anonymous-admin handlers).
 
