@@ -1492,11 +1492,7 @@ func (moduleStruct) captchaVerifyCallback(bot *gotgbot.Bot, ctx *ext.Context) er
 				}
 			}
 			summaryText, _ := tr.GetString("captcha_stored_messages_summary",
-				i18n.TranslationParams{
-					"user":  formatting.MentionHtml(targetUserID, user.FirstName),
-					"count": len(storedMessages),
-					"types": strings.Join(messageTypes, ", "),
-				})
+				captchaStoredSummaryParams(formatting.MentionHtml(targetUserID, user.FirstName), len(storedMessages), strings.Join(messageTypes, ", ")))
 
 			summaryMsg, _ := helpers.SendMessageWithErrorHandling(bot, chat.Id, summaryText, &gotgbot.SendMessageOpts{
 				ParseMode: formatting.HTML,
@@ -2050,4 +2046,14 @@ func LoadCaptcha(dispatcher *ext.Dispatcher) {
 
 func init() {
 	RegisterLegacyModule("Captcha", 220, LoadCaptcha)
+}
+
+// captchaStoredSummaryParams fills captcha_stored_messages_summary by name and,
+// under "0".."2", in the order of the "%s %d %s" verbs the locales use: the
+// positional fallback does not know "types" and would leave the verbs raw.
+func captchaStoredSummaryParams(mention string, count int, types string) i18n.TranslationParams {
+	return i18n.TranslationParams{
+		"user": mention, "count": count, "types": types,
+		"0": mention, "1": count, "2": types,
+	}
 }
