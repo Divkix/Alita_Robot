@@ -1010,8 +1010,6 @@ locks_bot_only_admins: Seuls les admins et les utilisateurs approuvés sont auto
 
 # Utils chat status strings
 
-# Utils extraction strings
-
 # Chat status permission strings
 chat_status_change_info_button_error: "Vous n'avez pas les permissions pour modifier les informations !!"
 chat_status_change_info_cmd_error: "Vous n'avez pas la permission de modifier les informations dans ce groupe !"
