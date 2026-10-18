@@ -1865,7 +1865,7 @@ locks_types_docs: |
   <code>forward</code> - Blokir pesan diteruskan
   <code>game</code> - Blokir permainan
   <code>location</code> - Blokir lokasi
-  <code>rtl</code> - Blokir teks RTL
+  <code>rtl</code> - Blokir teks beraksara Arab dalam pesan dan keterangan
   <code>anonchannel</code> - Blokir pesan kanal
 
   <b>Kunci Pembatasan</b> (6 tipe)
@@ -1873,7 +1873,7 @@ locks_types_docs: |
   <code>comments</code> - Blokir komentar non-anggota
   <code>media</code> - Blokir semua media
   <code>other</code> - Blokir permainan/stiker/GIF
-  <code>previews</code> - Blokir pratinjau URL
+  <code>previews</code> - Blokir pesan berisi tautan (sama seperti url)
   <code>all</code> - Blokir semuanya
 
 locks_notes_docs: |

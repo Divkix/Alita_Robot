@@ -1915,7 +1915,7 @@ locks_types_docs: |
   <code>forward</code> - Block forwards
   <code>game</code> - Block games
   <code>location</code> - Block locations
-  <code>rtl</code> - Block RTL text
+  <code>rtl</code> - Block Arabic-script text in messages and captions
   <code>anonchannel</code> - Block channel messages
 
   <b>Restriction Locks</b> (6 types)
@@ -1923,7 +1923,7 @@ locks_types_docs: |
   <code>comments</code> - Block non-member comments
   <code>media</code> - Block all media
   <code>other</code> - Block games/stickers/GIFs
-  <code>previews</code> - Block URL previews
+  <code>previews</code> - Block messages with links (same as url)
   <code>all</code> - Block everything
 
 locks_notes_docs: |

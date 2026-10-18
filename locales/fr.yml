@@ -1642,7 +1642,7 @@ locks_types_docs: |
   <code>forward</code> - Bloquer les transferts
   <code>game</code> - Bloquer les jeux
   <code>location</code> - Bloquer les localisations
-  <code>rtl</code> - Bloquer le texte RTL
+  <code>rtl</code> - Bloquer le texte en écriture arabe dans les messages et les légendes
   <code>anonchannel</code> - Bloquer les messages de chaînes
 
   <b>Verrous de restriction</b> (6 types)
@@ -1650,7 +1650,7 @@ locks_types_docs: |
   <code>comments</code> - Bloquer les commentaires des non-membres
   <code>media</code> - Bloquer tous les médias
   <code>other</code> - Bloquer jeux/stickers/GIFs
-  <code>previews</code> - Bloquer les aperçus URL
+  <code>previews</code> - Bloquer les messages contenant des liens (comme url)
   <code>all</code> - Tout bloquer
 
 locks_notes_docs: |
