@@ -75,6 +75,8 @@ var (
 	aispamDescriptionTTL  = 10 * time.Minute
 	// aispamHistoryWindow bounds the counted window and the key lifetime alike.
 	aispamHistoryWindow = time.Hour
+	// aispamBreakerNow is the breaker's clock; tests move it past a cooldown.
+	aispamBreakerNow = time.Now
 )
 
 var (
@@ -483,7 +485,7 @@ func aispamBreakerPaused(chatID int64) bool {
 	if !ok {
 		return false
 	}
-	return !breaker.pausedTill.IsZero() && time.Now().Before(breaker.pausedTill)
+	return !breaker.pausedTill.IsZero() && aispamBreakerNow().Before(breaker.pausedTill)
 }
 
 // aispamBreakerRecordFailure counts one failed check and reports whether this
@@ -491,7 +493,7 @@ func aispamBreakerPaused(chatID int64) bool {
 // chat gets one notice. The stored enabled flag is never touched: a provider
 // outage must not silently disable a chat's protection.
 func aispamBreakerRecordFailure(chatID int64) bool {
-	now := time.Now()
+	now := aispamBreakerNow()
 
 	aispamBreakers.mu.Lock()
 	defer aispamBreakers.mu.Unlock()
