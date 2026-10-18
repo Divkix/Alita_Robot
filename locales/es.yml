@@ -924,7 +924,7 @@ warns_help_msg:
 
   - /dwarn <razón>: Advertir a un usuario por respuesta, y eliminar su mensaje.
 
-  - /swarn <razón>: Advertir silenciosamente a un usuario, y eliminar tu mensaje.
+  - /swarn <razón>: Advertir a un usuario y eliminar tu mensaje de comando; la advertencia se publica igualmente.
 
   - /warns: Ver las advertencias de un usuario.
 
@@ -2071,8 +2071,8 @@ warns_extended_docs: |
   • <code>tban</code> - Banea al usuario por el tiempo indicado con el modo, p. ej. <code>/setwarnmode tban 1d</code>
   • <code>tmute</code> - Silencia al usuario por el tiempo indicado con el modo, p. ej. <code>/setwarnmode tmute 2h</code>
 
-  <b>Advertencias silenciosas y con eliminación:</b>
-  • <code>/swarn</code> - Elimina tu comando y advierte en silencio
+  <b>Advertencias que eliminan mensajes:</b>
+  • <code>/swarn</code> - Elimina tu comando; la advertencia se publica igualmente
   • <code>/dwarn</code> - Elimina el mensaje del usuario y le advierte
 
 warns_permissions_docs: |
@@ -2883,7 +2883,7 @@ rules_extend_msg: |
   /resetrulesbtn — igual que /resetrulesbutton
 warns_extend_msg: |
   /warn — advertir a un usuario
-  /swarn — advertir en silencio y borrar tu comando
+  /swarn — advertir y borrar tu comando
   /dwarn — advertir y borrar el mensaje respondido
   /warns — ver las advertencias de un usuario
   /rmwarn — quitar la última advertencia de un usuario

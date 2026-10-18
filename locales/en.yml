@@ -964,7 +964,7 @@ warns_help_msg:
 
   - /dwarn <reason>: Warn a user by reply, and delete their message.
 
-  - /swarn <reason>: Silently warn a user, and delete your message.
+  - /swarn <reason>: Warn a user and delete your command message; the warning is still posted.
 
   - /warns: See a user's warnings.
 
@@ -2111,8 +2111,8 @@ warns_extended_docs: |
   • <code>tban</code> - Ban the user for the time given with the mode, e.g. <code>/setwarnmode tban 1d</code>
   • <code>tmute</code> - Mute the user for the time given with the mode, e.g. <code>/setwarnmode tmute 2h</code>
 
-  <b>Silent and Delete Warnings:</b>
-  • <code>/swarn</code> - Delete your command and warn silently
+  <b>Warnings That Delete Messages:</b>
+  • <code>/swarn</code> - Delete your command; the warning is still posted
   • <code>/dwarn</code> - Delete the user's message and warn them
 
 warns_permissions_docs: |
@@ -2883,7 +2883,7 @@ rules_extend_msg: |
   /resetrulesbtn — same as /resetrulesbutton
 warns_extend_msg: |
   /warn — warn a user
-  /swarn — warn silently and delete your command
+  /swarn — warn and delete your command
   /dwarn — warn and delete the replied message
   /warns — show a user's warnings
   /rmwarn — remove a user's last warning

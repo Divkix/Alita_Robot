@@ -917,7 +917,7 @@ warns_help_msg:
 
   - /dwarn <alasan>: Peringatkan pengguna dengan balasan, dan hapus pesan mereka.
 
-  - /swarn <alasan>: Secara diam-diam peringatkan pengguna, dan hapus pesan Anda.
+  - /swarn <alasan>: Peringatkan pengguna dan hapus pesan perintah Anda; peringatan tetap dikirim.
 
   - /warns: Lihat peringatan pengguna.
 
@@ -2062,8 +2062,8 @@ warns_extended_docs: |
   • <code>tban</code> - Blokir pengguna selama waktu yang diberikan bersama mode, mis. <code>/setwarnmode tban 1d</code>
   • <code>tmute</code> - Bisukan pengguna selama waktu yang diberikan bersama mode, mis. <code>/setwarnmode tmute 2h</code>
 
-  <b>Peringatan Diam dan Hapus:</b>
-  • <code>/swarn</code> - Hapus perintah Anda dan peringatkan secara diam-diam
+  <b>Peringatan yang Menghapus Pesan:</b>
+  • <code>/swarn</code> - Hapus perintah Anda; peringatan tetap dikirim
   • <code>/dwarn</code> - Hapus pesan pengguna dan peringatkan mereka
 
 warns_permissions_docs: |
@@ -2874,7 +2874,7 @@ rules_extend_msg: |
   /resetrulesbtn — sama dengan /resetrulesbutton
 warns_extend_msg: |
   /warn — beri peringatan pengguna
-  /swarn — beri peringatan diam-diam dan hapus perintahmu
+  /swarn — beri peringatan dan hapus perintahmu
   /dwarn — beri peringatan dan hapus pesan yang dibalas
   /warns — lihat peringatan pengguna
   /rmwarn — hapus peringatan terakhir pengguna
