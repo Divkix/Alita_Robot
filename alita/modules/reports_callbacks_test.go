@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
 )
@@ -303,6 +305,104 @@ func TestCardForgedIdFromOtherCard(t *testing.T) {
 	bans := f.client.callsFor("banChatMember")
 	if len(bans) != 1 || fmt.Sprint(bans[0].Params["user_id"]) != "46" {
 		t.Fatalf("banChatMember calls = %v, want user 46 banned from its own card", bans)
+	}
+}
+
+// A card left with buttons after its report was decided must not act on a
+// newer report of the same message, which has a card of its own.
+func TestStaleCardLeavesNewReportOpen(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	stale := reportedCard(t, f) // report A of message 505 → card 9001
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, stale["dismiss"]); err != ext.EndGroups {
+		t.Fatalf("dismiss press error = %v, want EndGroups", err)
+	}
+
+	f.client.responses["sendMessage"] = json.RawMessage(
+		`{"message_id":9002,"date":1,"chat":{"id":-1001,"type":"supergroup","title":"Test Chat"}}`,
+	)
+	f.report(t, gotgbot.User{Id: 44, FirstName: "Second"}, "/report") // report B → card 9002
+	var newer models.Report
+	for _, row := range storedReports(t, f.chat.Id) {
+		if row.ReporterId == 44 {
+			newer = row
+		}
+	}
+	if newer.Status != models.ReportStatusOpen || newer.AdminMessageId == nil || *newer.AdminMessageId != 9002 {
+		t.Fatalf("second report = %+v, want open with card 9002", newer)
+	}
+
+	// The buttons are still on card 9001, say its edit failed.
+	if err := pressCard(t, f, reportCardChannel, 9001, admin, stale["ban"]); err != ext.EndGroups {
+		t.Fatalf("stale ban press error = %v, want EndGroups", err)
+	}
+	if got := len(f.client.callsFor("banChatMember")); got != 0 {
+		t.Fatalf("banChatMember calls = %d, want 0 from a card whose report is closed", got)
+	}
+	for _, row := range storedReports(t, f.chat.Id) {
+		if row.ID == newer.ID && row.Status != models.ReportStatusOpen {
+			t.Fatalf("second report status = %q, want it left open for card 9002", row.Status)
+		}
+	}
+}
+
+// The card sits in a channel the bot has no language for; its presses are
+// answered in the reported group's language, like the card's buttons.
+func TestCardAnswersInSourceGroupLanguage(t *testing.T) {
+	locales := map[string]string{}
+	for _, code := range []string{"en", "ru"} {
+		raw, err := os.ReadFile("../../locales/" + code + ".yml")
+		if err != nil {
+			t.Fatalf("read %s.yml: %v", code, err)
+		}
+		locales[code] = string(raw)
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+
+	f := newReportCardFixture(t, true)
+	admin := gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}
+	outsider := gotgbot.User{Id: reportCardAdminID + 1, FirstName: "Outsider"}
+	seedCallbackAdmins(t, f.chat.Id, reportCardBotMember(), gotgbot.MergedChatMember{
+		Status: "administrator", User: admin, CanRestrictMembers: true,
+	})
+	actions := reportedCard(t, f)
+	if err := lang.ChangeGroupLanguage(f.chat.Id, "ru"); err != nil {
+		t.Fatalf("ChangeGroupLanguage() error = %v", err)
+	}
+	var channelRows int64
+	if err := db.DB.Model(&models.Chat{}).Where("chat_id = ?", reportCardChannelID).Count(&channelRows).Error; err != nil || channelRows != 0 {
+		t.Fatalf("log channel chats rows = %d (err %v), want none", channelRows, err)
+	}
+
+	ru := i18n.MustNewTranslator("ru")
+	en := i18n.MustNewTranslator("en")
+	for _, press := range []struct {
+		from gotgbot.User
+		key  string
+	}{
+		{outsider, "chat_status_user_admin_button_error"},
+		{admin, "reports_success_ban"},
+	} {
+		before := len(f.client.callsFor("answerCallbackQuery"))
+		if err := pressCard(t, f, reportCardChannel, 9001, press.from, actions["ban"]); err != ext.EndGroups {
+			t.Fatalf("press by %d error = %v, want EndGroups", press.from.Id, err)
+		}
+		answers := f.client.callsFor("answerCallbackQuery")
+		if len(answers) != before+1 {
+			t.Fatalf("answerCallbackQuery calls = %d, want %d", len(answers), before+1)
+		}
+		want, _ := ru.GetString(press.key)
+		english, _ := en.GetString(press.key)
+		if got := fmt.Sprint(answers[len(answers)-1].Params["text"]); got != want || got == english {
+			t.Fatalf("answer to %d = %q, want %s in Russian %q", press.from.Id, got, press.key, want)
+		}
 	}
 }
 

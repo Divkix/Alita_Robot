@@ -16,6 +16,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/i18n"
 	"github.com/divkix/Alita_Robot/alita/utils/chat_status"
 	"github.com/divkix/Alita_Robot/alita/utils/helpers"
+	"github.com/divkix/Alita_Robot/alita/utils/tracing"
 )
 
 // reportCardNamespace is the callback namespace of the report card buttons:
@@ -79,10 +80,18 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 			reportID, card.GetMessageId(), card.GetChat().Id)
 		return answer("reports_invalid_action")
 	}
+	// The channel has no language of its own: answer in the reported group's,
+	// the language of the card's buttons.
+	tr = i18n.MustNewTranslator(lang.GetGroupLanguage(tracing.UpdateContext(ctx), rep.ChatId))
+	// Resolve closes every open report of the message, so a card whose own
+	// report is closed must not close a newer one that has its own card.
+	if rep.Status != models.ReportStatusOpen {
+		return answer("reports_already_handled")
+	}
 
 	user := query.From
 	source := &gotgbot.Chat{Id: rep.ChatId, Type: "supergroup"}
-	if !reportCardAllowed(b, ctx, source, user.Id, actionName) {
+	if !reportCardAllowed(b, ctx, tr, source, user.Id, actionName) {
 		return ext.EndGroups
 	}
 
@@ -110,31 +119,30 @@ func (moduleStruct) reportCardHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 // reportCardAllowed checks the presser and the bot in the report's source
-// group and answers the callback when they lack a right.
-func reportCardAllowed(b *gotgbot.Bot, ctx *ext.Context, source *gotgbot.Chat, userID int64, action string) bool {
+// group and answers the callback through tr when they lack a right.
+func reportCardAllowed(b *gotgbot.Bot, ctx *ext.Context, tr *i18n.Translator, source *gotgbot.Chat, userID int64, action string) bool {
 	responder := chat_status.NewPermissionResponder(b)
-	if !chat_status.IsUserAdmin(b, source.Id, userID) {
-		responder.Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error")
+	refuse := func(cmdKey, btnKey string) bool {
+		responder.Respond(ctx, cmdKey, btnKey, chat_status.WithTranslator(tr))
 		return false
+	}
+	if !chat_status.IsUserAdmin(b, source.Id, userID) {
+		return refuse("chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error")
 	}
 	switch action {
 	case "ban", "mute":
 		if !chat_status.CanUserRestrict(b, ctx, source, userID) {
-			responder.Respond(ctx, "chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
-			return false
+			return refuse("chat_status_restrict_cmd_error", "chat_status_restrict_button_error")
 		}
 		if !chat_status.CanBotRestrict(b, ctx, source) {
-			responder.Respond(ctx, "chat_status_bot_restrict_error", "chat_status_bot_restrict_error")
-			return false
+			return refuse("chat_status_bot_restrict_error", "chat_status_bot_restrict_error")
 		}
 	case "delete":
 		if !chat_status.CanUserDelete(b, ctx, source, userID) {
-			responder.Respond(ctx, "chat_status_delete_cmd_error", "chat_status_delete_button_error")
-			return false
+			return refuse("chat_status_delete_cmd_error", "chat_status_delete_button_error")
 		}
 		if !chat_status.CanBotDelete(b, ctx, source) {
-			responder.Respond(ctx, "chat_status_bot_delete_error", "chat_status_bot_delete_error")
-			return false
+			return refuse("chat_status_bot_delete_error", "chat_status_bot_delete_error")
 		}
 	}
 	return true
