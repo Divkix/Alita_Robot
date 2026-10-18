@@ -2343,7 +2343,7 @@ backup_help_msg: |
 
   Realiza copias de seguridad y restaura la configuración de tu grupo usando estos comandos:
 
-  <b>Comandos de Usuario:</b>
+  <b>Comandos de Administrador:</b>
   • /export - Exportar toda la configuración del grupo a un archivo JSON
   • /export notes filters rules - Exportar solo módulos específicos
 

@@ -2384,7 +2384,7 @@ backup_help_msg: |
 
   Backup and restore your group settings using these commands:
 
-  <b>User Commands:</b>
+  <b>Admin Commands:</b>
   • /export - Export all group settings to a JSON file
   • /export notes filters rules - Export specific modules only
 

@@ -2250,7 +2250,7 @@ backup_help_msg: |
 
   Sauvegardez et restaurez les paramètres de votre groupe :
 
-  <b>Commandes Utilisateur :</b>
+  <b>Commandes Admin :</b>
   • /export - Exporter tous les paramètres du groupe en fichier JSON
   • /export notes filters rules - Exporter uniquement des modules spécifiques
 

@@ -2306,7 +2306,7 @@ backup_help_msg: |
 
   Faça backup e restaure as configurações do seu grupo usando estes comandos:
 
-  <b>Comandos de Usuário:</b>
+  <b>Comandos de Admin:</b>
   • /export - Exportar todas as configurações do grupo para um arquivo JSON
   • /export notes filters rules - Exportar apenas módulos específicos
 

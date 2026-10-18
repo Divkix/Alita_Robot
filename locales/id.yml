@@ -2334,7 +2334,7 @@ backup_help_msg: |
 
   Cadangkan dan pulihkan pengaturan grup Anda menggunakan perintah ini:
 
-  <b>Perintah Pengguna:</b>
+  <b>Perintah Admin:</b>
   • /export - Ekspor semua pengaturan grup ke file JSON
   • /export notes filters rules - Ekspor modul tertentu saja
 
