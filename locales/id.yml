@@ -2780,6 +2780,25 @@ logchannels_examples_docs: |
   • <code>/log admin user</code> - aktifkan dua kategori
   • <code>/nolog settings</code> - nonaktifkan satu kategori
 
+federations_permissions_docs: |
+  <b>Pemilik federasi:</b>
+  • <code>/delfed</code> (di PM), <code>/renamefed</code>, <code>/fedpromote</code>, <code>/feddemote</code>, <code>/fedreason</code>, <code>/fednotif</code>, <code>/subfed</code>, <code>/unsubfed</code>, <code>/fedsubs</code>, <code>/setfedlog</code>, <code>/unsetfedlog</code>, <code>/fbanlist</code>, <code>/importfbans</code>
+
+  <b>Admin federasi:</b>
+  • <code>/fban</code>, <code>/unfban</code>, <code>/funban</code> di grup anggota (di PM berlaku untuk federasi milik Anda), <code>/feddemoteme</code>
+
+  <b>Pembuat grup:</b>
+  • <code>/joinfed</code>, <code>/leavefed</code>
+
+  <b>Admin grup:</b>
+  • <code>/quietfed</code>
+
+  <b>Siapa saja:</b>
+  • <code>/newfed</code> (di PM, satu federasi per pengguna), <code>/fedstat</code>, <code>/fbanstat</code>, <code>/fedinfo</code>, <code>/fedadmins</code>, <code>/chatfed</code>, <code>/myfeds</code>
+
+  <b>Persyaratan Bot:</b>
+  • Blokir pengguna di setiap chat anggota, untuk menegakkan fban
+
 logchannels_permissions_docs: |
   <b>Izin Pengguna:</b>
   • <code>/setlog</code> dikirim di kanal itu sendiri, tempat hanya admin kanal yang bisa mengirim pesan.
