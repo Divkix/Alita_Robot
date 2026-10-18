@@ -551,8 +551,18 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return answerInvalidCallback(b, ctx, query)
 	}
 
+	decoded, ok := decodeCallbackData(query.Data, "backup")
+	if !ok {
+		return answerInvalidCallback(b, ctx, query)
+	}
+	action, _ := decoded.Field("a")
+
 	if !chat_status.RequireUserOwner(b, ctx, nil, user.Id) {
-		text, _ := tr.GetString("backup_import_creator_only")
+		key := "backup_import_creator_only"
+		if action == backupActionConfirmReset || action == backupActionCancelReset {
+			key = "backup_reset_creator_only"
+		}
+		text, _ := tr.GetString(key)
 		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{
 			Text:      text,
 			ShowAlert: true,
@@ -560,12 +570,6 @@ func (m moduleStruct) backupCallbackHandler(b *gotgbot.Bot, ctx *ext.Context) er
 		return ext.EndGroups
 	}
 
-	decoded, ok := decodeCallbackData(query.Data, "backup")
-	if !ok {
-		return answerInvalidCallback(b, ctx, query)
-	}
-
-	action, _ := decoded.Field("a")
 	chatIDStr, _ := decoded.Field("c")
 	token, _ := decoded.Field("t")
 	chatID, err := strconv.ParseInt(chatIDStr, 10, 64)

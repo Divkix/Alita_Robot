@@ -852,6 +852,41 @@ func TestBackupCallbackHandlerRejectsInvalidCallbackData(t *testing.T) {
 	assert.Len(t, client.callsFor("answerCallbackQuery"), 4)
 }
 
+func TestBackupCallbackHandlerTellsNonOwnerWhichActionIsCreatorOnly(t *testing.T) {
+	useRealLocales(t)
+	en := i18n.MustNewTranslator("en")
+	for _, tt := range []struct {
+		action string
+		key    string
+	}{
+		{action: backupActionConfirmReset, key: "backup_reset_creator_only"},
+		{action: backupActionCancelReset, key: "backup_reset_creator_only"},
+		{action: backupActionConfirmImport, key: "backup_import_creator_only"},
+	} {
+		t.Run(tt.action, func(t *testing.T) {
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Backup Chat"}
+			member := gotgbot.User{Id: 42, FirstName: "Member"}
+			data := encodeCallbackData("backup", map[string]string{
+				"a": tt.action,
+				"c": strconv.FormatInt(chat.Id, 10),
+				"t": "token",
+			})
+
+			ctx := newModuleCallbackContext(bot, chat, member, data)
+			require.Equal(t, ext.EndGroups, backupModule.backupCallbackHandler(bot, ctx))
+
+			want, err := en.GetString(tt.key)
+			require.NoError(t, err)
+			require.NotEmpty(t, want)
+			call := client.onlyCall(t, "answerCallbackQuery")
+			assert.Equal(t, want, call.Params["text"])
+			assert.Equal(t, true, call.Params["show_alert"])
+		})
+	}
+}
+
 func TestBackupConfirmHandlersReportExpiredState(t *testing.T) {
 	client := newModuleBotClient()
 	bot := newModuleTestBot(client)
