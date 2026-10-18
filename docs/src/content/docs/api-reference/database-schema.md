@@ -10,7 +10,7 @@ This page documents the complete PostgreSQL database schema for Alita Robot.
 
 ## Overview
 
-- **Application Tables**: 30
+- **Application Tables**: 37
 - **Migration Metadata**: `schema_migrations`
 - **Database Type**: PostgreSQL
 - **ORM**: GORM
@@ -383,6 +383,140 @@ Chat-level disable configuration for command deletion behavior.
 
 ---
 
+### `federations`
+
+Federation definitions; one per owner.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `fed_id` | `VARCHAR(36)` | NO | — | — |
+| `owner_id` | `BIGINT` | NO | — | — |
+| `name` | `VARCHAR(64)` | NO | — | — |
+| `require_reason` | `BOOLEAN` | NO | `FALSE` | — |
+| `notify_owner` | `BOOLEAN` | NO | `TRUE` | — |
+| `log_chat_id` | `BIGINT` | NO | `0` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_federations_fed_id` (unique, on `fed_id`)
+- `idx_federations_owner_id` (unique, on `owner_id`)
+
+#### Foreign Keys
+
+- `owner_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `federation_admins`
+
+Federation admins other than the owner.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `fed_id` | `VARCHAR(36)` | NO | — | — |
+| `user_id` | `BIGINT` | NO | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_fed_admins_fed_user` (unique: `fed_id`, `user_id`)
+- `idx_federation_admins_user_id` (on `user_id`)
+
+#### Foreign Keys
+
+- `fed_id` → `federations(fed_id)` ON DELETE CASCADE ON UPDATE CASCADE
+- `user_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `federation_bans`
+
+Users banned across a federation.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `fed_id` | `VARCHAR(36)` | NO | — | — |
+| `user_id` | `BIGINT` | NO | — | — |
+| `reason` | `TEXT` | NO | `''` | — |
+| `banned_by` | `BIGINT` | NO | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_fed_bans_fed_user` (unique: `fed_id`, `user_id`)
+- `idx_federation_bans_user_id` (on `user_id`)
+
+#### Foreign Keys
+
+- `fed_id` → `federations(fed_id)` ON DELETE CASCADE ON UPDATE CASCADE
+- `user_id` → `users(user_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `federation_chats`
+
+Chats that have joined a federation.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `fed_id` | `VARCHAR(36)` | NO | — | — |
+| `chat_id` | `BIGINT` | NO | — | — |
+| `quiet` | `BOOLEAN` | NO | `FALSE` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_federation_chats_chat_id` (unique, on `chat_id`; a chat joins at most one federation)
+- `idx_federation_chats_fed_id` (on `fed_id`)
+
+#### Foreign Keys
+
+- `fed_id` → `federations(fed_id)` ON DELETE CASCADE ON UPDATE CASCADE
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `federation_subs`
+
+Federation-to-federation ban subscriptions.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `fed_id` | `VARCHAR(36)` | NO | — | — |
+| `subscribed_fed_id` | `VARCHAR(36)` | NO | — | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_fed_subs_pair` (unique: `fed_id`, `subscribed_fed_id`)
+- `idx_federation_subs_subscribed_fed_id` (on `subscribed_fed_id`)
+
+#### Foreign Keys
+
+- `fed_id` → `federations(fed_id)` ON DELETE CASCADE ON UPDATE CASCADE
+- `subscribed_fed_id` → `federations(fed_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
 ### `filters`
 
 Custom keyword filters per chat.
@@ -457,6 +591,36 @@ Locked permissions per chat.
 | `locked` | `BOOLEAN` | YES | `false` | — |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | — | — |
+
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
+---
+
+### `log_channels`
+
+Per-chat admin log channel and enabled categories.
+
+#### Columns
+
+| Column | Type | Nullable | Default | Constraints |
+|--------|------|----------|---------|-------------|
+| `id` | `BIGSERIAL` | NO | auto-increment | PRIMARY KEY |
+| `chat_id` | `BIGINT` | NO | — | — |
+| `log_channel_id` | `BIGINT` | NO | — | — |
+| `cat_settings` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_admin` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_user` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_automated` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_reports` | `BOOLEAN` | NO | `TRUE` | — |
+| `cat_other` | `BOOLEAN` | NO | `TRUE` | — |
+| `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+| `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
+
+#### Indexes
+
+- `idx_log_channels_chat_id` (unique, on `chat_id`)
 
 #### Foreign Keys
 
@@ -829,3 +993,7 @@ There is no foreign key to `warns_users`: the bot deletes a user's entries in th
 - Chat → Content: One-to-many (`filters`, `notes`, `blacklists`, `reactions`)
 - User → Chat Warnings: One-to-many through `warns_users`, one `warn_entries` row per warn
 - Chat → Captcha: One-to-one (`captcha_settings`) with one-to-many attempts (`captcha_attempts`)
+- User → Federation: one-to-one ownership (`federations.owner_id` is unique)
+- Federation → Members: one-to-many (`federation_admins`, `federation_bans`, `federation_chats`), plus federation-to-federation subscriptions via `federation_subs`
+- Chat → Federation: at most one (`federation_chats.chat_id` is unique)
+- Chat → Log channel: one-to-one (`log_channels`)
