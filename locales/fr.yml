@@ -2258,7 +2258,7 @@ backup_help_msg: |
   • /import - Répondre à un fichier de sauvegarde pour restaurer les paramètres
   • /import notes filters - Importer uniquement des modules spécifiques
   • /reset - Réinitialiser tous les paramètres par défaut
-  • /reset warnings locks - Réinitialiser uniquement des modules spécifiques
+  • /reset warns locks - Réinitialiser uniquement des modules spécifiques
 
   <b>Limites de Débit :</b>
   • Export : 1 par 5 minutes

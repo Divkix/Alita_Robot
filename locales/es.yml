@@ -2351,7 +2351,7 @@ backup_help_msg: |
   • /import - Responder a un archivo de copia de seguridad para restaurar la configuración
   • /import notes filters - Importar solo módulos específicos
   • /reset - Restablecer toda la configuración a los valores predeterminados
-  • /reset warnings locks - Restablecer solo módulos específicos
+  • /reset warns locks - Restablecer solo módulos específicos
 
   <b>Límites de Tasa:</b>
   • Exportar: 1 cada 5 minutos

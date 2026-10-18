@@ -2392,7 +2392,7 @@ backup_help_msg: |
   • /import - Reply to a backup file to restore settings
   • /import notes filters - Import only specific modules
   • /reset - Reset all settings to default
-  • /reset warnings locks - Reset specific modules only
+  • /reset warns locks - Reset specific modules only
 
   <b>Rate Limits:</b>
   • Export: 1 per 5 minutes

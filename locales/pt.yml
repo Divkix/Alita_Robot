@@ -2314,7 +2314,7 @@ backup_help_msg: |
   • /import - Responda a um arquivo de backup para restaurar as configurações
   • /import notes filters - Importar apenas módulos específicos
   • /reset - Redefinir todas as configurações para o padrão
-  • /reset warnings locks - Redefinir apenas módulos específicos
+  • /reset warns locks - Redefinir apenas módulos específicos
 
   <b>Limites de Taxa:</b>
   • Exportar: 1 a cada 5 minutos

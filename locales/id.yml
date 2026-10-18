@@ -2342,7 +2342,7 @@ backup_help_msg: |
   • /import - Balas ke file cadangan untuk memulihkan pengaturan
   • /import notes filters - Impor modul tertentu saja
   • /reset - Atur ulang semua pengaturan ke default
-  • /reset warnings locks - Atur ulang modul tertentu saja
+  • /reset warns locks - Atur ulang modul tertentu saja
 
   <b>Batas Rate:</b>
   • Ekspor: 1 per 5 menit
