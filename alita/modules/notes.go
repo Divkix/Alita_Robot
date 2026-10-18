@@ -1080,7 +1080,7 @@ func noteDeepLinkHandler(b *gotgbot.Bot, ctx *ext.Context, user *gotgbot.User, a
 				log.Error(err)
 				return err
 			}
-			return ext.ContinueGroups
+			return ext.EndGroups
 		}
 	}
 	_, err = media.SendNote(b, ctx, &_chat, noteData, msg.MessageId, msg.MessageThreadId)
