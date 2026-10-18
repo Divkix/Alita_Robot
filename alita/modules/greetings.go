@@ -206,9 +206,9 @@ func (moduleStruct) displayGreeting(bot *gotgbot.Bot, ctx *ext.Context, config g
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 		text, _ := tr.GetString(config.statusKey)
 		_, err := msg.Reply(bot, fmt.Sprintf(text,
-			shouldGreet,
-			cleanGreet,
-			greetPrefs.ShouldCleanService), formatting.Shtml())
+			strconv.FormatBool(shouldGreet),
+			strconv.FormatBool(cleanGreet),
+			strconv.FormatBool(greetPrefs.ShouldCleanService)), formatting.Shtml())
 		if err != nil {
 			log.Error(err)
 			return err
