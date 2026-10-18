@@ -598,15 +598,14 @@ greetings_help_msg:
 
   × /resetgoodbye: Restablece el mensaje de despedida al predeterminado.
 
-  × /cleanservice `<yes/no/on/off>`: Eliminar todos los mensajes de servicio como notificación de 'x se unió
-  al grupo'.
+  × /cleanservice `<yes/no/on/off>`: Eliminar los mensajes de servicio de entradas y salidas, como la notificación de 'x se unió al grupo'.
 
   × /cleanwelcome `<yes/no/on/off>`: Eliminar el mensaje de bienvenida antiguo, cuando un nuevo
   miembro se une.
 
   × /cleangoodbye `<yes/no/on/off>`: Eliminar el mensaje de despedida antiguo, cuando un miembro se va.
 
-  × /autoapprove `<yes/no/on/off>`: Aprobar automáticamente a todos los nuevos miembros."
+  × /autoapprove `<yes/no/on/off>`: Aprobar automáticamente las solicitudes de ingreso."
 help_about:
   "@%s es uno de los administradores de grupos más rápidos y con más funciones.
 

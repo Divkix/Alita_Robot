@@ -644,15 +644,14 @@ greetings_help_msg:
 
   × /resetgoodbye : Réinitialise le message d'au revoir par défaut.
 
-  × /cleanservice `<yes/no/on/off>` : Supprime tous les messages de service tels que la notification
-  'x a rejoint le groupe'.
+  × /cleanservice `<yes/no/on/off>` : Supprime les messages de service d'arrivée et de départ, comme la notification 'x a rejoint le groupe'.
 
   × /cleanwelcome `<yes/no/on/off>` : Supprime l'ancien message de bienvenue à chaque fois qu'un nouveau
   membre rejoint.
 
   × /cleangoodbye `<yes/no/on/off>` : Supprime l'ancien message d'au revoir à chaque fois qu'un membre part.
 
-  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres."
+  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement les demandes d'adhésion."
 greetings_welcome_status: |
   J'accueille actuellement les utilisateurs : <code>%s</code>
   Je supprime actuellement les anciens messages de bienvenue : <code>%s</code>

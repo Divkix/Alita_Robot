@@ -636,15 +636,14 @@ greetings_help_msg:
 
   × /resetgoodbye: Resets the goodbye message to default.
 
-  × /cleanservice `<yes/no/on/off>`: Delete all service messages such as 'x joined
-  the group' notification.
+  × /cleanservice `<yes/no/on/off>`: Delete join and leave service messages, such as the 'x joined the group' notification.
 
   × /cleanwelcome `<yes/no/on/off>`: Delete the old welcome message, whenever a new
   member joins.
 
   × /cleangoodbye `<yes/no/on/off>`: Delete the old goodbye message, whenever a member leaves.
 
-  × /autoapprove `<yes/no/on/off>`: Automatically approve all new members."
+  × /autoapprove `<yes/no/on/off>`: Automatically approve chat join requests."
 help_about: "@%s  is one of the fastest and most feature-filled group managers.
 
 

@@ -585,15 +585,14 @@ greetings_help_msg:
 
   × /resetgoodbye: Reseta a mensagem de despedida para o padrão.
 
-  × /cleanservice `<yes/no/on/off>`: Deleta todas as mensagens de serviço como notificação de 'x entrou
-  no grupo'.
+  × /cleanservice `<yes/no/on/off>`: Apaga mensagens de serviço de entrada e saída, como a notificação de 'x entrou no grupo'.
 
   × /cleanwelcome `<yes/no/on/off>`: Deleta a mensagem de boas-vindas antiga, sempre que um novo
   membro entrar.
 
   × /cleangoodbye `<yes/no/on/off>`: Deleta a mensagem de despedida antiga, sempre que um membro sair.
 
-  × /autoapprove `<yes/no/on/off>`: Aprova automaticamente todos os novos membros."
+  × /autoapprove `<yes/no/on/off>`: Aprova automaticamente pedidos de entrada."
 help_about: "@%s  é um dos gerenciadores de grupo mais rápidos e cheios de recursos.\n\nAlita ✨ é desenvolvido e ativamente mantido por @DivideProjects!\n\nAlita está online desde 2020 e serviu milhares de grupos com centenas de milhares de usuários!\n\n<b>Por que Alita:</b>\n- Simples: Uso fácil e compatível com muitos comandos de bot.\n- Completo: Muitos recursos que outros bots de gerenciamento de grupo não têm.\n- Rápido: Adivinhe? Não é feito usando Python, usamos <a href='https://go.dev/'>Go</a> como nossa linguagem de programação principal.\n\n<b>Versão Atual:</b> %s"
 help_configuration_step-1: "Bem-vindo à Configuração do Alita
 

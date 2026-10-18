@@ -594,15 +594,14 @@ greetings_help_msg:
 
   × /resetgoodbye: Mengatur ulang pesan selamat tinggal ke default.
 
-  × /cleanservice `<yes/no/on/off>`: Hapus semua pesan layanan seperti notifikasi 'x bergabung
-  dengan grup'.
+  × /cleanservice `<yes/no/on/off>`: Hapus pesan layanan masuk dan keluar, seperti notifikasi 'x bergabung dengan grup'.
 
   × /cleanwelcome `<yes/no/on/off>`: Hapus pesan selamat datang lama, setiap kali anggota baru
   bergabung.
 
   × /cleangoodbye `<yes/no/on/off>`: Hapus pesan selamat tinggal lama, setiap kali anggota keluar.
 
-  × /autoapprove `<yes/no/on/off>`: Secara otomatis menyetujui semua anggota baru."
+  × /autoapprove `<yes/no/on/off>`: Setujui permintaan bergabung secara otomatis."
 help_about: "@%s  adalah salah satu manajer grup tercepat dan paling penuh fitur.
 
 
