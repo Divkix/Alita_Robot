@@ -410,3 +410,43 @@ func TestLockInvalidTypeReplyEscapesInput(t *testing.T) {
 		t.Fatalf("invalid lock reply = %q, want the input escaped", text)
 	}
 }
+
+// Anonymous admins post as the group itself; they are admins and exempt
+// from locks.
+func TestLockWatchersDoNotDeleteForAnonymousAdmins(t *testing.T) {
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Lock Chat"}
+	anonBot := gotgbot.User{Id: 1087968824, IsBot: true, FirstName: "Group", Username: "GroupAnonymousBot"}
+	client.responses["getChatAdministrators"] = json.RawMessage(
+		`[{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},"can_delete_messages":true,"can_restrict_members":true}]`,
+	)
+	if err := locks.UpdateLock(chat.Id, "sticker", true); err != nil {
+		t.Fatalf("UpdateLock sticker setup error = %v", err)
+	}
+	if err := locks.UpdateLock(chat.Id, "media", true); err != nil {
+		t.Fatalf("UpdateLock media setup error = %v", err)
+	}
+	asGroup := func(ctx *ext.Context) *ext.Context {
+		groupChat := chat
+		ctx.EffectiveMessage.SenderChat = &groupChat
+		ctx.EffectiveSender = &gotgbot.Sender{Chat: &groupChat, User: &anonBot, ChatId: chat.Id}
+		return ctx
+	}
+
+	stickerCtx := asGroup(newModuleMessageContext(bot, chat, anonBot, ""))
+	stickerCtx.EffectiveMessage.Sticker = &gotgbot.Sticker{FileId: "sticker-1"}
+	if err := locksModule.permHandler(bot, stickerCtx); err != ext.ContinueGroups {
+		t.Fatalf("permHandler error = %v, want ContinueGroups", err)
+	}
+
+	mediaCtx := asGroup(newModuleMessageContext(bot, chat, anonBot, "photo"))
+	mediaCtx.EffectiveMessage.Photo = []gotgbot.PhotoSize{{FileId: "photo-1"}}
+	if err := locksModule.restHandler(bot, mediaCtx); err != ext.ContinueGroups {
+		t.Fatalf("restHandler error = %v, want ContinueGroups", err)
+	}
+
+	if calls := client.callsFor("deleteMessage"); len(calls) != 0 {
+		t.Fatalf("deleteMessage calls = %d, want none for an anonymous admin", len(calls))
+	}
+}

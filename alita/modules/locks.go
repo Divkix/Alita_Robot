@@ -383,6 +383,12 @@ func (moduleStruct) restHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.ContinueGroups
 	}
 
+	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
+	// which IsUserAdmin rejects; they are admins and exempt from locks.
+	if sender.IsAnonymousAdmin() {
+		return ext.ContinueGroups
+	}
+
 	senderID := sender.Id()
 
 	if chat_status.IsUserAdminForUpdate(b, ctx, chat.Id, senderID) {
@@ -431,6 +437,12 @@ func (moduleStruct) permHandler(b *gotgbot.Bot, ctx *ext.Context) error {
 	// Pure in-memory check first so unlocked content never pays for the
 	// admin/approval/bot-permission lookups below.
 	if !anyLockHit(chatLocks, lockMap, msg, "bots") {
+		return ext.ContinueGroups
+	}
+
+	// Anonymous admins post as the group itself (sender.Id() is the chat ID),
+	// which IsUserAdmin rejects; they are admins and exempt from locks.
+	if sender.IsAnonymousAdmin() {
 		return ext.ContinueGroups
 	}
 
