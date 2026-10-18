@@ -228,6 +228,28 @@ func TestExtractNoteAndFilterReplyKeepsTheRepliedContent(t *testing.T) {
 	})
 }
 
+// On a reply a note is named by its first word, which #name and /get look up,
+// while a filter keeps every word as its trigger phrase.
+func TestExtractNoteAndFilterReplyKeyword(t *testing.T) {
+	t.Parallel()
+
+	note := ExtractNoteAndFilter(&gotgbot.Message{
+		Text:           "/save foo bar",
+		ReplyToMessage: &gotgbot.Message{Text: "hello"},
+	}, false, "en")
+	if note.KeyWord != "foo" {
+		t.Fatalf("note KeyWord = %q, want foo", note.KeyWord)
+	}
+
+	filter := ExtractNoteAndFilter(&gotgbot.Message{
+		Text:           "/filter hello world",
+		ReplyToMessage: &gotgbot.Message{Text: "hello"},
+	}, true, "en")
+	if filter.KeyWord != "hello world" {
+		t.Fatalf("filter KeyWord = %q, want hello world", filter.KeyWord)
+	}
+}
+
 // A filter or note typed directly keeps its line breaks and formatting.
 func TestExtractNoteAndFilterDirectBodyKeepsFormatting(t *testing.T) {
 	t.Parallel()
