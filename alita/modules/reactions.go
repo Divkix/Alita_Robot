@@ -93,7 +93,7 @@ func (m moduleStruct) reactionsHelpHandler(b *gotgbot.Bot, ctx *ext.Context) err
 	}
 
 	if query.Message == nil {
-		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: helpText})
+		_, _ = query.Answer(b, &gotgbot.AnswerCallbackQueryOpts{Text: html.UnescapeString(helpText)})
 		return ext.EndGroups
 	}
 
