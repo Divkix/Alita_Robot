@@ -155,24 +155,33 @@ Located in `alita/utils/chat_status/permission_responder.go`.
 Centralizes permission-failure messaging with support for callback-query answers and chat replies.
 
 ```go
-responder := chat_status.NewPermissionResponder(b)
+func NewPermissionResponder(b *gotgbot.Bot) *PermissionResponder
+func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, opts ...respondOpt) bool
 
-// Answer a callback, or send cmdKey's text as a plain message
-responder.Respond(ctx, "chat_status_owner_cmd_error", "chat_status_owner_button_error")
-
-// Reply to the original message instead
-responder.Respond(ctx, cmdKey, btnKey, chat_status.WithReply())
+// Options
+func WithReply() respondOpt
+func WithReplyFallback() respondOpt
+func WithTranslator(tr *i18n.Translator) respondOpt
 ```
 
-**Functions**:
+```go
+// cmdKey / btnKey are locale keys from locales/en.yml
+chat_status.NewPermissionResponder(b).Respond(ctx,
+    "chat_status_user_admin_cmd_error",    // cmdKey: message text
+    "chat_status_user_admin_button_error", // btnKey: callback-query answer ("" = none)
+    chat_status.WithReplyFallback(),
+)
+```
 
-| Function | Description |
-|----------|-------------|
-| `NewPermissionResponder(b)` | Creates a responder |
-| `Respond(ctx, cmdKey, btnKey, opts...)` | Sends the failure message (btnKey's text as a callback answer, cmdKey's text otherwise) |
-| `WithReply()` | Option: send as a reply to the original message |
-| `WithReplyFallback()` | Option: reply, falling back to a plain message if the reply fails |
-| `WithTranslator(tr)` | Option: use tr instead of the chat's language |
+| Name | Description |
+|------|-------------|
+| `NewPermissionResponder(b)` | Creates a responder bound to the bot |
+| `Respond(ctx, cmdKey, btnKey, opts...)` | If `btnKey` is non-empty and the update is a callback query, answers the query with the `btnKey` text; otherwise sends the `cmdKey` text as a reply to the triggering message (`AllowSendingWithoutReply`). Does nothing when the update has no message. Always returns `false` |
+| `WithReply()` | Option: send via `Message.Reply` |
+| `WithReplyFallback()` | Option: like `WithReply`, but if the reply fails, retries with `SendMessage` |
+| `WithTranslator(tr)` | Option: translate with `tr` instead of `lang.GetLanguage(ctx)`; used by PM commands that swapped `EffectiveChat` to a connected group |
+
+Respond always answers in the chat the update came from, never a connected group a handler swapped into ctx.EffectiveChat. A missing locale key sends an empty string.
 
 ### 🔢 ID Validation
 
