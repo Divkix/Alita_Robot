@@ -621,3 +621,38 @@ func TestFilterCallbackHandlersReturnEarlyWithoutChat(t *testing.T) {
 		t.Fatalf("answerCallbackQuery calls = %d, want none when chat is missing", len(calls))
 	}
 }
+
+// A trigger with HTML-special characters is escaped in the confirmations, so
+// Telegram accepts them.
+func TestFilterConfirmationsEscapeTheTrigger(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+
+	if err := filtersModule.addFilter(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/filter <3 hi")); err != ext.EndGroups {
+		t.Fatalf("addFilter error = %v, want EndGroups", err)
+	}
+	if !filters.DoesFilterExists(f.chat.Id, "<3") {
+		t.Fatal("filter was not stored")
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 1 {
+		t.Fatalf("sendMessage calls after /filter = %d, want 1", len(calls))
+	}
+	if text, _ := calls[0].Params["text"].(string); !strings.Contains(text, "&lt;3") {
+		t.Fatalf("/filter reply = %q, want the trigger escaped", text)
+	}
+
+	if err := filtersModule.rmFilter(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/stop <3")); err != ext.EndGroups {
+		t.Fatalf("rmFilter error = %v, want EndGroups", err)
+	}
+	if filters.DoesFilterExists(f.chat.Id, "<3") {
+		t.Fatal("filter still exists after /stop")
+	}
+	calls = f.client.callsFor("sendMessage")
+	if len(calls) != 2 {
+		t.Fatalf("sendMessage calls after /stop = %d, want 2", len(calls))
+	}
+	if text, _ := calls[1].Params["text"].(string); !strings.Contains(text, "&lt;3") {
+		t.Fatalf("/stop reply = %q, want the trigger escaped", text)
+	}
+}

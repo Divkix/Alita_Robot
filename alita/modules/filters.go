@@ -210,7 +210,7 @@ func (m moduleStruct) addFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 	successText, _ := tr.GetString("filters_added_success")
-	_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), formatting.Shtml())
+	_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 	if err != nil {
 		log.Error(err)
 		return err
@@ -266,7 +266,7 @@ func (moduleStruct) rmFilter(b *gotgbot.Bot, ctx *ext.Context) error {
 				return ext.EndGroups
 			}
 			successText, _ := tr.GetString("filters_removed_success")
-			_, err := msg.Reply(b, fmt.Sprintf(successText, filterWord), formatting.Shtml())
+			_, err := msg.Reply(b, fmt.Sprintf(successText, html.EscapeString(filterWord)), formatting.Shtml())
 			if err != nil {
 				log.Error(err)
 				return err
