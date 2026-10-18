@@ -105,8 +105,8 @@ make psql-migrate
 Built-in observability endpoints:
 
 - `GET /health` - Health check with DB/Redis status
-- `GET /metrics` - Prometheus metrics
-- `GET /db_metrics` - Database performance metrics
+- `GET /metrics` - Prometheus metrics (bearer-protected when `METRICS_AUTH_TOKEN` is set)
+- `GET /db_metrics` - Database performance metrics (bearer-protected when `METRICS_AUTH_TOKEN` is set)
 
 <Card title="Monitoring Guide" href="/self-hosting/monitoring/" icon="activity">
   Health checks, Prometheus metrics, and resource monitoring.
