@@ -579,7 +579,7 @@ func (moduleStruct) help(b *gotgbot.Bot, ctx *ext.Context) error {
 		replyMsgId := msg.MessageId
 		var lowerModName string
 
-		if len(args) == 2 {
+		if len(args) >= 2 {
 			helpModName := args[1]
 			lowerModName = strings.ToLower(helpModName)
 			originalModuleName := getModuleNameFromAltName(lowerModName, DefaultHelpRegistry())
