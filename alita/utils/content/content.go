@@ -3,7 +3,9 @@ package content
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	tgmd2html "github.com/PaulSonOfLars/gotg_md2html"
@@ -11,8 +13,11 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/i18n"
-	"github.com/divkix/Alita_Robot/alita/utils/extraction"
 )
+
+// quotedFilterKeywordRegex splits `"several words" rest` into the quoted
+// trigger and what follows it.
+var quotedFilterKeywordRegex = regexp.MustCompile(`(?s)^"([^"]*)"(.*)$`)
 
 var notesDirectiveReplacer = strings.NewReplacer(
 	"{private}", "",
@@ -82,24 +87,25 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	setRawText(msg, args, &rawText)
 
 	if len(args) >= 2 && replyMsg == nil {
-		result.KeyWord = args[0]
-		result.Text = strings.Join(args[1:], " ")
-		// A filter trigger of several words is quoted: /filter "hello there" Hi!
-		if joined := strings.Join(args, " "); isFilter && strings.HasPrefix(joined, `"`) {
-			// matchWord stays off: its fallback regex is ASCII-only and would split
-			// a non-ASCII trigger.
-			if kw, rest := extraction.ExtractQuotes(joined, true, false); kw != "" {
-				result.KeyWord = kw
-				result.Text = strings.TrimSpace(rest)
-			}
+		// The keyword comes from the plain text, so matching is unchanged; the
+		// body comes from rawText, which keeps line breaks and formatting.
+		body, ok := "", true
+		if isFilter && strings.HasPrefix(args[0], `"`) {
+			// A filter trigger of several words is quoted: /filter "hello there" Hi!
+			body, ok = splitQuotedFilterKeyword(msg.Text, rawText, &result.KeyWord)
+		} else {
+			result.KeyWord = args[0]
+			body = dropFirstToken(rawText)
 		}
-		result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(result.Text)
-		result.DataType = db.TEXT
+		if ok {
+			result.Text, _buttons = tgmd2html.MD2HTMLButtonsV2(body)
+			result.DataType = db.TEXT
+		}
 	} else if replyMsg != nil && len(args) >= 1 {
 		result.KeyWord = strings.Join(args, " ")
 		if isFilter {
-			if strings.HasPrefix(result.KeyWord, `"`) {
-				if kw, _ := extraction.ExtractQuotes(result.KeyWord, true, false); kw != "" {
+			if m := quotedFilterKeywordRegex.FindStringSubmatch(result.KeyWord); m != nil {
+				if kw := strings.TrimSpace(m[1]); kw != "" {
 					result.KeyWord = kw
 				}
 			}
@@ -136,6 +142,39 @@ func ExtractNoteAndFilter(msg *gotgbot.Message, isFilter bool, language string) 
 	}
 
 	return result
+}
+
+// splitQuotedFilterKeyword sets keyWord to the quoted trigger at the start of
+// the command arguments and returns the formatted body after it. It reports
+// false when the quote is unterminated or empty.
+func splitQuotedFilterKeyword(plainText, rawText string, keyWord *string) (string, bool) {
+	plain := quotedFilterKeywordRegex.FindStringSubmatch(dropFirstToken(plainText))
+	if plain == nil {
+		return "", false
+	}
+	kw := strings.TrimSpace(plain[1])
+	if kw == "" {
+		return "", false
+	}
+	*keyWord = kw
+	// MarkdownV2 does not escape '"', so the quotes line up in rawText unless
+	// formatting wraps the trigger; then fall back to the plain body.
+	body := plain[2]
+	if rich := quotedFilterKeywordRegex.FindStringSubmatch(strings.TrimLeftFunc(rawText, unicode.IsSpace)); rich != nil {
+		body = rich[2]
+	}
+	return strings.TrimLeftFunc(body, unicode.IsSpace), true
+}
+
+// dropFirstToken drops leading whitespace, the first whitespace-delimited
+// token, and the whitespace after it.
+func dropFirstToken(s string) string {
+	s = strings.TrimLeftFunc(s, unicode.IsSpace)
+	i := strings.IndexFunc(s, unicode.IsSpace)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimLeftFunc(s[i:], unicode.IsSpace)
 }
 
 func extractMediaFromReply(replyMsg *gotgbot.Message) (fileid string, dataType int) {
@@ -268,15 +307,9 @@ func setRawText(msg *gotgbot.Message, args []string, rawText *string) {
 	replyMsg := msg.ReplyToMessage
 	if replyMsg == nil {
 		if msg.Text == "" && msg.Caption != "" {
-			parts := strings.SplitN(msg.OriginalCaptionMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				*rawText = parts[1]
-			}
+			*rawText = dropFirstToken(msg.OriginalCaptionMDV2())
 		} else if msg.Text != "" && msg.Caption == "" {
-			parts := strings.SplitN(msg.OriginalMDV2(), " ", 2)
-			if len(parts) >= 2 {
-				*rawText = parts[1]
-			}
+			*rawText = dropFirstToken(msg.OriginalMDV2())
 		}
 	} else {
 		if replyMsg.Text == "" && replyMsg.Caption != "" {

@@ -160,6 +160,46 @@ func TestExtractNoteAndFilterFilterTriggers(t *testing.T) {
 	}
 }
 
+// A quoted trigger is the filter's name; an unterminated or empty quote, or a
+// quote with nothing after it, leaves the filter without content.
+func TestExtractNoteAndFilterQuotedTriggers(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name         string
+		text         string
+		reply        *gotgbot.Message
+		wantKeyWord  string
+		wantText     string
+		wantDataType int
+	}{
+		{name: "quoted trigger", text: `/filter "hello friend" Hello back`, wantKeyWord: "hello friend", wantText: "Hello back", wantDataType: db.TEXT},
+		{name: "non-latin trigger", text: "/filter привет текст", wantKeyWord: "привет", wantText: "текст", wantDataType: db.TEXT},
+		{name: "quoted trigger without body", text: `/filter "hello friend"`, wantDataType: -1},
+		{name: "unterminated quote", text: `/filter "unterminated hi`, wantDataType: -1},
+		{name: "empty quote", text: `/filter "" hi`, wantDataType: -1},
+		{name: "quoted trigger on a reply", text: `/filter "a b"`, reply: &gotgbot.Message{Text: "BODY"}, wantKeyWord: "a b", wantText: "BODY", wantDataType: db.TEXT},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := ExtractNoteAndFilter(&gotgbot.Message{Text: tt.text, ReplyToMessage: tt.reply}, true, "en")
+			if result.DataType != tt.wantDataType {
+				t.Fatalf("DataType = %d, want %d", result.DataType, tt.wantDataType)
+			}
+			if tt.wantDataType == -1 {
+				return
+			}
+			if result.KeyWord != tt.wantKeyWord {
+				t.Errorf("KeyWord = %q, want %q", result.KeyWord, tt.wantKeyWord)
+			}
+			if result.Text != tt.wantText {
+				t.Errorf("Text = %q, want %q", result.Text, tt.wantText)
+			}
+		})
+	}
+}
+
 // Replying with a name of several words saves the replied message, not the
 // trailing name words.
 func TestExtractNoteAndFilterReplyKeepsTheRepliedContent(t *testing.T) {
@@ -184,6 +224,49 @@ func TestExtractNoteAndFilterReplyKeepsTheRepliedContent(t *testing.T) {
 		}, false, "en")
 		if result.DataType != db.VIDEO || result.FileID != "video_ab" || result.Text != "" {
 			t.Fatalf("result = {FileID:%q Text:%q DataType:%d}, want video_ab / empty / VIDEO", result.FileID, result.Text, result.DataType)
+		}
+	})
+}
+
+// A filter or note typed directly keeps its line breaks and formatting.
+func TestExtractNoteAndFilterDirectBodyKeepsFormatting(t *testing.T) {
+	t.Parallel()
+
+	t.Run("line breaks", func(t *testing.T) {
+		t.Parallel()
+		result := ExtractNoteAndFilter(&gotgbot.Message{Text: "/filter hello Line one\nLine two"}, true, "en")
+		if result.DataType != db.TEXT || result.KeyWord != "hello" || result.Text != "Line one\nLine two" {
+			t.Fatalf("result = {KeyWord:%q Text:%q DataType:%d}", result.KeyWord, result.Text, result.DataType)
+		}
+	})
+
+	t.Run("bold entity", func(t *testing.T) {
+		t.Parallel()
+		text := "/filter hello Line one\nLine two"
+		result := ExtractNoteAndFilter(&gotgbot.Message{
+			Text:     text,
+			Entities: []gotgbot.MessageEntity{{Type: "bold", Offset: int64(strings.Index(text, "two")), Length: 3}},
+		}, true, "en")
+		if result.DataType != db.TEXT || !strings.Contains(result.Text, "<b>two</b>") {
+			t.Fatalf("result = {Text:%q DataType:%d}, want bold kept", result.Text, result.DataType)
+		}
+	})
+
+	t.Run("note name followed by a newline", func(t *testing.T) {
+		t.Parallel()
+		result := ExtractNoteAndFilter(&gotgbot.Message{Text: "/save kw\nbody"}, false, "en")
+		if result.DataType != db.TEXT || result.KeyWord != "kw" || result.Text != "body" {
+			t.Fatalf("result = {KeyWord:%q Text:%q DataType:%d}", result.KeyWord, result.Text, result.DataType)
+		}
+	})
+
+	t.Run("command followed by a newline", func(t *testing.T) {
+		t.Parallel()
+		var rawText string
+		msg := &gotgbot.Message{Text: "/filter\nhello body"}
+		setRawText(msg, strings.Fields(msg.Text)[1:], &rawText)
+		if rawText != "hello body" {
+			t.Fatalf("rawText = %q, want %q", rawText, "hello body")
 		}
 	})
 }
