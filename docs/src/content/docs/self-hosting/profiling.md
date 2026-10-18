@@ -100,7 +100,6 @@ go tool pprof http://localhost:8080/debug/pprof/goroutine
 
 ```bash
 # Collect 30 seconds of CPU profile
-# Note: The server has a 10s WriteTimeout - use shorter duration or profile externally
 go tool pprof -seconds=30 http://localhost:8080/debug/pprof/profile
 ```
 
