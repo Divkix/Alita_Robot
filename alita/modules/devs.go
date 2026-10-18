@@ -66,7 +66,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	return ext.ContinueGroups
+	return ext.EndGroups
 }
 
 func (moduleStruct) chatList(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -152,7 +152,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 			log.Error(err)
 			return err
 		}
-		return ext.ContinueGroups
+		return ext.EndGroups
 	}
 
 	chatId, _ := strconv.ParseInt(args[1], 10, 64)
@@ -171,7 +171,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 		return err
 	}
 
-	return ext.ContinueGroups
+	return ext.EndGroups
 }
 
 type teamRoleConfig struct {
@@ -239,7 +239,7 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 		log.Error(err)
 		return err
 	}
-	return ext.ContinueGroups
+	return ext.EndGroups
 }
 
 func (m moduleStruct) addSudo(b *gotgbot.Bot, ctx *ext.Context) error {
@@ -399,7 +399,7 @@ func (moduleStruct) getStats(b *gotgbot.Bot, ctx *ext.Context) error {
 		log.Error(err)
 		return err
 	}
-	return ext.ContinueGroups
+	return ext.EndGroups
 }
 
 func LoadDev(dispatcher *ext.Dispatcher) {
