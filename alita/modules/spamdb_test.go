@@ -3,6 +3,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/db/captcha"
+	"github.com/divkix/Alita_Robot/alita/db/greetings"
 	"github.com/divkix/Alita_Robot/alita/db/logchannels"
 	"github.com/divkix/Alita_Robot/alita/db/spamdbsettings"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
@@ -184,6 +187,137 @@ func TestSpamDBLeavesCleanJoinerAlone(t *testing.T) {
 	}
 	if got := spamDBMessagesTo(client, spamDBLogChannel); len(got) != 0 {
 		t.Fatalf("log channel got %v, want nothing", got)
+	}
+}
+
+// withSpamDBGreetings loads greetings next to the join check and turns on
+// both the welcome and the captcha in chat, so a join that slips past the
+// check would post in the group.
+func withSpamDBGreetings(t *testing.T, dispatcher *ext.Dispatcher, chat gotgbot.Chat) {
+	t.Helper()
+	LoadGreetings(dispatcher)
+	if err := greetings.SetWelcomeToggle(chat.Id, true); err != nil {
+		t.Fatalf("SetWelcomeToggle() error = %v", err)
+	}
+	if err := captcha.SetCaptchaEnabled(chat.Id, true); err != nil {
+		t.Fatalf("SetCaptchaEnabled() error = %v", err)
+	}
+}
+
+// spamDBGroupPosts counts the messages and photos the bot posted in chatID.
+func spamDBGroupPosts(client *moduleBotClient, chatID int64) int {
+	posts := 0
+	for _, method := range []string{"sendMessage", "sendPhoto"} {
+		for _, call := range client.callsFor(method) {
+			if fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(chatID) {
+				posts++
+			}
+		}
+	}
+	return posts
+}
+
+// spamDBMemberJoin delivers the chat_member update Telegram sends for the
+// same join alongside the service message.
+func spamDBMemberJoin(t *testing.T, dispatcher *ext.Dispatcher, bot *gotgbot.Bot, chat gotgbot.Chat, member gotgbot.User) {
+	t.Helper()
+	update := &gotgbot.Update{
+		UpdateId: spamDBUpdateID.Add(1),
+		ChatMember: &gotgbot.ChatMemberUpdated{
+			Chat:          chat,
+			From:          member,
+			Date:          1,
+			OldChatMember: gotgbot.ChatMemberLeft{User: member},
+			NewChatMember: gotgbot.ChatMemberMember{User: member},
+		},
+	}
+	if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(chat_member) error = %v", err)
+	}
+}
+
+// A member the check banned or muted gets no welcome and no captcha, from
+// either update Telegram sends for the join. A captcha would lift the mute
+// once solved or expired, and its timeout kick would undo the ban.
+func TestSpamDBKeepsGreetingsAndCaptchaAwayFromActedJoiner(t *testing.T) {
+	for _, tc := range []struct {
+		action       string
+		wantRestrict int
+	}{
+		{spamdbsettings.ActionBan, 0},
+		{spamdbsettings.ActionMute, 1},
+	} {
+		t.Run(tc.action, func(t *testing.T) {
+			dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASListed)
+			client := newModuleBotClient()
+			bot := newModuleTestBot(client)
+			chat := spamDBChat(t, true, tc.action)
+			withSpamDBGreetings(t, dispatcher, chat)
+			spammer := gotgbot.User{Id: 5550101, FirstName: "Spammer"}
+
+			spamDBJoin(t, dispatcher, bot, chat, spammer)
+			spamDBMemberJoin(t, dispatcher, bot, chat, spammer)
+
+			if got := spamDBGroupPosts(client, chat.Id); got != 0 {
+				t.Fatalf("group posts = %d, want none", got)
+			}
+			if got := len(client.callsFor("restrictChatMember")); got != tc.wantRestrict {
+				t.Fatalf("restrictChatMember calls = %d, want %d (the check's own)", got, tc.wantRestrict)
+			}
+			attempt, err := captcha.GetCaptchaAttemptIncludingExpired(spammer.Id, chat.Id)
+			if err != nil {
+				t.Fatalf("GetCaptchaAttemptIncludingExpired() error = %v", err)
+			}
+			if attempt != nil {
+				t.Fatalf("captcha attempt = %#v, want none: solving or expiring it restores the member", attempt)
+			}
+			muted, err := captcha.GetMutedUsersForChat(chat.Id)
+			if err != nil {
+				t.Fatalf("GetMutedUsersForChat() error = %v", err)
+			}
+			if len(muted) != 0 {
+				t.Fatalf("scheduled captcha unmutes = %d, want none", len(muted))
+			}
+		})
+	}
+}
+
+// A member the check did not act on is still free in the chat, so the join
+// goes through greetings and captcha as usual: when Telegram refuses the ban,
+// and when the chat only logs listed members.
+func TestSpamDBLeavesJoinToCaptchaWhenMemberStaysFree(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		action  string
+		banFail bool
+	}{
+		{"ban refused", spamdbsettings.ActionBan, true},
+		{"log only", spamdbsettings.ActionLog, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dispatcher, _ := withSpamDBCAS(t, true, http.StatusOK, spamDBCASListed)
+			client := newModuleBotClient()
+			if tc.banFail {
+				client.errors["banChatMember"] = errors.New("Bad Request: not enough rights to restrict/unrestrict chat member")
+			}
+			bot := newModuleTestBot(client)
+			chat := spamDBChat(t, true, tc.action)
+			withSpamDBGreetings(t, dispatcher, chat)
+			spammer := gotgbot.User{Id: 5550102, FirstName: "Spammer"}
+
+			spamDBJoin(t, dispatcher, bot, chat, spammer)
+
+			attempt, err := captcha.GetCaptchaAttemptIncludingExpired(spammer.Id, chat.Id)
+			if err != nil {
+				t.Fatalf("GetCaptchaAttemptIncludingExpired() error = %v", err)
+			}
+			if attempt == nil {
+				t.Fatal("captcha attempt = nil, want the usual captcha for a member still in the chat")
+			}
+			if got := spamDBGroupPosts(client, chat.Id); got != 1 {
+				t.Fatalf("group posts = %d, want the captcha prompt", got)
+			}
+		})
 	}
 }
 
