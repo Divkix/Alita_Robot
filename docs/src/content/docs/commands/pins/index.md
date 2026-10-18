@@ -56,7 +56,7 @@ This module can be accessed using the following aliases:
 |---------|-------------|-------------|
 | `/antichannelpin` | Toggle automatic unpinning of channel posts | ❌ |
 | `/cleanlinked` | Toggle deletion of linked channel messages | ❌ |
-| `/permapin` | Pin a message permanently (re-pins if unpinned) | ❌ |
+| `/permapin` | Send a custom message (or a copy of the replied message) from the bot and pin it | ❌ |
 | `/pin` | Pin the replied message | ❌ |
 | `/pinned` | Get the current pinned message | ❌ |
 | `/unpin` | Unpin the current pinned message | ❌ |
@@ -84,7 +84,7 @@ For detailed command usage, refer to the commands table above.
 
 **Notes:**
 - The `/unpinall` command shows a confirmation dialog before unpinning all messages
-- Permapin supports all media types that Telegram supports for pinning
+- Permapin supports text, photos, documents and GIFs, stickers, audio, voice messages, videos and video notes; other message types (polls, locations, contacts, dice, etc.) are rejected
 - Anti-channel pin and clean linked settings are stored per-chat and persist across bot restarts
 
 **Required Permissions:**
