@@ -731,7 +731,7 @@ Anti-raid configuration per chat.
 
 ### `warns_settings`
 
-Warning system settings per chat. `warn_action_time` is the tban/tmute duration in seconds; `warn_expiry` is how long a warn counts, in seconds, with `0` meaning warns never expire.
+Warning system settings per chat. `warn_action_time` is the tban/tmute duration in seconds; `warn_expiry` is how long a warn counts, in seconds, with `0` meaning warns never expire. Two CHECKs cover `warn_mode`: `chk_warn_mode` (NOT VALID) also accepts `''`, but the older validated `chk_warns_mode` does not, so PostgreSQL rejects an empty string.
 
 #### Columns
 
@@ -740,7 +740,7 @@ Warning system settings per chat. `warn_action_time` is the tban/tmute duration 
 | `id` | `BIGINT` | NO | auto-increment | PRIMARY KEY |
 | `chat_id` | `BIGINT` | NO | — | UNIQUE |
 | `warn_limit` | `BIGINT` | NO | `3` | CHECK (`warn_limit > 0`) |
-| `warn_mode` | `TEXT` | YES | — | CHECK (`warn_mode IS NULL OR warn_mode = '' OR warn_mode IN ('ban','kick','mute','tban','tmute')`) |
+| `warn_mode` | `TEXT` | YES | — | CHECK (`warn_mode IS NULL OR warn_mode IN ('ban','kick','mute','tban','tmute')`) |
 | `warn_action_time` | `INTEGER` | NO | `0` | CHECK (`warn_action_time >= 0`) |
 | `warn_expiry` | `INTEGER` | NO | `0` | CHECK (`warn_expiry >= 0`) |
 | `created_at` | `TIMESTAMPTZ` | YES | — | — |
