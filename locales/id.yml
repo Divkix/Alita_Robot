@@ -828,13 +828,13 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Hapus pesan yang dikirim oleh kanal yang terhubung."
 purges_help_msg: "*Admin saja:*
 
-  - /purge: menghapus semua pesan antara ini dan pesan yang dibalas.
+  - /purge <alasan>: menghapus semua pesan antara ini dan pesan yang dibalas. Alasan bersifat opsional dan ditampilkan dalam konfirmasi.
 
   - /del: menghapus pesan yang Anda balas.
 
   - /purgefrom: menandai pesan yang dibalas sebagai awal rentang yang akan dihapus (lalu gunakan /purgeto).
 
-  - /purgeto: menghapus semua pesan dari tanda /purgefrom sampai pesan yang dibalas.
+  - /purgeto <alasan>: menghapus semua pesan dari tanda /purgefrom sampai pesan yang dibalas. Alasan bersifat opsional dan ditampilkan dalam konfirmasi.
 
 
   *Contoh*:

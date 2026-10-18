@@ -837,13 +837,13 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Eliminar mensajes enviados por el canal vinculado."
 purges_help_msg: "*Solo administrador:*
 
-  - /purge: elimina todos los mensajes entre este y el mensaje respondido.
+  - /purge <razón>: elimina todos los mensajes entre este y el mensaje respondido. La razón es opcional y se muestra en la confirmación.
 
   - /del: elimina el mensaje al que respondiste.
 
   - /purgefrom: marca el mensaje respondido como inicio de un rango a eliminar (luego usa /purgeto).
 
-  - /purgeto: elimina todos los mensajes desde la marca de /purgefrom hasta el mensaje respondido.
+  - /purgeto <razón>: elimina todos los mensajes desde la marca de /purgefrom hasta el mensaje respondido. La razón es opcional y se muestra en la confirmación.
 
 
   *Ejemplos*:

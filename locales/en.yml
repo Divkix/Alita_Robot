@@ -875,13 +875,13 @@ pins_help_msg:
   × /cleanlinked <yes/no/on/off>: Delete messages sent by the linked channel."
 purges_help_msg: "*Admin only:*
 
-  - /purge: deletes all messages between this and the replied-to message.
+  - /purge <reason>: deletes all messages between this and the replied-to message. The reason is optional and is shown in the confirmation.
 
   - /del: deletes the message you replied to.
 
   - /purgefrom: marks the replied-to message as the start of a range to delete (then use /purgeto).
 
-  - /purgeto: deletes every message from the /purgefrom mark up to the replied-to message.
+  - /purgeto <reason>: deletes every message from the /purgefrom mark up to the replied-to message. The reason is optional and is shown in the confirmation.
 
 
   *Examples*:

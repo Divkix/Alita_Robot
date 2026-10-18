@@ -1328,13 +1328,13 @@ pins_input_not_recognized: "Votre entrée n'a pas été reconnue comme l'une des
 # Purges module strings
 purges_help_msg: "*Admin uniquement :*
 
-  - /purge : supprime tous les messages entre celui-ci et le message auquel vous avez répondu.
+  - /purge <raison> : supprime tous les messages entre celui-ci et le message auquel vous avez répondu. La raison est facultative et s'affiche dans la confirmation.
 
   - /del : supprime le message auquel vous avez répondu.
 
   - /purgefrom : marque le message auquel vous avez répondu comme début de la plage à supprimer (utilisez ensuite /purgeto).
 
-  - /purgeto : supprime tous les messages depuis la marque /purgefrom jusqu'au message auquel vous avez répondu.
+  - /purgeto <raison> : supprime tous les messages depuis la marque /purgefrom jusqu'au message auquel vous avez répondu. La raison est facultative et s'affiche dans la confirmation.
 
 
   *Exemples* :
