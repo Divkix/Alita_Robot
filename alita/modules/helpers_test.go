@@ -301,8 +301,8 @@ func TestHandleDeepLinkHandlesMissingChatsAndAdminOnlyNotes(t *testing.T) {
 	}
 
 	ctx := newModuleMessageContext(bot, privateChat, user, fmt.Sprintf("/start note_%d_adminonly", chatID))
-	if err := HandleDeepLink(bot, ctx, &user, fmt.Sprintf("note_%d_adminonly", chatID)); err != ext.ContinueGroups {
-		t.Fatalf("HandleDeepLink(admin-only note) error = %v, want ContinueGroups", err)
+	if err := HandleDeepLink(bot, ctx, &user, fmt.Sprintf("note_%d_adminonly", chatID)); err != ext.EndGroups {
+		t.Fatalf("HandleDeepLink(admin-only note) error = %v, want EndGroups", err)
 	}
 	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
 		t.Fatalf("sendMessage calls = %d, want admin-only notice", len(calls))
