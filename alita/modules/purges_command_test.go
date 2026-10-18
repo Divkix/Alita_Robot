@@ -257,6 +257,27 @@ func TestAnonymousAdminPurgeFromToAreRouted(t *testing.T) {
 	assertDeleted(t, client, chat.Id, 415, 416, 417)
 }
 
+// A second /purgefrom on another message is refused with its own message and
+// keeps the first mark.
+func TestPurgeFromRefusesWhileAnotherMessageIsMarked(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 215, timestamp: time.Now()})
+	t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+
+	ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/purgefrom", 220, 216)
+	if err := purgesModule.purgeFrom(f.bot, ctx); err != ext.EndGroups {
+		t.Fatalf("purgeFrom() error = %v, want EndGroups", err)
+	}
+	text := fmt.Sprint(f.client.onlyCall(t, "sendMessage").Params["text"])
+	if !strings.Contains(text, "/purgeto") {
+		t.Fatalf("purgeFrom reply = %q, want the already-active mark message", text)
+	}
+	if stored, ok := delMsgs.Load(f.chat.Id); !ok || stored.(delMsgEntry).msgID != 215 {
+		t.Fatalf("purge marker = %v, %v, want message 215 kept", stored, ok)
+	}
+}
+
 func TestPurgeFromToValidationBranches(t *testing.T) {
 	f := newAdminChatFixture(t)
 	client, bot, chat, admin := f.client, f.bot, f.chat, f.admin

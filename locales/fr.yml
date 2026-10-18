@@ -1361,6 +1361,7 @@ purges_purged_with_reason: "%d messages supprimés.\n*Raison* :\n%s"
 purges_reply_to_purge: Répondez à un message pour sélectionner où commencer la suppression.
 purges_reply_to_delete: Répondez à un message pour le supprimer !
 purges_message_marked: Ce message est déjà marqué pour la suppression !
+purges_mark_already_active: "Un autre message est déjà marqué pour la suppression dans ce chat. Utilisez /purgeto pour terminer cette suppression ou attendez que la marque expire."
 purges_marked_for_deletion: Message marqué pour suppression. Répondez à un autre message avec /purgeto pour supprimer tous les messages entre les deux ; dans les 30s !
 purges_reply_to_purgefrom: Répondez à un message pour sélectionner où commencer la suppression.
 purges_need_purgefrom: Vous ne pouvez utiliser cette commande qu'après avoir utilisé la commande /purgefrom !

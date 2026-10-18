@@ -1184,6 +1184,7 @@ purges_purged_with_reason: "Purgadas %d mensagens.\n*Motivo*:\n%s"
 purges_reply_to_purge: Responda a uma mensagem para selecionar de onde começar a purgar.
 purges_reply_to_delete: Responda a uma mensagem para deletá-la!
 purges_message_marked: Esta mensagem já está marcada para purga!
+purges_mark_already_active: "Outra mensagem já está marcada para purga neste chat. Use /purgeto para concluir essa purga ou aguarde a marcação expirar."
 purges_marked_for_deletion: Mensagem marcada para exclusão. Responda a outra mensagem com /purgeto para deletar todas as mensagens entre elas; dentro de 30s!
 purges_reply_to_purgefrom: Responda a uma mensagem para selecionar de onde começar a purgar.
 purges_need_purgefrom: Você só pode usar este comando depois de ter usado o comando /purgefrom!

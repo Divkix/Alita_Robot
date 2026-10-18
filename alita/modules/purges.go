@@ -323,12 +323,11 @@ func (moduleStruct) purgeFrom(bot *gotgbot.Bot, ctx *ext.Context) error {
 				_, _ = msg.Reply(bot, text, nil)
 				return ext.EndGroups
 			}
-			if existing != nil {
-				tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-				text, _ := tr.GetString("purges_message_marked")
-				_, _ = msg.Reply(bot, text, nil)
-				return ext.EndGroups
-			}
+			// The chat holds one mark, and another message has it.
+			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
+			text, _ := tr.GetString("purges_mark_already_active")
+			_, _ = msg.Reply(bot, text, nil)
+			return ext.EndGroups
 		}
 		if err := helpers.DeleteMessageWithErrorHandling(bot, chat.Id, msg.MessageId); err != nil {
 			_, _ = msg.Reply(bot, err.Error(), nil)
