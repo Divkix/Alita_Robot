@@ -623,3 +623,108 @@ func TestRequireHelpersFollowConnectedChatSwap(t *testing.T) {
 		t.Error("RequirePrivate(unswapped PM) = false, want true")
 	}
 }
+
+// A stored list with no admins in it (the bot is not an admin there, or it
+// could not check its own status) cannot answer, but reloading it would only
+// store the same list again: IsUserAdmin asks Telegram for the user's own
+// membership and nothing else until the entry expires or is invalidated.
+func TestIsUserAdminCachedListWithoutAdminsAsksOnlyForTheMember(t *testing.T) {
+	const (
+		adminID  = int64(601)
+		memberID = int64(602)
+	)
+	for name, entry := range map[string]cache.AdminCache{
+		"bot is not an admin":     {UserInfo: []gotgbot.MergedChatMember{}, Cached: true, Negative: true},
+		"bot status not verified": {UserInfo: []gotgbot.MergedChatMember{}, Cached: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cache.SetupTestMemoryMarshaler(t)
+			chatID := int64(-6001)
+			entry.ChatId = chatID
+			if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", chatID), entry); err != nil {
+				t.Fatalf("seeding admin cache: %v", err)
+			}
+			rec := &recordingStatusClient{inner: &statusOnlyBotClient{
+				botID:     9908,
+				statusMap: map[int64]string{adminID: "administrator", memberID: "member"},
+			}}
+			bot := &gotgbot.Bot{
+				Token:     "9908:noadmins",
+				BotClient: rec,
+				User:      gotgbot.User{Id: 9908, IsBot: true, FirstName: "NoAdminsBot"},
+			}
+
+			if !IsUserAdmin(bot, chatID, adminID) {
+				t.Error("IsUserAdmin(admin) = false, want true from the member lookup")
+			}
+			if IsUserAdmin(bot, chatID, memberID) {
+				t.Error("IsUserAdmin(member) = true, want false")
+			}
+			if want := []string{"getChatMember", "getChatMember"}; fmt.Sprint(rec.calls) != fmt.Sprint(want) {
+				t.Errorf("API calls = %v, want only the users' own lookups %v", rec.calls, want)
+			}
+		})
+	}
+}
+
+// privateChatClient answers getChat with a private chat and getChatMember with
+// "administrator" for anyone, so a test sees whether IsUserAdmin ever lets a
+// member lookup decide in a private chat.
+type privateChatClient struct {
+	chatID int64
+	calls  []string
+}
+
+func (c *privateChatClient) RequestWithContext(
+	_ context.Context, _ string, method string,
+	params map[string]any, _ *gotgbot.RequestOpts,
+) (json.RawMessage, error) {
+	c.calls = append(c.calls, method)
+	switch method {
+	case "getChat":
+		return json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"private","first_name":"PM"}`, c.chatID)), nil
+	case "getChatMember":
+		return json.RawMessage(fmt.Sprintf(
+			`{"status":"administrator","user":{"id":%v,"is_bot":false,"first_name":"TestUser"}}`,
+			params["user_id"],
+		)), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (c *privateChatClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *privateChatClient) FileURL(token, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+// /report in a private chat loads the admin list for the user's own ID, which
+// stores an empty list there. A private chat has no admins: IsUserAdmin keeps
+// answering false from getChat and never asks for the user's membership.
+func TestIsUserAdminCachedEmptyListInPrivateChatIsNotAdmin(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	const userID = int64(603)
+	entry := cache.AdminCache{ChatId: userID, UserInfo: []gotgbot.MergedChatMember{}, Cached: true, Negative: true}
+	if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", userID), entry); err != nil {
+		t.Fatalf("seeding admin cache: %v", err)
+	}
+	rec := &privateChatClient{chatID: userID}
+	bot := &gotgbot.Bot{
+		Token:     "9909:private",
+		BotClient: rec,
+		User:      gotgbot.User{Id: 9909, IsBot: true, FirstName: "PrivateBot"},
+	}
+
+	if IsUserAdmin(bot, userID, userID) {
+		t.Error("IsUserAdmin(user, own private chat) = true, want false")
+	}
+	for _, call := range rec.calls {
+		if call == "getChatMember" {
+			t.Errorf("API calls = %v, want no getChatMember in a private chat", rec.calls)
+			break
+		}
+	}
+}
