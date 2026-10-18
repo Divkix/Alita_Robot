@@ -368,3 +368,56 @@ func TestWarnUserPrunesTheExpiredReasonNotTheFirst(t *testing.T) {
 		t.Fatalf("warns row = %d %v, want 2 %v", row.NumWarns, row.Reasons, want)
 	}
 }
+
+// An older release's /resetwarns deletes warns_users alone and its next /warn
+// writes reasons without an entry, so the entries left behind belong to warns
+// that no longer count. They must be reconciled away before pruning: pruning
+// them first drops the expired one's position from reasons, which then takes
+// the live warn the older release added.
+func TestWarnUserReconcilesStaleEntriesBeforePruning(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "a", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "b", WarnedBy: 77, WarnedAt: timeAgo(24 * time.Hour)},
+	)
+	oldReleaseWrite(t, chatID, userID, "c") // old /resetwarns, then old /warn c
+
+	num, entries, err := WarnUser(userID, chatID, models.WarnEntry{Reason: "new", WarnedBy: 78})
+	if err != nil {
+		t.Fatalf("WarnUser() error = %v", err)
+	}
+
+	want := []string{"c", "new"}
+	if num != 2 || !equalStrings(reasonsOf(entries), want) {
+		t.Fatalf("WarnUser() = %d, %v; want 2, %v", num, reasonsOf(entries), want)
+	}
+	checkIssued(t, "stored", storedEntries(t, chatID, userID), want, []int64{0, 78})
+	if row := storedRow(t, chatID, userID); row.NumWarns != 2 || !equalStrings(row.Reasons, want) {
+		t.Fatalf("warns row = %d %v, want 2 %v", row.NumWarns, row.Reasons, want)
+	}
+}
+
+// The same reconcile-before-prune order for /rmwarn: an older release's
+// /resetwarns and two /warns leave reasons [c d] over stale entries [a b] with
+// a expired. Pruning first would drop c, the reason at a's position, and the
+// pop would then take d, leaving no warns instead of c.
+func TestRemoveWarnReconcilesStaleEntriesBeforePruning(t *testing.T) {
+	chatID, userID := newEntriesFixture(t)
+	setExpiry(t, chatID, thirtyDays)
+	seedWarns(t, chatID, userID,
+		models.WarnEntry{Reason: "a", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},
+		models.WarnEntry{Reason: "b", WarnedBy: 77, WarnedAt: timeAgo(24 * time.Hour)},
+	)
+	oldReleaseWrite(t, chatID, userID, "c", "d") // old /resetwarns, then old /warn c, d
+
+	if removed, err := RemoveWarn(userID, chatID); err != nil || !removed {
+		t.Fatalf("RemoveWarn() = %v, %v; want true, nil", removed, err)
+	}
+
+	want := []string{"c"}
+	checkIssued(t, "stored", storedEntries(t, chatID, userID), want, []int64{0})
+	if row := storedRow(t, chatID, userID); row.NumWarns != 1 || !equalStrings(row.Reasons, want) {
+		t.Fatalf("warns row = %d %v, want 1 %v", row.NumWarns, row.Reasons, want)
+	}
+}
