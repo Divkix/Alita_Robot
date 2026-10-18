@@ -32,8 +32,9 @@ A unit suffix is required. Valid examples: `30m`, `1h`, `7d`, `2w`.
 **Admin only commands.** Users executing these commands must have:
 - Admin status in the chat
 - Permission to restrict members
+- Permission to delete messages (for /smute and /dmute)
 
-The bot must also have admin privileges with permission to restrict members.
+The bot must also have admin privileges with permission to restrict members, plus permission to delete messages for /smute and /dmute.
 
 
 ## Module Aliases
@@ -74,5 +75,5 @@ For detailed command usage, refer to the commands table above.
 
 **Admin only commands.** All commands in this module require:
 
-- **User Permissions:** Admin status in the chat with permission to restrict members
+- **User Permissions:** Admin status in the chat with permission to restrict members, plus delete messages for `/smute` and `/dmute`
 - **Bot Permissions:** Admin privileges with permission to restrict members, plus delete messages for `/smute` and `/dmute`
