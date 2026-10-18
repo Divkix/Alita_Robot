@@ -443,8 +443,6 @@ devs_help_msg:
 
   *Team Commands:*
 
-  × /stats: Display bot statistics and system info.
-
   × /teamusers: List all team members.
 
   *Owner Commands:*
@@ -458,6 +456,8 @@ devs_help_msg:
   × /remdev: Revoke developer permissions from a user.
 
   *Diagnostic Commands:*
+
+  × /stats: Display bot statistics and system info.
 
   × /chatinfo: Display detailed information about a chat.
 

@@ -401,8 +401,6 @@ devs_help_msg:
 
   *Perintah Tim:*
 
-  × /stats: Menampilkan statistik bot dan info sistem.
-
   × /teamusers: Daftar semua anggota tim.
 
   *Perintah Pemilik:*
@@ -416,6 +414,8 @@ devs_help_msg:
   × /remdev: Cabut izin pengembang dari pengguna.
 
   *Perintah Diagnostik:*
+
+  × /stats: Menampilkan statistik bot dan info sistem.
 
   × /chatinfo: Menampilkan informasi terperinci tentang chat.
 

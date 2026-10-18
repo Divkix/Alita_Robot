@@ -988,8 +988,6 @@ devs_help_msg:
 
   *Commandes d'équipe:*
 
-  × /stats: Afficher les statistiques du bot et les informations système.
-
   × /teamusers: Lister tous les membres de l'équipe.
 
   *Commandes du propriétaire:*
@@ -1003,6 +1001,8 @@ devs_help_msg:
   × /remdev: Révoquer les permissions de développeur d'un utilisateur.
 
   *Commandes de diagnostic:*
+
+  × /stats: Afficher les statistiques du bot et les informations système.
 
   × /chatinfo: Afficher des informations détaillées sur un chat.
 
