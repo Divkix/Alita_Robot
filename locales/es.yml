@@ -2269,11 +2269,15 @@ devs_extended_docs: |
 
   <b>Nivel 1 — Propietario:</b> Se establece mediante la variable de entorno <code>OWNER_ID</code> en el despliegue. Control total: gestionar la lista del equipo, todos los comandos de diagnóstico, todos los comandos del equipo.
 
-  <b>Nivel 2 — Sudo / Dev:</b> Asignados por el propietario mediante <code>/addsudo</code> o <code>/adddev</code>. Comandos de diagnóstico: estadísticas del bot, información del chat, gestión del chat.
+  <b>Nivel 2 — Dev:</b> Asignado por el propietario mediante <code>/adddev</code>. Tiene acceso a los comandos de diagnóstico: <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. También aparece en <code>/teamusers</code> y se marca como usuario dev en <code>/info</code>.
+
+  <b>Nivel 2 — Sudo:</b> Asignado por el propietario mediante <code>/addsudo</code>. Aparece en <code>/teamusers</code>, pero NO tiene acceso a los comandos de diagnóstico.
+
+  <b>Ascensos:</b> Cuando un usuario Dev o Sudo que es administrador del chat con permiso para añadir administradores usa <code>/promote</code>, el nuevo administrador recibe todos los permisos de administrador que tiene el bot, incluso los que no tiene quien lo asciende. El creador del chat recibe el mismo trato. Los demás administradores solo pueden otorgar los permisos que ellos mismos tienen.
 
   <b>Nivel 3 — Miembro del Equipo:</b> Incluye automáticamente al propietario + todos los usuarios sudo + todos los usuarios dev. Ver la lista del equipo solo mediante <code>/teamusers</code>.
 
-  <b>Nota:</b> Sudo y Dev tienen acceso a comandos idénticos. La distinción existe con fines organizativos.
+  <b>Nota:</b> De los comandos de este módulo, los usuarios Sudo solo pueden usar <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code> y <code>/leavechat</code> requieren Dev o Propietario.
 
   <b>Importante:</b> Estos comandos no son visibles en el menú de ayuda público e ignoran silenciosamente a los usuarios no autorizados.
 

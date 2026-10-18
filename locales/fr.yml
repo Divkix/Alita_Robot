@@ -1989,11 +1989,15 @@ devs_extended_docs: |
 
   <b>Niveau 1 — Propriétaire:</b> Défini via la variable d'environnement <code>OWNER_ID</code> lors du déploiement. Contrôle total : gérer la liste d'équipe, toutes les commandes de diagnostic, toutes les commandes d'équipe.
 
-  <b>Niveau 2 — Sudo / Dev:</b> Attribués par le propriétaire via <code>/addsudo</code> ou <code>/adddev</code>. Commandes de diagnostic : statistiques du bot, informations du chat, gestion du chat.
+  <b>Niveau 2 — Dev:</b> Attribué par le propriétaire via <code>/adddev</code>. A accès aux commandes de diagnostic : <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. Également listé dans <code>/teamusers</code> et signalé comme utilisateur dev dans <code>/info</code>.
+
+  <b>Niveau 2 — Sudo:</b> Attribué par le propriétaire via <code>/addsudo</code>. Listé dans <code>/teamusers</code>, mais N'A PAS accès aux commandes de diagnostic.
+
+  <b>Promotions:</b> Lorsqu'un utilisateur Dev ou Sudo qui est admin du chat avec le droit d'ajouter des admins utilise <code>/promote</code>, le nouvel admin reçoit tous les droits d'admin que possède le bot, même ceux qui manquent à celui qui le promeut. Le créateur du chat bénéficie du même traitement. Les autres admins ne peuvent transmettre que les droits qu'ils possèdent eux-mêmes.
 
   <b>Niveau 3 — Membre d'Équipe:</b> Inclut automatiquement le propriétaire + tous les utilisateurs sudo + tous les utilisateurs dev. Voir la liste d'équipe uniquement via <code>/teamusers</code>.
 
-  <b>Remarque:</b> Sudo et Dev ont un accès identique aux commandes. La distinction existe à des fins d'organisation.
+  <b>Remarque:</b> Parmi les commandes de ce module, les utilisateurs Sudo ne peuvent utiliser que <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code> et <code>/leavechat</code> nécessitent Dev ou Propriétaire.
 
   <b>Important:</b> Ces commandes ne sont pas visibles dans le menu d'aide public et ignorent silencieusement les utilisateurs non autorisés.
 

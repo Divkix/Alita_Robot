@@ -2231,11 +2231,15 @@ devs_extended_docs: |
 
   <b>Nível 1 — Proprietário:</b> Definido via variável de ambiente <code>OWNER_ID</code> na implantação. Controle total: gerenciar a lista da equipe, todos os comandos de diagnóstico, todos os comandos da equipe.
 
-  <b>Nível 2 — Sudo / Dev:</b> Atribuídos pelo proprietário via <code>/addsudo</code> ou <code>/adddev</code>. Comandos de diagnóstico: estatísticas do bot, informações do chat, gerenciamento do chat.
+  <b>Nível 2 — Dev:</b> Atribuído pelo proprietário via <code>/adddev</code>. Tem acesso aos comandos de diagnóstico: <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. Também aparece em <code>/teamusers</code> e é marcado como usuário dev em <code>/info</code>.
+
+  <b>Nível 2 — Sudo:</b> Atribuído pelo proprietário via <code>/addsudo</code>. Aparece em <code>/teamusers</code>, mas NÃO tem acesso aos comandos de diagnóstico.
+
+  <b>Promoções:</b> Quando um usuário Dev ou Sudo que é admin do chat com permissão para adicionar admins usa <code>/promote</code>, o novo admin recebe todas as permissões de admin que o bot tem, mesmo as que faltam a quem promove. O criador do chat recebe o mesmo tratamento. Os demais admins só podem conceder as permissões que eles mesmos têm.
 
   <b>Nível 3 — Membro da Equipe:</b> Inclui automaticamente o proprietário + todos os usuários sudo + todos os usuários dev. Ver a lista da equipe apenas via <code>/teamusers</code>.
 
-  <b>Nota:</b> Sudo e Dev têm acesso idêntico a comandos. A distinção existe para fins organizacionais.
+  <b>Nota:</b> Dos comandos deste módulo, usuários Sudo só podem usar <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code> e <code>/leavechat</code> exigem Dev ou Proprietário.
 
   <b>Importante:</b> Estes comandos não são visíveis no menu de ajuda público e ignoram silenciosamente usuários não autorizados.
 

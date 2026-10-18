@@ -2310,11 +2310,15 @@ devs_extended_docs: |
 
   <b>Tier 1 — Owner:</b> Set via <code>OWNER_ID</code> environment variable at deployment. Full control: manage team roster, all diagnostic commands, all team commands.
 
-  <b>Tier 2 — Sudo / Dev:</b> Assigned by owner via <code>/addsudo</code> or <code>/adddev</code>. Diagnostic commands: bot stats, chat info, chat management.
+  <b>Tier 2 — Dev:</b> Assigned by owner via <code>/adddev</code>. Has diagnostic command access: <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. Also listed in <code>/teamusers</code>, and marked as a dev user in <code>/info</code>.
+
+  <b>Tier 2 — Sudo:</b> Assigned by owner via <code>/addsudo</code>. Listed in <code>/teamusers</code> but does NOT have diagnostic command access.
+
+  <b>Promotions:</b> When a Dev or Sudo user who is a chat admin with the right to add admins uses <code>/promote</code>, the new admin gets every admin right the bot holds, even ones the promoter lacks. The chat's creator gets the same treatment. Other admins can only pass on rights they hold themselves.
 
   <b>Tier 3 — Team Member:</b> Automatically includes owner + all sudo + all dev users. View team roster only via <code>/teamusers</code>.
 
-  <b>Note:</b> Sudo and Dev have identical command access. The distinction exists for organizational purposes.
+  <b>Note:</b> Of the commands in this module, Sudo users can use only <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, and <code>/leavechat</code> require Dev or Owner.
 
   <b>Important:</b> These commands are not visible in the public help menu and silently ignore unauthorized users.
 

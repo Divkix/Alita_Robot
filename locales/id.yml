@@ -2260,11 +2260,15 @@ devs_extended_docs: |
 
   <b>Tingkat 1 — Pemilik:</b> Diatur melalui variabel lingkungan <code>OWNER_ID</code> saat penyebaran. Kontrol penuh: mengelola daftar tim, semua perintah diagnostik, semua perintah tim.
 
-  <b>Tingkat 2 — Sudo / Dev:</b> Ditugaskan oleh pemilik melalui <code>/addsudo</code> atau <code>/adddev</code>. Perintah diagnostik: statistik bot, info chat, manajemen chat.
+  <b>Tingkat 2 — Dev:</b> Ditugaskan oleh pemilik melalui <code>/adddev</code>. Memiliki akses perintah diagnostik: <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, <code>/leavechat</code>. Juga tercantum di <code>/teamusers</code>, dan ditandai sebagai pengguna dev di <code>/info</code>.
+
+  <b>Tingkat 2 — Sudo:</b> Ditugaskan oleh pemilik melalui <code>/addsudo</code>. Tercantum di <code>/teamusers</code> tetapi TIDAK memiliki akses perintah diagnostik.
+
+  <b>Promosi:</b> Saat pengguna Dev atau Sudo yang merupakan admin chat dengan hak menambahkan admin menggunakan <code>/promote</code>, admin baru mendapatkan setiap hak admin yang dimiliki bot, bahkan yang tidak dimiliki oleh yang mempromosikan. Pembuat chat mendapat perlakuan yang sama. Admin lain hanya dapat memberikan hak yang mereka miliki sendiri.
 
   <b>Tingkat 3 — Anggota Tim:</b> Secara otomatis mencakup pemilik + semua pengguna sudo + semua pengguna dev. Lihat daftar tim hanya melalui <code>/teamusers</code>.
 
-  <b>Catatan:</b> Sudo dan Dev memiliki akses perintah yang identik. Perbedaan ini ada untuk tujuan organisasi.
+  <b>Catatan:</b> Dari perintah di modul ini, pengguna Sudo hanya dapat menggunakan <code>/teamusers</code>. <code>/stats</code>, <code>/chatinfo</code>, <code>/chatlist</code>, dan <code>/leavechat</code> memerlukan Dev atau Pemilik.
 
   <b>Penting:</b> Perintah ini tidak terlihat di menu bantuan publik dan secara diam-diam mengabaikan pengguna yang tidak berwenang.
 
