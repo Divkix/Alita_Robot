@@ -247,3 +247,22 @@ func TestDevChatInfoEscapesChatTitle(t *testing.T) {
 		t.Fatalf("chatInfo reply = %q, want the chat title HTML-escaped", text)
 	}
 }
+
+func TestDevTeamRoleCommandRepliesWhenNoUserGiven(t *testing.T) {
+	withOwnerID(t, 777000)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
+	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
+
+	ctx := newModuleMessageContext(bot, chat, owner, "/addsudo")
+	if err := devsModule.addSudo(bot, ctx); err != ext.EndGroups {
+		t.Fatalf("addSudo(no user) error = %v, want EndGroups", err)
+	}
+	if calls := client.callsFor("sendMessage"); len(calls) != 1 {
+		t.Fatalf("sendMessage calls = %d, want a no-user reply", len(calls))
+	}
+	if calls := client.callsFor("getChat"); len(calls) != 0 {
+		t.Fatalf("getChat calls = %d, want none without a target user", len(calls))
+	}
+}

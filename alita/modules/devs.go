@@ -197,6 +197,12 @@ func (m moduleStruct) manageTeamRole(b *gotgbot.Bot, ctx *ext.Context, cfg teamR
 	userId := extraction.ExtractUser(b, ctx)
 	if userId == -1 {
 		return ext.ContinueGroups
+	} else if userId == 0 {
+		if _, err := msg.Reply(b, trS(ctxTr(ctx), "common_no_user_specified"), nil); err != nil {
+			log.Error(err)
+			return err
+		}
+		return ext.EndGroups
 	} else if chat_status.IsChannelId(userId) {
 		return ext.ContinueGroups
 	}
