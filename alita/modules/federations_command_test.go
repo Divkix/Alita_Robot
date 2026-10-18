@@ -755,6 +755,31 @@ func TestImportFBansSkipsOwnerAdminsAndBot(t *testing.T) {
 	require.NotNil(t, federations.GetFedBan(fed.FedID, 4343), "ordinary user must be imported")
 }
 
+func TestFedBanExportImportKeepsBannedBy(t *testing.T) {
+	bans := []models.FederationBan{{UserID: 5001, Reason: "r", BannedBy: 77}}
+
+	rawCSV, err := formatFedBanCSV(bans, false)
+	require.NoError(t, err)
+	parsed, err := parseFedBanCSV(rawCSV)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Equal(t, int64(77), parsed[0].BannedBy)
+
+	rawJSONL, err := formatFedBanJSONL(bans)
+	require.NoError(t, err)
+	parsed, err = parseFedBanJSON(rawJSONL)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Equal(t, int64(77), parsed[0].BannedBy)
+
+	rawMini, err := formatFedBanCSV(bans, true)
+	require.NoError(t, err)
+	parsed, err = parseFedBanCSV(rawMini)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Zero(t, parsed[0].BannedBy, "minicsv has no banned_by column")
+}
+
 func TestFbanInPrivateAndEmptyExport(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()
