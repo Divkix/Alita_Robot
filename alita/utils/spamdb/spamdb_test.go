@@ -204,6 +204,34 @@ func TestCheckSendsCASAPIKeyOnlyWhenConfigured(t *testing.T) {
 	}
 }
 
+// The key travels only in the Authorization header: a URL is logged by
+// proxies and repeated in Go's transport errors, so the key must never be in
+// the request URL, nor in the error a failed lookup returns.
+func TestCheckKeepsCASAPIKeyOutOfURLAndErrors(t *testing.T) {
+	const key = "cas-secret-key-7d41b2"
+
+	cas := newFakeService(t, http.StatusOK, casNotFound)
+	if _, err := newTestChecker(cas, Options{CASAPIKey: key}).Check(context.Background(), testUserID); err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	if uri := cas.lastRequest(t).RequestURI; strings.Contains(uri, key) {
+		t.Fatalf("request URI %q carries the API key", uri)
+	}
+
+	bad := newFakeService(t, http.StatusBadGateway, `upstream down`)
+	down := newFakeService(t, http.StatusOK, casNotFound)
+	down.srv.Close()
+	for name, svc := range map[string]*fakeService{"non-200": bad, "unreachable": down} {
+		_, err := newTestChecker(svc, Options{CASAPIKey: key, Redis: func() *redis.Client { return nil }}).Check(context.Background(), testUserID+1)
+		if err == nil {
+			t.Fatalf("%s: Check() error = nil, want a failure", name)
+		}
+		if strings.Contains(err.Error(), key) {
+			t.Fatalf("%s: error %q carries the API key", name, err)
+		}
+	}
+}
+
 func TestCheckRejectsNonUserIDWithoutRequests(t *testing.T) {
 	cas := newFakeService(t, http.StatusOK, casListed)
 	c := newTestChecker(cas, Options{})
