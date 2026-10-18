@@ -277,8 +277,8 @@ blacklists_help_msg: "*User Commands:*
 
   *Note:*
 
-  The Default mode for Blacklist is *none*, which will just delete the messages from
-  the chat."
+  The Default mode for Blacklist is *warn*, which will delete the message and issue a
+  warning to the user."
 blacklists_ls_bl_list_bl: "These words are blacklisted in this chat:"
 blacklists_ls_bl_no_blacklisted: There are no blacklisted words in this chat.
 blacklists_rm_all_bl_ask:

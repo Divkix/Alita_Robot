@@ -238,8 +238,8 @@ blacklists_help_msg: "*Perintah Pengguna:*
 
   *Catatan:*
 
-  Mode default untuk Daftar Hitam adalah *none*, yang hanya akan menghapus pesan dari
-  obrolan."
+  Mode default untuk Daftar Hitam adalah *warn*, yang akan menghapus pesan dan memberi
+  peringatan kepada pengguna."
 blacklists_ls_bl_list_bl: "Kata-kata ini didaftar hitam di obrolan ini:"
 blacklists_ls_bl_no_blacklisted: Tidak ada kata yang didaftar hitam di obrolan ini.
 blacklists_rm_all_bl_ask: |

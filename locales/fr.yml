@@ -454,8 +454,8 @@ blacklists_help_msg: "*Commandes Utilisateur :*
 
   *Note :*
 
-  Le mode par défaut pour la liste noire est *none*, ce qui supprimera simplement les messages du
-  chat."
+  Le mode par défaut pour la liste noire est *warn*, ce qui supprimera le message et avertira
+  l'utilisateur."
 blacklists_ls_bl_list_bl: "Ces mots sont sur la liste noire de ce chat :"
 blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce chat.
 blacklists_rm_all_bl_ask: |

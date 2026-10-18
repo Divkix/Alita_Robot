@@ -231,8 +231,8 @@ blacklists_help_msg: "*Comandos de Usuário:*
 
   *Nota:*
 
-  O modo padrão para Lista Negra é *none*, que apenas deletará as mensagens do
-  chat."
+  O modo padrão para Lista Negra é *warn*, que deletará a mensagem e emitirá um aviso ao
+  usuário."
 blacklists_ls_bl_list_bl: "Estas palavras estão na lista negra neste chat:"
 blacklists_ls_bl_no_blacklisted: Não há palavras na lista negra neste chat.
 blacklists_rm_all_bl_ask:
