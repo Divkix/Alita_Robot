@@ -199,11 +199,11 @@ Track group activity automatically:
 
 ```bash
 # Days of inactivity before marking chat as inactive
-# Default: 30, Range: 1-365
+# Default: 30, recommended 1-365 (not enforced)
 INACTIVITY_THRESHOLD_DAYS=30
 
 # Hours between automatic activity checks
-# Default: 1, Range: 1-24
+# Default: 1, recommended 1-24 (not enforced)
 ACTIVITY_CHECK_INTERVAL=1
 
 # Enable automatic cleanup of inactive chats
