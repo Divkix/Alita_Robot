@@ -11,7 +11,7 @@ This page provides a complete reference of all commands available in Alita Robot
 ## Overview
 
 - **Total Modules**: 31 (29 user-facing + 2 internal)
-- **Total Commands**: 215
+- **Total Commands**: 219
 
 ## Commands by Module
 
@@ -28,8 +28,12 @@ This page provides a complete reference of all commands available in Alita Robot
 | `/demote` | Demote an admin | Admin | ❌ | — |
 | `/invitelink` | Get the chat invite link | Everyone (public groups) / users with invite rights (private groups) | ❌ | — |
 | `/promote` | Promote a user to admin | Admin | ❌ | — |
+| `/setdescription` | Alias of `/setgdesc` | Admin | ❌ | `/setgdesc` |
 | `/setgdesc` | Change or clear the group description | Admin | ❌ | `/setgroupdesc`, `/setdescription` |
 | `/setgpic` | Set the group photo (reply to a photo) | Admin | ❌ | `/setgrouppic` |
+| `/setgroupdesc` | Alias of `/setgdesc` | Admin | ❌ | `/setgdesc` |
+| `/setgrouppic` | Alias of `/setgpic` | Admin | ❌ | `/setgpic` |
+| `/setgrouptitle` | Alias of `/setgtitle` | Admin | ❌ | `/setgtitle` |
 | `/setgtitle` | Change the group title | Admin | ❌ | `/setgrouptitle` |
 | `/title` | Set a custom admin title | Admin | ❌ | — |
 
@@ -560,12 +564,16 @@ No commands — passive background tracker. See [module page](/commands/users/) 
 | `/save` | Notes | Save a note | Admin |
 | `/saved` | Notes | List all saved notes | Everyone |
 | `/sban` | Bans | Silently ban a user | Admin |
+| `/setdescription` | Admin | Alias of `/setgdesc` | Admin |
 | `/setfedlog` | Federations | Make this group the federation log chat (groups only) | Fed owner |
 | `/setflood` | Antiflood | Set the flood trigger limit | Admin |
 | `/setfloodmode` | Antiflood | Set the flood action mode | Admin |
 | `/setgdesc` | Admin | Change or clear the group description | Admin |
 | `/setgoodbye` | Greetings | Set the goodbye message | Admin |
 | `/setgpic` | Admin | Set the group photo (reply to a photo) | Admin |
+| `/setgroupdesc` | Admin | Alias of `/setgdesc` | Admin |
+| `/setgrouppic` | Admin | Alias of `/setgpic` | Admin |
+| `/setgrouptitle` | Admin | Alias of `/setgtitle` | Admin |
 | `/setgtitle` | Admin | Change the group title | Admin |
 | `/setlog` | LogChannels | Set the log channel | Channel admin + Admin |
 | `/setrules` | Rules | Set the group rules | Admin |
