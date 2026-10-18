@@ -3,6 +3,7 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -74,6 +75,39 @@ func TestNoteRepliesEscapeNoteName(t *testing.T) {
 	}
 	if list := fmt.Sprint(calls[1].Params["text"]); !strings.Contains(list, "#a&lt;b") || strings.Contains(list, "a<b") {
 		t.Fatalf("/notes reply = %q, want the note name HTML-escaped", list)
+	}
+}
+
+func TestPrivateNoteDeepLinkCarriesAnyNoteName(t *testing.T) {
+	f := newAdminChatFixture(t)
+	if err := notes.AddNote(f.chat.Id, "rules.txt", "dotted rules", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() error = %v", err)
+	}
+	if err := notes.TooglePrivateNote(f.chat.Id, true); err != nil {
+		t.Fatalf("TooglePrivateNote() error = %v", err)
+	}
+
+	getCtx := newModuleMessageContext(f.bot, f.chat, f.admin, "/get rules.txt")
+	if err := notesModule.getNotes(f.bot, getCtx); err != ext.EndGroups {
+		t.Fatalf("getNotes() error = %v, want EndGroups", err)
+	}
+	markup, ok := f.client.onlyCall(t, "sendMessage").Params["reply_markup"].(gotgbot.InlineKeyboardMarkup)
+	if !ok || len(markup.InlineKeyboard) == 0 || len(markup.InlineKeyboard[0]) == 0 {
+		t.Fatalf("/get reply markup = %#v, want a PM button", markup)
+	}
+	_, param, found := strings.Cut(markup.InlineKeyboard[0][0].Url, "?start=")
+	if !found || !regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`).MatchString(param) {
+		t.Fatalf("button URL %q carries start parameter %q, which Telegram rejects", markup.InlineKeyboard[0][0].Url, param)
+	}
+
+	pm := privateChatOf(f.admin)
+	pmCtx := newModuleMessageContext(f.bot, pm, f.admin, "/start "+param)
+	if err := noteDeepLinkHandler(f.bot, pmCtx, &f.admin, param); err != ext.EndGroups {
+		t.Fatalf("noteDeepLinkHandler() error = %v, want EndGroups", err)
+	}
+	calls := f.client.callsFor("sendMessage")
+	if len(calls) != 2 || !strings.Contains(fmt.Sprint(calls[1].Params["text"]), "dotted rules") {
+		t.Fatalf("deep link sends = %v, want the note content", sentTexts(f.client))
 	}
 }
 
