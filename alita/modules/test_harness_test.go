@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/db/connections"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
@@ -287,6 +288,21 @@ func (f adminChatFixture) setAdminStatus(status string) {
 	botJSON := `{"status":"administrator","user":{"id":999,"is_bot":true,"first_name":"Alita"},` + fixtureAdminRights + `}`
 	f.client.adminsByChat[fmt.Sprint(f.chat.Id)] = json.RawMessage("[" + botJSON + "," + adminJSON + "]")
 	f.client.membersByUser[fmt.Sprint(f.admin.Id)] = json.RawMessage(adminJSON)
+}
+
+// connectAdmin connects the fixture's admin to the chat, as /connect does,
+// and returns the admin's PM, where connected-chat commands are sent.
+func (f adminChatFixture) connectAdmin(t *testing.T) gotgbot.Chat {
+	t.Helper()
+	if err := connections.ConnectId(f.admin.Id, f.chat.Id); err != nil {
+		t.Fatalf("ConnectId(%d, %d) error = %v", f.admin.Id, f.chat.Id, err)
+	}
+	t.Cleanup(func() {
+		if err := connections.DisconnectId(f.admin.Id); err != nil {
+			t.Errorf("DisconnectId(%d) error = %v", f.admin.Id, err)
+		}
+	})
+	return privateChatOf(f.admin)
 }
 
 func newModuleMessageContext(bot *gotgbot.Bot, chat gotgbot.Chat, from gotgbot.User, text string) *ext.Context {

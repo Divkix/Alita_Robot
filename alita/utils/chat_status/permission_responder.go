@@ -54,8 +54,13 @@ func (r *PermissionResponder) Respond(ctx *ext.Context, cmdKey, btnKey string, o
 		o(&cfg)
 	}
 
-	chat := extractChatFromContext(ctx, nil)
-	if chat == nil || ctx == nil || ctx.EffectiveMessage == nil {
+	if ctx == nil || ctx.EffectiveMessage == nil {
+		return false
+	}
+	// Answer where the message was sent, never a connected group the
+	// handler swapped into ctx.EffectiveChat.
+	chat := chatFromUpdate(ctx.Update)
+	if chat == nil {
 		return false
 	}
 
