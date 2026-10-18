@@ -2143,19 +2143,21 @@ formatting_fillings: "<b>Remplissages</b>
   - <code>{username}</code> : Le nom d'utilisateur. S'il n'en a pas, mentionne
   l'utilisateur à la place.
 
-  - <code>{mention}</code> : Mentionne l'utilisateur avec son prénom.
+  - <code>{mention}</code> : Identique à <code>{username}</code> (le @nom d'utilisateur, ou une mention par prénom s'il n'en a pas).
 
   - <code>{id}</code> : L'ID de l'utilisateur.
 
   - <code>{chatname}</code> : Le nom du chat.
 
-  - <code>{rules}</code> : Ajoute un bouton Règles au message.
+  - <code>{count}</code> : Le nombre de membres du chat.
 
-  - <code>{protect}</code> : Protège le contenu contre le partage.
+  - <code>{rules}</code> : Ajoute un bouton Règles sous les autres boutons du message (seulement si le chat a des règles). Utilisez <code>{rules:same}</code> pour le placer sur la même ligne que le bouton précédent, ou <code>{rules:up}</code> pour le placer avant tous les autres boutons.
 
-  - <code>{preview}</code> : Active les aperçus dans les messages.
+  - <code>{protect}</code> : Protège le contenu contre le partage (notes uniquement).
 
-  - <code>{nonotif}</code> : Désactive la notification pour ce message."
+  - <code>{preview}</code> : Active les aperçus de liens (notes uniquement).
+
+  - <code>{nonotif}</code> : Désactive la notification pour ce message (notes uniquement)."
 
 # Main bot command strings
 main_bot_command_start: "Démarre le bot"

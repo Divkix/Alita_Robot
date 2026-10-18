@@ -519,19 +519,21 @@ formatting_fillings: "<b>Fillings</b>
   - <code>{username}</code>: The user's username. If they don't have one, mentions
   the user instead.
 
-  - <code>{mention}</code>: Mentions the user with their firstname.
+  - <code>{mention}</code>: The same as <code>{username}</code> (the user's @username, or a mention by first name if they have none).
 
   - <code>{id}</code>: The user's ID.
 
   - <code>{chatname}</code>: The chat's name.
 
-  - <code>{rules}</code>: Adds Rules Button to Message.
+  - <code>{count}</code>: The chat's member count.
 
-  - <code>{protect}</code>: Protects the content from being shared.
+  - <code>{rules}</code>: Adds a Rules button below the message's other buttons (only if the chat has rules set). Use <code>{rules:same}</code> to put it on the same row as the previous button, or <code>{rules:up}</code> to put it before all other buttons.
 
-  - <code>{preview}</code>: Enables previews in the messages.
+  - <code>{protect}</code>: Protects the content from being shared (notes only).
 
-  - <code>{nonotif}</code>: Disables the notification for that message."
+  - <code>{preview}</code>: Enables link previews (notes only).
+
+  - <code>{nonotif}</code>: Disables the notification for that message (notes only)."
 formatting_help_msg: "Alita supports a large number of formatting options to make your messages more expressive. Take a look by clicking the buttons below!"
 formatting_markdown: |
   <b>Markdown Formatting</b>

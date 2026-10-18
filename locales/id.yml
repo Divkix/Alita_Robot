@@ -477,19 +477,21 @@ formatting_fillings: "<b>Isian</b>
   - <code>{username}</code>: Nama pengguna pengguna. Jika mereka tidak memilikinya, menyebut
   pengguna sebagai gantinya.
 
-  - <code>{mention}</code>: Menyebut pengguna dengan nama depan mereka.
+  - <code>{mention}</code>: Sama seperti <code>{username}</code> (@username pengguna, atau sebutan dengan nama depan jika tidak punya).
 
   - <code>{id}</code>: ID pengguna.
 
   - <code>{chatname}</code>: Nama obrolan.
 
-  - <code>{rules}</code>: Menambahkan Tombol Aturan ke Pesan.
+  - <code>{count}</code>: Jumlah anggota obrolan.
 
-  - <code>{protect}</code>: Melindungi konten dari dibagikan.
+  - <code>{rules}</code>: Menambahkan tombol Aturan di bawah tombol lain pada pesan (hanya jika obrolan memiliki aturan). Gunakan <code>{rules:same}</code> untuk menaruhnya di baris yang sama dengan tombol sebelumnya, atau <code>{rules:up}</code> untuk menaruhnya sebelum semua tombol lain.
 
-  - <code>{preview}</code>: Mengaktifkan pratinjau di pesan.
+  - <code>{protect}</code>: Melindungi konten dari dibagikan (hanya catatan).
 
-  - <code>{nonotif}</code>: Menonaktifkan notifikasi untuk pesan itu."
+  - <code>{preview}</code>: Mengaktifkan pratinjau tautan (hanya catatan).
+
+  - <code>{nonotif}</code>: Menonaktifkan notifikasi untuk pesan itu (hanya catatan)."
 formatting_help_msg: "Alita mendukung banyak opsi pemformatan untuk membuat pesan Anda lebih ekspresif. Lihat dengan mengklik tombol di bawah!"
 formatting_markdown: |
   <b>Pemformatan Markdown</b>
