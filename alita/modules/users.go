@@ -26,6 +26,7 @@ func spawnAsyncUpdate(fn func()) {
 	usersAsyncWG.Add(1)
 	go func() {
 		defer usersAsyncWG.Done()
+		defer error_handling.RecoverFromPanic("spawnAsyncUpdate", "users")
 		fn()
 	}()
 }
