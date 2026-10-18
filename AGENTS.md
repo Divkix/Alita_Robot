@@ -125,8 +125,10 @@ CGO_ENABLED=0 go build ./...   # compile check; `make build` needs goreleaser v2
   and `RemoveWarn` delete expired entries, under their row locks.
 - A command in `commandHelpModules` answers a call it cannot run with its own entry cut from `<module>_help_msg`, so
   that help keeps one entry per command (`× /cmd …`, continuation lines up to a blank line or the next entry) in all
-  7 locales; `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Sample calls are `<cmd>_example` in
-  `locales/config.yml`.
+  7 locales, with no `"` or unknown HTML tags in the entry, and en.yml `<module>_extend_msg` lists `/cmd`;
+  `TestEveryHelpCommandHasItsLineInEveryLocale` enforces it. Each such command also needs a `<cmd>_example` in
+  `locales/config.yml` starting with `/<cmd> `, except reply-only commands (`replyOnlyCommands`: /dban, /dkick,
+  /dmute), which must have none; `TestEveryHelpCommandHasAnExample` enforces it.
 
 ## Go rules
 
