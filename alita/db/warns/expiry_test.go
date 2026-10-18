@@ -14,7 +14,9 @@ import (
 
 	"github.com/divkix/Alita_Robot/alita/db"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/chats"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/db/user"
 	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
@@ -26,9 +28,16 @@ func timeAgo(d time.Duration) *time.Time {
 }
 
 // seedWarns stores entries as the user's warns, with a matching count and
-// reasons column, the way WarnUser leaves them.
+// reasons column, the way WarnUser leaves them. It creates the chats and users
+// rows the warns' foreign keys need on Postgres.
 func seedWarns(t *testing.T, chatID, userID int64, entries ...models.WarnEntry) {
 	t.Helper()
+	if err := chats.EnsureChatInDb(chatID, ""); err != nil {
+		t.Fatalf("EnsureChatInDb() error = %v", err)
+	}
+	if err := user.EnsureUserInDb(userID, "", ""); err != nil {
+		t.Fatalf("EnsureUserInDb() error = %v", err)
+	}
 	reasons := make(models.StringArray, len(entries))
 	for i := range entries {
 		entries[i].UserId = userID
