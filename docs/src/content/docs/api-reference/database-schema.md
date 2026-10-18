@@ -962,7 +962,7 @@ One row per warn: its reason, who issued it and when. `warns_users` keeps the co
 | `anonymous` | `BOOLEAN` | NO | `FALSE` | — |
 | `warned_at` | `TIMESTAMPTZ` | YES | — | — |
 
-`warned_by = 0` with a `NULL` `warned_at` marks a warn issued before this table existed. `anonymous` hides the issuer, an anonymous admin; backups export `warned_by = 0` for those rows.
+`warned_by = 0` with a `NULL` `warned_at` marks a warn issued before this table existed. `anonymous` hides the issuer, an anonymous admin; backups export `warned_by = 0` for those rows. Backups export a warn the bot issued itself as `warned_by = -1` (`models.WarnedByBot`), because the bot's own ID means nothing to another bot account, and importing such a backup stores `-1` unchanged. `/warns` shows these warns, and warns whose `warned_by` is the bot's own ID, as automatic.
 
 #### Indexes
 
