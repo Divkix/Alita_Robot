@@ -18,6 +18,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/devs"
 	"github.com/divkix/Alita_Robot/alita/db/disabling"
 	"github.com/divkix/Alita_Robot/alita/db/user"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -53,8 +54,10 @@ func TestPingSendsAndEditsLatencyMessage(t *testing.T) {
 		t.Fatalf("getMe calls = %d, want 1", len(calls))
 	}
 	edited := fmt.Sprint(client.onlyCall(t, "editMessageText").Params["text"])
-	if !strings.Contains(edited, "getMe") || strings.Contains(edited, "%!") {
-		t.Fatalf("ping result = %q, want the filled misc_ping_result template", edited)
+	tmpl := trS(i18n.MustNewTranslator("en"), "misc_ping_result")
+	var getMeMs, sendMs, overheadMs int64
+	if n, err := fmt.Sscanf(edited, tmpl, &getMeMs, &sendMs, &overheadMs); tmpl == "" || err != nil || n != 3 {
+		t.Fatalf("ping result = %q, want misc_ping_result %q filled with three latencies (%d parsed: %v)", edited, tmpl, n, err)
 	}
 }
 
