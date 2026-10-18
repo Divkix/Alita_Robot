@@ -2125,6 +2125,12 @@ antiflood_setfloodmode_specify_action: |
 antiflood_setfloodmode_success: Le mode d'inondation a été défini sur %s.
 antiflood_setfloodmode_unknown_type: "Type inconnu '%s'. Veuillez utiliser l'un des suivants : ban/kick/mute"
 antiflood_button_unban_admins: "Débannir (Admins uniquement)"
+antiflood_action_muted: "rendu muet"
+antiflood_action_banned: "banni"
+antiflood_action_kicked: "expulsé"
+antiflood_action_tbanned: "banni pendant {duration}"
+antiflood_action_tmuted: "rendu muet pendant {duration}"
+antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.

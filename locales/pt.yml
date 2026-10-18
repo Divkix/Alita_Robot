@@ -1726,6 +1726,12 @@ bot_updates_convert_howto: "Para converter este grupo para supergrupo, por favor
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Desbanir (Apenas Admins)"
+antiflood_action_muted: "silenciado"
+antiflood_action_banned: "banido"
+antiflood_action_kicked: "expulso"
+antiflood_action_tbanned: "banido por {duration}"
+antiflood_action_tmuted: "silenciado por {duration}"
+antiflood_action_none: "nenhum"
 
 # Helpers module strings
 helpers_notes_current_header: "Estas são as notas atuais neste Chat:\n"

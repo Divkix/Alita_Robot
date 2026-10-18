@@ -1755,6 +1755,12 @@ bot_updates_convert_howto: "Untuk mengubah grup ini menjadi supergrup, silakan i
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Buka Blokir (Khusus Admin)"
+antiflood_action_muted: "dibisukan"
+antiflood_action_banned: "diblokir"
+antiflood_action_kicked: "dikeluarkan"
+antiflood_action_tbanned: "diblokir selama {duration}"
+antiflood_action_tmuted: "dibisukan selama {duration}"
+antiflood_action_none: "tidak ada"
 
 # Helpers module strings
 helpers_notes_current_header: "Ini adalah catatan saat ini di Obrolan ini:\n"

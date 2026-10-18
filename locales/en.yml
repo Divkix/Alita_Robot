@@ -1808,6 +1808,12 @@ bot_updates_convert_howto: "To convert this group to a supergroup, please follow
 
 # Antiflood module strings
 antiflood_button_unban_admins: "Unban (Admins Only)"
+antiflood_action_muted: "muted"
+antiflood_action_banned: "banned"
+antiflood_action_kicked: "kicked"
+antiflood_action_tbanned: "banned for {duration}"
+antiflood_action_tmuted: "muted for {duration}"
+antiflood_action_none: "none"
 
 # Helpers module strings
 helpers_notes_current_header: "These are the current notes in this Chat:\n"

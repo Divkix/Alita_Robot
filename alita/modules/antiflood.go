@@ -38,20 +38,28 @@ const (
 const floodTimedActionTime = 60 * 60
 
 // floodActionLabel names the flood action for the flood notice and /flood.
-func floodActionLabel(action string) string {
+func floodActionLabel(tr *i18n.Translator, action string) string {
+	label := func(key, fallback string, params ...i18n.TranslationParams) string {
+		if text, _ := tr.GetString(key, params...); text != "" {
+			return text
+		}
+		return fallback
+	}
+	duration := formatDuration(floodTimedActionTime)
+	durationParams := i18n.TranslationParams{"duration": duration}
 	switch action {
 	case "mute":
-		return "muted"
+		return label("antiflood_action_muted", "muted")
 	case "ban":
-		return "banned"
+		return label("antiflood_action_banned", "banned")
 	case "kick":
-		return "kicked"
+		return label("antiflood_action_kicked", "kicked")
 	case "tban":
-		return "banned for " + formatDuration(floodTimedActionTime)
+		return label("antiflood_action_tbanned", "banned for "+duration, durationParams)
 	case "tmute":
-		return "muted for " + formatDuration(floodTimedActionTime)
+		return label("antiflood_action_tmuted", "muted for "+duration, durationParams)
 	case "":
-		return "none"
+		return label("antiflood_action_none", "none")
 	default:
 		return action
 	}
@@ -449,7 +457,7 @@ func (m *moduleStruct) checkFlood(b *gotgbot.Bot, ctx *ext.Context) error {
 	if _, err := helpers.SendMessageWithErrorHandling(b, chatId,
 		func() string {
 			temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_checkflood_perform_action")
-			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), floodActionLabel(flood.Action))
+			return fmt.Sprintf(temp, formatting.MentionHtml(userId, user.Name()), floodActionLabel(tr, flood.Action))
 		}(),
 		&gotgbot.SendMessageOpts{
 			ParseMode: formatting.HTML,
@@ -541,7 +549,7 @@ func (m *moduleStruct) flood(b *gotgbot.Bot, ctx *ext.Context) error {
 		text, _ = tr.GetString(strings.ToLower(m.moduleName) + "_flood_disabled")
 	} else {
 		temp, _ := tr.GetString(strings.ToLower(m.moduleName) + "_flood_show_settings")
-		text = fmt.Sprintf(temp, flood.Limit, floodActionLabel(flood.Action))
+		text = fmt.Sprintf(temp, flood.Limit, floodActionLabel(tr, flood.Action))
 	}
 	_, err := msg.Reply(b, text, formatting.Shtml())
 	if err != nil {

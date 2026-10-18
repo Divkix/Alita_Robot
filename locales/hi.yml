@@ -725,6 +725,12 @@ antiflood_setfloodmode_specify_action: "आपको flooding पर की ज�
 antiflood_setfloodmode_success: Flood मोड %s पर सेट किया गया है।
 antiflood_setfloodmode_unknown_type: "अज्ञात प्रकार '%s'। कृपया इनमें से एक का उपयोग करें: ban/kick/mute"
 antiflood_button_unban_admins: "अनबैन (केवल एडमिन)"
+antiflood_action_muted: "म्यूट"
+antiflood_action_banned: "बैन"
+antiflood_action_kicked: "किक"
+antiflood_action_tbanned: "{duration} के लिए बैन"
+antiflood_action_tmuted: "{duration} के लिए म्यूट"
+antiflood_action_none: "कुछ नहीं"
 antiflood_notes_docs: |
   <b>डिफ़ॉल्ट व्यवहार</b>
   Antiflood <b>डिफ़ॉल्ट रूप से अक्षम</b> है। आपको इसे <code>/setflood &lt;number&gt;</code> का उपयोग करके स्पष्ट रूप से सक्षम करना होगा।

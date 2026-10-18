@@ -2,6 +2,8 @@ package modules
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/antiflood"
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func resetAntifloodState(t *testing.T) {
@@ -642,5 +645,48 @@ func TestAntifloodWatcherSkipsNoticeForUnhandledAction(t *testing.T) {
 	replies := client.callsFor("sendMessage")
 	if len(replies) != 1 || !strings.Contains(fmt.Sprint(replies[0].Params["text"]), "warn") {
 		t.Fatalf("/flood replies = %#v, want the stored action named", replies)
+	}
+}
+
+// The flood notice and /flood interpolate the action into a translated
+// template, so the action word must come from the same locale.
+func TestFloodActionLabelFollowsTheChatLanguage(t *testing.T) {
+	files, err := filepath.Glob("../../locales/*.yml")
+	if err != nil {
+		t.Fatalf("glob locales: %v", err)
+	}
+	locales := make(map[string]string, len(files))
+	for _, file := range files {
+		code := strings.TrimSuffix(filepath.Base(file), ".yml")
+		if code == "config" {
+			continue
+		}
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		locales[code] = string(raw)
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+
+	en := i18n.MustNewTranslator("en")
+	for _, langCode := range []string{"es", "fr", "hi", "id", "pt", "ru"} {
+		tr := i18n.MustNewTranslator(langCode)
+		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute", ""} {
+			got := floodActionLabel(tr, action)
+			if got == "" {
+				t.Fatalf("floodActionLabel(%s, %q) is empty", langCode, action)
+			}
+			if got == floodActionLabel(en, action) {
+				t.Errorf("floodActionLabel(%s, %q) = %q, same as English", langCode, action, got)
+			}
+			if (action == "tban" || action == "tmute") && !strings.Contains(got, "1h") {
+				t.Errorf("floodActionLabel(%s, %q) = %q, want the 1h duration", langCode, action, got)
+			}
+		}
 	}
 }
