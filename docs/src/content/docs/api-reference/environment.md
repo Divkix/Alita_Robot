@@ -19,7 +19,7 @@ Hours between activity checks
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `1` |
-| **Validation** | min=1,max=24 |
+| **Recommended range** | 1-24 (not enforced) |
 
 ### `ENABLE_AUTO_CLEANUP`
 
@@ -40,7 +40,7 @@ Days before marking a chat as inactive
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `30` |
-| **Validation** | min=1,max=365 |
+| **Recommended range** | 1-365 (not enforced) |
 
 ## 📂 AI spam filter configuration
 
@@ -239,7 +239,7 @@ HTTP connection pool size
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `100` |
-| **Validation** | min=10,max=1000 |
+| **Recommended range** | 10-1000 (not enforced) |
 
 ### `HTTP_MAX_IDLE_CONNS_PER_HOST`
 
@@ -250,7 +250,7 @@ HTTP connections per host
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `50` |
-| **Validation** | min=5,max=500 |
+| **Recommended range** | 5-500 (not enforced) |
 
 ## 📂 Profiling configuration
 
@@ -424,7 +424,7 @@ Memory threshold for triggering GC
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `400` |
-| **Validation** | min=100,max=5000 |
+| **Recommended range** | 100-5000 (not enforced) |
 
 ### `RESOURCE_MAX_GOROUTINES`
 
@@ -435,7 +435,7 @@ Maximum goroutines before triggering cleanup
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `1000` |
-| **Validation** | min=100,max=10000 |
+| **Recommended range** | 100-10000 (not enforced) |
 
 ### `RESOURCE_MAX_MEMORY_MB`
 
@@ -446,7 +446,7 @@ Maximum memory usage in MB
 | **Type** | `integer` |
 | **Required** | No |
 | **Default** | `500` |
-| **Validation** | min=100,max=10000 |
+| **Recommended range** | 100-10000 (not enforced) |
 
 ## 📂 Safety and performance limits
 
