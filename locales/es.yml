@@ -1056,7 +1056,7 @@ misc_no_text_to_translate: El mensaje respondido no contiene texto para traducir
 misc_provide_text_translate: Por favor proporciona texto para traducir.
 
 # Devs module strings
-devs_specify_user: Debes especificar un usuario para obtener información
+devs_specify_chat: "Debes especificar el ID de un chat."
 
 # Common error messages used across modules
 error_generic: "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde."

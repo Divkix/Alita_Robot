@@ -1046,7 +1046,7 @@ notes_invalid: Catatan Tidak Valid!
 misc_translation_error: Kesalahan membuat permintaan terjemahan!
 
 # Devs module strings
-devs_specify_user: Anda harus menentukan pengguna untuk mendapatkan info
+devs_specify_chat: "Anda harus menentukan ID obrolan."
 
 # Common error messages used across modules
 error_generic: "Terjadi kesalahan. Silakan coba lagi nanti."

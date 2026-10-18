@@ -1094,7 +1094,7 @@ notes_invalid: Invalid Note!
 misc_translation_error: Error making a translation request!
 
 # Devs module strings
-devs_specify_user: You must specify a user to get info on
+devs_specify_chat: "You must specify a chat ID."
 
 # Common error messages used across modules
 error_generic: "An error occurred. Please try again later."

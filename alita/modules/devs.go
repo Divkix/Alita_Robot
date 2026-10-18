@@ -43,7 +43,7 @@ func (moduleStruct) chatInfo(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		replyText, _ = tr.GetString("devs_specify_user")
+		replyText, _ = tr.GetString("devs_specify_chat")
 	} else {
 		_chatId := args[1]
 		chatId, _ := strconv.ParseInt(_chatId, 10, 64)
@@ -146,7 +146,7 @@ func (moduleStruct) leaveChat(b *gotgbot.Bot, ctx *ext.Context) error {
 
 	if len(args) < 2 {
 		tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
-		replyText, _ := tr.GetString("devs_specify_user")
+		replyText, _ := tr.GetString("devs_specify_chat")
 		_, err := msg.Reply(b, replyText, formatting.Shtml())
 		if err != nil {
 			log.Error(err)

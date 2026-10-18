@@ -1707,7 +1707,7 @@ misc_translate_read_error: पढ़ने में त्रुटि
 misc_translate_result: "<b>पहचानी गई भाषा:</b> <code>%s</code>\n\n<b>अनुवाद:</b> <code>%s</code>"
 
 # Devs module keys
-devs_specify_user: आपको जानकारी प्राप्त करने के लिए एक उपयोगकर्ता निर्दिष्ट करना होगा
+devs_specify_chat: "आपको एक चैट ID निर्दिष्ट करनी होगी।"
 devs_chat_info: "<b>नाम:</b> %s\n<b>चैट ID</b>: %d\n<b>उपयोगकर्ता संख्या:</b> %d\n<b>लिंक:</b> %s"
 devs_getting_chat_list: मेरी चैट सूची प्राप्त कर रहा हूं...
 devs_chat_list_caption: यहां मेरे डेटाबेस में चैट की सूची है!

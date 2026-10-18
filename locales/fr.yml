@@ -1463,7 +1463,7 @@ bot_updates_convert_instruction: "Après avoir converti ce groupe en supergroupe
 bot_updates_convert_howto: "Pour convertir ce groupe en supergroupe, veuillez suivre les instructions ici :\n"
 
 # Devs module strings
-devs_specify_user: Vous devez spécifier un utilisateur pour obtenir des informations
+devs_specify_chat: "Vous devez spécifier l'ID d'un chat."
 devs_chat_info: "<b>Nom :</b> %s\n<b>ID du chat</b> : %d\n<b>Nombre d'utilisateurs :</b> %d\n<b>Lien :</b> %s"
 devs_getting_chat_list: Obtention de la liste des chats où je suis...
 devs_chat_list_caption: Voici la liste des chats dans ma base de données !

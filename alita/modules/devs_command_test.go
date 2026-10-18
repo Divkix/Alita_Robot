@@ -13,6 +13,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/config"
 	"github.com/divkix/Alita_Robot/alita/db"
 	"github.com/divkix/Alita_Robot/alita/db/devs"
+	"github.com/divkix/Alita_Robot/alita/i18n"
 )
 
 func withOwnerID(t *testing.T, ownerID int64) {
@@ -27,6 +28,7 @@ func withOwnerID(t *testing.T, ownerID int64) {
 
 func TestDevLeaveChatHandlesMissingArgsAndRequestErrors(t *testing.T) {
 	withOwnerID(t, 777000)
+	useEnglishLocale(t)
 	chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "private", FirstName: "Owner"}
 	owner := gotgbot.User{Id: 777000, FirstName: "Owner"}
 
@@ -36,8 +38,9 @@ func TestDevLeaveChatHandlesMissingArgsAndRequestErrors(t *testing.T) {
 	if err := devsModule.leaveChat(missingBot, missingCtx); err != ext.EndGroups {
 		t.Fatalf("leaveChat(missing args) error = %v, want EndGroups", err)
 	}
-	if calls := missingClient.callsFor("sendMessage"); len(calls) != 1 {
-		t.Fatalf("sendMessage calls = %d, want missing-arg reply", len(calls))
+	want, _ := i18n.MustNewTranslator("en").GetString("devs_specify_chat")
+	if text := missingClient.onlyCall(t, "sendMessage").Params["text"]; want == "" || text != want {
+		t.Fatalf("leaveChat(missing args) reply = %q, want the chat-ID prompt %q", text, want)
 	}
 
 	requestClient := newModuleBotClient()
