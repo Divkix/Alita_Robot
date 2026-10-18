@@ -865,7 +865,7 @@ reports_help_msg:
 
   × /reports `<on/off/yes/no>`: cambiar configuración de reporte, o ver estado actual.
 
-  - Si se hace en PM, cambia tu estado.
+  - Si se hace en PM, cambia tu estado. Requiere una conexión activa con /connect a un grupo donde tanto tú como el bot sean administradores.
 
   - Si en un grupo, cambia el estado de ese grupo.
 
@@ -2018,7 +2018,7 @@ reports_extended_docs: |
   • <b>✅ Resuelto</b> - Marca el reporte como resuelto sin acción
 
   <b>Configuración personal vs de grupo:</b>
-  • <b>En PM:</b> <code>/reports on/off</code> alterna si TÚ recibes notificaciones
+  • <b>En PM:</b> <code>/reports on/off</code> alterna si TÚ recibes notificaciones (requiere una conexión activa con /connect a un grupo donde tanto tú como el bot sean administradores)
   • <b>En grupo:</b> <code>/reports on/off</code> alterna si los reportes están habilitados en ese grupo
 
 reports_permissions_docs: |

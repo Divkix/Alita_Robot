@@ -856,7 +856,7 @@ reports_help_msg:
 
   × /reports `<on/off/yes/no>`: ubah pengaturan laporan, atau lihat status saat ini.
 
-  - Jika dilakukan di PM, mengalihkan status Anda.
+  - Jika dilakukan di PM, mengalihkan status Anda. Ini memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin.
 
   - Jika di grup, mengalihkan status grup itu.
 
@@ -2009,7 +2009,7 @@ reports_extended_docs: |
   • <b>✅ Selesai</b> - Tandai laporan sebagai selesai tanpa tindakan
 
   <b>Pengaturan Pribadi vs Grup:</b>
-  • <b>Di PM:</b> <code>/reports on/off</code> mengalihkan apakah ANDA menerima notifikasi laporan
+  • <b>Di PM:</b> <code>/reports on/off</code> mengalihkan apakah ANDA menerima notifikasi laporan (memerlukan /connect aktif ke grup tempat Anda dan bot sama-sama menjadi admin)
   • <b>Di Grup:</b> <code>/reports on/off</code> mengalihkan apakah pelaporan diaktifkan untuk grup itu
 
 reports_permissions_docs: |

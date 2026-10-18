@@ -1371,7 +1371,7 @@ reports_help_msg:
 
   × /reports `<on/off/yes/no>` : Modifie le paramètre de signalement, ou affiche l'état actuel.
 
-  - En MP, bascule votre statut personnel.
+  - En MP, bascule votre statut personnel. Nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs.
 
   - Dans un groupe, bascule le statut du groupe.
 
@@ -1788,7 +1788,7 @@ reports_extended_docs: |
   • <b>✅ Résolu</b> - Marquer le rapport comme résolu sans action
 
   <b>Paramètres Personnels vs Groupe :</b>
-  • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport
+  • <b>En MP :</b> <code>/reports on/off</code> bascule si VOUS recevez les notifications de rapport (nécessite une connexion active via /connect à un groupe où vous et le bot êtes administrateurs)
   • <b>En Groupe :</b> <code>/reports on/off</code> bascule si le signalement est activé pour ce groupe
 
 reports_permissions_docs: |

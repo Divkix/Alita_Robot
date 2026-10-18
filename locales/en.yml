@@ -903,7 +903,7 @@ reports_help_msg:
 
   × /reports `<on/off/yes/no>`: change report setting, or view current status.
 
-  - If done in PM, toggles your status.
+  - If done in PM, toggles your status. This needs an active /connect to a group where both you and the bot are admins.
 
   - If in a group, toggles that group's status.
 
@@ -2058,7 +2058,7 @@ reports_extended_docs: |
   • <b>✅ Resolved</b> - Mark the report as resolved without action
 
   <b>Personal vs Group Settings:</b>
-  • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications
+  • <b>In PM:</b> <code>/reports on/off</code> toggles whether YOU receive report notifications (needs an active /connect to a group where both you and the bot are admins)
   • <b>In Group:</b> <code>/reports on/off</code> toggles whether reporting is enabled for that group
 
 reports_permissions_docs: |
