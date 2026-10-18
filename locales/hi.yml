@@ -712,7 +712,7 @@ aispam_enabled_success: "✅ AI स्पैम फ़िल्टर अब <b>
 aispam_disabled_success: "❌ AI स्पैम फ़िल्टर अब <b>बंद</b> है।"
 aispam_no_key: "❌ मैं AI स्पैम फ़िल्टर चालू नहीं कर सकता: बॉट ऑपरेटर ने TypeSafe API कुंजी सेट नहीं की है। कुछ नहीं बदला।"
 aispam_globally_disabled: "❌ मैं AI स्पैम फ़िल्टर चालू नहीं कर सकता: बॉट ऑपरेटर ने इसे विश्व स्तर पर बंद कर दिया है। कुछ नहीं बदला।"
-aispam_invalid_option: "मैं इनमें से कोई एक विकल्प समझता हूँ: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_invalid_option: "मैं इनमें से कोई एक विकल्प समझता हूँ: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ AI प्रदाता की बार-बार विफलता के बाद इस चैट में AI स्पैम जाँच कुछ मिनट के लिए रोक दी गई है। यह अपने आप फिर शुरू हो जाएगी और फ़िल्टर चालू ही रहेगा।"
 
 # Antiflood module strings

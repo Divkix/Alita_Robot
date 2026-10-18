@@ -1789,7 +1789,7 @@ aispam_enabled_success: "✅ O filtro de spam com IA agora está <b>ativado</b>.
 aispam_disabled_success: "❌ O filtro de spam com IA agora está <b>desativado</b>."
 aispam_no_key: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot não configurou uma chave de API da TypeSafe. Nada mudou."
 aispam_globally_disabled: "❌ Não consigo ativar o filtro de spam com IA: o operador do bot o desativou globalmente. Nada mudou."
-aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_invalid_option: "Eu só entendo uma opção entre: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ As verificações de spam com IA estão pausadas neste chat por alguns minutos após falhas repetidas do provedor de IA. Elas retomam sozinhas e o filtro continua ativado."
 
 # Admin module extended documentation

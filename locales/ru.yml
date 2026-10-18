@@ -1602,7 +1602,7 @@ aispam_enabled_success: "✅ ИИ-фильтр спама теперь <b>вкл
 aispam_disabled_success: "❌ ИИ-фильтр спама теперь <b>выключен</b>."
 aispam_no_key: "❌ Я не могу включить ИИ-фильтр спама: оператор бота не настроил ключ API TypeSafe. Ничего не изменилось."
 aispam_globally_disabled: "❌ Я не могу включить ИИ-фильтр спама: оператор бота выключил его глобально. Ничего не изменилось."
-aispam_invalid_option: "Я понимаю только один из вариантов: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>"
+aispam_invalid_option: "Я понимаю только один из вариантов: <code>on</code>/<code>off</code>/<code>yes</code>/<code>no</code>/<code>true</code>/<code>false</code>/<code>enable</code>/<code>disable</code>"
 aispam_breaker_notice: "⚠️ ИИ-проверки спама приостановлены в этом чате на несколько минут из-за повторяющихся сбоев поставщика ИИ. Они возобновятся сами, а фильтр останется включённым."
 
 # Admin module extended documentation
