@@ -2591,7 +2591,7 @@ warns_extend_msg: |
   /warnings — चेतावनी सेटिंग देखें
   /setwarnlimit — सज़ा से पहले चेतावनियों की संख्या
   /setwarntime — चेतावनी कितने समय तक गिनी जाए
-  /setwarnmode — सज़ा: ban, kick या mute
+  /setwarnmode — सज़ा: ban, kick, mute, tban या tmute
 settings_summary_legend: "<i>• डिफ़ॉल्ट से अलग मान को दर्शाता है। इसे बदलने के लिए दिखाया गया कमांड भेजें।</i>"
 settings_picker_text: "सेटिंग्स देखने के लिए एक समूह चुनें। सूची में नहीं है? यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"
 settings_picker_empty: "मुझे ऐसे समूह नहीं मिले जहाँ आप एडमिन हैं। मैं केवल वे समूह जानता हूँ जहाँ आपने मेरे जुड़ने के बाद लिखा है, इसलिए यहाँ /connect &lt;chat id&gt; या समूह में /settings भेजें।"

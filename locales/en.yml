@@ -2895,7 +2895,7 @@ warns_extend_msg: |
   /warnings — show warn settings
   /setwarnlimit — warnings before punishment
   /setwarntime — how long a warn counts
-  /setwarnmode — punishment: ban, kick or mute
+  /setwarnmode — punishment: ban, kick, mute, tban or tmute
 settings_summary_legend: "<i>• marks a value that differs from the default. Send the command shown to change it.</i>"
 settings_picker_text: "Choose a group to see its settings. Not in the list? Send /connect &lt;chat id&gt; here or /settings in the group."
 settings_picker_empty: "I could not find groups where you are an admin. I only know groups where you have written since I joined, so send /connect &lt;chat id&gt; here or /settings in the group."

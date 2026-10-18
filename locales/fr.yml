@@ -2802,7 +2802,7 @@ warns_extend_msg: |
   /warnings — afficher les réglages d'avertissement
   /setwarnlimit — avertissements avant sanction
   /setwarntime — durée de validité d'un avertissement
-  /setwarnmode — sanction : ban, kick ou mute
+  /setwarnmode — sanction : ban, kick, mute, tban ou tmute
 settings_summary_legend: "<i>• indique une valeur différente de celle par défaut. Envoyez la commande indiquée pour la modifier.</i>"
 settings_picker_text: "Choisissez un groupe pour voir ses paramètres. Il n’apparaît pas ? Envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
 settings_picker_empty: "Je n’ai trouvé aucun groupe où vous êtes administrateur. Je ne connais que les groupes où vous avez écrit depuis mon arrivée : envoyez /connect &lt;chat id&gt; ici ou /settings dans le groupe."
