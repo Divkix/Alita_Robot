@@ -18,7 +18,7 @@ Grant trusted members immunity from automated anti-spam measures without making 
 - `/approved`: List all approved users
 - `/unapproveall`: Remove all approvals (creator only)
 
-Approved users are exempt from: antiflood, blacklists, locks, and CAPTCHA.
+Approved users are exempt from: antiflood, antiraid, blacklists, locks, CAPTCHA, and the AI spam filter.
 
 
 ## Module Aliases
@@ -33,7 +33,7 @@ This module can be accessed using the following aliases:
 
 | Command | Description | Disableable |
 |---------|-------------|-------------|
-| `/approval` | Show approval status or help for approvals | ❌ |
+| `/approval` | Check a user's approval status | ❌ |
 | `/approve` | Approve a user | ❌ |
 | `/approved` | List all approved users | ❌ |
 | `/unapprove` | Remove approval for a specified user | ❌ |
@@ -44,8 +44,8 @@ This module can be accessed using the following aliases:
 ### Basic Usage
 
 ```text
-/approval
-/approve
+/approve @username trusted member
+/approval @username
 /approved
 ```
 
