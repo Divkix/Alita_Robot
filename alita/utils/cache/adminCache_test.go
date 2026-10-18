@@ -207,7 +207,12 @@ func TestLoadAdminCacheCoalescesConcurrentFetches(t *testing.T) {
 	}
 	close(start)
 	<-client.adminListStarted
-	time.Sleep(50 * time.Millisecond)
+	// Release the fetch only once every worker waits on it, so none can be
+	// served from the cache it fills.
+	waitForAdminLoadTest(t, "every worker to join the running load", func() bool {
+		load := runningAdminLoad(adminCacheKey(-100777))
+		return load != nil && adminLoadWaiters(load) == workers
+	})
 	close(client.releaseAdminList)
 	wg.Wait()
 
