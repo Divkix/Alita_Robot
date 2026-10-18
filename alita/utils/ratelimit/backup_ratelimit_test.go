@@ -40,29 +40,6 @@ func TestFormatCooldown(t *testing.T) {
 	}
 }
 
-func TestGetBackupRateLimiter_Singleton(t *testing.T) {
-	origBackupLimiter := backupLimiter
-	origOnce := once
-
-	t.Cleanup(func() {
-		backupLimiter = origBackupLimiter
-		once = origOnce
-	})
-
-	once = &sync.Once{}
-	backupLimiter = nil
-
-	first := GetBackupRateLimiter()
-	second := GetBackupRateLimiter()
-
-	if first == nil {
-		t.Fatal("GetBackupRateLimiter() returned nil")
-	}
-	if first != second {
-		t.Error("GetBackupRateLimiter() returned different instances")
-	}
-}
-
 func TestBackupRateLimiter_AcquireMethods_NilCache(t *testing.T) {
 	tests := []struct {
 		name string

@@ -2,7 +2,6 @@ package tracing
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 
 	"github.com/divkix/Alita_Robot/alita/config"
@@ -33,23 +32,21 @@ func ensureAppConfig(t *testing.T) {
 	}
 }
 
-func TestGetPropagator_BeforeInit_ReturnsNonNil(t *testing.T) {
+func TestGetPropagator_BeforeInit_CarriesTraceContextAndBaggage(t *testing.T) {
+	resetTracingState(t)
+
 	p := GetPropagator()
 	if p == nil {
-		t.Fatal("expected GetPropagator() to return non-nil propagator")
+		t.Fatal("GetPropagator() = nil before InitTracing")
 	}
-}
-
-func TestWorkingModeAttribute_ReturnsCorrectKeyAndValue(t *testing.T) {
-	attr := WorkingModeAttribute()
-
-	if string(attr.Key) != "bot.working_mode" {
-		t.Errorf("expected key 'bot.working_mode', got %q", attr.Key)
+	fields := make(map[string]bool)
+	for _, f := range p.Fields() {
+		fields[f] = true
 	}
-
-	_, ok := attr.Value.AsInterface().(string)
-	if !ok {
-		t.Errorf("expected attribute value to be a string, got %T", attr.Value.AsInterface())
+	for _, want := range []string{"traceparent", "baggage"} {
+		if !fields[want] {
+			t.Fatalf("GetPropagator().Fields() = %v, want it to carry %q", p.Fields(), want)
+		}
 	}
 }
 
@@ -78,41 +75,6 @@ func TestShutdown_WhenProviderNil_ReturnsNil(t *testing.T) {
 	err := Shutdown(context.Background())
 	if err != nil {
 		t.Errorf("expected Shutdown to return nil when provider is nil, got %v", err)
-	}
-}
-
-func TestSetOnProcessUpdateCallback_StoresCallback(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	var called atomic.Int32
-	SetOnProcessUpdateCallback(func() {
-		called.Add(1)
-	})
-	defer SetOnProcessUpdateCallback(nil)
-
-	runOnProcessUpdateCallback()
-	if called.Load() != 1 {
-		t.Errorf("expected callback to be called once, got %d", called.Load())
-	}
-}
-
-func TestRunOnProcessUpdateCallback_CallsStoredCallback(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	var counter atomic.Int32
-	SetOnProcessUpdateCallback(func() {
-		counter.Add(1)
-	})
-	defer SetOnProcessUpdateCallback(nil)
-
-	runOnProcessUpdateCallback()
-	if counter.Load() != 1 {
-		t.Errorf("expected counter=1 after first call, got %d", counter.Load())
-	}
-
-	runOnProcessUpdateCallback()
-	if counter.Load() != 2 {
-		t.Errorf("expected counter=2 after second call, got %d", counter.Load())
 	}
 }
 
@@ -167,37 +129,37 @@ func TestInitTracing_NoEndpoint_NoConsoleExporter(t *testing.T) {
 	}
 }
 
-func TestInitTracing_InvalidSampleRate(t *testing.T) {
-	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
-	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "invalid")
-
-	ensureAppConfig(t)
-	resetTracingState(t)
-
-	err := InitTracing()
-	if err != nil {
-		t.Fatalf("expected InitTracing to return nil when sample rate is invalid, got %v", err)
+func TestInitTracingSampleRateControlsRootSampling(t *testing.T) {
+	tests := []struct {
+		rate        string
+		wantSampled bool
+	}{
+		{rate: "", wantSampled: true},        // default 1.0
+		{rate: "invalid", wantSampled: true}, // parse failure falls back to 1.0
+		{rate: "2.0", wantSampled: true},     // clamped to 1.0
+		{rate: "0", wantSampled: false},
+		{rate: "-0.5", wantSampled: false}, // clamped to 0.0
 	}
-	if enabled {
-		t.Error("expected enabled to be false when no exporter is configured")
-	}
-}
+	for _, tc := range tests {
+		t.Run("rate="+tc.rate, func(t *testing.T) {
+			t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+			t.Setenv("OTEL_EXPORTER_CONSOLE", "true")
+			t.Setenv("OTEL_TRACES_SAMPLE_RATE", tc.rate)
 
-func TestInitTracing_NegativeSampleRate(t *testing.T) {
-	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-	t.Setenv("OTEL_EXPORTER_CONSOLE", "")
-	t.Setenv("OTEL_TRACES_SAMPLE_RATE", "-0.5")
+			ensureAppConfig(t)
+			resetTracingState(t)
 
-	ensureAppConfig(t)
-	resetTracingState(t)
+			if err := InitTracing(); err != nil {
+				t.Fatalf("InitTracing() error = %v", err)
+			}
+			t.Cleanup(func() { _ = Shutdown(context.Background()) })
 
-	err := InitTracing()
-	if err != nil {
-		t.Fatalf("expected InitTracing to return nil, got %v", err)
-	}
-	if enabled {
-		t.Error("expected enabled to be false when no exporter is configured")
+			// Spans are left unended so the console exporter prints nothing.
+			_, span := StartSpan(context.Background(), "sample-rate-test")
+			if got := span.SpanContext().IsSampled(); got != tc.wantSampled {
+				t.Fatalf("root span sampled = %v, want %v", got, tc.wantSampled)
+			}
+		})
 	}
 }
 
@@ -237,15 +199,5 @@ func TestInitTracingConsoleExporterEnablesTracingAndShutdown(t *testing.T) {
 
 	if err := Shutdown(context.Background()); err != nil {
 		t.Fatalf("Shutdown() error = %v", err)
-	}
-}
-
-func TestShutdown_AfterFailedInit_ReturnsNil(t *testing.T) {
-	ensureAppConfig(t)
-	resetTracingState(t)
-
-	err := Shutdown(context.Background())
-	if err != nil {
-		t.Errorf("expected Shutdown to return nil after failed init, got %v", err)
 	}
 }

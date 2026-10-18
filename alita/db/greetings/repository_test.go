@@ -309,25 +309,51 @@ func TestGetGoodbyeButtons_Empty(t *testing.T) {
 	}
 }
 
-func TestLoadGreetingsStats_EmptyDB(t *testing.T) {
+func TestLoadGreetingsStats_CountsEachEnabledSetting(t *testing.T) {
 	skipIfNoDb(t)
 
-	// The DB may have other rows from other tests, so we just check the function runs.
-	enabledWelcome, enabledGoodbye, cleanService, cleanWelcome, cleanGoodbye := LoadGreetingsStats()
-	if enabledWelcome < 0 {
-		t.Fatalf("enabledWelcome is negative: %d", enabledWelcome)
+	type stats [5]int64
+	load := func() stats {
+		w, g, cs, cw, cg := LoadGreetingsStats()
+		return stats{w, g, cs, cw, cg}
 	}
-	if enabledGoodbye < 0 {
-		t.Fatalf("enabledGoodbye is negative: %d", enabledGoodbye)
+	// Setters in the order LoadGreetingsStats returns its counters.
+	setters := [5]func(int64, bool) error{
+		SetWelcomeToggle, SetGoodbyeToggle, SetShouldCleanService, SetCleanWelcomeSetting, SetCleanGoodbyeSetting,
 	}
-	if cleanService < 0 {
-		t.Fatalf("cleanService is negative: %d", cleanService)
+	// Distinct per-counter targets, so a query that swaps two columns fails.
+	want := stats{4, 3, 2, 1, 0}
+
+	// Other tests leave rows behind, so assert the delta our rows cause.
+	before := load()
+
+	base := time.Now().UnixNano()
+	for row := int64(1); row <= 4; row++ {
+		chatID := base + row
+		if err := chats.EnsureChatInDb(chatID, "test_greetings_stats"); err != nil {
+			t.Fatalf("EnsureChatInDb(%d) error = %v", chatID, err)
+		}
+		t.Cleanup(func() {
+			db.DB.Where("chat_id = ?", chatID).Delete(&models.GreetingSettings{})
+			db.DB.Where("chat_id = ?", chatID).Delete(&models.Chat{})
+		})
+		_ = GetGreetingSettings(chatID)
+		// Row N enables every counter whose target is at least N.
+		for i, set := range setters {
+			if err := set(chatID, want[i] >= row); err != nil {
+				t.Fatalf("setter %d on row %d error = %v", i, row, err)
+			}
+		}
 	}
-	if cleanWelcome < 0 {
-		t.Fatalf("cleanWelcome is negative: %d", cleanWelcome)
+
+	after := load()
+	var got stats
+	for i := range got {
+		got[i] = after[i] - before[i]
 	}
-	if cleanGoodbye < 0 {
-		t.Fatalf("cleanGoodbye is negative: %d", cleanGoodbye)
+	if got != want {
+		t.Fatalf("LoadGreetingsStats() delta (welcome, goodbye, cleanService, cleanWelcome, cleanGoodbye) = %v, want %v",
+			got, want)
 	}
 }
 

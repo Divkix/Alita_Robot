@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/divkix/Alita_Robot/alita/db"
 )
@@ -32,54 +31,27 @@ func TestGetCurrentMetricsRequiresInitializedDatabase(t *testing.T) {
 	}
 }
 
-func TestGetCurrentMetricsReturnsPoolStats(t *testing.T) {
-	skipIfNoDb(t)
-
-	metrics, err := GetCurrentMetrics()
-	if err != nil {
-		t.Fatalf("GetCurrentMetrics() error = %v", err)
-	}
-	if metrics == nil {
-		t.Fatal("GetCurrentMetrics() metrics = nil, want values")
-	}
-	if metrics.OpenConnections < 0 {
-		t.Fatalf("OpenConnections = %d, want non-negative", metrics.OpenConnections)
-	}
-	if metrics.InUse < 0 {
-		t.Fatalf("InUse = %d, want non-negative", metrics.InUse)
-	}
-	if metrics.Idle < 0 {
-		t.Fatalf("Idle = %d, want non-negative", metrics.Idle)
-	}
-}
-
-func TestCollectMetricsAndLogMetrics(t *testing.T) {
+func TestGetCurrentMetricsReportsHeldConnection(t *testing.T) {
 	skipIfNoDb(t)
 
 	sqlDB, err := db.DB.DB()
 	if err != nil {
 		t.Fatalf("DB.DB() error = %v", err)
 	}
-
-	metrics := collectMetrics(sqlDB)
-	if metrics.OpenConnections < 0 {
-		t.Fatalf("OpenConnections = %d, want non-negative", metrics.OpenConnections)
+	conn, err := sqlDB.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("sqlDB.Conn() error = %v", err)
 	}
+	defer func() { _ = conn.Close() }()
 
-	logMetrics(metrics)
-}
-
-func TestStartMonitoringHandlesNilAndCancellation(t *testing.T) {
-	originalDB := db.DB
-	db.DB = nil
-	StartMonitoring(context.Background(), time.Millisecond)
-	db.DB = originalDB
-
-	skipIfNoDb(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	StartMonitoring(ctx, time.Millisecond)
-	time.Sleep(2 * time.Millisecond)
-	cancel()
-	time.Sleep(2 * time.Millisecond)
+	metrics, err := GetCurrentMetrics()
+	if err != nil {
+		t.Fatalf("GetCurrentMetrics() error = %v", err)
+	}
+	if metrics.InUse < 1 {
+		t.Fatalf("InUse = %d while a connection is held, want >= 1", metrics.InUse)
+	}
+	if metrics.OpenConnections != metrics.InUse+metrics.Idle {
+		t.Fatalf("OpenConnections = %d, want InUse %d + Idle %d", metrics.OpenConnections, metrics.InUse, metrics.Idle)
+	}
 }

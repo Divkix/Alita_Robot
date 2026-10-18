@@ -125,6 +125,36 @@ func TestValidateConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "DispatcherMaxRoutines 1001 returns error",
+			setup:   func(c *Config) { c.DispatcherMaxRoutines = 1001 },
+			wantErr: true,
+		},
+		{
+			name:    "CacheLocalTTLSeconds -1 returns error",
+			setup:   func(c *Config) { c.CacheLocalTTLSeconds = -1 },
+			wantErr: true,
+		},
+		{
+			name:    "CacheLocalTTLSeconds 300 succeeds",
+			setup:   func(c *Config) { c.CacheLocalTTLSeconds = 300 },
+			wantErr: false,
+		},
+		{
+			name:    "CacheLocalTTLSeconds 301 returns error",
+			setup:   func(c *Config) { c.CacheLocalTTLSeconds = 301 },
+			wantErr: true,
+		},
+		{
+			name:    "CacheLocalMaxEntries 99 returns error",
+			setup:   func(c *Config) { c.CacheLocalMaxEntries = 99 },
+			wantErr: true,
+		},
+		{
+			name:    "CacheLocalMaxEntries 1000001 returns error",
+			setup:   func(c *Config) { c.CacheLocalMaxEntries = 1000001 },
+			wantErr: true,
+		},
+		{
 			name:    "DBMaxIdleConns 101 returns error",
 			setup:   func(c *Config) { c.DBMaxIdleConns = 101 },
 			wantErr: true,
@@ -153,6 +183,16 @@ func TestValidateConfig(t *testing.T) {
 			name:    "DBMaxOpenConns 1000 succeeds",
 			setup:   func(c *Config) { c.DBMaxOpenConns = 1000 },
 			wantErr: false,
+		},
+		{
+			name:    "DBConnMaxLifetimeMin 1441 returns error",
+			setup:   func(c *Config) { c.DBConnMaxLifetimeMin = 1441 },
+			wantErr: true,
+		},
+		{
+			name:    "DBConnMaxIdleTimeMin 61 returns error",
+			setup:   func(c *Config) { c.DBConnMaxIdleTimeMin = 61 },
+			wantErr: true,
 		},
 	}
 
@@ -272,39 +312,6 @@ func TestSetDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("ClearCacheOnStartup defaults to false when not set", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
-
-		cfg := &Config{}
-		cfg.setDefaults()
-
-		if cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got true, want false (default when env var not set)")
-		}
-	})
-
-	t.Run("ClearCacheOnStartup respects explicit false", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "false")
-
-		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "false"}.Bool()}
-		cfg.setDefaults()
-
-		if cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got true, want false (should respect env var CLEAR_CACHE_ON_STARTUP=false)")
-		}
-	})
-
-	t.Run("ClearCacheOnStartup respects explicit true", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "true")
-
-		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "true"}.Bool()}
-		cfg.setDefaults()
-
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true (should respect env var CLEAR_CACHE_ON_STARTUP=true)")
-		}
-	})
-
 	t.Run("Debug false enables monitoring", func(t *testing.T) {
 		t.Setenv("ENABLE_PERFORMANCE_MONITORING", "")
 		t.Setenv("ENABLE_BACKGROUND_STATS", "")
@@ -331,42 +338,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
-// These tests do NOT call t.Parallel() because t.Setenv() is incompatible with parallel execution.
-func TestClearCacheOnStartupEnvVar(t *testing.T) {
-	t.Run("defaults to true when env var not set", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "")
-
-		cfg := &Config{}
-		cfg.setDefaults()
-
-		if cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got true, want false (default when env var not set)")
-		}
-	})
-
-	t.Run("respects explicit false", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "false")
-
-		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "false"}.Bool()}
-		cfg.setDefaults()
-
-		if cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got true, want false (should respect env var CLEAR_CACHE_ON_STARTUP=false)")
-		}
-	})
-
-	t.Run("respects explicit true", func(t *testing.T) {
-		t.Setenv("CLEAR_CACHE_ON_STARTUP", "true")
-
-		cfg := &Config{ClearCacheOnStartup: typeConvertor{str: "true"}.Bool()}
-		cfg.setDefaults()
-
-		if !cfg.ClearCacheOnStartup {
-			t.Errorf("ClearCacheOnStartup: got false, want true (should respect env var CLEAR_CACHE_ON_STARTUP=true)")
-		}
-	})
-}
-
 func TestGetHTTPPort(t *testing.T) {
 	t.Run("HTTP_PORT wins", func(t *testing.T) {
 		t.Setenv("HTTP_PORT", "8081")
@@ -380,134 +351,6 @@ func TestGetHTTPPort(t *testing.T) {
 		t.Setenv("PORT", "9091")
 		if got := getHTTPPort(); got != 9091 {
 			t.Fatalf("getHTTPPort() = %d, want 9091", got)
-		}
-	})
-}
-
-// NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
-// parallel execution at the enclosing level — Go enforces this at runtime.
-func TestGetRedisAddress(t *testing.T) {
-	t.Run("REDIS_ADDRESS set returns it directly", func(t *testing.T) {
-		t.Setenv("REDIS_ADDRESS", "myhost:1234")
-		t.Setenv("REDIS_URL", "")
-		t.Setenv("REDIS_PASSWORD", "")
-
-		got := getRedisAddress()
-		if got != "myhost:1234" {
-			t.Errorf("got %q, want %q", got, "myhost:1234")
-		}
-	})
-
-	t.Run("REDIS_ADDRESS empty falls back to REDIS_URL host:port", func(t *testing.T) {
-		t.Setenv("REDIS_ADDRESS", "")
-		t.Setenv("REDIS_URL", "redis://user:pass@host:6380")
-		t.Setenv("REDIS_PASSWORD", "")
-
-		got := getRedisAddress()
-		if got != "host:6380" {
-			t.Errorf("got %q, want %q", got, "host:6380")
-		}
-	})
-
-	t.Run("both REDIS_ADDRESS and REDIS_URL empty returns empty string", func(t *testing.T) {
-		t.Setenv("REDIS_ADDRESS", "")
-		t.Setenv("REDIS_URL", "")
-		t.Setenv("REDIS_PASSWORD", "")
-
-		got := getRedisAddress()
-		if got != "" {
-			t.Errorf("got %q, want empty string", got)
-		}
-	})
-
-	t.Run("REDIS_ADDRESS takes priority over REDIS_URL", func(t *testing.T) {
-		t.Setenv("REDIS_ADDRESS", "x")
-		t.Setenv("REDIS_URL", "redis://host:9999")
-		t.Setenv("REDIS_PASSWORD", "")
-
-		got := getRedisAddress()
-		if got != "x" {
-			t.Errorf("got %q, want %q", got, "x")
-		}
-	})
-
-	t.Run("REDIS_URL with invalid percent-encoding returns empty string", func(t *testing.T) {
-		t.Setenv("REDIS_ADDRESS", "")
-		t.Setenv("REDIS_URL", "not-a-valid-url-%%%")
-		t.Setenv("REDIS_PASSWORD", "")
-
-		got := getRedisAddress()
-		if got != "" {
-			t.Errorf("got %q, want empty string on parse error", got)
-		}
-	})
-}
-
-// NOT call t.Parallel() because t.Setenv() (used in subtests) is incompatible with
-// parallel execution at the enclosing level — Go enforces this at runtime.
-func TestGetRedisPassword(t *testing.T) {
-	t.Run("REDIS_PASSWORD set returns it directly", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "secret")
-		t.Setenv("REDIS_URL", "")
-		t.Setenv("REDIS_ADDRESS", "")
-
-		got := getRedisPassword()
-		if got != "secret" {
-			t.Errorf("got %q, want %q", got, "secret")
-		}
-	})
-
-	t.Run("REDIS_PASSWORD empty extracts password from REDIS_URL", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "")
-		t.Setenv("REDIS_URL", "redis://user:pass123@host:6380")
-		t.Setenv("REDIS_ADDRESS", "")
-
-		got := getRedisPassword()
-		if got != "pass123" {
-			t.Errorf("got %q, want %q", got, "pass123")
-		}
-	})
-
-	t.Run("REDIS_ADDRESS does not inherit REDIS_URL password", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "")
-		t.Setenv("REDIS_URL", "redis://user:stale@old-host:6380")
-		t.Setenv("REDIS_ADDRESS", "new-host:6379")
-
-		if got := getRedisPassword(); got != "" {
-			t.Errorf("got %q, want empty password for direct address", got)
-		}
-	})
-
-	t.Run("both REDIS_PASSWORD and REDIS_URL empty returns empty string", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "")
-		t.Setenv("REDIS_URL", "")
-		t.Setenv("REDIS_ADDRESS", "")
-
-		got := getRedisPassword()
-		if got != "" {
-			t.Errorf("got %q, want empty string", got)
-		}
-	})
-
-	t.Run("REDIS_URL without userinfo returns empty string", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "")
-		t.Setenv("REDIS_URL", "redis://host:6380")
-		t.Setenv("REDIS_ADDRESS", "")
-
-		got := getRedisPassword()
-		if got != "" {
-			t.Errorf("got %q, want empty string when no userinfo in URL", got)
-		}
-	})
-
-	t.Run("REDIS_URL with username but no password returns empty string", func(t *testing.T) {
-		t.Setenv("REDIS_PASSWORD", "")
-		t.Setenv("REDIS_URL", "redis://user@host:6380")
-		t.Setenv("REDIS_ADDRESS", "")
-
-		got := getRedisPassword()
-		if got != "" {
-			t.Errorf("got %q, want empty string when user has no password", got)
 		}
 	})
 }

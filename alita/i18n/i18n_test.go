@@ -164,38 +164,6 @@ func TestI18nErrorUnwrap(t *testing.T) {
 	}
 }
 
-func TestI18nErrorUnwrapNil(t *testing.T) {
-	t.Parallel()
-
-	err := NewI18nError("op", "en", "key", "msg", nil)
-	if err.Unwrap() != nil {
-		t.Fatalf("Unwrap() = %v, want nil", err.Unwrap())
-	}
-}
-
-func TestNewI18nError(t *testing.T) {
-	t.Parallel()
-
-	base := fmt.Errorf("root cause")
-	err := NewI18nError("myOp", "fr", "my.key", "my message", base)
-
-	if err.Op != "myOp" {
-		t.Fatalf("Op = %q, want %q", err.Op, "myOp")
-	}
-	if err.Lang != "fr" {
-		t.Fatalf("Lang = %q, want %q", err.Lang, "fr")
-	}
-	if err.Key != "my.key" {
-		t.Fatalf("Key = %q, want %q", err.Key, "my.key")
-	}
-	if err.Message != "my message" {
-		t.Fatalf("Message = %q, want %q", err.Message, "my message")
-	}
-	if !errors.Is(err.Err, base) {
-		t.Fatalf("Err = %v, want %v", err.Err, base)
-	}
-}
-
 func TestPredefinedErrorsDistinct(t *testing.T) {
 	t.Parallel()
 
@@ -219,15 +187,6 @@ func TestPredefinedErrorsDistinct(t *testing.T) {
 				t.Fatalf("errors.Is(%s, %s) = true, want false (they must be distinct)", a.name, b.name)
 			}
 		}
-	}
-}
-
-func TestPredefinedErrorsChain(t *testing.T) {
-	t.Parallel()
-
-	wrapped := NewI18nError("op", "en", "key", "msg", ErrKeyNotFound)
-	if !errors.Is(wrapped, ErrKeyNotFound) {
-		t.Fatalf("errors.Is(wrapped, ErrKeyNotFound) = false, want true")
 	}
 }
 

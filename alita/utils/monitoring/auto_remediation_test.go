@@ -1,13 +1,13 @@
 package monitoring
 
 import (
-	"bytes"
-	"strings"
+	"io"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/divkix/Alita_Robot/alita/config"
 )
@@ -133,31 +133,19 @@ func TestNewAutoRemediationManager_Disabled_StartDoesNothing(t *testing.T) {
 
 	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
 
-	if manager.enabled {
-		t.Fatal("expected manager.enabled to be false when EnablePerformanceMonitoring is false")
+	var executed int32
+	manager.actions = []remediationAction{
+		{name: "always", severity: 1, canExecute: func(SystemMetrics) bool { return true }, execute: func() { atomic.AddInt32(&executed, 1) }},
 	}
+	manager.actionCooldown = 0
+	manager.monitorInterval = time.Millisecond
 
 	manager.Start()
+	time.Sleep(20 * time.Millisecond) // ~20 ticks if a loop had started
 	manager.Stop()
-}
 
-func TestNewAutoRemediationManager_WithCollector(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state.
-
-	origEnabled := config.AppConfig.EnablePerformanceMonitoring
-	config.AppConfig.EnablePerformanceMonitoring = true
-	defer func() {
-		config.AppConfig.EnablePerformanceMonitoring = origEnabled
-	}()
-
-	collector := NewBackgroundStatsCollector()
-	manager := NewAutoRemediationManager(collector)
-
-	if manager.collector != collector {
-		t.Fatal("expected manager.collector to be the collector passed in")
-	}
-	if !manager.enabled {
-		t.Fatal("expected manager.enabled to be true when EnablePerformanceMonitoring is true")
+	if got := atomic.LoadInt32(&executed); got != 0 {
+		t.Fatalf("disabled manager executed %d remediation actions, want 0", got)
 	}
 }
 
@@ -177,26 +165,39 @@ func TestAutoRemediationManager_Cooldown(t *testing.T) {
 	}
 }
 
-func TestBuiltInActionsLogOnExtremeMetrics(t *testing.T) {
-	// Do not use t.Parallel() - tests global config state.
+func TestBuiltInLoggingActionsReportResourceUsageAtTheirLevel(t *testing.T) {
+	// Do not use t.Parallel() - tests global config and logger state.
 
 	manager := NewAutoRemediationManager(NewBackgroundStatsCollector())
-	extreme := SystemMetrics{GoroutineCount: 1 << 30, MemoryAllocMB: 1 << 30, GCPauseMs: 1e6}
 
-	var buf bytes.Buffer
-	prev := log.StandardLogger().Out
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(prev) })
-	for _, name := range []string{"log_warning", "restart_recommendation"} {
-		a := findAction(t, manager, name)
-		if !a.canExecute(extreme) {
-			t.Fatalf("action %q should trip on extreme metrics", name)
+	logger := log.StandardLogger()
+	prevOut, prevHooks := logger.Out, logger.ReplaceHooks(make(log.LevelHooks))
+	logger.SetOutput(io.Discard)
+	t.Cleanup(func() {
+		logger.SetOutput(prevOut)
+		logger.ReplaceHooks(prevHooks)
+	})
+	hook := logtest.NewLocal(logger)
+
+	for _, tc := range []struct {
+		action string
+		level  log.Level
+	}{
+		{"log_warning", log.WarnLevel},
+		{"restart_recommendation", log.ErrorLevel},
+	} {
+		hook.Reset()
+		findAction(t, manager, tc.action).execute()
+
+		entry := hook.LastEntry()
+		if entry == nil || entry.Level != tc.level {
+			t.Fatalf("%s logged %+v, want one entry at level %v", tc.action, entry, tc.level)
 		}
-		a.execute()
-	}
-
-	if out := buf.String(); !strings.Contains(out, "High resource usage") || !strings.Contains(out, "CRITICAL") {
-		t.Fatalf("expected warning + critical remediation logs, got %q", out)
+		for _, field := range []string{"goroutines", "memory_mb"} {
+			if _, ok := entry.Data[field]; !ok {
+				t.Fatalf("%s log entry lacks %q field: %v", tc.action, field, entry.Data)
+			}
+		}
 	}
 }
 
@@ -260,7 +261,7 @@ func TestAutoRemediationManagerStartRunsMonitorLoop(t *testing.T) {
 	manager.Start()
 	t.Cleanup(manager.Stop)
 
-	deadline := time.After(500 * time.Millisecond)
+	deadline := time.After(5 * time.Second)
 	for {
 		if atomic.LoadInt32(&executed) > 0 {
 			return

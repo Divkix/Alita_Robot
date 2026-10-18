@@ -16,11 +16,6 @@ func TestRecentJoinProcessingNoCacheFallback(t *testing.T) {
 		clearRecentJoinProcessing(-100123, 456)
 	})
 
-	key := recentJoinProcessingKey(-100123, 456)
-	if key != "alita:recentJoinProcessing:-100123:456" {
-		t.Fatalf("recentJoinProcessingKey() = %q", key)
-	}
-
 	if !claimRecentJoinProcessing(-100123, 456) {
 		t.Fatal("first claimRecentJoinProcessing() = false, want true")
 	}
@@ -74,13 +69,15 @@ func TestClaimRecentJoinProcessingIsAtomic(t *testing.T) {
 	}
 }
 
-func TestPendingJoinsCacheNilMarshal(t *testing.T) {
+// Without a cache the pending flag cannot be stored, so every join request
+// must still be treated as new rather than silently suppressed.
+func TestPendingJoinsCacheNilMarshalNeverReportsPending(t *testing.T) {
 	withNilCacheMarshal(t)
 
-	if greetingsModule.loadPendingJoins(-100123, 456) {
-		t.Fatal("loadPendingJoins(nil marshal) = true, want false")
-	}
 	greetingsModule.setPendingJoins(-100123, 456)
+	if greetingsModule.loadPendingJoins(-100123, 456) {
+		t.Fatal("loadPendingJoins(nil marshal) = true after setPendingJoins, want false")
+	}
 }
 
 func TestPendingJoinsCacheRoundTrip(t *testing.T) {

@@ -1,103 +1,23 @@
 package monitoring
 
 import (
+	"context"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/divkix/Alita_Robot/alita/db"
+	"github.com/divkix/Alita_Robot/alita/utils/cache"
 )
 
-func TestNewBackgroundStatsCollector(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-	if c == nil {
-		t.Fatal("NewBackgroundStatsCollector() returned nil")
-	}
-
-	t.Run("system stats interval is 30s", func(t *testing.T) {
-		t.Parallel()
-		if c.systemStatsInterval != 30*time.Second {
-			t.Fatalf("expected systemStatsInterval=30s, got %v", c.systemStatsInterval)
-		}
-	})
-
-	t.Run("database stats interval is 1m", func(t *testing.T) {
-		t.Parallel()
-		if c.databaseStatsInterval != 1*time.Minute {
-			t.Fatalf("expected databaseStatsInterval=1m, got %v", c.databaseStatsInterval)
-		}
-	})
-
-	t.Run("reporting interval is 5m", func(t *testing.T) {
-		t.Parallel()
-		if c.reportingInterval != 5*time.Minute {
-			t.Fatalf("expected reportingInterval=5m, got %v", c.reportingInterval)
-		}
-	})
-
-	t.Run("counters are zero on creation", func(t *testing.T) {
-		t.Parallel()
-		c2 := NewBackgroundStatsCollector()
-		if c2.messageCounter != 0 {
-			t.Fatalf("expected messageCounter=0, got %d", c2.messageCounter)
-		}
-		if c2.errorCounter != 0 {
-			t.Fatalf("expected errorCounter=0, got %d", c2.errorCounter)
-		}
-	})
+// published returns what the collector reports after one system-stats pass.
+func published(c *BackgroundStatsCollector) SystemMetrics {
+	c.collectSystemStats()
+	return c.GetCurrentMetrics()
 }
 
-func TestRecordMessage(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-
-	const calls = 100
-	for range calls {
-		c.RecordMessage()
-	}
-
-	if c.messageCounter < calls {
-		t.Fatalf("expected messageCounter >= %d, got %d", calls, c.messageCounter)
-	}
-}
-
-func TestRecordError(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-
-	const calls = 100
-	for range calls {
-		c.RecordError()
-	}
-
-	if c.errorCounter < calls {
-		t.Fatalf("expected errorCounter >= %d, got %d", calls, c.errorCounter)
-	}
-}
-
-func TestGetCurrentMetrics(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-	metrics := c.GetCurrentMetrics()
-
-	if metrics.GoroutineCount != 0 {
-		t.Fatalf("expected GoroutineCount=0 initially, got %d", metrics.GoroutineCount)
-	}
-	if metrics.MemoryAllocMB != 0 {
-		t.Fatalf("expected MemoryAllocMB=0 initially, got %f", metrics.MemoryAllocMB)
-	}
-	if metrics.ProcessedMessages != 0 {
-		t.Fatalf("expected ProcessedMessages=0 initially, got %d", metrics.ProcessedMessages)
-	}
-	if metrics.ErrorCount != 0 {
-		t.Fatalf("expected ErrorCount=0 initially, got %d", metrics.ErrorCount)
-	}
-}
-
-func TestBackgroundStatsCollectorStartStopWithShortIntervals(t *testing.T) {
+func TestBackgroundStatsCollectorStartPublishesUntilStop(t *testing.T) {
 	setupMonitoringDB(t)
 
 	c := NewBackgroundStatsCollector()
@@ -106,221 +26,175 @@ func TestBackgroundStatsCollectorStartStopWithShortIntervals(t *testing.T) {
 	c.reportingInterval = time.Millisecond
 
 	c.Start()
-	time.Sleep(20 * time.Millisecond)
-	c.Stop()
-	c.Stop()
 
-	metrics := c.GetCurrentMetrics()
-	if metrics.Timestamp.IsZero() {
-		t.Fatal("collector did not process system metrics before Stop")
+	deadline := time.Now().Add(5 * time.Second)
+	for c.GetCurrentMetrics().Timestamp.IsZero() {
+		if time.Now().After(deadline) {
+			c.Stop()
+			t.Fatal("collector published no system metrics within 5s of Start")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	stopped := make(chan struct{})
+	go func() {
+		c.Stop()
+		c.Stop() // a second Stop must not block or panic
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop() did not return: collector workers did not exit")
+	}
+
+	last := c.GetCurrentMetrics().Timestamp
+	time.Sleep(5 * time.Millisecond)
+	if got := c.GetCurrentMetrics().Timestamp; !got.Equal(last) {
+		t.Fatalf("metrics still updating after Stop(): timestamp moved from %v to %v", last, got)
 	}
 }
 
-func TestCollectDatabaseStatsPublishesPoolMetrics(t *testing.T) {
+func TestCollectDatabaseStatsPublishesOpenConnections(t *testing.T) {
 	setupMonitoringDB(t)
+
+	sqlDB, err := db.DB.DB()
+	if err != nil {
+		t.Fatalf("db.DB.DB() error = %v", err)
+	}
+	// Hold a connection so the pool count is non-zero and stable.
+	conn, err := sqlDB.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("sqlDB.Conn() error = %v", err)
+	}
+	defer func() { _ = conn.Close() }()
 
 	c := NewBackgroundStatsCollector()
 	c.collectDatabaseStats()
 
-	metrics := c.GetCurrentMetrics()
-	if metrics.DatabaseConnections < 0 {
-		t.Fatalf("database connection stats must be non-negative: %#v", metrics)
+	got := c.GetCurrentMetrics().DatabaseConnections
+	if want := sqlDB.Stats().OpenConnections; got != want || got < 1 {
+		t.Fatalf("DatabaseConnections = %d, want pool OpenConnections %d (>= 1)", got, want)
 	}
 }
 
-func TestUpdateDatabaseMetricsAndReport(t *testing.T) {
+func TestUpdateSystemMetricsKeepsDatabaseConnections(t *testing.T) {
+	t.Parallel()
+
 	c := NewBackgroundStatsCollector()
-	c.updateDatabaseMetrics(DatabaseStats{
-		ActiveConnections: 7,
-	})
-	c.updateSystemMetrics(SystemMetrics{
-		GoroutineCount: 1001,
-		MemoryAllocMB:  501,
-		GCPauseMs:      101,
-		Timestamp:      time.Now(),
-	})
+	c.updateDatabaseMetrics(DatabaseStats{ActiveConnections: 7})
+	c.updateSystemMetrics(SystemMetrics{GoroutineCount: 1001, Timestamp: time.Now()})
 
 	metrics := c.GetCurrentMetrics()
 	if metrics.DatabaseConnections != 7 {
-		t.Fatalf("database connections = %d, want 7", metrics.DatabaseConnections)
+		t.Fatalf("DatabaseConnections = %d after a system update, want 7 kept", metrics.DatabaseConnections)
 	}
-
-	c.reportStats()
+	if metrics.GoroutineCount != 1001 {
+		t.Fatalf("GoroutineCount = %d, want 1001 from the system update", metrics.GoroutineCount)
+	}
 }
 
-func TestConcurrentRecordMessage(t *testing.T) {
+func TestCollectSystemStatsPublishesConcurrentlyRecordedCounts(t *testing.T) {
 	t.Parallel()
 
 	c := NewBackgroundStatsCollector()
 
 	const (
-		goroutines   = 50
-		callsPerGoro = 100
+		goroutines   = 20
+		callsPerGoro = 50
 	)
-
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
 	for range goroutines {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range callsPerGoro {
 				c.RecordMessage()
 			}
-		}()
+			c.RecordError()
+		})
 	}
-
 	wg.Wait()
 
-	expected := int64(goroutines * callsPerGoro)
-	if c.messageCounter < expected {
-		t.Fatalf("expected messageCounter >= %d after concurrent writes, got %d", expected, c.messageCounter)
+	metrics := published(c)
+	if metrics.ProcessedMessages != goroutines*callsPerGoro {
+		t.Fatalf("ProcessedMessages = %d, want %d", metrics.ProcessedMessages, goroutines*callsPerGoro)
+	}
+	if metrics.ErrorCount != goroutines {
+		t.Fatalf("ErrorCount = %d, want %d", metrics.ErrorCount, goroutines)
 	}
 }
 
-func TestCollectSystemStats(t *testing.T) {
+func TestCollectSystemStatsTracksRuntimeAndPeakMemory(t *testing.T) {
 	t.Parallel()
 
 	c := NewBackgroundStatsCollector()
 
-	c.collectSystemStats()
+	first := published(c)
+	if first.CPUCount != runtime.NumCPU() {
+		t.Fatalf("CPUCount = %d, want runtime.NumCPU() %d", first.CPUCount, runtime.NumCPU())
+	}
+	if first.GoroutineCount < 1 {
+		t.Fatalf("GoroutineCount = %d, want at least the test goroutine", first.GoroutineCount)
+	}
+	if first.MemoryAllocMB <= 0 || first.PeakMemoryUsageMB < first.MemoryAllocMB {
+		t.Fatalf("memory = alloc %f, peak %f; want alloc > 0 and peak >= alloc", first.MemoryAllocMB, first.PeakMemoryUsageMB)
+	}
 
-	metrics := c.GetCurrentMetrics()
-	if metrics.GoroutineCount <= 0 {
-		t.Fatalf("expected GoroutineCount > 0 (at least the test goroutine), got %d", metrics.GoroutineCount)
+	runtime.GC()
+	second := published(c)
+	if second.PeakMemoryUsageMB < first.PeakMemoryUsageMB {
+		t.Fatalf("PeakMemoryUsageMB fell from %f to %f; the peak must never decrease",
+			first.PeakMemoryUsageMB, second.PeakMemoryUsageMB)
 	}
-	if metrics.MemoryAllocMB < 0 {
-		t.Fatalf("expected MemoryAllocMB >= 0, got %f", metrics.MemoryAllocMB)
-	}
-	if metrics.CPUCount <= 0 {
-		t.Fatalf("expected CPUCount > 0, got %d", metrics.CPUCount)
-	}
-	if metrics.Timestamp.IsZero() {
-		t.Fatal("expected Timestamp to be non-zero")
+	if second.PeakMemoryUsageMB < second.MemoryAllocMB {
+		t.Fatalf("PeakMemoryUsageMB %f below current alloc %f", second.PeakMemoryUsageMB, second.MemoryAllocMB)
 	}
 }
 
-func TestRecordMessageAndError(t *testing.T) {
-	t.Parallel()
+func TestCollectSystemStatsPublishesRestrictedCacheStats(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+
+	const restrictedChat, freeChat = int64(-100991), int64(-100992)
+	cache.MarkChatRestricted(restrictedChat)
 
 	c := NewBackgroundStatsCollector()
+	before := published(c)
 
-	c.RecordMessage()
-	c.RecordMessage()
-	c.RecordMessage()
-	c.RecordError()
-	c.RecordError()
+	// Two hits and one miss, so swapped counters would fail.
+	cache.IsChatRestricted(restrictedChat)
+	cache.IsChatRestricted(restrictedChat)
+	cache.IsChatRestricted(freeChat)
 
-	if c.messageCounter != 3 {
-		t.Fatalf("expected messageCounter=3, got %d", c.messageCounter)
+	after := published(c)
+	if hits := after.RestrictedChatHits - before.RestrictedChatHits; hits != 2 {
+		t.Fatalf("RestrictedChatHits delta = %d, want 2", hits)
 	}
-	if c.errorCounter != 2 {
-		t.Fatalf("expected errorCounter=2, got %d", c.errorCounter)
-	}
-
-	c.RecordMessage()
-	if c.errorCounter != 2 {
-		t.Fatalf("RecordMessage() should not affect errorCounter, got %d", c.errorCounter)
-	}
-
-	c.RecordError()
-	if c.messageCounter != 4 {
-		t.Fatalf("RecordError() should not affect messageCounter, got %d", c.messageCounter)
+	if misses := after.RestrictedChatMisses - before.RestrictedChatMisses; misses != 1 {
+		t.Fatalf("RestrictedChatMisses delta = %d, want 1", misses)
 	}
 }
 
-func TestGetCurrentMetrics_AfterRecording(t *testing.T) {
-	t.Parallel()
-
-	c := NewBackgroundStatsCollector()
-	c.RecordMessage()
-	c.RecordMessage()
-	c.RecordMessage()
-	c.RecordError()
-
-	c.collectSystemStats()
-
-	result := c.GetCurrentMetrics()
-
-	if result.ProcessedMessages != 3 {
-		t.Errorf("expected ProcessedMessages=3, got %d", result.ProcessedMessages)
-	}
-	if result.ErrorCount != 1 {
-		t.Errorf("expected ErrorCount=1, got %d", result.ErrorCount)
-	}
-	if result.UptimeSeconds < 0 {
-		t.Errorf("expected UptimeSeconds >= 0, got %d", result.UptimeSeconds)
-	}
-	if result.Timestamp.IsZero() {
-		t.Error("expected Timestamp to be set")
-	}
-}
-
-func TestGlobalRecorders_WithCollector_IncrementCounters(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
-
-	collector := NewBackgroundStatsCollector()
-	SetGlobalCollector(collector)
-	defer SetGlobalCollector(nil)
-
-	if collector.errorCounter != 0 {
-		t.Fatal("expected initial errorCounter to be 0")
-	}
-	if collector.messageCounter != 0 {
-		t.Fatal("expected initial messageCounter to be 0")
-	}
-
-	GlobalRecordError()
-	GlobalRecordMessage()
-
-	if collector.errorCounter != 1 {
-		t.Errorf("expected errorCounter=1 after GlobalRecordError, got %d", collector.errorCounter)
-	}
-	if collector.messageCounter != 1 {
-		t.Errorf("expected messageCounter=1 after GlobalRecordMessage, got %d", collector.messageCounter)
-	}
-}
-
-func TestSetGlobalCollector_ReplacesCollector(t *testing.T) {
-	// Do not use t.Parallel() - tests global state
+func TestGlobalRecordersTargetTheCurrentCollector(t *testing.T) {
+	// Do not use t.Parallel() - tests global state.
+	t.Cleanup(func() { SetGlobalCollector(nil) })
 
 	collectorA := NewBackgroundStatsCollector()
 	collectorB := NewBackgroundStatsCollector()
 
 	SetGlobalCollector(collectorA)
 	GlobalRecordMessage()
-
-	if collectorA.messageCounter != 1 {
-		t.Errorf("expected collectorA.messageCounter=1, got %d", collectorA.messageCounter)
-	}
-	if collectorB.messageCounter != 0 {
-		t.Errorf("expected collectorB.messageCounter=0, got %d", collectorB.messageCounter)
-	}
+	GlobalRecordError()
 
 	SetGlobalCollector(collectorB)
 	GlobalRecordMessage()
 
-	if collectorA.messageCounter != 1 {
-		t.Errorf("expected collectorA.messageCounter unchanged at 1, got %d", collectorA.messageCounter)
-	}
-	if collectorB.messageCounter != 1 {
-		t.Errorf("expected collectorB.messageCounter=1, got %d", collectorB.messageCounter)
-	}
+	SetGlobalCollector(nil)
+	GlobalRecordMessage() // no collector: dropped, must not panic
+	GlobalRecordError()
 
-	defer SetGlobalCollector(nil)
-}
-
-func TestSystemMetrics_RestrictedChatCounters(t *testing.T) {
-	t.Parallel()
-
-	m := SystemMetrics{
-		RestrictedChatHits:   42,
-		RestrictedChatMisses: 100,
+	if a := published(collectorA); a.ProcessedMessages != 1 || a.ErrorCount != 1 {
+		t.Fatalf("collector A = (messages %d, errors %d), want (1, 1)", a.ProcessedMessages, a.ErrorCount)
 	}
-	if m.RestrictedChatHits != 42 {
-		t.Errorf("expected RestrictedChatHits=42, got %d", m.RestrictedChatHits)
-	}
-	if m.RestrictedChatMisses != 100 {
-		t.Errorf("expected RestrictedChatMisses=100, got %d", m.RestrictedChatMisses)
+	if b := published(collectorB); b.ProcessedMessages != 1 || b.ErrorCount != 0 {
+		t.Fatalf("collector B = (messages %d, errors %d), want (1, 0)", b.ProcessedMessages, b.ErrorCount)
 	}
 }
