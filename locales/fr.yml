@@ -1209,11 +1209,11 @@ misc_help_msg:
   "× /info : Obtenez vos informations utilisateur, peut être utilisé en réponse ou en passant
   un ID utilisateur ou un nom d'utilisateur.
 
-  × /id : Obtenez l'ID du groupe actuel. Si utilisé en réponse à un message, obtenez l'ID de cet utilisateur.
+  × /id [utilisateur] : Obtenez votre ID, et celui du groupe si la commande est utilisée dans un groupe. Indiquez un nom d'utilisateur ou un ID utilisateur, ou répondez à un message, pour obtenir l'ID de cet utilisateur (une réponse affiche aussi les ID de l'origine du transfert, du GIF et du sticker).
 
   × /ping : Pingez le serveur Telegram !
 
-  × /tr <code langue> <msg/réponse au message> : Traduisez le message.
+  × /tr <code langue> <texte> : Traduisez le texte. Répondez à un message avec /tr [code langue] pour le traduire (en anglais si aucun code n'est donné).
 
   × /removebotkeyboard : Supprime le clavier de bot bloqué de votre chat.
 

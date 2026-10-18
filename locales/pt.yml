@@ -702,12 +702,11 @@ misc_help_msg:
   "× /info: Obtenha suas informações de usuário, que podem ser usadas como resposta ou passando
   um ID de Usuário ou Nome de Usuário.
 
-  × /id: Obtenha o id do grupo atual. Se usado respondendo a uma mensagem, obtém o id
-  daquele usuário.
+  × /id [usuário]: Obtém o seu ID, e o ID do grupo quando usado em um grupo. Informe um nome de usuário ou ID de usuário, ou responda a uma mensagem, para obter o ID desse usuário (uma resposta também mostra os IDs da origem do encaminhamento, do GIF e do sticker).
 
   × /ping: Ping no Servidor Telegram!
 
-  × /tr <código lang> <msg/responder a mensagem>: Traduz a mensagem.
+  × /tr <código lang> <texto>: Traduz o texto. Responda a uma mensagem com /tr [código lang] para traduzi-la (para inglês se nenhum código for informado).
 
   × /removebotkeyboard: Remove o teclado de bot preso do seu chat.
 

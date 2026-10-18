@@ -730,11 +730,11 @@ misc_help_msg:
   "× /info: Dapatkan info pengguna Anda, yang dapat digunakan sebagai balasan atau dengan melewatkan
   ID Pengguna atau Nama Pengguna.
 
-  × /id: Dapatkan id grup saat ini. Jika digunakan dengan membalas pesan, dapatkan id pengguna itu.
+  × /id [pengguna]: Dapatkan ID Anda, dan ID grup jika digunakan di grup. Berikan username atau ID pengguna, atau balas sebuah pesan, untuk mendapatkan ID pengguna itu (balasan juga menampilkan ID asal terusan, GIF, dan stiker).
 
   × /ping: Ping Server Telegram!
 
-  × /tr <kode bahasa> <msg/balas ke pesan>: Terjemahkan pesan.
+  × /tr <kode bahasa> <teks>: Terjemahkan teks. Balas sebuah pesan dengan /tr [kode bahasa] untuk menerjemahkannya (ke bahasa Inggris jika kode tidak diberikan).
 
   × /removebotkeyboard: Menghapus keyboard bot yang macet dari obrolan Anda.
 
