@@ -538,7 +538,7 @@ formatting_random: |
   <b>Contenido Aleatorio</b>
 
   Otra cosa que puede ser divertida, es aleatorizar el contenido de un mensaje. ¡Haz las cosas
-  un poco más personales cambiando mensajes de bienvenida, o cambiando notas!
+  un poco más personales aleatorizando las respuestas de filtros o las notas!
 
   Cómo usar contenido aleatorio:
 
@@ -557,9 +557,9 @@ formatting_random: |
 
   ¡Usa esto para hacer que Alita se sienta un poco más personalizada! (solo funciona en filtros/notas)
 
-  Ejemplo de mensaje de bienvenida:
+  Ejemplo de filtro:
 
-  - Cada vez que un nuevo usuario se une, se le presentará uno de los tres mensajes
+  - Cada vez que alguien diga "hey", el bot responderá con uno de los tres mensajes
   mostrados aquí.
 
   -> /filter "hey"

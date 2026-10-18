@@ -534,7 +534,7 @@ formatting_random: |
   <b>Konten Acak</b>
 
   Hal lain yang bisa menyenangkan, adalah mengacak konten pesan. Buat hal-hal
-  sedikit lebih personal dengan mengubah pesan selamat datang, atau mengubah catatan!
+  sedikit lebih personal dengan mengacak balasan filter atau catatan!
 
   Cara menggunakan konten acak:
 
@@ -553,9 +553,9 @@ formatting_random: |
 
   Gunakan ini untuk membuat Alita terasa sedikit lebih disesuaikan! (hanya berfungsi di filter/catatan)
 
-  Contoh pesan selamat datang:
+  Contoh filter:
 
-  - Setiap kali pengguna baru bergabung, mereka akan diberikan salah satu dari tiga pesan
+  - Setiap kali seseorang mengatakan "halo", bot akan membalas dengan salah satu dari tiga pesan
   yang ditampilkan di sini.
 
   -> /filter "halo"

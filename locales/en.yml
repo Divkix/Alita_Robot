@@ -576,7 +576,7 @@ formatting_random: |
   <b>Random Content</b>
 
   Another thing that can be fun, is to randomise the contents of a message. Make things
-  a little more personal by changing welcome messages, or changing notes!
+  a little more personal by randomising filter replies or notes!
 
   How to use random contents:
 
@@ -595,9 +595,9 @@ formatting_random: |
 
   Use this to make Alita feel a bit more customised! (only works in filters/notes)
 
-  Example welcome message:
+  Example filter:
 
-  - Every time a new user joins, they'll be presented with one of the three messages
+  - Every time someone says "hey", the bot replies with one of the three messages
   shown here.
 
   -> /filter "hey"
