@@ -190,7 +190,7 @@ func (m moduleStruct) purge(bot *gotgbot.Bot, ctx *ext.Context) error {
 			var Text string
 			if len(args) >= 1 {
 				temp, _ := tr.GetString("purges_purged_with_reason")
-				Text = fmt.Sprintf(temp, totalMsgs, strings.Join(args, " "))
+				Text = fmt.Sprintf(temp, totalMsgs, escapeLegacyMarkdown(strings.Join(args, " ")))
 			} else {
 				temp, _ := tr.GetString("purges_purged_messages")
 				Text = fmt.Sprintf(temp, totalMsgs)
@@ -446,7 +446,7 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 			tr := i18n.MustNewTranslator(lang.GetLanguage(ctx))
 			if len(args) >= 1 {
 				temp, _ := tr.GetString("purges_purged_with_reason")
-				Text = fmt.Sprintf(temp, totalMsgs, strings.Join(args, " "))
+				Text = fmt.Sprintf(temp, totalMsgs, escapeLegacyMarkdown(strings.Join(args, " ")))
 			} else {
 				temp, _ := tr.GetString("purges_purged_messages")
 				Text = fmt.Sprintf(temp, totalMsgs)
@@ -472,6 +472,14 @@ func (m moduleStruct) purgeTo(bot *gotgbot.Bot, ctx *ext.Context) error {
 		}
 	}
 	return ext.EndGroups
+}
+
+// legacyMarkdownEscaper escapes the characters legacy Markdown treats as
+// markup outside an entity, so user text sent with Smarkdown shows literally.
+var legacyMarkdownEscaper = strings.NewReplacer("_", `\_`, "*", `\*`, "`", "\\`", "[", `\[`)
+
+func escapeLegacyMarkdown(s string) string {
+	return legacyMarkdownEscaper.Replace(s)
 }
 
 func purgeChecks(cmd string) []helpers.CheckFunc {

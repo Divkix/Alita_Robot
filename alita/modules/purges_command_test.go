@@ -3,7 +3,9 @@ package modules
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
 	"github.com/PaulSonOfLars/gotgbot/v2/ext"
@@ -125,6 +127,35 @@ func TestPurgeRequiresReplyAndDeletesRange(t *testing.T) {
 	assertDeleted(t, client, chat.Id, 101, 102, 103, 104, 105)
 	if calls := client.callsFor("sendMessage"); len(calls) < 2 {
 		t.Fatalf("sendMessage calls = %d, want purge notification", len(calls))
+	}
+}
+
+// The reason is user text inside a legacy-Markdown message; markup
+// characters in it must not break or restyle the notification.
+func TestPurgeReasonIsEscapedForMarkdown(t *testing.T) {
+	useRealLocales(t)
+	for _, cmd := range []string{"purge", "purgeto"} {
+		t.Run(cmd, func(t *testing.T) {
+			f := newAdminChatFixture(t)
+			delMsgs.Delete(f.chat.Id)
+			t.Cleanup(func() { delMsgs.Delete(f.chat.Id) })
+			handler, replyID := purgesModule.purge, int64(501)
+			if cmd == "purgeto" {
+				// /purgefrom marked 501; /purgeto replies to the range's last message.
+				delMsgs.Store(f.chat.Id, delMsgEntry{msgID: 501, timestamp: time.Now()})
+				handler, replyID = purgesModule.purgeTo, 503
+			}
+
+			ctx := newPurgeReplyContext(f.bot, f.chat, f.admin, "/"+cmd+" spam_bot *x* [y] `z`", 505, replyID)
+			if err := handler(f.bot, ctx); err != ext.EndGroups {
+				t.Fatalf("%s() error = %v, want EndGroups", cmd, err)
+			}
+			call := f.client.onlyCall(t, "sendMessage")
+			assertParams(t, call, map[string]any{"parse_mode": "Markdown"})
+			if text := fmt.Sprint(call.Params["text"]); !strings.Contains(text, "spam\\_bot \\*x\\* \\[y] \\`z\\`") {
+				t.Fatalf("%s notification = %q, want the reason Markdown-escaped", cmd, text)
+			}
+		})
 	}
 }
 
