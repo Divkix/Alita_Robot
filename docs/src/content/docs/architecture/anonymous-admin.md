@@ -75,10 +75,10 @@ The following commands support anonymous admin verification. Only these commands
 | Module | Commands |
 |--------|----------|
 | Admin | `/promote`, `/demote`, `/title` |
-| Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/skick`, `/restrict`, `/unrestrict` |
+| Bans | `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/kick`, `/dkick`, `/skick`, `/restrict`, `/unrestrict` |
 | Mutes | `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute` |
 | Pins | `/pin`, `/unpin`, `/permapin`, `/unpinall` |
-| Purges | `/purge`, `/del` |
+| Purges | `/purge`, `/del`, `/purgefrom`, `/purgeto` |
 | Warns | `/warn`, `/swarn`, `/dwarn` |
 
 ## Troubleshooting
