@@ -1710,7 +1710,7 @@ help_pm_intro: |
   - /help: Sends this message; I'll tell you more about myself!
   - /donate: Gives you info on how to support me and my creator.
 
-  If you have any bugs or questions on how to use me, have a look at my website, or head to @DivideSupport.
+  If you have any bugs or questions on how to use me, have a look at my <a href="https://alita-docs.divkix.me">website</a>, or head to @DivideSupport.
 
 # Captcha module additional strings
 captcha_settings_header: "<b>Captcha Settings:</b>"

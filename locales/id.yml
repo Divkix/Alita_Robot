@@ -1683,7 +1683,7 @@ help_pm_intro: |
   - /help: Mengirim pesan ini; Saya akan memberi tahu Anda lebih banyak tentang diri saya!
   - /donate: Memberi Anda info tentang cara mendukung saya dan kreator saya.
 
-  Jika Anda memiliki bug atau pertanyaan tentang cara menggunakan saya, lihat situs web saya, atau pergi ke @DivideSupport.
+  Jika Anda memiliki bug atau pertanyaan tentang cara menggunakan saya, lihat <a href="https://alita-docs.divkix.me">situs web saya</a>, atau pergi ke @DivideSupport.
 
 # Captcha module strings
 captcha_settings_header: "<b>Pengaturan Captcha:</b>"

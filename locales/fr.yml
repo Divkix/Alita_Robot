@@ -1202,7 +1202,7 @@ help_pm_intro: |
   - /help : Envoie ce message ; je vous en dirai plus sur moi-même !
   - /donate : Vous donne des infos sur comment me soutenir ainsi que mon créateur.
 
-  Si vous avez des bugs ou des questions sur comment m'utiliser, consultez mon site web, ou rendez-vous sur @DivideSupport.
+  Si vous avez des bugs ou des questions sur comment m'utiliser, consultez mon <a href="https://alita-docs.divkix.me">site web</a>, ou rendez-vous sur @DivideSupport.
 
 # Misc module strings
 misc_help_msg:
