@@ -1074,7 +1074,7 @@ disabling_delete_current_enabled: Удаление отключённых ком
 disabling_delete_current_disabled: Удаление отключённых команд *отключено*, отключённые команды от пользователей *не будут* удалены!
 disabling_enabled_successfully: "Повторно включено использование следующего в этом чате:%s"
 disabling_unknown_reenable: "Неизвестная команда для повторного включения:\n-%s\nПроверьте /disableable!"
-disabling_no_command_reenable: Вы не указали команду для отключения.
+disabling_no_command_reenable: Вы не указали команду для повторного включения.
 disabling_invalid_option: "Я понимаю только вариант из: `yes`/`no`/`on`/`off`"
 
 # Misc module strings

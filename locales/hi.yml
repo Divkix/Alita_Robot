@@ -1004,7 +1004,7 @@ disabling_delete_current_enabled: अक्षम कमांड हटान�
 disabling_delete_current_disabled: अक्षम कमांड हटाना *अक्षम* है, उपयोगकर्ताओं से अक्षम कमांड *हटाए नहीं* जाएंगे!
 disabling_enabled_successfully: "इस चैट में निम्नलिखित का उपयोग पुनः-सक्षम किया गया:%s"
 disabling_unknown_reenable: "पुनः-सक्षम करने के लिए अज्ञात कमांड:\n-%s\n/disableable देखें!"
-disabling_no_command_reenable: आपने अक्षम करने के लिए कोई कमांड निर्दिष्ट नहीं किया है।
+disabling_no_command_reenable: आपने पुनः-सक्षम करने के लिए कोई कमांड निर्दिष्ट नहीं किया है।
 disabling_invalid_option: "मैं केवल इन विकल्पों को समझता हूं: `yes`/`no`/`on`/`off`"
 disabling_extended_docs: |
   <b>मुख्य विशेषताएं:</b>

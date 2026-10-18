@@ -1021,7 +1021,7 @@ disabling_delete_current_enabled: La suppression des commandes désactivées est
 disabling_delete_current_disabled: La suppression des commandes désactivées est *désactivée*, les commandes désactivées des utilisateurs ne seront *pas* supprimées !
 disabling_enabled_successfully: "L'utilisation des commandes suivantes a été réactivée dans ce chat :%s"
 disabling_unknown_reenable: "Commande inconnue à réactiver :\n-%s\nVérifiez /disableable !"
-disabling_no_command_reenable: Vous n'avez pas spécifié de commande à désactiver.
+disabling_no_command_reenable: Vous n'avez pas spécifié de commande à réactiver.
 disabling_invalid_option: "Je comprends uniquement une option parmi : `yes`/`no`/`on`/`off`"
 
 # Locks module strings

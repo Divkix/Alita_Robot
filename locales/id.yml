@@ -1248,7 +1248,7 @@ disabling_delete_current_enabled: Penghapusan Perintah yang Dinonaktifkan *diakt
 disabling_delete_current_disabled: Penghapusan Perintah yang Dinonaktifkan *dinonaktifkan*, perintah yang dinonaktifkan dari pengguna *tidak* akan dihapus!
 disabling_enabled_successfully: "Mengaktifkan kembali penggunaan berikut di obrolan ini:%s"
 disabling_unknown_reenable: "Perintah tidak dikenal untuk Diaktifkan Kembali:\n-%s\nPeriksa /disableable!"
-disabling_no_command_reenable: Anda belum menentukan perintah untuk dinonaktifkan.
+disabling_no_command_reenable: Anda belum menentukan perintah untuk diaktifkan kembali.
 disabling_invalid_option: "Saya hanya mengerti opsi dari: `yes`/`no`/`on`/`off`"
 
 # Misc module strings

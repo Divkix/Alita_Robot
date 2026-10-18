@@ -1258,7 +1258,7 @@ disabling_delete_current_enabled: La eliminación de comandos deshabilitados est
 disabling_delete_current_disabled: La eliminación de comandos deshabilitados está *deshabilitada*, ¡los comandos deshabilitados de usuarios *no* serán eliminados!
 disabling_enabled_successfully: "Re-habilitado el uso de lo siguiente en este chat:%s"
 disabling_unknown_reenable: "Comando desconocido para Re-habilitar:\n-%s\n¡Revisa /disableable!"
-disabling_no_command_reenable: No has especificado un comando para deshabilitar.
+disabling_no_command_reenable: No has especificado un comando para rehabilitar.
 disabling_invalid_option: "Solo entiendo una opción de: `yes`/`no`/`on`/`off`"
 
 # Misc module strings

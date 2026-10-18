@@ -1219,7 +1219,7 @@ disabling_delete_current_enabled: Exclusão de Comando Desativado está *ativada
 disabling_delete_current_disabled: Exclusão de Comando Desativado está *desativada*, comandos desativados de usuários *não* serão deletados!
 disabling_enabled_successfully: "Re-Ativado o uso do seguinte neste chat:%s"
 disabling_unknown_reenable: "Comando desconhecido para Re-Ativar:\n-%s\nVerifique /disableable!"
-disabling_no_command_reenable: Você não especificou um comando para desativar.
+disabling_no_command_reenable: Você não especificou um comando para reativar.
 disabling_invalid_option: "Eu só entendo uma opção de: `yes`/`no`/`on`/`off`"
 
 # Misc module strings

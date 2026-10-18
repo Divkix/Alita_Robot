@@ -1296,7 +1296,7 @@ disabling_delete_current_enabled: Disabled Command deleting is *enabled*, disabl
 disabling_delete_current_disabled: Disabled Command deleting is *disabled*, disabled commands from users will *not* be deleted!
 disabling_enabled_successfully: "Re-Enabled the use of the following in this chat:%s"
 disabling_unknown_reenable: "Unknown command to Re-Enable:\n-%s\nCheck /disableable!"
-disabling_no_command_reenable: You haven't specified a command to disable.
+disabling_no_command_reenable: You haven't specified a command to re-enable.
 disabling_invalid_option: "I only understand an option from: `yes`/`no`/`on`/`off`"
 
 # Misc module strings
