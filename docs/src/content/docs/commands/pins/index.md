@@ -77,7 +77,7 @@ For detailed command usage, refer to the commands table above.
 ## Required Permissions
 
 - `/pin`, `/permapin`, `/unpin`, `/unpinall` — Require admin with **Pin Messages** permission
-- `/antichannelpin`, `/cleanlinked` — Require admin permission (+ works via `/connect`)
+- `/antichannelpin`, `/cleanlinked` — Require admin permission (+ works via `/connect`); `/cleanlinked` also needs the bot to have **Delete Messages** permission, otherwise linked-channel posts are silently left in place
 - `/pinned` — Any user can use, but **bot must be admin** to fetch pinned message
 
 ## Technical Notes
@@ -88,5 +88,5 @@ For detailed command usage, refer to the commands table above.
 - Anti-channel pin and clean linked settings are stored per-chat and persist across bot restarts
 
 **Required Permissions:**
-**Bot:** Must be admin with "Pin Messages" permission
+**Bot:** Must be admin with "Pin Messages" permission (and "Delete Messages" for `/cleanlinked`)
 **User:** Most commands require admin with "Pin Messages" permission
