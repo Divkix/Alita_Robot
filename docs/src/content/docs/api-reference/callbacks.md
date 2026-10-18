@@ -21,7 +21,7 @@ Callbacks use a versioned codec with URL-encoded fields:
 <namespace>|v1|<url-encoded-fields>
 ```
 
-For example: `restrict|v1|a=ban&uid=123456789` routes to the `restrict` namespace handler.
+For example: `restrict|v1|a=ban&u=123456789` routes to the `restrict` namespace handler.
 
 When the payload has no fields, `_` is used as placeholder: `helpq|v1|_`.
 
@@ -109,7 +109,7 @@ Confirms or cancels `/unbanall`. Only the chat owner may press it.
 - **Handler**: `verifyAnonymousAdmin`
 - **Source**: `bot_updates.go`
 
-Handles the verification callback for commands sent by anonymous group admins (GroupAnonymousBot).
+Verifies that the user who pressed the button is an admin of the group, then replays the command an anonymous group admin sent (fields: c = chat ID, m = message ID of the cached command).
 
 ### AntiRaid
 
@@ -273,20 +273,20 @@ Displays help information for reaction commands.
 ```go
 // Encode callback data
 data, err := callbackcodec.Encode("restrict", map[string]string{
-    "a":   "ban",
-    "uid": "123456789",
+    "a": "ban",
+    "u": "123456789",
 })
-// -> "restrict|v1|a=ban&uid=123456789"
+// -> "restrict|v1|a=ban&u=123456789"
 
 // Empty payload
 data, err := callbackcodec.Encode("helpq", map[string]string{})
 // -> "helpq|v1|_"
 
 // Decode callback data
-decoded, err := callbackcodec.Decode("restrict|v1|a=ban&uid=123456789")
+decoded, err := callbackcodec.Decode("restrict|v1|a=ban&u=123456789")
 namespace := decoded.Namespace  // "restrict"
 action, _ := decoded.Field("a") // "ban"
-uid, _ := decoded.Field("uid")  // "123456789"
+userID, _ := decoded.Field("u") // "123456789"
 ```
 
 ### EncodeOrFallback
