@@ -13,6 +13,7 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-alita_robot}?sslmode=disable
       REDIS_ADDRESS: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redisPassword}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
     depends_on:
       postgres:
         condition: service_healthy
