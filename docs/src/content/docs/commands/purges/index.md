@@ -67,14 +67,11 @@ For detailed command usage, refer to the commands table above.
 
 ## Required Permissions
 
-Most commands in this module require **admin permissions** in the group.
+All commands in this module require **admin permissions** with **Delete Messages** in the group, for both the user and the bot (the group creator always passes the user check).
 
 **Bot Permissions Required:**
 
-- Delete messages
-- Ban users
-- Restrict users
-- Pin messages (if applicable)
+- Admin with Delete messages
 
 ## Technical Notes
 
