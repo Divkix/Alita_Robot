@@ -332,7 +332,7 @@ docker compose logs alita
 
 Common issues:
 - Invalid `BOT_TOKEN`
-- `MESSAGE_DUMP` channel ID doesn't start with `-100`
+- `MESSAGE_DUMP` empty or not a number (a wrong but non-zero channel ID does not stop the bot; it only logs `Failed to send startup message to log group`)
 - Database connection failed (wait for postgres to be ready)
 
 ### Database connection errors
