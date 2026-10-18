@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
@@ -85,7 +86,14 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 	if err := logChannelsModule.setLog(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
 		t.Fatalf("setLog group: %v", err)
 	}
-	setCtx := newModuleMessageContext(bot, channel, admin, "/setlog")
+	// A channel post has no user sender.
+	setCtx := ext.NewContext(bot, &gotgbot.Update{UpdateId: 1, ChannelPost: &gotgbot.Message{
+		MessageId:  101,
+		Date:       1,
+		Chat:       channel,
+		SenderChat: &channel,
+		Text:       "/setlog",
+	}}, nil)
 	if err := logChannelsModule.setLog(bot, setCtx); err != ext.EndGroups {
 		t.Fatalf("setLog channel: %v", err)
 	}
@@ -168,4 +176,47 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	if got := logchannels.Get(chatID); got != nil {
 		t.Fatal("nil-marshaler setLog bound a log channel")
 	}
+}
+
+// /setlog posted in the channel and then forwarded to the group binds the
+// channel through the dispatcher, as users run it.
+func TestSetLogFlowBindsThroughDispatcher(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	require.NoError(t, chats.EnsureChatInDb(f.chat.Id, f.chat.Title))
+	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Log Channel"}
+	require.NoError(t, chats.EnsureChatInDb(channel.Id, channel.Title))
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLogChannels(dispatcher)
+	command := []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 7}}
+
+	const postID = 4242
+	post := &gotgbot.Update{UpdateId: 1, ChannelPost: &gotgbot.Message{
+		MessageId:  postID,
+		Date:       1,
+		Chat:       channel,
+		SenderChat: &channel,
+		Text:       "/setlog",
+		Entities:   command,
+	}}
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, post, nil))
+	var repliedInChannel bool
+	for _, call := range f.client.callsFor("sendMessage") {
+		repliedInChannel = repliedInChannel || fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(channel.Id)
+	}
+	require.True(t, repliedInChannel, "/setlog in the channel got no reply there")
+
+	forward := &gotgbot.Update{UpdateId: 2, Message: &gotgbot.Message{
+		MessageId:     101,
+		Date:          1,
+		Chat:          f.chat,
+		From:          &f.admin,
+		Text:          "/setlog",
+		Entities:      command,
+		ForwardOrigin: gotgbot.MessageOriginChannel{Date: 1, Chat: channel, MessageId: postID},
+	}}
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, forward, nil))
+	got := logchannels.Get(f.chat.Id)
+	require.NotNil(t, got, "forwarded /setlog did not bind a log channel")
+	require.Equal(t, channel.Id, got.LogChannelID)
 }

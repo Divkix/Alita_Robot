@@ -36,15 +36,12 @@ func setlogPendingKey(channelID, messageID int64) string {
 func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	msg := ctx.EffectiveMessage
 	chat := ctx.EffectiveChat
-	from := requireUser(b, ctx)
-	if from == nil {
-		return ext.EndGroups
-	}
-	tr := ctxTr(ctx)
 	if chat == nil || msg == nil {
 		return ext.EndGroups
 	}
+	tr := ctxTr(ctx)
 	if chat.Type == "channel" {
+		// Channel posts have no user sender; only channel admins can post here.
 		m := cache.GetMarshal()
 		if m == nil {
 			text, _ := tr.GetString("common_settings_save_failed")
@@ -64,6 +61,14 @@ func (moduleStruct) setLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		}
 		text, _ := tr.GetString("logs_forward_to_group")
 		replyHTML(b, msg, text)
+		return ext.EndGroups
+	}
+	// A forwarded /setlog post is the bind step; let the group-11 watcher
+	// (captureSetLogForward) handle it instead of answering logs_need_channel.
+	if msg.ForwardOrigin != nil {
+		return ext.ContinueGroups
+	}
+	if requireUser(b, ctx) == nil {
 		return ext.EndGroups
 	}
 	text, _ := tr.GetString("logs_need_channel")
@@ -261,7 +266,8 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 func LoadLogChannels(dispatcher *ext.Dispatcher) {
 	SetModuleEnabled(logChannelsModule.moduleName, true)
 
-	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog))
+	// Channel posts must reach /setlog: posting it in the channel starts the bind.
+	dispatcher.AddHandler(handlers.NewCommand("setlog", logChannelsModule.setLog).SetAllowChannel(true))
 	dispatcher.AddHandler(handlers.NewCommand("unsetlog", logChannelsModule.unsetLog))
 	dispatcher.AddHandler(handlers.NewCommand("logchannel", logChannelsModule.logChannel))
 	dispatcher.AddHandler(handlers.NewCommand("logcategories", logChannelsModule.logCategories))
