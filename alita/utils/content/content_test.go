@@ -125,6 +125,41 @@ func TestExtractNoteAndFilterFilterMode(t *testing.T) {
 	}
 }
 
+// Help tells users to quote a trigger of several words, as /stop expects.
+func TestExtractNoteAndFilterFilterTriggers(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name         string
+		text         string
+		reply        *gotgbot.Message
+		wantKeyWord  string
+		wantText     string
+		wantDataType int
+	}{
+		{name: "quoted trigger", text: `/filter "hello friend" Hello back`, wantKeyWord: "hello friend", wantText: "Hello back", wantDataType: db.TEXT},
+		{name: "unquoted trigger", text: "/filter hello Hello there", wantKeyWord: "hello", wantText: "Hello there", wantDataType: db.TEXT},
+		{name: "quoted trigger without content", text: `/filter "hello friend" `, wantKeyWord: "hello friend", wantDataType: -1},
+		{name: "quoted trigger on a reply", text: `/filter "hello friend"`, reply: &gotgbot.Message{Text: "Hi there"}, wantKeyWord: "hello friend", wantText: "Hi there", wantDataType: db.TEXT},
+		{name: "unquoted words on a reply", text: "/filter hello friend", reply: &gotgbot.Message{Text: "Hi there"}, wantKeyWord: "hello friend", wantText: "Hi there", wantDataType: db.TEXT},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := ExtractNoteAndFilter(&gotgbot.Message{Text: tt.text, ReplyToMessage: tt.reply}, true, "en")
+			if result.DataType != tt.wantDataType {
+				t.Fatalf("DataType = %d, want %d", result.DataType, tt.wantDataType)
+			}
+			if result.KeyWord != tt.wantKeyWord {
+				t.Errorf("KeyWord = %q, want %q", result.KeyWord, tt.wantKeyWord)
+			}
+			if tt.wantDataType != -1 && result.Text != tt.wantText {
+				t.Errorf("Text = %q, want %q", result.Text, tt.wantText)
+			}
+		})
+	}
+}
+
 func TestExtractWelcomeDirectText(t *testing.T) {
 	t.Parallel()
 
