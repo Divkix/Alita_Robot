@@ -142,7 +142,7 @@ func TestApprovedListHandlesEmptyAndLargeLists(t *testing.T) {
 	if err := approvalsModule.listApprovedUsers(bot, largeCtx); err != ext.EndGroups {
 		t.Fatalf("listApprovedUsers large error = %v, want EndGroups", err)
 	}
-	assertParams(t, client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": chat.Id})
+	assertParams(t, client.onlyCall(t, "sendDocument"), map[string]any{"chat_id": chat.Id, "parse_mode": "HTML"})
 }
 
 func TestUnapproveAllConfirmationAndCallback(t *testing.T) {

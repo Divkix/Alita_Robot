@@ -357,7 +357,8 @@ func (m moduleStruct) listApprovedUsers(b *gotgbot.Bot, ctx *ext.Context) error 
 		chat.Id,
 		gotgbot.InputFileByReader("approved_users.txt", openedFile),
 		&gotgbot.SendDocumentOpts{
-			Caption: func() string { return fmt.Sprintf(text, html.EscapeString(chat.Title)) }(),
+			Caption:   fmt.Sprintf(text, html.EscapeString(chat.Title)),
+			ParseMode: formatting.HTML,
 			ReplyParameters: &gotgbot.ReplyParameters{
 				MessageId:                msg.MessageId,
 				AllowSendingWithoutReply: true,
