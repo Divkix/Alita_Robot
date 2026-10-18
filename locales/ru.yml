@@ -1,6 +1,6 @@
 lang_sample: "Русский"
 language_flag: "🇷🇺"
-language_name: "Russian"
+language_name: "Русский"
 admin_adminlist: "Администраторы в <b>%s</b>:"
 admin_anon_admin_already_disabled: Режим AnonAdmin уже <b>отключён</b> для %s
 admin_anon_admin_already_enabled: Режим AnonAdmin уже <b>включён</b> для %s

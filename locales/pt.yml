@@ -2,7 +2,7 @@
 
 lang_sample: "Português"
 language_flag: "🇵🇹"
-language_name: "Portuguese"
+language_name: "Português"
 
 admin_adminlist: "Administradores em <b>%s</b>:"
 admin_anon_admin_already_disabled: "Modo AnonAdmin já está <b>desativado</b> para %s"

@@ -1,6 +1,6 @@
 lang_sample: "Bahasa Indonesia"
 language_flag: "🇮🇩"
-language_name: "Indonesian"
+language_name: "Bahasa Indonesia"
 admin_adminlist: "Admin di <b>%s</b>:"
 admin_anon_admin_already_disabled: Mode AnonAdmin sudah <b>dinonaktifkan</b> untuk %s
 admin_anon_admin_already_enabled: Mode AnonAdmin sudah <b>diaktifkan</b> untuk %s
