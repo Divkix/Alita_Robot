@@ -28,7 +28,7 @@ admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
 admin_promote_is_owner: "Cette personne a créé ce chat, comment suis-je censé la promouvoir ?"
 admin_promote_success_promote: "%s promu avec succès !"
-admin_title_is_admin: "Cette personne est déjà administrateur, comment puis-je lui définir un titre d'administrateur personnalisé ?"
+admin_title_is_admin: "Cette personne n'est pas administrateur, je ne peux donc pas lui définir de titre d'administrateur personnalisé. Promouvez-la d'abord."
 admin_title_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
 admin_title_is_owner: "Cette personne a créé ce chat, comment suis-je censé lui définir un titre d'administrateur ?"
 admin_title_success_set: "Titre d'administrateur de %s défini avec succès à <b>%s</b>"

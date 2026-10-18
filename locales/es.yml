@@ -75,9 +75,7 @@ admin_promote_is_bot_itself: Si tan solo pudiera hacer esto conmigo mismo ;_;
 admin_promote_is_owner: Esta persona creó este chat, ¿cómo se supone
   que debo promoverla?
 admin_promote_success_promote: ¡%s promovido exitosamente!
-admin_title_is_admin:
-  Esta persona ya es administrador, ¿cómo puedo establecer un título
-  de administrador personalizado para ella?
+admin_title_is_admin: "Esta persona no es administradora, así que no puedo establecerle un título de administrador personalizado. Promuévela primero."
 admin_title_is_bot_itself: Si tan solo pudiera hacer esto conmigo mismo ;_;
 admin_title_is_owner: Esta persona creó este chat, ¿cómo se supone que debo
   establecer un título de administrador para ella?

@@ -71,9 +71,7 @@ admin_promote_is_bot_itself: If only I could do this to myself ;_;
 admin_promote_is_owner: This person created this chat, and how am I supposed
   to promote them?
 admin_promote_success_promote: Successfully promoted %s!
-admin_title_is_admin:
-  This person is already an admin, how can I set a custom admin
-  title for them?
+admin_title_is_admin: "This person isn't an admin, so I can't set a custom admin title for them. Promote them first."
 admin_title_is_bot_itself: If only I could do this to myself ;_;
 admin_title_is_owner: This person created this chat, and how am I supposed to
   set an admin title for them?

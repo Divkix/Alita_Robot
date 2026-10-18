@@ -70,9 +70,7 @@ admin_promote_is_admin: Orang ini sudah menjadi admin, bagaimana saya bisa mempr
 admin_promote_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
 admin_promote_is_owner: Orang ini membuat obrolan ini, bagaimana saya bisa mempromosikannya?
 admin_promote_success_promote: Berhasil mempromosikan %s!
-admin_title_is_admin:
-  "Orang ini sudah menjadi admin, bagaimana saya bisa mengatur
-  judul admin khusus untuk mereka?"
+admin_title_is_admin: "Orang ini bukan admin, jadi saya tidak bisa mengatur judul admin khusus untuk mereka. Promosikan dulu."
 admin_title_is_bot_itself: Kalau saja saya bisa melakukan ini pada diri saya sendiri ;_;
 admin_title_is_owner:
   "Orang ini membuat obrolan ini, bagaimana saya bisa mengatur
