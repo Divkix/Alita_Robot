@@ -22,7 +22,7 @@ admin_errors_err_cannot_promote: "Échec de la promotion ; il se peut que je ne 
 admin_errors_err_set_title: "Échec de la définition du titre d'administrateur personnalisé ; le titre peut être incorrect ou contenir des emojis."
 admin_errors_title_empty: Vous devez me donner un titre d'administrateur à définir.
 admin_errors_admin_cache_failed: "J'ai du mal à accéder à la liste des administrateurs. Veuillez réessayer plus tard."
-admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n\n*Commandes Utilisateur :*\n\n× /adminlist : Lister les administrateurs du chat actuel.\n\n\n*Commandes Admin :*\n\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n\n× /setgtitle <titre> : Changer le titre du groupe.\n\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n\n× /setgdesc [texte] : Changer la description du groupe.\n\n× /invitelink : Obtenir le lien d'invitation du chat.\n\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n\n× /admincache : Recharger la liste des administrateurs.\n\n× /clearadmincache : Vider la liste des administrateurs en cache."
+admin_help_msg: "Facilitez la promotion et la rétrogradation des utilisateurs avec le module admin !\n\n*Commandes Utilisateur :*\n× /adminlist : Lister les administrateurs du chat actuel.\n\n*Commandes Admin :*\n× /promote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Promouvoir un utilisateur.\n× /demote `<réponse/nom d'utilisateur/mention/id utilisateur>` : Rétrograder un utilisateur.\n× /title `<réponse/nom d'utilisateur/mention/id utilisateur>` `<titre personnalisé>` : Définir un titre personnalisé pour l'utilisateur\n× /setgtitle <titre> : Changer le titre du groupe.\n× /setgpic : Répondez à une photo pour la définir comme image du groupe.\n× /setgdesc [texte] : Changer la description du groupe.\n× /invitelink : Obtenir le lien d'invitation du chat.\n× /anonadmin `<on/off>` : on permet aux administrateurs anonymes d'agir sans confirmation ; off (par défaut) les oblige à confirmer avec un bouton (propriétaire du groupe uniquement).\n× /admincache : Recharger la liste des administrateurs.\n× /clearadmincache : Vider la liste des administrateurs en cache."
 admin_promote_admin_title_truncated: Titre d'administrateur tronqué à 16 caractères depuis %d
 admin_promote_is_admin: "Cette personne est déjà administrateur, comment suis-je censé la promouvoir ?"
 admin_promote_is_bot_itself: Si seulement je pouvais me faire ça à moi-même ;_;
@@ -458,29 +458,29 @@ blacklists_help_msg: "*Commandes Utilisateur :*
   l'utilisateur."
 blacklists_ls_bl_list_bl: "Ces mots sont sur la liste noire de ce chat :"
 blacklists_ls_bl_no_blacklisted: Il n'y a pas de mots sur la liste noire dans ce chat.
-blacklists_rm_all_bl_ask: |
-  Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
-  ce chat ?
-blacklists_rm_all_bl_button_handler_no: |
-  Suppression de la liste noire de ce chat annulée
-  ❌
+blacklists_rm_all_bl_ask:
+  "Êtes-vous sûr de vouloir supprimer tous les mots de la liste noire de
+  ce chat ?"
+blacklists_rm_all_bl_button_handler_no:
+  "Suppression de la liste noire de ce chat annulée
+  ❌"
 blacklists_rm_all_bl_button_handler_yes: Tous les mots de la liste noire ont été supprimés de ce chat ✅
 blacklists_set_bl_action_changed_mode: "Mode de liste noire changé avec succès : *%s*"
 blacklists_set_bl_action_choose_correct_option: Veuillez choisir une option parmi <mute/kick/ban/warn/none>
-blacklists_set_bl_action_current_mode: |
-  Le mode de liste noire actuel pour ce chat est :
-  %s
+blacklists_set_bl_action_current_mode:
+  "Le mode de liste noire actuel pour ce chat est :
+  %s"
 blacklists_unblacklist_give_bl_word: Veuillez me donner un mot à retirer de la liste noire !
-blacklists_unblacklist_no_removed_bl: |
-  Aucun des mots donnés n'était sur la liste noire
-  et ne peut être supprimé !
-blacklists_unblacklist_removed_bl: |
-  '%s' supprimé avec succès de la liste
-  noire !
+blacklists_unblacklist_no_removed_bl:
+  "Aucun des mots donnés n'était sur la liste noire
+  et ne peut être supprimé !"
+blacklists_unblacklist_removed_bl:
+  "'%s' supprimé avec succès de la liste
+  noire !"
 
 # Captcha module strings
-captcha_help_msg: |
-  Protégez votre groupe des bots et spammeurs avec la vérification CAPTCHA !
+captcha_help_msg:
+  "Protégez votre groupe des bots et spammeurs avec la vérification CAPTCHA !
 
 
   Obligez les nouveaux membres à prouver qu'ils sont humains en résolvant un simple défi avant de
@@ -514,7 +514,7 @@ captcha_help_msg: |
 
   Lorsque c'est activé, les nouveaux membres sont automatiquement rendus muets jusqu'à ce qu'ils complètent le captcha.
 
-  S'ils échouent ou dépassent le délai, l'action configurée est appliquée.
+  S'ils échouent ou dépassent le délai, l'action configurée est appliquée."
 captcha_enable_failed: Échec de l'activation du captcha. Veuillez réessayer.
 captcha_disable_failed: Échec de la désactivation du captcha. Veuillez réessayer.
 captcha_usage: Veuillez utiliser <code>/captcha on</code> ou <code>/captcha off</code>
@@ -627,8 +627,8 @@ captcha_pending_message_content: "   Contenu : %s\n"
 captcha_pending_message_time: "   Heure : %s\n\n"
 
 # Greetings module strings
-greetings_help_msg: |
-  Accueillez les nouveaux membres dans vos groupes ou dites au revoir après leur départ !
+greetings_help_msg:
+  "Accueillez les nouveaux membres dans vos groupes ou dites au revoir après leur départ !
 
 
   *Commandes Admin :*
@@ -651,7 +651,7 @@ greetings_help_msg: |
   × /cleanwelcome `<yes/no/on/off>` : Supprime l'ancien message de bienvenue à chaque fois qu'un nouveau
   membre rejoint.
 
-  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres.
+  × /autoapprove `<yes/no/on/off>` : Approuve automatiquement tous les nouveaux membres."
 greetings_welcome_status: |
   J'accueille actuellement les utilisateurs : <code>%s</code>
   Je supprime actuellement les anciens messages de bienvenue : <code>%s</code>
@@ -717,8 +717,8 @@ greetings_clean_service_should: "Je devrais supprimer les messages 'utilisateur 
 greetings_clean_service_not: "Je ne supprime actuellement pas les messages de rejointe."
 
 # Filters module strings
-filters_help_msg: |
-  Les filtres ne sont pas sensibles à la casse ; chaque fois que quelqu'un dit vos mots
+filters_help_msg:
+  "Les filtres ne sont pas sensibles à la casse ; chaque fois que quelqu'un dit vos mots
   déclencheurs, Alita répondra autre chose ! Cela peut être utilisé pour créer vos propres commandes,
   si désiré.
 
@@ -743,7 +743,7 @@ filters_help_msg: |
 
   - Définir un filtre à plusieurs mots :
 
-  -> /filter "bonjour ami" Salut ! Ça faisait longtemps !
+  -> /filter \"bonjour ami\" Salut ! Ça faisait longtemps !
 
   - Définir un filtre qui ne peut être utilisé que par les admins :
 
@@ -752,7 +752,7 @@ filters_help_msg: |
   - Pour sauvegarder un fichier, image, gif ou tout autre pièce jointe, répondez simplement au fichier
   avec :
 
-  -> /filter déclencheur
+  -> /filter déclencheur"
 filters_invalid: Filtre invalide !
 filters_limit_exceeded: |
   Limite de filtres dépassée, un groupe ne peut avoir que 150 filtres maximum !
@@ -836,8 +836,8 @@ notes_admin_only_access: "Cette note ne peut être consultée que par un admin !
 notes_private_conflict_warning: "\n\n<b>Note :</b> Cette note sera envoyée selon le paramètre par défaut des notes de groupe, car elle a à la fois <code>{private}</code> et <code>{noprivate}</code>."
 
 # Rules module strings
-rules_help_msg: |
-  Chaque chat fonctionne avec des règles différentes ; ce module vous aidera à rendre
+rules_help_msg:
+  "Chaque chat fonctionne avec des règles différentes ; ce module vous aidera à rendre
   ces règles plus claires !
 
   *Commandes Utilisateur* :
@@ -857,7 +857,7 @@ rules_help_msg: |
 
   × /resetrulesbutton : Réinitialiser le texte du bouton des règles par défaut.
 
-  × /resetrulesbtn : Identique à ci-dessus.
+  × /resetrulesbtn : Identique à ci-dessus."
 rules_not_set: Ce chat n'a pas de règles définies !
 rules_for_chat: "Règles pour <b>%s</b> :\n\n%s"
 rules_need_text: "Vous devez me donner des règles à définir !\nRépondez à un message pour les fournir avec la commande."
@@ -877,44 +877,44 @@ rules_button_current: "Le bouton des règles est actuellement défini au texte s
 rules_button_cleared: Texte du bouton des règles personnalisé supprimé avec succès !
 
 # Connections module strings
-connections_allow_connect_currently_off: |
-  Les connexions utilisateur sont actuellement <b>désactivées</b>.
+connections_allow_connect_currently_off:
+  "Les connexions utilisateur sont actuellement <b>désactivées</b>.
 
-  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !
-connections_allow_connect_currently_on: |
-  Les connexions utilisateur sont actuellement <b>activées</b>.
+  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !"
+connections_allow_connect_currently_on:
+  "Les connexions utilisateur sont actuellement <b>activées</b>.
 
-  Les utilisateurs peuvent connecter ce chat à leurs MP !
-connections_allow_connect_turned_off: |
-  Connexions utilisateur <b>désactivées</b> pour ce
+  Les utilisateurs peuvent connecter ce chat à leurs MP !"
+connections_allow_connect_turned_off:
+  "Connexions utilisateur <b>désactivées</b> pour ce
   chat !
 
-  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !
-connections_allow_connect_turned_on: |
-  Connexions utilisateur <b>activées</b> pour ce chat !
+  Les utilisateurs ne peuvent pas connecter ce chat à leurs MP !"
+connections_allow_connect_turned_on:
+  "Connexions utilisateur <b>activées</b> pour ce chat !
 
-  Les utilisateurs peuvent maintenant connecter ce chat à leurs MP !
+  Les utilisateurs peuvent maintenant connecter ce chat à leurs MP !"
 connections_connect_connected: Vous êtes maintenant connecté à <b>%s</b> !
 connections_connect_not_member: "Vous devez être membre de ce chat pour vous y connecter."
-connections_connect_connection_disabled: |
-  Les connexions utilisateur sont actuellement <b>désactivées</b>
+connections_connect_connection_disabled:
+  "Les connexions utilisateur sont actuellement <b>désactivées</b>
   pour ce chat.
 
-  Veuillez demander aux admins d'autoriser si vous souhaitez vous connecter !
-connections_connect_tap_btn_connect: |
-  Veuillez appuyer sur le bouton ci-dessous pour connecter ce
-  chat à votre MP.
+  Veuillez demander aux admins d'autoriser si vous souhaitez vous connecter !"
+connections_connect_tap_btn_connect:
+  "Veuillez appuyer sur le bouton ci-dessous pour connecter ce
+  chat à votre MP."
 connections_connected: Vous êtes actuellement connecté à <b>%s</b> !
 connections_connections_btns_admin_conn_cmds: Commandes Admin disponibles
 connections_connections_btns_user_conn_cmds: Commandes Utilisateur disponibles
-connections_disconnect_disconnected: |
-  Déconnecté avec succès du chat
-  connecté.
-connections_disconnect_need_pm: |
-  Vous devez m'envoyer ceci en MP pour vous déconnecter
-  du chat !
-connections_help_msg: |
-  Ce module vous permet de vous connecter à la base de données d'un chat et
+connections_disconnect_disconnected:
+  "Déconnecté avec succès du chat
+  connecté."
+connections_disconnect_need_pm:
+  "Vous devez m'envoyer ceci en MP pour vous déconnecter
+  du chat !"
+connections_help_msg:
+  "Ce module vous permet de vous connecter à la base de données d'un chat et
   d'y ajouter des choses sans que le chat le sache ! Pour des raisons évidentes, vous devez
   être admin pour ajouter des choses ; mais tout membre peut voir vos données. (les utilisateurs bannis/expulsés
   ne peuvent pas !)
@@ -942,11 +942,11 @@ connections_help_msg: |
 
 
   Vous pouvez obtenir l'id du chat en utilisant la commande /id dans votre chat. Ne soyez pas surpris
-  si l'id est négatif ; tous les super groupes ont des ids négatifs.
+  si l'id est négatif ; tous les super groupes ont des ids négatifs."
 connections_is_user_connected_bot_not_admin: Je ne suis pas admin dans ce chat !
-connections_is_user_connected_need_group: |
-  Cette commande est faite pour être utilisée dans les chats de groupe,
-  pas en MP !
+connections_is_user_connected_need_group:
+  "Cette commande est faite pour être utilisée dans les chats de groupe,
+  pas en MP !"
 connections_is_user_connected_user_not_admin: Vous devez être admin pour faire cela.
 connections_not_connected: Vous n'êtes connecté à aucun chat.
 connections_stale_connection: "Votre connexion est obsolète - je ne peux plus accéder à ce chat. Veuillez utiliser /connect pour vous reconnecter à un chat valide."
@@ -957,8 +957,8 @@ connections_invalid_option: "Veuillez me donner une option valide parmi &lt;yes/
 connections_button_connect: "Se connecter au chat"
 
 # Disabling module strings
-disabling_help_msg: |
-  Ce module vous permet de désactiver certaines commandes couramment utilisées,
+disabling_help_msg:
+  "Ce module vous permet de désactiver certaines commandes couramment utilisées,
   afin que personne ne puisse les utiliser. Il vous permettra également de les supprimer automatiquement, empêchant les gens
   de faire du texte bleu.
 
@@ -982,7 +982,7 @@ disabling_help_msg: |
   peuvent toujours utiliser ces commandes.
 
   Les commandes désactivées sont toujours accessibles via la fonction /connect. Si vous souhaitez
-  voir cela également désactivé, faites-le moi savoir dans le chat de support.
+  voir cela également désactivé, faites-le moi savoir dans le chat de support."
 devs_help_msg:
   "Commandes de gestion du bot et de diagnostic réservées au propriétaire du bot et
   aux développeurs de confiance. Ces commandes ne sont pas affichées aux utilisateurs normaux.
@@ -1218,8 +1218,8 @@ help_pm_intro: |
   Toutes les commandes peuvent être utilisées avec / ou !.
 
 # Misc module strings
-misc_help_msg: |
-  × /info : Obtenez vos informations utilisateur, peut être utilisé en réponse ou en passant
+misc_help_msg:
+  "× /info : Obtenez vos informations utilisateur, peut être utilisé en réponse ou en passant
   un ID utilisateur ou un nom d'utilisateur.
 
   × /id : Obtenez l'ID du groupe actuel. Si utilisé en réponse à un message, obtenez l'ID de cet utilisateur.
@@ -1242,7 +1242,7 @@ misc_help_msg: |
 
   × /ud <terme> : Rechercher dans Urban Dictionary.
 
-  × /runs : Une répartie aléatoire.
+  × /runs : Une répartie aléatoire."
 misc_translation_error: Erreur lors de la demande de traduction !
 misc_reply_to_someone: Répondez à quelqu'un.
 misc_provide_content: Fournissez du contenu pour répondre !
@@ -1285,8 +1285,8 @@ misc_translate_read_error: Erreur de lecture
 misc_translate_result: "<b>Langue détectée :</b> <code>%s</code>\n\n<b>Traduction :</b> <code>%s</code>"
 
 # Pins module strings
-pins_help_msg: |
-  Toutes les commandes liées aux épingles peuvent être trouvées ici ; gardez votre chat à
+pins_help_msg:
+  "Toutes les commandes liées aux épingles peuvent être trouvées ici ; gardez votre chat à
   jour sur les dernières actualités avec un simple message épinglé !
 
 
@@ -1317,7 +1317,7 @@ pins_help_msg: |
 
   Note : Lors de l'utilisation des anti-épingles de chaîne, assurez-vous d'utiliser la commande /unpin, au lieu
   de le faire manuellement. Sinon, l'ancien message sera ré-épinglé quand la chaîne
-  enverra des messages.
+  enverra des messages."
 pins_unpin_not_pinned: Le message en réponse n'est pas un message épinglé.
 pins_unpinned_message: Message désépinglé.
 pins_unpinned_last: Dernier message épinglé désépinglé.
@@ -1376,8 +1376,8 @@ purges_invalid_button_data: "Données de bouton invalides."
 purges_invalid_message_id: "ID de message invalide."
 
 # Reports module strings
-reports_help_msg: |
-  Nous sommes tous occupés et n'avons pas le temps de surveiller nos groupes
+reports_help_msg:
+  "Nous sommes tous occupés et n'avons pas le temps de surveiller nos groupes
   24h/24. Mais comment réagir si quelqu'un spamme dans votre groupe ?
 
 
@@ -1409,7 +1409,7 @@ reports_help_msg: |
   pour taguer les admins sans raison !
 
 
-  *NOTE :* Aucun de ces deux ne se déclenchera s'il est utilisé par des admins.
+  *NOTE :* Aucun de ces deux ne se déclenchera s'il est utilisé par des admins."
 reports_reply_to_report: Vous devez répondre à un message pour le signaler.
 reports_expose_yourself: Vous devez d'abord vous exposer !
 reports_reply_to_block: Vous devez répondre à un utilisateur pour le bloquer.
@@ -1573,12 +1573,14 @@ languages_help_msg: "Vous n'arrivez pas à changer la langue du bot ?
   Vous pouvez nous aider à apporter le bot dans plus de langues en contribuant sur [Crowdin](https://crowdin.com/project/alita_robot)"
 
 # Antiflood module help message
-antiflood_help_msg: |
-  Vous savez comment parfois, des gens rejoignent, envoient 100 messages, et ruinent
+antiflood_help_msg:
+  "Vous savez comment parfois, des gens rejoignent, envoient 100 messages, et ruinent
   votre chat ? Avec antiflood, ça n'arrive plus !
+
 
   Antiflood vous permet d'agir sur les utilisateurs qui envoient plus de x messages
   d'affilée. Actions : ban/kick/mute
+
 
   *Commandes Admin* :
 
@@ -1590,7 +1592,7 @@ antiflood_help_msg: |
   × /setfloodmode `<type d'action>` : Choisir l'action à prendre sur un utilisateur qui a
   floodé. Options : ban/kick/mute
 
-  × /delflood `<yes/no/on/off>` : Si vous voulez que le bot supprime les messages floodés par l'utilisateur.
+  × /delflood `<yes/no/on/off>` : Si vous voulez que le bot supprime les messages floodés par l'utilisateur."
 
 antiflood_notes_docs: |
   <b>Comportement par défaut</b>
@@ -2097,40 +2099,40 @@ formatting_random: |
   Salut ! <code>{first}</code>
 
 # Antiflood module runtime strings
-antiflood_checkflood_perform_action: |
-  Ouais, je n'aime pas vos inondations. %s a été
-  %s !
-antiflood_errors_expected_args: |
-  J'attendais des arguments ! Soit off, soit un entier.
-  ex: `/setflood 5`, ou `/setflood off`
-antiflood_errors_invalid_int: |
-  Ce n'est pas un entier valide. Veuillez me donner un entier valide,
-  ou `off`.
+antiflood_checkflood_perform_action:
+  "Ouais, je n'aime pas vos inondations. %s a été
+  %s !"
+antiflood_errors_expected_args:
+  "J'attendais des arguments ! Soit off, soit un entier.
+  ex: `/setflood 5`, ou `/setflood off`"
+antiflood_errors_invalid_int:
+  "Ce n'est pas un entier valide. Veuillez me donner un entier valide,
+  ou `off`."
 antiflood_errors_set_in_limit: La limite antiflood doit être définie entre 3 et 100.
-antiflood_flood_deleter_already_disabled: |
-  La suppression des messages antiflood est actuellement
-  *désactivée* dans ce chat, les messages causant l'antiflood seront ignorés !
-antiflood_flood_deleter_already_enabled: |
-  La suppression des messages antiflood est actuellement *activée*
-  dans ce chat, les messages causant l'antiflood seront supprimés !
-antiflood_flood_deleter_disabled: |
-  Désactivation de la suppression des messages antiflood. Les messages
-  causant l'antiflood seront ignorés !
-antiflood_flood_deleter_enabled: |
-  Activation de la suppression des messages antiflood. Les messages causant
-  l'antiflood seront supprimés !
+antiflood_flood_deleter_already_disabled:
+  "La suppression des messages antiflood est actuellement
+  *désactivée* dans ce chat, les messages causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_already_enabled:
+  "La suppression des messages antiflood est actuellement *activée*
+  dans ce chat, les messages causant l'antiflood seront supprimés !"
+antiflood_flood_deleter_disabled:
+  "Désactivation de la suppression des messages antiflood. Les messages
+  causant l'antiflood seront ignorés !"
+antiflood_flood_deleter_enabled:
+  "Activation de la suppression des messages antiflood. Les messages causant
+  l'antiflood seront supprimés !"
 antiflood_flood_deleter_invalid_option: "Je ne comprends qu'une option parmi : `yes`/`no`/`on`/`off`"
 antiflood_flood_disabled: Ce chat n'applique actuellement pas le contrôle d'inondation.
-antiflood_flood_show_settings: |
-  Ce chat applique actuellement le contrôle d'inondation après
-  %d messages. Tout utilisateur envoyant plus que cette quantité de messages sera %s.
+antiflood_flood_show_settings:
+  "Ce chat applique actuellement le contrôle d'inondation après
+  %d messages. Tout utilisateur envoyant plus que cette quantité de messages sera %s."
 antiflood_setflood_disabled: |
   D'accord.
   Je n'avertirai pas les utilisateurs pour inondation.
 antiflood_setflood_success: La limite d'inondation a été définie à <b>%d</b> messages.
-antiflood_setfloodmode_specify_action: |
-  Vous devez spécifier une action à prendre en cas
-  d'inondation. Les modes actuels sont : `ban`/`kick`/`mute`
+antiflood_setfloodmode_specify_action:
+  "Vous devez spécifier une action à prendre en cas
+  d'inondation. Les modes actuels sont : `ban`/`kick`/`mute`"
 antiflood_setfloodmode_success: Le mode d'inondation a été défini sur %s.
 antiflood_setfloodmode_unknown_type: "Type inconnu '%s'. Veuillez utiliser l'un des suivants : ban/kick/mute"
 antiflood_button_unban_admins: "Débannir (Admins uniquement)"
@@ -2143,9 +2145,9 @@ antiflood_action_none: "aucun"
 
 # Common strings admin cache
 commonstrings_admin_cache_cache_reloaded: Cache admin rechargé avec succès.
-commonstrings_admin_cache_not_found: |
-  Cache admin introuvable. Demandez à un admin d'utiliser /admincache
-  pour recharger le cache admin.
+commonstrings_admin_cache_not_found:
+  "Cache admin introuvable. Demandez à un admin d'utiliser /admincache
+  pour recharger le cache admin."
 
 # Formatting fillings
 formatting_fillings: "<b>Remplissages</b>
