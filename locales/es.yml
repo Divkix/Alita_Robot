@@ -659,7 +659,7 @@ help_configuration_step-3: "¡Excelente!
 
   ¡Ahora el Bot está listo para usar!
 
-  Todos los comandos se pueden usar con / o !
+  Todos los comandos empiezan con /
 
 
   Si tienes alguna dificultad configurándome en tu grupo, no dudes
@@ -1487,7 +1487,7 @@ main_bot_command_help: "Revisar sección de Ayuda del bot"
 # Help module strings
 help_info_about_header: "Información y Acerca de\n\nAquí están algunas de las preguntas frecuentes sobre Alita."
 help_news_channel_text: "Únete a mi <a href='https://t.me/AlitaRobotUpdates'>Canal de Noticias</a> para obtener información sobre todas las últimas actualizaciones."
-help_all_commands_usage: "Todos los comandos se pueden usar con lo siguiente: / o !"
+help_all_commands_usage: "Todos los comandos empiezan con /"
 help_button_about_me: "Acerca de mí 👨‍💻"
 help_button_news_channel: "Canal de Noticias 📢"
 help_button_support_group: "Grupo de Soporte 👥"
@@ -1672,7 +1672,6 @@ help_pm_intro: |
   - /donate: Te da información sobre cómo apoyarme y a mi creador.
 
   Si tienes algún error o preguntas sobre cómo usarme, echa un vistazo a mi sitio web, o dirígete a @DivideSupport.
-  Todos los comandos se pueden usar con / o !.
 
 # Captcha module additional strings
 captcha_settings_header: "<b>Configuración de Captcha:</b>"

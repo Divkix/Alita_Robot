@@ -1760,7 +1760,7 @@ help_pm_questions: "हेलो :) अगर आपके पास मेर�
 help_config_private_only: कॉन्फ़िगरेशन केवल प्राइवेट में काम करता है
 help_info_about_header: "जानकारी और बारे में\n\nयहां Alita के बारे में कुछ FAQs हैं।"
 help_news_channel_text: "सभी नवीनतम अपडेट की जानकारी प्राप्त करने के लिए मेरे <a href='https://t.me/AlitaRobotUpdates'>समाचार चैनल</a> से जुड़ें।"
-help_all_commands_usage: "सभी कमांड निम्नलिखित के साथ उपयोग किए जा सकते हैं: / या !"
+help_all_commands_usage: "सभी कमांड / से शुरू होते हैं"
 help_button_about_me: "मेरे बारे में 👨‍💻"
 help_button_news_channel: "समाचार चैनल 📢"
 help_button_support_group: "सहायता ग्रुप 👥"
@@ -1877,7 +1877,6 @@ help_pm_intro: |
   - /donate: आपको मुझे और मेरे निर्माता का समर्थन करने की जानकारी देता है।
 
   यदि आपके पास कोई बग या मेरे उपयोग के बारे में प्रश्न हैं, तो मेरी वेबसाइट देखें, या @DivideSupport पर जाएं।
-  सभी कमांड / या ! के साथ उपयोग किए जा सकते हैं।
 
 # Greetings clean keys
 greetings_clean_goodbye_disable: अलविदा संदेश की सफाई अक्षम कर दी गई है।

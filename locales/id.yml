@@ -655,7 +655,7 @@ help_configuration_step-3: "Sangat bagus!
 
   Sekarang Bot siap digunakan!
 
-  Semua perintah dapat digunakan dengan / atau !
+  Semua perintah diawali dengan /
 
 
   Jika Anda menghadapi kesulitan dalam menyiapkan saya di grup Anda, jangan ragu
@@ -1481,7 +1481,7 @@ main_bot_command_help: "Periksa Bagian Bantuan bot"
 # Help module strings
 help_info_about_header: "Info & Tentang\n\nBerikut adalah beberapa FAQ tentang Alita."
 help_news_channel_text: "Bergabunglah dengan <a href='https://t.me/AlitaRobotUpdates'>Kanal Berita</a> saya untuk mendapatkan informasi tentang semua pembaruan terbaru."
-help_all_commands_usage: "Semua perintah dapat digunakan dengan yang berikut: / atau !"
+help_all_commands_usage: "Semua perintah diawali dengan /"
 help_button_about_me: "Tentang saya 👨‍💻"
 help_button_news_channel: "Kanal Berita 📢"
 help_button_support_group: "Grup Dukungan 👥"
@@ -1684,7 +1684,6 @@ help_pm_intro: |
   - /donate: Memberi Anda info tentang cara mendukung saya dan kreator saya.
 
   Jika Anda memiliki bug atau pertanyaan tentang cara menggunakan saya, lihat situs web saya, atau pergi ke @DivideSupport.
-  Semua perintah dapat digunakan dengan / atau !.
 
 # Captcha module strings
 captcha_settings_header: "<b>Pengaturan Captcha:</b>"

@@ -1149,7 +1149,7 @@ help_configuration_step-3: "Excellent !
 
   Maintenant le Bot est prêt à l'emploi !
 
-  Toutes les commandes peuvent être utilisées avec / ou !
+  Toutes les commandes commencent par /
 
 
   Si vous rencontrez des difficultés pour me configurer dans votre groupe, n'hésitez pas
@@ -1171,7 +1171,7 @@ help_pm_questions: "Salut :) Envoyez-moi un MP si vous avez des questions sur mo
 help_config_private_only: La configuration ne fonctionne qu'en privé
 help_info_about_header: "Info & À propos\n\nVoici quelques FAQ sur Alita."
 help_news_channel_text: "Rejoignez mon <a href='https://t.me/AlitaRobotUpdates'>canal d'actualités</a> pour obtenir des informations sur toutes les dernières mises à jour."
-help_all_commands_usage: "Toutes les commandes peuvent être utilisées avec : / ou !"
+help_all_commands_usage: "Toutes les commandes commencent par /"
 help_button_about_me: "À propos de moi 👨‍💻"
 help_button_news_channel: "Canal d'actualités 📢"
 help_button_support_group: "Groupe de support 👥"
@@ -1203,7 +1203,6 @@ help_pm_intro: |
   - /donate : Vous donne des infos sur comment me soutenir ainsi que mon créateur.
 
   Si vous avez des bugs ou des questions sur comment m'utiliser, consultez mon site web, ou rendez-vous sur @DivideSupport.
-  Toutes les commandes peuvent être utilisées avec / ou !.
 
 # Misc module strings
 misc_help_msg:
