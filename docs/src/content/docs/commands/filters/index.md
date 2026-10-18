@@ -19,8 +19,6 @@ Examples:
 -> /filter hello Hello there! How are you?
 - Set a multiword filter:
 -> /filter "hello friend" Hello back! Long time no see!
-- Set a filter that can only be used by admins:
--> /filter example This filter won't  happen if a normal user says it {admin}
 - To save a file, image, gif, or any other attachment, simply reply to the file with:
 -> /filter trigger
 
