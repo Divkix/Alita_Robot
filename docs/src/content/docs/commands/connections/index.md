@@ -95,8 +95,8 @@ callback data:
 
 | Button | Target | Shows |
 |--------|--------|-------|
-| **Admin Commands** | Admins only | List of admin-level commands usable via connection |
-| **User Commands** | All connected users | List of user-level commands usable via connection |
+| **Admin Commands** | Admins only | The heading "Available Admin commands" only (no command list yet) |
+| **User Commands** | All connected users | The heading "Available User commands" only (no command list yet) |
 
 A **Back** button (→ `connbtns.Main`) returns to the main connection view.
 
