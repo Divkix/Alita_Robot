@@ -124,34 +124,44 @@ func setResolvedAt(t *testing.T, chatID, messageID int64, at time.Time) {
 	}
 }
 
-func TestDeleteResolvedBeforeKeepsOpenAndRecentReports(t *testing.T) {
+// setCreatedAt backdates when a report was made.
+func setCreatedAt(t *testing.T, chatID, messageID int64, at time.Time) {
+	t.Helper()
+	if err := db.DB.Model(&models.Report{}).
+		Where("chat_id = ? AND reported_message_id = ?", chatID, messageID).
+		Update("created_at", at).Error; err != nil {
+		t.Fatalf("backdate creation of report of message %d: %v", messageID, err)
+	}
+}
+
+func TestDeleteExpiredBeforeDropsOldReports(t *testing.T) {
 	chatID := newReportCaseChat(t)
 	now := time.Now()
 	cutoff := now.Add(-90 * 24 * time.Hour)
 
-	// 1: closed long ago; 2: closed recently; 3: open and old.
-	for _, msgID := range []int64{1, 2, 3} {
+	// 1: closed long ago; 2: closed recently; 3: open and old; 4: open and
+	// recent; 5: made long ago but closed recently.
+	for _, msgID := range []int64{1, 2, 3, 4, 5} {
 		mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 9, ReportedMessageId: msgID, ReporterId: 100})
 	}
-	for _, msgID := range []int64{1, 2} {
+	for _, msgID := range []int64{1, 2, 5} {
 		if _, err := Resolve(chatID, msgID, models.ReportStatusDismissed, 7); err != nil {
 			t.Fatalf("Resolve(%d) error = %v", msgID, err)
 		}
 	}
 	setResolvedAt(t, chatID, 1, cutoff.Add(-time.Hour))
 	setResolvedAt(t, chatID, 2, cutoff.Add(time.Hour))
-	if err := db.DB.Model(&models.Report{}).
-		Where("chat_id = ? AND reported_message_id = ?", chatID, 3).
-		Update("created_at", cutoff.Add(-time.Hour)).Error; err != nil {
-		t.Fatalf("backdate open report: %v", err)
-	}
+	setCreatedAt(t, chatID, 3, cutoff.Add(-time.Hour))
+	setCreatedAt(t, chatID, 4, cutoff.Add(time.Hour))
+	setCreatedAt(t, chatID, 5, cutoff.Add(-time.Hour))
+	setResolvedAt(t, chatID, 5, cutoff.Add(time.Hour))
 
-	deleted, err := DeleteResolvedBefore(cutoff)
+	deleted, err := DeleteExpiredBefore(cutoff)
 	if err != nil {
-		t.Fatalf("DeleteResolvedBefore() error = %v", err)
+		t.Fatalf("DeleteExpiredBefore() error = %v", err)
 	}
-	if deleted < 1 {
-		t.Fatalf("DeleteResolvedBefore() deleted = %d, want the old closed report", deleted)
+	if deleted != 2 {
+		t.Fatalf("DeleteExpiredBefore() deleted = %d, want the old closed and the old open report", deleted)
 	}
 
 	var left []int64
@@ -159,8 +169,27 @@ func TestDeleteResolvedBeforeKeepsOpenAndRecentReports(t *testing.T) {
 		Order("reported_message_id").Pluck("reported_message_id", &left).Error; err != nil {
 		t.Fatalf("list reports: %v", err)
 	}
-	if len(left) != 2 || left[0] != 2 || left[1] != 3 {
-		t.Fatalf("reports left = %v, want [2 3]: the recent closed and the open one", left)
+	if len(left) != 3 || left[0] != 2 || left[1] != 4 || left[2] != 5 {
+		t.Fatalf("reports left = %v, want [2 4 5]: those closed or made within the retention", left)
+	}
+}
+
+func TestResolveLeavesOtherMessagesOpen(t *testing.T) {
+	chatID := newReportCaseChat(t)
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 505, ReporterId: 42})
+	mustCreateReport(t, &models.Report{ChatId: chatID, ReportedUserId: 43, ReportedMessageId: 506, ReporterId: 42})
+
+	if _, err := Resolve(chatID, 505, models.ReportStatusDismissed, 7); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	for msgID, want := range map[int64]int{505: 0, 506: 1} {
+		rows, err := OpenForMessage(chatID, msgID)
+		if err != nil {
+			t.Fatalf("OpenForMessage(%d) error = %v", msgID, err)
+		}
+		if len(rows) != want {
+			t.Fatalf("open reports of message %d = %d, want %d: only message 505 is resolved", msgID, len(rows), want)
+		}
 	}
 }
 

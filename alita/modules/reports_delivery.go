@@ -58,8 +58,10 @@ func deliverReport(
 		return false
 	}
 	if len(rows) == 0 {
-		// An admin closed the report before the card was posted.
-		return false
+		// A new report was closed by an admin before its card was posted:
+		// the group gets the full report. A repeat of a report the admins
+		// already decided needs neither a card nor the full report.
+		return !created
 	}
 	text := reportCardText(chat, reporter, reported.From, len(rows), reason)
 	markup := reportCardMarkup(tr, chat, reported.MessageId)

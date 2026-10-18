@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -233,9 +234,25 @@ func TestReportStillReachesGroupWhenStoreFails(t *testing.T) {
 	}
 }
 
-func TestSweepDeletesReportsClosedOver90DaysAgo(t *testing.T) {
+func TestSweepDeletesReportsOver90DaysOld(t *testing.T) {
 	chatID := uniqueModuleChatID()
 	now := time.Now()
+	// 3: still open, made 91 days ago; 4: open, made 89 days ago.
+	for msgID, madeAt := range map[int64]time.Time{
+		3: now.Add(-91 * 24 * time.Hour),
+		4: now.Add(-89 * 24 * time.Hour),
+	} {
+		if _, err := reports.Create(&models.Report{
+			ChatId: chatID, ReportedUserId: 43, ReportedMessageId: msgID, ReporterId: 42,
+		}); err != nil {
+			t.Fatalf("Create(%d) error = %v", msgID, err)
+		}
+		if err := db.DB.Model(&models.Report{}).
+			Where("chat_id = ? AND reported_message_id = ?", chatID, msgID).
+			Update("created_at", madeAt).Error; err != nil {
+			t.Fatalf("backdate report %d: %v", msgID, err)
+		}
+	}
 	for msgID, closedAt := range map[int64]time.Time{
 		1: now.Add(-91 * 24 * time.Hour),
 		2: now.Add(-89 * 24 * time.Hour),
@@ -255,11 +272,51 @@ func TestSweepDeletesReportsClosedOver90DaysAgo(t *testing.T) {
 		}
 	}
 
-	sweepClosedReports(now)
+	sweepExpiredReports(now)
 
 	rows := storedReports(t, chatID)
-	if len(rows) != 1 || rows[0].ReportedMessageId != 2 {
-		t.Fatalf("reports left = %+v, want only the one closed 89 days ago", rows)
+	var left []int64
+	for _, row := range rows {
+		left = append(left, row.ReportedMessageId)
+	}
+	slices.Sort(left)
+	if !slices.Equal(left, []int64{2, 4}) {
+		t.Fatalf("reports left = %v, want [2 4]: closed or made within 90 days", left)
+	}
+}
+
+func TestLegacyButtonRefusesNonAdmin(t *testing.T) {
+	for _, action := range []string{"kick", "ban", "delete", "resolved"} {
+		t.Run(action, func(t *testing.T) {
+			f := newReportCardFixture(t, false)
+			seedCallbackAdmins(t, f.chat.Id,
+				gotgbot.MergedChatMember{
+					Status: "administrator", User: gotgbot.User{Id: 999, IsBot: true},
+					CanRestrictMembers: true, CanDeleteMessages: true,
+				},
+				gotgbot.MergedChatMember{Status: "creator", User: gotgbot.User{Id: reportCardAdminID, FirstName: "Group Admin"}},
+			)
+			f.report(t, f.reporter, "/report spam")
+			f.client.calls = nil
+
+			data := encodeCallbackData("report", map[string]string{"a": action, "u": "43", "m": "505"})
+			if err := reportsModule.markResolvedButtonHandler(f.bot, newModuleCallbackContext(f.bot, f.chat, f.reporter, data)); err != ext.EndGroups {
+				t.Fatalf("legacy %s by a member error = %v, want EndGroups", action, err)
+			}
+
+			rows := storedReports(t, f.chat.Id)
+			if len(rows) != 1 || rows[0].Status != models.ReportStatusOpen || rows[0].ResolvedBy != nil {
+				t.Fatalf("stored reports = %+v, want the report left open", rows)
+			}
+			for _, method := range []string{"banChatMember", "unbanChatMember", "deleteMessage", "editMessageText"} {
+				if calls := f.client.callsFor(method); len(calls) != 0 {
+					t.Fatalf("%s calls = %d, want none for a member", method, len(calls))
+				}
+			}
+			if calls := f.client.callsFor("answerCallbackQuery"); len(calls) != 1 {
+				t.Fatalf("answerCallbackQuery calls = %d, want one refusal", len(calls))
+			}
+		})
 	}
 }
 

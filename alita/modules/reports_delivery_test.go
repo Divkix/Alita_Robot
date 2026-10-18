@@ -291,6 +291,27 @@ func TestRepeatReportDoesNotTouchCard(t *testing.T) {
 	assertShortGroupReply(t, f)
 }
 
+func TestRepeatReportAfterCloseKeepsShortReply(t *testing.T) {
+	f := newReportCardFixture(t, true)
+	f.report(t, f.reporter, "/report spam")
+	if _, err := reports.Resolve(f.chat.Id, 505, models.ReportStatusDismissed, reportCardAdminID); err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	f.client.calls = nil
+
+	f.report(t, f.reporter, "/report still spam")
+
+	// The admins already decided this member's report: no new card, and no
+	// full report pinging them in the group.
+	if got := len(callsToChat(f.client, "sendMessage", reportCardChannelID)); got != 0 {
+		t.Fatalf("log channel sendMessage calls = %d, want no card for a decided report", got)
+	}
+	assertShortGroupReply(t, f)
+	if rows := storedReports(t, f.chat.Id); len(rows) != 1 || rows[0].Status != models.ReportStatusDismissed {
+		t.Fatalf("stored reports = %+v, want the decided report left closed", rows)
+	}
+}
+
 func editMessageTextError(description string) error {
 	return &gotgbot.TelegramError{Method: "editMessageText", Code: 400, Description: description}
 }

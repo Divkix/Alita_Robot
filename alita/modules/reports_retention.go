@@ -10,26 +10,28 @@ import (
 	"github.com/divkix/Alita_Robot/alita/utils/error_handling"
 )
 
-// reportRetention is how long a closed report is kept. Its card, with the
-// copy of the message, stays in the log channel.
+// reportRetention is how long a report is kept after it was closed, or after
+// it was made while it stays open. Its card, with the copy of the message,
+// stays in the log channel.
 const reportRetention = 90 * 24 * time.Hour
 
 var reportRetentionOnce sync.Once
 
-// sweepClosedReports deletes the reports closed more than reportRetention
-// before now. Every replica sweeps; the delete is idempotent.
-func sweepClosedReports(now time.Time) {
-	deleted, err := reports.DeleteResolvedBefore(now.Add(-reportRetention))
+// sweepExpiredReports deletes the reports closed, or made and still open,
+// more than reportRetention before now. Every replica sweeps; the delete is
+// idempotent.
+func sweepExpiredReports(now time.Time) {
+	deleted, err := reports.DeleteExpiredBefore(now.Add(-reportRetention))
 	if err != nil {
 		log.Errorf("[Reports] retention sweep failed: %v", err)
 		return
 	}
 	if deleted > 0 {
-		log.Infof("[Reports] deleted %d reports closed over %v ago", deleted, reportRetention)
+		log.Infof("[Reports] deleted %d reports older than %v", deleted, reportRetention)
 	}
 }
 
-// startReportRetentionSweeper sweeps closed reports hourly.
+// startReportRetentionSweeper sweeps expired reports hourly.
 func startReportRetentionSweeper() {
 	reportRetentionOnce.Do(func() {
 		go func() {
@@ -39,7 +41,7 @@ func startReportRetentionSweeper() {
 			for range ticker.C {
 				func() {
 					defer error_handling.RecoverFromPanic("reportRetentionTick", "reports")
-					sweepClosedReports(time.Now())
+					sweepExpiredReports(time.Now())
 				}()
 			}
 		}()

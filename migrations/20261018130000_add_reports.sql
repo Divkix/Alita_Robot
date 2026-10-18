@@ -5,7 +5,8 @@
 -- to a decision exactly once (the application updates only open rows).
 -- admin_chat_id/admin_message_id point at the report card in the log channel,
 -- which holds the copy of the message; the row keeps only its id and a short
--- snippet of its text. Closed reports are deleted 90 days after resolved_at.
+-- snippet of its text. Closed reports are deleted 90 days after resolved_at,
+-- open ones 90 days after created_at.
 --
 -- Statements are idempotent; the Go runner applies each file once inside a
 -- transaction and records its sha256 in schema_migrations.
@@ -29,9 +30,10 @@ CREATE TABLE IF NOT EXISTS reports (
     CONSTRAINT chk_reports_status CHECK (status IN ('open', 'banned', 'kicked', 'muted', 'deleted', 'dismissed'))
 );
 
--- The unique constraint above serves lookups by message; this one serves the
--- retention sweep over closed reports.
+-- The unique constraint above serves lookups by message; these two serve the
+-- retention sweep over closed and open reports.
 CREATE INDEX IF NOT EXISTS idx_reports_resolved_at ON reports (resolved_at) WHERE status <> 'open';
+CREATE INDEX IF NOT EXISTS idx_reports_open_created_at ON reports (created_at) WHERE status = 'open';
 
 -- Add foreign key to chats table when available (self-managed)
 DO $$

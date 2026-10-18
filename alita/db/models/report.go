@@ -34,7 +34,7 @@ type Report struct {
 	ResolvedAt        *time.Time `gorm:"column:resolved_at;index:idx_reports_resolved_at,where:status <> 'open'" json:"resolved_at,omitempty"`
 	AdminChatId       *int64     `gorm:"column:admin_chat_id" json:"admin_chat_id,omitempty"`
 	AdminMessageId    *int64     `gorm:"column:admin_message_id" json:"admin_message_id,omitempty"`
-	CreatedAt         time.Time  `gorm:"column:created_at" json:"created_at,omitempty"`
+	CreatedAt         time.Time  `gorm:"column:created_at;index:idx_reports_open_created_at,where:status = 'open'" json:"created_at,omitempty"`
 	UpdatedAt         time.Time  `gorm:"column:updated_at" json:"updated_at,omitempty"`
 }
 
