@@ -666,3 +666,65 @@ func TestIsUserAdminCachedListWithoutAdminsAsksOnlyForTheMember(t *testing.T) {
 		})
 	}
 }
+
+// privateChatClient answers getChat with a private chat and getChatMember with
+// "administrator" for anyone, so a test sees whether IsUserAdmin ever lets a
+// member lookup decide in a private chat.
+type privateChatClient struct {
+	chatID int64
+	calls  []string
+}
+
+func (c *privateChatClient) RequestWithContext(
+	_ context.Context, _ string, method string,
+	params map[string]any, _ *gotgbot.RequestOpts,
+) (json.RawMessage, error) {
+	c.calls = append(c.calls, method)
+	switch method {
+	case "getChat":
+		return json.RawMessage(fmt.Sprintf(`{"id":%d,"type":"private","first_name":"PM"}`, c.chatID)), nil
+	case "getChatMember":
+		return json.RawMessage(fmt.Sprintf(
+			`{"status":"administrator","user":{"id":%v,"is_bot":false,"first_name":"TestUser"}}`,
+			params["user_id"],
+		)), nil
+	default:
+		return json.RawMessage(`true`), nil
+	}
+}
+
+func (c *privateChatClient) GetAPIURL(*gotgbot.RequestOpts) string {
+	return "https://api.telegram.org"
+}
+
+func (c *privateChatClient) FileURL(token, path string, _ *gotgbot.RequestOpts) string {
+	return "https://api.telegram.org/file/bot" + token + "/" + path
+}
+
+// /report in a private chat loads the admin list for the user's own ID, which
+// stores an empty list there. A private chat has no admins: IsUserAdmin keeps
+// answering false from getChat and never asks for the user's membership.
+func TestIsUserAdminCachedEmptyListInPrivateChatIsNotAdmin(t *testing.T) {
+	cache.SetupTestMemoryMarshaler(t)
+	const userID = int64(603)
+	entry := cache.AdminCache{ChatId: userID, UserInfo: []gotgbot.MergedChatMember{}, Cached: true, Negative: true}
+	if err := cache.GetMarshal().Set(cache.Context, fmt.Sprintf("alita:cache:adminCache:%d", userID), entry); err != nil {
+		t.Fatalf("seeding admin cache: %v", err)
+	}
+	rec := &privateChatClient{chatID: userID}
+	bot := &gotgbot.Bot{
+		Token:     "9909:private",
+		BotClient: rec,
+		User:      gotgbot.User{Id: 9909, IsBot: true, FirstName: "PrivateBot"},
+	}
+
+	if IsUserAdmin(bot, userID, userID) {
+		t.Error("IsUserAdmin(user, own private chat) = true, want false")
+	}
+	for _, call := range rec.calls {
+		if call == "getChatMember" {
+			t.Errorf("API calls = %v, want no getChatMember in a private chat", rec.calls)
+			break
+		}
+	}
+}

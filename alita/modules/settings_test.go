@@ -37,7 +37,7 @@ func settingsFixture(t *testing.T) (client *moduleBotClient, bot *gotgbot.Bot, g
 	t.Helper()
 	client = newModuleBotClient()
 	bot = newModuleTestBot(client)
-	groupA, groupB = -uniqueModuleChatID(), -uniqueModuleChatID()
+	groupA, groupB = uniqueModuleChatID(), uniqueModuleChatID()
 	for _, id := range []int64{groupA, groupB} {
 		if err := chats.EnsureChatInDb(id, fmt.Sprintf("Group %d", id)); err != nil {
 			t.Fatalf("EnsureChatInDb() error = %v", err)
