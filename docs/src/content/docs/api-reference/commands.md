@@ -10,7 +10,7 @@ This page provides a complete reference of all commands available in Alita Robot
 
 ## Overview
 
-- **Total Modules**: 32 (30 user-facing + 2 internal)
+- **Total Modules**: 31 (29 user-facing + 2 internal)
 - **Total Commands**: 215
 
 ## Commands by Module
