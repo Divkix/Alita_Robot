@@ -224,12 +224,20 @@ func (moduleStruct) captureSetLogForward(b *gotgbot.Bot, ctx *ext.Context) error
 	if msg.ForwardOrigin == nil {
 		return ext.ContinueGroups
 	}
+	// Telegram copies every post of a channel into its linked discussion
+	// group on its own; a /setlog posted there arrives as such a copy, and no
+	// group admin sent it.
+	if msg.IsAutomaticForward {
+		return ext.ContinueGroups
+	}
 	origin := msg.ForwardOrigin.MergeMessageOrigin()
 	if origin.Chat == nil || origin.Chat.Type != "channel" {
 		return ext.ContinueGroups
 	}
 	from := chat_status.RequireUser(b, ctx)
-	if from == nil {
+	// 777000 is Telegram's own account, which the admin checks count as an
+	// admin; it must not stand in for a group admin binding the channel.
+	if from == nil || from.Id == 777000 {
 		return ext.ContinueGroups
 	}
 	if !chat_status.RequireUserAdmin(b, ctx, chat, from.Id) {

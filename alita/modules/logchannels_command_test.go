@@ -72,16 +72,16 @@ func TestNologTogglesCategory(t *testing.T) {
 }
 
 func TestLogChannelCommandsAndForwardBind(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
+	f := newAdminChatFixture(t)
+	bot := f.bot
+	chatID := f.chat.Id
 	channelID := uniqueModuleChatID()
-	require.NoError(t, chats.EnsureChatInDb(chatID, "logged group"))
+	require.NoError(t, chats.EnsureChatInDb(chatID, f.chat.Title))
 	require.NoError(t, chats.EnsureChatInDb(channelID, "log channel"))
 
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := f.admin
 	channel := gotgbot.Chat{Id: channelID, Type: "channel", Title: "Log Channel"}
-	group := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Logged Group"}
+	group := f.chat
 
 	if err := logChannelsModule.setLog(bot, newModuleMessageContext(bot, group, admin, "/setlog")); err != ext.EndGroups {
 		t.Fatalf("setLog group: %v", err)
@@ -130,16 +130,16 @@ func TestLogChannelCommandsAndForwardBind(t *testing.T) {
 }
 
 func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.T) {
-	client := newModuleBotClient()
-	bot := newModuleTestBot(client)
-	chatID := uniqueModuleChatID()
+	f := newAdminChatFixture(t)
+	bot := f.bot
+	chatID := f.chat.Id
 	channelID := uniqueModuleChatID()
-	require.NoError(t, chats.EnsureChatInDb(chatID, "logged group exact"))
+	require.NoError(t, chats.EnsureChatInDb(chatID, f.chat.Title))
 	require.NoError(t, chats.EnsureChatInDb(channelID, "log channel exact"))
 
-	admin := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	admin := f.admin
 	channel := gotgbot.Chat{Id: channelID, Type: "channel", Title: "Log Channel"}
-	group := gotgbot.Chat{Id: chatID, Type: "supergroup", Title: "Logged Group"}
+	group := f.chat
 
 	setCtx := newModuleMessageContext(bot, channel, admin, "/setlog")
 	if err := logChannelsModule.setLog(bot, setCtx); err != ext.EndGroups {
@@ -158,8 +158,7 @@ func TestSetLogForwardRequiresExactMessageAndFailsClosedWithoutCache(t *testing.
 	require.Nil(t, logchannels.Get(chatID), "non-/setlog forward must not bind a log channel")
 
 	withNilCacheMarshal(t)
-	nilClient := newModuleBotClient()
-	nilBot := newModuleTestBot(nilClient)
+	nilBot := f.bot
 	nilSet := newModuleMessageContext(nilBot, channel, admin, "/setlog")
 	if err := logChannelsModule.setLog(nilBot, nilSet); err != ext.EndGroups {
 		t.Fatalf("setLog with nil marshaler: %v", err)
@@ -218,6 +217,65 @@ func TestSetLogFlowBindsThroughDispatcher(t *testing.T) {
 	require.NoError(t, dispatcher.ProcessUpdate(f.bot, forward, nil))
 	got := logchannels.Get(f.chat.Id)
 	require.NotNil(t, got, "forwarded /setlog did not bind a log channel")
+	require.Equal(t, channel.Id, got.LogChannelID)
+}
+
+// A /setlog posted in a channel linked to the group comes back as Telegram's
+// automatic forward (sender 777000, which the admin checks count as an admin).
+// That copy must not bind the channel: no group admin took part.
+func TestSetLogAutomaticForwardFromLinkedChannelDoesNotBind(t *testing.T) {
+	useRealLocales(t)
+	f := newAdminChatFixture(t)
+	require.NoError(t, chats.EnsureChatInDb(f.chat.Id, f.chat.Title))
+	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Linked Channel"}
+	require.NoError(t, chats.EnsureChatInDb(channel.Id, channel.Title))
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadLogChannels(dispatcher)
+	command := []gotgbot.MessageEntity{{Type: "bot_command", Offset: 0, Length: 7}}
+
+	const postID = 5151
+	post := &gotgbot.Update{UpdateId: 1, ChannelPost: &gotgbot.Message{
+		MessageId:  postID,
+		Date:       1,
+		Chat:       channel,
+		SenderChat: &channel,
+		Text:       "/setlog",
+		Entities:   command,
+	}}
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, post, nil))
+
+	telegram := gotgbot.User{Id: 777000, FirstName: "Telegram"}
+	copyOf := func(updateID, messageID int64, automatic bool) *gotgbot.Update {
+		return &gotgbot.Update{UpdateId: updateID, Message: &gotgbot.Message{
+			MessageId:          messageID,
+			Date:               1,
+			Chat:               f.chat,
+			From:               &telegram,
+			SenderChat:         &channel,
+			IsAutomaticForward: automatic,
+			Text:               "/setlog",
+			Entities:           command,
+			ForwardOrigin:      gotgbot.MessageOriginChannel{Date: 1, Chat: channel, MessageId: postID},
+		}}
+	}
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, copyOf(2, 201, true), nil))
+	require.Nil(t, logchannels.Get(f.chat.Id), "automatic forward bound a log channel")
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, copyOf(3, 202, false), nil))
+	require.Nil(t, logchannels.Get(f.chat.Id), "a forward sent by 777000 bound a log channel")
+
+	// The pending /setlog is still there for a group admin to forward.
+	forward := &gotgbot.Update{UpdateId: 4, Message: &gotgbot.Message{
+		MessageId:     203,
+		Date:          1,
+		Chat:          f.chat,
+		From:          &f.admin,
+		Text:          "/setlog",
+		Entities:      command,
+		ForwardOrigin: gotgbot.MessageOriginChannel{Date: 1, Chat: channel, MessageId: postID},
+	}}
+	require.NoError(t, dispatcher.ProcessUpdate(f.bot, forward, nil))
+	got := logchannels.Get(f.chat.Id)
+	require.NotNil(t, got, "admin forward after the automatic copy did not bind")
 	require.Equal(t, channel.Id, got.LogChannelID)
 }
 
