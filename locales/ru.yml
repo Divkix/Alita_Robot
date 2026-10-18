@@ -1001,7 +1001,7 @@ warns_reset_all_final: Удалены все предупреждения все
 # Locks module strings
 locks_locktypes_header: "Блокировки:\n - "
 locks_what_to_lock: Что вы хотите заблокировать? Проверьте /locktypes для доступных вариантов.
-locks_invalid_lock_type: "`%s` не является правильным типом блокировки, проверьте /locktypes."
+locks_invalid_lock_type: "<code>%s</code> не является правильным типом блокировки, проверьте /locktypes."
 locks_locked_successfully: "Заблокировано следующее в этой группе:\n - %s"
 locks_unlocked_successfully: "Разблокировано следующее в этой группе:\n - %s"
 locks_lock_failed: "Не удалось заблокировать: %s. Пожалуйста, попробуйте позже."

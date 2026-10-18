@@ -1185,7 +1185,7 @@ warns_reset_all_final: Eliminadas todas las advertencias de todos los usuarios e
 # Locks module strings
 locks_locktypes_header: "Bloqueos:\n - "
 locks_what_to_lock: ¿Qué quieres bloquear? Revisa /locktypes para opciones disponibles.
-locks_invalid_lock_type: "`%s` no es un tipo de bloqueo correcto, revisa /locktypes."
+locks_invalid_lock_type: "<code>%s</code> no es un tipo de bloqueo correcto, revisa /locktypes."
 locks_locked_successfully: "Bloqueado lo siguiente en este grupo:\n - %s"
 locks_unlocked_successfully: "Desbloqueado lo siguiente en este grupo:\n - %s"
 locks_lock_failed: "Error al bloquear: %s. Por favor, inténtalo de nuevo más tarde."

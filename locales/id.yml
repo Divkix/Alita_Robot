@@ -1175,7 +1175,7 @@ warns_reset_all_final: Menghapus semua peringatan semua pengguna di obrolan ini.
 # Locks module strings
 locks_locktypes_header: "Kunci:\n - "
 locks_what_to_lock: Apa yang ingin Anda kunci? Periksa /locktypes untuk opsi yang tersedia.
-locks_invalid_lock_type: "`%s` bukan tipe kunci yang benar, periksa /locktypes."
+locks_invalid_lock_type: "<code>%s</code> bukan tipe kunci yang benar, periksa /locktypes."
 locks_locked_successfully: "Berhasil mengunci berikut di grup ini:\n - %s"
 locks_unlocked_successfully: "Berhasil membuka kunci berikut di grup ini:\n - %s"
 locks_lock_failed: "Gagal mengunci: %s. Silakan coba lagi nanti."

@@ -1034,7 +1034,7 @@ locks_help_msg: "*Admin uniquement* :
   `/lock media` : cela verrouille tous les messages média dans le chat."
 locks_locktypes_header: "Verrous :\n - "
 locks_what_to_lock: Que voulez-vous verrouiller ? Vérifiez /locktypes pour les options disponibles.
-locks_invalid_lock_type: "`%s` n'est pas un type de verrou correct, vérifiez /locktypes."
+locks_invalid_lock_type: "<code>%s</code> n'est pas un type de verrou correct, vérifiez /locktypes."
 locks_locked_successfully: "Les éléments suivants ont été verrouillés dans ce groupe :\n - %s"
 locks_unlocked_successfully: "Les éléments suivants ont été déverrouillés dans ce groupe :\n - %s"
 locks_lock_failed: "Échec du verrouillage : %s. Veuillez réessayer plus tard."
