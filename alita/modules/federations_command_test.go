@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/federations"
 	"github.com/divkix/Alita_Robot/alita/db/models"
 	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 )
 
 func uniquePositiveUserID() int64 {
@@ -329,6 +331,42 @@ func TestFedDemoteMeFromOwnerRepliesOwnerCannotStepDown(t *testing.T) {
 	require.Len(t, calls, 1)
 	require.Equal(t, want, calls[0].Params["text"])
 	require.True(t, federations.IsFedOwner(fed.FedID, ownerID), "owner must keep the federation")
+}
+
+// The fed log notice for /fban and /unfban comes from the locale.
+func TestFbanAndUnfbanLogNoticesAreTranslated(t *testing.T) {
+	useRealLocales(t)
+	client := newModuleBotClient()
+	bot := newModuleTestBot(client)
+	ownerID := uniquePositiveUserID()
+	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
+	fed, err := federations.CreateFederation(ownerID, "Log Notice Fed")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = federations.DeleteFederation(fed.FedID) })
+	logChatID := uniqueModuleChatID()
+	require.NoError(t, federations.SetFedLogChat(fed.FedID, logChatID))
+	pm := gotgbot.Chat{Id: ownerID, Type: "private", FirstName: "Owner"}
+
+	if err := federationsModule.fban(bot, newModuleMessageContext(bot, pm, owner, "/fban 5150 spam")); err != ext.EndGroups {
+		t.Fatalf("fban: %v", err)
+	}
+	if err := federationsModule.unfban(bot, newModuleMessageContext(bot, pm, owner, "/unfban 5150")); err != ext.EndGroups {
+		t.Fatalf("unfban: %v", err)
+	}
+
+	tr := i18n.MustNewTranslator("en")
+	actor := formatting.MentionHtml(ownerID, "Owner")
+	wantFban, err := tr.GetString("feds_log_fban", i18n.TranslationParams{"user_id": int64(5150), "actor": actor, "reason": "spam"})
+	require.NoError(t, err)
+	wantUnfban, err := tr.GetString("feds_log_unfban", i18n.TranslationParams{"user_id": int64(5150), "actor": actor})
+	require.NoError(t, err)
+	var logged []any
+	for _, call := range client.callsFor("sendMessage") {
+		if fmt.Sprint(call.Params["chat_id"]) == strconv.FormatInt(logChatID, 10) {
+			logged = append(logged, call.Params["text"])
+		}
+	}
+	require.Equal(t, []any{wantFban, wantUnfban}, logged)
 }
 
 func TestUnfbanAndFedStat(t *testing.T) {

@@ -307,6 +307,12 @@ func (moduleStruct) quietFed(b *gotgbot.Bot, ctx *ext.Context) error {
 }
 
 func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
+	yesNo := func(v bool) string {
+		if v {
+			return trS(tr, "common_yes")
+		}
+		return trS(tr, "common_no")
+	}
 	text, _ := tr.GetString("feds_info", i18n.TranslationParams{
 		"name":   html.EscapeString(fed.Name),
 		"id":     fed.FedID,
@@ -315,8 +321,8 @@ func formatFedInfo(tr *i18n.Translator, fed *models.Federation) string {
 		"bans":   federations.CountFedBans(fed.FedID),
 		"admins": len(federations.ListFedAdmins(fed.FedID)),
 		"subs":   len(federations.ListSubscribedFedIDs(fed.FedID)),
-		"reason": strconv.FormatBool(fed.RequireReason),
-		"notify": strconv.FormatBool(fed.NotifyOwner),
+		"reason": yesNo(fed.RequireReason),
+		"notify": yesNo(fed.NotifyOwner),
 	})
 	return text
 }
@@ -398,7 +404,7 @@ func (moduleStruct) fedAdmins(b *gotgbot.Bot, ctx *ext.Context) error {
 	})
 	bld.WriteString(header)
 	bld.WriteString("\n")
-	fmt.Fprintf(&bld, "• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, "owner"), fed.OwnerID)
+	fmt.Fprintf(&bld, "• %s (<code>%d</code>)", formatting.MentionHtml(fed.OwnerID, trS(tr, "feds_role_owner")), fed.OwnerID)
 	for _, adminID := range federations.ListFedAdmins(fed.FedID) {
 		_, name, found := user.GetUserInfoById(adminID)
 		if !found || name == "" {
@@ -462,9 +468,9 @@ func (moduleStruct) myFeds(b *gotgbot.Bot, ctx *ext.Context) error {
 	var bld strings.Builder
 	bld.WriteString(header)
 	for _, fed := range feds {
-		role := "admin"
+		role := trS(tr, "feds_role_admin")
 		if fed.OwnerID == from.Id {
-			role = "owner"
+			role = trS(tr, "feds_role_owner")
 		}
 		fmt.Fprintf(&bld, "\n• <b>%s</b> (<code>%s</code>) — %s", html.EscapeString(fed.Name), fed.FedID, role)
 	}
@@ -729,12 +735,14 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 			})
 			replyHTML(b, msg, text)
 		}
-		notifyFedAction(b, fed, from, fmt.Sprintf(
-			"FBAN <code>%d</code> by %s\nReason: %s",
-			targetID,
-			formatting.MentionHtml(from.Id, from.FirstName),
-			html.EscapeString(reason),
-		))
+		logText, _ := tr.GetString("feds_log_fban", i18n.TranslationParams{
+			"user_id": targetID,
+			"actor":   formatting.MentionHtml(from.Id, from.FirstName),
+			"reason":  html.EscapeString(reason),
+		})
+		if logText != "" {
+			notifyFedAction(b, fed, from, logText)
+		}
 		go applyActiveFban(b, fed.FedID, targetID)
 		return ext.EndGroups
 	}
@@ -748,11 +756,13 @@ func (moduleStruct) applyFban(b *gotgbot.Bot, ctx *ext.Context, ban bool) error 
 		"name": html.EscapeString(fed.Name),
 	})
 	replyHTML(b, msg, text)
-	notifyFedAction(b, fed, from, fmt.Sprintf(
-		"UNFBAN <code>%d</code> by %s",
-		targetID,
-		formatting.MentionHtml(from.Id, from.FirstName),
-	))
+	logText, _ := tr.GetString("feds_log_unfban", i18n.TranslationParams{
+		"user_id": targetID,
+		"actor":   formatting.MentionHtml(from.Id, from.FirstName),
+	})
+	if logText != "" {
+		notifyFedAction(b, fed, from, logText)
+	}
 	go applyActiveUnfban(b, fed.FedID, targetID)
 	return ext.EndGroups
 }
