@@ -46,6 +46,7 @@ Alita Robot uses a single HTTP server for all endpoints:
 |----------|--------|-------------|
 | `/health` | GET | Health check with database and Redis status |
 | `/metrics` | GET | Prometheus metrics for monitoring |
+| `/db_metrics` | GET | Database connection pool statistics (requires `Authorization: Bearer <METRICS_AUTH_TOKEN>` when that variable is set) |
 | `/webhook` | POST | Telegram webhook endpoint (webhook mode only) |
 | `/debug/pprof/*` | GET | Go profiling endpoints (only when `ENABLE_PPROF=true`) |
 
