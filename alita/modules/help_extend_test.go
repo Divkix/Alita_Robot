@@ -190,14 +190,6 @@ func TestStartExtendDeepLinkSendsCommandList(t *testing.T) {
 	}
 }
 
-// helpCommandLine matches a help line that defines commands: an optional
-// bullet followed by one or more /commands ("× /fban /unfban: ..."). Commands
-// mentioned inside prose ("use the /id command") are cross-references.
-var (
-	helpCommandLine = regexp.MustCompile(`(?m)^\s*(?:[×•-]>?\s*)?((?:/[a-z][a-z_]*\s*)+)`)
-	helpCommandName = regexp.MustCompile(`/([a-z][a-z_]*)`)
-)
-
 // staleHelpCommands are mentioned in a module's help text but are not registered
 // under that name, so /extend lists the real command instead.
 var staleHelpCommands = map[string]bool{

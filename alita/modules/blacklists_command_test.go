@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +16,10 @@ import (
 	"github.com/divkix/Alita_Robot/alita/db/approvals"
 	"github.com/divkix/Alita_Robot/alita/db/blacklists"
 	dbcache "github.com/divkix/Alita_Robot/alita/db/cache"
+	"github.com/divkix/Alita_Robot/alita/db/lang"
 	"github.com/divkix/Alita_Robot/alita/db/models"
+	"github.com/divkix/Alita_Robot/alita/i18n"
+	"github.com/divkix/Alita_Robot/alita/utils/formatting"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 )
 
@@ -659,6 +664,91 @@ func TestBlacklistWatcherDoesNotBanChannelForTimedAction(t *testing.T) {
 	for _, method := range []string{"banChatSenderChat", "banChatMember", "sendMessage"} {
 		if calls := client.callsFor(method); len(calls) != 0 {
 			t.Fatalf("%s calls = %d, want none for a channel", method, len(calls))
+		}
+	}
+}
+
+// Every locale words the watcher's notice its own way, but the reason must
+// sit in the locale's "due to" slot and the user in the other one. hi.yml
+// once had the two swapped for ban, kick and mute.
+func TestBlacklistWatcherNoticePutsReasonInItsSlotInEveryLocale(t *testing.T) {
+	const reason = "Blacklisted word: 'spam'"
+	reasonSlot := map[string]func(action string) string{
+		"en": func(string) string { return "due to " + reason },
+		"es": func(string) string { return "debido a " + reason },
+		"fr": func(string) string { return "à cause de " + reason },
+		"id": func(string) string { return "karena " + reason },
+		"pt": func(string) string { return "devido a " + reason },
+		"ru": func(string) string { return "из-за " + reason },
+		"hi": func(action string) string {
+			if action == "tban" || action == "tmute" {
+				return "कारण: " + reason
+			}
+			return reason + " के कारण"
+		},
+	}
+	files, err := filepath.Glob("../../locales/*.yml")
+	if err != nil {
+		t.Fatalf("glob locales: %v", err)
+	}
+	locales := make(map[string]string, len(files))
+	for _, file := range files {
+		code := strings.TrimSuffix(filepath.Base(file), ".yml")
+		if code == "config" {
+			continue
+		}
+		if _, ok := reasonSlot[code]; !ok {
+			t.Fatalf("locale %q has no reason slot in this test", code)
+		}
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		locales[code] = string(raw)
+	}
+	if len(locales) != len(reasonSlot) {
+		t.Fatalf("loaded locales %d, want %d", len(locales), len(reasonSlot))
+	}
+	restoreI18n, err := i18n.OverrideLocalesForTest(locales)
+	if err != nil {
+		t.Fatalf("OverrideLocalesForTest: %v", err)
+	}
+	t.Cleanup(restoreI18n)
+
+	member := gotgbot.User{Id: 42, FirstName: "Member"}
+	mention := formatting.MentionHtml(member.Id, member.FirstName)
+	for code, slot := range reasonSlot {
+		for _, action := range []string{"mute", "ban", "kick", "tban", "tmute"} {
+			t.Run(code+"/"+action, func(t *testing.T) {
+				client := newModuleBotClient()
+				bot := newModuleTestBot(client)
+				chat := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "supergroup", Title: "Blacklist Chat"}
+				if err := lang.ChangeGroupLanguage(chat.Id, code); err != nil {
+					t.Fatalf("ChangeGroupLanguage(%s) error = %v", code, err)
+				}
+				if err := blacklists.AddBlacklist(chat.Id, "spam"); err != nil {
+					t.Fatalf("AddBlacklist setup error = %v", err)
+				}
+				if err := blacklists.SetBlacklistAction(chat.Id, action); err != nil {
+					t.Fatalf("SetBlacklistAction setup error = %v", err)
+				}
+
+				ctx := newModuleMessageContext(bot, chat, member, "this has spam inside")
+				if err := blacklistsModule.blacklistWatcher(bot, ctx); err != ext.ContinueGroups {
+					t.Fatalf("blacklistWatcher error = %v, want ContinueGroups", err)
+				}
+				notices := client.callsFor("sendMessage")
+				if len(notices) != 1 {
+					t.Fatalf("sendMessage calls = %d, want one notice", len(notices))
+				}
+				text := fmt.Sprint(notices[0].Params["text"])
+				if !strings.Contains(text, slot(action)) {
+					t.Fatalf("notice = %q, want the reason in its slot %q", text, slot(action))
+				}
+				if !strings.Contains(text, mention) {
+					t.Fatalf("notice = %q, want user mention %q", text, mention)
+				}
+			})
 		}
 	}
 }
