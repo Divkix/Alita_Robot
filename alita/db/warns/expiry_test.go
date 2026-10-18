@@ -352,7 +352,8 @@ func TestWarnUserPrunesTheExpiredReasonNotTheFirst(t *testing.T) {
 	chatID, userID := newEntriesFixture(t)
 	setExpiry(t, chatID, thirtyDays)
 	// A warn from before entries existed, copied undated by the migration,
-	// then a dated warn that has since expired.
+	// then a dated warn that has since expired. Pruning must drop the reason
+	// at the expired entry's position, not the oldest reason.
 	seedWarns(t, chatID, userID,
 		models.WarnEntry{Reason: "undated"},
 		models.WarnEntry{Reason: "old", WarnedBy: 77, WarnedAt: timeAgo(40 * 24 * time.Hour)},

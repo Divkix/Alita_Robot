@@ -297,7 +297,7 @@ func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, e
 		return false, err
 	}
 	warnrc.NumWarns = max(warnrc.NumWarns-len(expired), 0)
-	warnrc.Reasons = dropExpiredReasons(warnrc.Reasons, entries, isExpired)
+	warnrc.Reasons = dropExpiredReasons(warnrc.Reasons, isExpired)
 	if warnrc.NumWarns == 0 {
 		// No warns keep no entries, as syncEntriesWithReasons expects.
 		warnrc.Reasons = models.StringArray{}
@@ -307,23 +307,12 @@ func pruneExpiredEntries(tx *gorm.DB, warnrc *models.Warns, expiry int) (bool, e
 }
 
 // dropExpiredReasons removes the reason of each expired entry from reasons.
-// Entries are matched to reasons in order; a reason without an entry, which
-// an older release writes after a rollback, is kept in place.
-func dropExpiredReasons(reasons models.StringArray, entries []models.WarnEntry, isExpired []bool) models.StringArray {
-	drop := make([]bool, len(reasons))
-	next := 0
-	for i, e := range entries {
-		for j := next; j < len(reasons); j++ {
-			if reasons[j] == e.Reason {
-				drop[j] = isExpired[i]
-				next = j + 1
-				break
-			}
-		}
-	}
+// syncEntriesWithReasons runs first and leaves one entry per reason in the
+// same order, so the entry and the reason at one position are the same warn.
+func dropExpiredReasons(reasons models.StringArray, isExpired []bool) models.StringArray {
 	kept := models.StringArray{}
-	for j, reason := range reasons {
-		if !drop[j] {
+	for i, reason := range reasons {
+		if i >= len(isExpired) || !isExpired[i] {
 			kept = append(kept, reason)
 		}
 	}
