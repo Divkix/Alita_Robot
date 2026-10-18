@@ -72,3 +72,45 @@ func TestWelcomePreviewFromPMIsSentToThePM(t *testing.T) {
 		assertNothingSentTo(t, client, groupA)
 	}
 }
+
+// sendGroupMessage runs text through the dispatcher as a message the user sent
+// in the group and returns the sendMessage call that carries want.
+func sendGroupMessage(t *testing.T, dispatcher *ext.Dispatcher, bot *gotgbot.Bot, client *moduleBotClient, groupID int64, user gotgbot.User, text, want string) moduleBotCall {
+	t.Helper()
+	group := gotgbot.Chat{Id: groupID, Type: "supergroup", Title: "Group A"}
+	update := &gotgbot.Update{UpdateId: 1, Message: &gotgbot.Message{MessageId: 101, Date: 1, Chat: group, From: &user, Text: text}}
+	if err := dispatcher.ProcessUpdate(bot, update, nil); err != nil {
+		t.Fatalf("ProcessUpdate(%q) error = %v", text, err)
+	}
+	for _, call := range client.callsFor("sendMessage") {
+		if strings.Contains(fmt.Sprint(call.Params["text"]), want) {
+			return call
+		}
+	}
+	t.Fatalf("%s in the group sent nothing containing %q", text, want)
+	return moduleBotCall{}
+}
+
+// /get and #note in the group send the note to the group, replying to the
+// user's message, and nothing to the user's PM.
+func TestGetNoteInGroupIsSentToTheGroup(t *testing.T) {
+	client, bot, groupA, _, member := connectedPMFixture(t)
+	if err := notes.AddNote(groupA, "rules", "be kind", "", nil, db.TEXT, false, false, false, false, false, false); err != nil {
+		t.Fatalf("AddNote() error = %v", err)
+	}
+	dispatcher := ext.NewDispatcher(&ext.DispatcherOpts{MaxRoutines: -1})
+	LoadNotes(dispatcher)
+
+	for _, text := range []string{"/get rules", "#rules"} {
+		resetCalls(client)
+		call := sendGroupMessage(t, dispatcher, bot, client, groupA, member, text, "be kind")
+
+		if got := fmt.Sprint(call.Params["chat_id"]); got != fmt.Sprint(groupA) {
+			t.Errorf("%s: note sent to chat %s, want the group %d", text, got, groupA)
+		}
+		if rp, _ := call.Params["reply_parameters"].(*gotgbot.ReplyParameters); rp == nil || rp.MessageId != 101 {
+			t.Errorf("%s: note reply_parameters = %+v, want a reply to the group message 101", text, call.Params["reply_parameters"])
+		}
+		assertNothingSentTo(t, client, member.Id)
+	}
+}
