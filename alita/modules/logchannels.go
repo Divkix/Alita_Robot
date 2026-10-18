@@ -93,6 +93,9 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		chat_status.NewPermissionResponder(b).Respond(ctx, "chat_status_user_admin_cmd_error", "chat_status_user_admin_button_error", chat_status.WithReplyFallback())
 		return ext.EndGroups
 	}
+	// Read the settings first: Unset deletes them, and the change is logged
+	// to the channel that was just unset.
+	prev := logchannels.Get(chat.Id)
 	if err := logchannels.Unset(chat.Id); err != nil {
 		text, _ := tr.GetString("logs_not_set")
 		replyHTML(b, msg, text)
@@ -100,7 +103,7 @@ func (moduleStruct) unsetLog(b *gotgbot.Bot, ctx *ext.Context) error {
 	}
 	text, _ := tr.GetString("logs_unset_ok")
 	replyHTML(b, msg, text)
-	actionlog.Settings(b, chat, from, "unset log channel")
+	actionlog.SettingsTo(b, chat, prev, from, "unset log channel")
 	return ext.EndGroups
 }
 

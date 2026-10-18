@@ -220,3 +220,25 @@ func TestSetLogFlowBindsThroughDispatcher(t *testing.T) {
 	require.NotNil(t, got, "forwarded /setlog did not bind a log channel")
 	require.Equal(t, channel.Id, got.LogChannelID)
 }
+
+// /unsetlog records the change in the log channel it just removed.
+func TestUnsetLogLogsToTheRemovedChannel(t *testing.T) {
+	f := newAdminChatFixture(t)
+	channelID := uniqueModuleChatID()
+	require.NoError(t, chats.EnsureChatInDb(f.chat.Id, f.chat.Title))
+	require.NoError(t, chats.EnsureChatInDb(channelID, "old log channel"))
+	require.NoError(t, logchannels.Set(f.chat.Id, f.chat.Title, channelID))
+	settings := logchannels.Get(f.chat.Id)
+	require.NotNil(t, settings)
+	require.True(t, settings.CatSettings)
+
+	if err := logChannelsModule.unsetLog(f.bot, newModuleMessageContext(f.bot, f.chat, f.admin, "/unsetlog")); err != ext.EndGroups {
+		t.Fatalf("unsetLog: %v", err)
+	}
+	require.Nil(t, logchannels.Get(f.chat.Id))
+	var logged bool
+	for _, call := range f.client.callsFor("sendMessage") {
+		logged = logged || fmt.Sprint(call.Params["chat_id"]) == fmt.Sprint(channelID)
+	}
+	require.True(t, logged, "/unsetlog sent nothing to the old log channel")
+}
