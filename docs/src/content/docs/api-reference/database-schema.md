@@ -377,6 +377,10 @@ Chat-level disable configuration for command deletion behavior.
 | `created_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 | `updated_at` | `TIMESTAMPTZ` | YES | `NOW()` | — |
 
+#### Foreign Keys
+
+- `chat_id` → `chats(chat_id)` ON DELETE CASCADE ON UPDATE CASCADE
+
 ---
 
 ### `filters`
