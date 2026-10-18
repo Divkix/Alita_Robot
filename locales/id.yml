@@ -2614,7 +2614,7 @@ feds_passive_ban: "{user} di-fban di <b>{name}</b> dan telah dikeluarkan.\nAlasa
 feds_callback_denied: "Anda tidak dapat menggunakan tombol ini."
 feds_callback_stale: "Tombol ini sudah tidak berlaku."
 logs_need_channel: "Gunakan /setlog di kanal, lalu teruskan pesan itu ke grup."
-logs_forward_to_group: "Teruskan pesan ini ke grup yang ingin Anda catat."
+logs_forward_to_group: "Sekarang teruskan pesan /setlog Anda (bukan balasan ini) ke grup yang ingin Anda catat, dalam satu jam ke depan."
 logs_set_ok: "Kanal log diatur. Tindakan admin dari obrolan ini akan dikirim ke sana."
 logs_unset_ok: "Kanal log dihapus."
 logs_not_set: "Belum ada kanal log untuk obrolan ini."

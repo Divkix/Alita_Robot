@@ -2586,7 +2586,7 @@ feds_passive_ban: "{user} tem fban em <b>{name}</b> e foi removido.\nMotivo: {re
 feds_callback_denied: "Você não pode usar este botão."
 feds_callback_stale: "Este botão não é mais válido."
 logs_need_channel: "Use /setlog em um canal e depois encaminhe essa mensagem para o grupo."
-logs_forward_to_group: "Encaminhe esta mensagem para o grupo que você quer registrar."
+logs_forward_to_group: "Agora encaminhe sua mensagem /setlog (não esta resposta) para o grupo que você quer registrar, dentro da próxima hora."
 logs_set_ok: "Canal de log definido. As ações de administração deste chat serão enviadas para lá."
 logs_unset_ok: "Canal de log removido."
 logs_not_set: "Nenhum canal de log está definido para este chat."

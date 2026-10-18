@@ -2624,7 +2624,7 @@ feds_passive_ban: "{user} is fbanned in <b>{name}</b> and was removed.\nReason: 
 feds_callback_denied: "You cannot use this button."
 feds_callback_stale: "This button is no longer valid."
 logs_need_channel: "Use /setlog in a channel, then forward that message to the group."
-logs_forward_to_group: "Forward this message to the group you want to log."
+logs_forward_to_group: "Now forward your /setlog message (not this reply) to the group you want to log, within the next hour."
 logs_set_ok: "Log channel set. Admin actions from this chat will be sent there."
 logs_unset_ok: "Log channel removed."
 logs_not_set: "No log channel is set for this chat."

@@ -2530,7 +2530,7 @@ feds_passive_ban: "{user} est fban dans <b>{name}</b> et a été retiré.\nMotif
 feds_callback_denied: "Vous ne pouvez pas utiliser ce bouton."
 feds_callback_stale: "Ce bouton n'est plus valide."
 logs_need_channel: "Utilisez /setlog dans un canal, puis transférez ce message dans le groupe."
-logs_forward_to_group: "Transférez ce message dans le groupe à journaliser."
+logs_forward_to_group: "Transférez maintenant votre message /setlog (pas cette réponse) dans le groupe à journaliser, dans l'heure qui suit."
 logs_set_ok: "Canal de journal défini. Les actions d'administration de ce chat y seront envoyées."
 logs_unset_ok: "Canal de journal retiré."
 logs_not_set: "Aucun canal de journal n'est défini pour ce chat."
