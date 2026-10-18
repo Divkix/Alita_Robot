@@ -52,7 +52,7 @@ This helps identify potential spam attempts before users complete verification.
 | `/captchaclear` | Clear pending captcha messages | ❌ |
 | `/captchamaxattempts` | Set maximum captcha verification attempts | ❌ |
 | `/captchamode` | Set captcha verification mode | ❌ |
-| `/captchapending` | View pending captcha verifications | ❌ |
+| `/captchapending` | View a pending user's stored messages | ❌ |
 | `/captchatime` | Set time limit for captcha verification | ❌ |
 
 ## Usage Examples
