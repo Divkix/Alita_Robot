@@ -127,7 +127,7 @@ func TestJoinFedAndFban(t *testing.T) {
 	}
 }
 
-func TestImportFBansNeedsFileAndSetFedLogInChannel(t *testing.T) {
+func TestImportFBansNeedsFileAndOwnedFedLookup(t *testing.T) {
 	bot := newModuleTestBot(newModuleBotClient())
 	ownerID := uniquePositiveUserID()
 	owner := gotgbot.User{Id: ownerID, FirstName: "Owner"}
@@ -141,14 +141,6 @@ func TestImportFBansNeedsFileAndSetFedLogInChannel(t *testing.T) {
 	}
 	if _, err := downloadTelegramFile(nil, ""); err == nil {
 		t.Fatal("downloadTelegramFile should reject missing file")
-	}
-
-	channel := gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "Fed Log"}
-	if err := federationsModule.setFedLog(bot, newModuleMessageContext(bot, channel, owner, "/setfedlog "+fed.FedID)); err != ext.EndGroups {
-		t.Fatalf("setFedLog channel: %v", err)
-	}
-	if federations.GetFed(fed.FedID).LogChatID != channel.Id {
-		t.Fatal("channel setfedlog did not persist")
 	}
 
 	if ownedFedOrReply(bot, newModuleMessageContext(bot, pm, owner, "/noop")) == nil {
@@ -820,7 +812,6 @@ func TestFedCommandErrorPaths(t *testing.T) {
 		{"sub invalid", pm, owner, "/subfed nope", federationsModule.subFed},
 		{"unsub missing", pm, owner, "/unsubfed 550e8400-e29b-41d4-a716-446655440000", federationsModule.unsubFed},
 		{"setfedlog private", pm, owner, "/setfedlog", federationsModule.setFedLog},
-		{"setfedlog channel no id", gotgbot.Chat{Id: uniqueModuleChatID(), Type: "channel", Title: "C"}, owner, "/setfedlog", federationsModule.setFedLog},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

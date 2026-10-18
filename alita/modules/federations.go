@@ -1086,29 +1086,6 @@ func (moduleStruct) setFedLog(b *gotgbot.Bot, ctx *ext.Context) error {
 		return ext.EndGroups
 	}
 	tr := ctxTr(ctx)
-	arg := strings.TrimSpace(strings.Join(ctx.Args()[1:], " "))
-	if chat.Type == "channel" {
-		fedID, ok := parseFedID(arg)
-		if !ok {
-			text, _ := tr.GetString("feds_setfedlog_need_id")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		fed := federations.GetFedContext(tracing.UpdateContext(ctx), fedID)
-		if fed == nil || fed.OwnerID != from.Id {
-			text, _ := tr.GetString("feds_not_owner")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		if err := federations.SetFedLogChat(fed.FedID, chat.Id); err != nil {
-			text, _ := tr.GetString("feds_create_failed")
-			replyHTML(b, msg, text)
-			return ext.EndGroups
-		}
-		text, _ := tr.GetString("feds_setfedlog_ok")
-		replyHTML(b, msg, text)
-		return ext.EndGroups
-	}
 	if chat_status.RequirePrivate(b, ctx, chat) {
 		text, _ := tr.GetString("feds_group_only")
 		replyHTML(b, msg, text)
