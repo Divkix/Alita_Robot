@@ -206,7 +206,7 @@ IsValidUserId checks if an ID represents a valid Telegram user. User IDs are alw
 func IsApproved(b *gotgbot.Bot, chatID, userID int64) bool
 ```
 
-IsApproved checks if a user is in the approved whitelist for a chat. Approved users are immune to anti-spam measures (antiflood, blacklists, locks, captcha). This is a simple delegation to the DB layer for consistent usage in watcher handlers.
+IsApproved checks if a user is in the approved whitelist for a chat. Approved users are immune to anti-spam measures (antiflood, antiraid, AI spam filter, blacklists, locks, captcha). This is a simple delegation to the DB layer for consistent usage in watcher handlers.
 
 **Parameters:**
 - `b`
