@@ -29,18 +29,18 @@ When a chat member's admin status changes, this module automatically invalidates
 When an anonymous admin (GroupAnonymousBot) sends a command, the bot cannot directly identify the real user. This module provides a verification flow:
 
 1. Bot detects anonymous sender and stores the original message in cache (20s TTL)
-2. Bot sends a "Verify Admin" button to the chat
+2. Bot sends a "Click to prove admin" button to the chat
 3. Clicking admin is verified against the actual admin list
 4. If verified, the original command is executed with the real user's context
 5. If the button expires (20s), the command is silently dropped
 
 **Supported commands for anonymous admin verification:**
 
-- Admin: `/promote`, `/demote`, `/title`
-- Bans: `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/restrict`, `/unrestrict`
+- Admin: `/promote`, `/demote`, `/title`, `/setgtitle`, `/setgpic`, `/setgdesc`
+- Bans: `/ban`, `/dban`, `/sban`, `/tban`, `/unban`, `/kick`, `/dkick`, `/skick`, `/restrict`, `/unrestrict`
 - Mutes: `/mute`, `/smute`, `/dmute`, `/tmute`, `/unmute`
 - Pins: `/pin`, `/unpin`, `/permapin`, `/unpinall`
-- Purges: `/purge`, `/del`
+- Purges: `/purge`, `/del`, `/purgefrom`, `/purgeto`
 - Warns: `/warn`, `/swarn`, `/dwarn`
 
 ## Module Aliases
